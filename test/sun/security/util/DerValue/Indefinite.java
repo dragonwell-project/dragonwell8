@@ -1,12 +1,10 @@
 /*
- * Copyright 2001-2008 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,27 +21,24 @@
  * have any questions.
  */
 
-//Definitions of our util functions
+/*
+ * @test
+ * @bug 6731685
+ * @summary CertificateFactory.generateCertificates throws IOException on PKCS7 cert chain
+ */
 
-void* must_malloc(int size);
-#ifndef USE_MTRACE
-#define mtrace(c, ptr, size)
-#else
-void mtrace(char c, void* ptr, size_t size);
-#endif
+import java.io.*;
+import sun.security.util.*;
 
-// These may be expensive, because they have to go via Java TSD,
-// if the optional u argument is missing.
-struct unpacker;
-extern void unpack_abort(const char* msg, unpacker* u = null);
-extern bool unpack_aborting(unpacker* u = null);
+public class Indefinite {
 
-#ifndef PRODUCT
-inline bool endsWith(const char* str, const char* suf) {
-  size_t len1 = strlen(str);
-  size_t len2 = strlen(suf);
-  return (len1 > len2 && 0 == strcmp(str + (len1-len2), suf));
+    public static void main(String[] args) throws Exception {
+        byte[] input = {
+            // An OCTET-STRING in 2 parts
+            4, (byte)0x80, 4, 2, 'a', 'b', 4, 2, 'c', 'd', 0, 0,
+            // Garbage follows, may be falsely recognized as EOC
+            0, 0, 0, 0
+        };
+        new DerValue(new ByteArrayInputStream(input));
+    }
 }
-#endif
-
-void mkdirs(int oklen, char* path);
