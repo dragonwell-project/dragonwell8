@@ -1,10 +1,12 @@
 /*
- * Copyright 2002-2007 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Sun designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Sun in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,27 +23,13 @@
  * have any questions.
  */
 
-/* @test
-   @bug 4471738
-   @ignore until 6825739 fixed
-   @summary Failure to properly traverse class hierarchy in Class.getMethod()
-*/
+package sun.nio.cs;
 
-import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.List;
-import javax.swing.JPanel;
-import javax.swing.JLabel;
+/*
+ * FastPath byte[]->char[] decoder, REPLACE on malformed or
+ * unmappable input.
+ */
 
-public class InheritedMethods extends JPanel {
-    public static void main(String[] args) throws Exception { new InheritedMethods(); }
-    InheritedMethods() throws Exception {
-        Class c = Foo.class;
-        Method m = c.getMethod("removeAll", new Class[] { Collection.class });
-        if (m.getDeclaringClass() != java.util.List.class) {
-          throw new RuntimeException("TEST FAILED");
-        }
-        add(new JLabel("Test"));
-    }
-    interface Foo extends List { }
+public interface ArrayDecoder {
+    int decode(byte[] src, int off, int len, char[] dst);
 }
