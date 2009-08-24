@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2009 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,41 +23,46 @@
  * have any questions.
  */
 
-package sun.nio.ch;
-
-import java.nio.channels.AsynchronousChannel;
-import java.util.concurrent.Future;
+package com.sun.security.jgss;
 
 /**
- * Base implementation of Future used for asynchronous I/O
+ * Kerberos 5 AuthorizationData entry.
  */
+final public class AuthorizationDataEntry {
 
-abstract class AbstractFuture<V,A>
-    implements Future<V>
-{
-    private final AsynchronousChannel channel;
-    private final A attachment;
+    private final int type;
+    private final byte[] data;
 
-    protected AbstractFuture(AsynchronousChannel channel, A attachment) {
-        this.channel = channel;
-        this.attachment = attachment;
-    }
-
-    final AsynchronousChannel channel() {
-        return channel;
-    }
-
-    final A attachment() {
-        return attachment;
+    /**
+     * Create an AuthorizationDataEntry object.
+     * @param type the ad-type
+     * @param data the ad-data, a copy of the data will be saved
+     * inside the object.
+     */
+    public AuthorizationDataEntry(int type, byte[] data) {
+        this.type = type;
+        this.data = data.clone();
     }
 
     /**
-     * Returns the result of the operation if it has completed successfully.
+     * Get the ad-type field.
+     * @return ad-type
      */
-    abstract V value();
+    public int getType() {
+        return type;
+    }
 
     /**
-     * Returns the exception if the operation has failed.
+     * Get a copy of the ad-data field.
+     * @return ad-data
      */
-    abstract Throwable exception();
+    public byte[] getData() {
+        return data.clone();
+    }
+
+    public String toString() {
+        return "AuthorizationDataEntry: type="+type+", data=" +
+                data.length + " bytes:\n" +
+                new sun.misc.HexDumpEncoder().encode(data);
+    }
 }
