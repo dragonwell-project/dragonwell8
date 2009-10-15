@@ -240,10 +240,8 @@ typedef enum _SECStatus {
 /*
  This function is no longer required because the random bytes are now
  supplied by the caller. Force a failure.
-VR
-#define RNG_GenerateGlobalRandomBytes(p,l) SECFailure
 */
-#define RNG_GenerateGlobalRandomBytes(p,l) SECSuccess
+#define RNG_GenerateGlobalRandomBytes(p,l) SECFailure
 #endif
 #define CHECK_MPI_OK(func) if (MP_OKAY > (err = func)) goto cleanup
 #define MP_TO_SEC_ERROR(err)
@@ -259,13 +257,12 @@ extern SECItem * SECITEM_AllocItem(PRArenaPool *, SECItem *, unsigned int, int);
 extern SECStatus SECITEM_CopyItem(PRArenaPool *, SECItem *, const SECItem *,
     int);
 extern void SECITEM_FreeItem(SECItem *, boolean_t);
-extern SECStatus EC_NewKey(ECParams *ecParams, ECPrivateKey **privKey, const unsigned char* random, int randomlen, int);
-extern SECStatus EC_NewKeyFromSeed(ECParams *ecParams, ECPrivateKey **privKey,
-    const unsigned char *seed, int seedlen, int kmflag);
+/* This function has been modified to accept an array of random bytes */
+extern SECStatus EC_NewKey(ECParams *ecParams, ECPrivateKey **privKey,
+    const unsigned char* random, int randomlen, int);
+/* This function has been modified to accept an array of random bytes */
 extern SECStatus ECDSA_SignDigest(ECPrivateKey *, SECItem *, const SECItem *,
-    const unsigned char* randon, int randomlen, int);
-extern SECStatus ECDSA_SignDigestWithSeed(ECPrivateKey *, SECItem *,
-    const SECItem *, const unsigned char *seed, int seedlen, int kmflag);
+    const unsigned char* random, int randomlen, int);
 extern SECStatus ECDSA_VerifyDigest(ECPublicKey *, const SECItem *,
     const SECItem *, int);
 extern SECStatus ECDH_Derive(SECItem *, ECParams *, SECItem *, boolean_t,
