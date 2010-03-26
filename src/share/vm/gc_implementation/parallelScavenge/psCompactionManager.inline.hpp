@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 Sun Microsystems, Inc.  All Rights Reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,11 @@
  *
  */
 
-// ciCPCache
-//
-// This class represents a constant pool cache.
-//
-// Note: This class is called ciCPCache as ciConstantPoolCache is used
-// for something different.
-class ciCPCache : public ciObject {
-public:
-  ciCPCache(constantPoolCacheHandle cpcache) : ciObject(cpcache) {}
-
-  // What kind of ciObject is this?
-  bool is_cpcache() const { return true; }
-
-  // Get the offset in bytes from the oop to the f1 field of the
-  // requested entry.
-  size_t get_f1_offset(int index);
-
-  bool is_f1_null_at(int index);
-
-  void print();
-};
+void ParCompactionManager::push_objarray(oop obj, size_t index)
+{
+  ObjArrayTask task(obj, index);
+  assert(task.is_valid(), "bad ObjArrayTask");
+  if (!_objarray_queue.push(task)) {
+    _objarray_overflow_stack->push(task);
+  }
+}
