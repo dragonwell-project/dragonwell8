@@ -22,47 +22,51 @@
  * CA 95054 USA or visit www.sun.com if you need additional information or
  * have any questions.
  */
-package sun.nio.ch;
 
-import java.io.IOException;
-import java.io.FileDescriptor;
+#ifndef _AWT_DCHolder_H
+#define _AWT_DCHolder_H
 
-/**
- * Only used for {@code close} and {@code preclose}. All other methods
- * throw {@code IOException}.
- */
-class SctpSocketDispatcher extends NativeDispatcher {
-    @Override
-    @SuppressWarnings("unused")
-    int read(FileDescriptor fd, long address, int len) throws IOException {
-         throw new IOException("Operation Unsupported");
+struct DCHolder
+{
+    HDC m_hMemoryDC;
+    int m_iWidth;
+    int m_iHeight;
+    BOOL m_bForImage;
+    HBITMAP m_hBitmap;
+    HBITMAP m_hOldBitmap;
+    void *m_pPoints;
+
+    DCHolder();
+    ~DCHolder();
+
+    void Create(
+        HDC hRelDC,
+        int iWidth,
+        int iHeght,
+        BOOL bForImage);
+
+    operator HDC()
+    {
+        if (NULL == m_hOldBitmap && NULL != m_hBitmap) {
+            m_hOldBitmap = (HBITMAP)::SelectObject(m_hMemoryDC, m_hBitmap);
+        }
+        return m_hMemoryDC;
     }
 
-    @Override
-    @SuppressWarnings("unused")
-    long readv(FileDescriptor fd, long address, int len) throws IOException {
-         throw new IOException("Operation Unsupported");
+    operator HBITMAP()
+    {
+        if (NULL != m_hOldBitmap) {
+            m_hBitmap = (HBITMAP)::SelectObject(m_hMemoryDC, m_hOldBitmap);
+            m_hOldBitmap = NULL;
+        }
+        return m_hBitmap;
     }
 
-    @Override
-    @SuppressWarnings("unused")
-    int write(FileDescriptor fd, long address, int len) throws IOException {
-         throw new IOException("Operation Unsupported");
-    }
+    static HBITMAP CreateJavaContextBitmap(
+        HDC hdc,
+        int iWidth,
+        int iHeight,
+        void **ppPoints);
+};
 
-    @Override
-    @SuppressWarnings("unused")
-    long writev(FileDescriptor fd, long address, int len) throws IOException {
-         throw new IOException("Operation Unsupported");
-    }
-
-    @Override
-    void close(FileDescriptor fd) throws IOException {
-        FileDispatcherImpl.close0(fd);
-    }
-
-    @Override
-    void preClose(FileDescriptor fd) throws IOException {
-        FileDispatcherImpl.preClose0(fd);
-    }
-}
+#endif //_AWT_DCHolder_H
