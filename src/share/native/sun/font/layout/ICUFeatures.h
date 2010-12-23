@@ -25,34 +25,45 @@
 
 /*
  *
- * (C) Copyright IBM Corp. 1998-2003 - All Rights Reserved
+ * (C) Copyright IBM Corp. 1998-2010 - All Rights Reserved
  *
+ */
+
+#ifndef __ICUFEATURES_H
+#define __ICUFEATURES_H
+
+/**
+ * \file
+ * \internal
  */
 
 #include "LETypes.h"
 #include "OpenTypeTables.h"
-#include "HebrewShaping.h"
 
-const LETag ligaFeatureTag  = 0x6C696761; // 'liga'
-const LETag emptyTag        = 0x00000000; // ''
+U_NAMESPACE_BEGIN
 
-const LETag hebrewTags[] =
+struct FeatureRecord
 {
-    ligaFeatureTag, emptyTag
+    ATag        featureTag;
+    Offset      featureTableOffset;
 };
 
-void HebrewShaping::shape(const LEUnicode * /*chars*/, le_int32 /*offset*/, le_int32 charCount, le_int32 /*charMax*/,
-                          le_bool rightToLeft, const LETag **tags)
+struct FeatureTable
 {
+    Offset      featureParamsOffset;
+    le_uint16   lookupCount;
+    le_uint16   lookupListIndexArray[ANY_NUMBER];
+};
 
-    le_int32 count, out = 0, dir = 1;
+struct FeatureListTable
+{
+    le_uint16           featureCount;
+    FeatureRecord       featureRecordArray[ANY_NUMBER];
 
-    if (rightToLeft) {
-        out = charCount - 1;
-        dir = -1;
-    }
+    const FeatureTable  *getFeatureTable(le_uint16 featureIndex, LETag *featureTag) const;
 
-    for (count = 0; count < charCount; count += 1, out += dir) {
-                tags[out] = hebrewTags;
-        }
-}
+    const FeatureTable *getFeatureTable(LETag featureTag) const;
+};
+
+U_NAMESPACE_END
+#endif
