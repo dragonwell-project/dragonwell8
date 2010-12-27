@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003, 2005, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,33 +21,33 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-/*
+package sun.misc.resources;
+
+/**
+ * <p> This class represents the <code>ResourceBundle</code>
+ * for sun.misc.
  *
- * (C) Copyright IBM Corp. 1998, 1999, 2000 - All Rights Reserved
- *
+ * @author Michael Colburn
+ * @version 1.5, 11/17/05
  */
 
-#ifndef __HEBREWSHAPING_H
-#define __HEBREWSHAPING_H
+public class Messages_pt_BR extends java.util.ListResourceBundle {
 
-#include "LETypes.h"
-#include "OpenTypeTables.h"
+    /**
+     * Returns the contents of this <code>ResourceBundle</code>.
+     * <p>
+     * @return the contents of this <code>ResourceBundle</code>.
+     */
+    public Object[][] getContents() {
+        return contents;
+    }
 
-class HebrewShaping
-{
-public:
-    static void shape(const LEUnicode *chars, le_int32 offset, le_int32 charCount, le_int32 charMax,
-                      le_bool rightToLeft, const LETag **tags);
+    private static final Object[][] contents = {
+        { "optpkg.versionerror", "ERRO: formato de vers\u00e3o inv\u00e1lido usado no arquivo jar {0}. Verifique a documenta\u00e7\u00e3o para obter o formato de vers\u00e3o suportado." },
+        { "optpkg.attributeerror", "ERRO: o atributo de manifesto JAR {0} necess\u00e1rio n\u00e3o est\u00e1 definido no arquivo JAR {1}." },
+        { "optpkg.attributeserror", "ERRO: alguns atributos de manifesto JAR necess\u00e1rios n\u00e3o est\u00e3o definidos no arquivo JAR {0}." }
+    };
 
-    static const le_uint8 glyphSubstitutionTable[];
-    static const le_uint8 glyphDefinitionTable[];
-
-private:
-    // forbid instantiation
-    HebrewShaping();
-};
-
-#endif
+}
