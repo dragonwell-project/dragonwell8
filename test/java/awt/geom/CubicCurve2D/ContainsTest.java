@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2008, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,27 +20,27 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.jkernel;
 
 /**
- * Thrown to indicate that Java Kernel is unable to install a required bundle
- * and the JRE is therefore not adhering to specifications.
+ * @test
+ * @bug 4724552
+ * @summary Verifies that CubicCurve2D.contains(Rectangle2D) does not return
+ *          true when the rectangle is only partially contained.
+ * @run main ContainsTest
  */
-public class KernelError extends VirtualMachineError {
-    /**
-     * Constructs a <code>KernelError</code> with no detail message.
-     */
-    public KernelError() {
-        super();
-    }
 
-    /**
-     * Constructs a <code>KernelError</code> with the specified
-     * detail message.
-     *
-     * @param   s   the detail message.
-     */
-    public KernelError(String s) {
-        super(s);
+
+import java.awt.geom.CubicCurve2D;
+import java.awt.geom.Rectangle2D;
+
+public class ContainsTest {
+
+    public static void main(String[] args) throws Exception {
+        CubicCurve2D c = new CubicCurve2D.Double(0, 0, 4, -4, -2, -4, 2, 0);
+        Rectangle2D r = new Rectangle2D.Double(0.75, -2.5, 0.5, 2);
+
+        if (c.contains(r)) {
+            throw new Exception("The rectangle should not be contained in the curve");
+        }
     }
 }

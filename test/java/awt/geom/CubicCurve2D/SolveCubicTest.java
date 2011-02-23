@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2008, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,15 +21,23 @@
  * questions.
  */
 
-// stdafx.cpp : source file that includes just the standard includes
-//  stdafx.pch will be the pre-compiled header
-//  stdafx.obj will contain the pre-compiled type information
+/**
+ * @test
+ * @bug 4645692
+ * @summary Verifies that SolveCubic doesn't miss any roots.
+ * @run main SolveCubicTest
+ */
 
-#include "stdafx.h"
+import static java.awt.geom.CubicCurve2D.solveCubic;
 
-#ifdef _ATL_STATIC_REGISTRY
-#include <statreg.h>
-#include <statreg.cpp>
-#endif
+public class SolveCubicTest {
 
-#include <atlimpl.cpp>
+    public static void main(String[] args) throws Exception {
+
+        double[] eqn = {0, 0, 1, 1};
+        int numRoots = solveCubic(eqn, eqn);
+        if (numRoots < 2) {
+            throw new Exception("There are 2 roots. Only " + numRoots + " were found.");
+        }
+    }
+}
