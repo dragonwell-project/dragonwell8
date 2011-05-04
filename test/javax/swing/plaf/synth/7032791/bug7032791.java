@@ -1,11 +1,10 @@
 /*
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -20,50 +19,30 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
-
-/*
- *
- * (C) Copyright IBM Corp. 1998-2004 - All Rights Reserved
- *
- */
-
-#ifndef __FEATURES_H
-#define __FEATURES_H
 
 /**
- * \file
- * \internal
+ * @test
+ * @bug 7032791
+ * @author Alexander Potochkin
+ * @summary TableCellRenderer.getTableCellRendererComponent() doesn't accept null JTable with GTK+ L&F
  */
 
-#include "LETypes.h"
-#include "OpenTypeTables.h"
+import javax.swing.*;
+import javax.swing.plaf.synth.SynthLookAndFeel;
+import javax.swing.table.TableCellRenderer;
 
-U_NAMESPACE_BEGIN
+public class bug7032791 {
 
-struct FeatureRecord
-{
-    ATag        featureTag;
-    Offset      featureTableOffset;
-};
+    public static void main(String[] args) throws Exception {
 
-struct FeatureTable
-{
-    Offset      featureParamsOffset;
-    le_uint16   lookupCount;
-    le_uint16   lookupListIndexArray[ANY_NUMBER];
-};
+        UIManager.setLookAndFeel(new SynthLookAndFeel());
 
-struct FeatureListTable
-{
-    le_uint16           featureCount;
-    FeatureRecord       featureRecordArray[ANY_NUMBER];
+        Object value = "Test value";
+        JTable table = new JTable(1, 1);
+        TableCellRenderer renderer = table.getDefaultRenderer(Object.class);
+        renderer.getTableCellRendererComponent(null, value, true, true, 0, 0);
+        System.out.println("OK");
+    }
+}
 
-    const FeatureTable  *getFeatureTable(le_uint16 featureIndex, LETag *featureTag) const;
-
-    const FeatureTable *getFeatureTable(LETag featureTag) const;
-};
-
-U_NAMESPACE_END
-#endif
