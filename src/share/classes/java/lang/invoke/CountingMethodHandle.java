@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,22 +23,28 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jvm.h"
-#include "jni_util.h"
+package java.lang.invoke;
 
-#include "sun_rmi_server_MarshalInputStream.h"
+import static java.lang.invoke.MethodHandleNatives.Constants.*;
 
-/*
- * Class:     sun_rmi_server_MarshalInputStream
- * Method:    latestUserDefinedLoader
- * Signature: ()Ljava/lang/ClassLoader;
+/**
+ * This method handle is used to optionally provide a count of how
+ * many times it was invoked.
  *
- * Returns the first non-null class loader up the execution stack, or null
- * if only code from the null class loader is on the stack.
+ * @author never
  */
-JNIEXPORT jobject JNICALL
-Java_sun_rmi_server_MarshalInputStream_latestUserDefinedLoader(JNIEnv *env, jclass cls)
-{
-    return JVM_LatestUserDefinedLoader(env);
+class CountingMethodHandle extends AdapterMethodHandle {
+    private int vmcount;
+
+    private CountingMethodHandle(MethodHandle target) {
+        super(target, target.type(), AdapterMethodHandle.makeConv(OP_RETYPE_ONLY));
+    }
+
+    /** Wrap the incoming MethodHandle in a CountingMethodHandle if they are enabled */
+    static MethodHandle wrap(MethodHandle mh) {
+        if (MethodHandleNatives.COUNT_GWT) {
+            return new CountingMethodHandle(mh);
+        }
+        return mh;
+    }
 }
