@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,41 @@
 
 /*
  * @test
- * @author Gary Ellison
- * @bug 4170635
- * @summary Verify equals()/hashCode() contract honored
+ * @bug 7077646
+ * @summary gssapi wrap for CFX per-message tokens always set FLAG_ACCEPTOR_SUBKEY
+ * @compile -XDignore.symbol.file AcceptorSubKey.java
+ * @run main/othervm AcceptorSubKey
  */
 
-import java.io.*;
-import sun.security.util.*;
+import java.util.Arrays;
+import sun.security.jgss.GSSUtil;
 
+// The basic krb5 test skeleton you can copy from
+public class AcceptorSubKey {
 
-public class BigIntEqualsHashCode {
     public static void main(String[] args) throws Exception {
-        BigInt bi1 = new BigInt(12345678);
-        BigInt bi2 = new BigInt(12345678);
 
-        if ( (bi1.equals(bi2)) == (bi1.hashCode()==bi2.hashCode()) )
-            System.out.println("PASSED");
-        else
-            throw new Exception ("FAILED equals()/hashCode() contract");
+        new OneKDC(null).writeJAASConf();
 
+        Context c, s;
+        c = Context.fromJAAS("client");
+        s = Context.fromJAAS("server");
+
+        c.startAsClient(OneKDC.SERVER, GSSUtil.GSS_SPNEGO_MECH_OID);
+        s.startAsServer(GSSUtil.GSS_SPNEGO_MECH_OID);
+
+        Context.handshake(c, s);
+
+        byte[] msg = "i say high --".getBytes();
+        byte[] wrapped = s.wrap(msg, false);
+
+        // FLAG_ACCEPTOR_SUBKEY is 4
+        int flagOn = wrapped[2] & 4;
+        if (flagOn != 0) {
+            throw new Exception("Java GSS should not have set acceptor subkey");
+        }
+
+        s.dispose();
+        c.dispose();
     }
 }

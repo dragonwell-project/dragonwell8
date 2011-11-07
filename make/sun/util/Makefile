@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,18 @@
 # questions.
 #
 
-# Define library interface.
+BUILDDIR = ../..
+PACKAGE = sun.util
+PRODUCT = sun
+include $(BUILDDIR)/common/Defs.gmk
 
-SUNWprivate_1.1 {
-	global:
-	    Java_sun_rmi_server_MarshalInputStream_latestUserDefinedLoader;
-	local:
-	    *;
-};
+#
+# Files
+#
+AUTO_FILES_JAVA_DIRS = sun/util/xml
+
+#
+# Rules
+#
+include $(BUILDDIR)/common/Classes.gmk
+
