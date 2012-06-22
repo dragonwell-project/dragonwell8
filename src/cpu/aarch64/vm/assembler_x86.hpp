@@ -1628,6 +1628,8 @@ public:
 
 // AARCH 64 Assembler
 
+  static const int XZR = 31;
+
   void _add_sub_immediate(int sf, int op, int Rd, int Rn, int imm,
 			 int shift = 0, int S = 0) {
     emit_long(0x11000000 | sf << 31 | op << 30 | S << 29
@@ -1646,6 +1648,10 @@ public:
     emit_long(0xd2800000 | shift << 21 | imm16 << 5 | Rd);
   }
 
+  void _mov(int Rd, int Rn) {
+    _add_imm(Rd, Rn, 0);
+  }
+
   void _cmp_and_branch(int sf, int op, int Rt, address dest) {
     long offset = dest - pc();
     offset >>= 2;
@@ -1658,8 +1664,24 @@ public:
     _cmp_and_branch(0, 0, Rt, dest);
   }
 
+  void _cbnz(int Rt, address dest) {
+    _cmp_and_branch(0, 1, Rt, dest);
+  }
+
   void _br(int Rn) {
     emit_long(0xd61f0000 | Rn << 5);
+  }
+
+  void _madd(int Rd, int Rn, int Rm, int Ra) {
+    emit_long(0x9b000000 | Rd | Rn << 5 | Ra << 10 | Rm << 16);
+  }
+
+  void _mul(int Rd, int Rn, int Rm) {
+    _madd(Rd, Rn, Rm, XZR);
+  }
+
+  void _str_post(int Xt, int Xn, int simm9) {
+    emit_long(0xf8000000 | simm9 << 12 | 1 << 10 | Xn << 5 | Xt);
   }
 };
 
