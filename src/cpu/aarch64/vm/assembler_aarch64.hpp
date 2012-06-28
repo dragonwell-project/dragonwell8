@@ -35,19 +35,22 @@ namespace asm_util {
 
 using namespace asm_util;
 
+class Assembler_aarch64;
+
 class Instruction {
   unsigned insn;
   unsigned bits;
+  Assembler_aarch64 *assem;
 
 public:
 
-  Instruction() {
+  Instruction(class Assembler_aarch64 *as) {
     bits = 0;
     insn = 0;
+    assem = as;
   }
 
-  ~Instruction() {
-  }
+  ~Instruction();
 
   unsigned &get_insn() { return insn; }
   unsigned &get_bits() { return bits; }
@@ -96,7 +99,7 @@ public:
   }
 };
 
-#define starti Instruction do_not_use; set_current(&do_not_use)
+#define starti Instruction do_not_use(this); set_current(&do_not_use)
 
 class Assembler_aarch64 : public AbstractAssembler {
 
@@ -114,7 +117,7 @@ public:
     current->packs(val, msb, lsb);
   }
   void rf(Register reg, int lsb) {
-    current->packr(reg->encoding(), lsb);
+    current->packr(reg->encoding_nocheck(), lsb);
   }
   void fixed(unsigned value, unsigned mask) {
     current->fixed(value, mask);
@@ -129,14 +132,13 @@ public:
   // PC-rel. addressing
 #define INSN(NAME, op, shift)						\
   void NAME(Register Rd, address adr) {					\
-    starti;								\
     long offset = adr - pc();						\
     offset >>= shift;							\
     int offset_lo = offset & 3;						\
     offset >>= 2;							\
+    starti;								\
     f(0, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5); \
     rf(Rd, 0);								\
-    emit();								\
   }
 
   INSN(adr, 0, 0);
@@ -149,7 +151,6 @@ public:
     starti;								\
     f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
     rf(Rd, 0), rf(Rn, 5);						\
-    emit();								\
   }
 
   INSN(addwi,  0b000);
@@ -170,7 +171,6 @@ public:
     uint32_t val = encode_immediate_v2(is32, imm);		\
     f(decode, 31, 29), f(0b100100, 28, 23), f(val, 22, 10);	\
     rf(Rd, 0), rf(Rn, 5);					\
-    emit();							\
   }
 
   INSN(andwi, 0b000, true);
@@ -190,7 +190,6 @@ public:
     starti;								\
     f(opcode, 31, 29), f(0b100101, 28, 23), f(shift, 22, 21), f(imm, 20, 5); \
     rf(Rd, 0);								\
-    emit();								\
   }
 
   INSN(movnw, 0b000);
@@ -208,7 +207,6 @@ public:
     starti;								\
     f(opcode, 31, 22), f(immr, 21, 16), f(imms, 15, 10);		\
     rf(Rn, 5), rf(Rd, 0);						\
-    emit();								\
   }
 
   INSN(sbfmw, 0b0000);
@@ -226,11 +224,165 @@ public:
     starti;								\
     f(opcode, 31, 21), f(imms, 15, 10);					\
     rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);					\
-    emit();								\
   }
 
   INSN(extrw, 0b00010011100);
   INSN(extr,  0b10010011110);
+
+#undef INSN
+
+  // Unconditional branch (immediate)
+#define INSN(NAME, opcode)					\
+  void NAME(address dest) {					\
+    starti;							\
+    long offset = (dest - pc()) >> 2;				\
+    f(opcode, 31), f(0b00101, 30, 26), sf(offset, 25, 0);	\
+  }
+
+  INSN(b, 0);
+  INSN(bl, 1);
+
+#undef INSN
+
+  // Compare & branch (immediate)
+#define INSN(NAME, opcode)				\
+  void NAME(Register Rt, address dest) {		\
+    long offset = (dest - pc()) >> 2;			\
+    starti;						\
+    f(opcode, 31, 24), sf(offset, 23, 5), rf(Rt, 0);	\
+  }
+
+  INSN(cbzw,  0b00110100);
+  INSN(cbnzw, 0b00110101);
+  INSN(cbz,   0b10110100);
+  INSN(cbnz,  0b10110101);
+
+#undef INSN
+
+  // Test & branch (immediate)
+#define INSN(NAME, opcode)						\
+  void NAME(Register Rt, int bitpos, address dest) {			\
+    long offset = (dest - pc()) >> 2;					\
+    int b5 = bitpos >> 5;						\
+    bitpos &= 0x1f;							\
+    starti;								\
+    f(b5, 31), f(opcode, 30, 24), f(bitpos, 23, 19), sf(offset, 18, 5);	\
+    rf(Rt, 0);								\
+  }
+
+  INSN(tbz,  0b0110110);
+  INSN(tbnz, 0b0110111);
+
+#undef INSN
+
+  // Conditional branch (immediate)
+  void cond_branch(int cond, address dest) {
+    long offset = (dest - pc()) >> 2;
+    starti;
+    f(0b0101010, 31, 25), f(0, 24), sf(offset, 23, 5), f(0, 4), f(cond, 3, 0);
+  }
+
+  enum {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
+
+#define INSN(NAME, cond)			\
+  void NAME(address dest) {			\
+    cond_branch(cond, dest);			\
+  }
+
+  INSN(beq, EQ);
+  INSN(bne, NE);
+  INSN(bhs, HS);
+  INSN(bcs, CS);
+  INSN(blo, LO);
+  INSN(bcc, CC);
+  INSN(bmi, MI);
+  INSN(bpl, PL);
+  INSN(bvs, VS);
+  INSN(bvc, VC);
+  INSN(bhi, HI);
+  INSN(bls, LS);
+  INSN(bge, GE);
+  INSN(blt, LT);
+  INSN(bgt, GT);
+  INSN(ble, LE);
+  INSN(bal, AL);
+  INSN(bnv, NV);
+
+#undef INSN
+
+  // Exception generation
+  void generate_exception(int opc, int op2, int LL, unsigned imm) {
+    starti;
+    f(0b11010100, 31, 24);
+    f(opc, 23, 21), f(imm, 20, 5), f(op2, 4, 2), f(LL, 1, 0);
+  }
+
+#define INSN(NAME, opc, op2, LL)		\
+  void NAME(unsigned imm) {			\
+    generate_exception(opc, op2, LL, imm);	\
+  }
+
+  INSN(svc, 0b000, 0, 0b01);
+  INSN(hvc, 0b000, 0, 0b10);
+  INSN(smc, 0b000, 0, 0b11);
+  INSN(brk, 0b001, 0, 0b00);
+  INSN(hlt, 0b010, 0, 0b00);
+  INSN(dpcs1, 0b101, 0, 0b01);
+  INSN(dpcs2, 0b101, 0, 0b10);
+  INSN(dpcs3, 0b101, 0, 0b11);
+
+#undef INSN
+
+  // System
+  void system(int op0, int op1, int CRn, int CRm_op2, Register rt)
+  {
+    starti;
+    f(0b11010101000, 31, 21);
+    f(op0, 20, 19);
+    f(op1, 18, 16);
+    f(CRn, 15, 12);
+    f(CRm_op2, 11, 5);
+    rf(rt, 0);
+  }
+
+  void hint(int imm) {
+    system(0b00, 0b011, 0b0010, imm, (Register)0b11111);
+  }
+
+  void nop() {
+    hint(0);
+  }
+
+  // Unconditional branch (register)
+  void branch_reg(Register R, int opc) {
+    starti;
+    f(0b1101011, 31, 25);
+    f(opc, 24, 21);
+    f(0b11111000000, 20, 10);
+    rf(R, 5);
+    f(0b00000, 4, 0);
+  }
+
+#define INSN(NAME, opc)				\
+  void NAME(Register R) {			\
+    branch_reg(R, opc);				\
+  }
+
+  INSN(br, 0b0000);
+  INSN(blr, 0b0001);
+  INSN(ret, 0b0010);
+
+#undef INSN
+
+#define INSN(NAME, opc)				\
+  void NAME() {			\
+    branch_reg((Register)0b11111, opc);		\
+  }
+
+  INSN(eret, 0b0100);
+  INSN(drps, 0b0101);
+
+#undef INSN
 
   Assembler_aarch64(CodeBuffer* code) : AbstractAssembler(code) {
   }
@@ -248,5 +400,10 @@ public:
 };
 
 #undef starti
+
+Instruction::~Instruction() {
+  assem->emit();
+}
+
 
 #endif // CPU_AARCH64_VM_ASSEMBLER_AARCH64_HPP

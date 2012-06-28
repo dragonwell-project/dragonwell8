@@ -105,7 +105,27 @@ void entry(CodeBuffer *cb) {
   __ extr(r0, r1, r2, 12);
   __ extrw(r9, r10, r11, 19);
 
+  __ bl(entry);
+
+  __ cbz(r29, entry);
+  __ cbnzw(r23, entry);
+
+  __ tbz(r19, 30, entry);
+  __ tbnz(r19, 60, entry);
+
+  __ beq(entry);
+  __ ble(entry);
+  __ bcc(entry);
+
+  __ hlt(4);
+  __ nop();
+
+  __ ret(r7);
+  __ eret();
+
   Disassembler::decode(entry, __ pc());
+
+
 }
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
