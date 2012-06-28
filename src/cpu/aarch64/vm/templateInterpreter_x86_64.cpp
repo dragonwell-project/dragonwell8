@@ -60,7 +60,13 @@ const int locals_offset = frame::interpreter_frame_locals_offset * wordSize;
 
 AArch64Simulator sim;
 
+  extern "C" void entry(CodeBuffer*);
+
 address TemplateInterpreterGenerator::generate_AARM64_loop() {
+
+  entry(__ code());
+
+#if 0
   enum { r0, r1, r2, r3, r4, LR = 30 };
 
   address entry = __ pc();
@@ -94,6 +100,7 @@ address TemplateInterpreterGenerator::generate_AARM64_loop() {
   printf("Table of squares:\n");
   for (int i = 0; i < 100; i++)
     printf("  %d\n", memory[i]);
+#endif
 }
 
 //-----------------------------------------------------------------------------

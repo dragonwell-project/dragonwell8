@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,35 +19,17 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-/* Switch to the correct jni_md.h file without reliance on -I options. */
-#ifdef TARGET_ARCH_x86
-# include "jni_x86.h"
-#endif
-#ifdef TARGET_ARCH_AARCH64
-# include "jni_x86.h"
-#endif
-#ifdef TARGET_ARCH_sparc
-# include "jni_sparc.h"
-#endif
-#ifdef TARGET_ARCH_zero
-# include "jni_zero.h"
-#endif
-#ifdef TARGET_ARCH_arm
-# include "jni_arm.h"
-#endif
-#ifdef TARGET_ARCH_ppc
-# include "jni_ppc.h"
-#endif
+#ifndef CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP
+#define CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP
 
+#include "runtime/globals_extension.hpp"
+#include "runtime/vm_version.hpp"
 
-/*
-  The local copies of JNI header files may be refreshed
-  from a JDK distribution by means of these commands:
+class VM_Version_64 : public Abstract_VM_Version {
+public:
+};
 
-  cp ${JDK_DIST}/solaris/include/solaris/jni_md.h  ./jni_sparc.h
-  cp ${JDK_DIST}/win32/include/win32/jni_md.h      ./jni_i486.h
-  cp ${JDK_DIST}/win32/include/jni.h               ./jni.h
-
-*/
+#endif // CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP
