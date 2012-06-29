@@ -123,6 +123,77 @@ void entry(CodeBuffer *cb) {
   __ ret(r7);
   __ eret();
 
+#define INSN2(NAME, sz, op, o0) \
+  __ NAME(r1, r2)
+#define INSN3(NAME, sz, op, o0) \
+  __ NAME(r1, r2, r3)
+#define INSNFOO(NAME, sz, op, o0) \
+  __ NAME(r1, r2, r3)
+#define INSN4(NAME, sz, op, o0) \
+  __ NAME(r1, r2, r3, r4)
+
+  // bytes
+  INSN3(stxrb, byte, 0b000, 0);
+  INSN3(stlxrb, byte, 0b000, 1);
+  INSN2(ldxrb, byte, 0b010, 0);
+  INSN2(ldaxrb, byte, 0b010, 1);
+  INSN2(stlrb, byte, 0b100, 1);
+  INSN2(ldarb, byte, 0b110, 1);
+
+  // halfwords
+  INSN3(stxrh, halfword, 0b000, 0);
+  INSN3(stlxrh, halfword, 0b000, 1);
+  INSN2(ldxrh, halfword, 0b010, 0);
+  INSN2(ldaxrh, halfword, 0b010, 1);
+  INSN2(stlrh, halfword, 0b100, 1);
+  INSN2(ldarh, halfword, 0b110, 1);
+
+  // words
+  INSN3(stxrw, word, 0b000, 0);
+  INSN3(stlxrw, word, 0b000, 1);
+  INSN4(stxpw, word, 0b001, 0);
+  INSN4(stlxpw, word, 0b001, 1);
+  INSN2(ldxrw, word, 0b010, 0);
+  INSN2(ldaxrw, word, 0b010, 1);
+  INSN3(ldxpw, word, 0b011, 0);
+  INSN3(ldaxpw, word, 0b011, 1);
+  INSN2(stlrw, word, 0b100, 1);
+  INSN2(ldarw, word, 0b110, 1);
+
+  // xwords
+  INSN3(stxr, xword, 0b000, 0);
+  INSN3(stlxr, xword, 0b000, 1);
+  INSN4(stxp, xword, 0b001, 0);
+  INSN4(stlxp, xword, 0b001, 1);
+  INSN2(ldxr, xword, 0b010, 0);
+  INSN2(ldaxr, xword, 0b010, 1);
+  INSN3(ldxp, xword, 0b011, 0);
+  INSN3(ldaxp, xword, 0b011, 1);
+  INSN2(stlr, xword, 0b100, 1);
+  INSN2(ldar, xword, 0b110, 1);
+
+#undef INSN2
+#undef INSN3
+#undef INSN_FOO
+#undef INSN4
+
+  __ ldrw(r8, entry);
+  __ ldr(r8, entry);
+  __ ldrsw(r8, entry);
+  __ prfm(0b10000, __ pc() + 8);
+
+#undef INSN 
+
+#define INSN(NAME, opc, p1, V, p2, L) __ NAME(r4, r5, r6, -16);
+
+  INSN(stpw, 0b00, 0b101, 0, 0b0010, 0);
+  INSN(ldpw, 0b00, 0b101, 0, 0b0010, 1);
+  INSN(ldpsw, 0b01, 0b101, 0, 0b0010, 1);
+  INSN(stp, 0b10, 0b101, 0, 0b0010, 0);
+  INSN(ldp, 0b10, 0b101, 0, 0b0010, 1);
+
+#undef INSN 
+
   Disassembler::decode(entry, __ pc());
 
 
