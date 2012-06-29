@@ -95,7 +95,7 @@ address TemplateInterpreterGenerator::generate_AARM64_loop() {
 
   sim.init((u_int64_t)entry, (u_int64_t)stack + sizeof stack,
 	   (u_int64_t)stack);
-  sim.getCPUState().setGZRegisterUX((GReg)r3, (u_int64_t)memory);
+  sim.getCPUState().xreg((GReg)r3, 0) = (u_int64_t)memory;
   sim.run();
   printf("Table of squares:\n");
   for (int i = 0; i < 100; i++)
