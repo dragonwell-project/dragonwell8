@@ -194,6 +194,58 @@ void entry(CodeBuffer *cb) {
 
 #undef INSN 
 
+  __ str(r3, Address_aarch64(r4));
+  __ str(r3, Address_aarch64(r4, 8));
+  __ str(r3, Address_aarch64(r4, r6));
+  __ str(r3, Address_aarch64(__ pre(r4, 8)));
+  __ str(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ strw(r3, Address_aarch64(r4));
+  __ strw(r3, Address_aarch64(r4, 8));
+  __ strw(r3, Address_aarch64(r4, r6));
+  __ strw(r3, Address_aarch64(__ pre(r4, 8)));
+  __ strw(r3, Address_aarch64(__ post(r4, 8)));
+
+  
+  __ strh(r3, Address_aarch64(r4));
+  __ strh(r3, Address_aarch64(r4, 8));
+  __ strh(r3, Address_aarch64(r4, r6));
+  __ strh(r3, Address_aarch64(__ pre(r4, 8)));
+  __ strh(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ strb(r3, Address_aarch64(r4));
+  __ strb(r3, Address_aarch64(r4, 8));
+  __ strb(r3, Address_aarch64(r4, r6));
+  __ strb(r3, Address_aarch64(__ pre(r4, 8)));
+  __ strb(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ ldr(r3, Address_aarch64(r4));
+  __ ldr(r3, Address_aarch64(r4, 8));
+  __ ldr(r3, Address_aarch64(r4, r6));
+  __ ldr(r3, Address_aarch64(__ pre(r4, 8)));
+  __ ldr(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ ldrw(r3, Address_aarch64(r4));
+  __ ldrw(r3, Address_aarch64(r4, 8));
+  __ ldrw(r3, Address_aarch64(r4, r6));
+  __ ldrw(r3, Address_aarch64(__ pre(r4, 8)));
+  __ ldrw(r3, Address_aarch64(__ post(r4, 8)));
+
+  
+  __ ldrh(r3, Address_aarch64(r4));
+  __ ldrh(r3, Address_aarch64(r4, 8));
+  __ ldrh(r3, Address_aarch64(r4, r6));
+  __ ldrh(r3, Address_aarch64(__ pre(r4, 8)));
+  __ ldrh(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ ldrb(r3, Address_aarch64(r4));
+  __ ldrb(r3, Address_aarch64(r4, 8));
+  __ ldrb(r3, Address_aarch64(r4, r6));
+  __ ldrb(r3, Address_aarch64(__ pre(r4, 8)));
+  __ ldrb(r3, Address_aarch64(__ post(r4, 8)));
+
+  
+
   Disassembler::decode(entry, __ pc());
 
 

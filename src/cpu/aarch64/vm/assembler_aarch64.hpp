@@ -35,6 +35,7 @@ namespace asm_util {
 
 using namespace asm_util;
 
+
 class Assembler_aarch64;
 
 class Instruction {
@@ -66,7 +67,7 @@ public:
     return n;
   }
 
-  void packf(unsigned val, int msb, int lsb) {
+  void f(unsigned val, int msb, int lsb) {
     int nbits = msb - lsb + 1;
     assert_cond(val < (1U << nbits));
     assert_cond(msb >= lsb);
@@ -78,18 +79,29 @@ public:
     bits |= mask;
   }
 
-  void packs(long val, int msb, int lsb) {
+  void f(unsigned val, int bit) {
+    f(val, bit, bit);
+  }
+
+  void sf(long val, int msb, int lsb) {
     int nbits = msb - lsb + 1;
     long chk = val >> (nbits - 1);
     assert_cond (chk == -1 || chk == 0);
     unsigned uval = val;
     unsigned mask = (1U << nbits) - 1;
     uval &= mask;
-    packf(uval, lsb + nbits - 1, lsb);
+    f(uval, lsb + nbits - 1, lsb);
   }
 
-  void packr(unsigned val, int lsb) {
-    packf(val, lsb + 4, lsb);
+  void rf(Register r, int lsb) {
+    f(r->encoding_nocheck(), lsb + 4, lsb);
+  }
+
+  unsigned getf (int msb = 31, int lsb = 0) {
+    int nbits = msb - lsb + 1;
+    unsigned mask = ((1U << nbits) - 1) << lsb;
+    assert_cond(bits & mask == mask);
+    return (insn & mask) >> lsb;
   }
 
   void fixed(unsigned value, unsigned mask) {
@@ -101,23 +113,120 @@ public:
 
 #define starti Instruction do_not_use(this); set_current(&do_not_use)
 
+class Pre {
+  int _offset;
+  Register _r;
+public:
+  Pre(Register reg, int o) : _r(reg), _offset(o) { }
+  int offset() { return _offset; }
+  Register reg() { return _r; }
+};
+
+class Post {
+  int _offset;
+  Register _r;
+public:
+  Post(Register reg, int o) : _r(reg), _offset(o) { }
+  int offset() { return _offset; }
+  Register reg() { return _r; }
+};
+
+// Address_aarch64ing modes
+class Address_aarch64 VALUE_OBJ_CLASS_SPEC {
+ public:
+  enum mode { base_plus_offset, pre, post, pcrel,
+	      base_plus_offset_reg, base_plus_offset_reg_extended};
+
+ private:
+  Register _base;
+  Register _index;
+  int _offset;
+  enum mode _mode;
+  address _adr;
+  int _scale;
+
+ public:
+  Address_aarch64(Register r)
+    : _mode(base_plus_offset), _base(r), _offset(0) { }
+  Address_aarch64(Register r, int o)
+    : _mode(base_plus_offset), _base(r), _offset(o) { }
+  Address_aarch64(Register r, Register r1, int scale = 0)
+    : _mode(base_plus_offset_reg), _base(r), _index(r1), _scale(scale) { }
+  Address_aarch64(Pre p)
+    : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
+  Address_aarch64(Post p)
+    : _mode(post), _base(p.reg()), _offset(p.offset()) { }
+  Address_aarch64(address a) : _mode(pcrel), _adr(a) { }
+
+  void encode(Instruction *i) {
+    switch(_mode) {
+    case base_plus_offset:
+      {
+	i->f(0b111, 29, 27), i->f(0b01, 25, 24);
+	unsigned shift = i->getf(31, 30);
+	assert_cond((_offset >> shift) << shift == _offset);
+	_offset >>= shift;
+	i->sf(_offset, 21, 10);
+	i->rf(_base, 5);
+      }
+      break;
+
+    case base_plus_offset_reg:
+      assert_cond(_scale == 0);
+      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+      i->f(1, 21);
+      i->rf(_index, 16);
+      i->rf(_base, 5);
+      i->f(0b011, 15, 13); // Offset is always X register
+      i->f(0, 12); // Shift is 0
+      i->f(0b10, 11, 10);
+      break;
+
+    case pre:
+      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+      i->f(0, 21), i->f(0b11, 11, 10);
+      i->f(_offset, 20, 12);
+      i->rf(_base, 5);
+      break;
+
+    case post:
+      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+      i->f(0, 21), i->f(0b01, 11, 10);
+      i->f(_offset, 20, 12);
+      i->rf(_base, 5);
+      break;
+
+    default:
+      assert_cond(false);
+    }
+  }
+};
+
 class Assembler_aarch64 : public AbstractAssembler {
+public:
+  Address_aarch64 pre(Register base, int offset) {
+    return Address_aarch64(Pre(base, offset));
+  }
+
+  Address_aarch64 post (Register base, int offset) {
+    return Address_aarch64(Post(base, offset));
+  }
 
   Instruction* current;
 public:
   void set_current(Instruction* i) { current = i; }
 
   void f(unsigned val, int msb, int lsb) {
-    current->packf(val, msb, lsb);
+    current->f(val, msb, lsb);
   }
   void f(unsigned val, int msb) {
-    current->packf(val, msb, msb);
+    current->f(val, msb, msb);
   }
   void sf(long val, int msb, int lsb) {
-    current->packs(val, msb, lsb);
+    current->sf(val, msb, lsb);
   }
   void rf(Register reg, int lsb) {
-    current->packr(reg->encoding_nocheck(), lsb);
+    current->rf(reg, lsb);
   }
   void fixed(unsigned value, unsigned mask) {
     current->fixed(value, mask);
@@ -384,6 +493,8 @@ public:
 
 #undef INSN
 
+
+
   // Load/store exclusive
   enum operand_size { byte, halfword, word, xword };
 
@@ -498,24 +609,28 @@ public:
     rf(Rt2, 10), rf(Rn, 5), rf(Rt1, 0);
   }
 
+  int scale_ld_st(int size, int offset) {
+    int imm;
+    switch(size) {
+      case 0b01:
+      case 0b00:
+	imm = offset >> 2;
+	assert_cond(imm << 2 == offset);
+	break;
+      case 0b10:
+	imm = offset >> 3;
+	assert_cond(imm << 3 == offset);
+	break;
+      default:
+	assert_cond(false);
+      }
+    return imm;
+  }
+
   // Load/store register pair (offset)
 #define INSN(NAME, size, p1, V, p2, L)					\
   void NAME(Register Rt1, Register Rt2, Register Rn, int offset) {	\
-    int imm;								\
-    switch(size) {							\
-      case 0b01:							\
-      case 0b00:							\
-	imm = offset >> 2;						\
-	assert_cond(imm << 2 == offset);				\
-	break;								\
-      case 0b10:							\
-	imm = offset >> 3;						\
-	assert_cond(imm << 3 == offset);				\
-	break;								\
-      default:								\
-	assert_cond(false);						\
-      }									\
-    ld_st1(size, p1, V, p2, L, Rt1, Rt2, Rn, imm);			\
+    ld_st1(size, p1, V, p2, L, Rt1, Rt2, Rn, scale_ld_st(size, offset)); \
   }
 
   INSN(stpw, 0b00, 0b101, 0, 0b0010, 0);
@@ -523,6 +638,40 @@ public:
   INSN(ldpsw, 0b01, 0b101, 0, 0b0010, 1);
   INSN(stp, 0b10, 0b101, 0, 0b0010, 0);
   INSN(ldp, 0b10, 0b101, 0, 0b0010, 1);
+
+  // Load/store no-allocate pair (offset)
+  INSN(stnpw, 0b00, 0b101, 0, 0b000, 0);
+  INSN(ldnpw, 0b00, 0b101, 0, 0b000, 1);
+  INSN(stnp, 0b10, 0b101, 0, 0b000, 0);
+  INSN(ldnp, 0b10, 0b101, 0, 0b000, 1);
+
+#undef INSN
+
+  void ld_st2(Register Rt, Address_aarch64 adr, int size, int op) {
+    starti;
+    f(size, 31, 30);
+    f(op, 23, 22); // str
+    f(0, 26); // general reg
+    rf(Rt, 0);
+    adr.encode(current);
+  }
+
+#define INSN(NAME, size, op)			\
+  void NAME(Register Rt, Address_aarch64 adr) {	\
+    ld_st2(Rt, adr, size, op);			\
+  }
+
+  INSN(str, 0b11, 0b00);
+  INSN(strw, 0b10, 0b00);
+  INSN(strb, 0b00, 0b00);
+  INSN(strh, 0b01, 0b00);
+
+  INSN(ldr, 0b11, 0b01);
+  INSN(ldrw, 0b10, 0b01);
+  INSN(ldrb, 0b00, 0b01);
+  INSN(ldrh, 0b01, 0b01);
+
+#undef INSN
 
   Assembler_aarch64(CodeBuffer* code) : AbstractAssembler(code) {
   }
