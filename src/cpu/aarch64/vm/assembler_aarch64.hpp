@@ -97,7 +97,7 @@ public:
     f(r->encoding_nocheck(), lsb + 4, lsb);
   }
 
-  unsigned getf (int msb = 31, int lsb = 0) {
+  unsigned get(int msb = 31, int lsb = 0) {
     int nbits = msb - lsb + 1;
     unsigned mask = ((1U << nbits) - 1) << lsb;
     assert_cond(bits & mask == mask);
@@ -159,47 +159,47 @@ class Address_aarch64 VALUE_OBJ_CLASS_SPEC {
   Address_aarch64(address a) : _mode(pcrel), _adr(a) { }
 
   void encode(Instruction *i) {
+    i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+    i->rf(_base, 5);
+
     switch(_mode) {
     case base_plus_offset:
       {
-	i->f(0b111, 29, 27), i->f(0b01, 25, 24);
-	unsigned shift = i->getf(31, 30);
+	unsigned shift = i->get(31, 30);
 	assert_cond((_offset >> shift) << shift == _offset);
 	_offset >>= shift;
 	i->sf(_offset, 21, 10);
-	i->rf(_base, 5);
       }
       break;
 
     case base_plus_offset_reg:
       assert_cond(_scale == 0);
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
       i->f(1, 21);
       i->rf(_index, 16);
-      i->rf(_base, 5);
       i->f(0b011, 15, 13); // Offset is always X register
       i->f(0, 12); // Shift is 0
       i->f(0b10, 11, 10);
       break;
 
     case pre:
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b11, 11, 10);
       i->f(_offset, 20, 12);
-      i->rf(_base, 5);
       break;
 
     case post:
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b01, 11, 10);
       i->f(_offset, 20, 12);
-      i->rf(_base, 5);
       break;
 
     default:
       assert_cond(false);
     }
   }
+};
+
+namespace ext
+{
+  enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
 };
 
 class Assembler_aarch64 : public AbstractAssembler {
@@ -647,6 +647,7 @@ public:
 
 #undef INSN
 
+  // Load/store register (all modes)
   void ld_st2(Register Rt, Address_aarch64 adr, int size, int op) {
     starti;
     f(size, 31, 30);
@@ -670,6 +671,122 @@ public:
   INSN(ldrw, 0b10, 0b01);
   INSN(ldrb, 0b00, 0b01);
   INSN(ldrh, 0b01, 0b01);
+
+#undef INSN
+
+  enum shift_kind { lsl, lsr, asr, ror };
+
+  void op_shifted_reg(unsigned decode,
+		      Register Rd, Register Rn, Register Rm,
+		      enum shift_kind kind, unsigned shift,
+		      unsigned size, unsigned op) {
+    f(size, 31);
+    f(op, 30, 29);
+    f(decode, 28, 24);
+    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+    f(shift, 15, 10);
+    f(kind, 23, 22);
+  }
+
+  // Logical (shifted regsiter)
+#define INSN(NAME, size, op, N)					\
+  void NAME(Register Rd, Register Rn, Register Rm,		\
+	    enum shift_kind kind = lsl, unsigned shift = 0) {	\
+    starti;							\
+    f(N, 21);							\
+    op_shifted_reg(0b01010, Rd, Rn, Rm, kind, shift, size, op);	\
+  }
+
+  INSN(andr, 1, 0b00, 0);
+  INSN(orr, 1, 0b01, 0);
+  INSN(eor, 1, 0b10, 0);
+  INSN(ands, 1, 0b10, 0);
+  INSN(andw, 0, 0b00, 0);
+  INSN(orrw, 0, 0b01, 0);
+  INSN(eorw, 0, 0b10, 0);
+  INSN(andsw, 0, 0b10, 0);
+
+  INSN(bic, 1, 0b00, 1);
+  INSN(orn, 1, 0b01, 1);
+  INSN(eon, 1, 0b10, 1);
+  INSN(bics, 1, 0b10, 1);
+  INSN(bicw, 0, 0b00, 1);
+  INSN(ornw, 0, 0b01, 1);
+  INSN(eonw, 0, 0b10, 1);
+  INSN(bicsw, 0, 0b10, 1);
+
+#undef INSN
+
+  // Add/subtract (shifted regsiter)
+#define INSN(NAME, size, op)					\
+  void NAME(Register Rd, Register Rn, Register Rm,		\
+	    enum shift_kind kind = lsl, unsigned shift = 0) {	\
+    starti;							\
+    f(0, 21);							\
+    assert_cond(kind != ror);					\
+    op_shifted_reg(0b01011, Rd, Rn, Rm, kind, shift, size, op);	\
+  }
+
+  INSN(add, 1, 0b000);
+  INSN(adds, 1, 0b001);
+  INSN(sub, 1, 0b10);
+  INSN(subs, 1, 0b11);
+  INSN(addw, 0, 0b000);
+  INSN(addsw, 0, 0b001);
+  INSN(subw, 0, 0b10);
+  INSN(subsw, 0, 0b11);
+
+#undef INSN
+
+  // Add/subtract (extended register)
+#define INSN(NAME, op)							\
+  void NAME(Register Rd, Register Rn, Register Rm,			\
+           ext::operation option, int amount) {				\
+    add_sub_extended_reg(op, 0b01011, Rd, Rn, Rm, 0b00, option, amount); \
+  }
+
+  void add_sub_extended_reg(unsigned op, unsigned decode,
+    Register Rd, Register Rn, Register Rm,
+    unsigned opt, ext::operation option, unsigned imm) {
+    starti;
+    f(op, 31, 29), f(decode, 28, 24), f(opt, 23, 22), f(1, 21);
+    f(option, 15, 13), f(imm, 12, 10);
+    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+  }
+
+  INSN(addw, 0b000);
+  INSN(addsw, 0b001);
+  INSN(subw, 0b010);
+  INSN(subsw, 0b011);
+  INSN(add, 0b100);
+  INSN(adds, 0b101);
+  INSN(sub, 0b110);
+  INSN(subs, 0b111);
+
+#undef INSN
+
+  // Add/subtract (with carry)
+  void add_sub_carry(unsigned op, Register Rd, Register Rn, Register Rm) {
+    starti;
+    f(op, 31, 29);
+    f(0b11010000, 28, 21);
+    f(0b000000, 15, 10);
+    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+  }
+
+  #define INSN(NAME, op)				\
+    void NAME(Register Rd, Register Rn, Register Rm) {	\
+      add_sub_carry(op, Rd, Rn, Rm);			\
+    }
+
+  INSN(adcw, 0b000);
+  INSN(adcsw, 0b001);
+  INSN(sbcw, 0b010);
+  INSN(sbcsw, 0b011);
+  INSN(adc, 0b100);
+  INSN(adcs, 0b101);
+  INSN(sbc,0b110);
+  INSN(sbcs, 0b111);
 
 #undef INSN
 

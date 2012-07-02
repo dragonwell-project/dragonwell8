@@ -244,7 +244,16 @@ void entry(CodeBuffer *cb) {
   __ ldrb(r3, Address_aarch64(__ pre(r4, 8)));
   __ ldrb(r3, Address_aarch64(__ post(r4, 8)));
 
-  
+  __ eorw (r19, r7, r11, __ lsl, 3);
+  __ bic(r27, r3, r1, __ ror, 22);
+
+  __ addw(r27, r3, r1, __ lsl, 22);
+
+  __ add(r16, r17, r18, ext::uxth, 4);
+  __ adds(r16, r17, r18);
+
+  __ adc(r0, r1, r2);
+  __ sbcsw(r18, r19, r20);
 
   Disassembler::decode(entry, __ pc());
 
