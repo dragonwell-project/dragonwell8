@@ -391,7 +391,8 @@ public:
     f(0b0101010, 31, 25), f(0, 24), sf(offset, 23, 5), f(0, 4), f(cond, 3, 0);
   }
 
-  enum {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
+  enum condition_code
+    {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
 
 #define INSN(NAME, cond)			\
   void NAME(address dest) {			\
@@ -789,6 +790,157 @@ public:
   INSN(sbcs, 0b111);
 
 #undef INSN
+
+  // Conditional compare (both kinds)
+  void conditional_compare(unsigned op, int o2, int o3,
+                           Register Rn, unsigned imm5, unsigned nzcv,
+                           unsigned cond) {
+    f(op, 31, 29);
+    f(0b11010010, 28, 21);
+    f(cond, 15, 12);
+    f(o2, 10);
+    f(o3, 4);
+    f(nzcv, 3, 0);
+    f(imm5, 20, 16), rf(Rn, 5);
+  }
+
+#define INSN(NAME, op)							\
+  void NAME(Register Rn, Register Rm, int imm, condition_code cond) {	\
+    starti;								\
+    f(0, 11);								\
+    conditional_compare(op, 0, 0, Rn, (uintptr_t)Rm, imm, cond);	\
+  }									\
+									\
+  void NAME(Register Rn, unsigned imm5, int imm, condition_code cond) {	\
+    starti;								\
+    f(1, 11);								\
+    conditional_compare(op, 0, 0, Rn, imm5, imm, cond);			\
+  }
+
+  INSN(ccmnw, 0b001);
+  INSN(ccmpw, 0b011);
+  INSN(ccmn, 0b101);
+  INSN(ccmp, 0b111);
+
+#undef INSN
+
+  // Conditional select
+  void conditional_select(unsigned op, unsigned op2,
+			  Register Rd, Register Rn, Register Rm,
+			  unsigned cond) {
+    starti;
+    f(op, 31, 29);
+    f(0b11010100, 28, 21);
+    f(cond, 15, 12);
+    f(0, 11, 10);
+    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+  }
+
+#define INSN(NAME, op, op2)						\
+  void NAME(Register Rd, Register Rn, Register Rm, condition_code cond) { \
+    conditional_select(op, op2, Rd, Rn, Rm, cond);			\
+  }
+
+  INSN(cselw, 0b000, 0b00);
+  INSN(csincw, 0b000, 0b01);
+  INSN(csinvw, 0b010, 0b00);
+  INSN(csnegw, 0b010, 0b01);
+  INSN(csel, 0b100, 0b00);
+  INSN(csinc, 0b000, 0b01);
+  INSN(csinv, 0b110, 0b00);
+  INSN(csneg, 0b110, 0b01);
+
+#undef INSN
+
+  // Data processing
+  void data_processing(unsigned op29, unsigned opcode,
+		       Register Rd, Register Rn) {
+    f(op29, 31, 29), f(0b11010110, 28, 21);
+    f(opcode, 15, 10);
+    rf(Rn, 5), rf(Rd, 0);
+  }
+
+  // (1 source)
+#define INSN(NAME, op29, opcode2, opcode)	\
+  void NAME(Register Rd, Register Rn) {		\
+    starti;					\
+    f(opcode2, 20, 16);				\
+    data_processing(op29, opcode, Rd, Rn);	\
+  }
+
+  INSN(rbitw,  0b010, 0b00000, 0b00000);
+  INSN(rev16w, 0b010, 0b00000, 0b00001);
+  INSN(revw,   0b010, 0b00000, 0b00010);
+  INSN(clzw,   0b010, 0b00000, 0b00100);
+  INSN(clsw,   0b010, 0b00000, 0b00101);
+ 
+  INSN(rbit,   0b110, 0b00000, 0b00000);
+  INSN(rev16,  0b110, 0b00000, 0b00001);
+  INSN(rev32,  0b110, 0b00000, 0b00010);
+  INSN(rev,    0b110, 0b00000, 0b00011);
+  INSN(clz,    0b110, 0b00000, 0b00100);
+  INSN(cls,    0b110, 0b00000, 0b00101);
+
+#undef INSN
+
+  // (2 sources)
+#define INSN(NAME, op29, opcode)			\
+  void NAME(Register Rd, Register Rn, Register Rm) {	\
+    starti;						\
+    rf(Rm, 16);						\
+    data_processing(op29, opcode, Rd, Rn);		\
+  }
+
+  INSN(udivw, 0b000, 0b000010);
+  INSN(sdivw, 0b000, 0b000011);
+  INSN(lslvw, 0b000, 0b001000);
+  INSN(lsrvw, 0b000, 0b001001);
+  INSN(asrvw, 0b000, 0b001010);
+  INSN(rorvw, 0b000, 0b001011);
+
+  INSN(udiv, 0b100, 0b000010);
+  INSN(sdiv, 0b100, 0b000011);
+  INSN(lslv, 0b100, 0b001000);
+  INSN(lsrv, 0b100, 0b001001);
+  INSN(asrv, 0b100, 0b001010);
+  INSN(rorv, 0b100, 0b001011);
+
+#undef INSN
+ 
+  // (3 sources)
+  void data_processing(unsigned op54, unsigned op31, unsigned o0,
+		       Register Rd, Register Rn, Register Rm,
+		       Register Ra) {
+    starti;
+    f(op54, 31, 29), f(0b11011, 28, 24);
+    f(op31, 23, 21), f(o0, 15);
+    rf(Rm, 16), rf(Ra, 10), rf(Rn, 5), rf(Rd, 0);
+  }
+
+#define INSN(NAME, op54, op31, o0)					\
+  void NAME(Register Rd, Register Rn, Register Rm, Register Ra) {	\
+    data_processing(op54, op31, o0, Rd, Rn, Rm, Ra);			\
+  }
+
+  INSN(maddw, 0b000, 0b000, 0);
+  INSN(msubw, 0b000, 0b000, 1);
+  INSN(madd, 0b100, 0b000, 0);
+  INSN(msub, 0b100, 0b000, 1);
+  INSN(smaddl, 0b100, 0b001, 0);
+  INSN(smsubl, 0b100, 0b001, 1);
+  INSN(umaddl, 0b100, 0b101, 0);
+  INSN(umsubl, 0b100, 0b101, 1);
+
+#undef INSN
+
+#define INSN(NAME, op54, op31, o0)			\
+  void NAME(Register Rd, Register Rn, Register Rm) {	\
+    data_processing(op54, op31, o0, Rd, Rn, Rm, (Register)31);	\
+  }
+
+  INSN(smulh, 0b100, 0b010, 0);
+  INSN(umulh, 0b100, 0b110, 0);
+
 
   Assembler_aarch64(CodeBuffer* code) : AbstractAssembler(code) {
   }

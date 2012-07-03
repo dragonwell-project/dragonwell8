@@ -255,6 +255,74 @@ void entry(CodeBuffer *cb) {
   __ adc(r0, r1, r2);
   __ sbcsw(r18, r19, r20);
 
+  for (int i = 0; i < 16; i++) {
+    __   ccmn(r1, r2, 15-i, (Assembler_aarch64::condition_code)i);
+    __   ccmpw(r1, r2, 15-i, (Assembler_aarch64::condition_code)i);
+    __   ccmpw(r1, i, 15-i, (Assembler_aarch64::condition_code)i);
+  }
+
+  __ csinv(r9, r10, r11, Assembler_aarch64::CS);
+
+#define INSN(NAME, op29, opcode2, opcode)	\
+  __ NAME(r20, r21);
+
+  
+  INSN(rbitw,  0b010, 0b00000, 0b00000);
+  INSN(rev16w, 0b010, 0b00000, 0b00001);
+  INSN(revw,   0b010, 0b00000, 0b00010);
+  INSN(clzw,   0b010, 0b00000, 0b00100);
+  INSN(clsw,   0b010, 0b00000, 0b00101);
+ 
+  INSN(rbit,   0b110, 0b00000, 0b00000);
+  INSN(rev16,  0b110, 0b00000, 0b00001);
+  INSN(rev32,  0b110, 0b00000, 0b00010);
+  INSN(rev,    0b110, 0b00000, 0b00011);
+  INSN(clz,    0b110, 0b00000, 0b00100);
+  INSN(cls,    0b110, 0b00000, 0b00101);
+
+#undef INSN
+
+#define INSN(NAME, op29, opcode)			\
+  __ NAME(r17, r18, r0);
+
+  INSN(udivw, 0b000, 0b000010);
+  INSN(sdivw, 0b000, 0b000011);
+  INSN(lslvw, 0b000, 0b001000);
+  INSN(lsrvw, 0b000, 0b001001);
+  INSN(asrvw, 0b000, 0b001010);
+  INSN(rorvw, 0b000, 0b001011);
+
+  INSN(udiv, 0b100, 0b000010);
+  INSN(sdiv, 0b100, 0b000011);
+  INSN(lslv, 0b100, 0b001000);
+  INSN(lsrv, 0b100, 0b001001);
+  INSN(asrv, 0b100, 0b001010);
+  INSN(rorv, 0b100, 0b001011);
+
+#undef INSN
+
+#define INSN(NAME, op54, op31, o0) \
+  __ NAME(r3, r2, r1, r0);
+
+  INSN(maddw, 0b000, 0b000, 0);
+  INSN(msubw, 0b000, 0b000, 1);
+  INSN(madd, 0b100, 0b000, 0);
+  INSN(msub, 0b100, 0b000, 1);
+  INSN(smaddl, 0b100, 0b001, 0);
+  INSN(smsubl, 0b100, 0b001, 1);
+  INSN(umaddl, 0b100, 0b101, 0);
+  INSN(umsubl, 0b100, 0b101, 1);
+
+#undef INSN
+
+#define INSN(NAME, op54, op31, o0) \
+  __ NAME(r3, r2, r1);
+
+  INSN(smulh, 0b100, 0b010, 0);
+  INSN(umulh, 0b100, 0b110, 0);
+
+#undef INSN
+
   Disassembler::decode(entry, __ pc());
 
 
