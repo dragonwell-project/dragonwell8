@@ -135,8 +135,7 @@ public:
 class Address_aarch64 VALUE_OBJ_CLASS_SPEC {
  public:
   enum mode { base_plus_offset, pre, post, pcrel,
-	      base_plus_offset_reg, base_plus_offset_reg_extended};
-
+	      base_plus_offset_reg, base_plus_offset_reg_extended };
  private:
   Register _base;
   Register _index;
@@ -156,37 +155,47 @@ class Address_aarch64 VALUE_OBJ_CLASS_SPEC {
     : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
   Address_aarch64(Post p)
     : _mode(post), _base(p.reg()), _offset(p.offset()) { }
-  Address_aarch64(address a) : _mode(pcrel), _adr(a) { }
 
   void encode(Instruction *i) {
-    i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+    i->f(0b111, 29, 27);
     i->rf(_base, 5);
 
     switch(_mode) {
     case base_plus_offset:
       {
-	unsigned shift = i->get(31, 30);
-	assert_cond((_offset >> shift) << shift == _offset);
-	_offset >>= shift;
-	i->sf(_offset, 21, 10);
+	unsigned size = i->get(31, 30);
+	unsigned mask = (1 << size) - 1;
+	if (_offset < 0 || _offset & mask)
+	  {
+	    i->f(0b00, 25, 24);
+	    i->f(0, 21), i->f(0b00, 11, 10);
+	    i->sf(_offset, 20, 12);
+	  } else {
+	    i->f(0b01, 25, 24);
+	    _offset >>= size;
+	    i->f(_offset, 21, 10);
+	  }
       }
       break;
 
     case base_plus_offset_reg:
       assert_cond(_scale == 0);
+      i->f(0b00, 25, 24);
       i->f(1, 21);
       i->rf(_index, 16);
-      i->f(0b011, 15, 13); // Offset is always X register
+      i->f(0b011, 15, 13); // Offset is always an X register
       i->f(0, 12); // Shift is 0
       i->f(0b10, 11, 10);
       break;
 
     case pre:
+      i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b11, 11, 10);
       i->f(_offset, 20, 12);
       break;
 
     case post:
+      i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b01, 11, 10);
       i->f(_offset, 20, 12);
       break;
@@ -672,6 +681,11 @@ public:
   INSN(ldrw, 0b10, 0b01);
   INSN(ldrb, 0b00, 0b01);
   INSN(ldrh, 0b01, 0b01);
+
+  INSN(ldrsb, 0b00, 0b11);
+  INSN(ldrsh, 0b01, 0b11);
+  INSN(ldrshw, 0b01, 0b10);
+  INSN(ldrsw, 0b10, 0b10);
 
 #undef INSN
 
