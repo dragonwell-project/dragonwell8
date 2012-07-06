@@ -97,6 +97,10 @@ public:
     f(r->encoding_nocheck(), lsb + 4, lsb);
   }
 
+  void rf(FloatRegister r, int lsb) {
+    f(r->encoding_nocheck(), lsb + 4, lsb);
+  }
+
   unsigned get(int msb = 31, int lsb = 0) {
     int nbits = msb - lsb + 1;
     unsigned mask = ((1U << nbits) - 1) << lsb;
@@ -235,6 +239,9 @@ public:
     current->sf(val, msb, lsb);
   }
   void rf(Register reg, int lsb) {
+    current->rf(reg, lsb);
+  }
+  void rf(FloatRegister reg, int lsb) {
     current->rf(reg, lsb);
   }
   void fixed(unsigned value, unsigned mask) {
@@ -598,6 +605,20 @@ public:
 #undef INSN
 
 #define INSN(NAME, opc, V)						\
+  void NAME(FloatRegister Rt, address dest) {				\
+    long offset = (dest - pc()) >> 2;					\
+    starti;								\
+    f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),	\
+      sf(offset, 23, 5);						\
+    rf((Register)Rt, 0);						\
+  }
+
+  INSN(ldrs, 0b00, 1);
+  INSN(ldrd, 0b01, 1);
+
+#undef INSN
+
+#define INSN(NAME, opc, V)						\
   void NAME(int prfop, address dest) {					\
     long offset = (dest - pc()) >> 2;					\
     starti;								\
@@ -658,19 +679,19 @@ public:
 #undef INSN
 
   // Load/store register (all modes)
-  void ld_st2(Register Rt, Address_aarch64 adr, int size, int op) {
+  void ld_st2(Register Rt, Address_aarch64 adr, int size, int op, int V = 0) {
     starti;
     f(size, 31, 30);
     f(op, 23, 22); // str
-    f(0, 26); // general reg
+    f(V, 26); // general reg?
     rf(Rt, 0);
     adr.encode(current);
   }
 
-#define INSN(NAME, size, op)			\
-  void NAME(Register Rt, Address_aarch64 adr) {	\
-    ld_st2(Rt, adr, size, op);			\
-  }
+#define INSN(NAME, size, op)				\
+  void NAME(Register Rt, Address_aarch64 adr) {		\
+    ld_st2(Rt, adr, size, op);				\
+  }							\
 
   INSN(str, 0b11, 0b00);
   INSN(strw, 0b10, 0b00);
@@ -686,6 +707,22 @@ public:
   INSN(ldrsh, 0b01, 0b11);
   INSN(ldrshw, 0b01, 0b10);
   INSN(ldrsw, 0b10, 0b10);
+
+  INSN(prfm, 0b11, 0b10); // FIXME: PRFM should not be used with
+			  // writeback modes, but the assembler
+			  // doesn't enfore that.
+
+#undef INSN
+
+#define INSN(NAME, size, op)				\
+  void NAME(FloatRegister Rt, Address_aarch64 adr) {	\
+    ld_st2((Register)Rt, adr, size, op, 1);		\
+  }
+
+  INSN(strd, 0b11, 0b00);
+  INSN(strs, 0b10, 0b00);
+  INSN(ldrd, 0b11, 0b01);
+  INSN(ldrs, 0b10, 0b01);
 
 #undef INSN
 
@@ -955,6 +992,171 @@ public:
   INSN(smulh, 0b100, 0b010, 0);
   INSN(umulh, 0b100, 0b110, 0);
 
+#undef INSN
+
+  // Floating-point data-processing (1 source)
+  void data_processing(unsigned op31, unsigned type, unsigned opcode,
+		       FloatRegister Vd, FloatRegister Vn) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11110, 28, 24);
+    f(type, 23, 22), f(1, 21), f(opcode, 20, 15), f(0b10000, 14, 10);
+    rf(Vn, 5), rf(Vd, 0);
+  }
+
+#define INSN(NAME, op31, type, opcode)			\
+  void NAME(FloatRegister Vd, FloatRegister Vn) {	\
+    data_processing(op31, type, opcode, Vd, Vn);	\
+  }
+
+  INSN(fmovs, 0b000, 0b00, 0b000000);
+  INSN(fabss, 0b000, 0b00, 0b000001);
+  INSN(fnegs, 0b000, 0b00, 0b000010);
+  INSN(fsqrts, 0b000, 0b00, 0b000011);
+  INSN(fcvts, 0b000, 0b00, 0b000101);
+
+  INSN(fmovd, 0b000, 0b01, 0b000000);
+  INSN(fabsd, 0b000, 0b01, 0b000001);
+  INSN(fnegd, 0b000, 0b01, 0b000010);
+  INSN(fsqrtd, 0b000, 0b01, 0b000011);
+  INSN(fcvtd, 0b000, 0b01, 0b000100);
+
+#undef INSN
+
+  // Floating-point data-processing (2 source)
+  void data_processing(unsigned op31, unsigned type, unsigned opcode,
+		       FloatRegister Vd, FloatRegister Vn, FloatRegister Vm) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11110, 28, 24);
+    f(type, 23, 22), f(1, 21), f(opcode, 15, 12), f(0b10, 11, 10);
+    rf(Vm, 16), rf(Vn, 5), rf(Vd, 0);
+  }
+
+#define INSN(NAME, op31, type, opcode)			\
+  void NAME(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm) {	\
+    data_processing(op31, type, opcode, Vd, Vn, Vm);	\
+  }
+
+  INSN(fmuls, 0b000, 0b00, 0b0000);
+  INSN(fdivs, 0b000, 0b00, 0b0001);
+  INSN(fadds, 0b000, 0b00, 0b0010);
+  INSN(fsubs, 0b000, 0b00, 0b0011);
+  INSN(fnmuls, 0b000, 0b00, 0b1000);
+
+  INSN(fmuld, 0b000, 0b01, 0b0000);
+  INSN(fdivd, 0b000, 0b01, 0b0001);
+  INSN(faddd, 0b000, 0b01, 0b0010);
+  INSN(fsubd, 0b000, 0b01, 0b0011);
+  INSN(fnmuld, 0b000, 0b01, 0b1000);
+
+#undef INSN
+
+   // Floating-point data-processing (3 source)
+  void data_processing(unsigned op31, unsigned type, unsigned o1, unsigned o0,
+		       FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,
+		       FloatRegister Va) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11111, 28, 24);
+    f(type, 23, 22), f(o1, 21), f(o1, 15);
+    rf(Vm, 16), rf(Vn, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+
+#define INSN(NAME, op31, type, o1, o0)					\
+  void NAME(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,	\
+	    FloatRegister Va) {						\
+    data_processing(op31, type, o1, o0, Vd, Vn, Vm, Va);		\
+  }
+
+  INSN(fmadds, 0b000, 0b00, 0, 0);
+  INSN(fmsubs, 0b000, 0b00, 0, 1);
+  INSN(fnmadds, 0b000, 0b00, 0, 0);
+  INSN(fnmsubs, 0b000, 0b00, 0, 1);
+
+  INSN(fmadd, 0b000, 0b01, 0, 0);
+  INSN(fmsubd, 0b000, 0b01, 0, 1);
+  INSN(fnmadd, 0b000, 0b01, 0, 0);
+  INSN(fnmsub, 0b000, 0b01, 0, 1);
+
+#undef INSN
+
+   // Floating-point<->integer conversions
+  void float_int_convert(unsigned op31, unsigned type,
+			 unsigned rmode, unsigned opcode,
+			 Register Rd, Register Rn) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11110, 28, 24);
+    f(type, 23, 22), f(1, 21), f(rmode, 20, 19);
+    f(opcode, 18, 16), f(0b000000, 15, 10);
+    rf(Rn, 5), rf(Rd, 0);
+  }
+
+#define INSN(NAME, op31, type, rmode, opcode)				\
+  void NAME(Register Rd, FloatRegister Vn) {				\
+    float_int_convert(op31, type, rmode, opcode, Rd, (Register)Vn);	\
+  }
+
+  INSN(fcvtszw, 0b000, 0b00, 0b11, 0b000);
+  INSN(fcvtzs, 0b000, 0b01, 0b11, 0b000);
+  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
+  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
+
+  INSN(fmovs, 0b000, 0b00, 0b00, 0b110);
+  INSN(fmovd, 0b100, 0b01, 0b00, 0b110);
+
+  INSN(fmovhid, 0b100, 0b10, 0b01, 0b110);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, rmode, opcode)				\
+  void NAME(FloatRegister Vd, Register Rn) {				\
+    float_int_convert(op31, type, rmode, opcode, (Register)Vd, Rn);	\
+  }
+
+  INSN(fmovs, 0b000, 0b00, 0b00, 0b111);
+  INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
+
+  INSN(fmovhid, 0b100, 0b10, 0b01, 0b111);
+
+#undef INSN
+
+  // Floating-point compare
+  void float_compare(unsigned op31, unsigned type,
+		     unsigned op, unsigned op2,
+		     FloatRegister Vn, FloatRegister Vm = (FloatRegister)0) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11110, 28, 24);
+    f(type, 23, 22), f(1, 21);
+    f(op, 15, 14), f(0b1000, 13, 10), f(op2, 4, 0);
+    rf(Vn, 5), rf(Vm, 16);
+  }
+
+
+#define INSN(NAME, op31, type, op, op2)	\
+  void NAME(FloatRegister Vn, FloatRegister Vm) {	\
+    float_compare(op31, type, op, op2, Vn, Vm);	\
+  }
+
+#define INSN1(NAME, op31, type, op, op2)	\
+  void NAME(FloatRegister Vn) {	\
+    float_compare(op31, type, op, op2, Vn);	\
+  }
+
+  INSN(fcmps, 0b000, 0b00, 0b00, 0b00000);
+  INSN1(fcmps, 0b000, 0b00, 0b00, 0b01000);
+  INSN(fcmpes, 0b000, 0b00, 0b00, 0b10000);
+  INSN1(fcmpes, 0b000, 0b00, 0b00, 0b11000);
+
+  INSN(fcmpd, 0b000,   0b01, 0b00, 0b00000);
+  INSN1(fcmpd, 0b000,  0b01, 0b00, 0b01000);
+  INSN(fcmped, 0b000,  0b01, 0b00, 0b10000);
+  INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
+
+#undef INSN
+#undef INSN1
 
   Assembler_aarch64(CodeBuffer* code) : AbstractAssembler(code) {
   }

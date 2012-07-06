@@ -128,10 +128,84 @@ class FloatRegisterImpl: public AbstractRegisterImpl {
 
   // accessors
   int   encoding() const                          { assert(is_valid(), "invalid register"); return (intptr_t)this; }
+  int   encoding_nocheck() const                         { return (intptr_t)this; }
   bool  is_valid() const                          { return 0 <= (intptr_t)this && (intptr_t)this < number_of_registers; }
   const char* name() const;
 
 };
+
+// The float registers of the AARCH64 architecture
+
+CONSTANT_REGISTER_DECLARATION(FloatRegister, fnoreg , (-1));
+
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F0     , ( 0));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F1     , ( 1));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F2     , ( 2));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F3     , ( 3));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F4     , ( 4));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F5     , ( 5));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F6     , ( 6));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F7     , ( 7));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F8     , ( 8));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F9     , ( 9));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F10    , (10));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F11    , (11));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F12    , (12));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F13    , (13));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F14    , (14));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F15    , (15));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F16    , (16));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F17    , (17));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F18    , (18));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F19    , (19));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F20    , (20));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F21    , (21));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F22    , (22));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F23    , (23));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F24    , (24));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F25    , (25));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F26    , (26));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F27    , (27));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F28    , (28));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F29    , (29));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F30    , (30));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, F31    , (31));
+
+#ifndef DONT_USE_REGISTER_DEFINES
+#define fnoreg ((FloatRegister)(fnoreg_FloatRegisterEnumValue))
+#define F0     ((FloatRegister)(    F0_FloatRegisterEnumValue))
+#define F1     ((FloatRegister)(    F1_FloatRegisterEnumValue))
+#define F2     ((FloatRegister)(    F2_FloatRegisterEnumValue))
+#define F3     ((FloatRegister)(    F3_FloatRegisterEnumValue))
+#define F4     ((FloatRegister)(    F4_FloatRegisterEnumValue))
+#define F5     ((FloatRegister)(    F5_FloatRegisterEnumValue))
+#define F6     ((FloatRegister)(    F6_FloatRegisterEnumValue))
+#define F7     ((FloatRegister)(    F7_FloatRegisterEnumValue))
+#define F8     ((FloatRegister)(    F8_FloatRegisterEnumValue))
+#define F9     ((FloatRegister)(    F9_FloatRegisterEnumValue))
+#define F10    ((FloatRegister)(   F10_FloatRegisterEnumValue))
+#define F11    ((FloatRegister)(   F11_FloatRegisterEnumValue))
+#define F12    ((FloatRegister)(   F12_FloatRegisterEnumValue))
+#define F13    ((FloatRegister)(   F13_FloatRegisterEnumValue))
+#define F14    ((FloatRegister)(   F14_FloatRegisterEnumValue))
+#define F15    ((FloatRegister)(   F15_FloatRegisterEnumValue))
+#define F16    ((FloatRegister)(   F16_FloatRegisterEnumValue))
+#define F17    ((FloatRegister)(   F17_FloatRegisterEnumValue))
+#define F18    ((FloatRegister)(   F18_FloatRegisterEnumValue))
+#define F19    ((FloatRegister)(   F19_FloatRegisterEnumValue))
+#define F20    ((FloatRegister)(   F20_FloatRegisterEnumValue))
+#define F21    ((FloatRegister)(   F21_FloatRegisterEnumValue))
+#define F22    ((FloatRegister)(   F22_FloatRegisterEnumValue))
+#define F23    ((FloatRegister)(   F23_FloatRegisterEnumValue))
+#define F24    ((FloatRegister)(   F24_FloatRegisterEnumValue))
+#define F25    ((FloatRegister)(   F25_FloatRegisterEnumValue))
+#define F26    ((FloatRegister)(   F26_FloatRegisterEnumValue))
+#define F27    ((FloatRegister)(   F27_FloatRegisterEnumValue))
+#define F28    ((FloatRegister)(   F28_FloatRegisterEnumValue))
+#define F29    ((FloatRegister)(   F29_FloatRegisterEnumValue))
+#define F30    ((FloatRegister)(   F30_FloatRegisterEnumValue))
+#define F31    ((FloatRegister)(   F31_FloatRegisterEnumValue))
+#endif // DONT_USE_REGISTER_DEFINES
 
 // Need to know the total number of registers of all sorts for SharedInfo.
 // Define a class that exports it.
@@ -144,7 +218,8 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
   // it's optoregs.
 
     number_of_registers =      RegisterImpl::number_of_registers +
-                           1 // eflags
+                               FloatRegisterImpl::number_of_registers +
+                               1 // flags
   };
 
 };

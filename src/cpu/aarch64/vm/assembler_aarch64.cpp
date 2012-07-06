@@ -179,6 +179,8 @@ void entry(CodeBuffer *cb) {
 
   __ ldrw(r8, entry);
   __ ldr(r8, entry);
+  __ ldrs(F12, entry);
+  __ ldrd(F12, entry);
   __ ldrsw(r8, entry);
   __ prfm(0b10000, __ pc() + 8);
 
@@ -260,6 +262,26 @@ void entry(CodeBuffer *cb) {
   __ ldrsb(r3, Address_aarch64(r4, r6));
   __ ldrsb(r3, Address_aarch64(__ pre(r4, 8)));
   __ ldrsb(r3, Address_aarch64(__ post(r4, 8)));
+
+  __ prfm(r3, Address_aarch64(r4));
+  __ prfm(r3, Address_aarch64(r4, 8));
+  __ prfm(r3, Address_aarch64(r4, r6));
+  __ prfm(r3, Address_aarch64(__ pre(r4, 8)));
+  __ prfm(r3, Address_aarch64(__ post(r4, 8)));
+
+#define INSN(NAME, size, op)			\
+  __ NAME(F7, Address_aarch64(r4));		\
+  __ NAME(F7, Address_aarch64(r4, 8));		\
+  __ NAME(F7, Address_aarch64(r4, r6));		\
+  __ NAME(F7, Address_aarch64(__ pre(r4, 8)));	\
+  __ NAME(F7, Address_aarch64(__ post(r4, 8)));
+
+  INSN(strd, 0b11, 0b00);
+  INSN(strs, 0b10, 0b00);
+  INSN(ldrd, 0b11, 0b01);
+  INSN(ldrs, 0b10, 0b01);
+
+#undef INSN
 
   __ eorw (r19, r7, r11, __ lsl, 3);
   __ bic(r27, r3, r1, __ ror, 22);
@@ -345,6 +367,97 @@ void entry(CodeBuffer *cb) {
   __ ldr(r3, Address_aarch64(r2, -11));
   __ ldr(r3, Address_aarch64(r2, 12));
   __ ldr(r3, Address_aarch64(r2, -12));
+
+#define INSN(NAME, op31, type, opcode)			\
+  __ NAME(F0, F1);
+
+  INSN(fmovs, 0b000, 0b00, 0b000000);
+  INSN(fabss, 0b000, 0b00, 0b000001);
+  INSN(fnegs, 0b000, 0b00, 0b000010);
+  INSN(fsqrts, 0b000, 0b00, 0b000011);
+  INSN(fcvts, 0b000, 0b00, 0b000101);
+
+  INSN(fmovd, 0b000, 0b01, 0b000000);
+  INSN(fabsd, 0b000, 0b01, 0b000001);
+  INSN(fnegd, 0b000, 0b01, 0b000010);
+  INSN(fsqrtd, 0b000, 0b01, 0b000011);
+  INSN(fcvtd, 0b000, 0b01, 0b000100);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, opcode)			\
+  __ NAME(F0, F1, F1);
+  
+  INSN(fmuls, 0b000, 0b00, 0b0000);
+  INSN(fdivs, 0b000, 0b00, 0b0001);
+  INSN(fadds, 0b000, 0b00, 0b0010);
+  INSN(fsubs, 0b000, 0b00, 0b0011);
+  INSN(fnmuls, 0b000, 0b00, 0b1000);
+
+  INSN(fmuls, 0b000, 0b01, 0b0000);
+  INSN(fdivs, 0b000, 0b01, 0b0001);
+  INSN(fadds, 0b000, 0b01, 0b0010);
+  INSN(fsubs, 0b000, 0b01, 0b0011);
+  INSN(fnmuls, 0b000, 0b01, 0b1000);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, o1, o0)					\
+  __ NAME(F0, F1, F2, F3);
+
+  INSN(fmadds, 0b000, 0b00, 0, 0);
+  INSN(fmsubs, 0b000, 0b00, 0, 1);
+  INSN(fnmadds, 0b000, 0b00, 0, 0);
+  INSN(fnmsubs, 0b000, 0b00, 0, 1);
+
+  INSN(fmadd, 0b000, 0b01, 0, 0);
+  INSN(fmsubd, 0b000, 0b01, 0, 1);
+  INSN(fnmadd, 0b000, 0b01, 0, 0);
+  INSN(fnmsub, 0b000, 0b01, 0, 1);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, rmode, opcode)		\
+  __ NAME(r1, F0);
+
+  INSN(fcvtszw, 0b000, 0b00, 0b11, 0b000);
+  INSN(fcvtzs, 0b000, 0b01, 0b11, 0b000);
+  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
+  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
+
+  INSN(fmovs, 0b000, 0b00, 0b00, 0b110);
+  INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
+
+  INSN(fmovhid, 0b100, 0b10, 0b01, 0b110);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, rmode, opcode)		\
+  __ NAME(F2, r3);
+
+  INSN(fmovs, 0b000, 0b00, 0b00, 0b111);
+  INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
+
+  INSN(fmovhid, 0b100, 0b10, 0b01, 0b110);
+
+#undef INSN
+
+#define INSN(NAME, op31, type, op, opcode2)	\
+  __ NAME(F0, F1);
+#define INSN1(NAME, op31, type, op, opcode2)	\
+  __ NAME(F1);
+
+  INSN(fcmps, 0b000, 0b00, 0b00, 0b00000);
+  INSN1(fcmps, 0b000, 0b00, 0b00, 0b01000);
+  INSN(fcmpes, 0b000, 0b00, 0b00, 0b10000);
+  INSN1(fcmpes, 0b000, 0b00, 0b00, 0b11000);
+
+  INSN(fcmpd, 0b000, 0b01, 0b00, 0b00000);
+  INSN1(fcmpd, 0b000, 0b01, 0b00, 0b01000);
+  INSN(fcmped, 0b000, 0b01, 0b00, 0b10000);
+  INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
+
+#undef INSN
 
   Disassembler::decode(entry, __ pc());
 
