@@ -222,6 +222,9 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
                                1 // flags
   };
 
+  // added to make it compile
+  static const int max_gpr;
+  static const int max_fpr;
 };
 
 #endif // CPU_AARCH64_VM_REGISTER_AARCH64_HPP

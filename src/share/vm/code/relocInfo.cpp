@@ -30,6 +30,10 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "utilities/copy.hpp"
+#ifdef TARGET_ARCH_aarch64
+# include "assembler_aarch64.inline.hpp"
+# include "nativeInst_aarch64.hpp"
+#endif
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 

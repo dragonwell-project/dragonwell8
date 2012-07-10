@@ -58,7 +58,7 @@ REGISTER_DEFINITION(Register, r4);
 REGISTER_DEFINITION(Register, r5);
 REGISTER_DEFINITION(Register, r6);
 REGISTER_DEFINITION(Register, r7);
-#if 0 // x86 defines these.  What a kludge!
+// #if 0 // x86 defines these.  What a kludge!
 REGISTER_DEFINITION(Register, r8);
 REGISTER_DEFINITION(Register, r9);
 REGISTER_DEFINITION(Register, r10);
@@ -67,7 +67,7 @@ REGISTER_DEFINITION(Register, r12);
 REGISTER_DEFINITION(Register, r13);
 REGISTER_DEFINITION(Register, r14);
 REGISTER_DEFINITION(Register, r15);
-#endif
+// #endif
 REGISTER_DEFINITION(Register, r16);
 REGISTER_DEFINITION(Register, r17);
 REGISTER_DEFINITION(Register, r18);
@@ -91,7 +91,7 @@ extern "C" void entry(CodeBuffer *cb);
 #define __ _masm.
 
 void entry(CodeBuffer *cb) {
-  Assembler_aarch64 _masm(cb);
+  Assembler _masm(cb);
   address entry = __ pc();
 
   __ addwi(r0, r1, 99);
@@ -179,8 +179,6 @@ void entry(CodeBuffer *cb) {
 
   __ ldrw(r8, entry);
   __ ldr(r8, entry);
-  __ ldrs(F12, entry);
-  __ ldrd(F12, entry);
   __ ldrsw(r8, entry);
   __ prfm(0b10000, __ pc() + 8);
 
@@ -196,268 +194,57 @@ void entry(CodeBuffer *cb) {
 
 #undef INSN 
 
-  __ str(r3, Address_aarch64(r4));
-  __ str(r3, Address_aarch64(r4, 8));
-  __ str(r3, Address_aarch64(r4, r6));
-  __ str(r3, Address_aarch64(__ pre(r4, 8)));
-  __ str(r3, Address_aarch64(__ post(r4, 8)));
+  __ str(r3, Address(r4));
+  __ str(r3, Address(r4, 8));
+  __ str(r3, Address(r4, r6));
+  __ str(r3, Address(__ pre(r4, 8)));
+  __ str(r3, Address(__ post(r4, 8)));
 
-  __ strw(r3, Address_aarch64(r4));
-  __ strw(r3, Address_aarch64(r4, 8));
-  __ strw(r3, Address_aarch64(r4, r6));
-  __ strw(r3, Address_aarch64(__ pre(r4, 8)));
-  __ strw(r3, Address_aarch64(__ post(r4, 8)));
-
-  
-  __ strh(r3, Address_aarch64(r4));
-  __ strh(r3, Address_aarch64(r4, 8));
-  __ strh(r3, Address_aarch64(r4, r6));
-  __ strh(r3, Address_aarch64(__ pre(r4, 8)));
-  __ strh(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ strb(r3, Address_aarch64(r4));
-  __ strb(r3, Address_aarch64(r4, 8));
-  __ strb(r3, Address_aarch64(r4, r6));
-  __ strb(r3, Address_aarch64(__ pre(r4, 8)));
-  __ strb(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldr(r3, Address_aarch64(r4));
-  __ ldr(r3, Address_aarch64(r4, 8));
-  __ ldr(r3, Address_aarch64(r4, r6));
-  __ ldr(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldr(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrw(r3, Address_aarch64(r4));
-  __ ldrw(r3, Address_aarch64(r4, 8));
-  __ ldrw(r3, Address_aarch64(r4, r6));
-  __ ldrw(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrw(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrsw(r3, Address_aarch64(r4));
-  __ ldrsw(r3, Address_aarch64(r4, 8));
-  __ ldrsw(r3, Address_aarch64(r4, r6));
-  __ ldrsw(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrsw(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrh(r3, Address_aarch64(r4));
-  __ ldrh(r3, Address_aarch64(r4, 8));
-  __ ldrh(r3, Address_aarch64(r4, r6));
-  __ ldrh(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrh(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrh(r3, Address_aarch64(r4));
-  __ ldrh(r3, Address_aarch64(r4, 8));
-  __ ldrh(r3, Address_aarch64(r4, r6));
-  __ ldrh(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrh(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrb(r3, Address_aarch64(r4));
-  __ ldrb(r3, Address_aarch64(r4, 8));
-  __ ldrb(r3, Address_aarch64(r4, r6));
-  __ ldrb(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrb(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ ldrsb(r3, Address_aarch64(r4));
-  __ ldrsb(r3, Address_aarch64(r4, 8));
-  __ ldrsb(r3, Address_aarch64(r4, r6));
-  __ ldrsb(r3, Address_aarch64(__ pre(r4, 8)));
-  __ ldrsb(r3, Address_aarch64(__ post(r4, 8)));
-
-  __ prfm(r3, Address_aarch64(r4));
-  __ prfm(r3, Address_aarch64(r4, 8));
-  __ prfm(r3, Address_aarch64(r4, r6));
-  __ prfm(r3, Address_aarch64(__ pre(r4, 8)));
-  __ prfm(r3, Address_aarch64(__ post(r4, 8)));
-
-#define INSN(NAME, size, op)			\
-  __ NAME(F7, Address_aarch64(r4));		\
-  __ NAME(F7, Address_aarch64(r4, 8));		\
-  __ NAME(F7, Address_aarch64(r4, r6));		\
-  __ NAME(F7, Address_aarch64(__ pre(r4, 8)));	\
-  __ NAME(F7, Address_aarch64(__ post(r4, 8)));
-
-  INSN(strd, 0b11, 0b00);
-  INSN(strs, 0b10, 0b00);
-  INSN(ldrd, 0b11, 0b01);
-  INSN(ldrs, 0b10, 0b01);
-
-#undef INSN
-
-  __ eorw (r19, r7, r11, __ lsl, 3);
-  __ bic(r27, r3, r1, __ ror, 22);
-
-  __ addw(r27, r3, r1, __ lsl, 22);
-
-  __ add(r16, r17, r18, ext::uxth, 4);
-  __ adds(r16, r17, r18);
-
-  __ adc(r0, r1, r2);
-  __ sbcsw(r18, r19, r20);
-
-  for (int i = 0; i < 16; i++) {
-    __   ccmn(r1, r2, 15-i, (Assembler_aarch64::condition_code)i);
-    __   ccmpw(r1, r2, 15-i, (Assembler_aarch64::condition_code)i);
-    __   ccmpw(r1, i, 15-i, (Assembler_aarch64::condition_code)i);
-  }
-
-  __ csinv(r9, r10, r11, Assembler_aarch64::CS);
-
-#define INSN(NAME, op29, opcode2, opcode)	\
-  __ NAME(r20, r21);
+  __ strw(r3, Address(r4));
+  __ strw(r3, Address(r4, 8));
+  __ strw(r3, Address(r4, r6));
+  __ strw(r3, Address(__ pre(r4, 8)));
+  __ strw(r3, Address(__ post(r4, 8)));
 
   
-  INSN(rbitw,  0b010, 0b00000, 0b00000);
-  INSN(rev16w, 0b010, 0b00000, 0b00001);
-  INSN(revw,   0b010, 0b00000, 0b00010);
-  INSN(clzw,   0b010, 0b00000, 0b00100);
-  INSN(clsw,   0b010, 0b00000, 0b00101);
- 
-  INSN(rbit,   0b110, 0b00000, 0b00000);
-  INSN(rev16,  0b110, 0b00000, 0b00001);
-  INSN(rev32,  0b110, 0b00000, 0b00010);
-  INSN(rev,    0b110, 0b00000, 0b00011);
-  INSN(clz,    0b110, 0b00000, 0b00100);
-  INSN(cls,    0b110, 0b00000, 0b00101);
+  __ strh(r3, Address(r4));
+  __ strh(r3, Address(r4, 8));
+  __ strh(r3, Address(r4, r6));
+  __ strh(r3, Address(__ pre(r4, 8)));
+  __ strh(r3, Address(__ post(r4, 8)));
 
-#undef INSN
+  __ strb(r3, Address(r4));
+  __ strb(r3, Address(r4, 8));
+  __ strb(r3, Address(r4, r6));
+  __ strb(r3, Address(__ pre(r4, 8)));
+  __ strb(r3, Address(__ post(r4, 8)));
 
-#define INSN(NAME, op29, opcode)			\
-  __ NAME(r17, r18, r0);
+  __ ldr(r3, Address(r4));
+  __ ldr(r3, Address(r4, 8));
+  __ ldr(r3, Address(r4, r6));
+  __ ldr(r3, Address(__ pre(r4, 8)));
+  __ ldr(r3, Address(__ post(r4, 8)));
 
-  INSN(udivw, 0b000, 0b000010);
-  INSN(sdivw, 0b000, 0b000011);
-  INSN(lslvw, 0b000, 0b001000);
-  INSN(lsrvw, 0b000, 0b001001);
-  INSN(asrvw, 0b000, 0b001010);
-  INSN(rorvw, 0b000, 0b001011);
+  __ ldrw(r3, Address(r4));
+  __ ldrw(r3, Address(r4, 8));
+  __ ldrw(r3, Address(r4, r6));
+  __ ldrw(r3, Address(__ pre(r4, 8)));
+  __ ldrw(r3, Address(__ post(r4, 8)));
 
-  INSN(udiv, 0b100, 0b000010);
-  INSN(sdiv, 0b100, 0b000011);
-  INSN(lslv, 0b100, 0b001000);
-  INSN(lsrv, 0b100, 0b001001);
-  INSN(asrv, 0b100, 0b001010);
-  INSN(rorv, 0b100, 0b001011);
-
-#undef INSN
-
-#define INSN(NAME, op54, op31, o0) \
-  __ NAME(r3, r2, r1, r0);
-
-  INSN(maddw, 0b000, 0b000, 0);
-  INSN(msubw, 0b000, 0b000, 1);
-  INSN(madd, 0b100, 0b000, 0);
-  INSN(msub, 0b100, 0b000, 1);
-  INSN(smaddl, 0b100, 0b001, 0);
-  INSN(smsubl, 0b100, 0b001, 1);
-  INSN(umaddl, 0b100, 0b101, 0);
-  INSN(umsubl, 0b100, 0b101, 1);
-
-#undef INSN
-
-#define INSN(NAME, op54, op31, o0) \
-  __ NAME(r3, r2, r1);
-
-  INSN(smulh, 0b100, 0b010, 0);
-  INSN(umulh, 0b100, 0b110, 0);
-
-#undef INSN
-
-  // Aligned and signed
-  __ ldr(r3, Address_aarch64(r2, 11));
-  __ ldr(r3, Address_aarch64(r2, -11));
-  __ ldr(r3, Address_aarch64(r2, 12));
-  __ ldr(r3, Address_aarch64(r2, -12));
-
-#define INSN(NAME, op31, type, opcode)			\
-  __ NAME(F0, F1);
-
-  INSN(fmovs, 0b000, 0b00, 0b000000);
-  INSN(fabss, 0b000, 0b00, 0b000001);
-  INSN(fnegs, 0b000, 0b00, 0b000010);
-  INSN(fsqrts, 0b000, 0b00, 0b000011);
-  INSN(fcvts, 0b000, 0b00, 0b000101);
-
-  INSN(fmovd, 0b000, 0b01, 0b000000);
-  INSN(fabsd, 0b000, 0b01, 0b000001);
-  INSN(fnegd, 0b000, 0b01, 0b000010);
-  INSN(fsqrtd, 0b000, 0b01, 0b000011);
-  INSN(fcvtd, 0b000, 0b01, 0b000100);
-
-#undef INSN
-
-#define INSN(NAME, op31, type, opcode)			\
-  __ NAME(F0, F1, F1);
   
-  INSN(fmuls, 0b000, 0b00, 0b0000);
-  INSN(fdivs, 0b000, 0b00, 0b0001);
-  INSN(fadds, 0b000, 0b00, 0b0010);
-  INSN(fsubs, 0b000, 0b00, 0b0011);
-  INSN(fnmuls, 0b000, 0b00, 0b1000);
+  __ ldrh(r3, Address(r4));
+  __ ldrh(r3, Address(r4, 8));
+  __ ldrh(r3, Address(r4, r6));
+  __ ldrh(r3, Address(__ pre(r4, 8)));
+  __ ldrh(r3, Address(__ post(r4, 8)));
 
-  INSN(fmuls, 0b000, 0b01, 0b0000);
-  INSN(fdivs, 0b000, 0b01, 0b0001);
-  INSN(fadds, 0b000, 0b01, 0b0010);
-  INSN(fsubs, 0b000, 0b01, 0b0011);
-  INSN(fnmuls, 0b000, 0b01, 0b1000);
+  __ ldrb(r3, Address(r4));
+  __ ldrb(r3, Address(r4, 8));
+  __ ldrb(r3, Address(r4, r6));
+  __ ldrb(r3, Address(__ pre(r4, 8)));
+  __ ldrb(r3, Address(__ post(r4, 8)));
 
-#undef INSN
-
-#define INSN(NAME, op31, type, o1, o0)					\
-  __ NAME(F0, F1, F2, F3);
-
-  INSN(fmadds, 0b000, 0b00, 0, 0);
-  INSN(fmsubs, 0b000, 0b00, 0, 1);
-  INSN(fnmadds, 0b000, 0b00, 0, 0);
-  INSN(fnmsubs, 0b000, 0b00, 0, 1);
-
-  INSN(fmadd, 0b000, 0b01, 0, 0);
-  INSN(fmsubd, 0b000, 0b01, 0, 1);
-  INSN(fnmadd, 0b000, 0b01, 0, 0);
-  INSN(fnmsub, 0b000, 0b01, 0, 1);
-
-#undef INSN
-
-#define INSN(NAME, op31, type, rmode, opcode)		\
-  __ NAME(r1, F0);
-
-  INSN(fcvtszw, 0b000, 0b00, 0b11, 0b000);
-  INSN(fcvtzs, 0b000, 0b01, 0b11, 0b000);
-  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
-  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
-
-  INSN(fmovs, 0b000, 0b00, 0b00, 0b110);
-  INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
-
-  INSN(fmovhid, 0b100, 0b10, 0b01, 0b110);
-
-#undef INSN
-
-#define INSN(NAME, op31, type, rmode, opcode)		\
-  __ NAME(F2, r3);
-
-  INSN(fmovs, 0b000, 0b00, 0b00, 0b111);
-  INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
-
-  INSN(fmovhid, 0b100, 0b10, 0b01, 0b110);
-
-#undef INSN
-
-#define INSN(NAME, op31, type, op, opcode2)	\
-  __ NAME(F0, F1);
-#define INSN1(NAME, op31, type, op, opcode2)	\
-  __ NAME(F1);
-
-  INSN(fcmps, 0b000, 0b00, 0b00, 0b00000);
-  INSN1(fcmps, 0b000, 0b00, 0b00, 0b01000);
-  INSN(fcmpes, 0b000, 0b00, 0b00, 0b10000);
-  INSN1(fcmpes, 0b000, 0b00, 0b00, 0b11000);
-
-  INSN(fcmpd, 0b000, 0b01, 0b00, 0b00000);
-  INSN1(fcmpd, 0b000, 0b01, 0b00, 0b01000);
-  INSN(fcmped, 0b000, 0b01, 0b00, 0b10000);
-  INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
-
-#undef INSN
+  
 
   Disassembler::decode(entry, __ pc());
 
@@ -623,7 +410,94 @@ asm_util::encode_immediate_v2(int is32, uint64_t imm)
 
 // ------------- Stolen from binutils end -------------------------------------
 
-bool Assembler_aarch64::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
+bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_immediate_v2(is32, imm) != 0xffffffff;
 }
+
+int AbstractAssembler::code_fill_byte() { Unimplemented(); }
+
+// added to make this compile
+
+REGISTER_DEFINITION(Register, noreg);
+
+void MacroAssembler::call_VM_base(Register oop_result,
+				  Register java_thread,
+				  Register last_java_sp,
+				  address  entry_point,
+				  int      number_of_arguments,
+				  bool     check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             address entry_point,
+                             bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             address entry_point,
+                             Register arg_1,
+                             bool check_exceptions) { Unimplemented(); }
+
+
+void MacroAssembler::call_VM(Register oop_result,
+                             address entry_point,
+                             Register arg_1,
+                             Register arg_2,
+                             bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             address entry_point,
+                             Register arg_1,
+                             Register arg_2,
+                             Register arg_3,
+                             bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+			     Register last_java_sp,
+			     address entry_point,
+			     int number_of_arguments,
+			     bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             Register last_java_sp,
+                             address entry_point,
+                             Register arg_1,
+			     bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             Register last_java_sp,
+                             address entry_point,
+                             Register arg_1,
+                             Register arg_2,
+                             bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::call_VM(Register oop_result,
+                             Register last_java_sp,
+                             address entry_point,
+                             Register arg_1,
+                             Register arg_2,
+                             Register arg_3,
+                             bool check_exceptions) { Unimplemented(); }
+
+void MacroAssembler::check_and_handle_earlyret(Register java_thread) {Unimplemented(); }
+
+void MacroAssembler::align(int modulus) { Unimplemented();}
+
+void MacroAssembler::check_and_handle_popframe(Register java_thread) { Unimplemented(); }
+
+RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_addr,
+                                                      Register tmp,
+                                                      int offset) { Unimplemented(); return RegisterOrConstant(r0); }
+
+void MacroAssembler::verify_oop(Register reg, const char* s) { Unimplemented(); }
+
+void MacroAssembler::stop(const char* msg) { Unimplemented(); }
+
+void MacroAssembler::call_VM_leaf_base(address entry_point, int num_args) { Unimplemented(); }
+
+void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0) { Unimplemented(); }
+
+void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1) { Unimplemented(); }
+
+void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2) { Unimplemented(); }
+
+void MacroAssembler::null_check(Register reg, int offset) { Unimplemented(); }
 

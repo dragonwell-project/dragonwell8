@@ -31,6 +31,9 @@
 #ifdef TARGET_OS_ARCH_linux_x86
 # include "copy_linux_x86.inline.hpp"
 #endif
+#ifdef TARGET_OS_ARCH_linux_aarch64
+# include "copy_linux_aarch64.inline.hpp"
+#endif
 #ifdef TARGET_OS_ARCH_solaris_x86
 # include "copy_solaris_x86.inline.hpp"
 #endif

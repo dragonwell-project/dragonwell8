@@ -30,7 +30,9 @@
 #include "oops/oop.inline.hpp"
 #include "prims/forte.hpp"
 #include "runtime/stubCodeGenerator.hpp"
-
+#ifdef TARGET_ARCH_aarch64
+# include "assembler_aarch64.inline.hpp"
+#endif
 
 // Implementation of StubCodeDesc
 

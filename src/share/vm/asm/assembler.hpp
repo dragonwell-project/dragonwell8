@@ -32,8 +32,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/top.hpp"
-
-#ifdef TARGET_ARCH_AARCH64
+#ifdef TARGET_ARCH_aarch64
 # include "register_aarch64.hpp"
 # include "vm_version_aarch64.hpp"
 

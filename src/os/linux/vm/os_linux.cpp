@@ -68,6 +68,10 @@
 #include "utilities/elfFile.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/vmError.hpp"
+#ifdef	TARGET_ARCH_aarch64
+# include "assembler_aarch64.inline.hpp"
+# include "nativeInst_aarch64.hpp"
+#endif
 
 // put OS-includes here
 # include <sys/types.h>

@@ -35,6 +35,9 @@
 #ifdef TARGET_ARCH_x86
 # include "vmreg_x86.inline.hpp"
 #endif
+#ifdef TARGET_ARCH_aarch64
+# include "vmreg_aarch64.inline.hpp"
+#endif
 #ifdef TARGET_ARCH_sparc
 # include "vmreg_sparc.inline.hpp"
 #endif
@@ -137,10 +140,12 @@ int LinearScan::reg_num(LIR_Opr opr) {
   } else if (opr->is_double_cpu()) {
     return opr->cpu_regnrLo();
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
   } else if (opr->is_single_xmm()) {
     return opr->fpu_regnr() + pd_first_xmm_reg;
   } else if (opr->is_double_xmm()) {
     return opr->fpu_regnrLo() + pd_first_xmm_reg;
+#endif
 #endif
   } else if (opr->is_single_fpu()) {
     return opr->fpu_regnr() + pd_first_fpu_reg;
@@ -1294,7 +1299,9 @@ void LinearScan::build_intervals() {
   // perfomed and so the temp ranges would be useless
   if (has_fpu_registers()) {
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
     if (UseSSE < 2) {
+#endif
 #endif
       for (i = 0; i < FrameMap::nof_caller_save_fpu_regs; i++) {
         LIR_Opr opr = FrameMap::caller_save_fpu_reg_at(i);
@@ -1303,6 +1310,7 @@ void LinearScan::build_intervals() {
         caller_save_registers[num_caller_save_registers++] = reg_num(opr);
       }
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
     }
     if (UseSSE > 0) {
       for (i = 0; i < FrameMap::nof_caller_save_xmm_regs; i++) {
@@ -1312,6 +1320,7 @@ void LinearScan::build_intervals() {
         caller_save_registers[num_caller_save_registers++] = reg_num(opr);
       }
     }
+#endif
 #endif
   }
   assert(num_caller_save_registers <= LinearScan::nof_regs, "out of bounds");
@@ -2112,11 +2121,13 @@ LIR_Opr LinearScan::calc_operand_for_interval(const Interval* interval) {
 #ifndef __SOFTFP__
       case T_FLOAT: {
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
         if (UseSSE >= 1) {
           assert(assigned_reg >= pd_first_xmm_reg && assigned_reg <= pd_last_xmm_reg, "no xmm register");
           assert(interval->assigned_regHi() == any_reg, "must not have hi register");
           return LIR_OprFact::single_xmm(assigned_reg - pd_first_xmm_reg);
         }
+#endif
 #endif
 
         assert(assigned_reg >= pd_first_fpu_reg && assigned_reg <= pd_last_fpu_reg, "no fpu register");
@@ -2126,11 +2137,13 @@ LIR_Opr LinearScan::calc_operand_for_interval(const Interval* interval) {
 
       case T_DOUBLE: {
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
         if (UseSSE >= 2) {
           assert(assigned_reg >= pd_first_xmm_reg && assigned_reg <= pd_last_xmm_reg, "no xmm register");
           assert(interval->assigned_regHi() == any_reg, "must not have hi register (double xmm values are stored in one register)");
           return LIR_OprFact::double_xmm(assigned_reg - pd_first_xmm_reg);
         }
+#endif
 #endif
 
 #ifdef SPARC
@@ -2600,12 +2613,14 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
     return 1;
 
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
   } else if (opr->is_single_xmm()) {
     VMReg rname = opr->as_xmm_float_reg()->as_VMReg();
     LocationValue* sv = new LocationValue(Location::new_reg_loc(Location::normal, rname));
 
     scope_values->append(sv);
     return 1;
+#endif
 #endif
 
   } else if (opr->is_single_fpu()) {
@@ -2690,6 +2705,7 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
 
 
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
     } else if (opr->is_double_xmm()) {
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi(), "assumed in calculation");
       VMReg rname_first  = opr->as_xmm_double_reg()->as_VMReg();
@@ -2704,6 +2720,7 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
         second = new LocationValue(Location::new_reg_loc(Location::normal, rname_second));
       }
 #  endif
+#endif
 #endif
 
     } else if (opr->is_double_fpu()) {
@@ -3615,9 +3632,11 @@ void RegisterVerifier::process_operations(LIR_List* ops, IntervalList* input_sta
       }
 
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
       for (j = 0; j < FrameMap::nof_caller_save_xmm_regs; j++) {
         state_put(input_state, reg_num(FrameMap::caller_save_xmm_reg_at(j)), NULL);
       }
+#endif
 #endif
     }
 
@@ -4534,8 +4553,10 @@ void Interval::print(outputStream* out) const {
     } else if (assigned_reg() >= pd_first_fpu_reg && assigned_reg() <= pd_last_fpu_reg) {
       opr = LIR_OprFact::single_fpu(assigned_reg() - pd_first_fpu_reg);
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
     } else if (assigned_reg() >= pd_first_xmm_reg && assigned_reg() <= pd_last_xmm_reg) {
       opr = LIR_OprFact::single_xmm(assigned_reg() - pd_first_xmm_reg);
+#endif
 #endif
     } else {
       ShouldNotReachHere();

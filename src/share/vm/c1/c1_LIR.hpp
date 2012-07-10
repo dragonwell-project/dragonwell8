@@ -447,10 +447,12 @@ class LIR_OprDesc: public CompilationResourceObj {
   }
 
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
   XMMRegister as_xmm_float_reg() const;
   XMMRegister as_xmm_double_reg() const;
   // for compatibility with RInfo
   int fpu () const                                  { return lo_reg_half(); }
+#endif
 #endif // X86
 #if defined(SPARC) || defined(ARM) || defined(PPC)
   FloatRegister as_float_reg   () const;
