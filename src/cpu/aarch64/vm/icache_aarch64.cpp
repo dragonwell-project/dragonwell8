@@ -27,50 +27,50 @@
 #include "runtime/icache.hpp"
 
 extern void aarch64TestHook();
+extern "C" void setup_arm_sim();
 
 #define __ _masm->
 
 int _flush_icache_stub_dummy(address addr, int lines, int magic)
 {
+  // no need to do any cache flushing on x86 so just obey th eimplicit
+  // contract to return the magic arg
+
   return magic;
 }
 
 void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flush_icache_stub) {
 
-  aarch64TestHook();
-
-#if 0
-  // TODO -- this is just dummy code to get us bootstrapped far enough
-  // to be able to test the Assembler.
-
-  // we have to put come code into the buffer because the flush routine checks
-  // that the first flush is for the current start address
-  // the mark here ensures that the flush routine gets called on the way out
+  //aarch64TestHook();
 
   StubCodeMark mark(this, "ICache", "flush_icache_stub");
 
   address start = __ pc();
-  // generate more than 8 nops and then copy 8 words of the dummy x86 code
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
-  __ nop();
 
-  address dummy = (address)_flush_icache_stub_dummy;
-  memcpy(start, dummy, 8 * BytesPerWord);
+  // generate a c stub prolog which will bootstrap into the ARM code
+  // which follows, loading the 3 general registers passed by the
+  // caller into the first 3 ARM registers
+
+  __ c_stub_prolog(3ULL | (1ULL << 63));
+
+  address entry = __ pc();
+
+  // we need to invalidate each cache line and then skip to the next
+  // one.
+  // TODO : currently use a nop for the flush operation. we also
+  // need a mfence before and after the loop.
+  address loop = __ pc();
+  __ nop();			// should actually invalidate r0
+  __ addi(r0, r0, NativeCall::cache_line_size);
+  __ subi(r1, r1, 1);
+  __ cbnz(r1, loop);
+  // we need to move r2 to r0
+  __ addi(r0, r2, 0);
+  __ ret(r30);
+
+  Disassembler::decode(entry, __ pc());
 
   *flush_icache_stub =  (ICache::flush_icache_stub_t)start;
-
-#endif
-  Unimplemented();
 }
 
 #undef __

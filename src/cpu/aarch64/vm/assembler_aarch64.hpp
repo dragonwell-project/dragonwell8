@@ -1485,6 +1485,14 @@ public:
   void verified_entry(int framesize, bool stack_bang, bool fp_mode_24b);
 
 #undef VIRTUAL
+  // routine to generate an x86 prolog for a stub function which
+  // bootstraps into the generated ARM code which directly follows the
+  // stub
+  //
+  // the argument encodes the number of general and fp registers
+  // passed by the caller and the calling convention plus also whether
+  // a return value is expected.
+  void c_stub_prolog(u_int64_t calltype);
 };
 
 inline bool AbstractAssembler::pd_check_instruction_mark() { Unimplemented(); return false; }

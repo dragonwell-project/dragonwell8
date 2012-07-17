@@ -41,6 +41,7 @@
 # include "os_bsd.inline.hpp"
 #endif
 
+#include "../../../../../simulator/simulator.hpp"
 
 int VM_Version::_cpu;
 int VM_Version::_model;
@@ -63,10 +64,45 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 
   VM_Version_StubGenerator(CodeBuffer *c) : StubCodeGenerator(c) {}
 
-  address generate_getPsrInfo() { Unimplemented(); return 0; }
+  address generate_getPsrInfo() {
+    StubCodeMark mark(this, "VM_Version", "getPsrInfo_stub");
+#   define __ _masm->
+    address start = __ pc();
+
+    __ c_stub_prolog(1);
+
+    // void getPsrInfo(VM_Version::CpuidInfo* cpuid_info);
+
+    address entry = __ pc();
+
+    // TODO : redefine fields in CpuidInfo and generate
+    // code to fill them in
+
+    __ ret(r30);
+
+#   undef __
+
+
+  }
 };
 
 
-void VM_Version::get_processor_features() { Unimplemented(); }
+void VM_Version::get_processor_features() {
+  // TODO : define relevant processor features and initialise them
+}
 
-void VM_Version::initialize() { Unimplemented(); }
+void VM_Version::initialize() {
+  ResourceMark rm;
+
+  stub_blob = BufferBlob::create("getPsrInfo_stub", stub_size);
+  if (stub_blob == NULL) {
+    vm_exit_during_initialization("Unable to allocate getPsrInfo_stub");
+  }
+
+  CodeBuffer c(stub_blob);
+  VM_Version_StubGenerator g(&c);
+  getPsrInfo_stub = CAST_TO_FN_PTR(getPsrInfo_stub_t,
+                                   g.generate_getPsrInfo());
+
+  get_processor_features();
+}

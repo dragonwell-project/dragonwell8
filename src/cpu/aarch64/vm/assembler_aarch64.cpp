@@ -26,6 +26,9 @@
 #define TARGET_ARCH_AARCH64
 #define CPU_X86_VM_REGISTER_X86_HPP
 
+#include <stdio.h>
+#include <sys/types.h>
+
 #include "precompiled.hpp"
 // #include "assembler_aarch64.inline.hpp"
 #include "asm/assembler.hpp"
@@ -501,3 +504,38 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register 
 
 void MacroAssembler::null_check(Register reg, int offset) { Unimplemented(); }
 
+// routine to generate an x86 prolog for a stub function which
+// bootstraps into the generated ARM code which directly follows the
+// stub
+//
+// the argument encodes the number of general and fp registers
+// passed by the caller and the callng convention (currently just
+// the number of general registers and assumes C argument passing)
+
+extern "C" {
+int aarch64_stub_prolog_size();
+void aarch64_stub_prolog();
+void setup_arm_sim(void *sp, int calltype);
+}
+
+void MacroAssembler::c_stub_prolog(u_int64_t calltype)
+{
+  // the addresses for the x86 to ARM entry code we need to use
+  address start = pc();
+  // printf("start = %lx\n", start);
+  int byteCount =  aarch64_stub_prolog_size();
+  // printf("byteCount = %x\n", byteCount);
+  int instructionCount = (byteCount + 3)/ 4;
+  // printf("instructionCount = %x\n", instructionCount);
+  for (int i = 0; i < instructionCount; i++) {
+    nop();
+  }
+
+  memcpy(start, (void*)aarch64_stub_prolog, byteCount);
+
+  // write the address of the setup routine and the call format at the
+  // end of into the copied code
+  u_int64_t *patch_end = (u_int64_t *)(start + byteCount);
+  patch_end[-2] = (u_int64_t)setup_arm_sim;
+  patch_end[-1] = calltype;
+}

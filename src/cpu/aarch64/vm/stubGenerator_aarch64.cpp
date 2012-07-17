@@ -607,7 +607,11 @@ class StubGenerator: public StubCodeGenerator {
                                    Register arg2 = noreg) { Unimplemented(); return 0; }
 
   // Initialization
-  void generate_initial() {Unimplemented(); }
+  void generate_initial() {
+    // TODO : implement this next
+    exit(0);
+    Unimplemented();
+  }
     
   void generate_all() { Unimplemented(); }
 

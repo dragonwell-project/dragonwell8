@@ -22,7 +22,7 @@ void aarch64TestHook()
   MacroAssembler _masm(&code);
   entry(_masm.code());
   // dive now before we hit all the Unimplemented() calls
-  exit(0);
+  // exit(0);
 
 #if 0
   // old test code to compute sum of squares
