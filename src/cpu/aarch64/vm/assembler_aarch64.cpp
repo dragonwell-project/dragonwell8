@@ -97,157 +97,312 @@ void entry(CodeBuffer *cb) {
   Assembler _masm(cb);
   address entry = __ pc();
 
-  __ addwi(r0, r1, 99);
-  __ addswi(r0, r1, 4);
-
-  __ adr(r2, entry);
-  __ orri(r0, r12, 0x780000);
-  
-  __ movn(r3, 0x77);
-
-  __ extr(r0, r1, r2, 12);
-  __ extrw(r9, r10, r11, 19);
-
-  __ bl(entry);
-
-  __ cbz(r29, entry);
-  __ cbnzw(r23, entry);
-
-  __ tbz(r19, 30, entry);
-  __ tbnz(r19, 60, entry);
-
-  __ beq(entry);
-  __ ble(entry);
-  __ bcc(entry);
-
-  __ hlt(4);
+  // Every instruction
+  __ add(r15, r20, r18, Assembler::asr, 17);
+  __ sub(r5, r15, r30, Assembler::asr, 32);
+  __ adds(r25, r3, r15, Assembler::asr, 21);
+  __ subs(r4, r22, r8, Assembler::lsr, 7);
+  __ addw(r2, r15, r11, Assembler::lsl, 17);
+  __ subw(r1, r24, r11, Assembler::asr, 1);
+  __ addsw(r15, r14, r24, Assembler::asr, 19);
+  __ subsw(r22, r7, r23, Assembler::lsr, 5);
+  __ andr(r6, r5, r8, Assembler::lsl, 52);
+  __ orr(r27, r8, r9, Assembler::asr, 28);
+  __ eor(r23, r24, r14, Assembler::lsl, 61);
+  __ ands(r20, r5, r25, Assembler::lsr, 15);
+  __ andw(r12, r28, r2, Assembler::lsr, 13);
+  __ orrw(r18, r10, r25, Assembler::asr, 28);
+  __ eorw(r4, r17, r25, Assembler::asr, 13);
+  __ andsw(r11, r5, r18, Assembler::lsr, 30);
+  __ bic(r5, r15, r17, Assembler::lsr, 60);
+  __ orn(r12, r16, r5, Assembler::lsr, 35);
+  __ eon(r8, r18, r9, Assembler::lsl, 1);
+  __ bics(r14, r4, r16, Assembler::asr, 43);
+  __ bicw(r23, r27, r25, Assembler::asr, 28);
+  __ ornw(r23, r4, r10, Assembler::lsl, 6);
+  __ eonw(r10, r2, r9, Assembler::lsr, 30);
+  __ bicsw(r2, r14, r2, Assembler::lsr, 7);
+  __ addwi(r22, r29, 933);
+  __ addswi(r11, r6, 47);
+  __ subwi(r21, r21, 8);
+  __ subswi(r17, r4, 894);
+  __ addi(r7, r24, 783);
+  __ addsi(r19, r18, 400);
+  __ subi(r11, r5, 818);
+  __ subsi(r24, r17, 985);
+  __ b(__ pc());
+  __ bl(__ pc());
+  __ cbzw(r27, __ pc());
+  __ cbnzw(r22, __ pc());
+  __ cbz(r5, __ pc());
+  __ cbnz(r2, __ pc());
+  __ adr(r6, __ pc());
+  __ adrp(r24, __ pc());
+  __ tbz(r3, 1, __ pc());
+  __ tbnz(r20, 8, __ pc());
+  __ movnw(r6, 3744, 0);
+  __ movzw(r4, 2387, 16);
+  __ movkw(r11, 9401, 0);
+  __ movn(r29, 17777, 48);
+  __ movz(r21, 3936, 0);
+  __ movk(r28, 29297, 16);
+  __ sbfm(r11, r24, 23, 27);
+  __ bfmw(r4, r6, 2, 9);
+  __ ubfmw(r8, r12, 31, 0);
+  __ sbfm(r5, r7, 1, 3);
+  __ bfm(r26, r0, 23, 24);
+  __ ubfm(r18, r24, 3, 0);
+  __ extrw(r1, r16, r10, 15);
+  __ extr(r16, r18, r22, 38);
+  __ beq(__ pc());
+  __ bne(__ pc());
+  __ bhs(__ pc());
+  __ bcs(__ pc());
+  __ blo(__ pc());
+  __ bcc(__ pc());
+  __ bmi(__ pc());
+  __ bpl(__ pc());
+  __ bvs(__ pc());
+  __ bvc(__ pc());
+  __ bhi(__ pc());
+  __ bls(__ pc());
+  __ bge(__ pc());
+  __ blt(__ pc());
+  __ bgt(__ pc());
+  __ ble(__ pc());
+  __ bal(__ pc());
+  __ bnv(__ pc());
+  __ svc(26802);
+  __ hvc(21467);
+  __ smc(18959);
+  __ brk(3961);
+  __ hlt(25489);
   __ nop();
-
-  __ ret(r7);
   __ eret();
-
-#define INSN2(NAME, sz, op, o0) \
-  __ NAME(r1, r2)
-#define INSN3(NAME, sz, op, o0) \
-  __ NAME(r1, r2, r3)
-#define INSNFOO(NAME, sz, op, o0) \
-  __ NAME(r1, r2, r3)
-#define INSN4(NAME, sz, op, o0) \
-  __ NAME(r1, r2, r3, r4)
-
-  // bytes
-  INSN3(stxrb, byte, 0b000, 0);
-  INSN3(stlxrb, byte, 0b000, 1);
-  INSN2(ldxrb, byte, 0b010, 0);
-  INSN2(ldaxrb, byte, 0b010, 1);
-  INSN2(stlrb, byte, 0b100, 1);
-  INSN2(ldarb, byte, 0b110, 1);
-
-  // halfwords
-  INSN3(stxrh, halfword, 0b000, 0);
-  INSN3(stlxrh, halfword, 0b000, 1);
-  INSN2(ldxrh, halfword, 0b010, 0);
-  INSN2(ldaxrh, halfword, 0b010, 1);
-  INSN2(stlrh, halfword, 0b100, 1);
-  INSN2(ldarh, halfword, 0b110, 1);
-
-  // words
-  INSN3(stxrw, word, 0b000, 0);
-  INSN3(stlxrw, word, 0b000, 1);
-  INSN4(stxpw, word, 0b001, 0);
-  INSN4(stlxpw, word, 0b001, 1);
-  INSN2(ldxrw, word, 0b010, 0);
-  INSN2(ldaxrw, word, 0b010, 1);
-  INSN3(ldxpw, word, 0b011, 0);
-  INSN3(ldaxpw, word, 0b011, 1);
-  INSN2(stlrw, word, 0b100, 1);
-  INSN2(ldarw, word, 0b110, 1);
-
-  // xwords
-  INSN3(stxr, xword, 0b000, 0);
-  INSN3(stlxr, xword, 0b000, 1);
-  INSN4(stxp, xword, 0b001, 0);
-  INSN4(stlxp, xword, 0b001, 1);
-  INSN2(ldxr, xword, 0b010, 0);
-  INSN2(ldaxr, xword, 0b010, 1);
-  INSN3(ldxp, xword, 0b011, 0);
-  INSN3(ldaxp, xword, 0b011, 1);
-  INSN2(stlr, xword, 0b100, 1);
-  INSN2(ldar, xword, 0b110, 1);
-
-#undef INSN2
-#undef INSN3
-#undef INSN_FOO
-#undef INSN4
-
-  __ ldrw(r8, entry);
-  __ ldr(r8, entry);
-  __ ldrsw(r8, entry);
-  __ prfm(0b10000, __ pc() + 8);
-
-#undef INSN 
-
-#define INSN(NAME, opc, p1, V, p2, L) __ NAME(r4, r5, r6, -16);
-
-  INSN(stpw, 0b00, 0b101, 0, 0b0010, 0);
-  INSN(ldpw, 0b00, 0b101, 0, 0b0010, 1);
-  INSN(ldpsw, 0b01, 0b101, 0, 0b0010, 1);
-  INSN(stp, 0b10, 0b101, 0, 0b0010, 0);
-  INSN(ldp, 0b10, 0b101, 0, 0b0010, 1);
-
-#undef INSN 
-
-  __ str(r3, Address(r4));
-  __ str(r3, Address(r4, 8));
-  __ str(r3, Address(r4, r6));
-  __ str(r3, Address(__ pre(r4, 8)));
-  __ str(r3, Address(__ post(r4, 8)));
-
-  __ strw(r3, Address(r4));
-  __ strw(r3, Address(r4, 8));
-  __ strw(r3, Address(r4, r6));
-  __ strw(r3, Address(__ pre(r4, 8)));
-  __ strw(r3, Address(__ post(r4, 8)));
-
-  
-  __ strh(r3, Address(r4));
-  __ strh(r3, Address(r4, 8));
-  __ strh(r3, Address(r4, r6));
-  __ strh(r3, Address(__ pre(r4, 8)));
-  __ strh(r3, Address(__ post(r4, 8)));
-
-  __ strb(r3, Address(r4));
-  __ strb(r3, Address(r4, 8));
-  __ strb(r3, Address(r4, r6));
-  __ strb(r3, Address(__ pre(r4, 8)));
-  __ strb(r3, Address(__ post(r4, 8)));
-
-  __ ldr(r3, Address(r4));
-  __ ldr(r3, Address(r4, 8));
-  __ ldr(r3, Address(r4, r6));
-  __ ldr(r3, Address(__ pre(r4, 8)));
-  __ ldr(r3, Address(__ post(r4, 8)));
-
-  __ ldrw(r3, Address(r4));
-  __ ldrw(r3, Address(r4, 8));
-  __ ldrw(r3, Address(r4, r6));
-  __ ldrw(r3, Address(__ pre(r4, 8)));
-  __ ldrw(r3, Address(__ post(r4, 8)));
-
-  
-  __ ldrh(r3, Address(r4));
-  __ ldrh(r3, Address(r4, 8));
-  __ ldrh(r3, Address(r4, r6));
-  __ ldrh(r3, Address(__ pre(r4, 8)));
-  __ ldrh(r3, Address(__ post(r4, 8)));
-
-  __ ldrb(r3, Address(r4));
-  __ ldrb(r3, Address(r4, 8));
-  __ ldrb(r3, Address(r4, r6));
-  __ ldrb(r3, Address(__ pre(r4, 8)));
-  __ ldrb(r3, Address(__ post(r4, 8)));
-
-  
+  __ drps();
+  __ br(r6);
+  __ blr(r21);
+  __ stxr(r25, r20, r28);
+  __ stlxr(r20, r13, r3);
+  __ ldxr(r0, r25);
+  __ ldaxr(r24, r13);
+  __ stlr(r28, r25);
+  __ ldar(r21, r19);
+  __ stxrw(r14, r28, r30);
+  __ stlxrw(r8, r14, r16);
+  __ ldxrw(r29, r28);
+  __ ldaxrw(r20, r8);
+  __ stlrw(r18, r28);
+  __ ldarw(r22, r1);
+  __ stxrh(r10, r9, r8);
+  __ stlxrh(r23, r5, r5);
+  __ ldxrh(r29, r13);
+  __ ldaxrh(r4, r16);
+  __ stlrh(r14, r28);
+  __ ldarh(r19, r30);
+  __ stxrb(r9, r20, r4);
+  __ stlxrb(r13, r16, r29);
+  __ ldxrb(r9, r24);
+  __ ldaxrb(r12, r20);
+  __ stlrb(r21, r10);
+  __ ldarb(r23, r0);
+  __ ldxp(r27, r25, r5);
+  __ ldaxp(r30, r20, r8);
+  __ stxp(r23, r0, r7, r9);
+  __ stlxp(r1, r3, r11, r5);
+  __ ldxpw(r19, r24, r30);
+  __ ldaxpw(r10, r6, r27);
+  __ stxpw(r12, r3, r20, r19);
+  __ stlxpw(r25, r30, r24, r4);
+  __ str(r20, Address(r26, -122));
+  __ strw(r9, Address(r14, -127));
+  __ strb(r10, Address(r13, -8));
+  __ strh(r22, Address(r14, 26));
+  __ ldr(r25, Address(r5, -215));
+  __ ldrw(r0, Address(r8, 20));
+  __ ldrb(r9, Address(r9, -15));
+  __ ldrh(r18, Address(r14, -16));
+  __ ldrsb(r22, Address(r16, -3));
+  __ ldrsh(r11, Address(r5, -57));
+  __ ldrshw(r6, Address(r26, -37));
+  __ ldrsw(r26, Address(r20, -126));
+  __ ldrd(F28, Address(r25, -8));
+  __ ldrs(F15, Address(r11, -82));
+  __ strd(F24, Address(r21, -203));
+  __ strs(F10, Address(r5, -57));
+  __ str(r14, Address(__ pre(r26, -9)));
+  __ strw(r5, Address(__ pre(r25, -75)));
+  __ strb(r18, Address(__ pre(r13, -29)));
+  __ strh(r13, Address(__ pre(r15, -5)));
+  __ ldr(r21, Address(__ pre(r2, 22)));
+  __ ldrw(r14, Address(__ pre(r0, -21)));
+  __ ldrb(r25, Address(__ pre(r25, -16)));
+  __ ldrh(r5, Address(__ pre(r11, 4)));
+  __ ldrsb(r4, Address(__ pre(r25, 12)));
+  __ ldrsh(r16, Address(__ pre(r8, 14)));
+  __ ldrshw(r20, Address(__ pre(r14, 31)));
+  __ ldrsw(r23, Address(__ pre(r26, -47)));
+  __ ldrd(F29, Address(__ pre(r13, -23)));
+  __ ldrs(F7, Address(__ pre(r29, 17)));
+  __ strd(F22, Address(__ pre(r0, -202)));
+  __ strs(F12, Address(__ pre(r11, -90)));
+  __ str(r29, Address(__ post(r11, 33)));
+  __ strw(r27, Address(__ post(r26, -38)));
+  __ strb(r25, Address(__ post(r15, -15)));
+  __ strh(r7, Address(__ post(r27, 29)));
+  __ ldr(r30, Address(__ post(r30, -41)));
+  __ ldrw(r24, Address(__ post(r25, -2)));
+  __ ldrb(r16, Address(__ post(r7, -29)));
+  __ ldrh(r25, Address(__ post(r28, -43)));
+  __ ldrsb(r24, Address(__ post(r8, 11)));
+  __ ldrsh(r21, Address(__ post(r5, 4)));
+  __ ldrshw(r19, Address(__ post(r13, -62)));
+  __ ldrsw(r27, Address(__ post(r1, -128)));
+  __ ldrd(F21, Address(__ post(r6, -11)));
+  __ ldrs(F27, Address(__ post(r14, -73)));
+  __ strd(F26, Address(__ post(r1, -53)));
+  __ strs(F0, Address(__ post(r2, 60)));
+  __ str(r2, Address(r19, r2));
+  __ strw(r13, Address(r14, r11));
+  __ strb(r13, Address(r13, r18));
+  __ strh(r23, Address(r0, r5));
+  __ ldr(r20, Address(r24, r22));
+  __ ldrw(r3, Address(r18, r5));
+  __ ldrb(r30, Address(r5, r8));
+  __ ldrh(r16, Address(r3, r6));
+  __ ldrsb(r24, Address(r15, r22));
+  __ ldrsh(r23, Address(r25, r18));
+  __ ldrshw(r22, Address(r6, r26));
+  __ ldrsw(r6, Address(r0, r0));
+  __ ldrd(F4, Address(r19, r8));
+  __ ldrs(F18, Address(r8, r15));
+  __ strd(F23, Address(r5, r27));
+  __ strs(F0, Address(r24, r26));
+  __ str(r10, Address(r14, r21));
+  __ strw(r8, Address(r21, r30));
+  __ strb(r24, Address(r7, r15));
+  __ strh(r4, Address(r23, r25));
+  __ ldr(r3, Address(r7, r16));
+  __ ldrw(r19, Address(r16, r9));
+  __ ldrb(r22, Address(r10, r5));
+  __ ldrh(r15, Address(r16, r12));
+  __ ldrsb(r17, Address(r6, r24));
+  __ ldrsh(r2, Address(r7, r9));
+  __ ldrshw(r20, Address(r15, r5));
+  __ ldrsw(r10, Address(r24, r19));
+  __ ldrd(F19, Address(r25, r24));
+  __ ldrs(F22, Address(r18, r18));
+  __ strd(F19, Address(r21, r28));
+  __ strs(F11, Address(r26, r12));
+  __ ldr(r30, __ pc());
+  __ ldrw(r27, __ pc());
+  __ prfm(Address(r16, -96));
+  __ prfm(__ pc());
+  __ prfm(Address(r8, r6));
+  __ prfm(Address(r11, r8));
+  __ adcw(r12, r4, r3);
+  __ adcsw(r20, r8, r5);
+  __ sbcw(r22, r3, r21);
+  __ sbcsw(r1, r20, r7);
+  __ adc(r22, r1, r30);
+  __ adcs(r6, r16, r12);
+  __ sbc(r16, r15, r23);
+  __ sbcs(r28, r10, r25);
+  __ addw(r10, r7, r20, ext::uxtb, 1);
+  __ addsw(r24, r14, r23, ext::sxtb, 3);
+  __ sub(r16, r19, r0, ext::sxtb, 3);
+  __ subsw(r30, r3, r14, ext::sxtw, 1);
+  __ add(r7, r1, r14, ext::sxtw, 3);
+  __ adds(r8, r2, r26, ext::uxtx, 1);
+  __ sub(r2, r22, r29, ext::uxtx, 1);
+  __ subs(r7, r5, r21, ext::sxtx, 4);
+  __ ccmnw(r0, r19, 15, Assembler::LT);
+  __ ccmpw(r8, r15, 11, Assembler::HI);
+  __ ccmn(r10, r19, 10, Assembler::PL);
+  __ ccmp(r23, r23, 0, Assembler::CC);
+  __ ccmnw(r21, 16, 11, Assembler::HS);
+  __ ccmpw(r15, 1, 12, Assembler::PL);
+  __ ccmn(r17, 19, 4, Assembler::MI);
+  __ ccmp(r20, 12, 1, Assembler::GE);
+  __ cselw(r7, r13, r30, Assembler::GT);
+  __ csincw(r17, r24, r2, Assembler::GE);
+  __ csinvw(r30, r21, r10, Assembler::CC);
+  __ csnegw(r20, r29, r26, Assembler::CC);
+  __ csel(r10, r29, r28, Assembler::LT);
+  __ csinc(r2, r13, r14, Assembler::VC);
+  __ csinv(r29, r15, r4, Assembler::LT);
+  __ csneg(r11, r10, r27, Assembler::CS);
+  __ rbitw(r15, r26);
+  __ rev16w(r12, r25);
+  __ revw(r26, r11);
+  __ clzw(r15, r5);
+  __ clsw(r11, r1);
+  __ rbit(r7, r18);
+  __ rev16(r19, r24);
+  __ rev32(r19, r13);
+  __ rev(r0, r0);
+  __ clz(r13, r30);
+  __ cls(r24, r18);
+  __ udivw(r9, r23, r20);
+  __ sdivw(r12, r16, r0);
+  __ lslvw(r8, r20, r22);
+  __ lsrvw(r11, r24, r18);
+  __ asrvw(r21, r14, r30);
+  __ rorvw(r10, r9, r22);
+  __ udiv(r1, r12, r3);
+  __ sdiv(r9, r29, r27);
+  __ lslv(r6, r30, r17);
+  __ lsrv(r30, r14, r1);
+  __ asrv(r18, r0, r21);
+  __ rorv(r21, r7, r10);
+  __ maddw(r0, r5, r24, r4);
+  __ msubw(r30, r15, r18, r1);
+  __ madd(r19, r16, r5, r5);
+  __ msub(r26, r24, r24, r4);
+  __ smaddl(r3, r27, r15, r14);
+  __ smsubl(r11, r3, r22, r27);
+  __ umaddl(r11, r24, r26, r29);
+  __ umsubl(r9, r18, r9, r11);
+  __ fmuls(F27, F17, F29);
+  __ fdivs(F15, F25, F1);
+  __ fadds(F22, F24, F10);
+  __ fsubs(F25, F8, F26);
+  __ fmuls(F21, F22, F25);
+  __ fmuld(F24, F14, F2);
+  __ fdivd(F0, F24, F11);
+  __ faddd(F5, F9, F7);
+  __ fsubd(F17, F10, F5);
+  __ fmuld(F30, F23, F3);
+  __ fmadds(F2, F4, F15, F15);
+  __ fmsubs(F29, F24, F20, F1);
+  __ fnmadds(F20, F3, F22, F17);
+  __ fnmadds(F21, F0, F2, F18);
+  __ fmaddd(F25, F14, F9, F29);
+  __ fmsubd(F29, F30, F2, F30);
+  __ fnmaddd(F29, F9, F11, F22);
+  __ fnmaddd(F9, F1, F21, F21);
+  __ fmovs(F24, F8);
+  __ fabss(F0, F14);
+  __ fnegs(F17, F25);
+  __ fsqrts(F2, F24);
+  __ fcvts(F30, F28);
+  __ fmovd(F17, F20);
+  __ fabsd(F7, F0);
+  __ fnegd(F30, F18);
+  __ fsqrtd(F24, F11);
+  __ fcvtd(F5, F30);
+  __ fcvtzsw(r15, F3);
+  __ fcvtszd(r4, F25);
+  __ fcvtzdw(r29, F1);
+  __ fcvtzsd(r28, F23);
+  __ fmovs(r12, F0);
+  __ fmovd(r0, F17);
+  __ fmovs(F27, r7);
+  __ fmovd(F6, r28);
+  __ fcmps(F21, F3);
+  __ fcmpd(F12, F22);
+  __ fcmps(F8, 0.0);
+  __ fcmpd(F24, 0.0);
 
   Disassembler::decode(entry, __ pc());
 

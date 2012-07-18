@@ -41,7 +41,7 @@ int _flush_icache_stub_dummy(address addr, int lines, int magic)
 
 void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flush_icache_stub) {
 
-  //aarch64TestHook();
+  aarch64TestHook();
 
   StubCodeMark mark(this, "ICache", "flush_icache_stub");
 
