@@ -42,7 +42,6 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   u_int64_t stack[100];
   int argCount = calltype & 0xff;
   u_int64_t doReturn = (calltype >> 63);
-  printf("__WORDSIZE = %d\n", __WORDSIZE);
   sim.init(*cursor++, (u_int64_t)(stack + sizeof(stack)), (u_int64_t)stack);
   returnSlot = cursor++;
   // TODO : need to deal with cases where there are more args than registers
