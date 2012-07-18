@@ -142,7 +142,6 @@ class Address VALUE_OBJ_CLASS_SPEC {
   Register _index;
   int _offset;
   enum mode _mode;
-  address _adr;
   int _scale;
 
  public:
@@ -1347,9 +1346,10 @@ class MacroAssembler: public Assembler {
 
   void leal32(Register dst, Address src) { Unimplemented(); }
 
-  // Import other testl() methods from the parent class or else
-  // they will be hidden by the following overriding declaration.
-  void testl(Register dst, AddressLiteral src);
+  INSN(fmaddd, 0b000, 0b01, 0, 0);
+  INSN(fmsubd, 0b000, 0b01, 0, 1);
+  INSN(fnmadd, 0b000, 0b01, 0, 0);
+  INSN(fnmsub, 0b000, 0b01, 0, 1);
 
   void orptr(Register dst, Address src) { Unimplemented(); }
   void orptr(Register dst, Register src) { Unimplemented(); }
@@ -1361,15 +1361,13 @@ class MacroAssembler: public Assembler {
   void xorptr(Register dst, Register src) { Unimplemented(); }
   void xorptr(Register dst, Address src) { Unimplemented(); }
 
-  // Calls
+  INSN(fcvtzsw, 0b000, 0b00, 0b11, 0b000);
+  INSN(fcvtzs, 0b000, 0b01, 0b11, 0b000);
+  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
+  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
 
   void call(Label& L, relocInfo::relocType rtype);
   void call(Register entry);
-
-  // NOTE: this call tranfers to the effective address of entry NOT
-  // the address contained by entry. This is because this is more natural
-  // for jumps/calls.
-  void call(AddressLiteral entry);
 
   // Jumps
 
@@ -1402,11 +1400,15 @@ class MacroAssembler: public Assembler {
   void fld_x(Address src) { Unimplemented(); }
   void fld_x(AddressLiteral src);
 
-  void fmul_s(Address src)        { Unimplemented(); }
-  void fmul_s(AddressLiteral src) { Unimplemented(); }
+  INSN(fcmps, 0b000, 0b00, 0b00, 0b00000);
+  INSN1(fcmps, 0b000, 0b00, 0b00, 0b01000);
+  // INSN(fcmpes, 0b000, 0b00, 0b00, 0b10000);
+  // INSN1(fcmpes, 0b000, 0b00, 0b00, 0b11000);
 
-  void ldmxcsr(Address src) { Unimplemented(); }
-  void ldmxcsr(AddressLiteral src);
+  INSN(fcmpd, 0b000,   0b01, 0b00, 0b00000);
+  INSN1(fcmpd, 0b000,  0b01, 0b00, 0b01000);
+  // INSN(fcmped, 0b000,  0b01, 0b00, 0b10000);
+  // INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
 
   // compute pow(x,y) and exp(x) with x86 instructions. Don't cover
   // all corner cases and may result in NaN and require fallback to a
