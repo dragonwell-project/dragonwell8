@@ -253,20 +253,20 @@ public:
 #undef INSN
   // Add/subtract (immediate)
 #define INSN(NAME, decode)						\
-  void NAME(Register Rd, Register Rn, unsigned long imm, unsigned shift = 0) { \
+  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift = 0) { \
     starti;								\
     f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
     rf(Rd, 0), rf(Rn, 5);						\
   }
 
-  INSN(addwi,  0b000);
-  INSN(addswi, 0b001);
-  INSN(subwi,  0b010);
-  INSN(subswi, 0b011);
-  INSN(addi,   0b100);
-  INSN(addsi,  0b101);
-  INSN(subi,   0b110);
-  INSN(subsi,  0b111);
+  INSN(addw,  0b000);
+  INSN(addsw, 0b001);
+  INSN(subw,  0b010);
+  INSN(subsw, 0b011);
+  INSN(add,   0b100);
+  INSN(adds,  0b101);
+  INSN(sub,   0b110);
+  INSN(subs,  0b111);
 
 #undef INSN
 
@@ -279,14 +279,14 @@ public:
     rf(Rd, 0), rf(Rn, 5);					\
   }
 
-  INSN(andwi, 0b000, true);
-  INSN(orrwi, 0b001, true);
-  INSN(eorwi, 0b000, true);
-  INSN(andswi, 0b011, true);
-  INSN(andi,  0b100, false);
-  INSN(orri,  0b101, false);
-  INSN(eori,  0b100, false);
-  INSN(andsi, 0b111, false);
+  INSN(andw, 0b000, true);
+  INSN(orrw, 0b001, true);
+  INSN(eorw, 0b010, true);
+  INSN(andsw, 0b011, true);
+  INSN(andr,  0b100, false);
+  INSN(orr,  0b101, false);
+  INSN(eor,  0b110, false);
+  INSN(ands, 0b111, false);
 
 #undef INSN
 
@@ -491,8 +491,6 @@ public:
   INSN(drps, 0b0101);
 
 #undef INSN
-
-
 
   // Load/store exclusive
   enum operand_size { byte, halfword, word, xword };

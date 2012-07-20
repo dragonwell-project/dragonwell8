@@ -61,11 +61,11 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   // need a mfence before and after the loop.
   address loop = __ pc();
   __ nop();			// should actually invalidate r0
-  __ addi(r0, r0, NativeCall::cache_line_size);
-  __ subi(r1, r1, 1);
+  __ add(r0, r0, NativeCall::cache_line_size);
+  __ sub(r1, r1, 1);
   __ cbnz(r1, loop);
   // we need to move r2 to r0
-  __ addi(r0, r2, 0);
+  __ add(r0, r2, 0u);
   __ ret(r30);
 
   Disassembler::decode(entry, __ pc());
