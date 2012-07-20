@@ -135,7 +135,7 @@ public:
 class Address VALUE_OBJ_CLASS_SPEC {
  public:
   enum mode { base_plus_offset, pre, post, pcrel,
-	      base_plus_offset_reg, base_plus_offset_reg_extended};
+	      base_plus_offset_reg };
   enum ScaleFactor { times_4, times_8 };
  private:
   Register _base;
@@ -243,7 +243,7 @@ public:
     int offset_lo = offset & 3;						\
     offset >>= 2;							\
     starti;								\
-    f(0, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5); \
+    f(op, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5); \
     rf(Rd, 0);								\
   }
 
@@ -317,12 +317,12 @@ public:
     rf(Rn, 5), rf(Rd, 0);						\
   }
 
-  INSN(sbfmw, 0b0000);
-  INSN(bfmw,  0b0010);
-  INSN(ubfmw, 0b0100);
-  INSN(sbfm,  0b1000);
-  INSN(bfm,   0b1010);
-  INSN(ubfm,  0b1100);
+  INSN(sbfmw, 0b0001001100);
+  INSN(bfmw,  0b0011001100);
+  INSN(ubfmw, 0b0101001100);
+  INSN(sbfm,  0b1001001101);
+  INSN(bfm,   0b1011001101);
+  INSN(ubfm,  0b1101001101);
 
 #undef INSN
 
@@ -684,9 +684,9 @@ public:
   INSN(ldrb, 0b00, 0b01);
   INSN(ldrh, 0b01, 0b01);
 
-  INSN(ldrsb, 0b00, 0b11);
-  INSN(ldrsh, 0b01, 0b11);
-  INSN(ldrshw, 0b01, 0b10);
+  INSN(ldrsb, 0b00, 0b10);
+  INSN(ldrsh, 0b01, 0b10);
+  INSN(ldrshw, 0b01, 0b11);
   INSN(ldrsw, 0b10, 0b10);
 
 #undef INSN
@@ -740,20 +740,20 @@ public:
   INSN(andr, 1, 0b00, 0);
   INSN(orr, 1, 0b01, 0);
   INSN(eor, 1, 0b10, 0);
-  INSN(ands, 1, 0b10, 0);
+  INSN(ands, 1, 0b11, 0);
   INSN(andw, 0, 0b00, 0);
   INSN(orrw, 0, 0b01, 0);
   INSN(eorw, 0, 0b10, 0);
-  INSN(andsw, 0, 0b10, 0);
+  INSN(andsw, 0, 0b11, 0);
 
   INSN(bic, 1, 0b00, 1);
   INSN(orn, 1, 0b01, 1);
   INSN(eon, 1, 0b10, 1);
-  INSN(bics, 1, 0b10, 1);
+  INSN(bics, 1, 0b11, 1);
   INSN(bicw, 0, 0b00, 1);
   INSN(ornw, 0, 0b01, 1);
   INSN(eonw, 0, 0b10, 1);
-  INSN(bicsw, 0, 0b10, 1);
+  INSN(bicsw, 0, 0b11, 1);
 
 #undef INSN
 
@@ -850,7 +850,7 @@ public:
     conditional_compare(op, 0, 0, Rn, (uintptr_t)Rm, imm, cond);	\
   }									\
 									\
-  void NAME(Register Rn, unsigned imm5, int imm, condition_code cond) {	\
+  void NAME(Register Rn, int imm5, int imm, condition_code cond) {	\
     starti;								\
     f(1, 11);								\
     conditional_compare(op, 0, 0, Rn, imm5, imm, cond);			\
@@ -871,7 +871,7 @@ public:
     f(op, 31, 29);
     f(0b11010100, 28, 21);
     f(cond, 15, 12);
-    f(0, 11, 10);
+    f(op2, 11, 10);
     rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
   }
 
@@ -885,7 +885,7 @@ public:
   INSN(csinvw, 0b010, 0b00);
   INSN(csnegw, 0b010, 0b01);
   INSN(csel, 0b100, 0b00);
-  INSN(csinc, 0b000, 0b01);
+  INSN(csinc, 0b100, 0b01);
   INSN(csinv, 0b110, 0b00);
   INSN(csneg, 0b110, 0b01);
 
@@ -1047,8 +1047,8 @@ public:
     starti;
     f(op31, 31, 29);
     f(0b11111, 28, 24);
-    f(type, 23, 22), f(o1, 21), f(o1, 15);
-    rf(Vm, 16), rf(Vn, 10), rf(Vn, 5), rf(Vd, 0);
+    f(type, 23, 22), f(o1, 21), f(o0, 15);
+    rf(Vm, 16), rf(Va, 10), rf(Vn, 5), rf(Vd, 0);
   }
 
 #define INSN(NAME, op31, type, o1, o0)					\
@@ -1059,13 +1059,13 @@ public:
 
   INSN(fmadds, 0b000, 0b00, 0, 0);
   INSN(fmsubs, 0b000, 0b00, 0, 1);
-  INSN(fnmadds, 0b000, 0b00, 0, 0);
-  INSN(fnmsubs, 0b000, 0b00, 0, 1);
+  INSN(fnmadds, 0b000, 0b00, 1, 0);
+  INSN(fnmsubs, 0b000, 0b00, 1, 1);
 
   INSN(fmaddd, 0b000, 0b01, 0, 0);
   INSN(fmsubd, 0b000, 0b01, 0, 1);
-  INSN(fnmaddd, 0b000, 0b01, 0, 0);
-  INSN(fnmsub, 0b000, 0b01, 0, 1);
+  INSN(fnmaddd, 0b000, 0b01, 1, 0);
+  INSN(fnmsub, 0b000, 0b01, 1, 1);
 
 #undef INSN
 
@@ -1087,9 +1087,9 @@ public:
   }
 
   INSN(fcvtzsw, 0b000, 0b00, 0b11, 0b000);
-  INSN(fcvtzsd, 0b000, 0b01, 0b11, 0b000);
-  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
-  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
+  INSN(fcvtzs,  0b100, 0b00, 0b11, 0b000);
+  INSN(fcvtzdw, 0b000, 0b01, 0b11, 0b000);
+  INSN(fcvtzd,  0b100, 0b01, 0b11, 0b000);
 
   INSN(fmovs, 0b000, 0b00, 0b00, 0b110);
   INSN(fmovd, 0b100, 0b01, 0b00, 0b110);
@@ -1105,6 +1105,11 @@ public:
 
   INSN(fmovs, 0b000, 0b00, 0b00, 0b111);
   INSN(fmovd, 0b100, 0b01, 0b00, 0b111);
+
+  INSN(scvtfws, 0b000, 0b00, 0b00, 0b010);
+  INSN(scvtfs,  0b100, 0b00, 0b00, 0b010);
+  INSN(scvtfwd, 0b000, 0b01, 0b00, 0b010);
+  INSN(scvtfd,  0b100, 0b01, 0b00, 0b010);
 
   // INSN(fmovhid, 0b100, 0b10, 0b01, 0b111);
 
