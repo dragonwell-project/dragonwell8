@@ -556,23 +556,40 @@ public:
 #undef INSN
 
   // System
-  void system(int op0, int op1, int CRn, int CRm_op2, Register rt)
+  void system(int op0, int op1, int CRn, int CRm, int op2,
+	      Register rt = (Register)0b11111)
   {
     starti;
     f(0b11010101000, 31, 21);
     f(op0, 20, 19);
     f(op1, 18, 16);
     f(CRn, 15, 12);
-    f(CRm_op2, 11, 5);
+    f(CRm, 11, 8);
+    f(op2, 7, 5);
     rf(rt, 0);
   }
 
   void hint(int imm) {
-    system(0b00, 0b011, 0b0010, imm, (Register)0b11111);
+    system(0b00, 0b011, 0b0010, imm, 0b000);
   }
 
   void nop() {
     hint(0);
+  }
+
+  enum barrier {OSHLD = 0b0001, OSHST, OSH, NSHLD, NSHST, NSH,
+		ISHLD = 0b1001, ISHST, ISH, LD, ST, SY};
+
+  void dsb(int imm) {
+    system(0b00, 0b011, 0b00011, imm, 0b100);
+  }
+
+  void dmb(int imm) {
+    system(0b00, 0b011, 0b00011, imm, 0b101);
+  }
+
+  void isb() {
+    system(0b00, 0b011, 0b00011, SY, 0b110);
   }
 
   // Unconditional branch (register)
