@@ -122,23 +122,14 @@
 
 #endif // CC_INTERP
 
+    // TODO - why 13? need to check stub entry code here
     // Entry frames
-#ifdef AMD64
-#ifdef _WIN64
-    entry_frame_after_call_words                     =  28,
-    entry_frame_call_wrapper_offset                  =  2,
-
-    arg_reg_save_area_bytes                          = 32, // Register argument save area
-#else
     entry_frame_after_call_words                     = 13,
     entry_frame_call_wrapper_offset                  = -6,
 
     arg_reg_save_area_bytes                          =  0,
-#endif // _WIN64
-#else
-    entry_frame_call_wrapper_offset                  =  2,
-#endif // AMD64
 
+    // TODO - check that this is still correct
     // Native frames
 
     native_frame_initial_param_offset                =  2

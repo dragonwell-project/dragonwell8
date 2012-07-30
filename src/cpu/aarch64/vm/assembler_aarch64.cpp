@@ -53,41 +53,6 @@
 // #include "gc_implementation/g1/heapRegion.hpp"
 // #endif
 
-REGISTER_DEFINITION(Register, r0);
-REGISTER_DEFINITION(Register, r1);
-REGISTER_DEFINITION(Register, r2);
-REGISTER_DEFINITION(Register, r3);
-REGISTER_DEFINITION(Register, r4);
-REGISTER_DEFINITION(Register, r5);
-REGISTER_DEFINITION(Register, r6);
-REGISTER_DEFINITION(Register, r7);
-// #if 0 // x86 defines these.  What a kludge!
-REGISTER_DEFINITION(Register, r8);
-REGISTER_DEFINITION(Register, r9);
-REGISTER_DEFINITION(Register, r10);
-REGISTER_DEFINITION(Register, r11);
-REGISTER_DEFINITION(Register, r12);
-REGISTER_DEFINITION(Register, r13);
-REGISTER_DEFINITION(Register, r14);
-REGISTER_DEFINITION(Register, r15);
-// #endif
-REGISTER_DEFINITION(Register, r16);
-REGISTER_DEFINITION(Register, r17);
-REGISTER_DEFINITION(Register, r18);
-REGISTER_DEFINITION(Register, r19);
-REGISTER_DEFINITION(Register, r20);
-REGISTER_DEFINITION(Register, r21);
-REGISTER_DEFINITION(Register, r22);
-REGISTER_DEFINITION(Register, r23);
-REGISTER_DEFINITION(Register, r24);
-REGISTER_DEFINITION(Register, r25);
-REGISTER_DEFINITION(Register, r26);
-REGISTER_DEFINITION(Register, r27);
-REGISTER_DEFINITION(Register, r28);
-REGISTER_DEFINITION(Register, r29);
-REGISTER_DEFINITION(Register, r30);
-REGISTER_DEFINITION(Register, sp);
-
 
 extern "C" void entry(CodeBuffer *cb);
 

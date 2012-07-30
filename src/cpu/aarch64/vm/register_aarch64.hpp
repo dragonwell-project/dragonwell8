@@ -171,7 +171,8 @@ CONSTANT_REGISTER_DECLARATION(FloatRegister, F29    , (29));
 CONSTANT_REGISTER_DECLARATION(FloatRegister, F30    , (30));
 CONSTANT_REGISTER_DECLARATION(FloatRegister, F31    , (31));
 
-#ifndef DONT_USE_REGISTER_DEFINES
+// #ifndef DONT_USE_REGISTER_DEFINES
+#if 0
 #define fnoreg ((FloatRegister)(fnoreg_FloatRegisterEnumValue))
 #define F0     ((FloatRegister)(    F0_FloatRegisterEnumValue))
 #define F1     ((FloatRegister)(    F1_FloatRegisterEnumValue))
@@ -205,7 +206,8 @@ CONSTANT_REGISTER_DECLARATION(FloatRegister, F31    , (31));
 #define F29    ((FloatRegister)(   F29_FloatRegisterEnumValue))
 #define F30    ((FloatRegister)(   F30_FloatRegisterEnumValue))
 #define F31    ((FloatRegister)(   F31_FloatRegisterEnumValue))
-#endif // DONT_USE_REGISTER_DEFINES
+#endif // 0
+//#endif // DONT_USE_REGISTER_DEFINES
 
 // Need to know the total number of registers of all sorts for SharedInfo.
 // Define a class that exports it.

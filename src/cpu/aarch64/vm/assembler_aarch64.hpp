@@ -25,7 +25,121 @@
 #ifndef CPU_AARCH64_VM_ASSEMBLER_AARCH64_HPP
 #define CPU_AARCH64_VM_ASSEMBLER_AARCH64_HPP
 
-#include "register_aarch64.hpp"
+// definitions of various symbolic names for machine registers
+
+// First intercalls between C and Java which use 8 general registers
+// and 8 floating registers
+
+// we also have to copy between x86 and ARM registers but that's a
+// secondary complication -- not all code employing C call convention
+// executes as x86 code though -- we generate some of it
+
+class Argument VALUE_OBJ_CLASS_SPEC {
+ public:
+  enum {
+    n_int_register_parameters_c   = 8,  // r0, r1, ... r7 (c_rarg0, c_rarg1, ...)
+    n_float_register_parameters_c = 8,  // F0, F1, ... F7 (c_farg0, c_farg1, ... )
+
+    n_int_register_parameters_j   = 8, // r1, ... r7, r0 (rj_rarg0, j_rarg1, ...
+    n_float_register_parameters_j = 8  // F0, F1, ... F7 (j_farg0, j_farg1, ...
+  };
+};
+
+REGISTER_DECLARATION(Register, c_rarg0, r0);
+REGISTER_DECLARATION(Register, c_rarg1, r1);
+REGISTER_DECLARATION(Register, c_rarg2, r2);
+REGISTER_DECLARATION(Register, c_rarg3, r3);
+REGISTER_DECLARATION(Register, c_rarg4, r4);
+REGISTER_DECLARATION(Register, c_rarg5, r5);
+REGISTER_DECLARATION(Register, c_rarg6, r6);
+REGISTER_DECLARATION(Register, c_rarg7, r7);
+
+REGISTER_DECLARATION(FloatRegister, c_farg0, F0);
+REGISTER_DECLARATION(FloatRegister, c_farg1, F1);
+REGISTER_DECLARATION(FloatRegister, c_farg2, F2);
+REGISTER_DECLARATION(FloatRegister, c_farg3, F3);
+REGISTER_DECLARATION(FloatRegister, c_farg4, F4);
+REGISTER_DECLARATION(FloatRegister, c_farg5, F5);
+REGISTER_DECLARATION(FloatRegister, c_farg6, F6);
+REGISTER_DECLARATION(FloatRegister, c_farg7, F7);
+
+// Symbolically name the register arguments used by the Java calling convention.
+// We have control over the convention for java so we can do what we please.
+// What pleases us is to offset the java calling convention so that when
+// we call a suitable jni method the arguments are lined up and we don't
+// have to do much shuffling. A suitable jni method is non-static and a
+// small number of arguments
+//
+//  |--------------------------------------------------------------------|
+//  | c_rarg0  c_rarg1  c_rarg2 c_rarg3 c_rarg4 c_rarg5 c_rarg6 c_rarg7  |
+//  |--------------------------------------------------------------------|
+//  | r0       r1       r2      r3      r4      r5      r6      r7       |
+//  |--------------------------------------------------------------------|
+//  | j_rarg7  j_rarg0  j_rarg1 j_rarg2 j_rarg3 j_rarg4 j_rarg5 j_rarg6  |
+//  |--------------------------------------------------------------------|
+
+
+REGISTER_DECLARATION(Register, j_rarg0, c_rarg1);
+REGISTER_DECLARATION(Register, j_rarg1, c_rarg2);
+REGISTER_DECLARATION(Register, j_rarg2, c_rarg3);
+REGISTER_DECLARATION(Register, j_rarg3, c_rarg4);
+REGISTER_DECLARATION(Register, j_rarg4, c_rarg5);
+REGISTER_DECLARATION(Register, j_rarg5, c_rarg6);
+REGISTER_DECLARATION(Register, j_rarg6, c_rarg7);
+REGISTER_DECLARATION(Register, j_rarg7, c_rarg0);
+
+// Java floating args are passed as per C
+
+REGISTER_DECLARATION(FloatRegister, j_farg0, F0);
+REGISTER_DECLARATION(FloatRegister, j_farg1, F1);
+REGISTER_DECLARATION(FloatRegister, j_farg2, F2);
+REGISTER_DECLARATION(FloatRegister, j_farg3, F3);
+REGISTER_DECLARATION(FloatRegister, j_farg4, F4);
+REGISTER_DECLARATION(FloatRegister, j_farg5, F5);
+REGISTER_DECLARATION(FloatRegister, j_farg6, F6);
+REGISTER_DECLARATION(FloatRegister, j_farg7, F7);
+
+// registers used to hold VM data either temporarily within a method
+// or across method calls
+
+// volatile (caller-save) registers
+
+// r8 is used for indirect result location return
+// we use it and r9 as scratch registers
+REGISTER_DECLARATION(Register, rscratch1, r8);
+REGISTER_DECLARATION(Register, rscratch2, r9);
+
+// other volatile registers
+
+// constant pool cache
+REGISTER_DECLARATION(Register, r10_cpool,    r10);
+// monitors allocated on stack
+REGISTER_DECLARATION(Register, r11_monitors, r11);
+// locals on stack
+REGISTER_DECLARATION(Register, r12_locals,   r12);
+// current method
+REGISTER_DECLARATION(Register, r13_method,   r13);
+// bytecode pointer
+REGISTER_DECLARATION(Register, r14_bcp,      r14);
+// Java expression stackpointer
+REGISTER_DECLARATION(Register, r15_esp,      r15);
+
+// non-volatile (callee-save) registers are r16-29
+// of which the following are dedicated gloabl state
+
+// link register
+REGISTER_DECLARATION(Register, r30_lr,       r30);
+// frame pointer
+REGISTER_DECLARATION(Register, r29_fp,       r29);
+// current thread
+REGISTER_DECLARATION(Register, r28_thread,   r28);
+// base of heap
+REGISTER_DECLARATION(Register, r27_heapbase, r27);
+
+// TODO : x86 uses rbp to save SP in method handle code
+// we may need to do the same with fp
+// JSR 292 fixed register usages:
+//REGISTER_DECLARATION(Register, r29_mh_SP_save, r29);
 
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
