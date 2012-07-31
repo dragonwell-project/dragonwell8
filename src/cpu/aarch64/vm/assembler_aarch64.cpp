@@ -927,7 +927,7 @@ Disassembly of section .text:
     __ BIND(loop);
     __ subs(sp, r0, 10);
     __ br(Assembler::NE, l);
-    __ add(r0, r0, 10u);
+    __ add(r0, r0, 1u);
     __ br(Assembler::AL, loop);
     __ BIND(l);
     Disassembler::decode(a, __ pc());
