@@ -249,10 +249,10 @@ void entry(CodeBuffer *cb) {
     __ ldrsh(r30, Address(r29, -29));             //	ldrsh	x30, [x29, -29]
     __ ldrshw(r1, Address(r8, -58));              //	ldrsh	w1, [x8, -58]
     __ ldrsw(r17, Address(r30, -118));            //	ldrsw	x17, [x30, -118]
-    __ ldrd(F7, Address(r0, -233));               //	ldr	d7, [x0, -233]
-    __ ldrs(F25, Address(r7, -29));               //	ldr	s25, [x7, -29]
-    __ strd(F21, Address(r23, 113));              //	str	d21, [x23, 113]
-    __ strs(F27, Address(r3, 37));                //	str	s27, [x3, 37]
+    __ ldrd(v7, Address(r0, -233));               //	ldr	d7, [x0, -233]
+    __ ldrs(v25, Address(r7, -29));               //	ldr	s25, [x7, -29]
+    __ strd(v21, Address(r23, 113));              //	str	d21, [x23, 113]
+    __ strs(v27, Address(r3, 37));                //	str	s27, [x3, 37]
 
 // pre 
 // LoadStoreOp
@@ -268,10 +268,10 @@ void entry(CodeBuffer *cb) {
     __ ldrsh(r16, Address(__ pre(r20, -48)));     //	ldrsh	x16, [x20, -48]!
     __ ldrshw(r16, Address(__ pre(r18, -57)));    //	ldrsh	w16, [x18, -57]!
     __ ldrsw(r11, Address(__ pre(r14, -34)));     //	ldrsw	x11, [x14, -34]!
-    __ ldrd(F3, Address(__ pre(r21, 74)));        //	ldr	d3, [x21, 74]!
-    __ ldrs(F4, Address(__ pre(r22, -51)));       //	ldr	s4, [x22, -51]!
-    __ strd(F3, Address(__ pre(r4, -81)));        //	str	d3, [x4, -81]!
-    __ strs(F13, Address(__ pre(r13, 29)));       //	str	s13, [x13, 29]!
+    __ ldrd(v3, Address(__ pre(r21, 74)));        //	ldr	d3, [x21, 74]!
+    __ ldrs(v4, Address(__ pre(r22, -51)));       //	ldr	s4, [x22, -51]!
+    __ strd(v3, Address(__ pre(r4, -81)));        //	str	d3, [x4, -81]!
+    __ strs(v13, Address(__ pre(r13, 29)));       //	str	s13, [x13, 29]!
 
 // post 
 // LoadStoreOp
@@ -287,10 +287,10 @@ void entry(CodeBuffer *cb) {
     __ ldrsh(r9, Address(__ post(r29, 15)));      //	ldrsh	x9, [x29], 15
     __ ldrshw(r22, Address(__ post(r10, -58)));   //	ldrsh	w22, [x10], -58
     __ ldrsw(r26, Address(__ post(r12, -105)));   //	ldrsw	x26, [x12], -105
-    __ ldrd(F2, Address(__ post(r27, 84)));       //	ldr	d2, [x27], 84
-    __ ldrs(F2, Address(__ post(r22, -89)));      //	ldr	s2, [x22], -89
-    __ strd(F15, Address(__ post(r6, -203)));     //	str	d15, [x6], -203
-    __ strs(F21, Address(__ post(r13, -128)));    //	str	s21, [x13], -128
+    __ ldrd(v2, Address(__ post(r27, 84)));       //	ldr	d2, [x27], 84
+    __ ldrs(v2, Address(__ post(r22, -89)));      //	ldr	s2, [x22], -89
+    __ strd(v15, Address(__ post(r6, -203)));     //	str	d15, [x6], -203
+    __ strs(v21, Address(__ post(r13, -128)));    //	str	s21, [x13], -128
 
 // base_plus_reg 
 // LoadStoreOp
@@ -306,10 +306,10 @@ void entry(CodeBuffer *cb) {
     __ ldrsh(r5, Address(r12, r25));              //	ldrsh	x5, [x12, x25]
     __ ldrshw(r13, Address(r29, r30));            //	ldrsh	w13, [x29, x30]
     __ ldrsw(r12, Address(r4, r26));              //	ldrsw	x12, [x4, x26]
-    __ ldrd(F6, Address(r16, r9));                //	ldr	d6, [x16, x9]
-    __ ldrs(F25, Address(r1, r21));               //	ldr	s25, [x1, x21]
-    __ strd(F16, Address(r13, r15));              //	str	d16, [x13, x15]
-    __ strs(F17, Address(r2, r8));                //	str	s17, [x2, x8]
+    __ ldrd(v6, Address(r16, r9));                //	ldr	d6, [x16, x9]
+    __ ldrs(v25, Address(r1, r21));               //	ldr	s25, [x1, x21]
+    __ strd(v16, Address(r13, r15));              //	str	d16, [x13, x15]
+    __ strs(v17, Address(r2, r8));                //	str	s17, [x2, x8]
 
 // base_plus_scaled_offset 
 // LoadStoreOp
@@ -325,10 +325,10 @@ void entry(CodeBuffer *cb) {
     __ ldrsh(r25, Address(r17, 4056));            //	ldrsh	x25, [x17, 4056]
     __ ldrshw(r10, Address(r16, 3236));           //	ldrsh	w10, [x16, 3236]
     __ ldrsw(r17, Address(r21, 6316));            //	ldrsw	x17, [x21, 6316]
-    __ ldrd(F30, Address(r12, 13664));            //	ldr	d30, [x12, 13664]
-    __ ldrs(F18, Address(r27, 7756));             //	ldr	s18, [x27, 7756]
-    __ strd(F26, Address(r26, 15016));            //	str	d26, [x26, 15016]
-    __ strs(F10, Address(r0, 6180));              //	str	s10, [x0, 6180]
+    __ ldrd(v30, Address(r12, 13664));            //	ldr	d30, [x12, 13664]
+    __ ldrs(v18, Address(r27, 7756));             //	ldr	s18, [x27, 7756]
+    __ strd(v26, Address(r26, 15016));            //	str	d26, [x26, 15016]
+    __ strs(v10, Address(r0, 6180));              //	str	s10, [x0, 6180]
 
 // pcrel 
 // LoadStoreOp
@@ -427,58 +427,58 @@ void entry(CodeBuffer *cb) {
     __ umsubl(r0, r7, r12, r22);                  //	umsubl	x0, w7, w12, x22
 
 // ThreeRegFloatOp
-    __ fmuls(F12, F3, F14);                       //	fmul	s12, s3, s14
-    __ fdivs(F14, F12, F9);                       //	fdiv	s14, s12, s9
-    __ fadds(F16, F29, F9);                       //	fadd	s16, s29, s9
-    __ fsubs(F24, F13, F6);                       //	fsub	s24, s13, s6
-    __ fmuls(F22, F24, F30);                      //	fmul	s22, s24, s30
-    __ fmuld(F3, F12, F29);                       //	fmul	d3, d12, d29
-    __ fdivd(F20, F2, F10);                       //	fdiv	d20, d2, d10
-    __ faddd(F26, F5, F8);                        //	fadd	d26, d5, d8
-    __ fsubd(F16, F25, F18);                      //	fsub	d16, d25, d18
-    __ fmuld(F12, F24, F27);                      //	fmul	d12, d24, d27
+    __ fmuls(v12, v3, v14);                       //	fmul	s12, s3, s14
+    __ fdivs(v14, v12, v9);                       //	fdiv	s14, s12, s9
+    __ fadds(v16, v29, v9);                       //	fadd	s16, s29, s9
+    __ fsubs(v24, v13, v6);                       //	fsub	s24, s13, s6
+    __ fmuls(v22, v24, v30);                      //	fmul	s22, s24, s30
+    __ fmuld(v3, v12, v29);                       //	fmul	d3, d12, d29
+    __ fdivd(v20, v2, v10);                       //	fdiv	d20, d2, d10
+    __ faddd(v26, v5, v8);                        //	fadd	d26, d5, d8
+    __ fsubd(v16, v25, v18);                      //	fsub	d16, d25, d18
+    __ fmuld(v12, v24, v27);                      //	fmul	d12, d24, d27
 
 // FourRegFloatOp
-    __ fmadds(F14, F11, F28, F1);                 //	fmadd	s14, s11, s28, s1
-    __ fmsubs(F8, F29, F8, F24);                  //	fmsub	s8, s29, s8, s24
-    __ fnmadds(F24, F20, F28, F6);                //	fnmadd	s24, s20, s28, s6
-    __ fnmadds(F24, F10, F18, F22);               //	fnmadd	s24, s10, s18, s22
-    __ fmaddd(F19, F23, F21, F23);                //	fmadd	d19, d23, d21, d23
-    __ fmsubd(F24, F11, F22, F1);                 //	fmsub	d24, d11, d22, d1
-    __ fnmaddd(F10, F12, F25, F12);               //	fnmadd	d10, d12, d25, d12
-    __ fnmaddd(F3, F17, F7, F4);                  //	fnmadd	d3, d17, d7, d4
+    __ fmadds(v14, v11, v28, v1);                 //	fmadd	s14, s11, s28, s1
+    __ fmsubs(v8, v29, v8, v24);                  //	fmsub	s8, s29, s8, s24
+    __ fnmadds(v24, v20, v28, v6);                //	fnmadd	s24, s20, s28, s6
+    __ fnmadds(v24, v10, v18, v22);               //	fnmadd	s24, s10, s18, s22
+    __ fmaddd(v19, v23, v21, v23);                //	fmadd	d19, d23, d21, d23
+    __ fmsubd(v24, v11, v22, v1);                 //	fmsub	d24, d11, d22, d1
+    __ fnmaddd(v10, v12, v25, v12);               //	fnmadd	d10, d12, d25, d12
+    __ fnmaddd(v3, v17, v7, v4);                  //	fnmadd	d3, d17, d7, d4
 
 // TwoRegFloatOp
-    __ fmovs(F11, F18);                           //	fmov	s11, s18
-    __ fabss(F12, F4);                            //	fabs	s12, s4
-    __ fnegs(F9, F24);                            //	fneg	s9, s24
-    __ fsqrts(F25, F26);                          //	fsqrt	s25, s26
-    __ fcvts(F14, F19);                           //	fcvt	d14, s19
-    __ fmovd(F16, F3);                            //	fmov	d16, d3
-    __ fabsd(F11, F25);                           //	fabs	d11, d25
-    __ fnegd(F4, F18);                            //	fneg	d4, d18
-    __ fsqrtd(F7, F19);                           //	fsqrt	d7, d19
-    __ fcvtd(F25, F15);                           //	fcvt	s25, d15
+    __ fmovs(v11, v18);                           //	fmov	s11, s18
+    __ fabss(v12, v4);                            //	fabs	s12, s4
+    __ fnegs(v9, v24);                            //	fneg	s9, s24
+    __ fsqrts(v25, v26);                          //	fsqrt	s25, s26
+    __ fcvts(v14, v19);                           //	fcvt	d14, s19
+    __ fmovd(v16, v3);                            //	fmov	d16, d3
+    __ fabsd(v11, v25);                           //	fabs	d11, d25
+    __ fnegd(v4, v18);                            //	fneg	d4, d18
+    __ fsqrtd(v7, v19);                           //	fsqrt	d7, d19
+    __ fcvtd(v25, v15);                           //	fcvt	s25, d15
 
 // FloatConvertOp
-    __ fcvtzsw(r16, F1);                          //	fcvtzs	w16, s1
-    __ fcvtzs(r18, F16);                          //	fcvtzs	x18, s16
-    __ fcvtzdw(r18, F30);                         //	fcvtzs	w18, d30
-    __ fcvtzd(r19, F9);                           //	fcvtzs	x19, d9
-    __ scvtfws(F23, r29);                         //	scvtf	s23, w29
-    __ scvtfs(F14, r28);                          //	scvtf	s14, x28
-    __ scvtfwd(F29, r11);                         //	scvtf	d29, w11
-    __ scvtfd(F12, r14);                          //	scvtf	d12, x14
-    __ fmovs(r3, F28);                            //	fmov	w3, s28
-    __ fmovd(r6, F12);                            //	fmov	x6, d12
-    __ fmovs(F7, r0);                             //	fmov	s7, w0
-    __ fmovd(F1, r3);                             //	fmov	d1, x3
+    __ fcvtzsw(r16, v1);                          //	fcvtzs	w16, s1
+    __ fcvtzs(r18, v16);                          //	fcvtzs	x18, s16
+    __ fcvtzdw(r18, v30);                         //	fcvtzs	w18, d30
+    __ fcvtzd(r19, v9);                           //	fcvtzs	x19, d9
+    __ scvtfws(v23, r29);                         //	scvtf	s23, w29
+    __ scvtfs(v14, r28);                          //	scvtf	s14, x28
+    __ scvtfwd(v29, r11);                         //	scvtf	d29, w11
+    __ scvtfd(v12, r14);                          //	scvtf	d12, x14
+    __ fmovs(r3, v28);                            //	fmov	w3, s28
+    __ fmovd(r6, v12);                            //	fmov	x6, d12
+    __ fmovs(v7, r0);                             //	fmov	s7, w0
+    __ fmovd(v1, r3);                             //	fmov	d1, x3
 
 // TwoRegFloatOp
-    __ fcmps(F2, F23);                            //	fcmp	s2, s23
-    __ fcmpd(F15, F1);                            //	fcmp	d15, d1
-    __ fcmps(F27, 0.0);                           //	fcmp	s27, #0.0
-    __ fcmpd(F17, 0.0);                           //	fcmp	d17, #0.0
+    __ fcmps(v2, v23);                            //	fcmp	s2, s23
+    __ fcmpd(v15, v1);                            //	fcmp	d15, d1
+    __ fcmps(v27, 0.0);                           //	fcmp	s27, #0.0
+    __ fcmpd(v17, 0.0);                           //	fcmp	d17, #0.0
 
 /*
 aarch64ops.o:     file format elf64-littleaarch64

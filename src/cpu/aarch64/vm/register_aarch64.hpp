@@ -138,74 +138,74 @@ class FloatRegisterImpl: public AbstractRegisterImpl {
 
 CONSTANT_REGISTER_DECLARATION(FloatRegister, fnoreg , (-1));
 
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F0     , ( 0));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F1     , ( 1));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F2     , ( 2));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F3     , ( 3));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F4     , ( 4));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F5     , ( 5));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F6     , ( 6));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F7     , ( 7));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F8     , ( 8));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F9     , ( 9));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F10    , (10));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F11    , (11));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F12    , (12));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F13    , (13));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F14    , (14));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F15    , (15));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F16    , (16));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F17    , (17));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F18    , (18));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F19    , (19));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F20    , (20));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F21    , (21));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F22    , (22));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F23    , (23));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F24    , (24));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F25    , (25));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F26    , (26));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F27    , (27));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F28    , (28));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F29    , (29));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F30    , (30));
-CONSTANT_REGISTER_DECLARATION(FloatRegister, F31    , (31));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v0     , ( 0));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v1     , ( 1));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v2     , ( 2));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v3     , ( 3));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v4     , ( 4));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v5     , ( 5));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v6     , ( 6));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v7     , ( 7));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v8     , ( 8));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v9     , ( 9));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v10    , (10));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v11    , (11));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v12    , (12));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v13    , (13));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v14    , (14));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v15    , (15));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v16    , (16));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v17    , (17));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v18    , (18));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v19    , (19));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v20    , (20));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v21    , (21));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v22    , (22));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v23    , (23));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v24    , (24));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v25    , (25));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v26    , (26));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v27    , (27));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v28    , (28));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v29    , (29));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v30    , (30));
+CONSTANT_REGISTER_DECLARATION(FloatRegister, v31    , (31));
 
 // #ifndef DONT_USE_REGISTER_DEFINES
 #if 0
 #define fnoreg ((FloatRegister)(fnoreg_FloatRegisterEnumValue))
-#define F0     ((FloatRegister)(    F0_FloatRegisterEnumValue))
-#define F1     ((FloatRegister)(    F1_FloatRegisterEnumValue))
-#define F2     ((FloatRegister)(    F2_FloatRegisterEnumValue))
-#define F3     ((FloatRegister)(    F3_FloatRegisterEnumValue))
-#define F4     ((FloatRegister)(    F4_FloatRegisterEnumValue))
-#define F5     ((FloatRegister)(    F5_FloatRegisterEnumValue))
-#define F6     ((FloatRegister)(    F6_FloatRegisterEnumValue))
-#define F7     ((FloatRegister)(    F7_FloatRegisterEnumValue))
-#define F8     ((FloatRegister)(    F8_FloatRegisterEnumValue))
-#define F9     ((FloatRegister)(    F9_FloatRegisterEnumValue))
-#define F10    ((FloatRegister)(   F10_FloatRegisterEnumValue))
-#define F11    ((FloatRegister)(   F11_FloatRegisterEnumValue))
-#define F12    ((FloatRegister)(   F12_FloatRegisterEnumValue))
-#define F13    ((FloatRegister)(   F13_FloatRegisterEnumValue))
-#define F14    ((FloatRegister)(   F14_FloatRegisterEnumValue))
-#define F15    ((FloatRegister)(   F15_FloatRegisterEnumValue))
-#define F16    ((FloatRegister)(   F16_FloatRegisterEnumValue))
-#define F17    ((FloatRegister)(   F17_FloatRegisterEnumValue))
-#define F18    ((FloatRegister)(   F18_FloatRegisterEnumValue))
-#define F19    ((FloatRegister)(   F19_FloatRegisterEnumValue))
-#define F20    ((FloatRegister)(   F20_FloatRegisterEnumValue))
-#define F21    ((FloatRegister)(   F21_FloatRegisterEnumValue))
-#define F22    ((FloatRegister)(   F22_FloatRegisterEnumValue))
-#define F23    ((FloatRegister)(   F23_FloatRegisterEnumValue))
-#define F24    ((FloatRegister)(   F24_FloatRegisterEnumValue))
-#define F25    ((FloatRegister)(   F25_FloatRegisterEnumValue))
-#define F26    ((FloatRegister)(   F26_FloatRegisterEnumValue))
-#define F27    ((FloatRegister)(   F27_FloatRegisterEnumValue))
-#define F28    ((FloatRegister)(   F28_FloatRegisterEnumValue))
-#define F29    ((FloatRegister)(   F29_FloatRegisterEnumValue))
-#define F30    ((FloatRegister)(   F30_FloatRegisterEnumValue))
-#define F31    ((FloatRegister)(   F31_FloatRegisterEnumValue))
+#define v0     ((FloatRegister)(    v0_FloatRegisterEnumValue))
+#define v1     ((FloatRegister)(    v1_FloatRegisterEnumValue))
+#define v2     ((FloatRegister)(    v2_FloatRegisterEnumValue))
+#define v3     ((FloatRegister)(    v3_FloatRegisterEnumValue))
+#define v4     ((FloatRegister)(    v4_FloatRegisterEnumValue))
+#define v5     ((FloatRegister)(    v5_FloatRegisterEnumValue))
+#define v6     ((FloatRegister)(    v6_FloatRegisterEnumValue))
+#define v7     ((FloatRegister)(    v7_FloatRegisterEnumValue))
+#define v8     ((FloatRegister)(    v8_FloatRegisterEnumValue))
+#define v9     ((FloatRegister)(    v9_FloatRegisterEnumValue))
+#define v10    ((FloatRegister)(   v10_FloatRegisterEnumValue))
+#define v11    ((FloatRegister)(   v11_FloatRegisterEnumValue))
+#define v12    ((FloatRegister)(   v12_FloatRegisterEnumValue))
+#define v13    ((FloatRegister)(   v13_FloatRegisterEnumValue))
+#define v14    ((FloatRegister)(   v14_FloatRegisterEnumValue))
+#define v15    ((FloatRegister)(   v15_FloatRegisterEnumValue))
+#define v16    ((FloatRegister)(   v16_FloatRegisterEnumValue))
+#define v17    ((FloatRegister)(   v17_FloatRegisterEnumValue))
+#define v18    ((FloatRegister)(   v18_FloatRegisterEnumValue))
+#define v19    ((FloatRegister)(   v19_FloatRegisterEnumValue))
+#define v20    ((FloatRegister)(   v20_FloatRegisterEnumValue))
+#define v21    ((FloatRegister)(   v21_FloatRegisterEnumValue))
+#define v22    ((FloatRegister)(   v22_FloatRegisterEnumValue))
+#define v23    ((FloatRegister)(   v23_FloatRegisterEnumValue))
+#define v24    ((FloatRegister)(   v24_FloatRegisterEnumValue))
+#define v25    ((FloatRegister)(   v25_FloatRegisterEnumValue))
+#define v26    ((FloatRegister)(   v26_FloatRegisterEnumValue))
+#define v27    ((FloatRegister)(   v27_FloatRegisterEnumValue))
+#define v28    ((FloatRegister)(   v28_FloatRegisterEnumValue))
+#define v29    ((FloatRegister)(   v29_FloatRegisterEnumValue))
+#define v30    ((FloatRegister)(   v30_FloatRegisterEnumValue))
+#define v31    ((FloatRegister)(   v31_FloatRegisterEnumValue))
 #endif // 0
 //#endif // DONT_USE_REGISTER_DEFINES
 

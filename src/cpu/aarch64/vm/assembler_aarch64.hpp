@@ -38,10 +38,10 @@ class Argument VALUE_OBJ_CLASS_SPEC {
  public:
   enum {
     n_int_register_parameters_c   = 8,  // r0, r1, ... r7 (c_rarg0, c_rarg1, ...)
-    n_float_register_parameters_c = 8,  // F0, F1, ... F7 (c_farg0, c_farg1, ... )
+    n_float_register_parameters_c = 8,  // v0, v1, ... v7 (c_farg0, c_farg1, ... )
 
     n_int_register_parameters_j   = 8, // r1, ... r7, r0 (rj_rarg0, j_rarg1, ...
-    n_float_register_parameters_j = 8  // F0, F1, ... F7 (j_farg0, j_farg1, ...
+    n_float_register_parameters_j = 8  // v0, v1, ... v7 (j_farg0, j_farg1, ...
   };
 };
 
@@ -54,14 +54,14 @@ REGISTER_DECLARATION(Register, c_rarg5, r5);
 REGISTER_DECLARATION(Register, c_rarg6, r6);
 REGISTER_DECLARATION(Register, c_rarg7, r7);
 
-REGISTER_DECLARATION(FloatRegister, c_farg0, F0);
-REGISTER_DECLARATION(FloatRegister, c_farg1, F1);
-REGISTER_DECLARATION(FloatRegister, c_farg2, F2);
-REGISTER_DECLARATION(FloatRegister, c_farg3, F3);
-REGISTER_DECLARATION(FloatRegister, c_farg4, F4);
-REGISTER_DECLARATION(FloatRegister, c_farg5, F5);
-REGISTER_DECLARATION(FloatRegister, c_farg6, F6);
-REGISTER_DECLARATION(FloatRegister, c_farg7, F7);
+REGISTER_DECLARATION(FloatRegister, c_farg0, v0);
+REGISTER_DECLARATION(FloatRegister, c_farg1, v1);
+REGISTER_DECLARATION(FloatRegister, c_farg2, v2);
+REGISTER_DECLARATION(FloatRegister, c_farg3, v3);
+REGISTER_DECLARATION(FloatRegister, c_farg4, v4);
+REGISTER_DECLARATION(FloatRegister, c_farg5, v5);
+REGISTER_DECLARATION(FloatRegister, c_farg6, v6);
+REGISTER_DECLARATION(FloatRegister, c_farg7, v7);
 
 // Symbolically name the register arguments used by the Java calling convention.
 // We have control over the convention for java so we can do what we please.
@@ -90,14 +90,14 @@ REGISTER_DECLARATION(Register, j_rarg7, c_rarg0);
 
 // Java floating args are passed as per C
 
-REGISTER_DECLARATION(FloatRegister, j_farg0, F0);
-REGISTER_DECLARATION(FloatRegister, j_farg1, F1);
-REGISTER_DECLARATION(FloatRegister, j_farg2, F2);
-REGISTER_DECLARATION(FloatRegister, j_farg3, F3);
-REGISTER_DECLARATION(FloatRegister, j_farg4, F4);
-REGISTER_DECLARATION(FloatRegister, j_farg5, F5);
-REGISTER_DECLARATION(FloatRegister, j_farg6, F6);
-REGISTER_DECLARATION(FloatRegister, j_farg7, F7);
+REGISTER_DECLARATION(FloatRegister, j_farg0, v0);
+REGISTER_DECLARATION(FloatRegister, j_farg1, v1);
+REGISTER_DECLARATION(FloatRegister, j_farg2, v2);
+REGISTER_DECLARATION(FloatRegister, j_farg3, v3);
+REGISTER_DECLARATION(FloatRegister, j_farg4, v4);
+REGISTER_DECLARATION(FloatRegister, j_farg5, v5);
+REGISTER_DECLARATION(FloatRegister, j_farg6, v6);
+REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 
 // registers used to hold VM data either temporarily within a method
 // or across method calls

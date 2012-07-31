@@ -582,7 +582,7 @@ BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result)
 
   intptr_t* tos_addr;
   if (method->is_native()) {
-    // TODO : ensure AARCH64 does the same as Intel here i.e. push F0 then R0
+    // TODO : ensure AARCH64 does the same as Intel here i.e. push v0 then r0
     // Prior to calling into the runtime to report the method_exit the possible
     // return value is pushed to the native stack. If the result is a jfloat/jdouble
     // then ST0 is saved before EAX/EDX. See the note in generate_native_result
