@@ -138,8 +138,8 @@ bool frame::safe_for_sender(JavaThread *thread) {
     // If the potential sender is the interpreter then we can do some more checking
     if (Interpreter::contains(sender_pc)) {
 
-      // r29_fp is always saved in a recognizable place in any code we generate. However
-      // only if the sender is interpreted/call_stub (c1 too?) are we certain that the saved r29_fp
+      // fp is always saved in a recognizable place in any code we generate. However
+      // only if the sender is interpreted/call_stub (c1 too?) are we certain that the saved fp
       // is really a frame pointer.
 
       intptr_t *saved_fp = (intptr_t*)*(sender_sp - frame::sender_sp_offset);
@@ -395,21 +395,21 @@ void frame::adjust_unextended_sp() {
 //------------------------------------------------------------------------------
 // frame::update_map_with_saved_link
 void frame::update_map_with_saved_link(RegisterMap* map, intptr_t** link_addr) {
-  // The interpreter and compiler(s) always save r29_fp in a known
+  // The interpreter and compiler(s) always save fp in a known
   // location on entry. We must record where that location is
-  // so that if r29_fp was live on callout from c2 we can find
+  // so that if fp was live on callout from c2 we can find
   // the saved copy no matter what it called.
 
-  // Since the interpreter always saves r29_fp if we record where it is then
-  // we don't have to always save r29_fp on entry and exit to c2 compiled
+  // Since the interpreter always saves fp if we record where it is then
+  // we don't have to always save fp on entry and exit to c2 compiled
   // code, on entry will be enough.
-  map->set_location(r29_fp->as_VMReg(), (address) link_addr);
+  map->set_location(r_fp->as_VMReg(), (address) link_addr);
   // this is weird "H" ought to be at a higher address however the
   // oopMaps seems to have the "H" regs at the same address and the
   // vanilla register.
   // XXXX make this go away
   if (true) {
-    map->set_location(r29_fp->as_VMReg()->next(), (address) link_addr);
+    map->set_location(r_fp->as_VMReg()->next(), (address) link_addr);
   }
 }
 
@@ -448,7 +448,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // On Intel the return_address is always the word on the stack
   address sender_pc = (address) *(sender_sp-1);
 
-  // This is the saved value of r29_fp which may or may not really be an FP.
+  // This is the saved value of fp which may or may not really be an FP.
   // It is only an FP if the sender is an interpreter frame (or C1?).
   intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
 
@@ -461,7 +461,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
       OopMapSet::update_register_map(this, map);
     }
 
-    // Since the prolog does the save and restore of r29_fp there is no oopmap
+    // Since the prolog does the save and restore of fp there is no oopmap
     // for it so we must fill in its location as if there was an oopmap entry
     // since if our caller was compiled code there could be live jvm state in it.
     update_map_with_saved_link(map, saved_fp_addr);

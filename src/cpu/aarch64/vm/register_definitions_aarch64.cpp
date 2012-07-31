@@ -139,20 +139,20 @@ REGISTER_DEFINITION(FloatRegister, j_farg5);
 REGISTER_DEFINITION(FloatRegister, j_farg6);
 REGISTER_DEFINITION(FloatRegister, j_farg7);
 
-REGISTER_DEFINITION(Register, rscratch1);
-REGISTER_DEFINITION(Register, rscratch2);
+REGISTER_DEFINITION(Register, r_scratch1);
+REGISTER_DEFINITION(Register, r_scratch2);
 
-REGISTER_DEFINITION(Register, r10_cpool);
-REGISTER_DEFINITION(Register, r11_monitors);
-REGISTER_DEFINITION(Register, r12_locals);
-REGISTER_DEFINITION(Register, r13_method);
-REGISTER_DEFINITION(Register, r14_bcp);
-REGISTER_DEFINITION(Register, r15_esp);
+REGISTER_DEFINITION(Register, r_cpool);
+REGISTER_DEFINITION(Register, r_monitors);
+REGISTER_DEFINITION(Register, r_locals);
+REGISTER_DEFINITION(Register, r_method);
+REGISTER_DEFINITION(Register, r_bcp);
+REGISTER_DEFINITION(Register, r_esp);
 
-REGISTER_DEFINITION(Register, r30_lr);
-REGISTER_DEFINITION(Register, r29_fp);
-REGISTER_DEFINITION(Register, r28_thread);
-REGISTER_DEFINITION(Register, r27_heapbase);
+REGISTER_DEFINITION(Register, r_lr);
+REGISTER_DEFINITION(Register, r_fp);
+REGISTER_DEFINITION(Register, r_thread);
+REGISTER_DEFINITION(Register, r_heapbase);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp

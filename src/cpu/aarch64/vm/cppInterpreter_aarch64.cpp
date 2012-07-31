@@ -466,7 +466,7 @@ void CppInterpreterGenerator::generate_compute_interpreter_state(const Register 
   __ movptr(STATE(_prev_link), rax);                    // state->_link = state on entry (NULL or previous state)
   __ movptr(STATE(_sender_sp), sender_sp);              // state->_sender_sp = sender_sp
 #ifdef _LP64
-  __ movptr(STATE(_thread), r15_thread);                // state->_bcp = codes()
+  __ movptr(STATE(_thread), r_thread);                // state->_bcp = codes()
 #else
   __ get_thread(rax);                                   // get vm's javathread*
   __ movptr(STATE(_thread), rax);                       // state->_bcp = codes()
@@ -672,7 +672,7 @@ void InterpreterGenerator::generate_stack_overflow_check(void) {
   // QQQ problem here?? rsi overload????
   __ push(state);
 
-  const Register thread = LP64_ONLY(r15_thread) NOT_LP64(rsi);
+  const Register thread = LP64_ONLY(r_thread) NOT_LP64(rsi);
 
   NOT_LP64(__ get_thread(thread));
 
@@ -1027,7 +1027,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   if (inc_counter) __ movl(rcx, invocation_counter);  // (pre-)fetch invocation count
 
-  const Register unlock_thread = LP64_ONLY(r15_thread) NOT_LP64(rax);
+  const Register unlock_thread = LP64_ONLY(r_thread) NOT_LP64(rax);
   NOT_LP64(__ movptr(unlock_thread, STATE(_thread));) // get thread
   // Since at this point in the method invocation the exception handler
   // would try to exit the monitor of synchronized methods which hasn't
@@ -1102,7 +1102,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // work registers
   const Register method = rbx;
-  const Register thread = LP64_ONLY(r15_thread) NOT_LP64(rdi);
+  const Register thread = LP64_ONLY(r_thread) NOT_LP64(rdi);
   const Register t      = InterpreterRuntime::SignatureHandlerGenerator::temp();    // rcx|rscratch1
 
   // allocate space for parameters
@@ -1778,7 +1778,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ bind(call_interpreter_2);
 
   {
-    const Register thread  = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+    const Register thread  = NOT_LP64(rcx) LP64_ONLY(r_thread);
 
 #ifdef _LP64
     __ mov(c_rarg0, state);
@@ -1879,7 +1879,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   __ movptr(rbx, STATE(_method));                       // get method
 #ifdef _LP64
-  __ movptr(Address(r15_thread, Thread::pending_exception_offset()), rax);
+  __ movptr(Address(r_thread, Thread::pending_exception_offset()), rax);
 #else
   __ movl(rcx, STATE(_thread));                       // get thread
 
@@ -1974,7 +1974,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   // If there is a pending exception then we don't really have a result to process
 
 #ifdef _LP64
-  __ cmpptr(Address(r15_thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);
+  __ cmpptr(Address(r_thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);
 #else
   __ movptr(rcx, STATE(_thread));                       // get thread
   __ cmpptr(Address(rcx, Thread::pending_exception_offset()), (int32_t)NULL_WORD);

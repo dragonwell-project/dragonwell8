@@ -106,40 +106,40 @@ REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 
 // r8 is used for indirect result location return
 // we use it and r9 as scratch registers
-REGISTER_DECLARATION(Register, rscratch1, r8);
-REGISTER_DECLARATION(Register, rscratch2, r9);
+REGISTER_DECLARATION(Register, r_scratch1, r8);
+REGISTER_DECLARATION(Register, r_scratch2, r9);
 
 // other volatile registers
 
 // constant pool cache
-REGISTER_DECLARATION(Register, r10_cpool,    r10);
+REGISTER_DECLARATION(Register, r_cpool,    r10);
 // monitors allocated on stack
-REGISTER_DECLARATION(Register, r11_monitors, r11);
+REGISTER_DECLARATION(Register, r_monitors, r11);
 // locals on stack
-REGISTER_DECLARATION(Register, r12_locals,   r12);
+REGISTER_DECLARATION(Register, r_locals,   r12);
 // current method
-REGISTER_DECLARATION(Register, r13_method,   r13);
+REGISTER_DECLARATION(Register, r_method,   r13);
 // bytecode pointer
-REGISTER_DECLARATION(Register, r14_bcp,      r14);
+REGISTER_DECLARATION(Register, r_bcp,      r14);
 // Java expression stackpointer
-REGISTER_DECLARATION(Register, r15_esp,      r15);
+REGISTER_DECLARATION(Register, r_esp,      r15);
 
 // non-volatile (callee-save) registers are r16-29
 // of which the following are dedicated gloabl state
 
 // link register
-REGISTER_DECLARATION(Register, r30_lr,       r30);
+REGISTER_DECLARATION(Register, r_lr,       r30);
 // frame pointer
-REGISTER_DECLARATION(Register, r29_fp,       r29);
+REGISTER_DECLARATION(Register, r_fp,       r29);
 // current thread
-REGISTER_DECLARATION(Register, r28_thread,   r28);
+REGISTER_DECLARATION(Register, r_thread,   r28);
 // base of heap
-REGISTER_DECLARATION(Register, r27_heapbase, r27);
+REGISTER_DECLARATION(Register, r_heapbase, r27);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp
 // JSR 292 fixed register usages:
-//REGISTER_DECLARATION(Register, r29_mh_SP_save, r29);
+//REGISTER_DECLARATION(Register, r_mh_SP_save, r29);
 
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
