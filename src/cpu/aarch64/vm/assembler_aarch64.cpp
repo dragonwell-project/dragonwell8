@@ -911,6 +911,27 @@ Disassembly of section .text:
     assert(ok, "Assembler smoke test failed");
   }
 #endif // ASSERT
+
+#ifdef PRODUCT
+#define BLOCK_COMMENT(str) /* nothing */
+#else
+#define BLOCK_COMMENT(str) __ block_comment(str)
+#endif
+
+#define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
+
+  {
+    Label l, loop;
+    address a = __ pc();
+    __ movz(r0, 0);
+    __ BIND(loop);
+    __ subs(sp, r0, 10);
+    __ br(Assembler::NE, l);
+    __ add(r0, r0, 10u);
+    __ br(Assembler::AL, loop);
+    __ BIND(l);
+    Disassembler::decode(a, __ pc());
+  }
 }
 
 
@@ -1075,6 +1096,21 @@ asm_util::encode_immediate_v2(int is32, uint64_t imm)
 
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_immediate_v2(is32, imm) != 0xffffffff;
+}
+
+void Assembler::br(Condition cc, Label &L) {
+  if (L.is_bound()) {
+    cond_branch(cc, target(L));
+  } else {
+    InstructionMark im(this);
+    L.add_patch_at(code(), locator());
+    cond_branch(cc, pc());
+  }
+}
+
+void MacroAssembler::pd_patch_instruction(address branch, address target) {
+  long offset = (target - branch) >> 2;
+  Instruction_aarch64::spatch(branch, 23, 5, offset);
 }
 
 int AbstractAssembler::code_fill_byte() { Unimplemented(); }

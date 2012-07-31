@@ -30,8 +30,6 @@
 #include "code/codeCache.hpp"
 #include "runtime/handles.inline.hpp"
 
-inline void MacroAssembler::pd_patch_instruction(address branch, address target) { Unimplemented(); }
-
 #ifndef PRODUCT
 
 inline void MacroAssembler::pd_print_patched_instruction(address branch) { Unimplemented(); }

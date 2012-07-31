@@ -181,9 +181,37 @@ public:
     return n;
   }
 
+  static void patch(address a, int msb, int lsb, unsigned long val) {
+    int nbits = msb - lsb + 1;
+    guarantee(val < (1U << nbits), "Field too big for insn");
+    assert_cond(msb >= lsb);
+    unsigned mask = (1U << nbits) - 1;
+    val <<= lsb;
+    mask <<= lsb;
+    unsigned target = *(unsigned *)a;
+    target &= ~mask;
+    target |= val;
+    *(unsigned *)a = target;
+  }
+
+  static void spatch(address a, int msb, int lsb, long val) {
+    int nbits = msb - lsb + 1;
+    long chk = val >> (nbits - 1);
+    guarantee (chk == -1 || chk == 0, "Field too big for insn");
+    unsigned uval = val;
+    unsigned mask = (1U << nbits) - 1;
+    uval &= mask;
+    uval <<= lsb;
+    mask <<= lsb;
+    unsigned target = *(unsigned *)a;
+    target &= ~mask;
+    target |= uval;
+    *(unsigned *)a = target;
+  }
+
   void f(unsigned val, int msb, int lsb) {
     int nbits = msb - lsb + 1;
-    assert_cond(val < (1U << nbits));
+    guarantee(val < (1U << nbits), "Field too big for insn");
     assert_cond(msb >= lsb);
     unsigned mask = (1U << nbits) - 1;
     val <<= lsb;
@@ -200,7 +228,7 @@ public:
   void sf(long val, int msb, int lsb) {
     int nbits = msb - lsb + 1;
     long chk = val >> (nbits - 1);
-    assert_cond (chk == -1 || chk == 0);
+    guarantee (chk == -1 || chk == 0, "Field too big for insn");
     unsigned uval = val;
     unsigned mask = (1U << nbits) - 1;
     uval &= mask;
@@ -504,7 +532,8 @@ public:
     f(0b0101010, 31, 25), f(0, 24), sf(offset, 23, 5), f(0, 4), f(cond, 3, 0);
   }
 
-  enum {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
+  enum Condition
+    {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
 
 #define INSN(NAME, cond)			\
   void NAME(address dest) {			\
@@ -529,6 +558,8 @@ public:
   INSN(ble, LE);
   INSN(bal, AL);
   INSN(bnv, NV);
+
+  void br(Condition cc, Label &L);
 
 #undef INSN
 
@@ -577,14 +608,14 @@ public:
     hint(0);
   }
 
-  enum barrier {OSHLD = 0b0001, OSHST, OSH, NSHLD, NSHST, NSH,
-		ISHLD = 0b1001, ISHST, ISH, LD, ST, SY};
+  enum barrier {OSHLD = 0b0001, OSHST, OSH, NSHLD=0b0101, NSHST, NSH,
+		ISHLD = 0b1001, ISHST, ISH, LD=0b1101, ST, SY};
 
-  void dsb(int imm) {
+  void dsb(barrier imm) {
     system(0b00, 0b011, 0b00011, imm, 0b100);
   }
 
-  void dmb(int imm) {
+  void dmb(barrier imm) {
     system(0b00, 0b011, 0b00011, imm, 0b101);
   }
 
@@ -973,13 +1004,13 @@ public:
   }
 
 #define INSN(NAME, op)							\
-  void NAME(Register Rn, Register Rm, int imm, condition_code cond) {	\
+  void NAME(Register Rn, Register Rm, int imm, Condition cond) {	\
     starti;								\
     f(0, 11);								\
     conditional_compare(op, 0, 0, Rn, (uintptr_t)Rm, imm, cond);	\
   }									\
 									\
-  void NAME(Register Rn, int imm5, int imm, condition_code cond) {	\
+  void NAME(Register Rn, int imm5, int imm, Condition cond) {	\
     starti;								\
     f(1, 11);								\
     conditional_compare(op, 0, 0, Rn, imm5, imm, cond);			\
@@ -1005,7 +1036,7 @@ public:
   }
 
 #define INSN(NAME, op, op2)						\
-  void NAME(Register Rd, Register Rn, Register Rm, condition_code cond) { \
+  void NAME(Register Rd, Register Rn, Register Rm, Condition cond) { \
     conditional_select(op, op2, Rd, Rn, Rm, cond);			\
   }
 
@@ -1294,10 +1325,6 @@ public:
   }
 
   bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
-
-  enum Condition {
-    dummy
-  };
 };
 
 #undef starti

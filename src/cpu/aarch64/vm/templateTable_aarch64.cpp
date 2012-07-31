@@ -80,7 +80,9 @@ static inline Address at_tos_p2() { Unimplemented(); return (address)0; }
 static inline Address at_tos_p3() { Unimplemented(); return (address)0; }
 
 // Condition conversion
-static Assembler::Condition j_not(TemplateTable::Condition cc) { Unimplemented(); return Assembler::dummy; }
+static Assembler::Condition j_not(TemplateTable::Condition cc) {
+  return Assembler::Condition(cc ^ 1);
+}
 
 
 // Miscelaneous helper routines
