@@ -181,6 +181,15 @@ public:
     return n;
   }
 
+  static inline uint32_t extract(uint32_t val, int msb, int lsb) {
+    int nbits = msb - lsb + 1;
+    assert_cond(msb >= lsb);
+    uint32_t mask = (1U << nbits) - 1;
+    uint32_t result = val >> lsb;
+    result &= mask;
+    return result;
+  }
+
   static void patch(address a, int msb, int lsb, unsigned long val) {
     int nbits = msb - lsb + 1;
     guarantee(val < (1U << nbits), "Field too big for insn");
@@ -377,6 +386,16 @@ public:
     current = NULL;
   }
 
+  typedef void (Assembler::* uncond_branch_insn)(address dest);
+  typedef void (Assembler::* compare_and_branch_insn)(Register Rt, address dest);
+  typedef void (Assembler::* test_and_branch_insn)(Register Rt, int bitpos, address dest);
+  typedef void (Assembler::* prefetch_insn)(address target, int prfop);
+
+  void wrap_label(Label &L, uncond_branch_insn insn);
+  void wrap_label(Register r, Label &L, compare_and_branch_insn insn);
+  void wrap_label(Register r, int bitpos, Label &L, test_and_branch_insn insn);
+  void wrap_label(Label &L, int prfop, prefetch_insn insn);
+
   // PC-rel. addressing
 #define INSN(NAME, op, shift)						\
   void NAME(Register Rd, address adr) {					\
@@ -387,6 +406,9 @@ public:
     starti;								\
     f(op, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5); \
     rf(Rd, 0);								\
+  }									\
+  void NAME(Register Rd, Label &L) {					\
+    wrap_label(Rd, L, &Assembler::NAME);				\
   }
 
   INSN(adr, 0, 0);
@@ -487,6 +509,9 @@ public:
     starti;							\
     long offset = (dest - pc()) >> 2;				\
     f(opcode, 31), f(0b00101, 30, 26), sf(offset, 25, 0);	\
+  }								\
+  void NAME(Label &L) {						\
+    wrap_label(L, &Assembler::NAME);				\
   }
 
   INSN(b, 0);
@@ -500,6 +525,9 @@ public:
     long offset = (dest - pc()) >> 2;			\
     starti;						\
     f(opcode, 31, 24), sf(offset, 23, 5), rf(Rt, 0);	\
+  }							\
+  void NAME(Register Rt, Label &L) {			\
+    wrap_label(Rt, L, &Assembler::NAME);		\
   }
 
   INSN(cbzw,  0b00110100);
@@ -518,6 +546,9 @@ public:
     starti;								\
     f(b5, 31), f(opcode, 30, 24), f(bitpos, 23, 19), sf(offset, 18, 5);	\
     rf(Rt, 0);								\
+  }									\
+  void NAME(Register Rt, int bitpos, Label &L) {			\
+    wrap_label(Rt, bitpos, L, &Assembler::NAME);			\
   }
 
   INSN(tbz,  0b0110110);
@@ -526,18 +557,18 @@ public:
 #undef INSN
 
   // Conditional branch (immediate)
-  void cond_branch(int cond, address dest) {
+  enum Condition
+    {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
+
+  void br(Condition  cond, address dest) {
     long offset = (dest - pc()) >> 2;
     starti;
     f(0b0101010, 31, 25), f(0, 24), sf(offset, 23, 5), f(0, 4), f(cond, 3, 0);
   }
 
-  enum Condition
-    {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
-
 #define INSN(NAME, cond)			\
   void NAME(address dest) {			\
-    cond_branch(cond, dest);			\
+    br(cond, dest);				\
   }
 
   INSN(beq, EQ);
@@ -738,6 +769,9 @@ public:
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),	\
       sf(offset, 23, 5);						\
     rf(Rt, 0);								\
+  }									\
+  void NAME(Register Rt, Label &L) {					\
+    wrap_label(Rt, L, &Assembler::NAME);				\
   }
 
   INSN(ldrw, 0b00, 0);
@@ -767,6 +801,9 @@ public:
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),	\
       sf(offset, 23, 5);						\
     f(prfop, 4, 0);							\
+  }									\
+  void NAME(Label &L, int prfop = 0) {					\
+    wrap_label(L, prfop, &Assembler::NAME);				\
   }
 
   INSN(prfm, 0b11, 0);
