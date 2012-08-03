@@ -69,7 +69,6 @@
 #endif
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
-const int MXCSR_MASK = 0xFFC0;  // Mask out any pending exceptions
 
 // Stub Code definitions
 
@@ -87,8 +86,295 @@ class StubGenerator: public StubCodeGenerator {
   inc_counter_np_(counter);
 #endif
 
+  // Call stubs are used to call Java from C
+  //
+  // Arguments:
+  //    c_rarg0:   call wrapper address                   address
+  //    c_rarg1:   result                                 address
+  //    c_rarg2:   result type                            BasicType
+  //    c_rarg3:   method                                 methodOop
+  //    c_rarg4:   (interpreter) entry point              address
+  //    c_rarg5:   parameters                             intptr_t*
+  //    c_rarg6:   parameter size (in words)              int
+  //    c_rarg7:   thread                                 Thread*
+  //
+  // There is no return form the stub itself as any Java result
+  // is written to result
+  //
+  // we save r30 (lr)a as the return PC at the base of the frame and
+  // link r29 (fp) below it as the frame pointer installing sp (r31)
+  // into fp.
+  //
+  // we save r0-r7, which accounts for all the c arguments.
+  //
+  // TODO: strictly do we need to save them all? they are treated as
+  // volatile by C so could we omit saving the ones we are going to
+  // place in global registers (thread? method?) or those we only use
+  // during setup of the Java call?
+  //
+  // we don't need to save r8 which C uses as an indirect result location
+  // return register.
+  //
+  // we don't need to save r9-r15 which both C and Java treat as
+  // volatile
+  //
+  // we don't need to save r16-18 because Java does not use them
+  //
+  // we save r19-r28 which Java uses as scratch registers and C
+  // expects to be callee-save
+  //
+  // we don't save any FP registers since only v8-v15 are callee-save
+  // (strictly only the f and d components) and Java uses them as
+  // callee-save. v0-v7 are arg registers and C treats v16-v31 as
+  // volatile (as does Java?)
+  //
+  // so the stub frame looks like this when we enter Java code
+  //
+  //     [ return_from_Java     ] <--- sp
+  //     [ argument word n      ]
+  //      ...
+  // -19 [ argument word 1      ]
+  // -18 [ saved r28            ] <--- sp_after_call
+  // -17 [ saved r27            ]
+  // -16 [ saved r26            ]
+  // -15 [ saved r25            ]
+  // -14 [ saved r24            ]
+  // -13 [ saved r23            ]
+  // -12 [ saved r22            ]
+  // -11 [ saved r21            ]
+  // -10 [ saved r20            ]
+  //  -9 [ saved r19            ]
+  //  -8 [ call wrapper    (r0) ]
+  //  -7 [ result          (r1) ]
+  //  -6 [ result type     (r2) ]
+  //  -5 [ method          (r3) ]
+  //  -4 [ entry point     (r4) ]
+  //  -3 [ parameters      (r5) ]
+  //  -2 [ parameter size  (r6) ]
+  //  -1 [ thread (r7)          ]
+  //   0 [ saved fp       (r29) ] <--- fp == saved sp (r31)
+  //   1 [ saved lr       (r30) ]
 
-  address generate_call_stub(address& return_address) { Unimplemented(); return 0; }
+  // Call stub stack layout word offsets from fp
+  enum call_stub_layout {
+    sp_after_call_off = -18,
+    r28_off            = -18,
+    r27_off            = -17,
+    r26_off            = -16,
+    r25_off            = -15,
+    r24_off            = -14,
+    r23_off            = -13,
+    r22_off            = -12,
+    r21_off            = -11,
+    r20_off            = -10,
+    r19_off            =  -9,
+    call_wrapper_off   =  -8,
+    result_off         =  -7,
+    result_type_off    =  -6,
+    method_off         =  -5,
+    entry_point_off    =  -4,
+    parameters_off     =  -3,
+    parameter_size_off =  -2,
+    thread_off         =  -1,
+    fp_f               =   0,
+    retaddr_off        =   1,
+  };
+
+  address generate_call_stub(address& return_address) {
+    assert((int)frame::entry_frame_after_call_words == -(int)sp_after_call_off + 1 &&
+           (int)frame::entry_frame_call_wrapper_offset == (int)call_wrapper_off,
+           "adjust this code");
+
+    StubCodeMark mark(this, "StubRoutines", "call_stub");
+    address start = __ pc();
+
+    const Address sp_after_call(r_fp, sp_after_call_off * wordSize);
+
+    const Address call_wrapper  (r_fp, call_wrapper_off   * wordSize);
+    const Address result        (r_fp, result_off         * wordSize);
+    const Address result_type   (r_fp, result_type_off    * wordSize);
+    const Address method        (r_fp, method_off         * wordSize);
+    const Address entry_point   (r_fp, entry_point_off    * wordSize);
+    const Address parameters    (r_fp, parameters_off     * wordSize);
+    const Address parameter_size(r_fp, parameter_size_off * wordSize);
+
+    const Address thread        (r_fp, thread_off         * wordSize);
+
+    const Address r28_save      (r_fp, r28_off * wordSize);
+    const Address r27_save      (r_fp, r27_off * wordSize);
+    const Address r26_save      (r_fp, r26_off * wordSize);
+    const Address r25_save      (r_fp, r25_off * wordSize);
+    const Address r24_save      (r_fp, r24_off * wordSize);
+    const Address r23_save      (r_fp, r23_off * wordSize);
+    const Address r22_save      (r_fp, r22_off * wordSize);
+    const Address r21_save      (r_fp, r21_off * wordSize);
+    const Address r20_save      (r_fp, r20_off * wordSize);
+    const Address r19_save      (r_fp, r19_off * wordSize);
+
+    // stub code
+
+    // we need a C prolog to bootstrap teh x86 caller into the sim
+
+    __ c_stub_prolog(8UL);
+
+    address aarch64_entry = __ pc();
+
+    // set up frame and move sp to end of save area
+    __ enter();
+    __ sub(sp, r_fp, -sp_after_call_off * wordSize);
+
+    // save register parameters and Java scratch/global registers
+    // n.b. we save thread even though it gets installed in
+    // r_thread because we want to sanity check r_thread later
+    __ str(c_rarg7,  thread);
+    __ strw(c_rarg6, parameter_size);
+    __ str(c_rarg5,  parameters);
+    __ str(c_rarg4,  entry_point);
+    __ str(c_rarg3,  method);
+    __ str(c_rarg2,  result_type);
+    __ str(c_rarg1,  result);
+    __ str(c_rarg0,  call_wrapper);
+    __ str(r19,      r19_save);
+    __ str(r20,      r20_save);
+    __ str(r21,      r21_save);
+    __ str(r22,      r22_save);
+    __ str(r23,      r23_save);
+    __ str(r24,      r24_save);
+    __ str(r25,      r25_save);
+    __ str(r26,      r26_save);
+    __ str(r27,      r27_save);
+    __ str(r28,      r28_save);
+
+    // install Java thread in global register now we have saved
+    // whatever value it held
+    __ mov(r_thread, c_rarg7);
+
+    // set up the heapbase register
+    __ reinit_heapbase();
+
+#ifdef ASSERT
+    // make sure we have no pending exceptions
+    {
+      Label L;
+      __ ldr(r_scratch1, Address(r_thread, in_bytes(Thread::pending_exception_offset())));
+      __ cmp(r_scratch1, (unsigned)NULL_WORD);
+      __ br(Assembler::EQ, L);
+      __ stop("StubRoutines::call_stub: entered with pending exception");
+      __ BIND(L);
+    }
+#endif
+    // pass parameters if any
+    BLOCK_COMMENT("pass parameters if any");
+    Label parameters_done;
+    // parameter count is still in c_rarg6
+    // and parameter pointer identifying param 1 is in c_rarg5
+    __ cmp(c_rarg6, 0U);
+    __ br(Assembler::EQ, parameters_done);
+
+    address loop = __ pc();
+    __ ldr(r_scratch1, Address(__ post(c_rarg5, wordSize)));
+    __ subs(c_rarg6, c_rarg6, 1);
+    __ push(r_scratch1);
+    __ br(Assembler::GT, loop);
+
+    __ BIND(parameters_done);
+
+    // call Java entry -- passing methdoOop, and current sp
+    // n.b. this assumes they are passed via j_rarg0 an j_rarg1
+
+    __ mov(j_rarg0, c_rarg3);
+    __ mov(j_rarg1, sp);
+    BLOCK_COMMENT("call Java function");
+    __ call (c_rarg4);
+
+    // save current address for use by exception handling code
+  
+    return_address = __ pc();
+
+    // store result depending on type (everything that is not
+    // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // n.b. this assumes Java returns an integral result in j_rarg0
+    // and a floating result in j_farg0
+    __ ldr(j_rarg2, result);
+    Label is_long, is_float, is_double, exit;
+    __ ldr(j_rarg1, result_type);
+    __ cmp(j_rarg1, T_OBJECT);
+    __ br(Assembler::EQ, is_long);
+    __ cmp(j_rarg1, T_LONG);
+    __ br(Assembler::EQ, is_long);
+    __ cmp(j_rarg1, T_FLOAT);
+    __ br(Assembler::EQ, is_float);
+    __ cmp(j_rarg1, T_DOUBLE);
+    __ br(Assembler::EQ, is_double);
+
+    // handle T_INT case
+    __ strw(j_rarg0, Address(j_rarg2, 0));
+
+    __ BIND(exit);
+
+    // pop parameters
+    __ sub(sp, r_fp, -sp_after_call_off * wordSize);
+
+#ifdef ASSERT
+    // verify that threads correspond
+    {
+      Label L, S;
+      __ ldr(r_scratch1, thread);
+      __ cmp(r_thread, r_scratch1);
+      __ br(Assembler::NE, S);
+      __ get_thread(r_scratch1);
+      __ cmp(r_thread, r_scratch1);
+      __ br(Assembler::EQ, L);
+      __ BIND(S);
+      __ stop("StubRoutines::call_stub: threads must correspond");
+      __ BIND(L);
+    }
+#endif
+
+    // restore callee-save registers
+    __ ldr(r28,      r28_save);
+    __ ldr(r27,      r27_save);
+    __ ldr(r26,      r26_save);
+    __ ldr(r25,      r25_save);
+    __ ldr(r24,      r24_save);
+    __ ldr(r23,      r23_save);
+    __ ldr(r22,      r22_save);
+    __ ldr(r21,      r21_save);
+    __ ldr(r20,      r20_save);
+    __ ldr(r19,      r19_save);
+    __ ldr(c_rarg0,  call_wrapper);
+    __ ldr(c_rarg1,  result);
+    __ ldrw(c_rarg2, result_type);
+    __ ldr(c_rarg3,  method);
+    __ ldr(c_rarg4,  entry_point);
+    __ ldr(c_rarg5,  parameters);
+    __ ldr(c_rarg6,  parameter_size);
+    __ ldr(c_rarg7,  thread);
+
+    // leave frame and return to caller
+    __ leave();
+    __ ret(r_lr);
+
+    // handle return types different from T_INT
+
+    __ BIND(is_long);
+    __ str(j_rarg0, Address(j_rarg2, 0));
+    __ br(Assembler::AL, exit);
+
+    __ BIND(is_float);
+    __ strs(j_farg0, Address(j_rarg2, 0));
+    __ br(Assembler::AL, exit);
+
+    __ BIND(is_double);
+    __ strd(j_farg0, Address(j_rarg2, 0));
+    __ br(Assembler::AL, exit);
+
+    printf("Java call stub\n");
+    Disassembler::decode(aarch64_entry, __ pc());
+    printf("\n");
+
+    return start;
+  }
 
   // Return point for a Java call if there's an exception thrown in
   // Java code.  The exception is caught and transformed into a
@@ -102,7 +388,14 @@ class StubGenerator: public StubCodeGenerator {
   //
   // rax: exception oop
 
-  address generate_catch_exception() { Unimplemented(); return 0; }
+  // NOTE: this is used as a target from the signal handler so it
+  // needs an x86 prolog which returns into the current simulator
+  // executing the generated catch_exception code. so the prolog
+  // needs to install rax in a sim register and adjust the sim's
+  // restart pc to enter the generated code at the start position
+  // then return from native to simulated execution.
+
+  address generate_catch_exception() { return 0; }
 
   // Continuation point for runtime calls returning with a pending
   // exception.  The pending exception check happened in the runtime
@@ -115,7 +408,10 @@ class StubGenerator: public StubCodeGenerator {
   //
   // NOTE: At entry of this stub, exception-pc must be on stack !!
 
-  address generate_forward_exception() { Unimplemented(); return 0; }
+  // NOTE: this is always used as a jump target within generated code
+  // so it just needs to be generated code wiht no x86 prolog
+
+  address generate_forward_exception() { return 0; }
 
   // Support for jint atomic::xchg(jint exchange_value, volatile jint* dest)
   //
@@ -125,7 +421,11 @@ class StubGenerator: public StubCodeGenerator {
   //
   // Result:
   //    *dest <- ex, return (orig *dest)
-  address generate_atomic_xchg() { Unimplemented(); return 0; }
+
+  // NOTE: not sure this is actually needed but if so it looks like it
+  // is called from os-specific code i.e. it needs an x86 prolog
+
+  address generate_atomic_xchg() { return 0; }
 
   // Support for intptr_t atomic::xchg_ptr(intptr_t exchange_value, volatile intptr_t* dest)
   //
@@ -135,7 +435,11 @@ class StubGenerator: public StubCodeGenerator {
   //
   // Result:
   //    *dest <- ex, return (orig *dest)
-  address generate_atomic_xchg_ptr() { Unimplemented(); return 0; }
+
+  // NOTE: not sure this is actually needed but if so it looks like it
+  // is called from os-specific code i.e. it needs an x86 prolog
+
+  address generate_atomic_xchg_ptr() { return 0; }
 
   // Support for jint atomic::atomic_cmpxchg(jint exchange_value, volatile jint* dest,
   //                                         jint compare_value)
@@ -151,7 +455,7 @@ class StubGenerator: public StubCodeGenerator {
   //       return compare_value;
   //    else
   //       return *dest;
-  address generate_atomic_cmpxchg() { Unimplemented(); return 0; }
+  address generate_atomic_cmpxchg() { return 0; }
 
   // Support for jint atomic::atomic_cmpxchg_long(jlong exchange_value,
   //                                             volatile jlong* dest,
@@ -167,7 +471,11 @@ class StubGenerator: public StubCodeGenerator {
   //       return compare_value;
   //    else
   //       return *dest;
-  address generate_atomic_cmpxchg_long() { Unimplemented(); return 0; }
+
+  // NOTE: not sure this is actually needed but if so it looks like it
+  // is called from os-specific code i.e. it needs an x86 prolog
+
+  address generate_atomic_cmpxchg_long() { return 0; }
 
   // Support for jint atomic::add(jint add_value, volatile jint* dest)
   //
@@ -178,7 +486,11 @@ class StubGenerator: public StubCodeGenerator {
   // Result:
   //    *dest += add_value
   //    return *dest;
-  address generate_atomic_add() { Unimplemented(); return 0; }
+
+  // NOTE: not sure this is actually needed but if so it looks like it
+  // is called from os-specific code i.e. it needs an x86 prolog
+
+  address generate_atomic_add() { return 0; }
 
   // Support for intptr_t atomic::add_ptr(intptr_t add_value, volatile intptr_t* dest)
   //
@@ -189,14 +501,22 @@ class StubGenerator: public StubCodeGenerator {
   // Result:
   //    *dest += add_value
   //    return *dest;
-  address generate_atomic_add_ptr() { Unimplemented(); return 0; }
+
+  // NOTE: not sure this is actually needed but if so it looks like it
+  // is called from os-specific code i.e. it needs an x86 prolog
+
+  address generate_atomic_add_ptr() { return 0; }
 
   // Support for intptr_t OrderAccess::fence()
   //
   // Arguments :
   //
   // Result:
-  address generate_orderaccess_fence() { Unimplemented(); return 0; }
+
+  // NOTE: this is called from C code so it needs an x86 prolog
+  // or else we need to fiddle it with inline asm for now
+
+  address generate_orderaccess_fence() { return 0; }
 
   // Support for intptr_t get_previous_fp()
   //
@@ -204,13 +524,21 @@ class StubGenerator: public StubCodeGenerator {
   // caller (current_frame_guess). This is used as part of debugging
   // ps() is seemingly lost trying to find frames.
   // This code assumes that caller current_frame_guess) has a frame.
-  address generate_get_previous_fp() { Unimplemented(); return 0; }
+
+  // NOTE: this is called from C code in os_windows.cpp with AMD64. other
+  // builds use inline asm -- so we should be ok for aarch64
+
+  address generate_get_previous_fp() { return 0; }
 
   // Support for intptr_t get_previous_sp()
   //
   // This routine is used to find the previous stack pointer for the
   // caller.
-  address generate_get_previous_sp() { Unimplemented(); return 0; }
+
+  // NOTE: this is called from C code in os_windows.cpp with AMD64. other
+  // builds use inline asm -- so we should be ok for aarch64
+
+  address generate_get_previous_sp() { return 0; }
 
   //----------------------------------------------------------------------------------------------------
   // Support for void verify_mxcsr()
@@ -219,7 +547,15 @@ class StubGenerator: public StubCodeGenerator {
   // JNI code does not return to Java code without restoring the
   // MXCSR register to our expected state.
 
+  // NOTE: on x86 this is called from the cpp and template
+  // interpreters and internally from the call stub -- we can probbaly
+  // do without any equivalent for aarch64 for now at least
+
   address generate_verify_mxcsr() { Unimplemented(); return 0; }
+
+  // NOTE: these fixup routines appear only to be called from the
+  // opto code (they are mentioned in x86_64.ad) so we can do
+  // without them for now on aarch64
 
   address generate_f2i_fixup() { Unimplemented(); return 0; }
 
@@ -229,13 +565,24 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_d2l_fixup() { Unimplemented(); return 0; }
 
+  // NOTE: this appears only to be used internal to the x86 call stub
+  // to support the mxcsr code so we can do without it for now on aarch64
+
   address generate_fp_mask(const char *stub_name, int64_t mask) { Unimplemented(); return 0; }
 
   // The following routine generates a subroutine to throw an
   // asynchronous UnknownError when an unsafe access gets a fault that
   // could not be reasonably prevented by the programmer.  (Example:
   // SIGBUS/OBJERR.)
-  address generate_handler_for_unsafe_access() { Unimplemented(); return 0; }
+
+  // NOTE: this is used by the signal handler code as a return address
+  // to re-enter Java execution so it needs an x86 prolog which will
+  // reenter the simulator executing the generated handler code. so
+  // the prolog needs to adjust the sim's restart pc to enter the
+  // generated code at the start position then return from native to
+  // simulated execution.
+
+  address generate_handler_for_unsafe_access() { return 0; }
 
   // Non-destructive plausibility checks for oops
   //
@@ -253,6 +600,9 @@ class StubGenerator: public StubCodeGenerator {
   //  * [tos + 7]: saved rax - saved by caller and bashed
   //  * [tos + 8]: saved r10 (rscratch1) - saved by caller
   //  * = popped on exit
+
+  // NOTE: this is called from within Java code so it needs no prolog
+
   address generate_verify_oop() { Unimplemented(); return 0; }
 
   //
@@ -601,16 +951,97 @@ class StubGenerator: public StubCodeGenerator {
   // AbstractMethodError on entry) are either at call sites or
   // otherwise assume that stack unwinding will be initiated, so
   // caller saved registers were assumed volatile in the compiler.
+
+  // NOTE: this needs carefully checking to see where the generated
+  // code gets called from for each generated error
+  //
+  // WrongMethodTypeException : jumped to directly from generated method
+  // handle code.
+  //
+  // StackOverflowError : jumped to directly from generated code in
+  // cpp and template interpreter. the generated code address also
+  // appears to be returned from the signal handler as the re-entry
+  // address forJava execution to continue from. This means it needs
+  // to be enterable from x86 code. Hmm, we may need to expose both an
+  // x86 prolog and the address of the generated ARM code and clients
+  // will have to be mdoified to pick the correct one.
+  //
+  // AbstractMethodError : never jumped to from generated code but the
+  // generated code address appears to be returned from the signal
+  // handler as the re-entry address for Java execution to continue
+  // from. This means it needs to be enterable from x86 code. So, we
+  // will need to provide this one with an x86 prolog as per
+  // StackOverflowError
+  //
+  // IncompatibleClassChangeError : only appears to be jumped to
+  // directly from vtableStubs code
+  //
+  // NullPointerException : never jumped to from generated code but
+  // the generated code address appears to be returned from the signal
+  // handler as the re-entry address for Java execution to continue
+  // from. This means it needs to be enterable from x86 code. So, we
+  // will need to provide this one with an x86 prolog as per
+  // StackOverflowError
+
+
   address generate_throw_exception(const char* name,
                                    address runtime_entry,
                                    Register arg1 = noreg,
-                                   Register arg2 = noreg) { Unimplemented(); return 0; }
+                                   Register arg2 = noreg) { return 0; }
 
   // Initialization
   void generate_initial() {
-    // TODO : implement this next
+    // Generate initial stubs and initializes the entry points
+
+    // entry points that exist in all platforms Note: This is code
+    // that could be shared among different platforms - however the
+    // benefit seems to be smaller than the disadvantage of having a
+    // much more complicated generator structure. See also comment in
+    // stubRoutines.hpp.
+
+    StubRoutines::_forward_exception_entry = generate_forward_exception();
+
+    StubRoutines::_call_stub_entry =
+      generate_call_stub(StubRoutines::_call_stub_return_address);
+
+    // is referenced by megamorphic call
+    StubRoutines::_catch_exception_entry = generate_catch_exception();
+
+    // atomic calls
+    StubRoutines::_atomic_xchg_entry         = generate_atomic_xchg();
+    StubRoutines::_atomic_xchg_ptr_entry     = generate_atomic_xchg_ptr();
+    StubRoutines::_atomic_cmpxchg_entry      = generate_atomic_cmpxchg();
+    StubRoutines::_atomic_cmpxchg_long_entry = generate_atomic_cmpxchg_long();
+    StubRoutines::_atomic_add_entry          = generate_atomic_add();
+    StubRoutines::_atomic_add_ptr_entry      = generate_atomic_add_ptr();
+    StubRoutines::_fence_entry               = generate_orderaccess_fence();
+
+    StubRoutines::_handler_for_unsafe_access_entry =
+      generate_handler_for_unsafe_access();
+
+    // platform dependent
+    StubRoutines::x86::_get_previous_fp_entry = generate_get_previous_fp();
+    StubRoutines::x86::_get_previous_sp_entry = generate_get_previous_sp();
+
+    // we don't need this or aarch64
+
+    // StubRoutines::x86::_verify_mxcsr_entry    = generate_verify_mxcsr();
+
+    // Build this early so it's available for the interpreter.  Stub
+    // expects the required and actual types as register arguments in
+    // j_rarg0 and j_rarg1 respectively.
+    StubRoutines::_throw_WrongMethodTypeException_entry =
+      generate_throw_exception("WrongMethodTypeException throw_exception",
+                               CAST_FROM_FN_PTR(address, SharedRuntime::throw_WrongMethodTypeException),
+                               j_rarg0, j_rarg1);
+
+    // Build this early so it's available for the interpreter.
+    StubRoutines::_throw_StackOverflowError_entry =
+      generate_throw_exception("StackOverflowError throw_exception",
+                               CAST_FROM_FN_PTR(address,
+                                                SharedRuntime::
+                                                throw_StackOverflowError));
     exit(0);
-    Unimplemented();
   }
     
   void generate_all() { Unimplemented(); }

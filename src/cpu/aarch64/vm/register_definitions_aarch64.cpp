@@ -103,6 +103,8 @@ REGISTER_DEFINITION(FloatRegister, v29);
 REGISTER_DEFINITION(FloatRegister, v30);
 REGISTER_DEFINITION(FloatRegister, v31);
 
+REGISTER_DEFINITION(Register, zr);
+
 REGISTER_DEFINITION(Register, c_rarg0);
 REGISTER_DEFINITION(Register, c_rarg1);
 REGISTER_DEFINITION(Register, c_rarg2);

@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights
+ * reserved.  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE
+ * HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -30,16 +31,18 @@
 #include <sys/types.h>
 
 #include "precompiled.hpp"
-// #include "assembler_aarch64.inline.hpp"
+#include "assembler_aarch64.inline.hpp"
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
 #include "compiler/disassembler.hpp"
+#include "memory/resourceArea.hpp"
+#include "runtime/interfaceSupport.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 // #include "gc_interface/collectedHeap.inline.hpp"
 // #include "interpreter/interpreter.hpp"
 // #include "memory/cardTableModRefBS.hpp"
-// #include "memory/resourceArea.hpp"
 // #include "prims/methodHandles.hpp"
 // #include "runtime/biasedLocking.hpp"
 // #include "runtime/interfaceSupport.hpp"
@@ -71,30 +74,30 @@ void entry(CodeBuffer *cb) {
     __ bind(back);
 
 // ArithOp
-    __ add(r15, r29, r3, Assembler::asr, 37);     //	add	x15, x29, x3, asr #37
-    __ sub(r21, r24, r30, Assembler::lsl, 34);    //	sub	x21, x24, x30, lsl #34
-    __ adds(r22, r14, r18, Assembler::asr, 51);   //	adds	x22, x14, x18, asr #51
-    __ subs(r29, r6, r30, Assembler::asr, 18);    //	subs	x29, x6, x30, asr #18
-    __ addw(r3, r19, r19, Assembler::lsr, 31);    //	add	w3, w19, w19, lsr #31
-    __ subw(r12, r8, r17, Assembler::lsr, 18);    //	sub	w12, w8, w17, lsr #18
-    __ addsw(r1, r3, r6, Assembler::asr, 0);      //	adds	w1, w3, w6, asr #0
-    __ subsw(r1, r1, r13, Assembler::lsr, 9);     //	subs	w1, w1, w13, lsr #9
-    __ andr(r15, r18, r8, Assembler::asr, 63);    //	and	x15, x18, x8, asr #63
-    __ orr(r25, r6, r19, Assembler::lsr, 34);     //	orr	x25, x6, x19, lsr #34
-    __ eor(r26, r4, r24, Assembler::asr, 43);     //	eor	x26, x4, x24, asr #43
-    __ ands(r2, r8, r3, Assembler::asr, 25);      //	ands	x2, x8, x3, asr #25
-    __ andw(r11, r30, r5, Assembler::lsr, 1);     //	and	w11, w30, w5, lsr #1
-    __ orrw(r25, r12, r29, Assembler::lsl, 19);   //	orr	w25, w12, w29, lsl #19
-    __ eorw(r27, r14, r25, Assembler::lsl, 6);    //	eor	w27, w14, w25, lsl #6
-    __ andsw(r27, r15, r12, Assembler::asr, 25);  //	ands	w27, w15, w12, asr #25
-    __ bic(r9, r25, r26, Assembler::lsr, 25);     //	bic	x9, x25, x26, lsr #25
-    __ orn(r1, r5, r27, Assembler::lsr, 19);      //	orn	x1, x5, x27, lsr #19
-    __ eon(r21, r3, r25, Assembler::lsl, 18);     //	eon	x21, x3, x25, lsl #18
-    __ bics(r29, r16, r2, Assembler::lsl, 0);     //	bics	x29, x16, x2, lsl #0
-    __ bicw(r24, r3, r27, Assembler::lsl, 30);    //	bic	w24, w3, w27, lsl #30
-    __ ornw(r5, r15, r9, Assembler::lsl, 0);      //	orn	w5, w15, w9, lsl #0
-    __ eonw(r16, r13, r0, Assembler::lsr, 4);     //	eon	w16, w13, w0, lsr #4
-    __ bicsw(r18, r10, r21, Assembler::lsl, 25);  //	bics	w18, w10, w21, lsl #25
+    __ add(r15, r29, r3, Assembler::ASR, 37);     //	add	x15, x29, x3, asr #37
+    __ sub(r21, r24, r30, Assembler::LSL, 34);    //	sub	x21, x24, x30, lsl #34
+    __ adds(r22, r14, r18, Assembler::ASR, 51);   //	adds	x22, x14, x18, asr #51
+    __ subs(r29, r6, r30, Assembler::ASR, 18);    //	subs	x29, x6, x30, asr #18
+    __ addw(r3, r19, r19, Assembler::LSR, 31);    //	add	w3, w19, w19, lsr #31
+    __ subw(r12, r8, r17, Assembler::LSR, 18);    //	sub	w12, w8, w17, lsr #18
+    __ addsw(r1, r3, r6, Assembler::ASR, 0);      //	adds	w1, w3, w6, asr #0
+    __ subsw(r1, r1, r13, Assembler::LSR, 9);     //	subs	w1, w1, w13, lsr #9
+    __ andr(r15, r18, r8, Assembler::ASR, 63);    //	and	x15, x18, x8, asr #63
+    __ orr(r25, r6, r19, Assembler::LSR, 34);     //	orr	x25, x6, x19, lsr #34
+    __ eor(r26, r4, r24, Assembler::ASR, 43);     //	eor	x26, x4, x24, asr #43
+    __ ands(r2, r8, r3, Assembler::ASR, 25);      //	ands	x2, x8, x3, asr #25
+    __ andw(r11, r30, r5, Assembler::LSR, 1);     //	and	w11, w30, w5, lsr #1
+    __ orrw(r25, r12, r29, Assembler::LSL, 19);   //	orr	w25, w12, w29, lsl #19
+    __ eorw(r27, r14, r25, Assembler::LSL, 6);    //	eor	w27, w14, w25, lsl #6
+    __ andsw(r27, r15, r12, Assembler::ASR, 25);  //	ands	w27, w15, w12, asr #25
+    __ bic(r9, r25, r26, Assembler::LSR, 25);     //	bic	x9, x25, x26, lsr #25
+    __ orn(r1, r5, r27, Assembler::LSR, 19);      //	orn	x1, x5, x27, lsr #19
+    __ eon(r21, r3, r25, Assembler::LSL, 18);     //	eon	x21, x3, x25, lsl #18
+    __ bics(r29, r16, r2, Assembler::LSL, 0);     //	bics	x29, x16, x2, lsl #0
+    __ bicw(r24, r3, r27, Assembler::LSL, 30);    //	bic	w24, w3, w27, lsl #30
+    __ ornw(r5, r15, r9, Assembler::LSL, 0);      //	orn	w5, w15, w9, lsl #0
+    __ eonw(r16, r13, r0, Assembler::LSR, 4);     //	eon	w16, w13, w0, lsr #4
+    __ bicsw(r18, r10, r21, Assembler::LSL, 25);  //	bics	w18, w10, w21, lsl #25
 
 // AddSubImmOp
     __ addw(r9, r4, 764u);                        //	add	w9, w4, #764
@@ -1396,7 +1399,7 @@ RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_ad
 
 void MacroAssembler::verify_oop(Register reg, const char* s) { Unimplemented(); }
 
-void MacroAssembler::stop(const char* msg) { Unimplemented(); }
+void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
 void MacroAssembler::call_VM_leaf_base(address entry_point, int num_args) { Unimplemented(); }
 
@@ -1407,6 +1410,303 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register 
 void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2) { Unimplemented(); }
 
 void MacroAssembler::null_check(Register reg, int offset) { Unimplemented(); }
+
+// MacroAssembler protected routines needed to implement
+// public methods
+
+void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
+{
+  if (operand_valid_for_logical_immdiate(0, imm64)) {
+    orr(dst, zr, imm64);
+  } else {
+    // we can use a combination of MOVZ or MOVN with
+    // MOVK to build up the constant
+    u_int64_t imm_h[4];
+    int zero_count = 0;
+    int neg_count = 0;
+    int i;
+    for (i = 0; i < 4; i++) {
+      imm_h[i] = ((imm64 >> (i * 16)) & 0xffffL);
+      if (imm_h[i] == 0) {
+	zero_count++;
+      } else if (imm_h[i] == 0xffffL) {
+	neg_count++;
+      }
+    }
+    if (zero_count == 3) {
+      // one MOVZ will do
+      for (i = 0; i < 3; i++) {
+	if (imm_h[i] != 0L) {
+	  movz(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else if (neg_count == 3) {
+      // one MOVN will do
+      for (int i = 0; i < 3; i++) {
+	if (imm_h[i] != 0xffffL) {
+	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else if (zero_count == 2) {
+      // one MOVZ and one MOVK will do
+      for (i = 0; i < 3; i++) {
+	if (imm_h[i] != 0L) {
+	  movz(dst, (u_int32_t)imm_h[i], (i << 4));
+	  i++;
+	  break;
+	}
+      }
+      for (;i < 3; i++) {
+	if (imm_h[i] != 0L) {
+	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else if (neg_count == 2) {
+      // one MOVN and one MOVK will do
+      for (i = 0; i < 3; i++) {
+	if (imm_h[i] != 0xffffL) {
+	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
+	  i++;
+	  break;
+	}
+      }
+      for (;i < 3; i++) {
+	if (imm_h[i] != 0xffffL) {
+	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else if (zero_count == 1) {
+      // one MOVZ and two MOVKs will do
+      for (i = 0; i < 3; i++) {
+	if (imm_h[i] != 0L) {
+	  movz(dst, (u_int32_t)imm_h[i], (i << 4));
+	  i++;
+	  break;
+	}
+      }
+      for (;i < 3; i++) {
+	if (imm_h[i] != 0x0L) {
+	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else if (neg_count == 1) {
+      // one MOVN and two MOVKs will do
+      for (i = 0; i < 3; i++) {
+	if (imm_h[i] != 0xffffL) {
+	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
+	  i++;
+	  break;
+	}
+      }
+      for (;i < 3; i++) {
+	if (imm_h[i] != 0xffffL) {
+	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
+	  break;
+	}
+      }
+    } else {
+      // use a MOVZ and 3 MOVKs (makes it easier to debug)
+      movz(dst, (u_int32_t)imm_h[0], 0);
+      for (i = 1; i < 3; i++) {
+	movk(dst, (u_int32_t)imm_h[i], (i << 4));
+      }
+    }
+  }
+}
+
+void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
+{
+  if (operand_valid_for_logical_immdiate(1, imm32)) {
+    orrw(dst, zr, imm32);
+  } else {
+    // we can use MOVZ, MOVN or two calls to MOVK to build up the
+    // constant
+    u_int32_t imm_h[2];
+    imm_h[0] = imm32 & 0xffff;
+    imm_h[1] = ((imm32 >> 16) & 0xffff);
+    if (imm_h[0] == 0) {
+      movzw(dst, imm_h[1], 16);
+    } else if (imm_h[0] == 0xffff) {
+      movnw(dst, imm_h[1], 16);
+    } else if (imm_h[1] == 0) {
+      movzw(dst, imm_h[0], 0);
+    } else if (imm_h[1] == 0xffff) {
+      movnw(dst, imm_h[0], 0);
+    } else {
+      // use a MOVZ and MOVK (makes it easier to debug)
+      movzw(dst, imm_h[0], 0);
+      movkw(dst, imm_h[1], 16);
+    }
+  }
+}
+
+// MacroAssembler routines found actually to be needed
+
+void MacroAssembler::call(Register entry)
+{
+  br(entry);
+}
+
+void MacroAssembler::push(Register src)
+{
+  str(src, Address(pre(sp, -1 * wordSize)));
+}
+
+void MacroAssembler::pop(Register dst)
+{
+  ldr(dst, Address(post(sp, 1 * wordSize)));
+}
+
+void MacroAssembler::pusha() {
+  // need to push all registers including original sp
+  push(r0);
+  push(r1);
+  push(r2);
+  push(r3);
+  push(r4);
+  push(r5);
+  push(r6);
+  push(r7);
+  push(r8);
+  push(r9);
+  push(r10);
+  push(r11);
+  push(r12);
+  push(r13);
+  push(r14);
+  push(r15);
+  push(r16);
+  push(r17);
+  push(r18);
+  push(r19);
+  push(r20);
+  push(r21);
+  push(r22);
+  push(r23);
+  push(r24);
+  push(r25);
+  push(r26);
+  push(r27);
+  push(r29);
+  push(r30);
+  // cannot push sp as str will treat it as zr !!!
+  mov(r0, sp);
+  push(r0);
+  // re-establish r0? we probably only use pusha when we are about to
+  // exit so we don't necessarily have to do this but let's leave the
+  // registers as they were just in case.
+  ldr(r0, Address(sp, 31 * wordSize));
+}
+
+void MacroAssembler::stop(const char* msg) {
+  address ip = pc();
+  pusha();
+  mov(c_rarg0, (address)msg);
+  mov(c_rarg1, (address)ip);
+  mov(c_rarg2, sp);
+  // round down sp to 16 byte boundary
+  // (assumes literal will encode directly)
+  andr(sp, c_rarg2, ~0xfUL);
+  mov(c_rarg3, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
+  call(c_rarg3);
+  hlt(0);
+}
+
+void MacroAssembler::enter()
+{
+  push(r_lr);
+  push(r_fp);
+  mov(r_fp, sp);
+}
+
+void MacroAssembler::leave()
+{
+  mov(sp, r_fp);
+  pop(r_fp);
+  pop(r_lr);
+}
+
+void MacroAssembler::reinit_heapbase()
+{
+  if (UseCompressedOops) {
+    mov(r_heapbase, (address)Universe::narrow_oop_base_addr());
+  }
+}
+
+#ifndef PRODUCT
+extern "C" void findpc(intptr_t x);
+#endif
+
+void MacroAssembler::debug64(char* msg, int64_t pc, int64_t regs[])
+{
+  // In order to get locks to work, we need to fake a in_VM state
+  if (ShowMessageBoxOnError ) {
+    JavaThread* thread = JavaThread::current();
+    JavaThreadState saved_state = thread->thread_state();
+    thread->set_thread_state(_thread_in_vm);
+#ifndef PRODUCT
+    if (CountBytecodes || TraceBytecodes || StopInterpreterAt) {
+      ttyLocker ttyl;
+      BytecodeCounter::print();
+    }
+#endif
+    // To see where a verify_oop failed, get $ebx+40/X for this frame.
+    // XXX correct this offset for amd64
+    // This is the value of eip which points to where verify_oop will return.
+    if (os::message_box(msg, "Execution stopped, print registers?")) {
+      ttyLocker ttyl;
+      tty->print_cr(" pc = 0x%016lx", pc);
+#ifndef PRODUCT
+      tty->cr();
+      findpc(pc);
+      tty->cr();
+#endif
+      tty->print_cr(" r0 = 0x%016lx", regs[0]);
+      tty->print_cr(" r1 = 0x%016lx", regs[1]);
+      tty->print_cr(" r2 = 0x%016lx", regs[2]);
+      tty->print_cr(" r3 = 0x%016lx", regs[3]);
+      tty->print_cr(" r4 = 0x%016lx", regs[4]);
+      tty->print_cr(" r5 = 0x%016lx", regs[5]);
+      tty->print_cr(" r6 = 0x%016lx", regs[6]);
+      tty->print_cr(" r7 = 0x%016lx", regs[7]);
+      tty->print_cr(" r8 = 0x%016lx", regs[8]);
+      tty->print_cr(" r9 = 0x%016lx", regs[9]);
+      tty->print_cr("r10 = 0x%016lx", regs[10]);
+      tty->print_cr("r11 = 0x%016lx", regs[11]);
+      tty->print_cr("r12 = 0x%016lx", regs[12]);
+      tty->print_cr("r13 = 0x%016lx", regs[13]);
+      tty->print_cr("r14 = 0x%016lx", regs[14]);
+      tty->print_cr("r15 = 0x%016lx", regs[15]);
+      tty->print_cr("r16 = 0x%016lx", regs[16]);
+      tty->print_cr("r17 = 0x%016lx", regs[17]);
+      tty->print_cr("r18 = 0x%016lx", regs[18]);
+      tty->print_cr("r19 = 0x%016lx", regs[19]);
+      tty->print_cr("r20 = 0x%016lx", regs[20]);
+      tty->print_cr("r21 = 0x%016lx", regs[21]);
+      tty->print_cr("r22 = 0x%016lx", regs[22]);
+      tty->print_cr("r23 = 0x%016lx", regs[23]);
+      tty->print_cr("r24 = 0x%016lx", regs[24]);
+      tty->print_cr("r25 = 0x%016lx", regs[25]);
+      tty->print_cr("r26 = 0x%016lx", regs[26]);
+      tty->print_cr("r27 = 0x%016lx", regs[27]);
+      tty->print_cr("r28 = 0x%016lx", regs[28]);
+      tty->print_cr("r30 = 0x%016lx", regs[30]);
+      tty->print_cr("r31 = 0x%016lx", regs[31]);
+      BREAKPOINT;
+    }
+    ThreadStateTransition::transition(thread, _thread_in_vm, saved_state);
+  } else {
+    ttyLocker ttyl;
+    ::tty->print_cr("=============== DEBUG MESSAGE: %s ================\n",
+                    msg);
+    assert(false, err_msg("DEBUG MESSAGE: %s", msg));
+  }
+}
 
 // routine to generate an x86 prolog for a stub function which
 // bootstraps into the generated ARM code which directly follows the

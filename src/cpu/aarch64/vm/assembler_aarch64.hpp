@@ -45,6 +45,9 @@ class Argument VALUE_OBJ_CLASS_SPEC {
   };
 };
 
+// declare zr as an alias for sp
+REGISTER_DECLARATION(Register, zr, sp);
+
 REGISTER_DECLARATION(Register, c_rarg0, r0);
 REGISTER_DECLARATION(Register, c_rarg1, r1);
 REGISTER_DECLARATION(Register, c_rarg2, r2);
@@ -921,7 +924,7 @@ public:
 
 #undef INSN
 
-  enum shift_kind { lsl, lsr, asr, ror };
+  enum shift_kind { LSL, LSR, ASR, ROR };
 
   void op_shifted_reg(unsigned decode,
 		      Register Rd, Register Rn, Register Rm,
@@ -938,7 +941,7 @@ public:
   // Logical (shifted regsiter)
 #define INSN(NAME, size, op, N)					\
   void NAME(Register Rd, Register Rn, Register Rm,		\
-	    enum shift_kind kind = lsl, unsigned shift = 0) {	\
+	    enum shift_kind kind = LSL, unsigned shift = 0) {	\
     starti;							\
     f(N, 21);							\
     op_shifted_reg(0b01010, Rd, Rn, Rm, kind, shift, size, op);	\
@@ -967,10 +970,10 @@ public:
   // Add/subtract (shifted regsiter)
 #define INSN(NAME, size, op)					\
   void NAME(Register Rd, Register Rn, Register Rm,		\
-	    enum shift_kind kind = lsl, unsigned shift = 0) {	\
+	    enum shift_kind kind = LSL, unsigned shift = 0) {	\
     starti;							\
     f(0, 21);							\
-    assert_cond(kind != ror);					\
+    assert_cond(kind != ROR);					\
     op_shifted_reg(0b01011, Rd, Rn, Rm, kind, shift, size, op);	\
   }
 
@@ -1368,8 +1371,7 @@ public:
   }
 
   // Stack overflow checking
-  virtual void bang_stack_with_offset(int offset) {
-  }
+  virtual void bang_stack_with_offset(int offset);
 
   bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
 };
@@ -1442,6 +1444,226 @@ class MacroAssembler: public Assembler {
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
+
+  // aliases defined in AARCH64 spec
+
+  inline void cmpw(Register Rd, unsigned imm)  { subsw(zr, Rd, imm); }
+  inline void cmp(Register Rd, unsigned imm)  { subs(zr, Rd, imm); }
+
+  inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
+  inline void cmn(Register Rd, unsigned imm) { adds(zr, Rd, imm); }
+
+  inline void movw(Register Rd, Register Rn) {
+    if (Rd == sp || Rn == sp) {
+      addw(Rd, Rn, 0U);
+    } else {
+      orrw(Rd, zr, Rn);
+    }
+  }
+  inline void mov(Register Rd, Register Rn) {
+    if (Rd == sp || Rn == sp) {
+      add(Rd, Rn, 0U);
+    } else {
+      orr(Rd, zr, Rn);
+    }
+  }
+
+  inline void moviw(Register Rd, unsigned imm) { orrw(Rd, zr, imm); }
+  inline void movi(Register Rd, unsigned imm) { orr(Rd, zr, imm); }
+
+  inline void tstw(Register Rd, unsigned imm) { andsw(Rd, zr, imm); }
+  inline void tst(Register Rd, unsigned imm) { ands(Rd, zr, imm); }
+
+  inline void bfiw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    bfmw(Rd, Rn, ((32 - lsb) & 31), (width - 1));
+  }
+  inline void bfi(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    bfm(Rd, Rn, ((64 - lsb) & 63), (width - 1));
+  }
+
+  inline void bfxilw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    bfmw(Rd, Rn, lsb, (lsb + width - 1));
+  }
+  inline void bfxil(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    bfm(Rd, Rn, lsb , (lsb + width - 1));
+  }
+
+  inline void sbfizw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    sbfmw(Rd, Rn, ((32 - lsb) & 31), (width - 1));
+  }
+  inline void sbfiz(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    sbfm(Rd, Rn, ((64 - lsb) & 63), (width - 1));
+  }
+
+  inline void sbfxw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    sbfmw(Rd, Rn, lsb, (lsb + width - 1));
+  }
+  inline void sbfx(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    sbfm(Rd, Rn, lsb , (lsb + width - 1));
+  }
+
+  inline void ubfizw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    ubfmw(Rd, Rn, ((32 - lsb) & 31), (width - 1));
+  }
+  inline void ubfiz(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    ubfm(Rd, Rn, ((64 - lsb) & 63), (width - 1));
+  }
+
+  inline void ubfxw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    ubfmw(Rd, Rn, lsb, (lsb + width - 1));
+  }
+  inline void ubfx(Register Rd, Register Rn, unsigned lsb, unsigned width) {
+    ubfm(Rd, Rn, lsb , (lsb + width - 1));
+  }
+
+  inline void asrw(Register Rd, Register Rn, unsigned imm) {
+    sbfmw(Rd, Rn, imm, 31);
+  }
+
+  inline void asr(Register Rd, Register Rn, unsigned imm) {
+    sbfm(Rd, Rn, imm, 63);
+  }
+
+  inline void lslw(Register Rd, Register Rn, unsigned imm) {
+    ubfmw(Rd, Rn, ((32 - imm) & 31), (31 - imm));
+  }
+
+  inline void lsl(Register Rd, Register Rn, unsigned imm) {
+    ubfm(Rd, Rn, ((64 - imm) & 63), (63 - imm));
+  }
+
+  inline void lsrw(Register Rd, Register Rn, unsigned imm) {
+    ubfmw(Rd, Rn, imm, 31);
+  }
+
+  inline void lsr(Register Rd, Register Rn, unsigned imm) {
+    ubfm(Rd, Rn, imm, 31);
+  }
+
+  inline void rorw(Register Rd, Register Rn, unsigned imm) {
+    extrw(Rd, Rn, Rn, imm);
+  }
+
+  inline void ror(Register Rd, Register Rn, unsigned imm) {
+    extr(Rd, Rn, Rn, imm);
+  }
+
+  inline void sxtbw(Register Rd, Register Rn) {
+    sbfmw(Rd, Rn, 0, 7);
+  }
+  inline void sxthw(Register Rd, Register Rn) {
+    sbfmw(Rd, Rn, 0, 15);
+  }
+  inline void sxtb(Register Rd, Register Rn) {
+    sbfm(Rd, Rn, 0, 7);
+  }
+  inline void sxth(Register Rd, Register Rn) {
+    sbfm(Rd, Rn, 0, 15);
+  }
+  inline void sxtw(Register Rd, Register Rn) {
+    sbfm(Rd, Rn, 0, 31);
+  }
+
+  inline void uxtbw(Register Rd, Register Rn) {
+    bfmw(Rd, Rn, 0, 7);
+  }
+  inline void uxthw(Register Rd, Register Rn) {
+    bfmw(Rd, Rn, 0, 15);
+  }
+  inline void uxtb(Register Rd, Register Rn) {
+    bfm(Rd, Rn, 0, 7);
+  }
+  inline void uxth(Register Rd, Register Rn) {
+    bfm(Rd, Rn, 0, 15);
+  }
+  inline void uxtw(Register Rd, Register Rn) {
+    bfm(Rd, Rn, 0, 31);
+  }
+
+  inline void cmnw(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+    addsw(zr, Rn, Rm, kind, shift);
+  }
+  inline void cmn(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+    adds(zr, Rn, Rm, kind, shift);
+  }
+
+  inline void cmpw(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+    subsw(zr, Rn, Rm, kind, shift);
+  }
+  inline void cmp(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+    subs(zr, Rn, Rm, kind, shift);
+  }
+
+  inline void negw(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+    subw(Rd, zr, Rn, kind, shift);
+  }
+
+  inline void neg(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+    sub(Rd, zr, Rn, kind, shift);
+  }
+
+  inline void negsw(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+    subsw(Rd, zr, Rn, kind, shift);
+  }
+
+  inline void negs(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+    subs(Rd, zr, Rn, kind, shift);
+  }
+
+  inline void mnegw(Register Rd, Register Rn, Register Rm) {
+    msubw(Rd, Rn, Rm, zr);
+  }
+  inline void mneg(Register Rd, Register Rn, Register Rm) {
+    msub(Rd, Rn, Rm, zr);
+  }
+
+  inline void mulw(Register Rd, Register Rn, Register Rm) {
+    maddw(Rd, Rn, Rm, zr);
+  }
+  inline void mul(Register Rd, Register Rn, Register Rm) {
+    madd(Rd, Rn, Rm, zr);
+  }
+
+  inline void smnegl(Register Rd, Register Rn, Register Rm) {
+    smsubl(Rd, Rn, Rm, zr);
+  }
+  inline void smull(Register Rd, Register Rn, Register Rm) {
+    smaddl(Rd, Rn, Rm, zr);
+  }
+
+  inline void umnegl(Register Rd, Register Rn, Register Rm) {
+    umsubl(Rd, Rn, Rm, zr);
+  }
+  inline void umull(Register Rd, Register Rn, Register Rm) {
+    umaddl(Rd, Rn, Rm, zr);
+  }
+
+  // macro assembly operations needed for aarch64
+
+  // first two private routines for loading 32 bit or 64 bit constants
+private:
+
+  void mov_immediate64(Register dst, u_int64_t imm64);
+  void mov_immediate32(Register dst, u_int32_t imm32);
+
+  // now mov instructions for loading absolute addresses and 32 or
+  // 64 bit integers
+public:
+
+  inline void mov(Register dst, address addr)
+  {
+    mov_immediate64(dst, (u_int64_t)addr);
+  }
+
+  inline void mov(Register dst, u_int64_t imm64)
+  {
+    mov_immediate64(dst, imm64);
+  }
+
+  inline void movw(Register dst, u_int32_t imm32)
+  {
+    mov_immediate32(dst, imm32);
+  }
 
   // Support for NULL-checks
   //
@@ -2090,6 +2312,19 @@ public:
   void verified_entry(int framesize, bool stack_bang, bool fp_mode_24b);
 
 #undef VIRTUAL
+
+  // MacroAssembler routines found actually to be needed
+
+  // Stack push and pop individual 64 bit registers
+  void push(Register src);
+  void pop(Register dst);
+
+  // push all registers onto the stack
+  void pusha();
+  
+  // Prolog generator routines to support switch between x86 code and
+  // generated ARM code
+
   // routine to generate an x86 prolog for a stub function which
   // bootstraps into the generated ARM code which directly follows the
   // stub

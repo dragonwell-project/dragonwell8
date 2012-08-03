@@ -122,10 +122,11 @@
 
 #endif // CC_INTERP
 
-    // TODO - why 13? need to check stub entry code here
     // Entry frames
-    entry_frame_after_call_words                     = 13,
-    entry_frame_call_wrapper_offset                  = -6,
+    // n.b. these values are determined by the layout defined in
+    // stubGenerator for the Java call stub
+    entry_frame_after_call_words                     = 19,
+    entry_frame_call_wrapper_offset                  = -8,
 
     arg_reg_save_area_bytes                          =  0,
 
