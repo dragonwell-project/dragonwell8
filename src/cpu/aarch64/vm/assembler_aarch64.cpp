@@ -1230,10 +1230,6 @@ asm_util::encode_immediate_v2(int is32, uint64_t imm)
 
 // ------------- Stolen from binutils end -------------------------------------
 
-Instruction_aarch64::~Instruction_aarch64() {
-  assem->emit();
-}
-
 void Assembler::br(Condition cc, Label &L) {
   if (L.is_bound()) {
     br(cc, target(L));
@@ -1564,36 +1560,8 @@ void MacroAssembler::pop(Register dst)
 
 void MacroAssembler::pusha() {
   // need to push all registers including original sp
-  push(r0);
-  push(r1);
-  push(r2);
-  push(r3);
-  push(r4);
-  push(r5);
-  push(r6);
-  push(r7);
-  push(r8);
-  push(r9);
-  push(r10);
-  push(r11);
-  push(r12);
-  push(r13);
-  push(r14);
-  push(r15);
-  push(r16);
-  push(r17);
-  push(r18);
-  push(r19);
-  push(r20);
-  push(r21);
-  push(r22);
-  push(r23);
-  push(r24);
-  push(r25);
-  push(r26);
-  push(r27);
-  push(r29);
-  push(r30);
+  for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1))
+    push(reg);
   // cannot push sp as str will treat it as zr !!!
   mov(r0, sp);
   push(r0);
