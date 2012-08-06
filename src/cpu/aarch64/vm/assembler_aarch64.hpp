@@ -259,7 +259,11 @@ public:
     f(r->encoding_nocheck(), lsb + 4, lsb);
   }
 
-  unsigned getf (int msb = 31, int lsb = 0) {
+  void rf(FloatRegister r, int lsb) {
+    f(r->encoding_nocheck(), lsb + 4, lsb);
+  }
+
+  unsigned get(int msb = 31, int lsb = 0) {
     int nbits = msb - lsb + 1;
     unsigned mask = ((1U << nbits) - 1) << lsb;
     assert_cond(bits & mask == mask);
@@ -298,61 +302,105 @@ public:
 // Addressing modes
 class Address VALUE_OBJ_CLASS_SPEC {
  public:
+
   enum mode { base_plus_offset, pre, post, pcrel,
 	      base_plus_offset_reg };
+
   enum ScaleFactor { times_4, times_8 };
+
+  // Shift and extend for base reg + reg offset addressing
+  class extend {
+    int _option, _shift;
+  public:
+    extend() { }
+    extend(int s, int o) : _shift(s), _option(o) { }
+    int option() { return _option; }
+    int shift() { return _shift; }
+  };
+  class uxtw : public extend {
+  public:
+    uxtw(int shift = -1): extend(shift, 0b010) { }
+  };
+  class lsl : public extend {
+  public:
+    lsl(int shift = -1): extend(shift, 0b011) { }
+  };
+  class sxtw : public extend {
+  public:
+    sxtw(int shift = -1): extend(shift, 0b110) { }
+  };
+  class sxtx : public extend {
+  public:
+    sxtx(int shift = -1): extend(shift, 0b111) { }
+  };
+
  private:
   Register _base;
   Register _index;
   int _offset;
   enum mode _mode;
-  int _scale;
+  extend _ext;
 
  public:
   Address(Register r)
     : _mode(base_plus_offset), _base(r), _offset(0) { }
   Address(Register r, int o)
     : _mode(base_plus_offset), _base(r), _offset(o) { }
-  Address(Register r, Register r1, int scale = 0)
-    : _mode(base_plus_offset_reg), _base(r), _index(r1), _scale(scale) { }
+  Address(Register r, Register r1, extend ext = lsl())
+    : _mode(base_plus_offset_reg), _base(r), _index(r1),
+       _ext(ext) { }
   Address(Pre p)
     : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
   Address(Post p)
     : _mode(post), _base(p.reg()), _offset(p.offset()) { }
-  Address(address a) : _mode(pcrel), _adr(a) { }
 
   void encode(Instruction_aarch64 *i) {
+    i->f(0b111, 29, 27);
+    i->rf(_base, 5);
+
     switch(_mode) {
     case base_plus_offset:
       {
-	i->f(0b111, 29, 27), i->f(0b01, 25, 24);
-	unsigned shift = i->getf(31, 30);
-	assert_cond((_offset >> shift) << shift == _offset);
-	_offset >>= shift;
-	i->sf(_offset, 21, 10);
-	i->rf(_base, 5);
+	unsigned size = i->get(31, 30);
+	unsigned mask = (1 << size) - 1;
+	if (_offset < 0 || _offset & mask)
+	  {
+	    i->f(0b00, 25, 24);
+	    i->f(0, 21), i->f(0b00, 11, 10);
+	    i->sf(_offset, 20, 12);
+	  } else {
+	    i->f(0b01, 25, 24);
+	    _offset >>= size;
+	    i->f(_offset, 21, 10);
+	  }
       }
       break;
 
     case base_plus_offset_reg:
-      assert_cond(_scale == 0);
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
-      i->f(1, 21);
-      i->rf(_index, 16);
-      i->rf(_base, 5);
-      i->f(0b011, 15, 13); // Offset is always X register
-      i->f(0, 12); // Shift is 0
-      i->f(0b10, 11, 10);
+      {
+	i->f(0b00, 25, 24);
+	i->f(1, 21);
+	i->rf(_index, 16);
+	i->f(_ext.option(), 15, 13);
+	// FIXME: We don't check that the shift amount is valid.  Do we need to?
+	// It should be 0 for a byte, 1 for a halfword, etc.
+	unsigned size = i->get(31, 30);
+	if (size == 0) // It's a byte
+	  i->f(_ext.shift() >= 0, 12);
+	else
+	  i->f(_ext.shift() > 0, 12);
+	i->f(0b10, 11, 10);
+      }
       break;
 
     case pre:
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+      i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b11, 11, 10);
       i->sf(_offset, 20, 12);
       break;
 
     case post:
-      i->f(0b111, 29, 27), i->f(0b00, 25, 24);
+      i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b01, 11, 10);
       i->sf(_offset, 20, 12);
       break;
@@ -361,6 +409,11 @@ class Address VALUE_OBJ_CLASS_SPEC {
       assert_cond(false);
     }
   }
+};
+
+namespace ext
+{
+  enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
 };
 
 class Assembler : public AbstractAssembler {
@@ -387,6 +440,9 @@ public:
     current->sf(val, msb, lsb);
   }
   void rf(Register reg, int lsb) {
+    current->rf(reg, lsb);
+  }
+  void rf(FloatRegister reg, int lsb) {
     current->rf(reg, lsb);
   }
   void fixed(unsigned value, unsigned mask) {
@@ -870,19 +926,20 @@ public:
 
 #undef INSN
 
-  void ld_st2(Register Rt, Address adr, int size, int op) {
+  // Load/store register (all modes)
+  void ld_st2(Register Rt, Address adr, int size, int op, int V = 0) {
     starti;
     f(size, 31, 30);
     f(op, 23, 22); // str
-    f(0, 26); // general reg
+    f(V, 26); // general reg?
     rf(Rt, 0);
     adr.encode(current);
   }
 
-#define INSN(NAME, size, op)			\
-  void NAME(Register Rt, Address adr) {	\
-    ld_st2(Rt, adr, size, op);			\
-  }
+#define INSN(NAME, size, op)				\
+  void NAME(Register Rt, Address adr) {		\
+    ld_st2(Rt, adr, size, op);				\
+  }							\
 
   INSN(str, 0b11, 0b00);
   INSN(strw, 0b10, 0b00);
@@ -1359,8 +1416,8 @@ public:
   // INSN(fcmped, 0b000,  0b01, 0b00, 0b10000);
   // INSN1(fcmped, 0b000, 0b01, 0b00, 0b11000);
 
->>>>>>> 1b077c7... Assembler fixes, assembler test cases.
 #undef INSN
+#undef INSN1
 
   Assembler(CodeBuffer* code) : AbstractAssembler(code) {
   }
@@ -1381,10 +1438,6 @@ Instruction_aarch64::~Instruction_aarch64() {
 }
 
 #undef starti
-
-inline Instruction_aarch64::~Instruction_aarch64() {
-  assem->emit();
-}
 
 // extra stuff needed to compile
 // not sure which of these methods are really necessary
@@ -2217,10 +2270,7 @@ public:
   void xorptr(Register dst, Register src) { Unimplemented(); }
   void xorptr(Register dst, Address src) { Unimplemented(); }
 
-  INSN(fcvtzsw, 0b000, 0b00, 0b11, 0b000);
-  INSN(fcvtzs, 0b000, 0b01, 0b11, 0b000);
-  INSN(fcvtzdw, 0b100, 0b00, 0b11, 0b000);
-  INSN(fcvtszd, 0b100, 0b01, 0b11, 0b000);
+  // Calls
 
   void call(Label& L, relocInfo::relocType rtype);
   void call(Register entry);
