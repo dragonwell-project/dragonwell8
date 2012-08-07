@@ -52,7 +52,10 @@
 #define __ _masm->
 
 
-address AbstractInterpreterGenerator::generate_slow_signature_handler() { Unimplemented(); return 0;}
+address AbstractInterpreterGenerator::generate_slow_signature_handler() {
+  // Unimplemented();
+  return 0;
+}
 
 
 //

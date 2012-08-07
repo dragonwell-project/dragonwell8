@@ -188,28 +188,28 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "call_stub");
     address start = __ pc();
 
-    const Address sp_after_call(r_fp, sp_after_call_off * wordSize);
+    const Address sp_after_call(rfp, sp_after_call_off * wordSize);
 
-    const Address call_wrapper  (r_fp, call_wrapper_off   * wordSize);
-    const Address result        (r_fp, result_off         * wordSize);
-    const Address result_type   (r_fp, result_type_off    * wordSize);
-    const Address method        (r_fp, method_off         * wordSize);
-    const Address entry_point   (r_fp, entry_point_off    * wordSize);
-    const Address parameters    (r_fp, parameters_off     * wordSize);
-    const Address parameter_size(r_fp, parameter_size_off * wordSize);
+    const Address call_wrapper  (rfp, call_wrapper_off   * wordSize);
+    const Address result        (rfp, result_off         * wordSize);
+    const Address result_type   (rfp, result_type_off    * wordSize);
+    const Address method        (rfp, method_off         * wordSize);
+    const Address entry_point   (rfp, entry_point_off    * wordSize);
+    const Address parameters    (rfp, parameters_off     * wordSize);
+    const Address parameter_size(rfp, parameter_size_off * wordSize);
 
-    const Address thread        (r_fp, thread_off         * wordSize);
+    const Address thread        (rfp, thread_off         * wordSize);
 
-    const Address r28_save      (r_fp, r28_off * wordSize);
-    const Address r27_save      (r_fp, r27_off * wordSize);
-    const Address r26_save      (r_fp, r26_off * wordSize);
-    const Address r25_save      (r_fp, r25_off * wordSize);
-    const Address r24_save      (r_fp, r24_off * wordSize);
-    const Address r23_save      (r_fp, r23_off * wordSize);
-    const Address r22_save      (r_fp, r22_off * wordSize);
-    const Address r21_save      (r_fp, r21_off * wordSize);
-    const Address r20_save      (r_fp, r20_off * wordSize);
-    const Address r19_save      (r_fp, r19_off * wordSize);
+    const Address r28_save      (rfp, r28_off * wordSize);
+    const Address r27_save      (rfp, r27_off * wordSize);
+    const Address r26_save      (rfp, r26_off * wordSize);
+    const Address r25_save      (rfp, r25_off * wordSize);
+    const Address r24_save      (rfp, r24_off * wordSize);
+    const Address r23_save      (rfp, r23_off * wordSize);
+    const Address r22_save      (rfp, r22_off * wordSize);
+    const Address r21_save      (rfp, r21_off * wordSize);
+    const Address r20_save      (rfp, r20_off * wordSize);
+    const Address r19_save      (rfp, r19_off * wordSize);
 
     // stub code
 
@@ -221,11 +221,11 @@ class StubGenerator: public StubCodeGenerator {
 
     // set up frame and move sp to end of save area
     __ enter();
-    __ sub(sp, r_fp, -sp_after_call_off * wordSize);
+    __ sub(sp, rfp, -sp_after_call_off * wordSize);
 
     // save register parameters and Java scratch/global registers
     // n.b. we save thread even though it gets installed in
-    // r_thread because we want to sanity check r_thread later
+    // rthread because we want to sanity check rthread later
     __ str(c_rarg7,  thread);
     __ strw(c_rarg6, parameter_size);
     __ str(c_rarg5,  parameters);
@@ -247,7 +247,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // install Java thread in global register now we have saved
     // whatever value it held
-    __ mov(r_thread, c_rarg7);
+    __ mov(rthread, c_rarg7);
 
     // set up the heapbase register
     __ reinit_heapbase();
@@ -256,8 +256,8 @@ class StubGenerator: public StubCodeGenerator {
     // make sure we have no pending exceptions
     {
       Label L;
-      __ ldr(r_scratch1, Address(r_thread, in_bytes(Thread::pending_exception_offset())));
-      __ cmp(r_scratch1, (unsigned)NULL_WORD);
+      __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
+      __ cmp(rscratch1, (unsigned)NULL_WORD);
       __ br(Assembler::EQ, L);
       __ stop("StubRoutines::call_stub: entered with pending exception");
       __ BIND(L);
@@ -272,9 +272,9 @@ class StubGenerator: public StubCodeGenerator {
     __ br(Assembler::EQ, parameters_done);
 
     address loop = __ pc();
-    __ ldr(r_scratch1, Address(__ post(c_rarg5, wordSize)));
+    __ ldr(rscratch1, Address(__ post(c_rarg5, wordSize)));
     __ subs(c_rarg6, c_rarg6, 1);
-    __ push(r_scratch1);
+    __ push(rscratch1);
     __ br(Assembler::GT, loop);
 
     __ BIND(parameters_done);
@@ -313,17 +313,17 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(exit);
 
     // pop parameters
-    __ sub(sp, r_fp, -sp_after_call_off * wordSize);
+    __ sub(sp, rfp, -sp_after_call_off * wordSize);
 
 #ifdef ASSERT
     // verify that threads correspond
     {
       Label L, S;
-      __ ldr(r_scratch1, thread);
-      __ cmp(r_thread, r_scratch1);
+      __ ldr(rscratch1, thread);
+      __ cmp(rthread, rscratch1);
       __ br(Assembler::NE, S);
-      __ get_thread(r_scratch1);
-      __ cmp(r_thread, r_scratch1);
+      __ get_thread(rscratch1);
+      __ cmp(rthread, rscratch1);
       __ br(Assembler::EQ, L);
       __ BIND(S);
       __ stop("StubRoutines::call_stub: threads must correspond");
@@ -353,7 +353,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // leave frame and return to caller
     __ leave();
-    __ ret(r_lr);
+    __ ret(lr);
 
     // handle return types different from T_INT
 
@@ -1041,7 +1041,6 @@ class StubGenerator: public StubCodeGenerator {
                                CAST_FROM_FN_PTR(address,
                                                 SharedRuntime::
                                                 throw_StackOverflowError));
-    exit(0);
   }
     
   void generate_all() { Unimplemented(); }

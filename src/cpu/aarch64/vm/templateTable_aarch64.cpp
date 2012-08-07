@@ -47,37 +47,39 @@ void TemplateTable::pd_initialize() {
 
 // Address computation: local variables
 
-static inline Address iaddress(int n) { Unimplemented(); return (address)0; }
+static inline Address iaddress(Register r) {
+  return Address(rlocals, r, Address::lsl(3));
+}
 
-static inline Address laddress(int n) { Unimplemented(); return (address)0; }
+static inline Address lAddress(int n) { Unimplemented(); return (Address)0; }
 
-static inline Address faddress(int n) { Unimplemented(); return (address)0; }
+static inline Address fAddress(int n) { Unimplemented(); return (Address)0; }
 
-static inline Address daddress(int n) { Unimplemented(); return (address)0; }
+static inline Address dAddress(int n) { Unimplemented(); return (Address)0; }
 
-static inline Address aaddress(int n) { Unimplemented(); return (address)0; }
+static inline Address aAddress(int n) { Unimplemented(); return (Address)0; }
 
-static inline Address iaddress(Register r) { Unimplemented(); return (address)0; }
+static inline Address iAddress(Register r) { Unimplemented(); return (Address)0; }
 
-static inline Address laddress(Register r) { Unimplemented(); return (address)0; }
+static inline Address lAddress(Register r) { Unimplemented(); return (Address)0; }
 
-static inline Address faddress(Register r) { Unimplemented(); return (address)0; }
+static inline Address fAddress(Register r) { Unimplemented(); return (Address)0; }
 
-static inline Address daddress(Register r) { Unimplemented(); return (address)0; }
+static inline Address dAddress(Register r) { Unimplemented(); return (Address)0; }
 
-static inline Address aaddress(Register r) { Unimplemented(); return (address)0; }
+static inline Address aAddress(Register r) { Unimplemented(); return (Address)0; }
 
-static inline Address at_rsp() { Unimplemented(); return (address)0; }
+static inline Address at_rsp() { Unimplemented(); return (Address)0; }
 
 // At top of Java expression stack which may be different than esp().  It
 // isn't for category 1 objects.
-static inline Address at_tos   () { Unimplemented(); return (address)0; }
+static inline Address at_tos   () { Unimplemented(); return (Address)0; }
 
-static inline Address at_tos_p1() { Unimplemented(); return (address)0; }
+static inline Address at_tos_p1() { Unimplemented(); return (Address)0; }
 
-static inline Address at_tos_p2() { Unimplemented(); return (address)0; }
+static inline Address at_tos_p2() { Unimplemented(); return (Address)0; }
 
-static inline Address at_tos_p3() { Unimplemented(); return (address)0; }
+static inline Address at_tos_p3() { Unimplemented(); return (Address)0; }
 
 // Condition conversion
 static Assembler::Condition j_not(TemplateTable::Condition cc) {
@@ -86,7 +88,7 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 
 
 // Miscelaneous helper routines
-// Store an oop (or NULL) at the address described by obj.
+// Store an oop (or NULL) at the Address described by obj.
 // If val == noreg this means store a NULL
 
 static void do_oop_store(InterpreterMacroAssembler* _masm,
@@ -95,7 +97,10 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          BarrierSet::Name barrier,
                          bool precise) { Unimplemented(); }
 
-Address TemplateTable::at_bcp(int offset) { Unimplemented(); return (address)0; }
+Address TemplateTable::at_bcp(int offset) {
+  assert(_desc->uses_bcp(), "inconsistent uses_bcp information");
+  return Address(rbcp, offset);
+}
 
 void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
                                    Register temp_reg, bool load_bc_into_bc_reg/*=true*/,
@@ -153,9 +158,17 @@ void TemplateTable::dload() { Unimplemented(); }
 
 void TemplateTable::aload() { Unimplemented(); }
 
-void TemplateTable::locals_index_wide(Register reg) { Unimplemented(); }
+void TemplateTable::locals_index_wide(Register reg) {
+  __ ldrh(reg, at_bcp(2));
+  __ rev16w(reg, reg);
+  __ neg(reg, reg);
+}
 
-void TemplateTable::wide_iload() { Unimplemented(); }
+void TemplateTable::wide_iload() {
+  transition(vtos, itos);
+  locals_index_wide(r1);
+  __ ldr(r0, iaddress(r1));
+}
 
 void TemplateTable::wide_lload() { Unimplemented(); }
 

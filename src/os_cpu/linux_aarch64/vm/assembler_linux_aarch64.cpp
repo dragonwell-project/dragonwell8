@@ -50,26 +50,26 @@ void MacroAssembler::get_thread(Register dst) {
   // save arg registers? not for now
   // save scratch registers? (r_scratch1/2) not for now
   // save method-local scratch registers
-  push(r_cpool);
-  push(r_monitors);
-  push(r_locals);
-  push(r_method);
-  push(r_bcp);
-  push(r_esp);
-  mov(r_esp, sp);
-  push(r_esp);
-  andr(sp, r_esp, ~0xfL);
+  push(rcpool);
+  push(rmonitors);
+  push(rlocals);
+  push(rmethod);
+  push(rbcp);
+  push(resp);
+  mov(resp, sp);
+  push(resp);
+  andr(sp, resp, ~0xfL);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
-  mov(r_esp, CAST_FROM_FN_PTR(address, pthread_getspecific));
-  call(r_esp);
+  mov(resp, CAST_FROM_FN_PTR(address, pthread_getspecific));
+  call(resp);
   // restore pushed registers
   pop(sp);
-  pop(r_esp);
-  pop(r_bcp);
-  pop(r_method);
-  pop(r_locals);
-  pop(r_monitors);
-  pop(r_cpool);
+  pop(resp);
+  pop(rbcp);
+  pop(rmethod);
+  pop(rlocals);
+  pop(rmonitors);
+  pop(rcpool);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
   }

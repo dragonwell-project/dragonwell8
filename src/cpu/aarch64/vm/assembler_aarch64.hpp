@@ -109,35 +109,35 @@ REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 
 // r8 is used for indirect result location return
 // we use it and r9 as scratch registers
-REGISTER_DECLARATION(Register, r_scratch1, r8);
-REGISTER_DECLARATION(Register, r_scratch2, r9);
+REGISTER_DECLARATION(Register, rscratch1, r8);
+REGISTER_DECLARATION(Register, rscratch2, r9);
 
 // other volatile registers
 
 // constant pool cache
-REGISTER_DECLARATION(Register, r_cpool,    r10);
+REGISTER_DECLARATION(Register, rcpool,    r10);
 // monitors allocated on stack
-REGISTER_DECLARATION(Register, r_monitors, r11);
+REGISTER_DECLARATION(Register, rmonitors, r11);
 // locals on stack
-REGISTER_DECLARATION(Register, r_locals,   r12);
+REGISTER_DECLARATION(Register, rlocals,   r12);
 // current method
-REGISTER_DECLARATION(Register, r_method,   r13);
+REGISTER_DECLARATION(Register, rmethod,   r13);
 // bytecode pointer
-REGISTER_DECLARATION(Register, r_bcp,      r14);
+REGISTER_DECLARATION(Register, rbcp,      r14);
 // Java expression stackpointer
-REGISTER_DECLARATION(Register, r_esp,      r15);
+REGISTER_DECLARATION(Register, resp,      r15);
 
 // non-volatile (callee-save) registers are r16-29
 // of which the following are dedicated gloabl state
 
 // link register
-REGISTER_DECLARATION(Register, r_lr,       r30);
+REGISTER_DECLARATION(Register, lr,       r30);
 // frame pointer
-REGISTER_DECLARATION(Register, r_fp,       r29);
+REGISTER_DECLARATION(Register, rfp,       r29);
 // current thread
-REGISTER_DECLARATION(Register, r_thread,   r28);
+REGISTER_DECLARATION(Register, rthread,   r28);
 // base of heap
-REGISTER_DECLARATION(Register, r_heapbase, r27);
+REGISTER_DECLARATION(Register, rheapbase, r27);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp
@@ -1498,6 +1498,8 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
 
+  void call_Unimplemented() { }
+
   // aliases defined in AARCH64 spec
 
   inline void cmpw(Register Rd, unsigned imm)  { subsw(zr, Rd, imm); }
@@ -1866,7 +1868,7 @@ public:
                            Register last_java_fp,
                            address last_java_pc);
 
-  void reset_last_Java_frame(Register thread, bool clear_fp, bool clear_pc);
+  void reset_last_Java_frame(Register thread, bool clearfp, bool clear_pc);
 
   // thread in the default location (r15_thread on 64bit)
   void reset_last_Java_frame(bool clear_fp, bool clear_pc);

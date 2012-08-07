@@ -58,35 +58,114 @@ extern "C" void entry(CodeBuffer*);
 
 //-----------------------------------------------------------------------------
 
-address TemplateInterpreterGenerator::generate_StackOverflowError_handler() { Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_StackOverflowError_handler() { __ call_Unimplemented(); return 0; }
 
 address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(
-        const char* name) { Unimplemented(); return 0; }
+        const char* name) { __ call_Unimplemented(); return 0; }
 
-address TemplateInterpreterGenerator::generate_ClassCastException_handler() { Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_ClassCastException_handler() { __ call_Unimplemented(); return 0; }
 
 address TemplateInterpreterGenerator::generate_exception_handler_common(
-        const char* name, const char* message, bool pass_oop) { Unimplemented(); return 0; }
+        const char* name, const char* message, bool pass_oop) { __ call_Unimplemented(); return 0; }
 
 
-address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { __ call_Unimplemented(); return 0; }
 
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step) { Unimplemented(); return 0; }
+// FIXME: I have no idea what this is supposed to be for.  It looks up
+// an entry in the constant pool, ands it with 0xff, and adds that to
+// the stack pointer.
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step) {
+  address entry = __ pc();
 
+  // Restore stack bottom in case i2c adjusted stack
+  __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ mov(sp, rscratch1);
+  // and NULL it as marker that esp is now tos until next java call
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ restore_bcp();
+  __ restore_locals();
+
+  Label L_got_cache, L_giant_index;
+  if (EnableInvokeDynamic) {
+    // __ cmpb(Address(r13, 0), Bytecodes::_invokedynamic);
+    // __ jcc(Assembler::equal, L_giant_index);
+  }
+  __ get_cache_and_index_at_bcp(r1, r2, sizeof(u2));
+  __ bind(L_got_cache);
+  __ add(rscratch1, r1, r2, Assembler::LSL, 3);
+  __ ldr(r1, Address(rscratch1,
+		     in_bytes(constantPoolCacheOopDesc::base_offset()) +
+		     3 * wordSize));
+  __ andr(r1, r1, 0xff);
+  __ mov(rscratch1, sp);
+  __ add(rscratch1, rscratch1, r1, Assembler::LSL, 3);
+  __ mov(sp, rscratch1);
+  __ dispatch_next(state, step);
+
+  // out of the main line of code...
+  if (EnableInvokeDynamic) {
+    __ bind(L_giant_index);
+    // __ get_cache_and_index_at_bcp(rbx, rcx, 1, sizeof(u4));
+    // __ jmp(L_got_cache);
+  }
+
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state,
-                                                               int step) { Unimplemented(); return 0; }
+                                                               int step) { __ call_Unimplemented(); return 0; }
 
-int AbstractInterpreter::BasicType_as_index(BasicType type) { Unimplemented(); return 0; }
+int AbstractInterpreter::BasicType_as_index(BasicType type) {
+  int i = 0;
+  switch (type) {
+    case T_BOOLEAN: i = 0; break;
+    case T_CHAR   : i = 1; break;
+    case T_BYTE   : i = 2; break;
+    case T_SHORT  : i = 3; break;
+    case T_INT    : i = 4; break;
+    case T_LONG   : i = 5; break;
+    case T_VOID   : i = 6; break;
+    case T_FLOAT  : i = 7; break;
+    case T_DOUBLE : i = 8; break;
+    case T_OBJECT : i = 9; break;
+    case T_ARRAY  : i = 9; break;
+    default       : ShouldNotReachHere();
+  }
+  assert(0 <= i && i < AbstractInterpreter::number_of_result_handlers,
+         "index out of bounds");
+  return i;
+}
 
 
 address TemplateInterpreterGenerator::generate_result_handler_for(
-        BasicType type) { Unimplemented(); return 0; }
+        BasicType type) {
+    address entry = __ pc();
+  switch (type) {
+  case T_BOOLEAN: /* nothing to do */        break;
+  case T_CHAR   : /* nothing to do */        break;
+  case T_BYTE   : /* nothing to do */        break;
+  case T_SHORT  : /* nothing to do */        break;
+  case T_INT    : /* nothing to do */        break;
+  case T_LONG   : /* nothing to do */        break;
+  case T_VOID   : /* nothing to do */        break;
+  case T_FLOAT  : /* nothing to do */        break;
+  case T_DOUBLE : /* nothing to do */        break;
+  case T_OBJECT :
+    // retrieve result from frame
+    __ ldr(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));
+    // and verify it
+    __ verify_oop(r0);
+    break;
+  default       : ShouldNotReachHere();
+  }
+  __ ret(lr);                                  // return from result handler
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_safept_entry_for(
         TosState state,
-        address runtime_entry) { Unimplemented(); return 0; }
+        address runtime_entry) { __ call_Unimplemented(); return 0; }
 
 
 
@@ -224,7 +303,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) { Unimple
 // [ parameter 1        ] <--- r14
 
 address AbstractInterpreterGenerator::generate_method_entry(
-                                        AbstractInterpreter::MethodKind kind) { Unimplemented(); return 0; }
+                                        AbstractInterpreter::MethodKind kind) { __ call_Unimplemented(); return 0; }
 
 // These should never be compiled since the interpreter will prefer
 // the compiled version to the intrinsic version.
@@ -247,13 +326,13 @@ int AbstractInterpreter::layout_activation(methodOop method,
 //-----------------------------------------------------------------------------
 // Exceptions
 
-void TemplateInterpreterGenerator::generate_throw_exception() { Unimplemented(); }
+void TemplateInterpreterGenerator::generate_throw_exception() { __ call_Unimplemented(); }
 
 
 //
 // JVMTI ForceEarlyReturn support
 //
-address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) { Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) { __ call_Unimplemented(); return 0; }
 // end of ForceEarlyReturn support
 
 
@@ -269,7 +348,7 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
-                                                         address& vep) { Unimplemented(); }
+                                                         address& vep) { __ call_Unimplemented(); }
 
 
 //-----------------------------------------------------------------------------

@@ -1063,12 +1063,21 @@ Disassembly of section .text:
     __ br(Assembler::AL, loop);
     __ BIND(l);
     __ BIND(empty);
-    __ ret(r_lr);
+    __ ret(lr);
     Disassembler::decode(a, __ pc());
     printf("\n");
   }
 }
 
+extern "C" {
+  void das(uint64_t start, int len) {
+    len <<= 2;
+    if (len < 0)
+      Disassembler::decode((address)start + len, (address)start);
+    else
+      Disassembler::decode((address)start, (address)start + len);
+  }
+}
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
 
@@ -1384,7 +1393,9 @@ void MacroAssembler::call_VM(Register oop_result,
 
 void MacroAssembler::check_and_handle_earlyret(Register java_thread) {Unimplemented(); }
 
-void MacroAssembler::align(int modulus) { Unimplemented();}
+void MacroAssembler::align(int modulus) {
+  while (offset() % modulus != 0) nop();
+}
 
 void MacroAssembler::check_and_handle_popframe(Register java_thread) { Unimplemented(); }
 
@@ -1392,7 +1403,11 @@ RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_ad
                                                       Register tmp,
                                                       int offset) { Unimplemented(); return RegisterOrConstant(r0); }
 
-void MacroAssembler::verify_oop(Register reg, const char* s) { Unimplemented(); }
+void MacroAssembler::verify_oop(Register reg, const char* s) {
+  if (!VerifyOops) return;
+
+  Unimplemented();
+}
 
 void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
@@ -1557,6 +1572,19 @@ void MacroAssembler::pop(Register dst)
   ldr(dst, Address(post(sp, 1 * wordSize)));
 }
 
+// Note: load_unsigned_short used to be called load_unsigned_word.
+int MacroAssembler::load_unsigned_short(Register dst, Address src) {
+  int off = offset();
+  ldrh(dst, src);
+  return off;
+}
+
+int MacroAssembler::load_unsigned_byte(Register dst, Address src) {
+  int off = offset();
+  ldrb(dst, src);
+  return off;
+}
+
 void MacroAssembler::pusha() {
   // need to push all registers including original sp
   for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1))
@@ -1586,22 +1614,22 @@ void MacroAssembler::stop(const char* msg) {
 
 void MacroAssembler::enter()
 {
-  push(r_lr);
-  push(r_fp);
-  mov(r_fp, sp);
+  push(lr);
+  push(rfp);
+  mov(rfp, sp);
 }
 
 void MacroAssembler::leave()
 {
-  mov(sp, r_fp);
-  pop(r_fp);
-  pop(r_lr);
+  mov(sp, rfp);
+  pop(rfp);
+  pop(lr);
 }
 
 void MacroAssembler::reinit_heapbase()
 {
   if (UseCompressedOops) {
-    mov(r_heapbase, (address)Universe::narrow_oop_base_addr());
+    mov(rheapbase, (address)Universe::narrow_oop_base_addr());
   }
 }
 

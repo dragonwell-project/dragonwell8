@@ -403,13 +403,13 @@ void frame::update_map_with_saved_link(RegisterMap* map, intptr_t** link_addr) {
   // Since the interpreter always saves fp if we record where it is then
   // we don't have to always save fp on entry and exit to c2 compiled
   // code, on entry will be enough.
-  map->set_location(r_fp->as_VMReg(), (address) link_addr);
+  map->set_location(rfp->as_VMReg(), (address) link_addr);
   // this is weird "H" ought to be at a higher address however the
   // oopMaps seems to have the "H" regs at the same address and the
   // vanilla register.
   // XXXX make this go away
   if (true) {
-    map->set_location(r_fp->as_VMReg()->next(), (address) link_addr);
+    map->set_location(rfp->as_VMReg()->next(), (address) link_addr);
   }
 }
 

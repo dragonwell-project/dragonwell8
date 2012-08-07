@@ -67,9 +67,17 @@ class InterpreterMacroAssembler: public MacroAssembler {
 #else
 
   // Interpreter-specific registers
-  void save_bcp();
-  void restore_bcp();
-  void restore_locals();
+  void save_bcp() {
+    str(rbcp, Address(rfp, frame::interpreter_frame_bcx_offset * wordSize));
+  }
+
+  void restore_bcp() {
+    ldr(rbcp, Address(rfp, frame::interpreter_frame_bcx_offset * wordSize));
+  }
+
+  void restore_locals() {
+    ldr(rlocals, Address(rfp, frame::interpreter_frame_locals_offset * wordSize));
+  }
 
   // Helpers for runtime call arguments/results
   void get_method(Register reg);

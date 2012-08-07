@@ -347,7 +347,26 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, bool cause
 // but since this is generic code we don't know what they are and the caller
 // must do any gc of the args.
 //
-RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const char* name) { Unimplemented(); return 0; }
+RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const char* name) {
+  // allocate space for the code
+  ResourceMark rm;
+
+  CodeBuffer buffer(name, 1000, 512);
+  MacroAssembler* masm                = new MacroAssembler(&buffer);
+
+  int frame_size_in_words;
+
+  OopMapSet *oop_maps = new OopMapSet();
+  OopMap* map = NULL;
+
+  int start = __ offset();
+
+  int frame_complete = __ offset();
+
+  __ call_Unimplemented();
+
+  return RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, true);
+}
 
 
 #ifdef COMPILER2

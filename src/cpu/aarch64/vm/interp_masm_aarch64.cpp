@@ -85,13 +85,32 @@ void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
 
 void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
                                                        int bcp_offset,
-                                                       size_t index_size) { Unimplemented(); }
-
+                                                       size_t index_size) {
+  assert(bcp_offset > 0, "bcp is still pointing to start of bytecode");
+  if (index_size == sizeof(u2)) {
+    load_unsigned_short(index, Address(r13, bcp_offset));
+  } else if (index_size == sizeof(u4)) {
+    Unimplemented();
+    assert(EnableInvokeDynamic, "giant index used only for JSR 292");
+  } else if (index_size == sizeof(u1)) {
+    assert(EnableInvokeDynamic, "tiny index used only for JSR 292");
+    Unimplemented();
+  } else {
+    ShouldNotReachHere();
+  }
+}
 
 void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
                                                            Register index,
                                                            int bcp_offset,
-                                                           size_t index_size) { Unimplemented(); }
+                                                           size_t index_size) {
+  assert_different_registers(cache, index);
+  get_cache_index_at_bcp(index, bcp_offset, index_size);
+  ldr(cache, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
+  assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
+  // convert from field index to ConstantPoolCacheEntry index
+  lsl(index, index, 2);
+}
 
 
 void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register cache,
@@ -157,13 +176,26 @@ void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register 
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.  amd64 does not do this.
-void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) { Unimplemented(); }
+void InterpreterMacroAssembler::dispatch_prolog(TosState state, int step) {
+}
 
-void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) { Unimplemented(); }
+void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
+    dispatch_next(state, step);
+}
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
-                                              bool verifyoop) { Unimplemented(); }
+                                              bool verifyoop) {
+    if (VerifyActivationFrameSize) {
+      Unimplemented();
+    }
+    if (verifyoop) {
+      verify_oop(r0, state);
+    }
+    mov(rscratch2, (address)table);
+    ldr(rscratch2, Address(rscratch2, rscratch1, Address::lsl(3)));
+    br(rscratch2);
+}
 
 void InterpreterMacroAssembler::dispatch_only(TosState state) { Unimplemented(); }
 
@@ -172,7 +204,11 @@ void InterpreterMacroAssembler::dispatch_only_normal(TosState state) { Unimpleme
 void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) { Unimplemented(); }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step) { Unimplemented(); }
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step) {
+  // load next bytecode
+  ldrb(rscratch1, Address(post(rbcp, step)));
+  dispatch_base(state, Interpreter::dispatch_table(state));
+}
 
 void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) { Unimplemented(); }
 
@@ -366,9 +402,13 @@ void InterpreterMacroAssembler::profile_switch_case(Register index,
 
 
 
-void InterpreterMacroAssembler::verify_oop(Register reg, TosState state) { Unimplemented(); }
+void InterpreterMacroAssembler::verify_oop(Register reg, TosState state) {
+  if (state == atos) {
+    MacroAssembler::verify_oop(reg);
+  }
+}
 
-void InterpreterMacroAssembler::verify_FPU(int stack_depth, TosState state) { Unimplemented(); }
+void InterpreterMacroAssembler::verify_FPU(int stack_depth, TosState state) { ; }
 #endif // !CC_INTERP
 
 
