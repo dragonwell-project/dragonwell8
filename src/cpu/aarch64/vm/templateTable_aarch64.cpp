@@ -153,7 +153,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          BarrierSet::Name barrier,
                          bool precise)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -165,7 +165,7 @@ void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
                                    Register temp_reg, bool load_bc_into_bc_reg/*=true*/,
                                    int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
@@ -334,52 +334,52 @@ void TemplateTable::ldc(bool wide)
 // %%% It will simplify the ldc/primitive path considerably.
 void TemplateTable::fast_aldc(bool wide)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::ldc2_w()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::locals_index(Register reg, int offset)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_iload2()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_iload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::aload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::locals_index_wide(Register reg) {
@@ -396,436 +396,430 @@ void TemplateTable::wide_iload() {
 
 void TemplateTable::wide_lload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_fload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_dload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_aload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::index_check(Register array, Register index)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iaload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::laload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::faload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::daload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::aaload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::baload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::caload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 // iload followed by caload frequent pair
 void TemplateTable::fast_icaload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::saload()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iload(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lload(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fload(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dload(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::aload(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::aload_0()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::istore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::astore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_istore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_lstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_fstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_dstore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_astore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::aastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::bastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::castore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::sastore()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::istore(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lstore(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fstore(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dstore(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::astore(int n)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::pop()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::pop2()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup_x1()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup_x2()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup2()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup2_x1()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dup2_x2()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::swap()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iop2(Operation op)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lop2(Operation op)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::idiv()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::irem()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lmul()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::ldiv()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lrem()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lshl()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lshr()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lushr()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fop2(Operation op)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dop2(Operation op)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::ineg()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lneg()
 {
-  Unimplemented();
-}
-
-// Note: 'double' and 'long long' have 32-bits alignment on x86.
-static jlong* double_quadword(jlong *adr, jlong lo, jlong hi)
-{
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fneg()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::dneg()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::iinc()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_iinc()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::convert()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lcmp()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::float_cmp(bool is_float, int unordered_result)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::branch(bool is_jsr, bool is_wide)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::if_0cmp(Condition cc)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::if_icmp(Condition cc)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::if_nullcmp(Condition cc)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::if_acmp(Condition cc)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::ret()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::wide_ret()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::tableswitch()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::lookupswitch()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_linearswitch()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_binaryswitch()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::_return(TosState state)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 // ----------------------------------------------------------------------------
@@ -860,7 +854,7 @@ void TemplateTable::_return(TosState state)
 // void TemplateTable::volatile_barrier(Assembler::Membar_mask_bits
 //                                      order_constraint)
 // {
-//   Unimplemented();
+//   __ call_Unimplemented();
 // }
 
 void TemplateTable::resolve_cache_and_index(int byte_no,
@@ -869,7 +863,7 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
                                             Register index,
                                             size_t index_size)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 // The Rcache and index registers must be set before call
@@ -880,7 +874,7 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
                                               Register flags,
                                               bool is_static = false)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
@@ -891,7 +885,7 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
                                                bool is_invokevfinal, /*unused*/
                                                bool is_invokedynamic)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
@@ -900,71 +894,71 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
 void TemplateTable::jvmti_post_field_access(Register cache, Register index,
                                             bool is_static, bool has_tos)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::pop_and_check_object(Register r)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::getfield_or_static(int byte_no, bool is_static)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::getfield(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::getstatic(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 // The registers cache and index expected to be set before call.
 // The function may destroy various registers, just not the cache and index registers.
 void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is_static)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::putfield_or_static(int byte_no, bool is_static)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::putfield(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::putstatic(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::jvmti_post_fast_field_mod()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_storefield(TosState state)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::fast_accessfield(TosState state)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_xaccess(TosState state)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
@@ -974,12 +968,12 @@ void TemplateTable::fast_xaccess(TosState state)
 
 void TemplateTable::count_calls(Register method, Register temp)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
@@ -987,40 +981,40 @@ void TemplateTable::invokevirtual_helper(Register index,
                                          Register recv,
                                          Register flags)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::invokevirtual(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::invokespecial(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::invokestatic(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::fast_invokevfinal(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::invokeinterface(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::invokedynamic(int byte_no)
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
@@ -1029,39 +1023,39 @@ void TemplateTable::invokedynamic(int byte_no)
 
 void TemplateTable::_new()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::newarray()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::anewarray()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::arraylength()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::checkcast()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 void TemplateTable::instanceof()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 //-----------------------------------------------------------------------------
 // Breakpoints
 void TemplateTable::_breakpoint()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 //-----------------------------------------------------------------------------
@@ -1069,7 +1063,7 @@ void TemplateTable::_breakpoint()
 
 void TemplateTable::athrow()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 //-----------------------------------------------------------------------------
@@ -1091,26 +1085,26 @@ void TemplateTable::athrow()
 // [saved rbp    ] <--- rbp
 void TemplateTable::monitorenter()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 void TemplateTable::monitorexit()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 // Wide instructions
 void TemplateTable::wide()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 
 
 // Multi arrays
 void TemplateTable::multianewarray()
 {
-  Unimplemented();
+  __ call_Unimplemented();
 }
 #endif // !CC_INTERP

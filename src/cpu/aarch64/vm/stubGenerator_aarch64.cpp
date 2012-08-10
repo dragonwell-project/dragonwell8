@@ -1043,7 +1043,7 @@ class StubGenerator: public StubCodeGenerator {
                                                 throw_StackOverflowError));
   }
     
-  void generate_all() { Unimplemented(); }
+  void generate_all() {  }
 
  public:
   StubGenerator(CodeBuffer* code, bool all) : StubCodeGenerator(code) {

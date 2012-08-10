@@ -71,6 +71,11 @@ virtual void check_and_handle_popframe(Register java_thread);
 
   // Helpers for runtime call arguments/results
 
+  // Helpers for runtime call arguments/results
+  void get_method(Register reg) {
+    ldr(reg, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
+  }
+
   void get_constant_pool(Register reg) {
     ldr(reg, Address(rmethod, in_bytes(methodOopDesc::constants_offset())));
   }
@@ -103,10 +108,9 @@ virtual void check_and_handle_popframe(Register java_thread);
   void push_f(FloatRegister r = v0);
   void push_d(FloatRegister r = v0);
 
-  void pop(Register r );
+  void pop(Register r ) { ((MacroAssembler*)this)->pop(r); }
 
-  void push(Register r );
-  void push(int32_t imm );
+  void push(Register r ) { ((MacroAssembler*)this)->push(r); }
 
   void pop(TosState state); // transition vtos -> state
   void push(TosState state); // transition state -> vtos

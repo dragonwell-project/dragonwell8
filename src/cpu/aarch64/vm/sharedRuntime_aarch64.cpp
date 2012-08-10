@@ -81,9 +81,82 @@ class RegisterSaver {
   // During deoptimization only the result registers need to be restored,
   // all the other values have already been extracted.
   static void restore_result_registers(MacroAssembler* masm);
+
+    // Capture info about frame layout
+  enum layout {
+                fpu_state_off = 0,
+                fpu_state_end = fpu_state_off+FPUStateSizeInWords-1,
+                st0_off, st0H_off,
+                st1_off, st1H_off,
+                st2_off, st2H_off,
+                st3_off, st3H_off,
+                st4_off, st4H_off,
+                st5_off, st5H_off,
+                st6_off, st6H_off,
+                st7_off, st7H_off,
+
+                xmm0_off, xmm0H_off,
+                xmm1_off, xmm1H_off,
+                xmm2_off, xmm2H_off,
+                xmm3_off, xmm3H_off,
+                xmm4_off, xmm4H_off,
+                xmm5_off, xmm5H_off,
+                xmm6_off, xmm6H_off,
+                xmm7_off, xmm7H_off,
+                flags_off,
+                rdi_off,
+                rsi_off,
+                ignore_off,  // extra copy of rbp,
+                rsp_off,
+                rbx_off,
+                rdx_off,
+                rcx_off,
+                rax_off,
+                // The frame sender code expects that rbp will be in the "natural" place and
+                // will override any oopMap setting for it. We must therefore force the layout
+                // so that it agrees with the frame sender code.
+                rbp_off,
+                return_off,      // slot for return address
+                reg_save_size };
+
 };
 
-OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words) { Unimplemented(); return 0; }
+OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words) {
+  int frame_size_in_bytes = round_to(additional_frame_words*wordSize +
+                                     reg_save_size*BytesPerInt, 16);
+  // OopMap frame size is in compiler stack slots (jint's) not bytes or words
+  int frame_size_in_slots = frame_size_in_bytes / BytesPerInt;
+  // The caller will allocate additional_frame_words
+  int additional_frame_slots = additional_frame_words*wordSize / BytesPerInt;
+  // CodeBlob frame size is in words.
+  int frame_size_in_words = frame_size_in_bytes / wordSize;
+  *total_frame_words = frame_size_in_words;
+
+  // Save registers, fpu state, and flags.
+  // We assume caller has already pushed the return address onto the
+  // stack, so rsp is 8-byte aligned here.
+  // We push rfp twice in this sequence because we want the real rfp
+  // to be under the return like a normal enter.
+
+  __ enter();          // rsp becomes 16-byte aligned here
+  __ push_CPU_state(); // Push a multiple of 16 bytes
+  if (frame::arg_reg_save_area_bytes != 0) {
+    // Allocate argument register save area
+    __ sub(sp, sp, frame::arg_reg_save_area_bytes);
+  }
+
+  // Set an oopmap for the call site.  This oopmap will map all
+  // oop-registers and debug-info registers as callee-saved.  This
+  // will allow deoptimization at this safepoint to find all possible
+  // debug-info recordings, as well as let GC find all oops.
+
+  OopMapSet *oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(frame_size_in_slots, 0);
+
+  __ call_Unimplemented();
+
+  return map;
+}
 
 void RegisterSaver::restore_live_registers(MacroAssembler* masm) { Unimplemented(); }
 
@@ -108,20 +181,92 @@ static int reg2offset_out(VMReg r) { Unimplemented(); return 0; }
 // up to RegisterImpl::number_of_registers) are the 64-bit
 // integer registers.
 
-// Note: the INPUTS in sig_bt are in units of Java argument words, which are
-// either 32-bit or 64-bit depending on the build.  The OUTPUTS are in 32-bit
-// units regardless of build. Of course for i486 there is no 64 bit build
+// Note: the INPUTS in sig_bt are in units of Java argument words,
+// which are 64-bit.  The OUTPUTS are in 32-bit units.
 
 // The Java calling convention is a "shifted" version of the C ABI.
-// By skipping the first C ABI register we can call non-static jni methods
-// with small numbers of arguments without having to shuffle the arguments
-// at all. Since we control the java ABI we ought to at least get some
-// advantage out of it.
+// By skipping the first C ABI register we can call non-static jni
+// methods with small numbers of arguments without having to shuffle
+// the arguments at all. Since we control the java ABI we ought to at
+// least get some advantage out of it.
 
 int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
                                            VMRegPair *regs,
                                            int total_args_passed,
-                                           int is_outgoing) { Unimplemented(); return 0; }
+                                           int is_outgoing) {
+
+  // Create the mapping between argument positions and
+  // registers.
+  static const Register INT_ArgReg[Argument::n_int_register_parameters_j] = {
+    j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5, j_rarg6, j_rarg7
+  };
+  static const FloatRegister FP_ArgReg[Argument::n_float_register_parameters_j] = {
+    j_farg0, j_farg1, j_farg2, j_farg3,
+    j_farg4, j_farg5, j_farg6, j_farg7
+  };
+
+
+  uint int_args = 0;
+  uint fp_args = 0;
+  uint stk_args = 0; // inc by 2 each time
+
+  for (int i = 0; i < total_args_passed; i++) {
+    switch (sig_bt[i]) {
+    case T_BOOLEAN:
+    case T_CHAR:
+    case T_BYTE:
+    case T_SHORT:
+    case T_INT:
+      if (int_args < Argument::n_int_register_parameters_j) {
+        regs[i].set1(INT_ArgReg[int_args++]->as_VMReg());
+      } else {
+        regs[i].set1(VMRegImpl::stack2reg(stk_args));
+        stk_args += 2;
+      }
+      break;
+    case T_VOID:
+      // halves of T_LONG or T_DOUBLE
+      assert(i != 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "expecting half");
+      regs[i].set_bad();
+      break;
+    case T_LONG:
+      assert(sig_bt[i + 1] == T_VOID, "expecting half");
+      // fall through
+    case T_OBJECT:
+    case T_ARRAY:
+    case T_ADDRESS:
+      if (int_args < Argument::n_int_register_parameters_j) {
+        regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
+      } else {
+        regs[i].set2(VMRegImpl::stack2reg(stk_args));
+        stk_args += 2;
+      }
+      break;
+    case T_FLOAT:
+      if (fp_args < Argument::n_float_register_parameters_j) {
+        regs[i].set1(FP_ArgReg[fp_args++]->as_VMReg());
+      } else {
+        regs[i].set1(VMRegImpl::stack2reg(stk_args));
+        stk_args += 2;
+      }
+      break;
+    case T_DOUBLE:
+      assert(sig_bt[i + 1] == T_VOID, "expecting half");
+      if (fp_args < Argument::n_float_register_parameters_j) {
+        regs[i].set2(FP_ArgReg[fp_args++]->as_VMReg());
+      } else {
+        regs[i].set2(VMRegImpl::stack2reg(stk_args));
+        stk_args += 2;
+      }
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+  }
+
+  return round_to(stk_args, 2);
+}
 
 // Patch the callers callsite with entry to compiled code if it exists.
 static void patch_callers_callsite(MacroAssembler *masm) { Unimplemented(); }
@@ -132,13 +277,17 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int comp_args_on_stack,
                             const BasicType *sig_bt,
                             const VMRegPair *regs,
-                            Label& skip_fixup) { Unimplemented(); }
+                            Label& skip_fixup) {
+  __ call_Unimplemented(); 
+}
 
 static void gen_i2c_adapter(MacroAssembler *masm,
                             int total_args_passed,
                             int comp_args_on_stack,
                             const BasicType *sig_bt,
-                            const VMRegPair *regs) { Unimplemented(); }
+                            const VMRegPair *regs) {
+ __ call_Unimplemented(); 
+}
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
@@ -146,7 +295,20 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             int comp_args_on_stack,
                                                             const BasicType *sig_bt,
                                                             const VMRegPair *regs,
-                                                            AdapterFingerPrint* fingerprint) { Unimplemented(); return 0; }
+                                                            AdapterFingerPrint* fingerprint) { 
+  address i2c_entry = __ pc();
+  address c2i_unverified_entry = __ pc();
+  address c2i_entry = __ pc();
+  Label skip_fixup;
+
+  __ call_Unimplemented();
+  __ b(skip_fixup);
+
+  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+
+  __ flush();
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+}
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
                                          VMRegPair *regs,
@@ -324,7 +486,7 @@ uint SharedRuntime::out_preserve_stack_slots() { Unimplemented(); return 0; }
 
 
 //------------------------------generate_deopt_blob----------------------------
-void SharedRuntime::generate_deopt_blob() { Unimplemented(); }
+void SharedRuntime::generate_deopt_blob() {  }
 
 #ifdef COMPILER2
 //------------------------------generate_uncommon_trap_blob--------------------
@@ -337,7 +499,26 @@ void SharedRuntime::generate_uncommon_trap_blob() { Unimplemented(); }
 // Generate a special Compile2Runtime blob that saves all registers,
 // and setup oopmap.
 //
-SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, bool cause_return) { Unimplemented(); return 0; }
+SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, bool cause_return) {
+    ResourceMark rm;
+  OopMapSet *oop_maps = new OopMapSet();
+  OopMap* map;
+
+  // Allocate space for the code.  Setup code generation tools.
+  CodeBuffer buffer("handler_blob", 2048, 1024);
+  MacroAssembler* masm = new MacroAssembler(&buffer);
+
+  address start   = __ pc();
+  address call_pc = NULL;
+  int frame_size_in_words;
+
+  __ call_Unimplemented();
+
+  // Save registers, fpu state, and flags
+  map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+
+  return SafepointBlob::create(&buffer, oop_maps, frame_size_in_words);
+}
 
 //
 // generate_resolve_blob - call resolution (static/virtual/opt-virtual/ic-miss

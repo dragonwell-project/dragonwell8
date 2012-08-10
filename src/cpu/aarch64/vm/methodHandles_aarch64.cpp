@@ -61,18 +61,20 @@ void MethodHandles::RicochetFrame::generate_ricochet_blob(MacroAssembler* _masm,
                                                           // output params:
                                                           int* bounce_offset,
                                                           int* exception_offset,
-                                                          int* frame_size_in_words) { Unimplemented(); }
+                                                          int* frame_size_in_words) {
+  __ call_Unimplemented();
+}
 
 void MethodHandles::RicochetFrame::enter_ricochet_frame(MacroAssembler* _masm,
                                                         Register rcx_recv,
                                                         Register rax_argv,
                                                         address return_handler,
-                                                        Register rbx_temp) { Unimplemented(); }
+                                                        Register rbx_temp) { __ call_Unimplemented(); }
 
 void MethodHandles::RicochetFrame::leave_ricochet_frame(MacroAssembler* _masm,
                                                         Register rcx_recv,
                                                         Register new_sp_reg,
-                                                        Register sender_pc_reg){ Unimplemented(); }
+                                                        Register sender_pc_reg){ __ call_Unimplemented(); }
 
 // Emit code to verify that RBP is pointing at a valid ricochet frame.
 #ifndef PRODUCT
@@ -85,51 +87,51 @@ enum {
 #endif
 
 #ifdef ASSERT
-void MethodHandles::RicochetFrame::verify_clean(MacroAssembler* _masm) { Unimplemented(); }
+void MethodHandles::RicochetFrame::verify_clean(MacroAssembler* _masm) { __ call_Unimplemented(); }
 #endif //ASSERT
 
-void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) { Unimplemented(); }
+void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) { __ call_Unimplemented(); }
 
-void MethodHandles::load_conversion_vminfo(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { Unimplemented(); }
+void MethodHandles::load_conversion_vminfo(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { __ call_Unimplemented(); }
 
-void MethodHandles::load_conversion_dest_type(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { Unimplemented(); }
+void MethodHandles::load_conversion_dest_type(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { __ call_Unimplemented(); }
 
 void MethodHandles::load_stack_move(MacroAssembler* _masm,
                                     Register rdi_stack_move,
                                     Register rcx_amh,
-                                    bool might_be_negative) { Unimplemented(); }
+                                    bool might_be_negative) { __ call_Unimplemented(); }
 
 #ifdef ASSERT
-void MethodHandles::RicochetFrame::verify_offsets() { Unimplemented(); }
+void MethodHandles::RicochetFrame::verify_offsets() {  }
 
-void MethodHandles::RicochetFrame::verify() const { Unimplemented(); }
+void MethodHandles::RicochetFrame::verify() const {  }
 #endif //PRODUCT
 
 #ifdef ASSERT
 void MethodHandles::verify_argslot(MacroAssembler* _masm,
                                    Register argslot_reg,
-                                   const char* error_message) { Unimplemented(); }
+                                   const char* error_message) { __ call_Unimplemented(); }
 
 void MethodHandles::verify_argslots(MacroAssembler* _masm,
                                     RegisterOrConstant arg_slots,
                                     Register arg_slot_base_reg,
                                     bool negate_argslots,
-                                    const char* error_message) { Unimplemented(); }
+                                    const char* error_message) { __ call_Unimplemented(); }
 
 // Make sure that arg_slots has the same sign as the given direction.
 // If (and only if) arg_slots is a assembly-time constant, also allow it to be zero.
 void MethodHandles::verify_stack_move(MacroAssembler* _masm,
-                                      RegisterOrConstant arg_slots, int direction) { Unimplemented(); }
+                                      RegisterOrConstant arg_slots, int direction) { __ call_Unimplemented(); }
 
 void MethodHandles::verify_klass(MacroAssembler* _masm,
                                  Register obj, KlassHandle klass,
-                                 const char* error_message) { Unimplemented(); }
+                                 const char* error_message) { __ call_Unimplemented(); }
 #endif //ASSERT
 
-void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp) { Unimplemented(); }
+void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp) { __ call_Unimplemented(); }
 
 // Code generation
-address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* _masm) { Unimplemented(); }
+address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* _masm) { __ call_Unimplemented(); }
 
 // Helper to insert argument slots into the stack.
 // arg_slots must be a multiple of stack_move_unit() and < 0
@@ -138,14 +140,14 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
 void MethodHandles::insert_arg_slots(MacroAssembler* _masm,
                                      RegisterOrConstant arg_slots,
                                      Register rax_argslot,
-                                     Register rbx_temp, Register rdx_temp) { Unimplemented(); }
+                                     Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 // Helper to remove argument slots from the stack.
 // arg_slots must be a multiple of stack_move_unit() and > 0
 void MethodHandles::remove_arg_slots(MacroAssembler* _masm,
                                      RegisterOrConstant arg_slots,
                                      Register rax_argslot,
-                                     Register rbx_temp, Register rdx_temp) { Unimplemented(); }
+                                     Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 // Helper to copy argument slots to the top of the stack.
 // The sequence starts with rax_argslot and is counted by slot_count
@@ -155,7 +157,7 @@ void MethodHandles::push_arg_slots(MacroAssembler* _masm,
                                    Register rax_argslot,
                                    RegisterOrConstant slot_count,
                                    int skip_words_count,
-                                   Register rbx_temp, Register rdx_temp) { Unimplemented(); }
+                                   Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 // in-place movement; no change to rsp
 // blows rax_temp, rdx_temp
@@ -163,7 +165,7 @@ void MethodHandles::move_arg_slots_up(MacroAssembler* _masm,
                                       Register rbx_bottom,  // invariant
                                       Address  top_addr,     // can use rax_temp
                                       RegisterOrConstant positive_distance_in_slots,
-                                      Register rax_temp, Register rdx_temp) { Unimplemented(); }
+                                      Register rax_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 // in-place movement; no change to rsp
 // blows rax_temp, rdx_temp
@@ -171,23 +173,23 @@ void MethodHandles::move_arg_slots_down(MacroAssembler* _masm,
                                         Address  bottom_addr,  // can use rax_temp
                                         Register rbx_top,      // invariant
                                         RegisterOrConstant negative_distance_in_slots,
-                                        Register rax_temp, Register rdx_temp) { Unimplemented(); }
+                                        Register rax_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 // Copy from a field or array element to a stacked argument slot.
 // is_element (ignored) says whether caller is loading an array element instead of an instance field.
 void MethodHandles::move_typed_arg(MacroAssembler* _masm,
                                    BasicType type, bool is_element,
                                    Address slot_dest, Address value_src,
-                                   Register rbx_temp, Register rdx_temp) { Unimplemented(); }
+                                   Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
 
 void MethodHandles::move_return_value(MacroAssembler* _masm, BasicType type,
-                                      Address return_slot) { Unimplemented(); }
+                                      Address return_slot) { __ call_Unimplemented(); }
 
 #ifndef PRODUCT
 #define DESCRIBE_RICOCHET_OFFSET(rf, name) \
   values.describe(frame_no, (intptr_t *) (((uintptr_t)rf) + MethodHandles::RicochetFrame::name##_offset_in_bytes()), #name)
 
-void MethodHandles::RicochetFrame::describe(const frame* fr, FrameValues& values, int frame_no) { Unimplemented(); }
+void MethodHandles::RicochetFrame::describe(const frame* fr, FrameValues& values, int frame_no) {  }
 #endif // ASSERT
 
 #ifndef PRODUCT
@@ -195,7 +197,7 @@ extern "C" void print_method_handle(oop mh);
 void trace_method_handle_stub(const char* adaptername,
                               oop mh,
                               intptr_t* saved_regs,
-                              intptr_t* entry_sp) { Unimplemented(); }
+                              intptr_t* entry_sp) {  }
 
 // The stub wraps the arguments in a struct on the stack to avoid
 // dealing with the different calling conventions for passing 6
@@ -206,17 +208,17 @@ struct MethodHandleStubArguments {
   intptr_t* saved_regs;
   intptr_t* entry_sp;
 };
-void trace_method_handle_stub_wrapper(MethodHandleStubArguments* args) { Unimplemented(); }
+void trace_method_handle_stub_wrapper(MethodHandleStubArguments* args) {  }
 
-void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) { Unimplemented(); }
+void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {  }
 #endif //PRODUCT
 
 // which conversion op types are implemented here?
-int MethodHandles::adapter_conversion_ops_supported_mask() { Unimplemented(); }
+int MethodHandles::adapter_conversion_ops_supported_mask() { return 0; }
 
 //------------------------------------------------------------------------------
 // MethodHandles::generate_method_handle_stub
 //
 // Generate an "entry" field for a method handle.
 // This determines how the method handle will respond to calls.
-void MethodHandles::generate_method_handle_stub(MacroAssembler* _masm, MethodHandles::EntryKind ek) { Unimplemented(); }
+void MethodHandles::generate_method_handle_stub(MacroAssembler* _masm, MethodHandles::EntryKind ek) { __ call_Unimplemented(); }

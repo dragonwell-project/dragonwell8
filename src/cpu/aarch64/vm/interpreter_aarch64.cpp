@@ -62,21 +62,35 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
 // Various method entries
 //
 
-address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKind kind) { Unimplemented(); return 0; }
+address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKind kind) {
+  return NULL;
+}
 
 
 // Abstract method entry
 // Attempt to execute abstract method. Throw exception
-address InterpreterGenerator::generate_abstract_entry(void) { Unimplemented(); return 0; }
+address InterpreterGenerator::generate_abstract_entry(void) {
+  address entry_point = __ pc();
 
+  __ call_Unimplemented();
+
+  return entry_point;
+}
 
 // Method handle invoker
 // Dispatch a method of the form java.lang.invoke.MethodHandles::invoke(...)
-address InterpreterGenerator::generate_method_handle_entry(void) { Unimplemented(); return 0; }
+address InterpreterGenerator::generate_method_handle_entry(void) {
+  address entry_point = __ pc();
 
+  __ call_Unimplemented();
+
+  return entry_point;
+}
 
 // Empty method, generate a very fast return.
 
-address InterpreterGenerator::generate_empty_entry(void) { Unimplemented(); return 0; }
+address InterpreterGenerator::generate_empty_entry(void) {
+  return NULL;
+}
 
 void Deoptimization::unwind_callee_save_values(frame* f, vframeArray* vframe_array) { Unimplemented(); }

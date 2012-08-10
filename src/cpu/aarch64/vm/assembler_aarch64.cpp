@@ -1448,7 +1448,14 @@ bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_immediate_v2(is32, imm) != 0xffffffff;
 }
 
-int AbstractAssembler::code_fill_byte() { Unimplemented(); }
+int AbstractAssembler::code_fill_byte() {
+  return 0;
+}
+
+void MacroAssembler::serialize_memory(Register thread, Register tmp) {
+  dmb(Assembler::SY);
+}
+
 
 void MacroAssembler::reset_last_Java_frame(bool clear_fp,
                                            bool clear_pc) {
@@ -1963,6 +1970,16 @@ void MacroAssembler::pusha() {
   ldr(r0, Address(sp, 31 * wordSize));
 }
 
+void MacroAssembler::popa() {
+  // need to pop all registers including original sp
+  pop(r0);
+  mov(sp, r0);
+  for (Register reg = r30;
+       reg->is_valid() && reg >= r0;
+       reg = as_Register(reg->encoding() - 1))
+    pop(reg);
+}
+
 void MacroAssembler::stop(const char* msg) {
   address ip = pc();
   pusha();
@@ -2102,4 +2119,21 @@ void MacroAssembler::c_stub_prolog(u_int64_t calltype)
   u_int64_t *patch_end = (u_int64_t *)(start + byteCount);
   patch_end[-2] = (u_int64_t)setup_arm_sim;
   patch_end[-1] = calltype;
+}
+
+void MacroAssembler::push_CPU_state() {
+  call_Unimplemented();
+}
+
+SkipIfEqual::SkipIfEqual(
+    MacroAssembler* masm, const bool* flag_addr, bool value) {
+  _masm = masm;
+  _masm->mov(rscratch1, (address)flag_addr);
+  _masm->ldrb(rscratch1, rscratch1);
+  _masm->cmp(rscratch1, value);
+  _masm->br(Assembler::EQ, _label);
+}
+
+SkipIfEqual::~SkipIfEqual() {
+  _masm->bind(_label);
 }

@@ -313,7 +313,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) { Unimplemented()
 //      rax
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, ... (param regs)
 //      rscratch1, rscratch2 (scratch regs)
-void InterpreterMacroAssembler::unlock_object(Register lock_reg) { Unimplemented(); }
+void InterpreterMacroAssembler::unlock_object(Register lock_reg) { call_Unimplemented(); }
 
 #ifndef CC_INTERP
 
@@ -468,11 +468,44 @@ void InterpreterMacroAssembler::verify_FPU(int stack_depth, TosState state) { ; 
 #endif // !CC_INTERP
 
 
-void InterpreterMacroAssembler::notify_method_entry() { Unimplemented(); }
+void InterpreterMacroAssembler::notify_method_entry() { 
+  // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
+  // track stack depth.  If it is possible to enter interp_only_mode we add
+  // the code to check if the event should be sent.
+  if (JvmtiExport::can_post_interpreter_events()) {
+    Label L;
+    ldr(r3, Address(rthread, JavaThread::interp_only_mode_offset()));
+    tst(r3, ~0);
+    br(Assembler::EQ, L);
+    call_VM(noreg, CAST_FROM_FN_PTR(address,
+                                    InterpreterRuntime::post_method_entry));
+    bind(L);
+  }
+
+  {
+    SkipIfEqual skip(this, &DTraceMethodProbes, false);
+    get_method(c_rarg1);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_entry),
+                 rthread, c_rarg1);
+  }
+
+  // RedefineClasses() tracing support for obsolete method entry
+  if (RC_TRACE_IN_RANGE(0x00001000, 0x00002000)) {
+    get_method(c_rarg1);
+    call_VM_leaf(
+      CAST_FROM_FN_PTR(address, SharedRuntime::rc_trace_method_entry),
+      rthread, c_rarg1);
+  }
+
+ }
 
 
 void InterpreterMacroAssembler::notify_method_exit(
-    TosState state, NotifyMethodExitMode mode) { Unimplemented(); }
+    TosState state, NotifyMethodExitMode mode) {
+  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+    call_Unimplemented();
+  }
+}
 
 // Jump if ((*counter_addr += increment) & mask) satisfies the condition.
 void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,

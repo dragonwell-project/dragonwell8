@@ -442,6 +442,8 @@ namespace ext
   enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
 };
 
+const int FPUStateSizeInWords = 27; // FIXME   :-)
+
 class Assembler : public AbstractAssembler {
 public:
   Address pre(Register base, int offset) {
@@ -1205,7 +1207,7 @@ public:
   INSN(revw,   0b010, 0b00000, 0b00010);
   INSN(clzw,   0b010, 0b00000, 0b00100);
   INSN(clsw,   0b010, 0b00000, 0b00101);
- 
+
   INSN(rbit,   0b110, 0b00000, 0b00000);
   INSN(rev16,  0b110, 0b00000, 0b00001);
   INSN(rev32,  0b110, 0b00000, 0b00010);
@@ -1238,7 +1240,7 @@ public:
   INSN(rorv, 0b100, 0b001011);
 
 #undef INSN
- 
+
   // (3 sources)
   void data_processing(unsigned op54, unsigned op31, unsigned o0,
 		       Register Rd, Register Rn, Register Rm,
@@ -1468,54 +1470,47 @@ public:
 
 /* Simulator extensions to the ISA
 
-brx86 Xn, Wm
-  Xn holds the 64 bit x86 branch_address
-  Wm holds the 32 bit call_format
+   haltsim
 
-calls the x86 code address 'branch_address' supplied in Xn passing
-arguments taken from the general and floating point registers according
-to to the format 'call_format' supplied in Wm. Where
+   takes no arguments, causes sim to run dumpState() and then return from
+   run() with STATUS_HALT -- maybe it should enters debug first? The
+   linking code which enters the sim via run() will call fatal() when it
+   sees STATUS_HALT.
 
-u_int32_t call_format;
-address branch_address;
+   brx86 Xn, #gpargs, #fpargs, #type
+   Xn holds the 64 bit x86 branch_address
 
-The format is 3 bytes orred lo to hi:
+   calls the x86 code address 'branch_address' supplied in Xn passing
+   arguments taken from the general and floating point registers according
+   to the supplied counts 'gpargs' and 'fpargs'. may return a result in r0
+   or v0 according to the the return type #type' where
 
-u_int32_t num_gp_regs = call_format & 0xffU;
-u_int32_t num_fp_regs = (call_format >> 8) & 0xffU;
-ReturnType return_type = (ReturnType)(call_format >> 16) & 0x7U;
+   address branch_address;
+   uimm4 gpargs;
+   uimm4 fpargs;
+   enum ReturnType type;
 
-where
+   enum ReturnType
+     {
+       void_ret = 0,
+       int_ret = 1,
+       long_ret = 1,
+       obj_ret = 1, // i.e. same as long
+       float_ret = 2,
+       double_ret = 3
+     }
 
-enum ReturnType
-{
-  int_ret = 0,
-  long_ret = 1,
-  obj_ret = 1, // i.e. same as long
-  float_ret = 2,
-  double_ret = 3,
-  void_ret = 4
-}
+   Instruction encodings
+   ---------------------
 
-Instruction encodings
----------------------
+   These are encoded in the space with instr[28:25] = 00 which is
+   unallocated. Encodings are
 
-These are encoded in the space with instr[28:27] = 00 which is
-unallocated. Encodings are
+   10987654321098765432109876543210
+   PSEUDO_HALT  = 0x11100000000000000000000000000000
+   PSEUDO_BRX86 = 0x11000000000000000_______________
 
-                 10987654321098765432109876543210
-PSEUDO_HALT  = 0b11100000000000000000000000000000
-PSEUDO_BRX86 = 0b1100000000000000000000__________
-
-instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86
-
-for HALT
-  instr[26,0] = 000000000000000000000000000
-
-for BRX86
-  instr[26,10] = 0000000000000000000
-  instr[9,5] = Rm (flags register)
-  instr[4,0] = Rn (branch address register)
+   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86
 
 */
 
@@ -1618,7 +1613,9 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
 
-  void call_Unimplemented() { }
+  void call_Unimplemented() {
+    haltsim();
+  }
 
   // aliases defined in AARCH64 spec
 
@@ -2153,8 +2150,6 @@ public:
   void jC2 (Register tmp, Label& L);
   void jnC2(Register tmp, Label& L);
 
-  // don't think we need these
-#if 0
   void push_IU_state();
   void pop_IU_state();
 
@@ -2163,7 +2158,6 @@ public:
 
   void push_CPU_state();
   void pop_CPU_state();
-#endif
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -2277,7 +2271,12 @@ public:
   void print_CPU_state();
 
   // Stack overflow checking
-  void bang_stack_with_offset(int offset) { Unimplemented(); }
+  void bang_stack_with_offset(int offset) {
+    // stack grows down, caller passes positive offset
+    assert(offset > 0, "must bang with negative offset");
+    mov(rscratch2, -offset);
+    ldr(zr, Address(resp, rscratch2));
+  }
 
   // Writes to stack successive pages until offset reached to check for
   // stack overflow + shadow pages.  Also, clobbers tmp
@@ -2382,6 +2381,9 @@ public:
 
 
 
+#if 0
+
+  // Perhaps we should implement this one
   void lea(Register dst, Address adr) { Unimplemented(); }
 
   void leal32(Register dst, Address src) { Unimplemented(); }
@@ -2395,6 +2397,7 @@ public:
 
   void xorptr(Register dst, Register src) { Unimplemented(); }
   void xorptr(Register dst, Address src) { Unimplemented(); }
+#endif
 
   // Calls
 
@@ -2441,6 +2444,7 @@ public:
 
   // Data
 
+#if 0
   void cmov32( Condition cc, Register dst, Address  src);
   void cmov32( Condition cc, Register dst, Register src);
 
@@ -2477,6 +2481,7 @@ public:
 
   void pushptr(Address src) { Unimplemented(); }
   void popptr(Address src) { Unimplemented(); }
+#endif
 
   void pushoop(jobject obj);
 
@@ -2497,7 +2502,8 @@ public:
 
   // push all registers onto the stack
   void pusha();
-  
+  void popa();
+
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
 
@@ -2516,5 +2522,23 @@ inline bool AbstractAssembler::pd_check_instruction_mark() { Unimplemented(); re
 #endif
 
 class BiasedLockingCounters;
+
+/**
+ * class SkipIfEqual:
+ *
+ * Instantiating this class will result in assembly code being output that will
+ * jump around any code emitted between the creation of the instance and it's
+ * automatic destruction at the end of a scope block, depending on the value of
+ * the flag passed to the constructor, which will be checked at run-time.
+ */
+class SkipIfEqual {
+ private:
+  MacroAssembler* _masm;
+  Label _label;
+
+ public:
+   SkipIfEqual(MacroAssembler*, const bool* flag_addr, bool value);
+   ~SkipIfEqual();
+};
 
 #endif // CPU_AARCH64_VM_ASSEMBLER_AARCH64_HPP
