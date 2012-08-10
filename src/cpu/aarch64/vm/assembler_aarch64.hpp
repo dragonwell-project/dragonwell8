@@ -1519,10 +1519,24 @@ for BRX86
 
 */
 
-  void brx86(Register Rdest, Register Rflags) {
+  void brx86(Register Rn, int gpargs, int fpargs, int type) {
     starti;
-    f(0b1100000000000000000000, 31, 10);
-    rf(Rdest, 0), rf(Rflags, 5);
+    f(0b110, 31 ,29);
+    f(0b00, 28, 25);
+    //  4321098765
+    f(0b0000000000, 24, 15);
+    f(gpargs, 14, 11);
+    f(fpargs, 10, 7);
+    f(type, 6, 5);
+    rf(Rn, 0);
+  }
+
+  void haltsim() {
+    starti;
+    f(0b111, 31 ,29);
+    f(0b00, 28, 27);
+    //  654321098765432109876543210
+    f(0b000000000000000000000000000, 26, 0);
   }
 
   Assembler(CodeBuffer* code) : AbstractAssembler(code) {

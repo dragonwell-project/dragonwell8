@@ -1713,8 +1713,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   sub(sp, sp, 8);
   {
     mov(rscratch1, entry_point);
-    mov(rscratch2, number_of_arguments || 1 << 16);
-    brx86(rscratch1, rscratch2);
+    brx86(rscratch1, number_of_arguments, 0, 1);
   }
   add(sp, sp, 8);
   b(E);
@@ -1722,8 +1721,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   bind(L);
   {
     mov(rscratch1, entry_point);
-    mov(rscratch2, number_of_arguments || 1 << 16);
-    brx86(rscratch1, rscratch2);
+    brx86(rscratch1, number_of_arguments, 0, 1);
   }
 
   bind(E);
@@ -1734,9 +1732,19 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0) {
   call_VM_leaf_base(entry_point, 1);
 }
 
-void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1) { Unimplemented(); }
+void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1) {
+  pass_arg0(this, arg_0);
+  pass_arg1(this, arg_1);
+  call_VM_leaf_base(entry_point, 2);
+}
 
-void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2) { Unimplemented(); }
+void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0,
+				  Register arg_1, Register arg_2) {
+  pass_arg0(this, arg_0);
+  pass_arg1(this, arg_1);
+  pass_arg2(this, arg_2);
+  call_VM_leaf_base(entry_point, 3);
+}
 
 void MacroAssembler::null_check(Register reg, int offset) { Unimplemented(); }
 
