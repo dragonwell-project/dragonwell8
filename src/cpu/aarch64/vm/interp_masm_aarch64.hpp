@@ -34,18 +34,8 @@
 class InterpreterMacroAssembler: public MacroAssembler {
 #ifndef CC_INTERP
  protected:
-  // Interpreter specific version of call_VM_base
-  virtual void call_VM_leaf_base(address entry_point,
-                                 int number_of_arguments);
 
-  virtual void call_VM_base(Register oop_result,
-                            Register java_thread,
-                            Register last_java_sp,
-                            address  entry_point,
-                            int number_of_arguments,
-                            bool check_exceptions);
-
-  virtual void check_and_handle_popframe(Register java_thread);
+virtual void check_and_handle_popframe(Register java_thread);
   virtual void check_and_handle_earlyret(Register java_thread);
 
   // base routine for all dispatches
@@ -80,10 +70,22 @@ class InterpreterMacroAssembler: public MacroAssembler {
   }
 
   // Helpers for runtime call arguments/results
-  void get_method(Register reg);
-  void get_constant_pool(Register reg);
-  void get_constant_pool_cache(Register reg);
-  void get_cpool_and_tags(Register cpool, Register tags);
+
+  void get_constant_pool(Register reg) {
+    ldr(reg, Address(rmethod, in_bytes(methodOopDesc::constants_offset())));
+  }
+
+  void get_constant_pool_cache(Register reg) {
+    // FIXME: Shouldn't this be in a register already?
+    get_constant_pool(reg);
+    ldr(reg, Address(reg, constantPoolOopDesc::cache_offset_in_bytes()));
+  }
+
+  void get_cpool_and_tags(Register cpool, Register tags) {
+    get_constant_pool(cpool);
+    ldr(tags, Address(cpool, constantPoolOopDesc::tags_offset_in_bytes()));
+  }
+
   void get_unsigned_2_byte_index_at_bcp(Register reg, int bcp_offset);
   void get_cache_and_index_at_bcp(Register cache, Register index, int bcp_offset, size_t index_size = sizeof(u2));
   void get_cache_and_index_and_bytecode_at_bcp(Register cache, Register index, Register bytecode, int byte_no, int bcp_offset, size_t index_size = sizeof(u2));
@@ -93,13 +95,13 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop_ptr(Register r = r0);
   void pop_i(Register r = r0);
   void pop_l(Register r = r0);
-  void pop_f(FloatRegister r);
-  void pop_d(FloatRegister r);
+  void pop_f(FloatRegister r = v0);
+  void pop_d(FloatRegister r = v0);
   void push_ptr(Register r = r0);
   void push_i(Register r = r0);
   void push_l(Register r = r0);
-  void push_f(FloatRegister r);
-  void push_d(FloatRegister r);
+  void push_f(FloatRegister r = v0);
+  void push_d(FloatRegister r = v0);
 
   void pop(Register r );
 

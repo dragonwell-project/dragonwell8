@@ -58,30 +58,31 @@ void InterpreterMacroAssembler::get_method(Register reg) { Unimplemented(); }
 
 #ifndef CC_INTERP
 
-void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
-                                                  int number_of_arguments) { Unimplemented(); }
+void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
+  if (JvmtiExport::can_pop_frame()) {
+    Unimplemented(); 
+  }
+}
 
-void InterpreterMacroAssembler::call_VM_base(Register oop_result,
-                                             Register java_thread,
-                                             Register last_java_sp,
-                                             address  entry_point,
-                                             int      number_of_arguments,
-                                             bool     check_exceptions) { Unimplemented(); }
+void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
+  if (JvmtiExport::can_force_early_return()) {
+    Unimplemented();
+  }
+}
 
-
-void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) { Unimplemented(); }
-
-
-void InterpreterMacroAssembler::load_earlyret_value(TosState state) { Unimplemented(); }
-
-
-void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) { Unimplemented(); }
-
+void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) {
+    if (JvmtiExport::can_force_early_return()) {
+      Unimplemented();
+    }
+}
 
 void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
   Register reg,
-  int bcp_offset) { Unimplemented(); }
-
+  int bcp_offset) {
+  assert(bcp_offset >= 0, "bcp is still pointing to start of bytecode");
+  ldrh(reg, Address(rbcp, bcp_offset));
+  rev16(reg, reg);
+}
 
 void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
                                                        int bcp_offset,
@@ -143,22 +144,77 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
 
 // Java Expression Stack
 
-void InterpreterMacroAssembler::pop_ptr(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::pop_ptr(Register r) {
+  ldr(r, post(resp, wordSize));
+}
 
-void InterpreterMacroAssembler::pop_i(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::pop_i(Register r) {
+  ldrw(r, post(resp, wordSize));
+}
 
-void InterpreterMacroAssembler::pop_l(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::pop_l(Register r) {
+  ldr(r, post(resp, 2 * Interpreter::stackElementSize));
+}
 
-void InterpreterMacroAssembler::push_ptr(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::push_ptr(Register r) {
+  str(r, pre(resp, wordSize));
+ }
 
-void InterpreterMacroAssembler::push_i(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::push_i(Register r) {
+  str(r, pre(resp, wordSize));
+}
 
-void InterpreterMacroAssembler::push_l(Register r) { Unimplemented(); }
+void InterpreterMacroAssembler::push_l(Register r) {
+  str(r, pre(resp, 2* wordSize));
+}
 
-void InterpreterMacroAssembler::pop(TosState state) { Unimplemented(); }
+void InterpreterMacroAssembler::pop_f(FloatRegister r) {
+  ldrs(r, post(resp, wordSize));
+}
 
-void InterpreterMacroAssembler::push(TosState state) { Unimplemented(); }
+void InterpreterMacroAssembler::pop_d(FloatRegister r) {
+  ldrd(r, post(resp, 2 * Interpreter::stackElementSize));
+}
 
+void InterpreterMacroAssembler::push_f(FloatRegister r) {
+  strs(r, pre(resp, wordSize));
+}
+
+void InterpreterMacroAssembler::push_d(FloatRegister r) {
+  strd(r, pre(resp, 2* wordSize));
+}
+
+void InterpreterMacroAssembler::pop(TosState state) {
+  switch (state) {
+  case atos: pop_ptr();                 break;
+  case btos:
+  case ctos:
+  case stos:
+  case itos: pop_i();                   break;
+  case ltos: pop_l();                   break;
+  case ftos: pop_f();                   break;
+  case dtos: pop_d();                   break;
+  case vtos: /* nothing to do */        break;
+  default:   ShouldNotReachHere();
+  }
+  verify_oop(r0, state);
+}
+
+void InterpreterMacroAssembler::push(TosState state) {
+  verify_oop(r0, state);
+  switch (state) {
+  case atos: push_ptr();                break;
+  case btos:
+  case ctos:
+  case stos:
+  case itos: push_i();                  break;
+  case ltos: push_l();                  break;
+  case ftos: push_f();                  break;
+  case dtos: push_d();                  break;
+  case vtos: /* nothing to do */        break;
+  default  : ShouldNotReachHere();
+  }
+}
 
 // Helpers for swap and dup
 void InterpreterMacroAssembler::load_ptr(int n, Register val) { Unimplemented(); }

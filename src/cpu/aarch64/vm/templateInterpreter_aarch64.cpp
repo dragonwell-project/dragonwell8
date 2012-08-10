@@ -348,8 +348,19 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
-                                                         address& vep) { __ call_Unimplemented(); }
-
+                                                         address& vep) {
+  assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
+  Label L;
+  aep = __ pc();  __ push_ptr();  __ b(L);
+  fep = __ pc();  __ push_f();    __ b(L);
+  dep = __ pc();  __ push_d();    __ b(L);
+  lep = __ pc();  __ push_l();    __ b(L);
+  bep = cep = sep =
+  iep = __ pc();  __ push_i();
+  vep = __ pc();
+  __ bind(L);
+  generate_and_dispatch(t);
+}
 
 //-----------------------------------------------------------------------------
 // Generation of individual instructions

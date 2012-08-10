@@ -281,22 +281,25 @@ public:
 
 #define starti Instruction_aarch64 do_not_use(this); set_current(&do_not_use)
 
-class Pre {
+class PrePost {
   int _offset;
   Register _r;
 public:
-  Pre(Register reg, int o) : _r(reg), _offset(o) { }
+  PrePost(Register reg, int o) : _r(reg), _offset(o) { }
+  PrePost(Register reg, ByteSize disp) : _r(reg), _offset(in_bytes(disp)) { }
   int offset() { return _offset; }
   Register reg() { return _r; }
 };
 
-class Post {
-  int _offset;
-  Register _r;
+class Pre : public PrePost {
 public:
-  Post(Register reg, int o) : _r(reg), _offset(o) { }
-  int offset() { return _offset; }
-  Register reg() { return _r; }
+  Pre(Register reg, int o) : PrePost(reg, o) { }
+  Pre(Register reg, ByteSize disp) : PrePost(reg, disp) { }
+};
+class Post : public PrePost {
+public:
+  Post(Register reg, int o) : PrePost(reg, o) { }
+  Post(Register reg, ByteSize disp) : PrePost(reg, disp) { }
 };
 
 // Addressing modes
@@ -304,7 +307,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
  public:
 
   enum mode { base_plus_offset, pre, post, pcrel,
-	      base_plus_offset_reg };
+	      base_plus_offset_reg, literal };
 
   enum ScaleFactor { times_4, times_8 };
 
@@ -341,11 +344,25 @@ class Address VALUE_OBJ_CLASS_SPEC {
   enum mode _mode;
   extend _ext;
 
+  RelocationHolder _rspec;
+
+  // Typically we use AddressLiterals we want to use their rval
+  // However in some situations we want the lval (effect address) of
+  // the item.  We provide a special factory for making those lvals.
+  bool _is_lval;
+
+  // If the target is far we'll need to load the ea of this to a
+  // register to reach it. Otherwise if near we can do PC-relative
+  // addressing.
+  address          _target;
+
  public:
   Address(Register r)
     : _mode(base_plus_offset), _base(r), _offset(0) { }
   Address(Register r, int o)
     : _mode(base_plus_offset), _base(r), _offset(o) { }
+  Address(Register r, ByteSize disp)
+    : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)) { }
   Address(Register r, Register r1, extend ext = lsl())
     : _mode(base_plus_offset_reg), _base(r), _index(r1),
        _ext(ext) { }
@@ -353,6 +370,11 @@ class Address VALUE_OBJ_CLASS_SPEC {
     : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
   Address(Post p)
     : _mode(post), _base(p.reg()), _offset(p.offset()) { }
+  Address(address target, RelocationHolder const& rspec)
+    : _mode(literal),
+      _rspec(rspec),
+      _is_lval(false),
+      _target(target)  { }
 
   void encode(Instruction_aarch64 *i) {
     i->f(0b111, 29, 27);
@@ -405,8 +427,12 @@ class Address VALUE_OBJ_CLASS_SPEC {
       i->sf(_offset, 20, 12);
       break;
 
+    case literal:
+      ShouldNotReachHere();
+      break;
+
     default:
-      assert_cond(false);
+      ShouldNotReachHere();
     }
   }
 };
@@ -1419,6 +1445,86 @@ public:
 #undef INSN
 #undef INSN1
 
+  // Floating-point Move (immediate)
+private:
+  unsigned pack(double value);
+
+  void fmov_imm(FloatRegister Vn, double value, unsigned size) {
+    starti;
+    f(0b00011110, 31, 24), f(size, 23, 22), f(1, 21);
+    f(pack(value), 20, 13), f(0b10000000, 12, 5);
+    rf(Vn, 0);
+  }
+
+public:
+
+  void fmovs(FloatRegister Vn, double value) {
+    fmov_imm(Vn, value, 0b00);
+
+  }
+  void fmovd(FloatRegister Vn, double value) {
+    fmov_imm(Vn, value, 0b01);
+  }
+
+/* Simulator extensions to the ISA
+
+brx86 Xn, Wm
+  Xn holds the 64 bit x86 branch_address
+  Wm holds the 32 bit call_format
+
+calls the x86 code address 'branch_address' supplied in Xn passing
+arguments taken from the general and floating point registers according
+to to the format 'call_format' supplied in Wm. Where
+
+u_int32_t call_format;
+address branch_address;
+
+The format is 3 bytes orred lo to hi:
+
+u_int32_t num_gp_regs = call_format & 0xffU;
+u_int32_t num_fp_regs = (call_format >> 8) & 0xffU;
+ReturnType return_type = (ReturnType)(call_format >> 16) & 0x7U;
+
+where
+
+enum ReturnType
+{
+  int_ret = 0,
+  long_ret = 1,
+  obj_ret = 1, // i.e. same as long
+  float_ret = 2,
+  double_ret = 3,
+  void_ret = 4
+}
+
+Instruction encodings
+---------------------
+
+These are encoded in the space with instr[28:27] = 00 which is
+unallocated. Encodings are
+
+                 10987654321098765432109876543210
+PSEUDO_HALT  = 0b11100000000000000000000000000000
+PSEUDO_BRX86 = 0b1100000000000000000000__________
+
+instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86
+
+for HALT
+  instr[26,0] = 000000000000000000000000000
+
+for BRX86
+  instr[26,10] = 0000000000000000000
+  instr[9,5] = Rm (flags register)
+  instr[4,0] = Rn (branch address register)
+
+*/
+
+  void brx86(Register Rdest, Register Rflags) {
+    starti;
+    f(0b1100000000000000000000, 31, 10);
+    rf(Rdest, 0), rf(Rflags, 5);
+  }
+
   Assembler(CodeBuffer* code) : AbstractAssembler(code) {
   }
 
@@ -1526,8 +1632,8 @@ class MacroAssembler: public Assembler {
   inline void moviw(Register Rd, unsigned imm) { orrw(Rd, zr, imm); }
   inline void movi(Register Rd, unsigned imm) { orr(Rd, zr, imm); }
 
-  inline void tstw(Register Rd, unsigned imm) { andsw(Rd, zr, imm); }
-  inline void tst(Register Rd, unsigned imm) { ands(Rd, zr, imm); }
+  inline void tstw(Register Rd, unsigned imm) { andsw(zr, Rd, imm); }
+  inline void tst(Register Rd, unsigned imm) { ands(zr, Rd, imm); }
 
   inline void bfiw(Register Rd, Register Rn, unsigned lsb, unsigned width) {
     bfmw(Rd, Rn, ((32 - lsb) & 31), (width - 1));
@@ -1720,6 +1826,16 @@ public:
     mov_immediate32(dst, imm32);
   }
 
+  inline void mov(Register dst, long l)
+  {
+    mov(dst, (u_int64_t)l);
+  }
+
+  inline void mov(Register dst, int i)
+  {
+    mov(dst, (u_int64_t)i);
+  }
+
   // Support for NULL-checks
   //
   // Generates code that causes a NULL OS exception if the content of reg is NULL.
@@ -1858,12 +1974,6 @@ public:
   void super_call_VM_leaf(address entry_point, Register arg_1, Register arg_2, Register arg_3, Register arg_4);
 
   // last Java Frame (fills frame anchor)
-  void set_last_Java_frame(Register thread,
-                           Register last_java_sp,
-                           Register last_java_fp,
-                           address last_java_pc);
-
-  // thread in the default location (r15_thread on 64bit)
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
                            address last_java_pc);
@@ -2274,7 +2384,7 @@ public:
 
   // Calls
 
-  void call(Label& L, relocInfo::relocType rtype);
+  // void call(Label& L, relocInfo::relocType rtype);
   void call(Register entry);
 
   // Jumps
