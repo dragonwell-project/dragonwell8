@@ -25,13 +25,37 @@
 # C++ routine which starts execution on the simulator. the ARM
 # code can be generated immediately following the copied code.
 
-	.text
+	.data
         .globl setup_arm_sim, 
 	.type  setup_arm_sim,@function
         .globl aarch64_stub_prolog
-	.type  aarch64_stub_prolog,@function
         .p2align  4
 aarch64_stub_prolog:
+4:	lea 1f(%rip), %r11 // entry point
+	mov 2f(%rip), %r10
+	jmp *%r10
+2:	.quad aarch64_prolog
+	.p2align 4
+1:
+	// 64 bit word used to hold the sim setup routine
+	.set entry_offset, . - 1b
+	.quad 0
+	// 64 bit int used to idenitfy called fn arg/return types
+	.set calltype_offset, . - 1b
+	.quad 0
+	// arm JIT code follows the stub
+	.set arm_code_offset, . - 1b
+	.size aarch64_stub_prolog, .-aarch64_stub_prolog
+aarch64_stub_prolog_end:
+	
+	.text
+aarch64_prolog:
+	.cfi_startproc
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register 6
 	// save all registers used to pass args
 	push %r9
 	push %r8
@@ -42,18 +66,14 @@ aarch64_stub_prolog:
 	// save rax -- this stack slot will be rewritten with a
 	// return value if needed
 	push %rax
-	// get next pc in rdi
-	call get_pc
-aarch64_stub_prolog_here:
-	// add offset to start of ARM code
-	leaq (aarch64_stub_prolog_end - aarch64_stub_prolog_here), %rsi
-	add %rdi, %rsi
+
 	// push start of arm code
+	lea (arm_code_offset)(%r11), %rsi
 	push %rsi
-	// load address of sim setup routine 
-	leaq (-16)(%rsi), %rdx
+	// load address of sim setup routine
+	lea (entry_offset)(%r11), %rdx
 	// load call type code in arg reg 1
-	mov (-8)(%rsi), %rsi
+	mov (calltype_offset)(%r11), %rsi
 	// if we need a return value push a stack slot for it
 	// load current stack pointer in arg reg 0
 	mov %rsp, %rdi
@@ -70,7 +90,11 @@ aarch64_stub_prolog_here:
 	pop %rcx
 	pop %r8
 	pop %r9
+	leave
+	.cfi_def_cfa 7, 8
 	ret
+	.cfi_endproc
+
 
         .p2align  4
 get_pc:
@@ -78,15 +102,6 @@ get_pc:
 	pop %rdi
 	push %rdi
 	ret
-	.p2align 4
-	// 64 bit word used to hold the sim setup routine
-	.long 0
-	.long 0
-	// 64 bit int used to idenitfy called fn arg/return types
-	.long 0
-	.long 0
-	// arm JIT code follows the stub
-aarch64_stub_prolog_end:
 
 	.p2align 4
 	.long
