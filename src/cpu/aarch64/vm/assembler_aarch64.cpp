@@ -1163,6 +1163,10 @@ extern "C" {
     else
       Disassembler::decode((address)start, (address)start + len);
   }
+
+  JNIEXPORT void das1(unsigned long insn) {
+    das(insn, 1);
+  }
 }
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
