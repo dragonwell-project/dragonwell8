@@ -9,8 +9,6 @@
  * stack space
  */
 #define SIM_STACK_SIZE (1024 * 1024) // in units of u_int64_t
-static __thread AArch64Simulator *sim = 0;
-static __thread u_int64_t stack = 0;
 
 extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
 {
@@ -68,12 +66,9 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   int gp_arg_count = calltype & 0xf;
   int fp_arg_count = (calltype >> 4) & 0xf;
   int return_type = (calltype >> 8) & 0x3;
-
-  if (sim == 0) {
-    sim = new AArch64Simulator();
-    stack = (u_int64_t)new u_int64_t[SIM_STACK_SIZE];
-  }
-  sim->init(*cursor++, (u_int64_t)(stack + SIM_STACK_SIZE * sizeof(u_int64_t)), (u_int64_t)stack);
+  AArch64Simulator *sim = AArch64Simulator::current();
+  // set up start pc
+  sim->start(*cursor++);
   u_int64_t *return_slot = cursor++;
 
   // if we need to pass the sim extra args on the stack then bump
