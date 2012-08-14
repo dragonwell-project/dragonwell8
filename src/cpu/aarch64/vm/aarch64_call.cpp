@@ -111,7 +111,11 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
       *cursor3++ = *cursor2++;
     }
   }
-  sim->run();
+  int return_status = sim->run();
+  if (return_status != AArch64Simulator::STATUS_RETURN){
+    sim->simPrint0();
+    fatal("invalid status returned from simulator.run()\n");
+  }
   switch (return_type) {
   case MacroAssembler::ret_type_void:
   default:
