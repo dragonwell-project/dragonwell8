@@ -1811,7 +1811,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       for (;i < 3; i++) {
 	if (imm_h[i] != 0L) {
 	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
-	  break;
 	}
       }
     } else if (neg_count == 2) {
@@ -1826,7 +1825,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       for (;i < 3; i++) {
 	if (imm_h[i] != 0xffffL) {
 	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
-	  break;
 	}
       }
     } else if (zero_count == 1) {
