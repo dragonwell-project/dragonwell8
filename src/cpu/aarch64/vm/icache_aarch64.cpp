@@ -55,17 +55,17 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
 
   address entry = __ pc();
 
-  // we need to invalidate each cache line and then skip to the next
-  // one.
-  // TODO : currently use a nop for the flush operation. we also
-  // need a mfence before and after the loop.
+  // hmm, think we probably need an instruction synchronizaton barrier
+  // and a memory and data synchronization barrier but we will find
+  // out when we get real hardware :-)
+
+  // n.b. SY means a system wide barrier which is the overkill option
+
   address loop = __ pc();
-  __ nop();			// should actually invalidate r0
-  __ add(r0, r0, NativeCall::cache_line_size);
-  __ sub(r1, r1, 1);
-  __ cbnz(r1, loop);
-  // we need to move r2 to r0
-  __ add(r0, r2, 0u);
+  __ dsb(Assembler::SY);
+  __ dmb(Assembler::SY);
+  __ isb();
+  __ mov(r0, r2);
   __ ret(r30);
 
   Disassembler::decode(entry, __ pc());
