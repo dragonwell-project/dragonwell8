@@ -57,6 +57,22 @@ aarch64_prolog:
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	// save all registers used to pass args
+	sub $8, %rsp
+	movd %xmm7, (%rsp)
+	sub $8, %rsp
+	movd %xmm6, (%rsp)
+	sub $8, %rsp
+	movd %xmm5, (%rsp)
+	sub $8, %rsp
+	movd %xmm4, (%rsp)
+	sub $8, %rsp
+	movd %xmm3, (%rsp)
+	sub $8, %rsp
+	movd %xmm2, (%rsp)
+	sub $8, %rsp
+	movd %xmm1, (%rsp)
+	sub $8, %rsp
+	movd %xmm0, (%rsp)
 	push %r9
 	push %r8
 	push %rcx
@@ -66,7 +82,6 @@ aarch64_prolog:
 	// save rax -- this stack slot will be rewritten with a
 	// return value if needed
 	push %rax
-
 	// push start of arm code
 	lea (arm_code_offset)(%r11), %rsi
 	push %rsi
@@ -83,13 +98,29 @@ aarch64_prolog:
 	pop %rdi
 	// pop rax -- either restores old value or installs return value
 	pop %rax
-	// pop 6 arg registers
+	// pop arg registers
 	pop %rdi
 	pop %rsi
 	pop %rdx
 	pop %rcx
 	pop %r8
 	pop %r9
+	movd (%rsp), %xmm0
+	add $8, %rsp
+	movd (%rsp), %xmm1
+	add $8, %rsp
+	movd (%rsp), %xmm2
+	add $8, %rsp
+	movd (%rsp), %xmm3
+	add $8, %rsp
+	movd (%rsp), %xmm4
+	add $8, %rsp
+	movd (%rsp), %xmm5
+	add $8, %rsp
+	movd (%rsp), %xmm6
+	add $8, %rsp
+	movd (%rsp), %xmm7
+	add $8, %rsp
 	leave
 	.cfi_def_cfa 7, 8
 	ret

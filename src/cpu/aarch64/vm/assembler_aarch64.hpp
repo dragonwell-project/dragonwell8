@@ -2511,10 +2511,9 @@ public:
   // bootstraps into the generated ARM code which directly follows the
   // stub
   //
-  // the argument encodes the number of general and fp registers
-  // passed by the caller and the calling convention plus also whether
-  // a return value is expected.
-  void c_stub_prolog(u_int64_t calltype);
+  enum { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
+
+  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type);
 };
 
 #ifdef ASSERT

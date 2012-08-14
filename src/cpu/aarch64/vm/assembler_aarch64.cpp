@@ -2101,8 +2101,12 @@ void aarch64_stub_prolog();
 void setup_arm_sim(void *sp, int calltype);
 }
 
-void MacroAssembler::c_stub_prolog(u_int64_t calltype)
+void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type)
 {
+  int calltype = (((ret_type & 0x3) << 8) |
+		  ((fp_arg_count & 0xf) << 4) |
+		  (gp_arg_count & 0xf));
+
   // the addresses for the x86 to ARM entry code we need to use
   address start = pc();
   // printf("start = %lx\n", start);

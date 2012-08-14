@@ -215,7 +215,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // we need a C prolog to bootstrap teh x86 caller into the sim
 
-    __ c_stub_prolog(8UL);
+    __ c_stub_prolog(8, 0, MacroAssembler::ret_type_void);
 
     address aarch64_entry = __ pc();
 

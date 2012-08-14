@@ -69,7 +69,7 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 #   define __ _masm->
     address start = __ pc();
 
-    __ c_stub_prolog(1);
+    __ c_stub_prolog(1, 0, MacroAssembler::ret_type_void);
 
     // void getPsrInfo(VM_Version::CpuidInfo* cpuid_info);
 
