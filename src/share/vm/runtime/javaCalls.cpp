@@ -399,10 +399,10 @@ void JavaCalls::call_helper(JavaValue* result, methodHandle* m, JavaCallArgument
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
         result_val_address,          // see NOTE above (compiler problem)
         result_type,
-        method(),
+        meth,
         entry_point,
-        args->parameters(),
-        args->size_of_parameters(),
+        parameters,
+        size_of_parameters,
         CHECK
       );
 

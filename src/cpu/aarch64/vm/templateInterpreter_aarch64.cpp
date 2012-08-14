@@ -226,20 +226,19 @@ void InterpreterGenerator::lock_method(void) {
 // interpreted methods and for native methods hence the shared code.
 //
 // Args:
-//      rax: return address
+//      r0: return address
 //      rmethod: methodOop
 //      r14: pointer to locals
 //      rscratch1: sender sp
-//      rdx: cp cache
+//      rcpool: cp cache
 void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // initialize fixed part of activation frame
   __ push(r0);        // save return address
   __ enter();          // save old & set new rfp
   __ push(rscratch1);        // set sender sp
   __ push(zr); // leave last_sp as null
-  __ ldr(rbcp, Address(rmethod, methodOopDesc::const_offset()));      // get constMethodOop
-  __ ldr(rscratch1, Address(rmethod, constMethodOopDesc::codes_offset())); // get codebase
-  __ add(rbcp, rbcp, rscratch1);
+  __ str(rscratch1, Address(rmethod, methodOopDesc::const_offset()));      // get constMethodOop
+  __ add(rbcp, rmethod, in_bytes(constMethodOopDesc::codes_offset())); // get codebase
   __ push(rmethod);        // save methodOop
   if (ProfileInterpreter) {
     // Label method_data_continue;
@@ -253,9 +252,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
     __ push(zr);
   }
 
-  __ ldr(r3, Address(rmethod, methodOopDesc::constants_offset()));
-  __ ldr(r3, Address(rmethod, constantPoolOopDesc::cache_offset_in_bytes()));
-  __ push(r3); // set constant pool cache
+  __ str(rcpool, Address(rmethod, methodOopDesc::constants_offset()));
+  __ str(rcpool, Address(rmethod, constantPoolOopDesc::cache_offset_in_bytes()));
+  __ push(rcpool); // set constant pool cache
   __ push(rlocals); // set locals pointer
   if (native_call) {
     __ push(zr); // no bcp
@@ -759,7 +758,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   // rscratch1: sender_sp (could differ from sp+wordSize if we were called via c2i )
 
   __ load_unsigned_short(r3, size_of_locals); // get size of locals in words
-  __ sub(r3, r2, r2); // r3 = no. of additional locals
+  __ sub(r3, r3, r2); // r3 = no. of additional locals
 
   // YYY
 //   __ incrementl(rdx);
@@ -772,7 +771,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ pop(r0);
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, sp, r2, Assembler::LSL, 3);
+  __ add(rlocals, sp, r2, Assembler::LSL, 3);  // FIXME: Should be resp ???
   __ add(rlocals, rlocals, wordSize);
 
   // rdx - # of additional locals
@@ -781,7 +780,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   {
     Label exit, loop;
     __ ands(r3, r3, r3);
-    __ br(Assembler::LE, exit); // do nothing if rdx <= 0
+    __ br(Assembler::LE, exit); // do nothing if r3 <= 0
     __ bind(loop);
     __ push((int) NULL_WORD); // initialize local variables
     __ subs(r3, r3, 1); // until everything initialized
@@ -802,14 +801,14 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
-    __ br(Assembler::EQ, L);
+    __ br(Assembler::NE, L);
     __ stop("tried to execute native method as non-native");
     __ bind(L);
   }
   {
     Label L;
     __ tst(r0, JVM_ACC_ABSTRACT);
-    __ br(Assembler::EQ, L);
+    __ br(Assembler::NE, L);
     __ stop("tried to execute abstract method in interpreter");
     __ bind(L);
   }

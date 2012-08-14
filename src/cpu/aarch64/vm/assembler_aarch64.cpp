@@ -1805,7 +1805,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 	if (imm_h[i] != 0L) {
 	  movz(dst, (u_int32_t)imm_h[i], (i << 4));
 	  i++;
-	  break;
 	}
       }
       for (;i < 3; i++) {
@@ -1819,7 +1818,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 	if (imm_h[i] != 0xffffL) {
 	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
 	  i++;
-	  break;
 	}
       }
       for (;i < 3; i++) {
@@ -1839,7 +1837,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       for (;i < 3; i++) {
 	if (imm_h[i] != 0x0L) {
 	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
-	  break;
 	}
       }
     } else if (neg_count == 1) {
@@ -1854,7 +1851,6 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       for (;i < 3; i++) {
 	if (imm_h[i] != 0xffffL) {
 	  movk(dst, (u_int32_t)imm_h[i], (i << 4));
-	  break;
 	}
       }
     } else {
@@ -1921,7 +1917,7 @@ unsigned Assembler::pack(double value) {
 
 void MacroAssembler::call(Register entry)
 {
-  br(entry);
+  blr(entry);
 }
 
 void MacroAssembler::push(Register src)
@@ -1992,7 +1988,8 @@ void MacroAssembler::stop(const char* msg) {
   // (assumes literal will encode directly)
   andr(sp, c_rarg2, ~0xfUL);
   mov(c_rarg3, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
-  call(c_rarg3);
+  // call(c_rarg3);
+  brx86(c_rarg3, 3, 0, 1);
   hlt(0);
 }
 

@@ -248,6 +248,8 @@ class StubGenerator: public StubCodeGenerator {
     // install Java thread in global register now we have saved
     // whatever value it held
     __ mov(rthread, c_rarg7);
+    // And method
+    __ mov(rmethod, c_rarg3);
 
     // set up the heapbase register
     __ reinit_heapbase();
