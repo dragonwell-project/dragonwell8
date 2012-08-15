@@ -28,6 +28,8 @@
 	.data
         .globl setup_arm_sim, 
 	.type  setup_arm_sim,@function
+        .globl get_alt_stack, 
+	.type  get_alt_stack,@function
         .globl aarch64_stub_prolog
         .p2align  4
 aarch64_stub_prolog:
@@ -82,6 +84,11 @@ aarch64_prolog:
 	// save rax -- this stack slot will be rewritten with a
 	// return value if needed
 	push %rax
+	// temporarily save r11 while we find the other stack
+	push %r11
+	// retrieve alt stack
+	call get_alt_stack
+	pop %r11
 	// push start of arm code
 	lea (arm_code_offset)(%r11), %rsi
 	push %rsi
@@ -92,8 +99,14 @@ aarch64_prolog:
 	// if we need a return value push a stack slot for it
 	// load current stack pointer in arg reg 0
 	mov %rsp, %rdi
+	// switch to alt stack
+	mov %rax, %rsp
+	// save previous stack pointer on new stack
+	push %rdi
 	// call sim setup routine
 	call *(%rdx)
+	// switch back to old stack
+	pop %rsp
 	// pop start of arm code
 	pop %rdi
 	// pop rax -- either restores old value or installs return value

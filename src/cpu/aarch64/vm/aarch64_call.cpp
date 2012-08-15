@@ -10,6 +10,11 @@
  */
 #define SIM_STACK_SIZE (1024 * 1024) // in units of u_int64_t
 
+extern "C" u_int64_t get_alt_stack()
+{
+  return AArch64Simulator::altStack();
+}
+
 extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
 {
   // stack layout is as below - the number of registers
@@ -61,14 +66,16 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   // TODO : for now we create a sim at every call and give it a fresh
   // stack eventually we may need to reuse a sim/stack per thread
   const int cursor2_offset = 18;
+  const int fp_offset = 16;
   u_int64_t *cursor = (u_int64_t *)sp;
   u_int64_t *cursor2 = ((u_int64_t *)sp) + cursor2_offset;
+  u_int64_t *fp = ((u_int64_t *)sp) + fp_offset;
   int gp_arg_count = calltype & 0xf;
   int fp_arg_count = (calltype >> 4) & 0xf;
   int return_type = (calltype >> 8) & 0x3;
   AArch64Simulator *sim = AArch64Simulator::current();
   // set up start pc
-  sim->start(*cursor++);
+  sim->init(*cursor++, (u_int64_t)sp, (u_int64_t)fp);
   u_int64_t *return_slot = cursor++;
 
   // if we need to pass the sim extra args on the stack then bump
