@@ -263,6 +263,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   }
   __ push(0); // reserve word for pointer to expression stack bottom
   __ mov(resp, sp); // set expression stack bottom
+  __ push(resp);
 }
 
 // End of helpers
@@ -317,7 +318,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // for natives the size of locals is zero
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, sp, r2, Assembler::LSL, 3);
+  __ add(rlocals, sp, r2, ext::uxtx, 3);  // FIXME: Should be resp ???
   __ add(rlocals, rlocals, wordSize);
 
   // add 2 zero-initialized slots for native calls
@@ -406,7 +407,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     const Address monitor_block_top(rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
     __ ldr(r0, monitor_block_top);
-    __ cmp(r0, sp);  // FIXME: rsp or resp??
+    __ mov(rscratch1, sp);
+    __ cmp(rscratch1, r0);
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);
@@ -426,9 +428,9 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
                                  methodOopDesc::size_of_parameters_offset()));
   __ lsl(t, t, Interpreter::logStackElementSize);
 
-  __ sub(sp, sp, t);
-  __ sub(sp, sp, frame::arg_reg_save_area_bytes); // windows
-  __ andr(sp, sp, -16); // must be 16 byte boundary
+  __ sub(rscratch1, sp, t, ext::uxtx, 0);
+  __ sub(rscratch1, rscratch1, frame::arg_reg_save_area_bytes); // windows
+  __ andr(sp, rscratch1, -16); // must be 16 byte boundary
 
   // get signature handler
   {
@@ -771,7 +773,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ pop(r0);
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, sp, r2, Assembler::LSL, 3);  // FIXME: Should be resp ???
+  __ add(rlocals, sp, r2, ext::uxtx, 3);  // FIXME: Should be resp ???
   __ add(rlocals, rlocals, wordSize);
 
   // rdx - # of additional locals
@@ -801,14 +803,14 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
-    __ br(Assembler::NE, L);
+    __ br(Assembler::EQ, L);
     __ stop("tried to execute native method as non-native");
     __ bind(L);
   }
   {
     Label L;
     __ tst(r0, JVM_ACC_ABSTRACT);
-    __ br(Assembler::NE, L);
+    __ br(Assembler::EQ, L);
     __ stop("tried to execute abstract method in interpreter");
     __ bind(L);
   }
@@ -876,7 +878,8 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
      const Address monitor_block_top (rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
     __ ldr(r0, monitor_block_top);
-    __ cmp(r0, sp);
+    __ mov(rscratch1, sp);
+    __ cmp(rscratch1, r0);
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);

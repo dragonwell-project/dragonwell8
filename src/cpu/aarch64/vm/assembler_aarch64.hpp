@@ -45,9 +45,6 @@ class Argument VALUE_OBJ_CLASS_SPEC {
   };
 };
 
-// declare zr as an alias for sp
-REGISTER_DECLARATION(Register, zr, sp);
-
 REGISTER_DECLARATION(Register, c_rarg0, r0);
 REGISTER_DECLARATION(Register, c_rarg1, r1);
 REGISTER_DECLARATION(Register, c_rarg2, r2);
@@ -259,6 +256,16 @@ public:
     f(r->encoding_nocheck(), lsb + 4, lsb);
   }
 
+  // reg|ZR
+  void zrf(Register r, int lsb) {
+    f(r->encoding_nocheck() - (r == zr), lsb + 4, lsb);
+  }
+
+  // reg|SP
+  void srf(Register r, int lsb) {
+    f(r == sp ? 31 : r->encoding_nocheck(), lsb + 4, lsb);
+  }
+
   void rf(FloatRegister r, int lsb) {
     f(r->encoding_nocheck(), lsb + 4, lsb);
   }
@@ -378,7 +385,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
 
   void encode(Instruction_aarch64 *i) {
     i->f(0b111, 29, 27);
-    i->rf(_base, 5);
+    i->srf(_base, 5);
 
     switch(_mode) {
     case base_plus_offset:
@@ -470,6 +477,12 @@ public:
   void rf(Register reg, int lsb) {
     current->rf(reg, lsb);
   }
+  void srf(Register reg, int lsb) {
+    current->srf(reg, lsb);
+  }
+  void zrf(Register reg, int lsb) {
+    current->zrf(reg, lsb);
+  }
   void rf(FloatRegister reg, int lsb) {
     current->rf(reg, lsb);
   }
@@ -512,22 +525,33 @@ public:
   INSN(adrp, 1, 12);
 
 #undef INSN
+
   // Add/subtract (immediate)
 #define INSN(NAME, decode)						\
   void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift = 0) { \
     starti;								\
     f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
-    rf(Rd, 0), rf(Rn, 5);						\
+    zrf(Rd, 0), srf(Rn, 5);						\
+  }
+
+  INSN(addsw, 0b001);
+  INSN(subsw, 0b011);
+  INSN(adds,  0b101);
+  INSN(subs,  0b111);
+
+#undef INSN
+
+#define INSN(NAME, decode)						\
+  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift = 0) { \
+    starti;								\
+    f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
+    srf(Rd, 0), srf(Rn, 5);						\
   }
 
   INSN(addw,  0b000);
-  INSN(addsw, 0b001);
   INSN(subw,  0b010);
-  INSN(subsw, 0b011);
   INSN(add,   0b100);
-  INSN(adds,  0b101);
   INSN(sub,   0b110);
-  INSN(subs,  0b111);
 
 #undef INSN
 
@@ -537,17 +561,28 @@ public:
     starti;							\
     uint32_t val = encode_immediate_v2(is32, imm);		\
     f(decode, 31, 29), f(0b100100, 28, 23), f(val, 22, 10);	\
-    rf(Rd, 0), rf(Rn, 5);					\
+    srf(Rd, 0), zrf(Rn, 5);					\
   }
 
   INSN(andw, 0b000, true);
   INSN(orrw, 0b001, true);
   INSN(eorw, 0b010, true);
-  INSN(andsw, 0b011, true);
   INSN(andr,  0b100, false);
   INSN(orr,  0b101, false);
   INSN(eor,  0b110, false);
+
+#undef INSN
+
+#define INSN(NAME, decode, is32)				\
+  void NAME(Register Rd, Register Rn, uint64_t imm) {		\
+    starti;							\
+    uint32_t val = encode_immediate_v2(is32, imm);		\
+    f(decode, 31, 29), f(0b100100, 28, 23), f(val, 22, 10);	\
+    zrf(Rd, 0), zrf(Rn, 5);					\
+  }
+
   INSN(ands, 0b111, false);
+  INSN(andsw, 0b011, true);
 
 #undef INSN
 
@@ -960,7 +995,7 @@ public:
     f(size, 31, 30);
     f(op, 23, 22); // str
     f(V, 26); // general reg?
-    rf(Rt, 0);
+    zrf(Rt, 0);
     adr.encode(current);
   }
 
@@ -1012,13 +1047,11 @@ public:
   enum shift_kind { LSL, LSR, ASR, ROR };
 
   void op_shifted_reg(unsigned decode,
-		      Register Rd, Register Rn, Register Rm,
 		      enum shift_kind kind, unsigned shift,
 		      unsigned size, unsigned op) {
     f(size, 31);
     f(op, 30, 29);
     f(decode, 28, 24);
-    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
     f(shift, 15, 10);
     f(kind, 23, 22);
   }
@@ -1029,7 +1062,8 @@ public:
 	    enum shift_kind kind = LSL, unsigned shift = 0) {	\
     starti;							\
     f(N, 21);							\
-    op_shifted_reg(0b01010, Rd, Rn, Rm, kind, shift, size, op);	\
+    zrf(Rm, 16), zrf(Rn, 5), zrf(Rd, 0);			\
+    op_shifted_reg(0b01010, kind, shift, size, op);		\
   }
 
   INSN(andr, 1, 0b00, 0);
@@ -1059,16 +1093,31 @@ public:
     starti;							\
     f(0, 21);							\
     assert_cond(kind != ROR);					\
-    op_shifted_reg(0b01011, Rd, Rn, Rm, kind, shift, size, op);	\
+    zrf(Rd, 0), srf(Rn, 5), rf(Rm, 16);				\
+    op_shifted_reg(0b01011, kind, shift, size, op);		\
+  }
+
+#undef INSN
+
+  // Add/subtract (shifted regsiter)
+#define INSN(NAME, size, op)					\
+  void NAME(Register Rd, Register Rn, Register Rm,		\
+	    enum shift_kind kind = LSL, unsigned shift = 0) {	\
+    starti;							\
+    f(0, 21);							\
+    assert_cond(kind != ROR);					\
+    zrf(Rd, 0), zrf(Rn, 5), rf(Rm, 16);				\
+    op_shifted_reg(0b01011, kind, shift, size, op);		\
   }
 
   INSN(add, 1, 0b000);
-  INSN(adds, 1, 0b001);
   INSN(sub, 1, 0b10);
-  INSN(subs, 1, 0b11);
   INSN(addw, 0, 0b000);
-  INSN(addsw, 0, 0b001);
   INSN(subw, 0, 0b10);
+
+  INSN(adds, 1, 0b001);
+  INSN(subs, 1, 0b11);
+  INSN(addsw, 0, 0b001);
   INSN(subsw, 0, 0b11);
 
 #undef INSN
@@ -1077,25 +1126,36 @@ public:
 #define INSN(NAME, op)							\
   void NAME(Register Rd, Register Rn, Register Rm,			\
            ext::operation option, int amount) {				\
+    starti;								\
+    zrf(Rm, 16), srf(Rn, 5), srf(Rd, 0);					\
     add_sub_extended_reg(op, 0b01011, Rd, Rn, Rm, 0b00, option, amount); \
   }
 
   void add_sub_extended_reg(unsigned op, unsigned decode,
     Register Rd, Register Rn, Register Rm,
     unsigned opt, ext::operation option, unsigned imm) {
-    starti;
     f(op, 31, 29), f(decode, 28, 24), f(opt, 23, 22), f(1, 21);
     f(option, 15, 13), f(imm, 12, 10);
-    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
   }
 
   INSN(addw, 0b000);
-  INSN(addsw, 0b001);
   INSN(subw, 0b010);
-  INSN(subsw, 0b011);
   INSN(add, 0b100);
-  INSN(adds, 0b101);
   INSN(sub, 0b110);
+
+#undef INSN
+
+#define INSN(NAME, op)							\
+  void NAME(Register Rd, Register Rn, Register Rm,			\
+           ext::operation option, int amount) {				\
+    starti;								\
+    zrf(Rm, 16), srf(Rn, 5), zrf(Rd, 0);					\
+    add_sub_extended_reg(op, 0b01011, Rd, Rn, Rm, 0b00, option, amount); \
+  }
+
+  INSN(addsw, 0b001);
+  INSN(subsw, 0b011);
+  INSN(adds, 0b101);
   INSN(subs, 0b111);
 
 #undef INSN
@@ -1373,7 +1433,7 @@ public:
     f(0b11110, 28, 24);
     f(type, 23, 22), f(1, 21), f(rmode, 20, 19);
     f(opcode, 18, 16), f(0b000000, 15, 10);
-    rf(Rn, 5), rf(Rd, 0);
+    zrf(Rn, 5), zrf(Rd, 0);
   }
 
 #define INSN(NAME, op31, type, rmode, opcode)				\

@@ -63,7 +63,8 @@ void MacroAssembler::get_thread(Register dst) {
   mov(resp, CAST_FROM_FN_PTR(address, pthread_getspecific));
   call(resp);
   // restore pushed registers
-  pop(sp);
+  pop(resp);
+  mov(sp, resp);
   pop(resp);
   pop(rbcp);
   pop(rmethod);

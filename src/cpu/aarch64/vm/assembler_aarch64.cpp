@@ -1142,7 +1142,7 @@ Disassembly of section .text:
     __ bl(empty);
     __ movz(r0, 0);
     __ BIND(loop);
-    __ subs(sp, r0, 10);
+    __ subs(r0, r0, 10);
     __ br(Assembler::NE, l);
     __ add(r0, r0, 1u);
     __ adr(r3, loop);
