@@ -261,9 +261,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   } else {
     __ push(rbcp); // set bcp
   }
-  __ push(0); // reserve word for pointer to expression stack bottom
   __ mov(resp, sp); // set expression stack bottom
-  __ push(resp);
+  __ push(resp); // reserve word for pointer to expression stack bottom
+  __ mov(resp, sp);
 }
 
 // End of helpers
