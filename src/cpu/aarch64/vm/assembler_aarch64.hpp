@@ -1812,33 +1812,63 @@ class MacroAssembler: public Assembler {
     bfm(Rd, Rn, 0, 31);
   }
 
-  inline void cmnw(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void cmnw(Register Rn, Register Rm) {
+    addsw(zr, Rn, Rm);
+  }
+  inline void cmn(Register Rn, Register Rm) {
+    adds(zr, Rn, Rm);
+  }
+
+  inline void cmpw(Register Rn, Register Rm) {
+    subsw(zr, Rn, Rm);
+  }
+  inline void cmp(Register Rn, Register Rm) {
+    subs(zr, Rn, Rm);
+  }
+
+  inline void negw(Register Rd, Register Rn) {
+    subw(Rd, zr, Rn);
+  }
+
+  inline void neg(Register Rd, Register Rn) {
+    sub(Rd, zr, Rn);
+  }
+
+  inline void negsw(Register Rd, Register Rn) {
+    subsw(Rd, zr, Rn);
+  }
+
+  inline void negs(Register Rd, Register Rn) {
+    subs(Rd, zr, Rn);
+  }
+
+  inline void cmnw(Register Rn, Register Rm, enum shift_kind kind, unsigned shift = 0) {
     addsw(zr, Rn, Rm, kind, shift);
   }
-  inline void cmn(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void cmn(Register Rn, Register Rm, enum shift_kind kind, unsigned shift = 0) {
     adds(zr, Rn, Rm, kind, shift);
   }
 
-  inline void cmpw(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void cmpw(Register Rn, Register Rm, enum shift_kind kind, unsigned shift = 0) {
     subsw(zr, Rn, Rm, kind, shift);
   }
-  inline void cmp(Register Rn, Register Rm, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void cmp(Register Rn, Register Rm, enum shift_kind kind, unsigned shift = 0) {
     subs(zr, Rn, Rm, kind, shift);
   }
 
-  inline void negw(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void negw(Register Rd, Register Rn, enum shift_kind kind, unsigned shift = 0) {
     subw(Rd, zr, Rn, kind, shift);
   }
 
-  inline void neg(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void neg(Register Rd, Register Rn, enum shift_kind kind, unsigned shift = 0) {
     sub(Rd, zr, Rn, kind, shift);
   }
 
-  inline void negsw(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void negsw(Register Rd, Register Rn, enum shift_kind kind, unsigned shift = 0) {
     subsw(Rd, zr, Rn, kind, shift);
   }
 
-  inline void negs(Register Rd, Register Rn, enum shift_kind kind = LSL, unsigned shift = 0) {
+  inline void negs(Register Rd, Register Rn, enum shift_kind kind, unsigned shift = 0) {
     subs(Rd, zr, Rn, kind, shift);
   }
 
