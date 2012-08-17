@@ -1724,7 +1724,9 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   sub(sp, sp, 8);
   {
     mov(rscratch1, entry_point);
-    brx86(rscratch1, number_of_arguments, 0, 1);
+    // We add 1 to number_of_arguments because the thread in arg0 is
+    // not counted
+    brx86(rscratch1, number_of_arguments + 1, 0, 1);
   }
   add(sp, sp, 8);
   b(E);
@@ -1732,7 +1734,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   bind(L);
   {
     mov(rscratch1, entry_point);
-    brx86(rscratch1, number_of_arguments, 0, 1);
+    brx86(rscratch1, number_of_arguments + 1, 0, 1);
   }
 
   bind(E);
