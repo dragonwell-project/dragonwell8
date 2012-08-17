@@ -103,6 +103,8 @@ aarch64_prolog:
 	mov %rax, %rsp
 	// save previous stack pointer on new stack
 	push %rdi
+	// 16-align the new stack pointer
+	push %rdi
 	// call sim setup routine
 	call *(%rdx)
 	// switch back to old stack
