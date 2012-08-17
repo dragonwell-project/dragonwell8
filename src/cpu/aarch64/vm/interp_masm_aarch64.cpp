@@ -119,8 +119,18 @@ void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register
                                                                         Register bytecode,
                                                                         int byte_no,
                                                                         int bcp_offset,
-                                                                        size_t index_size) { Unimplemented(); }
-
+                                                                        size_t index_size) {
+  get_cache_and_index_at_bcp(cache, index, bcp_offset, index_size);
+  // We use a 32-bit load here since the layout of 64-bit words on
+  // little-endian machines allow us that.
+  add(rscratch1, cache, index, Assembler::LSL, 3);
+  ldrw(bytecode, Address(rscratch1,
+			 constantPoolCacheOopDesc::base_offset()
+			 + ConstantPoolCacheEntry::indices_offset()));
+  const int shift_count = (1 + byte_no) * BitsPerByte;
+  lsl(bytecode, bytecode, shift_count);
+  andr(bytecode, bytecode, 0xFF);
+}
 
 void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
                                                                Register tmp,
@@ -221,14 +231,35 @@ void InterpreterMacroAssembler::load_ptr(int n, Register val) { Unimplemented();
 
 void InterpreterMacroAssembler::store_ptr(int n, Register val) { Unimplemented(); }
 
-
-void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() { Unimplemented(); }
-
+void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
+  // set sender sp
+  add(rscratch1, sp, wordSize);
+  // record last_sp
+  str(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+}
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
 // in this thread in which case we must call the i2i entry
-void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp) { Unimplemented(); }
+void InterpreterMacroAssembler::jump_from_interpreted(Register method, Register temp) {
+  prepare_to_jump_from_interpreted();
 
+  if (JvmtiExport::can_post_interpreter_events()) {
+    Label run_compiled_code;
+    // JVMTI events, such as single-stepping, are implemented partly by avoiding running
+    // compiled code in threads for which the event is enabled.  Check here for
+    // interp_only_mode if these events CAN be enabled.
+    // interp_only is an int, on little endian it is sufficient to test the byte only
+    // Is a cmpl faster?
+    ldr(rscratch1, Address(rthread, JavaThread::interp_only_mode_offset()));
+    cbz(rscratch1, run_compiled_code);
+    ldr(rscratch1, Address(method, methodOopDesc::interpreter_entry_offset()));
+    br(rscratch1);
+    bind(run_compiled_code);
+  }
+
+  ldr(rscratch1, Address(method, methodOopDesc::from_interpreted_offset()));
+  br(rscratch1);
+}
 
 // The following two routines provide a hook so that an implementation
 // can schedule the dispatch in two parts.  amd64 does not do this.
@@ -381,8 +412,11 @@ void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
 void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) { Unimplemented(); }
 
 
-void InterpreterMacroAssembler::profile_call(Register mdp) { Unimplemented(); }
-
+void InterpreterMacroAssembler::profile_call(Register mdp) { 
+  if (ProfileInterpreter) {
+    Unimplemented(); 
+  }
+}
 
 void InterpreterMacroAssembler::profile_final_call(Register mdp) { Unimplemented(); }
 

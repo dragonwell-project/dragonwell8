@@ -857,13 +857,75 @@ void TemplateTable::_return(TosState state)
 //   __ call_Unimplemented();
 // }
 
+
 void TemplateTable::resolve_cache_and_index(int byte_no,
                                             Register result,
                                             Register Rcache,
                                             Register index,
-                                            size_t index_size)
-{
-  __ call_Unimplemented();
+                                            size_t index_size) {
+  const Register temp = r1;
+  assert_different_registers(result, Rcache, index, temp);
+
+  Label resolved;
+  if (byte_no == f1_oop) {
+    // We are resolved if the f1 field contains a non-null object (CallSite, etc.)
+    // This kind of CP cache entry does not need to match the flags byte, because
+    // there is a 1-1 relation between bytecode type and CP entry type.
+    assert(result != noreg, ""); //else do cmpptr(Address(...), (int32_t) NULL_WORD)
+    __ get_cache_and_index_at_bcp(Rcache, index, 1, index_size);
+    __ add(rscratch1, Rcache, index, Assembler::LSL, 3);
+    __ ldr(result, Address(rscratch1,
+			   constantPoolCacheOopDesc::base_offset()
+			   + ConstantPoolCacheEntry::f1_offset()));
+    __ cbnz(result, resolved);
+  } else {
+    assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
+    assert(result == noreg, "");  //else change code for setting result
+    __ get_cache_and_index_and_bytecode_at_bcp(Rcache, index, temp, byte_no, 1, index_size);
+    __ cmp(temp, (int) bytecode());  // have we resolved this bytecode?
+    __ br(Assembler::EQ, resolved);
+  }
+
+  // resolve first time through
+  address entry;
+  switch (bytecode()) {
+  case Bytecodes::_getstatic:
+  case Bytecodes::_putstatic:
+  case Bytecodes::_getfield:
+  case Bytecodes::_putfield:
+    entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_get_put);
+    break;
+  case Bytecodes::_invokevirtual:
+  case Bytecodes::_invokespecial:
+  case Bytecodes::_invokestatic:
+  case Bytecodes::_invokeinterface:
+    entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_invoke);
+    break;
+  case Bytecodes::_invokedynamic:
+    entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_invokedynamic);
+    break;
+  case Bytecodes::_fast_aldc:
+    entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_ldc);
+    break;
+  case Bytecodes::_fast_aldc_w:
+    entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_ldc);
+    break;
+  default:
+    ShouldNotReachHere();
+    break;
+  }
+  __ mov(temp, (int) bytecode());
+  __ call_VM(noreg, entry, temp);
+
+  // Update registers with resolved info
+  __ get_cache_and_index_at_bcp(Rcache, index, 1, index_size);
+  if (result != noreg) {
+    __ add(rscratch1, Rcache, index, Assembler::LSL, 3);
+    __ ldr(result, Address(rscratch1,
+			   constantPoolCacheOopDesc::base_offset()
+			   + ConstantPoolCacheEntry::f1_offset()));
+  }
+  __ bind(resolved);
 }
 
 // The Rcache and index registers must be set before call
@@ -883,9 +945,41 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
                                                Register flags,
                                                bool is_invokevirtual,
                                                bool is_invokevfinal, /*unused*/
-                                               bool is_invokedynamic)
-{
-  __ call_Unimplemented();
+                                               bool is_invokedynamic) {
+  // setup registers
+  const Register index = r3;
+  const Register cache = r2;
+  assert_different_registers(method, flags);
+  assert_different_registers(method, cache, index);
+  assert_different_registers(itable_index, flags);
+  assert_different_registers(itable_index, cache, index);
+  // determine constant pool cache field offsets
+  const int method_offset = in_bytes(
+    constantPoolCacheOopDesc::base_offset() +
+      (is_invokevirtual
+       ? ConstantPoolCacheEntry::f2_offset()
+       : ConstantPoolCacheEntry::f1_offset()));
+  const int flags_offset = in_bytes(constantPoolCacheOopDesc::base_offset() +
+                                    ConstantPoolCacheEntry::flags_offset());
+  // access constant pool cache fields
+  const int index_offset = in_bytes(constantPoolCacheOopDesc::base_offset() +
+                                    ConstantPoolCacheEntry::f2_offset());
+
+  if (byte_no == f1_oop) {
+    // Resolved f1_oop goes directly into 'method' register.
+    assert(is_invokedynamic, "");
+    resolve_cache_and_index(byte_no, method, cache, index, sizeof(u4));
+  } else {
+    resolve_cache_and_index(byte_no, noreg, cache, index, sizeof(u2));
+    __ ldr(method, Address(cache, index, Address::lsl(3)));
+    __ add(method, method, method_offset);
+  }
+  if (itable_index != noreg) {
+    __ ldr(itable_index, Address(cache, index, Address::lsl(3)));
+    __ add(itable_index, itable_index, index_offset);
+  }
+  __ ldr(flags, Address(cache, index, Address::lsl(3)));
+  __ add(flags,flags,  flags_offset);
 }
 
 
@@ -971,9 +1065,69 @@ void TemplateTable::count_calls(Register method, Register temp)
   __ call_Unimplemented();
 }
 
-void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
-{
-  __ call_Unimplemented();
+void TemplateTable::prepare_invoke(Register method, Register index, int byte_no) {
+  // determine flags
+  Bytecodes::Code code = bytecode();
+  const bool is_invokeinterface  = code == Bytecodes::_invokeinterface;
+  const bool is_invokedynamic    = code == Bytecodes::_invokedynamic;
+  const bool is_invokevirtual    = code == Bytecodes::_invokevirtual;
+  const bool is_invokespecial    = code == Bytecodes::_invokespecial;
+  const bool load_receiver      = (code != Bytecodes::_invokestatic && code != Bytecodes::_invokedynamic);
+  const bool receiver_null_check = is_invokespecial;
+  const bool save_flags = is_invokeinterface || is_invokevirtual;
+  // setup registers & access constant pool cache
+  const Register recv   = r2;
+  const Register flags  = r3;
+  assert_different_registers(method, index, recv, flags);
+
+  // save 'interpreter return address'
+  __ save_bcp();
+
+  load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
+
+  // load receiver if needed (note: no return address pushed yet)
+  if (load_receiver) {
+    assert(!is_invokedynamic, "");
+    __ andr(recv, flags, 0xFF);
+    __ add(rscratch1, sp, recv, Assembler::LSL, 3);
+    __ sub(rscratch1, rscratch1, Interpreter::expr_offset_in_bytes(1));
+    __ ldr(recv, Address(rscratch1));
+    __ verify_oop(recv);
+  }
+
+  // do null check if needed
+  if (receiver_null_check) {
+    __ null_check(recv);
+  }
+
+  if (save_flags) {
+    __ mov(rscratch2, flags);
+  }
+
+  // compute return type
+  __ lsr(flags, flags, ConstantPoolCacheEntry::tosBits);
+  // Make sure we don't need to mask flags for tosBits after the above shift
+  ConstantPoolCacheEntry::verify_tosBits();
+  // load return address
+  {
+    address table_addr;
+    if (is_invokeinterface || is_invokedynamic)
+      table_addr = (address)Interpreter::return_5_addrs_by_index_table();
+    else
+      table_addr = (address)Interpreter::return_3_addrs_by_index_table();
+    __ mov(rscratch1, table_addr);
+    __ ldr(flags, Address(rscratch1, flags, Address::lsl(3)));
+  }
+
+  // push return address
+  __ push(flags);
+
+  // Restore flag field from the constant pool cache, and restore esi
+  // for later null checks.  r13 is the bytecode pointer
+  if (save_flags) {
+    __ mov(flags, rscratch2);
+    __ restore_bcp();  // FIXME: Probably not needed!
+  }
 }
 
 
@@ -999,7 +1153,13 @@ void TemplateTable::invokespecial(int byte_no)
 
 void TemplateTable::invokestatic(int byte_no)
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  assert(byte_no == f1_byte, "use this argument");
+  prepare_invoke(r1, noreg, byte_no);
+  // do the call
+  __ verify_oop(r1);
+  __ profile_call(r0);
+  __ jump_from_interpreted(rmethod, r0);
 }
 
 void TemplateTable::fast_invokevfinal(int byte_no)
