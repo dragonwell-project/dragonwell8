@@ -819,7 +819,29 @@ void TemplateTable::fast_binaryswitch()
 
 void TemplateTable::_return(TosState state)
 {
-  __ call_Unimplemented();
+  transition(state, state);
+  assert(_desc->calls_vm(),
+         "inconsistent calls_vm information"); // call in remove_activation
+
+  if (_desc->bytecode() == Bytecodes::_return_register_finalizer) {
+    __ call_Unimplemented();
+#if 0
+    assert(state == vtos, "only valid state");
+    __ movptr(c_rarg1, aaddress(0));
+    __ load_klass(rdi, c_rarg1);
+    __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
+    __ testl(rdi, JVM_ACC_HAS_FINALIZER);
+    Label skip_register_finalizer;
+    __ jcc(Assembler::zero, skip_register_finalizer);
+
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::register_finalizer), c_rarg1);
+
+    __ bind(skip_register_finalizer);
+#endif
+  }
+
+  __ remove_activation(state);
+  __ ret(lr);
 }
 
 // ----------------------------------------------------------------------------
@@ -1116,11 +1138,8 @@ void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
     else
       table_addr = (address)Interpreter::return_3_addrs_by_index_table();
     __ mov(rscratch1, table_addr);
-    __ ldr(flags, Address(rscratch1, flags, Address::lsl(3)));
+    __ ldr(lr, Address(rscratch1, flags, Address::lsl(3)));
   }
-
-  // push return address
-  __ push(flags);
 
   // Restore flag field from the constant pool cache, and restore esi
   // for later null checks.  r13 is the bytecode pointer

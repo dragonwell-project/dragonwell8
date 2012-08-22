@@ -232,10 +232,8 @@ void InterpreterMacroAssembler::load_ptr(int n, Register val) { Unimplemented();
 void InterpreterMacroAssembler::store_ptr(int n, Register val) { Unimplemented(); }
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
-  // set sender sp
-  add(rscratch1, sp, wordSize);
   // record last_sp
-  str(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  str(r10, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
@@ -293,7 +291,7 @@ void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) { Unimple
 
 void InterpreterMacroAssembler::dispatch_next(TosState state, int step) {
   // load next bytecode
-  ldrb(rscratch1, Address(post(rbcp, step)));
+  ldrb(rscratch1, Address(pre(rbcp, step)));
   dispatch_base(state, Interpreter::dispatch_table(state));
 }
 
@@ -314,10 +312,112 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) { U
 //       no error processing
 void InterpreterMacroAssembler::remove_activation(
         TosState state,
-        Register ret_addr,
         bool throw_monitor_exception,
         bool install_monitor_exception,
-        bool notify_jvmdi) { Unimplemented(); }
+        bool notify_jvmdi) {
+  // Note: Registers r3 xmm0 may be in use for the
+  // result check if synchronized method
+  Label unlocked, unlock, no_unlock;
+
+  // get the value of _do_not_unlock_if_synchronized into r3
+  const Address do_not_unlock_if_synchronized(rthread,
+    in_bytes(JavaThread::do_not_unlock_if_synchronized_offset()));
+  ldrb(r3, do_not_unlock_if_synchronized);
+  strb(zr, do_not_unlock_if_synchronized); // reset the flag
+
+ // get method access flags
+  ldr(r1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
+  ldr(r2, Address(r1, methodOopDesc::access_flags_offset()));
+  tst(r2, JVM_ACC_SYNCHRONIZED);
+  br(Assembler::EQ, unlocked);
+
+  // Don't unlock anything if the _do_not_unlock_if_synchronized flag
+  // is set.
+  cbz(r3, no_unlock);
+
+  call_Unimplemented();
+
+  bind(unlock);
+  unlock_object(c_rarg1);
+
+  // Check that for block-structured locking (i.e., that all locked
+  // objects has been unlocked)
+  bind(unlocked);
+
+  // rax: Might contain return value
+
+  // Check that all monitors are unlocked
+  {
+    Label loop, exception, entry, restart;
+    const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+    const Address monitor_block_top(
+        rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
+    const Address monitor_block_bot(
+        rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
+
+    bind(restart);
+    // We use c_rarg1 so that if we go slow path it will be the correct
+    // register for unlock_object to pass to VM directly
+    ldr(r10, monitor_block_top); // points to current entry, starting
+                                  // with top-most entry
+    sub(r1, rfp, -frame::interpreter_frame_initial_sp_offset * wordSize);  // points to word before bottom of
+                                  // monitor block
+    b(entry);
+
+    // Entry already locked, need to throw exception
+    bind(exception);
+
+    if (throw_monitor_exception) {
+      // Throw exception
+      MacroAssembler::call_VM(noreg,
+                              CAST_FROM_FN_PTR(address, InterpreterRuntime::
+                                   throw_illegal_monitor_state_exception));
+      should_not_reach_here();
+    } else {
+      // Stack unrolling. Unlock object and install illegal_monitor_exception.
+      // Unlock does not block, so don't have to worry about the frame.
+      // We don't have to preserve c_rarg1 since we are going to throw an exception.
+
+      push(state);
+      unlock_object(c_rarg1);
+      pop(state);
+
+      if (install_monitor_exception) {
+        call_VM(noreg, CAST_FROM_FN_PTR(address,
+                                        InterpreterRuntime::
+                                        new_illegal_monitor_state_exception));
+      }
+
+      b(restart);
+    }
+
+    bind(loop);
+    // check if current entry is used
+    ldr(rscratch1, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
+    cbnz(rscratch1, exception);
+
+    add(c_rarg1, c_rarg1, entry_size); // otherwise advance to next entry
+    bind(entry);
+    cmp(c_rarg1, r10); // check if bottom reached
+    br(Assembler::NE, loop); // if not at bottom then check this entry
+  }
+
+  bind(no_unlock);
+
+  // jvmti support
+  if (notify_jvmdi) {
+    notify_method_exit(state, NotifyJVMTI);    // preserve TOSCA
+  } else {
+    notify_method_exit(state, SkipNotifyJVMTI); // preserve TOSCA
+  }
+
+  // remove activation
+  // get sender sp
+  ldr(r1,
+      Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+  leave();                           // remove frame anchor
+  mov(sp, r1);                      // set sp to sender sp
+}
 
 #endif // C_INTERP
 

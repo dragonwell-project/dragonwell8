@@ -228,14 +228,14 @@ void InterpreterGenerator::lock_method(void) {
 // Args:
 //      r0: return address
 //      rmethod: methodOop
-//      r14: pointer to locals
-//      rscratch1: sender sp
+//      rlocals: pointer to locals
+//      r10: sender sp
 //      rcpool: cp cache
 void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // initialize fixed part of activation frame
   __ push(r0);        // save return address
   __ enter();          // save old & set new rfp
-  __ push(rscratch1);        // set sender sp
+  __ push(r10);        // set sender sp
   __ push(zr); // leave last_sp as null
   __ str(rscratch1, Address(rmethod, methodOopDesc::const_offset()));      // get constMethodOop
   __ add(rbcp, rmethod, in_bytes(constMethodOopDesc::codes_offset())); // get codebase
@@ -750,7 +750,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   const Address invocation_counter(rmethod,
                                    methodOopDesc::invocation_counter_offset() +
                                    InvocationCounter::counter_offset());
-  const Address access_flags(r1, methodOopDesc::access_flags_offset());
+  const Address access_flags(rmethod, methodOopDesc::access_flags_offset());
 
   // get parameter size (always needed)
   __ load_unsigned_short(r2, size_of_parameters);

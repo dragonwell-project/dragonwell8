@@ -282,10 +282,9 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(parameters_done);
 
     // call Java entry -- passing methdoOop, and current sp
-    // n.b. this assumes they are passed via j_rarg0 an j_rarg1
-
-    __ mov(j_rarg0, c_rarg3);
-    __ mov(j_rarg1, sp);
+    //      rmethod: methodOop
+    //      r10: sender sp
+    __ mov(r10, sp);
     BLOCK_COMMENT("call Java function");
     __ call (c_rarg4);
 

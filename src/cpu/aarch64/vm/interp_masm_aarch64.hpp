@@ -155,7 +155,7 @@ virtual void check_and_handle_popframe(Register java_thread);
   // installing an exception, and notifying jvmdi.
   // In earlyReturn case we only want to skip throwing an exception
   // and installing an exception.
-  void remove_activation(TosState state, Register ret_addr,
+  void remove_activation(TosState state,
                          bool throw_monitor_exception = true,
                          bool install_monitor_exception = true,
                          bool notify_jvmdi = true);

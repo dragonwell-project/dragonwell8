@@ -48,29 +48,17 @@ void MacroAssembler::get_thread(Register dst) {
 
   // save anything C regards as volatile that we might want to retain
   // save arg registers? not for now
-  // save scratch registers? (r_scratch1/2) not for now
-  // save method-local scratch registers
-  push(rcpool);
-  push(rmonitors);
-  push(rlocals);
-  push(rmethod);
-  push(rbcp);
   push(resp);
   mov(resp, sp);
   push(resp);
   andr(sp, resp, ~0xfL);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
   mov(resp, CAST_FROM_FN_PTR(address, pthread_getspecific));
-  call(resp);
+  brx86(resp, 1, 0, 1);
   // restore pushed registers
   pop(resp);
   mov(sp, resp);
   pop(resp);
-  pop(rbcp);
-  pop(rmethod);
-  pop(rlocals);
-  pop(rmonitors);
-  pop(rcpool);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
   }
