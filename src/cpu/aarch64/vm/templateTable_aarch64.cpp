@@ -1041,9 +1041,169 @@ void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is
   __ call_Unimplemented();
 }
 
-void TemplateTable::putfield_or_static(int byte_no, bool is_static)
-{
-  __ call_Unimplemented();
+void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
+  transition(vtos, vtos);
+
+  const Register index = r3;
+  const Register obj   = r2;
+  const Register off   = r1;
+  const Register flags = r0;
+  const Register bc    = r4;
+
+  resolve_cache_and_index(byte_no, noreg, rcpool, index, sizeof(u2));
+  jvmti_post_field_mod(rcpool, index, is_static);
+  load_field_cp_cache_entry(obj, rcpool, index, off, flags, is_static);
+
+  // [jk] not needed currently
+  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
+  //                                              Assembler::StoreStore));
+
+  Label notVolatile, Done;
+  __ mov(r5, flags);
+
+  // field address
+  const Address field(obj, off);
+
+  Label notByte, notInt, notShort, notChar,
+        notLong, notFloat, notObj, notDouble;
+
+  __ lsr(flags, flags, ConstantPoolCacheEntry::tosBits);
+
+  assert(btos == 0, "change code, btos != 0");
+  __ ands(flags, flags, 0x0f);
+  __ br(Assembler::NE, notByte);
+
+  // btos
+  {
+    __ pop(btos);
+    if (!is_static) pop_and_check_object(obj);
+    __ str(r0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_bputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notByte);
+  __ cmp(flags, atos);
+  __ br(Assembler::NE, notObj);
+
+  // atos
+  {
+    __ pop(atos);
+    if (!is_static) pop_and_check_object(obj);
+    // Store into the field
+    do_oop_store(_masm, field, r0, _bs->kind(), false);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_aputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notObj);
+  __ cmp(flags, itos);
+  __ br(Assembler::NE, notInt);
+
+  // itos
+  {
+    __ pop(itos);
+    if (!is_static) pop_and_check_object(obj);
+    __ str(r0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_iputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notInt);
+  __ cmp(flags, ctos);
+  __ br(Assembler::NE, notChar);
+
+  // ctos
+  {
+    __ pop(ctos);
+    if (!is_static) pop_and_check_object(obj);
+    __ str(r0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_cputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notChar);
+  __ cmp(flags, stos);
+  __ br(Assembler::NE, notShort);
+
+  // stos
+  {
+    __ pop(stos);
+    if (!is_static) pop_and_check_object(obj);
+    __ str(r0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_sputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notShort);
+  __ cmp(flags, ltos);
+  __ br(Assembler::NE, notLong);
+
+  // ltos
+  {
+    __ pop(ltos);
+    if (!is_static) pop_and_check_object(obj);
+    __ str(r0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_lputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notLong);
+  __ cmp(flags, ftos);
+  __ br(Assembler::NE, notFloat);
+
+  // ftos
+  {
+    __ pop(ftos);
+    if (!is_static) pop_and_check_object(obj);
+    __ strs(v0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_fputfield, bc, r1, true, byte_no);
+    }
+    __ b(Done);
+  }
+
+  __ bind(notFloat);
+#ifdef ASSERT
+  __ cmp(flags, dtos);
+  __ br(Assembler::NE, notDouble);
+#endif
+
+  // dtos
+  {
+    __ pop(dtos);
+    if (!is_static) pop_and_check_object(obj);
+    __ strd(v0, field);
+    if (!is_static) {
+      patch_bytecode(Bytecodes::_fast_dputfield, bc, r1, true, byte_no);
+    }
+  }
+
+#ifdef ASSERT
+  __ b(Done);
+
+  __ bind(notDouble);
+  __ stop("Bad state");
+#endif
+
+  __ bind(Done);
+
+  // Check for volatile store
+  __ tbz(r5, ConstantPoolCacheEntry::volatileField, notVolatile);
+  __ dmb(Assembler::SY);
+  __ bind(notVolatile);
 }
 
 void TemplateTable::putfield(int byte_no)
@@ -1051,9 +1211,8 @@ void TemplateTable::putfield(int byte_no)
   __ call_Unimplemented();
 }
 
-void TemplateTable::putstatic(int byte_no)
-{
-  __ call_Unimplemented();
+void TemplateTable::putstatic(int byte_no) {
+  putfield_or_static(byte_no, true);
 }
 
 void TemplateTable::jvmti_post_fast_field_mod()
@@ -1205,19 +1364,27 @@ void TemplateTable::_new()
   __ call_Unimplemented();
 }
 
-void TemplateTable::newarray()
-{
-  __ call_Unimplemented();
+void TemplateTable::newarray() {
+  transition(itos, atos);
+  __ load_unsigned_byte(c_rarg1, at_bcp(1));
+  __ mov(c_rarg2, r0);
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::newarray),
+          c_rarg1, c_rarg2);
 }
 
-void TemplateTable::anewarray()
-{
-  __ call_Unimplemented();
+void TemplateTable::anewarray() {
+  transition(itos, atos);
+  __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
+  __ get_constant_pool(c_rarg1);
+  __ mov(c_rarg3, r0);
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::anewarray),
+          c_rarg1, c_rarg2, c_rarg3);
 }
 
-void TemplateTable::arraylength()
-{
-  __ call_Unimplemented();
+void TemplateTable::arraylength() {
+  transition(atos, itos);
+  __ null_check(r0, arrayOopDesc::length_offset_in_bytes());
+  __ ldr(r0, Address(r0, arrayOopDesc::length_offset_in_bytes()));
 }
 
 void TemplateTable::checkcast()

@@ -1575,7 +1575,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
 				  address  entry_point,
 				  int      number_of_arguments,
 				  bool     check_exceptions) {
-  // determine java_thread register
+   // determine java_thread register
   if (!java_thread->is_valid()) {
     java_thread = rthread;
   }
@@ -1796,7 +1796,20 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0,
   call_VM_leaf_base(entry_point, 3);
 }
 
-void MacroAssembler::null_check(Register reg, int offset) { Unimplemented(); }
+void MacroAssembler::null_check(Register reg, int offset) {
+  if (needs_explicit_null_check(offset)) {
+    // provoke OS NULL exception if reg = NULL by
+    // accessing M[reg] w/o changing any (non-CC) registers
+    // NOTE: cmpl is plenty here to provoke a segv
+    ldr(zr, Address(reg, 0));
+    // Note: should probably use testl(rax, Address(reg, 0));
+    //       may be shorter code (however, this version of
+    //       testl needs to be implemented first)
+  } else {
+    // nothing to do, (later) access of M[reg + offset]
+    // will provoke OS NULL exception if reg = NULL
+  }
+}
 
 // MacroAssembler protected routines needed to implement
 // public methods

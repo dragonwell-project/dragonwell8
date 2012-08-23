@@ -107,7 +107,8 @@ void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
                                                            size_t index_size) {
   assert_different_registers(cache, index);
   get_cache_index_at_bcp(index, bcp_offset, index_size);
-  ldr(cache, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
+  if (cache != rcpool)
+    mov(cache, rcpool);
   assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
   // convert from field index to ConstantPoolCacheEntry index
   lsl(index, index, 2);
@@ -128,8 +129,7 @@ void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register
 			 constantPoolCacheOopDesc::base_offset()
 			 + ConstantPoolCacheEntry::indices_offset()));
   const int shift_count = (1 + byte_no) * BitsPerByte;
-  lsl(bytecode, bytecode, shift_count);
-  andr(bytecode, bytecode, 0xFF);
+  ubfx(bytecode, bytecode, shift_count, BitsPerByte);
 }
 
 void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
@@ -646,3 +646,58 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
                                                         int increment, int mask,
                                                         Register scratch, bool preloaded,
                                                         Condition cond, Label* where) { Unimplemented(); }
+
+void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
+                                                  int number_of_arguments) {
+  // interpreter specific
+  //
+  // Note: No need to save/restore rbcp & rlocals pointer since these
+  //       are callee saved registers and no blocking/ GC can happen
+  //       in leaf calls.
+#ifdef ASSERT
+  {
+    Label L;
+    ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+    cbz(rscratch1, L);
+    stop("InterpreterMacroAssembler::call_VM_leaf_base:"
+         " last_sp != NULL");
+    bind(L);
+  }
+#endif /* ASSERT */
+  // super call
+  MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);
+}
+
+void InterpreterMacroAssembler::call_VM_base(Register oop_result,
+                                             Register java_thread,
+                                             Register last_java_sp,
+                                             address  entry_point,
+                                             int      number_of_arguments,
+                                             bool     check_exceptions) {
+  // interpreter specific
+  //
+  // Note: Could avoid restoring locals ptr (callee saved) - however doesn't
+  //       really make a difference for these runtime calls, since they are
+  //       slow anyway. Btw., bcp must be saved/restored since it may change
+  //       due to GC.
+  // assert(java_thread == noreg , "not expecting a precomputed java thread");
+  save_bcp();
+#ifdef ASSERT
+  {
+    Label L;
+    ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+    cbz(rscratch1, L);
+    stop("InterpreterMacroAssembler::call_VM_leaf_base:"
+         " last_sp != NULL");
+    bind(L);
+  }
+#endif /* ASSERT */
+  // super call
+  MacroAssembler::call_VM_base(oop_result, noreg, last_java_sp,
+                               entry_point, number_of_arguments,
+                               check_exceptions);
+  // interpreter specific
+  restore_bcp();
+  restore_locals();
+}
+

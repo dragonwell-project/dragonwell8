@@ -35,7 +35,19 @@ class InterpreterMacroAssembler: public MacroAssembler {
 #ifndef CC_INTERP
  protected:
 
-virtual void check_and_handle_popframe(Register java_thread);
+ protected:
+  // Interpreter specific version of call_VM_base
+  virtual void call_VM_leaf_base(address entry_point,
+                                 int number_of_arguments);
+
+  virtual void call_VM_base(Register oop_result,
+                            Register java_thread,
+                            Register last_java_sp,
+                            address  entry_point,
+                            int number_of_arguments,
+                            bool check_exceptions);
+
+  virtual void check_and_handle_popframe(Register java_thread);
   virtual void check_and_handle_earlyret(Register java_thread);
 
   // base routine for all dispatches
