@@ -74,7 +74,7 @@ void entry(CodeBuffer *cb) {
   //   printf("\n");
   // }
 
-  Assembler _masm(cb);
+  MacroAssembler _masm(cb);
   address entry = __ pc();
 
   // Smoke test for assembler
@@ -1153,7 +1153,15 @@ Disassembly of section .text:
     Disassembler::decode(a, __ pc());
     printf("\n");
   }
+
+  // Test LEA
+  __ lea(r0, Address(sp, 120));
+  __ lea(r0, Address(sp, -120));
+  __ lea(r1, Address(sp, r1, Address::lsl(3)));
+  __ lea(r1, Address(sp, r2, Address::sxtw(3)));
 }
+
+#undef __
 
 extern "C" {
   void das(uint64_t start, int len) {
@@ -1170,6 +1178,28 @@ extern "C" {
 }
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
+
+void Address::lea(Assembler *as, Register r) const {
+#define __ as->
+  switch(_mode) {
+  case base_plus_offset:
+    {
+      if (_offset > 0)
+	__ add(r, _base, _offset);
+      else
+	__ sub(r, _base, -_offset);
+      break;
+    }
+  case base_plus_offset_reg:
+    {
+      __ add(r, _base, _index, _ext.op(), _ext.shift());
+      break;
+    }
+  default:
+    ShouldNotReachHere();
+  }
+#undef __
+}
 
 // ------------- Stolen from binutils begin -------------------------------------
 

@@ -321,6 +321,11 @@ public:
   Post(Register reg, ByteSize disp) : PrePost(reg, disp) { }
 };
 
+namespace ext
+{
+  enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
+};
+
 // Addressing modes
 class Address VALUE_OBJ_CLASS_SPEC {
  public:
@@ -333,27 +338,29 @@ class Address VALUE_OBJ_CLASS_SPEC {
   // Shift and extend for base reg + reg offset addressing
   class extend {
     int _option, _shift;
+    ext::operation _op;
   public:
     extend() { }
-    extend(int s, int o) : _shift(s), _option(o) { }
-    int option() { return _option; }
-    int shift() { return _shift; }
+    extend(int s, int o, ext::operation op) : _shift(s), _option(o), _op(op) { }
+    int option() const{ return _option; }
+    int shift() const { return _shift; }
+    ext::operation op() const { return _op; }
   };
   class uxtw : public extend {
   public:
-    uxtw(int shift = -1): extend(shift, 0b010) { }
+    uxtw(int shift = -1): extend(shift, 0b010, ext::uxtw) { }
   };
   class lsl : public extend {
   public:
-    lsl(int shift = -1): extend(shift, 0b011) { }
+    lsl(int shift = -1): extend(shift, 0b011, ext::uxtx) { }
   };
   class sxtw : public extend {
   public:
-    sxtw(int shift = -1): extend(shift, 0b110) { }
+    sxtw(int shift = -1): extend(shift, 0b110, ext::sxtw) { }
   };
   class sxtx : public extend {
   public:
-    sxtx(int shift = -1): extend(shift, 0b111) { }
+    sxtx(int shift = -1): extend(shift, 0b111, ext::sxtx) { }
   };
 
  private:
@@ -395,7 +402,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
       _is_lval(false),
       _target(target)  { }
 
-  void encode(Instruction_aarch64 *i) {
+  void encode(Instruction_aarch64 *i) const {
     i->f(0b111, 29, 27);
     i->srf(_base, 5);
 
@@ -411,8 +418,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
 	    i->sf(_offset, 20, 12);
 	  } else {
 	    i->f(0b01, 25, 24);
-	    _offset >>= size;
-	    i->f(_offset, 21, 10);
+	    i->f(_offset >> size, 21, 10);
 	  }
       }
       break;
@@ -454,11 +460,8 @@ class Address VALUE_OBJ_CLASS_SPEC {
       ShouldNotReachHere();
     }
   }
-};
 
-namespace ext
-{
-  enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
+  void lea(Assembler *, Register) const;
 };
 
 const int FPUStateSizeInWords = 27; // FIXME   :-)
@@ -1002,7 +1005,7 @@ public:
 #undef INSN
 
   // Load/store register (all modes)
-  void ld_st2(Register Rt, Address adr, int size, int op, int V = 0) {
+  void ld_st2(Register Rt, const Address &adr, int size, int op, int V = 0) {
     starti;
     f(size, 31, 30);
     f(op, 23, 22); // str
@@ -1012,7 +1015,7 @@ public:
   }
 
 #define INSN(NAME, size, op)				\
-  void NAME(Register Rt, Address adr) {		\
+  void NAME(Register Rt, const Address &adr) {		\
     ld_st2(Rt, adr, size, op);				\
   }							\
 
@@ -1034,7 +1037,7 @@ public:
 #undef INSN
 
 #define INSN(NAME, size, op)			\
-  void NAME(Address adr) {			\
+  void NAME(const Address &adr) {			\
     ld_st2((Register)0, adr, size, op);		\
   }
 
@@ -1045,7 +1048,7 @@ public:
 #undef INSN
 
 #define INSN(NAME, size, op)				\
-  void NAME(FloatRegister Rt, Address adr) {	\
+  void NAME(FloatRegister Rt, const Address &adr) {	\
     ld_st2((Register)Rt, adr, size, op, 1);		\
   }
 
@@ -1656,7 +1659,7 @@ class MacroAssembler: public Assembler {
   // may customize this version by overriding it for its purposes (e.g., to save/restore
   // additional registers when doing a VM call).
   //
-  // If no java_thread register is specified (noreg) than rdi will be used instead. call_VM_base
+  // If no java_thread register is specified (noreg) than rthread will be used instead. call_VM_base
   // returns the register which contains the thread upon return. If a thread register has been
   // specified, the return value will correspond to that register. If no last_java_sp is specified
   // (noreg) than rsp will be used instead.
@@ -1684,6 +1687,9 @@ class MacroAssembler: public Assembler {
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
+
+  // Load Effective Address
+  void lea(Register r, const Address &a) { a.lea(this, r); }
 
   void call_Unimplemented() {
     haltsim();
