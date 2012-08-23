@@ -535,7 +535,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   CodeBuffer buffer(name, 1000, 512);
   MacroAssembler* masm                = new MacroAssembler(&buffer);
 
-  int frame_size_in_words;
+  int frame_size_in_words = 10;
 
   OopMapSet *oop_maps = new OopMapSet();
   OopMap* map = NULL;
