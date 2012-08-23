@@ -149,7 +149,6 @@ REGISTER_DEFINITION(Register, rmonitors);
 REGISTER_DEFINITION(Register, rlocals);
 REGISTER_DEFINITION(Register, rmethod);
 REGISTER_DEFINITION(Register, rbcp);
-REGISTER_DEFINITION(Register, resp);
 
 REGISTER_DEFINITION(Register, lr);
 REGISTER_DEFINITION(Register, rfp);

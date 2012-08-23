@@ -1486,7 +1486,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          address  last_java_pc) {
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
-    last_java_sp = resp;
+    last_java_sp = sp;
   }
 
   // last_java_fp is optional
@@ -1500,7 +1500,14 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 	in_bytes(JavaThread::frame_anchor_offset() + JavaFrameAnchor::last_Java_pc_offset()));
     str(rbcp, rscratch1);
   }
+  str(rscratch1, Address(rthread,
+			 JavaThread::frame_anchor_offset()
+			 + JavaFrameAnchor::last_Java_pc_offset()));
 
+  if (last_java_sp == sp) {
+    mov(rscratch1, sp);
+    last_java_sp = rscratch1;
+  }
   str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
 }
 
@@ -1917,11 +1924,6 @@ unsigned Assembler::pack(double value) {
 
 // MacroAssembler routines found actually to be needed
 
-void MacroAssembler::call(Register entry)
-{
-  blr(entry);
-}
-
 void MacroAssembler::push(Register src)
 {
   str(src, Address(pre(sp, -1 * wordSize)));
@@ -1978,6 +1980,26 @@ void MacroAssembler::popa() {
        reg->is_valid() && reg >= r0;
        reg = as_Register(reg->encoding() - 1))
     pop(reg);
+}
+
+// Push lots of registers in the bit set supplied.  Don't push sp.
+void MacroAssembler::push(unsigned int bitset) {
+  // need to push all registers including original sp
+  for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1)) {
+    if (bitset & 1)
+      push(reg);
+    bitset >>= 1;
+  }
+}
+
+void MacroAssembler::pop(unsigned int bitset) {
+  for (Register reg = r30;
+       reg->is_valid() && reg >= r0;
+       reg = as_Register(reg->encoding() - 1)) {
+    bitset <<= 1;
+    if (bitset & (1 << 31))
+      pop(reg);
+  }
 }
 
 void MacroAssembler::stop(const char* msg) {

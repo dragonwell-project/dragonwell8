@@ -289,7 +289,7 @@ class StubGenerator: public StubCodeGenerator {
     __ call (c_rarg4);
 
     // save current address for use by exception handling code
-  
+
     return_address = __ pc();
 
     // store result depending on type (everything that is not

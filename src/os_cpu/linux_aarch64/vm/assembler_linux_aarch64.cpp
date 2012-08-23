@@ -37,29 +37,24 @@ void MacroAssembler::int3() {
 // get_thread can be called anywhere inside generated code so we need
 // to save whatever non-callee save context might get clobbered by the
 // call to the C thread_local lookup call or, indeed, the call setup
-// code. x86 appears to save C arg registers. aarch64 probably has
-// enough scratch registers not to care about that so long as we
-// ensure all usages of get_thread don't make any assumption that they
-// will remain valid
+// code. x86 appears to save C arg registers.
 
 void MacroAssembler::get_thread(Register dst) {
   // call pthread_getspecific
   // void * pthread_getspecific(pthread_key_t key);
 
-  // save anything C regards as volatile that we might want to retain
-  // save arg registers? not for now
-  push(resp);
-  mov(resp, sp);
-  push(resp);
-  andr(sp, resp, ~0xfL);
+  // Save all call-clobbered regs except dst, plus r19 and r20.
+  unsigned int saved_regs = 0x401fffff & ~(1<<dst->encoding());
+  push(saved_regs);
+  mov(r19, sp);
+  andr(sp, r19, ~0xfL);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
-  mov(resp, CAST_FROM_FN_PTR(address, pthread_getspecific));
-  brx86(resp, 1, 0, 1);
-  // restore pushed registers
-  pop(resp);
-  mov(sp, resp);
-  pop(resp);
+  mov(r20, CAST_FROM_FN_PTR(address, pthread_getspecific));
+  brx86(r20, 1, 0, 1);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
   }
+  // restore pushed registers
+  mov(sp, r19);
+  pop(saved_regs);
 }

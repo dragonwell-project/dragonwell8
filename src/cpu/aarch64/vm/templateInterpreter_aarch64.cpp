@@ -261,9 +261,15 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   } else {
     __ push(rbcp); // set bcp
   }
+<<<<<<< HEAD
   __ mov(resp, sp); // set expression stack bottom
   __ push(resp); // reserve word for pointer to expression stack bottom
   __ mov(resp, sp);
+=======
+  __ push(zr); // reserve word for pointer to expression stack bottom
+  __ mov(r0, sp);
+  __ str(r0, Address(sp));
+>>>>>>> 344fd6d... Delete ESP register
 }
 
 // End of helpers
@@ -406,9 +412,14 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     Label L;
     const Address monitor_block_top(rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
+<<<<<<< HEAD
     __ ldr(r0, monitor_block_top);
     __ mov(rscratch1, sp);
     __ cmp(rscratch1, r0);
+=======
+    __ ldr(rscratch1, monitor_block_top);
+    __ cmp(sp, rscratch1);
+>>>>>>> 344fd6d... Delete ESP register
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);
@@ -457,7 +468,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // However, large signatures cannot be cached and are generated
   // each time here.  The slow-path generator can do a GC on return,
   // so we must reload it after the call.
-  __ call(t);
+  __ blr(t);
   __ get_method(rmethod);        // slow path can do a GC, reload RBX
 
 

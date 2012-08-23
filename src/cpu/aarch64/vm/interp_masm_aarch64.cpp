@@ -155,43 +155,43 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
 // Java Expression Stack
 
 void InterpreterMacroAssembler::pop_ptr(Register r) {
-  ldr(r, post(resp, wordSize));
+  ldr(r, post(sp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_i(Register r) {
-  ldrw(r, post(resp, wordSize));
+  ldrw(r, post(sp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_l(Register r) {
-  ldr(r, post(resp, 2 * Interpreter::stackElementSize));
+  ldr(r, post(sp, 2 * Interpreter::stackElementSize));
 }
 
 void InterpreterMacroAssembler::push_ptr(Register r) {
-  str(r, pre(resp, wordSize));
+  str(r, pre(sp, -wordSize));
  }
 
 void InterpreterMacroAssembler::push_i(Register r) {
-  str(r, pre(resp, wordSize));
+  str(r, pre(sp, -wordSize));
 }
 
 void InterpreterMacroAssembler::push_l(Register r) {
-  str(r, pre(resp, 2* wordSize));
+  str(r, pre(sp, 2 * -wordSize));
 }
 
 void InterpreterMacroAssembler::pop_f(FloatRegister r) {
-  ldrs(r, post(resp, wordSize));
+  ldrs(r, post(sp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_d(FloatRegister r) {
-  ldrd(r, post(resp, 2 * Interpreter::stackElementSize));
+  ldrd(r, post(sp, 2 * Interpreter::stackElementSize));
 }
 
 void InterpreterMacroAssembler::push_f(FloatRegister r) {
-  strs(r, pre(resp, wordSize));
+  strs(r, pre(sp, -wordSize));
 }
 
 void InterpreterMacroAssembler::push_d(FloatRegister r) {
-  strd(r, pre(resp, 2* wordSize));
+  strd(r, pre(sp, 2* -wordSize));
 }
 
 void InterpreterMacroAssembler::pop(TosState state) {

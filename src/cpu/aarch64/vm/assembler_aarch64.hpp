@@ -135,6 +135,18 @@ REGISTER_DECLARATION(Register, rfp,       r29);
 REGISTER_DECLARATION(Register, rthread,   r28);
 // base of heap
 REGISTER_DECLARATION(Register, rheapbase, r27);
+// constant pool cache
+REGISTER_DECLARATION(Register, rcpool,    r26);
+// monitors allocated on stack
+REGISTER_DECLARATION(Register, rmonitors, r25);
+// locals on stack
+REGISTER_DECLARATION(Register, rlocals,   r24);
+// current method
+REGISTER_DECLARATION(Register, rmethod,   r23);
+// bytecode pointer
+REGISTER_DECLARATION(Register, rbcp,      r22);
+// Java expression stackpointer
+// REGISTER_DECLARATION(Register, resp,      r21);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp
@@ -2365,7 +2377,7 @@ public:
     // stack grows down, caller passes positive offset
     assert(offset > 0, "must bang with negative offset");
     mov(rscratch2, -offset);
-    ldr(zr, Address(resp, rscratch2));
+    ldr(zr, Address(sp, rscratch2));
   }
 
   // Writes to stack successive pages until offset reached to check for
@@ -2492,7 +2504,6 @@ public:
   // Calls
 
   // void call(Label& L, relocInfo::relocType rtype);
-  void call(Register entry);
 
   // Jumps
 
@@ -2593,6 +2604,9 @@ public:
   // push all registers onto the stack
   void pusha();
   void popa();
+
+  void push(unsigned int bitset);
+  void pop(unsigned int bitset);
 
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
