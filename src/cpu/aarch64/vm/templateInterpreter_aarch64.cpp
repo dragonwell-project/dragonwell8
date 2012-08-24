@@ -461,17 +461,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ get_method(rmethod);        // slow path can do a GC, reload RBX
 
 
-<<<<<<< HEAD
-  // result handler is in rax
-=======
   // result handler is in r0
   // call format is in rscratch1
->>>>>>> 3580ee9... Added brx86 Xn, Wm to asm and used it
   // set result handler
   __ ldr(r0, Address(rfp,
 		     (frame::interpreter_frame_result_handler_offset) * wordSize));
-  // save call format
-  __ mov(r18, rscratch1);
   // pass mirror handle if static call
   {
     Label L;
@@ -532,12 +526,19 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ mov(rscratch1, _thread_in_native);
   __ str(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
 
+  // load call format in r18
+  __ ldrw(rscratch1, Address(rmethod, methodOopDesc::call_format_offset()));
+
   // Call the native method.
+<<<<<<< HEAD
 <<<<<<< HEAD
   __ blr(r0);
   // result potentially in rax or xmm0
 =======
   __ brx86(r10, r18);
+=======
+  __ brx86(r10, rscratch1);
+>>>>>>> f9fe65d... Reworked native call format access to use field at end of methodOop
   // result potentially in r0 or v0
 >>>>>>> 3580ee9... Added brx86 Xn, Wm to asm and used it
 
