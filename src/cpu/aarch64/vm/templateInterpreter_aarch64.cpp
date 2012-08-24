@@ -261,15 +261,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   } else {
     __ push(rbcp); // set bcp
   }
-<<<<<<< HEAD
   __ mov(resp, sp); // set expression stack bottom
   __ push(resp); // reserve word for pointer to expression stack bottom
   __ mov(resp, sp);
-=======
-  __ push(zr); // reserve word for pointer to expression stack bottom
-  __ mov(r0, sp);
-  __ str(r0, Address(sp));
->>>>>>> 344fd6d... Delete ESP register
 }
 
 // End of helpers
@@ -412,14 +406,9 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     Label L;
     const Address monitor_block_top(rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
-<<<<<<< HEAD
     __ ldr(r0, monitor_block_top);
     __ mov(rscratch1, sp);
     __ cmp(rscratch1, r0);
-=======
-    __ ldr(rscratch1, monitor_block_top);
-    __ cmp(sp, rscratch1);
->>>>>>> 344fd6d... Delete ESP register
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);
@@ -472,11 +461,17 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ get_method(rmethod);        // slow path can do a GC, reload RBX
 
 
+<<<<<<< HEAD
   // result handler is in rax
+=======
+  // result handler is in r0
+  // call format is in rscratch1
+>>>>>>> 3580ee9... Added brx86 Xn, Wm to asm and used it
   // set result handler
   __ ldr(r0, Address(rfp,
 		     (frame::interpreter_frame_result_handler_offset) * wordSize));
-
+  // save call format
+  __ mov(r18, rscratch1);
   // pass mirror handle if static call
   {
     Label L;
@@ -538,8 +533,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ str(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
 
   // Call the native method.
+<<<<<<< HEAD
   __ blr(r0);
   // result potentially in rax or xmm0
+=======
+  __ brx86(r10, r18);
+  // result potentially in r0 or v0
+>>>>>>> 3580ee9... Added brx86 Xn, Wm to asm and used it
 
   // NOTE: The order of these pushes is known to frame::interpreter_frame_result
   // in order to extract the result of a method call. If the order of these

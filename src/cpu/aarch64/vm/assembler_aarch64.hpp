@@ -1552,8 +1552,14 @@ public:
    linking code which enters the sim via run() will call fatal() when it
    sees STATUS_HALT.
 
+   brx86 Xn, Wm
    brx86 Xn, #gpargs, #fpargs, #type
    Xn holds the 64 bit x86 branch_address
+   call format is encoded either as immediate data in the call
+   or in register Wm. In the latter case
+     Wm[9..6] = #gpargs,
+     Wm[5..2] = #fpargs,
+     Wm[1,0] = #type
 
    calls the x86 code address 'branch_address' supplied in Xn passing
    arguments taken from the general and floating point registers according
@@ -1581,12 +1587,18 @@ public:
    These are encoded in the space with instr[28:25] = 00 which is
    unallocated. Encodings are
 
-   10987654321098765432109876543210
-   PSEUDO_HALT  = 0x11100000000000000000000000000000
-   PSEUDO_BRX86 = 0x11000000000000000_______________
+                     10987654321098765432109876543210
+   PSEUDO_HALT   = 0x11100000000000000000000000000000
+   PSEUDO_BRX86  = 0x11000000000000000_______________
+   PSEUDO_BRX86R = 0x1100000000000000100000___________
 
-   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86
+   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86/BRX86R
 
+   for BRX86
+     instr[14,11] = #gpargs, instr[10,7] = #fpargs
+     instr[6,5] = #type, instr[4,0] = Rn
+   for BRX86R
+     instr[9,5] = Rm, instr[4,0] = Rn
 */
 
   void brx86(Register Rn, int gpargs, int fpargs, int type) {
@@ -1600,6 +1612,19 @@ public:
     f(type, 6, 5);
     rf(Rn, 0);
   }
+
+  void brx86(Register Rn, Register Rm) {
+    starti;
+    f(0b110, 31 ,29);
+    f(0b00, 28, 25);
+    //  4321098765
+    f(0b0000000001, 24, 15);
+    //  43210
+    f(0b00000, 14, 10);
+    rf(Rm, 5);
+    rf(Rn, 0);
+  }
+
 
   void haltsim() {
     starti;

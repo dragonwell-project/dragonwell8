@@ -231,7 +231,6 @@ void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprin
   // return result handler
   __ mov(r0, Interpreter::result_handler(method()->result_type()));
   __ ret(0);
-
   __ flush();
 }
 
@@ -341,6 +340,7 @@ IRT_ENTRY(address,
                                                      intptr_t* from,
                                                      intptr_t* to))
   methodHandle m(thread, (methodOop)method);
+  assert(0, "slow signature handler called!!");
   assert(m->is_native(), "sanity check");
 
   // handle arguments
