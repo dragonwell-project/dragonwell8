@@ -1812,7 +1812,7 @@ class MacroAssembler: public Assembler {
   }
 
   inline void lsr(Register Rd, Register Rn, unsigned imm) {
-    ubfm(Rd, Rn, imm, 31);
+    ubfm(Rd, Rn, imm, 63);
   }
 
   inline void rorw(Register Rd, Register Rn, unsigned imm) {
