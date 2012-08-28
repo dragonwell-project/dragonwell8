@@ -68,8 +68,6 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   __ mov(r0, r2);
   __ ret(r30);
 
-  Disassembler::decode(entry, __ pc());
-
   *flush_icache_stub =  (ICache::flush_icache_stub_t)start;
 }
 

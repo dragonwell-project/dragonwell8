@@ -1150,7 +1150,6 @@ Disassembly of section .text:
     __ BIND(l);
     __ BIND(empty);
     __ ret(lr);
-    Disassembler::decode(a, __ pc());
     printf("\n");
   }
 
@@ -1179,22 +1178,24 @@ extern "C" {
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
 
-void Address::lea(Assembler *as, Register r) const {
+void Address::lea(MacroAssembler *as, Register r) const {
 #define __ as->
   switch(_mode) {
-  case base_plus_offset:
-    {
-      if (_offset > 0)
-	__ add(r, _base, _offset);
-      else
-	__ sub(r, _base, -_offset);
+  case base_plus_offset: {
+    if (_offset > 0)
+      __ add(r, _base, _offset);
+    else
+      __ sub(r, _base, -_offset);
       break;
-    }
-  case base_plus_offset_reg:
-    {
-      __ add(r, _base, _index, _ext.op(), _ext.shift());
-      break;
-    }
+  }
+  case base_plus_offset_reg: {
+    __ add(r, _base, _index, _ext.op(), MAX(_ext.shift(), 0) );
+    break;
+  }
+  case literal: {
+    __ mov(r, target());
+    break;
+  }
   default:
     ShouldNotReachHere();
   }
@@ -1392,6 +1393,44 @@ expand_fp_imm(int is_dp, uint32_t imm8)
 }
 
 // ------------- Stolen from binutils end -------------------------------------
+
+
+Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
+  _is_lval = false;
+  _target = target;
+  switch (rtype) {
+  case relocInfo::oop_type:
+    // Oops are a special case. Normally they would be their own section
+    // but in cases like icBuffer they are literals in the code stream that
+    // we don't have a section for. We use none so that we get a literal address
+    // which is always patchable.
+    break;
+  case relocInfo::external_word_type:
+    _rspec = external_word_Relocation::spec(target);
+    break;
+  case relocInfo::internal_word_type:
+    _rspec = internal_word_Relocation::spec(target);
+    break;
+  case relocInfo::opt_virtual_call_type:
+    _rspec = opt_virtual_call_Relocation::spec();
+    break;
+  case relocInfo::static_call_type:
+    _rspec = static_call_Relocation::spec();
+    break;
+  case relocInfo::runtime_call_type:
+    _rspec = runtime_call_Relocation::spec();
+    break;
+  case relocInfo::poll_type:
+  case relocInfo::poll_return_type:
+    _rspec = Relocation::spec_simple(rtype);
+    break;
+  case relocInfo::none:
+    break;
+  default:
+    ShouldNotReachHere();
+    break;
+  }
+}
 
 void Assembler::br(Condition cc, Label &L) {
   if (L.is_bound()) {
@@ -1801,7 +1840,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
     // provoke OS NULL exception if reg = NULL by
     // accessing M[reg] w/o changing any (non-CC) registers
     // NOTE: cmpl is plenty here to provoke a segv
-    ldr(zr, Address(reg, 0));
+    ldr(zr, Address(reg));
     // Note: should probably use testl(rax, Address(reg, 0));
     //       may be shorter code (however, this version of
     //       testl needs to be implemented first)
@@ -2081,6 +2120,36 @@ void MacroAssembler::reinit_heapbase()
   }
 }
 
+void MacroAssembler::cmpxchgptr(Register reg, Register addr, Register tmp) {
+  Label nope, ok;
+  ldxr(tmp, addr);
+  cmp(tmp, reg);
+  br(Assembler::NE, nope);
+  stxr(tmp, reg, addr);
+  cbzw(tmp, ok);
+  bind(nope);
+  mov(tmp, 1);
+  bind(ok);
+}
+
+void MacroAssembler::incr_allocated_bytes(Register thread,
+                                          Register var_size_in_bytes,
+                                          int con_size_in_bytes,
+                                          Register t1) {
+  if (!thread->is_valid()) {
+    thread = rthread;
+  }
+  assert(t1->is_valid(), "need temp reg");
+
+  ldr(t1, Address(thread, in_bytes(JavaThread::allocated_bytes_offset())));
+  if (var_size_in_bytes->is_valid()) {
+    add(t1, t1, var_size_in_bytes);
+  } else {
+    add(t1, t1, con_size_in_bytes);
+  }
+  str(t1, Address(thread, in_bytes(JavaThread::allocated_bytes_offset())));
+}
+
 #ifndef PRODUCT
 extern "C" void findpc(intptr_t x);
 #endif
@@ -2207,3 +2276,228 @@ SkipIfEqual::SkipIfEqual(
 SkipIfEqual::~SkipIfEqual() {
   _masm->bind(_label);
 }
+
+void MacroAssembler::cmpptr(Register src1, Address src2) {
+  ldr(rscratch1, src2);
+  cmp(src1, rscratch1);
+}
+
+#ifdef ASSERT
+void MacroAssembler::verify_heapbase(const char* msg) {
+  assert (UseCompressedOops, "should be compressed");
+  assert (Universe::heap() != NULL, "java heap should be initialized");
+  if (CheckCompressedOops) {
+    Label ok;
+    push(rscratch1); // cmpptr trashes rscratch1
+    cmpptr(rheapbase, ExternalAddress((address)Universe::narrow_oop_base_addr()));
+    br(Assembler::EQ, ok);
+    stop(msg);
+    bind(ok);
+    pop(rscratch1);
+  }
+}
+#endif
+
+void MacroAssembler::store_check(Register obj) {
+  // Does a store check for the oop in register obj. The content of
+  // register obj is destroyed afterwards.
+  store_check_part_1(obj);
+  store_check_part_2(obj);
+}
+
+void MacroAssembler::store_check(Register obj, Address dst) {
+  store_check(obj);
+}
+
+
+// split the store check operation so that other instructions can be scheduled inbetween
+void MacroAssembler::store_check_part_1(Register obj) {
+  BarrierSet* bs = Universe::heap()->barrier_set();
+  assert(bs->kind() == BarrierSet::CardTableModRef, "Wrong barrier set kind");
+  lsr(obj, obj, CardTableModRefBS::card_shift);
+}
+
+void MacroAssembler::store_check_part_2(Register obj) {
+  BarrierSet* bs = Universe::heap()->barrier_set();
+  assert(bs->kind() == BarrierSet::CardTableModRef, "Wrong barrier set kind");
+  CardTableModRefBS* ct = (CardTableModRefBS*)bs;
+  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+
+  // The calculation for byte_map_base is as follows:
+  // byte_map_base = _byte_map - (uintptr_t(low_bound) >> card_shift);
+  // So this essentially converts an address to a displacement and
+  // it will never need to be relocated.
+
+  // FIXME: It's not likely that disp will fit into an offset so we
+  // don't bother to check, but it could save an instruction.
+  intptr_t disp = (intptr_t) ct->byte_map_base;
+  mov(rscratch1, disp);
+  strb(zr, Address(obj, rscratch1));
+}
+
+void MacroAssembler::store_klass(Register dst, Register src) {
+  if (UseCompressedOops) {
+    encode_heap_oop_not_null(src);
+  }
+  str(src, Address(dst, oopDesc::klass_offset_in_bytes()));
+}
+
+void MacroAssembler::store_klass_gap(Register dst, Register src) {
+  if (UseCompressedOops) {
+    // Store to klass gap in destination
+    str(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
+  }
+}
+
+// Algorithm must match oop.inline.hpp encode_heap_oop.
+void MacroAssembler::encode_heap_oop(Register r) {
+#ifdef ASSERT
+  verify_heapbase("MacroAssembler::encode_heap_oop: heap base corrupted?");
+#endif
+  verify_oop(r, "broken oop in encode_heap_oop");
+  if (Universe::narrow_oop_base() == NULL) {
+    if (Universe::narrow_oop_shift() != 0) {
+      assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+      lsr(r, r, LogMinObjAlignmentInBytes);
+    }
+    return;
+  }
+  {
+    Label nonnull;
+    cbnz(r, nonnull);
+    sub(r, r, rheapbase);
+    bind(nonnull);
+    lsr(r, r, LogMinObjAlignmentInBytes);
+  }
+}
+
+void MacroAssembler::encode_heap_oop_not_null(Register r) {
+#ifdef ASSERT
+  verify_heapbase("MacroAssembler::encode_heap_oop_not_null: heap base corrupted?");
+  if (CheckCompressedOops) {
+    Label ok;
+    cbnz(r, ok);
+    stop("null oop passed to encode_heap_oop_not_null");
+    bind(ok);
+  }
+#endif
+  verify_oop(r, "broken oop in encode_heap_oop_not_null");
+  if (Universe::narrow_oop_base() != NULL) {
+    sub(r, r, rheapbase);
+  }
+  if (Universe::narrow_oop_shift() != 0) {
+    assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+    lsr(r, r, LogMinObjAlignmentInBytes);
+  }
+}
+
+void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
+#ifdef ASSERT
+  verify_heapbase("MacroAssembler::encode_heap_oop_not_null2: heap base corrupted?");
+  if (CheckCompressedOops) {
+    Label ok;
+    cbnz(src, ok);
+    stop("null oop passed to encode_heap_oop_not_null2");
+    bind(ok);
+  }
+#endif
+  verify_oop(src, "broken oop in encode_heap_oop_not_null2");
+  {
+    Label nonnull;
+    cbz(src, nonnull);
+    sub(dst, src, rheapbase);
+    lsr(dst, dst, LogMinObjAlignmentInBytes);
+    bind(nonnull);
+  }
+}
+
+void  MacroAssembler::decode_heap_oop(Register r) {
+#ifdef ASSERT
+  verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
+#endif
+  if (Universe::narrow_oop_base() == NULL) {
+    if (Universe::narrow_oop_shift() != 0) {
+      assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+      lsl(r, r, LogMinObjAlignmentInBytes);
+    }
+  } else {
+    Label done;
+    cbz(r, done);
+    add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
+    bind(done);
+  }
+  verify_oop(r, "broken oop in decode_heap_oop");
+}
+
+void  MacroAssembler::decode_heap_oop_not_null(Register r) {
+  // Note: it will change flags
+  assert (UseCompressedOops, "should only be used for compressed headers");
+  assert (Universe::heap() != NULL, "java heap should be initialized");
+  // Cannot assert, unverified entry point counts instructions (see .ad file)
+  // vtableStubs also counts instructions in pd_code_size_limit.
+  // Also do not verify_oop as this is called by verify_oop.
+  if (Universe::narrow_oop_shift() != 0) {
+    assert(LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+    add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
+    if (Universe::narrow_oop_base() != NULL) {
+      add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
+    } else {
+      add(r, zr, r, Assembler::LSL, LogMinObjAlignmentInBytes);
+    }
+  } else {
+    assert (Universe::narrow_oop_base() == NULL, "sanity");
+  }
+}
+
+void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
+  // Note: it will change flags
+  assert (UseCompressedOops, "should only be used for compressed headers");
+  assert (Universe::heap() != NULL, "java heap should be initialized");
+  // Cannot assert, unverified entry point counts instructions (see .ad file)
+  // vtableStubs also counts instructions in pd_code_size_limit.
+  // Also do not verify_oop as this is called by verify_oop.
+  if (Universe::narrow_oop_shift() != 0) {
+    assert(LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+    if (Universe::narrow_oop_base() != NULL) {
+      add(dst, rheapbase, src, Assembler::LSL, LogMinObjAlignmentInBytes);
+    } else {
+      add(dst, zr, src, Assembler::LSL, LogMinObjAlignmentInBytes);
+    }
+  } else {
+    assert (Universe::narrow_oop_base() == NULL, "sanity");
+    if (dst != src) {
+      mov(dst, src);
+    }
+  }
+}
+
+void MacroAssembler::store_heap_oop(Address dst, Register src) {
+  if (UseCompressedOops) {
+    assert(!dst.uses(src), "not enough registers");
+    encode_heap_oop(src);
+    strw(src, dst);
+  } else
+    str(src, dst);
+}
+
+// Used for storing NULLs.
+void MacroAssembler::store_heap_oop_null(Address dst) {
+  if (UseCompressedOops) {
+    strw(zr, dst);
+  } else
+    str(zr, dst);
+}
+
+void MacroAssembler::g1_write_barrier_pre(Register obj,
+                                          Register pre_val,
+                                          Register thread,
+                                          Register tmp,
+                                          bool tosca_live,
+                                          bool expand_call) { Unimplemented(); }
+
+void MacroAssembler::g1_write_barrier_post(Register store_addr,
+                                           Register new_val,
+                                           Register thread,
+                                           Register tmp,
+                                           Register tmp2) { Unimplemented(); }
+

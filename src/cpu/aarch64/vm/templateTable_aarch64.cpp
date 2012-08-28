@@ -146,14 +146,74 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 // Miscelaneous helper routines
 // Store an oop (or NULL) at the Address described by obj.
 // If val == noreg this means store a NULL
-
 static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Address obj,
                          Register val,
                          BarrierSet::Name barrier,
-                         bool precise)
-{
-  __ call_Unimplemented();
+                         bool precise) {
+  assert(val == noreg || val == r0, "parameter is just for looks");
+  switch (barrier) {
+#ifndef SERIALGC
+    case BarrierSet::G1SATBCT:
+    case BarrierSet::G1SATBCTLogging:
+      {
+        // flatten object address if needed
+        if (obj.index() == noreg && obj.offset() == 0) {
+          if (obj.base() != r3) {
+            __ mov(r3, obj.base());
+          }
+        } else {
+          __ lea(r3, obj);
+        }
+        __ g1_write_barrier_pre(r3 /* obj */,
+                                r1 /* pre_val */,
+                                rthread /* thread */,
+                                r10  /* tmp */,
+                                val != noreg /* tosca_live */,
+                                false /* expand_call */);
+        if (val == noreg) {
+          __ store_heap_oop_null(Address(r3, 0));
+        } else {
+          __ store_heap_oop(Address(r3, 0), val);
+          __ g1_write_barrier_post(r3 /* store_adr */,
+                                   val /* new_val */,
+                                   rthread /* thread */,
+                                   r10 /* tmp */,
+                                   r1 /* tmp2 */);
+        }
+
+      }
+      break;
+#endif // SERIALGC
+    case BarrierSet::CardTableModRef:
+    case BarrierSet::CardTableExtension:
+      {
+        if (val == noreg) {
+          __ store_heap_oop_null(obj);
+        } else {
+          __ store_heap_oop(obj, val);
+          // flatten object address if needed
+          if (!precise || (obj.index() == noreg && obj.offset() == 0)) {
+            __ store_check(obj.base());
+          } else {
+            __ lea(r3, obj);
+            __ store_check(r3);
+          }
+        }
+      }
+      break;
+    case BarrierSet::ModRef:
+    case BarrierSet::Other:
+      if (val == noreg) {
+        __ store_heap_oop_null(obj);
+      } else {
+        __ store_heap_oop(obj, val);
+      }
+      break;
+    default      :
+      ShouldNotReachHere();
+
+  }
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -956,9 +1016,23 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
                                               Register index,
                                               Register off,
                                               Register flags,
-                                              bool is_static = false)
-{
-  __ call_Unimplemented();
+                                              bool is_static = false) {
+  assert_different_registers(cache, index, flags, off);
+
+  ByteSize cp_base_offset = constantPoolCacheOopDesc::base_offset();
+  // Field offset
+  __ lea(rscratch1, Address(cache, index, Address::lsl(3)));
+  __ ldr(off, Address(rscratch1, in_bytes(cp_base_offset +
+					  ConstantPoolCacheEntry::f2_offset())));
+  // Flags
+  __ ldrw(flags, Address(rscratch1, in_bytes(cp_base_offset +
+					   ConstantPoolCacheEntry::flags_offset())));
+
+  // klass overwrite register
+  if (is_static) {
+    __ ldr(obj, Address(rscratch1, in_bytes(cp_base_offset +
+					    ConstantPoolCacheEntry::f1_offset())));
+  }
 }
 
 void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
@@ -1000,8 +1074,8 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
     __ ldr(itable_index, Address(cache, index, Address::lsl(3)));
     __ add(itable_index, itable_index, index_offset);
   }
-  __ ldr(flags, Address(cache, index, Address::lsl(3)));
-  __ add(flags,flags,  flags_offset);
+  __ add(flags, cache, flags_offset);
+  __ ldrw(flags, Address(flags, index, Address::lsl(3)));
 }
 
 
@@ -1038,7 +1112,9 @@ void TemplateTable::getstatic(int byte_no)
 // The function may destroy various registers, just not the cache and index registers.
 void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is_static)
 {
-  __ call_Unimplemented();
+  if (JvmtiExport::can_post_field_modification()) {
+    __ call_Unimplemented();
+  }
 }
 
 void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
@@ -1359,9 +1435,154 @@ void TemplateTable::invokedynamic(int byte_no)
 //-----------------------------------------------------------------------------
 // Allocation
 
-void TemplateTable::_new()
-{
-  __ call_Unimplemented();
+void TemplateTable::_new() {
+  transition(vtos, atos);
+
+  __ get_unsigned_2_byte_index_at_bcp(r3, 1);
+  Label slow_case;
+  Label done;
+  Label initialize_header;
+  Label initialize_object; // including clearing the fields
+  Label allocate_shared;
+
+  __ get_cpool_and_tags(r4, r0);
+  // Make sure the class we're about to instantiate has been resolved.
+  // This is done before loading instanceKlass to be consistent with the order
+  // how Constant Pool is updated (see constantPoolOopDesc::klass_at_put)
+  const int tags_offset = typeArrayOopDesc::header_size(T_BYTE) * wordSize;
+  __ lea(rscratch1, Address(r0, r3, Address::lsl(3)));
+  __ ldr(rscratch1, Address(rscratch1, tags_offset));
+  __ cmp(rscratch1, JVM_CONSTANT_Class);
+  __ br(Assembler::NE, slow_case);
+
+  // get instanceKlass
+  __ lea(r4, Address(r4, r3, Address::lsl(3)));
+  __ ldr(r4, Address(r4, sizeof(constantPoolOopDesc)));
+
+  // make sure klass is initialized & doesn't have finalizer
+  // make sure klass is fully initialized
+  __ ldrb(rscratch1, Address(r4, instanceKlass::init_state_offset()));
+  __ cmp(rscratch1, instanceKlass::fully_initialized);
+  __ br(Assembler::NE, slow_case);
+
+  // get instance_size in instanceKlass (scaled to a count of bytes)
+  __ ldrw(r3,
+          Address(r4,
+                  Klass::layout_helper_offset()));
+  // test to see if it has a finalizer or is malformed in some way
+  __ tbnz(r3, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
+
+  // Allocate the instance
+  // 1) Try to allocate in the TLAB
+  // 2) if fail and the object is large allocate in the shared Eden
+  // 3) if the above fails (or is not applicable), go to a slow case
+  // (creates a new TLAB, etc.)
+
+  const bool allow_shared_alloc =
+    Universe::heap()->supports_inline_contig_alloc() && !CMSIncrementalMode;
+
+  if (UseTLAB) {
+    __ ldr(r0, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+    __ lea(r1, Address(r0, r3));
+    __ ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
+    __ cmp(r1, rscratch1);
+    __ br(Assembler::GT, allow_shared_alloc ? allocate_shared : slow_case);
+    __ str(r1, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+    if (ZeroTLAB) {
+      // the fields have been already cleared
+      __ b(initialize_header);
+    } else {
+      // initialize both the header and fields
+      __ b(initialize_object);
+    }
+  }
+
+  // Allocation in the shared Eden, if allowed.
+  //
+  // rdx: instance size in bytes
+  if (allow_shared_alloc) {
+    __ bind(allocate_shared);
+
+    ExternalAddress top((address)Universe::heap()->top_addr());
+    ExternalAddress end((address)Universe::heap()->end_addr());
+
+    const Register RtopAddr = r10;
+    const Register RendAddr = r11;
+
+    __ lea(RtopAddr, top);
+    __ lea(RendAddr, end);
+    __ ldr(r0, Address(RtopAddr, 0));
+
+    Label retry;
+    __ bind(retry);
+    __ lea(r1, Address(r0, r3));
+    __ ldr(rscratch1, Address(RendAddr, 0));
+    __ cmp(r1, rscratch1);
+    __ br(Assembler::GT, slow_case);
+
+    // Compare r0 with the top addr, and if still equal, store the new
+    // top addr in r1 at the address of the top addr pointer. Sets ZF if was
+    // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
+    //
+    // r0: object begin
+    // r1: object end
+    // r3: instance size in bytes
+    __ cmpxchgptr(r1, RtopAddr, rscratch1);
+
+    // if someone beat us on the allocation, try again, otherwise continue
+    __ cbnzw(rscratch1, retry);
+    __ incr_allocated_bytes(rthread, r3, 0, rscratch1);
+  }
+
+  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+    // The object is initialized before the header.  If the object size is
+    // zero, go directly to the header initialization.
+    __ bind(initialize_object);
+    __ sub(r3, r3, sizeof(oopDesc));
+    __ br(Assembler::EQ, initialize_header);
+
+    // Initialize object fields
+    {
+      __ mov(r2, r0);
+      Label loop;
+      __ bind(loop);
+      __ str(zr, Address(__ post(r2, BytesPerLong)));
+      __ subs(r3, r3, BytesPerLong);
+      __ br(Assembler::NE, loop);
+    }
+
+    // initialize object header only.
+    __ bind(initialize_header);
+    if (UseBiasedLocking) {
+      __ ldr(rscratch1, Address(r4, Klass::prototype_header_offset()));
+    } else {
+      __ mov(rscratch1, (intptr_t)markOopDesc::prototype());
+    }
+    __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+    __ store_klass_gap(r0, zr);  // zero klass gap for compressed oops
+    __ store_klass(r0, r4);      // store klass last
+
+    {
+      SkipIfEqual skip(_masm, &DTraceAllocProbes, false);
+      // Trigger dtrace event for fastpath
+      __ push(atos); // save the return value
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), r0);
+      __ pop(atos); // restore the return value
+
+    }
+    __ b(done);
+  }
+
+  // slow case
+  __ bind(slow_case);
+  __ get_constant_pool(c_rarg1);
+  __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), c_rarg1, c_rarg2);
+  __ verify_oop(r0);
+
+  // continue
+  __ bind(done);
 }
 
 void TemplateTable::newarray() {

@@ -232,6 +232,8 @@ void InterpreterMacroAssembler::load_ptr(int n, Register val) { Unimplemented();
 void InterpreterMacroAssembler::store_ptr(int n, Register val) { Unimplemented(); }
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
+  // set sender sp
+  mov(r10, sp);
   // record last_sp
   str(r10, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }

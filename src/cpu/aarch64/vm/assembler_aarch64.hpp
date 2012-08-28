@@ -366,7 +366,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
  private:
   Register _base;
   Register _index;
-  int _offset;
+  long _offset;
   enum mode _mode;
   extend _ext;
 
@@ -382,16 +382,24 @@ class Address VALUE_OBJ_CLASS_SPEC {
   // addressing.
   address          _target;
 
+  address target() const { return _target; }
+  const RelocationHolder& rspec() const { return _rspec; }
+
  public:
   Address(Register r)
-    : _mode(base_plus_offset), _base(r), _offset(0) { }
+    : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg) { }
   Address(Register r, int o)
-    : _mode(base_plus_offset), _base(r), _offset(o) { }
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
+  Address(Register r, long o)
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
+  Address(Register r, unsigned long o)
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
   Address(Register r, ByteSize disp)
-    : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)) { }
+    : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)),
+      _index(noreg) { }
   Address(Register r, Register r1, extend ext = lsl())
     : _mode(base_plus_offset_reg), _base(r), _index(r1),
-       _ext(ext) { }
+    _ext(ext), _offset(0) { }
   Address(Pre p)
     : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
   Address(Post p)
@@ -401,6 +409,20 @@ class Address VALUE_OBJ_CLASS_SPEC {
       _rspec(rspec),
       _is_lval(false),
       _target(target)  { }
+  Address(address target, relocInfo::relocType rtype);
+
+  Register base() {
+    guarantee((_mode == base_plus_offset | _mode == base_plus_offset_reg),
+	      "wrong mode");
+    return _base;
+  }
+  long offset() {
+    return _offset;
+  }
+  Register index() {
+    return _index;
+  }
+  bool uses(Register reg) const { return _base == reg || _index == reg; }
 
   void encode(Instruction_aarch64 *i) const {
     i->f(0b111, 29, 27);
@@ -460,8 +482,23 @@ class Address VALUE_OBJ_CLASS_SPEC {
       ShouldNotReachHere();
     }
   }
+  void lea(MacroAssembler *, Register) const;
+};
 
-  void lea(Assembler *, Register) const;
+class ExternalAddress: public Address {
+ private:
+  static relocInfo::relocType reloc_for_target(address target) {
+    // Sometimes ExternalAddress is used for values which aren't
+    // exactly addresses, like the card table base.
+    // external_word_type can't be used for values in the first page
+    // so just skip the reloc in that case.
+    return external_word_Relocation::can_be_relocated(target) ? relocInfo::external_word_type : relocInfo::none;
+  }
+
+ public:
+
+  ExternalAddress(address target) : Address(target, reloc_for_target(target)) {}
+
 };
 
 const int FPUStateSizeInWords = 27; // FIXME   :-)
@@ -2471,13 +2508,13 @@ public:
 #endif // _LP64
 
   void cmpptr(Register src1, Register src2) { Unimplemented(); }
-  void cmpptr(Register src1, Address src2) { Unimplemented(); }
+  void cmpptr(Register src1, Address src2);
   // void cmpptr(Address src1, Register src2) { Unimplemented(); }
 
   void cmpptr(Register src1, int32_t src2) { Unimplemented(); }
   void cmpptr(Address src1, int32_t src2) { Unimplemented(); }
 
-  void cmpxchgptr(Register reg, Address adr);
+  void cmpxchgptr(Register reg, Register addr, Register tmp);
 
   void imulptr(Register dst, Register src) { Unimplemented(); }
 

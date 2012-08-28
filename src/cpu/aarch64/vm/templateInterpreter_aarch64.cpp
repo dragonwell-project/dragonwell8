@@ -91,7 +91,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     // __ cmpb(Address(r13, 0), Bytecodes::_invokedynamic);
     // __ jcc(Assembler::equal, L_giant_index);
   }
-  __ get_cache_and_index_at_bcp(r1, r2, sizeof(u2));
+  __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u2));
   __ bind(L_got_cache);
   __ add(rscratch1, r1, r2, Assembler::LSL, 3);
   __ ldr(r1, Address(rscratch1,

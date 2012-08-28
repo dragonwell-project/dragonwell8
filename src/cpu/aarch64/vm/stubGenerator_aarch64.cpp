@@ -309,7 +309,7 @@ class StubGenerator: public StubCodeGenerator {
     __ br(Assembler::EQ, is_double);
 
     // handle T_INT case
-    __ strw(j_rarg0, Address(j_rarg2, 0));
+    __ strw(j_rarg0, Address(j_rarg2));
 
     __ BIND(exit);
 
@@ -369,10 +369,6 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(is_double);
     __ strd(j_farg0, Address(j_rarg2, 0));
     __ br(Assembler::AL, exit);
-
-    printf("Java call stub\n");
-    Disassembler::decode(aarch64_entry, __ pc());
-    printf("\n");
 
     return start;
   }

@@ -93,7 +93,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   }
 
   void get_constant_pool_cache(Register reg) {
-    // FIXME: Shouldn't this be in a register already?
     get_constant_pool(reg);
     ldr(reg, Address(reg, constantPoolOopDesc::cache_offset_in_bytes()));
   }

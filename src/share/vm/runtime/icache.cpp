@@ -55,8 +55,8 @@ void AbstractICache::call_flush_stub(address start, int lines) {
   static int magic = 0xbaadbabe;
 
   int auto_magic = magic; // Make a local copy to avoid race condition
-  int r = (*_flush_icache_stub)(start, lines, auto_magic);
-  guarantee(r == auto_magic, "flush stub routine did not execute");
+  // int r = (*_flush_icache_stub)(start, lines, auto_magic);
+  // guarantee(r == auto_magic, "flush stub routine did not execute");
   ++magic;
 }
 
