@@ -1907,7 +1907,7 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       // one MOVN and one MOVK will do
       for (i = 0; i < 3; i++) {
 	if (imm_h[i] != 0xffffL) {
-	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
+	  movn(dst, (u_int32_t)imm_h[i] ^ 0xffffL, (i << 4));
 	  i++;
 	}
       }
@@ -1934,7 +1934,7 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       // one MOVN and two MOVKs will do
       for (i = 0; i < 3; i++) {
 	if (imm_h[i] != 0xffffL) {
-	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
+	  movn(dst, (u_int32_t)imm_h[i] ^ 0xffffL, (i << 4));
 	  i++;
 	  break;
 	}
