@@ -682,7 +682,10 @@ void TemplateTable::pop2()
 
 void TemplateTable::dup()
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  __ ldr(r0, Address(sp, 0));
+  __ push(r0);
+  // stack: ..., a, a
 }
 
 void TemplateTable::dup_x1()
