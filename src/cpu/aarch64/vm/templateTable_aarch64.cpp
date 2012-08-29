@@ -51,58 +51,49 @@ static inline Address iaddress(Register r) {
   return Address(rlocals, r, Address::lsl(3));
 }
 
+static inline Address iAddress(int n)
+{
+  return Address(rlocals, n << 3);
+}
+
 static inline Address lAddress(int n)
 {
-  Unimplemented();
-  return (Address)0;
+  return iAddress(n);
 }
 
 static inline Address fAddress(int n)
 {
-  Unimplemented();
-  return (Address)0;
+  return iAddress(n);
 }
 
 static inline Address dAddress(int n)
 {
-  Unimplemented();
-  return (Address)0;
+  return iAddress(n);
 }
 
 static inline Address aAddress(int n)
 {
-  Unimplemented();
-  return (Address)0;
+  return iAddress(n);
 }
 
-static inline Address iAddress(Register r)
+static inline Address laddress(Register r)
 {
-  Unimplemented();
-  return (Address)0;
+  return iaddress(r);
 }
 
-static inline Address lAddress(Register r)
+static inline Address faddress(Register r)
 {
-  Unimplemented();
-  return (Address)0;
+  return iaddress(r);
 }
 
-static inline Address fAddress(Register r)
+static inline Address daddress(Register r)
 {
-  Unimplemented();
-  return (Address)0;
+  return iaddress(r);
 }
 
-static inline Address dAddress(Register r)
+static inline Address aaddress(Register r)
 {
-  Unimplemented();
-  return (Address)0;
-}
-
-static inline Address aAddress(Register r)
-{
-  Unimplemented();
-  return (Address)0;
+  return iaddress(r);
 }
 
 static inline Address at_rsp()
@@ -404,12 +395,21 @@ void TemplateTable::ldc2_w()
 
 void TemplateTable::locals_index(Register reg, int offset)
 {
-  __ call_Unimplemented();
+  __ ldrb(reg, at_bcp(offset));
+  __ neg(reg, reg);
 }
 
 void TemplateTable::iload()
 {
-  __ call_Unimplemented();
+  transition(vtos, itos);
+  if (RewriteFrequentPairs) {
+    // TODO : check x86 code for what to do here
+    __ call_Unimplemented();
+  } else {
+    locals_index(r1);
+    __ ldr(r0, iaddress(r1));
+  }
+
 }
 
 void TemplateTable::fast_iload2()
@@ -424,7 +424,9 @@ void TemplateTable::fast_iload()
 
 void TemplateTable::lload()
 {
-  __ call_Unimplemented();
+  transition(vtos, ltos);
+  locals_index(r1);
+  __ ldr(r0, iaddress(r1));
 }
 
 void TemplateTable::fload()
@@ -439,7 +441,9 @@ void TemplateTable::dload()
 
 void TemplateTable::aload()
 {
-  __ call_Unimplemented();
+  transition(vtos, atos);
+  locals_index(r1);
+  __ ldr(r0, iaddress(r1));
 }
 
 void TemplateTable::locals_index_wide(Register reg) {
@@ -527,17 +531,18 @@ void TemplateTable::saload()
 
 void TemplateTable::iload(int n)
 {
-  __ call_Unimplemented();
+  transition(vtos, itos);
+  __ ldr(r0, iAddress(n));
 }
 
 void TemplateTable::lload(int n)
 {
-  __ call_Unimplemented();
+  transition(vtos, ltos);
+  __ ldr(r0, iAddress(n));
 }
 
 void TemplateTable::fload(int n)
 {
-  __ call_Unimplemented();
 }
 
 void TemplateTable::dload(int n)
@@ -547,22 +552,52 @@ void TemplateTable::dload(int n)
 
 void TemplateTable::aload(int n)
 {
-  __ call_Unimplemented();
+  transition(vtos, atos);
+  __ ldr(r0, iAddress(n));
 }
 
 void TemplateTable::aload_0()
 {
-  __ call_Unimplemented();
+  // According to bytecode histograms, the pairs:
+  //
+  // _aload_0, _fast_igetfield
+  // _aload_0, _fast_agetfield
+  // _aload_0, _fast_fgetfield
+  //
+  // occur frequently. If RewriteFrequentPairs is set, the (slow)
+  // _aload_0 bytecode checks if the next bytecode is either
+  // _fast_igetfield, _fast_agetfield or _fast_fgetfield and then
+  // rewrites the current bytecode into a pair bytecode; otherwise it
+  // rewrites the current bytecode into _fast_aload_0 that doesn't do
+  // the pair check anymore.
+  //
+  // Note: If the next bytecode is _getfield, the rewrite must be
+  //       delayed, otherwise we may miss an opportunity for a pair.
+  //
+  // Also rewrite frequent pairs
+  //   aload_0, aload_1
+  //   aload_0, iload_1
+  // These bytecodes with a small amount of code are most profitable
+  // to rewrite
+  if (RewriteFrequentPairs) {
+    __ call_Unimplemented();
+  } else {
+    aload(0);
+  }
 }
 
 void TemplateTable::istore()
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  locals_index(r1);
+  __ str(r0, iaddress(r1));
 }
 
 void TemplateTable::lstore()
 {
-  __ call_Unimplemented();
+  transition(ltos, vtos);
+  locals_index(r1);
+  __ str(r0, laddress(r1));
 }
 
 void TemplateTable::fstore()
@@ -577,7 +612,10 @@ void TemplateTable::dstore()
 
 void TemplateTable::astore()
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  __ pop_ptr(r0);
+  locals_index(r1);
+  __ str(r0, aaddress(r1));
 }
 
 void TemplateTable::wide_istore()
@@ -647,12 +685,14 @@ void TemplateTable::sastore()
 
 void TemplateTable::istore(int n)
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  __ str(r0, iAddress(n));
 }
 
 void TemplateTable::lstore(int n)
 {
-  __ call_Unimplemented();
+  transition(ltos, vtos);
+  __ str(r0, iAddress(n));
 }
 
 void TemplateTable::fstore(int n)
@@ -667,7 +707,9 @@ void TemplateTable::dstore(int n)
 
 void TemplateTable::astore(int n)
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  __ pop_ptr(r0);
+  __ str(r0, iAddress(n));
 }
 
 void TemplateTable::pop()
@@ -720,12 +762,37 @@ void TemplateTable::swap()
 
 void TemplateTable::iop2(Operation op)
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  // r0 <== r1 op r0
+  __ pop_i(r1);
+  switch (op) {
+  case add  : __ addw(r0, r1, r0); break;
+  case sub  : __ subw(r0, r1, r0); break;
+  case mul  : __ mulw(r0, r1, r0); break;
+  case _and : __ andw(r0, r1, r0); break;
+  case _or  : __ orrw(r0, r1, r0); break;
+  case _xor : __ eorw(r0, r1, r0); break;
+  case shl  : __ lslvw(r0, r1, r0); break;
+  case shr  : __ asrvw(r0, r1, r0); break;
+  case ushr : __ lsrvw(r0, r1, r0);break;
+  default   : ShouldNotReachHere();
+  }
 }
 
 void TemplateTable::lop2(Operation op)
 {
-  __ call_Unimplemented();
+  transition(ltos, ltos);
+  // r0 <== r1 op r0
+  __ pop_l(r1);
+  switch (op) {
+  case add  : __ add(r0, r1, r0); break;
+  case sub  : __ sub(r0, r1, r0); break;
+  case mul  : __ mul(r0, r1, r0); break;
+  case _and : __ andr(r0, r1, r0); break;
+  case _or  : __ orr(r0, r1, r0); break;
+  case _xor : __ eor(r0, r1, r0); break;
+  default   : ShouldNotReachHere();
+  }
 }
 
 void TemplateTable::idiv()

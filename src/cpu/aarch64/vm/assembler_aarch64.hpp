@@ -1387,7 +1387,7 @@ public:
     starti;
     f(op54, 31, 29), f(0b11011, 28, 24);
     f(op31, 23, 21), f(o0, 15);
-    rf(Rm, 16), rf(Ra, 10), rf(Rn, 5), rf(Rd, 0);
+    zrf(Rm, 16), zrf(Ra, 10), zrf(Rn, 5), zrf(Rd, 0);
   }
 
 #define INSN(NAME, op54, op31, o0)					\
