@@ -451,13 +451,14 @@ class Address VALUE_OBJ_CLASS_SPEC {
 	i->f(1, 21);
 	i->rf(_index, 16);
 	i->f(_ext.option(), 15, 13);
-	// FIXME: We don't check that the shift amount is valid.  Do we need to?
-	// It should be 0 for a byte, 1 for a halfword, etc.
 	unsigned size = i->get(31, 30);
 	if (size == 0) // It's a byte
 	  i->f(_ext.shift() >= 0, 12);
-	else
+	else {
+	  if (_ext.shift() > 0)
+	    assert(_ext.shift() == (int)size, "bad shift");
 	  i->f(_ext.shift() > 0, 12);
+	}
 	i->f(0b10, 11, 10);
       }
       break;
@@ -485,6 +486,23 @@ class Address VALUE_OBJ_CLASS_SPEC {
   void lea(MacroAssembler *, Register) const;
 };
 
+// Convience classes
+class RuntimeAddress: public Address {
+
+  public:
+
+  RuntimeAddress(address target) : Address(target, relocInfo::runtime_call_type) {}
+
+};
+
+class OopAddress: public Address {
+
+  public:
+
+  OopAddress(address target) : Address(target, relocInfo::oop_type){}
+
+};
+
 class ExternalAddress: public Address {
  private:
   static relocInfo::relocType reloc_for_target(address target) {
@@ -500,6 +518,15 @@ class ExternalAddress: public Address {
   ExternalAddress(address target) : Address(target, reloc_for_target(target)) {}
 
 };
+
+class InternalAddress: public Address {
+
+  public:
+
+  InternalAddress(address target) : Address(target, relocInfo::internal_word_type) {}
+
+};
+
 
 const int FPUStateSizeInWords = 27; // FIXME   :-)
 

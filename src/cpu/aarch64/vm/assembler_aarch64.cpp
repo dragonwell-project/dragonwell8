@@ -1669,8 +1669,16 @@ void MacroAssembler::call_VM_base(Register oop_result,
 
     Label ok;
     br(Assembler::EQ, ok);
-    // b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+    lea(rscratch1, RuntimeAddress(StubRoutines::forward_exception_entry()));
+    br(rscratch1);
     bind(ok);
+  }
+
+  // get oop result if there is one and reset the value in the thread
+  if (oop_result->is_valid()) {
+    ldr(oop_result, Address(java_thread, JavaThread::vm_result_offset()));
+    str(zr, Address(java_thread, JavaThread::vm_result_offset()));
+    verify_oop(oop_result, "broken oop in call_VM_base");
   }
 }
 
