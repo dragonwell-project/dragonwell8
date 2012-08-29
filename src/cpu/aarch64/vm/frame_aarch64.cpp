@@ -681,3 +681,47 @@ intptr_t* frame::real_fp() const {
   assert(! is_compiled_frame(), "unknown compiled frame size");
   return fp();
 }
+
+#undef DESCRIBE_FP_OFFSET
+
+#define DESCRIBE_FP_OFFSET(name)				\
+  {								\
+    unsigned long *p = (unsigned long *)fp;			\
+    printf("0x%016lx 0x%016lx %s\n", p + frame::name##_offset,	\
+	   p[frame::name##_offset], #name);			\
+  }
+
+extern "C" void pf(unsigned long fp) {
+  DESCRIBE_FP_OFFSET(interpreter_frame_sender_sp);
+  DESCRIBE_FP_OFFSET(interpreter_frame_last_sp);
+  DESCRIBE_FP_OFFSET(interpreter_frame_method);
+  DESCRIBE_FP_OFFSET(interpreter_frame_mdx);
+  DESCRIBE_FP_OFFSET(interpreter_frame_cache);
+  DESCRIBE_FP_OFFSET(interpreter_frame_locals);
+  DESCRIBE_FP_OFFSET(interpreter_frame_bcx);
+  DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
+  unsigned long *p = (unsigned long *)fp;
+  methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
+  ResourceMark rm;
+  printf("%s\n", m->name_and_sig_as_C_string());
+}
+
+// support for printing out where we are in a Java method
+// needs to be passed current fp and bcp register values
+// prints method name, bc index and bytecode name
+extern "C" void pm(unsigned long fp, unsigned long bcx) {
+  DESCRIBE_FP_OFFSET(interpreter_frame_method);
+  unsigned long *p = (unsigned long *)fp;
+  methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
+  int bci = 0;
+  const char *name;
+  if (m->validate_bci_from_bcx(bcx) < 0) {
+    bci = 0;
+    name = "???";
+  } else {
+    bci = m->bci_from((address)bcx);
+    name = Bytecodes::name(m->java_code_at(bci));
+  }
+  ResourceMark rm;
+  printf("%s : %d ==> %s\n", m->name_and_sig_as_C_string(), bci, name);
+}
