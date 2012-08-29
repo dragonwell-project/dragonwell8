@@ -237,6 +237,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // support for jvmti/dtrace
   void notify_method_entry();
   void notify_method_exit(TosState state, NotifyMethodExitMode mode);
+
+  virtual void call_Unimplemented() {
+    save_bcp();
+    set_last_Java_frame(sp, rfp, (address) pc());
+    haltsim();
+  }
 };
 
 #endif // CPU_X86_VM_INTERP_MASM_X86_64_HPP

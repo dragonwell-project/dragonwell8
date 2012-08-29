@@ -785,10 +785,10 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ pop(r0);
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, sp, r2, ext::uxtx, 3);  // FIXME: Should be resp ???
-  __ add(rlocals, rlocals, wordSize);
+  __ add(rlocals, sp, r2, ext::uxtx, 3);
+  __ sub(rlocals, rlocals, wordSize);
 
-  // rdx - # of additional locals
+  // r3 - # of additional locals
   // allocate space for locals
   // explicitly initialize locals
   {
@@ -796,7 +796,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
     __ ands(r3, r3, r3);
     __ br(Assembler::LE, exit); // do nothing if r3 <= 0
     __ bind(loop);
-    __ push((int) NULL_WORD); // initialize local variables
+    __ push(zr); // initialize local variables
     __ subs(r3, r3, 1); // until everything initialized
     __ br(Assembler::GT, loop);
     __ bind(exit);
