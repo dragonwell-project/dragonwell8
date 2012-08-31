@@ -1104,6 +1104,7 @@ public:
   INSN(ldrh, 0b01, 0b01);
 
   INSN(ldrsb, 0b00, 0b10);
+  INSN(ldrsbw, 0b00, 0b11);
   INSN(ldrsh, 0b01, 0b10);
   INSN(ldrshw, 0b01, 0b11);
   INSN(ldrsw, 0b10, 0b10);
@@ -2084,6 +2085,9 @@ public:
   // Support for fast byte/short loading with sign extension (depending on particular CPU)
   int load_signed_byte(Register dst, Address src);
   int load_signed_short(Register dst, Address src);
+
+  int load_signed_byte32(Register dst, Address src);
+  int load_signed_short32(Register dst, Address src);
 
   // Support for sign-extension (hi:lo = extend_sign(lo))
   void extend_sign(Register hi, Register lo);

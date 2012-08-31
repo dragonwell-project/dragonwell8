@@ -274,13 +274,12 @@ void TemplateTable::dconst(int value)
 void TemplateTable::bipush()
 {
   transition(vtos, itos);
-  __ load_signed_byte(r0, at_bcp(1));
+  __ load_signed_byte32(r0, at_bcp(1));
 }
 
 void TemplateTable::sipush()
 {
   transition(vtos, itos);
-  // FIXME: Is this the right way to do it?
   __ load_unsigned_short(r0, at_bcp(1));
   __ revw(r0, r0);
   __ asrw(r0, r0, 16);
@@ -1055,8 +1054,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
   }
   // Normal (non-jsr) branch handling
 
-  // Adjust the bcp by the displacement in r0
-  __ add(rbcp, rbcp, r0);
+  // Adjust the bcp by the 32 bit displacement in r0
+  __ add(rbcp, rbcp, r0, ext::sxtw, 0);
 
   assert(UseLoopCounter || !UseOnStackReplacement,
          "on-stack-replacement requires loop counters");

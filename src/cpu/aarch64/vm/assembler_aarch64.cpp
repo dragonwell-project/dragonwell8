@@ -2366,6 +2366,18 @@ int MacroAssembler::load_signed_byte(Register dst, Address src) {
   return off;
 }
 
+int MacroAssembler::load_signed_short32(Register dst, Address src) {
+  int off = offset();
+  ldrshw(dst, src);
+  return off;
+}
+
+int MacroAssembler::load_signed_byte32(Register dst, Address src) {
+  int off = offset();
+  ldrsbw(dst, src);
+  return off;
+}
+
 void MacroAssembler::pusha() {
   // need to push all registers including original sp
   for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1))
