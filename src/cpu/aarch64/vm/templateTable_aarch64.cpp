@@ -470,7 +470,7 @@ void TemplateTable::index_check(Register array, Register index)
   // sign extend index for use by indexed load
   // __ movl2ptr(index, index);
   // check index
-  __ ldr(rscratch1, Address(array, arrayOopDesc::length_offset_in_bytes()));
+  __ ldrw(rscratch1, Address(array, arrayOopDesc::length_offset_in_bytes()));
   __ cmp(index, rscratch1);
   if (index != r1) {
     // ??? convention: move aberrant index into r1 for exception message
