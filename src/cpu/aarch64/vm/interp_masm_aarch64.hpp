@@ -81,6 +81,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
     ldr(rlocals, Address(rfp, frame::interpreter_frame_locals_offset * wordSize));
   }
 
+  void restore_constant_pool_cache() {
+    ldr(rcpool, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
+  }
+
   // Helpers for runtime call arguments/results
 
   // Helpers for runtime call arguments/results
@@ -126,7 +130,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop(TosState state); // transition vtos -> state
   void push(TosState state); // transition state -> vtos
 
-  void empty_expression_stack();
+  void empty_expression_stack() {
+    ldr(rscratch1, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
+    mov(sp, rscratch1);
+    // NULL last_sp until next java call
+    str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  }
 
   // Helpers for swap and dup
   void load_ptr(int n, Register val);

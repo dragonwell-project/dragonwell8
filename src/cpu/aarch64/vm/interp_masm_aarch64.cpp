@@ -137,20 +137,30 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
                                                                int bcp_offset,
                                                                size_t index_size) { Unimplemented(); }
 
-
 // Generate a subtype check: branch to ok_is_subtype if sub_klass is a
 // subtype of super_klass.
 //
 // Args:
-//      rax: superklass
+//      r0: superklass
 //      Rsub_klass: subklass
 //
 // Kills:
 //      rcx, rdi
 void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
-                                                  Label& ok_is_subtype) { Unimplemented(); }
+                                                  Label& ok_is_subtype) {
+  assert(Rsub_klass != r0, "r0 holds superklass");
+  assert(Rsub_klass != r2, "r2 holds 2ndary super array length");
+  assert(Rsub_klass != r5, "r5 holds 2ndary super array scan ptr");
 
+  // Profile the not-null value's klass.
+  profile_typecheck(r2, Rsub_klass, r5); // blows r2, reloads r5
 
+  // Do the check.
+  check_klass_subtype(Rsub_klass, r0, r2, ok_is_subtype); // blows rcx
+
+  // Profile the failure of the check.
+  profile_typecheck_failed(r2); // blows r2
+}
 
 // Java Expression Stack
 
@@ -570,29 +580,50 @@ void InterpreterMacroAssembler::record_klass_in_profile_helper(
 
 void InterpreterMacroAssembler::record_klass_in_profile(Register receiver,
                                                         Register mdp, Register reg2,
-                                                        bool is_virtual_call) { Unimplemented(); }
+                                                        bool is_virtual_call) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
 void InterpreterMacroAssembler::profile_ret(Register return_bci,
-                                            Register mdp) { Unimplemented(); }
+                                            Register mdp) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
+void InterpreterMacroAssembler::profile_null_seen(Register mdp) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
-void InterpreterMacroAssembler::profile_null_seen(Register mdp) { Unimplemented(); }
+void InterpreterMacroAssembler::profile_typecheck_failed(Register mdp) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
+void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, Register reg2) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
-void InterpreterMacroAssembler::profile_typecheck_failed(Register mdp) { Unimplemented(); }
-
-
-void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, Register reg2) { Unimplemented(); }
-
-
-void InterpreterMacroAssembler::profile_switch_default(Register mdp) { Unimplemented(); }
-
+void InterpreterMacroAssembler::profile_switch_default(Register mdp) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
 void InterpreterMacroAssembler::profile_switch_case(Register index,
                                                     Register mdp,
-                                                    Register reg2) { Unimplemented(); }
-
-
+                                                    Register reg2) {
+  if (ProfileInterpreter) {
+    call_Unimplemented();
+  }
+}
 
 void InterpreterMacroAssembler::verify_oop(Register reg, TosState state) {
   if (state == atos) {

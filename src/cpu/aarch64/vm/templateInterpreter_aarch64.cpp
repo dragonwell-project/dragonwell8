@@ -66,8 +66,39 @@ address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(
 address TemplateInterpreterGenerator::generate_ClassCastException_handler() { __ call_Unimplemented(); return 0; }
 
 address TemplateInterpreterGenerator::generate_exception_handler_common(
-        const char* name, const char* message, bool pass_oop) { __ call_Unimplemented(); return 0; }
-
+        const char* name, const char* message, bool pass_oop) {
+  assert(!pass_oop || message == NULL, "either oop or message but not both");
+  address entry = __ pc();
+  if (pass_oop) {
+    // object is at TOS
+    __ pop(c_rarg2);
+  }
+  // expression stack must be empty before entering the VM if an
+  // exception happened
+  __ empty_expression_stack();
+  // setup parameters
+  __ lea(c_rarg1, Address((address)name));
+  if (pass_oop) {
+    __ call_VM(r0, CAST_FROM_FN_PTR(address,
+				    InterpreterRuntime::
+				    create_klass_exception),
+               c_rarg1, c_rarg2);
+  } else {
+    // kind of lame ExternalAddress can't take NULL because
+    // external_word_Relocation will assert.
+    if (message != NULL) {
+      __ lea(c_rarg2, Address((address)message));
+    } else {
+      __ mov(c_rarg2, NULL_WORD);
+    }
+    __ call_VM(r0,
+               CAST_FROM_FN_PTR(address, InterpreterRuntime::create_exception),
+               c_rarg1, c_rarg2);
+  }
+  // throw exception
+  __ b(address(Interpreter::throw_exception_entry()));
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { __ call_Unimplemented(); return 0; }
 
@@ -85,6 +116,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ restore_bcp();
   __ restore_locals();
+  __ restore_constant_pool_cache();
 
   Label L_got_cache, L_giant_index;
   if (EnableInvokeDynamic) {
@@ -318,7 +350,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // for natives the size of locals is zero
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, sp, r2, ext::uxtx, 3);  // FIXME: Should be resp ???
+  __ add(rlocals, sp, r2, ext::uxtx, 3);
   __ add(rlocals, rlocals, wordSize);
 
   // add 2 zero-initialized slots for native calls
@@ -337,7 +369,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // make sure method is native & not abstract
 #ifdef ASSERT
-  __ ldr(r0, access_flags);
+  __ ldrw(r0, access_flags);
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
@@ -391,7 +423,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ ldr(r0, access_flags);
+      __ ldrw(r0, access_flags);
       __ tst(r0, JVM_ACC_SYNCHRONIZED);
       __ br(Assembler::EQ, L);
       __ stop("method needs synchronization");
@@ -470,7 +502,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   {
     Label L;
     const int mirror_offset = in_bytes(Klass::java_mirror_offset());
-    __ ldr(t, Address(rmethod, methodOopDesc::access_flags_offset()));
+    __ ldrw(t, Address(rmethod, methodOopDesc::access_flags_offset()));
     __ tst(t, JVM_ACC_STATIC);
     __ br(Assembler::EQ, L);
     // get mirror
@@ -680,7 +712,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // do unlocking if necessary
   {
     Label L;
-    __ ldr(t, Address(rmethod, methodOopDesc::access_flags_offset()));
+    __ ldrw(t, Address(rmethod, methodOopDesc::access_flags_offset()));
     __ tst(t, JVM_ACC_SYNCHRONIZED);
     __ br(Assembler::EQ, L);
     // the code below should be shared with interpreter macro
@@ -811,7 +843,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // make sure method is not native & not abstract
 #ifdef ASSERT
-  __ ldr(r0, access_flags);
+  __ ldrw(r0, access_flags);
   {
     Label L;
     __ tst(r0, JVM_ACC_NATIVE);
@@ -874,7 +906,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 #ifdef ASSERT
     {
       Label L;
-      __ ldr(r0, access_flags);
+      __ ldrw(r0, access_flags);
       __ tst(r0, JVM_ACC_SYNCHRONIZED);
       __ br(Assembler::EQ, L);
       __ stop("method needs synchronization");
@@ -962,7 +994,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 // [ saved r13          ]
 // [ current r14        ]
 // [ methodOop          ]
-// [ saved ebp          ] <--- rbp
+// [ saved efp          ] <--- rfp
 // [ return address     ]
 // [ local variable m   ]
 //   ...
@@ -1045,7 +1077,191 @@ int AbstractInterpreter::layout_activation(methodOop method,
 //-----------------------------------------------------------------------------
 // Exceptions
 
-void TemplateInterpreterGenerator::generate_throw_exception() { __ call_Unimplemented(); }
+void TemplateInterpreterGenerator::generate_throw_exception() {
+  // Entry point in previous activation (i.e., if the caller was
+  // interpreted)
+  Interpreter::_rethrow_exception_entry = __ pc();
+  // Restore sp to interpreter_frame_last_sp even though we are going
+  // to empty the expression stack for the exception processing.
+  __ str(zr, Address(r1, frame::interpreter_frame_last_sp_offset * wordSize));
+  // r0: exception
+  // r3: return address/pc that threw exception
+  __ restore_bcp();    // rbcp points to call/send
+  __ restore_locals();
+  __ reinit_heapbase();  // restore rheapbase as heapbase.
+  // Entry point for exceptions thrown within interpreter code
+  Interpreter::_throw_exception_entry = __ pc();
+  // expression stack is undefined here
+  // r0: exception
+  // rbcp: exception bcp
+  __ verify_oop(r0);
+  __ mov(c_rarg1, r0);
+
+  // expression stack must be empty before entering the VM in case of
+  // an exception
+  __ empty_expression_stack();
+  // find exception handler address and preserve exception oop
+  __ call_VM(r3,
+             CAST_FROM_FN_PTR(address,
+                          InterpreterRuntime::exception_handler_for_exception),
+             c_rarg1);
+  // r0: exception handler entry point
+  // r3: preserved exception oop
+  // rbcp: bcp for exception handler
+  __ push_ptr(r3); // push exception which is now the only value on the stack
+  __ br(r0); // jump to exception handler (may be _remove_activation_entry!)
+
+  // If the exception is not handled in the current frame the frame is
+  // removed and the exception is rethrown (i.e. exception
+  // continuation is _rethrow_exception).
+  //
+  // Note: At this point the bci is still the bxi for the instruction
+  // which caused the exception and the expression stack is
+  // empty. Thus, for any VM calls at this point, GC will find a legal
+  // oop map (with empty expression stack).
+
+  // In current activation
+  // tos: exception
+  // esi: exception bcp
+
+  //
+  // JVMTI PopFrame support
+  //
+
+  Interpreter::_remove_activation_preserving_args_entry = __ pc();
+  __ empty_expression_stack();
+  // Set the popframe_processing bit in pending_popframe_condition
+  // indicating that we are currently handling popframe, so that
+  // call_VMs that may happen later do not trigger new popframe
+  // handling cycles.
+  __ ldr(r3, Address(rthread, JavaThread::popframe_condition_offset()));
+  __ orr(r3, r3, JavaThread::popframe_processing_bit);
+  __ str(r3, Address(rthread, JavaThread::popframe_condition_offset()));
+
+  {
+    // Check to see whether we are returning to a deoptimized frame.
+    // (The PopFrame call ensures that the caller of the popped frame is
+    // either interpreted or compiled and deoptimizes it if compiled.)
+    // In this case, we can't call dispatch_next() after the frame is
+    // popped, but instead must save the incoming arguments and restore
+    // them after deoptimization has occurred.
+    //
+    // Note that we don't compare the return PC against the
+    // deoptimization blob's unpack entry because of the presence of
+    // adapter frames in C2.
+    Label caller_not_deoptimized;
+    __ ldr(c_rarg1, Address(rfp, frame::return_addr_offset * wordSize));
+    __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
+                               InterpreterRuntime::interpreter_contains), c_rarg1);
+    __ cbnz(r0, caller_not_deoptimized);
+
+    __ call_Unimplemented();
+
+    // Compute size of arguments for saving when returning to
+    // deoptimized caller
+    __ get_method(r0);
+    __ load_unsigned_short(r0, Address(r0, in_bytes(methodOopDesc::
+						    size_of_parameters_offset())));
+    __ lsl(r0, r0, Interpreter::logStackElementSize);
+    __ restore_locals(); // XXX do we need this?
+    __ sub(rlocals, rlocals, r0);
+    __ add(rlocals, rlocals, wordSize);
+    // Save these arguments
+    __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
+                                           Deoptimization::
+                                           popframe_preserve_args),
+                          rthread, r0, rlocals);
+
+    __ remove_activation(vtos,
+                         /* throw_monitor_exception */ false,
+                         /* install_monitor_exception */ false,
+                         /* notify_jvmdi */ false);
+
+    // Inform deoptimization that it is responsible for restoring
+    // these arguments
+    __ mov(rscratch1, JavaThread::popframe_force_deopt_reexecution_bit);
+    __ strw(rscratch1, Address(rthread, JavaThread::popframe_condition_offset()));
+
+    // Continue in deoptimization handler
+    __ ret(lr);
+
+    __ bind(caller_not_deoptimized);
+  }
+
+  __ remove_activation(vtos,
+                       /* throw_monitor_exception */ false,
+                       /* install_monitor_exception */ false,
+                       /* notify_jvmdi */ false);
+
+  // Finish with popframe handling
+  // A previous I2C followed by a deoptimization might have moved the
+  // outgoing arguments further up the stack. PopFrame expects the
+  // mutations to those outgoing arguments to be preserved and other
+  // constraints basically require this frame to look exactly as
+  // though it had previously invoked an interpreted activation with
+  // no space between the top of the expression stack (current
+  // last_sp) and the top of stack. Rather than force deopt to
+  // maintain this kind of invariant all the time we call a small
+  // fixup routine to move the mutated arguments onto the top of our
+  // expression stack if necessary.
+  __ mov(c_rarg1, sp);
+  __ ldr(c_rarg2, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  // PC must point into interpreter here
+  __ set_last_Java_frame(noreg, rfp, __ pc());
+  __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::popframe_move_outgoing_args), rthread, c_rarg1, c_rarg2);
+  __ reset_last_Java_frame(true, true);
+  // Restore the last_sp and null it out
+  __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ mov(sp, rscratch1);
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+
+  __ restore_bcp();  // XXX do we need this?
+  __ restore_locals(); // XXX do we need this?
+  // The method data pointer was incremented already during
+  // call profiling. We have to restore the mdp for the current bcp.
+  if (ProfileInterpreter) {
+    __ set_method_data_pointer_for_bcp();
+  }
+
+  // Clear the popframe condition flag
+  __ str(zr, Address(rthread, JavaThread::popframe_condition_offset()));
+  assert(JavaThread::popframe_inactive == 0, "fix popframe_inactive");
+
+  __ dispatch_next(vtos);
+  // end of PopFrame support
+
+  Interpreter::_remove_activation_entry = __ pc();
+
+  // preserve exception over this code sequence
+  __ pop_ptr(r0);
+  __ str(r0, Address(rthread, JavaThread::vm_result_offset()));
+  // remove the activation (without doing throws on illegalMonitorExceptions)
+  __ remove_activation(vtos, false, true, false);
+  // restore exception
+  __ ldr(r0, Address(rthread, JavaThread::vm_result_offset()));
+  __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
+  __ verify_oop(r0);
+
+  // In between activations - previous activation type unknown yet
+  // compute continuation point - the continuation point expects the
+  // following registers set up:
+  //
+  // r0: exception
+  // r3: return address/pc that threw exception
+  // rsp: expression stack of caller
+  // rfp: fp of caller
+  __ push(r0);                                  // save exception
+  __ push(r3);                                  // save return address
+  __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
+                          SharedRuntime::exception_handler_for_return_address),
+                        rthread, r3);
+  __ mov(r1, r0);                               // save exception handler
+  __ pop(r3);                                   // restore return address
+  __ pop(r0);                                   // restore exception
+  // Note that an "issuing PC" is actually the next PC after the call
+  __ br(r1);                                    // jump to exception
+                                                // handler of caller
+}
 
 
 //

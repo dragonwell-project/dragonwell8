@@ -409,7 +409,19 @@ class Address VALUE_OBJ_CLASS_SPEC {
       _rspec(rspec),
       _is_lval(false),
       _target(target)  { }
-  Address(address target, relocInfo::relocType rtype);
+  Address(address target, relocInfo::relocType rtype = relocInfo::external_word_type);
+  Address(Register base, RegisterOrConstant index, extend ext = lsl(), int o = 0)
+    : _base (base),
+      _ext(ext), _offset(o) {
+    if (index.is_register()) {
+      _mode = base_plus_offset_reg;
+      _index = index.as_register();
+      assert(o == 0, "inconsistent address");
+    } else {
+      _mode = base_plus_offset;
+      _offset = o;
+    }
+  }
 
   Register base() {
     guarantee((_mode == base_plus_offset | _mode == base_plus_offset_reg),
@@ -2702,6 +2714,11 @@ public:
 
   void push(unsigned int bitset);
   void pop(unsigned int bitset);
+
+  void repne_scan(Register addr, Register value, Register count,
+		  Register scratch);
+  void repne_scanw(Register addr, Register value, Register count,
+		   Register scratch);
 
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code

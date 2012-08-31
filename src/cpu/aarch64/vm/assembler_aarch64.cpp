@@ -1789,6 +1789,245 @@ RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_ad
                                                       Register tmp,
                                                       int offset) { Unimplemented(); return RegisterOrConstant(r0); }
 
+void MacroAssembler::check_klass_subtype(Register sub_klass,
+                           Register super_klass,
+                           Register temp_reg,
+                           Label& L_success) {
+  Label L_failure;
+  check_klass_subtype_fast_path(sub_klass, super_klass, temp_reg,        &L_success, &L_failure, NULL);
+  check_klass_subtype_slow_path(sub_klass, super_klass, temp_reg, noreg, &L_success, NULL);
+  bind(L_failure);
+}
+
+
+void MacroAssembler::check_klass_subtype_fast_path(Register sub_klass,
+                                                   Register super_klass,
+                                                   Register temp_reg,
+                                                   Label* L_success,
+                                                   Label* L_failure,
+                                                   Label* L_slow_path,
+                                        RegisterOrConstant super_check_offset) {
+  assert_different_registers(sub_klass, super_klass, temp_reg);
+  bool must_load_sco = (super_check_offset.constant_or_zero() == -1);
+  if (super_check_offset.is_register()) {
+    assert_different_registers(sub_klass, super_klass,
+                               super_check_offset.as_register());
+  } else if (must_load_sco) {
+    assert(temp_reg != noreg, "supply either a temp or a register offset");
+  }
+
+  Label L_fallthrough;
+  int label_nulls = 0;
+  if (L_success == NULL)   { L_success   = &L_fallthrough; label_nulls++; }
+  if (L_failure == NULL)   { L_failure   = &L_fallthrough; label_nulls++; }
+  if (L_slow_path == NULL) { L_slow_path = &L_fallthrough; label_nulls++; }
+  assert(label_nulls <= 1, "at most one NULL in the batch");
+
+  int sc_offset = in_bytes(Klass::secondary_super_cache_offset());
+  int sco_offset = in_bytes(Klass::super_check_offset_offset());
+  Address super_check_offset_addr(super_klass, sco_offset);
+
+  // Hacked jmp, which may only be used just before L_fallthrough.
+#define final_jmp(label)                                                \
+  if (&(label) == &L_fallthrough) { /*do nothing*/ }                    \
+  else                            b(label)                /*omit semi*/
+
+  // If the pointers are equal, we are done (e.g., String[] elements).
+  // This self-check enables sharing of secondary supertype arrays among
+  // non-primary types such as array-of-interface.  Otherwise, each such
+  // type would need its own customized SSA.
+  // We move this check to the front of the fast path because many
+  // type checks are in fact trivially successful in this manner,
+  // so we get a nicely predicted branch right at the start of the check.
+  cmp(sub_klass, super_klass);
+  br(Assembler::EQ, *L_success);
+
+  // Check the supertype display:
+  if (must_load_sco) {
+    // Positive movl does right thing on LP64.
+    ldr(temp_reg, super_check_offset_addr);
+    super_check_offset = RegisterOrConstant(temp_reg);
+  }
+  Address super_check_addr(sub_klass, super_check_offset);
+  ldr(rscratch1, super_check_addr);
+  cmp(super_klass, rscratch1); // load displayed supertype
+
+  // This check has worked decisively for primary supers.
+  // Secondary supers are sought in the super_cache ('super_cache_addr').
+  // (Secondary supers are interfaces and very deeply nested subtypes.)
+  // This works in the same check above because of a tricky aliasing
+  // between the super_cache and the primary super display elements.
+  // (The 'super_check_addr' can address either, as the case requires.)
+  // Note that the cache is updated below if it does not help us find
+  // what we need immediately.
+  // So if it was a primary super, we can just fail immediately.
+  // Otherwise, it's the slow path for us (no success at this point).
+
+  if (super_check_offset.is_register()) {
+    br(Assembler::EQ, *L_success);
+    cmp(super_check_offset.as_register(), sc_offset);
+    if (L_failure == &L_fallthrough) {
+      br(Assembler::EQ, *L_slow_path);
+    } else {
+      br(Assembler::NE, *L_failure);
+      final_jmp(*L_slow_path);
+    }
+  } else if (super_check_offset.as_constant() == sc_offset) {
+    // Need a slow path; fast failure is impossible.
+    if (L_slow_path == &L_fallthrough) {
+      br(Assembler::EQ, *L_success);
+    } else {
+      br(Assembler::NE, *L_slow_path);
+      final_jmp(*L_success);
+    }
+  } else {
+    // No slow path; it's a fast decision.
+    if (L_failure == &L_fallthrough) {
+      br(Assembler::EQ, *L_success);
+    } else {
+      br(Assembler::NE, *L_failure);
+      final_jmp(*L_success);
+    }
+  }
+
+  bind(L_fallthrough);
+
+#undef final_jmp
+}
+
+// These two are taken from x86, but they look generally useful
+
+// scans count pointer sized words at [addr] for occurence of value,
+// generic
+void MacroAssembler::repne_scan(Register addr, Register value, Register count,
+				Register scratch) {
+  Label Lloop, Lexit;
+  cbz(count, Lexit);
+  bind(Lloop);
+  ldr(scratch, post(addr, wordSize));
+  cmp(value, scratch);
+  br(EQ, Lexit);
+  sub(count, count, 1);
+  cbnz(count, Lloop);
+  bind(Lexit);
+}
+
+// scans count 4 byte words at [addr] for occurence of value,
+// generic
+void MacroAssembler::repne_scanw(Register addr, Register value, Register count,
+				Register scratch) {
+  Label Lloop, Lexit;
+  cbz(count, Lexit);
+  bind(Lloop);
+  ldrw(scratch, post(addr, wordSize));
+  cmpw(value, scratch);
+  br(EQ, Lexit);
+  sub(count, count, 1);
+  cbnz(count, Lloop);
+  bind(Lexit);
+}
+
+void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
+                                                   Register super_klass,
+                                                   Register temp_reg,
+                                                   Register temp2_reg,
+                                                   Label* L_success,
+                                                   Label* L_failure,
+                                                   bool set_cond_codes) {
+  assert_different_registers(sub_klass, super_klass, temp_reg);
+  if (temp2_reg != noreg)
+    assert_different_registers(sub_klass, super_klass, temp_reg, temp2_reg, rscratch1);
+#define IS_A_TEMP(reg) ((reg) == temp_reg || (reg) == temp2_reg)
+
+  Label L_fallthrough;
+  int label_nulls = 0;
+  if (L_success == NULL)   { L_success   = &L_fallthrough; label_nulls++; }
+  if (L_failure == NULL)   { L_failure   = &L_fallthrough; label_nulls++; }
+  assert(label_nulls <= 1, "at most one NULL in the batch");
+
+  // a couple of useful fields in sub_klass:
+  int ss_offset = in_bytes(Klass::secondary_supers_offset());
+  int sc_offset = in_bytes(Klass::secondary_super_cache_offset());
+  Address secondary_supers_addr(sub_klass, ss_offset);
+  Address super_cache_addr(     sub_klass, sc_offset);
+
+  // Do a linear scan of the secondary super-klass chain.
+  // This code is rarely used, so simplicity is a virtue here.
+  // The repne_scan instruction uses fixed registers, which we must spill.
+  // Don't worry too much about pre-existing connections with the input regs.
+
+  assert(sub_klass != r0, "killed reg"); // killed by mov(r0, super)
+  assert(sub_klass != r2, "killed reg"); // killed by lea(r2, &pst_counter)
+
+  // Get super_klass value into r0 (even if it was in r5 or r2).
+  bool pushed_r0 = false, pushed_r2 = false, pushed_r5 = false;
+  if (super_klass != r0 || UseCompressedOops) {
+    if (!IS_A_TEMP(r0)) { push(r0); pushed_r0 = true; }
+    mov(r0, super_klass);
+  }
+  if (!IS_A_TEMP(r2)) { push(r2); pushed_r2 = true; }
+  if (!IS_A_TEMP(r5)) { push(r5); pushed_r5 = true; }
+
+#ifndef PRODUCT
+  mov(rscratch2, (address)&SharedRuntime::_partial_subtype_ctr);
+  Address pst_counter_addr(rscratch2);
+  ldr(rscratch1, pst_counter_addr);
+  add(rscratch1, rscratch1, 1);
+  str(rscratch1, pst_counter_addr);
+#endif //PRODUCT
+
+  // We will consult the secondary-super array.
+  ldr(r5, secondary_supers_addr);
+  // Load the array length.  (Positive movl does right thing on LP64.)
+  ldr(r2, Address(r5, arrayOopDesc::length_offset_in_bytes()));
+  // Skip to start of data.
+  add(r5, r5, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+
+  // Scan R2 words at [R5] for an occurrence of R0.
+  // Set NZ/Z based on last compare.
+  // Z flag value will not be set by 'repne' if R2 == 0 since 'repne' does
+  // not change flags (only scas instruction which is repeated sets flags).
+  // Set Z = 0 (not equal) before 'repne' to indicate that class was not found.
+
+  // This part is tricky, as values in supers array could be 32 or 64 bit wide
+  // and we store values in objArrays always encoded, thus we need to encode
+  // the value of r0 before repne.  Note that r0 is dead after the repne.
+  if (UseCompressedOops) {
+    encode_heap_oop_not_null(r0); // Changes flags.
+    // The superclass is never null; it would be a basic system error if a null
+    // pointer were to sneak in here.  Note that we have already loaded the
+    // Klass::super_check_offset from the super_klass in the fast path,
+    // so if there is a null in that register, we are already in the afterlife.
+    repne_scanw(r5, r0, r2, rscratch1);
+  } else {
+    repne_scan(r5, r0, r2, rscratch1);
+  }
+  // Unspill the temp. registers:
+  if (pushed_r5)  pop(r5);
+  if (pushed_r2)  pop(r2);
+  if (pushed_r0)  pop(r0);
+
+  if (set_cond_codes) {
+    // Special hack for the AD files:  r5 is guaranteed non-zero.
+    assert(!pushed_r5, "r5 must be left non-NULL");
+    // Also, the condition codes are properly set Z/NZ on succeed/failure.
+  }
+
+  cbz(r2, *L_failure);
+
+  // Success.  Cache the super we found and proceed in triumph.
+  str(super_klass, super_cache_addr);
+
+  if (L_success != &L_fallthrough) {
+    b(*L_success);
+  }
+
+#undef IS_A_TEMP
+
+  bind(L_fallthrough);
+}
+
+
 void MacroAssembler::verify_oop(Register reg, const char* s) {
   if (!VerifyOops) return;
 
@@ -1841,6 +2080,43 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0,
   pass_arg1(this, arg_1);
   pass_arg2(this, arg_2);
   call_VM_leaf_base(entry_point, 3);
+}
+
+void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0) {
+  pass_arg0(this, arg_0);
+  MacroAssembler::call_VM_leaf_base(entry_point, 1);
+}
+
+void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1) {
+
+  assert(arg_0 != c_rarg1, "smashed arg");
+  pass_arg1(this, arg_1);
+  pass_arg0(this, arg_0);
+  MacroAssembler::call_VM_leaf_base(entry_point, 2);
+}
+
+void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2) {
+  assert(arg_0 != c_rarg2, "smashed arg");
+  assert(arg_1 != c_rarg2, "smashed arg");
+  pass_arg2(this, arg_2);
+  assert(arg_0 != c_rarg1, "smashed arg");
+  pass_arg1(this, arg_1);
+  pass_arg0(this, arg_0);
+  MacroAssembler::call_VM_leaf_base(entry_point, 3);
+}
+
+void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Register arg_1, Register arg_2, Register arg_3) {
+  assert(arg_0 != c_rarg3, "smashed arg");
+  assert(arg_1 != c_rarg3, "smashed arg");
+  assert(arg_2 != c_rarg3, "smashed arg");
+  pass_arg3(this, arg_3);
+  assert(arg_0 != c_rarg2, "smashed arg");
+  assert(arg_1 != c_rarg2, "smashed arg");
+  pass_arg2(this, arg_2);
+  assert(arg_0 != c_rarg1, "smashed arg");
+  pass_arg1(this, arg_1);
+  pass_arg0(this, arg_0);
+  MacroAssembler::call_VM_leaf_base(entry_point, 4);
 }
 
 void MacroAssembler::null_check(Register reg, int offset) {
@@ -2341,6 +2617,13 @@ void MacroAssembler::store_check_part_2(Register obj) {
   intptr_t disp = (intptr_t) ct->byte_map_base;
   mov(rscratch1, disp);
   strb(zr, Address(obj, rscratch1));
+}
+
+void MacroAssembler::load_klass(Register dst, Register src) {
+  ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  if (UseCompressedOops) {
+    decode_heap_oop_not_null(dst);
+  }
 }
 
 void MacroAssembler::store_klass(Register dst, Register src) {

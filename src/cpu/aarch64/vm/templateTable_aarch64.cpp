@@ -47,85 +47,50 @@ void TemplateTable::pd_initialize() {
 
 // Address computation: local variables
 
+static inline Address iaddress(int n) {
+  return Address(rlocals, Interpreter::local_offset_in_bytes(n));
+}
+
+static inline Address faddress(int n) {
+  return iaddress(n);
+}
+
+static inline Address aaddress(int n) {
+  return iaddress(n);
+}
+
 static inline Address iaddress(Register r) {
   return Address(rlocals, r, Address::lsl(3));
 }
 
-static inline Address iAddress(int n)
-{
-  return Address(rlocals, n << 3);
-}
-
-static inline Address lAddress(int n)
-{
-  return iAddress(n);
-}
-
-static inline Address fAddress(int n)
-{
-  return iAddress(n);
-}
-
-static inline Address dAddress(int n)
-{
-  return iAddress(n);
-}
-
-static inline Address aAddress(int n)
-{
-  return iAddress(n);
-}
-
-static inline Address laddress(Register r)
-{
+static inline Address faddress(Register r) {
   return iaddress(r);
 }
 
-static inline Address faddress(Register r)
-{
+static inline Address aaddress(Register r) {
   return iaddress(r);
 }
 
-static inline Address daddress(Register r)
-{
-  return iaddress(r);
-}
-
-static inline Address aaddress(Register r)
-{
-  return iaddress(r);
-}
-
-static inline Address at_rsp()
-{
-  Unimplemented();
-  return (Address)0;
+static inline Address at_rsp() {
+  return Address(sp, 0);
 }
 
 // At top of Java expression stack which may be different than esp().  It
 // isn't for category 1 objects.
-static inline Address at_tos   ()
-{
-  Unimplemented();
-  return (Address)0;
+static inline Address at_tos   () {
+  return Address(sp,  Interpreter::expr_offset_in_bytes(0));
 }
 
-static inline Address at_tos_p1()
-{
-  Unimplemented();
-  return (Address)0;
+static inline Address at_tos_p1() {
+  return Address(sp,  Interpreter::expr_offset_in_bytes(1));
 }
 
-static inline Address at_tos_p2()
-{
-  Unimplemented();
-  return (Address)0;
+static inline Address at_tos_p2() {
+  return Address(sp,  Interpreter::expr_offset_in_bytes(2));
 }
 
-static inline Address at_tos_p3()
-{
-  Unimplemented();
-  return (Address)0;
+static inline Address at_tos_p3() {
+  return Address(sp,  Interpreter::expr_offset_in_bytes(3));
 }
 
 // Condition conversion
@@ -532,13 +497,13 @@ void TemplateTable::saload()
 void TemplateTable::iload(int n)
 {
   transition(vtos, itos);
-  __ ldr(r0, iAddress(n));
+  __ ldr(r0, iaddress(n));
 }
 
 void TemplateTable::lload(int n)
 {
   transition(vtos, ltos);
-  __ ldr(r0, iAddress(n));
+  __ ldr(r0, iaddress(n));
 }
 
 void TemplateTable::fload(int n)
@@ -553,7 +518,7 @@ void TemplateTable::dload(int n)
 void TemplateTable::aload(int n)
 {
   transition(vtos, atos);
-  __ ldr(r0, iAddress(n));
+  __ ldr(r0, iaddress(n));
 }
 
 void TemplateTable::aload_0()
@@ -597,7 +562,8 @@ void TemplateTable::lstore()
 {
   transition(ltos, vtos);
   locals_index(r1);
-  __ str(r0, laddress(r1));
+  __ call_Unimplemented();
+  // __ str(r0, laddress(r1));
 }
 
 void TemplateTable::fstore()
@@ -663,9 +629,58 @@ void TemplateTable::dastore()
   __ call_Unimplemented();
 }
 
-void TemplateTable::aastore()
-{
-  __ call_Unimplemented();
+void TemplateTable::aastore() {
+  Label is_null, ok_is_subtype, done;
+  transition(vtos, vtos);
+  // stack: ..., array, index, value
+  __ ldr(r0, at_tos());    // value
+  __ ldr(r2, at_tos_p1()); // index
+  __ ldr(r3, at_tos_p2()); // array
+
+  Address element_address(r4, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+
+  index_check(r3, r2);     // kills r1
+  // do array store check - check for NULL value first
+  __ cbzw(r0, is_null);
+
+  // Move subklass into r1
+  __ load_klass(r1, r0);
+  // Move superklass into r0
+  __ load_klass(r0, r3);
+  __ ldr(r0, Address(r0,
+		     objArrayKlass::element_klass_offset()));
+  // Compress array + index*oopSize + 12 into a single register.  Frees r2.
+
+  __ add(r4, r3, r2, Assembler::LSL, UseCompressedOops? 2 : 3);
+  __ lea(r3, element_address);
+
+  // Generate subtype check.  Blows r2, r5
+  // Superklass in r0.  Subklass in r1.
+  __ gen_subtype_check(r1, ok_is_subtype);
+
+  // Come here on failure
+  // object is at TOS
+  __ b(Interpreter::_throw_ArrayStoreException_entry);
+
+  // Come here on success
+  __ bind(ok_is_subtype);
+
+  // Get the value we will store
+  __ ldr(r0, at_tos());
+  // Now store using the appropriate barrier
+  do_oop_store(_masm, Address(r3, 0), r0, _bs->kind(), true);
+  __ b(done);
+
+  // Have a NULL in r0, r3=array, r2=index.  Store NULL at ary[idx]
+  __ bind(is_null);
+  __ profile_null_seen(r2);
+
+  // Store a NULL
+  do_oop_store(_masm, element_address, noreg, _bs->kind(), true);
+
+  // Pop stack arguments
+  __ bind(done);
+  __ add(sp, sp, 3 * Interpreter::stackElementSize);
 }
 
 void TemplateTable::bastore()
@@ -686,13 +701,13 @@ void TemplateTable::sastore()
 void TemplateTable::istore(int n)
 {
   transition(itos, vtos);
-  __ str(r0, iAddress(n));
+  __ str(r0, iaddress(n));
 }
 
 void TemplateTable::lstore(int n)
 {
   transition(ltos, vtos);
-  __ str(r0, iAddress(n));
+  __ str(r0, iaddress(n));
 }
 
 void TemplateTable::fstore(int n)
@@ -709,7 +724,7 @@ void TemplateTable::astore(int n)
 {
   transition(vtos, vtos);
   __ pop_ptr(r0);
-  __ str(r0, iAddress(n));
+  __ str(r0, iaddress(n));
 }
 
 void TemplateTable::pop()
@@ -954,20 +969,18 @@ void TemplateTable::_return(TosState state)
          "inconsistent calls_vm information"); // call in remove_activation
 
   if (_desc->bytecode() == Bytecodes::_return_register_finalizer) {
-    __ call_Unimplemented();
-#if 0
     assert(state == vtos, "only valid state");
-    __ movptr(c_rarg1, aaddress(0));
-    __ load_klass(rdi, c_rarg1);
-    __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
-    __ testl(rdi, JVM_ACC_HAS_FINALIZER);
+
+    __ ldr(c_rarg1, aaddress(0));
+    __ load_klass(r3, c_rarg1);
+    __ ldrw(r3, Address(r3, Klass::access_flags_offset()));
+    __ tst(r3, JVM_ACC_HAS_FINALIZER);
     Label skip_register_finalizer;
-    __ jcc(Assembler::zero, skip_register_finalizer);
+    __ br(Assembler::EQ, skip_register_finalizer);
 
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::register_finalizer), c_rarg1);
 
     __ bind(skip_register_finalizer);
-#endif
   }
 
   __ remove_activation(state);
@@ -1212,11 +1225,10 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   Label notByte, notInt, notShort, notChar,
         notLong, notFloat, notObj, notDouble;
 
-  __ lsr(flags, flags, ConstantPoolCacheEntry::tosBits);
+  __ ubfx(flags, flags, ConstantPoolCacheEntry::tosBits, 4);
 
   assert(btos == 0, "change code, btos != 0");
-  __ ands(flags, flags, 0x0f);
-  __ br(Assembler::NE, notByte);
+  __ cbnz(flags, notByte);
 
   // btos
   {
