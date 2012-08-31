@@ -294,7 +294,9 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     br(rscratch2);
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state) { Unimplemented(); }
+void InterpreterMacroAssembler::dispatch_only(TosState state) {
+  dispatch_base(state, Interpreter::dispatch_table(state));
+}
 
 void InterpreterMacroAssembler::dispatch_only_normal(TosState state) { Unimplemented(); }
 
@@ -518,10 +520,18 @@ void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) { Unimpl
 
 
 void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
-                                                     Register bumped_count) { Unimplemented(); }
+                                                     Register bumped_count) {
+  if (ProfileInterpreter) {
+    Unimplemented();
+  }
+}
 
 
-void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) { Unimplemented(); }
+void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
+  if (ProfileInterpreter) {
+    Unimplemented();
+  }
+}
 
 
 void InterpreterMacroAssembler::profile_call(Register mdp) { 
@@ -530,13 +540,21 @@ void InterpreterMacroAssembler::profile_call(Register mdp) {
   }
 }
 
-void InterpreterMacroAssembler::profile_final_call(Register mdp) { Unimplemented(); }
+void InterpreterMacroAssembler::profile_final_call(Register mdp) {
+  if (ProfileInterpreter) {
+    Unimplemented();
+  }
+}
 
 
 void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
                                                      Register mdp,
                                                      Register reg2,
-                                                     bool receiver_can_be_null) { Unimplemented(); }
+                                                     bool receiver_can_be_null) {
+  if (ProfileInterpreter) {
+    Unimplemented();
+  }
+}
 
 // This routine creates a state machine for updating the multi-row
 // type profile at a virtual call site (or other type-sensitive bytecode).

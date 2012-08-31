@@ -2054,6 +2054,10 @@ public:
     mov(dst, (u_int64_t)i);
   }
 
+  // idiv variant which deals with MINLONG as dividend and -1 as divisor
+  // not sure we need this given how aarch64 div instruction works
+  int corrected_idivl(Register ra, Register rb);
+
   // Support for NULL-checks
   //
   // Generates code that causes a NULL OS exception if the content of reg is NULL.

@@ -2264,6 +2264,47 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
   }
 }
 
+int MacroAssembler::corrected_idivl(Register ra, Register rb)
+{
+  // Full implementation of Java ldiv and lrem; checks for special
+  // case as described in JVM spec., p.243 & p.271.  The function
+  // returns the (pc) offset of the idivl instruction - may be needed
+  // for implicit exceptions.
+  //
+  // consraint : ra/b =/= rscratch1
+  //         normal case                          special case
+  //
+  // input : ra: dividend                         min_long
+  //         rb: divisor                          -1
+  //
+  // output: ra: quotient  (= ra idiv rb)         min_long
+  //         rb: remainder (= ra irem rb)         0
+  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
+  static const int64_t min_long = 0x8000000000000000;
+  Label normal_case, special_case;
+
+  // check for special cases
+  mov(rscratch1, min_long);
+  cmp(ra, rscratch1);
+  br(Assembler::NE, normal_case);
+  // check for -1 in rb
+  adds(rscratch1, rb, 1);
+  br(Assembler::NE, normal_case);
+  mov(rb, zr);
+  b(special_case);
+
+  // handle normal case
+  bind(normal_case);
+  int idivl_offset = offset();
+  sdiv(rscratch1, ra, rb);
+  msub(rb, rscratch1, rb, ra);
+  mov(ra, rscratch1);
+
+  // normal and special case exit
+  bind(special_case);
+
+  return idivl_offset;
+}
 
 // Packed operands for  Floating-point Move (immediate)
 

@@ -282,8 +282,8 @@ void TemplateTable::sipush()
   transition(vtos, itos);
   // FIXME: Is this the right way to do it?
   __ load_unsigned_short(r0, at_bcp(1));
-  __ rev(r0, r0);
-  __ asrw(r0, r0, 48);
+  __ revw(r0, r0);
+  __ asrw(r0, r0, 16);
 }
 
 void TemplateTable::ldc(bool wide)
@@ -899,42 +899,82 @@ void TemplateTable::lop2(Operation op)
 
 void TemplateTable::idiv()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ mov(r1, r0);
+  __ pop_i(r0);
+  // r0 <== r0 idiv r1, r1 <== r0 irem r1
+  __ corrected_idivl(r0, r1);
 }
 
 void TemplateTable::irem()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ pop_i(r1);
+  // r1 <== r1 idiv r0, r0 <== r1 irem r0
+  __ corrected_idivl(r1, r0);
 }
 
 void TemplateTable::lmul()
 {
-  __ call_Unimplemented();
+  transition(ltos, ltos);
+  __ pop_l(r1);
+  __ mul(r0, r0, r1);
 }
 
 void TemplateTable::ldiv()
 {
-  __ call_Unimplemented();
+  transition(ltos, ltos);
+  // explicitly check for div0
+  __ ands(r0, r0, r0);
+  Label no_div0;
+  __ br(Assembler::NE, no_div0);
+  __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
+  __ br(rscratch1);
+  __ bind(no_div0);
+  __ pop_l(r1);
+  // r0 <== r1 idiv r0, r1 <== r1 irem r0
+  __ corrected_idivl(r1, r0);
 }
 
 void TemplateTable::lrem()
 {
-  __ call_Unimplemented();
+  transition(ltos, ltos);
+  __ pop_l(r1);
+  // explicitly check for div0
+  __ ands(r0, r0, r0);
+  Label no_div0;
+  __ br(Assembler::NE, no_div0);
+  __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
+  __ br(rscratch1);
+  __ bind(no_div0);  
+  // r0 <== r1 idiv r0, r1 <== r1 irem r0
+  __ corrected_idivl(r1, r0);
+  // move to correct destination
+  __ mov(r0, r1);
 }
 
 void TemplateTable::lshl()
 {
-  __ call_Unimplemented();
+  transition(itos, ltos);
+  // shift count is in r0
+  __ pop_l(r1);
+  __ lslv(r0, r1, r0);
 }
 
 void TemplateTable::lshr()
 {
-  __ call_Unimplemented();
+  transition(itos, ltos);
+  // shift count is in r0
+  __ pop_l(r1);
+  __ asrv(r0, r1, r0);
 }
 
 void TemplateTable::lushr()
 {
-  __ call_Unimplemented();
+  transition(itos, ltos);
+  // shift count is in r0
+  __ pop_l(r1);
+  __ lsrv(r0, r1, r0);
 }
 
 void TemplateTable::fop2(Operation op)
@@ -949,12 +989,15 @@ void TemplateTable::dop2(Operation op)
 
 void TemplateTable::ineg()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ negw(r0, r0);
+ 
 }
 
 void TemplateTable::lneg()
 {
-  __ call_Unimplemented();
+  transition(ltos, ltos);
+  __ neg(r0, r0);
 }
 
 void TemplateTable::fneg()
@@ -994,18 +1037,65 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
 
 void TemplateTable::branch(bool is_jsr, bool is_wide)
 {
-  __ call_Unimplemented();
+  __ profile_taken_branch(r0, r1);
+  const ByteSize be_offset = methodOopDesc::backedge_counter_offset() +
+                             InvocationCounter::counter_offset();
+  const ByteSize inv_offset = methodOopDesc::invocation_counter_offset() +
+                              InvocationCounter::counter_offset();
+  const int method_offset = frame::interpreter_frame_method_offset * wordSize;
+  // load branch displacement
+  __ ldrw(r0, at_bcp(1));
+  __ revw(r0, r0);
+  if (!is_wide) {
+    __ asrw(r0, r0, 16);
+  }
+  if (is_jsr) {
+    __ call_Unimplemented();
+    return;
+  }
+  // Normal (non-jsr) branch handling
+
+  // Adjust the bcp by the displacement in r0
+  __ add(rbcp, rbcp, r0);
+
+  assert(UseLoopCounter || !UseOnStackReplacement,
+         "on-stack-replacement requires loop counters");
+  if (UseLoopCounter) {
+    // TODO : add this
+  }
+  // Pre-load the next target bytecode into rscratch1
+  __ load_unsigned_byte(rscratch1, Address(rbcp, 0));
+
+  // continue with the bytecode @ target
+  // rscratch1: target bytecode
+  // rbcp: target bcp
+  __ dispatch_only(vtos);
 }
 
 
 void TemplateTable::if_0cmp(Condition cc)
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  // assume branch is more often taken than not (loops use backward branches)
+  Label not_taken;
+  __ andsw(r0, r0, zr);
+  __ br(j_not(cc), not_taken);
+  branch(false, false);
+  __ bind(not_taken);
+  __ profile_not_taken_branch(r0);
 }
 
 void TemplateTable::if_icmp(Condition cc)
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  // assume branch is more often taken than not (loops use backward branches)
+  Label not_taken;
+  __ pop_i(r1);
+  __ cmpw(r1, r0, Assembler::LSL);
+  __ br(j_not(cc), not_taken);
+  branch(false, false);
+  __ bind(not_taken);
+  __ profile_not_taken_branch(r0);
 }
 
 void TemplateTable::if_nullcmp(Condition cc)
