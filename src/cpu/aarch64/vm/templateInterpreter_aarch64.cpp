@@ -126,10 +126,9 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u2));
   __ bind(L_got_cache);
   __ add(rscratch1, r1, r2, Assembler::LSL, 3);
-  __ ldr(r1, Address(rscratch1,
+  __ ldrb(r1, Address(rscratch1,
 		     in_bytes(constantPoolCacheOopDesc::base_offset()) +
 		     3 * wordSize));
-  __ andr(r1, r1, 0xff);
   __ mov(rscratch1, sp);
   __ add(rscratch1, rscratch1, r1, Assembler::LSL, 3);
   __ mov(sp, rscratch1);

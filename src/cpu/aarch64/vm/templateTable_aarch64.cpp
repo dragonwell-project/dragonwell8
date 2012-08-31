@@ -51,8 +51,16 @@ static inline Address iaddress(int n) {
   return Address(rlocals, Interpreter::local_offset_in_bytes(n));
 }
 
+static inline Address laddress(int n) {
+  return iaddress(n + 1);
+}
+
 static inline Address faddress(int n) {
   return iaddress(n);
+}
+
+static inline Address daddress(int n) {
+  return laddress(n);
 }
 
 static inline Address aaddress(int n) {
@@ -63,8 +71,19 @@ static inline Address iaddress(Register r) {
   return Address(rlocals, r, Address::lsl(3));
 }
 
+static inline Address laddress(Register r, Register scratch,
+			       InterpreterMacroAssembler* _masm) {
+  __ lea(scratch, Address(rlocals, r, Address::lsl(3)));
+  return Address(scratch, Interpreter::local_offset_in_bytes(1));
+}
+
 static inline Address faddress(Register r) {
   return iaddress(r);
+}
+
+static inline Address daddress(Register r, Register scratch,
+			       InterpreterMacroAssembler* _masm) {
+  return laddress(r, scratch, _masm);
 }
 
 static inline Address aaddress(Register r) {
@@ -445,7 +464,24 @@ void TemplateTable::wide_aload()
 
 void TemplateTable::index_check(Register array, Register index)
 {
-  __ call_Unimplemented();
+  // destroys r1
+  // check array
+  __ null_check(array, arrayOopDesc::length_offset_in_bytes());
+  // sign extend index for use by indexed load
+  // __ movl2ptr(index, index);
+  // check index
+  __ ldr(rscratch1, Address(array, arrayOopDesc::length_offset_in_bytes()));
+  __ cmp(index, rscratch1);
+  if (index != r1) {
+    // ??? convention: move aberrant index into r1 for exception message
+    assert(r1 != array, "different registers");
+    __ mov(r1, index);
+  }
+  Label ok;
+  __ br(Assembler::LT, ok);
+  __ mov(rscratch1, Interpreter::_throw_ArrayIndexOutOfBoundsException_entry);
+  __ br(rscratch1);
+  __ bind(ok);
 }
 
 void TemplateTable::iaload()
@@ -555,25 +591,32 @@ void TemplateTable::istore()
 {
   transition(itos, vtos);
   locals_index(r1);
-  __ str(r0, iaddress(r1));
+  // FIXME: We're being very pernickerty here storing a jint in a
+  // local with strw, which costs an extra instruction over what we'd
+  // be able to do with a simple str.  We should just store the whole
+  // word.
+  __ lea(rscratch1, iaddress(r1));
+  __ strw(r0, Address(rscratch1));
 }
 
 void TemplateTable::lstore()
 {
   transition(ltos, vtos);
   locals_index(r1);
-  __ call_Unimplemented();
-  // __ str(r0, laddress(r1));
+  __ str(r0, laddress(r1, rscratch1, _masm));
 }
 
-void TemplateTable::fstore()
-{
-  __ call_Unimplemented();
+void TemplateTable::fstore() {
+  transition(ftos, vtos);
+  locals_index(r1);
+  __ lea(rscratch1, iaddress(r1));
+  __ strs(v0, Address(rscratch1));
 }
 
-void TemplateTable::dstore()
-{
-  __ call_Unimplemented();
+void TemplateTable::dstore() {
+  transition(dtos, vtos);
+  locals_index(r1);
+  __ strd(v0, daddress(r1, rscratch1, _masm));
 }
 
 void TemplateTable::astore()
@@ -584,49 +627,93 @@ void TemplateTable::astore()
   __ str(r0, aaddress(r1));
 }
 
-void TemplateTable::wide_istore()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_istore() {
+  transition(vtos, vtos);
+  __ pop_i();
+  locals_index_wide(r1);
+  __ lea(rscratch1, iaddress(r1));
+  __ strw(r0, Address(rscratch1));
 }
 
-void TemplateTable::wide_lstore()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_lstore() {
+  transition(vtos, vtos);
+  __ pop_l();
+  locals_index_wide(r1);
+  __ str(r0, laddress(r1, rscratch1, _masm));
 }
 
-void TemplateTable::wide_fstore()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_fstore() {
+  transition(vtos, vtos);
+  __ pop_f();
+  locals_index_wide(r1);
+  __ lea(rscratch1, faddress(r1));
+  __ strs(v0, rscratch1);
 }
 
-void TemplateTable::wide_dstore()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_dstore() {
+  transition(vtos, vtos);
+  __ pop_d();
+  locals_index_wide(r1);
+  __ strd(v0, daddress(r1, rscratch1, _masm));
 }
 
-void TemplateTable::wide_astore()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_astore() {
+  transition(vtos, vtos);
+  __ pop_ptr(r0);
+  locals_index_wide(r1);
+  __ str(r0, aaddress(r1));
 }
 
-void TemplateTable::iastore()
-{
-  __ call_Unimplemented();
+void TemplateTable::iastore() {
+  transition(itos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // r0: value
+  // r1: index
+  // r3: array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::lsl(2)));
+  __ strw(r0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_INT)));
 }
 
-void TemplateTable::lastore()
-{
-  __ call_Unimplemented();
+void TemplateTable::lastore() {
+  transition(ltos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // r0: value
+  // r1: index
+  // r3: array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::lsl(3)));
+  __ str(r0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_LONG)));
 }
 
-void TemplateTable::fastore()
-{
-  __ call_Unimplemented();
+void TemplateTable::fastore() {
+  transition(ftos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // v0: value
+  // r1:  index
+  // r3:  array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::lsl(2)));
+  __ strs(v0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
 
-void TemplateTable::dastore()
-{
-  __ call_Unimplemented();
+void TemplateTable::dastore() {
+  transition(dtos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // v0: value
+  // r1:  index
+  // r3:  array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::lsl(3)));
+  __ strd(v0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
 
 void TemplateTable::aastore() {
