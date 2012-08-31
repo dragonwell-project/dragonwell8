@@ -45,8 +45,10 @@ LIR_Opr FrameMap::_caller_save_fpu_regs[] = { 0, };
 void FrameMap::initialize() { Unimplemented(); }
 
 
-Address FrameMap::make_new_address(ByteSize sp_offset) const  { Unimplemented(); 
-  return Address((address)0); }
+Address FrameMap::make_new_address(ByteSize sp_offset) const  {
+  Unimplemented();
+  return Address(sp, sp_offset);
+}
 
 
 // ----------------mapping-----------------------

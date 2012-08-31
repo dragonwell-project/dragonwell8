@@ -536,9 +536,7 @@ class InternalAddress: public Address {
   public:
 
   InternalAddress(address target) : Address(target, relocInfo::internal_word_type) {}
-
 };
-
 
 const int FPUStateSizeInWords = 27; // FIXME   :-)
 

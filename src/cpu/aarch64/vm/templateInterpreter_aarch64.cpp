@@ -478,7 +478,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   }
 
   // call signature handler
-  assert(InterpreterRuntime::SignatureHandlerGenerator::from() == rscratch2,
+  assert(InterpreterRuntime::SignatureHandlerGenerator::from() == rlocals,
          "adjust this code");
   assert(InterpreterRuntime::SignatureHandlerGenerator::to() == sp,
          "adjust this code");

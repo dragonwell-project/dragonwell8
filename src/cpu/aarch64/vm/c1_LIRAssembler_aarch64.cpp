@@ -100,15 +100,15 @@ void LIR_Assembler::pop(LIR_Opr opr) { Unimplemented(); }
 bool LIR_Assembler::is_literal_address(LIR_Address* addr) { Unimplemented(); return false; }
 //-------------------------------------------
 
-Address LIR_Assembler::as_Address(LIR_Address* addr) { Unimplemented(); return (address)0; }
+Address LIR_Assembler::as_Address(LIR_Address* addr) { Unimplemented(); return Address(sp, 0); }
 
-Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) { Unimplemented(); return (address)0; }
-
-
-Address LIR_Assembler::as_Address_hi(LIR_Address* addr) { Unimplemented(); return (address)0; }
+Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) { Unimplemented(); return Address(sp, 0); }
 
 
-Address LIR_Assembler::as_Address_lo(LIR_Address* addr) { Unimplemented(); return (address)0; }
+Address LIR_Assembler::as_Address_hi(LIR_Address* addr) { Unimplemented(); return Address(sp, 0); }
+
+
+Address LIR_Assembler::as_Address_lo(LIR_Address* addr) { Unimplemented(); return Address(sp, 0); }
 
 
 void LIR_Assembler::osr_entry() { Unimplemented(); }
