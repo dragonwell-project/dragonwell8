@@ -464,14 +464,14 @@ void TemplateTable::wide_aload()
 
 void TemplateTable::index_check(Register array, Register index)
 {
-  // destroys r1
+  // destroys r1, rscratch1
   // check array
   __ null_check(array, arrayOopDesc::length_offset_in_bytes());
   // sign extend index for use by indexed load
   // __ movl2ptr(index, index);
   // check index
   __ ldrw(rscratch1, Address(array, arrayOopDesc::length_offset_in_bytes()));
-  __ cmp(index, rscratch1);
+  __ cmpw(index, rscratch1);
   if (index != r1) {
     // ??? convention: move aberrant index into r1 for exception message
     assert(r1 != array, "different registers");
@@ -672,7 +672,7 @@ void TemplateTable::iastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::lsl(2)));
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
   __ strw(r0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_INT)));
 }
@@ -685,7 +685,7 @@ void TemplateTable::lastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::lsl(3)));
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
   __ str(r0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_LONG)));
 }
@@ -698,7 +698,7 @@ void TemplateTable::fastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::lsl(2)));
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
   __ strs(v0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
@@ -711,7 +711,7 @@ void TemplateTable::dastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::lsl(3)));
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
   __ strd(v0, Address(rscratch1,
 		      arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
@@ -738,7 +738,7 @@ void TemplateTable::aastore() {
 		     objArrayKlass::element_klass_offset()));
   // Compress array + index*oopSize + 12 into a single register.  Frees r2.
 
-  __ add(r4, r3, r2, Assembler::LSL, UseCompressedOops? 2 : 3);
+  __ add(r4, r3, r2, ext::uxtw, UseCompressedOops? 2 : 3);
   __ lea(r3, element_address);
 
   // Generate subtype check.  Blows r2, r5
