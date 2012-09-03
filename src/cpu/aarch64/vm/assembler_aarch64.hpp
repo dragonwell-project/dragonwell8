@@ -1317,7 +1317,7 @@ public:
     f(0b11010100, 28, 21);
     f(cond, 15, 12);
     f(op2, 11, 10);
-    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+    zrf(Rm, 16), zrf(Rn, 5), rf(Rd, 0);
   }
 
 #define INSN(NAME, op, op2)						\
