@@ -373,7 +373,32 @@ void TemplateTable::fast_aldc(bool wide)
 
 void TemplateTable::ldc2_w()
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  Label Long, Done;
+  __ get_unsigned_2_byte_index_at_bcp(r0, 1);
+
+  __ get_cpool_and_tags(r1, r2);
+  const int base_offset = constantPoolOopDesc::header_size() * wordSize;
+  const int tags_offset = typeArrayOopDesc::header_size(T_BYTE) * wordSize;
+
+  // get type
+  __ lea(r2, Address(r2, r0, Address::lsl(0)));
+  __ load_unsigned_byte(r2, Address(r2, tags_offset));
+  __ cmpw(r2, JVM_CONSTANT_Double);
+  __ br(Assembler::NE, Long);
+  // dtos
+  __ lea (r2, Address(r1, r0, Address::lsl(3)));
+  __ ldrs(v0, Address(r2, base_offset));
+  __ push_d();
+  __ b(Done);
+
+  __ bind(Long);
+  // ltos
+  __ lea(r0, Address(r1, r0, Address::lsl(3)));
+  __ ldr(r0, Address(r0, base_offset));
+  __ push_l();
+
+  __ bind(Done);
 }
 
 void TemplateTable::locals_index(Register reg, int offset)
@@ -409,7 +434,7 @@ void TemplateTable::lload()
 {
   transition(vtos, ltos);
   locals_index(r1);
-  __ ldr(r0, iaddress(r1));
+  __ ldr(r0, laddress(r1, rscratch1, _masm));
 }
 
 void TemplateTable::fload()
@@ -538,7 +563,7 @@ void TemplateTable::iload(int n)
 void TemplateTable::lload(int n)
 {
   transition(vtos, ltos);
-  __ ldr(r0, iaddress(n));
+  __ ldr(r0, laddress(n));
 }
 
 void TemplateTable::fload(int n)
@@ -1026,7 +1051,15 @@ void TemplateTable::convert()
 
 void TemplateTable::lcmp()
 {
-  __ call_Unimplemented();
+  transition(ltos, itos);
+  Label done;
+  __ pop_l(r1);
+  __ cmp(r1, r0);
+  __ mov(r0, (u_int64_t)-1L);
+  __ br(Assembler::LT, done);
+  __ mov(r0, 1UL);
+  __ csel(r0, r0, zr, Assembler::NE);
+  __ bind(done);
 }
 
 void TemplateTable::float_cmp(bool is_float, int unordered_result)
