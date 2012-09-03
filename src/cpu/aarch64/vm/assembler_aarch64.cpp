@@ -2159,6 +2159,9 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
     if (zero_count == 4) {
       // one MOVZ will do
       movz(dst, 0);
+    } else if (neg_count == 4) {
+      // one MOVN will do
+      movn(dst, 0);
     } else if (zero_count == 3) {
       for (i = 0; i < 3; i++) {
 	if (imm_h[i] != 0L) {
@@ -2231,7 +2234,7 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
     } else {
       // use a MOVZ and 3 MOVKs (makes it easier to debug)
       movz(dst, (u_int32_t)imm_h[0], 0);
-      for (i = 1; i < 3; i++) {
+      for (i = 1; i < 4; i++) {
 	movk(dst, (u_int32_t)imm_h[i], (i << 4));
       }
     }
