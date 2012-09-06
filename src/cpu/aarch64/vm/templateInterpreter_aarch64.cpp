@@ -117,6 +117,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ restore_bcp();
   __ restore_locals();
   __ restore_constant_pool_cache();
+  __ get_method(rmethod);
 
   Label L_got_cache, L_giant_index;
   if (EnableInvokeDynamic) {
@@ -132,6 +133,9 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ mov(rscratch1, sp);
   __ add(rscratch1, rscratch1, r1, Assembler::LSL, 3);
   __ mov(sp, rscratch1);
+#ifdef ASSERT
+  __ spillcheck(rscratch1, rscratch2);
+#endif // ASSERT
   __ dispatch_next(state, step);
 
   // out of the main line of code...

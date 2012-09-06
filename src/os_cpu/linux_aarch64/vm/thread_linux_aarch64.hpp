@@ -26,6 +26,16 @@
 #define OS_CPU_LINUX_X86_VM_THREAD_LINUX_X86_HPP
 
  private:
+#ifdef ASSERT
+  // spill stack holds N callee-save registers at each Java call and
+  // grows downwards towards limit
+  // we need limit to check we have space for a spill and base so we
+  // can identify all live spill frames at GC (eventually)
+  address          _spill_stack;
+  address          _spill_stack_base;
+  address          _spill_stack_limit;
+#endif // ASSERT
+
   void pd_initialize() {
     _anchor.clear();
   }
@@ -66,5 +76,16 @@
   static bool register_stack_overflow() { return false; }
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
+
+#ifdef ASSERT
+  void    set_spill_stack(address base) { _spill_stack = _spill_stack_base = base; }
+  void    set_spill_stack_limit(address limit)  { _spill_stack_limit = limit; }
+  static ByteSize spill_stack_offset() {
+    return byte_offset_of(JavaThread, _spill_stack) ;
+  };
+  static ByteSize spill_stack_limit_offset() {
+    return byte_offset_of(JavaThread, _spill_stack_limit) ;
+  };
+#endif
 
 #endif // OS_CPU_LINUX_X86_VM_THREAD_LINUX_X86_HPP

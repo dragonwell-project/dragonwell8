@@ -1681,6 +1681,11 @@ void TemplateTable::invokevirtual(int byte_no)
 {
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
+
+#ifdef ASSERT
+  __ spill(rscratch1, rscratch2);
+#endif // ASSERT
+
   prepare_invoke(rmethod, noreg, byte_no);
 
   // rbx: index
@@ -1695,6 +1700,11 @@ void TemplateTable::invokespecial(int byte_no)
 {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
+
+#ifdef ASSERT
+  __ spill(rscratch1, rscratch2);
+#endif // ASSERT
+
   prepare_invoke(rmethod, noreg, byte_no);
   // do the call
   __ verify_oop(rmethod);
@@ -1706,7 +1716,12 @@ void TemplateTable::invokestatic(int byte_no)
 {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(r1, noreg, byte_no);
+
+#ifdef ASSERT
+  __ spill(rscratch1, rscratch2);
+#endif // ASSERT
+
+  prepare_invoke(rmethod, noreg, byte_no);
   // do the call
   __ verify_oop(r1);
   __ profile_call(r0);

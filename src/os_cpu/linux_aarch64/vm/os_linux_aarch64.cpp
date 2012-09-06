@@ -116,7 +116,23 @@ char* os::non_memory_address_word() {
 }
 
 void os::initialize_thread() {
-// Nothing to do.
+#ifdef ASSERT
+  Thread *thread = Thread::current();
+  if (!thread->is_Java_thread()) {
+    // Nothing to do!
+    return;
+  }
+
+  JavaThread *java_thread = JavaThread::current();
+  // spill frames are a fixed size of N (== 6?) saved registers at 8
+  // bytes per register a 64K byte stack allows a call depth of 8K / N
+#define SPILL_STACK_SIZE (1 << 16)
+  // initalise the spill stack so we cna check callee-save registers
+  address spill_stack = new unsigned char[SPILL_STACK_SIZE];
+  java_thread->set_spill_stack(spill_stack + SPILL_STACK_SIZE);
+  java_thread->set_spill_stack_limit(spill_stack);
+#endif // ASSERT
+  // Nothing to do!
 }
 
 address os::Linux::ucontext_get_pc(ucontext_t * uc) {
