@@ -2063,6 +2063,10 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   bind(E);
 }
 
+void MacroAssembler::call_VM_leaf(address entry_point, int number_of_arguments) {
+  call_VM_leaf_base(entry_point, number_of_arguments);
+}
+
 void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0) {
   pass_arg0(this, arg_0);
   call_VM_leaf_base(entry_point, 1);

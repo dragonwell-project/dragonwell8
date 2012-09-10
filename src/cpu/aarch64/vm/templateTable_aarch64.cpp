@@ -301,8 +301,8 @@ void TemplateTable::ldc(bool wide)
   const int tags_offset = typeArrayOopDesc::header_size(T_BYTE) * wordSize;
 
   // get type
-  __ add(r1, r1, tags_offset);
-  __ ldrb(r3, Address(r0, r1));
+  __ add(r3, r1, tags_offset);
+  __ ldrb(r3, Address(r0, r3));
 
   // unresolved string - get the resolved string
   __ cmp(r3, JVM_CONSTANT_UnresolvedString);
@@ -326,6 +326,15 @@ void TemplateTable::ldc(bool wide)
   call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::ldc), c_rarg1);
   __ push_ptr(r0);
   __ verify_oop(r0);
+  __ b(Done);
+
+  __ bind(notClass);
+  __ cmp(r3, JVM_CONSTANT_Float);
+  __ br(Assembler::NE, notFloat);
+  // ftos
+  __ adds(r1, r2, r1, Assembler::LSL, 3);
+  __ ldrs(v0, Address(r1, base_offset));
+  __ push_f();
   __ b(Done);
 
   __ bind(notFloat);
@@ -388,7 +397,7 @@ void TemplateTable::ldc2_w()
   __ br(Assembler::NE, Long);
   // dtos
   __ lea (r2, Address(r1, r0, Address::lsl(3)));
-  __ ldrs(v0, Address(r2, base_offset));
+  __ ldrd(v0, Address(r2, base_offset));
   __ push_d();
   __ b(Done);
 
@@ -439,12 +448,18 @@ void TemplateTable::lload()
 
 void TemplateTable::fload()
 {
-  __ call_Unimplemented();
+  transition(vtos, ftos);
+  locals_index(r1);
+  // n.b. we use ldrd here because this is a 64 bit slot
+  // this is comparable to the iload case
+  __ ldrd(v0, faddress(r1));
 }
 
 void TemplateTable::dload()
 {
-  __ call_Unimplemented();
+  transition(vtos, dtos);
+  locals_index(r1);
+  __ ldrd(v0, daddress(r1, rscratch1, _masm));
 }
 
 void TemplateTable::aload()
@@ -955,15 +970,15 @@ void TemplateTable::ldiv()
   __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
   __ br(rscratch1);
   __ bind(no_div0);
-  __ pop_l(r1);
+  __ mov(r1, r0);
+  __ pop_l(r0);
   // r0 <== r1 idiv r0, r1 <== r1 irem r0
-  __ corrected_idivl(r1, r0);
+  __ corrected_idivl(r0, r1);
 }
 
 void TemplateTable::lrem()
 {
   transition(ltos, ltos);
-  __ pop_l(r1);
   // explicitly check for div0
   __ ands(r0, r0, r0);
   Label no_div0;
@@ -971,10 +986,9 @@ void TemplateTable::lrem()
   __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
   __ br(rscratch1);
   __ bind(no_div0);  
-  // r0 <== r1 idiv r0, r1 <== r1 irem r0
+  __ pop_l(r1);
+  // r1 <== r1 idiv r0, r0 <== r1 irem r0
   __ corrected_idivl(r1, r0);
-  // move to correct destination
-  __ mov(r0, r1);
 }
 
 void TemplateTable::lshl()
@@ -1003,12 +1017,66 @@ void TemplateTable::lushr()
 
 void TemplateTable::fop2(Operation op)
 {
-  __ call_Unimplemented();
+  transition(ftos, ftos);
+  switch (op) {
+  case add:
+    // n.b. use ldrd because this is a 64 bit slot
+    __ pop_f(v1);
+    __ fadds(v0, v1, v0);
+    break;
+  case sub:
+    __ pop_f(v1);
+    __ fsubs(v0, v1, v0);
+    break;
+  case mul:
+    __ pop_f(v1);
+    __ fmuls(v0, v1, v0);
+    break;
+  case div:
+    __ pop_f(v1);
+    __ fdivs(v0, v1, v0);
+    break;
+  case rem:
+    __ fmovs(v0, v1);
+    __ pop_f(v0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::frem), 2);
+    break;
+  default:
+    ShouldNotReachHere();
+    break;
+  }
 }
 
 void TemplateTable::dop2(Operation op)
 {
-  __ call_Unimplemented();
+  transition(dtos, dtos);
+  switch (op) {
+  case add:
+    // n.b. use ldrd because this is a 64 bit slot
+    __ pop_d(v1);
+    __ faddd(v0, v1, v0);
+    break;
+  case sub:
+    __ pop_d(v1);
+    __ fsubd(v0, v1, v0);
+    break;
+  case mul:
+    __ pop_d(v1);
+    __ fmuld(v0, v1, v0);
+    break;
+  case div:
+    __ pop_d(v1);
+    __ fdivd(v0, v1, v0);
+    break;
+  case rem:
+    __ fmovd(v0, v1);
+    __ pop_d(v0);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::frem), 2);
+    break;
+  default:
+    ShouldNotReachHere();
+    break;
+  }
 }
 
 void TemplateTable::ineg()
@@ -1026,12 +1094,14 @@ void TemplateTable::lneg()
 
 void TemplateTable::fneg()
 {
-  __ call_Unimplemented();
+  transition(ftos, ftos);
+  __ fnegs(v0, v0);
 }
 
 void TemplateTable::dneg()
 {
-  __ call_Unimplemented();
+  transition(dtos, dtos);
+  __ fnegd(v0, v0);
 }
 
 void TemplateTable::iinc()
@@ -1064,7 +1134,34 @@ void TemplateTable::lcmp()
 
 void TemplateTable::float_cmp(bool is_float, int unordered_result)
 {
-  __ call_Unimplemented();
+  Label done;
+  if (is_float) {
+    // XXX get rid of pop here, use ... reg, mem32
+    __ pop_f(v1);
+    __ fcmps(v1, v0);
+  } else {
+    // XXX get rid of pop here, use ... reg, mem64
+    __ pop_d(v1);
+    __ fcmpd(v1, v0);
+  }
+  if (unordered_result < 0) {
+    // we want -1 for unordered or less than, 0 for equal and 1 for
+    // greater than.
+    __ mov(r0, (u_int64_t)-1L);
+    // for FP LT tests less than or unordered
+    __ br(Assembler::LT, done);
+    __ mov(r0, 1L);
+    __ csel(r0, r0, zr, Assembler::GT);
+  } else {
+    // we want -1 for less than, 0 for equal and 1 for unordered or
+    // greater than.
+    __ mov(r0, 1L);
+    // for FP GT tests greater than or unordered
+    __ br(Assembler::GT, done);
+    __ mov(r0, (u_int64_t)-1L);
+    __ csel(r0, r0, zr, Assembler::LE);
+  }
+  __ bind(done);
 }
 
 void TemplateTable::branch(bool is_jsr, bool is_wide)
@@ -1110,7 +1207,7 @@ void TemplateTable::if_0cmp(Condition cc)
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
-  __ andsw(r0, r0, zr);
+  __ andsw(zr, r0, r0);
   __ br(j_not(cc), not_taken);
   branch(false, false);
   __ bind(not_taken);
