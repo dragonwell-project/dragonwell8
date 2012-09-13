@@ -355,14 +355,14 @@ void TemplateTable::ldc(bool wide)
   Label isOop;
   __ cmp(r3, JVM_CONSTANT_Integer);
   __ br(Assembler::NE, isOop);
-  __ add(r1, r1, base_offset);
-  __ ldr(r0, Address(r2, r1, Address::lsl(3)));
+  __ adds(r1, r2, r1, Assembler::LSL, 3);
+  __ ldr(r0, Address(r1, base_offset));
   __ push_i(r0);
   __ b(Done);
 
   __ bind(isOop);
-  __ add(r1, r1, base_offset);
-  __ ldr(r0, Address(r2, r1, Address::lsl(3)));
+  __ adds(r1, r2, r1, Assembler::LSL, 3);
+  __ ldr(r0, Address(r1, base_offset));
   __ push_ptr(r0);
 
   if (VerifyOops) {
@@ -1116,7 +1116,110 @@ void TemplateTable::wide_iinc()
 
 void TemplateTable::convert()
 {
-  __ call_Unimplemented();
+  // Checking
+#ifdef ASSERT
+  {
+    TosState tos_in  = ilgl;
+    TosState tos_out = ilgl;
+    switch (bytecode()) {
+    case Bytecodes::_i2l: // fall through
+    case Bytecodes::_i2f: // fall through
+    case Bytecodes::_i2d: // fall through
+    case Bytecodes::_i2b: // fall through
+    case Bytecodes::_i2c: // fall through
+    case Bytecodes::_i2s: tos_in = itos; break;
+    case Bytecodes::_l2i: // fall through
+    case Bytecodes::_l2f: // fall through
+    case Bytecodes::_l2d: tos_in = ltos; break;
+    case Bytecodes::_f2i: // fall through
+    case Bytecodes::_f2l: // fall through
+    case Bytecodes::_f2d: tos_in = ftos; break;
+    case Bytecodes::_d2i: // fall through
+    case Bytecodes::_d2l: // fall through
+    case Bytecodes::_d2f: tos_in = dtos; break;
+    default             : ShouldNotReachHere();
+    }
+    switch (bytecode()) {
+    case Bytecodes::_l2i: // fall through
+    case Bytecodes::_f2i: // fall through
+    case Bytecodes::_d2i: // fall through
+    case Bytecodes::_i2b: // fall through
+    case Bytecodes::_i2c: // fall through
+    case Bytecodes::_i2s: tos_out = itos; break;
+    case Bytecodes::_i2l: // fall through
+    case Bytecodes::_f2l: // fall through
+    case Bytecodes::_d2l: tos_out = ltos; break;
+    case Bytecodes::_i2f: // fall through
+    case Bytecodes::_l2f: // fall through
+    case Bytecodes::_d2f: tos_out = ftos; break;
+    case Bytecodes::_i2d: // fall through
+    case Bytecodes::_l2d: // fall through
+    case Bytecodes::_f2d: tos_out = dtos; break;
+    default             : ShouldNotReachHere();
+    }
+    transition(tos_in, tos_out);
+  }
+#endif // ASSERT
+  // static const int64_t is_nan = 0x8000000000000000L;
+
+  // Conversion
+  switch (bytecode()) {
+  case Bytecodes::_i2l:
+    __ sxtw(r0, r0);
+    break;
+  case Bytecodes::_i2f:
+    __ scvtfws(v0, r0);
+    break;
+  case Bytecodes::_i2d:
+    __ scvtfwd(v0, r0);
+    break;
+  case Bytecodes::_i2b:
+    __ sxtbw(r0, r0);
+    break;
+  case Bytecodes::_i2c:
+    __ uxthw(r0, r0);
+    break;
+  case Bytecodes::_i2s:
+    __ sxthw(r0, r0);
+    break;
+  case Bytecodes::_l2i:
+    __ uxtw(r0, r0);
+    break;
+  case Bytecodes::_l2f:
+    __ scvtfs(v0, r0);
+    break;
+  case Bytecodes::_l2d:
+    __ scvtfd(v0, r0);
+    break;
+  case Bytecodes::_f2i:
+  {
+    __ fcvtzsw(r0, v0);
+  }
+    break;
+  case Bytecodes::_f2l:
+  {
+    __ fcvtzs(r0, v0);
+  }
+    break;
+  case Bytecodes::_f2d:
+    __ fcvts(v0, v0);
+    break;
+  case Bytecodes::_d2i:
+  {
+    __ fcvtzdw(r0, v0);
+  }
+    break;
+  case Bytecodes::_d2l:
+  {
+    __ fcvtzd(r0, v0);
+  }
+    break;
+  case Bytecodes::_d2f:
+    __ fcvtd(v0, v0);
+    break;
+  default:
+    ShouldNotReachHere();
+  }
 }
 
 void TemplateTable::lcmp()
