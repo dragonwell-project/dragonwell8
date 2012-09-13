@@ -1217,7 +1217,7 @@ public:
   void NAME(Register Rd, Register Rn, Register Rm,			\
            ext::operation option, int amount) {				\
     starti;								\
-    zrf(Rm, 16), srf(Rn, 5), srf(Rd, 0);					\
+    zrf(Rm, 16), srf(Rn, 5), srf(Rd, 0);				\
     add_sub_extended_reg(op, 0b01011, Rd, Rn, Rm, 0b00, option, amount); \
   }
 
@@ -1915,19 +1915,19 @@ class MacroAssembler: public Assembler {
   }
 
   inline void uxtbw(Register Rd, Register Rn) {
-    bfmw(Rd, Rn, 0, 7);
+    ubfmw(Rd, Rn, 0, 7);
   }
   inline void uxthw(Register Rd, Register Rn) {
-    bfmw(Rd, Rn, 0, 15);
+    ubfmw(Rd, Rn, 0, 15);
   }
   inline void uxtb(Register Rd, Register Rn) {
-    bfm(Rd, Rn, 0, 7);
+    ubfm(Rd, Rn, 0, 7);
   }
   inline void uxth(Register Rd, Register Rn) {
-    bfm(Rd, Rn, 0, 15);
+    ubfm(Rd, Rn, 0, 15);
   }
   inline void uxtw(Register Rd, Register Rn) {
-    bfm(Rd, Rn, 0, 31);
+    ubfm(Rd, Rn, 0, 31);
   }
 
   inline void cmnw(Register Rn, Register Rm) {
