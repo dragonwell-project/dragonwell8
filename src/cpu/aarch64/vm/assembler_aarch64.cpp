@@ -1845,7 +1845,7 @@ void MacroAssembler::check_klass_subtype_fast_path(Register sub_klass,
   // Check the supertype display:
   if (must_load_sco) {
     // Positive movl does right thing on LP64.
-    ldr(temp_reg, super_check_offset_addr);
+    ldrw(temp_reg, super_check_offset_addr);
     super_check_offset = RegisterOrConstant(temp_reg);
   }
   Address super_check_addr(sub_klass, super_check_offset);
@@ -2889,6 +2889,26 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
       mov(dst, src);
     }
   }
+}
+
+void MacroAssembler::load_heap_oop(Register dst, Address src)
+{
+  if (UseCompressedOops) {
+    ldrw(dst, src);
+    decode_heap_oop(dst);
+  } else {
+    ldr(dst, src);
+  }  
+}
+
+void MacroAssembler::load_heap_oop_not_null(Register dst, Address src)
+{
+  if (UseCompressedOops) {
+    ldrw(dst, src);
+    decode_heap_oop_not_null(dst);
+  } else {
+    ldr(dst, src);
+  }  
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src) {

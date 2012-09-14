@@ -525,37 +525,87 @@ void TemplateTable::index_check(Register array, Register index)
 
 void TemplateTable::iaload()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1, Address(r0, r1, Address::lsl(2)));
+  __ ldrw(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_INT)));
 }
 
 void TemplateTable::laload()
 {
-  __ call_Unimplemented();
+  transition(itos, ltos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1, Address(r0, r1, Address::lsl(3)));
+  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_LONG)));
 }
 
 void TemplateTable::faload()
 {
-  __ call_Unimplemented();
+  transition(itos, ftos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1,  Address(r0, r1, Address::lsl(2)));
+  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
 
 void TemplateTable::daload()
 {
-  __ call_Unimplemented();
+  transition(itos, dtos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1,  Address(r0, r1, Address::lsl(3)));
+  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
 
 void TemplateTable::aaload()
 {
-  __ call_Unimplemented();
+  transition(itos, atos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  int s = (UseCompressedOops ? 2 : 3);
+  __ lea(r1, Address(r0, r1, Address::lsl(s)));
+  __ load_heap_oop(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
 }
 
 void TemplateTable::baload()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1,  Address(r0, r1, Address::lsl(0)));
+  __ load_signed_byte(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_BYTE)));
 }
 
 void TemplateTable::caload()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1,  Address(r0, r1, Address::lsl(1)));
+  __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
 }
 
 // iload followed by caload frequent pair
@@ -566,7 +616,14 @@ void TemplateTable::fast_icaload()
 
 void TemplateTable::saload()
 {
-  __ call_Unimplemented();
+  transition(itos, itos);
+  __ mov(r1, r0);
+  __ pop_ptr(r0);
+  // r0: array
+  // r1: index
+  index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ lea(r1,  Address(r0, r1, Address::lsl(1)));
+  __ load_signed_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_SHORT)));
 }
 
 void TemplateTable::iload(int n)
@@ -811,17 +868,35 @@ void TemplateTable::aastore() {
 
 void TemplateTable::bastore()
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // r0: value
+  // r1: index
+  // r3: array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(0)));
+  __ strb(r0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_BYTE)));
 }
 
 void TemplateTable::castore()
 {
-  __ call_Unimplemented();
+  transition(itos, vtos);
+  __ pop_i(r1);
+  __ pop_ptr(r3);
+  // r0: value
+  // r1: index
+  // r3: array
+  index_check(r3, r1); // prefer index in r1
+  __ lea(rscratch1, Address(r3, r1, Address::uxtw(1)));
+  __ strh(r0, Address(rscratch1,
+		      arrayOopDesc::base_offset_in_bytes(T_CHAR)));
 }
 
 void TemplateTable::sastore()
 {
-  __ call_Unimplemented();
+  castore();
 }
 
 void TemplateTable::istore(int n)
@@ -1337,7 +1412,15 @@ void TemplateTable::if_nullcmp(Condition cc)
 
 void TemplateTable::if_acmp(Condition cc)
 {
-  __ call_Unimplemented();
+  transition(atos, vtos);
+  // assume branch is more often taken than not (loops use backward branches)
+  Label not_taken;
+  __ pop_ptr(r1);
+  __ cmp(r1, r0);
+  __ br(j_not(cc), not_taken);
+  branch(false, false);
+  __ bind(not_taken);
+  __ profile_not_taken_branch(r0);
 }
 
 void TemplateTable::ret()
