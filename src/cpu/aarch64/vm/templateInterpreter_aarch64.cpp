@@ -268,7 +268,10 @@ void InterpreterGenerator::lock_method(void) {
 //      rcpool: cp cache
 void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // initialize fixed part of activation frame
-  __ push(r0);        // save return address
+  // return address does not need pushing as it was never popped
+  // from the stack. instead enter(0 will save lr and leave will
+  // restore it later
+  // __ push(r0);        // save return address
   __ enter();          // save old & set new rfp
   __ push(r10);        // set sender sp
   __ push(zr); // leave last_sp as null
@@ -816,8 +819,9 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   // see if we've got enough room on the stack for locals plus overhead.
   generate_stack_overflow_check();
 
-  // get return address
-  __ pop(r0);
+  // get return address -- not needed as it is in lr!
+  // n.b. generate_fixed_frame will push lr for restoring later
+  // __ pop(r0);
 
   // compute beginning of parameters (rlocals)
   __ add(rlocals, sp, r2, ext::uxtx, 3);
