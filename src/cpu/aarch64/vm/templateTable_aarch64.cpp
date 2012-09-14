@@ -1181,12 +1181,24 @@ void TemplateTable::dneg()
 
 void TemplateTable::iinc()
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  __ load_signed_byte(r1, at_bcp(2)); // get constant
+  locals_index(r2);
+  __ ldr(r0, iaddress(r2));
+  __ addw(r0, r0, r1);
+  __ str(r0, iaddress(r2));
 }
 
 void TemplateTable::wide_iinc()
 {
-  __ call_Unimplemented();
+  transition(vtos, vtos);
+  __ ldrw(r1, at_bcp(4)); // get constant
+  locals_index_wide(r2);
+  __ revw(r1, r1);
+  __ asrw(r1, r1, 16);
+  __ ldr(r0, iaddress(r2));
+  __ addw(r0, r0, r1);
+  __ str(r0, iaddress(r2));
 }
 
 void TemplateTable::convert()
