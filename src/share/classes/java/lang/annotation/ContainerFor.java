@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,49 +23,24 @@
  * questions.
  */
 
-#if !defined(_DASSERT_H)
-#define _DASSERT_H
+package java.lang.annotation;
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#include "debug_util.h"
-
-/* Use THIS_FILE when it is available. */
-#ifndef THIS_FILE
-    #define THIS_FILE __FILE__
-#endif
-
-#if defined(DEBUG)
-
-#define DASSERT(_expr) \
-        if ( !(_expr) ) { \
-            DAssert_Impl( #_expr, THIS_FILE, __LINE__); \
-        } else { \
-        }
-
-#define DASSERTMSG(_expr, _msg) \
-        if ( !(_expr) ) { \
-            DAssert_Impl( (_msg), THIS_FILE, __LINE__); \
-        } else { \
-        }
-
-/* prototype for assert function */
-typedef void (*DASSERT_CALLBACK)(const char * msg, const char * file, int line);
-
-extern void DAssert_Impl(const char * msg, const char * file, int line);
-extern void DAssert_SetCallback( DASSERT_CALLBACK pfn );
-
-#else /* DEBUG not defined */
-
-#define DASSERT(_expr)
-#define DASSERTMSG(_expr, _msg)
-
-#endif /* if defined(DEBUG) */
-
-#if defined(__cplusplus)
-} /* extern "C" */
-#endif
-
-#endif /* _DASSERT_H */
+/**
+ * Indicates that an annotation type is a container for repeated
+ * instances of annotations of the type of the value of the
+ * {@code ContainerFor}'s value element.
+ *
+ * @since 1.8
+ * @jls 9.6 Annotation Types
+ * @jls 9.7 Annotations
+ */
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.ANNOTATION_TYPE)
+public @interface ContainerFor {
+    /**
+     * The repeating annotation type that the annotation type
+     * annotated with this annotation is a container for.
+     */
+    Class<? extends Annotation> value();
+}
