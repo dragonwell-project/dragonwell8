@@ -1869,7 +1869,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
 
 void TemplateTable::putfield(int byte_no)
 {
-  __ call_Unimplemented();
+  putfield_or_static(byte_no, true);
 }
 
 void TemplateTable::putstatic(int byte_no) {
