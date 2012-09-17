@@ -2023,13 +2023,142 @@ void TemplateTable::jvmti_post_fast_field_mod()
 
 void TemplateTable::fast_storefield(TosState state)
 {
-  __ call_Unimplemented();
+  transition(state, vtos);
+
+  ByteSize base = constantPoolCacheOopDesc::base_offset();
+
+  jvmti_post_fast_field_mod();
+
+  // access constant pool cache
+  __ get_cache_and_index_at_bcp(r2, r1, 1);
+
+  // test for volatile with rdx
+  __ lea(r3, Address(r2, r1, Address::lsl(3)));
+  __ ldrw(r3, Address(r3, in_bytes(base +
+				   ConstantPoolCacheEntry::flags_offset())));
+
+  // replace index with field offset from cache entry
+  __ lea(r1, Address(r2, r1, Address::lsl(3)));
+  __ ldr(r1, Address(r1, in_bytes(base + ConstantPoolCacheEntry::f2_offset())));
+
+  // [jk] not needed currently
+  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
+  //                                              Assembler::StoreStore));
+
+  Label notVolatile;
+  __ lsl(r3, r3, ConstantPoolCacheEntry::volatileField);
+  __ andw(r3, r3, 0x1);
+
+  // Get object from stack
+  pop_and_check_object(r2);
+
+  // field address
+  const Address field(r2, r1);
+
+  // access field
+  switch (bytecode()) {
+  case Bytecodes::_fast_aputfield:
+    do_oop_store(_masm, field, r0, _bs->kind(), false);
+    break;
+  case Bytecodes::_fast_lputfield:
+    __ str(r0, field);
+    break;
+  case Bytecodes::_fast_iputfield:
+    __ strw(r0, field);
+    break;
+  case Bytecodes::_fast_bputfield:
+    __ strb(r0, field);
+    break;
+  case Bytecodes::_fast_sputfield:
+    // fall through
+  case Bytecodes::_fast_cputfield:
+    __ strh(r0, field);
+    break;
+  case Bytecodes::_fast_fputfield:
+    __ strs(v0, field);
+    break;
+  case Bytecodes::_fast_dputfield:
+    __ strd(v0, field);
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+
+  // TODO : restore this volatile barrier call
+  //
+  // Check for volatile store
+  // __ andw(r3, r3, r3);
+  // __ br(Assembler::EQ, notVolatile);
+  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
+  //                                             Assembler::StoreStore));
+  // __ bind(notVolatile);
 }
 
 
 void TemplateTable::fast_accessfield(TosState state)
 {
-  __ call_Unimplemented();
+  transition(atos, state);
+  // Do the JVMTI work here to avoid disturbing the register state below
+  if (JvmtiExport::can_post_field_access()) {
+    __ call_Unimplemented();
+  }
+  // access constant pool cache
+  __ get_cache_and_index_at_bcp(r2, r1, 1);
+  // replace index with field offset from cache entry
+  // [jk] not needed currently
+  // if (os::is_MP()) {
+  //   __ movl(rdx, Address(rcx, rbx, Address::times_8,
+  //                        in_bytes(constantPoolCacheOopDesc::base_offset() +
+  //                                 ConstantPoolCacheEntry::flags_offset())));
+  //   __ shrl(rdx, ConstantPoolCacheEntry::volatileField);
+  //   __ andl(rdx, 0x1);
+  // }
+  __ lea(r1, Address(r2, r1, Address::lsl(3)));
+  __ ldr(r1, Address(r1, in_bytes(constantPoolCacheOopDesc::base_offset() +
+                                  ConstantPoolCacheEntry::f2_offset())));
+  // r0: object
+  __ verify_oop(r0);
+  __ null_check(r0);
+  const Address field(r0, r1);
+
+  // access field
+  switch (bytecode()) {
+  case Bytecodes::_fast_agetfield:
+    __ load_heap_oop(r0, field);
+    __ verify_oop(r0);
+    break;
+  case Bytecodes::_fast_lgetfield:
+    __ ldr(r0, field);
+    break;
+  case Bytecodes::_fast_igetfield:
+    __ ldrw(r0, field);
+    break;
+  case Bytecodes::_fast_bgetfield:
+    __ load_signed_byte(r0, field);
+    break;
+  case Bytecodes::_fast_sgetfield:
+    __ load_signed_short(r0, field);
+    break;
+  case Bytecodes::_fast_cgetfield:
+    __ load_unsigned_short(r0, field);
+    break;
+  case Bytecodes::_fast_fgetfield:
+    __ ldrs(v0, field);
+    break;
+  case Bytecodes::_fast_dgetfield:
+    __ ldrd(v0, field);
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+  // [jk] not needed currently
+  // if (os::is_MP()) {
+  //   Label notVolatile;
+  //   __ testl(rdx, rdx);
+  //   __ jcc(Assembler::zero, notVolatile);
+  //   __ membar(Assembler::LoadLoad);
+  //   __ bind(notVolatile);
+  //};
 }
 
 void TemplateTable::fast_xaccess(TosState state)
@@ -2070,7 +2199,7 @@ void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
   // load receiver if needed (note: no return address pushed yet)
   if (load_receiver) {
     assert(!is_invokedynamic, "");
-    __ andr(recv, flags, 0xFF);
+    __ andw(recv, flags, 0xFF);
     __ add(rscratch1, sp, recv, ext::uxtx, 3);
     __ sub(rscratch1, rscratch1, Interpreter::expr_offset_in_bytes(1));
     __ ldr(recv, Address(rscratch1));
