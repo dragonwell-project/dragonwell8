@@ -1670,7 +1670,12 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
 void TemplateTable::jvmti_post_field_access(Register cache, Register index,
                                             bool is_static, bool has_tos)
 {
-  __ call_Unimplemented();
+  // do the JVMTI work here to avoid disturbing the register state below
+  // We use c_rarg registers here because we want to use the register used in
+  // the call to the VM
+  if (JvmtiExport::can_post_field_access()) {
+    __ call_Unimplemented();
+  }
 }
 
 void TemplateTable::pop_and_check_object(Register r)
@@ -1680,18 +1685,146 @@ void TemplateTable::pop_and_check_object(Register r)
 
 void TemplateTable::getfield_or_static(int byte_no, bool is_static)
 {
-  __ call_Unimplemented();
+  const Register cache = r2;
+  const Register index = r3;
+  const Register obj   = r4;
+  const Register off   = r1;
+  const Register flags = r0;
+  const Register bc    = r4; // uses same reg as obj, so don't mix them
+
+  resolve_cache_and_index(byte_no, noreg, cache, index, sizeof(u2));
+  jvmti_post_field_access(cache, index, is_static, false);
+  load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
+
+  if (!is_static) {
+    // obj is on the stack
+    pop_and_check_object(obj);
+  }
+
+  const Address field(obj, off);
+
+  Label Done, notByte, notInt, notShort, notChar,
+              notLong, notFloat, notObj, notDouble;
+
+  __ ubfx(flags, flags, ConstantPoolCacheEntry::tosBits, 4);
+
+  assert(btos == 0, "change code, btos != 0");
+  __ cbnz(flags, notByte);
+
+  // btos
+  __ load_signed_byte(r0, field);
+  __ push(btos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_bgetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notByte);
+  __ cmp(flags, atos);
+  __ br(Assembler::NE, notObj);
+  // atos
+  __ load_heap_oop(r0, field);
+  __ push(atos);
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notObj);
+  __ cmp(flags, itos);
+  __ br(Assembler::NE, notInt);
+  // itos
+  __ ldrw(r0, field);
+  __ push(itos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_igetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notInt);
+  __ cmp(flags, ctos);
+  __ br(Assembler::NE, notChar);
+  // ctos
+  __ load_unsigned_short(r0, field);
+  __ push(ctos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_cgetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notChar);
+  __ cmp(flags, stos);
+  __ br(Assembler::NE, notShort);
+  // stos
+  __ load_signed_short(r0, field);
+  __ push(stos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_sgetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notShort);
+  __ cmp(flags, ltos);
+  __ br(Assembler::NE, notLong);
+  // ltos
+  __ ldr(r0, field);
+  __ push(ltos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_lgetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notLong);
+  __ cmp(flags, ftos);
+  __ br(Assembler::NE, notFloat);
+  // ftos
+  __ ldrs(v0, field);
+  __ push(ftos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_fgetfield, bc, r1);
+  }
+  __ b(Done);
+
+  __ bind(notFloat);
+#ifdef ASSERT
+  __ cmp(flags, dtos);
+  __ br(Assembler::NE, notDouble);
+#endif
+  // dtos
+  __ ldrd(v0, field);
+  __ push(dtos);
+  // Rewrite bytecode to be faster
+  if (!is_static) {
+    patch_bytecode(Bytecodes::_fast_dgetfield, bc, r1);
+  }
+#ifdef ASSERT
+  __ b(Done);
+
+  __ bind(notDouble);
+  __ stop("Bad state");
+#endif
+
+  __ bind(Done);
+  // [jk] not needed currently
+  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadLoad |
+  //                                              Assembler::LoadStore));
 }
 
 
 void TemplateTable::getfield(int byte_no)
 {
-  __ call_Unimplemented();
+  getfield_or_static(byte_no, false);
 }
 
 void TemplateTable::getstatic(int byte_no)
 {
-  __ call_Unimplemented();
+  getfield_or_static(byte_no, true);
 }
 
 // The registers cache and index expected to be set before call.
