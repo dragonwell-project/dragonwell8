@@ -1419,7 +1419,14 @@ void TemplateTable::if_icmp(Condition cc)
 
 void TemplateTable::if_nullcmp(Condition cc)
 {
-  __ call_Unimplemented();
+  transition(atos, vtos);
+  // assume branch is more often taken than not (loops use backward branches)
+  Label not_taken;
+  __ andr(r0, r0, r0);
+  __ br(j_not(cc), not_taken);
+  branch(false, false);
+  __ bind(not_taken);
+  __ profile_not_taken_branch(r0);
 }
 
 void TemplateTable::if_acmp(Condition cc)
