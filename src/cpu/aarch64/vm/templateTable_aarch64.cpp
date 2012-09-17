@@ -200,7 +200,58 @@ void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
                                    Register temp_reg, bool load_bc_into_bc_reg/*=true*/,
                                    int byte_no)
 {
-  __ call_Unimplemented();
+  if (!RewriteBytecodes)  return;
+  Label L_patch_done;
+
+  switch (bc) {
+  case Bytecodes::_fast_aputfield:
+  case Bytecodes::_fast_bputfield:
+  case Bytecodes::_fast_cputfield:
+  case Bytecodes::_fast_dputfield:
+  case Bytecodes::_fast_fputfield:
+  case Bytecodes::_fast_iputfield:
+  case Bytecodes::_fast_lputfield:
+  case Bytecodes::_fast_sputfield:
+    {
+      // We skip bytecode quickening for putfield instructions when
+      // the put_code written to the constant pool cache is zero.
+      // This is required so that every execution of this instruction
+      // calls out to InterpreterRuntime::resolve_get_put to do
+      // additional, required work.
+      assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
+      assert(load_bc_into_bc_reg, "we use bc_reg as temp");
+      __ get_cache_and_index_and_bytecode_at_bcp(temp_reg, bc_reg, temp_reg, byte_no, 1);
+      __ movw(bc_reg, bc);
+      __ cmpw(temp_reg, (unsigned) 0);
+      __ br(Assembler::EQ, L_patch_done);  // don't patch
+    }
+    break;
+  default:
+    assert(byte_no == -1, "sanity");
+    // the pair bytecodes have already done the load.
+    if (load_bc_into_bc_reg) {
+      __ movw(bc_reg, bc);
+    }
+  }
+
+  if (JvmtiExport::can_post_breakpoint()) {
+    __ call_Unimplemented();
+  }
+
+#ifdef ASSERT
+  Label L_okay;
+  __ load_unsigned_byte(temp_reg, at_bcp(0));
+  __ cmpw(temp_reg, (int) Bytecodes::java_code(bc));
+  __ br(Assembler::EQ, L_okay);
+  __ cmpw(temp_reg, bc_reg);
+  __ br(Assembler::EQ, L_okay);
+  __ stop("patching the wrong bytecode");
+  __ bind(L_okay);
+#endif
+
+  // patch bytecode
+  __ strb(bc_reg, at_bcp(0));
+  __ bind(L_patch_done);
 }
 
 
@@ -1687,7 +1738,9 @@ void TemplateTable::jvmti_post_field_access(Register cache, Register index,
 
 void TemplateTable::pop_and_check_object(Register r)
 {
-  __ call_Unimplemented();
+  __ pop_ptr(r);
+  __ null_check(r);  // for field access must check obj.
+  __ verify_oop(r);
 }
 
 void TemplateTable::getfield_or_static(int byte_no, bool is_static)
@@ -2018,7 +2071,9 @@ void TemplateTable::putstatic(int byte_no) {
 
 void TemplateTable::jvmti_post_fast_field_mod()
 {
-  __ call_Unimplemented();
+  if (JvmtiExport::can_post_field_modification()) {
+    __ call_Unimplemented();
+  }
 }
 
 void TemplateTable::fast_storefield(TosState state)
