@@ -1968,7 +1968,48 @@ void TemplateTable::invokevirtual_helper(Register index,
                                          Register recv,
                                          Register flags)
 {
-  __ call_Unimplemented();
+  // Uses temporary registers r0, r3
+  assert_different_registers(index, recv, r0, r3);
+  // Test for an invoke of a final method
+  Label notFinal;
+  __ movw(r0, flags);
+  __ andw(r0, r0, (1 << ConstantPoolCacheEntry::vfinalMethod));
+  __ br(Assembler::NE, notFinal);
+
+  const Register method = index;  // method must be r1
+  assert(method == r1,
+         "methodOop must be r1 for interpreter calling convention");
+
+  // do the call - the index is actually the method to call
+  __ verify_oop(method);
+
+  // It's final, need a null check here!
+  __ null_check(recv);
+
+  // profile this call
+  __ profile_final_call(r0);
+
+  __ jump_from_interpreted(method, r0);
+
+  __ bind(notFinal);
+
+  // get receiver klass
+  __ null_check(recv, oopDesc::klass_offset_in_bytes());
+  __ load_klass(r0, recv);
+
+  __ verify_oop(r0);
+
+  // profile this call
+  __ profile_virtual_call(r0, rlocals, r3);
+
+  // get target methodOop & entry point
+  const int base = instanceKlass::vtable_start_offset() * wordSize;
+  assert(vtableEntry::size() * wordSize == 8,
+         "adjust the scaling in the code below");
+  __ ldr(method, Address(r0, index, Address::lsl(3)));
+  __ add(method, r0, base + vtableEntry::method_offset_in_bytes());
+  __ ldr(r3, Address(method, methodOopDesc::interpreter_entry_offset()));
+  __ jump_from_interpreted(method, r3);
 }
 
 
@@ -1981,14 +2022,13 @@ void TemplateTable::invokevirtual(int byte_no)
   __ spill(rscratch1, rscratch2);
 #endif // ASSERT
 
-  prepare_invoke(rmethod, noreg, byte_no);
+  prepare_invoke(rmethod, r1, byte_no);
 
-  // rbx: index
-  // rcx: receiver
-  // rdx: flags
+  // r1: index
+  // r2: receiver
+  // r3: flags
 
-  __ call_Unimplemented();
-  // invokevirtual_helper(rbx, rcx, rdx);
+  invokevirtual_helper(r1, r2, r3);
 }
 
 void TemplateTable::invokespecial(int byte_no)
