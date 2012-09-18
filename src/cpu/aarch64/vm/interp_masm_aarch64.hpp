@@ -181,6 +181,18 @@ class InterpreterMacroAssembler: public MacroAssembler {
                          bool notify_jvmdi = true);
 #endif // CC_INTERP
 
+  // FIXME: Give us a valid frame at a null check.
+  virtual void null_check(Register reg, int offset = -1) {
+#ifdef ASSERT
+    save_bcp();
+    set_last_Java_frame(sp, rfp, (address) pc());
+#endif
+    MacroAssembler::null_check(reg, offset);
+#ifdef ASSERT
+    reset_last_Java_frame(true, false);
+#endif
+  }
+
   // Object locking
   void lock_object  (Register lock_reg);
   void unlock_object(Register lock_reg);

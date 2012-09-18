@@ -2066,7 +2066,7 @@ public:
   // offset. No explicit code generation is needed if the offset is within a certain
   // range (0 <= offset <= page_size).
 
-  void null_check(Register reg, int offset = -1);
+  virtual void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
 
   // Required platform-specific helpers for Label::patch_instructions.
