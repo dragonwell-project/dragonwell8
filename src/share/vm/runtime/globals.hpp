@@ -1274,7 +1274,7 @@ class CommandLineFlags {
   product(bool, RestrictContended, true,                                    \
           "Restrict @Contended to trusted classes")                         \
                                                                             \
-  product(bool, UseBiasedLocking, true,                                     \
+  product_pd(bool, UseBiasedLocking,                                        \
           "Enable biased locking in JVM")                                   \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 4000,                            \

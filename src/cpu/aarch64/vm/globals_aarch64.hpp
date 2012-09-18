@@ -78,4 +78,7 @@ define_pd_global(bool, UseMembar,            false);
 
 // GC Ergo Flags
 define_pd_global(intx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread
+
+// avoid biased locking while we are bootstrapping the aarch64 build
+define_pd_global(bool, UseBiasedLocking, false);
 #endif // CPU_X86_VM_GLOBALS_X86_HPP
