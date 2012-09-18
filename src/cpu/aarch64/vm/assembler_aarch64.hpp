@@ -2098,20 +2098,37 @@ public:
 
   // Support for inc/dec with optimal instruction selection depending on value
 
-  void increment(Register reg, int value = 1) { Unimplemented(); }
-  void decrement(Register reg, int value = 1) { Unimplemented(); }
+  // x86_64 aliases an unqualified register/address increment and
+  // decrement to call incrementq and decrementq but also supports
+  // explicitly sized calls to incrementq/decrementq or
+  // incrementl/decrementl
 
-  void decrementl(Address dst, int value = 1);
-  void decrementl(Register reg, int value = 1);
+  // for aarch64 the proper convention would be to use
+  // increment/decrement for 64 bit operatons and
+  // incrementw/decrementw for 32 bit operations. so when porting
+  // x86_64 code we can leave calls to increment/decrement as is,
+  // replace incrementq/decrementq with increment/decrement and
+  // replace incrementl/decrementl with incrementw/decrementw.
 
-  void decrementq(Register reg, int value = 1);
-  void decrementq(Address dst, int value = 1);
+  // n.b. increment/decrement calls with an Address destination will
+  // need to use a scratch register to load the value to be
+  // incremented. increment/decrement calls which add or subtract a
+  // constant value greater than 2^12 will need to use a 2nd scratch
+  // register to hold the constant. so, a register increment/decrement
+  // may trash rscratch2 and an address increment/decrement trash
+  // rscratch and rscratch2
 
-  void incrementl(Address dst, int value = 1);
-  void incrementl(Register reg, int value = 1);
+  void decrementw(Address dst, int value = 1);
+  void decrementw(Register reg, int value = 1);
 
-  void incrementq(Register reg, int value = 1);
-  void incrementq(Address dst, int value = 1);
+  void decrement(Register reg, int value = 1);
+  void decrement(Address dst, int value = 1);
+
+  void incrementw(Address dst, int value = 1);
+  void incrementw(Register reg, int value = 1);
+
+  void increment(Register reg, int value = 1);
+  void increment(Address dst, int value = 1);
 
 
   // Alignment
@@ -2567,7 +2584,7 @@ public:
   void cmpptr(Register src1, int32_t src2) { Unimplemented(); }
   void cmpptr(Address src1, int32_t src2) { Unimplemented(); }
 
-  void cmpxchgptr(Register reg, Register addr, Register tmp);
+  void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp);
 
   void imulptr(Register dst, Register src) { Unimplemented(); }
 

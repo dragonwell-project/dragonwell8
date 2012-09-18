@@ -2385,6 +2385,87 @@ int MacroAssembler::load_signed_byte32(Register dst, Address src) {
   return off;
 }
 
+void MacroAssembler::decrementw(Register reg, int value)
+{
+  if (value < 0)  { incrementw(reg, -value);      return; }
+  if (value == 0) {                               return; }
+  if (value < (1 << 12)) { subw(reg, reg, value); return; }
+  /* else */ {
+    assert(reg != rscratch2, "invalid dst for register decrement");
+    movw(rscratch2, (unsigned)value);
+    subw(reg, reg, rscratch2);
+  }
+}
+
+void MacroAssembler::decrement(Register reg, int value)
+{
+  if (value < 0)  { increment(reg, -value);      return; }
+  if (value == 0) {                              return; }
+  if (value < (1 << 12)) { sub(reg, reg, value); return; }
+  /* else */ {
+    assert(reg != rscratch2, "invalid dst for register decrement");
+    mov(rscratch2, (unsigned long)value);
+    sub(reg, reg, rscratch2);
+  }
+}
+
+void MacroAssembler::decrementw(Address dst, int value)
+{
+  assert(!dst.uses(rscratch1), "invalid dst for address decrement");
+  ldrw(rscratch1, dst);
+  decrementw(rscratch1, value);
+  strw(rscratch1, dst);
+}
+
+void MacroAssembler::decrement(Address dst, int value)
+{
+  assert(!dst.uses(rscratch1), "invalid address for decrement");
+  ldr(rscratch1, dst);
+  decrement(rscratch1, value);
+  str(rscratch1, dst);
+}
+
+void MacroAssembler::incrementw(Register reg, int value)
+{
+  if (value < 0)  { decrementw(reg, -value);      return; }
+  if (value == 0) {                               return; }
+  if (value < (1 << 12)) { addw(reg, reg, value); return; }
+  /* else */ {
+    assert(reg != rscratch2, "invalid dst for register increment");
+    movw(rscratch2, (unsigned)value);
+    addw(reg, reg, rscratch2);
+  }
+}
+
+void MacroAssembler::increment(Register reg, int value)
+{
+  if (value < 0)  { decrement(reg, -value);      return; }
+  if (value == 0) {                              return; }
+  if (value < (1 << 12)) { add(reg, reg, value); return; }
+  /* else */ {
+    assert(reg != rscratch2, "invalid dst for register increment");
+    movw(rscratch2, (unsigned)value);
+    add(reg, reg, rscratch2);
+  }
+}
+
+void MacroAssembler::increment(Address dst, int value)
+{
+  assert(!dst.uses(rscratch1), "invalid dst for address increment");
+  ldrw(rscratch1, dst);
+  incrementw(rscratch1, value);
+  strw(rscratch1, dst);
+}
+
+void MacroAssembler::incrementw(Address dst, int value)
+{
+  assert(!dst.uses(rscratch1), "invalid dst for address increment");
+  ldr(rscratch1, dst);
+  increment(rscratch1, value);
+  str(rscratch1, dst);
+}
+
+
 void MacroAssembler::pusha() {
   // need to push all registers including original sp
   for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1))
@@ -2533,14 +2614,46 @@ void MacroAssembler::reinit_heapbase()
   }
 }
 
-void MacroAssembler::cmpxchgptr(Register reg, Register addr, Register tmp) {
-  Label nope, ok;
-  ldxr(tmp, addr);
-  cmp(tmp, reg);
+// this simulates the behaviour of the x86 cmpxchg instruction using a
+// load linked/store conditional pair. we use the acquire/release
+// versions of these instructions so that we flush pending writes as
+// per Java semantics.
+
+// n.b the x86 version assumes the old value to be compared against is
+// in rax and updates rax with the value located in memory if the
+// cmpxchg fails. we supply a register for the old value explicitly
+
+// the aarch64 load linked/store conditional instructions do not
+// accept an offset. so, unlike x86, we must provide a plain register
+// to identify the memory word to be compared/exchanged rather than a
+// register+offset Address.
+
+// another difference is that we need a scratch register into which to
+// load the memory word. also, rather than setting flags directly, we
+// return 0 or 1 in this scratch register to to signal, respectively,
+// success or failure of the cmpxchg operation.
+
+void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp) {
+  // oldv holds comparison value
+  // newv holds value to write in exchange
+  // addr identifies memory word to compare against/update
+  // tmp returns 0/1 for success/failure
+  Label retry_load, nope, ok;
+  bind(retry_load);
+  // flush and load exclusive from the memory location
+  // and fail if it is not what we expect
+  ldaxr(tmp, addr);
+  cmp(tmp, oldv);
   br(Assembler::NE, nope);
-  stxr(tmp, reg, addr);
+  // if we store+flush with no intervening write tmp wil be zero
+  stlxr(tmp, newv, addr);
   cbzw(tmp, ok);
+  // retry so we only ever return after a load fails to compare
+  // ensures we don't return a stale value after a failed write.
+  b(retry_load);
   bind(nope);
+  // if the memory word differs we return it in oldv and signal a fail
+  mov(oldv, tmp);
   mov(tmp, 1);
   bind(ok);
 }

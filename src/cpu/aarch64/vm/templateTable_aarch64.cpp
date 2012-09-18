@@ -2218,7 +2218,48 @@ void TemplateTable::fast_accessfield(TosState state)
 
 void TemplateTable::fast_xaccess(TosState state)
 {
-  __ call_Unimplemented();
+  transition(vtos, state);
+
+  // get receiver
+  __ ldr(r0, aaddress(0));
+  // access constant pool cache
+  __ get_cache_and_index_at_bcp(r2, r3, 2);
+  __ lea(r1, Address(r2, r3, Address::lsl(3)));
+  __ ldr(r1, Address(r1, in_bytes(constantPoolCacheOopDesc::base_offset() +
+				  ConstantPoolCacheEntry::f2_offset())));
+  // make sure exception is reported in correct bcp range (getfield is
+  // next instruction)
+  __ increment(rbcp);
+  __ null_check(r0);
+  switch (state) {
+  case itos:
+    __ ldr(r0, Address(r0, r1, Address::lsl(0)));
+    break;
+  case atos:
+    __ load_heap_oop(r0, Address(r0, r1, Address::lsl(0)));
+    __ verify_oop(r0);
+    break;
+  case ftos:
+    __ ldrs(v0, Address(r0, r1, Address::lsl(0)));
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+
+  // [jk] not needed currently
+  // if (os::is_MP()) {
+  //   Label notVolatile;
+  //   __ movl(rdx, Address(rcx, rdx, Address::times_8,
+  //                        in_bytes(constantPoolCacheOopDesc::base_offset() +
+  //                                 ConstantPoolCacheEntry::flags_offset())));
+  //   __ shrl(rdx, ConstantPoolCacheEntry::volatileField);
+  //   __ testl(rdx, 0x1);
+  //   __ jcc(Assembler::zero, notVolatile);
+  //   __ membar(Assembler::LoadLoad);
+  //   __ bind(notVolatile);
+  // }
+
+  __ decrement(rbcp);
 }
 
 
@@ -2498,7 +2539,7 @@ void TemplateTable::_new() {
     // r0: object begin
     // r1: object end
     // r3: instance size in bytes
-    __ cmpxchgptr(r1, RtopAddr, rscratch1);
+    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1);
 
     // if someone beat us on the allocation, try again, otherwise continue
     __ cbnzw(rscratch1, retry);
@@ -2623,13 +2664,149 @@ void TemplateTable::athrow()
 // [saved rbp    ] <--- rbp
 void TemplateTable::monitorenter()
 {
-  __ call_Unimplemented();
+  transition(atos, vtos);
+
+  // check for NULL object
+  __ null_check(r0);
+
+  const Address monitor_block_top(
+        rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
+  const Address monitor_block_bot(
+        rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
+  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+
+  Label allocated;
+
+  // initialize entry pointer
+  __ mov(c_rarg1, zr); // points to free slot or NULL
+
+  // find a free slot in the monitor block (result in c_rarg1)
+  {
+    Label entry, loop, exit;
+    __ ldr(c_rarg3, monitor_block_top); // points to current entry,
+                                        // starting with top-most entry
+    __ lea(c_rarg2, monitor_block_bot); // points to word before bottom
+
+    __ b(entry);
+
+    __ bind(loop);
+    // check if current entry is used
+    // if not used then remember entry in c_rarg1
+    __ ldr(rscratch1, Address(c_rarg3, BasicObjectLock::obj_offset_in_bytes()));
+    __ csel(c_rarg1, c_rarg3, c_rarg1, Assembler::EQ);
+    // check if current entry is for same object
+    __ cmp(r0, rscratch1);
+    // if same object then stop searching
+    __ br(Assembler::EQ, exit);
+    // otherwise advance to next entry
+    __ add(c_rarg3, c_rarg3, entry_size);
+    __ bind(entry);
+    // check if bottom reached
+    __ cmp(c_rarg3, c_rarg2);
+    // if not at bottom then check this entry
+    __ br(Assembler::NE, loop);
+    __ bind(exit);
+  }
+
+  __ cbnz(c_rarg1, allocated); // check if a slot has been found and
+                            // if found, continue with that on
+
+  // allocate one if there's no free slot
+  {
+    Label entry, loop;
+    // 1. compute new pointers            // rsp: old expression stack top
+    __ ldr(c_rarg1, monitor_block_bot);   // c_rarg1: old expression stack bottom
+    __ sub(sp, sp, entry_size);           // move expression stack top
+    __ sub(c_rarg1, c_rarg1, entry_size); // move expression stack bottom
+    __ mov(c_rarg3, sp);                 // set start value for copy loop
+    __ str(c_rarg1, monitor_block_bot);   // set new monitor block bottom
+    __ b(entry);
+    // 2. move expression stack contents
+    __ bind(loop);
+    __ ldr(c_rarg2, Address(c_rarg3, entry_size)); // load expression stack
+                                                   // word from old location
+    __ str(c_rarg2, Address(c_rarg3, 0));          // and store it at new location
+    __ add(c_rarg3, c_rarg3, wordSize);            // advance to next word
+    __ bind(entry);
+    __ cmp(c_rarg3, c_rarg1);        // check if bottom reached
+    __ br(Assembler::NE, loop);      // if not at bottom then
+                                     // copy next word
+  }
+
+  // call run-time routine
+  // c_rarg1: points to monitor entry
+  __ bind(allocated);
+
+  // Increment bcp to point to the next bytecode, so exception
+  // handling for async. exceptions work correctly.
+  // The object has already been poped from the stack, so the
+  // expression stack looks correct.
+  __ increment(rbcp);
+
+  // store object
+  __ str(r0, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
+  __ lock_object(c_rarg1);
+
+  // check to make sure this monitor doesn't cause stack overflow after locking
+  __ save_bcp();  // in case of exception
+  __ generate_stack_overflow_check(0);
+
+  // The bcp has already been incremented. Just need to dispatch to
+  // next instruction.
+  __ dispatch_next(vtos);
 }
 
 
 void TemplateTable::monitorexit()
 {
-  __ call_Unimplemented();
+  transition(atos, vtos);
+
+  // check for NULL object
+  __ null_check(r0);
+
+  const Address monitor_block_top(
+        rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
+  const Address monitor_block_bot(
+        rfp, frame::interpreter_frame_initial_sp_offset * wordSize);
+  const int entry_size = frame::interpreter_frame_monitor_size() * wordSize;
+
+  Label found;
+
+  // find matching slot
+  {
+    Label entry, loop;
+    __ ldr(c_rarg1, monitor_block_top); // points to current entry,
+                                        // starting with top-most entry
+    __ lea(c_rarg2, monitor_block_bot); // points to word before bottom
+                                        // of monitor block
+    __ b(entry);
+
+    __ bind(loop);
+    // check if current entry is for same object
+    __ ldr(rscratch1, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
+    __ cmp(r0, rscratch1);
+    // if same object then stop searching
+    __ br(Assembler::EQ, found);
+    // otherwise advance to next entry
+    __ add(c_rarg1, c_rarg1, entry_size);
+    __ bind(entry);
+    // check if bottom reached
+    __ cmp(c_rarg1, c_rarg2);
+    // if not at bottom then check this entry
+    __ br(Assembler::NE, loop);
+  }
+
+  // error handling. Unlocking was not block-structured
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                   InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
+
+  // call run-time routine
+  // rsi: points to monitor entry
+  __ bind(found);
+  __ push_ptr(r0); // make sure object is on stack (contract with oopMaps)
+  __ unlock_object(c_rarg1);
+  __ pop_ptr(r0); // discard object
 }
 
 

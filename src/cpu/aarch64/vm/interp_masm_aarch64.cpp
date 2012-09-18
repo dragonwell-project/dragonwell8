@@ -444,7 +444,90 @@ void InterpreterMacroAssembler::remove_activation(
 //      rax
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, .. (param regs)
 //      rscratch1, rscratch2 (scratch regs)
-void InterpreterMacroAssembler::lock_object(Register lock_reg) { Unimplemented(); }
+void InterpreterMacroAssembler::lock_object(Register lock_reg)
+{
+  assert(lock_reg == c_rarg1, "The argument is only for looks. It must be c_rarg1");
+  if (UseHeavyMonitors) {
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
+            lock_reg);
+  } else {
+    Label done;
+
+    const Register swap_reg = r0;
+    const Register obj_reg = c_rarg3; // Will contain the oop
+
+    const int obj_offset = BasicObjectLock::obj_offset_in_bytes();
+    const int lock_offset = BasicObjectLock::lock_offset_in_bytes ();
+    const int mark_offset = lock_offset +
+                            BasicLock::displaced_header_offset_in_bytes();
+
+    Label slow_case;
+
+    // Load object pointer into obj_reg %c_rarg3
+    ldr(obj_reg, Address(lock_reg, obj_offset));
+
+    if (UseBiasedLocking) {
+      // biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, done, &slow_case);
+      call_Unimplemented();
+    }
+
+    // Load immediate 1 into swap_reg %rax
+    mov(swap_reg, 1);
+
+    // Load (object->mark() | 1) into swap_reg %rax
+    ldr(rscratch1, Address(obj_reg, 0));
+    orr(swap_reg, swap_reg, rscratch1);
+
+    // Save (object->mark() | 1) into BasicLock's displaced header
+    str(swap_reg, Address(lock_reg, mark_offset));
+
+    assert(lock_offset == 0,
+           "displached header must be first word in BasicObjectLock");
+
+    cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1);
+    if (PrintBiasedLockingStatistics) {
+      // cond_inc32(Assembler::zero,
+      //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
+      call_Unimplemented();
+    }
+    cbz(rscratch1, done);
+
+    // Test if the oopMark is an obvious stack pointer, i.e.,
+    //  1) (mark & 7) == 0, and
+    //  2) rsp <= mark < mark + os::pagesize()
+    //
+    // These 3 tests can be done by evaluating the following
+    // expression: ((mark - rsp) & (7 - os::vm_page_size())),
+    // assuming both stack pointer and pagesize have their
+    // least significant 3 bits clear.
+    // NOTE: the oopMark is in swap_reg %r0 as the result of cmpxchg
+    // NOTE2: aarch64 does not like to subtract sp from rn so take a
+    // copy
+    mov(rscratch1, sp);
+    sub(swap_reg, swap_reg, rscratch1);
+    andr(swap_reg, swap_reg, (unsigned long)(7 - os::vm_page_size()));
+
+    // Save the test result, for recursive case, the result is zero
+    str(swap_reg, Address(lock_reg, mark_offset));
+
+    if (PrintBiasedLockingStatistics) {
+      // cond_inc32(Assembler::zero,
+      //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
+      call_Unimplemented();
+    }
+    br(Assembler::EQ, done);
+
+    bind(slow_case);
+
+    // Call the runtime routine for slow case
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
+            lock_reg);
+
+    bind(done);
+  }
+}
 
 
 // Unlocks an object. Used in monitorexit bytecode and
@@ -458,7 +541,62 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) { Unimplemented()
 //      rax
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, ... (param regs)
 //      rscratch1, rscratch2 (scratch regs)
-void InterpreterMacroAssembler::unlock_object(Register lock_reg) { call_Unimplemented(); }
+void InterpreterMacroAssembler::unlock_object(Register lock_reg)
+{
+  assert(lock_reg == c_rarg1, "The argument is only for looks. It must be rarg1");
+
+  if (UseHeavyMonitors) {
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
+            lock_reg);
+  } else {
+    Label done;
+
+    const Register swap_reg   = r0;
+    const Register header_reg = c_rarg2;  // Will contain the old oopMark
+    const Register obj_reg    = c_rarg3;  // Will contain the oop
+
+    save_bcp(); // Save in case of exception
+
+    // Convert from BasicObjectLock structure to object and BasicLock
+    // structure Store the BasicLock address into %rax
+    lea(swap_reg, Address(lock_reg, BasicObjectLock::lock_offset_in_bytes()));
+
+    // Load oop into obj_reg(%c_rarg3)
+    ldr(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));
+
+    // Free entry
+    str(zr, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));
+
+    if (UseBiasedLocking) {
+      // biased_locking_exit(obj_reg, header_reg, done);
+      call_Unimplemented();
+    }
+
+    // Load the old header from BasicLock structure
+    ldr(header_reg, Address(swap_reg,
+			    BasicLock::displaced_header_offset_in_bytes()));
+
+    // Test for recursion
+    cbz(header_reg, done);
+
+    // Atomic swap back the old header
+    cmpxchgptr(swap_reg, header_reg, obj_reg, rscratch1);
+
+    // zero for recursive case
+    cbz(rscratch1, done);
+
+    // Call the runtime routine for slow case.
+    str(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes())); // restore obj
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
+            lock_reg);
+
+    bind(done);
+
+    restore_bcp();
+  }
+}
 
 #ifndef CC_INTERP
 
