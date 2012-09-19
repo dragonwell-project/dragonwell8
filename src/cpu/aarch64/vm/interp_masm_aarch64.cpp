@@ -486,14 +486,18 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
            "displached header must be first word in BasicObjectLock");
 
     Label fail;
-    cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, done, fail);
-    bind(fail);
     if (PrintBiasedLockingStatistics) {
+      Label fast;
+      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, fast, fail);
+      bind(fast);
       // cond_inc32(Assembler::zero,
       //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
       call_Unimplemented();
+      b(done);
+    } else {
+      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, done, fail);
     }
-    cbz(rscratch1, done);
+    bind(fail);
 
     // Test if the oopMark is an obvious stack pointer, i.e.,
     //  1) (mark & 7) == 0, and
