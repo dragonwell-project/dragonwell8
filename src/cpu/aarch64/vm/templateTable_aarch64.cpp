@@ -1455,8 +1455,13 @@ void TemplateTable::if_0cmp(Condition cc)
   Label not_taken;
   if (cc == equal)
     __ cbnzw(r0, not_taken);
-  else
+  else if (cc == not_equal)
     __ cbzw(r0, not_taken);
+  else {
+    __ andsw(zr, r0, r0);
+    __ br(j_not(cc), not_taken);
+  }
+
   branch(false, false);
   __ bind(not_taken);
   __ profile_not_taken_branch(r0);
