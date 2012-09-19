@@ -2539,10 +2539,11 @@ void TemplateTable::_new() {
     // r0: object begin
     // r1: object end
     // r3: instance size in bytes
-    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1);
 
+    Label succeed;
     // if someone beat us on the allocation, try again, otherwise continue
-    __ cbnzw(rscratch1, retry);
+    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1, succeed, retry);
+    __ bind(succeed);
     __ incr_allocated_bytes(rthread, r3, 0, rscratch1);
   }
 

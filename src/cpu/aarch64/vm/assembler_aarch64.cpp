@@ -2631,17 +2631,14 @@ void MacroAssembler::reinit_heapbase()
 // to identify the memory word to be compared/exchanged rather than a
 // register+offset Address.
 
-// another difference is that we need a scratch register into which to
-// load the memory word. also, rather than setting flags directly, we
-// return 0 or 1 in this scratch register to to signal, respectively,
-// success or failure of the cmpxchg operation.
-
-void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp) {
+void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
+				Label &succeed, Label &fail) {
   // oldv holds comparison value
   // newv holds value to write in exchange
   // addr identifies memory word to compare against/update
   // tmp returns 0/1 for success/failure
-  Label retry_load, nope, ok;
+  Label retry_load, nope;
+  
   bind(retry_load);
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
@@ -2650,15 +2647,14 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
   stlxr(tmp, newv, addr);
-  cbzw(tmp, ok);
+  cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   b(retry_load);
-  bind(nope);
   // if the memory word differs we return it in oldv and signal a fail
+  bind(nope);
   mov(oldv, tmp);
-  mov(tmp, 1);
-  bind(ok);
+  b(fail);
 }
 
 void MacroAssembler::incr_allocated_bytes(Register thread,

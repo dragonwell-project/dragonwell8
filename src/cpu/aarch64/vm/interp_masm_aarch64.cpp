@@ -372,9 +372,9 @@ void InterpreterMacroAssembler::remove_activation(
     bind(restart);
     // We use c_rarg1 so that if we go slow path it will be the correct
     // register for unlock_object to pass to VM directly
-    ldr(r10, monitor_block_top); // points to current entry, starting
-                                  // with top-most entry
-    sub(r1, rfp, -frame::interpreter_frame_initial_sp_offset * wordSize);  // points to word before bottom of
+    ldr(c_rarg1, monitor_block_top); // points to current entry, starting
+                                     // with top-most entry
+    lea(r19, monitor_block_bot);  // points to word before bottom of
                                   // monitor block
     b(entry);
 
@@ -412,7 +412,7 @@ void InterpreterMacroAssembler::remove_activation(
 
     add(c_rarg1, c_rarg1, entry_size); // otherwise advance to next entry
     bind(entry);
-    cmp(c_rarg1, r10); // check if bottom reached
+    cmp(c_rarg1, r19); // check if bottom reached
     br(Assembler::NE, loop); // if not at bottom then check this entry
   }
 
@@ -427,10 +427,10 @@ void InterpreterMacroAssembler::remove_activation(
 
   // remove activation
   // get sender sp
-  ldr(r1,
+  ldr(r19,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
   leave();                           // remove frame anchor
-  mov(sp, r1);                      // set sp to sender sp
+  mov(sp, r19);                      // set sp to sender sp
 }
 
 #endif // C_INTERP
@@ -485,7 +485,9 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     assert(lock_offset == 0,
            "displached header must be first word in BasicObjectLock");
 
-    cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1);
+    Label fail;
+    cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, done, fail);
+    bind(fail);
     if (PrintBiasedLockingStatistics) {
       // cond_inc32(Assembler::zero,
       //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
@@ -581,10 +583,9 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     cbz(header_reg, done);
 
     // Atomic swap back the old header
-    cmpxchgptr(swap_reg, header_reg, obj_reg, rscratch1);
-
-    // zero for recursive case
-    cbz(rscratch1, done);
+    Label fail;
+    cmpxchgptr(swap_reg, header_reg, obj_reg, rscratch1, done, fail);
+    bind(fail);
 
     // Call the runtime routine for slow case.
     str(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes())); // restore obj
