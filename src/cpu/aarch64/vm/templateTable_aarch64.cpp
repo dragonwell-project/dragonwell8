@@ -1413,21 +1413,26 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
   const ByteSize inv_offset = methodOopDesc::invocation_counter_offset() +
                               InvocationCounter::counter_offset();
   const int method_offset = frame::interpreter_frame_method_offset * wordSize;
+
   // load branch displacement
-  __ ldrw(r0, at_bcp(1));
-  __ revw(r0, r0);
   if (!is_wide) {
-    __ asrw(r0, r0, 16);
+    __ ldrh(r0, at_bcp(1));
+    __ rev16(r0, r0);
+    // Adjust the bcp by the 16-bit displacement in r0
+    __ add(rbcp, rbcp, r0, ext::sxth, 0);
+  } else {
+    __ ldrw(r0, at_bcp(1));
+    __ revw(r0, r0);
+    // Adjust the bcp by the 32-bit displacement in r0
+    __ add(rbcp, rbcp, r0, ext::sxtw, 0);
   }
+
   if (is_jsr) {
     __ call_Unimplemented();
     return;
   }
+
   // Normal (non-jsr) branch handling
-
-  // Adjust the bcp by the 32 bit displacement in r0
-  __ add(rbcp, rbcp, r0, ext::sxtw, 0);
-
   assert(UseLoopCounter || !UseOnStackReplacement,
          "on-stack-replacement requires loop counters");
   if (UseLoopCounter) {
@@ -1448,8 +1453,10 @@ void TemplateTable::if_0cmp(Condition cc)
   transition(itos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
-  __ andsw(zr, r0, r0);
-  __ br(j_not(cc), not_taken);
+  if (cc == equal)
+    __ cbnzw(r0, not_taken);
+  else
+    __ cbzw(r0, not_taken);
   branch(false, false);
   __ bind(not_taken);
   __ profile_not_taken_branch(r0);
@@ -1473,8 +1480,10 @@ void TemplateTable::if_nullcmp(Condition cc)
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
-  __ andr(r0, r0, r0);
-  __ br(j_not(cc), not_taken);
+  if (cc == equal)
+    __ cbnz(r0, not_taken);
+  else
+    __ cbz(r0, not_taken);
   branch(false, false);
   __ bind(not_taken);
   __ profile_not_taken_branch(r0);
