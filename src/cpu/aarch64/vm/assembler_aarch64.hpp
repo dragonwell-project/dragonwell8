@@ -2052,7 +2052,7 @@ public:
 
   inline void mov(Register dst, int i)
   {
-    mov(dst, (u_int64_t)i);
+    mov(dst, (long)i);
   }
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
