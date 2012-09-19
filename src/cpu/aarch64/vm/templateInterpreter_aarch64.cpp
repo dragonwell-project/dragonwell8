@@ -63,7 +63,23 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() { __
 address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(
         const char* name) { __ call_Unimplemented(); return 0; }
 
-address TemplateInterpreterGenerator::generate_ClassCastException_handler() { __ call_Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_ClassCastException_handler() {
+  address entry = __ pc();
+
+  // object is at TOS
+  __ pop(c_rarg1);
+
+  // expression stack must be empty before entering the VM if an
+  // exception happened
+  __ empty_expression_stack();
+
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::
+                              throw_ClassCastException),
+             c_rarg1);
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_exception_handler_common(
         const char* name, const char* message, bool pass_oop) {

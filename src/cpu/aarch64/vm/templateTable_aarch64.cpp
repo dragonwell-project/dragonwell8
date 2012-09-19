@@ -2637,12 +2637,109 @@ void TemplateTable::arraylength() {
 
 void TemplateTable::checkcast()
 {
-  __ call_Unimplemented();
+  transition(atos, atos);
+  Label done, is_null, ok_is_subtype, quicked, resolved;
+  __ cbz(r0, is_null);
+
+  // Get cpool & tags index
+  __ get_cpool_and_tags(r2, r3); // r2=cpool, r3=tags array
+  __ get_unsigned_2_byte_index_at_bcp(r19, 1); // r19=index
+  // See if bytecode has already been quicked
+  __ add(rscratch1, r3, typeArrayOopDesc::header_size(T_BYTE) * wordSize);
+  __ ldrb(r1, Address(rscratch1, r19));
+  __ cmp(r1, JVM_CONSTANT_Class);
+  __ br(Assembler::EQ, quicked);
+
+  __ push(atos); // save receiver for result, and for GC
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::quicken_io_cc));
+  __ pop(r3); // restore receiver
+  __ b(resolved);
+
+  // Get superklass in r0 and subklass in r3
+  __ bind(quicked);
+  __ mov(r3, r0); // Save object in r3; r0 needed for subtype check
+  __ lea(r0, Address(r2, r19, Address::lsl(3)));
+  __ ldr(r0, Address(r0, sizeof(constantPoolOopDesc)));
+
+  __ bind(resolved);
+  __ load_klass(r19, r3);
+
+  // Generate subtype check.  Blows r2, r5.  Object in r3.
+  // Superklass in r0.  Subklass in r19.
+  __ gen_subtype_check(r19, ok_is_subtype);
+
+  // Come here on failure
+  __ push(r3);
+  __ b(Interpreter::_throw_ClassCastException_entry);
+
+  // Come here on success
+  __ bind(ok_is_subtype);
+  __ mov(r0, r3);
+
+  // Collect counts on whether this test sees NULLs a lot or not.
+  if (ProfileInterpreter) {
+    __ b(done);
+    __ bind(is_null);
+    __ profile_null_seen(r2);
+  } else {
+    __ bind(is_null);   // same as 'done'
+  }
+  __ bind(done);
+  // r0 = 0: obj == NULL or  obj is not an instanceof the specified klass
+  // r0 = 1: obj != NULL and obj is     an instanceof the specified klass
 }
 
-void TemplateTable::instanceof()
-{
-  __ call_Unimplemented();
+void TemplateTable::instanceof() {
+  transition(atos, itos);
+  Label done, is_null, ok_is_subtype, quicked, resolved;
+  __ cbz(r0, is_null);
+
+  // Get cpool & tags index
+  __ get_cpool_and_tags(r2, r3); // r2=cpool, r3=tags array
+  __ get_unsigned_2_byte_index_at_bcp(r19, 1); // r19=index
+  // See if bytecode has already been quicked
+  __ add(rscratch1, r3, typeArrayOopDesc::header_size(T_BYTE) * wordSize);
+  __ ldrb(r1, Address(rscratch1, r19));
+  __ cmp(r1, JVM_CONSTANT_Class);
+  __ br(Assembler::EQ, quicked);
+
+  __ push(atos); // save receiver for result, and for GC
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::quicken_io_cc));
+  __ pop(r3); // restore receiver
+  __ verify_oop(r3);
+  __ load_klass(r3, r3);
+  __ b(resolved);
+
+  // Get superklass in r0 and subklass in r3
+  __ bind(quicked);
+  __ load_klass(r3, r0);
+  __ lea(r0, Address(r2, r19, Address::lsl(3)));
+  __ ldr(r0, Address(r0, sizeof(constantPoolOopDesc)));
+
+  __ bind(resolved);
+
+  // Generate subtype check.  Blows r2, r5
+  // Superklass in r0.  Subklass in r3.
+  __ gen_subtype_check(r3, ok_is_subtype);
+
+  // Come here on failure
+  __ mov(r0, 0);
+  __ b(done);
+  // Come here on success
+  __ bind(ok_is_subtype);
+  __ mov(r0, 1);
+
+  // Collect counts on whether this test sees NULLs a lot or not.
+  if (ProfileInterpreter) {
+    __ b(done);
+    __ bind(is_null);
+    __ profile_null_seen(r2);
+  } else {
+    __ bind(is_null);   // same as 'done'
+  }
+  __ bind(done);
+  // r0 = 0: obj == NULL or  obj is not an instanceof the specified klass
+  // r0 = 1: obj != NULL and obj is     an instanceof the specified klass
 }
 
 //-----------------------------------------------------------------------------
