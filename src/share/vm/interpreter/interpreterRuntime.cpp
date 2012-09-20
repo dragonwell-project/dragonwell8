@@ -709,8 +709,12 @@ IRT_ENTRY(void, InterpreterRuntime::_breakpoint(JavaThread* thread, Method* meth
   JvmtiExport::post_raw_breakpoint(thread, method, bcp);
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code bytecode)) {
+static long foo;
+
+IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code bytecode))
+foo++;
   // extract receiver from the outgoing argument list if necessary
+
   Handle receiver(thread, NULL);
   if (bytecode == Bytecodes::_invokevirtual || bytecode == Bytecodes::_invokeinterface ||
       bytecode == Bytecodes::_invokespecial) {

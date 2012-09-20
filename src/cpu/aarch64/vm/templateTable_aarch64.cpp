@@ -1614,7 +1614,6 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
     // there is a 1-1 relation between bytecode type and CP entry type.
     assert(result != noreg, ""); //else do cmpptr(Address(...), (int32_t) NULL_WORD)
     __ get_cache_and_index_at_bcp(Rcache, index, 1, index_size);
-    __ add(rscratch1, Rcache, index, Assembler::LSL, 3);
     __ ldr(result, Address(rscratch1,
 			   constantPoolCacheOopDesc::base_offset()
 			   + ConstantPoolCacheEntry::f1_offset()));
@@ -1680,17 +1679,16 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
 
   ByteSize cp_base_offset = constantPoolCacheOopDesc::base_offset();
   // Field offset
-  __ lea(rscratch1, Address(cache, index, Address::lsl(3)));
-  __ ldr(off, Address(rscratch1, in_bytes(cp_base_offset +
+  __ ldr(off, Address(cache, in_bytes(cp_base_offset +
 					  ConstantPoolCacheEntry::f2_offset())));
   // Flags
-  __ ldrw(flags, Address(rscratch1, in_bytes(cp_base_offset +
+  __ ldrw(flags, Address(cache, in_bytes(cp_base_offset +
 					   ConstantPoolCacheEntry::flags_offset())));
 
   // klass overwrite register
   if (is_static) {
-    __ ldr(obj, Address(rscratch1, in_bytes(cp_base_offset +
-					    ConstantPoolCacheEntry::f1_offset())));
+    __ ldr(obj, Address(cache, in_bytes(cp_base_offset +
+					ConstantPoolCacheEntry::f1_offset())));
   }
 }
 
@@ -1702,11 +1700,12 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
                                                bool is_invokevfinal, /*unused*/
                                                bool is_invokedynamic) {
   const Register index = r4;
-  assert_different_registers(method, flags);
-  assert_different_registers(method, index);
-  assert_different_registers(itable_index, flags);
-  assert_different_registers(itable_index, index);
-  assert_different_registers(flags, index);
+  Register cache  __attribute__((unused))  = rscratch2;
+  assert_different_registers(method, flags, cache);
+  assert_different_registers(method, index, cache);
+  assert_different_registers(itable_index, flags, cache);
+  assert_different_registers(itable_index, index, cache);
+  assert_different_registers(flags, index, cache);
   // determine constant pool cache field offsets
   const int method_offset = in_bytes(
     constantPoolCacheOopDesc::base_offset() +
@@ -1722,18 +1721,15 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
   if (byte_no == f1_oop) {
     // Resolved f1_oop goes directly into 'method' register.
     assert(is_invokedynamic, "");
-    resolve_cache_and_index(byte_no, method, rcpool, index, sizeof(u4));
+    resolve_cache_and_index(byte_no, method, cache, index, sizeof(u4));
   } else {
-    resolve_cache_and_index(byte_no, noreg, rcpool, index, sizeof(u2));
-    __ add(rscratch1, rcpool, method_offset);
-    __ ldr(method, Address(rscratch1, index, Address::lsl(3)));
+    resolve_cache_and_index(byte_no, noreg, cache, index, sizeof(u2));
+    __ ldr(method, Address(cache, method_offset));
   }
   if (itable_index != noreg) {
-    __ add(rscratch1, rcpool, index_offset);
-    __ ldr(itable_index, Address(rscratch1, index, Address::lsl(3)));
+    __ ldr(itable_index, Address(cache, index_offset));
   }
-  __ add(flags, rcpool, flags_offset);
-  __ ldr(flags, Address(flags, index, Address::lsl(3)));
+  __ ldr(flags, Address(cache, flags_offset));
 }
 
 
@@ -1918,10 +1914,11 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   const Register off   = r1;
   const Register flags = r0;
   const Register bc    = r4;
+  const Register rcache = r19;
 
-  resolve_cache_and_index(byte_no, noreg, rcpool, index, sizeof(u2));
+  resolve_cache_and_index(byte_no, noreg, rcache, index, sizeof(u2));
   jvmti_post_field_mod(rcpool, index, is_static);
-  load_field_cp_cache_entry(obj, rcpool, index, off, flags, is_static);
+  load_field_cp_cache_entry(obj, rcache, index, off, flags, is_static);
 
   // [jk] not needed currently
   // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
@@ -2351,13 +2348,12 @@ void TemplateTable::invokevirtual_helper(Register index,
   assert_different_registers(index, recv, r0, r3);
   // Test for an invoke of a final method
   Label notFinal;
-  __ movw(r0, flags);
-  __ andw(r0, r0, (1 << ConstantPoolCacheEntry::vfinalMethod));
-  __ br(Assembler::NE, notFinal);
+  __ andsw(r0, flags, (1 << ConstantPoolCacheEntry::vfinalMethod));
+  __ br(Assembler::EQ, notFinal);
 
-  const Register method = index;  // method must be r1
-  assert(method == r1,
-         "methodOop must be r1 for interpreter calling convention");
+  const Register method = index;  // method must be rmethod
+  assert(method == rmethod,
+         "methodOop must be rmethod for interpreter calling convention");
 
   // do the call - the index is actually the method to call
   __ verify_oop(method);
@@ -2385,8 +2381,8 @@ void TemplateTable::invokevirtual_helper(Register index,
   const int base = instanceKlass::vtable_start_offset() * wordSize;
   assert(vtableEntry::size() * wordSize == 8,
          "adjust the scaling in the code below");
-  __ ldr(method, Address(r0, index, Address::lsl(3)));
-  __ add(method, r0, base + vtableEntry::method_offset_in_bytes());
+  __ lea(rscratch1, Address(r0, index, Address::lsl(3)));
+  __ ldr(method, Address(rscratch1, base + vtableEntry::method_offset_in_bytes()));
   __ ldr(r3, Address(method, methodOopDesc::interpreter_entry_offset()));
   __ jump_from_interpreted(method, r3);
 }
@@ -2401,13 +2397,13 @@ void TemplateTable::invokevirtual(int byte_no)
   __ spill(rscratch1, rscratch2);
 #endif // ASSERT
 
-  prepare_invoke(rmethod, r1, byte_no);
+  prepare_invoke(rmethod, noreg, byte_no);
 
   // r1: index
   // r2: receiver
   // r3: flags
 
-  invokevirtual_helper(r1, r2, r3);
+  invokevirtual_helper(rmethod, r2, r3);
 }
 
 void TemplateTable::invokespecial(int byte_no)

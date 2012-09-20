@@ -106,12 +106,12 @@ void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
                                                            int bcp_offset,
                                                            size_t index_size) {
   assert_different_registers(cache, index);
+  assert_different_registers(cache, rcpool);
   get_cache_index_at_bcp(index, bcp_offset, index_size);
-  if (cache != rcpool)
-    mov(cache, rcpool);
   assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
   // convert from field index to ConstantPoolCacheEntry index
   lsl(index, index, 2);
+  add(cache, rcpool, index, Assembler::LSL, 3);
 }
 
 
@@ -124,8 +124,7 @@ void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register
   get_cache_and_index_at_bcp(cache, index, bcp_offset, index_size);
   // We use a 32-bit load here since the layout of 64-bit words on
   // little-endian machines allow us that.
-  add(rscratch1, cache, index, Assembler::LSL, 3);
-  ldrw(bytecode, Address(rscratch1,
+  ldrw(bytecode, Address(cache,
 			 constantPoolCacheOopDesc::base_offset()
 			 + ConstantPoolCacheEntry::indices_offset()));
   const int shift_count = (1 + byte_no) * BitsPerByte;

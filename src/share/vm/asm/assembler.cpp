@@ -34,6 +34,7 @@
 # include "assembler_aarch64.inline.hpp"
 #endif
 
+unsigned long asm_bp = 0x00007ffff45a27b4;
 
 // Implementation of AbstractAssembler
 //

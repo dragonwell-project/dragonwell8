@@ -692,6 +692,7 @@ intptr_t* frame::real_fp() const {
   }
 
 extern "C" void pf(unsigned long fp) {
+  DESCRIBE_FP_OFFSET(link);
   DESCRIBE_FP_OFFSET(interpreter_frame_sender_sp);
   DESCRIBE_FP_OFFSET(interpreter_frame_last_sp);
   DESCRIBE_FP_OFFSET(interpreter_frame_method);
@@ -701,9 +702,13 @@ extern "C" void pf(unsigned long fp) {
   DESCRIBE_FP_OFFSET(interpreter_frame_bcx);
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
   unsigned long *p = (unsigned long *)fp;
+
   methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
-  ResourceMark rm;
-  printf("%s\n", m->name_and_sig_as_C_string());
+  if(m->is_perm() && m->is_method()) {
+    ResourceMark rm;
+    printf("%s\n", m->name_and_sig_as_C_string());
+  } else
+    printf("not a methodOop\n");
 }
 
 // support for printing out where we are in a Java method

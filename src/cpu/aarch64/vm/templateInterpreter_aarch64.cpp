@@ -119,9 +119,6 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
 address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { __ call_Unimplemented(); return 0; }
 
 
-// FIXME: I have no idea what this is supposed to be for.  It looks up
-// an entry in the constant pool, ands it with 0xff, and adds that to
-// the stack pointer.
 address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step) {
   address entry = __ pc();
 
@@ -140,10 +137,10 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     // __ cmpb(Address(r13, 0), Bytecodes::_invokedynamic);
     // __ jcc(Assembler::equal, L_giant_index);
   }
+  // Pop N words from the stack
   __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u2));
   __ bind(L_got_cache);
-  __ add(rscratch1, r1, r2, Assembler::LSL, 3);
-  __ ldrb(r1, Address(rscratch1,
+  __ ldrb(r1, Address(r1,
 		     in_bytes(constantPoolCacheOopDesc::base_offset()) +
 		     3 * wordSize));
   __ mov(rscratch1, sp);

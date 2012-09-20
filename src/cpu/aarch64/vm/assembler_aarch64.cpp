@@ -1158,6 +1158,9 @@ Disassembly of section .text:
   __ lea(r0, Address(sp, -120));
   __ lea(r1, Address(sp, r1, Address::lsl(3)));
   __ lea(r1, Address(sp, r2, Address::sxtw(3)));
+
+  __ add(r1, r0, 0xff000);
+  __ add(r1, r0, -0xff000);
 }
 
 #undef __
