@@ -630,26 +630,13 @@ public:
 
 #undef INSN
 
-  void add_sub_immediate(Register Rd, Register Rn, int imm, int op, int negated_op) {
-    bool shift = false;
-    bool neg = imm < 0;
-    if (neg) {
-      imm = -imm;
-      op = negated_op;
-    }
-    if ((imm >> 12) << 12 == imm) {
-      imm >>= 12;
-      shift = true;
-    }
-    starti;
-    f(op, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10);
-    srf(Rd, 0), srf(Rn, 5);
-  }
+  void add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
+			 int negated_op);
 
-
-#define INSN(NAME, decode, negated)				\
-  void NAME(Register Rd, Register Rn, unsigned imm) {		\
-    add_sub_immediate(Rd, Rn, (int)imm, decode, negated);	\
+#define INSN(NAME, decode, negated)			\
+  void NAME(Register Rd, Register Rn, unsigned imm) {	\
+    starti;						\
+    add_sub_immediate(Rd, Rn, imm, decode, negated);	\
   }
 
   INSN(addw, 0b000, 0b010);

@@ -1520,6 +1520,33 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
   }
 }
 
+  // An "all-purpose" add/subtract immediate, per ARM documentation:
+  // A "programmer-friendly" assembler may accept a negative immediate
+  // between -(2^24 -1) and -1 inclusive, causing it to convert a
+  // requested ADD operation to a SUB, or vice versa, and then encode
+  // the absolute value of the immediate as for uimm24.
+void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
+				  int negated_op) {
+  union {
+    unsigned u;
+    int imm;
+  };
+  u = uimm;
+  bool shift = false;
+  bool neg = imm < 0;
+  if (neg) {
+    imm = -imm;
+    op = negated_op;
+  }
+  if (imm >= (1 << 11)
+      && ((imm >> 12) << 12 == imm)) {
+    imm >>= 12;
+    shift = true;
+  }
+  f(op, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10);
+  srf(Rd, 0), srf(Rn, 5);
+}
+
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_immediate_v2(is32, imm) != 0xffffffff;
 }

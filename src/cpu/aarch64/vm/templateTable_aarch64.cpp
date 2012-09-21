@@ -114,7 +114,16 @@ static inline Address at_tos_p3() {
 
 // Condition conversion
 static Assembler::Condition j_not(TemplateTable::Condition cc) {
-  return Assembler::Condition(cc ^ 1);
+  switch (cc) {
+  case TemplateTable::equal        : return Assembler::NE;
+  case TemplateTable::not_equal    : return Assembler::EQ;
+  case TemplateTable::less         : return Assembler::GE;
+  case TemplateTable::less_equal   : return Assembler::GT;
+  case TemplateTable::greater      : return Assembler::LE;
+  case TemplateTable::greater_equal: return Assembler::LT;
+  }
+  ShouldNotReachHere();
+  return Assembler::EQ;
 }
 
 
@@ -997,34 +1006,86 @@ void TemplateTable::dup()
   // stack: ..., a, a
 }
 
-void TemplateTable::dup_x1()
-{
-  __ call_Unimplemented();
+void TemplateTable::dup_x1() {
+  transition(vtos, vtos);
+  // stack: ..., a, b
+  __ load_ptr( 0, r0);  // load b
+  __ load_ptr( 1, r1);  // load a
+  __ store_ptr(1, r0);  // store b
+  __ store_ptr(0, r1);  // store a
+  __ push_ptr(r0);      // push b
+  // stack: ..., b, a, b
 }
 
-void TemplateTable::dup_x2()
-{
-  __ call_Unimplemented();
+void TemplateTable::dup_x2() {
+  transition(vtos, vtos);
+  // stack: ..., a, b, c
+  __ load_ptr( 0, r0);  // load c
+  __ load_ptr( 2, r1);  // load a
+  __ store_ptr(2, r0);  // store c in a
+  __ push_ptr(r0);      // push c
+  // stack: ..., c, b, c, c
+  __ load_ptr( 2, r0);  // load b
+  __ store_ptr(2, r1);  // store a in b
+  // stack: ..., c, a, c, c
+  __ store_ptr(1, r0);  // store b in c
+  // stack: ..., c, a, b, c
 }
 
-void TemplateTable::dup2()
-{
-  __ call_Unimplemented();
+void TemplateTable::dup2() {
+  transition(vtos, vtos);
+  // stack: ..., a, b
+  __ load_ptr(1, r0);  // load a
+  __ push_ptr(r0);     // push a
+  __ load_ptr(1, r0);  // load b
+  __ push_ptr(r0);     // push b
+  // stack: ..., a, b, a, b
 }
 
-void TemplateTable::dup2_x1()
-{
-  __ call_Unimplemented();
+void TemplateTable::dup2_x1() {
+  transition(vtos, vtos);
+  // stack: ..., a, b, c
+  __ load_ptr( 0, r1);  // load c
+  __ load_ptr( 1, r0);  // load b
+  __ push_ptr(r0);      // push b
+  __ push_ptr(r1);      // push c
+  // stack: ..., a, b, c, b, c
+  __ store_ptr(3, r1);  // store c in b
+  // stack: ..., a, c, c, b, c
+  __ load_ptr( 4, r1);  // load a
+  __ store_ptr(2, r1);  // store a in 2nd c
+  // stack: ..., a, c, a, b, c
+  __ store_ptr(4, r0);  // store b in a
+  // stack: ..., b, c, a, b, c
 }
 
-void TemplateTable::dup2_x2()
-{
-  __ call_Unimplemented();
+void TemplateTable::dup2_x2() {
+  transition(vtos, vtos);
+  // stack: ..., a, b, c, d
+  __ load_ptr( 0, r1);  // load d
+  __ load_ptr( 1, r0);  // load c
+  __ push_ptr(r0);      // push c
+  __ push_ptr(r1);      // push d
+  // stack: ..., a, b, c, d, c, d
+  __ load_ptr( 4, r0);  // load b
+  __ store_ptr(2, r0);  // store b in d
+  __ store_ptr(4, r1);  // store d in b
+  // stack: ..., a, d, c, b, c, d
+  __ load_ptr( 5, r1);  // load a
+  __ load_ptr( 3, r0);  // load c
+  __ store_ptr(3, r1);  // store a in c
+  __ store_ptr(5, r0);  // store c in a
+  // stack: ..., c, d, a, b, c, d
 }
 
-void TemplateTable::swap()
-{
-  __ call_Unimplemented();
+void TemplateTable::swap() {
+  transition(vtos, vtos);
+  // stack: ..., a, b
+  __ load_ptr( 1, r1);  // load a
+  __ load_ptr( 0, r0);  // load b
+  __ store_ptr(0, r1);  // store a in b
+  __ store_ptr(1, r0);  // store b in a
+  // stack: ..., b, a
 }
 
 void TemplateTable::iop2(Operation op)

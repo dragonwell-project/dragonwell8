@@ -720,7 +720,8 @@ extern "C" void pm(unsigned long fp, unsigned long bcx) {
   methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
   int bci = 0;
   const char *name;
-  if (m->validate_bci_from_bcx(bcx) < 0) {
+  if (m->validate_bci_from_bcx(bcx) < 0
+      || !m->contains((address)bcx)) {
     bci = 0;
     name = "???";
   } else {

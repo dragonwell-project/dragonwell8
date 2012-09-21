@@ -236,9 +236,14 @@ void InterpreterMacroAssembler::push(TosState state) {
 }
 
 // Helpers for swap and dup
-void InterpreterMacroAssembler::load_ptr(int n, Register val) { Unimplemented(); }
+void InterpreterMacroAssembler::load_ptr(int n, Register val) {
+  ldr(val, Address(sp, Interpreter::expr_offset_in_bytes(n)));
+}
 
-void InterpreterMacroAssembler::store_ptr(int n, Register val) { Unimplemented(); }
+void InterpreterMacroAssembler::store_ptr(int n, Register val) {
+  str(val, Address(sp, Interpreter::expr_offset_in_bytes(n)));
+}
+
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
   // set sender sp

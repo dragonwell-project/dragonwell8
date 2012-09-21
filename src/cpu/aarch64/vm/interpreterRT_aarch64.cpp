@@ -66,6 +66,14 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_int() {
     __ ldr(c_rarg5, src);
     _num_int_args++;
     break;
+  case 5:
+    __ ldr(c_rarg6, src);
+    _num_int_args++;
+    break;
+  case 6:
+    __ ldr(c_rarg7, src);
+    _num_int_args++;
+    break;
   default:
     __ ldr(r0, src);
     __ str(r0, Address(to(), _stack_offset));
@@ -96,6 +104,14 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_long() {
     break;
   case 4:
     __ ldr(c_rarg5, src);
+    _num_int_args++;
+    break;
+  case 5:
+    __ ldr(c_rarg6, src);
+    _num_int_args++;
+    break;
+  case 6:
+    __ ldr(c_rarg7, src);
     _num_int_args++;
     break;
   default:
