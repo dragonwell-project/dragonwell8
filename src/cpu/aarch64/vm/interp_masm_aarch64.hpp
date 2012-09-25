@@ -130,6 +130,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop(TosState state); // transition vtos -> state
   void push(TosState state); // transition state -> vtos
 
+  void pop(unsigned bitset) { ((MacroAssembler*)this)->pop(bitset); }
+  void push(unsigned bitset) { ((MacroAssembler*)this)->push(bitset); }
+
   void empty_expression_stack() {
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
     mov(sp, rscratch1);

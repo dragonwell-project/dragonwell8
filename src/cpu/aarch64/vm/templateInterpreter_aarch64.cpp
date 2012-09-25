@@ -461,8 +461,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // _do_not_unlock_if_synchronized to true. The remove_activation
   // will check this flag.
 
-  __ add(rscratch1, rthread,
-	 in_bytes(JavaThread::do_not_unlock_if_synchronized_offset()));
+   const Address do_not_unlock_if_synchronized(rthread,
+        in_bytes(JavaThread::do_not_unlock_if_synchronized_offset()));
   __ mov(rscratch2, true);
   __ strb(rscratch2, rscratch1);
   
@@ -1382,18 +1382,67 @@ InterpreterGenerator::InterpreterGenerator(StubQueue* code)
 
 // Non-product code
 #ifndef PRODUCT
-address TemplateInterpreterGenerator::generate_trace_code(TosState state) { Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_trace_code(TosState state) {
+  address entry = __ pc();
 
-void TemplateInterpreterGenerator::count_bytecode() { Unimplemented(); }
+  __ push(lr);
+  __ push(state);
+  __ push(0xffffu);
+  __ mov(c_rarg2, r0);  // Pass itos
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address, SharedRuntime::trace_bytecode),
+             c_rarg1, c_rarg2, c_rarg3);
+  __ pop(0xffffu);
+  __ pop(state);
+  __ pop(lr);
+  __ ret(lr);                                   // return from result handler
 
-void TemplateInterpreterGenerator::histogram_bytecode(Template* t) { Unimplemented(); }
+  return entry;
+}
 
-void TemplateInterpreterGenerator::histogram_bytecode_pair(Template* t) { Unimplemented(); }
+void TemplateInterpreterGenerator::count_bytecode() {
+  __ push(rscratch1);
+  __ push(rscratch2);
+  __ mov(rscratch2, (address) &BytecodeCounter::_counter_value);
+  __ ldr(rscratch1, Address(rscratch2));
+  __ add(rscratch1, rscratch1, 1);
+  __ str(rscratch1, Address(rscratch2));
+  __ pop(rscratch2);
+  __ pop(rscratch1);
+}
+
+void TemplateInterpreterGenerator::histogram_bytecode(Template* t) { ; }
+
+void TemplateInterpreterGenerator::histogram_bytecode_pair(Template* t) { ; }
 
 
-void TemplateInterpreterGenerator::trace_bytecode(Template* t) { Unimplemented(); }
+void TemplateInterpreterGenerator::trace_bytecode(Template* t) {
+  // Call a little run-time stub to avoid blow-up for each bytecode.
+  // The run-time runtime saves the right registers, depending on
+  // the tosca in-state for the given template.
+
+  assert(Interpreter::trace_code(t->tos_in()) != NULL,
+         "entry must have been generated");
+  __ mov(r19, sp);
+  __ andr(sp, r19, -16); // align stack as required by ABI
+  __ push(lr);
+  __ bl(Interpreter::trace_code(t->tos_in()));
+  __ pop(lr);
+  __ mov(sp, r19); // restore sp
+  __ reinit_heapbase();
+}
 
 
-void TemplateInterpreterGenerator::stop_interpreter_at() { Unimplemented(); }
+void TemplateInterpreterGenerator::stop_interpreter_at() {
+  Label L;
+  __ push(rscratch1);
+  __ mov(rscratch1, (address) &BytecodeCounter::_counter_value);
+  __ ldr(rscratch1, Address(rscratch1));
+  __ cmpw(rscratch1, StopInterpreterAt);
+  __ br(Assembler::NE, L);
+  __ brk(0);
+  __ bind(L);
+  __ pop(rscratch1);
+}
 #endif // !PRODUCT
 #endif // ! CC_INTERP
