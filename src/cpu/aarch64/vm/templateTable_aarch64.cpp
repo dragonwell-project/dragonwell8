@@ -624,7 +624,7 @@ void TemplateTable::faload()
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
   __ lea(r1,  Address(r0, r1, Address::lsl(2)));
-  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
+  __ ldr(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
 
 void TemplateTable::daload()
@@ -636,7 +636,7 @@ void TemplateTable::daload()
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
   __ lea(r1,  Address(r0, r1, Address::lsl(3)));
-  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
+  __ ldr(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
 
 void TemplateTable::aaload()
