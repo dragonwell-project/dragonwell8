@@ -351,12 +351,43 @@ void InterpreterMacroAssembler::remove_activation(
 
   // Don't unlock anything if the _do_not_unlock_if_synchronized flag
   // is set.
-  cbz(r3, no_unlock);
+  cbnz(r3, no_unlock);
 
-  call_Unimplemented();
+  // unlock monitor
+  push(state); // save result
+
+  // BasicObjectLock will be first in list, since this is a
+  // synchronized method. However, need to check that the object has
+  // not been unlocked by an explicit monitorexit bytecode.
+  const Address monitor(rfp, frame::interpreter_frame_initial_sp_offset *
+                        wordSize - (int) sizeof(BasicObjectLock));
+  // We use c_rarg1 so that if we go slow path it will be the correct
+  // register for unlock_object to pass to VM directly
+  lea(c_rarg1, monitor); // address of first monitor
+
+  ldr(r0, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
+  cbnz(r0, unlock);
+
+  pop(state);
+  if (throw_monitor_exception) {
+    // Entry already unlocked, need to throw exception
+    call_VM(noreg, CAST_FROM_FN_PTR(address,
+                   InterpreterRuntime::throw_illegal_monitor_state_exception));
+    should_not_reach_here();
+  } else {
+    // Monitor already unlocked during a stack unroll. If requested,
+    // install an illegal_monitor_state_exception.  Continue with
+    // stack unrolling.
+    if (install_monitor_exception) {
+      call_VM(noreg, CAST_FROM_FN_PTR(address,
+                     InterpreterRuntime::new_illegal_monitor_state_exception));
+    }
+    b(unlocked);
+  }
 
   bind(unlock);
   unlock_object(c_rarg1);
+  pop(state);
 
   // Check that for block-structured locking (i.e., that all locked
   // objects has been unlocked)
