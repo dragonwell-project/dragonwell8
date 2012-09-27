@@ -516,7 +516,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     // copy
     mov(rscratch1, sp);
     sub(swap_reg, swap_reg, rscratch1);
-    andr(swap_reg, swap_reg, (unsigned long)(7 - os::vm_page_size()));
+    ands(swap_reg, swap_reg, (unsigned long)(7 - os::vm_page_size()));
 
     // Save the test result, for recursive case, the result is zero
     str(swap_reg, Address(lock_reg, mark_offset));
