@@ -52,7 +52,7 @@ static inline Address iaddress(int n) {
 }
 
 static inline Address laddress(int n) {
-  return iaddress(n);
+  return iaddress(n + 1);
 }
 
 static inline Address faddress(int n) {
