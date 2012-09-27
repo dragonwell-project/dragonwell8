@@ -708,11 +708,14 @@ void TemplateTable::lload(int n)
 
 void TemplateTable::fload(int n)
 {
+  transition(vtos, ftos);
+  __ ldrs(v0, faddress(n));
 }
 
 void TemplateTable::dload(int n)
 {
-  __ call_Unimplemented();
+  transition(vtos, dtos);
+  __ ldrd(v0, daddress(n));
 }
 
 void TemplateTable::aload(int n)

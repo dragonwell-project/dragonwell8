@@ -693,7 +693,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ sub(rscratch1, sp, frame::arg_reg_save_area_bytes); // windows
     __ andr(rscratch1, rscratch1, -16); // align stack as required by ABI
     __ mov(sp, rscratch1);
-    __ bl((CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans)));
+    __ mov(rscratch2, CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans));
+    __ brx86(rscratch2, 1, 0, 0);
     __ mov(sp, r16); // restore sp
     __ reinit_heapbase();
     __ bind(Continue);
@@ -744,7 +745,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ sub(rscratch1, sp, frame::arg_reg_save_area_bytes); // windows
     __ andr(rscratch1, rscratch1, -16); // align stack as required by ABI
     __ mov(sp, rscratch1);
-    __ bl((CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages)));
+    __ mov(rscratch2, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
+    __ brx86(rscratch2, 0, 0, 0);
     __ mov(sp, r16); // restore sp
     __ popa(); // XXX only restore smashed registers
     __ reinit_heapbase();
@@ -1403,10 +1405,13 @@ address TemplateInterpreterGenerator::generate_trace_code(TosState state) {
 void TemplateInterpreterGenerator::count_bytecode() {
   __ push(rscratch1);
   __ push(rscratch2);
+  Label L;
   __ mov(rscratch2, (address) &BytecodeCounter::_counter_value);
-  __ ldr(rscratch1, Address(rscratch2));
+  __ bind(L);
+  __ ldxr(rscratch1, rscratch2);
   __ add(rscratch1, rscratch1, 1);
-  __ str(rscratch1, Address(rscratch2));
+  __ stxr(rscratch1, rscratch1, rscratch2);
+  __ cbnzw(rscratch1, L);
   __ pop(rscratch2);
   __ pop(rscratch1);
 }
