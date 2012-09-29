@@ -979,7 +979,7 @@ void TemplateTable::istore(int n)
 void TemplateTable::lstore(int n)
 {
   transition(ltos, vtos);
-  __ str(r0, iaddress(n));
+  __ str(r0, laddress(n));
 }
 
 void TemplateTable::fstore(int n)
