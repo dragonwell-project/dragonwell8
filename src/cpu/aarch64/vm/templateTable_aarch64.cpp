@@ -2428,8 +2428,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   assert_different_registers(index, recv, r0, r3);
   // Test for an invoke of a final method
   Label notFinal;
-  __ andsw(r0, flags, (1 << ConstantPoolCacheEntry::vfinalMethod));
-  __ br(Assembler::EQ, notFinal);
+  __ tbz(flags, ConstantPoolCacheEntry::vfinalMethod, notFinal);
 
   const Register method = index;  // method must be rmethod
   assert(method == rmethod,
@@ -2523,9 +2522,82 @@ void TemplateTable::fast_invokevfinal(int byte_no)
   __ call_Unimplemented();
 }
 
-void TemplateTable::invokeinterface(int byte_no)
-{
-  __ call_Unimplemented();
+void TemplateTable::invokeinterface(int byte_no) {
+  transition(vtos, vtos);
+  assert(byte_no == f1_byte, "use this argument");
+
+#ifdef ASSERT
+  __ spill(rscratch1, rscratch2);
+#endif // ASSERT
+
+  prepare_invoke(r0, rmethod, byte_no);
+
+  // r0: Interface
+  // rmethod: index
+  // r2: receiver
+  // r3: flags
+
+  // Special case of invokeinterface called for virtual method of
+  // java.lang.Object.  See cpCacheOop.cpp for details.
+  // This code isn't produced by javac, but could be produced by
+  // another compliant java compiler.
+  Label notMethod;
+  __ tbz(r3, ConstantPoolCacheEntry::methodInterface, notMethod);
+
+  invokevirtual_helper(rmethod, r2, r3);
+  __ bind(notMethod);
+
+  // Get receiver klass into r3 - also a null check
+  __ restore_locals();
+  __ load_klass(r3, r2);
+  __ verify_oop(r3);
+
+  // profile this call
+  __ profile_virtual_call(r3, r13, r19);
+
+  Label no_such_interface, no_such_method;
+
+  __ lookup_interface_method(// inputs: rec. class, interface, itable index
+                             r3, r0, rmethod,
+                             // outputs: method, scan temp. reg
+                             rmethod, r13,
+                             no_such_interface);
+
+  // rmethod,: methodOop to call
+  // r2: receiver
+  // Check for abstract method error
+  // Note: This should be done more efficiently via a throw_abstract_method_error
+  //       interpreter entry point and a conditional jump to it in case of a null
+  //       method.
+  __ cbz(rmethod, no_such_method);
+
+  // do the call
+  // r2: receiver
+  // rmethod,: methodOop
+  __ jump_from_interpreted(rmethod, r3);
+  __ should_not_reach_here();
+
+  // exception handling code follows...
+  // note: must restore interpreter registers to canonical
+  //       state for exception handling to work correctly!
+
+  __ bind(no_such_method);
+  // throw exception
+  __ restore_bcp();      // bcp must be correct for exception handler   (was destroyed)
+  __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError));
+  // the call_VM checks for exception, so we should never return here.
+  __ should_not_reach_here();
+
+  __ bind(no_such_interface);
+  // throw exception
+  __ restore_bcp();      // bcp must be correct for exception handler   (was destroyed)
+  __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                   InterpreterRuntime::throw_IncompatibleClassChangeError));
+  // the call_VM checks for exception, so we should never return here.
+  __ should_not_reach_here();
+  return;
 }
 
 void TemplateTable::invokedynamic(int byte_no)

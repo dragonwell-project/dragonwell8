@@ -1155,7 +1155,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   Interpreter::_rethrow_exception_entry = __ pc();
   // Restore sp to interpreter_frame_last_sp even though we are going
   // to empty the expression stack for the exception processing.
-  __ str(zr, Address(r1, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   // r0: exception
   // r3: return address/pc that threw exception
   __ restore_bcp();    // rbcp points to call/send
@@ -1319,16 +1319,16 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // following registers set up:
   //
   // r0: exception
-  // r3: return address/pc that threw exception
+  // lr: return address/pc that threw exception
   // rsp: expression stack of caller
   // rfp: fp of caller
   __ push(r0);                                  // save exception
-  __ push(r3);                                  // save return address
+  __ push(lr);                                  // save return address
   __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
                           SharedRuntime::exception_handler_for_return_address),
-                        rthread, r3);
+                        rthread, lr);
   __ mov(r1, r0);                               // save exception handler
-  __ pop(r3);                                   // restore return address
+  __ pop(lr);                                   // restore return address
   __ pop(r0);                                   // restore exception
   // Note that an "issuing PC" is actually the next PC after the call
   __ br(r1);                                    // jump to exception
@@ -1443,7 +1443,8 @@ void TemplateInterpreterGenerator::stop_interpreter_at() {
   __ push(rscratch1);
   __ mov(rscratch1, (address) &BytecodeCounter::_counter_value);
   __ ldr(rscratch1, Address(rscratch1));
-  __ cmpw(rscratch1, StopInterpreterAt);
+  __ mov(rscratch2, StopInterpreterAt);
+  __ cmpw(rscratch1, rscratch2);
   __ br(Assembler::NE, L);
   __ brk(0);
   __ bind(L);

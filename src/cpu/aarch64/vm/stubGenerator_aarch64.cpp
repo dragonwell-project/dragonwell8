@@ -408,7 +408,62 @@ class StubGenerator: public StubCodeGenerator {
   // NOTE: this is always used as a jump target within generated code
   // so it just needs to be generated code wiht no x86 prolog
 
-  address generate_forward_exception() { return 0; }
+  address generate_forward_exception() {
+    StubCodeMark mark(this, "StubRoutines", "forward exception");
+    address start = __ pc();
+
+    // Upon entry, the sp points to the return address returning into
+    // Java (interpreted or compiled) code; i.e., the return address
+    // becomes the throwing pc.
+    //
+    // Arguments pushed before the runtime call are still on the stack
+    // but the exception handler will reset the stack pointer ->
+    // ignore them.  A potential result in registers can be ignored as
+    // well.
+
+#ifdef ASSERT
+    // make sure this code is only executed if there is a pending exception
+    {
+      Label L;
+      __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+      __ cbnz(rscratch1, L);
+      __ stop("StubRoutines::forward exception: no pending exception (1)");
+      __ bind(L);
+    }
+#endif
+
+    // compute exception handler into r19
+    __ mov(c_rarg1, lr);
+    BLOCK_COMMENT("call exception_handler_for_return_address");
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address,
+                         SharedRuntime::exception_handler_for_return_address),
+                    rthread, c_rarg1);
+    __ mov(r19, r0);
+
+    // setup r0 & r3, remove return address & clear pending exception
+    __ mov(r3, lr);
+    __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
+    __ str(zr, Address(rthread, Thread::pending_exception_offset()));
+
+#ifdef ASSERT
+    // make sure exception is set
+    {
+      Label L;
+      __ cbnz(r0, L);
+      __ stop("StubRoutines::forward exception: no pending exception (2)");
+      __ bind(L);
+    }
+#endif
+
+    // continue at exception handler (return address removed)
+    // r0: exception
+    // r19: exception handler
+    // r3: throwing pc
+    __ verify_oop(r0);
+    __ br(r19);
+
+    return start;
+  }
 
   // Support for jint atomic::xchg(jint exchange_value, volatile jint* dest)
   //
