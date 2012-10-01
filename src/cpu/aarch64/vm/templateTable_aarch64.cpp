@@ -894,8 +894,10 @@ void TemplateTable::aastore() {
   Address element_address(r4, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
 
   index_check(r3, r2);     // kills r1
+  __ lea(r4, Address(r3, r2, Address::lsl(UseCompressedOops? 2 : 3)));
+
   // do array store check - check for NULL value first
-  __ cbzw(r0, is_null);
+  __ cbz(r0, is_null);
 
   // Move subklass into r1
   __ load_klass(r1, r0);
@@ -904,9 +906,6 @@ void TemplateTable::aastore() {
   __ ldr(r0, Address(r0,
 		     objArrayKlass::element_klass_offset()));
   // Compress array + index*oopSize + 12 into a single register.  Frees r2.
-
-  __ add(r4, r3, r2, ext::uxtw, UseCompressedOops? 2 : 3);
-  __ lea(r3, element_address);
 
   // Generate subtype check.  Blows r2, r5
   // Superklass in r0.  Subklass in r1.
@@ -922,7 +921,7 @@ void TemplateTable::aastore() {
   // Get the value we will store
   __ ldr(r0, at_tos());
   // Now store using the appropriate barrier
-  do_oop_store(_masm, Address(r3, 0), r0, _bs->kind(), true);
+  do_oop_store(_masm, element_address, r0, _bs->kind(), true);
   __ b(done);
 
   // Have a NULL in r0, r3=array, r2=index.  Store NULL at ary[idx]
@@ -2900,9 +2899,10 @@ void TemplateTable::_breakpoint()
 //-----------------------------------------------------------------------------
 // Exceptions
 
-void TemplateTable::athrow()
-{
-  __ call_Unimplemented();
+void TemplateTable::athrow() {
+  transition(atos, vtos);
+  __ null_check(r0);
+  __ b(Interpreter::throw_exception_entry());
 }
 
 //-----------------------------------------------------------------------------

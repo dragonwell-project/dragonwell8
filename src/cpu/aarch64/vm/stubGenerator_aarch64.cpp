@@ -392,7 +392,46 @@ class StubGenerator: public StubCodeGenerator {
   // restart pc to enter the generated code at the start position
   // then return from native to simulated execution.
 
-  address generate_catch_exception() { return 0; }
+  address generate_catch_exception() {
+    StubCodeMark mark(this, "StubRoutines", "catch_exception");
+    address start = __ pc();
+
+    // same as in generate_call_stub():
+    const Address sp_after_call(rfp, sp_after_call_off * wordSize);
+    const Address thread        (rfp, thread_off         * wordSize);
+
+#ifdef ASSERT
+    // verify that threads correspond
+    {
+      Label L, S;
+      __ ldr(rscratch1, thread);
+      __ cmp(rthread, rscratch1);
+      __ br(Assembler::NE, S);
+      __ get_thread(rscratch1);
+      __ cmp(rthread, rscratch1);
+      __ br(Assembler::EQ, L);
+      __ bind(S);
+      __ stop("StubRoutines::catch_exception: threads must correspond");
+      __ bind(L);
+    }
+#endif
+
+    // set pending exception
+    __ verify_oop(r0);
+
+    __ str(r0, Address(rthread, Thread::pending_exception_offset()));
+    __ mov(rscratch1, (address)__FILE__);
+    __ str(rscratch1, Address(rthread, Thread::exception_file_offset()));
+    __ movw(rscratch1, (int)__LINE__);
+    __ strw(rscratch1, Address(rthread, Thread::exception_line_offset()));
+
+    // complete return to VM
+    assert(StubRoutines::_call_stub_return_address != NULL,
+           "_call_stub_return_address must have been generated before");
+    __ b(StubRoutines::_call_stub_return_address);
+
+    return start;
+  }
 
   // Continuation point for runtime calls returning with a pending
   // exception.  The pending exception check happened in the runtime
