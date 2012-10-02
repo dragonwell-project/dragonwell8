@@ -2650,6 +2650,9 @@ class CommandLineFlags {
           "Generate extra debugging information for non-safepoints in "     \
           "nmethods")                                                       \
                                                                             \
+  product(bool, NotifySimulator, true,                                      \
+         "tell the AArch64 sim where we are in method code")                \
+                                                                            \
   product(bool, PrintVMOptions, false,                                      \
           "Print flags that appeared on the command line")                  \
                                                                             \

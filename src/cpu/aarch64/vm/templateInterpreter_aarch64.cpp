@@ -46,6 +46,10 @@
 #include "utilities/debug.hpp"
 #include <sys/types.h>
 
+#ifndef PRODUCT
+#include "oops/methodOop.hpp"
+#endif // !PRODUCT
+
 #include "../../../../../../simulator/simulator.hpp"
 
 #define __ _masm->
@@ -149,6 +153,12 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 #ifdef ASSERT
   __ spillcheck(rscratch1, rscratch2);
 #endif // ASSERT
+#ifndef PRODUCT
+  // tell the simulator that the method has been reentered
+  if (NotifySimulator) {
+    notify(method_reentry);
+  }
+#endif
   __ dispatch_next(state, step);
 
   // out of the main line of code...
@@ -912,7 +922,12 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   }
   // initialize fixed part of activation frame
   generate_fixed_frame(false);
-
+#ifndef PRODUCT
+  // tell the simulator that a method has been entered
+  if (NotifySimulator) {
+    notify(method_entry);
+  }
+#endif
   // make sure method is not native & not abstract
 #ifdef ASSERT
   __ ldrw(r0, access_flags);
@@ -1450,5 +1465,34 @@ void TemplateInterpreterGenerator::stop_interpreter_at() {
   __ bind(L);
   __ pop(rscratch1);
 }
+
+void TemplateInterpreterGenerator::notify(NotifyType type) {
+  __ notify(type);
+}
+
+extern "C" {
+  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx)
+  {
+    methodOop meth = (methodOop)methodVal;
+    address bcp = (address)bcpVal;
+    if (method) {
+     meth->name_and_sig_as_C_string(method, 200);
+    }
+    if (bcidx) {
+     if (meth->contains(bcp)) {
+    	*bcidx = meth->bci_from(bcp);
+     } else {
+    	*bcidx = -2;
+     }
+    }
+  }
+
+
+  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx)
+  {
+    bccheck1(methodVal, bcpVal, method, bcidx);
+  }
+}
+
 #endif // !PRODUCT
 #endif // ! CC_INTERP

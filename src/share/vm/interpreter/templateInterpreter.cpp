@@ -527,6 +527,9 @@ void TemplateInterpreterGenerator::generate_and_dispatch(Template* t, TosState t
   if (TraceBytecodes)                                            trace_bytecode(t);
   if (StopInterpreterAt > 0)                                     stop_interpreter_at();
   __ verify_FPU(1, t->tos_in());
+#ifdef TARGET_OS_ARCH_linux_aarch64
+  if (NotifySimulator)                                            notify(bytecode_start);
+#endif
 #endif // !PRODUCT
   int step = 0;
   if (!t->does_dispatch()) {

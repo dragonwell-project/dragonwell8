@@ -1658,6 +1658,24 @@ public:
        double_ret = 3
      }
 
+   notify
+
+   notifies the simulator of a transfer of control. instr[14:0]
+   identifies the type of change of control.
+
+   0 ==> initial entry to a method.
+
+   1 ==> return into a method from a submethod call.
+
+   2 ==> exit out of Java method code.
+
+   3 ==> start execution for a new bytecode.
+
+   in cases 1 and 2 the simulator is expected to use a JVM callback to
+   identify the name of the specific method being executed. in case 4
+   the simulator is expected to use a JVM callback to identify the
+   bytecode index.
+
    Instruction encodings
    ---------------------
 
@@ -1667,16 +1685,28 @@ public:
                      10987654321098765432109876543210
    PSEUDO_HALT   = 0x11100000000000000000000000000000
    PSEUDO_BRX86  = 0x11000000000000000_______________
-   PSEUDO_BRX86R = 0x1100000000000000100000___________
+   PSEUDO_BRX86R = 0x1100000000000000100000__________
+   PSEUDO_NOTIFY = 0x10100000000000000_______________
 
-   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86/BRX86R
+   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86/BRX86R, 101 ==> NOTIFY
 
    for BRX86
      instr[14,11] = #gpargs, instr[10,7] = #fpargs
      instr[6,5] = #type, instr[4,0] = Rn
    for BRX86R
      instr[9,5] = Rm, instr[4,0] = Rn
+   for NOTIFY
+     instr[14:0] = type : 0 ==> entry, 1 ==> reentry, 2 ==> exit, 3 ==> bcstart
 */
+
+  void notify(int type) {
+    starti;
+    //  109
+    f(0b101, 31, 29);
+    //  87654321098765
+    f(0b00000000000000, 28, 15);
+    f(type, 14, 0);
+  }
 
   void brx86(Register Rn, int gpargs, int fpargs, int type) {
     starti;
@@ -1701,7 +1731,6 @@ public:
     rf(Rm, 5);
     rf(Rn, 0);
   }
-
 
   void haltsim() {
     starti;

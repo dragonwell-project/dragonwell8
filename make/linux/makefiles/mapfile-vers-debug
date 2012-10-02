@@ -275,6 +275,7 @@ SUNWprivate_1.1 {
 
 		# Disassembly support
 		das1;
+		bccheck;
 
         local:
                 *;
