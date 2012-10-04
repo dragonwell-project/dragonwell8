@@ -1473,6 +1473,38 @@ void TemplateInterpreterGenerator::notify(NotifyType type) {
 extern "C" {
   void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx)
   {
+    if (method != 0) {
+      method[0] = '\0';
+    }
+    if (bcidx != 0) {
+      *bcidx = -2;
+    }
+
+    // verify the supplied method oop
+    // is the 'methodOop' in range
+    intptr_t checkVal = (intptr_t)methodVal;
+    if (checkVal == 0) {
+      return;
+    }
+    if ((checkVal & Universe::verify_oop_mask()) != Universe::verify_oop_bits()) {
+      return;
+    }
+    // is the 'klassOop' of the 'methodOop' in range
+    checkVal = (intptr_t)((methodOop)checkVal)->klass();
+    if (checkVal == 0) {
+      return;
+    }
+    if ((checkVal & Universe::verify_klass_mask()) != Universe::verify_klass_bits()) {
+      return;
+    }
+    // is the 'klassOop' of the 'klassOop' in range
+    checkVal = (intptr_t)((klassOop)checkVal)->klass();
+    if (checkVal == 0) {
+      return;
+    }
+    if ((checkVal & Universe::verify_klass_mask()) != Universe::verify_klass_bits()) {
+      return;
+    }
     methodOop meth = (methodOop)methodVal;
     address bcp = (address)bcpVal;
     if (method) {
