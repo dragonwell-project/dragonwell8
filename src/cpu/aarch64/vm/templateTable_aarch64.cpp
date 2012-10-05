@@ -1596,14 +1596,43 @@ void TemplateTable::wide_ret()
   __ call_Unimplemented();
 }
 
-void TemplateTable::tableswitch()
-{
-  __ call_Unimplemented();
+void TemplateTable::tableswitch() {
+  Label default_case, continue_execution;
+  transition(itos, vtos);
+  // align rbcp
+  __ lea(r1, at_bcp(BytesPerInt));
+  __ andr(r1, r1, -BytesPerInt);
+  // load lo & hi
+  __ ldrw(r2, Address(r1, BytesPerInt));
+  __ ldrw(r3, Address(r1, 2 * BytesPerInt));
+  __ rev32(r2, r2);
+  __ rev32(r3, r2);
+  // check against lo & hi
+  __ cmpw(r0, r2);
+  __ br(Assembler::LT, default_case);
+  __ cmpw(r0, r3);
+  __ br(Assembler::GT, default_case);
+  // lookup dispatch offset
+  __ subw(r0, r0, r2);
+  __ lea(r3, Address(r1, r0, Address::lsl(2)));
+  __ ldrw(r3, Address(r3, 3 * BytesPerInt));
+  __ profile_switch_case(r0, r1, r2);
+  // continue execution
+  __ bind(continue_execution);
+  __ rev32(r3, r3);
+  __ load_unsigned_byte(rscratch1, Address(rbcp, r3, Address::sxtw(0)));
+  __ add(rbcp, rbcp, r3, ext::sxtw);
+  __ dispatch_only(vtos);
+  // handle default
+  __ bind(default_case);
+  __ profile_switch_default(r0);
+  __ ldrw(r3, Address(r1, 0));
+  __ b(continue_execution);
 }
 
-void TemplateTable::lookupswitch()
-{
-  __ call_Unimplemented();
+void TemplateTable::lookupswitch() {
+  transition(itos, itos);
+  __ stop("lookupswitch bytecode should have been rewritten");
 }
 
 void TemplateTable::fast_linearswitch() {
@@ -1646,9 +1675,111 @@ void TemplateTable::fast_linearswitch() {
   __ dispatch_only(vtos);
 }
 
-void TemplateTable::fast_binaryswitch()
-{
-  __ call_Unimplemented();
+void TemplateTable::fast_binaryswitch() {
+  transition(itos, vtos);
+  // Implementation using the following core algorithm:
+  //
+  // int binary_search(int key, LookupswitchPair* array, int n) {
+  //   // Binary search according to "Methodik des Programmierens" by
+  //   // Edsger W. Dijkstra and W.H.J. Feijen, Addison Wesley Germany 1985.
+  //   int i = 0;
+  //   int j = n;
+  //   while (i+1 < j) {
+  //     // invariant P: 0 <= i < j <= n and (a[i] <= key < a[j] or Q)
+  //     // with      Q: for all i: 0 <= i < n: key < a[i]
+  //     // where a stands for the array and assuming that the (inexisting)
+  //     // element a[n] is infinitely big.
+  //     int h = (i + j) >> 1;
+  //     // i < h < j
+  //     if (key < array[h].fast_match()) {
+  //       j = h;
+  //     } else {
+  //       i = h;
+  //     }
+  //   }
+  //   // R: a[i] <= key < a[i+1] or Q
+  //   // (i.e., if key is within array, i is the correct index)
+  //   return i;
+  // }
+
+  // Register allocation
+  const Register key   = r0; // already set (tosca)
+  const Register array = r1;
+  const Register i     = r2;
+  const Register j     = r3;
+  const Register h     = rscratch1;
+  const Register temp  = rscratch2;
+
+  // Find array start
+  __ lea(array, at_bcp(3 * BytesPerInt)); // btw: should be able to
+                                          // get rid of this
+                                          // instruction (change
+                                          // offsets below)
+  __ andr(array, array, -BytesPerInt);
+
+  // Initialize i & j
+  __ mov(i, 0);                            // i = 0;
+  __ ldrw(j, Address(array, -BytesPerInt)); // j = length(array);
+
+  // Convert j into native byteordering
+  __ rev32(j, j);
+
+  // And start
+  Label entry;
+  __ b(entry);
+
+  // binary search loop
+  {
+    Label loop;
+    __ bind(loop);
+    // int h = (i + j) >> 1;
+    __ addw(h, i, j); 				// h = i + j;
+    __ lsrw(h, h, 1);                           	// h = (i + j) >> 1;
+    // if (key < array[h].fast_match()) {
+    //   j = h;
+    // } else {
+    //   i = h;
+    // }
+    // Convert array[h].match to native byte-ordering before compare
+    __ ldr(temp, Address(array, h, Address::lsl(3)));
+    __ rev32(temp, temp);
+    __ cmpw(key, temp);
+    // j = h if (key <  array[h].fast_match())
+    __ csel(j, h, j, Assembler::LT);
+    // i = h if (key >= array[h].fast_match())
+    __ csel(i, h, i, Assembler::GE);
+    // while (i+1 < j)
+    __ bind(entry);
+    __ addw(h, i, 1);          // i+1
+    __ cmpw(h, j);             // i+1 < j
+    __ br(Assembler::LT, loop);
+  }
+
+  // end of binary search, result index is i (must check again!)
+  Label default_case;
+  // Convert array[i].match to native byte-ordering before compare
+  __ ldr(temp, Address(array, i, Address::lsl(3)));
+  __ rev32(temp, temp);
+  __ cmpw(key, temp);
+  __ br(Assembler::NE, default_case);
+
+  // entry found -> j = offset
+  __ add(j, array, i, ext::uxtx, 3);
+  __ ldrw(j, Address(j, BytesPerInt));
+  __ profile_switch_case(i, key, array);
+  __ rev32(j, j);
+  __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::uxtw(0)));
+  __ lea(rbcp, Address(rbcp, j, Address::uxtw(0)));
+  __ dispatch_only(vtos);
+
+  // default case -> j = default offset
+  __ bind(default_case);
+  __ profile_switch_default(i);
+  __ ldrw(j, Address(array, -2 * BytesPerInt));
+  __ rev32(j, j);
+  __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::sxtw(0)));
+  __ lea(rbcp, Address(rbcp, j, Address::sxtw(0)));
+  __ dispatch_only(vtos);
 }
 
 
@@ -2421,7 +2552,7 @@ void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
   if (load_receiver) {
     assert(!is_invokedynamic, "");
     __ andw(recv, flags, 0xFF);
-    __ add(rscratch1, sp, recv, ext::uxtx, 3);
+    __ add(rscratch1, sp, recv, ext::uxtx, 3); // FIXME: uxtb here?
     __ sub(rscratch1, rscratch1, Interpreter::expr_offset_in_bytes(1));
     __ ldr(recv, Address(rscratch1));
     __ verify_oop(recv);

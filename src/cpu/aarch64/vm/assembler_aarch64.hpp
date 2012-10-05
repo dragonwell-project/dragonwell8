@@ -2089,6 +2089,7 @@ public:
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
   // not sure we need this given how aarch64 div instruction works
   int corrected_idivl(Register ra, Register rb);
+  int corrected_idivq(Register ra, Register rb);
 
   // Support for NULL-checks
   //

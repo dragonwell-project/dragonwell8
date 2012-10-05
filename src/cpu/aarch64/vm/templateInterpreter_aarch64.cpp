@@ -200,11 +200,11 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
         BasicType type) {
     address entry = __ pc();
   switch (type) {
-  case T_BOOLEAN: /* nothing to do */        break;
-  case T_CHAR   : /* nothing to do */        break;
-  case T_BYTE   : /* nothing to do */        break;
-  case T_SHORT  : /* nothing to do */        break;
-  case T_INT    : /* nothing to do */        break;
+  case T_BOOLEAN: __ uxtb(r0, r0);        break;
+  case T_CHAR   : __ uxth(r0, r0);       break;
+  case T_BYTE   : __ uxtb(r0, r0);        break;
+  case T_SHORT  : __ sxth(r0, r0);        break;
+  case T_INT    : __ uxtw(r0, r0);        break;  // FIXME: We almost certainly don't need this
   case T_LONG   : /* nothing to do */        break;
   case T_VOID   : /* nothing to do */        break;
   case T_FLOAT  : /* nothing to do */        break;
@@ -1175,6 +1175,8 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // r3: return address/pc that threw exception
   __ restore_bcp();    // rbcp points to call/send
   __ restore_locals();
+  __ restore_constant_pool_cache();
+  __ get_method(rmethod);
   __ reinit_heapbase();  // restore rheapbase as heapbase.
   // Entry point for exceptions thrown within interpreter code
   Interpreter::_throw_exception_entry = __ pc();
@@ -1304,6 +1306,9 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 
   __ restore_bcp();  // XXX do we need this?
   __ restore_locals(); // XXX do we need this?
+  __ restore_constant_pool_cache();
+  __ get_method(rmethod);
+
   // The method data pointer was incremented already during
   // call profiling. We have to restore the mdp for the current bcp.
   if (ProfileInterpreter) {

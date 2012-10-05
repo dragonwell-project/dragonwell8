@@ -726,7 +726,7 @@ extern "C" void pm(unsigned long fp, unsigned long bcx) {
     name = "???";
   } else {
     bci = m->bci_from((address)bcx);
-    name = Bytecodes::name(m->java_code_at(bci));
+    name = Bytecodes::name(m->code_at(bci));
   }
   ResourceMark rm;
   printf("%s : %d ==> %s\n", m->name_and_sig_as_C_string(), bci, name);

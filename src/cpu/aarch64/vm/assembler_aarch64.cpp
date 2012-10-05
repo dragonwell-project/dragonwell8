@@ -2397,6 +2397,48 @@ int MacroAssembler::corrected_idivl(Register ra, Register rb)
   // output: ra: quotient  (= ra idiv rb)         min_long
   //         rb: remainder (= ra irem rb)         0
   assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
+  static const int64_t min_long = 0x80000000;
+  Label normal_case, special_case;
+
+  // check for special cases
+  movw(rscratch1, min_long);
+  cmpw(ra, rscratch1);
+  br(Assembler::NE, normal_case);
+  // check for -1 in rb
+  addsw(rscratch1, rb, 1);
+  br(Assembler::NE, normal_case);
+  mov(rb, zr);
+  b(special_case);
+
+  // handle normal case
+  bind(normal_case);
+  int idivl_offset = offset();
+  sdivw(rscratch1, ra, rb);
+  msubw(rb, rscratch1, rb, ra);
+  mov(ra, rscratch1);
+
+  // normal and special case exit
+  bind(special_case);
+
+  return idivl_offset;
+}
+
+int MacroAssembler::corrected_idivq(Register ra, Register rb)
+{
+  // Full implementation of Java ldiv and lrem; checks for special
+  // case as described in JVM spec., p.243 & p.271.  The function
+  // returns the (pc) offset of the idivq instruction - may be needed
+  // for implicit exceptions.
+  //
+  // consraint : ra/b =/= rscratch1
+  //         normal case                          special case
+  //
+  // input : ra: dividend                         min_long
+  //         rb: divisor                          -1
+  //
+  // output: ra: quotient  (= ra idiv rb)         min_long
+  //         rb: remainder (= ra irem rb)         0
+  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
   static const int64_t min_long = 0x8000000000000000;
   Label normal_case, special_case;
 
@@ -2412,7 +2454,7 @@ int MacroAssembler::corrected_idivl(Register ra, Register rb)
 
   // handle normal case
   bind(normal_case);
-  int idivl_offset = offset();
+  int idivq_offset = offset();
   sdiv(rscratch1, ra, rb);
   msub(rb, rscratch1, rb, ra);
   mov(ra, rscratch1);
@@ -2420,7 +2462,7 @@ int MacroAssembler::corrected_idivl(Register ra, Register rb)
   // normal and special case exit
   bind(special_case);
 
-  return idivl_offset;
+  return idivq_offset;
 }
 
 // Packed operands for  Floating-point Move (immediate)
@@ -2674,6 +2716,7 @@ static const char *spill_error_msgs[] = {
 
 void MacroAssembler::spill(Register rscratcha, Register rscratchb)
 {
+#if 0
   Label bumped;
   // load and bump spill pointer
   ldr(rscratcha, Address(rthread, JavaThread::spill_stack_offset()));
@@ -2692,10 +2735,12 @@ void MacroAssembler::spill(Register rscratcha, Register rscratchb)
   }
   // store new spill pointer
   str(rscratcha, (Address(rthread, JavaThread::spill_stack_offset())));
+#endif
 }
 
 void MacroAssembler::spillcheck(Register rscratcha, Register rscratchb)
 {
+#if 0
   // load spill pointer
   ldr(rscratcha, (Address(rthread, JavaThread::spill_stack_offset())));
   // check registers
@@ -2713,6 +2758,7 @@ void MacroAssembler::spillcheck(Register rscratcha, Register rscratchb)
   // decrement and store new spill pointer
   add(rscratcha, rscratcha, SPILL_FRAME_BYTESIZE);
   str(rscratcha, Address(rthread, JavaThread::spill_stack_offset()));
+#endif
 }
 
 #endif // ASSERT
