@@ -1699,6 +1699,8 @@ public:
      instr[14:0] = type : 0 ==> entry, 1 ==> reentry, 2 ==> exit, 3 ==> bcstart
 */
 
+  enum NotifyType { method_entry, method_reentry, method_exit, bytecode_start };
+
   void notify(int type) {
     starti;
     //  109

@@ -352,6 +352,12 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(c_rarg6,  parameter_size);
     __ ldr(c_rarg7,  thread);
 
+#ifndef PRODUCT
+    // tell the simulator we are about to end Java execution
+    if (NotifySimulator) {
+      __ notify(Assembler::method_exit);
+    }
+#endif
     // leave frame and return to caller
     __ leave();
     __ ret(lr);

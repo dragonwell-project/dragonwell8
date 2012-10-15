@@ -29,6 +29,7 @@
 #include "interpreter/interpreterGenerator.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/templateTable.hpp"
+#include "interpreter/bytecodeTracer.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/methodDataOop.hpp"
 #include "oops/methodOop.hpp"
@@ -156,7 +157,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 #ifndef PRODUCT
   // tell the simulator that the method has been reentered
   if (NotifySimulator) {
-    notify(method_reentry);
+    __ notify(Assembler::method_reentry);
   }
 #endif
   __ dispatch_next(state, step);
@@ -925,7 +926,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 #ifndef PRODUCT
   // tell the simulator that a method has been entered
   if (NotifySimulator) {
-    notify(method_entry);
+    __ notify(Assembler::method_entry);
   }
 #endif
   // make sure method is not native & not abstract
@@ -1471,18 +1472,17 @@ void TemplateInterpreterGenerator::stop_interpreter_at() {
   __ pop(rscratch1);
 }
 
-void TemplateInterpreterGenerator::notify(NotifyType type) {
-  __ notify(type);
-}
-
 extern "C" {
-  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx)
+  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx, char *decode)
   {
     if (method != 0) {
       method[0] = '\0';
     }
     if (bcidx != 0) {
       *bcidx = -2;
+    }
+    if (decode != 0) {
+      decode[0] = 0;
     }
 
     // verify the supplied method oop
@@ -1513,7 +1513,7 @@ extern "C" {
     methodOop meth = (methodOop)methodVal;
     address bcp = (address)bcpVal;
     if (method) {
-     meth->name_and_sig_as_C_string(method, 200);
+     meth->name_and_sig_as_C_string(method, 400);
     }
     if (bcidx) {
      if (meth->contains(bcp)) {
@@ -1522,12 +1522,19 @@ extern "C" {
     	*bcidx = -2;
      }
     }
+    if (decode) {
+      if (!BytecodeTracer::closure()) {
+	BytecodeTracer::set_closure(BytecodeTracer::std_closure());
+      }
+      stringStream str(decode, 400);
+      BytecodeTracer::trace(meth, bcp, &str);
+    }
   }
 
 
-  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx)
+  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx, char *decode)
   {
-    bccheck1(methodVal, bcpVal, method, bcidx);
+    bccheck1(methodVal, bcpVal, method, bcidx, decode);
   }
 }
 

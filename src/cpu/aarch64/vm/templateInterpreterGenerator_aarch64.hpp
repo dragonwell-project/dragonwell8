@@ -31,20 +31,4 @@
 
  // address generate_asm_interpreter_entry(bool synchronized);
 
-  // notify the sim that it needs to update its debug state
-  //
-  // the enum NotifyType indicates that control has reached
-  //
-  // entry to the start of a method
-  //
-  // reentry to a method from a submethod call
-  //
-  // exit from Java execution
-  //
-  // start of execution of a new bytecode
-
-  enum NotifyType { method_entry, method_reentry, method_exit, bytecode_start };
-
-  void notify(NotifyType type);
-
 #endif // CPU_X86_VM_TEMPLATEINTERPRETERGENERATOR_X86_HPP
