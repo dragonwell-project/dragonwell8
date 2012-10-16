@@ -73,6 +73,9 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   int gp_arg_count = calltype & 0xf;
   int fp_arg_count = (calltype >> 4) & 0xf;
   int return_type = (calltype >> 8) & 0x3;
+  if (UseSimulatorCache) {
+    AArch64Simulator::useCache = 1;
+  }
   AArch64Simulator *sim = AArch64Simulator::current();
   // set up start pc
   sim->init(*cursor++, (u_int64_t)sp, (u_int64_t)fp);
