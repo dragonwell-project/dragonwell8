@@ -145,8 +145,8 @@ REGISTER_DECLARATION(Register, rlocals,   r24);
 REGISTER_DECLARATION(Register, rmethod,   r23);
 // bytecode pointer
 REGISTER_DECLARATION(Register, rbcp,      r22);
-// Java expression stackpointer
-// REGISTER_DECLARATION(Register, resp,      r21);
+// Dispatch table base
+REGISTER_DECLARATION(Register, rdispatch_tables,      r21);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp

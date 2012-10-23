@@ -287,15 +287,20 @@ void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
                                               bool verifyoop) {
-    if (VerifyActivationFrameSize) {
-      Unimplemented();
-    }
-    if (verifyoop) {
-      verify_oop(r0, state);
-    }
+  if (VerifyActivationFrameSize) {
+    Unimplemented();
+  }
+  if (verifyoop) {
+    verify_oop(r0, state);
+  }
+  if (table == Interpreter::dispatch_table(state)) {
+    addw(rscratch2, rscratch1, Interpreter::distance_from_dispatch_table(state));
+    ldr(rscratch2, Address(rdispatch_tables, rscratch2, Address::uxtw(3)));
+  } else {
     mov(rscratch2, (address)table);
-    ldr(rscratch2, Address(rscratch2, rscratch1, Address::lsl(3)));
-    br(rscratch2);
+    ldr(rscratch2, Address(rscratch2, rscratch1, Address::uxtw(3)));
+  }
+  br(rscratch2);
 }
 
 void InterpreterMacroAssembler::dispatch_only(TosState state) {

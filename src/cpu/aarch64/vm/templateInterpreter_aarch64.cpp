@@ -921,6 +921,10 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   if (inc_counter) {
     __ ldr(r2, invocation_counter);
   }
+
+  // And the base dispatch table
+  __ mov(rdispatch_tables, (intptr_t)Interpreter::dispatch_table());
+
   // initialize fixed part of activation frame
   generate_fixed_frame(false);
 #ifndef PRODUCT
