@@ -74,11 +74,11 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
     for (int j = 0; j < num_virtuals; ++j) {
       dummy_vtable[num_virtuals * i + j] = (void*)masm->pc();
 
-      // Load r0 with a value indicating vtable/offset pair.
+      // Load rscratch1 with a value indicating vtable/offset pair.
       // -- bits[ 7..0]  (8 bits) which virtual method in table?
       // -- bits[12..8]  (5 bits) which virtual method table?
       // -- must fit in 13-bit instruction immediate field.
-      __ mov(r0, (i << 8) + j);
+      __ mov(rscratch1, (i << 8) + j);
       __ b(common_code);
     }
   }
@@ -86,26 +86,26 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
   __ bind(common_code);
 
   // Expecting to be called with "thiscall" convections -- the arguments
-  // are on the stack and the "this" pointer is in c_rarg0. In addition, rax
+  // are on the stack and the "this" pointer is in c_rarg0. In addition, rscratch1
   // was set (above) to the offset of the method in the table.
 
   __ push(c_rarg1);                     // save & free register
   __ push(c_rarg0);                     // save "this"
-  __ mov(c_rarg0, r0);
-  __ lsr(c_rarg0, c_rarg0, 8);                // isolate vtable identifier.
+  __ mov(c_rarg0, rscratch1);
+  __ lsr(c_rarg0, c_rarg0, 8);          // isolate vtable identifier.
   __ lsl(c_rarg0, c_rarg0, LogBytesPerWord);
-  __ lea(c_rarg1, (address)vtbl_list); // ptr to correct vtable list.
-  __ add(c_rarg1, c_rarg1, c_rarg0);   // ptr to list entry.
-  __ ldr(c_rarg1, Address(c_rarg1, 0));      // get correct vtable address.
+  __ lea(c_rarg1, (address)vtbl_list);  // ptr to correct vtable list.
+  __ add(c_rarg1, c_rarg1, c_rarg0);    // ptr to list entry.
+  __ ldr(c_rarg1, Address(c_rarg1, 0)); // get correct vtable address.
   __ pop(c_rarg0);                      // restore "this"
-  __ str(c_rarg1, Address(c_rarg0, 0));      // update vtable pointer.
+  __ str(c_rarg1, Address(c_rarg0, 0)); // update vtable pointer.
 
-  __ andr(r0, r0, 0x00ff);		// isolate vtable method index
-  __ lsl(r0, r0, LogBytesPerWord);
-  __ add(r0, r0, c_rarg1);              // address of real method pointer.
-  __ pop(c_rarg1);                      // restore register.
-  __ ldr(r0, Address(r0, 0));		// get real method pointer.
-  __ br(r0);                          // jump to the real method.
+  __ andr(rscratch1, rscratch1, 0x00ff); // isolate vtable method index
+  __ lsl(rscratch1, rscratch1, LogBytesPerWord);
+  __ add(rscratch1, rscratch1, c_rarg1); // address of real method pointer.
+  __ pop(c_rarg1);                       // restore register.
+  __ ldr(rscratch1, Address(rscratch1, 0)); // get real method pointer.
+  __ br(rscratch1);                         // jump to the real method.
 
   __ flush();
 
