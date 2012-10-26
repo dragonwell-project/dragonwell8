@@ -475,7 +475,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
    const Address do_not_unlock_if_synchronized(rthread,
         in_bytes(JavaThread::do_not_unlock_if_synchronized_offset()));
   __ mov(rscratch2, true);
-  __ strb(rscratch2, rscratch1);
+  __ strb(rscratch2, do_not_unlock_if_synchronized);
   
   // increment invocation count & check for overflow
   Label invocation_counter_overflow;
