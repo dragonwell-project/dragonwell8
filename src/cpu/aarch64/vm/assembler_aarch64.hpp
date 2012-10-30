@@ -541,6 +541,17 @@ class InternalAddress: public Address {
 const int FPUStateSizeInWords = 27; // FIXME   :-)
 
 class Assembler : public AbstractAssembler {
+
+#ifndef PRODUCT
+  const static unsigned long asm_bp = 0x00007fffee08c7f4;
+
+  void emit_long(jint x) {
+    if ((unsigned long)pc() == asm_bp)
+      asm volatile ("nop");
+    AbstractAssembler::emit_long(x);
+  }
+#endif
+
 public:
   Address pre(Register base, int offset) {
     return Address(Pre(base, offset));
