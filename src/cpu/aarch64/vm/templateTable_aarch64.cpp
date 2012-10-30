@@ -599,7 +599,7 @@ void TemplateTable::iaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1, Address(r0, r1, Address::lsl(2)));
+  __ lea(r1, Address(r0, r1, Address::uxtw(2)));
   __ ldrw(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_INT)));
 }
 
@@ -611,7 +611,7 @@ void TemplateTable::laload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1, Address(r0, r1, Address::lsl(3)));
+  __ lea(r1, Address(r0, r1, Address::uxtw(3)));
   __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_LONG)));
 }
 
@@ -623,7 +623,7 @@ void TemplateTable::faload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::lsl(2)));
+  __ lea(r1,  Address(r0, r1, Address::uxtw(2)));
   __ ldrs(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
 }
 
@@ -635,7 +635,7 @@ void TemplateTable::daload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::lsl(3)));
+  __ lea(r1,  Address(r0, r1, Address::uxtw(3)));
   __ ldrd(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
 }
 
@@ -648,7 +648,7 @@ void TemplateTable::aaload()
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
   int s = (UseCompressedOops ? 2 : 3);
-  __ lea(r1, Address(r0, r1, Address::lsl(s)));
+  __ lea(r1, Address(r0, r1, Address::uxtw(s)));
   __ load_heap_oop(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
 }
 
@@ -660,7 +660,7 @@ void TemplateTable::baload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::lsl(0)));
+  __ lea(r1,  Address(r0, r1, Address::uxtw(0)));
   __ load_signed_byte(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_BYTE)));
 }
 
@@ -672,7 +672,7 @@ void TemplateTable::caload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::lsl(1)));
+  __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
   __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
 }
 
@@ -690,7 +690,7 @@ void TemplateTable::saload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::lsl(1)));
+  __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
   __ load_signed_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_SHORT)));
 }
 
@@ -894,7 +894,7 @@ void TemplateTable::aastore() {
   Address element_address(r4, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
 
   index_check(r3, r2);     // kills r1
-  __ lea(r4, Address(r3, r2, Address::lsl(UseCompressedOops? 2 : 3)));
+  __ lea(r4, Address(r3, r2, Address::uxtw(UseCompressedOops? 2 : 3)));
 
   // do array store check - check for NULL value first
   __ cbz(r0, is_null);
@@ -1169,16 +1169,15 @@ void TemplateTable::ldiv()
 {
   transition(ltos, ltos);
   // explicitly check for div0
-  __ ands(r0, r0, r0);
   Label no_div0;
-  __ br(Assembler::NE, no_div0);
+  __ cbnz(r0, no_div0);
   __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
   __ br(rscratch1);
   __ bind(no_div0);
   __ mov(r1, r0);
   __ pop_l(r0);
   // r0 <== r1 idiv r0, r1 <== r1 irem r0
-  __ corrected_idivl(r0, r1);
+  __ corrected_idivq(r0, r1);
 }
 
 void TemplateTable::lrem()
@@ -1193,7 +1192,7 @@ void TemplateTable::lrem()
   __ bind(no_div0);  
   __ pop_l(r1);
   // r1 <== r1 idiv r0, r0 <== r1 irem r0
-  __ corrected_idivl(r1, r0);
+  __ corrected_idivq(r1, r0);
 }
 
 void TemplateTable::lshl()

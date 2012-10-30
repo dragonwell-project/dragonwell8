@@ -2383,7 +2383,7 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 
 int MacroAssembler::corrected_idivl(Register ra, Register rb)
 {
-  // Full implementation of Java ldiv and lrem; checks for special
+  // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivl instruction - may be needed
   // for implicit exceptions.
