@@ -349,9 +349,6 @@ JVM_handle_linux_signal(int sig,
     }
 
     if (thread->thread_state() == _thread_in_Java) {
-      if (sig == SIGSEGV && AArch64Simulator::current()->running()) {
-	AArch64Simulator::current()->handleSEGV();
-      }
       // Java thread running in Java code => find exception handler if any
       // a fault inside compiled code, the interpreter, or a stub
 
