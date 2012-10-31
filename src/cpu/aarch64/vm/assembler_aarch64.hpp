@@ -543,7 +543,7 @@ const int FPUStateSizeInWords = 27; // FIXME   :-)
 class Assembler : public AbstractAssembler {
 
 #ifndef PRODUCT
-  const static unsigned long asm_bp = 0x00007fffee08c7f4;
+  const static unsigned long asm_bp = 0x00007fffee08fddc;
 
   void emit_long(jint x) {
     if ((unsigned long)pc() == asm_bp)

@@ -27,7 +27,8 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.inline.hpp"
-#include "oops/methodDataOop.hpp"
+#include "oops/methodData.hpp"
+#include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -1321,10 +1322,12 @@ void TemplateTable::iinc()
 void TemplateTable::wide_iinc()
 {
   transition(vtos, vtos);
-  __ ldrw(r1, at_bcp(4)); // get constant
-  locals_index_wide(r2);
-  __ revw(r1, r1);
-  __ asrw(r1, r1, 16);
+  // __ mov(r1, zr);
+  __ ldrw(r1, at_bcp(2)); // get constant and index
+  __ rev16(r1, r1);
+  __ ubfx(r2, r1, 0, 16);
+  __ neg(r2, r2);
+  __ ubfx(r1, r1, 16, 16);
   __ ldr(r0, iaddress(r2));
   __ addw(r0, r0, r1);
   __ str(r0, iaddress(r2));
@@ -1492,28 +1495,31 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
                               InvocationCounter::counter_offset();
   const int method_offset = frame::interpreter_frame_method_offset * wordSize;
 
+  if (is_jsr) {
+    // compute return address as bci
+    __ ldr(rscratch2, Address(rmethod, Method::const_offset()));
+    __ add(rscratch2, rscratch2,
+	   in_bytes(ConstMethod::codes_offset()) - (is_wide ? 5 : 3));
+    __ sub(r1, rbcp, rscratch2);
+    __ push_i(r1);
+  }
+
   // load branch displacement
   if (!is_wide) {
-    __ ldrh(r0, at_bcp(1));
-    __ rev16(r0, r0);
-    // Adjust the bcp by the 16-bit displacement in r0
-    __ add(rbcp, rbcp, r0, ext::sxth, 0);
+    __ ldrh(r1, at_bcp(1));
+    __ rev16(r1, r1);
+    // Adjust the bcp by the 16-bit displacement in r1
+    __ add(rbcp, rbcp, r1, ext::sxth, 0);
   } else {
-    __ ldrw(r0, at_bcp(1));
-    __ revw(r0, r0);
-    // Adjust the bcp by the 32-bit displacement in r0
-    __ add(rbcp, rbcp, r0, ext::sxtw, 0);
+    __ ldrw(r1, at_bcp(1));
+    __ revw(r1, r1);
+    // Adjust the bcp by the 32-bit displacement in r1
+    __ add(rbcp, rbcp, r1, ext::sxtw, 0);
   }
 
-  if (is_jsr) {
-    __ call_Unimplemented();
-    return;
-  }
-
-  // Normal (non-jsr) branch handling
   assert(UseLoopCounter || !UseOnStackReplacement,
          "on-stack-replacement requires loop counters");
-  if (UseLoopCounter) {
+  if (UseLoopCounter && !is_jsr) {
     // TODO : add this
   }
   // Pre-load the next target bytecode into rscratch1
@@ -1585,15 +1591,28 @@ void TemplateTable::if_acmp(Condition cc)
   __ profile_not_taken_branch(r0);
 }
 
-void TemplateTable::ret()
-{
-  __ call_Unimplemented();
+void TemplateTable::ret() {
+  transition(vtos, vtos);
+  locals_index(r1);
+  __ ldr(r1, aaddress(r1)); // get return bci, compute return bcp
+  __ profile_ret(r1, r2);
+  __ ldr(rbcp, Address(rmethod, Method::const_offset()));
+  __ lea(rbcp, Address(rbcp, r1));
+  __ add(rbcp, rbcp, in_bytes(ConstMethod::codes_offset()));
+  __ dispatch_next(vtos);
 }
 
-void TemplateTable::wide_ret()
-{
-  __ call_Unimplemented();
+void TemplateTable::wide_ret() {
+  transition(vtos, vtos);
+  locals_index_wide(r1);
+  __ ldr(r1, aaddress(r1)); // get return bci, compute return bcp
+  __ profile_ret(r1, r2);
+  __ ldr(rbcp, Address(rmethod, Method::const_offset()));
+  __ lea(rbcp, Address(rbcp, r1));
+  __ add(rbcp, rbcp, in_bytes(ConstMethod::codes_offset()));
+  __ dispatch_next(vtos);
 }
+
 
 void TemplateTable::tableswitch() {
   Label default_case, continue_execution;
@@ -1605,7 +1624,7 @@ void TemplateTable::tableswitch() {
   __ ldrw(r2, Address(r1, BytesPerInt));
   __ ldrw(r3, Address(r1, 2 * BytesPerInt));
   __ rev32(r2, r2);
-  __ rev32(r3, r2);
+  __ rev32(r3, r3);
   // check against lo & hi
   __ cmpw(r0, r2);
   __ br(Assembler::LT, default_case);
@@ -1613,7 +1632,7 @@ void TemplateTable::tableswitch() {
   __ br(Assembler::GT, default_case);
   // lookup dispatch offset
   __ subw(r0, r0, r2);
-  __ lea(r3, Address(r1, r0, Address::lsl(2)));
+  __ lea(r3, Address(r1, r0, Address::uxtw(2)));
   __ ldrw(r3, Address(r3, 3 * BytesPerInt));
   __ profile_switch_case(r0, r1, r2);
   // continue execution
@@ -3238,13 +3257,25 @@ void TemplateTable::monitorexit()
 // Wide instructions
 void TemplateTable::wide()
 {
-  __ call_Unimplemented();
+  __ load_unsigned_byte(r19, at_bcp(1));
+  __ mov(rscratch1, (address)Interpreter::_wentry_point);
+  __ ldr(rscratch1, Address(rscratch1, r19, Address::uxtw(3)));
+  __ br(rscratch1);
 }
 
 
 // Multi arrays
-void TemplateTable::multianewarray()
-{
-  __ call_Unimplemented();
+void TemplateTable::multianewarray() {
+  transition(vtos, atos);
+  __ load_unsigned_byte(r0, at_bcp(3)); // get number of dimensions
+  // last dim is on top of stack; we want address of first one:
+  // first_addr = last_addr + (ndims - 1) * wordSize
+  __ lea(c_rarg1, Address(sp, r0, Address::uxtw(3)));
+  __ sub(c_rarg1, c_rarg1, wordSize);
+  call_VM(r0,
+          CAST_FROM_FN_PTR(address, InterpreterRuntime::multianewarray),
+          c_rarg1);
+  __ load_unsigned_byte(r1, at_bcp(3));
+  __ lea(sp, Address(sp, r1, Address::uxtw(3)));
 }
 #endif // !CC_INTERP

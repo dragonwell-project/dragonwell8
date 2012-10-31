@@ -224,9 +224,13 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
 
 address TemplateInterpreterGenerator::generate_safept_entry_for(
         TosState state,
-        address runtime_entry) { __ call_Unimplemented(); return 0; }
-
-
+        address runtime_entry) {
+  address entry = __ pc();
+  __ push(state);
+  __ call_VM(noreg, runtime_entry);
+  __ dispatch_via(vtos, Interpreter::_normal_table.table_for(vtos));
+  return entry;
+}
 
 // Helpers for commoning out cases in the various type of method entries.
 //
