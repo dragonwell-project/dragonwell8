@@ -520,12 +520,9 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
       call_Unimplemented();
     }
 
-    // Load immediate 1 into swap_reg %rax
-    mov(swap_reg, 1);
-
     // Load (object->mark() | 1) into swap_reg %rax
     ldr(rscratch1, Address(obj_reg, 0));
-    orr(swap_reg, swap_reg, rscratch1);
+    orr(swap_reg, rscratch1, 1);
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     str(swap_reg, Address(lock_reg, mark_offset));

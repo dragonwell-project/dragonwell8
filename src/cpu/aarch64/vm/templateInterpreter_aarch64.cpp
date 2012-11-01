@@ -808,12 +808,12 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
       // has not been unlocked by an explicit monitorexit bytecode.
 
       // monitor expect in c_rarg1 for slow unlock path
-      __ ldr (c_rarg1, Address(rfp,   // address of first monitor
+      __ lea (c_rarg1, Address(rfp,   // address of first monitor
 			       (intptr_t)(frame::interpreter_frame_initial_sp_offset *
 					  wordSize - sizeof(BasicObjectLock))));
 
       __ ldr(t, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
-      __ cbz(t, unlock);
+      __ cbnz(t, unlock);
 
       // Entry already unlocked, need to throw exception
       __ MacroAssembler::call_VM(noreg,
