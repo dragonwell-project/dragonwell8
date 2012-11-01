@@ -1134,6 +1134,7 @@ Disassembly of section .text:
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
+#ifndef PRODUCT
   {
     Label l, loop, empty;
     address a = __ pc();
@@ -1150,7 +1151,6 @@ Disassembly of section .text:
     __ BIND(l);
     __ BIND(empty);
     __ ret(lr);
-    printf("\n");
   }
 
   // Test LEA
@@ -1162,6 +1162,7 @@ Disassembly of section .text:
   __ add(r1, r0, 0xff000);
   __ add(r1, r0, -0xff000);
 }
+#endif // PRODUCT
 
 #undef __
 
