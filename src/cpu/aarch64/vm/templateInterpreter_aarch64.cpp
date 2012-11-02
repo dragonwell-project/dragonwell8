@@ -644,17 +644,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ ldrw(rscratch1, Address(rmethod, methodOopDesc::call_format_offset()));
 
   // Call the native method.
-<<<<<<< HEAD
-<<<<<<< HEAD
-  __ blr(r0);
-  // result potentially in rax or xmm0
-=======
-  __ brx86(r10, r18);
-=======
   __ brx86(r10, rscratch1);
->>>>>>> f9fe65d... Reworked native call format access to use field at end of methodOop
-  // result potentially in r0 or v0
->>>>>>> 3580ee9... Added brx86 Xn, Wm to asm and used it
 
   // NOTE: The order of these pushes is known to frame::interpreter_frame_result
   // in order to extract the result of a method call. If the order of these
@@ -1477,7 +1467,7 @@ void TemplateInterpreterGenerator::stop_interpreter_at() {
 }
 
 extern "C" {
-  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx, char *decode)
+  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
   {
     if (method != 0) {
       method[0] = '\0';
@@ -1489,19 +1479,22 @@ extern "C" {
       decode[0] = 0;
     }
 
-    // verify the supplied method oop
-    // is the 'methodOop' in range
-    intptr_t checkVal = (intptr_t)methodVal;
-    if (checkVal == 0) {
-      return;
-    }
-    if ((checkVal & Universe::verify_oop_mask()) != Universe::verify_oop_bits()) {
-      return;
-    }
-    // is the 'klassOop' of the 'methodOop' in range
-    checkVal = (intptr_t)((methodOop)checkVal)->klass();
-    if (checkVal == 0) {
-      return;
+    if (verify) {
+      // verify the supplied method oop
+      // is the 'method*' in range
+      intptr_t checkVal = (intptr_t)methodVal;
+      if (checkVal == 0) {
+	return;
+      }
+      if ((checkVal & Universe::verify_oop_mask()) != Universe::verify_oop_bits()) {
+	return;
+      }
+      // is the klass of the 'methodOop' a sensible value
+      checkVal = (intptr_t)((Method*)checkVal)->method_holder();
+      
+      if (checkVal == 0) {
+	return;
+      }
     }
     if ((checkVal & Universe::verify_klass_mask()) != Universe::verify_klass_bits()) {
       return;
@@ -1536,9 +1529,9 @@ extern "C" {
   }
 
 
-  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, char *method, int *bcidx, char *decode)
+  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
   {
-    bccheck1(methodVal, bcpVal, method, bcidx, decode);
+    bccheck1(methodVal, bcpVal, verify, method, bcidx, decode);
   }
 }
 
