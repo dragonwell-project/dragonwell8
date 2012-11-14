@@ -147,6 +147,8 @@ REGISTER_DECLARATION(Register, rmethod,   r23);
 REGISTER_DECLARATION(Register, rbcp,      r22);
 // Dispatch table base
 REGISTER_DECLARATION(Register, rdispatch_tables,      r21);
+// Java stack pointer
+REGISTER_DECLARATION(Register, jsp,      r20);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp
@@ -495,6 +497,41 @@ class Address VALUE_OBJ_CLASS_SPEC {
       ShouldNotReachHere();
     }
   }
+
+  void encode_pair(Instruction_aarch64 *i) const {
+    switch(_mode) {
+    case base_plus_offset:
+      i->f(0b010, 25, 23);
+      break;
+    case pre:
+      i->f(0b011, 25, 23);
+      break;
+    case post:
+      i->f(0b001, 25, 23);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
+
+    unsigned size = i->get(31, 31);
+    size = 4 << size;
+    guarantee(_offset % size == 0, "bad offset");
+    i->sf(_offset / size, 21, 15);
+    i->srf(_base, 5);
+  }
+
+  void encode_nontemporal_pair(Instruction_aarch64 *i) const {
+    // Only base + offset is allowed
+    i->f(0b000, 25, 23);
+    unsigned size = i->get(31, 31);
+    size = 4 << size;
+    guarantee(_offset % size == 0, "bad offset");
+    i->sf(_offset / size, 21, 15);
+    i->srf(_base, 5);
+    guarantee(_mode == Address::base_plus_offset,
+	      "Bad addressing mode for non-temporal op");
+  }
+
   void lea(MacroAssembler *, Register) const;
 };
 
@@ -1045,49 +1082,35 @@ public:
 #undef INSN
 
   // Load/store
-  void ld_st1(int opc, int p1, int V, int p2, int L,
-	      Register Rt1, Register Rt2, Register Rn, int imm) {
+  void ld_st1(int opc, int p1, int V, int L,
+	      Register Rt1, Register Rt2, Address adr, bool no_allocate) {
     starti;
-    f(opc, 31, 30), f(p1, 29, 27), f(V, 26), f(p2, 25, 23), f(L, 22);
-    sf(imm, 21, 15);
-    rf(Rt2, 10), rf(Rn, 5), rf(Rt1, 0);
-  }
-
-  int scale_ld_st(int size, int offset) {
-    int imm;
-    switch(size) {
-      case 0b01:
-      case 0b00:
-	imm = offset >> 2;
-	assert_cond(imm << 2 == offset);
-	break;
-      case 0b10:
-	imm = offset >> 3;
-	assert_cond(imm << 3 == offset);
-	break;
-      default:
-	assert_cond(false);
-      }
-    return imm;
+    f(opc, 31, 30), f(p1, 29, 27), f(V, 26), f(L, 22);
+    rf(Rt2, 10), rf(Rt1, 0);
+    if (no_allocate) {
+      adr.encode_nontemporal_pair(current);
+    } else {
+      adr.encode_pair(current);
+    }
   }
 
   // Load/store register pair (offset)
-#define INSN(NAME, size, p1, V, p2, L)					\
-  void NAME(Register Rt1, Register Rt2, Register Rn, int offset) {	\
-    ld_st1(size, p1, V, p2, L, Rt1, Rt2, Rn, scale_ld_st(size, offset)); \
-  }
+#define INSN(NAME, size, p1, V, L, no_allocate)		\
+  void NAME(Register Rt1, Register Rt2, Address adr) {	\
+    ld_st1(size, p1, V, L, Rt1, Rt2, adr, no_allocate);	\
+   }
 
-  INSN(stpw, 0b00, 0b101, 0, 0b0010, 0);
-  INSN(ldpw, 0b00, 0b101, 0, 0b0010, 1);
-  INSN(ldpsw, 0b01, 0b101, 0, 0b0010, 1);
-  INSN(stp, 0b10, 0b101, 0, 0b0010, 0);
-  INSN(ldp, 0b10, 0b101, 0, 0b0010, 1);
+  INSN(stpw, 0b00, 0b101, 0, 0, false);
+  INSN(ldpw, 0b00, 0b101, 0, 1, false);
+  INSN(ldpsw, 0b01, 0b101, 0, 1, false);
+  INSN(stp, 0b10, 0b101, 0, 0, false);
+  INSN(ldp, 0b10, 0b101, 0, 1, false);
 
   // Load/store no-allocate pair (offset)
-  INSN(stnpw, 0b00, 0b101, 0, 0b000, 0);
-  INSN(ldnpw, 0b00, 0b101, 0, 0b000, 1);
-  INSN(stnp, 0b10, 0b101, 0, 0b000, 0);
-  INSN(ldnp, 0b10, 0b101, 0, 0b000, 1);
+  INSN(stnpw, 0b00, 0b101, 0, 0, true);
+  INSN(ldnpw, 0b00, 0b101, 0, 1, true);
+  INSN(stnp, 0b10, 0b101, 0, 0, true);
+  INSN(ldnp, 0b10, 0b101, 0, 1, true);
 
 #undef INSN
 
@@ -1773,6 +1796,11 @@ Instruction_aarch64::~Instruction_aarch64() {
 
 #undef starti
 
+// Invert a condition
+inline const Assembler::Condition operator~(const Assembler::Condition cond) {
+  return Assembler::Condition(int(cond) ^ 1);
+}
+
 // extra stuff needed to compile
 // not sure which of these methods are really necessary
 class BiasedLockingCounters;
@@ -1846,6 +1874,10 @@ class MacroAssembler: public Assembler {
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
   inline void cmn(Register Rd, unsigned imm) { adds(zr, Rd, imm); }
+
+  void cset(Register Rd, Assembler::Condition cond) {
+    csinc(Rd, zr, zr, ~cond);
+  }
 
   inline void movw(Register Rd, Register Rn) {
     if (Rd == sp || Rn == sp) {
