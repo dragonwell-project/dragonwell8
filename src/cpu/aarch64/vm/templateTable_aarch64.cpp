@@ -1449,8 +1449,10 @@ void TemplateTable::lcmp()
   __ cmp(r1, r0);
   __ mov(r0, (u_int64_t)-1L);
   __ br(Assembler::LT, done);
-  __ mov(r0, 1UL);
-  __ csel(r0, r0, zr, Assembler::NE);
+  // __ mov(r0, 1UL);
+  // __ csel(r0, r0, zr, Assembler::NE);
+  // and here is a faster way
+  __ csinc(r0, zr, zr, Assembler::EQ);
   __ bind(done);
 }
 
@@ -1472,16 +1474,17 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
     __ mov(r0, (u_int64_t)-1L);
     // for FP LT tests less than or unordered
     __ br(Assembler::LT, done);
-    __ mov(r0, 1L);
-    __ csel(r0, r0, zr, Assembler::GT);
+    // install 0 for EQ otherwise 1
+    __ csinc(r0, zr, zr, Assembler::EQ);
   } else {
     // we want -1 for less than, 0 for equal and 1 for unordered or
     // greater than.
     __ mov(r0, 1L);
     // for FP HI tests greater than or unordered
     __ br(Assembler::HI, done);
-    __ mov(r0, (u_int64_t)-1L);
-    __ csel(r0, r0, zr, Assembler::LT);
+    // install 0 for EQ otherwise ~0
+    __ csinv(r0, zr, zr, Assembler::EQ);
+    
   }
   __ bind(done);
 }
