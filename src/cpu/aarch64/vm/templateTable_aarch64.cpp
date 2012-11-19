@@ -1478,10 +1478,10 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
     // we want -1 for less than, 0 for equal and 1 for unordered or
     // greater than.
     __ mov(r0, 1L);
-    // for FP GT tests greater than or unordered
-    __ br(Assembler::GT, done);
+    // for FP HI tests greater than or unordered
+    __ br(Assembler::HI, done);
     __ mov(r0, (u_int64_t)-1L);
-    __ csel(r0, r0, zr, Assembler::LE);
+    __ csel(r0, r0, zr, Assembler::LT);
   }
   __ bind(done);
 }
