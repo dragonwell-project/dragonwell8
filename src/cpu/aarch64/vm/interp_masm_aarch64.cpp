@@ -295,7 +295,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
   }
   if (table == Interpreter::dispatch_table(state)) {
     addw(rscratch2, rscratch1, Interpreter::distance_from_dispatch_table(state));
-    ldr(rscratch2, Address(rdispatch_tables, rscratch2, Address::uxtw(3)));
+    ldr(rscratch2, Address(rdispatch, rscratch2, Address::uxtw(3)));
   } else {
     mov(rscratch2, (address)table);
     ldr(rscratch2, Address(rscratch2, rscratch1, Address::uxtw(3)));

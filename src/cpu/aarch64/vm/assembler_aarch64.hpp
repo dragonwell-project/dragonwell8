@@ -146,7 +146,7 @@ REGISTER_DECLARATION(Register, rmethod,   r23);
 // bytecode pointer
 REGISTER_DECLARATION(Register, rbcp,      r22);
 // Dispatch table base
-REGISTER_DECLARATION(Register, rdispatch_tables,      r21);
+REGISTER_DECLARATION(Register, rdispatch,      r21);
 // Java stack pointer
 REGISTER_DECLARATION(Register, jsp,      r20);
 

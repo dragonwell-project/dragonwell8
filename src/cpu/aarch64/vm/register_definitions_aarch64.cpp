@@ -143,7 +143,7 @@ REGISTER_DEFINITION(FloatRegister, j_farg7);
 
 REGISTER_DEFINITION(Register, rscratch1);
 REGISTER_DEFINITION(Register, rscratch2);
-REGISTER_DEFINITION(Register, rdispatch_tables);
+REGISTER_DEFINITION(Register, rdispatch);
 REGISTER_DEFINITION(Register, rcpool);
 REGISTER_DEFINITION(Register, rmonitors);
 REGISTER_DEFINITION(Register, rlocals);
