@@ -164,43 +164,43 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
 // Java Expression Stack
 
 void InterpreterMacroAssembler::pop_ptr(Register r) {
-  ldr(r, post(jsp, wordSize));
+  ldr(r, post(esp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_i(Register r) {
-  ldrw(r, post(jsp, wordSize));
+  ldrw(r, post(esp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_l(Register r) {
-  ldr(r, post(jsp, 2 * Interpreter::stackElementSize));
+  ldr(r, post(esp, 2 * Interpreter::stackElementSize));
 }
 
 void InterpreterMacroAssembler::push_ptr(Register r) {
-  str(r, pre(jsp, -wordSize));
+  str(r, pre(esp, -wordSize));
  }
 
 void InterpreterMacroAssembler::push_i(Register r) {
-  str(r, pre(jsp, -wordSize));
+  str(r, pre(esp, -wordSize));
 }
 
 void InterpreterMacroAssembler::push_l(Register r) {
-  str(r, pre(jsp, 2 * -wordSize));
+  str(r, pre(esp, 2 * -wordSize));
 }
 
 void InterpreterMacroAssembler::pop_f(FloatRegister r) {
-  ldrs(r, post(jsp, wordSize));
+  ldrs(r, post(esp, wordSize));
 }
 
 void InterpreterMacroAssembler::pop_d(FloatRegister r) {
-  ldrd(r, post(jsp, 2 * Interpreter::stackElementSize));
+  ldrd(r, post(esp, 2 * Interpreter::stackElementSize));
 }
 
 void InterpreterMacroAssembler::push_f(FloatRegister r) {
-  strs(r, pre(jsp, -wordSize));
+  strs(r, pre(esp, -wordSize));
 }
 
 void InterpreterMacroAssembler::push_d(FloatRegister r) {
-  strd(r, pre(jsp, 2* -wordSize));
+  strd(r, pre(esp, 2* -wordSize));
 }
 
 void InterpreterMacroAssembler::pop(TosState state) {
@@ -237,17 +237,17 @@ void InterpreterMacroAssembler::push(TosState state) {
 
 // Helpers for swap and dup
 void InterpreterMacroAssembler::load_ptr(int n, Register val) {
-  ldr(val, Address(jsp, Interpreter::expr_offset_in_bytes(n)));
+  ldr(val, Address(esp, Interpreter::expr_offset_in_bytes(n)));
 }
 
 void InterpreterMacroAssembler::store_ptr(int n, Register val) {
-  str(val, Address(jsp, Interpreter::expr_offset_in_bytes(n)));
+  str(val, Address(esp, Interpreter::expr_offset_in_bytes(n)));
 }
 
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
   // set sender sp
-  mov(r10, jsp);
+  mov(r10, esp);
   // record last_sp
   str(r10, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }
@@ -475,7 +475,7 @@ void InterpreterMacroAssembler::remove_activation(
 
   // remove activation
   // get sender sp
-  ldr(jsp,                      // set sp to sender sp
+  ldr(esp,                      // set sp to sender sp
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
   leave();                           // remove frame anchor
 }

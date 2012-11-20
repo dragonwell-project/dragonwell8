@@ -266,7 +266,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
     // pass parameters if any
-    __ mov(jsp, sp);
+    __ mov(esp, sp);
     __ sub(sp, sp, os::vm_page_size()); // Move SP out of the way
 
     BLOCK_COMMENT("pass parameters if any");
@@ -287,7 +287,7 @@ class StubGenerator: public StubCodeGenerator {
     // call Java entry -- passing methdoOop, and current sp
     //      rmethod: methodOop
     //      r10: sender sp
-    __ mov(r10, jsp);
+    __ mov(r10, esp);
     BLOCK_COMMENT("call Java function");
     __ call (c_rarg4);
 

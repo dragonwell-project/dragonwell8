@@ -148,7 +148,7 @@ REGISTER_DECLARATION(Register, rbcp,      r22);
 // Dispatch table base
 REGISTER_DECLARATION(Register, rdispatch,      r21);
 // Java stack pointer
-REGISTER_DECLARATION(Register, jsp,      r20);
+REGISTER_DECLARATION(Register, esp,      r20);
 
 // TODO : x86 uses rbp to save SP in method handle code
 // we may need to do the same with fp

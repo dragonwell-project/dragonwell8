@@ -129,7 +129,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 
   // Restore stack bottom in case i2c adjusted stack
   __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ mov(jsp, rscratch1);
+  __ mov(esp, rscratch1);
   // and NULL it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ restore_bcp();
@@ -148,9 +148,9 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ ldrb(r1, Address(r1,
 		     in_bytes(constantPoolCacheOopDesc::base_offset()) +
 		     3 * wordSize));
-  __ mov(rscratch1, jsp);
+  __ mov(rscratch1, esp);
   __ add(rscratch1, rscratch1, r1, Assembler::LSL, 3);
-  __ mov(jsp, rscratch1);
+  __ mov(esp, rscratch1);
 #ifdef ASSERT
   __ spillcheck(rscratch1, rscratch2);
 #endif // ASSERT
@@ -327,12 +327,12 @@ void InterpreterGenerator::lock_method(void) {
   }
 
   // add space for monitor & lock
-  __ sub(jsp, jsp, entry_size); // add space for a monitor entry
-  __ mov(rscratch1, jsp);
+  __ sub(esp, esp, entry_size); // add space for a monitor entry
+  __ mov(rscratch1, esp);
   __ str(rscratch1, monitor_block_top);  // set new monitor block top
   // store object
-  __ str(r0, Address(jsp, BasicObjectLock::obj_offset_in_bytes()));
-  __ mov(c_rarg1, jsp); // object address
+  __ str(r0, Address(esp, BasicObjectLock::obj_offset_in_bytes()));
+  __ mov(c_rarg1, esp); // object address
   __ lock_object(c_rarg1);
 }
 
@@ -379,9 +379,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   } else {
     __ stp(zr, rbcp, Address(__ pre(sp, -2 * wordSize))); // set bcp
   }
-  __ mov(jsp, sp); // Initialize expression stack pointer
+  __ mov(esp, sp); // Initialize expression stack pointer
   __ sub(sp, sp, os::vm_page_size()); // Move SP out of the way
-  __ str(jsp, Address(jsp));
+  __ str(esp, Address(esp));
 }
 
 // End of helpers
@@ -437,7 +437,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // for natives the size of locals is zero
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, jsp, r2, ext::uxtx, 3);
+  __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ add(rlocals, rlocals, -wordSize);
 
   // add 2 zero-initialized slots for native calls
@@ -524,7 +524,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     const Address monitor_block_top(rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
     __ ldr(rscratch1, monitor_block_top);
-    __ cmp(jsp, rscratch1);
+    __ cmp(esp, rscratch1);
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);
@@ -544,7 +544,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
                                  methodOopDesc::size_of_parameters_offset()));
   __ lsl(t, t, Interpreter::logStackElementSize);
 
-  __ sub(rscratch1, jsp, t, ext::uxtx, 0);
+  __ sub(rscratch1, esp, t, ext::uxtx, 0);
   __ sub(rscratch1, rscratch1, frame::arg_reg_save_area_bytes); // windows
   __ andr(sp, rscratch1, -16); // must be 16 byte boundary
 
@@ -564,7 +564,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // call signature handler
   assert(InterpreterRuntime::SignatureHandlerGenerator::from() == rlocals,
          "adjust this code");
-  assert(InterpreterRuntime::SignatureHandlerGenerator::to() == jsp,
+  assert(InterpreterRuntime::SignatureHandlerGenerator::to() == esp,
          "adjust this code");
   assert(InterpreterRuntime::SignatureHandlerGenerator::temp() == rscratch1,
           "adjust this code");
@@ -624,7 +624,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // It is enough that the pc() points into the right code
   // segment. It does not have to be the correct return pc.
-  __ set_last_Java_frame(jsp, rfp, (address) __ pc());
+  __ set_last_Java_frame(esp, rfp, (address) __ pc());
 
   // change thread state
 #ifdef ASSERT
@@ -694,13 +694,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     // runtime call by hand.
     //
     __ mov(c_rarg0, rthread);
-    __ mov(r16, jsp); // remember sp
-    __ sub(rscratch1, jsp, frame::arg_reg_save_area_bytes); // windows
+    __ mov(r16, esp); // remember sp
+    __ sub(rscratch1, esp, frame::arg_reg_save_area_bytes); // windows
     __ andr(rscratch1, rscratch1, -16); // align stack as required by ABI
     __ mov(sp, rscratch1);
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans));
     __ brx86(rscratch2, 1, 0, 0);
-    __ mov(jsp, r16); // restore sp
+    __ mov(esp, r16); // restore sp
     __ reinit_heapbase();
     __ bind(Continue);
   }
@@ -746,13 +746,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
     __ pusha(); // XXX only save smashed registers
     __ mov(c_rarg0, rthread);
-    __ mov(r16, jsp); // remember sp
-    __ sub(rscratch1, jsp, frame::arg_reg_save_area_bytes); // windows
+    __ mov(r16, esp); // remember sp
+    __ sub(rscratch1, esp, frame::arg_reg_save_area_bytes); // windows
     __ andr(rscratch1, rscratch1, -16); // align stack as required by ABI
     __ mov(sp, rscratch1);
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
     __ brx86(rscratch2, 0, 0, 0);
-    __ mov(jsp, r16); // restore sp
+    __ mov(esp, r16); // restore sp
     __ popa(); // XXX only restore smashed registers
     __ reinit_heapbase();
     __ bind(no_reguard);
@@ -842,10 +842,10 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 		    wordSize)); // get sender sp
   // remove frame anchor
   // Don't touch machine SP
-  __ mov(jsp, rfp);
-  __ ldp(rfp, lr, Address(jsp, 0));
+  __ mov(esp, rfp);
+  __ ldp(rfp, lr, Address(esp, 0));
 
-  __ mov(jsp, t);                             // set sp to sender sp
+  __ mov(esp, t);                             // set sp to sender sp
   __ ret(lr);
 
   if (inc_counter) {
@@ -897,7 +897,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   // __ pop(r0);
 
   // compute beginning of parameters (rlocals)
-  __ add(rlocals, jsp, r2, ext::uxtx, 3);
+  __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ sub(rlocals, rlocals, wordSize);
 
   // r3 - # of additional locals
@@ -1010,7 +1010,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
      const Address monitor_block_top (rfp,
                  frame::interpreter_frame_monitor_block_top_offset * wordSize);
     __ ldr(rscratch1, monitor_block_top);
-    __ cmp(jsp, rscratch1);
+    __ cmp(esp, rscratch1);
     __ br(Assembler::EQ, L);
     __ stop("broken stack frame setup in interpreter");
     __ bind(L);
@@ -1301,7 +1301,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ reset_last_Java_frame(true, true);
   // Restore the last_sp and null it out
   __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ mov(jsp, rscratch1);
+  __ mov(esp, rscratch1);
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
   __ restore_bcp();  // XXX do we need this?
@@ -1448,12 +1448,12 @@ void TemplateInterpreterGenerator::trace_bytecode(Template* t) {
 
   assert(Interpreter::trace_code(t->tos_in()) != NULL,
          "entry must have been generated");
-  __ mov(r19, jsp);
+  __ mov(r19, esp);
   __ andr(sp, r19, -16); // align stack as required by ABI
   __ push(lr);
   __ bl(Interpreter::trace_code(t->tos_in()));
   __ pop(lr);
-  __ mov(jsp, r19); // restore sp
+  __ mov(esp, r19); // restore sp
   __ reinit_heapbase();
 }
 

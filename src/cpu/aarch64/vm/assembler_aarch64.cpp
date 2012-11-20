@@ -1646,7 +1646,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          address  last_java_pc) {
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
-    last_java_sp = jsp;
+    last_java_sp = esp;
   }
 
   // last_java_fp is optional
@@ -1665,8 +1665,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 			 JavaThread::frame_anchor_offset()
 			 + JavaFrameAnchor::last_Java_pc_offset()));
 
-  if (last_java_sp == jsp) {
-    add(rscratch1, jsp, wordSize);  // Adjusted because we've pushed rscratch1
+  if (last_java_sp == esp) {
+    add(rscratch1, esp, wordSize);  // Adjusted because we've pushed rscratch1
     last_java_sp = rscratch1;
   }
   str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
@@ -1715,7 +1715,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
 
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
-    last_java_sp = jsp;
+    last_java_sp = esp;
   }
 
   // debugging support
@@ -2207,9 +2207,9 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   Label E, L;
   // Align stack
   mov(rscratch1, sp);
-  sub(jsp, jsp, wordSize);
-  str(rscratch1, Address(jsp));
-  andr(sp, jsp, -16);
+  sub(esp, esp, wordSize);
+  str(rscratch1, Address(esp));
+  andr(sp, esp, -16);
 
   mov(rscratch1, entry_point);
   // We add 1 to number_of_arguments because the thread in arg0 is
@@ -2538,12 +2538,12 @@ unsigned Assembler::pack(double value) {
 
 void MacroAssembler::push(Register src)
 {
-  str(src, Address(pre(jsp, -1 * wordSize)));
+  str(src, Address(pre(esp, -1 * wordSize)));
 }
 
 void MacroAssembler::pop(Register dst)
 {
-  ldr(dst, Address(post(jsp, 1 * wordSize)));
+  ldr(dst, Address(post(esp, 1 * wordSize)));
 }
 
 // Note: load_unsigned_short used to be called load_unsigned_word.
@@ -2741,7 +2741,7 @@ void MacroAssembler::stop(const char* msg) {
 
 void MacroAssembler::entry_sp()
 {
-  andr(sp, jsp, -16);  // Align the stack pointer from jsp
+  andr(sp, esp, -16);  // Align the stack pointer from esp
 }
 
 void MacroAssembler::enter()
