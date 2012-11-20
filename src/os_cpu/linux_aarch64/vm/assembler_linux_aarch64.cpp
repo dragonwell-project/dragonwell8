@@ -45,9 +45,8 @@ void MacroAssembler::get_thread(Register dst) {
 
   // Save all call-clobbered regs except dst, plus r19 and r20.
   unsigned int saved_regs = 0x401fffff & ~(1<<dst->encoding());
-  push(saved_regs);
+  push(saved_regs, sp);
   mov(r19, sp);
-  andr(sp, r19, ~0xfL);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
   mov(r20, CAST_FROM_FN_PTR(address, pthread_getspecific));
   brx86(r20, 1, 0, 1);
@@ -56,5 +55,6 @@ void MacroAssembler::get_thread(Register dst) {
   }
   // restore pushed registers
   mov(sp, r19);
-  pop(saved_regs);
+  pop(saved_regs, sp);
 }
+

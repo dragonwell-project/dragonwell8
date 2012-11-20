@@ -213,7 +213,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // stub code
 
-    // we need a C prolog to bootstrap teh x86 caller into the sim
+    // we need a C prolog to bootstrap the x86 caller into the sim
 
     __ c_stub_prolog(8, 0, MacroAssembler::ret_type_void);
 
@@ -266,6 +266,9 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
     // pass parameters if any
+    __ mov(jsp, sp);
+    __ sub(sp, sp, os::vm_page_size()); // Move SP out of the way
+
     BLOCK_COMMENT("pass parameters if any");
     Label parameters_done;
     // parameter count is still in c_rarg6
@@ -284,7 +287,7 @@ class StubGenerator: public StubCodeGenerator {
     // call Java entry -- passing methdoOop, and current sp
     //      rmethod: methodOop
     //      r10: sender sp
-    __ mov(r10, sp);
+    __ mov(r10, jsp);
     BLOCK_COMMENT("call Java function");
     __ call (c_rarg4);
 

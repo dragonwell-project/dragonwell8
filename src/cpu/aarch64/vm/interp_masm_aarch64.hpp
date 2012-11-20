@@ -130,12 +130,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop(TosState state); // transition vtos -> state
   void push(TosState state); // transition state -> vtos
 
-  void pop(unsigned bitset) { ((MacroAssembler*)this)->pop(bitset); }
-  void push(unsigned bitset) { ((MacroAssembler*)this)->push(bitset); }
+  void pop(unsigned bitset, Register stack) { ((MacroAssembler*)this)->pop(bitset, stack); }
+  void push(unsigned bitset, Register stack) { ((MacroAssembler*)this)->push(bitset, stack); }
 
   void empty_expression_stack() {
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
-    mov(sp, rscratch1);
+    mov(jsp, rscratch1);
     // NULL last_sp until next java call
     str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   }
@@ -188,7 +188,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   virtual void null_check(Register reg, int offset = -1) {
 #ifdef ASSERT
     save_bcp();
-    set_last_Java_frame(sp, rfp, (address) pc());
+    set_last_Java_frame(jsp, rfp, (address) pc());
 #endif
     MacroAssembler::null_check(reg, offset);
 #ifdef ASSERT
@@ -264,7 +264,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   virtual void call_Unimplemented() {
     save_bcp();
-    set_last_Java_frame(sp, rfp, (address) pc());
+    set_last_Java_frame(jsp, rfp, (address) pc());
     haltsim();
   }
 };

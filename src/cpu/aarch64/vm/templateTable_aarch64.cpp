@@ -92,33 +92,33 @@ static inline Address aaddress(Register r) {
 }
 
 static inline Address at_rsp() {
-  return Address(sp, 0);
+  return Address(jsp, 0);
 }
 
 // At top of Java expression stack which may be different than esp().  It
 // isn't for category 1 objects.
 static inline Address at_tos   () {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(0));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(0));
 }
 
 static inline Address at_tos_p1() {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(1));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(1));
 }
 
 static inline Address at_tos_p2() {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(2));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(2));
 }
 
 static inline Address at_tos_p3() {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(3));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(3));
 }
 
 static inline Address at_tos_p4() {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(4));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(4));
 }
 
 static inline Address at_tos_p5() {
-  return Address(sp,  Interpreter::expr_offset_in_bytes(5));
+  return Address(jsp,  Interpreter::expr_offset_in_bytes(5));
 }
 
 // Condition conversion
@@ -934,7 +934,7 @@ void TemplateTable::aastore() {
 
   // Pop stack arguments
   __ bind(done);
-  __ add(sp, sp, 3 * Interpreter::stackElementSize);
+  __ add(jsp, jsp, 3 * Interpreter::stackElementSize);
 }
 
 void TemplateTable::bastore()
@@ -1002,19 +1002,19 @@ void TemplateTable::astore(int n)
 void TemplateTable::pop()
 {
   transition(vtos, vtos);
-  __ add(sp, sp, Interpreter::stackElementSize);
+  __ add(jsp, jsp, Interpreter::stackElementSize);
 }
 
 void TemplateTable::pop2()
 {
   transition(vtos, vtos);
-  __ add(sp, sp, 2 * Interpreter::stackElementSize);
+  __ add(jsp, jsp, 2 * Interpreter::stackElementSize);
 }
 
 void TemplateTable::dup()
 {
   transition(vtos, vtos);
-  __ ldr(r0, Address(sp, 0));
+  __ ldr(r0, Address(jsp, 0));
   __ push(r0);
   // stack: ..., a, a
 }
@@ -2571,9 +2571,13 @@ void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
 
   // load receiver if needed (note: no return address pushed yet)
   if (load_receiver) {
-    assert(!is_invokedynamic, "");
-    __ andw(recv, flags, 0xFF);
-    __ add(rscratch1, sp, recv, ext::uxtx, 3); // FIXME: uxtb here?
+    __ andw(recv, flags, ConstantPoolCacheEntry::parameter_size_mask);
+    // FIXME -- is this actually correct? looks like it should be 2
+    // const int no_return_pc_pushed_yet = -1;  // argument slot correction before we push return address
+    // const int receiver_is_at_end      = -1;  // back off one slot to get receiver
+    // Address recv_addr = __ argument_address(recv, no_return_pc_pushed_yet + receiver_is_at_end);
+    // __ movptr(recv, recv_addr);
+    __ add(rscratch1, jsp, recv, ext::uxtx, 3); // FIXME: uxtb here?
     __ sub(rscratch1, rscratch1, Interpreter::expr_offset_in_bytes(1));
     __ ldr(recv, Address(rscratch1));
     __ verify_oop(recv);
@@ -3163,9 +3167,9 @@ void TemplateTable::monitorenter()
     Label entry, loop;
     // 1. compute new pointers            // rsp: old expression stack top
     __ ldr(c_rarg1, monitor_block_bot);   // c_rarg1: old expression stack bottom
-    __ sub(sp, sp, entry_size);           // move expression stack top
+    __ sub(jsp, jsp, entry_size);           // move expression stack top
     __ sub(c_rarg1, c_rarg1, entry_size); // move expression stack bottom
-    __ mov(c_rarg3, sp);                 // set start value for copy loop
+    __ mov(c_rarg3, jsp);                 // set start value for copy loop
     __ str(c_rarg1, monitor_block_bot);   // set new monitor block bottom
     __ b(entry);
     // 2. move expression stack contents
@@ -3273,12 +3277,12 @@ void TemplateTable::multianewarray() {
   __ load_unsigned_byte(r0, at_bcp(3)); // get number of dimensions
   // last dim is on top of stack; we want address of first one:
   // first_addr = last_addr + (ndims - 1) * wordSize
-  __ lea(c_rarg1, Address(sp, r0, Address::uxtw(3)));
+  __ lea(c_rarg1, Address(jsp, r0, Address::uxtw(3)));
   __ sub(c_rarg1, c_rarg1, wordSize);
   call_VM(r0,
           CAST_FROM_FN_PTR(address, InterpreterRuntime::multianewarray),
           c_rarg1);
   __ load_unsigned_byte(r1, at_bcp(3));
-  __ lea(sp, Address(sp, r1, Address::uxtw(3)));
+  __ lea(jsp, Address(jsp, r1, Address::uxtw(3)));
 }
 #endif // !CC_INTERP

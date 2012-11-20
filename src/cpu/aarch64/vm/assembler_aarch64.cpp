@@ -35,6 +35,8 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
+const unsigned long Assembler::asm_bp = 0x00007fffee089494;
+
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/interfaceSupport.hpp"
@@ -1212,6 +1214,13 @@ Disassembly of section .text:
 
   __ add(r1, r0, 0xff000);
   __ add(r1, r0, -0xff000);
+
+  __ push(1, sp);
+  __ pop(1, sp);
+
+  __ push(3, sp);
+  __ pop(3, sp);
+
 }
 #endif // PRODUCT
 
@@ -1637,7 +1646,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          address  last_java_pc) {
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
-    last_java_sp = sp;
+    last_java_sp = jsp;
   }
 
   // last_java_fp is optional
@@ -1656,8 +1665,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 			 JavaThread::frame_anchor_offset()
 			 + JavaFrameAnchor::last_Java_pc_offset()));
 
-  if (last_java_sp == sp) {
-    add(rscratch1, sp, wordSize);  // Adjusted because we've pushed rscratch1
+  if (last_java_sp == jsp) {
+    add(rscratch1, jsp, wordSize);  // Adjusted because we've pushed rscratch1
     last_java_sp = rscratch1;
   }
   str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
@@ -1706,7 +1715,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
 
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
-    last_java_sp = sp;
+    last_java_sp = jsp;
   }
 
   // debugging support
@@ -1747,13 +1756,8 @@ void MacroAssembler::call_VM_base(Register oop_result,
   if (check_exceptions) {
     // check for pending exceptions (java_thread is set upon return)
     ldr(rscratch1, Address(java_thread, in_bytes(Thread::pending_exception_offset())));
-    cmp(rscratch1, (unsigned)NULL_WORD);
-    // This used to conditionally jump to forward_exception however it is
-    // possible if we relocate that the branch will not reach. So we must jump
-    // around so we can always reach
-
     Label ok;
-    br(Assembler::EQ, ok);
+    cbz(rscratch1, ok);
     lea(rscratch1, RuntimeAddress(StubRoutines::forward_exception_entry()));
     br(rscratch1);
     bind(ok);
@@ -2201,28 +2205,18 @@ void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 void MacroAssembler::call_VM_leaf_base(address entry_point,
                                        int number_of_arguments) {
   Label E, L;
-  // Align stack if necessary
+  // Align stack
   mov(rscratch1, sp);
-  tst(rscratch1, 0x0f);
-  br(Assembler::EQ, L);
+  sub(jsp, jsp, wordSize);
+  str(rscratch1, Address(jsp));
+  andr(sp, jsp, -16);
 
-  sub(sp, sp, 8);
-  {
-    mov(rscratch1, entry_point);
-    // We add 1 to number_of_arguments because the thread in arg0 is
-    // not counted
-    brx86(rscratch1, number_of_arguments + 1, 0, 1);
-  }
-  add(sp, sp, 8);
-  b(E);
-
-  bind(L);
-  {
-    mov(rscratch1, entry_point);
-    brx86(rscratch1, number_of_arguments + 1, 0, 1);
-  }
-
-  bind(E);
+  mov(rscratch1, entry_point);
+  // We add 1 to number_of_arguments because the thread in arg0 is
+  // not counted
+  brx86(rscratch1, number_of_arguments + 1, 0, 1);
+  pop(rscratch1);
+  mov(sp, rscratch1);
 }
 
 void MacroAssembler::call_VM_leaf(address entry_point, int number_of_arguments) {
@@ -2544,12 +2538,12 @@ unsigned Assembler::pack(double value) {
 
 void MacroAssembler::push(Register src)
 {
-  str(src, Address(pre(sp, -1 * wordSize)));
+  str(src, Address(pre(jsp, -1 * wordSize)));
 }
 
 void MacroAssembler::pop(Register dst)
 {
-  ldr(dst, Address(post(sp, 1 * wordSize)));
+  ldr(dst, Address(post(jsp, 1 * wordSize)));
 }
 
 // Note: load_unsigned_short used to be called load_unsigned_word.
@@ -2694,23 +2688,40 @@ void MacroAssembler::popa() {
 }
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
-void MacroAssembler::push(unsigned int bitset) {
+void MacroAssembler::push(unsigned int bitset, Register stack) {
   // need to push all registers including original sp
-  for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1)) {
-    if (bitset & 1)
-      push(reg);
+
+  // Scan bitset to accumulate register pairs
+  unsigned char regs[32];
+  unsigned count = 0;
+  for (int reg = 0; reg <= 30; reg++) {
+    if (1 & bitset)
+      regs[count++] = reg;
     bitset >>= 1;
   }
+  regs[count++] = zr->encoding_nocheck();
+  count &= ~1;  // Only push an even nuber of regs
+
+  for (unsigned i = 0; i < count; i+= 2)
+    stp(as_Register(regs[i]), as_Register(regs[i+1]),
+	Address(pre(stack, -2 * wordSize)));
 }
 
-void MacroAssembler::pop(unsigned int bitset) {
-  for (Register reg = r30;
-       reg->is_valid() && reg >= r0;
-       reg = as_Register(reg->encoding() - 1)) {
-    bitset <<= 1;
-    if (bitset & (1 << 31))
-      pop(reg);
+void MacroAssembler::pop(unsigned int bitset, Register stack) {
+  // Scan bitset to accumulate register pairs
+  unsigned char regs[32];
+  int count = 0;
+  for (int reg = 0; reg <= 30; reg++) {
+    if (1 & bitset)
+      regs[count++] = reg;
+    bitset >>= 1;
   }
+  regs[count++] = zr->encoding_nocheck();
+  count &= ~1;
+
+  for (int i = count - 2; i >= 0; i-= 2)
+    ldp(as_Register(regs[i]), as_Register(regs[i+1]),
+	Address(post(stack, 2 * wordSize)));
 }
 
 void MacroAssembler::stop(const char* msg) {
@@ -2728,18 +2739,21 @@ void MacroAssembler::stop(const char* msg) {
   hlt(0);
 }
 
+void MacroAssembler::entry_sp()
+{
+  andr(sp, jsp, -16);  // Align the stack pointer from jsp
+}
+
 void MacroAssembler::enter()
 {
-  push(lr);
-  push(rfp);
+  stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
   mov(rfp, sp);
 }
 
 void MacroAssembler::leave()
 {
   mov(sp, rfp);
-  pop(rfp);
-  pop(lr);
+  ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
 }
 
 #ifdef ASSERT

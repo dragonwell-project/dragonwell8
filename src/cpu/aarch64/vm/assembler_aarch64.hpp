@@ -580,7 +580,7 @@ const int FPUStateSizeInWords = 27; // FIXME   :-)
 class Assembler : public AbstractAssembler {
 
 #ifndef PRODUCT
-  const static unsigned long asm_bp = 0x00007fffee08fddc;
+  static const unsigned long asm_bp;
 
   void emit_long(jint x) {
     if ((unsigned long)pc() == asm_bp)
@@ -1086,7 +1086,7 @@ public:
 	      Register Rt1, Register Rt2, Address adr, bool no_allocate) {
     starti;
     f(opc, 31, 30), f(p1, 29, 27), f(V, 26), f(L, 22);
-    rf(Rt2, 10), rf(Rt1, 0);
+    zrf(Rt2, 10), zrf(Rt1, 0);
     if (no_allocate) {
       adr.encode_nontemporal_pair(current);
     } else {
@@ -2215,6 +2215,7 @@ public:
   void fat_nop();
 
   // Stack frame creation/removal
+  void entry_sp();
   void enter();
   void leave();
 
@@ -2821,8 +2822,8 @@ public:
   void pusha();
   void popa();
 
-  void push(unsigned int bitset);
-  void pop(unsigned int bitset);
+  void push(unsigned int bitset, Register stack);
+  void pop(unsigned int bitset, Register stack);
 
   void repne_scan(Register addr, Register value, Register count,
 		  Register scratch);

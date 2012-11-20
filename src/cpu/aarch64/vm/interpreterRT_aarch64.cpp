@@ -39,7 +39,7 @@
 // Implementation of SignatureHandlerGenerator
 
 Register InterpreterRuntime::SignatureHandlerGenerator::from() { return rlocals; }
-Register InterpreterRuntime::SignatureHandlerGenerator::to()   { return sp; }
+Register InterpreterRuntime::SignatureHandlerGenerator::to()   { return jsp; }
 Register InterpreterRuntime::SignatureHandlerGenerator::temp() { return rscratch1; }
 
 void InterpreterRuntime::SignatureHandlerGenerator::pass_int() {
