@@ -1327,7 +1327,7 @@ void TemplateTable::wide_iinc()
   __ rev16(r1, r1);
   __ ubfx(r2, r1, 0, 16);
   __ neg(r2, r2);
-  __ ubfx(r1, r1, 16, 16);
+  __ sbfx(r1, r1, 16, 16);
   __ ldr(r0, iaddress(r2));
   __ addw(r0, r0, r1);
   __ str(r0, iaddress(r2));
