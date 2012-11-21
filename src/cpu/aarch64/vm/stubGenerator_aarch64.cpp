@@ -219,6 +219,9 @@ class StubGenerator: public StubCodeGenerator {
 
     address aarch64_entry = __ pc();
 
+    // Purely to stop simulator from throwing assertions
+    __ mov(esp, sp);
+
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);
@@ -317,7 +320,7 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(exit);
 
     // pop parameters
-    __ sub(sp, rfp, -sp_after_call_off * wordSize);
+    __ sub(esp, rfp, -sp_after_call_off * wordSize);
 
 #ifdef ASSERT
     // verify that threads correspond

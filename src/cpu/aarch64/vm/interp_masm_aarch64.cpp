@@ -477,7 +477,11 @@ void InterpreterMacroAssembler::remove_activation(
   // get sender sp
   ldr(esp,                      // set sp to sender sp
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
-  leave();                           // remove frame anchor
+
+  // remove frame anchor
+  // Don't touch machine SP
+  mov(esp, rfp);
+  ldp(rfp, lr, Address(post(esp, 0)));
 }
 
 #endif // C_INTERP

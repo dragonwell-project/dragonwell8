@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee089494;
+const unsigned long Assembler::asm_bp = 0x00007fffee083fc8;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -1654,7 +1654,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
   }
 
-  push(rscratch1); // Don't clobber rscratch1
+  // protect rscratch1
+  stp(rscratch1, zr, Address(pre(sp, -2 * wordSize)));
 
   if (last_java_pc != NULL) {
     add(rscratch1, rthread,
@@ -1665,13 +1666,9 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 			 JavaThread::frame_anchor_offset()
 			 + JavaFrameAnchor::last_Java_pc_offset()));
 
-  if (last_java_sp == esp) {
-    add(rscratch1, esp, wordSize);  // Adjusted because we've pushed rscratch1
-    last_java_sp = rscratch1;
-  }
   str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
 
-  pop(rscratch1);
+  ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
 }
 
 // added to make this compile
@@ -2205,18 +2202,16 @@ void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 void MacroAssembler::call_VM_leaf_base(address entry_point,
                                        int number_of_arguments) {
   Label E, L;
-  // Align stack
-  mov(rscratch1, sp);
-  sub(esp, esp, wordSize);
-  str(rscratch1, Address(esp));
-  andr(sp, esp, -16);
 
-  mov(rscratch1, entry_point);
+  // protect rscratch1
+  stp(rscratch1, zr, Address(pre(sp, -2 * wordSize)));
+
   // We add 1 to number_of_arguments because the thread in arg0 is
   // not counted
+  mov(rscratch1, entry_point);
   brx86(rscratch1, number_of_arguments + 1, 0, 1);
-  pop(rscratch1);
-  mov(sp, rscratch1);
+
+  ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
 }
 
 void MacroAssembler::call_VM_leaf(address entry_point, int number_of_arguments) {
