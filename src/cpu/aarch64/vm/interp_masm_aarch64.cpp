@@ -246,10 +246,8 @@ void InterpreterMacroAssembler::store_ptr(int n, Register val) {
 
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
-  // set sender sp
-  mov(r10, esp);
   // record last_sp
-  str(r10, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  str(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }
 
 // Jump to from_interpreted entry of a call unless single stepping is possible
@@ -480,8 +478,7 @@ void InterpreterMacroAssembler::remove_activation(
 
   // remove frame anchor
   // Don't touch machine SP
-  mov(esp, rfp);
-  ldp(rfp, lr, Address(post(esp, 0)));
+  leave();
 }
 
 #endif // C_INTERP

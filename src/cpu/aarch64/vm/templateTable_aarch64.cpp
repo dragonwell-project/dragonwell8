@@ -3173,7 +3173,7 @@ void TemplateTable::monitorenter()
     __ str(c_rarg1, monitor_block_bot);   // set new monitor block bottom
 
     __ cmp(sp, c_rarg1);                  // Check if we need to move sp
-    __ br(Assembler::HS, no_adjust);      // to allow more stack space
+    __ br(Assembler::LO, no_adjust);      // to allow more stack space
 					  // for our new esp
     __ sub(sp, sp, 2 * wordSize);
     __ bind(no_adjust);

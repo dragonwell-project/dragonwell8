@@ -354,7 +354,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ enter();          // save old & set new rfp
   // set sender sp
   // leave last_sp as null
-  __ stp(zr, r10, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(zr, esp, Address(__ pre(sp, -2 * wordSize)));
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));      // get ConstMethod
   __ add(rbcp, rscratch1, in_bytes(ConstMethod::codes_offset())); // get codebase
   if (ProfileInterpreter) {
@@ -444,20 +444,21 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // r2: size of parameters
   // rscratch1: sender sp
 
-  __ sub(sp, sp, os::vm_page_size()); // Move SP out of the way
-
   // for natives the size of locals is zero
 
   // compute beginning of parameters (rlocals)
   __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ add(rlocals, rlocals, -wordSize);
 
+  // save sp
+  __ mov(rscratch1, sp);
+  __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
+
   // add 2 zero-initialized slots for native calls
   // initialize result_handler slot
-  __ push(zr);
   // slot for oop temp
   // (static native method holder mirror/jni oop result)
-  __ push(zr);
+  __ stp(zr, zr, Address(__ pre(sp, -2 * wordSize)));
 
   if (inc_counter) {
     __ prfm(invocation_counter);  // (pre-)fetch invocation count
@@ -737,7 +738,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ ldr(r0, Address(r0, 0));
     __ bind(store_result);
     __ str(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));
-    // keep stack depth as expected by pushing oop which will eventually be discarde
+    // keep stack depth as expected by pushing oop which will eventually be discarded
     __ push(ltos);
     __ bind(no_oop);
   }
@@ -745,8 +746,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   {
     Label no_reguard;
-    __ add(rscratch1, rthread, in_bytes(JavaThread::stack_guard_state_offset()));
-    __ ldr(rscratch1, rscratch1);
+    __ lea(rscratch1, Address(rthread, in_bytes(JavaThread::stack_guard_state_offset())));
+    __ ldr(rscratch1, Address(rscratch1));
     __ cmp(rscratch1, JavaThread::stack_guard_yellow_disabled);
     __ br(Assembler::NE, no_reguard);
 
@@ -838,22 +839,21 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ br(t);
 
   // remove activation
-  __ ldr(t, Address(rfp,
+  __ ldr(esp, Address(rfp,
 		    frame::interpreter_frame_sender_sp_offset *
 		    wordSize)); // get sender sp
   // remove frame anchor
-  // Don't touch machine SP
-  __ mov(esp, rfp);
-  __ ldp(rfp, lr, Address(esp, 0));
-
-  __ mov(esp, t);                             // set sp to sender sp
-  __ ret(lr);
+  __ leave();
+  // restore sp
+  __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
 
   if (inc_counter) {
     // Handle overflow of counter and compile method
     __ bind(invocation_counter_overflow);
     generate_counter_overflow(&continue_after_compile);
   }
+
+  __ ret(lr);
 
   return entry_point;
 }
@@ -886,24 +886,23 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ load_unsigned_short(r3, size_of_locals); // get size of locals in words
   __ sub(r3, r3, r2); // r3 = no. of additional locals
 
-  // YYY
-//   __ incrementl(rdx);
-//   __ andl(rdx, -2);
-
   // see if we've got enough room on the stack for locals plus overhead.
   generate_stack_overflow_check();
-
-  // get return address -- not needed as it is in lr!
-  // n.b. generate_fixed_frame will push lr for restoring later
-  // __ pop(r0);
 
   // compute beginning of parameters (rlocals)
   __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ sub(rlocals, rlocals, wordSize);
 
   // Make room for locals
-  __ sub(rscratch1, esp, r3, ext::uxtx, 3);
-  __ andr(sp, rscratch1, -16);
+  {
+    Label Lno_adjust;
+    __ sub(rscratch1, esp, r3, ext::uxtx, 3);
+    __ andr(rscratch1, rscratch1, -16);
+    __ cmp(sp, rscratch1);
+    __ br(Assembler::CS, Lno_adjust);
+    __ mov(sp, rscratch1);
+    __ bind(Lno_adjust);
+  }
 
   // r3 - # of additional locals
   // allocate space for locals
@@ -914,7 +913,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
     __ br(Assembler::LE, exit); // do nothing if r3 <= 0
     __ bind(loop);
     __ push(zr); // initialize local variables
-    __ subs(r3, r3, 1); // until everything initialized
+    __ sub(r3, r3, 1); // until everything initialized
     __ cbnz(r3, loop);
     __ bind(exit);
   }
@@ -926,8 +925,6 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // And the base dispatch table
   __ mov(rdispatch, (intptr_t)Interpreter::dispatch_table());
-
-  __ entry_sp();
 
   // initialize fixed part of activation frame
   generate_fixed_frame(false);

@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee083fc8;
+const unsigned long Assembler::asm_bp = 0x00007fffee0895ec;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -2732,11 +2732,6 @@ void MacroAssembler::stop(const char* msg) {
   // call(c_rarg3);
   brx86(c_rarg3, 3, 0, 1);
   hlt(0);
-}
-
-void MacroAssembler::entry_sp()
-{
-  andr(sp, esp, -16);  // Align the stack pointer from esp
 }
 
 void MacroAssembler::enter()
