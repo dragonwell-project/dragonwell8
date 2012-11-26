@@ -1344,14 +1344,12 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // lr: return address/pc that threw exception
   // rsp: expression stack of caller
   // rfp: fp of caller
-  __ push(r0);                                  // save exception
-  __ push(lr);                                  // save return address
+  __ stp(r0, lr, Address(__ pre(sp, -2 * wordSize)));  // save exception & return address
   __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
                           SharedRuntime::exception_handler_for_return_address),
                         rthread, lr);
   __ mov(r1, r0);                               // save exception handler
-  __ pop(lr);                                   // restore return address
-  __ pop(r0);                                   // restore exception
+  __ ldp(r0, lr, Address(__ post(sp, 2 * wordSize)));  // restore exception & return address
   // Note that an "issuing PC" is actually the next PC after the call
   __ br(r1);                                    // jump to exception
                                                 // handler of caller
