@@ -340,18 +340,33 @@ void InterpreterGenerator::lock_method(void) {
 // interpreted methods and for native methods hence the shared code.
 //
 // Args:
-//      r0: return address
-//      rmethod: methodOop
+//      lr: return address
+//      rmethod: Method*
 //      rlocals: pointer to locals
-//      r10: sender sp
 //      rcpool: cp cache
-void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
+//      stack_pointer: previous sp
+void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Register stack_pointer) {
   // initialize fixed part of activation frame
   // return address does not need pushing as it was never popped
-  // from the stack. instead enter(0 will save lr and leave will
+  // from the stack. instead enter() will save lr and leave will
   // restore it later
-  // __ push(r0);        // save return address
+
+  // Save previous sp
+  if (stack_pointer == sp) {
+    __ mov(rscratch1, sp);
+    stack_pointer = rscratch1;
+  }
+
+  // Save previous sp.  If this is a native call, the higher word of
+  // this pair will be used for oop_temp so it must be zeroed.
+  // FIXME: Should we not always push zr?
+  if (native_call)
+    __ stp(stack_pointer, zr, Address(__ pre(sp, -2 * wordSize)));
+  else
+    __ str(stack_pointer, Address(__ pre(sp, -2 * wordSize)));
+
   __ enter();          // save old & set new rfp
+
   // set sender sp
   // leave last_sp as null
   __ stp(zr, esp, Address(__ pre(sp, -2 * wordSize)));
@@ -465,7 +480,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   }
 
   // initialize fixed part of activation frame
-  generate_fixed_frame(true);
+  generate_fixed_frame(true, sp);
 
   // make sure method is native & not abstract
 #ifdef ASSERT
@@ -893,16 +908,12 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ sub(rlocals, rlocals, wordSize);
 
+  // Pass previous SP to save in generate_fixed_frame()
+  __ mov(r10, sp);
+
   // Make room for locals
-  {
-    Label Lno_adjust;
-    __ sub(rscratch1, esp, r3, ext::uxtx, 3);
-    __ andr(rscratch1, rscratch1, -16);
-    __ cmp(sp, rscratch1);
-    __ br(Assembler::CS, Lno_adjust);
-    __ mov(sp, rscratch1);
-    __ bind(Lno_adjust);
-  }
+  __ sub(rscratch1, esp, r3, ext::uxtx, 3);
+  __ andr(sp, rscratch1, -16);
 
   // r3 - # of additional locals
   // allocate space for locals
@@ -912,7 +923,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
     __ ands(zr, r3, r3);
     __ br(Assembler::LE, exit); // do nothing if r3 <= 0
     __ bind(loop);
-    __ push(zr); // initialize local variables
+    __ str(zr, Address(__ post(rscratch1, wordSize)));
     __ sub(r3, r3, 1); // until everything initialized
     __ cbnz(r3, loop);
     __ bind(exit);
@@ -927,7 +938,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ mov(rdispatch, (intptr_t)Interpreter::dispatch_table());
 
   // initialize fixed part of activation frame
-  generate_fixed_frame(false);
+  generate_fixed_frame(false, r10);
 #ifndef PRODUCT
   // tell the simulator that a method has been entered
   if (NotifySimulator) {
@@ -1344,6 +1355,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // lr: return address/pc that threw exception
   // rsp: expression stack of caller
   // rfp: fp of caller
+  // FIXME: There's no point saving LR here because VM calls don't trash it
   __ stp(r0, lr, Address(__ pre(sp, -2 * wordSize)));  // save exception & return address
   __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
                           SharedRuntime::exception_handler_for_return_address),

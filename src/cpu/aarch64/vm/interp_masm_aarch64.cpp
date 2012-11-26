@@ -472,13 +472,15 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
   // remove activation
-  // get sender sp
-  ldr(esp,                      // set sp to sender sp
+  // get sender esp
+  ldr(esp,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+  // sender sp
+  ldr(rscratch1, Address(rfp, frame::sender_sp_offset * wordSize));
 
   // remove frame anchor
-  // Don't touch machine SP
   leave();
+  mov(sp, rscratch1);
 }
 
 #endif // C_INTERP

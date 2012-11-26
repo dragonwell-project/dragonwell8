@@ -692,6 +692,8 @@ intptr_t* frame::real_fp() const {
   }
 
 extern "C" void pf(unsigned long fp) {
+  DESCRIBE_FP_OFFSET(sender_sp);
+  DESCRIBE_FP_OFFSET(return_addr);
   DESCRIBE_FP_OFFSET(link);
   DESCRIBE_FP_OFFSET(interpreter_frame_sender_sp);
   DESCRIBE_FP_OFFSET(interpreter_frame_last_sp);

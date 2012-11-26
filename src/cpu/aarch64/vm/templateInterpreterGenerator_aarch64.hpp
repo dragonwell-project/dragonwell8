@@ -27,7 +27,7 @@
 
  protected:
 
- void generate_fixed_frame(bool native_call);
+void generate_fixed_frame(bool native_call, Register stack_pointer);
 
  // address generate_asm_interpreter_entry(bool synchronized);
 

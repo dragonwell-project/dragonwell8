@@ -295,11 +295,7 @@ void VMError::print_stack_trace(outputStream* st, JavaThread* jt,
   }
 #else
   if (jt->has_last_Java_frame()) {
-    st->print_cr("Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)");
-    for(StackFrameStream sfs(jt); !sfs.is_done(); sfs.next()) {
-      sfs.current()->print_on_error(st, buf, buflen, verbose);
-      st->cr();
-    }
+    jt->print_frame_layout();
   }
 #endif // ZERO
 }

@@ -98,14 +98,13 @@
     // All frames
     link_offset                                      =  0,
     return_addr_offset                               =  1,
-    // non-interpreter frames
     sender_sp_offset                                 =  2,
 
 #ifndef CC_INTERP
 
     // Interpreter frames
-    interpreter_frame_result_handler_offset          =  3, // for native calls only
-    interpreter_frame_oop_temp_offset                =  2, // for native calls only
+    interpreter_frame_result_handler_offset          =  4, // for native calls only
+    interpreter_frame_oop_temp_offset                =  3, // for native calls only
 
     interpreter_frame_sender_sp_offset               = -1,
     // outgoing sp before a call to an invoked method
