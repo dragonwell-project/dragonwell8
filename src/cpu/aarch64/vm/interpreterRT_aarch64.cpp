@@ -39,7 +39,7 @@
 // Implementation of SignatureHandlerGenerator
 
 Register InterpreterRuntime::SignatureHandlerGenerator::from() { return rlocals; }
-Register InterpreterRuntime::SignatureHandlerGenerator::to()   { return esp; }
+Register InterpreterRuntime::SignatureHandlerGenerator::to()   { return sp; }
 Register InterpreterRuntime::SignatureHandlerGenerator::temp() { return rscratch1; }
 
 void InterpreterRuntime::SignatureHandlerGenerator::pass_int() {
@@ -78,6 +78,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_int() {
     __ ldr(r0, src);
     __ str(r0, Address(to(), _stack_offset));
     _stack_offset += wordSize;
+    _num_int_args++;
     break;
   }
 }
@@ -118,6 +119,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_long() {
     __ ldr(r0, src);
     __ str(r0, Address(to(), _stack_offset));
     _stack_offset += wordSize;
+    _num_int_args++;
     break;
   }
 }
@@ -131,6 +133,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_float() {
     __ ldrh(r0, src);
     __ strh(r0, Address(to(), _stack_offset));
     _stack_offset += wordSize;
+    _num_fp_args++;
   }
 }
 
@@ -143,6 +146,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_double() {
     __ ldr(r0, src);
     __ str(r0, Address(to(), _stack_offset));
     _stack_offset += wordSize;
+    _num_fp_args++;
   }
 }
 
@@ -229,12 +233,14 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_object() {
  default:
    {
       __ add(r0, from(), Interpreter::local_offset_in_bytes(offset()));
-      __ mov(temp(), 0);
+      __ ldr(temp(), r0);
       Label L;
-      __ cbz(temp(), L);
-      __ str(temp(), Address(to(), _stack_offset));
+      __ cbnz(temp(), L);
+      __ mov(r0, zr);
       __ bind(L);
+      __ str(r0, Address(to(), _stack_offset));
       _stack_offset += wordSize;
+      _num_int_args++;
       break;
    }
   }
@@ -302,6 +308,7 @@ class SlowSignatureHandler
       _num_int_args++;
     } else {
       *_to++ = from_obj;
+      _num_int_args++;
     }
   }
 
@@ -315,6 +322,7 @@ class SlowSignatureHandler
       _num_int_args++;
     } else {
       *_to++ = from_obj;
+      _num_int_args++;
     }
   }
 
@@ -329,6 +337,7 @@ class SlowSignatureHandler
     } else {
       *_to++ = (*from_addr == 0) ? NULL : (intptr_t) from_addr;
     }
+      _num_int_args++;
   }
 
   virtual void pass_float()
@@ -341,6 +350,7 @@ class SlowSignatureHandler
       _num_fp_args++;
     } else {
       *_to++ = from_obj;
+      _num_fp_args++;
     }
   }
 
@@ -355,6 +365,7 @@ class SlowSignatureHandler
       _num_fp_args++;
     } else {
       *_to++ = from_obj;
+      _num_fp_args++;
     }
   }
 

@@ -65,7 +65,7 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
 #else
     _num_int_args = (method->is_static() ? 1 : 0);
     _num_fp_args = 0;
-    _stack_offset = wordSize; // don't overwrite return address
+    _stack_offset = 0;
 #endif // _WIN64
 #endif // AMD64
   }

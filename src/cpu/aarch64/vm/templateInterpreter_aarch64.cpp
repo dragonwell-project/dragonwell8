@@ -591,7 +591,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // call signature handler
   assert(InterpreterRuntime::SignatureHandlerGenerator::from() == rlocals,
          "adjust this code");
-  assert(InterpreterRuntime::SignatureHandlerGenerator::to() == esp,
+  assert(InterpreterRuntime::SignatureHandlerGenerator::to() == sp,
          "adjust this code");
   assert(InterpreterRuntime::SignatureHandlerGenerator::temp() == rscratch1,
           "adjust this code");
