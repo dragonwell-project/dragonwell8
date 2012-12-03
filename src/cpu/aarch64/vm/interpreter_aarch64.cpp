@@ -83,8 +83,11 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
   //        bcp (NULL)
   //        ...
 
+  // Restore LR
+  __ ldr(lr, Address(__ post(sp, 2 * wordSize)));
+
   // Do FP first so we can use c_rarg3 as temp
-  __ ldr(c_rarg3, Address(sp, 8 * wordSize)); // float/double identifiers
+  __ ldrw(c_rarg3, Address(sp, 9 * wordSize)); // float/double identifiers
 
   for (int i = 0; i < Argument::n_float_register_parameters_c; i++) {
     const FloatRegister r = as_FloatRegister(i);
@@ -92,15 +95,12 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
     Label d, done;
 
     __ tbnz(c_rarg3, i, d);
-    __ ldrs(r, Address(sp, (6 + i) * wordSize));
+    __ ldrs(r, Address(sp, (10 + i) * wordSize));
     __ b(done);
     __ bind(d);
-    __ ldrd(r, Address(sp, (6 + i) * wordSize));
+    __ ldrd(r, Address(sp, (10 + i) * wordSize));
     __ bind(done);
   }
-
-  // Restore LR
-  __ ldr(lr, Address(__ post(sp, 2 * wordSize)));
 
   // c_rarg0 contains the result from the call of
   // InterpreterRuntime::slow_signature_handler so we don't touch it
