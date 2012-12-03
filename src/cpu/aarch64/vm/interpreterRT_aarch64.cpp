@@ -37,7 +37,6 @@
 #define __ _masm->
 
 // Implementation of SignatureHandlerGenerator
-
 Register InterpreterRuntime::SignatureHandlerGenerator::from() { return rlocals; }
 Register InterpreterRuntime::SignatureHandlerGenerator::to()   { return sp; }
 Register InterpreterRuntime::SignatureHandlerGenerator::temp() { return rscratch1; }
