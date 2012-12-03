@@ -398,9 +398,9 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   __ mov(esp, sp); // Initialize expression stack pointer
 
   // Move SP out of the way
-  if (native_call)
+  if (native_call) {
     __ sub(sp, sp, os::vm_page_size());
-  else {
+  } else {
     __ ldrh(rscratch1, Address(rmethod, Method::max_stack_offset()));
     __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
 	   + (EnableInvokeDynamic ? 2 : 0));
@@ -569,11 +569,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ verify_oop(rmethod);
   __ load_unsigned_short(t,
                          Address(rmethod,
-                                 methodOopDesc::size_of_parameters_offset()));
-  __ lsl(t, t, Interpreter::logStackElementSize);
+                                 Method::size_of_parameters_offset()));
 
-  __ sub(rscratch1, esp, t, ext::uxtx, 0);
-  __ sub(esp, rscratch1, frame::arg_reg_save_area_bytes); // windows
+  __ sub(rscratch1, esp, t, ext::uxtx, Interpreter::logStackElementSize);
+  __ andr(sp, rscratch1, -16);
+  __ mov(esp, rscratch1);
 
   // get signature handler
   {
@@ -601,7 +601,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // each time here.  The slow-path generator can do a GC on return,
   // so we must reload it after the call.
   __ blr(t);
-  __ get_method(rmethod);        // slow path can do a GC, reload RBX
+  __ get_method(rmethod);        // slow path can do a GC, reload rmethod
 
 
   // result handler is in r0
@@ -675,11 +675,14 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // Call the native method.
   __ brx86(r10, rscratch1);
 
+  // make room for the pushes we're about to do
+  __ sub(rscratch1, esp, 4 * wordSize);
+  __ andr(sp, rscratch1, -16);
+
   // NOTE: The order of these pushes is known to frame::interpreter_frame_result
   // in order to extract the result of a method call. If the order of these
   // pushes change or anything else is added to the stack then the code in
   // interpreter_frame_result must also change.
-
   __ push(dtos);
   __ push(ltos);
 
@@ -861,6 +864,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ leave();
   // restore sp
   __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
+  // __ mov(rscratch1, sp);
 
   if (inc_counter) {
     // Handle overflow of counter and compile method

@@ -1668,7 +1668,7 @@ public:
    Xn holds the 64 bit x86 branch_address
    call format is encoded either as immediate data in the call
    or in register Wm. In the latter case
-     Wm[9..6] = #gpargs,
+     Wm[13..6] = #gpargs,
      Wm[5..2] = #fpargs,
      Wm[1,0] = #type
 

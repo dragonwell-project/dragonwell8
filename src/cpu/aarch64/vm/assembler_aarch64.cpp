@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee083418;
+const unsigned long Assembler::asm_bp = 0x00007fffee089168;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -2725,9 +2725,6 @@ void MacroAssembler::stop(const char* msg) {
   mov(c_rarg0, (address)msg);
   mov(c_rarg1, (address)ip);
   mov(c_rarg2, sp);
-  // round down sp to 16 byte boundary
-  // (assumes literal will encode directly)
-  andr(sp, c_rarg2, ~0xfUL);
   mov(c_rarg3, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
   // call(c_rarg3);
   brx86(c_rarg3, 3, 0, 1);

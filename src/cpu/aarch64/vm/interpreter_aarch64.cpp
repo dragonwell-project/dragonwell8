@@ -53,8 +53,70 @@
 
 
 address AbstractInterpreterGenerator::generate_slow_signature_handler() {
-  // Unimplemented();
-  return 0;
+  address entry = __ pc();
+
+  __ andr(esp, esp, -16);
+  __ mov(c_rarg3, esp);
+  // rmethod
+  // rlocals
+  // c_rarg3: first stack arg - wordSize
+
+  // adjust sp
+  __ sub(sp, c_rarg3, 18 * wordSize);
+  __ str(lr, Address(__ pre(sp, -2 * wordSize)));
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::slow_signature_handler),
+             rmethod, rlocals, c_rarg3);
+
+ // FIXME: Save LR!!!!
+
+  // r0: result handler
+
+  // Stack layout:
+  // rsp: return address           <- sp
+  //      1 garbage
+  //      8 integer args (if static first is unused)
+  //      1 float/double identifiers
+  //      8 double args
+  //        stack args              <- esp
+  //        garbage
+  //        expression stack bottom
+  //        bcp (NULL)
+  //        ...
+
+  // Do FP first so we can use c_rarg3 as temp
+  __ ldr(c_rarg3, Address(sp, 8 * wordSize)); // float/double identifiers
+
+  for (int i = 0; i < Argument::n_float_register_parameters_c; i++) {
+    const FloatRegister r = as_FloatRegister(i);
+
+    Label d, done;
+
+    __ tbnz(c_rarg3, i, d);
+    __ ldrs(r, Address(sp, (6 + i) * wordSize));
+    __ b(done);
+    __ bind(d);
+    __ ldrd(r, Address(sp, (6 + i) * wordSize));
+    __ bind(done);
+  }
+
+  // Restore LR
+  __ ldr(lr, Address(__ post(sp, 2 * wordSize)));
+
+  // c_rarg0 contains the result from the call of
+  // InterpreterRuntime::slow_signature_handler so we don't touch it
+  // here.  It will be loaded with the JNIEnv* later.
+  __ ldr(c_rarg1, Address(sp, 1 * wordSize));
+  for (int i = c_rarg2->encoding(); i <= c_rarg7->encoding(); i += 2) {
+    Register rm = as_Register(i), rn = as_Register(i+1);
+    __ ldp(rm, rn, Address(sp, i * wordSize));
+  }
+
+  __ add(sp, sp, 18 * wordSize);
+  __ ret(lr);
+
+  return entry;
 }
 
 
