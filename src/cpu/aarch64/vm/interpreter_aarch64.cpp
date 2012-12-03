@@ -69,8 +69,6 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
                               InterpreterRuntime::slow_signature_handler),
              rmethod, rlocals, c_rarg3);
 
- // FIXME: Save LR!!!!
-
   // r0: result handler
 
   // Stack layout:

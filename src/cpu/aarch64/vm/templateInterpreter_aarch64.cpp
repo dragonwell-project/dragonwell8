@@ -863,7 +863,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ leave();
   // restore sp
   __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
-  // __ mov(rscratch1, sp);
+  __ mov(rscratch1, sp);
 
   if (inc_counter) {
     // Handle overflow of counter and compile method
