@@ -327,7 +327,8 @@ void InterpreterGenerator::lock_method(void) {
   }
 
   // add space for monitor & lock
-  __ sub(esp, esp, entry_size); // add space for a monitor entry
+  __ sub(sp, sp, entry_size); // add space for a monitor entry
+  __ sub(esp, esp, entry_size);
   __ mov(rscratch1, esp);
   __ str(rscratch1, monitor_block_top);  // set new monitor block top
   // store object
@@ -398,9 +399,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   __ mov(esp, sp); // Initialize expression stack pointer
 
   // Move SP out of the way
-  if (native_call) {
-    __ sub(sp, sp, os::vm_page_size());
-  } else {
+  if (! native_call) {
     __ ldrh(rscratch1, Address(rmethod, Method::max_stack_offset()));
     __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
 	   + (EnableInvokeDynamic ? 2 : 0));
