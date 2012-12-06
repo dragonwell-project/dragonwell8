@@ -134,8 +134,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void push(unsigned bitset, Register stack) { ((MacroAssembler*)this)->push(bitset, stack); }
 
   void empty_expression_stack() {
-    ldr(rscratch1, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
-    mov(esp, rscratch1);
+    ldr(esp, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));
     // NULL last_sp until next java call
     str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   }

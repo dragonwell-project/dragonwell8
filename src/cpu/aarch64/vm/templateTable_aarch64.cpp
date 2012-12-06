@@ -578,15 +578,16 @@ void TemplateTable::index_check(Register array, Register index)
   // sign extend index for use by indexed load
   // __ movl2ptr(index, index);
   // check index
-  __ ldrw(rscratch1, Address(array, arrayOopDesc::length_offset_in_bytes()));
-  __ cmpw(index, rscratch1);
+  Register length = rscratch1;
+  __ ldrw(length, Address(array, arrayOopDesc::length_offset_in_bytes()));
+  __ cmpw(index, length);
   if (index != r1) {
     // ??? convention: move aberrant index into r1 for exception message
     assert(r1 != array, "different registers");
     __ mov(r1, index);
   }
   Label ok;
-  __ br(Assembler::LT, ok);
+  __ br(Assembler::CS, ok);
   __ mov(rscratch1, Interpreter::_throw_ArrayIndexOutOfBoundsException_entry);
   __ br(rscratch1);
   __ bind(ok);

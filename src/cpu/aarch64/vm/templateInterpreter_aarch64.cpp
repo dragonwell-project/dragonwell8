@@ -63,10 +63,54 @@ extern "C" void entry(CodeBuffer*);
 
 //-----------------------------------------------------------------------------
 
-address TemplateInterpreterGenerator::generate_StackOverflowError_handler() { __ call_Unimplemented(); return 0; }
+address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
+  address entry = __ pc();
+
+#ifdef ASSERT
+  {
+    Label L;
+    __ ldr(rscratch1, Address(rfp,
+		       frame::interpreter_frame_monitor_block_top_offset *
+		       wordSize));
+    __ mov(rscratch2, sp);
+    __ cmp(rscratch1, rscratch2); // maximal rsp for current rfp (stack
+                           // grows negative)
+    __ br(Assembler::CC, L); // check if frame is complete
+    __ stop ("interpreter frame not set up");
+    __ bind(L);
+  }
+#endif // ASSERT
+  // Restore bcp under the assumption that the current frame is still
+  // interpreted
+  __ restore_bcp();
+
+  // expression stack must be empty before entering the VM if an
+  // exception happened
+  __ empty_expression_stack();
+  // throw exception
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::throw_StackOverflowError));
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_ArrayIndexOutOfBounds_handler(
-        const char* name) { __ call_Unimplemented(); return 0; }
+        const char* name) {
+  address entry = __ pc();
+  // expression stack must be empty before entering the VM if an
+  // exception happened
+  __ empty_expression_stack();
+  // setup parameters
+  // ??? convention: expect aberrant index in register r1
+  __ movw(c_rarg2, r1);
+  __ mov(c_rarg1, (address)name);
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::
+                              throw_ArrayIndexOutOfBoundsException),
+             c_rarg1, c_rarg2);
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_ClassCastException_handler() {
   address entry = __ pc();
