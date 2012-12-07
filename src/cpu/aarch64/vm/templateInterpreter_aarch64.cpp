@@ -75,7 +75,7 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
     __ mov(rscratch2, sp);
     __ cmp(rscratch1, rscratch2); // maximal rsp for current rfp (stack
                            // grows negative)
-    __ br(Assembler::CC, L); // check if frame is complete
+    __ br(Assembler::HS, L); // check if frame is complete
     __ stop ("interpreter frame not set up");
     __ bind(L);
   }
@@ -472,6 +472,21 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   return NULL;
 }
 
+void InterpreterGenerator::bang_stack_shadow_pages(bool native_call) {
+  // Bang each page in the shadow zone. We can't assume it's been done for
+  // an interpreter frame with greater than a page of locals, so each page
+  // needs to be checked.  Only true for non-native.
+  if (UseStackBanging) {
+    const int start_page = native_call ? StackShadowPages : 1;
+    const int page_size = os::vm_page_size();
+    for (int pages = start_page; pages <= StackShadowPages ; pages++) {
+      __ sub(rscratch2, sp, pages*page_size);
+      __ ldr(zr, Address(rscratch2));
+    }
+  }
+}
+
+
 // Interpreter stub for calling a native method. (asm interpreter)
 // This sets up a somewhat different looking stack for calling the
 // native method than the typical interpreter frame setup.
@@ -751,10 +766,10 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     Label Continue;
     __ mov(rscratch2, SafepointSynchronize::address_of_state());
     __ ldr(rscratch2, rscratch2);
-    __ cmp(rscratch2, SafepointSynchronize::_not_synchronized);
-
+    assert(SafepointSynchronize::_not_synchronized == 0,
+	   "SafepointSynchronize::_not_synchronized");
     Label L;
-    __ br(Assembler::NE, L);
+    __ cbnz(rscratch2, L);
     __ ldrw(rscratch2, Address(rthread, JavaThread::suspend_flags_offset()));
     __ cbz(rscratch2, Continue);
     __ bind(L);
@@ -907,7 +922,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ leave();
   // restore sp
   __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
-  __ mov(rscratch1, sp);
+  __ mov(sp, rscratch1);
 
   if (inc_counter) {
     // Handle overflow of counter and compile method

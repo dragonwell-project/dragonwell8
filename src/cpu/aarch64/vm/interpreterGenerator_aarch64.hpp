@@ -30,7 +30,11 @@
 //
   friend class AbstractInterpreterGenerator;
 
- private:
+protected:
+
+  void bang_stack_shadow_pages(bool native_call);
+
+private:
 
   address generate_normal_entry(bool synchronized);
   address generate_native_entry(bool synchronized);

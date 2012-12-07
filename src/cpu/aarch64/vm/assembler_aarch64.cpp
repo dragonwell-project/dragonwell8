@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee08d624;
+const unsigned long Assembler::asm_bp = 0x00007fffee089108;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -3000,8 +3000,7 @@ SkipIfEqual::SkipIfEqual(
   _masm = masm;
   _masm->mov(rscratch1, (address)flag_addr);
   _masm->ldrb(rscratch1, rscratch1);
-  _masm->cmp(rscratch1, value);
-  _masm->br(Assembler::EQ, _label);
+  _masm->cbzw(rscratch1, _label);
 }
 
 SkipIfEqual::~SkipIfEqual() {
