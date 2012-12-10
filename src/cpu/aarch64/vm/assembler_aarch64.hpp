@@ -210,6 +210,11 @@ public:
     return result;
   }
 
+  static inline int32_t sextract(uint32_t val, int msb, int lsb) {
+    uint32_t uval = extract(val, msb, lsb);
+    return extend(uval, msb - lsb);
+  }
+
   static void patch(address a, int msb, int lsb, unsigned long val) {
     int nbits = msb - lsb + 1;
     guarantee(val < (1U << nbits), "Field too big for insn");
@@ -384,9 +389,6 @@ class Address VALUE_OBJ_CLASS_SPEC {
   // addressing.
   address          _target;
 
-  address target() const { return _target; }
-  const RelocationHolder& rspec() const { return _rspec; }
-
  public:
   Address(Register r)
     : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg) { }
@@ -437,6 +439,8 @@ class Address VALUE_OBJ_CLASS_SPEC {
     return _index;
   }
   bool uses(Register reg) const { return _base == reg || _index == reg; }
+  address target() const { return _target; }
+  const RelocationHolder& rspec() const { return _rspec; }
 
   void encode(Instruction_aarch64 *i) const {
     i->f(0b111, 29, 27);
@@ -783,7 +787,8 @@ public:
   }								\
   void NAME(Label &L) {						\
     wrap_label(L, &Assembler::NAME);				\
-  }
+  }								\
+  void NAME(const Address &dest);
 
   INSN(b, 0);
   INSN(bl, 1);
@@ -2148,7 +2153,8 @@ public:
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
-  void pd_patch_instruction(address branch, address target);
+  static void pd_patch_instruction(address branch, address target);
+  static address pd_call_destination(address branch);
 #ifndef PRODUCT
   static void pd_print_patched_instruction(address branch);
 #endif
@@ -2305,6 +2311,10 @@ public:
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
                            address last_java_pc);
+
+  void set_last_Java_frame(Register last_java_sp,
+                           Register last_java_fp,
+                           Register last_java_pc);
 
   void reset_last_Java_frame(Register thread, bool clearfp, bool clear_pc);
 

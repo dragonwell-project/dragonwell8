@@ -185,14 +185,14 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // FIXME: Give us a valid frame at a null check.
   virtual void null_check(Register reg, int offset = -1) {
-#ifdef ASSERT
-    save_bcp();
-    set_last_Java_frame(esp, rfp, (address) pc());
-#endif
+// #ifdef ASSERT
+//     save_bcp();
+//     set_last_Java_frame(esp, rfp, (address) pc());
+// #endif
     MacroAssembler::null_check(reg, offset);
-#ifdef ASSERT
-    reset_last_Java_frame(true, false);
-#endif
+// #ifdef ASSERT
+//     reset_last_Java_frame(true, false);
+// #endif
   }
 
   // Object locking

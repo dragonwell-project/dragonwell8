@@ -462,7 +462,7 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "forward exception");
     address start = __ pc();
 
-    // Upon entry, the sp points to the return address returning into
+    // Upon entry, LR points to the return address returning into
     // Java (interpreted or compiled) code; i.e., the return address
     // becomes the throwing pc.
     //
@@ -1089,7 +1089,90 @@ class StubGenerator: public StubCodeGenerator {
   address generate_throw_exception(const char* name,
                                    address runtime_entry,
                                    Register arg1 = noreg,
-                                   Register arg2 = noreg) { return 0; }
+                                   Register arg2 = noreg) {
+    // Information about frame layout at time of blocking runtime call.
+    // Note that we only have to preserve callee-saved registers since
+    // the compilers are responsible for supplying a continuation point
+    // if they expect all registers to be preserved.
+    enum layout {
+      rfp_off = frame::arg_reg_save_area_bytes/BytesPerInt,
+      rfp_off2,
+      return_off,
+      return_off2,
+      framesize // inclusive of return address
+    };
+
+    int insts_size = 512;
+    int locs_size  = 64;
+
+    CodeBuffer code(name, insts_size, locs_size);
+    OopMapSet* oop_maps  = new OopMapSet();
+    MacroAssembler* masm = new MacroAssembler(&code);
+
+    address start = __ pc();
+
+    // This is an inlined and slightly modified version of call_VM
+    // which has the ability to fetch the return PC out of
+    // thread-local storage and also sets up last_Java_sp slightly
+    // differently than the real call_VM
+
+    __ enter(); // Save FP and LR before call
+
+    assert(is_even(framesize/2), "sp not 16-byte aligned");
+
+    // lr and fp are already in place
+    __ sub(sp, rfp, ((unsigned)framesize-4) << LogBytesPerInt); // prolog
+
+    int frame_complete = __ pc() - start;
+
+    // Set up last_Java_sp and last_Java_fp
+    address the_pc = __ pc();
+    __ adr(rscratch1, the_pc);
+    __ mov(rscratch2, sp);
+    __ set_last_Java_frame(rscratch2, rfp, rscratch1);
+
+    // Call runtime
+    if (arg1 != noreg) {
+      assert(arg2 != c_rarg1, "clobbered");
+      __ mov(c_rarg1, arg1);
+    }
+    if (arg2 != noreg) {
+      __ mov(c_rarg2, arg2);
+    }
+    __ mov(c_rarg0, rthread);
+    BLOCK_COMMENT("call runtime_entry");
+    __ mov(rscratch1, runtime_entry);
+    __ brx86(rscratch1, 3 /* number_of_arguments */, 0, 1);
+
+    // Generate oop map
+    OopMap* map = new OopMap(framesize, 0);
+
+    oop_maps->add_gc_map(the_pc - start, map);
+
+    __ reset_last_Java_frame(true, true);
+
+    __ leave();
+
+    // check for pending exceptions
+#ifdef ASSERT
+    Label L;
+    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+    __ cbnz(rscratch1, L);
+    __ should_not_reach_here();
+    __ bind(L);
+#endif // ASSERT
+    __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+
+    // codeBlob framesize is in words (not VMRegImpl::slot_size)
+    RuntimeStub* stub =
+      RuntimeStub::new_runtime_stub(name,
+                                    &code,
+                                    frame_complete,
+                                    (framesize >> (LogBytesPerWord - LogBytesPerInt)),
+                                    oop_maps, false);
+    return stub->entry_point();
+  }
 
   // Initialization
   void generate_initial() {

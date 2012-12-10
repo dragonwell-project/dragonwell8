@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee089108;
+const unsigned long Assembler::asm_bp = 0x00007fffee07f428;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -1496,6 +1496,12 @@ Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
   }
 }
 
+void Assembler::b(const Address &dest) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  b(dest.target());
+}
+
 void Assembler::br(Condition cc, Label &L) {
   if (L.is_bound()) {
     br(cc, target(L));
@@ -1577,8 +1583,40 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     Instruction_aarch64::spatch(branch, 18, 5, offset);
     Instruction_aarch64::spatch(branch, 30, 29, offset_lo);
   } else {
-    abort();
+    ShouldNotReachHere();
   }
+}
+
+address MacroAssembler::pd_call_destination(address branch) {
+  long offset = 0;
+  unsigned insn = *(unsigned*)branch;
+  if ((Instruction_aarch64::extract(insn, 29, 24) & 0b111011) == 0b011000) {
+    // Load register (literal)
+    offset = Instruction_aarch64::sextract(insn, 29, 24);
+  } else if (Instruction_aarch64::extract(insn, 30, 26) == 0b00101) {
+    // Unconditional branch (immediate)
+    offset = Instruction_aarch64::sextract(insn, 25, 0);
+  } else if (Instruction_aarch64::extract(insn, 31, 25) == 0b0101010) {
+    // Conditional branch (immediate)
+    offset = Instruction_aarch64::sextract(insn, 23, 5);
+  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011010) {
+    // Compare & branch (immediate)
+    offset = Instruction_aarch64::sextract(insn, 23, 5);
+  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
+    // Test & branch (immediate)
+    offset = Instruction_aarch64::sextract(insn, 18, 5);
+  } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
+    // PC-rel. addressing
+    offset = Instruction_aarch64::extract(insn, 30, 29);
+    offset |= Instruction_aarch64::sextract(insn, 18, 5);
+    offset <<= 2;
+    int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
+    if (shift)
+      offset <<= shift;
+  } else {
+    ShouldNotReachHere();
+  }
+  return address(((uint64_t)branch + (offset << 2)));
 }
 
   // An "all-purpose" add/subtract immediate, per ARM documentation:
@@ -1643,7 +1681,7 @@ void MacroAssembler::reset_last_Java_frame(bool clear_fp,
 // has to be reset to 0. This is required to allow proper stack traversal.
 void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          Register last_java_fp,
-                                         address  last_java_pc) {
+                                         Register last_java_pc) {
   // determine last_java_sp register
   if (!last_java_sp->is_valid()) {
     last_java_sp = esp;
@@ -1654,6 +1692,16 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
   }
 
+  str(last_java_pc, Address(rthread,
+			 JavaThread::frame_anchor_offset()
+			 + JavaFrameAnchor::last_Java_pc_offset()));
+
+  str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
+}
+
+void MacroAssembler::set_last_Java_frame(Register last_java_sp,
+                                         Register last_java_fp,
+                                         address  last_java_pc) {
   // protect rscratch1
   stp(rscratch1, zr, Address(pre(sp, -2 * wordSize)));
 
@@ -1662,11 +1710,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
 	in_bytes(JavaThread::frame_anchor_offset() + JavaFrameAnchor::last_Java_pc_offset()));
     str(rbcp, rscratch1);
   }
-  str(rscratch1, Address(rthread,
-			 JavaThread::frame_anchor_offset()
-			 + JavaFrameAnchor::last_Java_pc_offset()));
 
-  str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
+  set_last_Java_frame(last_java_sp, last_java_fp, rscratch1);
 
   ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
 }
@@ -1734,8 +1779,12 @@ void MacroAssembler::call_VM_base(Register oop_result,
   // set last Java frame before call
   assert(last_java_sp != rfp, "can't use rfp");
 
+<<<<<<< HEAD
     // Only interpreter should have to set fp
   set_last_Java_frame(last_java_sp, rfp, NULL);
+=======
+  set_last_Java_frame(last_java_sp, rfp, (address)NULL);
+>>>>>>> 1d142b0... Stub for throw_exception, branch relocs, generate stack_overflow_check.
 
   // do the call, remove parameters
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);

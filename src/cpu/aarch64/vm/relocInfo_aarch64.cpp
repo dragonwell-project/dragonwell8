@@ -34,11 +34,14 @@
 void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) { Unimplemented(); }
 
 
-address Relocation::pd_call_destination(address orig_addr) { Unimplemented(); return 0; }
+address Relocation::pd_call_destination(address orig_addr) {
+  return MacroAssembler::pd_call_destination(orig_addr);
+}
 
 
-void Relocation::pd_set_call_destination(address x) { Unimplemented(); }
-
+void Relocation::pd_set_call_destination(address x) {
+  MacroAssembler::pd_patch_instruction(addr(), x);
+}
 
 address* Relocation::pd_address_in_code() { Unimplemented(); return 0; }
 
