@@ -1863,11 +1863,24 @@ void MacroAssembler::call_VM(Register oop_result,
 }
 
 
-void MacroAssembler::check_and_handle_earlyret(Register java_thread) {Unimplemented(); }
+void MacroAssembler::get_vm_result(Register oop_result, Register java_thread) {
+  ldr(oop_result, Address(java_thread, JavaThread::vm_result_offset()));
+  str(zr, Address(java_thread, JavaThread::vm_result_offset()));
+  verify_oop(oop_result, "broken oop in call_VM_base");
+}
+
+void MacroAssembler::get_vm_result_2(Register metadata_result, Register java_thread) {
+  ldr(metadata_result, Address(java_thread, JavaThread::vm_result_2_offset()));
+  str(zr, Address(java_thread, JavaThread::vm_result_2_offset()));
+}
 
 void MacroAssembler::align(int modulus) {
   while (offset() % modulus != 0) nop();
 }
+
+// these are meant to be no-ops overridden by InterpreterMacroAssembler
+
+void MacroAssembler::check_and_handle_earlyret(Register java_thread) { Unimplemented(); }
 
 void MacroAssembler::check_and_handle_popframe(Register java_thread) { Unimplemented(); }
 
