@@ -1413,12 +1413,28 @@ void TemplateTable::convert()
     break;
   case Bytecodes::_f2i:
   {
+    Label L_isNaN;
+    Label L_Okay;
+    __ fcmps(v0, v0);
+    __ br(Assembler::NE, L_isNaN);
     __ fcvtzsw(r0, v0);
+    __ b(L_Okay);
+    __ bind(L_isNaN);
+    __ movw(r0, zr);
+    __ bind(L_Okay);
   }
     break;
   case Bytecodes::_f2l:
   {
+    Label L_isNaN;
+    Label L_Okay;
+    __ fcmps(v0, v0);
+    __ br(Assembler::NE, L_isNaN);
     __ fcvtzs(r0, v0);
+    __ b(L_Okay);
+    __ bind(L_isNaN);
+    __ mov(r0, zr);
+    __ bind(L_Okay);
   }
     break;
   case Bytecodes::_f2d:
@@ -1426,12 +1442,28 @@ void TemplateTable::convert()
     break;
   case Bytecodes::_d2i:
   {
+    Label L_isNaN;
+    Label L_Okay;
+    __ fcmpd(v0, v0);
+    __ br(Assembler::NE, L_isNaN);
     __ fcvtzdw(r0, v0);
+    __ b(L_Okay);
+    __ bind(L_isNaN);
+    __ movw(r0, zr);
+    __ bind(L_Okay);
   }
     break;
   case Bytecodes::_d2l:
   {
+    Label L_isNaN;
+    Label L_Okay;
+    __ fcmpd(v0, v0);
+    __ br(Assembler::NE, L_isNaN);
     __ fcvtzd(r0, v0);
+    __ b(L_Okay);
+    __ bind(L_isNaN);
+    __ movw(r0, zr);
+    __ bind(L_Okay);
   }
     break;
   case Bytecodes::_d2f:
