@@ -2894,9 +2894,25 @@ public:
   // bootstraps into the generated ARM code which directly follows the
   // stub
   //
-  enum { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
+
+  public:
+  // enum used for aarch64--x86 linkage to define return type of x86 function
+  enum ret_type { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
 
   void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type);
+
+  // special version of call_VM_leaf_base needed for aarch64 simulator
+  // where we need to specify both the gp and fp arg counts and the
+  // return type so that the linkage routine from aarch64 to x86 and
+  // back knows which aarch64 registers to copy to x86 registers and
+  // which x86 result register to copy back to an aarch64 register
+
+  void call_VM_leaf_base1(
+    address  entry_point,             // the entry point
+    int      number_of_gp_arguments,  // the number of gp reg arguments to pass
+    int      number_of_fp_arguments,  // the number of fp reg arguments to pass
+    ret_type type		      // the return type for the call
+  );
 };
 
 #ifdef ASSERT

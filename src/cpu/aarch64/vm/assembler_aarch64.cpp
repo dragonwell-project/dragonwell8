@@ -2251,6 +2251,13 @@ void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
 void MacroAssembler::call_VM_leaf_base(address entry_point,
                                        int number_of_arguments) {
+  call_VM_leaf_base1(entry_point, number_of_arguments, 0, ret_type_integral);
+}
+
+void MacroAssembler::call_VM_leaf_base1(address entry_point,
+					int number_of_gp_arguments,
+					int number_of_fp_arguments,
+					ret_type type) {
   Label E, L;
 
   // protect rscratch1
@@ -2259,7 +2266,7 @@ void MacroAssembler::call_VM_leaf_base(address entry_point,
   // We add 1 to number_of_arguments because the thread in arg0 is
   // not counted
   mov(rscratch1, entry_point);
-  brx86(rscratch1, number_of_arguments + 1, 0, 1);
+  brx86(rscratch1, number_of_gp_arguments + 1, number_of_fp_arguments, type);
 
   ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
 }
