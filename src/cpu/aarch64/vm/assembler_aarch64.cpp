@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee07f428;
+const unsigned long Assembler::asm_bp = 0x00007ffff40c6840;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -2212,21 +2212,9 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   // Set NZ/Z based on last compare.
   // Z flag value will not be set by 'repne' if R2 == 0 since 'repne' does
   // not change flags (only scas instruction which is repeated sets flags).
-  // Set Z = 0 (not equal) before 'repne' to indicate that class was not found.
 
-  // This part is tricky, as values in supers array could be 32 or 64 bit wide
-  // and we store values in objArrays always encoded, thus we need to encode
-  // the value of r0 before repne.  Note that r0 is dead after the repne.
-  if (UseCompressedOops) {
-    encode_heap_oop_not_null(r0); // Changes flags.
-    // The superclass is never null; it would be a basic system error if a null
-    // pointer were to sneak in here.  Note that we have already loaded the
-    // Klass::super_check_offset from the super_klass in the fast path,
-    // so if there is a null in that register, we are already in the afterlife.
-    repne_scanw(r5, r0, r2, rscratch1);
-  } else {
-    repne_scan(r5, r0, r2, rscratch1);
-  }
+  repne_scan(r5, r0, r2, rscratch1);
+
   // Unspill the temp. registers:
   if (pushed_r5)  pop(r5);
   if (pushed_r2)  pop(r2);
@@ -2881,7 +2869,8 @@ void MacroAssembler::spillcheck(Register rscratcha, Register rscratchb)
 void MacroAssembler::reinit_heapbase()
 {
   if (UseCompressedOops) {
-    mov(rheapbase, (address)Universe::narrow_oop_base_addr());
+    lea(rscratch1, ExternalAddress((address)Universe::narrow_oop_base_addr()));
+    ldr(rheapbase, Address(rscratch1));
   }
 }
 
@@ -3070,7 +3059,8 @@ SkipIfEqual::~SkipIfEqual() {
 }
 
 void MacroAssembler::cmpptr(Register src1, Address src2) {
-  ldr(rscratch1, src2);
+  lea(rscratch1, src2);
+  ldr(rscratch1, Address(rscratch1));
   cmp(src1, rscratch1);
 }
 
@@ -3128,17 +3118,21 @@ void MacroAssembler::store_check_part_2(Register obj) {
 }
 
 void MacroAssembler::load_klass(Register dst, Register src) {
-  ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   if (UseCompressedOops) {
+    ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
     decode_heap_oop_not_null(dst);
+  } else {
+    ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
 }
 
 void MacroAssembler::store_klass(Register dst, Register src) {
   if (UseCompressedOops) {
     encode_heap_oop_not_null(src);
+    strw(src, Address(dst, oopDesc::klass_offset_in_bytes()));
+  } else {
+    str(src, Address(dst, oopDesc::klass_offset_in_bytes()));
   }
-  str(src, Address(dst, oopDesc::klass_offset_in_bytes()));
 }
 
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
@@ -3237,7 +3231,6 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Also do not verify_oop as this is called by verify_oop.
   if (Universe::narrow_oop_shift() != 0) {
     assert(LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
-    add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
     if (Universe::narrow_oop_base() != NULL) {
       add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
     } else {

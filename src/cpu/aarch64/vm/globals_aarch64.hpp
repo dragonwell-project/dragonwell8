@@ -53,7 +53,6 @@ define_pd_global(intx, CodeEntryAlignment,       16);
 #endif // COMPILER2
 define_pd_global(intx, OptoLoopAlignment,        16);
 define_pd_global(intx, InlineFrequencyCount,     100);
-define_pd_global(intx, InlineSmallCode,          1000);
 
 define_pd_global(intx, StackYellowPages, 2);
 define_pd_global(intx, StackRedPages, 1);
@@ -63,7 +62,7 @@ define_pd_global(intx, StackShadowPages, 4 DEBUG_ONLY(+5));
 define_pd_global(intx, PreInflateSpin,           10);
 
 define_pd_global(bool, RewriteBytecodes,     true);
-define_pd_global(bool, RewriteFrequentPairs, true);
+define_pd_global(bool, RewriteFrequentPairs, false);
 
 #ifdef _ALLBSD_SOURCE
 define_pd_global(bool, UseMembar,            true);
