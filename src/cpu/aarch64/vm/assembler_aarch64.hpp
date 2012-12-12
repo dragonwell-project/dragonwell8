@@ -914,6 +914,31 @@ public:
   void nop() {
     hint(0);
   }
+  // we only provide mrs and msr for the special purpose system
+  // registers where op1 (instr[20:19]) == 11 and, (currently) only
+  // use it for FPSR n.b msr has L (instr[21]) == 0 mrs has L == 1
+
+  void msr(int op1, int CRn, int CRm, int op2, Register rt) {
+    starti;
+    f(0b1101010100011, 31, 19);
+    f(op1, 18, 16);
+    f(CRn, 15, 12);
+    f(CRm, 11, 8);
+    f(op2, 7, 5);
+    // writing zr is ok
+    zrf(rt, 0);
+  }
+
+  void mrs(int op1, int CRn, int CRm, int op2, Register rt) {
+    starti;
+    f(0b1101010100111, 31, 19);
+    f(op1, 18, 16);
+    f(CRn, 15, 12);
+    f(CRm, 11, 8);
+    f(op2, 7, 5);
+    // reading to zr is a mistake
+    rf(rt, 0);
+  }
 
   enum barrier {OSHLD = 0b0001, OSHST, OSH, NSHLD=0b0101, NSHST, NSH,
 		ISHLD = 0b1001, ISHST, ISH, LD=0b1101, ST, SY};
@@ -2134,6 +2159,29 @@ public:
   inline void mov(Register dst, int i)
   {
     mov(dst, (long)i);
+  }
+
+  // macro instructions for accessing and updating floating point
+  // status register
+  //
+  // FPSR : op1 == 011
+  //        CRn == 0100
+  //        CRm == 0100
+  //        op2 == 001
+
+  inline void get_fpsr(Register reg)
+  {
+    mrs(0b11, 0b0100, 0b0100, 0b001, reg);
+  }
+
+  inline void set_fpsr(Register reg)
+  {
+    msr(0b011, 0b0100, 0b0100, 0b001, reg);
+  }
+
+  inline void clear_fpsr()
+  {
+    msr(0b011, 0b0100, 0b0100, 0b001, zr);
   }
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
