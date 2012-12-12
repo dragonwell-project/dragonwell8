@@ -1277,7 +1277,7 @@ void TemplateTable::dop2(Operation op)
   case rem:
     __ fmovd(v0, v1);
     __ pop_d(v0);
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::frem), 2);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::drem), 2);
     break;
   default:
     ShouldNotReachHere();
