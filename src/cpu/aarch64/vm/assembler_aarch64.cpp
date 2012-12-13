@@ -2479,41 +2479,50 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
   }
 }
 
-int MacroAssembler::corrected_idivl(Register ra, Register rb)
+int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
+				    bool want_remainder)
 {
   // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivl instruction - may be needed
   // for implicit exceptions.
   //
-  // consraint : ra/b =/= rscratch1
+  // consraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
   //         rb: divisor                          -1
   //
-  // output: ra: quotient  (= ra idiv rb)         min_long
-  //         rb: remainder (= ra irem rb)         0
+  // result: either
+  //         quotient  (= ra idiv rb)         min_long
+  //         remainder (= ra irem rb)         0
+
   assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
   static const int64_t min_long = 0x80000000;
-  Label normal_case, special_case;
+  Label normal_case, special_case, nonzero;
 
   // check for special cases
   movw(rscratch1, min_long);
   cmpw(ra, rscratch1);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
-  addsw(rscratch1, rb, 1);
+  cmn(rb, 1);
   br(Assembler::NE, normal_case);
-  mov(rb, zr);
+  if (! want_remainder)
+    mov(result, ra);
+  else
+    mov(result, zr);
   b(special_case);
 
   // handle normal case
   bind(normal_case);
   int idivl_offset = offset();
-  sdivw(rscratch1, ra, rb);
-  msubw(rb, rscratch1, rb, ra);
-  mov(ra, rscratch1);
+  if (! want_remainder) {
+    sdivw(result, ra, rb);
+  } else {
+    sdivw(rscratch1, ra, rb);
+    msubw(result, rscratch1, rb, ra);
+  }
 
   // normal and special case exit
   bind(special_case);
@@ -2521,41 +2530,50 @@ int MacroAssembler::corrected_idivl(Register ra, Register rb)
   return idivl_offset;
 }
 
-int MacroAssembler::corrected_idivq(Register ra, Register rb)
+int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
+				    bool want_remainder)
 {
-  // Full implementation of Java ldiv and lrem; checks for special
+  // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivq instruction - may be needed
   // for implicit exceptions.
   //
-  // consraint : ra/b =/= rscratch1
+  // consraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
   //         rb: divisor                          -1
   //
-  // output: ra: quotient  (= ra idiv rb)         min_long
-  //         rb: remainder (= ra irem rb)         0
+  // result: either
+  //         quotient  (= ra idiv rb)         min_long
+  //         remainder (= ra irem rb)         0
+
   assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
-  static const int64_t min_long = 0x8000000000000000;
-  Label normal_case, special_case;
+  static const int64_t min_long = 0x8000000000000000ULL;
+  Label normal_case, special_case, nonzero;
 
   // check for special cases
   mov(rscratch1, min_long);
   cmp(ra, rscratch1);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
-  adds(rscratch1, rb, 1);
+  cmn(rb, 1);
   br(Assembler::NE, normal_case);
-  mov(rb, zr);
+  if (! want_remainder)
+    mov(result, ra);
+  else
+    mov(result, zr);
   b(special_case);
 
   // handle normal case
   bind(normal_case);
   int idivq_offset = offset();
-  sdiv(rscratch1, ra, rb);
-  msub(rb, rscratch1, rb, ra);
-  mov(ra, rscratch1);
+  if (! want_remainder) {
+    sdiv(result, ra, rb);
+  } else {
+    sdiv(rscratch1, ra, rb);
+    msub(result, rscratch1, rb, ra);
+  }
 
   // normal and special case exit
   bind(special_case);
@@ -3125,7 +3143,7 @@ void MacroAssembler::store_check_part_2(Register obj) {
 }
 
 void MacroAssembler::load_klass(Register dst, Register src) {
-  if (UseCompressedOops) {
+  if (UseCompressedKlassPointers) {
     ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
     decode_heap_oop_not_null(dst);
   } else {
@@ -3134,7 +3152,7 @@ void MacroAssembler::load_klass(Register dst, Register src) {
 }
 
 void MacroAssembler::store_klass(Register dst, Register src) {
-  if (UseCompressedOops) {
+  if (UseCompressedKlassPointers) {
     encode_heap_oop_not_null(src);
     strw(src, Address(dst, oopDesc::klass_offset_in_bytes()));
   } else {
@@ -3143,7 +3161,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
 }
 
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
-  if (UseCompressedOops) {
+  if (UseCompressedKlassPointers) {
     // Store to klass gap in destination
     str(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
   }

@@ -60,7 +60,7 @@ void InterpreterMacroAssembler::get_method(Register reg) { Unimplemented(); }
 
 void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
   if (JvmtiExport::can_pop_frame()) {
-    Unimplemented(); 
+    Unimplemented();
   }
 }
 
@@ -111,7 +111,15 @@ void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
   assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
   // convert from field index to ConstantPoolCacheEntry index
   lsl(index, index, 2);
+<<<<<<< HEAD
   add(cache, rcpool, index, Assembler::LSL, 3);
+=======
+  // aarch64 already has the cache in rcpool so there is no need to
+  // install it in cache. instead we pre-add the indexed offset to
+  // rcpool and return it in cache. All clients of this method need to
+  // be modified accordingly.
+  lea(cache, Address(rcpool, index, Address::lsl(3)));
+>>>>>>> 6cb6361... Rewrite integer division logic.
 }
 
 

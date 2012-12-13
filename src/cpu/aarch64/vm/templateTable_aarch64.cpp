@@ -1146,18 +1146,29 @@ void TemplateTable::lop2(Operation op)
 void TemplateTable::idiv()
 {
   transition(itos, itos);
-  __ mov(r1, r0);
-  __ pop_i(r0);
-  // r0 <== r0 idiv r1, r1 <== r0 irem r1
-  __ corrected_idivl(r0, r1);
+  // explicitly check for div0
+  Label no_div0;
+  __ cbnzw(r0, no_div0);
+  __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
+  __ br(rscratch1);
+  __ bind(no_div0);
+  __ pop_i(r1);
+  // r0 <== r1 idiv r0
+  __ corrected_idivl(r0, r1, r0, /* want_remainder */ false);
 }
 
 void TemplateTable::irem()
 {
   transition(itos, itos);
+  // explicitly check for div0
+  Label no_div0;
+  __ cbnzw(r0, no_div0);
+  __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
+  __ br(rscratch1);
+  __ bind(no_div0);
   __ pop_i(r1);
-  // r1 <== r1 idiv r0, r0 <== r1 irem r0
-  __ corrected_idivl(r1, r0);
+  // r0 <== r1 irem r0
+  __ corrected_idivl(r0, r1, r0, /* want_remainder */ true);
 }
 
 void TemplateTable::lmul()
@@ -1176,25 +1187,23 @@ void TemplateTable::ldiv()
   __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
   __ br(rscratch1);
   __ bind(no_div0);
-  __ mov(r1, r0);
-  __ pop_l(r0);
-  // r0 <== r1 idiv r0, r1 <== r1 irem r0
-  __ corrected_idivq(r0, r1);
+  __ pop_l(r1);
+  // r0 <== r1 ldiv r0
+  __ corrected_idivq(r0, r1, r0, /* want_remainder */ false);
 }
 
 void TemplateTable::lrem()
 {
   transition(ltos, ltos);
   // explicitly check for div0
-  __ ands(r0, r0, r0);
   Label no_div0;
-  __ br(Assembler::NE, no_div0);
+  __ cbnz(r0, no_div0);
   __ mov(rscratch1, Interpreter::_throw_ArithmeticException_entry);
   __ br(rscratch1);
-  __ bind(no_div0);  
+  __ bind(no_div0);
   __ pop_l(r1);
-  // r1 <== r1 idiv r0, r0 <== r1 irem r0
-  __ corrected_idivq(r1, r0);
+  // r0 <== r1 lrem r0
+  __ corrected_idivq(r0, r1, r0, /* want_remainder */ true);
 }
 
 void TemplateTable::lshl()
