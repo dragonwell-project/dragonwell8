@@ -244,7 +244,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   switch (type) {
   case T_BOOLEAN: __ uxtb(r0, r0);        break;
   case T_CHAR   : __ uxth(r0, r0);       break;
-  case T_BYTE   : __ uxtb(r0, r0);        break;
+  case T_BYTE   : __ sxtb(r0, r0);        break;
   case T_SHORT  : __ sxth(r0, r0);        break;
   case T_INT    : __ uxtw(r0, r0);        break;  // FIXME: We almost certainly don't need this
   case T_LONG   : /* nothing to do */        break;
