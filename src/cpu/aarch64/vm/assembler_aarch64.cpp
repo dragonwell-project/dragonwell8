@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007ffff40c6840;
+const unsigned long Assembler::asm_bp = 0x00007fffee0800c4;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"

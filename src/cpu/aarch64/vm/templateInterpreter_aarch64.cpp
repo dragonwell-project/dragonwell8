@@ -172,8 +172,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   address entry = __ pc();
 
   // Restore stack bottom in case i2c adjusted stack
-  __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ mov(esp, rscratch1);
+  __ ldr(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   // and NULL it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ restore_bcp();
@@ -1343,6 +1342,15 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
              CAST_FROM_FN_PTR(address,
                           InterpreterRuntime::exception_handler_for_exception),
              c_rarg1);
+
+  // For what we are about to push, make room.
+  __ sub(rscratch1, esp, wordSize);
+  __ cmp(sp, rscratch1);
+  Label enough_room;
+  __ br(Assembler::HS, enough_room);
+  __ andr(sp, rscratch1, -16);
+  __ bind(enough_room);
+
   // r0: exception handler entry point
   // r3: preserved exception oop
   // rbcp: bcp for exception handler
