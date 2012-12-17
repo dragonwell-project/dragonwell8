@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,23 +21,29 @@
  * questions.
  */
 
-package sun.awt;
-
-/**
- * A GraphicsConfiguration implements the TextureSizeConstraining
- * interface to indicate that it imposes certain limitations on the
- * maximum size of supported textures.
+/*
+ * @test
+ * @bug 8003881
+ * @summary tests Lambda expression with a a security manager at top level
+ * @compile -XDignore.symbol.file LambdaAccessControlTest.java
+ *
+ * @run main/othervm LambdaAccessControlTest
  */
-public interface TextureSizeConstraining {
 
-    /**
-     * Returns the maximum width of any texture image.
-     */
-    public int getMaxTextureWidth();
-
-    /**
-     * Returns the maximum height of any texture image.
-     */
-    public int getMaxTextureHeight();
-
+public class LambdaAccessControlTest extends LUtils {
+    public static void main(String... args) {
+        System.setSecurityManager(new SecurityManager());
+        JJ<Integer> iii = (new CC())::impl;
+        System.out.printf(">>> %s\n", iii.foo(44));
+        iii = DD::impl;
+        System.out.printf(">>> %s\n", iii.foo(44));
+        return;
+    }
 }
+/*
+ * support classes for the test
+ */
+interface II<T> {  Object foo(T x); }
+interface JJ<R extends Number> extends II<R> { }
+class CC {  String impl(int i) { return "impl:"+i; }}
+class DD {  static String impl(int i) { return "impl:"+i; }}
