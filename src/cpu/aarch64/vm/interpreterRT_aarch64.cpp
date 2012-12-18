@@ -273,8 +273,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprin
   __ str(r0, Address(rmethod, methodOopDesc::call_format_offset()));
 
   // return result handler
-  __ mov(r0, Interpreter::result_handler(method()->result_type()));
-
+  __ lea(r0, ExternalAddress(Interpreter::result_handler(method()->result_type())));
   __ ret(lr);
 
   __ flush();

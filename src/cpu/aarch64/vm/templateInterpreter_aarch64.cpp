@@ -335,7 +335,7 @@ void InterpreterGenerator::generate_stack_overflow_check(void) {
   // then we need to verify there is enough stack space remaining
   // for the additional locals.
   __ cmp(r3, (page_size - overhead_size) / Interpreter::stackElementSize);
-  // __ br(Assembler::LS, after_frame_check);
+  __ br(Assembler::LS, after_frame_check);
 
   // compute rsp as if this were going to be the last frame on
   // the stack before the red zone
@@ -596,11 +596,9 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // save sp
   __ mov(rscratch1, sp);
-  __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
 
   // add 2 zero-initialized slots for native calls
   // initialize result_handler slot
-  // slot for oop temp
   // (static native method holder mirror/jni oop result)
   __ stp(zr, zr, Address(__ pre(sp, -2 * wordSize)));
 
@@ -609,7 +607,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   }
 
   // initialize fixed part of activation frame
-  generate_fixed_frame(true, sp);
+  generate_fixed_frame(true, rscratch1);
 
   // make sure method is native & not abstract
 #ifdef ASSERT
@@ -875,7 +873,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   {
     Label no_oop, store_result;
-    __ mov(t, (AbstractInterpreter::result_handler(T_OBJECT)));
+    __ adr(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT)));
     __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_result_handler_offset*wordSize));
     __ cmp(t, rscratch1);
     __ br(Assembler::NE, no_oop);

@@ -36,20 +36,32 @@
 // ------------------------------ Asm interpreter ----------------------------------------
 // Layout of asm interpreter frame:
 //    [expression stack      ] * <- sp
+
 //    [monitors              ]   \
 //     ...                        | monitor block size
 //    [monitors              ]   /
+
 //    [monitor block size    ]
 //    [byte code index/pointr]                   = bcx()                bcx_offset
+
 //    [pointer to locals     ]                   = locals()             locals_offset
 //    [constant pool cache   ]                   = cache()              cache_offset
+
 //    [methodData            ]                   = mdp()                mdx_offset
 //    [methodOop             ]                   = method()             method_offset
-//    [last sp               ]                   = last_sp()            last_sp_offset
+
+//    [last esp              ]                   = last_sp()            last_sp_offset
 //    [old stack pointer     ]                     (sender_sp)          sender_sp_offset
+
 //    [old frame pointer     ]   <- fp           = link()
 //    [return pc             ]
+
+//    [last sp               ]
 //    [oop temp              ]                     (only for native calls)
+
+//    [result handler        ]                     (only for native calls)
+//    [unused                ]                     (only for native calls)
+//
 //    [locals and parameters ]
 //                               <- sender sp
 // ------------------------------ Asm interpreter ----------------------------------------

@@ -660,7 +660,8 @@ public:
   }									\
   void NAME(Register Rd, Label &L) {					\
     wrap_label(Rd, L, &Assembler::NAME);				\
-  }
+  }									\
+  void NAME(Register Rd, const Address &dest);
 
   INSN(adr, 0, 0);
   INSN(adrp, 1, 12);

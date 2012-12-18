@@ -35,7 +35,7 @@
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee0800c4;
+const unsigned long Assembler::asm_bp = 0x00007fffee154490;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -1500,6 +1500,12 @@ void Assembler::b(const Address &dest) {
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   b(dest.target());
+}
+
+void Assembler::adr(Register r, const Address &dest) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  adr(r, dest.target());
 }
 
 void Assembler::br(Condition cc, Label &L) {
