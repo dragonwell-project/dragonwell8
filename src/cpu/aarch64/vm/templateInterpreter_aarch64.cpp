@@ -597,11 +597,6 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // save sp
   __ mov(rscratch1, sp);
 
-  // add 2 zero-initialized slots for native calls
-  // initialize result_handler slot
-  // (static native method holder mirror/jni oop result)
-  __ stp(zr, zr, Address(__ pre(sp, -2 * wordSize)));
-
   if (inc_counter) {
     __ prfm(invocation_counter);  // (pre-)fetch invocation count
   }
@@ -691,6 +686,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // work registers
   const Register t = r17;
+  const Register result_handler = r19;
 
   // allocate space for parameters
   __ verify_oop(rmethod);
@@ -732,10 +728,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
 
   // result handler is in r0
-  // call format is in rscratch1
   // set result handler
+<<<<<<< HEAD
   __ ldr(r0, Address(rfp,
 		     (frame::interpreter_frame_result_handler_offset) * wordSize));
+=======
+  __ mov(result_handler, r0);
+>>>>>>> c7f03c5... Get rid of result handler slot in stack frame
   // pass mirror handle if static call
   {
     Label L;
@@ -874,8 +873,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   {
     Label no_oop, store_result;
     __ adr(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT)));
-    __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_result_handler_offset*wordSize));
-    __ cmp(t, rscratch1);
+    __ cmp(t, result_handler);
     __ br(Assembler::NE, no_oop);
     // retrieve result
     __ pop(ltos);
@@ -979,9 +977,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ pop(ltos);
   __ pop(dtos);
 
+<<<<<<< HEAD
   __ ldr(t, Address(rfp,
 		    (frame::interpreter_frame_result_handler_offset) * wordSize));
   __ br(t);
+=======
+  __ blr(result_handler);
+>>>>>>> c7f03c5... Get rid of result handler slot in stack frame
 
   // remove activation
   __ ldr(esp, Address(rfp,

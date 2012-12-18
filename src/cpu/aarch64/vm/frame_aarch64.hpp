@@ -59,9 +59,6 @@
 //    [last sp               ]
 //    [oop temp              ]                     (only for native calls)
 
-//    [result handler        ]                     (only for native calls)
-//    [unused                ]                     (only for native calls)
-//
 //    [locals and parameters ]
 //                               <- sender sp
 // ------------------------------ Asm interpreter ----------------------------------------
@@ -115,7 +112,6 @@
 #ifndef CC_INTERP
 
     // Interpreter frames
-    interpreter_frame_result_handler_offset          =  4, // for native calls only
     interpreter_frame_oop_temp_offset                =  3, // for native calls only
 
     interpreter_frame_sender_sp_offset               = -1,
