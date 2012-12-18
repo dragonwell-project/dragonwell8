@@ -596,6 +596,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // save sp
   __ mov(rscratch1, sp);
+  __ andr(sp, esp, -16);
 
   if (inc_counter) {
     __ prfm(invocation_counter);  // (pre-)fetch invocation count
@@ -1324,10 +1325,12 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_bcp();    // rbcp points to call/send
   __ restore_locals();
   __ restore_constant_pool_cache();
-  __ get_method(rmethod);
   __ reinit_heapbase();  // restore rheapbase as heapbase.
   // Entry point for exceptions thrown within interpreter code
   Interpreter::_throw_exception_entry = __ pc();
+  // If we came here via a NullPointerException on the receiver of a
+  // method, rmethod may be corrupt.
+  __ get_method(rmethod);
   // expression stack is undefined here
   // r0: exception
   // rbcp: exception bcp
