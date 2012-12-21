@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import static jdk.nashorn.internal.codegen.CompilerConstants.staticCallNoLookup;
 
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.nashorn.internal.codegen.CompilerConstants;
-import jdk.nashorn.internal.codegen.ObjectClassGenerator;
+import jdk.nashorn.internal.codegen.objects.ObjectClassGenerator;
 import jdk.nashorn.internal.runtime.JSType;
 
 class NumberType extends NumericType {
@@ -86,6 +86,12 @@ class NumberType extends NumericType {
     public Type loadUndefined(final MethodVisitor method) {
         method.visitLdcInsn(ObjectClassGenerator.UNDEFINED_DOUBLE);
         return NUMBER;
+    }
+
+    @Override
+    public Type loadEmpty(final MethodVisitor method) {
+        assert false : "unsupported operation";
+        return null;
     }
 
     @Override

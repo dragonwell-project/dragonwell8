@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,11 +47,6 @@ final class DeletedRangeArrayFilter extends ArrayFilter {
 
     private boolean isDeleted(final int index) {
         return lo <= index && index <= hi;
-    }
-
-    @Override
-    public ArrayData copy() {
-        return new DeletedRangeArrayFilter(underlying.copy(), lo, hi);
     }
 
     @Override
@@ -196,15 +191,17 @@ final class DeletedRangeArrayFilter extends ArrayFilter {
 
     private ArrayData getDeletedArrayFilter() {
         final ArrayData deleteFilter = new DeletedArrayFilter(getUnderlying());
-        deleteFilter.delete(lo, hi);
+
+        for (long i = lo; i <= hi; i++) {
+            deleteFilter.delete((int) i);
+        }
+
         return deleteFilter;
     }
 
     @Override
     public ArrayData delete(final int index) {
         final long longIndex = ArrayIndex.toLongIndex(index);
-        underlying.setEmpty(index);
-
         if (longIndex + 1 == lo) {
             lo = longIndex;
         } else if (longIndex - 1 == hi) {
@@ -223,7 +220,6 @@ final class DeletedRangeArrayFilter extends ArrayFilter {
         }
         lo = Math.min(fromIndex, lo);
         hi = Math.max(toIndex, hi);
-        underlying.setEmpty(lo, hi);
         return this;
     }
 

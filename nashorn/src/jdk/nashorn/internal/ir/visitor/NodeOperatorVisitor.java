@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,32 +25,42 @@
 
 package jdk.nashorn.internal.ir.visitor;
 
+import jdk.nashorn.internal.codegen.CompileUnit;
+import jdk.nashorn.internal.codegen.MethodEmitter;
 import jdk.nashorn.internal.ir.BinaryNode;
-import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.UnaryNode;
 
 /**
  * Like NodeVisitor but navigating further into operators.
- * @param <T> Lexical context class for this NodeOperatorVisitor
  */
-public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T> {
+public class NodeOperatorVisitor extends NodeVisitor {
+    /**
+     * Constructor
+     */
+    public NodeOperatorVisitor() {
+        super();
+    }
+
     /**
      * Constructor
      *
-     * @param lc a custom lexical context
+     * @param compileUnit compile unit
+     * @param method      method emitter
      */
-    public NodeOperatorVisitor(final T lc) {
-        super(lc);
+    public NodeOperatorVisitor(final CompileUnit compileUnit, final MethodEmitter method) {
+        super(compileUnit, method);
     }
 
     @Override
-    public final boolean enterUnaryNode(final UnaryNode unaryNode) {
+    public final Node enter(final UnaryNode unaryNode) {
         switch (unaryNode.tokenType()) {
         case ADD:
             return enterADD(unaryNode);
         case BIT_NOT:
             return enterBIT_NOT(unaryNode);
+        case CONVERT:
+            return enterCONVERT(unaryNode);
         case DELETE:
             return enterDELETE(unaryNode);
         case DISCARD:
@@ -71,17 +81,19 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
         case INCPOSTFIX:
             return enterDECINC(unaryNode);
         default:
-            return super.enterUnaryNode(unaryNode);
+            return super.enter(unaryNode);
         }
     }
 
     @Override
-    public final Node leaveUnaryNode(final UnaryNode unaryNode) {
+    public final Node leave(final UnaryNode unaryNode) {
         switch (unaryNode.tokenType()) {
         case ADD:
             return leaveADD(unaryNode);
         case BIT_NOT:
             return leaveBIT_NOT(unaryNode);
+        case CONVERT:
+            return leaveCONVERT(unaryNode);
         case DELETE:
             return leaveDELETE(unaryNode);
         case DISCARD:
@@ -102,12 +114,12 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
         case INCPOSTFIX:
             return leaveDECINC(unaryNode);
         default:
-            return super.leaveUnaryNode(unaryNode);
+            return super.leave(unaryNode);
         }
     }
 
     @Override
-    public final boolean enterBinaryNode(final BinaryNode binaryNode) {
+    public final Node enter(final BinaryNode binaryNode) {
         switch (binaryNode.tokenType()) {
         case ADD:
             return enterADD(binaryNode);
@@ -139,7 +151,7 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
             return enterASSIGN_SUB(binaryNode);
         case BIND:
             return enterBIND(binaryNode);
-        case BIT_AND:
+         case BIT_AND:
             return enterBIT_AND(binaryNode);
         case BIT_OR:
             return enterBIT_OR(binaryNode);
@@ -186,12 +198,12 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
         case SUB:
             return enterSUB(binaryNode);
         default:
-            return super.enterBinaryNode(binaryNode);
+            return super.enter(binaryNode);
         }
     }
 
     @Override
-    public final Node leaveBinaryNode(final BinaryNode binaryNode) {
+    public final Node leave(final BinaryNode binaryNode) {
         switch (binaryNode.tokenType()) {
         case ADD:
             return leaveADD(binaryNode);
@@ -270,9 +282,20 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
         case SUB:
             return leaveSUB(binaryNode);
         default:
-            return super.leaveBinaryNode(binaryNode);
+            return super.leave(binaryNode);
         }
     }
+
+    /*
+    @Override
+    public Node enter(final TernaryNode ternaryNode) {
+        return enterDefault(ternaryNode);
+    }
+
+    @Override
+    public Node leave(final TernaryNode ternaryNode) {
+        return leaveDefault(ternaryNode);
+    }*/
 
     /*
      * Unary entries and exists.
@@ -282,9 +305,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a unary +
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterADD(final UnaryNode unaryNode) {
+    public Node enterADD(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -302,9 +325,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a ~ operator
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterBIT_NOT(final UnaryNode unaryNode) {
+    public Node enterBIT_NOT(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -319,12 +342,32 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
+     * Unary enter - callback for entering a conversion
+     *
+     * @param  unaryNode the node
+     * @return processed node
+     */
+    public Node enterCONVERT(final UnaryNode unaryNode) {
+        return enterDefault(unaryNode);
+    }
+
+    /**
+     * Unary leave - callback for leaving a conversion
+     *
+     * @param  unaryNode the node
+     * @return processed node, which will replace the original one, or the original node
+     */
+    public Node leaveCONVERT(final UnaryNode unaryNode) {
+        return leaveDefault(unaryNode);
+    }
+
+    /**
      * Unary enter - callback for entering a ++ or -- operator
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterDECINC(final UnaryNode unaryNode) {
+    public Node enterDECINC(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -344,7 +387,7 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * @param  unaryNode the node
      * @return processed node
      */
-    public boolean enterDELETE(final UnaryNode unaryNode) {
+    public Node enterDELETE(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -362,9 +405,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a discard operator
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterDISCARD(final UnaryNode unaryNode) {
+    public Node enterDISCARD(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -382,9 +425,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a new operator
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterNEW(final UnaryNode unaryNode) {
+    public Node enterNEW(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -402,9 +445,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a ! operator
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterNOT(final UnaryNode unaryNode) {
+    public Node enterNOT(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -422,9 +465,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a unary -
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterSUB(final UnaryNode unaryNode) {
+    public Node enterSUB(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -442,9 +485,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a typeof
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterTYPEOF(final UnaryNode unaryNode) {
+    public Node enterTYPEOF(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -462,9 +505,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Unary enter - callback for entering a void
      *
      * @param  unaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterVOID(final UnaryNode unaryNode) {
+    public Node enterVOID(final UnaryNode unaryNode) {
         return enterDefault(unaryNode);
     }
 
@@ -482,9 +525,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering + operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterADD(final BinaryNode binaryNode) {
+    public Node enterADD(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -499,17 +542,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal &&} operator
+     * Binary enter - callback for entering && operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterAND(final BinaryNode binaryNode) {
+    public Node enterAND(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal &&} operator
+     * Binary leave - callback for leaving a && operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -522,9 +565,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering an assignment
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN(final BinaryNode binaryNode) {
+    public Node enterASSIGN(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -542,9 +585,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering += operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_ADD(final BinaryNode binaryNode) {
+    public Node enterASSIGN_ADD(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -559,17 +602,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal &=} operator
+     * Binary enter - callback for entering &= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_BIT_AND(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_AND(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal &=} operator
+     * Binary leave - callback for leaving a &= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -582,9 +625,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering |= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_BIT_OR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_OR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -602,9 +645,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering ^= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_BIT_XOR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_XOR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -622,9 +665,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering /= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_DIV(final BinaryNode binaryNode) {
+    public Node enterASSIGN_DIV(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -642,9 +685,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering %= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_MOD(final BinaryNode binaryNode) {
+    public Node enterASSIGN_MOD(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -662,9 +705,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering *= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_MUL(final BinaryNode binaryNode) {
+    public Node enterASSIGN_MUL(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -679,17 +722,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal >>=} operator
+     * Binary enter - callback for entering >>= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_SAR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SAR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal >>=} operator
+     * Binary leave - callback for leaving a >>= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -699,17 +742,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering a {@literal <<=} operator
+     * Binary enter - callback for entering a <<= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_SHL(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SHL(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal <<=} operator
+     * Binary leave - callback for leaving a <<= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -719,17 +762,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal >>>=} operator
+     * Binary enter - callback for entering >>>= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_SHR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SHR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal >>>=} operator
+     * Binary leave - callback for leaving a >>>= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -742,9 +785,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering -= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterASSIGN_SUB(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SUB(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -762,9 +805,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering a bind operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterBIND(final BinaryNode binaryNode) {
+    public Node enterBIND(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -779,17 +822,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal &} operator
+     * Binary enter - callback for entering & operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterBIT_AND(final BinaryNode binaryNode) {
+    public Node enterBIT_AND(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving a {@literal &} operator
+     * Binary leave - callback for leaving a & operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -802,9 +845,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering | operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterBIT_OR(final BinaryNode binaryNode) {
+    public Node enterBIT_OR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -822,9 +865,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering ^ operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterBIT_XOR(final BinaryNode binaryNode) {
+    public Node enterBIT_XOR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -843,9 +886,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * (a, b) where the result is a
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterCOMMALEFT(final BinaryNode binaryNode) {
+    public Node enterCOMMALEFT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -865,9 +908,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * (a, b) where the result is b
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterCOMMARIGHT(final BinaryNode binaryNode) {
+    public Node enterCOMMARIGHT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -886,9 +929,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering a division
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterDIV(final BinaryNode binaryNode) {
+    public Node enterDIV(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -906,9 +949,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering == operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterEQ(final BinaryNode binaryNode) {
+    public Node enterEQ(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -926,9 +969,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering === operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterEQ_STRICT(final BinaryNode binaryNode) {
+    public Node enterEQ_STRICT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -943,17 +986,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal >=} operator
+     * Binary enter - callback for entering >= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterGE(final BinaryNode binaryNode) {
+    public Node enterGE(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal >=} operator
+     * Binary leave - callback for leaving >= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -963,17 +1006,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal >} operator
+     * Binary enter - callback for entering > operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterGT(final BinaryNode binaryNode) {
+    public Node enterGT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal >} operator
+     * Binary leave - callback for leaving > operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -986,9 +1029,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering in operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterIN(final BinaryNode binaryNode) {
+    public Node enterIN(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1006,9 +1049,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering instanceof operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterINSTANCEOF(final BinaryNode binaryNode) {
+    public Node enterINSTANCEOF(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1023,17 +1066,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal <=} operator
+     * Binary enter - callback for entering <= operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterLE(final BinaryNode binaryNode) {
+    public Node enterLE(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal <=} operator
+     * Binary leave - callback for leaving <= operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -1043,17 +1086,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal <} operator
+     * Binary enter - callback for entering < operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterLT(final BinaryNode binaryNode) {
+    public Node enterLT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal <} operator
+     * Binary leave - callback for leaving < operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -1065,9 +1108,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering % operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterMOD(final BinaryNode binaryNode) {
+    public Node enterMOD(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1085,9 +1128,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering * operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterMUL(final BinaryNode binaryNode) {
+    public Node enterMUL(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1105,9 +1148,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering != operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterNE(final BinaryNode binaryNode) {
+    public Node enterNE(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1125,9 +1168,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering a !== operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterNE_STRICT(final BinaryNode binaryNode) {
+    public Node enterNE_STRICT(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1145,9 +1188,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering || operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterOR(final BinaryNode binaryNode) {
+    public Node enterOR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1162,17 +1205,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal >>} operator
+     * Binary enter - callback for entering >> operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterSAR(final BinaryNode binaryNode) {
+    public Node enterSAR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal >>} operator
+     * Binary leave - callback for leaving >> operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -1182,17 +1225,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     }
 
     /**
-     * Binary enter - callback for entering {@literal <<} operator
+     * Binary enter - callback for entering << operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterSHL(final BinaryNode binaryNode) {
+    public Node enterSHL(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal <<} operator
+     * Binary leave - callback for leaving << operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -1201,17 +1244,17 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
         return leaveDefault(binaryNode);
     }
     /**
-     * Binary enter - callback for entering {@literal >>>} operator
+     * Binary enter - callback for entering >>> operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterSHR(final BinaryNode binaryNode) {
+    public Node enterSHR(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
     /**
-     * Binary leave - callback for leaving {@literal >>>} operator
+     * Binary leave - callback for leaving >>> operator
      *
      * @param  binaryNode the node
      * @return processed node, which will replace the original one, or the original node
@@ -1224,9 +1267,9 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
      * Binary enter - callback for entering - operator
      *
      * @param  binaryNode the node
-     * @return true if traversal should continue and node children be traversed, false otherwise
+     * @return processed node
      */
-    public boolean enterSUB(final BinaryNode binaryNode) {
+    public Node enterSUB(final BinaryNode binaryNode) {
         return enterDefault(binaryNode);
     }
 
@@ -1239,4 +1282,6 @@ public class NodeOperatorVisitor<T extends LexicalContext> extends NodeVisitor<T
     public Node leaveSUB(final BinaryNode binaryNode) {
         return leaveDefault(binaryNode);
     }
+
+
 }

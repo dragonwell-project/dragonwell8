@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,50 +26,48 @@
 package jdk.nashorn.internal.ir;
 
 import static jdk.nashorn.internal.parser.TokenType.BIT_NOT;
+import static jdk.nashorn.internal.parser.TokenType.CONVERT;
 import static jdk.nashorn.internal.parser.TokenType.DECPOSTFIX;
 import static jdk.nashorn.internal.parser.TokenType.INCPOSTFIX;
 
 import jdk.nashorn.internal.codegen.types.Type;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.parser.Token;
 import jdk.nashorn.internal.parser.TokenType;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * UnaryNode nodes represent single operand operations.
  */
-@Immutable
-public final class UnaryNode extends Expression implements Assignment<Expression> {
+public class UnaryNode extends Node implements Assignment<Node> {
     /** Right hand side argument. */
-    private final Expression rhs;
+    protected Node rhs;
 
     /**
      * Constructor
      *
+     * @param source the source
      * @param token  token
      * @param rhs    expression
      */
-    public UnaryNode(final long token, final Expression rhs) {
-        this(token, Math.min(rhs.getStart(), Token.descPosition(token)), Math.max(Token.descPosition(token) + Token.descLength(token), rhs.getFinish()), rhs);
+    public UnaryNode(final Source source, final long token, final Node rhs) {
+        super(source, token, Token.descPosition(token));
+
+        this.start  = Math.min(rhs.getStart(), Token.descPosition(token));
+        this.finish = Math.max(Token.descPosition(token) + Token.descLength(token), rhs.getFinish());
+        this.rhs    = rhs;
     }
 
     /**
-     * Constructor
+     * Copy constructor
      *
-     * @param token  token
-     * @param start  start
-     * @param finish finish
-     * @param rhs    expression
+     * @param unaryNode source node
+     * @param cs        copy state
      */
-    public UnaryNode(final long token, final int start, final int finish, final Expression rhs) {
-        super(token, start, finish);
-        this.rhs = rhs;
-    }
-
-
-    private UnaryNode(final UnaryNode unaryNode, final Expression rhs) {
+    protected UnaryNode(final UnaryNode unaryNode, final CopyState cs) {
         super(unaryNode);
-        this.rhs = rhs;
+
+        rhs = cs.existingOrCopy(unaryNode.rhs);
     }
 
     /**
@@ -101,18 +99,41 @@ public final class UnaryNode extends Expression implements Assignment<Expression
     }
 
     @Override
-    public Expression getAssignmentDest() {
+    public Node getAssignmentDest() {
         return isAssignment() ? rhs() : null;
     }
 
     @Override
-    public UnaryNode setAssignmentDest(Expression n) {
-        return setRHS(n);
+    public Node getAssignmentSource() {
+        return getAssignmentDest();
     }
 
     @Override
-    public Expression getAssignmentSource() {
-        return getAssignmentDest();
+    public void setAssignmentSource(final Node source) {
+        setAssignmentDest(source);
+    }
+
+    @Override
+    public void setAssignmentDest(final Node source) {
+        setRHS(source);
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        if (!super.equals(other)) {
+            return false;
+        }
+        return rhs.equals(((UnaryNode)other).rhs());
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() ^ rhs().hashCode();
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new UnaryNode(this, cs);
     }
 
     /**
@@ -120,59 +141,33 @@ public final class UnaryNode extends Expression implements Assignment<Expression
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterUnaryNode(this)) {
-            return visitor.leaveUnaryNode(setRHS((Expression)rhs.accept(visitor)));
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            rhs = rhs.accept(visitor);
+            return visitor.leave(this);
         }
 
         return this;
     }
 
     @Override
-    public boolean isLocal() {
-        switch (tokenType()) {
-            case NEW:
-                return false;
-            case ADD:
-            case SUB:
-            case NOT:
-            case BIT_NOT:
-                return rhs.isLocal() && rhs.getType().isJSPrimitive();
-            case DECPOSTFIX:
-            case DECPREFIX:
-            case INCPOSTFIX:
-            case INCPREFIX:
-                return rhs instanceof IdentNode && rhs.isLocal() && rhs.getType().isJSPrimitive();
-            default:
-                return rhs.isLocal();
-        }
-    }
-
-    @Override
     public void toString(final StringBuilder sb) {
-        toString(sb, new Runnable() {
-            @Override
-            public void run() {
-                sb.append(rhs().toString());
-            }
-        });
-    }
-
-    /**
-     * Creates the string representation of this unary node, delegating the creation of the string representation of its
-     * operand to a specified runnable.
-     * @param sb the string builder to use
-     * @param rhsStringBuilder the runnable that appends the string representation of the operand to the string builder
-     * when invoked.
-     */
-    public void toString(final StringBuilder sb, final Runnable rhsStringBuilder) {
         final TokenType type      = tokenType();
         final String    name      = type.getName();
         final boolean   isPostfix = type == DECPOSTFIX || type == INCPOSTFIX;
+        final boolean   isConvert = type == CONVERT && getSymbol() != null;
 
         boolean rhsParen   = type.needsParens(rhs().tokenType(), false);
+        int     convertPos = 0;
 
-        if (!isPostfix) {
+        if (isConvert) {
+            convertPos = sb.length();
+            sb.append("((");
+            sb.append(getType());
+            sb.append(")");
+        }
+
+        if (!isPostfix && !isConvert) {
             if (name == null) {
                 sb.append(type.name());
                 rhsParen = true;
@@ -188,7 +183,7 @@ public final class UnaryNode extends Expression implements Assignment<Expression
         if (rhsParen) {
             sb.append('(');
         }
-        rhsStringBuilder.run();
+        rhs().toString(sb);
         if (rhsParen) {
             sb.append(')');
         }
@@ -196,6 +191,18 @@ public final class UnaryNode extends Expression implements Assignment<Expression
         if (isPostfix) {
             sb.append(type == DECPOSTFIX ? "--" : "++");
         }
+
+        if (isConvert) {
+            // strip extra cast parenthesis which makes the printout harder to read
+            final boolean endsWithParenthesis = sb.charAt(sb.length() - 1) == ')';
+            if (!endsWithParenthesis) {
+                sb.append(')');
+            } else {
+                sb.setCharAt(convertPos, ' ');
+            }
+        }
+
+        //TODO - conversions still have too many parenthesis - makes --print-lower-parse hard to read
     }
 
     /**
@@ -206,7 +213,7 @@ public final class UnaryNode extends Expression implements Assignment<Expression
      *
      * @return right hand side or expression node
      */
-    public Expression rhs() {
+    public Node rhs() {
         return rhs;
     }
 
@@ -217,12 +224,10 @@ public final class UnaryNode extends Expression implements Assignment<Expression
      * @see BinaryNode
      *
      * @param rhs right hand side or expression node
-     * @return a node equivalent to this one except for the requested change.
      */
-    public UnaryNode setRHS(final Expression rhs) {
-        if (this.rhs == rhs) {
-            return this;
-        }
-        return new UnaryNode(this, rhs);
+    public void setRHS(final Node rhs) {
+        this.rhs = rhs;
     }
+
+
 }

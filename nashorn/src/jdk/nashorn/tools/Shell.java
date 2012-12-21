@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,20 +34,15 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.internal.codegen.Compiler;
-import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.debug.ASTWriter;
-import jdk.nashorn.internal.ir.debug.PrintVisitor;
-import jdk.nashorn.internal.parser.Parser;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ErrorManager;
-import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.Property;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
@@ -66,7 +61,18 @@ public class Shell {
     /**
      * Shell message bundle.
      */
-    private static final ResourceBundle bundle = ResourceBundle.getBundle(MESSAGE_RESOURCE, Locale.getDefault());
+    private static ResourceBundle bundle;
+
+    static {
+        // Without do privileged, under security manager messages can not be
+        // loaded.
+        bundle = AccessController.doPrivileged(new PrivilegedAction<ResourceBundle>() {
+            @Override
+            public ResourceBundle run() {
+                return ResourceBundle.getBundle(MESSAGE_RESOURCE, Locale.getDefault());
+            }
+        });
+    }
 
     /**
      * Exit code for command line tool - successful
@@ -108,7 +114,7 @@ public class Shell {
         try {
             System.exit(main(System.in, System.out, System.err, args));
         } catch (final IOException e) {
-            System.err.println(e); //bootstrapping, Context.err may not exist
+            System.err.println(e);
             System.exit(IO_ERROR);
         }
     }
@@ -142,28 +148,23 @@ public class Shell {
      *
      * @throws IOException if there's a problem setting up the streams
      */
-    protected final int run(final InputStream in, final OutputStream out, final OutputStream err, final String[] args) throws IOException {
+    protected int run(final InputStream in, final OutputStream out, final OutputStream err, final String[] args) throws IOException {
         final Context context = makeContext(in, out, err, args);
         if (context == null) {
             return COMMANDLINE_ERROR;
         }
 
         final ScriptObject global = context.createGlobal();
-        final ScriptEnvironment env = context.getEnv();
-        final List<String> files = env.getFiles();
+        final List<String> files = context.getOptions().getFiles();
         if (files.isEmpty()) {
-            return readEvalPrint(context, global);
+            return readEvalPrint(global);
         }
 
-        if (env._compile_only) {
-            return compileScripts(context, global, files);
+        if (context._compile_only) {
+            return compileScripts(global, files);
         }
 
-        if (env._fx) {
-            return runFXScripts(context, global, files);
-        }
-
-        return runScripts(context, global, files);
+        return runScripts(global, files);
     }
 
     /**
@@ -177,7 +178,7 @@ public class Shell {
      * @return null if there are problems with option parsing.
      */
     @SuppressWarnings("resource")
-    private static Context makeContext(final InputStream in, final OutputStream out, final OutputStream err, final String[] args) {
+    protected Context makeContext(final InputStream in, final OutputStream out, final OutputStream err, final String[] args) {
         final PrintStream pout = out instanceof PrintStream ? (PrintStream) out : new PrintStream(out);
         final PrintStream perr = err instanceof PrintStream ? (PrintStream) err : new PrintStream(err);
         final PrintWriter wout = new PrintWriter(pout, true);
@@ -189,14 +190,12 @@ public class Shell {
         final Options options = new Options("nashorn", werr);
 
         // parse options
-        if (args != null) {
-            try {
-                options.process(args);
-            } catch (final IllegalArgumentException e) {
-                werr.println(bundle.getString("shell.usage"));
-                options.displayHelp(e);
-                return null;
-            }
+        try {
+            options.process(args);
+        } catch (final IllegalArgumentException e) {
+            werr.println(bundle.getString("shell.usage"));
+            options.displayHelp(e);
+            return null;
         }
 
         // detect scripting mode by any source's first character being '#'
@@ -218,103 +217,36 @@ public class Shell {
             }
         }
 
-        return new Context(options, errors, wout, werr, Thread.currentThread().getContextClassLoader());
+        return new Context(options, errors, wout, werr);
     }
 
     /**
      * Compiles the given script files in the command line
      *
-     * @param context the nashorn context
      * @param global the global scope
      * @param files the list of script files to compile
      *
      * @return error code
      * @throws IOException when any script file read results in I/O error
      */
-    private static int compileScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
+    protected int compileScripts(final ScriptObject global, final List<String> files) throws IOException {
+        final Context context = global.getContext();
         final ScriptObject oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
-        final ScriptEnvironment env = context.getEnv();
         try {
             if (globalChanged) {
                 Context.setGlobal(global);
             }
-            final ErrorManager errors = context.getErrorManager();
+            final ErrorManager errors = context.getErrors();
 
             // For each file on the command line.
             for (final String fileName : files) {
-                final FunctionNode functionNode = new Parser(env, new Source(fileName, new File(fileName)), errors).parse();
-
+                final File file = new File(fileName);
+                final Source source = new Source(fileName, file);
+                final Compiler compiler = Compiler.compiler(source, context);
+                compiler.compile();
                 if (errors.getNumberOfErrors() != 0) {
                     return COMPILATION_ERROR;
-                }
-
-                if (env._print_ast) {
-                    context.getErr().println(new ASTWriter(functionNode));
-                }
-
-                if (env._print_parse) {
-                    context.getErr().println(new PrintVisitor(functionNode));
-                }
-
-                //null - pass no code installer - this is compile only
-                new Compiler(env).compile(functionNode);
-            }
-        } finally {
-            env.getOut().flush();
-            env.getErr().flush();
-            if (globalChanged) {
-                Context.setGlobal(oldGlobal);
-            }
-        }
-
-        return SUCCESS;
-    }
-
-    /**
-     * Runs the given JavaScript files in the command line
-     *
-     * @param context the nashorn context
-     * @param global the global scope
-     * @param files the list of script files to run
-     *
-     * @return error code
-     * @throws IOException when any script file read results in I/O error
-     */
-    private int runScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
-        final ScriptObject oldGlobal = Context.getGlobal();
-        final boolean globalChanged = (oldGlobal != global);
-        try {
-            if (globalChanged) {
-                Context.setGlobal(global);
-            }
-            final ErrorManager errors = context.getErrorManager();
-
-            // For each file on the command line.
-            for (final String fileName : files) {
-                if ("-".equals(fileName)) {
-                    final int res = readEvalPrint(context, global);
-                    if (res != SUCCESS) {
-                        return res;
-                    }
-                    continue;
-                }
-
-                final File file = new File(fileName);
-                final ScriptFunction script = context.compileScript(new Source(fileName, file.toURI().toURL()), global);
-                if (script == null || errors.getNumberOfErrors() != 0) {
-                    return COMPILATION_ERROR;
-                }
-
-                try {
-                    apply(script, global);
-                } catch (final NashornException e) {
-                    errors.error(e.toString());
-                    if (context.getEnv()._dump_on_error) {
-                        e.printStackTrace(context.getErr());
-                    }
-
-                    return RUNTIME_ERROR;
                 }
             }
         } finally {
@@ -329,34 +261,43 @@ public class Shell {
     }
 
     /**
-     * Runs launches "fx:bootstrap.js" with the given JavaScript files provided
-     * as arguments.
+     * Runs the given JavaScript files in the command line
      *
-     * @param context the nashorn context
      * @param global the global scope
-     * @param files the list of script files to provide
+     * @param files the list of script files to run
      *
      * @return error code
      * @throws IOException when any script file read results in I/O error
      */
-    private static int runFXScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
+    protected int runScripts(final ScriptObject global, final List<String> files) throws IOException {
+        final Context context = global.getContext();
         final ScriptObject oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
         try {
             if (globalChanged) {
                 Context.setGlobal(global);
             }
+            final ErrorManager errors = context.getErrors();
 
-            global.addOwnProperty("$GLOBAL", Property.NOT_ENUMERABLE, global);
-            global.addOwnProperty("$SCRIPTS", Property.NOT_ENUMERABLE, files);
-            context.load(global, "fx:bootstrap.js");
-        } catch (final NashornException e) {
-            context.getErrorManager().error(e.toString());
-            if (context.getEnv()._dump_on_error) {
-                e.printStackTrace(context.getErr());
+            // For each file on the command line.
+            for (final String fileName : files) {
+                final File file = new File(fileName);
+                ScriptFunction script = context.compileScript(fileName, file.toURI().toURL(), global, context._strict);
+                if (script == null || errors.getNumberOfErrors() != 0) {
+                    return COMPILATION_ERROR;
+                }
+
+                try {
+                    apply(script, global);
+                } catch (final NashornException e) {
+                    errors.error(e.toString());
+                    if (context._dump_on_error) {
+                        e.printStackTrace(context.getErr());
+                    }
+
+                    return RUNTIME_ERROR;
+                }
             }
-
-            return RUNTIME_ERROR;
         } finally {
             context.getOut().flush();
             context.getErr().flush();
@@ -384,18 +325,17 @@ public class Shell {
     /**
      * read-eval-print loop for Nashorn shell.
      *
-     * @param context the nashorn context
      * @param global  global scope object to use
      * @return return code
      */
     @SuppressWarnings("resource")
-    private static int readEvalPrint(final Context context, final ScriptObject global) {
+    protected int readEvalPrint(final ScriptObject global) {
+        final Context context = global.getContext();
         final String prompt = bundle.getString("shell.prompt");
         final BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         final PrintWriter err = context.getErr();
         final ScriptObject oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
-        final ScriptEnvironment env = context.getEnv();
 
         try {
             if (globalChanged) {
@@ -408,7 +348,7 @@ public class Shell {
                 context.eval(global, source.getString(), global, "<shell.js>", false);
             } catch (final Exception e) {
                 err.println(e);
-                if (env._dump_on_error) {
+                if (context._dump_on_error) {
                     e.printStackTrace(err);
                 }
 
@@ -430,23 +370,19 @@ public class Shell {
                     break;
                 }
 
-                if (source.isEmpty()) {
-                    continue;
-                }
-
                 Object res;
                 try {
-                    res = context.eval(global, source, global, "<shell>", env._strict);
+                    res = context.eval(global, source, global, "<shell>", context._strict);
                 } catch (final Exception e) {
                     err.println(e);
-                    if (env._dump_on_error) {
+                    if (context._dump_on_error) {
                         e.printStackTrace(err);
                     }
                     continue;
                 }
 
-                if (res != ScriptRuntime.UNDEFINED) {
-                    err.println(JSType.toString(res));
+                if (res != null && res != ScriptRuntime.UNDEFINED) {
+                    err.println(ScriptRuntime.safeToString(res));
                 }
             }
         } finally {

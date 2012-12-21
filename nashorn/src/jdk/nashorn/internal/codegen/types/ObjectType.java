@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,11 @@ class ObjectType extends Type {
     public Type load(final MethodVisitor method, final int slot) {
         assert slot != -1;
         method.visitVarInsn(ALOAD, slot);
+
+        if (slot == CompilerConstants.THIS.slot()) {
+            return Type.THIS;
+        }
+
         return Type.OBJECT;
     }
 
@@ -153,7 +158,8 @@ class ObjectType extends Type {
         } else if (to.isBoolean()) {
             invokeStatic(method, JSType.TO_BOOLEAN);
         } else if (to.isString()) {
-            invokeStatic(method, JSType.TO_PRIMITIVE_TO_STRING);
+            invokeStatic(method, JSType.TO_PRIMITIVE);
+            invokeStatic(method, JSType.TO_STRING);
         } else {
             assert false : "Illegal conversion " + this + " -> " + to + " " + isString() + " " + toString;
         }

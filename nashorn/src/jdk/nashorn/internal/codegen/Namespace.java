@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@ public class Namespace {
      */
     public Namespace(final Namespace parent) {
         this.parent    = parent;
-        this.directory = new HashMap<>();
+        directory = new HashMap<>();
     }
 
     /**
@@ -65,6 +65,10 @@ public class Namespace {
         return parent;
     }
 
+    private HashMap<String, Integer> getDirectory() {
+        return directory;
+    }
+
     /**
      * Create a uniqueName name in the namespace in the form base$n where n varies
      * .
@@ -74,14 +78,14 @@ public class Namespace {
      */
     public String uniqueName(final String base) {
         for (Namespace namespace = this; namespace != null; namespace = namespace.getParent()) {
-            final HashMap<String, Integer> namespaceDirectory = namespace.directory;
+            final HashMap<String, Integer> namespaceDirectory = namespace.getDirectory();
             final Integer                  counter            = namespaceDirectory.get(base);
 
             if (counter != null) {
                 final int count = counter + 1;
                 namespaceDirectory.put(base, count);
 
-                return base + '-' + count;
+                return base + "$" + count;
             }
         }
 

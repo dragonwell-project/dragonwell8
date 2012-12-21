@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,13 +46,10 @@ final class NumberArrayData extends ArrayData {
      */
     NumberArrayData(final double array[], final int length) {
         super(length);
-        assert array.length >= length;
         this.array  = array;
-    }
-
-    @Override
-    public ArrayData copy() {
-        return new NumberArrayData(array.clone(), (int) length());
+        if (array.length > length) {
+            Arrays.fill(array, length, array.length, 0.0);
+        }
     }
 
     @Override
@@ -61,9 +58,7 @@ final class NumberArrayData extends ArrayData {
     }
 
     private static Object[] toObjectArray(final double[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
-        final Object[] oarray = new Object[array.length];
-
+        final Object[] oarray = new Object[length];
         for (int index = 0; index < length; index++) {
             oarray[index] = Double.valueOf(array[index]);
         }
@@ -81,8 +76,7 @@ final class NumberArrayData extends ArrayData {
     @Override
     public ArrayData convert(final Class<?> type) {
         if (type != Double.class && type != Integer.class && type != Long.class) {
-            final int length = (int) length();
-            return new ObjectArrayData(NumberArrayData.toObjectArray(array, length), length);
+            return new ObjectArrayData(NumberArrayData.toObjectArray(array, array.length), (int) length());
         }
         return this;
     }
@@ -133,12 +127,16 @@ final class NumberArrayData extends ArrayData {
 
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
-        if (value instanceof Double || value instanceof Integer || value instanceof Long) {
-            return set(index, ((Number)value).doubleValue(), strict);
-        } else if (value == UNDEFINED) {
-            return new UndefinedArrayFilter(this).set(index, value, strict);
+        try {
+            final double doubleValue = ((Number)value).doubleValue();
+            array[index] = doubleValue;
+            setLength(Math.max(index + 1, length()));
+            return this;
+        } catch (final NullPointerException | ClassCastException e) {
+            if (value == UNDEFINED) {
+                return new UndefinedArrayFilter(this).set(index, value, strict);
+            }
         }
-
         final ArrayData newData = convert(value == null ? Object.class : value.getClass());
         return newData.set(index, value, strict);
     }
@@ -217,33 +215,5 @@ final class NumberArrayData extends ArrayData {
         final long start     = from < 0 ? (from + length()) : from;
         final long newLength = to - start;
         return new NumberArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)newLength);
-    }
-
-    @Override
-    public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
-        final long oldLength = length();
-        final long newLength = oldLength - removed + added;
-        if (newLength > SparseArrayData.MAX_DENSE_LENGTH && newLength > array.length) {
-            throw new UnsupportedOperationException();
-        }
-        final ArrayData returnValue = (removed == 0) ?
-                EMPTY_ARRAY : new NumberArrayData(Arrays.copyOfRange(array, start, start + removed), removed);
-
-        if (newLength != oldLength) {
-            final double[] newArray;
-
-            if (newLength > array.length) {
-                newArray = new double[ArrayData.nextSize((int)newLength)];
-                System.arraycopy(array, 0, newArray, 0, start);
-            } else {
-                newArray = array;
-            }
-
-            System.arraycopy(array, start + removed, newArray, start + added, (int)(oldLength - start - removed));
-            array = newArray;
-            setLength(newLength);
-        }
-
-        return returnValue;
     }
 }

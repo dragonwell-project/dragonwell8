@@ -1,5 +1,5 @@
 rem
-rem Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+rem Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 rem DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 rem
 rem This code is free software; you can redistribute it and/or modify it
@@ -24,4 +24,4 @@ rem questions.
 rem
 @echo off
 
-java -Xms2G -Xmx2G -XX:-TieredCompilation -server -esa -ea -Djava.security.properties=%~dp0\..\make\java.security.override -Djava.ext.dirs=%~dp0\..\dist -XX:+HeapDumpOnOutOfMemoryError -Dnashorn.debug=true -Djava.lang.invoke.MethodHandle.DEBUG_NAMES=false -Dnashorn.home=%~dp0\.. -Djava.security.manager jdk.nashorn.tools.Shell
+java -Xms2G -Xmx2G -XX:-TieredCompilation -server -esa -ea -Djava.ext.dirs=%~dp0\..\dist -XX:+HeapDumpOnOutOfMemoryError -Dnashorn.debug=true -Djava.lang.invoke.MethodHandle.DEBUG_NAMES=false -Dnashorn.home=%~dp0\.. -Djava.security.manager jdk.nashorn.tools.Shell

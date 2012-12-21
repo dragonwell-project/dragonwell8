@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
 
 package jdk.nashorn.internal.runtime;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import jdk.nashorn.api.scripting.NashornException;
-import jdk.nashorn.internal.scripts.JS;
 
 /**
  * Helper class to throw various standard "ECMA error" exceptions such as Error, ReferenceError, TypeError etc.
@@ -37,49 +37,35 @@ import jdk.nashorn.internal.scripts.JS;
 public final class ECMAErrors {
     private static final String MESSAGES_RESOURCE = "jdk.nashorn.internal.runtime.resources.Messages";
 
-    private static final ResourceBundle MESSAGES_BUNDLE;
-    static {
-        MESSAGES_BUNDLE = ResourceBundle.getBundle(MESSAGES_RESOURCE, Locale.getDefault());
-    }
-
-    /** We assume that compiler generates script classes into the known package. */
-    private static final String scriptPackage;
-    static {
-        String name = JS.class.getName();
-        scriptPackage = name.substring(0, name.lastIndexOf('.'));
-    }
+    // Without do privileged, under security manager messages can not be loaded.
+    private static final ResourceBundle MESSAGES_BUNDLE = AccessController.doPrivileged(
+        new PrivilegedAction<ResourceBundle>() {
+            @Override
+            public ResourceBundle run() {
+                return ResourceBundle.getBundle(MESSAGES_RESOURCE, Locale.getDefault());
+            }
+        });
 
     private ECMAErrors() {
     }
 
-    private static ECMAException error(final Object thrown, final Throwable cause) {
-        return new ECMAException(thrown, cause);
-    }
-
-     /**
-     * Error dispatch mechanism.
-     * Create a {@link ParserException} as the correct JavaScript error
-     *
-     * @param e {@code ParserException} for error dispatcher
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException asEcmaException(final ParserException e) {
-        return asEcmaException(Context.getGlobalTrusted(), e);
+    private static void throwError(final Object thrown, final Throwable cause) {
+        throw new ECMAException(thrown, cause);
     }
 
     /**
      * Error dispatch mechanism.
-     * Create a {@link ParserException} as the correct JavaScript error
+     * Throw a {@link ParserException} as the correct JavaScript error
      *
      * @param global global scope object
      * @param e {@code ParserException} for error dispatcher
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException asEcmaException(final ScriptObject global, final ParserException e) {
+    public static void throwAsEcmaException(final ScriptObject global, final ParserException e) {
         final JSErrorType errorType = e.getErrorType();
-        assert errorType != null : "error type for " + e + " was null";
+        if (errorType == null) {
+            // no errorType set, throw ParserException object 'as is'
+            throw e;
+        }
 
         final GlobalObject globalObj = (GlobalObject)global;
         final String       msg    = e.getMessage();
@@ -87,288 +73,152 @@ public final class ECMAErrors {
         // translate to ECMAScript Error object using error type
         switch (errorType) {
         case ERROR:
-            return error(globalObj.newError(msg), e);
+            throwError(globalObj.newError(msg), e);
+            break;
         case EVAL_ERROR:
-            return error(globalObj.newEvalError(msg), e);
+            throwError(globalObj.newEvalError(msg), e);
+            break;
         case RANGE_ERROR:
-            return error(globalObj.newRangeError(msg), e);
+            throwError(globalObj.newRangeError(msg), e);
+            break;
         case REFERENCE_ERROR:
-            return error(globalObj.newReferenceError(msg), e);
+            throwError(globalObj.newReferenceError(msg), e);
+            break;
         case SYNTAX_ERROR:
-            return error(globalObj.newSyntaxError(msg), e);
+            throwError(globalObj.newSyntaxError(msg), e);
+            break;
         case TYPE_ERROR:
-            return error(globalObj.newTypeError(msg), e);
+            throwError(globalObj.newTypeError(msg), e);
+            break;
         case URI_ERROR:
-            return error(globalObj.newURIError(msg), e);
+            throwError(globalObj.newURIError(msg), e);
+            break;
         default:
-            // should not happen - perhaps unknown error type?
-            throw new AssertionError(e.getMessage());
+            break;
         }
+
+        // should not happen - perhaps unknown error type?
+        throw e;
     }
 
     /**
-     * Create a syntax error (ECMA 15.11.6.4)
-     *
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException syntaxError(final String msgId, final String... args) {
-        return syntaxError(Context.getGlobalTrusted(), msgId, args);
-    }
-
-    /**
-     * Create a syntax error (ECMA 15.11.6.4)
+     * Throw a syntax error (ECMA 15.11.6.4)
      *
      * @param global  global scope object
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException syntaxError(final ScriptObject global, final String msgId, final String... args) {
-        return syntaxError(global, null, msgId, args);
+    public static void syntaxError(final ScriptObject global, final String msgId, final String... args) {
+        syntaxError(global, null, msgId, args);
     }
 
     /**
-     * Create a syntax error (ECMA 15.11.6.4)
-     *
-     * @param cause   native Java {@code Throwable} that is the cause of error
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException syntaxError(final Throwable cause, final String msgId, final String... args) {
-        return syntaxError(Context.getGlobalTrusted(), cause, msgId, args);
-    }
-
-    /**
-     * Create a syntax error (ECMA 15.11.6.4)
+     * Throw a syntax error (ECMA 15.11.6.4)
      *
      * @param global  global scope object
      * @param cause   native Java {@code Throwable} that is the cause of error
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException syntaxError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static void syntaxError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("syntax.error." + msgId, args);
-        return error(((GlobalObject)global).newSyntaxError(msg), cause);
+        throwError(((GlobalObject)global).newSyntaxError(msg), cause);
     }
 
     /**
-     * Create a type error (ECMA 15.11.6.5)
-     *
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException typeError(final String msgId, final String... args) {
-        return typeError(Context.getGlobalTrusted(), msgId, args);
-    }
-
-    /**
-     * Create a type error (ECMA 15.11.6.5)
+     * Throw a type error (ECMA 15.11.6.5)
      *
      * @param global  global scope object
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException typeError(final ScriptObject global, final String msgId, final String... args) {
-        return typeError(global, null, msgId, args);
+    public static void typeError(final ScriptObject global, final String msgId, final String... args) {
+        typeError(global, null, msgId, args);
     }
 
     /**
-     * Create a type error (ECMA 15.11.6.5)
-     *
-     * @param cause   native Java {@code Throwable} that is the cause of error
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException typeError(final Throwable cause, final String msgId, final String... args) {
-        return typeError(Context.getGlobalTrusted(), cause, msgId, args);
-    }
-
-    /**
-     * Create a type error (ECMA 15.11.6.5)
+     * Throw a type error (ECMA 15.11.6.5)
      *
      * @param global  global scope object
      * @param cause   native Java {@code Throwable} that is the cause of error
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException typeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static void typeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("type.error." + msgId, args);
-        return error(((GlobalObject)global).newTypeError(msg), cause);
+        throwError(((GlobalObject)global).newTypeError(msg), cause);
     }
 
     /**
-     * Create a range error (ECMA 15.11.6.2)
-     *
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException rangeError(final String msgId, final String... args) {
-        return rangeError(Context.getGlobalTrusted(), msgId, args);
-    }
-
-    /**
-     * Create a range error (ECMA 15.11.6.2)
+     * Throw a range error (ECMA 15.11.6.2)
      *
      * @param global  global scope object
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException rangeError(final ScriptObject global, final String msgId, final String... args) {
-        return rangeError(global, null, msgId, args);
+    public static void rangeError(final ScriptObject global, final String msgId, final String... args) {
+        rangeError(global, null, msgId, args);
     }
 
     /**
-     * Create a range error (ECMA 15.11.6.2)
-     *
-     * @param cause   native Java {@code Throwable} that is the cause of error
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException rangeError(final Throwable cause, final String msgId, final String... args) {
-        return rangeError(Context.getGlobalTrusted(), cause, msgId, args);
-    }
-
-    /**
-     * Create a range error (ECMA 15.11.6.2)
+     * Throw a range error (ECMA 15.11.6.2)
      *
      * @param global  global scope object
      * @param cause   native Java {@code Throwable} that is the cause of error
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException rangeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static void rangeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("range.error." + msgId, args);
-        return error(((GlobalObject)global).newRangeError(msg), cause);
+        throwError(((GlobalObject)global).newRangeError(msg), cause);
     }
 
     /**
-     * Create a reference error (ECMA 15.11.6.3)
-     *
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException referenceError(final String msgId, final String... args) {
-        return referenceError(Context.getGlobalTrusted(), msgId, args);
-    }
-
-    /**
-     * Create a reference error (ECMA 15.11.6.3)
+     * Throw a reference error (ECMA 15.11.6.3)
      *
      * @param global  global scope object
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException referenceError(final ScriptObject global, final String msgId, final String... args) {
-        return referenceError(global, null, msgId, args);
+    public static void referenceError(final ScriptObject global, final String msgId, final String... args) {
+        referenceError(global, null, msgId, args);
     }
 
     /**
-     * Create a reference error (ECMA 15.11.6.3)
-     *
-     * @param cause   native Java {@code Throwable} that is the cause of error
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException referenceError(final Throwable cause, final String msgId, final String... args) {
-        return referenceError(Context.getGlobalTrusted(), cause, msgId, args);
-    }
-
-    /**
-     * Create a reference error (ECMA 15.11.6.3)
+     * Throw a reference error (ECMA 15.11.6.3)
      *
      * @param global  global scope object
      * @param cause   native Java {@code Throwable} that is the cause of error
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException referenceError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static void referenceError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("reference.error." + msgId, args);
-        return error(((GlobalObject)global).newReferenceError(msg), cause);
+        throwError(((GlobalObject)global).newReferenceError(msg), cause);
     }
 
     /**
-     * Create a URI error (ECMA 15.11.6.6)
-     *
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException uriError(final String msgId, final String... args) {
-        return uriError(Context.getGlobalTrusted(), msgId, args);
-    }
-
-    /**
-     * Create a URI error (ECMA 15.11.6.6)
+     * Throw a URI error (ECMA 15.11.6.6)
      *
      * @param global  global scope object
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException uriError(final ScriptObject global, final String msgId, final String... args) {
-        return uriError(global, null, msgId, args);
+    public static void uriError(final ScriptObject global, final String msgId, final String... args) {
+        uriError(global, null, msgId, args);
     }
 
     /**
-     * Create a URI error (ECMA 15.11.6.6)
-     *
-     * @param cause   native Java {@code Throwable} that is the cause of error
-     * @param msgId   resource tag for error message
-     * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
-     */
-    public static ECMAException uriError(final Throwable cause, final String msgId, final String... args) {
-        return uriError(Context.getGlobalTrusted(), cause, msgId, args);
-    }
-
-    /**
-     * Create a URI error (ECMA 15.11.6.6)
+     * Throw a URI error (ECMA 15.11.6.6)
      *
      * @param global  global scope object
      * @param cause   native Java {@code Throwable} that is the cause of error
      * @param msgId   resource tag for error message
      * @param args    arguments to resource
-     *
-     * @return the resulting {@link ECMAException}
      */
-    public static ECMAException uriError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static void uriError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("uri.error." + msgId, args);
-        return error(((GlobalObject)global).newURIError(msg), cause);
+        throwError(((GlobalObject)global).newURIError(msg), cause);
     }
 
     /**
@@ -389,27 +239,4 @@ public final class ECMAErrors {
         }
     }
 
-
-    /**
-     * Check if a stack trace element is in JavaScript
-     *
-     * @param frame frame
-     *
-     * @return true if frame is in the script
-     */
-    public static boolean isScriptFrame(final StackTraceElement frame) {
-        final String className = frame.getClassName();
-
-        // Look for script package in class name (into which compiler puts generated code)
-        if (className.startsWith(scriptPackage)) {
-            final String source = frame.getFileName();
-            /*
-             * Make sure that it is not some Java code that Nashorn has in that package!
-             * also, we don't want to report JavaScript code that lives in script engine implementation
-             * We want to report only user's own scripts and not any of our own scripts like "engine.js"
-             */
-            return source != null && !source.endsWith(".java") && !source.contains(NashornException.ENGINE_SCRIPT_SOURCE_NAME);
-        }
-        return false;
-    }
 }

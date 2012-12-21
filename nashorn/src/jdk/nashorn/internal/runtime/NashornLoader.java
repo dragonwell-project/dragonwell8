@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,44 +30,34 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.CodeSource;
-import java.security.Permission;
-import java.security.PermissionCollection;
-import java.security.Permissions;
 import java.security.SecureClassLoader;
 import jdk.nashorn.tools.Shell;
 
 /**
- * Superclass for Nashorn class loader classes.
+ * Superclass for Nashorn class loader classes. This stores Context
+ * instance as an instance field. The current context can be
+ * efficiently accessed from a given Class via it's ClassLoader.
+ *
  */
 abstract class NashornLoader extends SecureClassLoader {
-    private static final String OBJECTS_PKG        = "jdk.nashorn.internal.objects";
-    private static final String RUNTIME_PKG        = "jdk.nashorn.internal.runtime";
-    private static final String RUNTIME_ARRAYS_PKG = "jdk.nashorn.internal.runtime.arrays";
-    private static final String RUNTIME_LINKER_PKG = "jdk.nashorn.internal.runtime.linker";
-    private static final String SCRIPTS_PKG        = "jdk.nashorn.internal.scripts";
+    private final Context context;
 
-    private static final Permission[] SCRIPT_PERMISSIONS;
-
-    static {
-        /*
-         * Generated classes get access to runtime, runtime.linker, objects, scripts packages.
-         * Note that the actual scripts can not access these because Java.type, Packages
-         * prevent these restricted packages. And Java reflection and JSR292 access is prevented
-         * for scripts. In other words, nashorn generated portions of script classes can access
-         * classes in these implementation packages.
-         */
-        SCRIPT_PERMISSIONS = new Permission[] {
-                new RuntimePermission("accessClassInPackage." + RUNTIME_PKG),
-                new RuntimePermission("accessClassInPackage." + RUNTIME_LINKER_PKG),
-                new RuntimePermission("accessClassInPackage." + OBJECTS_PKG),
-                new RuntimePermission("accessClassInPackage." + SCRIPTS_PKG),
-                new RuntimePermission("accessClassInPackage." + RUNTIME_ARRAYS_PKG)
-        };
+    final Context getContext() {
+        return context;
     }
 
-    NashornLoader(final ClassLoader parent) {
+    NashornLoader(final ClassLoader parent, final Context context) {
         super(parent);
+        this.context = context;
+    }
+
+    /**
+     * Override loadClass so that we can checkPackageAccess.
+     */
+    @Override
+    public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        checkPackageAccess(name);
+        return super.loadClass(name);
     }
 
     protected static void checkPackageAccess(final String name) {
@@ -75,29 +65,9 @@ abstract class NashornLoader extends SecureClassLoader {
         if (i != -1) {
             final SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
-                final String pkgName = name.substring(0, i);
-                switch (pkgName) {
-                    case RUNTIME_PKG:
-                    case RUNTIME_ARRAYS_PKG:
-                    case RUNTIME_LINKER_PKG:
-                    case OBJECTS_PKG:
-                    case SCRIPTS_PKG:
-                        // allow it.
-                        break;
-                    default:
-                        sm.checkPackageAccess(pkgName);
-                }
+                sm.checkPackageAccess(name.substring(0, i));
             }
         }
-    }
-
-    @Override
-    protected PermissionCollection getPermissions(CodeSource codesource) {
-        final Permissions permCollection = new Permissions();
-        for (final Permission perm : SCRIPT_PERMISSIONS) {
-            permCollection.add(perm);
-        }
-        return permCollection;
     }
 
     /**

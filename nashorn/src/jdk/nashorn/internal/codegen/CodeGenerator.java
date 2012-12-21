@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,27 +27,23 @@ package jdk.nashorn.internal.codegen;
 
 import static jdk.nashorn.internal.codegen.ClassEmitter.Flag.PRIVATE;
 import static jdk.nashorn.internal.codegen.ClassEmitter.Flag.STATIC;
-import static jdk.nashorn.internal.codegen.CompilerConstants.ARGUMENTS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.CALLEE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.GET_MAP;
 import static jdk.nashorn.internal.codegen.CompilerConstants.GET_STRING;
+import static jdk.nashorn.internal.codegen.CompilerConstants.LEAF;
 import static jdk.nashorn.internal.codegen.CompilerConstants.QUICK_PREFIX;
 import static jdk.nashorn.internal.codegen.CompilerConstants.REGEX_PREFIX;
-import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SPLIT_ARRAY_ARG;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SPLIT_PREFIX;
-import static jdk.nashorn.internal.codegen.CompilerConstants.THIS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.VARARGS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.constructorNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.interfaceCallNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.methodDescriptor;
 import static jdk.nashorn.internal.codegen.CompilerConstants.staticCallNoLookup;
+import static jdk.nashorn.internal.codegen.CompilerConstants.staticField;
 import static jdk.nashorn.internal.codegen.CompilerConstants.typeDescriptor;
-import static jdk.nashorn.internal.codegen.CompilerConstants.virtualCallNoLookup;
 import static jdk.nashorn.internal.ir.Symbol.IS_INTERNAL;
 import static jdk.nashorn.internal.ir.Symbol.IS_TEMP;
 import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_FAST_SCOPE;
+import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_FUNCTION_DECLARATION;
 import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_SCOPE;
 import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_STRICT;
 
@@ -55,51 +51,53 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import jdk.nashorn.internal.codegen.ClassEmitter.Flag;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
+import jdk.nashorn.internal.codegen.MethodEmitter.Condition;
+import jdk.nashorn.internal.codegen.MethodEmitter.Label;
 import jdk.nashorn.internal.codegen.RuntimeCallSite.SpecializedRuntimeNode;
+import jdk.nashorn.internal.codegen.objects.FieldObjectCreator;
+import jdk.nashorn.internal.codegen.objects.FunctionObjectCreator;
+import jdk.nashorn.internal.codegen.objects.MapCreator;
+import jdk.nashorn.internal.codegen.objects.ObjectMapCreator;
 import jdk.nashorn.internal.codegen.types.ArrayType;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.AccessNode;
 import jdk.nashorn.internal.ir.BaseNode;
 import jdk.nashorn.internal.ir.BinaryNode;
 import jdk.nashorn.internal.ir.Block;
-import jdk.nashorn.internal.ir.BlockStatement;
 import jdk.nashorn.internal.ir.BreakNode;
-import jdk.nashorn.internal.ir.BreakableNode;
 import jdk.nashorn.internal.ir.CallNode;
 import jdk.nashorn.internal.ir.CaseNode;
 import jdk.nashorn.internal.ir.CatchNode;
 import jdk.nashorn.internal.ir.ContinueNode;
+import jdk.nashorn.internal.ir.DoWhileNode;
 import jdk.nashorn.internal.ir.EmptyNode;
-import jdk.nashorn.internal.ir.Expression;
-import jdk.nashorn.internal.ir.ExpressionStatement;
+import jdk.nashorn.internal.ir.ExecuteNode;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
-import jdk.nashorn.internal.ir.LexicalContext;
-import jdk.nashorn.internal.ir.LexicalContextNode;
+import jdk.nashorn.internal.ir.LineNumberNode;
 import jdk.nashorn.internal.ir.LiteralNode;
 import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode;
 import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode.ArrayUnit;
-import jdk.nashorn.internal.ir.LoopNode;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.ObjectNode;
 import jdk.nashorn.internal.ir.PropertyNode;
+import jdk.nashorn.internal.ir.ReferenceNode;
 import jdk.nashorn.internal.ir.ReturnNode;
 import jdk.nashorn.internal.ir.RuntimeNode;
 import jdk.nashorn.internal.ir.RuntimeNode.Request;
 import jdk.nashorn.internal.ir.SplitNode;
-import jdk.nashorn.internal.ir.Statement;
 import jdk.nashorn.internal.ir.SwitchNode;
 import jdk.nashorn.internal.ir.Symbol;
 import jdk.nashorn.internal.ir.TernaryNode;
@@ -109,27 +107,20 @@ import jdk.nashorn.internal.ir.UnaryNode;
 import jdk.nashorn.internal.ir.VarNode;
 import jdk.nashorn.internal.ir.WhileNode;
 import jdk.nashorn.internal.ir.WithNode;
+import jdk.nashorn.internal.ir.debug.ASTWriter;
 import jdk.nashorn.internal.ir.visitor.NodeOperatorVisitor;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
-import jdk.nashorn.internal.objects.Global;
-import jdk.nashorn.internal.objects.ScriptFunctionImpl;
 import jdk.nashorn.internal.parser.Lexer.RegexToken;
 import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.Context;
-import jdk.nashorn.internal.runtime.Debug;
-import jdk.nashorn.internal.runtime.DebugLogger;
 import jdk.nashorn.internal.runtime.ECMAException;
-import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.Scope;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.Undefined;
-import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
 
 /**
@@ -139,10 +130,12 @@ import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
  * keeps track of the contents of the byte code stack. This way we avoid a large
  * number of special cases on the form
  * <pre>
+ * {@code
  * if (type == INT) {
  *     visitInsn(ILOAD, slot);
  * } else if (type == DOUBLE) {
  *     visitInsn(DOUBLE, slot);
+ * }
  * }
  * </pre>
  * This quickly became apparent when the code generator was generalized to work
@@ -151,15 +144,13 @@ import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
  * The CodeGenerator visits nodes only once, tags them as resolved and emits
  * bytecode for them.
  */
-final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContext> {
+public final class CodeGenerator extends NodeOperatorVisitor {
 
-    private static final String GLOBAL_OBJECT = Type.getInternalName(Global.class);
-
-    private static final String SCRIPTFUNCTION_IMPL_OBJECT = Type.getInternalName(ScriptFunctionImpl.class);
-
-    /** Constant data & installation. The only reason the compiler keeps this is because it is assigned
-     *  by reflection in class installation */
+    /** Current compiler */
     private final Compiler compiler;
+
+    /** Compiler context */
+    private final Context context;
 
     /** Call site flags given to the code generator to be used for all generated call sites */
     private final int callSiteFlags;
@@ -167,25 +158,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     /** How many regexp fields have been emitted */
     private int regexFieldCount;
 
-    /** Line number for last statement. If we encounter a new line number, line number bytecode information
-     *  needs to be generated */
-    private int lastLineNumber = -1;
+    /** Map of shared scope call sites */
+    private final Map<SharedScopeCall, SharedScopeCall> scopeCalls = new HashMap<>();
 
     /** When should we stop caching regexp expressions in fields to limit bytecode size? */
     private static final int MAX_REGEX_FIELDS = 2 * 1024;
-
-    /** Current method emitter */
-    private MethodEmitter method;
-
-    /** Current compile unit */
-    private CompileUnit unit;
-
-    private static final DebugLogger LOG   = new DebugLogger("codegen", "nashorn.codegen.debug");
-
-    /** From what size should we use spill instead of fields for JavaScript objects? */
-    private static final int OBJECT_SPILL_THRESHOLD = 300;
-
-    private final Set<String> emittedMethods = new HashSet<>();
 
     /**
      * Constructor.
@@ -193,9 +170,18 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      * @param compiler
      */
     CodeGenerator(final Compiler compiler) {
-        super(new CodeGeneratorLexicalContext());
         this.compiler      = compiler;
-        this.callSiteFlags = compiler.getEnv()._callsite_flags;
+        this.context       = compiler.getContext();
+        this.callSiteFlags = context._callsite_flags;
+    }
+
+    /**
+     * Get the compiler
+     *
+     * @return the compiler used
+     */
+    public Compiler getCompiler() {
+        return compiler;
     }
 
     /**
@@ -204,8 +190,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @return the correct flags for a call site in the current function
      */
-    int getCallSiteFlags() {
-        return lc.getCurrentFunction().isStrict() ? callSiteFlags | CALLSITE_STRICT : callSiteFlags;
+    public int getCallSiteFlags() {
+        return getCurrentFunctionNode().isStrictMode() ? callSiteFlags | CALLSITE_STRICT : callSiteFlags;
     }
 
     /**
@@ -214,127 +200,89 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      * @param identNode an identity node to load
      * @return the method generator used
      */
-    private MethodEmitter loadIdent(final IdentNode identNode, final Type type) {
+    private MethodEmitter loadIdent(final IdentNode identNode) {
         final Symbol symbol = identNode.getSymbol();
 
         if (!symbol.isScope()) {
-            assert symbol.hasSlot() || symbol.isParam();
-            return method.load(symbol).convert(type);
+            assert symbol.hasSlot() && symbol.getSlot() != 0 || symbol.isThis();
+            return method.load(symbol);
         }
 
-        final String name   = symbol.getName();
-        final Source source = lc.getCurrentFunction().getSource();
+        final String name = symbol.getName();
 
         if (CompilerConstants.__FILE__.name().equals(name)) {
-            return method.load(source.getName());
+            return method.load(identNode.getSource().getName());
         } else if (CompilerConstants.__DIR__.name().equals(name)) {
-            return method.load(source.getBase());
+            return method.load(identNode.getSource().getBase());
         } else if (CompilerConstants.__LINE__.name().equals(name)) {
-            return method.load(source.getLine(identNode.position())).convert(Type.OBJECT);
+            return method.load(identNode.getSource().getLine(identNode.position())).convert(Type.OBJECT);
         } else {
             assert identNode.getSymbol().isScope() : identNode + " is not in scope!";
 
             final int flags = CALLSITE_SCOPE | getCallSiteFlags();
-            method.loadCompilerConstant(SCOPE);
+            method.loadScope();
 
-            if (isFastScope(symbol)) {
+            if (symbol.isFastScope(getCurrentFunctionNode())) {
                 // Only generate shared scope getter for fast-scope symbols so we know we can dial in correct scope.
                 if (symbol.getUseCount() > SharedScopeCall.FAST_SCOPE_GET_THRESHOLD) {
-                    return loadSharedScopeVar(type, symbol, flags);
+                    return loadSharedScopeVar(identNode.getType(), symbol, flags);
                 }
-                return loadFastScopeVar(type, symbol, flags, identNode.isFunction());
+                return loadFastScopeVar(identNode.getType(), symbol, flags, identNode.isFunction());
             }
-            return method.dynamicGet(type, identNode.getName(), flags, identNode.isFunction());
+            return method.dynamicGet(identNode.getType(), identNode.getName(), flags, identNode.isFunction());
         }
-    }
-
-    /**
-     * Check if this symbol can be accessed directly with a putfield or getfield or dynamic load
-     *
-     * @param symbol symbol to check for fast scope
-     * @return true if fast scope
-     */
-    private boolean isFastScope(final Symbol symbol) {
-        if (!symbol.isScope()) {
-            return false;
-        }
-
-        if (!lc.inDynamicScope()) {
-            // If there's no with or eval in context, and the symbol is marked as scoped, it is fast scoped. Such a
-            // symbol must either be global, or its defining block must need scope.
-            assert symbol.isGlobal() || lc.getDefiningBlock(symbol).needsScope() : symbol.getName();
-            return true;
-        }
-
-        if (symbol.isGlobal()) {
-            // Shortcut: if there's a with or eval in context, globals can't be fast scoped
-            return false;
-        }
-
-        // Otherwise, check if there's a dynamic scope between use of the symbol and its definition
-        final String name = symbol.getName();
-        boolean previousWasBlock = false;
-        for (final Iterator<LexicalContextNode> it = lc.getAllNodes(); it.hasNext();) {
-            final LexicalContextNode node = it.next();
-            if (node instanceof Block) {
-                // If this block defines the symbol, then we can fast scope the symbol.
-                final Block block = (Block)node;
-                if (block.getExistingSymbol(name) == symbol) {
-                    assert block.needsScope();
-                    return true;
-                }
-                previousWasBlock = true;
-            } else {
-                if ((node instanceof WithNode && previousWasBlock) || (node instanceof FunctionNode && CodeGeneratorLexicalContext.isFunctionDynamicScope((FunctionNode)node))) {
-                    // If we hit a scope that can have symbols introduced into it at run time before finding the defining
-                    // block, the symbol can't be fast scoped. A WithNode only counts if we've immediately seen a block
-                    // before - its block. Otherwise, we are currently processing the WithNode's expression, and that's
-                    // obviously not subjected to introducing new symbols.
-                    return false;
-                }
-                previousWasBlock = false;
-            }
-        }
-        // Should've found the symbol defined in a block
-        throw new AssertionError();
     }
 
     private MethodEmitter loadSharedScopeVar(final Type valueType, final Symbol symbol, final int flags) {
-        method.load(isFastScope(symbol) ? getScopeProtoDepth(lc.getCurrentBlock(), symbol) : -1);
-        final SharedScopeCall scopeCall = lc.getScopeGet(unit, valueType, symbol, flags | CALLSITE_FAST_SCOPE);
-        return scopeCall.generateInvoke(method);
+        method.load(symbol.isFastScope(getCurrentFunctionNode()) ? getScopeProtoDepth(getCurrentBlock(), symbol) : -1);
+        final SharedScopeCall scopeCall = getScopeGet(valueType, symbol, flags | CALLSITE_FAST_SCOPE);
+        scopeCall.generateInvoke(method);
+        return method;
     }
 
     private MethodEmitter loadFastScopeVar(final Type valueType, final Symbol symbol, final int flags, final boolean isMethod) {
         loadFastScopeProto(symbol, false);
-        return method.dynamicGet(valueType, symbol.getName(), flags | CALLSITE_FAST_SCOPE, isMethod);
-    }
-
-    private MethodEmitter storeFastScopeVar(final Symbol symbol, final int flags) {
-        loadFastScopeProto(symbol, true);
-        method.dynamicSet(symbol.getName(), flags | CALLSITE_FAST_SCOPE);
+        method.dynamicGet(valueType, symbol.getName(), flags | CALLSITE_FAST_SCOPE, isMethod);
         return method;
     }
 
-    private int getScopeProtoDepth(final Block startingBlock, final Symbol symbol) {
-        int depth = 0;
-        final String name = symbol.getName();
-        for(final Iterator<Block> blocks = lc.getBlocks(startingBlock); blocks.hasNext();) {
-            final Block currentBlock = blocks.next();
-            if (currentBlock.getExistingSymbol(name) == symbol) {
-                return depth;
-            }
-            if (currentBlock.needsScope()) {
-                ++depth;
+    private MethodEmitter storeFastScopeVar(final Type valueType, final Symbol symbol, final int flags) {
+        loadFastScopeProto(symbol, true);
+        method.dynamicSet(valueType, symbol.getName(), flags | CALLSITE_FAST_SCOPE);
+        return method;
+    }
+
+    private static int getScopeProtoDepth(final Block currentBlock, final Symbol symbol) {
+        if (currentBlock == symbol.getBlock()) {
+            return 0;
+        }
+
+        final int   delta       = currentBlock.needsScope() ? 1 : 0;
+        final Block parentBlock = currentBlock.getParent();
+
+        if (parentBlock != null) {
+            final int result = getScopeProtoDepth(parentBlock, symbol);
+            if (result != -1) {
+                return delta + result;
             }
         }
+
+        if (currentBlock instanceof FunctionNode) {
+            for (final Block lookupBlock : ((FunctionNode)currentBlock).getReferencingParentBlocks()) {
+                final int result = getScopeProtoDepth(lookupBlock, symbol);
+                if (result != -1) {
+                    return delta + result;
+                }
+            }
+        }
+
         return -1;
     }
 
     private void loadFastScopeProto(final Symbol symbol, final boolean swap) {
-        final int depth = getScopeProtoDepth(lc.getCurrentBlock(), symbol);
+        final int depth = getScopeProtoDepth(getCurrentBlock(), symbol);
         assert depth != -1;
-        if (depth > 0) {
+        if(depth > 0) {
             if (swap) {
                 method.swap();
             }
@@ -355,64 +303,18 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @return the method emitter used
      */
-    MethodEmitter load(final Expression node) {
-        return load(node, node.hasType() ? node.getType() : null, false);
+    public MethodEmitter load(final Node node) {
+        return load(node, false);
     }
 
-    // Test whether conversion from source to target involves a call of ES 9.1 ToPrimitive
-    // with possible side effects from calling an object's toString or valueOf methods.
-    private boolean noToPrimitiveConversion(final Type source, final Type target) {
-        // Object to boolean conversion does not cause ToPrimitive call
-        return source.isJSPrimitive() || !target.isJSPrimitive() || target.isBoolean();
-    }
-
-    MethodEmitter loadBinaryOperands(final Expression lhs, final Expression rhs, final Type type) {
-        return loadBinaryOperands(lhs, rhs, type, false);
-    }
-
-    private MethodEmitter loadBinaryOperands(final Expression lhs, final Expression rhs, final Type type, final boolean baseAlreadyOnStack) {
-        // ECMAScript 5.1 specification (sections 11.5-11.11 and 11.13) prescribes that when evaluating a binary
-        // expression "LEFT op RIGHT", the order of operations must be: LOAD LEFT, LOAD RIGHT, CONVERT LEFT, CONVERT
-        // RIGHT, EXECUTE OP. Unfortunately, doing it in this order defeats potential optimizations that arise when we
-        // can combine a LOAD with a CONVERT operation (e.g. use a dynamic getter with the conversion target type as its
-        // return value). What we do here is reorder LOAD RIGHT and CONVERT LEFT when possible; it is possible only when
-        // we can prove that executing CONVERT LEFT can't have a side effect that changes the value of LOAD RIGHT.
-        // Basically, if we know that either LEFT already is a primitive value, or does not have to be converted to
-        // a primitive value, or RIGHT is an expression that loads without side effects, then we can do the
-        // reordering and collapse LOAD/CONVERT into a single operation; otherwise we need to do the more costly
-        // separate operations to preserve specification semantics.
-        if (noToPrimitiveConversion(lhs.getType(), type) || rhs.isLocal()) {
-            // Can reorder. Combine load and convert into single operations.
-            load(lhs, type, baseAlreadyOnStack);
-            load(rhs, type, false);
-        } else {
-            // Can't reorder. Load and convert separately.
-            load(lhs, lhs.getType(), baseAlreadyOnStack);
-            load(rhs, rhs.getType(), false);
-            method.swap().convert(type).swap().convert(type);
-        }
-
-        return method;
-    }
-
-    MethodEmitter loadBinaryOperands(final BinaryNode node) {
-        return loadBinaryOperands(node.lhs(), node.rhs(), node.getType(), false);
-    }
-
-    MethodEmitter load(final Expression node, final Type type) {
-        return load(node, type, false);
-    }
-
-    private MethodEmitter load(final Expression node, final Type type, final boolean baseAlreadyOnStack) {
+    private MethodEmitter load(final Node node, final boolean baseAlreadyOnStack) {
         final Symbol symbol = node.getSymbol();
 
         // If we lack symbols, we just generate what we see.
-        if (symbol == null || type == null) {
+        if (symbol == null) {
             node.accept(this);
             return method;
         }
-
-        assert !type.isUnknown();
 
         /*
          * The load may be of type IdentNode, e.g. "x", AccessNode, e.g. "x.y"
@@ -421,68 +323,38 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
          */
         final CodeGenerator codegen = this;
 
-        node.accept(new NodeVisitor<LexicalContext>(lc) {
+        node.accept(new NodeVisitor(compileUnit, method) {
             @Override
-            public boolean enterIdentNode(final IdentNode identNode) {
-                loadIdent(identNode, type);
-                return false;
+            public Node enter(final IdentNode identNode) {
+                loadIdent(identNode);
+                return null;
             }
 
             @Override
-            public boolean enterAccessNode(final AccessNode accessNode) {
+            public Node enter(final AccessNode accessNode) {
                 if (!baseAlreadyOnStack) {
-                    load(accessNode.getBase(), Type.OBJECT);
+                    load(accessNode.getBase()).convert(Type.OBJECT);
                 }
                 assert method.peekType().isObject();
-                method.dynamicGet(type, accessNode.getProperty().getName(), getCallSiteFlags(), accessNode.isFunction());
-                return false;
+                method.dynamicGet(node.getType(), accessNode.getProperty().getName(), getCallSiteFlags(), accessNode.isFunction());
+                return null;
             }
 
             @Override
-            public boolean enterIndexNode(final IndexNode indexNode) {
+            public Node enter(final IndexNode indexNode) {
                 if (!baseAlreadyOnStack) {
-                    load(indexNode.getBase(), Type.OBJECT);
+                    load(indexNode.getBase());
                     load(indexNode.getIndex());
                 }
-                method.dynamicGetIndex(type, getCallSiteFlags(), indexNode.isFunction());
-                return false;
+                method.dynamicGetIndex(node.getType(), getCallSiteFlags(), indexNode.isFunction());
+                return null;
             }
 
             @Override
-            public boolean enterFunctionNode(FunctionNode functionNode) {
-                // function nodes will always leave a constructed function object on stack, no need to load the symbol
-                // separately as in enterDefault()
-                lc.pop(functionNode);
-                functionNode.accept(codegen);
-                // NOTE: functionNode.accept() will produce a different FunctionNode that we discard. This incidentally
-                // doesn't cause problems as we're never touching FunctionNode again after it's visited here - codegen
-                // is the last element in the compilation pipeline, the AST it produces is not used externally. So, we
-                // re-push the original functionNode.
-                lc.push(functionNode);
-                method.convert(type);
-                return false;
-            }
-
-            @Override
-            public boolean enterCallNode(CallNode callNode) {
-                return codegen.enterCallNode(callNode, type);
-            }
-
-            @Override
-            public boolean enterLiteralNode(LiteralNode<?> literalNode) {
-                return codegen.enterLiteralNode(literalNode, type);
-            }
-
-            @Override
-            public boolean enterDefault(final Node otherNode) {
-                final Node currentDiscard = codegen.lc.getCurrentDiscard();
+            public Node enterDefault(final Node otherNode) {
                 otherNode.accept(codegen); // generate code for whatever we are looking at.
-                if(currentDiscard != otherNode) {
-                    method.load(symbol); // load the final symbol to the stack (or nop if no slot, then result is already there)
-                    assert method.peekType() != null;
-                    method.convert(type);
-                }
-                return false;
+                method.load(symbol); // load the final symbol to the stack (or nop if no slot, then result is already there)
+                return null;
             }
         });
 
@@ -490,9 +362,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     }
 
     @Override
-    public boolean enterAccessNode(final AccessNode accessNode) {
+    public Node enter(final AccessNode accessNode) {
+        if (accessNode.testResolved()) {
+            return null;
+        }
+
         load(accessNode);
-        return false;
+
+        return null;
     }
 
     /**
@@ -509,7 +386,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         for (final Symbol symbol : symbols) {
             /*
              * The following symbols are guaranteed to be defined and thus safe
-             * from having undefined written to them: parameters internals this
+             * from having unsigned written to them: parameters internals this
              *
              * Otherwise we must, unless we perform control/escape analysis,
              * assign them undefined.
@@ -517,7 +394,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             final boolean isInternal = symbol.isParam() || symbol.isInternal() || symbol.isThis() || !symbol.canBeUndefined();
 
             if (symbol.hasSlot() && !isInternal) {
-                assert symbol.getSymbolType().isNumber() || symbol.getSymbolType().isObject() : "no potentially undefined narrower local vars than doubles are allowed: " + symbol + " in " + lc.getCurrentFunction();
+                assert symbol.getSymbolType().isNumber() || symbol.getSymbolType().isObject() : "no potentially undefined narrower local vars than doubles are allowed: " + symbol + " in " + getCurrentFunctionNode();
                 if (symbol.getSymbolType().isNumber()) {
                     numbers.add(symbol);
                 } else if (symbol.getSymbolType().isObject()) {
@@ -531,18 +408,17 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     }
 
     private void initSymbols(final LinkedList<Symbol> symbols, final Type type) {
-        final Iterator<Symbol> it = symbols.iterator();
-        if(it.hasNext()) {
-            method.loadUndefined(type);
-            boolean hasNext;
-            do {
-                final Symbol symbol = it.next();
-                hasNext = it.hasNext();
-                if(hasNext) {
-                    method.dup();
-                }
-                method.store(symbol);
-            } while(hasNext);
+        if (symbols.isEmpty()) {
+            return;
+        }
+
+        method.loadUndefined(type);
+        while (!symbols.isEmpty()) {
+            final Symbol symbol = symbols.removeFirst();
+            if (!symbols.isEmpty()) {
+                method.dup();
+            }
+            method.store(symbol);
         }
     }
 
@@ -552,32 +428,32 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      * @param block block containing symbols.
      */
     private void symbolInfo(final Block block) {
-        for (final Symbol symbol : block.getSymbols()) {
-            if (symbol.hasSlot()) {
-                method.localVariable(symbol, block.getEntryLabel(), block.getBreakLabel());
-            }
+        for (final Symbol symbol : block.getFrame().getSymbols()) {
+            method.localVariable(symbol, block.getEntryLabel(), block.getBreakLabel());
         }
     }
 
     @Override
-    public boolean enterBlock(final Block block) {
-        if(lc.isFunctionBody() && emittedMethods.contains(lc.getCurrentFunction().getName())) {
-            return false;
+    public Node enter(final Block block) {
+        if (block.testResolved()) {
+            return null;
         }
+
         method.label(block.getEntryLabel());
         initLocals(block);
 
-        return true;
+        return block;
     }
 
     @Override
-    public Node leaveBlock(final Block block) {
+    public Node leave(final Block block) {
         method.label(block.getBreakLabel());
         symbolInfo(block);
 
-        if (block.needsScope() && !block.isTerminal()) {
+        if (block.needsScope()) {
             popBlockScope(block);
         }
+
         return block;
     }
 
@@ -587,59 +463,60 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         final Label skipLabel     = new Label("skip_catch");
 
         /* pop scope a la try-finally */
-        method.loadCompilerConstant(SCOPE);
+        method.loadScope();
         method.invoke(ScriptObject.GET_PROTO);
-        method.storeCompilerConstant(SCOPE);
+        method.storeScope();
         method._goto(skipLabel);
         method.label(exitLabel);
 
         method._catch(recoveryLabel);
-        method.loadCompilerConstant(SCOPE);
+        method.loadScope();
         method.invoke(ScriptObject.GET_PROTO);
-        method.storeCompilerConstant(SCOPE);
+        method.storeScope();
         method.athrow();
         method.label(skipLabel);
         method._try(block.getEntryLabel(), exitLabel, recoveryLabel, Throwable.class);
     }
 
     @Override
-    public boolean enterBreakNode(final BreakNode breakNode) {
-        lineNumber(breakNode);
+    public Node enter(final BreakNode breakNode) {
+        if (breakNode.testResolved()) {
+            return null;
+        }
 
-        final BreakableNode breakFrom = lc.getBreakable(breakNode.getLabel());
-        for (int i = 0; i < lc.getScopeNestingLevelTo(breakFrom); i++) {
+        for (int i = 0; i < breakNode.getScopeNestingLevel(); i++) {
             closeWith();
         }
-        method.splitAwareGoto(lc, breakFrom.getBreakLabel());
 
-        return false;
+        method.splitAwareGoto(breakNode.getTargetLabel());
+
+        return null;
     }
 
-    private int loadArgs(final List<Expression> args) {
+    private MethodEmitter loadArgs(final List<Node> args) {
         return loadArgs(args, null, false, args.size());
     }
 
-    private int loadArgs(final List<Expression> args, final String signature, final boolean isVarArg, final int argCount) {
+    private MethodEmitter loadArgs(final List<Node> args, final String signature, final boolean isVarArg, final int argCount) {
         // arg have already been converted to objects here.
         if (isVarArg || argCount > LinkerCallSite.ARGLIMIT) {
             loadArgsArray(args);
-            return 1;
+            return method;
         }
 
         // pad with undefined if size is too short. argCount is the real number of args
         int n = 0;
         final Type[] params = signature == null ? null : Type.getMethodArguments(signature);
-        for (final Expression arg : args) {
+        for (final Node arg : args) {
             assert arg != null;
-            if (n >= argCount) {
-                load(arg);
-                method.pop(); // we had to load the arg for its side effects
-            } else if (params != null) {
-                load(arg, params[n]);
-            } else {
-                load(arg);
+            load(arg);
+            if (params != null) {
+                method.convert(params[n]);
             }
             n++;
+            if (n >= argCount) {
+                break;
+            }
         }
 
         while (n < argCount) {
@@ -647,30 +524,47 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             n++;
         }
 
-        return argCount;
+        return method;
     }
 
+    /**
+     * Create a new function object, including generating its stub code.
+     *
+     * @param functionNode  FunctionNode to utilize.
+     */
+    private void newFunctionObject(final FunctionNode functionNode) {
+         // Turn thisProperties into keys and symbols for the FunctionAnalyzer
+        final Map<String, Node> thisProperties = functionNode.getThisProperties();
+
+        final List<String> keys    = new ArrayList<>();
+        final List<Symbol> symbols = new ArrayList<>();
+
+        for (final Entry<String, Node> entry : thisProperties.entrySet()) {
+            keys.add(entry.getKey());
+            symbols.add(entry.getValue().getSymbol());
+        }
+
+        new FunctionObjectCreator(this, functionNode, keys, symbols).makeObject(method);
+    }
 
     @Override
-    public boolean enterCallNode(final CallNode callNode) {
-        return enterCallNode(callNode, callNode.getType());
-    }
+    public Node enter(final CallNode callNode) {
+        if (callNode.testResolved()) {
+            return null;
+        }
 
-    private boolean enterCallNode(final CallNode callNode, final Type callNodeType) {
-        lineNumber(callNode.getLineNumber());
+        final List<Node>   args            = callNode.getArgs();
+        final Node         function        = callNode.getFunction();
+        final FunctionNode currentFunction = getCurrentFunctionNode();
+        final Block        currentBlock    = getCurrentBlock();
 
-        final List<Expression> args = callNode.getArgs();
-        final Expression function = callNode.getFunction();
-        final Block currentBlock = lc.getCurrentBlock();
-        final CodeGeneratorLexicalContext codegenLexicalContext = lc;
+        function.accept(new NodeVisitor(compileUnit, method) {
 
-        function.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
-
-            private MethodEmitter sharedScopeCall(final IdentNode identNode, final int flags) {
+            private void sharedScopeCall(final IdentNode identNode, final int flags) {
                 final Symbol symbol = identNode.getSymbol();
                 int    scopeCallFlags = flags;
-                method.loadCompilerConstant(SCOPE);
-                if (isFastScope(symbol)) {
+                method.loadScope();
+                if (symbol.isFastScope(currentFunction)) {
                     method.load(getScopeProtoDepth(currentBlock, symbol));
                     scopeCallFlags |= CALLSITE_FAST_SCOPE;
                 } else {
@@ -678,19 +572,22 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 }
                 loadArgs(args);
                 final Type[] paramTypes = method.getTypesFromStack(args.size());
-                final SharedScopeCall scopeCall = codegenLexicalContext.getScopeCall(unit, symbol, identNode.getType(), callNodeType, paramTypes, scopeCallFlags);
-                return scopeCall.generateInvoke(method);
+                final SharedScopeCall scopeCall = getScopeCall(symbol, identNode.getType(), callNode.getType(), paramTypes, scopeCallFlags);
+                scopeCall.generateInvoke(method);
             }
 
             private void scopeCall(final IdentNode node, final int flags) {
-                load(node, Type.OBJECT); // Type.OBJECT as foo() makes no sense if foo == 3
+                load(node);
+                method.convert(Type.OBJECT); // foo() makes no sense if foo == 3
                 // ScriptFunction will see CALLSITE_SCOPE and will bind scope accordingly.
-                method.loadNull(); //the 'this'
-                method.dynamicCall(callNodeType, 2 + loadArgs(args), flags);
+                method.loadNull();
+                loadArgs(args);
+                method.dynamicCall(callNode.getType(), args.size(), flags);
             }
 
             private void evalCall(final IdentNode node, final int flags) {
-                load(node, Type.OBJECT); // Type.OBJECT as foo() makes no sense if foo == 3
+                load(node);
+                method.convert(Type.OBJECT); // foo() makes no sense if foo == 3
 
                 final Label not_eval  = new Label("not_eval");
                 final Label eval_done = new Label("eval_done");
@@ -703,39 +600,35 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 // We don't need ScriptFunction object for 'eval'
                 method.pop();
 
-                method.loadCompilerConstant(SCOPE); // Load up self (scope).
+                method.loadScope(); // Load up self (scope).
 
                 final CallNode.EvalArgs evalArgs = callNode.getEvalArgs();
                 // load evaluated code
-                load(evalArgs.getCode(), Type.OBJECT);
-                // load second and subsequent args for side-effect
-                final List<Expression> args = callNode.getArgs();
-                final int numArgs = args.size();
-                for (int i = 1; i < numArgs; i++) {
-                    load(args.get(i)).pop();
-                }
+                load(evalArgs.code);
+                method.convert(Type.OBJECT);
                 // special/extra 'eval' arguments
-                load(evalArgs.getThis());
-                method.load(evalArgs.getLocation());
-                method.load(evalArgs.getStrictMode());
+                load(evalArgs.evalThis);
+                method.load(evalArgs.location);
+                method.load(evalArgs.strictMode);
                 method.convert(Type.OBJECT);
 
                 // direct call to Global.directEval
                 globalDirectEval();
-                method.convert(callNodeType);
+                method.convert(callNode.getType());
                 method._goto(eval_done);
 
                 method.label(not_eval);
                 // This is some scope 'eval' or global eval replaced by user
                 // but not the built-in ECMAScript 'eval' function call
                 method.loadNull();
-                method.dynamicCall(callNodeType, 2 + loadArgs(args), flags);
+                loadArgs(args);
+                method.dynamicCall(callNode.getType(), args.size(), flags);
 
                 method.label(eval_done);
             }
 
             @Override
-            public boolean enterIdentNode(final IdentNode node) {
+            public Node enter(final IdentNode node) {
                 final Symbol symbol = node.getSymbol();
 
                 if (symbol.isScope()) {
@@ -743,210 +636,219 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                     final int useCount = symbol.getUseCount();
 
                     // Threshold for generating shared scope callsite is lower for fast scope symbols because we know
-                    // we can dial in the correct scope. However, we also need to enable it for non-fast scopes to
+                    // we can dial in the correct scope. However, we als need to enable it for non-fast scopes to
                     // support huge scripts like mandreel.js.
                     if (callNode.isEval()) {
                         evalCall(node, flags);
                     } else if (useCount <= SharedScopeCall.FAST_SCOPE_CALL_THRESHOLD
-                            || (!isFastScope(symbol) && useCount <= SharedScopeCall.SLOW_SCOPE_CALL_THRESHOLD)
-                            || CodeGenerator.this.lc.inDynamicScope()) {
+                            || (!symbol.isFastScope(currentFunction) && useCount <= SharedScopeCall.SLOW_SCOPE_CALL_THRESHOLD)
+                            || callNode.inWithBlock()) {
                         scopeCall(node, flags);
                     } else {
                         sharedScopeCall(node, flags);
                     }
-                    assert method.peekType().equals(callNodeType) : method.peekType() + "!=" + callNode.getType();
+                    assert method.peekType().equals(callNode.getType());
                 } else {
                     enterDefault(node);
                 }
 
-                return false;
+                return null;
             }
 
             @Override
-            public boolean enterAccessNode(final AccessNode node) {
-                load(node.getBase(), Type.OBJECT);
+            public Node enter(final AccessNode node) {
+                load(node.getBase());
+                method.convert(Type.OBJECT);
                 method.dup();
                 method.dynamicGet(node.getType(), node.getProperty().getName(), getCallSiteFlags(), true);
                 method.swap();
-                method.dynamicCall(callNodeType, 2 + loadArgs(args), getCallSiteFlags());
+                loadArgs(args);
+                method.dynamicCall(callNode.getType(), args.size(), getCallSiteFlags());
+                assert method.peekType().equals(callNode.getType());
 
-                return false;
+                return null;
             }
 
             @Override
-            public boolean enterFunctionNode(final FunctionNode origCallee) {
-                // NOTE: visiting the callee will leave a constructed ScriptFunction object on the stack if
-                // callee.needsCallee() == true
-                final FunctionNode callee = (FunctionNode)origCallee.accept(CodeGenerator.this);
-
+            public Node enter(final ReferenceNode node) {
+                final FunctionNode callee   = node.getReference();
                 final boolean      isVarArg = callee.isVarArg();
                 final int          argCount = isVarArg ? -1 : callee.getParameters().size();
 
                 final String signature = new FunctionSignature(true, callee.needsCallee(), callee.getReturnType(), isVarArg ? null : callee.getParameters()).toString();
 
-                if (callee.isStrict()) { // self is undefined
+                if (callee.isStrictMode()) { // self is undefined
                     method.loadUndefined(Type.OBJECT);
                 } else { // get global from scope (which is the self)
                     globalInstance();
                 }
+
+                if (callee.needsCallee()) { // TODO: always true
+                    newFunctionObject(callee); // TODO: if callee not needed, function object is used only to pass scope (could be optimized). if neither the scope nor the function object is needed by the callee, we can pass null instead.
+                }
+
                 loadArgs(args, signature, isVarArg, argCount);
-                assert callee.getCompileUnit() != null : "no compile unit for " + callee.getName() + " " + Debug.id(callee) + " " + callNode;
-                method.invokestatic(callee.getCompileUnit().getUnitClassName(), callee.getName(), signature);
+                method.invokeStatic(callee.getCompileUnit().getUnitClassName(), callee.getName(), signature);
                 assert method.peekType().equals(callee.getReturnType()) : method.peekType() + " != " + callee.getReturnType();
-                method.convert(callNodeType);
-                return false;
+
+                return null;
             }
 
             @Override
-            public boolean enterIndexNode(final IndexNode node) {
-                load(node.getBase(), Type.OBJECT);
+            public Node enter(final IndexNode node) {
+                load(node.getBase());
+                method.convert(Type.OBJECT);
                 method.dup();
+                load(node.getIndex());
                 final Type indexType = node.getIndex().getType();
                 if (indexType.isObject() || indexType.isBoolean()) {
-                    load(node.getIndex(), Type.OBJECT); //TODO
-                } else {
-                    load(node.getIndex());
+                    method.convert(Type.OBJECT); //TODO
                 }
                 method.dynamicGetIndex(node.getType(), getCallSiteFlags(), true);
                 method.swap();
-                method.dynamicCall(callNodeType, 2 + loadArgs(args), getCallSiteFlags());
+                loadArgs(args);
+                method.dynamicCall(callNode.getType(), args.size(), getCallSiteFlags());
+                assert method.peekType().equals(callNode.getType());
 
-                return false;
+                return null;
             }
 
             @Override
-            protected boolean enterDefault(final Node node) {
+            protected Node enterDefault(final Node node) {
                 // Load up function.
-                load(function, Type.OBJECT); //TODO, e.g. booleans can be used as functions
+                load(function);
+                method.convert(Type.OBJECT); //TODO, e.g. booleans can be used as functions
                 method.loadNull(); // ScriptFunction will figure out the correct this when it sees CALLSITE_SCOPE
-                method.dynamicCall(callNodeType, 2 + loadArgs(args), getCallSiteFlags() | CALLSITE_SCOPE);
 
-                return false;
+                loadArgs(args);
+                method.dynamicCall(callNode.getType(), args.size(), getCallSiteFlags() | CALLSITE_SCOPE);
+                assert method.peekType().equals(callNode.getType());
+
+                return null;
             }
         });
 
         method.store(callNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterContinueNode(final ContinueNode continueNode) {
-        lineNumber(continueNode);
+    public Node enter(final ContinueNode continueNode) {
+        if (continueNode.testResolved()) {
+            return null;
+        }
 
-        final LoopNode continueTo = lc.getContinueTo(continueNode.getLabel());
-        for (int i = 0; i < lc.getScopeNestingLevelTo(continueTo); i++) {
+        for (int i = 0; i < continueNode.getScopeNestingLevel(); i++) {
             closeWith();
         }
-        method.splitAwareGoto(lc, continueTo.getContinueLabel());
 
-        return false;
+        method.splitAwareGoto(continueNode.getTargetLabel());
+
+        return null;
     }
 
     @Override
-    public boolean enterEmptyNode(final EmptyNode emptyNode) {
-        lineNumber(emptyNode);
-
-        return false;
+    public Node enter(final DoWhileNode doWhileNode) {
+        return enter((WhileNode)doWhileNode);
     }
 
     @Override
-    public boolean enterExpressionStatement(final ExpressionStatement expressionStatement) {
-        lineNumber(expressionStatement);
-
-        expressionStatement.getExpression().accept(this);
-
-        return false;
+    public Node enter(final EmptyNode emptyNode) {
+        return null;
     }
 
     @Override
-    public boolean enterBlockStatement(final BlockStatement blockStatement) {
-        lineNumber(blockStatement);
+    public Node enter(final ExecuteNode executeNode) {
+        if (executeNode.testResolved()) {
+            return null;
+        }
 
-        blockStatement.getBlock().accept(this);
+        final Node expression = executeNode.getExpression();
+        expression.accept(this);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterForNode(final ForNode forNode) {
-        lineNumber(forNode);
+    public Node enter(final ForNode forNode) {
+        if (forNode.testResolved()) {
+            return null;
+        }
+
+        final Node  test   = forNode.getTest();
+        final Block body   = forNode.getBody();
+        final Node  modify = forNode.getModify();
+
+        final Label breakLabel    = forNode.getBreakLabel();
+        final Label continueLabel = forNode.getContinueLabel();
+        final Label loopLabel     = new Label("loop");
+
+        Node init = forNode.getInit();
 
         if (forNode.isForIn()) {
-            enterForIn(forNode);
-        } else {
-            enterFor(forNode);
-        }
+            final Symbol iter = forNode.getIterator();
 
-        return false;
-    }
+            // We have to evaluate the optional initializer expression
+            // of the iterator variable of the for-in statement.
+            if (init instanceof VarNode) {
+                init.accept(this);
+                init = ((VarNode)init).getName();
+            }
 
-    private void enterFor(final ForNode forNode) {
-        final Expression init   = forNode.getInit();
-        final Expression test   = forNode.getTest();
-        final Block      body   = forNode.getBody();
-        final Expression modify = forNode.getModify();
-
-        if (init != null) {
-            init.accept(this);
-        }
-
-        final Label loopLabel = new Label("loop");
-        final Label testLabel = new Label("test");
-
-        method._goto(testLabel);
-        method.label(loopLabel);
-        body.accept(this);
-        method.label(forNode.getContinueLabel());
-
-        if (!body.isTerminal() && modify != null) {
             load(modify);
-        }
+            assert modify.getType().isObject();
+            method.invoke(forNode.isForEach() ? ScriptRuntime.TO_VALUE_ITERATOR : ScriptRuntime.TO_PROPERTY_ITERATOR);
+            method.store(iter);
+            method._goto(continueLabel);
+            method.label(loopLabel);
 
-        method.label(testLabel);
-        if (test != null) {
-            new BranchOptimizer(this, method).execute(test, loopLabel, true);
+            new Store<Node>(init) {
+                @Override
+                protected void evaluate() {
+                    method.load(iter);
+                    method.invoke(interfaceCallNoLookup(Iterator.class, "next", Object.class));
+                }
+            }.store();
+
+            body.accept(this);
+
+            method.label(continueLabel);
+            method.load(iter);
+            method.invoke(interfaceCallNoLookup(Iterator.class, "hasNext", boolean.class));
+            method.ifne(loopLabel);
+            method.label(breakLabel);
         } else {
-            method._goto(loopLabel);
+            if (init != null) {
+                init.accept(this);
+            }
+
+            final Label testLabel = new Label("test");
+
+            method._goto(testLabel);
+            method.label(loopLabel);
+            body.accept(this);
+            method.label(continueLabel);
+
+            if (!body.isTerminal() && modify != null) {
+                load(modify);
+            }
+
+            method.label(testLabel);
+            if (test != null) {
+                new BranchOptimizer(this, method).execute(test, loopLabel, true);
+            } else {
+                method._goto(loopLabel);
+            }
+
+            method.label(breakLabel);
         }
 
-        method.label(forNode.getBreakLabel());
+        return null;
     }
 
-    private void enterForIn(final ForNode forNode) {
-        final Block body   = forNode.getBody();
-        final Expression  modify = forNode.getModify();
-
-        final Symbol iter      = forNode.getIterator();
-        final Label  loopLabel = new Label("loop");
-
-        final Expression init = forNode.getInit();
-
-        load(modify, Type.OBJECT);
-        method.invoke(forNode.isForEach() ? ScriptRuntime.TO_VALUE_ITERATOR : ScriptRuntime.TO_PROPERTY_ITERATOR);
-        method.store(iter);
-        method._goto(forNode.getContinueLabel());
-        method.label(loopLabel);
-
-        new Store<Expression>(init) {
-            @Override
-            protected void storeNonDiscard() {
-                return;
-            }
-            @Override
-            protected void evaluate() {
-                method.load(iter);
-                method.invoke(interfaceCallNoLookup(Iterator.class, "next", Object.class));
-            }
-        }.store();
-
-        body.accept(this);
-
-        method.label(forNode.getContinueLabel());
-        method.load(iter);
-        method.invoke(interfaceCallNoLookup(Iterator.class, "hasNext", boolean.class));
-        method.ifne(loopLabel);
-        method.label(forNode.getBreakLabel());
+    private void initLocals(final Block block) {
+        initLocals(block, null);
     }
 
     /**
@@ -954,27 +856,20 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @param block block with local vars.
      */
-    private void initLocals(final Block block) {
-        lc.nextFreeSlot(block);
+    private void initLocals(final Block block, final AccessSpecializer accessSpecializer) {
+        final FunctionNode function       = block.getFunction();
+        final boolean      isFunctionNode = block == function;
 
-        final boolean isFunctionBody = lc.isFunctionBody();
+        /*
+         * Get the symbols from the frame and realign the frame so that all
+         * slots get correct numbers. The slot numbering is not fixed until
+         * after initLocals has been run
+         */
+        final Frame        frame   = block.getFrame();
+        final List<Symbol> symbols = frame.getSymbols();
 
-        final FunctionNode function = lc.getCurrentFunction();
-        if (isFunctionBody) {
-            if(method.hasScope()) {
-                if (function.needsParentScope()) {
-                    method.loadCompilerConstant(CALLEE);
-                    method.invoke(ScriptFunction.GET_SCOPE);
-                } else {
-                    assert function.hasScopeBlock();
-                    method.loadNull();
-                }
-                method.storeCompilerConstant(SCOPE);
-            }
-            if (function.needsArguments()) {
-                initArguments(function);
-            }
-        }
+        /* Fix the predefined slots so they have numbers >= 0, like varargs. */
+        frame.realign();
 
         /*
          * Determine if block needs scope, if not, just do initSymbols for this block.
@@ -984,162 +879,169 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
              * Determine if function is varargs and consequently variables have to
              * be in the scope.
              */
-            final boolean varsInScope = function.allVarsInScope();
+            final boolean isVarArg    = function.isVarArg();
+            final boolean varsInScope = function.varsInScope();
 
             // TODO for LET we can do better: if *block* does not contain any eval/with, we don't need its vars in scope.
 
             final List<String> nameList = new ArrayList<>();
             final List<Symbol> locals   = new ArrayList<>();
 
+            // note that in the case of a varargs vector the arguments in the vector should NOT have local slots
+            // this was a bug: see NASHORN-21
+            if (isVarArg) {
+                for (final IdentNode param : function.getParameters()) {
+                    param.getSymbol().setNeedsSlot(false);
+                }
+            }
+
+            // If there are variable arguments, we need to load them (functions only).
+            if (isFunctionNode && isVarArg) {
+                method.loadVarArgs();
+                method.loadCallee();
+                method.load(function.getParameters().size());
+                globalAllocateArguments();
+                method.storeArguments();
+            }
+
             // Initalize symbols and values
             final List<Symbol> newSymbols = new ArrayList<>();
             final List<Symbol> values     = new ArrayList<>();
 
-            final boolean hasArguments = function.needsArguments();
-
-            for (final Symbol symbol : block.getSymbols()) {
-
-                if (symbol.isInternal() || symbol.isThis() || symbol.isTemp()) {
+            for (final Symbol symbol : symbols) {
+                if (symbol.isInternal() || symbol.isThis()) {
                     continue;
                 }
 
-                if (symbol.isVar()) {
-                    if (varsInScope || symbol.isScope()) {
-                        nameList.add(symbol.getName());
-                        newSymbols.add(symbol);
-                        values.add(null);
-                        assert symbol.isScope()   : "scope for " + symbol + " should have been set in Lower already " + function.getName();
-                        assert !symbol.hasSlot()  : "slot for " + symbol + " should have been removed in Lower already" + function.getName();
-                    } else {
-                        assert symbol.hasSlot() : symbol + " should have a slot only, no scope";
-                        locals.add(symbol);
-                    }
-                } else if (symbol.isParam() && (varsInScope || hasArguments || symbol.isScope())) {
+                if (symbol.isVar() && (varsInScope || symbol.isScope())) {
                     nameList.add(symbol.getName());
                     newSymbols.add(symbol);
-                    values.add(hasArguments ? null : symbol);
-                    assert symbol.isScope()   : "scope for " + symbol + " should have been set in Lower already " + function.getName() + " varsInScope="+varsInScope+" hasArguments="+hasArguments+" symbol.isScope()=" + symbol.isScope();
-                    assert !(hasArguments && symbol.hasSlot())  : "slot for " + symbol + " should have been removed in Lower already " + function.getName();
+                    values.add(null);
+                    symbol.setIsScope();
+                    symbol.setNeedsSlot(false);
+                } else if (symbol.isVar()) {
+                    assert symbol.hasSlot() : symbol + " should have a slot only, no scope";
+                    locals.add(symbol);
+                } else if (symbol.isParam() && (varsInScope || isVarArg || symbol.isScope())) {
+                    nameList.add(symbol.getName());
+                    newSymbols.add(symbol);
+                    values.add(isVarArg ? null : symbol);
+                    symbol.setIsScope();
+                    if (isVarArg) {
+                        symbol.setNeedsSlot(false);
+                    }
                 }
             }
 
+            /* Correct slot numbering again */
+            frame.realign();
+
             // we may have locals that need to be initialized
             initSymbols(locals);
+
+            if (isFunctionNode) {
+                initScope();
+            }
+
+            if (accessSpecializer != null) {
+                ((FunctionNode)block).accept(accessSpecializer);
+            }
 
             /*
              * Create a new object based on the symbols and values, generate
              * bootstrap code for object
              */
-            new FieldObjectCreator<Symbol>(this, nameList, newSymbols, values, true, hasArguments) {
+            final FieldObjectCreator<Symbol> foc = new FieldObjectCreator<Symbol>(this, nameList, newSymbols, values, true, isVarArg) {
+                @Override
+                protected Type getValueType(final Symbol value) {
+                    return value.getSymbolType();
+                }
+
                 @Override
                 protected void loadValue(final Symbol value) {
                     method.load(value);
                 }
-            }.makeObject(method);
+            };
+            foc.makeObject(method);
 
             // runScript(): merge scope into global
-            if (isFunctionBody && function.isProgram()) {
+            if (isFunctionNode && function.isScript()) {
                 method.invoke(ScriptRuntime.MERGE_SCOPE);
             }
 
-            method.storeCompilerConstant(SCOPE);
+            method.storeScope();
         } else {
-            // Since we don't have a scope, parameters didn't get assigned array indices by the FieldObjectCreator, so
-            // we need to assign them separately here.
-            int nextParam = 0;
-            if (isFunctionBody && function.isVarArg()) {
-                for (final IdentNode param : function.getParameters()) {
-                    param.getSymbol().setFieldIndex(nextParam++);
-                }
-            }
+            initSymbols(symbols);
 
-            initSymbols(block.getSymbols());
+            if (isFunctionNode) {
+                initScope();
+            }
         }
 
         // Debugging: print symbols? @see --print-symbols flag
-        printSymbols(block, (isFunctionBody ? "Function " : "Block in ") + (function.getIdent() == null ? "<anonymous>" : function.getIdent().getName()));
+        printSymbols(block, (isFunctionNode ? "Function " : "Block in ") + (function.getIdent() == null ? "<anonymous>" : function.getIdent().getName()));
     }
 
-    private void initArguments(final FunctionNode function) {
-        method.loadCompilerConstant(VARARGS);
-        if (function.needsCallee()) {
-            method.loadCompilerConstant(CALLEE);
-        } else {
-            // If function is strict mode, "arguments.callee" is not populated, so we don't necessarily need the
-            // caller.
-            assert function.isStrict();
-            method.loadNull();
-        }
-        method.load(function.getParameters().size());
-        globalAllocateArguments();
-        method.storeCompilerConstant(ARGUMENTS);
+    private void initScope() {
+        method.loadCallee();
+        method.invoke(ScriptFunction.GET_SCOPE);
+        method.storeScope();
     }
 
     @Override
-    public boolean enterFunctionNode(final FunctionNode functionNode) {
-        if (functionNode.isLazy()) {
-            // Must do it now; can't postpone it until leaveFunctionNode()
-            newFunctionObject(functionNode, functionNode);
-            return false;
+    public Node enter(final FunctionNode functionNode) {
+        if (functionNode.testResolved()) {
+            return null;
         }
 
-        final String fnName = functionNode.getName();
-        // NOTE: we only emit the method for a function with the given name once. We can have multiple functions with
-        // the same name as a result of inlining finally blocks. However, in the future -- with type specialization,
-        // notably -- we might need to check for both name *and* signature. Of course, even that might not be
-        // sufficient; the function might have a code dependency on the type of the variables in its enclosing scopes,
-        // and the type of such a variable can be different in catch and finally blocks. So, in the future we will have
-        // to decide to either generate a unique method for each inlined copy of the function, maybe figure out its
-        // exact type closure and deduplicate based on that, or just decide that functions in finally blocks aren't
-        // worth it, and generate one method with most generic type closure.
-        if(!emittedMethods.contains(fnName)) {
-            LOG.info("=== BEGIN ", fnName);
+        compileUnit = functionNode.getCompileUnit();
+        assert compileUnit != null;
 
-            assert functionNode.getCompileUnit() != null : "no compile unit for " + fnName + " " + Debug.id(functionNode);
-            unit = lc.pushCompileUnit(functionNode.getCompileUnit());
-            assert lc.hasCompileUnits();
+        method = compileUnit.getClassEmitter().method(functionNode);
+        functionNode.setMethodEmitter(method);
+        // Mark end for variable tables.
+        method.begin();
+        method.label(functionNode.getEntryLabel());
 
-            method = lc.pushMethodEmitter(unit.getClassEmitter().method(functionNode));
-            // new method - reset last line number
-            lastLineNumber = -1;
-            // Mark end for variable tables.
-            method.begin();
-        }
+        initLocals(functionNode, new AccessSpecializer());
 
-        return true;
+        return functionNode;
     }
 
     @Override
-    public Node leaveFunctionNode(final FunctionNode functionNode) {
+    public Node leave(final FunctionNode functionNode) {
+        // Mark end for variable tables.
+        method.label(functionNode.getBreakLabel());
+
+        if (!functionNode.needsScope()) {
+            method.markerVariable(LEAF.tag(), functionNode.getEntryLabel(), functionNode.getBreakLabel());
+        }
+
+        symbolInfo(functionNode);
         try {
-            if(emittedMethods.add(functionNode.getName())) {
-                method.end(); // wrap up this method
-                unit   = lc.popCompileUnit(functionNode.getCompileUnit());
-                method = lc.popMethodEmitter(method);
-                LOG.info("=== END ", functionNode.getName());
-            }
-
-            final FunctionNode newFunctionNode = functionNode.setState(lc, CompilationState.EMITTED);
-            newFunctionObject(newFunctionNode, functionNode);
-            return newFunctionNode;
+            method.end(); // wrap up this method
         } catch (final Throwable t) {
             Context.printStackTrace(t);
             final VerifyError e = new VerifyError("Code generation bug in \"" + functionNode.getName() + "\": likely stack misaligned: " + t + " " + functionNode.getSource().getName());
             e.initCause(t);
             throw e;
         }
+
+        return functionNode;
     }
 
     @Override
-    public boolean enterIdentNode(final IdentNode identNode) {
-        return false;
+    public Node enter(final IdentNode identNode) {
+        return null;
     }
 
     @Override
-    public boolean enterIfNode(final IfNode ifNode) {
-        lineNumber(ifNode);
+    public Node enter(final IfNode ifNode) {
+        if (ifNode.testResolved()) {
+            return null;
+        }
 
-        final Expression test = ifNode.getTest();
+        final Node  test = ifNode.getTest();
         final Block pass = ifNode.getPass();
         final Block fail = ifNode.getFail();
 
@@ -1169,24 +1071,31 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             method.label(afterLabel);
         }
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterIndexNode(final IndexNode indexNode) {
-        load(indexNode);
-        return false;
-    }
-
-    private void lineNumber(final Statement statement) {
-        lineNumber(statement.getLineNumber());
-    }
-
-    private void lineNumber(int lineNumber) {
-        if (lineNumber != lastLineNumber) {
-            method.lineNumber(lineNumber);
+    public Node enter(final IndexNode indexNode) {
+        if (indexNode.testResolved()) {
+            return null;
         }
-        lastLineNumber = lineNumber;
+
+        load(indexNode);
+
+        return null;
+    }
+
+    @Override
+    public Node enter(final LineNumberNode lineNumberNode) {
+        if (lineNumberNode.testResolved()) {
+            return null;
+        }
+
+        final Label label = new Label("line:" + lineNumberNode.getLineNumber() + " (" + getCurrentFunctionNode().getName() + ")");
+        method.label(label);
+        method.lineNumber(lineNumberNode.getLineNumber(), label);
+
+        return null;
     }
 
     /**
@@ -1199,9 +1108,9 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      * @return the method generator that was used
      */
     private MethodEmitter loadArray(final ArrayLiteralNode arrayLiteralNode, final ArrayType arrayType) {
-        assert arrayType == Type.INT_ARRAY || arrayType == Type.LONG_ARRAY || arrayType == Type.NUMBER_ARRAY || arrayType == Type.OBJECT_ARRAY;
+        assert arrayType == Type.INT_ARRAY || arrayType == Type.NUMBER_ARRAY || arrayType == Type.OBJECT_ARRAY;
 
-        final Expression[]    nodes    = arrayLiteralNode.getValue();
+        final Node[]          nodes    = arrayLiteralNode.getValue();
         final Object          presets  = arrayLiteralNode.getPresets();
         final int[]           postsets = arrayLiteralNode.getPostsets();
         final Class<?>        type     = arrayType.getTypeClass();
@@ -1212,44 +1121,43 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         final Type elementType = arrayType.getElementType();
 
         if (units != null) {
-            final MethodEmitter savedMethod     = method;
-            final FunctionNode  currentFunction = lc.getCurrentFunction();
+            final CompileUnit   savedCompileUnit = compileUnit;
+            final MethodEmitter savedMethod      = method;
 
-            for (final ArrayUnit arrayUnit : units) {
-                unit = lc.pushCompileUnit(arrayUnit.getCompileUnit());
+            try {
+                for (final ArrayUnit unit : units) {
+                    compileUnit = unit.getCompileUnit();
 
-                final String className = unit.getUnitClassName();
-                final String name      = currentFunction.uniqueName(SPLIT_PREFIX.symbolName());
-                final String signature = methodDescriptor(type, ScriptFunction.class, Object.class, ScriptObject.class, type);
+                    final String className = compileUnit.getUnitClassName();
+                    final String name      = compiler.uniqueName(SPLIT_PREFIX.tag());
+                    final String signature = methodDescriptor(type, Object.class, ScriptFunction.class, ScriptObject.class, type);
 
-                final MethodEmitter me = unit.getClassEmitter().method(EnumSet.of(Flag.PUBLIC, Flag.STATIC), name, signature);
-                method = lc.pushMethodEmitter(me);
+                    method = compileUnit.getClassEmitter().method(EnumSet.of(Flag.PUBLIC, Flag.STATIC), name, signature);
+                    method.setFunctionNode(getCurrentFunctionNode());
+                    method.begin();
 
-                method.setFunctionNode(currentFunction);
-                method.begin();
+                    fixScopeSlot();
 
-                fixScopeSlot(currentFunction);
+                    method.load(arrayType, SPLIT_ARRAY_ARG.slot());
 
-                method.load(arrayType, SPLIT_ARRAY_ARG.slot());
+                    for (int i = unit.getLo(); i < unit.getHi(); i++) {
+                        storeElement(nodes, elementType, postsets[i]);
+                    }
 
-                for (int i = arrayUnit.getLo(); i < arrayUnit.getHi(); i++) {
-                    storeElement(nodes, elementType, postsets[i]);
+                    method._return();
+                    method.end();
+
+                    savedMethod.loadThis();
+                    savedMethod.swap();
+                    savedMethod.loadCallee();
+                    savedMethod.swap();
+                    savedMethod.loadScope();
+                    savedMethod.swap();
+                    savedMethod.invokeStatic(className, name, signature);
                 }
-
-                method._return();
-                method.end();
-                method = lc.popMethodEmitter(me);
-
-                assert method == savedMethod;
-                method.loadCompilerConstant(CALLEE);
-                method.swap();
-                method.loadCompilerConstant(THIS);
-                method.swap();
-                method.loadCompilerConstant(SCOPE);
-                method.swap();
-                method.invokestatic(className, name, signature);
-
-                unit = lc.popCompileUnit(unit);
+            } finally {
+                compileUnit = savedCompileUnit;
+                method      = savedMethod;
             }
 
             return method;
@@ -1262,29 +1170,30 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         return method;
     }
 
-    private void storeElement(final Expression[] nodes, final Type elementType, final int index) {
+    private void storeElement(final Node[] nodes, final Type elementType, final int index) {
         method.dup();
         method.load(index);
 
-        final Expression element = nodes[index];
+        final Node element = nodes[index];
 
         if (element == null) {
             method.loadEmpty(elementType);
         } else {
-            load(element, elementType);
+            assert elementType.isEquivalentTo(element.getType()) : "array element type doesn't match array type";
+            load(element);
         }
 
         method.arraystore();
     }
 
-    private MethodEmitter loadArgsArray(final List<Expression> args) {
+    private MethodEmitter loadArgsArray(final List<Node> args) {
         final Object[] array = new Object[args.size()];
         loadConstant(array);
 
         for (int i = 0; i < args.size(); i++) {
             method.dup();
             method.load(i);
-            load(args.get(i), Type.OBJECT); //has to be upcast to object or we fail
+            load(args.get(i)).convert(Type.OBJECT); //has to be upcast to object or we fail
             method.arraystore();
         }
 
@@ -1297,13 +1206,13 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @param string string to load
      */
-    void loadConstant(final String string) {
-        final String       unitClassName = unit.getUnitClassName();
-        final ClassEmitter classEmitter  = unit.getClassEmitter();
+    public void loadConstant(final String string) {
+        final String       unitClassName = compileUnit.getUnitClassName();
+        final ClassEmitter classEmitter  = compileUnit.getClassEmitter();
         final int          index         = compiler.getConstantData().add(string);
 
         method.load(index);
-        method.invokestatic(unitClassName, GET_STRING.symbolName(), methodDescriptor(String.class, int.class));
+        method.invokeStatic(unitClassName, GET_STRING.tag(), methodDescriptor(String.class, int.class));
         classEmitter.needGetConstantMethod(String.class);
     }
 
@@ -1313,35 +1222,31 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @param object object to load
      */
-    void loadConstant(final Object object) {
-        final String       unitClassName = unit.getUnitClassName();
-        final ClassEmitter classEmitter  = unit.getClassEmitter();
+    public void loadConstant(final Object object) {
+        final String       unitClassName = compileUnit.getUnitClassName();
+        final ClassEmitter classEmitter  = compileUnit.getClassEmitter();
         final int          index         = compiler.getConstantData().add(object);
         final Class<?>     cls           = object.getClass();
 
         if (cls == PropertyMap.class) {
             method.load(index);
-            method.invokestatic(unitClassName, GET_MAP.symbolName(), methodDescriptor(PropertyMap.class, int.class));
+            method.invokeStatic(unitClassName, GET_MAP.tag(), methodDescriptor(PropertyMap.class, int.class));
             classEmitter.needGetConstantMethod(PropertyMap.class);
         } else if (cls.isArray()) {
             method.load(index);
             final String methodName = ClassEmitter.getArrayMethodName(cls);
-            method.invokestatic(unitClassName, methodName, methodDescriptor(cls, int.class));
+            method.invokeStatic(unitClassName, methodName, methodDescriptor(cls, int.class));
             classEmitter.needGetConstantMethod(cls);
         } else {
-            method.loadConstants().load(index).arrayload();
-            if (object instanceof ArrayData) {
-                // avoid cast to non-public ArrayData subclass
-                method.checkcast(ArrayData.class);
-                method.invoke(virtualCallNoLookup(ArrayData.class, "copy", ArrayData.class));
-            } else if (cls != Object.class) {
+            method.loadConstants(unitClassName).load(index).arrayload();
+            if (cls != Object.class) {
                 method.checkcast(cls);
             }
         }
     }
 
     // literal values
-    private MethodEmitter loadLiteral(final LiteralNode<?> node, final Type type) {
+    private MethodEmitter load(final LiteralNode<?> node) {
         final Object value = node.getValue();
 
         if (value == null) {
@@ -1361,26 +1266,15 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         } else if (value instanceof Boolean) {
             method.load((Boolean)value);
         } else if (value instanceof Integer) {
-            if(type.isEquivalentTo(Type.NUMBER)) {
-                method.load(((Integer)value).doubleValue());
-            } else if(type.isEquivalentTo(Type.LONG)) {
-                method.load(((Integer)value).longValue());
-            } else {
-                method.load((Integer)value);
-            }
+            method.load((Integer)value);
         } else if (value instanceof Long) {
-            if(type.isEquivalentTo(Type.NUMBER)) {
-                method.load(((Long)value).doubleValue());
-            } else {
-                method.load((Long)value);
-            }
+            method.load((Long)value);
         } else if (value instanceof Double) {
             method.load((Double)value);
         } else if (node instanceof ArrayLiteralNode) {
-            final ArrayLiteralNode arrayLiteral = (ArrayLiteralNode)node;
-            final ArrayType atype = arrayLiteral.getArrayType();
-            loadArray(arrayLiteral, atype);
-            globalAllocateArray(atype);
+            final ArrayType type = (ArrayType)node.getType();
+            loadArray((ArrayLiteralNode)node, type);
+            globalAllocateArray(type);
         } else {
             assert false : "Unknown literal for " + node.getClass() + " " + value.getClass() + " " + value;
         }
@@ -1399,14 +1293,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             return loadRegexToken(regexToken);
         }
         // emit field
-        final String       regexName    = lc.getCurrentFunction().uniqueName(REGEX_PREFIX.symbolName());
-        final ClassEmitter classEmitter = unit.getClassEmitter();
+        final String       regexName    = compiler.uniqueName(REGEX_PREFIX.tag());
+        final ClassEmitter classEmitter = compileUnit.getClassEmitter();
 
         classEmitter.field(EnumSet.of(PRIVATE, STATIC), regexName, Object.class);
         regexFieldCount++;
 
         // get field, if null create new regex, finally clone regex object
-        method.getStatic(unit.getUnitClassName(), regexName, typeDescriptor(Object.class));
+        method.getStatic(compileUnit.getUnitClassName(), regexName, typeDescriptor(Object.class));
         method.dup();
         final Label cachedLabel = new Label("cached");
         method.ifnonnull(cachedLabel);
@@ -1414,7 +1308,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.pop();
         loadRegexToken(regexToken);
         method.dup();
-        method.putStatic(unit.getUnitClassName(), regexName, typeDescriptor(Object.class));
+        method.putStatic(compileUnit.getUnitClassName(), regexName, typeDescriptor(Object.class));
 
         method.label(cachedLabel);
         globalRegExpCopy();
@@ -1422,38 +1316,36 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         return method;
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    public boolean enterLiteralNode(final LiteralNode<?> literalNode) {
-        return enterLiteralNode(literalNode, literalNode.getType());
-    }
-
-    private boolean enterLiteralNode(final LiteralNode<?> literalNode, final Type type) {
-        assert literalNode.getSymbol() != null : literalNode + " has no symbol";
-        loadLiteral(literalNode, type).convert(type).store(literalNode.getSymbol());
-        return false;
+    public Node enter(final LiteralNode literalNode) {
+        load(literalNode).store(literalNode.getSymbol());
+        return null;
     }
 
     @Override
-    public boolean enterObjectNode(final ObjectNode objectNode) {
-        final List<PropertyNode> elements = objectNode.getElements();
+    public Node enter(final ObjectNode objectNode) {
+        if (objectNode.testResolved()) {
+            return null;
+        }
 
-        final List<String>     keys    = new ArrayList<>();
-        final List<Symbol>     symbols = new ArrayList<>();
-        final List<Expression> values  = new ArrayList<>();
+        final List<Node> elements = objectNode.getElements();
+        final int        size     = elements.size();
+
+        final List<String> keys    = new ArrayList<>();
+        final List<Symbol> symbols = new ArrayList<>();
+        final List<Node>   values  = new ArrayList<>();
 
         boolean hasGettersSetters = false;
-        Expression protoNode = null;
 
-        for (PropertyNode propertyNode: elements) {
-            final Expression   value        = propertyNode.getValue();
+        for (int i = 0; i < size; i++) {
+            final PropertyNode propertyNode = (PropertyNode)elements.get(i);
+            final Node         value        = propertyNode.getValue();
             final String       key          = propertyNode.getKeyName();
-            final Symbol       symbol       = value == null ? null : propertyNode.getKey().getSymbol();
+            final Symbol       symbol       = value == null ? null : propertyNode.getSymbol();
 
             if (value == null) {
                 hasGettersSetters = true;
-            } else if (key.equals(ScriptObject.PROTO_PROPERTY_NAME)) {
-                protoNode = value;
-                continue;
             }
 
             keys.add(key);
@@ -1461,104 +1353,120 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             values.add(value);
         }
 
-        if (elements.size() > OBJECT_SPILL_THRESHOLD) {
-            new SpillObjectCreator(this, keys, symbols, values).makeObject(method);
-        } else {
-            new FieldObjectCreator<Expression>(this, keys, symbols, values) {
-                @Override
-                protected void loadValue(final Expression node) {
-                    load(node);
-                }
+        new FieldObjectCreator<Node>(this, keys, symbols, values) {
+            @Override
+            protected Type getValueType(final Node node) {
+                return node.getType();
+            }
 
-                /**
-                 * Ensure that the properties start out as object types so that
-                 * we can do putfield initializations instead of dynamicSetIndex
-                 * which would be the case to determine initial property type
-                 * otherwise.
-                 *
-                 * Use case, it's very expensive to do a million var x = {a:obj, b:obj}
-                 * just to have to invalidate them immediately on initialization
-                 *
-                 * see NASHORN-594
-                 */
-                @Override
-                protected MapCreator newMapCreator(final Class<?> fieldObjectClass) {
-                    return new MapCreator(fieldObjectClass, keys, symbols) {
-                        @Override
-                        protected int getPropertyFlags(final Symbol symbol, final boolean hasArguments) {
-                            return super.getPropertyFlags(symbol, hasArguments) | Property.IS_ALWAYS_OBJECT;
-                        }
-                    };
-                }
+            @Override
+            protected void loadValue(final Node node) {
+                load(node);
+            }
 
-            }.makeObject(method);
-        }
+            /**
+             * Ensure that the properties start out as object types so that
+             * we can do putfield initializations instead of dynamicSetIndex
+             * which would be the case to determine initial property type
+             * otherwise.
+             *
+             * Use case, it's very expensive to do a million var x = {a:obj, b:obj}
+             * just to have to invalidate them immediately on initialization
+             *
+             * see NASHORN-594
+             */
+            @Override
+            protected MapCreator newMapCreator(final Class<?> fieldObjectClass) {
+                return new ObjectMapCreator(fieldObjectClass, keys, symbols);
+            }
+
+        }.makeObject(method);
 
         method.dup();
-        if (protoNode != null) {
-            load(protoNode);
-            method.invoke(ScriptObject.SET_PROTO_CHECK);
-        } else {
-            globalObjectPrototype();
-            method.invoke(ScriptObject.SET_PROTO);
+        globalObjectPrototype();
+        method.invoke(ScriptObject.SET_PROTO);
+
+        if (!hasGettersSetters) {
+            method.store(objectNode.getSymbol());
+            return null;
         }
 
-        if (hasGettersSetters) {
-            for (final PropertyNode propertyNode : elements) {
-                final FunctionNode getter       = propertyNode.getGetter();
-                final FunctionNode setter       = propertyNode.getSetter();
+        for (final Node element : elements) {
+            final PropertyNode  propertyNode = (PropertyNode)element;
+            final Object        key          = propertyNode.getKey();
+            final ReferenceNode getter       = (ReferenceNode)propertyNode.getGetter();
+            final ReferenceNode setter       = (ReferenceNode)propertyNode.getSetter();
 
-                if (getter == null && setter == null) {
-                    continue;
-                }
-
-                method.dup().loadKey(propertyNode.getKey());
-
-                if (getter == null) {
-                    method.loadNull();
-                } else {
-                    getter.accept(this);
-                }
-
-                if (setter == null) {
-                    method.loadNull();
-                } else {
-                    setter.accept(this);
-                }
-
-                method.invoke(ScriptObject.SET_USER_ACCESSORS);
+            if (getter == null && setter == null) {
+                continue;
             }
+
+            method.dup().loadKey(key);
+
+            if (getter == null) {
+                method.loadNull();
+            } else {
+                getter.accept(this);
+            }
+
+            if (setter == null) {
+                method.loadNull();
+            } else {
+                setter.accept(this);
+            }
+
+            method.invoke(ScriptObject.SET_USER_ACCESSORS);
         }
 
         method.store(objectNode.getSymbol());
-        return false;
+
+        return null;
     }
 
     @Override
-    public boolean enterReturnNode(final ReturnNode returnNode) {
-        lineNumber(returnNode);
+    public Node enter(final ReferenceNode referenceNode) {
+        if (referenceNode.testResolved()) {
+            return null;
+        }
 
-        method.registerReturn();
+        newFunctionObject(referenceNode.getReference());
 
-        final Type returnType = lc.getCurrentFunction().getReturnType();
+        return null;
+    }
 
-        final Expression expression = returnNode.getExpression();
+    @Override
+    public Node enter(final ReturnNode returnNode) {
+        if (returnNode.testResolved()) {
+            return null;
+        }
+
+        // Set the split return flag in the scope if this is a split method fragment.
+        if (method.getSplitNode() != null) {
+            assert method.getSplitNode().hasReturn() : "unexpected return in split node";
+
+            method.loadScope();
+            method.checkcast(Scope.class);
+            method.load(0);
+            method.invoke(Scope.SET_SPLIT_STATE);
+        }
+
+        final Node expression = returnNode.getExpression();
         if (expression != null) {
             load(expression);
         } else {
-            method.loadUndefined(returnType);
+            method.loadUndefined(getCurrentFunctionNode().getReturnType());
         }
 
-        method._return(returnType);
+        method._return(getCurrentFunctionNode().getReturnType());
 
-        return false;
+        return null;
     }
 
     private static boolean isNullLiteral(final Node node) {
         return node instanceof LiteralNode<?> && ((LiteralNode<?>) node).isNull();
     }
 
-    private boolean nullCheck(final RuntimeNode runtimeNode, final List<Expression> args, final String signature) {
+    private boolean nullCheck(final RuntimeNode runtimeNode, final List<Node> args, final String signature) {
         final Request request = runtimeNode.getRequest();
 
         if (!Request.isEQ(request) && !Request.isNE(request)) {
@@ -1567,18 +1475,16 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
         assert args.size() == 2 : "EQ or NE or TYPEOF need two args";
 
-        Expression lhs = args.get(0);
-        Expression rhs = args.get(1);
+        Node lhs = args.get(0);
+        Node rhs = args.get(1);
 
         if (isNullLiteral(lhs)) {
-            final Expression tmp = lhs;
+            final Node tmp = lhs;
             lhs = rhs;
             rhs = tmp;
         }
 
-        // this is a null literal check, so if there is implicit coercion
-        // involved like {D}x=null, we will fail - this is very rare
-        if (isNullLiteral(rhs) && lhs.getType().isObject()) {
+        if (isNullLiteral(rhs)) {
             final Label trueLabel  = new Label("trueLabel");
             final Label falseLabel = new Label("falseLabel");
             final Label endLabel   = new Label("end");
@@ -1595,7 +1501,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
             method.label(falseLabel);
             load(rhs);
-            method.invokestatic(CompilerConstants.className(ScriptRuntime.class), request.toString(), signature);
+            method.invokeStatic(CompilerConstants.className(ScriptRuntime.class), request.toString(), signature);
             method._goto(endLabel);
 
             method.label(trueLabel);
@@ -1625,26 +1531,25 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         return false;
     }
 
-    private boolean specializationCheck(final RuntimeNode.Request request, final Expression node, final List<Expression> args) {
+    private boolean specializationCheck(final RuntimeNode.Request request, final Node node, final List<Node> args) {
         if (!request.canSpecialize()) {
             return false;
         }
 
         assert args.size() == 2;
-        final Type returnType = node.getType();
+        final Node lhs = args.get(0);
+        final Node rhs = args.get(1);
 
-        load(args.get(0));
-        load(args.get(1));
+        final Type returnType = node.getType();
+        load(lhs);
+        load(rhs);
 
         Request finalRequest = request;
 
-        //if the request is a comparison, i.e. one that can be reversed
-        //it keeps its semantic, but make sure that the object comes in
-        //last
         final Request reverse = Request.reverse(request);
-        if (method.peekType().isObject() && reverse != null) { //rhs is object
-            if (!method.peekType(1).isObject()) { //lhs is not object
-                method.swap(); //prefer object as lhs
+        if (method.peekType().isObject() && reverse != null) {
+            if (!method.peekType(1).isObject()) {
+                method.swap();
                 finalRequest = reverse;
             }
         }
@@ -1666,23 +1571,24 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         return true;
     }
 
-    private static boolean isReducible(final Request request) {
-        return Request.isComparison(request) || request == Request.ADD;
-    }
-
     @Override
-    public boolean enterRuntimeNode(final RuntimeNode runtimeNode) {
+    public Node enter(final RuntimeNode runtimeNode) {
+        if (runtimeNode.testResolved()) {
+            return null;
+        }
+
         /*
          * First check if this should be something other than a runtime node
          * AccessSpecializer might have changed the type
-         *
-         * TODO - remove this - Access Specializer will always know after Attr/Lower
          */
-        final List<Expression> args = runtimeNode.getArgs();
-        if (runtimeNode.isPrimitive() && !runtimeNode.isFinal() && isReducible(runtimeNode.getRequest())) {
-            final Expression lhs = args.get(0);
-            assert args.size() > 1 : runtimeNode + " must have two args";
-            final Expression rhs = args.get(1);
+        if (runtimeNode.isPrimitive()) {
+
+            final Node lhs = runtimeNode.getArgs().get(0);
+            Node rhs = null;
+
+            if (runtimeNode.getArgs().size() > 1) {
+                rhs = runtimeNode.getArgs().get(1);
+            }
 
             final Type   type   = runtimeNode.getType();
             final Symbol symbol = runtimeNode.getSymbol();
@@ -1703,13 +1609,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             case GT:
                 return enterCmp(lhs, rhs, Condition.GT, type, symbol);
             case ADD:
-                Type widest = Type.widest(lhs.getType(), rhs.getType());
-                load(lhs, widest);
-                load(rhs, widest);
-                method.add();
-                method.convert(type);
-                method.store(symbol);
-                return false;
+                return enterNumericAdd(lhs, rhs, type, symbol);
             default:
                 // it's ok to send this one on with only primitive arguments, maybe INSTANCEOF(true, true) or similar
                 // assert false : runtimeNode + " has all primitive arguments. This is an inconsistent state";
@@ -1717,181 +1617,162 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }
 
-        if (nullCheck(runtimeNode, args, new FunctionSignature(false, false, runtimeNode.getType(), args).toString())) {
-           return false;
+        // Get the request arguments.
+        final List<Node> args = runtimeNode.getArgs();
+
+        if (nullCheck(runtimeNode, args, new FunctionSignature(false, runtimeNode.getType(), args).toString())) {
+            return null;
         }
 
-        if (!runtimeNode.isFinal() && specializationCheck(runtimeNode.getRequest(), runtimeNode, args)) {
-           return false;
+        if (specializationCheck(runtimeNode.getRequest(), runtimeNode, args)) {
+            return null;
         }
 
-        for (final Expression arg : args) {
-            load(arg, Type.OBJECT);
+        for (final Node arg : runtimeNode.getArgs()) {
+            load(arg).convert(Type.OBJECT); //TODO this should not be necessary below Lower
         }
 
-        method.invokestatic(
+        method.invokeStatic(
             CompilerConstants.className(ScriptRuntime.class),
             runtimeNode.getRequest().toString(),
             new FunctionSignature(
                 false,
-                false,
                 runtimeNode.getType(),
-                args.size()).toString());
+                runtimeNode.getArgs().size()).toString());
         method.convert(runtimeNode.getType());
         method.store(runtimeNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterSplitNode(final SplitNode splitNode) {
+    public Node enter(final SplitNode splitNode) {
+        if (splitNode.testResolved()) {
+            return null;
+        }
+
         final CompileUnit splitCompileUnit = splitNode.getCompileUnit();
 
-        final FunctionNode fn   = lc.getCurrentFunction();
+        final FunctionNode fn   = getCurrentFunctionNode();
         final String className  = splitCompileUnit.getUnitClassName();
         final String name       = splitNode.getName();
 
-        final Class<?>   rtype          = fn.getReturnType().getTypeClass();
-        final boolean    needsArguments = fn.needsArguments();
-        final Class<?>[] ptypes         = needsArguments ?
-                new Class<?>[] {ScriptFunction.class, Object.class, ScriptObject.class, Object.class} :
-                new Class<?>[] {ScriptFunction.class, Object.class, ScriptObject.class};
+        final Class<?>   rtype  = fn.getReturnType().getTypeClass();
+        final Class<?>[] ptypes = fn.isVarArg() ?
+                new Class<?>[] {Object.class, ScriptFunction.class, ScriptObject.class, Object.class} :
+                new Class<?>[] {Object.class, ScriptFunction.class, ScriptObject.class};
 
-        final MethodEmitter caller = method;
-        unit = lc.pushCompileUnit(splitCompileUnit);
+        setCurrentCompileUnit(splitCompileUnit);
+        splitNode.setCompileUnit(splitCompileUnit);
 
         final Call splitCall = staticCallNoLookup(
             className,
             name,
             methodDescriptor(rtype, ptypes));
 
-        final MethodEmitter splitEmitter =
-                splitCompileUnit.getClassEmitter().method(
-                        splitNode,
-                        name,
-                        rtype,
-                        ptypes);
+        setCurrentMethodEmitter(
+            splitCompileUnit.getClassEmitter().method(
+                EnumSet.of(Flag.PUBLIC, Flag.STATIC),
+                name,
+                rtype,
+                ptypes));
 
-        method = lc.pushMethodEmitter(splitEmitter);
         method.setFunctionNode(fn);
+        method.setSplitNode(splitNode);
+        splitNode.setMethodEmitter(method);
 
-        assert fn.needsCallee() : "split function should require callee";
-        caller.loadCompilerConstant(CALLEE);
-        caller.loadCompilerConstant(THIS);
-        caller.loadCompilerConstant(SCOPE);
-        if (needsArguments) {
-            caller.loadCompilerConstant(ARGUMENTS);
+        final MethodEmitter caller = splitNode.getCaller();
+        caller.loadThis();
+        caller.loadCallee();
+        caller.loadScope();
+        if (fn.isVarArg()) {
+            caller.loadArguments();
         }
         caller.invoke(splitCall);
-        caller.storeCompilerConstant(RETURN);
+        caller.storeResult();
 
         method.begin();
-        // Copy scope to its target slot as first thing because the original slot could be used by return symbol.
-        fixScopeSlot(fn);
 
         method.loadUndefined(fn.getReturnType());
-        method.storeCompilerConstant(RETURN);
+        method.storeResult();
 
-        return true;
+        fixScopeSlot();
+
+        return splitNode;
     }
 
-    private void fixScopeSlot(final FunctionNode functionNode) {
-        // TODO hack to move the scope to the expected slot (needed because split methods reuse the same slots as the root method)
-        if (functionNode.compilerConstant(SCOPE).getSlot() != SCOPE.slot()) {
+    private void fixScopeSlot() {
+        if (getCurrentFunctionNode().getScopeNode().getSymbol().getSlot() != SCOPE.slot()) {
+            // TODO hack to move the scope to the expected slot (that's needed because split methods reuse the same slots as the root method)
             method.load(Type.typeFor(ScriptObject.class), SCOPE.slot());
-            method.storeCompilerConstant(SCOPE);
+            method.storeScope();
         }
     }
 
     @Override
-    public Node leaveSplitNode(final SplitNode splitNode) {
-        assert method instanceof SplitMethodEmitter;
-        final boolean     hasReturn = method.hasReturn();
-        final List<Label> targets   = method.getExternalTargets();
-
+    public Node leave(final SplitNode splitNode) {
         try {
             // Wrap up this method.
-
-            method.loadCompilerConstant(RETURN);
-            method._return(lc.getCurrentFunction().getReturnType());
+            method.loadResult();
+            method._return(getCurrentFunctionNode().getReturnType());
             method.end();
-
-            unit   = lc.popCompileUnit(splitNode.getCompileUnit());
-            method = lc.popMethodEmitter(method);
-
         } catch (final Throwable t) {
             Context.printStackTrace(t);
-            final VerifyError e = new VerifyError("Code generation bug in \"" + splitNode.getName() + "\": likely stack misaligned: " + t + " " + lc.getCurrentFunction().getSource().getName());
+            final VerifyError e = new VerifyError("Code generation bug in \"" + splitNode.getName() + "\": likely stack misaligned: " + t + " " + compiler.getSource().getName());
             e.initCause(t);
             throw e;
         }
 
         // Handle return from split method if there was one.
-        final MethodEmitter caller = method;
-        final int     targetCount = targets.size();
+        final MethodEmitter caller      = splitNode.getCaller();
+        final List<Label>   targets     = splitNode.getExternalTargets();
+        final int           targetCount = targets.size();
 
-        //no external jump targets or return in switch node
-        if (!hasReturn && targets.isEmpty()) {
-            return splitNode;
-        }
+        if (splitNode.hasReturn() || targetCount > 0) {
 
-        caller.loadCompilerConstant(SCOPE);
-        caller.checkcast(Scope.class);
-        caller.invoke(Scope.GET_SPLIT_STATE);
+            caller.loadScope();
+            caller.checkcast(Scope.class);
+            caller.invoke(Scope.GET_SPLIT_STATE);
 
-        final Label breakLabel = new Label("no_split_state");
-        // Split state is -1 for no split state, 0 for return, 1..n+1 for break/continue
-
-        //the common case is that we don't need a switch
-        if (targetCount == 0) {
-            assert hasReturn;
-            caller.ifne(breakLabel);
-            //has to be zero
-            caller.label(new Label("split_return"));
-            caller.loadCompilerConstant(RETURN);
-            caller._return(lc.getCurrentFunction().getReturnType());
-            caller.label(breakLabel);
-        } else {
-            assert !targets.isEmpty();
-
-            final int     low         = hasReturn ? 0 : 1;
-            final int     labelCount  = targetCount + 1 - low;
-            final Label[] labels      = new Label[labelCount];
+            // Split state is -1 for no split state, 0 for return, 1..n+1 for break/continue
+            final Label   breakLabel = new Label("no_split_state");
+            final int     low        = splitNode.hasReturn() ? 0 : 1;
+            final int     labelCount = targetCount + 1 - low;
+            final Label[] labels     = new Label[labelCount];
 
             for (int i = 0; i < labelCount; i++) {
-                labels[i] = new Label(i == 0 ? "split_return" : "split_" + targets.get(i - 1));
+                labels[i] = new Label("split_state_" + i);
             }
-            caller.tableswitch(low, targetCount, breakLabel, labels);
+
+            caller.tableSwitch(low, targetCount, breakLabel, labels);
             for (int i = low; i <= targetCount; i++) {
                 caller.label(labels[i - low]);
                 if (i == 0) {
-                    caller.loadCompilerConstant(RETURN);
-                    caller._return(lc.getCurrentFunction().getReturnType());
+                    caller.loadResult();
+                    caller._return(getCurrentFunctionNode().getReturnType());
                 } else {
                     // Clear split state.
-                    caller.loadCompilerConstant(SCOPE);
+                    caller.loadScope();
                     caller.checkcast(Scope.class);
                     caller.load(-1);
                     caller.invoke(Scope.SET_SPLIT_STATE);
-                    caller.splitAwareGoto(lc, targets.get(i - 1));
+                    caller.splitAwareGoto(targets.get(i - 1));
                 }
             }
-            caller.label(breakLabel);
-        }
 
-        // If split has a return and caller is itself a split method it needs to propagate the return.
-        if (hasReturn) {
-            caller.setHasReturn();
+            caller.label(breakLabel);
         }
 
         return splitNode;
     }
 
     @Override
-    public boolean enterSwitchNode(final SwitchNode switchNode) {
-        lineNumber(switchNode);
+    public Node enter(final SwitchNode switchNode) {
+        if (switchNode.testResolved()) {
+            return null;
+        }
 
-        final Expression     expression  = switchNode.getExpression();
+        final Node           expression  = switchNode.getExpression();
         final Symbol         tag         = switchNode.getTag();
         final boolean        allInteger  = tag.getSymbolType().isInteger();
         final List<CaseNode> cases       = switchNode.getCases();
@@ -1907,10 +1788,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         }
 
         if (cases.isEmpty()) {
-            // still evaluate expression for side-effects.
-            load(expression).pop();
             method.label(breakLabel);
-            return false;
+            return null;
         }
 
         if (allInteger) {
@@ -1922,7 +1801,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 final Node test = caseNode.getTest();
 
                 if (test != null) {
-                    final Integer value = (Integer)((LiteralNode<?>)test).getValue();
+                    final Integer value = (Integer)((LiteralNode<?>) test).getValue();
                     final Label   entry = caseNode.getEntry();
 
                     // Take first duplicate.
@@ -1959,8 +1838,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             // If expression not int see if we can convert, if not use deflt to trigger default.
             if (!type.isInteger()) {
                 method.load(deflt);
-                final Class<?> exprClass = type.getTypeClass();
-                method.invoke(staticCallNoLookup(ScriptRuntime.class, "switchTagAsInt", int.class, exprClass.isPrimitive()? exprClass : Object.class, int.class));
+                method.invoke(staticCallNoLookup(ScriptRuntime.class, "switchTagAsInt", int.class, type.getTypeClass(), int.class));
             }
 
             // If reasonable size and not too sparse (80%), use table otherwise use lookup.
@@ -1973,25 +1851,33 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                     table[value - lo] = labels[i];
                 }
 
-                method.tableswitch(lo, hi, defaultLabel, table);
+                method.tableSwitch(lo, hi, defaultLabel, table);
             } else {
                 final int[] ints = new int[size];
+
                 for (int i = 0; i < size; i++) {
                     ints[i] = values[i];
                 }
 
-                method.lookupswitch(defaultLabel, ints, labels);
+                method.lookupSwitch(defaultLabel, ints, labels);
             }
         } else {
-            load(expression, Type.OBJECT);
-            method.store(tag);
+            load(expression);
+
+            if (expression.getType().isInteger()) {
+                method.convert(Type.NUMBER).dup();
+                method.store(tag);
+                method.conditionalJump(MethodEmitter.Condition.NE, true, defaultLabel);
+            } else {
+                method.store(tag);
+            }
 
             for (final CaseNode caseNode : cases) {
-                final Expression test = caseNode.getTest();
+                final Node test = caseNode.getTest();
 
                 if (test != null) {
                     method.load(tag);
-                    load(test, Type.OBJECT);
+                    load(test);
                     method.invoke(ScriptRuntime.EQ_STRICT);
                     method.ifne(caseNode.getEntry());
                 }
@@ -2009,30 +1895,25 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             method.label(breakLabel);
         }
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterThrowNode(final ThrowNode throwNode) {
-        lineNumber(throwNode);
-
-        if (throwNode.isSyntheticRethrow()) {
-            //do not wrap whatever this is in an ecma exception, just rethrow it
-            load(throwNode.getExpression());
-            method.athrow();
-            return false;
+    public Node enter(final ThrowNode throwNode) {
+        if (throwNode.testResolved()) {
+            return null;
         }
 
         method._new(ECMAException.class).dup();
 
-        final Source source     = lc.getCurrentFunction().getSource();
+        final Node   expression = throwNode.getExpression();
+        final Source source     = compiler.getSource();
+        final int    position   = throwNode.position();
+        final int    line       = source.getLine(position);
+        final int    column     = source.getColumn(position);
 
-        final Expression expression = throwNode.getExpression();
-        final int        position   = throwNode.position();
-        final int        line       = throwNode.getLineNumber();
-        final int        column     = source.getColumn(position);
-
-        load(expression, Type.OBJECT);
+        load(expression);
+        assert expression.getType().isObject();
 
         method.load(source.getName());
         method.load(line);
@@ -2041,12 +1922,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
         method.athrow();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterTryNode(final TryNode tryNode) {
-        lineNumber(tryNode);
+    public Node enter(final TryNode tryNode) {
+        if (tryNode.testResolved()) {
+            return null;
+        }
 
         final Block       body        = tryNode.getBody();
         final List<Block> catchBlocks = tryNode.getCatchBlocks();
@@ -2070,72 +1953,73 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.store(symbol);
 
         for (int i = 0; i < catchBlocks.size(); i++) {
+            final Block saveBlock = getCurrentBlock();
             final Block catchBlock = catchBlocks.get(i);
 
-            //TODO this is very ugly - try not to call enter/leave methods directly
-            //better to use the implicit lexical context scoping given by the visitor's
-            //accept method.
-            lc.push(catchBlock);
-            enterBlock(catchBlock);
+            setCurrentBlock(catchBlock);
 
-            final CatchNode  catchNode          = (CatchNode)catchBlocks.get(i).getStatements().get(0);
-            final IdentNode  exception          = catchNode.getException();
-            final Expression exceptionCondition = catchNode.getExceptionCondition();
-            final Block      catchBody          = catchNode.getBody();
+            try {
+                enter(catchBlock);
 
-            new Store<IdentNode>(exception) {
-                @Override
-                protected void storeNonDiscard() {
-                    return;
-                }
+                final CatchNode catchNode          = (CatchNode)catchBlocks.get(i).getStatements().get(0);
+                final IdentNode exception          = catchNode.getException();
+                final Node      exceptionCondition = catchNode.getExceptionCondition();
+                final Block     catchBody          = catchNode.getBody();
 
-                @Override
-                protected void evaluate() {
-                    if (catchNode.isSyntheticRethrow()) {
-                        method.load(symbol);
-                        return;
-                    }
-                    /*
-                     * If caught object is an instance of ECMAException, then
-                     * bind obj.thrown to the script catch var. Or else bind the
-                     * caught object itself to the script catch var.
-                     */
-                    final Label notEcmaException = new Label("no_ecma_exception");
-                    method.load(symbol).dup()._instanceof(ECMAException.class).ifeq(notEcmaException);
-                    method.checkcast(ECMAException.class); //TODO is this necessary?
-                    method.getField(ECMAException.THROWN);
-                    method.label(notEcmaException);
-                }
-            }.store();
-
-            final Label next;
-
-            if (exceptionCondition != null) {
-                next = new Label("next");
-                load(exceptionCondition, Type.BOOLEAN).ifeq(next);
-            } else {
-                next = null;
-            }
-
-            catchBody.accept(this);
-
-            if (i + 1 != catchBlocks.size() && !catchBody.hasTerminalFlags()) {
-                method._goto(skip);
-            }
-
-            if (next != null) {
-                if (i + 1 == catchBlocks.size()) {
-                    // no next catch block - rethrow if condition failed
-                    method._goto(skip);
-                    method.label(next);
+                if (catchNode.isSyntheticRethrow()) {
+                    // Generate catch body (inlined finally) and rethrow exception
+                    catchBody.accept(this);
                     method.load(symbol).athrow();
-                } else {
-                    method.label(next);
+                    continue;
                 }
-            }
 
-            leaveBlock(catchBlock);
-            lc.pop(catchBlock);
+                new Store<IdentNode>(exception) {
+                    @Override
+                    protected void evaluate() {
+                        /*
+                         * If caught object is an instance of ECMAException, then
+                         * bind obj.thrown to the script catch var. Or else bind the
+                         * caught object itself to the script catch var.
+                         */
+                        final Label notEcmaException = new Label("no_ecma_exception");
+
+                        method.load(symbol).dup()._instanceof(ECMAException.class).ifeq(notEcmaException);
+                        method.checkcast(ECMAException.class); //TODO is this necessary?
+                        method.getField(ECMAException.THROWN);
+                        method.label(notEcmaException);
+                    }
+                }.store();
+
+                final Label next;
+
+                if (exceptionCondition != null) {
+                    next = new Label("next");
+                    load(exceptionCondition).convert(Type.BOOLEAN).ifeq(next);
+                } else {
+                    next = null;
+                }
+
+                catchBody.accept(this);
+
+                if (i + 1 != catchBlocks.size() && !catchBody.hasTerminalFlags()) {
+                    method._goto(skip);
+                }
+
+                if (next != null) {
+                    if (i + 1 == catchBlocks.size()) {
+                        // no next catch block - rethrow if condition failed
+                        method._goto(skip);
+                        method.label(next);
+                        method.load(symbol).athrow();
+                    } else {
+                        method.label(next);
+                    }
+                }
+
+                leave(catchBlock);
+            } finally {
+                setCurrentBlock(saveBlock);
+            }
         }
 
         method.label(skip);
@@ -2143,57 +2027,65 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
         // Finally body is always inlined elsewhere so it doesn't need to be emitted
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterVarNode(final VarNode varNode) {
+    public Node enter(final VarNode varNode) {
+        final Node init = varNode.getInit();
 
-        final Expression init = varNode.getInit();
-
-        if (init == null) {
-            return false;
+        if (varNode.testResolved() || init == null) {
+            return null;
         }
 
-        lineNumber(varNode);
+        final Symbol varSymbol = varNode.getSymbol();
 
-        final IdentNode identNode = varNode.getName();
-        final Symbol identSymbol = identNode.getSymbol();
-        assert identSymbol != null : "variable node " + varNode + " requires a name with a symbol";
+        assert varSymbol != null : "variable node " + varNode + " requires a symbol";
 
         assert method != null;
 
-        final boolean needsScope = identSymbol.isScope();
+        final boolean needsScope = varSymbol.isScope();
         if (needsScope) {
-            method.loadCompilerConstant(SCOPE);
+            method.loadScope();
         }
 
+        load(init);
+
         if (needsScope) {
-            load(init);
             int flags = CALLSITE_SCOPE | getCallSiteFlags();
-            if (isFastScope(identSymbol)) {
-                storeFastScopeVar(identSymbol, flags);
+            if (varNode.isFunctionVarNode()) {
+                flags |= CALLSITE_FUNCTION_DECLARATION;
+            }
+            final IdentNode identNode = varNode.getName();
+            final Type type = identNode.getType();
+            if(varSymbol.isFastScope(getCurrentFunctionNode())) {
+                storeFastScopeVar(type, varSymbol, flags);
             } else {
-                method.dynamicSet(identNode.getName(), flags);
+                method.dynamicSet(type, identNode.getName(), flags);
             }
         } else {
-            load(init, identNode.getType());
-            method.store(identSymbol);
+            assert varNode.getType() == varNode.getName().getType() : "varNode type=" + varNode.getType() + " nametype=" + varNode.getName().getType() + " inittype=" + init.getType();
+
+            method.convert(varNode.getType()); // aw: convert moved here
+            method.store(varSymbol);
         }
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterWhileNode(final WhileNode whileNode) {
-        final Expression test          = whileNode.getTest();
-        final Block      body          = whileNode.getBody();
-        final Label      breakLabel    = whileNode.getBreakLabel();
-        final Label      continueLabel = whileNode.getContinueLabel();
-        final boolean    isDoWhile     = whileNode.isDoWhile();
-        final Label      loopLabel     = new Label("loop");
+    public Node enter(final WhileNode whileNode) {
+        if (whileNode.testResolved()) {
+            return null;
+        }
 
-        if (!isDoWhile) {
+        final Node  test          = whileNode.getTest();
+        final Block body          = whileNode.getBody();
+        final Label breakLabel    = whileNode.getBreakLabel();
+        final Label continueLabel = whileNode.getContinueLabel();
+        final Label loopLabel     = new Label("loop");
+
+        if (!(whileNode instanceof DoWhileNode)) {
             method._goto(continueLabel);
         }
 
@@ -2201,103 +2093,140 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         body.accept(this);
         if (!whileNode.isTerminal()) {
             method.label(continueLabel);
-            lineNumber(whileNode);
             new BranchOptimizer(this, method).execute(test, loopLabel, true);
             method.label(breakLabel);
         }
 
-        return false;
+        return null;
     }
 
     private void closeWith() {
-        if (method.hasScope()) {
-            method.loadCompilerConstant(SCOPE);
-            method.invoke(ScriptRuntime.CLOSE_WITH);
-            method.storeCompilerConstant(SCOPE);
-        }
+        method.loadScope();
+        method.invoke(ScriptRuntime.CLOSE_WITH);
+        method.storeScope();
     }
 
     @Override
-    public boolean enterWithNode(final WithNode withNode) {
-        final Expression expression = withNode.getExpression();
-        final Node       body       = withNode.getBody();
-
-        // It is possible to have a "pathological" case where the with block does not reference *any* identifiers. It's
-        // pointless, but legal. In that case, if nothing else in the method forced the assignment of a slot to the
-        // scope object, its' possible that it won't have a slot assigned. In this case we'll only evaluate expression
-        // for its side effect and visit the body, and not bother opening and closing a WithObject.
-        final boolean hasScope = method.hasScope();
-
-        final Label tryLabel;
-        if (hasScope) {
-            tryLabel = new Label("with_try");
-            method.label(tryLabel);
-            method.loadCompilerConstant(SCOPE);
-        } else {
-            tryLabel = null;
+    public Node enter(final WithNode withNode) {
+        if (withNode.testResolved()) {
+            return null;
         }
 
-        load(expression, Type.OBJECT);
+        final Node expression = withNode.getExpression();
+        final Node body       = withNode.getBody();
 
-        if (hasScope) {
-            // Construct a WithObject if we have a scope
-            method.invoke(ScriptRuntime.OPEN_WITH);
-            method.storeCompilerConstant(SCOPE);
-        } else {
-            // We just loaded the expression for its side effect and to check
-            // for null or undefined value.
-            globalCheckObjectCoercible();
-        }
+        final Label tryLabel   = new Label("with_try");
+        final Label endLabel   = new Label("with_end");
+        final Label catchLabel = new Label("with_catch");
+        final Label exitLabel  = new Label("with_exit");
 
+        method.label(tryLabel);
 
-        // Always process body
+        method.loadScope();
+        load(expression);
+
+        assert expression.getType().isObject() : "with expression needs to be object: " + expression;
+
+        method.invoke(ScriptRuntime.OPEN_WITH);
+        method.storeScope();
+
         body.accept(this);
 
-        if (hasScope) {
-            // Ensure we always close the WithObject
-            final Label endLabel   = new Label("with_end");
-            final Label catchLabel = new Label("with_catch");
-            final Label exitLabel  = new Label("with_exit");
-
-            if (!body.isTerminal()) {
-                closeWith();
-                method._goto(exitLabel);
-            }
-
-            method.label(endLabel);
-
-            method._catch(catchLabel);
+        if (!body.isTerminal()) {
             closeWith();
-            method.athrow();
-
-            method.label(exitLabel);
-
-            method._try(tryLabel, endLabel, catchLabel);
+            method._goto(exitLabel);
         }
-        return false;
+
+        method.label(endLabel);
+
+        method._catch(catchLabel);
+        closeWith();
+        method.athrow();
+
+        method.label(exitLabel);
+
+        method._try(tryLabel, endLabel, catchLabel);
+
+        return null;
     }
 
     @Override
-    public boolean enterADD(final UnaryNode unaryNode) {
-        load(unaryNode.rhs(), unaryNode.getType());
-        assert unaryNode.getType().isNumeric();
+    public Node enterADD(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
+        load(unaryNode.rhs());
+        assert unaryNode.rhs().getType().isNumber();
         method.store(unaryNode.getSymbol());
-        return false;
+
+        return null;
     }
 
     @Override
-    public boolean enterBIT_NOT(final UnaryNode unaryNode) {
-        load(unaryNode.rhs(), Type.INT).load(-1).xor().store(unaryNode.getSymbol());
-        return false;
+    public Node enterBIT_NOT(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
+        load(unaryNode.rhs()).convert(Type.INT).load(-1).xor().store(unaryNode.getSymbol());
+
+        return null;
+    }
+
+    // do this better with convert calls to method. TODO
+    @Override
+    public Node enterCONVERT(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node rhs = unaryNode.rhs();
+        final Type to  = unaryNode.getType();
+
+        if (to.isObject() && rhs instanceof LiteralNode) {
+            final LiteralNode<?> literalNode = (LiteralNode<?>)rhs;
+            final Object value = literalNode.getValue();
+
+            if (value instanceof Number) {
+                assert !to.isArray() : "type hygiene - cannot convert number to array: (" + to.getTypeClass().getSimpleName() + ')' + value;
+                if (value instanceof Integer) {
+                    method.load((Integer)value);
+                } else if (value instanceof Long) {
+                    method.load((Long)value);
+                } else if (value instanceof Double) {
+                    method.load((Double)value);
+                } else {
+                    assert false;
+                }
+                method.convert(Type.OBJECT);
+            } else if (value instanceof Boolean) {
+                method.getField(staticField(Boolean.class, value.toString().toUpperCase(), Boolean.class));
+            } else {
+                load(rhs);
+                method.convert(unaryNode.getType());
+            }
+        } else {
+            load(rhs);
+            method.convert(unaryNode.getType());
+        }
+
+        method.store(unaryNode.getSymbol());
+
+        return null;
     }
 
     @Override
-    public boolean enterDECINC(final UnaryNode unaryNode) {
-        final Expression rhs         = unaryNode.rhs();
-        final Type       type        = unaryNode.getType();
-        final TokenType  tokenType   = unaryNode.tokenType();
-        final boolean    isPostfix   = tokenType == TokenType.DECPOSTFIX || tokenType == TokenType.INCPOSTFIX;
-        final boolean    isIncrement = tokenType == TokenType.INCPREFIX || tokenType == TokenType.INCPOSTFIX;
+    public Node enterDECINC(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node      rhs         = unaryNode.rhs();
+        final Type      type        = unaryNode.getType();
+        final TokenType tokenType   = unaryNode.tokenType();
+        final boolean   isPostfix   = tokenType == TokenType.DECPOSTFIX || tokenType == TokenType.INCPOSTFIX;
+        final boolean   isIncrement = tokenType == TokenType.INCPREFIX || tokenType == TokenType.INCPOSTFIX;
 
         assert !type.isObject();
 
@@ -2305,7 +2234,9 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
             @Override
             protected void evaluate() {
-                load(rhs, type, true);
+                load(rhs, true);
+
+                method.convert(type);
                 if (!isPostfix) {
                     if (type.isInteger()) {
                         method.load(isIncrement ? 1 : -1);
@@ -2334,48 +2265,61 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterDISCARD(final UnaryNode unaryNode) {
-        final Expression rhs = unaryNode.rhs();
-
-        lc.pushDiscard(rhs);
-        load(rhs);
-
-        if (lc.getCurrentDiscard() == rhs) {
-            assert !rhs.isAssignment();
-            method.pop();
-            lc.popDiscard();
+    public Node enterDISCARD(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
         }
 
-        return false;
+        final Node rhs = unaryNode.rhs();
+
+        load(rhs);
+
+        if (rhs.shouldDiscard()) {
+            method.pop();
+        }
+
+        return null;
     }
 
     @Override
-    public boolean enterNEW(final UnaryNode unaryNode) {
+    public Node enterNEW(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
         final CallNode callNode = (CallNode)unaryNode.rhs();
-        final List<Expression> args   = callNode.getArgs();
+        final List<Node> args   = callNode.getArgs();
 
         // Load function reference.
-        load(callNode.getFunction(), Type.OBJECT); // must detect type error
+        load(callNode.getFunction()).convert(Type.OBJECT); // must detect type error
 
-        method.dynamicNew(1 + loadArgs(args), getCallSiteFlags());
+        // Load arguments.
+        loadArgs(args);
+
+        method.dynamicNew(args.size(), getCallSiteFlags());
         method.store(unaryNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterNOT(final UnaryNode unaryNode) {
-        final Expression rhs = unaryNode.rhs();
+    public Node enterNOT(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
 
-        load(rhs, Type.BOOLEAN);
+        final Node rhs = unaryNode.rhs();
+
+        load(rhs);
 
         final Label trueLabel  = new Label("true");
         final Label afterLabel = new Label("after");
 
+        method.convert(Type.BOOLEAN);
         method.ifne(trueLabel);
         method.load(true);
         method._goto(afterLabel);
@@ -2384,54 +2328,63 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.label(afterLabel);
         method.store(unaryNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterSUB(final UnaryNode unaryNode) {
-        assert unaryNode.getType().isNumeric();
-        load(unaryNode.rhs(), unaryNode.getType()).neg().store(unaryNode.getSymbol());
-        return false;
+    public Node enterSUB(final UnaryNode unaryNode) {
+        if (unaryNode.testResolved()) {
+            return null;
+        }
+
+        load(unaryNode.rhs()).neg().store(unaryNode.getSymbol());
+
+        return null;
     }
 
-    @Override
-    public boolean enterVOID(final UnaryNode unaryNode) {
-        load(unaryNode.rhs()).pop();
-        method.loadUndefined(Type.OBJECT);
-
-        return false;
-    }
-
-    private void enterNumericAdd(final Expression lhs, final Expression rhs, final Type type, final Symbol symbol) {
-        loadBinaryOperands(lhs, rhs, type);
-        method.add(); //if the symbol is optimistic, it always needs to be written, not on the stack?
+    private Node enterNumericAdd(final Node lhs, final Node rhs, final Type type, final Symbol symbol) {
+        assert lhs.getType().equals(rhs.getType()) && lhs.getType().equals(type);
+        load(lhs);
+        load(rhs);
+        method.add();
         method.store(symbol);
+
+        return null;
     }
 
     @Override
-    public boolean enterADD(final BinaryNode binaryNode) {
-        final Expression lhs = binaryNode.lhs();
-        final Expression rhs = binaryNode.rhs();
+    public Node enterADD(final BinaryNode binaryNode) {
+        if (binaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node lhs = binaryNode.lhs();
+        final Node rhs = binaryNode.rhs();
 
         final Type type = binaryNode.getType();
         if (type.isNumeric()) {
             enterNumericAdd(lhs, rhs, type, binaryNode.getSymbol());
         } else {
-            loadBinaryOperands(binaryNode);
+            load(lhs).convert(Type.OBJECT);
+            load(rhs).convert(Type.OBJECT);
             method.add();
             method.store(binaryNode.getSymbol());
         }
 
-        return false;
+        return null;
     }
 
-    private boolean enterAND_OR(final BinaryNode binaryNode) {
-        final Expression lhs = binaryNode.lhs();
-        final Expression rhs = binaryNode.rhs();
+    private Node enterAND_OR(final BinaryNode binaryNode) {
+        if (binaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node lhs = binaryNode.lhs();
+        final Node rhs = binaryNode.rhs();
 
         final Label skip = new Label("skip");
 
-        load(lhs, Type.OBJECT).dup().convert(Type.BOOLEAN);
+        load(lhs).convert(Type.OBJECT).dup().convert(Type.BOOLEAN);
 
         if (binaryNode.tokenType() == TokenType.AND) {
             method.ifeq(skip);
@@ -2440,42 +2393,43 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         }
 
         method.pop();
-        load(rhs, Type.OBJECT);
+        load(rhs).convert(Type.OBJECT);
         method.label(skip);
         method.store(binaryNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterAND(final BinaryNode binaryNode) {
+    public Node enterAND(final BinaryNode binaryNode) {
         return enterAND_OR(binaryNode);
     }
 
     @Override
-    public boolean enterASSIGN(final BinaryNode binaryNode) {
-        final Expression lhs = binaryNode.lhs();
-        final Expression rhs = binaryNode.rhs();
+    public Node enterASSIGN(final BinaryNode binaryNode) {
+        if (binaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node lhs = binaryNode.lhs();
+        final Node rhs = binaryNode.rhs();
 
         final Type lhsType = lhs.getType();
         final Type rhsType = rhs.getType();
 
         if (!lhsType.isEquivalentTo(rhsType)) {
             //this is OK if scoped, only locals are wrong
+            assert !(lhs instanceof IdentNode) || lhs.getSymbol().isScope() : new ASTWriter(binaryNode);
         }
 
         new Store<BinaryNode>(binaryNode, lhs) {
             @Override
             protected void evaluate() {
-                if ((lhs instanceof IdentNode) && !lhs.getSymbol().isScope()) {
-                    load(rhs, lhsType);
-                } else {
-                    load(rhs);
-                }
+                load(rhs);
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     /**
@@ -2506,54 +2460,55 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             this.opType = opType;
         }
 
+        @Override
+        public void store() {
+            if (assignNode.testResolved()) {
+                return;
+            }
+            super.store();
+        }
+
         protected abstract void op();
 
         @Override
         protected void evaluate() {
-            loadBinaryOperands(assignNode.lhs(), assignNode.rhs(), opType, true);
+            load(assignNode.lhs(), true).convert(opType);
+            load(assignNode.rhs()).convert(opType);
             op();
             method.convert(assignNode.getType());
         }
     }
 
     @Override
-    public boolean enterASSIGN_ADD(final BinaryNode binaryNode) {
+    public Node enterASSIGN_ADD(final BinaryNode binaryNode) {
         assert RuntimeNode.Request.ADD.canSpecialize();
-        final Type lhsType = binaryNode.lhs().getType();
-        final Type rhsType = binaryNode.rhs().getType();
         final boolean specialize = binaryNode.getType() == Type.OBJECT;
 
         new AssignOp(binaryNode) {
+            @Override
+            protected boolean isSelfModifying() {
+                return !specialize;
+            }
 
             @Override
             protected void op() {
-                if (specialize) {
-                    method.dynamicRuntimeCall(
-                            new SpecializedRuntimeNode(
-                                Request.ADD,
-                                new Type[] {
-                                    lhsType,
-                                    rhsType,
-                                },
-                                Type.OBJECT).getInitialName(),
-                            Type.OBJECT,
-                            Request.ADD);
-                } else {
-                    method.add();
-                }
+                method.add();
             }
 
             @Override
             protected void evaluate() {
+                if (specialize && specializationCheck(Request.ADD, assignNode, Arrays.asList(assignNode.lhs(), assignNode.rhs()))) {
+                    return;
+                }
                 super.evaluate();
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_BIT_AND(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_AND(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
@@ -2561,11 +2516,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_BIT_OR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_OR(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
@@ -2573,11 +2528,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_BIT_XOR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_BIT_XOR(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
@@ -2585,11 +2540,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_DIV(final BinaryNode binaryNode) {
+    public Node enterASSIGN_DIV(final BinaryNode binaryNode) {
         new AssignOp(binaryNode) {
             @Override
             protected void op() {
@@ -2597,11 +2552,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_MOD(final BinaryNode binaryNode) {
+    public Node enterASSIGN_MOD(final BinaryNode binaryNode) {
         new AssignOp(binaryNode) {
             @Override
             protected void op() {
@@ -2609,11 +2564,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_MUL(final BinaryNode binaryNode) {
+    public Node enterASSIGN_MUL(final BinaryNode binaryNode) {
         new AssignOp(binaryNode) {
             @Override
             protected void op() {
@@ -2621,11 +2576,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_SAR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SAR(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
@@ -2633,11 +2588,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_SHL(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SHL(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
@@ -2645,24 +2600,24 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_SHR(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SHR(final BinaryNode binaryNode) {
         new AssignOp(Type.INT, binaryNode) {
             @Override
             protected void op() {
                 method.shr();
-                method.convert(Type.LONG).load(JSType.MAX_UINT).and();
+                method.convert(Type.LONG).load(0xffff_ffffL).and();
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterASSIGN_SUB(final BinaryNode binaryNode) {
+    public Node enterASSIGN_SUB(final BinaryNode binaryNode) {
         new AssignOp(binaryNode) {
             @Override
             protected void op() {
@@ -2670,7 +2625,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.store();
 
-        return false;
+        return null;
     }
 
     /**
@@ -2681,14 +2636,18 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         protected abstract void op();
 
         protected void evaluate(final BinaryNode node) {
-            loadBinaryOperands(node);
+            if (node.testResolved()) {
+                return;
+            }
+            load(node.lhs());
+            load(node.rhs());
             op();
             method.store(node.getSymbol());
         }
     }
 
     @Override
-    public boolean enterBIT_AND(final BinaryNode binaryNode) {
+    public Node enterBIT_AND(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2696,11 +2655,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterBIT_OR(final BinaryNode binaryNode) {
+    public Node enterBIT_OR(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2708,11 +2667,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterBIT_XOR(final BinaryNode binaryNode) {
+    public Node enterBIT_XOR(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2720,32 +2679,36 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
-    private boolean enterComma(final BinaryNode binaryNode) {
-        final Expression lhs = binaryNode.lhs();
-        final Expression rhs = binaryNode.rhs();
+    private Node enterComma(final BinaryNode binaryNode) {
+        if (binaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node lhs = binaryNode.lhs();
+        final Node rhs = binaryNode.rhs();
 
         load(lhs);
         load(rhs);
         method.store(binaryNode.getSymbol());
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterCOMMARIGHT(final BinaryNode binaryNode) {
+    public Node enterCOMMARIGHT(final BinaryNode binaryNode) {
         return enterComma(binaryNode);
     }
 
     @Override
-    public boolean enterCOMMALEFT(final BinaryNode binaryNode) {
+    public Node enterCOMMALEFT(final BinaryNode binaryNode) {
         return enterComma(binaryNode);
     }
 
     @Override
-    public boolean enterDIV(final BinaryNode binaryNode) {
+    public Node enterDIV(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2753,17 +2716,21 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
-    private boolean enterCmp(final Expression lhs, final Expression rhs, final Condition cond, final Type type, final Symbol symbol) {
+    private Node enterCmp(final Node lhs, final Node rhs, final Condition cond, final Type type, final Symbol symbol) {
         final Type lhsType = lhs.getType();
         final Type rhsType = rhs.getType();
 
         final Type widest = Type.widest(lhsType, rhsType);
         assert widest.isNumeric() || widest.isBoolean() : widest;
 
-        loadBinaryOperands(lhs, rhs, widest);
+        load(lhs);
+        method.convert(widest);
+        load(rhs);
+        method.convert(widest);
+
         final Label trueLabel  = new Label("trueLabel");
         final Label afterLabel = new Label("skip");
 
@@ -2778,45 +2745,48 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.convert(type);
         method.store(symbol);
 
-        return false;
+        return null;
     }
 
-    private boolean enterCmp(final BinaryNode binaryNode, final Condition cond) {
+    private Node enterCmp(final BinaryNode binaryNode, final Condition cond) {
+        if (binaryNode.testResolved()) {
+            return null;
+        }
         return enterCmp(binaryNode.lhs(), binaryNode.rhs(), cond, binaryNode.getType(), binaryNode.getSymbol());
     }
 
     @Override
-    public boolean enterEQ(final BinaryNode binaryNode) {
+    public Node enterEQ(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.EQ);
     }
 
     @Override
-    public boolean enterEQ_STRICT(final BinaryNode binaryNode) {
+    public Node enterEQ_STRICT(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.EQ);
     }
 
     @Override
-    public boolean enterGE(final BinaryNode binaryNode) {
+    public Node enterGE(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.GE);
     }
 
     @Override
-    public boolean enterGT(final BinaryNode binaryNode) {
+    public Node enterGT(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.GT);
     }
 
     @Override
-    public boolean enterLE(final BinaryNode binaryNode) {
+    public Node enterLE(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.LE);
     }
 
     @Override
-    public boolean enterLT(final BinaryNode binaryNode) {
+    public Node enterLT(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.LT);
     }
 
     @Override
-    public boolean enterMOD(final BinaryNode binaryNode) {
+    public Node enterMOD(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2824,11 +2794,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterMUL(final BinaryNode binaryNode) {
+    public Node enterMUL(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2836,26 +2806,26 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterNE(final BinaryNode binaryNode) {
+    public Node enterNE(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.NE);
     }
 
     @Override
-    public boolean enterNE_STRICT(final BinaryNode binaryNode) {
+    public Node enterNE_STRICT(final BinaryNode binaryNode) {
         return enterCmp(binaryNode, Condition.NE);
     }
 
     @Override
-    public boolean enterOR(final BinaryNode binaryNode) {
+    public Node enterOR(final BinaryNode binaryNode) {
         return enterAND_OR(binaryNode);
     }
 
     @Override
-    public boolean enterSAR(final BinaryNode binaryNode) {
+    public Node enterSAR(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2863,11 +2833,11 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterSHL(final BinaryNode binaryNode) {
+    public Node enterSHL(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2875,30 +2845,24 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterSHR(final BinaryNode binaryNode) {
+    public Node enterSHR(final BinaryNode binaryNode) {
         new BinaryArith() {
-            @Override
-            protected void evaluate(final BinaryNode node) {
-                loadBinaryOperands(node.lhs(), node.rhs(), Type.INT);
-                op();
-                method.store(node.getSymbol());
-            }
             @Override
             protected void op() {
                 method.shr();
-                method.convert(Type.LONG).load(JSType.MAX_UINT).and();
+                method.convert(Type.LONG).load(0xffff_ffffL).and();
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
     @Override
-    public boolean enterSUB(final BinaryNode binaryNode) {
+    public Node enterSUB(final BinaryNode binaryNode) {
         new BinaryArith() {
             @Override
             protected void op() {
@@ -2906,48 +2870,97 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
         }.evaluate(binaryNode);
 
-        return false;
+        return null;
     }
 
+    /*
+     * Ternary visits.
+     */
     @Override
-    public boolean enterTernaryNode(final TernaryNode ternaryNode) {
-        final Expression test      = ternaryNode.getTest();
-        final Expression trueExpr  = ternaryNode.getTrueExpression();
-        final Expression falseExpr = ternaryNode.getFalseExpression();
+    public Node enter(final TernaryNode ternaryNode) {
+        if (ternaryNode.testResolved()) {
+            return null;
+        }
+
+        final Node lhs   = ternaryNode.lhs();
+        final Node rhs   = ternaryNode.rhs();
+        final Node third = ternaryNode.third();
 
         final Symbol symbol     = ternaryNode.getSymbol();
         final Label  falseLabel = new Label("ternary_false");
         final Label  exitLabel  = new Label("ternary_exit");
 
-        Type widest = Type.widest(ternaryNode.getType(), Type.widest(trueExpr.getType(), falseExpr.getType()));
-        if (trueExpr.getType().isArray() || falseExpr.getType().isArray()) { //loadArray creates a Java array type on the stack, calls global allocate, which creates a native array type
-            widest = Type.OBJECT;
-        }
+        final Type widest = Type.widest(rhs.getType(), third.getType());
 
-        load(test, Type.BOOLEAN);
+        load(lhs);
+        assert lhs.getType().isBoolean() : "lhs in ternary must be boolean";
+
         // we still keep the conversion here as the AccessSpecializer can have separated the types, e.g. var y = x ? x=55 : 17
         // will left as (Object)x=55 : (Object)17 by Lower. Then the first term can be {I}x=55 of type int, which breaks the
         // symmetry for the temporary slot for this TernaryNode. This is evidence that we assign types and explicit conversions
-        // too early, or Apply the AccessSpecializer too late. We are mostly probably looking for a separate type pass to
+        // to early, or Apply the AccessSpecializer too late. We are mostly probably looking for a separate type pass to
         // do this property. Then we never need any conversions in CodeGenerator
         method.ifeq(falseLabel);
-        load(trueExpr, widest);
+        load(rhs);
+        method.convert(widest);
         method._goto(exitLabel);
         method.label(falseLabel);
-        load(falseExpr, widest);
+        load(third);
+        method.convert(widest);
         method.label(exitLabel);
         method.store(symbol);
 
-        return false;
+        return null;
     }
 
     /**
      * Generate all shared scope calls generated during codegen.
      */
     protected void generateScopeCalls() {
-        for (final SharedScopeCall scopeAccess : lc.getScopeCalls()) {
+        for (final SharedScopeCall scopeAccess : scopeCalls.values()) {
             scopeAccess.generateScopeCall();
         }
+    }
+
+    /**
+     * Get a shared static method representing a dynamic scope callsite.
+     *
+     * @param symbol the symbol
+     * @param valueType the value type of the symbol
+     * @param returnType the return type
+     * @param paramTypes the parameter types
+     * @param flags the callsite flags
+     * @return an object representing a shared scope call
+     */
+    private SharedScopeCall getScopeCall(final Symbol symbol, final Type valueType, final Type returnType,
+                                         final Type[] paramTypes, final int flags) {
+
+        final SharedScopeCall scopeCall = new SharedScopeCall(symbol, valueType, returnType, paramTypes, flags);
+        if (scopeCalls.containsKey(scopeCall)) {
+            return scopeCalls.get(scopeCall);
+        }
+        scopeCall.setClassAndName(compileUnit, compiler);
+        scopeCalls.put(scopeCall, scopeCall);
+        return scopeCall;
+    }
+
+    /**
+     * Get a shared static method representing a dynamic scope get access.
+     *
+     * @param type the type of the variable
+     * @param symbol the symbol
+     * @param flags the callsite flags
+     * @return an object representing a shared scope call
+     */
+    private SharedScopeCall getScopeGet(final Type type, final Symbol symbol, final int flags) {
+
+        final SharedScopeCall scopeCall = new SharedScopeCall(symbol, type, type, null, flags);
+        if (scopeCalls.containsKey(scopeCall)) {
+            return scopeCalls.get(scopeCall);
+        }
+        scopeCall.setClassAndName(compileUnit, compiler);
+        scopeCalls.put(scopeCall, scopeCall);
+        return scopeCall;
     }
 
     /**
@@ -2956,13 +2969,13 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      * @param block the block we are in
      * @param ident identifier for block or function where applicable
      */
-    @SuppressWarnings("resource")
     private void printSymbols(final Block block, final String ident) {
-        if (!compiler.getEnv()._print_symbols) {
+        if (!context._print_symbols) {
             return;
         }
 
-        final PrintWriter out = compiler.getEnv().getErr();
+        @SuppressWarnings("resource")
+        final PrintWriter out = context.getErr();
         out.println("[BLOCK in '" + ident + "']");
         if (!block.printSymbols(out)) {
             out.println("<no symbols>");
@@ -2986,8 +2999,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
      *
      * @param <T>
      */
-    private abstract class SelfModifyingStore<T extends Expression> extends Store<T> {
-        protected SelfModifyingStore(final T assignNode, final Expression target) {
+    private abstract class SelfModifyingStore<T extends Node> extends Store<T> {
+        protected SelfModifyingStore(final T assignNode, final Node target) {
             super(assignNode, target);
         }
 
@@ -3000,13 +3013,16 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     /**
      * Helper class to generate stores
      */
-    private abstract class Store<T extends Expression> {
+    private abstract class Store<T extends Node> {
 
         /** An assignment node, e.g. x += y */
         protected final T assignNode;
 
         /** The target node to store to, e.g. x */
-        private final Expression target;
+        private final Node target;
+
+        /** Should the result always be discarded, no matter what? */
+        private final boolean alwaysDiscard;
 
         /** How deep on the stack do the arguments go if this generates an indy call */
         private int depth;
@@ -3020,9 +3036,10 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
          * @param assignNode the node representing the whole assignment
          * @param target     the target node of the assignment (destination)
          */
-        protected Store(final T assignNode, final Expression target) {
+        protected Store(final T assignNode, final Node target) {
             this.assignNode = assignNode;
             this.target = target;
+            this.alwaysDiscard = assignNode == target;
         }
 
         /**
@@ -3044,29 +3061,30 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
         private void prologue() {
             final Symbol targetSymbol = target.getSymbol();
-            final Symbol scopeSymbol  = lc.getCurrentFunction().compilerConstant(SCOPE);
+            final Symbol scopeSymbol  = getCurrentFunctionNode().getScopeNode().getSymbol();
 
             /**
              * This loads the parts of the target, e.g base and index. they are kept
              * on the stack throughout the store and used at the end to execute it
              */
 
-            target.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+            target.accept(new NodeVisitor(compileUnit, method) {
                 @Override
-                public boolean enterIdentNode(final IdentNode node) {
+                public Node enter(final IdentNode node) {
                     if (targetSymbol.isScope()) {
                         method.load(scopeSymbol);
                         depth++;
                     }
-                    return false;
+                    return null;
                 }
 
                 private void enterBaseNode() {
                     assert target instanceof BaseNode : "error - base node " + target + " must be instanceof BaseNode";
-                    final BaseNode   baseNode = (BaseNode)target;
-                    final Expression base     = baseNode.getBase();
+                    final BaseNode baseNode = (BaseNode)target;
+                    final Node     base     = baseNode.getBase();
 
-                    load(base, Type.OBJECT);
+                    load(base);
+                    method.convert(Type.OBJECT);
                     depth += Type.OBJECT.getSlots();
 
                     if (isSelfModifying()) {
@@ -3075,21 +3093,20 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 }
 
                 @Override
-                public boolean enterAccessNode(final AccessNode node) {
+                public Node enter(final AccessNode node) {
                     enterBaseNode();
-                    return false;
+                    return null;
                 }
 
                 @Override
-                public boolean enterIndexNode(final IndexNode node) {
+                public Node enter(final IndexNode node) {
                     enterBaseNode();
 
-                    final Expression index = node.getIndex();
+                    final Node index = node.getIndex();
+                    // could be boolean here as well
+                    load(index);
                     if (!index.getType().isNumeric()) {
-                        // could be boolean here as well
-                        load(index, Type.OBJECT);
-                    } else {
-                        load(index);
+                        method.convert(Type.OBJECT);
                     }
                     depth += index.getType().getSlots();
 
@@ -3098,14 +3115,14 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                         method.dup(1);
                     }
 
-                    return false;
+                    return null;
                 }
 
             });
         }
 
         private Symbol quickSymbol(final Type type) {
-            return quickSymbol(type, QUICK_PREFIX.symbolName());
+            return quickSymbol(type, QUICK_PREFIX.tag());
         }
 
         /**
@@ -3118,21 +3135,19 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
          * @return the quick symbol
          */
         private Symbol quickSymbol(final Type type, final String prefix) {
-            final String name = lc.getCurrentFunction().uniqueName(prefix);
-            final Symbol symbol = new Symbol(name, IS_TEMP | IS_INTERNAL);
+            final String name = compiler.uniqueName(prefix);
+            final Symbol symbol = new Symbol(name, IS_TEMP | IS_INTERNAL, null, null);
 
             symbol.setType(type);
-
-            symbol.setSlot(lc.quickSlot(symbol));
+            symbol.setSlot(getCurrentBlock().getFrame().getSlotCount());
 
             return symbol;
         }
 
         // store the result that "lives on" after the op, e.g. "i" in i++ postfix.
         protected void storeNonDiscard() {
-            if (lc.getCurrentDiscard() == assignNode) {
-                assert assignNode.isAssignment();
-                lc.popDiscard();
+            if (assignNode.shouldDiscard() || alwaysDiscard) {
+                assignNode.setDiscard(false);
                 return;
             }
 
@@ -3150,48 +3165,45 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         }
 
         private void epilogue() {
+            final Symbol targetSymbol = target.getSymbol();
+            final FunctionNode currentFunction = getCurrentFunctionNode();
+
             /**
              * Take the original target args from the stack and use them
              * together with the value to be stored to emit the store code
-             *
-             * The case that targetSymbol is in scope (!hasSlot) and we actually
-             * need to do a conversion on non-equivalent types exists, but is
-             * very rare. See for example test/script/basic/access-specializer.js
              */
-            target.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
-                @Override
-                protected boolean enterDefault(Node node) {
-                    throw new AssertionError("Unexpected node " + node + " in store epilogue");
-                }
+            if (targetSymbol.hasSlot()) {
+                method.convert(target.getType());
+            }
 
+            target.accept(new NodeVisitor(compileUnit, method) {
                 @Override
-                public boolean enterIdentNode(final IdentNode node) {
-                    final Symbol symbol = node.getSymbol();
-                    assert symbol != null;
+                public Node enter(final IdentNode node) {
+                    final Symbol symbol = target.getSymbol();
                     if (symbol.isScope()) {
-                        if (isFastScope(symbol)) {
-                            storeFastScopeVar(symbol, CALLSITE_SCOPE | getCallSiteFlags());
+                        if(symbol.isFastScope(currentFunction)) {
+                            storeFastScopeVar(target.getType(), symbol, CALLSITE_SCOPE | getCallSiteFlags());
                         } else {
-                            method.dynamicSet(node.getName(), CALLSITE_SCOPE | getCallSiteFlags());
+                            method.dynamicSet(target.getType(), node.getName(), CALLSITE_SCOPE | getCallSiteFlags());
                         }
                     } else {
-                        method.convert(node.getType());
-                        method.store(symbol);
+                        assert targetSymbol != null;
+                        method.store(targetSymbol);
                     }
-                    return false;
+                    return null;
 
                 }
 
                 @Override
-                public boolean enterAccessNode(final AccessNode node) {
-                    method.dynamicSet(node.getProperty().getName(), getCallSiteFlags());
-                    return false;
+                public Node enter(final AccessNode node) {
+                    method.dynamicSet(node.getProperty().getType(), node.getProperty().getName(), getCallSiteFlags());
+                    return null;
                 }
 
                 @Override
-                public boolean enterIndexNode(final IndexNode node) {
+                public Node enter(final IndexNode node) {
                     method.dynamicSetIndex(getCallSiteFlags());
-                    return false;
+                    return null;
                 }
             });
 
@@ -3210,75 +3222,45 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 method.load(quick);
             }
         }
+
     }
 
-    private void newFunctionObject(final FunctionNode functionNode, final FunctionNode originalFunctionNode) {
-        assert lc.peek() == functionNode;
-        // We don't emit a ScriptFunction on stack for:
-        // 1. the outermost compiled function (as there's no code being generated in its outer context that'd need it
-        //    as a callee), and
-        // 2. for functions that are immediately called upon definition and they don't need a callee, e.g. (function(){})().
-        //    Such immediately-called functions are invoked using INVOKESTATIC (see enterFunctionNode() of the embedded
-        //    visitor of enterCallNode() for details), and if they don't need a callee, they don't have it on their
-        //    static method's parameter list.
-        if (lc.getOutermostFunction() == functionNode ||
-                (!functionNode.needsCallee()) && lc.isFunctionDefinedInCurrentCall(originalFunctionNode)) {
-            return;
-        }
-
-        // Generate the object class and property map in case this function is ever used as constructor
-        final String      className          = SCRIPTFUNCTION_IMPL_OBJECT;
-        final int         fieldCount         = ObjectClassGenerator.getPaddedFieldCount(functionNode.countThisProperties());
-        final String      allocatorClassName = Compiler.binaryName(ObjectClassGenerator.getClassName(fieldCount));
-        final PropertyMap allocatorMap       = PropertyMap.newMap(null, 0, fieldCount, 0);
-
-        method._new(className).dup();
-        loadConstant(new RecompilableScriptFunctionData(functionNode, compiler.getCodeInstaller(), allocatorClassName, allocatorMap));
-
-        if (functionNode.isLazy() || functionNode.needsParentScope()) {
-            method.loadCompilerConstant(SCOPE);
-        } else {
-            method.loadNull();
-        }
-        method.invoke(constructorNoLookup(className, RecompilableScriptFunctionData.class, ScriptObject.class));
-    }
-
-    // calls on Global class.
+    /*
+     * Globals are special. We cannot refer to any Global (or NativeObject) class by .class, as they are different
+     * for different contexts. As far as I can tell, the only NativeObject that we need to deal with like this
+     * is from the code pipeline is Global
+     */
     private MethodEmitter globalInstance() {
-        return method.invokestatic(GLOBAL_OBJECT, "instance", "()L" + GLOBAL_OBJECT + ';');
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "instance", "()L" + Compiler.GLOBAL_OBJECT + ';');
     }
 
     private MethodEmitter globalObjectPrototype() {
-        return method.invokestatic(GLOBAL_OBJECT, "objectPrototype", methodDescriptor(ScriptObject.class));
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "objectPrototype", methodDescriptor(ScriptObject.class));
     }
 
     private MethodEmitter globalAllocateArguments() {
-        return method.invokestatic(GLOBAL_OBJECT, "allocateArguments", methodDescriptor(ScriptObject.class, Object[].class, Object.class, int.class));
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "allocateArguments", methodDescriptor(Object.class, Object[].class, Object.class, int.class));
     }
 
     private MethodEmitter globalNewRegExp() {
-        return method.invokestatic(GLOBAL_OBJECT, "newRegExp", methodDescriptor(Object.class, String.class, String.class));
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "newRegExp", methodDescriptor(Object.class, String.class, String.class));
     }
 
     private MethodEmitter globalRegExpCopy() {
-        return method.invokestatic(GLOBAL_OBJECT, "regExpCopy", methodDescriptor(Object.class, Object.class));
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "regExpCopy", methodDescriptor(Object.class, Object.class));
     }
 
     private MethodEmitter globalAllocateArray(final ArrayType type) {
         //make sure the native array is treated as an array type
-        return method.invokestatic(GLOBAL_OBJECT, "allocate", "(" + type.getDescriptor() + ")Ljdk/nashorn/internal/objects/NativeArray;");
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "allocate", methodDescriptor(Object.class, type.getTypeClass()), type);
     }
 
     private MethodEmitter globalIsEval() {
-        return method.invokestatic(GLOBAL_OBJECT, "isEval", methodDescriptor(boolean.class, Object.class));
-    }
-
-    private MethodEmitter globalCheckObjectCoercible() {
-        return method.invokestatic(GLOBAL_OBJECT, "checkObjectCoercible", methodDescriptor(void.class, Object.class));
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "isEval", methodDescriptor(boolean.class, Object.class));
     }
 
     private MethodEmitter globalDirectEval() {
-        return method.invokestatic(GLOBAL_OBJECT, "directEval",
+        return method.invokeStatic(Compiler.GLOBAL_OBJECT, "directEval",
                 methodDescriptor(Object.class, Object.class, Object.class, Object.class, Object.class, Object.class));
     }
 }

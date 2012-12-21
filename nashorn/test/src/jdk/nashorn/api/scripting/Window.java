@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,6 @@
  */
 
 package jdk.nashorn.api.scripting;
-
-import java.util.Map;
-import javax.script.Bindings;
 
 public class Window {
 
@@ -62,24 +59,17 @@ public class Window {
         return self.setTimeout(code, delay);
     }
 
+    public static void clearTimeout(final Window self, final int id) {
+        self.clearTimeout(id);
+    }
+
     public int setTimeout(final String code, final int delay) {
         System.out.println("window.setTimeout: " + delay + ", code: " + code);
         return 0;
     }
 
-    public static Object funcJSObject(final JSObject jsobj) {
-        return jsobj.getMember("foo");
+    public void clearTimeout(final int id) {
+        System.out.println("window.clearTimeout: " + id);
     }
 
-    public static Object funcScriptObjectMirror(final ScriptObjectMirror sobj) {
-        return sobj.get("foo");
-    }
-
-    public static Object funcMap(final Map<?,?> map) {
-        return map.get("foo");
-    }
-
-    public static Object funcBindings(final Bindings bindings) {
-        return bindings.get("foo");
-    }
 }

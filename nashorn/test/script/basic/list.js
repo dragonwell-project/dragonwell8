@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @run
  */
 var l = new java.util.ArrayList();
-print("l.class.name=" + Java.typeName(l.class)) // Has "class" property like any POJO
+print("l.class.name=" + l.class.name) // Has "class" property like any POJO
 
 l.add("foo")
 l.add("bar")

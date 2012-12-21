@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
@@ -64,19 +63,16 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
     @Property
     public Object set;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
+    AccessorPropertyDescriptor() {
+        this(false, false, UNDEFINED, UNDEFINED);
     }
 
-    AccessorPropertyDescriptor(final boolean configurable, final boolean enumerable, final Object get, final Object set, final Global global) {
-        super(global.getObjectPrototype(), global.getAccessorPropertyDescriptorMap());
+    AccessorPropertyDescriptor(final boolean configurable, final boolean enumerable, final Object get, final Object set) {
         this.configurable = configurable;
         this.enumerable   = enumerable;
         this.get          = get;
         this.set          = set;
+        setProto(Global.objectPrototype());
     }
 
     @Override
@@ -142,16 +138,18 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
 
     @Override
     public PropertyDescriptor fillFrom(final ScriptObject sobj) {
+        final boolean strict = getContext()._strict;
+
         if (sobj.has(CONFIGURABLE)) {
             this.configurable = JSType.toBoolean(sobj.get(CONFIGURABLE));
         } else {
-            delete(CONFIGURABLE, false);
+            delete(CONFIGURABLE, strict);
         }
 
         if (sobj.has(ENUMERABLE)) {
             this.enumerable = JSType.toBoolean(sobj.get(ENUMERABLE));
         } else {
-            delete(ENUMERABLE, false);
+            delete(ENUMERABLE, strict);
         }
 
         if (sobj.has(GET)) {
@@ -159,10 +157,10 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
             if (getter == UNDEFINED || getter instanceof ScriptFunction) {
                 this.get = getter;
             } else {
-                throw typeError("not.a.function", ScriptRuntime.safeToString(getter));
+                typeError(Global.instance(), "not.a.function", ScriptRuntime.safeToString(getter));
             }
         } else {
-            delete(GET, false);
+            delete(GET, strict);
         }
 
         if (sobj.has(SET)) {
@@ -170,10 +168,10 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
             if (setter == UNDEFINED || setter instanceof ScriptFunction) {
                 this.set = setter;
             } else {
-                throw typeError("not.a.function", ScriptRuntime.safeToString(setter));
+                typeError(Global.instance(), "not.a.function", ScriptRuntime.safeToString(setter));
             }
         } else {
-            delete(SET, false);
+            delete(SET, strict);
         }
 
         return this;

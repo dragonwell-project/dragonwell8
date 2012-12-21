@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.nashorn.internal.parser;
 
-import static jdk.nashorn.internal.parser.TokenType.COMMENT;
 import static jdk.nashorn.internal.parser.TokenType.EOF;
 import static jdk.nashorn.internal.parser.TokenType.EOL;
 import static jdk.nashorn.internal.parser.TokenType.IDENT;
@@ -39,7 +38,6 @@ import jdk.nashorn.internal.runtime.ErrorManager;
 import jdk.nashorn.internal.runtime.JSErrorType;
 import jdk.nashorn.internal.runtime.ParserException;
 import jdk.nashorn.internal.runtime.Source;
-import jdk.nashorn.internal.runtime.regexp.RegExpFactory;
 
 /**
  * Base class for parsers.
@@ -98,7 +96,21 @@ public abstract class AbstractParser {
         this.token        = Token.toDesc(EOL, 0, 1);
         this.type         = EOL;
         this.last         = EOL;
+        this.start        = 0;
+        this.finish       = 0;
+        this.line         = 0;
+        this.linePosition = 0;
+        this.lexer        = null;
         this.isStrictMode = strict;
+    }
+
+    /**
+     * Get the Source
+     *
+     * @return the Source
+     */
+    public Source getSource() {
+        return source;
     }
 
     /**
@@ -136,27 +148,14 @@ public abstract class AbstractParser {
     }
 
     /**
-     * Seek next token that is not an EOL or comment.
+     * Seek next token that is not an EOL.
      *
      * @return tokenType of next token.
      */
     protected final TokenType next() {
         do {
             nextOrEOL();
-        } while (type == EOL || type == COMMENT);
-
-        return type;
-    }
-
-    /**
-     * Seek next token or EOL (skipping comments.)
-     *
-     * @return tokenType of next token.
-     */
-    protected final TokenType nextOrEOL() {
-        do {
-            nextToken();
-        } while (type == COMMENT);
+        } while (type == EOL);
 
         return type;
     }
@@ -166,7 +165,7 @@ public abstract class AbstractParser {
      *
      * @return tokenType of next token.
      */
-    private final TokenType nextToken() {
+    protected final TokenType nextOrEOL() {
         // Capture last token tokenType.
         last = type;
         if (type != EOF) {
@@ -211,10 +210,9 @@ public abstract class AbstractParser {
      *
      * @param message    Error message.
      * @param errorToken Offending token.
-     * @return ParserException upon failure. Caller should throw and not ignore
      */
-    protected final ParserException error(final String message, final long errorToken) {
-        return error(JSErrorType.SYNTAX_ERROR, message, errorToken);
+    protected final void error(final String message, final long errorToken) {
+        error(JSErrorType.SYNTAX_ERROR, message, errorToken);
     }
 
     /**
@@ -223,24 +221,24 @@ public abstract class AbstractParser {
      * @param errorType  The error type
      * @param message    Error message.
      * @param errorToken Offending token.
-     * @return ParserException upon failure. Caller should throw and not ignore
      */
-    protected final ParserException error(final JSErrorType errorType, final String message, final long errorToken) {
+    protected final void error(final JSErrorType errorType, final String message, final long errorToken) {
         final int position  = Token.descPosition(errorToken);
         final int lineNum   = source.getLine(position);
         final int columnNum = source.getColumn(position);
         final String formatted = ErrorManager.format(message, source, lineNum, columnNum, errorToken);
-        return new ParserException(errorType, formatted, source, lineNum, columnNum, errorToken);
+        final ParserException exp = new ParserException(formatted, source, lineNum, columnNum, errorToken);
+        exp.setErrorType(errorType);
+        throw exp;
     }
 
     /**
      * Report an error.
      *
      * @param message Error message.
-     * @return ParserException upon failure. Caller should throw and not ignore
      */
-    protected final ParserException error(final String message) {
-        return error(JSErrorType.SYNTAX_ERROR, message);
+    protected final void error(final String message) {
+        error(JSErrorType.SYNTAX_ERROR, message);
     }
 
     /**
@@ -248,25 +246,15 @@ public abstract class AbstractParser {
      *
      * @param errorType  The error type
      * @param message    Error message.
-     * @return ParserException upon failure. Caller should throw and not ignore
      */
-    protected final ParserException error(final JSErrorType errorType, final String message) {
+    protected final void error(final JSErrorType errorType, final String message) {
         // TODO - column needs to account for tabs.
         final int position = Token.descPosition(token);
         final int column = position - linePosition;
         final String formatted = ErrorManager.format(message, source, line, column, token);
-        return new ParserException(errorType, formatted, source, line, column, token);
-    }
-
-    /**
-     * Report a warning to the error manager.
-     *
-     * @param errorType  The error type of the warning
-     * @param message    Warning message.
-     * @param errorToken error token
-     */
-    protected final void warning(final JSErrorType errorType, final String message, final long errorToken) {
-        errors.warning(error(errorType, message, errorToken));
+        final ParserException exp = new ParserException(formatted, source, line, column, token);
+        exp.setErrorType(errorType);
+        throw exp;
     }
 
     /**
@@ -277,7 +265,7 @@ public abstract class AbstractParser {
      * @return the message string
      */
     protected final String expectMessage(final TokenType expected) {
-        final String tokenString = Token.toString(source, token);
+        final String tokenString = Token.toString(source, token, false);
         String msg;
 
         if (expected == null) {
@@ -299,7 +287,7 @@ public abstract class AbstractParser {
      */
     protected final void expect(final TokenType expected) throws ParserException {
         if (type != expected) {
-            throw error(expectMessage(expected));
+            error(expectMessage(expected));
         }
 
         next();
@@ -314,7 +302,7 @@ public abstract class AbstractParser {
      */
     protected final Object expectValue(final TokenType expected) throws ParserException {
         if (type != expected) {
-            throw error(expectMessage(expected));
+            error(expectMessage(expected));
         }
 
         final Object value = getValue();
@@ -378,7 +366,7 @@ public abstract class AbstractParser {
             next();
 
             // Create IDENT node.
-            return new IdentNode(identToken, finish, ident).setIsFutureStrictName();
+            return new IdentNode(source, identToken, finish, ident);
         }
 
         // Get IDENT.
@@ -387,7 +375,7 @@ public abstract class AbstractParser {
             return null;
         }
         // Create IDENT node.
-        return new IdentNode(identToken, finish, ident);
+        return new IdentNode(source, identToken, finish, ident);
     }
 
     /**
@@ -422,7 +410,7 @@ public abstract class AbstractParser {
             final String ident = (String)getValue(identToken);
             next();
             // Create IDENT node.
-            return new IdentNode(identToken, finish, ident);
+            return new IdentNode(source, identToken, finish, ident);
         } else {
             expect(IDENT);
             return null;
@@ -441,31 +429,30 @@ public abstract class AbstractParser {
 
         // Create literal node.
         final Object value = getValue();
-        // Advance to have a correct finish
-        next();
 
         LiteralNode<?> node = null;
 
         if (value == null) {
-            node = LiteralNode.newInstance(literalToken, finish);
+            node = LiteralNode.newInstance(source, literalToken, finish);
         } else if (value instanceof Number) {
-            node = LiteralNode.newInstance(literalToken, finish, (Number)value);
+            node = LiteralNode.newInstance(source, literalToken, finish, (Number)value);
         } else if (value instanceof String) {
-            node = LiteralNode.newInstance(literalToken, finish, (String)value);
+            node = LiteralNode.newInstance(source, literalToken, finish, (String)value);
         } else if (value instanceof LexerToken) {
             if (value instanceof RegexToken) {
                 final RegexToken regex = (RegexToken)value;
                 try {
-                    RegExpFactory.validate(regex.getExpression(), regex.getOptions());
+                    RegExp.validate(regex.getExpression(), regex.getOptions());
                 } catch (final ParserException e) {
-                    throw error(e.getMessage());
+                    error(e.getMessage());
                 }
             }
-            node = LiteralNode.newInstance(literalToken, finish, (LexerToken)value);
+            node = LiteralNode.newInstance(source, literalToken, finish, (LexerToken)value);
         } else {
             assert false : "unknown type for LiteralNode: " + value.getClass();
         }
 
+        next();
         return node;
     }
 }

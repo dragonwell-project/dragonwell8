@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,57 +25,74 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.codegen.CompilerConstants.ARGUMENTS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.CALLEE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.CONSTANTS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.DEFAULT_SCRIPT_NAME;
-import static jdk.nashorn.internal.codegen.CompilerConstants.LAZY;
-import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
+import static jdk.nashorn.internal.codegen.CompilerConstants.RUN_SCRIPT;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.THIS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.VARARGS;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.logging.Level;
-import jdk.internal.dynalink.support.NameCodec;
+import java.util.TreeMap;
 import jdk.nashorn.internal.codegen.ClassEmitter.Flag;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
-import jdk.nashorn.internal.ir.TemporarySymbols;
-import jdk.nashorn.internal.ir.debug.ClassHistogramElement;
-import jdk.nashorn.internal.ir.debug.ObjectSizeCalculator;
+import jdk.nashorn.internal.ir.Node;
+import jdk.nashorn.internal.ir.debug.ASTWriter;
+import jdk.nashorn.internal.ir.debug.PrintVisitor;
+import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.parser.Parser;
 import jdk.nashorn.internal.runtime.CodeInstaller;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.DebugLogger;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
+import jdk.nashorn.internal.runtime.ECMAErrors;
+import jdk.nashorn.internal.runtime.ErrorManager;
 import jdk.nashorn.internal.runtime.Source;
-import jdk.nashorn.internal.runtime.Timing;
+import jdk.nashorn.internal.runtime.linker.Mangler;
 import jdk.nashorn.internal.runtime.options.Options;
 
 /**
  * Responsible for converting JavaScripts to java byte code. Main entry
- * point for code generator. The compiler may also install classes given some
- * predefined Code installation policy, given to it at construction time.
- * @see CodeInstaller
+ * point for code generator
  */
 public final class Compiler {
+
+    /** Compiler states available */
+    public enum State {
+        /** compiler is ready */
+        INITIALIZED,
+        /** method has been parsed */
+        PARSED,
+        /** method has been lowered */
+        LOWERED,
+        /** method has been emitted to bytecode */
+        EMITTED
+    }
+
+    /** Current context */
+    private final Context context;
+
+    /** Currently compiled source */
+    private final Source source;
+
+    /** Current error manager */
+    private final ErrorManager errors;
+
+    /** Names uniqueName for this compile. */
+    private final Namespace namespace;
+
+    /** Current function node, or null if compiling from source until parsed */
+    private FunctionNode functionNode;
+
+    /** Current compiler state */
+    private final EnumSet<State> state;
 
     /** Name of the scripts package */
     public static final String SCRIPTS_PACKAGE = "jdk/nashorn/internal/scripts";
@@ -83,497 +100,180 @@ public final class Compiler {
     /** Name of the objects package */
     public static final String OBJECTS_PACKAGE = "jdk/nashorn/internal/objects";
 
-    private Source source;
+    /** Name of the Global object, cannot be referred to as .class, @see CodeGenerator */
+    public static final String GLOBAL_OBJECT = OBJECTS_PACKAGE + '/' + "Global";
 
-    private final Map<String, byte[]> bytecode;
+    /** Name of the ScriptObjectImpl, cannot be referred to as .class @see FunctionObjectCreator */
+    public static final String SCRIPTOBJECT_IMPL_OBJECT = OBJECTS_PACKAGE + '/' + "ScriptFunctionImpl";
 
+    /** Name of the Trampoline, cannot be referred to as .class @see FunctionObjectCreator */
+    public static final String TRAMPOLINE_OBJECT = OBJECTS_PACKAGE + '/' + "Trampoline";
+
+    /** Compile unit (class) table. */
     private final Set<CompileUnit> compileUnits;
 
+    /** All the "complex" constants used in the code. */
     private final ConstantData constantData;
 
-    private final CompilationSequence sequence;
+    static final DebugLogger LOG = new DebugLogger("compiler");
 
-    private final ScriptEnvironment env;
-
+    /** Script name */
     private String scriptName;
 
+    /** Should we dump classes to disk and compile only? */
+    private final boolean dumpClass;
+
+    /** Code map class name -> byte code for all classes generated from this Source or FunctionNode */
+    private Map<String, byte[]> code;
+
+    /** Are we compiling in strict mode? */
     private boolean strict;
 
-    private final CodeInstaller<ScriptEnvironment> installer;
+    /** Is this a lazy compilation - i.e. not from source, but jitting a previously parsed FunctionNode? */
+    private boolean isLazy;
 
-    private final TemporarySymbols temporarySymbols = new TemporarySymbols();
-
-    /** logger for compiler, trampolines, splits and related code generation events
-     *  that affect classes */
-    public static final DebugLogger LOG = new DebugLogger("compiler");
+    /** Lazy jitting is disabled by default */
+    private static final boolean LAZY_JIT = false;
 
     /**
-     * This array contains names that need to be reserved at the start
-     * of a compile, to avoid conflict with variable names later introduced.
-     * See {@link CompilerConstants} for special names used for structures
-     * during a compile.
+     * Should we use integers for literals and all operations
+     * that are based in constant and parameter assignment as
+     * long as they can be proven not to overflow? With this enabled
+     * var x = 17 would tag x as an integer, rather than a double,
+     * but as soon as it is used in an operation that may potentially
+     * overflow, such as an add, we conservatively widen it to double
+     * (number type). This is because overflow checks in the code
+     * are likely much more expensive that method specialization
+     *
+     * @return true if numbers should start as ints, false if they should
+     *   start as doubles
      */
-    private static String[] RESERVED_NAMES = {
-        SCOPE.symbolName(),
-        THIS.symbolName(),
-        RETURN.symbolName(),
-        CALLEE.symbolName(),
-        VARARGS.symbolName(),
-        ARGUMENTS.symbolName()
-    };
+    static boolean shouldUseIntegers() {
+        return USE_INTS;
+    }
+
+    private static final boolean USE_INTS;
 
     /**
-     * This class makes it possible to do your own compilation sequence
-     * from the code generation package. There are predefined compilation
-     * sequences already
+     * Should we use integers for arithmetic operations as well?
+     * TODO: We currently generate no overflow checks so this is
+     * disabled
+     *
+     * @see #shouldUseIntegers()
+     *
+     * @return true if arithmetic operations should not widen integer
+     *   operands by default.
      */
-    @SuppressWarnings("serial")
-    static class CompilationSequence extends LinkedList<CompilationPhase> {
+    static boolean shouldUseIntegerArithmetic() {
+        return Compiler.shouldUseIntegers() && USE_INT_ARITH;
+    }
 
-        CompilationSequence(final CompilationPhase... phases) {
-            super(Arrays.asList(phases));
-        }
+    private static final boolean USE_INT_ARITH;
 
-        CompilationSequence(final CompilationSequence sequence) {
-            this(sequence.toArray(new CompilationPhase[sequence.size()]));
-        }
+    static {
+        USE_INTS       = !Options.getBooleanProperty("nashorn.compiler.ints.disable");
+        USE_INT_ARITH  =  Options.getBooleanProperty("nashorn.compiler.intarithmetic");
 
-        CompilationSequence insertAfter(final CompilationPhase phase, final CompilationPhase newPhase) {
-            final CompilationSequence newSeq = new CompilationSequence();
-            for (final CompilationPhase elem : this) {
-                newSeq.add(phase);
-                if (elem.equals(phase)) {
-                    newSeq.add(newPhase);
-                }
-            }
-            assert newSeq.contains(newPhase);
-            return newSeq;
-        }
-
-        CompilationSequence insertBefore(final CompilationPhase phase, final CompilationPhase newPhase) {
-            final CompilationSequence newSeq = new CompilationSequence();
-            for (final CompilationPhase elem : this) {
-                if (elem.equals(phase)) {
-                    newSeq.add(newPhase);
-                }
-                newSeq.add(phase);
-            }
-            assert newSeq.contains(newPhase);
-            return newSeq;
-        }
-
-        CompilationSequence insertFirst(final CompilationPhase phase) {
-            final CompilationSequence newSeq = new CompilationSequence(this);
-            newSeq.addFirst(phase);
-            return newSeq;
-        }
-
-        CompilationSequence insertLast(final CompilationPhase phase) {
-            final CompilationSequence newSeq = new CompilationSequence(this);
-            newSeq.addLast(phase);
-            return newSeq;
-        }
+        assert !USE_INT_ARITH : "Integer arithmetic is not enabled";
     }
 
     /**
-     * Environment information known to the compile, e.g. params
+     * Factory method for compiler that should compile from source to bytecode
+     *
+     * @param source  the source
+     * @param context context
+     *
+     * @return compiler instance
      */
-    public static class Hints {
-        private final Type[] paramTypes;
-
-        /** singleton empty hints */
-        public static final Hints EMPTY = new Hints();
-
-        private Hints() {
-            this.paramTypes = null;
-        }
-
-        /**
-         * Constructor
-         * @param paramTypes known parameter types for this callsite
-         */
-        public Hints(final Type[] paramTypes) {
-            this.paramTypes = paramTypes;
-        }
-
-        /**
-         * Get the parameter type for this parameter position, or
-         * null if now known
-         * @param pos position
-         * @return parameter type for this callsite if known
-         */
-        public Type getParameterType(final int pos) {
-            if (paramTypes != null && pos < paramTypes.length) {
-                return paramTypes[pos];
-            }
-            return null;
-        }
+    public static Compiler compiler(final Source source, final Context context) {
+        return Compiler.compiler(source, context, context.getErrors(), context._strict);
     }
 
     /**
-     * Standard (non-lazy) compilation, that basically will take an entire script
-     * and JIT it at once. This can lead to long startup time and fewer type
-     * specializations
+     * Factory method to get a compiler that goes from from source to bytecode
+     *
+     * @param source  source code
+     * @param context context
+     * @param errors  error manager
+     * @param strict  compilation in strict mode?
+     *
+     * @return compiler instance
      */
-    final static CompilationSequence SEQUENCE_EAGER = new CompilationSequence(
-        CompilationPhase.CONSTANT_FOLDING_PHASE,
-        CompilationPhase.LOWERING_PHASE,
-        CompilationPhase.ATTRIBUTION_PHASE,
-        CompilationPhase.RANGE_ANALYSIS_PHASE,
-        CompilationPhase.SPLITTING_PHASE,
-        CompilationPhase.TYPE_FINALIZATION_PHASE,
-        CompilationPhase.BYTECODE_GENERATION_PHASE);
-
-    final static CompilationSequence SEQUENCE_LAZY =
-        SEQUENCE_EAGER.insertFirst(CompilationPhase.LAZY_INITIALIZATION_PHASE);
-
-    private static CompilationSequence sequence(final boolean lazy) {
-        return lazy ? SEQUENCE_LAZY : SEQUENCE_EAGER;
+    public static Compiler compiler(final Source source, final Context context, final ErrorManager errors, final boolean strict) {
+        return new Compiler(source, context, errors, strict);
     }
 
-    boolean isLazy() {
-        return sequence == SEQUENCE_LAZY;
+    /**
+     * Factory method to get a compiler that goes from FunctionNode (parsed) to bytecode
+     * Requires previous compiler for state
+     *
+     * @param compiler primordial compiler
+     * @param functionNode functionNode to compile
+     *
+     * @return compiler
+     */
+    public static Compiler compiler(final Compiler compiler, final FunctionNode functionNode) {
+        assert false : "lazy jit - not implemented";
+        final Compiler newCompiler = new Compiler(compiler);
+        newCompiler.state.add(State.PARSED);
+        newCompiler.functionNode = functionNode;
+        newCompiler.isLazy = true;
+        return compiler;
     }
 
-    private static String lazyTag(final FunctionNode functionNode) {
-        if (functionNode.isLazy()) {
-            return '$' + LAZY.symbolName() + '$' + functionNode.getName();
-        }
-        return "";
+    private Compiler(final Compiler compiler) {
+        this(compiler.source, compiler.context, compiler.errors, compiler.strict);
     }
 
     /**
      * Constructor
      *
-     * @param env          script environment
-     * @param installer    code installer
-     * @param sequence     {@link Compiler.CompilationSequence} of {@link CompilationPhase}s to apply as this compilation
-     * @param strict       should this compilation use strict mode semantics
+     * @param source  the source to compile
+     * @param context context
+     * @param errors  error manager
+     * @param strict  compile in strict mode
      */
-    //TODO support an array of FunctionNodes for batch lazy compilation
-    Compiler(final ScriptEnvironment env, final CodeInstaller<ScriptEnvironment> installer, final CompilationSequence sequence, final boolean strict) {
-        this.env           = env;
-        this.sequence      = sequence;
-        this.installer     = installer;
-        this.constantData  = new ConstantData();
-        this.compileUnits  = new TreeSet<>();
-        this.bytecode      = new LinkedHashMap<>();
+    private Compiler(final Source source, final Context context, final ErrorManager errors, final boolean strict) {
+        this.source       = source;
+        this.context      = context;
+        this.errors       = errors;
+        this.strict       = strict;
+        this.namespace    = new Namespace(context.getNamespace());
+        this.compileUnits = new HashSet<>();
+        this.constantData = new ConstantData();
+        this.state        = EnumSet.of(State.INITIALIZED);
+        this.dumpClass    = context._compile_only && context._dest_dir != null;
     }
 
-    private void initCompiler(final FunctionNode functionNode) {
-        this.strict        = strict || functionNode.isStrict();
-        final StringBuilder sb = new StringBuilder();
-        sb.append(functionNode.uniqueName(DEFAULT_SCRIPT_NAME.symbolName() + lazyTag(functionNode))).
-                append('$').
-                append(safeSourceName(functionNode.getSource()));
-        this.source = functionNode.getSource();
-        this.scriptName = sb.toString();
-    }
-
-    /**
-     * Constructor
-     *
-     * @param installer    code installer
-     * @param strict       should this compilation use strict mode semantics
-     */
-    public Compiler(final CodeInstaller<ScriptEnvironment> installer, final boolean strict) {
-        this(installer.getOwner(), installer, sequence(installer.getOwner()._lazy_compilation), strict);
-    }
-
-    /**
-     * Constructor - compilation will use the same strict semantics as in script environment
-     *
-     * @param installer    code installer
-     */
-    public Compiler(final CodeInstaller<ScriptEnvironment> installer) {
-        this(installer.getOwner(), installer, sequence(installer.getOwner()._lazy_compilation), installer.getOwner()._strict);
-    }
-
-    /**
-     * Constructor - compilation needs no installer, but uses a script environment
-     * Used in "compile only" scenarios
-     * @param env a script environment
-     */
-    public Compiler(final ScriptEnvironment env) {
-        this(env, null, sequence(env._lazy_compilation), env._strict);
-    }
-
-    private static void printMemoryUsage(final String phaseName, final FunctionNode functionNode) {
-        LOG.info(phaseName + " finished. Doing IR size calculation...");
-
-        final ObjectSizeCalculator osc = new ObjectSizeCalculator(ObjectSizeCalculator.getEffectiveMemoryLayoutSpecification());
-        osc.calculateObjectSize(functionNode);
-
-        final List<ClassHistogramElement> list = osc.getClassHistogram();
-
-        final StringBuilder sb = new StringBuilder();
-        final long totalSize = osc.calculateObjectSize(functionNode);
-        sb.append(phaseName).append(" Total size = ").append(totalSize / 1024 / 1024).append("MB");
-        LOG.info(sb);
-
-        Collections.sort(list, new Comparator<ClassHistogramElement>() {
-            @Override
-            public int compare(ClassHistogramElement o1, ClassHistogramElement o2) {
-                final long diff = o1.getBytes() - o2.getBytes();
-                if (diff < 0) {
-                    return 1;
-                } else if (diff > 0) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            }
-        });
-        for (final ClassHistogramElement e : list) {
-            final String line = String.format("    %-48s %10d bytes (%8d instances)", e.getClazz(), e.getBytes(), e.getInstances());
-            LOG.info(line);
-            if (e.getBytes() < totalSize / 200) {
-                LOG.info("    ...");
-                break; // never mind, so little memory anyway
-            }
-        }
-    }
-
-    /**
-     * Execute the compilation this Compiler was created with
-     * @param functionNode function node to compile from its current state
-     * @throws CompilationException if something goes wrong
-     * @return function node that results from code transforms
-     */
-    public FunctionNode compile(final FunctionNode functionNode) throws CompilationException {
-        FunctionNode newFunctionNode = functionNode;
-
-        initCompiler(newFunctionNode); //TODO move this state into functionnode?
-
-        for (final String reservedName : RESERVED_NAMES) {
-            newFunctionNode.uniqueName(reservedName);
-        }
-
-        final boolean fine = !LOG.levelAbove(Level.FINE);
-        final boolean info = !LOG.levelAbove(Level.INFO);
-
-        long time = 0L;
-
-        for (final CompilationPhase phase : sequence) {
-            newFunctionNode = phase.apply(this, newFunctionNode);
-
-            if (env._print_mem_usage) {
-                printMemoryUsage(phase.toString(), newFunctionNode);
-            }
-
-            final long duration = Timing.isEnabled() ? (phase.getEndTime() - phase.getStartTime()) : 0L;
-            time += duration;
-
-            if (fine) {
-                final StringBuilder sb = new StringBuilder();
-
-                sb.append(phase.toString()).
-                    append(" done for function '").
-                    append(newFunctionNode.getName()).
-                    append('\'');
-
-                if (duration > 0L) {
-                    sb.append(" in ").
-                        append(duration).
-                        append(" ms ");
-                }
-
-                LOG.fine(sb);
-            }
-        }
-
-        if (info) {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("Compile job for '").
-                append(newFunctionNode.getSource()).
-                append(':').
-                append(newFunctionNode.getName()).
-                append("' finished");
-
-            if (time > 0L) {
-                sb.append(" in ").
-                    append(time).
-                    append(" ms");
-            }
-
-            LOG.info(sb);
-        }
-
-        return newFunctionNode;
-    }
-
-    private Class<?> install(final String className, final byte[] code) {
-        LOG.fine("Installing class ", className);
-
-        final Class<?> clazz = installer.install(Compiler.binaryName(className), code);
-
-        try {
-            final Object[] constants = getConstantData().toArray();
-            // Need doPrivileged because these fields are private
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                @Override
-                public Void run() throws Exception {
-                    //use reflection to write source and constants table to installed classes
-                    final Field sourceField    = clazz.getDeclaredField(SOURCE.symbolName());
-                    final Field constantsField = clazz.getDeclaredField(CONSTANTS.symbolName());
-                    sourceField.setAccessible(true);
-                    constantsField.setAccessible(true);
-                    sourceField.set(null, source);
-                    constantsField.set(null, constants);
-                    return null;
-                }
-            });
-        } catch (final PrivilegedActionException e) {
-            throw new RuntimeException(e);
-        }
-
-        return clazz;
-    }
-
-    /**
-     * Install compiled classes into a given loader
-     * @param functionNode function node to install - must be in {@link CompilationState#EMITTED} state
-     * @return root script class - if there are several compile units they will also be installed
-     */
-    public Class<?> install(final FunctionNode functionNode) {
-        final long t0 = Timing.isEnabled() ? System.currentTimeMillis() : 0L;
-
-        assert functionNode.hasState(CompilationState.EMITTED) : functionNode.getName() + " has no bytecode and cannot be installed";
-
-        final Map<String, Class<?>> installedClasses = new HashMap<>();
-
-        final String   rootClassName = firstCompileUnitName();
-        final byte[]   rootByteCode  = bytecode.get(rootClassName);
-        final Class<?> rootClass     = install(rootClassName, rootByteCode);
-
-        int length = rootByteCode.length;
-
-        installedClasses.put(rootClassName, rootClass);
-
-        for (final Entry<String, byte[]> entry : bytecode.entrySet()) {
-            final String className = entry.getKey();
-            if (className.equals(rootClassName)) {
-                continue;
-            }
-            final byte[] code = entry.getValue();
-            length += code.length;
-
-            installedClasses.put(className, install(className, code));
-        }
-
-        for (final CompileUnit unit : compileUnits) {
-            unit.setCode(installedClasses.get(unit.getUnitClassName()));
-        }
-
-        final StringBuilder sb;
-        if (LOG.isEnabled()) {
-            sb = new StringBuilder();
-            sb.append("Installed class '").
-                append(rootClass.getSimpleName()).
-                append('\'').
-                append(" bytes=").
-                append(length).
-                append('.');
-            if (bytecode.size() > 1) {
-                sb.append(' ').append(bytecode.size()).append(" compile units.");
-            }
-        } else {
-            sb = null;
-        }
-
-        if (Timing.isEnabled()) {
-            final long duration = System.currentTimeMillis() - t0;
-            Timing.accumulateTime("[Code Installation]", duration);
-            if (sb != null) {
-                sb.append(" Install time: ").append(duration).append(" ms");
-            }
-        }
-
-        if (sb != null) {
-            LOG.fine(sb);
-        }
-
-        return rootClass;
-    }
-
-    Set<CompileUnit> getCompileUnits() {
-        return compileUnits;
-    }
-
-    boolean getStrictMode() {
-        return strict;
-    }
-
-    void setStrictMode(final boolean strict) {
-        this.strict = strict;
-    }
-
-    ConstantData getConstantData() {
-        return constantData;
-    }
-
-    CodeInstaller<ScriptEnvironment> getCodeInstaller() {
-        return installer;
-    }
-
-    TemporarySymbols getTemporarySymbols() {
-        return temporarySymbols;
-    }
-
-    void addClass(final String name, final byte[] code) {
-        bytecode.put(name, code);
-    }
-
-    ScriptEnvironment getEnv() {
-        return this.env;
-    }
-
-    private String safeSourceName(final Source src) {
-        String baseName = new File(src.getName()).getName();
-
-        final int index = baseName.lastIndexOf(".js");
-        if (index != -1) {
-            baseName = baseName.substring(0, index);
-        }
-
-        baseName = baseName.replace('.', '_').replace('-', '_');
-        if (! env._loader_per_compile) {
-            baseName = baseName + installer.getUniqueScriptId();
-        }
-        final String mangled = NameCodec.encode(baseName);
-
-        return mangled != null ? mangled : baseName;
+    private String scriptsPackageName() {
+        return dumpClass ? "" : (SCRIPTS_PACKAGE + '/');
     }
 
     private int nextCompileUnitIndex() {
         return compileUnits.size() + 1;
     }
 
-    String firstCompileUnitName() {
-        return SCRIPTS_PACKAGE + '/' + scriptName;
+    private String firstCompileUnitName() {
+        return scriptsPackageName() + scriptName;
     }
 
     private String nextCompileUnitName() {
         return firstCompileUnitName() + '$' + nextCompileUnitIndex();
     }
 
-    CompileUnit addCompileUnit(final long initialWeight) {
+    private CompileUnit addCompileUnit(final long initialWeight) {
         return addCompileUnit(nextCompileUnitName(), initialWeight);
-    }
-
-    CompileUnit addCompileUnit(final String unitClassName) {
-        return addCompileUnit(unitClassName, 0L);
     }
 
     private CompileUnit addCompileUnit(final String unitClassName, final long initialWeight) {
         final CompileUnit compileUnit = initCompileUnit(unitClassName, initialWeight);
         compileUnits.add(compileUnit);
-        LOG.fine("Added compile unit ", compileUnit);
+        LOG.info("Added compile unit " + compileUnit);
         return compileUnit;
     }
 
     private CompileUnit initCompileUnit(final String unitClassName, final long initialWeight) {
-        final ClassEmitter classEmitter = new ClassEmitter(env, source.getName(), unitClassName, strict);
+        final ClassEmitter classEmitter = new ClassEmitter(this, unitClassName, strict);
         final CompileUnit  compileUnit  = new CompileUnit(unitClassName, classEmitter, initialWeight);
 
         classEmitter.begin();
@@ -581,13 +281,178 @@ public final class Compiler {
         final MethodEmitter initMethod = classEmitter.init(EnumSet.of(Flag.PRIVATE));
         initMethod.begin();
         initMethod.load(Type.OBJECT, 0);
-        initMethod.newInstance(jdk.nashorn.internal.scripts.JS.class);
+        initMethod.newInstance(jdk.nashorn.internal.scripts.JS$.class);
         initMethod.returnVoid();
         initMethod.end();
 
         return compileUnit;
     }
 
+    /**
+     * Perform compilation
+     *
+     * @return true if successful, false otherwise - if false check the error manager
+     */
+    public boolean compile() {
+        assert state.contains(State.INITIALIZED);
+
+        /** do we need to parse source? */
+        if (!state.contains(State.PARSED)) {
+            assert this.functionNode == null;
+            this.functionNode = new Parser(this, strict).parse(RUN_SCRIPT.tag());
+
+            state.add(State.PARSED);
+            debugPrintParse();
+
+            if (errors.hasErrors() || context._parse_only) {
+                return false;
+            }
+
+            assert !isLazy;
+            //tag lazy nodes for later code generation and trampolines
+            functionNode.accept(new NodeVisitor() {
+                @Override
+                public Node enter(final FunctionNode node) {
+                    if (LAZY_JIT) {
+                        node.setIsLazy(!node.isScript());
+                    }
+                    return node;
+                }
+            });
+        } else {
+            assert isLazy;
+            functionNode.accept(new NodeVisitor() {
+                @Override
+                public Node enter(final FunctionNode node) {
+                    node.setIsLazy(false);
+                    return null; //TODO do we want to do this recursively? then return "node" instead
+                }
+            });
+        }
+
+        assert functionNode != null;
+        final boolean oldStrict = strict;
+
+        try {
+            strict |= functionNode.isStrictMode();
+
+            if (!state.contains(State.LOWERED)) {
+                debugPrintAST();
+                functionNode.accept(new Lower(this));
+                state.add(State.LOWERED);
+
+                if (errors.hasErrors()) {
+                    return false;
+                }
+            }
+
+            scriptName = computeNames();
+
+            // Main script code always goes to this compile unit. Note that since we start this with zero weight
+            // and add script code last this class may end up slightly larger than others, but reserving one class
+            // just for the main script seems wasteful.
+            final CompileUnit scriptCompileUnit = addCompileUnit(firstCompileUnitName(), 0l);
+            new Splitter(this, functionNode, scriptCompileUnit).split();
+            assert functionNode.getCompileUnit() == scriptCompileUnit;
+
+            /** Compute compile units */
+            assert strict == functionNode.isStrictMode() : "strict == " + strict + " but functionNode == " + functionNode.isStrictMode();
+            if (functionNode.isStrictMode()) {
+                strict = true;
+            }
+
+            try {
+                final CodeGenerator codegen = new CodeGenerator(this);
+                functionNode.accept(codegen);
+                codegen.generateScopeCalls();
+                debugPrintAST();
+                debugPrintParse();
+            } catch (final VerifyError e) {
+                if (context._verify_code || context._print_code) {
+                    context.getErr().println(e.getClass().getSimpleName() + ": " + e.getMessage());
+                    if (context._dump_on_error) {
+                        e.printStackTrace(context.getErr());
+                    }
+                } else {
+                    throw e;
+                }
+            }
+
+            state.add(State.EMITTED);
+
+            code = new TreeMap<>();
+            for (final CompileUnit compileUnit : compileUnits) {
+                final ClassEmitter classEmitter = compileUnit.getClassEmitter();
+                classEmitter.end();
+
+                if (!errors.hasErrors()) {
+                    final byte[] bytecode = classEmitter.toByteArray();
+                    if (bytecode != null) {
+                        code.put(compileUnit.getUnitClassName(), bytecode);
+                        debugDisassemble();
+                        debugVerify();
+                    }
+               }
+            }
+
+            if (code.isEmpty()) {
+                return false;
+            }
+
+            try {
+                dumpClassFiles();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            return true;
+        } finally {
+            strict = oldStrict;
+        }
+    }
+
+    /**
+     * Install compiled classes into a given loader
+     * @param installer that takes the generated classes and puts them in the system
+     * @return root script class - if there are several compile units they will also be installed
+     */
+    public Class<?> install(final CodeInstaller installer) {
+        assert state.contains(State.EMITTED);
+        assert scriptName != null;
+
+        Class<?> rootClass = null;
+
+        for (final Entry<String, byte[]> entry : code.entrySet()) {
+            final String     className = entry.getKey();
+            LOG.info("Installing class " + className);
+
+            final byte[]     bytecode  = entry.getValue();
+            final Class<?>   clazz     = installer.install(Compiler.binaryName(className), bytecode);
+
+            if (rootClass == null && firstCompileUnitName().equals(className)) {
+                rootClass = clazz;
+            }
+
+            try {
+                //use reflection to write source and constants table to installed classes
+                clazz.getField(SOURCE.tag()).set(null, source);
+                clazz.getField(CONSTANTS.tag()).set(null, constantData.toArray());
+            } catch (final NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        LOG.info("Root class: " + rootClass);
+
+        return rootClass;
+    }
+
+    /**
+     * Find a unit that will hold a node of the specified weight.
+     *
+     * @param weight Weight of a node
+     * @return Unit to hold node.
+     */
     CompileUnit findUnit(final long weight) {
         for (final CompileUnit unit : compileUnits) {
             if (unit.canHold(weight)) {
@@ -597,6 +462,203 @@ public final class Compiler {
         }
 
         return addCompileUnit(weight);
+    }
+
+    /**
+     * Generate a uniqueName name. Public as {@link Parser} is using this to
+     * create symbols in a different package
+     *
+     * @param  name to base unique name on
+     * @return unique name
+     */
+    public String uniqueName(final String name) {
+        return namespace.uniqueName(name);
+    }
+
+    /**
+     * Internal function to compute reserved names and base names for class to
+     * be generated
+     *
+     * @return scriptName
+     */
+    private String computeNames() {
+        // Reserve internally used names.
+        addReservedNames();
+
+        if (dumpClass) {
+            // get source file name and remove ".js"
+            final String baseName = getSource().getName();
+            final int    index    = baseName.lastIndexOf(".js");
+            if (index != -1) {
+                return baseName.substring(0, index);
+            }
+            return baseName;
+        }
+
+        return namespace.getParent().uniqueName(
+            DEFAULT_SCRIPT_NAME.tag() +
+            '$' +
+            safeSourceName(source) +
+            (isLazy ? CompilerConstants.LAZY.tag() : "")
+        );
+    }
+
+    private static String safeSourceName(final Source source) {
+        String baseName = new File(source.getName()).getName();
+        final int index = baseName.lastIndexOf(".js");
+        if (index != -1) {
+            baseName = baseName.substring(0, index);
+        }
+
+        baseName = baseName.replace('.', '_').replace('-', '_');
+        final String mangled = Mangler.mangle(baseName);
+
+        baseName = mangled != null ? mangled : baseName;
+        return baseName;
+    }
+
+    static void verify(final Context context, final byte[] code) {
+        context.verify(code);
+    }
+
+    /**
+     * Fill in the namespace with internally reserved names.
+     */
+    private void addReservedNames() {
+        namespace.uniqueName(SCOPE.tag());
+        namespace.uniqueName(THIS.tag());
+    }
+
+    /**
+     * Get the constant data for this Compiler
+     *
+     * @return the constant data
+     */
+    public ConstantData getConstantData() {
+        return constantData;
+    }
+
+    /**
+     * Get the Context used for Compilation
+     * @see Context
+     * @return the context
+     */
+    public Context getContext() {
+        return context;
+    }
+
+    /**
+     * Get the Source being compiled
+     * @see Source
+     * @return the source
+     */
+    public Source getSource() {
+        return source;
+    }
+
+    /**
+     * Get the error manager used for this compiler
+     * @return the error manager
+     */
+    public ErrorManager getErrors() {
+        return errors;
+    }
+
+    /**
+     * Get the namespace used for this Compiler
+     * @see Namespace
+     * @return the namespace
+     */
+    public Namespace getNamespace() {
+        return namespace;
+    }
+
+    /*
+     * Debugging
+     */
+
+    /**
+     * Print the AST before or after lowering, see --print-ast, --print-lower-ast
+     */
+    private void debugPrintAST() {
+        assert functionNode != null;
+        if (context._print_lower_ast && state.contains(State.LOWERED) ||
+            context._print_ast && !state.contains(State.LOWERED)) {
+            context.getErr().println(new ASTWriter(functionNode));
+        }
+    }
+
+    /**
+     * Print the parsed code before or after lowering, see --print-parse, --print-lower-parse
+     */
+    private boolean debugPrintParse() {
+        if (errors.hasErrors()) {
+            return false;
+        }
+
+        assert functionNode != null;
+
+        if (context._print_lower_parse && state.contains(State.LOWERED) ||
+             context._print_parse && !state.contains(State.LOWERED)) {
+            final PrintVisitor pv = new PrintVisitor();
+            functionNode.accept(pv);
+            context.getErr().print(pv);
+            context.getErr().flush();
+        }
+
+        return true;
+    }
+
+    private void debugDisassemble() {
+        assert code != null;
+        if (context._print_code) {
+            for (final Map.Entry<String, byte[]> entry : code.entrySet()) {
+                context.getErr().println("CLASS: " + entry.getKey());
+                context.getErr().println();
+                ClassEmitter.disassemble(context, entry.getValue());
+                context.getErr().println("======");
+            }
+        }
+    }
+
+    private void debugVerify() {
+        if (context._verify_code) {
+            for (final Map.Entry<String, byte[]> entry : code.entrySet()) {
+                Compiler.verify(context, entry.getValue());
+            }
+        }
+    }
+
+    /**
+     * Implements the "-d" option - dump class files from script to specified output directory
+     *
+     * @throws IOException if classes cannot be written
+     */
+    private void dumpClassFiles() throws IOException {
+        if (context._dest_dir == null) {
+            return;
+        }
+
+        assert code != null;
+
+        for (final Entry<String, byte[]> entry : code.entrySet()) {
+            final String className = entry.getKey();
+            final String fileName  = className.replace('.', File.separatorChar) + ".class";
+            final int    index     = fileName.lastIndexOf(File.separatorChar);
+
+            if (index != -1) {
+                final File dir = new File(fileName.substring(0, index));
+                if (!dir.exists() && !dir.mkdirs()) {
+                    throw new IOException(ECMAErrors.getMessage("io.error.cant.write", dir.toString()));
+                }
+            }
+
+            final byte[] bytecode = entry.getValue();
+            final File outFile = new File(context._dest_dir, fileName);
+            try (final FileOutputStream fos = new FileOutputStream(outFile)) {
+                fos.write(bytecode);
+            }
+        }
     }
 
     /**
@@ -610,21 +672,14 @@ public final class Compiler {
     }
 
     /**
-     * Should we use integers for arithmetic operations as well?
-     * TODO: We currently generate no overflow checks so this is
-     * disabled
+     * Convert a binary name to a package/class name.
      *
-     * @return true if arithmetic operations should not widen integer
-     *   operands by default.
+     * @param name Binary name.
+     * @return Package/class name.
      */
-    static boolean shouldUseIntegerArithmetic() {
-        return USE_INT_ARITH;
+    public static String pathName(final String name) {
+        return name.replace('.', '/');
     }
 
-    private static final boolean USE_INT_ARITH;
 
-    static {
-        USE_INT_ARITH  =  Options.getBooleanProperty("nashorn.compiler.intarithmetic");
-        assert !USE_INT_ARITH : "Integer arithmetic is not enabled";
-    }
 }

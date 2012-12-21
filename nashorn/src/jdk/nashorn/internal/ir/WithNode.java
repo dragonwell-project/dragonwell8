@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,37 +25,45 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for {@code with} statements.
  */
-@Immutable
-public final class WithNode extends LexicalContextStatement {
+public class WithNode extends Node {
    /** This expression. */
-    private final Expression expression;
+    private Node expression;
 
     /** Statements. */
-    private final Block body;
+    private Block body;
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
+     * @param expression expression in parenthesis
+     * @param body       with node body
      */
-    public WithNode(final int lineNumber, final long token, final int finish) {
-        super(lineNumber, token, finish);
-        this.expression = null;
-        this.body       = null;
-    }
+    public WithNode(final Source source, final long token, final int finish, final Node expression, final Block body) {
+        super(source, token, finish);
 
-    private WithNode(final WithNode node, final Expression expression, final Block body) {
-        super(node);
         this.expression = expression;
         this.body       = body;
+    }
+
+    private WithNode(final WithNode withNode, final CopyState cs) {
+        super(withNode);
+
+        expression = cs.existingOrCopy(withNode.expression);
+        body       = (Block)cs.existingOrCopy(withNode.body);
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new WithNode(this, cs);
     }
 
     /**
@@ -64,18 +72,14 @@ public final class WithNode extends LexicalContextStatement {
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterWithNode(this)) {
-             return visitor.leaveWithNode(
-                setExpression(lc, (Expression)expression.accept(visitor)).
-                setBody(lc, (Block)body.accept(visitor)));
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            expression = expression.accept(visitor);
+            body = (Block)body.accept(visitor);
+            return visitor.leave(this);
         }
-        return this;
-    }
 
-    @Override
-    public boolean isTerminal() {
-        return body.isTerminal();
+        return this;
     }
 
     @Override
@@ -95,36 +99,26 @@ public final class WithNode extends LexicalContextStatement {
 
     /**
      * Reset the body of this with node
-     * @param lc lexical context
      * @param body new body
-     * @return new or same withnode
      */
-    public WithNode setBody(final LexicalContext lc, final Block body) {
-        if (this.body == body) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new WithNode(this, expression, body));
+    public void setBody(final Block body) {
+        this.body = body;
     }
 
     /**
      * Get the expression of this WithNode
      * @return the expression
      */
-    public Expression getExpression() {
+    public Node getExpression() {
         return expression;
     }
 
     /**
      * Reset the expression of this with node
-     * @param lc lexical context
      * @param expression new expression
-     * @return new or same withnode
      */
-    public WithNode setExpression(final LexicalContext lc, final Expression expression) {
-        if (this.expression == expression) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new WithNode(this, expression, body));
+    public void setExpression(final Node expression) {
+        this.expression = expression;
     }
 }
 

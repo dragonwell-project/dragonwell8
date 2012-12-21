@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 
 /**
- * "getStackTrace()" method of Error objects. (nashorn extension).
+ * "stack" property of Error objects. (nashorn extension).
  *
  * @test
  * @run
@@ -43,9 +43,9 @@ function func3() {
 try {
     func1();
 } catch (e) {
-    var frames = e.getStackTrace();
-    for (i in frames) {
-        print(frames[i].methodName + " : " + frames[i].lineNumber);
+    // "stack" is java.lang.StackTraceElement object
+    for (i in e.stack) {
+        print(e.stack[i].methodName + " : " + e.stack[i].lineNumber);
     }
 }
 

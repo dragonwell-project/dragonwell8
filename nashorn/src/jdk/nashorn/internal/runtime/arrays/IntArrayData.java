@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import jdk.nashorn.internal.runtime.ScriptRuntime;
  * Implementation of {@link ArrayData} as soon as an int has been
  * written to the array. This is the default data for new arrays
  */
-final class IntArrayData extends ArrayData {
+public final class IntArrayData extends ArrayData {
     /**
      * The wrapped array
      */
@@ -55,13 +55,10 @@ final class IntArrayData extends ArrayData {
      */
     IntArrayData(final int array[], final int length) {
         super(length);
-        assert array.length >= length;
         this.array = array;
-    }
-
-    @Override
-    public ArrayData copy() {
-        return new IntArrayData(array.clone(), (int) length());
+        if (array.length > length) {
+            Arrays.fill(array, length, array.length, 0);
+        }
     }
 
     @Override
@@ -78,9 +75,7 @@ final class IntArrayData extends ArrayData {
     }
 
     private static Object[] toObjectArray(final int[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
-        final Object[] oarray = new Object[array.length];
-
+        final Object[] oarray = new Object[length];
         for (int index = 0; index < length; index++) {
             oarray[index] = Integer.valueOf(array[index]);
         }
@@ -88,22 +83,18 @@ final class IntArrayData extends ArrayData {
         return oarray;
     }
 
-    private static double[] toDoubleArray(final int[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
+    private static double[] toDoubleArray(final int[] array) {
         final double[] darray = new double[array.length];
-
-        for (int index = 0; index < length; index++) {
+        for (int index = 0; index < array.length; index++) {
             darray[index] = array[index];
         }
 
         return darray;
     }
 
-    private static long[] toLongArray(final int[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
+    private static long[] toLongArray(final int[] array) {
         final long[] larray = new long[array.length];
-
-        for (int index = 0; index < length; index++) {
+        for (int index = 0; index < array.length; index++) {
             larray[index] = array[index];
         }
 
@@ -114,14 +105,12 @@ final class IntArrayData extends ArrayData {
     public ArrayData convert(final Class<?> type) {
         if (type == Integer.class) {
             return this;
-        }
-        final int length = (int) length();
-        if (type == Long.class) {
-            return new LongArrayData(IntArrayData.toLongArray(array, length), length);
+        } else if (type == Long.class) {
+            return new LongArrayData(IntArrayData.toLongArray(array), (int) length());
         } else if (type == Double.class) {
-            return new NumberArrayData(IntArrayData.toDoubleArray(array, length), length);
+            return new NumberArrayData(IntArrayData.toDoubleArray(array), (int) length());
         } else {
-            return new ObjectArrayData(IntArrayData.toObjectArray(array, length), length);
+            return new ObjectArrayData(IntArrayData.toObjectArray(array, array.length), (int) length());
         }
     }
 
@@ -172,13 +161,26 @@ final class IntArrayData extends ArrayData {
 
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
-        if (value instanceof Integer) {
-            return set(index, ((Number)value).intValue(), strict);
-        } else if (value == ScriptRuntime.UNDEFINED) {
-            return new UndefinedArrayFilter(this).set(index, value, strict);
+        try {
+            final int intValue = ((Integer)value).intValue();
+            array[index] = intValue;
+            setLength(Math.max(index + 1, length()));
+            return this;
+        } catch (final NullPointerException | ClassCastException e) {
+            if (value instanceof Short || value instanceof Byte) {
+                final int intValue = ((Number)value).intValue();
+                array[index] = intValue;
+                setLength(Math.max(index + 1, length()));
+                return this;
+            }
+
+            if (value == ScriptRuntime.UNDEFINED) {
+                return new UndefinedArrayFilter(this).set(index, value, strict);
+            }
         }
 
         final ArrayData newData = convert(value == null ? Object.class : value.getClass());
+
         return newData.set(index, value, strict);
     }
 
@@ -268,33 +270,5 @@ final class IntArrayData extends ArrayData {
         final long newLength = to - start;
 
         return new IntArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)newLength);
-    }
-
-    @Override
-    public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
-        final long oldLength = length();
-        final long newLength = oldLength - removed + added;
-        if (newLength > SparseArrayData.MAX_DENSE_LENGTH && newLength > array.length) {
-            throw new UnsupportedOperationException();
-        }
-        final ArrayData returnValue = (removed == 0) ?
-                EMPTY_ARRAY : new IntArrayData(Arrays.copyOfRange(array, start, start + removed), removed);
-
-        if (newLength != oldLength) {
-            final int[] newArray;
-
-            if (newLength > array.length) {
-                newArray = new int[ArrayData.nextSize((int)newLength)];
-                System.arraycopy(array, 0, newArray, 0, start);
-            } else {
-                newArray = array;
-            }
-
-            System.arraycopy(array, start + removed, newArray, start + added, (int)(oldLength - start - removed));
-            array = newArray;
-            setLength(newLength);
-        }
-
-        return returnValue;
     }
 }

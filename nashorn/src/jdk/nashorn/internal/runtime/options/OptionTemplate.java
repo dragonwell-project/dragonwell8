@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.nashorn.internal.runtime.options;
 
-import java.util.Locale;
 import java.util.TimeZone;
 import jdk.nashorn.internal.runtime.QuotedStringTokenizer;
 
@@ -34,7 +33,7 @@ import jdk.nashorn.internal.runtime.QuotedStringTokenizer;
  * bundle file. Metainfo such as parameters and description is here as well
  * for context sensitive help generation.
  */
-public final class OptionTemplate implements Comparable<OptionTemplate> {
+public class OptionTemplate implements Comparable<OptionTemplate> {
     /** Resource, e.g. "nashorn" for this option */
     private final String resource;
 
@@ -152,9 +151,6 @@ public final class OptionTemplate implements Comparable<OptionTemplate> {
         case "timezone":
             this.defaultValue = TimeZone.getDefault().getID();
             break;
-        case "locale":
-            this.defaultValue = Locale.getDefault().toLanguageTag();
-            break;
         default:
             break;
         }
@@ -267,7 +263,7 @@ public final class OptionTemplate implements Comparable<OptionTemplate> {
                     this.params = arg;
                     break;
                 case "type":
-                    this.type = arg.toLowerCase(Locale.ENGLISH);
+                    this.type = arg.toLowerCase();
                     break;
                 case "default":
                     this.defaultValue = arg;
@@ -282,7 +278,7 @@ public final class OptionTemplate implements Comparable<OptionTemplate> {
                     this.valueNextArg = Boolean.parseBoolean(arg);
                     break;
                 default:
-                    throw new IllegalArgumentException(keyToken);
+                    throw new IllegalArgumentException();
                 }
             }
 

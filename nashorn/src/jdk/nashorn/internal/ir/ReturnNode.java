@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,38 +28,51 @@ package jdk.nashorn.internal.ir;
 import static jdk.nashorn.internal.parser.TokenType.RETURN;
 import static jdk.nashorn.internal.parser.TokenType.YIELD;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.ir.annotations.Ignore;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for RETURN or YIELD statements.
+ *
  */
-@Immutable
-public class ReturnNode extends Statement {
+public class ReturnNode extends Node {
     /** Optional expression. */
-    private final Expression expression;
+    private Node expression;
+
+    /** Try chain. */
+    @Reference @Ignore
+    private final TryNode tryChain;
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
      * @param expression expression to return
+     * @param tryChain   surrounding try chain.
      */
-    public ReturnNode(final int lineNumber, final long token, final int finish, final Expression expression) {
-        super(lineNumber, token, finish);
+    public ReturnNode(final Source source, final long token, final int finish, final Node expression, final TryNode tryChain) {
+        super(source, token, finish);
+
         this.expression = expression;
+        this.tryChain   = tryChain;
+
+        setIsTerminal(true);
     }
 
-    private ReturnNode(final ReturnNode returnNode, final Expression expression) {
+    private ReturnNode(final ReturnNode returnNode, final CopyState cs) {
         super(returnNode);
-        this.expression = expression;
+
+        expression = cs.existingOrCopy(returnNode.expression);
+        tryChain   = (TryNode)cs.existingOrSame(returnNode.tryChain);
     }
 
     @Override
-    public boolean isTerminal() {
-        return true;
+    protected Node copy(final CopyState cs) {
+        return new ReturnNode(this, cs);
     }
 
     /**
@@ -87,12 +100,13 @@ public class ReturnNode extends Statement {
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterReturnNode(this)) {
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
             if (expression != null) {
-                return visitor.leaveReturnNode(setExpression((Expression)expression.accept(visitor)));
+                expression = expression.accept(visitor);
             }
-            return visitor.leaveReturnNode(this);
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -101,31 +115,53 @@ public class ReturnNode extends Statement {
 
     @Override
     public void toString(final StringBuilder sb) {
-        sb.append(isYield() ? "yield" : "return");
+        sb.append(isYield() ? "yield" : "return ");
+
         if (expression != null) {
-            sb.append(' ');
             expression.toString(sb);
         }
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        if (other instanceof ReturnNode) {
+            final ReturnNode otherReturn = (ReturnNode)other;
+            if (hasExpression() != otherReturn.hasExpression()) {
+                return false;
+            } else if (hasExpression()) {
+                return otherReturn.getExpression().equals(getExpression());
+            }
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return 0x4711_17 ^ (expression == null ? 0 : expression.hashCode());
     }
 
     /**
      * Get the expression this node returns
      * @return return expression, or null if void return
      */
-    public Expression getExpression() {
+    public Node getExpression() {
         return expression;
     }
 
     /**
      * Reset the expression this node returns
      * @param expression new expression, or null if void return
-     * @return new or same return node
      */
-    public ReturnNode setExpression(final Expression expression) {
-        if (this.expression == expression) {
-            return this;
-        }
-        return new ReturnNode(this, expression);
+    public void setExpression(final Node expression) {
+        this.expression = expression;
     }
 
+    /**
+     * Get the surrounding try chain for this return node
+     * @return try chain
+     */
+    public TryNode getTryChain() {
+        return tryChain;
+    }
 }

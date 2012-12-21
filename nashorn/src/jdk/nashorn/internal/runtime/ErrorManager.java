@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,7 @@ public class ErrorManager {
      * Constructor
      */
     public ErrorManager() {
-        this(new PrintWriter(System.err, true)); //bootstrapping, context may not be initialized
+        this(new PrintWriter(System.err, true));
     }
 
     /**
@@ -79,7 +79,7 @@ public class ErrorManager {
         }
 
         if (limit != 0 && count > limit) {
-            throw rangeError("too.many.errors", Integer.toString(limit));
+            rangeError(Context.getGlobal(), "too.many.errors", Integer.toString(limit));
         }
     }
 

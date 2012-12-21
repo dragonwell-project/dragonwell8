@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ public interface TestConfig {
     public static final String   OPTIONS_EXPECT_RUN_FAIL     = "expect-run-fail";
     public static final String   OPTIONS_IGNORE_STD_ERROR    = "ignore-std-error";
     public static final String   OPTIONS_COMPARE             = "compare";
-    public static final String   OPTIONS_FORK                = "fork";
 
     // System property names used for various test configurations
 
@@ -73,9 +72,4 @@ public interface TestConfig {
 
     // shared context mode or not
     static final String TEST_JS_SHARED_CONTEXT              = "test.js.shared.context";
-
-    static final String TEST_FORK_JVM_OPTIONS               = "test.fork.jvm.options";
-
-    // file for storing last run's failed tests
-    static final String TEST_FAILED_LIST_FILE = "test.failed.list.file";
 }

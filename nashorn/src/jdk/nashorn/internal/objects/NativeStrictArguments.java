@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,17 @@
 package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
-import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.arrays.ArrayData;
+import jdk.nashorn.internal.runtime.linker.Lookup;
 
 /**
  * ECMA 10.6 Arguments Object.
@@ -51,29 +50,22 @@ public final class NativeStrictArguments extends ScriptObject {
     private static final MethodHandle S$LENGTH = findOwnMH("S$length", void.class, Object.class, Object.class);
 
     // property map for strict mode arguments object
-    private static final PropertyMap map$;
+    private static final PropertyMap nasgenmap$;
 
     static {
-        final ArrayList<Property> properties = new ArrayList<>(1);
-        properties.add(AccessorProperty.create("length", Property.NOT_ENUMERABLE, G$LENGTH, S$LENGTH));
-        PropertyMap map = PropertyMap.newMap(properties);
+        PropertyMap map = PropertyMap.newMap(NativeStrictArguments.class);
+        map = Lookup.newProperty(map, "length", Property.NOT_ENUMERABLE, G$LENGTH, S$LENGTH);
         // In strict mode, the caller and callee properties should throw TypeError
-        // Need to add properties directly to map since slots are assigned speculatively by newUserAccessors.
-        final int flags = Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE;
-        map = map.addProperty(map.newUserAccessors("caller", flags));
-        map = map.addProperty(map.newUserAccessors("callee", flags));
-        map$ = map.setIsShared();
-    }
-
-    static PropertyMap getInitialMap() {
-        return map$;
+        map = ScriptFunctionImpl.newThrowerProperty(map, "caller", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE);
+        map = ScriptFunctionImpl.newThrowerProperty(map, "callee", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE);
+        nasgenmap$ = map;
     }
 
     private Object   length;
     private final Object[] namedArgs;
 
-    NativeStrictArguments(final Object[] values, final int numParams,final ScriptObject proto, final PropertyMap map) {
-        super(proto, map);
+    NativeStrictArguments(final Object[] values, final int numParams) {
+        super(nasgenmap$);
         setIsArguments();
 
         final ScriptFunction func = ScriptFunctionImpl.getTypeErrorThrower();
@@ -91,6 +83,8 @@ public final class NativeStrictArguments extends ScriptObject {
             Arrays.fill(namedArgs, UNDEFINED);
         }
         System.arraycopy(values, 0, namedArgs, 0, Math.min(namedArgs.length, values.length));
+
+        this.setProto(Global.objectPrototype());
     }
 
     @Override

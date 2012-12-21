@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import jdk.nashorn.internal.runtime.ErrorManager;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
-import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.options.Options;
 
 /**
@@ -105,7 +104,7 @@ public final class SharedContextEvaluator implements ScriptEvaluator {
         Options options = new Options("nashorn", werr);
         options.process(args);
         ErrorManager errors = new ErrorManager(werr);
-        this.context = new Context(options, errors, wout, werr, Thread.currentThread().getContextClassLoader());
+        this.context = new Context(options, errors, wout, werr);
     }
 
     @Override
@@ -114,7 +113,7 @@ public final class SharedContextEvaluator implements ScriptEvaluator {
         try {
             ctxOut.setDelegatee(out);
             ctxErr.setDelegatee(err);
-            final ErrorManager errors = context.getErrorManager();
+            final ErrorManager errors = context.getErrors();
             final ScriptObject global = context.createGlobal();
             Context.setGlobal(global);
 
@@ -125,8 +124,7 @@ public final class SharedContextEvaluator implements ScriptEvaluator {
                     continue;
                 }
                 final File file = new File(fileName);
-                ScriptFunction script = context.compileScript(new Source(fileName, file.toURI().toURL()), global);
-
+                ScriptFunction script = context.compileScript(fileName, file.toURI().toURL(), global, context._strict);
                 if (script == null || errors.getNumberOfErrors() != 0) {
                     return COMPILATION_ERROR;
                 }
@@ -135,7 +133,7 @@ public final class SharedContextEvaluator implements ScriptEvaluator {
                     ScriptRuntime.apply(script, global);
                 } catch (final NashornException e) {
                     errors.error(e.toString());
-                    if (context.getEnv()._dump_on_error) {
+                    if (context._dump_on_error) {
                         e.printStackTrace(context.getErr());
                     }
 

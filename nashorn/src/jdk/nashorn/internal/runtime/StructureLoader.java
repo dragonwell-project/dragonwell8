@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,37 +25,99 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.codegen.Compiler.OBJECTS_PACKAGE;
 import static jdk.nashorn.internal.codegen.Compiler.SCRIPTS_PACKAGE;
 import static jdk.nashorn.internal.codegen.Compiler.binaryName;
 import static jdk.nashorn.internal.codegen.CompilerConstants.JS_OBJECT_PREFIX;
 
-import java.security.ProtectionDomain;
-import jdk.nashorn.internal.codegen.ObjectClassGenerator;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.security.AccessController;
+import java.security.CodeSigner;
+import java.security.CodeSource;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import jdk.nashorn.internal.codegen.objects.ObjectClassGenerator;
 
 /**
- * Responsible for on the fly construction of structure classes.
+ * Responsible for on the fly construction of structure classes as well
+ * as loading jdk.nashorn.internal.objects.* classes.
+ *
  */
 final class StructureLoader extends NashornLoader {
-    private static final String JS_OBJECT_PREFIX_EXTERNAL = binaryName(SCRIPTS_PACKAGE) + '.' + JS_OBJECT_PREFIX.symbolName();
+    private static final String JS_OBJECT_PREFIX_EXTERNAL = binaryName(SCRIPTS_PACKAGE) + '.' + JS_OBJECT_PREFIX.tag();
+    private static final String OBJECTS_PACKAGE_EXTERNAL  = binaryName(OBJECTS_PACKAGE);
 
     /**
      * Constructor.
      */
-    StructureLoader(final ClassLoader parent) {
-        super(parent);
-    }
-
-    static boolean isStructureClass(final String name) {
-        return name.startsWith(JS_OBJECT_PREFIX_EXTERNAL);
+    StructureLoader(final ClassLoader parent, final Context context) {
+        super(parent, context);
     }
 
     @Override
+    protected synchronized Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+        checkPackageAccess(name);
+
+        // check the cache first
+        final Class<?> loadedClass = findLoadedClass(name);
+        if (loadedClass != null) {
+            if (resolve) {
+                resolveClass(loadedClass);
+            }
+            return loadedClass;
+        }
+
+        if (name.startsWith(binaryName(OBJECTS_PACKAGE_EXTERNAL))) {
+            try {
+                return AccessController.doPrivileged(new PrivilegedExceptionAction<Class<?>>() {
+                    @Override
+                    public Class<?> run() throws ClassNotFoundException {
+                        final String      source  = name.replace('.','/') + ".clazz";
+                        final URL         url     = getResource(source);
+                        try (final InputStream is = getResourceAsStream(source)) {
+                            if (is == null) {
+                                throw new ClassNotFoundException(name);
+                            }
+
+                            byte[] code;
+                            try {
+                                code = Source.readBytes(is);
+                            } catch (final IOException e) {
+                                Context.printStackTrace(e);
+                                throw new ClassNotFoundException(name, e);
+                            }
+
+                            final Class<?> cl = defineClass(name, code, 0, code.length, new CodeSource(url, (CodeSigner[])null));
+                            if (resolve) {
+                                resolveClass(cl);
+                            }
+                            return cl;
+                        } catch (final IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
+            } catch (final PrivilegedActionException  e) {
+                throw new ClassNotFoundException(name, e);
+            }
+        }
+
+        return super.loadClass(name, resolve);
+    }
+
+
+    @Override
     protected Class<?> findClass(final String name) throws ClassNotFoundException {
-        if (isStructureClass(name)) {
-            return generateClass(name, name.substring(JS_OBJECT_PREFIX_EXTERNAL.length()));
+        if (name.startsWith(JS_OBJECT_PREFIX_EXTERNAL)) {
+            final int start = name.indexOf(JS_OBJECT_PREFIX.tag()) + JS_OBJECT_PREFIX.tag().length();
+            return generateClass(name, name.substring(start, name.length()));
         }
         return super.findClass(name);
     }
+
+    private static final boolean IS_JAVA_7 = System.getProperty("java.version").indexOf("1.7") != -1;
 
     /**
      * Generate a layout class.
@@ -64,9 +126,20 @@ final class StructureLoader extends NashornLoader {
      * @return Generated class.
      */
     private Class<?> generateClass(final String name, final String descriptor) {
-        final Context context = Context.getContextTrusted();
+        Context context = getContext();
+
+        if (context == null) {
+            context = Context.getContext();
+        }
 
         final byte[] code = new ObjectClassGenerator(context).generate(descriptor);
-        return defineClass(name, code, 0, code.length, new ProtectionDomain(null, getPermissions(null)));
+
+        try {
+            return IS_JAVA_7 ? sun.misc.Unsafe.getUnsafe().defineClass(name, code, 0, code.length) : defineClass(name, code, 0, code.length);
+        } catch (final SecurityException e) {
+            throw new AssertionError("Nashorn needs to run in the bootclasspath when using Java7, or the NoClassDefFoundError bug in Java7 will trigger." +
+                                     "(This may not be enough - it has been known to happen anyway. Please use Java8)");
+        }
+
     }
 }

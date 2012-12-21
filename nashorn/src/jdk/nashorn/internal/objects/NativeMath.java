@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,8 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.SpecializedFunction;
 import jdk.nashorn.internal.objects.annotations.Where;
+import jdk.nashorn.internal.runtime.GlobalFunctions;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 
 /**
@@ -42,13 +42,8 @@ import jdk.nashorn.internal.runtime.ScriptObject;
 @ScriptClass("Math")
 public final class NativeMath extends ScriptObject {
 
-    // initialized by nasgen
-    @SuppressWarnings("unused")
-    private static PropertyMap $nasgenmap$;
-
-    private NativeMath() {
-        // don't create me!
-        throw new UnsupportedOperationException();
+    NativeMath() {
+        this.setProto(Global.objectPrototype());
     }
 
     /** ECMA 15.8.1.1 - E, always a double constant. Not writable or configurable */
@@ -616,11 +611,13 @@ public final class NativeMath extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object round(final Object self, final Object x) {
-        final double d = JSType.toNumber(x);
-        if (Math.getExponent(d) >= 52) {
-            return d;
+        if (GlobalFunctions.isNaN(self, x)) {
+            return Double.NaN;
+        } else if (!GlobalFunctions.isFinite(self, x)) {
+            return x;
         }
-        return Math.copySign(Math.floor(d + 0.5), d);
+
+        return Math.round(JSType.toNumber(x));
     }
 
     /**

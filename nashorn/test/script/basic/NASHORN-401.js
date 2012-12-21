@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,12 @@
  * @run
  */
 
-var t = new Packages.jdk.nashorn.test.models.Nashorn401TestSubject();
+var t = new Packages.jdk.nashorn.internal.runtime.Nashorn401TestSubject();
 
 print(t.method2(10));
 print(t.method2(10.2));
 print(t.method2("a"));
 
-print(t.method3(10));
 print(t.method3("10"));
 print(t.method3("10.2"));
 print(t.method3("foo"));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,28 +25,29 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.support.AbstractCallSiteDescriptor;
-import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
+import java.lang.ref.WeakReference;
+import java.util.WeakHashMap;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.support.AbstractCallSiteDescriptor;
+import org.dynalang.dynalink.support.CallSiteDescriptorFactory;
 
 /**
  * Nashorn-specific implementation of Dynalink's {@link CallSiteDescriptor}. The reason we have our own subclass is that
  * we can have a more compact representation, as we know that we're always only using {@code "dyn:*"} operations; also
  * we're storing flags in an additional primitive field.
  */
-public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor {
+public class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor {
     /** Flags that the call site references a scope variable (it's an identifier reference or a var declaration, not a
      * property access expression. */
     public static final int CALLSITE_SCOPE                = 0x01;
     /** Flags that the call site is in code that uses ECMAScript strict mode. */
     public static final int CALLSITE_STRICT               = 0x02;
-    /** Flags that a property getter or setter call site references a scope variable that is located at a known distance
-     * in the scope chain. Such getters and setters can often be linked more optimally using these assumptions. */
+    /** Flags that a property setter call site is part of a function declaration that assigns the function object to a name. */
+    public static final int CALLSITE_FUNCTION_DECLARATION = 0x04;
+    /** Flags that a property getter or setter call site references a scope variable that is not in the global scope
+     * (it is in a function lexical scope), and the function's scope object class is fixed and known in advance. Such
+     * getters and setters can often be linked more optimally using these assumptions. */
     public static final int CALLSITE_FAST_SCOPE    = 0x400;
 
     /** Flags that the call site is profiled; Contexts that have {@code "profile.callsites"} boolean property set emit
@@ -72,15 +73,9 @@ public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor 
      * set. */
     public static final int CALLSITE_TRACE_SCOPE      = 0x200;
 
-    private static final ClassValue<ConcurrentMap<NashornCallSiteDescriptor, NashornCallSiteDescriptor>> canonicals =
-            new ClassValue<ConcurrentMap<NashornCallSiteDescriptor,NashornCallSiteDescriptor>>() {
-        @Override
-        protected ConcurrentMap<NashornCallSiteDescriptor, NashornCallSiteDescriptor> computeValue(Class<?> type) {
-            return new ConcurrentHashMap<>();
-        }
-    };
+    private static final WeakHashMap<NashornCallSiteDescriptor, WeakReference<NashornCallSiteDescriptor>> canonicals =
+            new WeakHashMap<>();
 
-    private final MethodHandles.Lookup lookup;
     private final String operator;
     private final String operand;
     private final MethodType methodType;
@@ -89,35 +84,39 @@ public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor 
     /**
      * Retrieves a Nashorn call site descriptor with the specified values. Since call site descriptors are immutable
      * this method is at liberty to retrieve canonicalized instances (although it is not guaranteed it will do so).
-     * @param lookup the lookup describing the script
      * @param name the name at the call site, e.g. {@code "dyn:getProp|getElem|getMethod:color"}.
      * @param methodType the method type at the call site
      * @param flags Nashorn-specific call site flags
      * @return a call site descriptor with the specified values.
      */
-    public static NashornCallSiteDescriptor get(final MethodHandles.Lookup lookup, final String name,
-            final MethodType methodType, final int flags) {
+    public static NashornCallSiteDescriptor get(final String name, final MethodType methodType, final int flags) {
         final String[] tokenizedName = CallSiteDescriptorFactory.tokenizeName(name);
         assert tokenizedName.length == 2 || tokenizedName.length == 3;
         assert "dyn".equals(tokenizedName[0]);
         assert tokenizedName[1] != null;
         // TODO: see if we can move mangling/unmangling into Dynalink
-        return get(lookup, tokenizedName[1], tokenizedName.length == 3 ? tokenizedName[2].intern() : null,
+        return get(tokenizedName[1], tokenizedName.length == 3 ? tokenizedName[2].intern() : null,
                 methodType, flags);
     }
 
-    private static NashornCallSiteDescriptor get(final MethodHandles.Lookup lookup, final String operator, final String operand, final MethodType methodType, final int flags) {
-        final NashornCallSiteDescriptor csd = new NashornCallSiteDescriptor(lookup, operator, operand, methodType, flags);
+    private static NashornCallSiteDescriptor get(final String operator, final String operand, final MethodType methodType, final int flags) {
+        final NashornCallSiteDescriptor csd = new NashornCallSiteDescriptor(operator, operand, methodType, flags);
         // Many of these call site descriptors are identical (e.g. every getter for a property color will be
-        // "dyn:getProp:color(Object)Object", so it makes sense canonicalizing them.
-        final ConcurrentMap<NashornCallSiteDescriptor, NashornCallSiteDescriptor> classCanonicals = canonicals.get(lookup.lookupClass());
-        final NashornCallSiteDescriptor canonical = classCanonicals.putIfAbsent(csd, csd);
-        return canonical != null ? canonical : csd;
+        // "dyn:getProp:color(Object)Object", so it makes sense canonicalizing them in a weak map
+        synchronized(canonicals) {
+            final WeakReference<NashornCallSiteDescriptor> ref = canonicals.get(csd);
+            if(ref != null) {
+                final NashornCallSiteDescriptor canonical = ref.get();
+                if(canonical != null) {
+                    return canonical;
+                }
+            }
+            canonicals.put(csd, new WeakReference<>(csd));
+        }
+        return csd;
     }
 
-    private NashornCallSiteDescriptor(final MethodHandles.Lookup lookup, final String operator, final String operand,
-            final MethodType methodType, final int flags) {
-        this.lookup = lookup;
+    private NashornCallSiteDescriptor(final String operator, final String operand, final MethodType methodType, final int flags) {
         this.operator = operator;
         this.operand = operand;
         this.methodType = methodType;
@@ -143,11 +142,6 @@ public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor 
             break;
         }
         throw new IndexOutOfBoundsException(String.valueOf(i));
-    }
-
-    @Override
-    public Lookup getLookup() {
-        return lookup;
     }
 
     @Override
@@ -188,7 +182,7 @@ public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor 
     /**
      * Returns the named operand in this descriptor's name. Equivalent to
      * {@code getNameToken(CallSiteDescriptor.NAME_OPERAND)}. E.g. for operation {@code "dyn:getProp:color"}, returns
-     * {@code "color"}. For call sites without named operands (e.g. {@code "dyn:new"}) returns null.
+     * {@code "color"}. For call sites without named operands (e.g. {@link "dyn:new"}) returns null.
      * @return the named operand in this descriptor's name.
      */
     public String getOperand() {
@@ -288,6 +282,6 @@ public final class NashornCallSiteDescriptor extends AbstractCallSiteDescriptor 
 
     @Override
     public CallSiteDescriptor changeMethodType(final MethodType newMethodType) {
-        return get(getLookup(), operator, operand, newMethodType, flags);
+        return get(operator, operand, newMethodType, flags);
     }
 }

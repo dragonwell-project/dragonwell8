@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ package jdk.nashorn.internal.ir;
  *
  * @param <D> the destination type
  */
-public interface Assignment<D extends Expression> {
+public interface Assignment<D extends Node> {
 
     /**
      * Get assignment destination
@@ -45,12 +45,19 @@ public interface Assignment<D extends Expression> {
      *
      * @return get the assignment source node
      */
-    public Expression getAssignmentSource();
+    public Node getAssignmentSource();
 
     /**
-     * Set assignment destination node.
-     * @param n the assignment destination node.
-     * @return a node equivalent to this one except for the requested change.
+     * Reset the assignment source
+     *
+     * @param newSource new source node
      */
-    public Node setAssignmentDest(D n);
+    public void setAssignmentSource(final Node newSource);
+
+    /**
+     * Reset the assignment destination
+     *
+     * @param newDest new destination node
+     */
+    public void setAssignmentDest(final D newDest);
 }

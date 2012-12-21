@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,31 +25,28 @@
 
 package jdk.nashorn.internal.runtime;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.lang.invoke.SwitchPoint;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.LinkRequest;
-import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
+import org.dynalang.dynalink.support.CallSiteDescriptorFactory;
+
 
 /**
  * This class supports the handling of scope in a with body.
  *
  */
-public final class WithObject extends ScriptObject implements Scope {
-    private static final MethodHandle WITHEXPRESSIONGUARD    = findOwnMH("withExpressionGuard",  boolean.class, Object.class, PropertyMap.class, SwitchPoint.class);
-    private static final MethodHandle WITHEXPRESSIONFILTER   = findOwnMH("withFilterExpression", Object.class, Object.class);
-    private static final MethodHandle WITHSCOPEFILTER        = findOwnMH("withFilterScope",      Object.class, Object.class);
-    private static final MethodHandle BIND_TO_EXPRESSION_OBJ = findOwnMH("bindToExpression",     Object.class, Object.class, Object.class);
-    private static final MethodHandle BIND_TO_EXPRESSION_FN  = findOwnMH("bindToExpression",     Object.class, ScriptFunction.class, Object.class);
+public class WithObject extends ScriptObject implements Scope {
+
+    private static final MethodHandle WITHEXPRESSIONFILTER = findOwnMH("withFilterExpression", Object.class, Object.class);
+    private static final MethodHandle WITHSCOPEFILTER      = findOwnMH("withFilterScope",      Object.class, Object.class);
+    private static final MethodHandle BIND_TO_EXPRESSION   = findOwnMH("bindToExpression",     Object.class, Object.class, Object.class);
 
     /** With expression object. */
-    private final ScriptObject expression;
+    private final Object expression;
 
     /**
      * Constructor
@@ -57,12 +54,13 @@ public final class WithObject extends ScriptObject implements Scope {
      * @param scope scope object
      * @param expression with expression
      */
-    WithObject(final ScriptObject scope, final ScriptObject expression) {
-        super(scope, null);
+    public WithObject(final ScriptObject scope, final Object expression) {
+        super();
+
         setIsScope();
+        setProto(scope);
         this.expression = expression;
     }
-
 
     /**
      * Delete a property based on a key.
@@ -72,13 +70,15 @@ public final class WithObject extends ScriptObject implements Scope {
      */
     @Override
     public boolean delete(final Object key, final boolean strict) {
-        final ScriptObject self = expression;
-        final String propName = JSType.toString(key);
+        if (expression instanceof ScriptObject) {
+            final ScriptObject self = (ScriptObject)expression;
+            final String propName = ScriptObject.convertKey(key);
 
-        final FindProperty find = self.findProperty(propName, true);
+            final FindProperty find = self.findProperty(propName, true);
 
-        if (find != null) {
-            return self.delete(propName, strict);
+            if (find != null) {
+                return self.delete(propName, strict);
+            }
         }
 
         return false;
@@ -86,7 +86,7 @@ public final class WithObject extends ScriptObject implements Scope {
 
 
     @Override
-    public GuardedInvocation lookup(final CallSiteDescriptor desc, final LinkRequest request) {
+    public GuardedInvocation lookup(final CallSiteDescriptor desc, final boolean megaMorphic) {
         // With scopes can never be observed outside of Nashorn code, so all call sites that can address it will of
         // necessity have a Nashorn descriptor - it is safe to cast.
         final NashornCallSiteDescriptor ndesc = (NashornCallSiteDescriptor)desc;
@@ -104,16 +104,18 @@ public final class WithObject extends ScriptObject implements Scope {
             name = null;
         }
 
-        self = expression;
-        if (isNamedOperation) {
-             find = self.findProperty(name, true);
-        }
+        if (expression instanceof ScriptObject) {
+            self = (ScriptObject)expression;
+            if (isNamedOperation) {
+                find = self.findProperty(name, true);
+            }
 
-        if (find != null) {
-            link = self.lookup(desc, request);
+            if (find != null) {
+                link = self.lookup(desc);
 
-            if (link != null) {
-                return fixExpressionCallSite(ndesc, link);
+                if (link != null) {
+                    return fixExpressionCallSite(ndesc, link);
+                }
             }
         }
 
@@ -123,19 +125,18 @@ public final class WithObject extends ScriptObject implements Scope {
         }
 
         if (find != null) {
-            return fixScopeCallSite(scope.lookup(desc, request), name);
+            return fixScopeCallSite(scope.lookup(desc));
         }
 
         // the property is not found - now check for
         // __noSuchProperty__ and __noSuchMethod__ in expression
         if (self != null) {
-            final String fallBack;
+            String fallBack;
 
             final String operator = CallSiteDescriptorFactory.tokenizeOperators(desc).get(0);
 
             switch (operator) {
             case "callMethod":
-                throw new AssertionError(); // Nashorn never emits callMethod
             case "getMethod":
                 fallBack = NO_SUCH_METHOD_NAME;
                 break;
@@ -152,12 +153,15 @@ public final class WithObject extends ScriptObject implements Scope {
                 find = self.findProperty(fallBack, true);
                 if (find != null) {
                     switch (operator) {
+                    case "callMethod":
+                        link = self.createNoSuchMethodInvocation(desc);
+                        break;
                     case "getMethod":
-                        link = self.noSuchMethod(desc, request);
+                        link = self.noSuchMethod(desc);
                         break;
                     case "getProp":
                     case "getElem":
-                        link = self.noSuchProperty(desc, request);
+                        link = self.noSuchProperty(desc);
                         break;
                     default:
                         break;
@@ -172,33 +176,13 @@ public final class WithObject extends ScriptObject implements Scope {
 
         // still not found, may be scope can handle with it's own
         // __noSuchProperty__, __noSuchMethod__ etc.
-        link = scope.lookup(desc, request);
+        link = scope.lookup(desc);
 
         if (link != null) {
-            return fixScopeCallSite(link, name);
+            return fixScopeCallSite(link);
         }
 
         return null;
-    }
-
-    /**
-     * Overridden to try to find the property first in the expression object (and its prototypes), and only then in this
-     * object (and its prototypes).
-     *
-     * @param key  Property key.
-     * @param deep Whether the search should look up proto chain.
-     * @param stopOnNonScope should a deep search stop on the first non-scope object?
-     * @param start the object on which the lookup was originally initiated
-     *
-     * @return FindPropertyData or null if not found.
-     */
-    @Override
-    FindProperty findProperty(final String key, final boolean deep, final boolean stopOnNonScope, final ScriptObject start) {
-        final FindProperty exprProperty = expression.findProperty(key, deep, stopOnNonScope, start);
-        if (exprProperty != null) {
-             return exprProperty;
-        }
-        return super.findProperty(key, deep, stopOnNonScope, start);
     }
 
     @Override
@@ -215,50 +199,32 @@ public final class WithObject extends ScriptObject implements Scope {
      * Get first parent scope that is not an instance of WithObject.
      */
     private Scope getNonWithParent() {
-        ScriptObject proto = getParentScope();
+        ScriptObject proto = getProto();
 
         while (proto != null && proto instanceof WithObject) {
-            proto = ((WithObject)proto).getParentScope();
+            proto = proto.getProto();
         }
 
         assert proto instanceof Scope : "with scope without parent scope";
         return (Scope) proto;
     }
 
-
-    private static GuardedInvocation fixReceiverType(final GuardedInvocation link, final MethodHandle filter) {
-        // The receiver may be an Object or a ScriptObject.
-        final MethodType invType = link.getInvocation().type();
-        final MethodType newInvType = invType.changeParameterType(0, filter.type().returnType());
-        return link.asType(newInvType);
-    }
-
     private static GuardedInvocation fixExpressionCallSite(final NashornCallSiteDescriptor desc, final GuardedInvocation link) {
         // If it's not a getMethod, just add an expression filter that converts WithObject in "this" position to its
         // expression.
         if(!"getMethod".equals(desc.getFirstOperator())) {
-            return fixReceiverType(link, WITHEXPRESSIONFILTER).filterArguments(0, WITHEXPRESSIONFILTER);
+            return link.filterArguments(0, WITHEXPRESSIONFILTER);
         }
 
-        final MethodHandle linkInvocation = link.getInvocation();
-        final MethodType linkType = linkInvocation.type();
-        final boolean linkReturnsFunction = ScriptFunction.class.isAssignableFrom(linkType.returnType());
         return link.replaceMethods(
                 // Make sure getMethod will bind the script functions it receives to WithObject.expression
-                MH.foldArguments(linkReturnsFunction ? BIND_TO_EXPRESSION_FN : BIND_TO_EXPRESSION_OBJ,
-                        filter(linkInvocation.asType(linkType.changeReturnType(
-                                linkReturnsFunction ? ScriptFunction.class : Object.class)), WITHEXPRESSIONFILTER)),
+                MH.foldArguments(BIND_TO_EXPRESSION, filter(link.getInvocation(), WITHEXPRESSIONFILTER)),
                 // No clever things for the guard -- it is still identically filtered.
                 filterGuard(link, WITHEXPRESSIONFILTER));
     }
 
-    private GuardedInvocation fixScopeCallSite(final GuardedInvocation link, final String name) {
-        final GuardedInvocation newLink = fixReceiverType(link, WITHSCOPEFILTER);
-        return link.replaceMethods(filter(newLink.getInvocation(), WITHSCOPEFILTER),
-            MH.guardWithTest(
-                expressionGuard(name),
-                filterGuard(newLink, WITHSCOPEFILTER),
-                MH.dropArguments(MH.constant(boolean.class, false), 0, Object.class)));
+    private static GuardedInvocation fixScopeCallSite(final GuardedInvocation link) {
+        return link.replaceMethods(filter(link.getInvocation(), WITHSCOPEFILTER), filterGuard(link, WITHSCOPEFILTER));
     }
 
     private static MethodHandle filterGuard(final GuardedInvocation link, final MethodHandle filter) {
@@ -279,24 +245,10 @@ public final class WithObject extends ScriptObject implements Scope {
         return ((WithObject)receiver).expression;
     }
 
+
     @SuppressWarnings("unused")
     private static Object bindToExpression(final Object fn, final Object receiver) {
-        return fn instanceof ScriptFunction ? bindToExpression((ScriptFunction) fn, receiver) : fn;
-    }
-
-    private static Object bindToExpression(final ScriptFunction fn, final Object receiver) {
-        return fn.makeBoundFunction(withFilterExpression(receiver), new Object[0]);
-    }
-
-    private MethodHandle expressionGuard(final String name) {
-        final PropertyMap map = expression.getMap();
-        final SwitchPoint sp = map.getProtoGetSwitchPoint(expression.getProto(), name);
-        return MH.insertArguments(WITHEXPRESSIONGUARD, 1, map, sp);
-    }
-
-    @SuppressWarnings("unused")
-    private static boolean withExpressionGuard(final Object receiver, final PropertyMap map, final SwitchPoint sp) {
-        return ((WithObject)receiver).expression.getMap() == map && (sp == null || !sp.hasBeenInvalidated());
+        return fn instanceof ScriptFunction ? ((ScriptFunction) fn).makeBoundFunction(withFilterExpression(receiver), new Object[0]) : fn;
     }
 
     /**
@@ -312,16 +264,8 @@ public final class WithObject extends ScriptObject implements Scope {
      * Get the with expression for this {@code WithObject}
      * @return the with expression
      */
-    public ScriptObject getExpression() {
+    public Object getExpression() {
         return expression;
-    }
-
-    /**
-     * Get the parent scope for this {@code WithObject}
-     * @return the parent scope
-     */
-    public ScriptObject getParentScope() {
-        return getProto();
     }
 
     private static MethodHandle findOwnMH(final String name, final Class<?> rtype, final Class<?>... types) {

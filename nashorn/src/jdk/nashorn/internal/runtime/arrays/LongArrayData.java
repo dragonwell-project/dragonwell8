@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,13 +46,7 @@ final class LongArrayData extends ArrayData {
      */
     LongArrayData(final long array[], final int length) {
         super(length);
-        assert array.length >= length;
         this.array  = array;
-    }
-
-    @Override
-    public ArrayData copy() {
-        return new LongArrayData(array.clone(), (int) length());
     }
 
     @Override
@@ -61,9 +55,7 @@ final class LongArrayData extends ArrayData {
     }
 
     private static Object[] toObjectArray(final long[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
-        final Object[] oarray = new Object[array.length];
-
+        final Object[] oarray = new Object[length];
         for (int index = 0; index < length; index++) {
             oarray[index] = Long.valueOf(array[index]);
         }
@@ -79,11 +71,9 @@ final class LongArrayData extends ArrayData {
         return super.asArrayOfType(componentType);
     }
 
-    private static double[] toDoubleArray(final long[] array, final int length) {
-        assert length <= array.length : "length exceeds internal array size";
+    private static double[] toDoubleArray(final long[] array) {
         final double[] darray = new double[array.length];
-
-        for (int index = 0; index < length; index++) {
+        for (int index = 0; index < array.length; index++) {
             darray[index] = array[index];
         }
 
@@ -92,14 +82,13 @@ final class LongArrayData extends ArrayData {
 
     @Override
     public ArrayData convert(final Class<?> type) {
-        if (type == Integer.class || type == Long.class) {
+        if (type == Long.class) {
             return this;
+        } else if (type == Double.class) {
+            return new NumberArrayData(LongArrayData.toDoubleArray(array), (int) length());
+        } else {
+            return new ObjectArrayData(LongArrayData.toObjectArray(array, array.length), (int) length());
         }
-        final int length = (int) length();
-        if (type == Double.class) {
-            return new NumberArrayData(LongArrayData.toDoubleArray(array, length), length);
-        }
-        return new ObjectArrayData(LongArrayData.toObjectArray(array, length), length);
     }
 
     @Override
@@ -149,13 +138,19 @@ final class LongArrayData extends ArrayData {
 
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
-        if (value instanceof Long || value instanceof Integer) {
-            return set(index, ((Number)value).longValue(), strict);
-        } else if (value == ScriptRuntime.UNDEFINED) {
-            return new UndefinedArrayFilter(this).set(index, value, strict);
+        try {
+            final long longValue = ((Long)value).longValue();
+            array[index] = longValue;
+            setLength(Math.max(index + 1, length()));
+            return this;
+        } catch (final NullPointerException | ClassCastException e) {
+            if (value == ScriptRuntime.UNDEFINED) {
+                return new UndefinedArrayFilter(this).set(index, value, strict);
+            }
         }
 
         final ArrayData newData = convert(value == null ? Object.class : value.getClass());
+
         return newData.set(index, value, strict);
     }
 
@@ -237,33 +232,5 @@ final class LongArrayData extends ArrayData {
         final long start     = from < 0 ? (from + length()) : from;
         final long newLength = to - start;
         return new LongArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)newLength);
-    }
-
-    @Override
-    public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
-        final long oldLength = length();
-        final long newLength = oldLength - removed + added;
-        if (newLength > SparseArrayData.MAX_DENSE_LENGTH && newLength > array.length) {
-            throw new UnsupportedOperationException();
-        }
-        final ArrayData returnValue = (removed == 0) ?
-                EMPTY_ARRAY : new LongArrayData(Arrays.copyOfRange(array, start, start + removed), removed);
-
-        if (newLength != oldLength) {
-            final long[] newArray;
-
-            if (newLength > array.length) {
-                newArray = new long[ArrayData.nextSize((int)newLength)];
-                System.arraycopy(array, 0, newArray, 0, start);
-            } else {
-                newArray = array;
-            }
-
-            System.arraycopy(array, start + removed, newArray, start + added, (int)(oldLength - start - removed));
-            array = newArray;
-            setLength(newLength);
-        }
-
-        return returnValue;
     }
 }

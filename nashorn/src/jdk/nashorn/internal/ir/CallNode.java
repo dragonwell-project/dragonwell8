@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,153 +25,110 @@
 
 package jdk.nashorn.internal.ir;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import jdk.nashorn.internal.codegen.types.Type;
-import jdk.nashorn.internal.ir.annotations.Ignore;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for a function call.
+ *
  */
-@Immutable
-public final class CallNode extends LexicalContextExpression {
+public class CallNode extends Node implements TypeOverride {
+
+    private Type type;
 
     /** Function identifier or function body. */
-    private final Expression function;
+    private Node function;
 
     /** Call arguments. */
-    private final List<Expression> args;
+    private List<Node> args;
 
-    /** Is this a "new" operation */
-    public static final int IS_NEW        = 0x1;
+    /** flag - is new expression */
+    private boolean isNew;
 
-    private final int flags;
-
-    private final int lineNumber;
+    /** flag - is in with block */
+    private boolean inWithBlock;
 
     /**
      * Arguments to be passed to builtin {@code eval} function
      */
     public static class EvalArgs {
         /** evaluated code */
-        private final Expression code;
-
+        public Node    code;
         /** 'this' passed to evaluated code */
-        private final IdentNode evalThis;
-
+        public Node    evalThis;
         /** location string for the eval call */
-        private final String location;
-
+        public String  location;
         /** is this call from a strict context? */
-        private final boolean strictMode;
-
-        /**
-         * Constructor
-         *
-         * @param code       code to evaluate
-         * @param evalThis   this node
-         * @param location   location for the eval call
-         * @param strictMode is this a call from a strict context?
-         */
-        public EvalArgs(final Expression code, final IdentNode evalThis, final String location, final boolean strictMode) {
-            this.code = code;
-            this.evalThis = evalThis;
-            this.location = location;
-            this.strictMode = strictMode;
-        }
-
-        /**
-         * Return the code that is to be eval:ed by this eval function
-         * @return code as an AST node
-         */
-        public Expression getCode() {
-            return code;
-        }
-
-        private EvalArgs setCode(final Expression code) {
-            if (this.code == code) {
-                return this;
-            }
-            return new EvalArgs(code, evalThis, location, strictMode);
-        }
-
-        /**
-         * Get the {@code this} symbol used to invoke this eval call
-         * @return the {@code this} symbol
-         */
-        public IdentNode getThis() {
-            return this.evalThis;
-        }
-
-        private EvalArgs setThis(final IdentNode evalThis) {
-            if (this.evalThis == evalThis) {
-                return this;
-            }
-            return new EvalArgs(code, evalThis, location, strictMode);
-        }
-
-        /**
-         * Get the human readable location for this eval call
-         * @return the location
-         */
-        public String getLocation() {
-            return this.location;
-        }
-
-        /**
-         * Check whether this eval call is executed in strict mode
-         * @return true if executed in strict mode, false otherwise
-         */
-        public boolean getStrictMode() {
-            return this.strictMode;
-        }
+        public boolean strictMode;
     }
 
     /** arguments for 'eval' call. Non-null only if this call node is 'eval' */
-    @Ignore
-    private final EvalArgs evalArgs;
+    private EvalArgs evalArgs;
 
     /**
      * Constructors
      *
-     * @param lineNumber line number
-     * @param token      token
-     * @param finish     finish
-     * @param function   the function to call
-     * @param args       args to the call
+     * @param source   the source
+     * @param token    token
+     * @param finish   finish
+     * @param function the function to call
+     * @param args     args to the call
      */
-    public CallNode(final int lineNumber, final long token, final int finish, final Expression function, final List<Expression> args) {
-        super(token, finish);
+    public CallNode(final Source source, final long token, final int finish, final Node function, final List<Node> args) {
+        super(source, token, finish);
 
-        this.function   = function;
-        this.args       = args;
-        this.flags      = 0;
-        this.evalArgs   = null;
-        this.lineNumber = lineNumber;
+        setStart(function.getStart());
+
+        this.function     = function;
+        this.args         = args;
     }
 
-    private CallNode(final CallNode callNode, final Expression function, final List<Expression> args, final int flags, final EvalArgs evalArgs) {
+    private CallNode(final CallNode callNode, final CopyState cs) {
         super(callNode);
-        this.lineNumber = callNode.lineNumber;
-        this.function = function;
-        this.args = args;
-        this.flags = flags;
-        this.evalArgs = evalArgs;
+
+        final List<Node> newArgs = new ArrayList<>();
+
+        for (final Node arg : callNode.args) {
+            newArgs.add(cs.existingOrCopy(arg));
+        }
+
+        function     = cs.existingOrCopy(callNode.function);     //TODO existing or same?
+        args         = newArgs;
+        isNew        = callNode.isNew;
+        inWithBlock  = callNode.inWithBlock;
     }
 
-    /**
-     * Returns the line number.
-     * @return the line number.
-     */
-    public int getLineNumber() {
-        return lineNumber;
-    }
 
     @Override
     public Type getType() {
-        return function instanceof FunctionNode ? ((FunctionNode)function).getReturnType() : Type.OBJECT;
+        if (hasCallSiteType()) {
+            return type;
+        }
+        assert !function.getType().isUnknown();
+        return function.getType();
+    }
+
+    @Override
+    public void setType(final Type type) {
+        this.type = type;
+    }
+
+    private boolean hasCallSiteType() {
+        return this.type != null;
+    }
+
+    @Override
+    public boolean canHaveCallSiteType() {
+        return true;
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new CallNode(this, cs);
     }
 
     /**
@@ -182,21 +139,15 @@ public final class CallNode extends LexicalContextExpression {
      * @return node or replacement
      */
     @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterCallNode(this)) {
-            final CallNode newCallNode = (CallNode)visitor.leaveCallNode(
-                    setFunction((Expression)function.accept(visitor)).
-                    setArgs(Node.accept(visitor, Expression.class, args)).
-                    setFlags(flags).
-                    setEvalArgs(evalArgs == null ?
-                            null :
-                            evalArgs.setCode((Expression)evalArgs.getCode().accept(visitor)).
-                                setThis((IdentNode)evalArgs.getThis().accept(visitor))));
-            // Theoretically, we'd need to instead pass lc to every setter and do a replacement on each. In practice,
-            // setType from TypeOverride can't accept a lc, and we don't necessarily want to go there now.
-            if(this != newCallNode) {
-                return Node.replaceInLexicalContext(lc, this, newCallNode);
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            function = function.accept(visitor);
+
+            for (int i = 0, count = args.size(); i < count; i++) {
+                args.set(i, args.get(i).accept(visitor));
             }
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -204,6 +155,13 @@ public final class CallNode extends LexicalContextExpression {
 
     @Override
     public void toString(final StringBuilder sb) {
+        if (hasCallSiteType()) {
+            sb.append('{');
+            final String desc = getType().getDescriptor();
+            sb.append(desc.charAt(desc.length() - 1) == ';' ? "O" : getType().getDescriptor());
+            sb.append('}');
+        }
+
         function.toString(sb);
 
         sb.append('(');
@@ -227,7 +185,7 @@ public final class CallNode extends LexicalContextExpression {
      * Get the arguments for the call
      * @return a list of arguments
      */
-    public List<Expression> getArgs() {
+    public List<Node> getArgs() {
         return Collections.unmodifiableList(args);
     }
 
@@ -235,11 +193,8 @@ public final class CallNode extends LexicalContextExpression {
      * Reset the arguments for the call
      * @param args new arguments list
      */
-    private CallNode setArgs(final List<Expression> args) {
-        if (this.args == args) {
-            return this;
-        }
-        return new CallNode(this, function, args, flags, evalArgs);
+    public void setArgs(final List<Node> args) {
+        this.args = args;
     }
 
     /**
@@ -255,13 +210,9 @@ public final class CallNode extends LexicalContextExpression {
      * {@code eval}
      *
      * @param evalArgs eval args
-     * @return same node or new one on state change
      */
-    public CallNode setEvalArgs(final EvalArgs evalArgs) {
-        if (this.evalArgs == evalArgs) {
-            return this;
-        }
-        return new CallNode(this, function, args, flags, evalArgs);
+    public void setEvalArgs(final EvalArgs evalArgs) {
+        this.evalArgs = evalArgs;
     }
 
     /**
@@ -276,20 +227,16 @@ public final class CallNode extends LexicalContextExpression {
      * Return the function expression that this call invokes
      * @return the function
      */
-    public Expression getFunction() {
+    public Node getFunction() {
         return function;
     }
 
     /**
      * Reset the function expression that this call invokes
-     * @param function the function
-     * @return same node or new one on state change
+     * @param node the function
      */
-    public CallNode setFunction(final Expression function) {
-        if (this.function == function) {
-            return this;
-        }
-        return new CallNode(this, function, args, flags, evalArgs);
+    public void setFunction(final Node node) {
+        function = node;
     }
 
     /**
@@ -297,21 +244,28 @@ public final class CallNode extends LexicalContextExpression {
      * @return true if this a new operation
      */
     public boolean isNew() {
-        return (flags & IS_NEW) == IS_NEW;
+        return isNew;
     }
 
     /**
      * Flag this call as a new operation
-     * @return same node or new one on state change
      */
-    public CallNode setIsNew() {
-        return setFlags(IS_NEW);
+    public void setIsNew() {
+        this.isNew = true;
     }
 
-    private CallNode setFlags(final int flags) {
-        if (this.flags == flags) {
-            return this;
-        }
-        return new CallNode(this, function, args, flags, evalArgs);
+    /**
+     * Check if this call is inside a {@code with} block
+     * @return true if the call is inside a {@code with} block
+     */
+    public boolean inWithBlock() {
+        return inWithBlock;
+    }
+
+    /**
+     * Flag this call to be inside a {@code with} block
+     */
+    public void setInWithBlock() {
+        this.inWithBlock = true;
     }
 }

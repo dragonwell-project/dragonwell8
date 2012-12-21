@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,17 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.codegen.Condition.EQ;
-import static jdk.nashorn.internal.codegen.Condition.GE;
-import static jdk.nashorn.internal.codegen.Condition.GT;
-import static jdk.nashorn.internal.codegen.Condition.LE;
-import static jdk.nashorn.internal.codegen.Condition.LT;
-import static jdk.nashorn.internal.codegen.Condition.NE;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.EQ;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.GE;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.GT;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.LE;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.LT;
+import static jdk.nashorn.internal.codegen.MethodEmitter.Condition.NE;
 
+import jdk.nashorn.internal.codegen.MethodEmitter.Label;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.BinaryNode;
-import jdk.nashorn.internal.ir.Expression;
+import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.TernaryNode;
 import jdk.nashorn.internal.ir.UnaryNode;
 
@@ -52,27 +53,34 @@ final class BranchOptimizer {
         this.method  = method;
     }
 
-    void execute(final Expression node, final Label label, final boolean state) {
+    void execute(final Node node, final Label label, final boolean state) {
         branchOptimizer(node, label, state);
     }
 
+    private void load(final Node node) {
+        codegen.load(node);
+    }
+
     private void branchOptimizer(final UnaryNode unaryNode, final Label label, final boolean state) {
-        final Expression rhs = unaryNode.rhs();
+        final Node rhs = unaryNode.rhs();
 
         switch (unaryNode.tokenType()) {
         case NOT:
             branchOptimizer(rhs, label, !state);
             return;
-        default:
+        case CONVERT:
             if (unaryNode.getType().isBoolean()) {
                 branchOptimizer(rhs, label, state);
                 return;
             }
             break;
+        default:
+            break;
         }
 
         // convert to boolean
-        codegen.load(unaryNode, Type.BOOLEAN);
+        load(unaryNode);
+        method.convert(Type.BOOLEAN);
         if (state) {
             method.ifne(label);
         } else {
@@ -81,8 +89,8 @@ final class BranchOptimizer {
     }
 
     private void branchOptimizer(final BinaryNode binaryNode, final Label label, final boolean state) {
-        final Expression lhs = binaryNode.lhs();
-        final Expression rhs = binaryNode.rhs();
+        final Node lhs = binaryNode.lhs();
+        final Node rhs = binaryNode.rhs();
 
         switch (binaryNode.tokenType()) {
         case AND:
@@ -111,33 +119,45 @@ final class BranchOptimizer {
 
         case EQ:
         case EQ_STRICT:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol();
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? EQ : NE, true, label);
             return;
 
         case NE:
         case NE_STRICT:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol();
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? NE : EQ, true, label);
             return;
 
         case GE:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol();
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? GE : LT, !state, label);
             return;
 
         case GT:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol();
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? GT : LE, !state, label);
             return;
 
         case LE:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol();
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? LE : GT, state, label);
             return;
 
         case LT:
-            codegen.loadBinaryOperands(lhs, rhs, Type.widest(lhs.getType(), rhs.getType()));
+            assert rhs.getType().isEquivalentTo(lhs.getType()) : "type mismatch: " + lhs.getSymbol() + " to " + rhs.getSymbol() + " in " + binaryNode;
+            load(lhs);
+            load(rhs);
             method.conditionalJump(state ? LT : GE, state, label);
             return;
 
@@ -145,7 +165,8 @@ final class BranchOptimizer {
             break;
         }
 
-        codegen.load(binaryNode, Type.BOOLEAN);
+        load(binaryNode);
+        method.convert(Type.BOOLEAN);
         if (state) {
             method.ifne(label);
         } else {
@@ -153,7 +174,7 @@ final class BranchOptimizer {
         }
     }
 
-    private void branchOptimizer(final Expression node, final Label label, final boolean state) {
+    private void branchOptimizer(final Node node, final Label label, final boolean state) {
         if (!(node instanceof TernaryNode)) {
 
             if (node instanceof BinaryNode) {
@@ -167,7 +188,8 @@ final class BranchOptimizer {
             }
         }
 
-        codegen.load(node, Type.BOOLEAN);
+        load(node);
+        method.convert(Type.BOOLEAN);
         if (state) {
             method.ifne(label);
         } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,15 @@
 
 package jdk.nashorn.internal.objects;
 
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.beans.StaticClass;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
 import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.runtime.NativeJavaPackage;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.beans.StaticClass;
+import org.dynalang.dynalink.linker.GuardedInvocation;
 
 /**
  * This is "JavaImporter" constructor. This constructor allows you to use Java types omitting explicit package names.
@@ -53,27 +51,12 @@ import jdk.nashorn.internal.runtime.ScriptObject;
  * {@link NativeJava#type(Object, Object) Java.type()} method.
  */
 @ScriptClass("JavaImporter")
-public final class NativeJavaImporter extends ScriptObject {
+public class NativeJavaImporter extends ScriptObject {
     private final Object[] args;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
-    private NativeJavaImporter(final Object[] args, final ScriptObject proto, final PropertyMap map) {
-        super(proto, map);
+    NativeJavaImporter(final Object[] args) {
         this.args = args;
-    }
-
-    private NativeJavaImporter(final Object[] args, final Global global) {
-        this(args, global.getJavaImporterPrototype(), global.getJavaImporterMap());
-    }
-
-    private NativeJavaImporter(final Object[] args) {
-        this(args, Global.instance());
+        this.setProto(Global.instance().getJavaImporterPrototype());
     }
 
     @Override
@@ -124,20 +107,20 @@ public final class NativeJavaImporter extends ScriptObject {
     }
 
     @Override
-    public GuardedInvocation noSuchProperty(final CallSiteDescriptor desc, final LinkRequest request) {
-        return createAndSetProperty(desc) ? super.lookup(desc, request) : super.noSuchProperty(desc, request);
+    public GuardedInvocation noSuchProperty(final CallSiteDescriptor desc) {
+        return createAndSetProperty(desc) ? super.lookup(desc) : super.noSuchProperty(desc);
     }
 
     @Override
-    public GuardedInvocation noSuchMethod(final CallSiteDescriptor desc, final LinkRequest request) {
-        return createAndSetProperty(desc) ? super.lookup(desc, request) : super.noSuchMethod(desc, request);
+    public GuardedInvocation noSuchMethod(final CallSiteDescriptor desc) {
+        return createAndSetProperty(desc) ? super.lookup(desc) : super.noSuchMethod(desc);
     }
 
     private boolean createAndSetProperty(final CallSiteDescriptor desc) {
         final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
         final Object value = createProperty(name);
         if(value != null) {
-            set(name, value, false);
+            set(name, value, getContext()._strict);
             return true;
         }
         return false;

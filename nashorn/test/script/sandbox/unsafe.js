@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,9 @@
  */
 
 function check(e) {
-   if (! (e instanceof java.lang.SecurityException)) {
+   if (e instanceof java.lang.SecurityException) {
+       print(e);
+   } else {
        fail("expected SecurityException, got " + e);
    }
 }

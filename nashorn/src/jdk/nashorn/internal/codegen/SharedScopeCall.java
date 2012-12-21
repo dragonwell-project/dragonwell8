@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ import jdk.nashorn.internal.runtime.ScriptObject;
  * <p>Scope calls must not be shared between normal callsites and callsites contained in a <tt>with</tt>
  * statement as this condition is not handled by current guards and will cause a runtime error.</p>
  */
-class SharedScopeCall {
+public class SharedScopeCall {
 
     /** Threshold for using shared scope calls with fast scope access. */
     public static final int FAST_SCOPE_CALL_THRESHOLD = 4;
@@ -106,20 +106,19 @@ class SharedScopeCall {
     /**
      * Set the compile unit and method name.
      * @param compileUnit the compile unit
-     * @param methodName the method name
+     * @param compiler the compiler to generate a unique method name
      */
-    protected void setClassAndName(final CompileUnit compileUnit, final String methodName) {
+    protected void setClassAndName(final CompileUnit compileUnit, final Compiler compiler) {
         this.compileUnit = compileUnit;
-        this.methodName  = methodName;
+        this.methodName = compiler.uniqueName("scopeCall");
     }
 
     /**
      * Generate the invoke instruction for this shared scope call.
      * @param method the method emitter
-     * @return the method emitter
      */
-    public MethodEmitter generateInvoke(final MethodEmitter method) {
-        return method.invokestatic(compileUnit.getUnitClassName(), methodName, getStaticSignature());
+    public void generateInvoke(final MethodEmitter method) {
+        method.invokeStatic(compileUnit.getUnitClassName(), methodName, getStaticSignature());
     }
 
     /**
@@ -139,8 +138,8 @@ class SharedScopeCall {
 
         // Load correct scope by calling getProto() on the scope argument as often as specified
         // by the second argument.
-        final Label parentLoopStart = new Label("parent_loop_start");
-        final Label parentLoopDone  = new Label("parent_loop_done");
+        final MethodEmitter.Label parentLoopStart = new MethodEmitter.Label("parent_loop_start");
+        final MethodEmitter.Label parentLoopDone = new MethodEmitter.Label("parent_loop_done");
         method.load(Type.OBJECT, 0);
         method.label(parentLoopStart);
         method.load(Type.INT, 1);
@@ -160,11 +159,9 @@ class SharedScopeCall {
             int slot = 2;
             for (final Type type : paramTypes) {
                 method.load(type, slot++);
-                if (type == Type.NUMBER || type == Type.LONG) {
-                    slot++;
-                }
+                if (type == Type.NUMBER || type == Type.LONG) slot++;
             }
-            method.dynamicCall(returnType, 2 + paramTypes.length, flags);
+            method.dynamicCall(returnType, paramTypes.length, flags);
         }
 
         method._return(returnType);

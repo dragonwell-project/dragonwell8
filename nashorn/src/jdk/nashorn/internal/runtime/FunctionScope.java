@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ package jdk.nashorn.internal.runtime;
 public class FunctionScope extends ScriptObject implements Scope {
 
     /** Area to store scope arguments. (public for access from scripts.) */
-    public final ScriptObject arguments;
+    public final Object arguments;
 
     /** Flag to indicate that a split method issued a return statement */
     private int splitState = -1;
@@ -53,9 +53,10 @@ public class FunctionScope extends ScriptObject implements Scope {
      * @param callerScope caller scope
      * @param arguments   arguments
      */
-    public FunctionScope(final PropertyMap map, final ScriptObject callerScope, final ScriptObject arguments) {
-        super(callerScope, map);
+    public FunctionScope(final PropertyMap map, final ScriptObject callerScope, final Object arguments) {
+        super(map);
         this.arguments = arguments;
+        setProto(callerScope);
         setIsScope();
     }
 
@@ -66,8 +67,9 @@ public class FunctionScope extends ScriptObject implements Scope {
      * @param callerScope caller scope
      */
     public FunctionScope(final PropertyMap map, final ScriptObject callerScope) {
-        super(callerScope, map);
+        super(map);
         this.arguments = null;
+        setProto(callerScope);
         setIsScope();
     }
 

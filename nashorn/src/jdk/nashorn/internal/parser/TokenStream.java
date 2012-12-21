@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@ package jdk.nashorn.internal.parser;
  *
  */
 public class TokenStream {
-    /** Initial buffer size. */
-    private static final int INITIAL_SIZE = 256;
+    /** Buffer growth factor. */
+    private static final int growth = 256;
 
     /** Token buffer. */
     private long[] buffer;
@@ -56,7 +56,7 @@ public class TokenStream {
      * Constructor.
      */
     public TokenStream() {
-        buffer = new long[INITIAL_SIZE];
+        buffer = new long[growth];
         count = 0;
         in = 0;
         out = 0;
@@ -193,7 +193,7 @@ public class TokenStream {
      */
     public void grow() {
         // Allocate new buffer.
-        final long[] newBuffer = new long[buffer.length * 2];
+        final long[] newBuffer = new long[buffer.length + growth];
 
         // If single chunk.
         if (in > out) {

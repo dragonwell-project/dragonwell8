@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,8 @@
  * @run
  */
 
-print(Java.typeName(java.lang.System.in.class));
+print(java.lang.System.in.class.name);
 var prop = "in";
-print(Java.typeName(java.lang.System[prop].class));
-print(Java.typeName(java.lang.System["in"].class));
+print(java.lang.System[prop].class.name);
+print(java.lang.System["in"].class.name);
 

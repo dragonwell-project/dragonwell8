@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,6 @@ import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.options.Options;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -45,8 +43,9 @@ import org.testng.annotations.Test;
 public class CompilerTest {
     private static final boolean VERBOSE  = Boolean.valueOf(System.getProperty("compilertest.verbose"));
     private static final boolean TEST262  = Boolean.valueOf(System.getProperty("compilertest.test262"));
+
+    private static final String ES5CONFORM_DIR    = System.getProperty("es5conform.testcases.dir");
     private static final String TEST_BASIC_DIR  = System.getProperty("test.basic.dir");
-    private static final String TEST_NODE_DIR  = System.getProperty("test.node.dir");
     private static final String TEST262_SUITE_DIR = System.getProperty("test262.suite.dir");
 
     interface TestFilter {
@@ -60,8 +59,7 @@ public class CompilerTest {
     private Context context;
     private ScriptObject global;
 
-    @BeforeClass
-    public void setupTest() {
+    public CompilerTest() {
         final Options options = new Options("nashorn");
         options.set("anon.functions", true);
         options.set("compile.only", true);
@@ -78,35 +76,29 @@ public class CompilerTest {
 
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw);
-        this.context = new Context(options, errors, pw, pw, Thread.currentThread().getContextClassLoader());
+        this.context = new Context(options, errors, pw, pw);
         this.global = context.createGlobal();
-    }
-
-    @AfterClass
-    public void tearDownTest() {
-        this.context = null;
-        this.global = null;
     }
 
     @Test
     public void compileAllTests() {
         if (TEST262) {
-            compileTestSet(new File(TEST262_SUITE_DIR), new TestFilter() {
+            compileTestSet(TEST262_SUITE_DIR, new TestFilter() {
                 @Override
                 public boolean exclude(final File file, final String content) {
                     return content.indexOf("@negative") != -1;
                 }
             });
         }
-        compileTestSet(new File(TEST_BASIC_DIR), null);
-        compileTestSet(new File(TEST_NODE_DIR, "node"), null);
-        compileTestSet(new File(TEST_NODE_DIR, "src"), null);
+        compileTestSet(ES5CONFORM_DIR, null);
+        compileTestSet(TEST_BASIC_DIR, null);
     }
 
-    private void compileTestSet(final File testSetDir, final TestFilter filter) {
+    private void compileTestSet(final String testSet, final TestFilter filter) {
         passed = 0;
         failed = 0;
         skipped = 0;
+        final File testSetDir = new File(testSet);
         if (! testSetDir.isDirectory()) {
             log("WARNING: " + testSetDir + " not found or not a directory");
             return;
@@ -114,7 +106,7 @@ public class CompilerTest {
         log(testSetDir.getAbsolutePath());
         compileJSDirectory(testSetDir, filter);
 
-        log(testSetDir + " compile done!");
+        log(testSet + " compile done!");
         log("compile ok: " + passed);
         log("compile failed: " + failed);
         log("compile skipped: " + skipped);
@@ -170,8 +162,8 @@ public class CompilerTest {
                 Context.setGlobal(global);
             }
             final Source source = new Source(file.getAbsolutePath(), buffer);
-            final ScriptFunction script = context.compileScript(source, global);
-            if (script == null || context.getErrorManager().getNumberOfErrors() > 0) {
+            final ScriptFunction script = context.compileScript(source, global, context._strict);
+            if (script == null || context.getErrors().getNumberOfErrors() > 0) {
                 log("Compile failed: " + file.getAbsolutePath());
                 failed++;
             } else {

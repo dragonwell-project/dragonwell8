@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,41 +25,71 @@
 
 package jdk.nashorn.internal.ir;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.ir.annotations.Ignore;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation of an object literal.
  */
-@Immutable
-public final class ObjectNode extends Expression {
+public class ObjectNode extends Node {
+    /** Literal context. */
+    @Reference @Ignore
+    private Block context;
 
     /** Literal elements. */
-    private final List<PropertyNode> elements;
+    private final List<Node> elements;
 
     /**
      * Constructor
      *
+     * @param source   the source
      * @param token    token
      * @param finish   finish
+     * @param context  the block for this ObjectNode
      * @param elements the elements used to initialize this ObjectNode
      */
-    public ObjectNode(final long token, final int finish, final List<PropertyNode> elements) {
-        super(token, finish);
+    public ObjectNode(final Source source, final long token, final int finish, final Block context, final List<Node> elements) {
+        super(source, token, finish);
+
+        this.context  = context;
         this.elements = elements;
     }
 
-    private ObjectNode(final ObjectNode objectNode, final List<PropertyNode> elements) {
+    private ObjectNode(final ObjectNode objectNode, final CopyState cs) {
         super(objectNode);
-        this.elements = elements;
+
+        final List<Node> newElements = new ArrayList<>();
+
+        for (final Node element : objectNode.elements) {
+            newElements.add(cs.existingOrCopy(element));
+        }
+
+        context  = (Block)cs.existingOrCopy(objectNode.context);
+        elements = newElements;
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterObjectNode(this)) {
-            return visitor.leaveObjectNode(setElements(Node.accept(visitor, PropertyNode.class, elements)));
+    protected Node copy(final CopyState cs) {
+        return new ObjectNode(this, cs);
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            if (context != null) {
+                context = (Block)context.accept(visitor);
+            }
+
+            for (int i = 0, count = elements.size(); i < count; i++) {
+                elements.set(i, elements.get(i).accept(visitor));
+            }
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -88,17 +118,18 @@ public final class ObjectNode extends Expression {
     }
 
     /**
+     * Get the block that is this ObjectNode's literal context
+     * @return the block
+     */
+    public Block getContext() {
+        return context;
+    }
+
+    /**
      * Get the elements of this literal node
      * @return a list of elements
      */
-    public List<PropertyNode> getElements() {
+    public List<Node> getElements() {
         return Collections.unmodifiableList(elements);
-    }
-
-    private ObjectNode setElements(final List<PropertyNode> elements) {
-        if (this.elements == elements) {
-            return this;
-        }
-        return new ObjectNode(this, elements);
     }
 }

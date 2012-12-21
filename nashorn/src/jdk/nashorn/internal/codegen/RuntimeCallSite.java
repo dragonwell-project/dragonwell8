@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ package jdk.nashorn.internal.codegen;
 import static jdk.nashorn.internal.codegen.CompilerConstants.staticCallNoLookup;
 import static jdk.nashorn.internal.codegen.types.Type.BOOLEAN;
 import static jdk.nashorn.internal.codegen.types.Type.INT;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodHandle;
@@ -41,10 +41,9 @@ import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.RuntimeNode;
 import jdk.nashorn.internal.ir.RuntimeNode.Request;
-import jdk.nashorn.internal.lookup.Lookup;
-import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
-import jdk.nashorn.internal.runtime.linker.Bootstrap;
+import jdk.nashorn.internal.runtime.linker.Lookup;
+import jdk.nashorn.internal.runtime.linker.MethodHandleFactory;
 
 /**
  * Optimistic call site that assumes its Object arguments to be of a boxed type.
@@ -56,12 +55,14 @@ import jdk.nashorn.internal.runtime.linker.Bootstrap;
  * {@code Object a === int b} is a good idea to specialize to {@code ((Integer)a).intValue() == b}
  * surrounded by catch blocks that will try less narrow specializations
  */
-public final class RuntimeCallSite extends MutableCallSite {
-    static final Call BOOTSTRAP = staticCallNoLookup(Bootstrap.class, "runtimeBootstrap", CallSite.class, MethodHandles.Lookup.class, String.class, MethodType.class);
+public class RuntimeCallSite extends MutableCallSite {
+    static final Call BOOTSTRAP = staticCallNoLookup(RuntimeCallSite.class, "bootstrap", CallSite.class, MethodHandles.Lookup.class, String.class, MethodType.class);
 
-    private static final MethodHandle NEXT = findOwnMH("next",  MethodHandle.class, String.class);
+    private static final MethodHandle NEXT = findOwnMH("next",  MethodHandle.class);
 
     private final RuntimeNode.Request request;
+
+    private String name;
 
     /**
      * A specialized runtime node, i.e. on where we know at least one more specific type than object
@@ -199,10 +200,24 @@ public final class RuntimeCallSite extends MutableCallSite {
      * @param type method type for call site
      * @param name name of runtime call
      */
-    public RuntimeCallSite(final MethodType type, final String name) {
+    RuntimeCallSite(final MethodType type, final String name) {
         super(type);
+        this.name    = name;
         this.request = Request.valueOf(name.substring(0, name.indexOf(SpecializedRuntimeNode.REQUEST_SEPARATOR)));
         setTarget(makeMethod(name));
+    }
+
+    /**
+     * Bootstrapper for a specialized Runtime call
+     *
+     * @param lookup       lookup
+     * @param initialName  initial name for callsite
+     * @param type         method type for call site
+     *
+     * @return callsite for a runtime node
+     */
+    public static CallSite bootstrap(final MethodHandles.Lookup lookup, final String initialName, final MethodType type) {
+        return new RuntimeCallSite(type, initialName);
     }
 
     private String nextName(final String requestName) {
@@ -276,7 +291,7 @@ public final class RuntimeCallSite extends MutableCallSite {
                 // number and boolean are never strictly equal, e.g. 0 !== false
                 mh = MH.dropArguments(MH.constant(boolean.class, request == Request.NE_STRICT), 0, type().parameterArray());
             } else {
-                mh = METHODS.get(request.nonStrictName() + primitiveType.getSimpleName());
+                mh = METHODS.get(request.name().replace("_STRICT", "") + primitiveType.getSimpleName());
                 // unbox objects
 
                 for (int i = 0; i < type().parameterCount(); i++) {
@@ -289,7 +304,7 @@ public final class RuntimeCallSite extends MutableCallSite {
                 mh = MH.explicitCastArguments(mh, type());
             }
 
-            final MethodHandle fallback = MH.foldArguments(MethodHandles.exactInvoker(type()), MH.insertArguments(NEXT, 0, this, requestName));
+            final MethodHandle fallback = MH.foldArguments(MethodHandles.exactInvoker(type()), MH.bindTo(NEXT, this));
 
             MethodHandle guard;
             if (type().parameterType(0).isPrimitive()) {
@@ -312,19 +327,15 @@ public final class RuntimeCallSite extends MutableCallSite {
                     }
                 }
                 addcheck = MH.explicitCastArguments(addcheck, type().changeReturnType(boolean.class));
-                guard    = MH.guardWithTest(upcastGuard(guard), addcheck,
+                guard    = MH.guardWithTest(guard, addcheck,
                                 MH.dropArguments(MH.constant(boolean.class, false), 0, type().parameterArray()));
             }
 
-            return MH.guardWithTest(upcastGuard(guard), mh, fallback);
+            return MH.guardWithTest(guard, mh, fallback);
         }
 
         // generic fallback
         return MH.explicitCastArguments(Lookup.filterReturnType(GENERIC_METHODS.get(request.name()), type().returnType()), type());
-    }
-
-    private MethodHandle upcastGuard(final MethodHandle guard) {
-        return MH.asType(guard, type().changeReturnType(boolean.class));
     }
 
     /**
@@ -333,13 +344,18 @@ public final class RuntimeCallSite extends MutableCallSite {
      *
      * Do not call directly
      *
-     * @param name current name (with type) of runtime call at the call site
      * @return next wider specialization method for this RuntimeCallSite
      */
-   public MethodHandle next(final String name) {
-        final MethodHandle next = makeMethod(nextName(name));
+    public MethodHandle next() {
+        this.name = nextName(name);
+        final MethodHandle next = makeMethod(name);
         setTarget(next);
         return next;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " " + name;
     }
 
     /** Method cache */
@@ -451,120 +467,120 @@ public final class RuntimeCallSite extends MutableCallSite {
     }
 
     /**
-     * Specialized version of {@literal <} operator for two int arguments. Do not call directly.
+     * Specialized version of < operator for two int arguments. Do not call directly.
      * @param a int
      * @param b int
-     * @return a {@code <} b
+     * @return a < b
      */
     public static boolean LT(final int a, final int b) {
         return a < b;
     }
 
     /**
-     * Specialized version of {@literal <} operator for two double arguments. Do not call directly.
+     * Specialized version of < operator for two double arguments. Do not call directly.
      * @param a double
      * @param b double
-     * @return a {@literal <} b
+     * @return a < b
      */
     public static boolean LT(final double a, final double b) {
         return a < b;
     }
 
     /**
-     * Specialized version of {@literal <} operator for two long arguments. Do not call directly.
+     * Specialized version of < operator for two long arguments. Do not call directly.
      * @param a long
      * @param b long
-     * @return a {@literal <} b
+     * @return a < b
      */
     public static boolean LT(final long a, final long b) {
         return a < b;
     }
 
     /**
-     * Specialized version of {@literal <=} operator for two int arguments. Do not call directly.
+     * Specialized version of <= operator for two int arguments. Do not call directly.
      * @param a int
      * @param b int
-     * @return a {@literal <=} b
+     * @return a <= b
      */
     public static boolean LE(final int a, final int b) {
         return a <= b;
     }
 
     /**
-     * Specialized version of {@literal <=} operator for two double arguments. Do not call directly.
+     * Specialized version of <= operator for two double arguments. Do not call directly.
      * @param a double
      * @param b double
-     * @return a {@literal <=} b
+     * @return a <= b
      */
     public static boolean LE(final double a, final double b) {
         return a <= b;
     }
 
     /**
-     * Specialized version of {@literal <=} operator for two long arguments. Do not call directly.
+     * Specialized version of <= operator for two long arguments. Do not call directly.
      * @param a long
      * @param b long
-     * @return a {@literal <=} b
+     * @return a <= b
      */
     public static boolean LE(final long a, final long b) {
         return a <= b;
     }
 
     /**
-     * Specialized version of {@literal >} operator for two int arguments. Do not call directly.
+     * Specialized version of > operator for two int arguments. Do not call directly.
      * @param a int
      * @param b int
-     * @return a {@literal >} b
+     * @return a > b
      */
     public static boolean GT(final int a, final int b) {
         return a > b;
     }
 
     /**
-     * Specialized version of {@literal >} operator for two double arguments. Do not call directly.
+     * Specialized version of > operator for two double arguments. Do not call directly.
      * @param a double
      * @param b double
-     * @return a {@literal >} b
+     * @return a > b
      */
     public static boolean GT(final double a, final double b) {
         return a > b;
     }
 
     /**
-     * Specialized version of {@literal >} operator for two long arguments. Do not call directly.
+     * Specialized version of > operator for two long arguments. Do not call directly.
      * @param a long
      * @param b long
-     * @return a {@literal >} b
+     * @return a > b
      */
     public static boolean GT(final long a, final long b) {
         return a > b;
     }
 
     /**
-     * Specialized version of {@literal >=} operator for two int arguments. Do not call directly.
+     * Specialized version of >= operator for two int arguments. Do not call directly.
      * @param a int
      * @param b int
-     * @return a {@literal >=} b
+     * @return a >= b
      */
     public static boolean GE(final int a, final int b) {
         return a >= b;
     }
 
     /**
-     * Specialized version of {@literal >=} operator for two double arguments. Do not call directly.
+     * Specialized version of >= operator for two double arguments. Do not call directly.
      * @param a double
      * @param b double
-     * @return a {@literal >=} b
+     * @return a >= b
      */
     public static boolean GE(final double a, final double b) {
         return a >= b;
     }
 
     /**
-     * Specialized version of {@literal >=} operator for two long arguments. Do not call directly.
+     * Specialized version of >= operator for two long arguments. Do not call directly.
      * @param a long
      * @param b long
-     * @return a {@code >=} b
+     * @return a >= b
      */
     public static boolean GE(final long a, final long b) {
         return a >= b;

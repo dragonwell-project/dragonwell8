@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,23 +33,13 @@ import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.JSType.isRepresentableAsInt;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
-import jdk.internal.dynalink.beans.StaticClass;
-import jdk.nashorn.api.scripting.JSObject;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
-import jdk.nashorn.internal.ir.debug.JSONWriter;
-import jdk.nashorn.internal.objects.Global;
-import jdk.nashorn.internal.parser.Lexer;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
+import org.dynalang.dynalink.beans.StaticClass;
 
 
 /**
@@ -78,25 +68,27 @@ public final class ScriptRuntime {
     /** Method handle to generic === operator, operating on objects */
     public static final Call EQ_STRICT = staticCallNoLookup(ScriptRuntime.class, "EQ_STRICT", boolean.class, Object.class, Object.class);
 
-    /** Method handle used to enter a {@code with} scope at runtime. */
+    /** Method handle used to enter a {@code with} scope at runtime. Used from {@link jdk.nashorn.internal.codegen.CodeGenerator} */
     public static final Call OPEN_WITH = staticCallNoLookup(ScriptRuntime.class, "openWith", ScriptObject.class, ScriptObject.class, Object.class);
 
-    /** Method handle used to exit a {@code with} scope at runtime. */
+    /** Method handle used to exit a {@code with} scope at runtime. Used from {@link jdk.nashorn.internal.codegen.CodeGenerator} */
     public static final Call CLOSE_WITH = staticCallNoLookup(ScriptRuntime.class, "closeWith", ScriptObject.class, ScriptObject.class);
 
     /**
      * Method used to place a scope's variable into the Global scope, which has to be done for the
-     * properties declared at outermost script level.
+     * properties declared at outermost script level. Used from {@link jdk.nashorn.internal.codegen.CodeGenerator}
      */
     public static final Call MERGE_SCOPE = staticCallNoLookup(ScriptRuntime.class, "mergeScope", ScriptObject.class, ScriptObject.class);
 
     /**
      * Return an appropriate iterator for the elements in a for-in construct
+     * Used from {@link jdk.nashorn.internal.codegen.CodeGenerator}
      */
     public static final Call TO_PROPERTY_ITERATOR = staticCallNoLookup(ScriptRuntime.class, "toPropertyIterator", Iterator.class, Object.class);
 
     /**
      * Return an appropriate iterator for the elements in a for-each construct
+     * Used from {@link jdk.nashorn.internal.codegen.CodeGenerator}
      */
     public static final Call TO_VALUE_ITERATOR = staticCallNoLookup(ScriptRuntime.class, "toValueIterator", Iterator.class, Object.class);
 
@@ -105,7 +97,7 @@ public final class ScriptRuntime {
       * call sites that are known to be megamorphic. Using an invoke dynamic here would
       * lead to the JVM deoptimizing itself to death
       */
-    public static final Call APPLY = staticCall(MethodHandles.lookup(), ScriptRuntime.class, "apply", Object.class, ScriptFunction.class, Object.class, Object[].class);
+    public static final Call APPLY = staticCall(ScriptRuntime.class, "apply", Object.class, ScriptFunction.class, Object.class, Object[].class);
 
     /**
      * Converts a switch tag value to a simple integer. deflt value if it can't.
@@ -122,17 +114,6 @@ public final class ScriptRuntime {
             }
         }
 
-        return deflt;
-    }
-
-    /**
-     * Converts a switch tag value to a simple integer. deflt value if it can't.
-     *
-     * @param tag   Switch statement tag value.
-     * @param deflt default to use if not convertible.
-     * @return int tag value (or deflt.)
-     */
-    public static int switchTagAsInt(final boolean tag, final int deflt) {
         return deflt;
     }
 
@@ -192,8 +173,6 @@ public final class ScriptRuntime {
         case FUNCTION:
             if (self instanceof ScriptObject) {
                 className = ((ScriptObject)self).getClassName();
-            } else if (self instanceof JSObject) {
-                className = ((JSObject)self).getClassName();
             } else {
                 className = self.getClass().getName();
             }
@@ -227,76 +206,45 @@ public final class ScriptRuntime {
     }
 
     /**
-     * Returns an iterator over property identifiers used in the {@code for...in} statement. Note that the ECMAScript
-     * 5.1 specification, chapter 12.6.4. uses the terminology "property names", which seems to imply that the property
-     * identifiers are expected to be strings, but this is not actually spelled out anywhere, and Nashorn will in some
-     * cases deviate from this. Namely, we guarantee to always return an iterator over {@link String} values for any
-     * built-in JavaScript object. We will however return an iterator over {@link Integer} objects for native Java
-     * arrays and {@link List} objects, as well as arbitrary objects representing keys of a {@link Map}. Therefore, the
-     * expression {@code typeof i} within a {@code for(i in obj)} statement can return something other than
-     * {@code string} when iterating over native Java arrays, {@code List}, and {@code Map} objects.
-     * @param obj object to iterate on.
-     * @return iterator over the object's property names.
+     * Used to determine property iterator used in for in.
+     * @param obj Object to iterate on.
+     * @return Iterator.
      */
-    public static Iterator<?> toPropertyIterator(final Object obj) {
+    public static Iterator<String> toPropertyIterator(final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).propertyIterator();
         }
 
         if (obj != null && obj.getClass().isArray()) {
-            return new RangeIterator(Array.getLength(obj));
-        }
+            final int length = Array.getLength(obj);
 
-        if (obj instanceof JSObject) {
-            return ((JSObject)obj).keySet().iterator();
-        }
+            return new Iterator<String>() {
+                private int index = 0;
 
-        if (obj instanceof List) {
-            return new RangeIterator(((List<?>)obj).size());
-        }
+                @Override
+                public boolean hasNext() {
+                    return index < length;
+                }
 
-        if (obj instanceof Map) {
-            return ((Map<?,?>)obj).keySet().iterator();
-        }
+                @Override
+                public String next() {
+                    return "" + index++; //TODO numeric property iterator?
+                }
 
-        final Object wrapped = Global.instance().wrapAsObject(obj);
-        if (wrapped instanceof ScriptObject) {
-            return ((ScriptObject)wrapped).propertyIterator();
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
+                }
+            };
         }
 
         return Collections.emptyIterator();
     }
 
-    private static final class RangeIterator implements Iterator<Integer> {
-        private final int length;
-        private int index;
-
-        RangeIterator(int length) {
-            this.length = length;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return index < length;
-        }
-
-        @Override
-        public Integer next() {
-            return index++;
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
-    }
-
     /**
-     * Returns an iterator over property values used in the {@code for each...in} statement. Aside from built-in JS
-     * objects, it also operates on Java arrays, any {@link Iterable}, as well as on {@link Map} objects, iterating over
-     * map values.
-     * @param obj object to iterate on.
-     * @return iterator over the object's property values.
+     * Used to determine property value iterator used in for each in.
+     * @param obj Object to iterate on.
+     * @return Iterator.
      */
     public static Iterator<?> toValueIterator(final Object obj) {
         if (obj instanceof ScriptObject) {
@@ -317,9 +265,6 @@ public final class ScriptRuntime {
 
                 @Override
                 public Object next() {
-                    if (index >= length) {
-                        throw new NoSuchElementException();
-                    }
                     return Array.get(array, index++);
                 }
 
@@ -330,21 +275,8 @@ public final class ScriptRuntime {
             };
         }
 
-        if (obj instanceof JSObject) {
-            return ((JSObject)obj).values().iterator();
-        }
-
-        if (obj instanceof Map) {
-            return ((Map<?,?>)obj).values().iterator();
-        }
-
         if (obj instanceof Iterable) {
             return ((Iterable<?>)obj).iterator();
-        }
-
-        final Object wrapped = Global.instance().wrapAsObject(obj);
-        if (wrapped instanceof ScriptObject) {
-            return ((ScriptObject)wrapped).valueIterator();
         }
 
         return Collections.emptyIterator();
@@ -384,15 +316,16 @@ public final class ScriptRuntime {
     }
 
     /**
-     * Call a script function as a constructor with given args.
-     *
+     * Constructor new object using given constructor function
      * @param target ScriptFunction object.
-     * @param args   Call arguments.
-     * @return Constructor call result.
+     * @param args   Constructor arguments.
+     * @return newly constructed object.
      */
     public static Object construct(final ScriptFunction target, final Object... args) {
         try {
-            return target.construct(args);
+            final ScriptObject allocation = (ScriptObject)target.allocate();
+            final Object result = target.construct(allocation, args);
+            return result instanceof ScriptObject ? result : allocation;
         } catch (final RuntimeException | Error e) {
             throw e;
         } catch (final Throwable t) {
@@ -444,28 +377,6 @@ public final class ScriptRuntime {
     }
 
     /**
-     * Returns AST as JSON compatible string. This is used to
-     * implement "parse" function in resources/parse.js script.
-     *
-     * @param code code to be parsed
-     * @param name name of the code source (used for location)
-     * @param includeLoc tells whether to include location information for nodes or not
-     * @return JSON string representation of AST of the supplied code
-     */
-    public static String parse(final String code, final String name, final boolean includeLoc) {
-        return JSONWriter.parse(Context.getContextTrusted().getEnv(), code, name, includeLoc);
-    }
-
-    /**
-     * Test whether a char is valid JavaScript whitespace
-     * @param ch a char
-     * @return true if valid JavaScript whitespace
-     */
-    public static boolean isJSWhitespace(final char ch) {
-        return Lexer.isJSWhitespace(ch);
-    }
-
-    /**
      * Entering a {@code with} node requires new scope. This is the implementation
      *
      * @param scope      existing scope
@@ -474,19 +385,16 @@ public final class ScriptRuntime {
      * @return {@link WithObject} that is the new scope
      */
     public static ScriptObject openWith(final ScriptObject scope, final Object expression) {
-        final ScriptObject global = Context.getGlobalTrusted();
+        final ScriptObject global = Context.getGlobal();
         if (expression == UNDEFINED) {
-            throw typeError(global, "cant.apply.with.to.undefined");
+            typeError(global, "cant.apply.with.to.undefined");
         } else if (expression == null) {
-            throw typeError(global, "cant.apply.with.to.null");
+            typeError(global, "cant.apply.with.to.null");
         }
 
-        final Object wrappedExpr = JSType.toScriptObject(global, expression);
-        if (wrappedExpr instanceof ScriptObject) {
-            return new WithObject(scope, (ScriptObject)wrappedExpr);
-        }
+        final ScriptObject withObject = new WithObject(scope, JSType.toObject(global, expression));
 
-        throw typeError(global, "cant.apply.with.to.non.scriptobject");
+        return withObject;
     }
 
     /**
@@ -498,7 +406,7 @@ public final class ScriptRuntime {
      */
     public static ScriptObject closeWith(final ScriptObject scope) {
         if (scope instanceof WithObject) {
-            return ((WithObject)scope).getParentScope();
+            return scope.getProto();
         }
         return scope;
     }
@@ -580,17 +488,32 @@ public final class ScriptRuntime {
             } else if (object instanceof Undefined) {
                 obj = ((Undefined)obj).get(property);
             } else if (object == null) {
-                throw typeError("cant.get.property", safeToString(property), "null");
+                typeError(Context.getGlobal(), "cant.get.property", safeToString(property), "null");
             } else if (JSType.isPrimitive(obj)) {
-                obj = ((ScriptObject)JSType.toScriptObject(obj)).get(property);
-            } else if (obj instanceof JSObject) {
-                obj = ((JSObject)obj).getMember(property.toString());
+                obj = ((ScriptObject)JSType.toObject(Context.getGlobal(), obj)).get(property);
             } else {
                 obj = UNDEFINED;
             }
         }
 
         return JSType.of(obj).typeName();
+    }
+
+    /**
+     * ECMA 11.4.2 - void operator
+     *
+     * @param object object to evaluate
+     *
+     * @return Undefined as the object type
+     */
+    public static Object VOID(final Object object) {
+        if (object instanceof Number) {
+            if (Double.isNaN(((Number)object).doubleValue())) {
+                return Double.NaN;
+            }
+        }
+
+        return UNDEFINED;
     }
 
     /**
@@ -603,7 +526,8 @@ public final class ScriptRuntime {
      * @return undefined
      */
     public static Object REFERENCE_ERROR(final Object lhs, final Object rhs, final Object msg) {
-        throw referenceError("cant.be.used.as.lhs", Objects.toString(msg));
+        referenceError(Context.getGlobal(), "cant.be.used.as.lhs", Objects.toString(msg));
+        return UNDEFINED;
     }
 
     /**
@@ -625,20 +549,11 @@ public final class ScriptRuntime {
         }
 
         if (obj == null) {
-            throw typeError("cant.delete.property", safeToString(property), "null");
-        }
-
-        if (obj instanceof ScriptObjectMirror) {
-            return ((ScriptObjectMirror)obj).delete(property);
+            typeError(Context.getGlobal(), "cant.delete.property", safeToString(property), "null");
         }
 
         if (JSType.isPrimitive(obj)) {
-            return ((ScriptObject) JSType.toScriptObject(obj)).delete(property, Boolean.TRUE.equals(strict));
-        }
-
-        if (obj instanceof JSObject) {
-            ((JSObject)obj).removeMember(Objects.toString(property));
-            return true;
+            return ((ScriptObject) JSType.toObject(Context.getGlobal(), obj)).delete(property, Boolean.TRUE.equals(strict));
         }
 
         // if object is not reference type, vacuously delete is successful.
@@ -651,14 +566,15 @@ public final class ScriptRuntime {
      * This is 'delete' that always fails. We have to check strict mode and throw error.
      * That is why this is a runtime function. Or else we could have inlined 'false'.
      *
+     * @param obj       object with property to delete
      * @param property  property to delete
      * @param strict    are we in strict mode
      *
      * @return false always
      */
-    public static boolean FAIL_DELETE(final Object property, final Object strict) {
+    public static boolean FAIL_DELETE(final Object obj, final Object property, final Object strict) {
         if (Boolean.TRUE.equals(strict)) {
-            throw syntaxError("strict.cant.delete", safeToString(property));
+            syntaxError(Context.getGlobal(), "strict.cant.delete", safeToString(property));
         }
         return false;
     }
@@ -832,14 +748,12 @@ public final class ScriptRuntime {
                 return ((ScriptObject)obj).has(property);
             }
 
-            if (obj instanceof JSObject) {
-                return ((JSObject)obj).hasMember(Objects.toString(property));
-            }
-
             return false;
         }
 
-        throw typeError("in.with.non.object", rvalType.toString().toLowerCase(Locale.ENGLISH));
+        typeError(Context.getGlobal(), "in.with.non.object", rvalType.toString().toLowerCase());
+
+        return false;
     }
 
     /**
@@ -862,20 +776,13 @@ public final class ScriptRuntime {
             return ((StaticClass)clazz).getRepresentedClass().isInstance(obj);
         }
 
-        if (clazz instanceof JSObject) {
-            return ((JSObject)clazz).isInstance(obj);
-        }
+        typeError(Context.getGlobal(), "instanceof.on.non.object");
 
-        // provide for reverse hook
-        if (obj instanceof JSObject) {
-            return ((JSObject)obj).isInstanceOf(clazz);
-        }
-
-        throw typeError("instanceof.on.non.object");
+        return false;
     }
 
     /**
-     * ECMA 11.8.1 - The less than operator ({@literal <}) - generic implementation
+     * ECMA 11.8.1 - The less than operator (<) - generic implementation
      *
      * @param x first object to compare
      * @param y second object to compare
@@ -888,7 +795,7 @@ public final class ScriptRuntime {
     }
 
     /**
-     * ECMA 11.8.2 - The greater than operator ({@literal >}) - generic implementation
+     * ECMA 11.8.2 - The greater than operator (>) - generic implementation
      *
      * @param x first object to compare
      * @param y second object to compare
@@ -901,7 +808,7 @@ public final class ScriptRuntime {
     }
 
     /**
-     * ECMA 11.8.3 - The less than or equal operator ({@literal <=}) - generic implementation
+     * ECMA 11.8.3 - The less than or equal operator (<=) - generic implementation
      *
      * @param x first object to compare
      * @param y second object to compare
@@ -914,7 +821,7 @@ public final class ScriptRuntime {
     }
 
     /**
-     * ECMA 11.8.4 - The greater than or equal operator ({@literal >=}) - generic implementation
+     * ECMA 11.8.4 - The greater than or equal operator (>=) - generic implementation
      *
      * @param x first object to compare
      * @param y second object to compare

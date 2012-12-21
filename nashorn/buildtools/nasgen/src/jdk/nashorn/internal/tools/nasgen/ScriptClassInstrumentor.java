@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.nashorn.internal.tools.nasgen;
 
 import static jdk.internal.org.objectweb.asm.Opcodes.ALOAD;
 import static jdk.internal.org.objectweb.asm.Opcodes.DUP;
+import static jdk.internal.org.objectweb.asm.Opcodes.GETSTATIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static jdk.internal.org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.NEW;
@@ -36,7 +37,10 @@ import static jdk.nashorn.internal.tools.nasgen.StringConstants.$CLINIT$;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.CLINIT;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.DEFAULT_INIT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.INIT;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_FIELD_NAME;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.OBJECT_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTOBJECT_INIT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTOBJECT_TYPE;
 
 import java.io.BufferedInputStream;
@@ -155,7 +159,10 @@ public class ScriptClassInstrumentor extends ClassVisitor {
             public void visitMethodInsn(final int opcode, final String owner, final String name, final String desc) {
                 if (isConstructor && opcode == INVOKESPECIAL &&
                         INIT.equals(name) && SCRIPTOBJECT_TYPE.equals(owner)) {
-                    super.visitMethodInsn(opcode, owner, name, desc);
+                    super.visitFieldInsn(GETSTATIC, scriptClassInfo.getJavaName(),
+                            MAP_FIELD_NAME, MAP_DESC);
+                    super.visitMethodInsn(INVOKESPECIAL, SCRIPTOBJECT_TYPE, INIT,
+                            SCRIPTOBJECT_INIT_DESC);
 
                     if (memberCount > 0) {
                         // initialize @Property fields if needed
@@ -216,7 +223,7 @@ public class ScriptClassInstrumentor extends ClassVisitor {
                 ClassGenerator.addSetter(cv, className, memInfo);
             }
         }
-        // omit addMapField() since instance classes already define a static PropertyMap field
+        ClassGenerator.addMapField(this);
     }
 
     void emitGettersSetters() {
@@ -245,7 +252,7 @@ public class ScriptClassInstrumentor extends ClassVisitor {
         }
         // Now generate $clinit$
         final MethodGenerator mi = ClassGenerator.makeStaticInitializer(this, $CLINIT$);
-        ClassGenerator.emitStaticInitPrefix(mi, className, memberCount);
+        ClassGenerator.emitStaticInitPrefix(mi, className);
         if (memberCount > 0) {
             for (final MemberInfo memInfo : scriptClassInfo.getMembers()) {
                 if (memInfo.isInstanceProperty() || memInfo.isInstanceFunction()) {

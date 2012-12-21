@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,20 +71,13 @@ public final class Source {
     /** Cached hash code */
     private int hash;
 
-    /** Source URL if available */
-    private final URL url;
-
     private static final int BUFSIZE = 8 * 1024;
 
-    // Do *not* make this public ever! Trusts the URL and content. So has to be called
-    // from other public constructors. Note that this can not be some init method as
-    // we initialize final fields from here.
-    private Source(final String name, final String base, final char[] content, final URL url) {
+    private Source(final String name, final String base, final char[] content) {
         this.name    = name;
         this.base    = base;
         this.content = content;
         this.length  = content.length;
-        this.url     = url;
     }
 
     /**
@@ -94,7 +87,7 @@ public final class Source {
      * @param content contents as char array
      */
     public Source(final String name, final char[] content) {
-        this(name, baseName(name, null), content, null);
+        this(name, baseName(name, null), content);
     }
 
     /**
@@ -116,20 +109,7 @@ public final class Source {
      * @throws IOException if source cannot be loaded
      */
     public Source(final String name, final URL url) throws IOException {
-        this(name, baseURL(url, null), readFully(url), url);
-    }
-
-    /**
-     * Constructor
-     *
-     * @param name  source name
-     * @param url   url from which source can be loaded
-     * @param cs    Charset used to convert bytes to chars
-     *
-     * @throws IOException if source cannot be loaded
-     */
-    public Source(final String name, final URL url, final Charset cs) throws IOException {
-        this(name, baseURL(url, null), readFully(url, cs), url);
+        this(name, baseURL(url, null), readFully(url.openStream()));
     }
 
     /**
@@ -141,20 +121,7 @@ public final class Source {
      * @throws IOException if source cannot be loaded
      */
     public Source(final String name, final File file) throws IOException {
-        this(name, dirName(file, null), readFully(file), getURLFromFile(file));
-    }
-
-    /**
-     * Constructor
-     *
-     * @param name  source name
-     * @param file  file from which source can be loaded
-     * @param cs    Charset used to convert bytes to chars
-     *
-     * @throws IOException if source cannot be loaded
-     */
-    public Source(final String name, final File file, final Charset cs) throws IOException {
-        this(name, dirName(file, null), readFully(file, cs), getURLFromFile(file));
+        this(name, dirName(file, null), readFully(file));
     }
 
     @Override
@@ -169,7 +136,7 @@ public final class Source {
 
         final Source src = (Source)obj;
         // Only compare content as a last resort measure
-        return length == src.length && Objects.equals(url, src.url) && Objects.equals(name, src.name) && Arrays.equals(content, src.content);
+        return length == src.length && Objects.equals(name, src.name) && Arrays.equals(content, src.content);
     }
 
     @Override
@@ -227,13 +194,15 @@ public final class Source {
     }
 
     /**
-     * Returns the source URL of this script Source. Can be null if Source
-     * was created from a String or a char[].
-     *
-     * @return URL source or null
+     * Fetch a portion of source content associated with a range of tokens.
+     * @param startTokenDesc Starting token descriptor.
+     * @param endTokenDesc   Ending token descriptor.
+     * @return Source content portion.
      */
-    public URL getURL() {
-        return url;
+    public String getString(final long startTokenDesc, final long endTokenDesc) {
+        final int start = Token.descPosition(startTokenDesc);
+        final int end   = Token.descPosition(endTokenDesc) + Token.descLength(endTokenDesc);
+        return new String(content, start, end - start);
     }
 
     /**
@@ -272,10 +241,6 @@ public final class Source {
 
     /**
      * Return line number of character position.
-     *
-     * <p>This method can be expensive for large sources as it iterates through
-     * all characters up to {@code position}.</p>
-     *
      * @param position Position of character in source content.
      * @return Line number.
      */
@@ -323,7 +288,7 @@ public final class Source {
      * @return content
      */
     public char[] getContent() {
-        return content.clone();
+        return content;
     }
 
     /**
@@ -374,49 +339,6 @@ public final class Source {
     }
 
     /**
-     * Read all of the source until end of file. Return it as char array
-     *
-     * @param file  source file
-     * @param cs Charset used to convert bytes to chars
-     * @return source as content
-     *
-     * @throws IOException if source could not be read
-     */
-    public static char[] readFully(final File file, final Charset cs) throws IOException {
-        if (!file.isFile()) {
-            throw new IOException(file + " is not a file"); //TODO localize?
-        }
-
-        final byte[] buf = Files.readAllBytes(file.toPath());
-        return (cs != null)? new String(buf, cs).toCharArray() : byteToCharArray(buf);
-    }
-
-    /**
-     * Read all of the source until end of stream from the given URL. Return it as char array
-     *
-     * @param url URL to read content from
-     * @return source as content
-     *
-     * @throws IOException if source could not be read
-     */
-    public static char[] readFully(final URL url) throws IOException {
-        return readFully(url.openStream());
-    }
-
-    /**
-     * Read all of the source until end of file. Return it as char array
-     *
-     * @param url URL to read content from
-     * @param cs Charset used to convert bytes to chars
-     * @return source as content
-     *
-     * @throws IOException if source could not be read
-     */
-    public static char[] readFully(final URL url, final Charset cs) throws IOException {
-        return readFully(url.openStream(), cs);
-    }
-
-    /**
      * Get the base url. This is currently used for testing only
      * @param url a URL
      * @return base URL for url
@@ -462,10 +384,6 @@ public final class Source {
             idx = name.lastIndexOf('\\');
         }
         return (idx != -1)? name.substring(0, idx + 1) : defaultValue;
-    }
-
-    private static char[] readFully(final InputStream is, final Charset cs) throws IOException {
-        return (cs != null)? new String(readBytes(is), cs).toCharArray() : readFully(is);
     }
 
     private static char[] readFully(final InputStream is) throws IOException {
@@ -514,13 +432,5 @@ public final class Source {
     @Override
     public String toString() {
         return getName();
-    }
-
-    private static URL getURLFromFile(final File file) {
-        try {
-            return file.toURI().toURL();
-        } catch (final SecurityException | MalformedURLException ignored) {
-            return null;
-        }
     }
 }

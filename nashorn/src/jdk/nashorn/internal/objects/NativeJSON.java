@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package jdk.nashorn.internal.objects;
 
+import static jdk.nashorn.internal.runtime.ECMAErrors.syntaxError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
@@ -35,17 +36,25 @@ import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
+import jdk.nashorn.internal.ir.LiteralNode;
+import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode;
+import jdk.nashorn.internal.ir.Node;
+import jdk.nashorn.internal.ir.ObjectNode;
+import jdk.nashorn.internal.ir.PropertyNode;
+import jdk.nashorn.internal.ir.UnaryNode;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Where;
+import jdk.nashorn.internal.parser.JSONParser;
+import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.ConsString;
-import jdk.nashorn.internal.runtime.JSONFunctions;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
+import jdk.nashorn.internal.runtime.ParserException;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
+import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.linker.InvokeByName;
@@ -56,39 +65,15 @@ import jdk.nashorn.internal.runtime.linker.InvokeByName;
  */
 @ScriptClass("JSON")
 public final class NativeJSON extends ScriptObject {
-    private static final Object TO_JSON = new Object();
-
-    private static InvokeByName getTO_JSON() {
-        return Global.instance().getInvokeByName(TO_JSON,
-                new Callable<InvokeByName>() {
-                    @Override
-                    public InvokeByName call() {
-                        return new InvokeByName("toJSON", ScriptObject.class, Object.class, Object.class);
-                    }
-                });
-    }
+    private static final InvokeByName TO_JSON = new InvokeByName("toJSON", ScriptObject.class, Object.class, Object.class);
+    private static final MethodHandle REPLACER_INVOKER = Bootstrap.createDynamicInvoker("dyn:call", Object.class,
+            ScriptFunction.class, ScriptObject.class, Object.class, Object.class);
+    private static final MethodHandle REVIVER_INVOKER = Bootstrap.createDynamicInvoker("dyn:call", Object.class,
+            ScriptFunction.class, ScriptObject.class, String.class, Object.class);
 
 
-    private static final Object REPLACER_INVOKER = new Object();
-
-    private static MethodHandle getREPLACER_INVOKER() {
-        return Global.instance().getDynamicInvoker(REPLACER_INVOKER,
-                new Callable<MethodHandle>() {
-                    @Override
-                    public MethodHandle call() {
-                        return Bootstrap.createDynamicInvoker("dyn:call", Object.class,
-                            ScriptFunction.class, ScriptObject.class, Object.class, Object.class);
-                    }
-                });
-    }
-
-    // initialized by nasgen
-    @SuppressWarnings("unused")
-    private static PropertyMap $nasgenmap$;
-
-    private NativeJSON() {
-        // don't create me!!
-        throw new UnsupportedOperationException();
+    NativeJSON() {
+        this.setProto(Global.objectPrototype());
     }
 
     /**
@@ -102,7 +87,27 @@ public final class NativeJSON extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object parse(final Object self, final Object text, final Object reviver) {
-        return JSONFunctions.parse(text, reviver);
+        final String     str     = JSType.toString(text);
+        final Context    context = Global.getThisContext();
+        final JSONParser parser  = new JSONParser(
+                new Source("<json>", str),
+                new Context.ThrowErrorManager(),
+                (context != null) ?
+                    context._strict :
+                    false);
+
+        Node node;
+
+        try {
+            node = parser.parse();
+        } catch (final ParserException e) {
+            syntaxError(Global.instance(), e, "invalid.json", e.getMessage());
+            return UNDEFINED;
+        }
+
+        final Object unfiltered = convertNode(node);
+
+        return applyReviver(unfiltered, reviver);
     }
 
     /**
@@ -162,27 +167,22 @@ public final class NativeJSON extends ScriptObject {
 
         String gap;
 
-        // modifiable 'space' - parameter is final
-        Object modSpace = space;
-        if (modSpace instanceof NativeNumber) {
-            modSpace = JSType.toNumber(JSType.toPrimitive(modSpace, Number.class));
-        } else if (modSpace instanceof NativeString) {
-            modSpace = JSType.toString(JSType.toPrimitive(modSpace, String.class));
-        }
-
-        if (modSpace instanceof Number) {
-            int indent = Math.min(10, JSType.toInteger(modSpace));
-            if (indent < 1) {
-                gap = "";
+        if (space instanceof Number || space instanceof NativeNumber) {
+            int indent;
+            if (space instanceof NativeNumber) {
+                indent = ((NativeNumber)space).intValue();
             } else {
-                final StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < indent; i++) {
-                    sb.append(' ');
-                }
-                gap = sb.toString();
+                indent = ((Number)space).intValue();
             }
-        } else if (modSpace instanceof String || modSpace instanceof ConsString) {
-            final String str = modSpace.toString();
+
+            final StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < Math.min(10, indent); i++) {
+                sb.append(' ');
+            }
+            gap = sb.toString();
+
+        } else if (space instanceof String || space instanceof ConsString || space instanceof NativeString) {
+            final String str = (space instanceof String) ? (String)space : space.toString();
             gap = str.substring(0, Math.min(10, str.length()));
         } else {
             gap = "";
@@ -191,12 +191,142 @@ public final class NativeJSON extends ScriptObject {
         state.gap = gap;
 
         final ScriptObject wrapper = Global.newEmptyInstance();
-        wrapper.set("", value, false);
+        wrapper.set("", value, Global.isStrict());
 
         return str("", wrapper, state);
     }
 
     // -- Internals only below this point
+
+    // parse helpers
+
+    // apply 'reviver' function if available
+    private static Object applyReviver(final Object unfiltered, final Object reviver) {
+        if (reviver instanceof ScriptFunction) {
+            final ScriptObject root = Global.newEmptyInstance();
+            root.set("", unfiltered, Global.isStrict());
+            return walk(root, "", (ScriptFunction)reviver);
+        }
+        return unfiltered;
+    }
+
+    // This is the abstract "Walk" operation from the spec.
+    private static Object walk(final ScriptObject holder, final Object name, final ScriptFunction reviver) {
+        final Object val = holder.get(name);
+        if (val == UNDEFINED) {
+            return val;
+        } else if (val instanceof ScriptObject) {
+            final ScriptObject     valueObj = (ScriptObject)val;
+            final boolean          strict   = Global.isStrict();
+            final Iterator<String> iter     = valueObj.propertyIterator();
+
+            while (iter.hasNext()) {
+                final String key        = iter.next();
+                final Object newElement = walk(valueObj, key, reviver);
+
+                if (newElement == UNDEFINED) {
+                    valueObj.delete(key, strict);
+                } else {
+                    valueObj.set(key, newElement, strict);
+                }
+            }
+
+            return valueObj;
+        } else if (isArray(val)) {
+            final NativeArray      valueArray = (NativeArray)val;
+            final boolean          strict     = Global.isStrict();
+            final Iterator<String> iter       = valueArray.propertyIterator();
+
+            while (iter.hasNext()) {
+                final String key        = iter.next();
+                final Object newElement = walk(valueArray, valueArray.get(key), reviver);
+
+                if (newElement == UNDEFINED) {
+                    valueArray.delete(key, strict);
+                } else {
+                    valueArray.set(key, newElement, strict);
+                }
+            }
+            return valueArray;
+        } else {
+            try {
+                // Object.class, ScriptFunction.class, ScriptObject.class, String.class, Object.class);
+                return REVIVER_INVOKER.invokeExact(reviver, holder, JSType.toString(name), val);
+            } catch(Error|RuntimeException t) {
+                throw t;
+            } catch(final Throwable t) {
+                throw new RuntimeException(t);
+            }
+        }
+    }
+
+    // Converts IR node to runtime value
+    private static Object convertNode(final Node node) {
+
+       if (node instanceof LiteralNode) {
+            // check for array literal
+            if (node.tokenType() == TokenType.LBRACKET) {
+                assert node instanceof ArrayLiteralNode;
+                final Node[] elements = ((ArrayLiteralNode)node).getValue();
+
+                // NOTE: We cannot use LiteralNode.isNumericArray() here as that
+                // method uses symbols of element nodes. Since we don't do lower
+                // pass, there won't be any symbols!
+                if (isNumericArray(elements)) {
+                    final double[] values = new double[elements.length];
+                    int   index = 0;
+
+                    for (final Node elem : elements) {
+                        values[index++] = JSType.toNumber(convertNode(elem));
+                    }
+                    return Global.allocate(values);
+                }
+
+                final Object[] values = new Object[elements.length];
+                int   index = 0;
+
+                for (final Node elem : elements) {
+                    values[index++] = convertNode(elem);
+                }
+
+                return Global.allocate(values);
+            }
+
+            return ((LiteralNode<?>)node).getValue();
+
+        } else if (node instanceof ObjectNode) {
+            final ObjectNode   objNode  = (ObjectNode) node;
+            final ScriptObject object   = Global.newEmptyInstance();
+            final boolean      strict   = Global.isStrict();
+            final List<Node>   elements = objNode.getElements();
+
+            for (final Node elem : elements) {
+                final PropertyNode pNode     = (PropertyNode) elem;
+                final Node         valueNode = pNode.getValue();
+
+                object.set(pNode.getKeyName(), convertNode(valueNode), strict);
+            }
+
+            return object;
+        } else if (node instanceof UnaryNode) {
+            // UnaryNode used only to represent negative number JSON value
+            final UnaryNode unaryNode = (UnaryNode)node;
+            return -((LiteralNode<?>)unaryNode.rhs()).getNumber();
+        } else {
+            return null;
+        }
+    }
+
+    // does the given IR node represent a numeric array?
+    private static boolean isNumericArray(final Node[] values) {
+        for (final Node node : values) {
+            if (node instanceof LiteralNode && ((LiteralNode<?>)node).getValue() instanceof Number) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
 
     // stringify helpers.
 
@@ -215,16 +345,15 @@ public final class NativeJSON extends ScriptObject {
 
         try {
             if (value instanceof ScriptObject) {
-                final InvokeByName toJSONInvoker = getTO_JSON();
                 final ScriptObject svalue = (ScriptObject)value;
-                final Object toJSON = toJSONInvoker.getGetter().invokeExact(svalue);
-                if (Bootstrap.isCallable(toJSON)) {
-                    value = toJSONInvoker.getInvoker().invokeExact(toJSON, svalue, key);
+                final Object toJSON = TO_JSON.getGetter().invokeExact(svalue);
+                if (toJSON instanceof ScriptFunction) {
+                    value = TO_JSON.getInvoker().invokeExact(toJSON, svalue, key);
                 }
             }
 
             if (state.replacerFunction != null) {
-                value = getREPLACER_INVOKER().invokeExact(state.replacerFunction, holder, key, value);
+                value = REPLACER_INVOKER.invokeExact(state.replacerFunction, holder, key, value);
             }
         } catch(Error|RuntimeException t) {
             throw t;
@@ -251,9 +380,9 @@ public final class NativeJSON extends ScriptObject {
         }
 
         if (value instanceof String) {
-            return JSONFunctions.quote((String)value);
+            return JSONParser.quote((String)value);
         } else if (value instanceof ConsString) {
-            return JSONFunctions.quote(value.toString());
+            return JSONParser.quote(value.toString());
         }
 
         if (value instanceof Number) {
@@ -263,7 +392,7 @@ public final class NativeJSON extends ScriptObject {
         final JSType type = JSType.of(value);
         if (type == JSType.OBJECT) {
             if (isArray(value)) {
-                return JA((ScriptObject)value, state);
+                return JA((NativeArray)value, state);
             } else if (value instanceof ScriptObject) {
                 return JO((ScriptObject)value, state);
             }
@@ -275,7 +404,7 @@ public final class NativeJSON extends ScriptObject {
     // Spec: The abstract operation JO(value) serializes an object.
     private static String JO(final ScriptObject value, final StringifyState state) {
         if (state.stack.containsKey(value)) {
-            throw typeError("JSON.stringify.cyclic");
+            typeError(Global.instance(), "JSON.stringify.cyclic");
         }
 
         state.stack.put(value, value);
@@ -292,7 +421,7 @@ public final class NativeJSON extends ScriptObject {
             if (strP != UNDEFINED) {
                 final StringBuilder member = new StringBuilder();
 
-                member.append(JSONFunctions.quote(p.toString())).append(':');
+                member.append(JSONParser.quote(p.toString())).append(':');
                 if (!state.gap.isEmpty()) {
                     member.append(' ');
                 }
@@ -349,9 +478,9 @@ public final class NativeJSON extends ScriptObject {
     }
 
     // Spec: The abstract operation JA(value) serializes an array.
-    private static Object JA(final ScriptObject value, final StringifyState state) {
+    private static Object JA(final NativeArray value, final StringifyState state) {
         if (state.stack.containsKey(value)) {
-            throw typeError("JSON.stringify.cyclic");
+            typeError(Global.instance(), "JSON.stringify.cyclic");
         }
 
         state.stack.put(value, value);

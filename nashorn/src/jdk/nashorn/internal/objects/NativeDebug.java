@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,12 @@ package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
-import java.io.PrintWriter;
+import java.io.PrintStream;
 import java.util.Objects;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Where;
-import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.PropertyListenerManager;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
@@ -46,15 +45,9 @@ import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
  *
  */
 @ScriptClass("Debug")
-public final class NativeDebug extends ScriptObject {
-
-    // initialized by nasgen
-    @SuppressWarnings("unused")
-    private static PropertyMap $nasgenmap$;
-
-    private NativeDebug() {
-        // don't create me!
-        throw new UnsupportedOperationException();
+public class NativeDebug extends ScriptObject {
+    NativeDebug() {
+        this.setProto(Global.objectPrototype());
     }
 
     @Override
@@ -70,10 +63,6 @@ public final class NativeDebug extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object getContext(final Object self) {
-        final SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new RuntimePermission(Context.NASHORN_GET_CONTEXT));
-        }
         return Global.getThisContext();
     }
 
@@ -93,6 +82,66 @@ public final class NativeDebug extends ScriptObject {
     }
 
     /**
+     * Nashorn extension: get embed0 from {@link ScriptObject}
+     *
+     * @param self self reference
+     * @param obj script object
+     * @return the embed0 property value for the given ScriptObject
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static Object embed0(final Object self, final Object obj) {
+        if (obj instanceof ScriptObject) {
+            return ((ScriptObject)obj).embed0;
+        }
+        return UNDEFINED;
+    }
+
+    /**
+     * Nashorn extension: get embed1 from {@link ScriptObject}
+     *
+     * @param self self reference
+     * @param obj script object
+     * @return the embed1 property value for the given ScriptObject
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static Object embed1(final Object self, final Object obj) {
+        if (obj instanceof ScriptObject) {
+            return ((ScriptObject)obj).embed1;
+        }
+        return UNDEFINED;
+    }
+
+    /**
+     * Nashorn extension: get embed2 from {@link ScriptObject}
+     *
+     * @param self self reference
+     * @param obj script object
+     * @return the embed2 property value for the given ScriptObject
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static Object embed2(final Object self, final Object obj) {
+        if (obj instanceof ScriptObject) {
+            return ((ScriptObject)obj).embed2;
+        }
+        return UNDEFINED;
+    }
+
+    /**
+     * Nashorn extension: get embed3 from {@link ScriptObject}
+     *
+     * @param self self reference
+     * @param obj script object
+     * @return the embed3 property value for the given ScriptObject
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static Object embed3(final Object self, final Object obj) {
+        if (obj instanceof ScriptObject) {
+            return ((ScriptObject)obj).embed3;
+        }
+        return UNDEFINED;
+    }
+
+    /**
      * Nashorn extension: get spill vector from {@link ScriptObject}
      *
      * @param self self reference
@@ -103,6 +152,21 @@ public final class NativeDebug extends ScriptObject {
     public static Object spill(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).spill;
+        }
+        return UNDEFINED;
+    }
+
+    /**
+     * Nashorn extension: get invocation handle from {@link ScriptFunction}
+     *
+     * @param self self reference
+     * @param obj script function
+     * @return the invocation handle for the given ScriptFunction
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static Object methodHandle(final Object self, final Object obj) {
+        if (obj instanceof ScriptFunction) {
+            return ((ScriptFunction)obj).getInvokeHandle();
         }
         return UNDEFINED;
     }
@@ -145,7 +209,7 @@ public final class NativeDebug extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object equals(final Object self, final Object obj1, final Object obj2) {
-        return Objects.equals(obj1, obj2);
+        return (obj1 != null) ? obj1.equals(obj2) : false;
     }
 
     /**
@@ -178,40 +242,25 @@ public final class NativeDebug extends ScriptObject {
     }
 
     /**
-     * Returns the property listener count for a script object
-     *
-     * @param self self reference
-     * @param obj  script object whose listener count is returned
-     * @return listener count
-     */
-    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object getListenerCount(final Object self, final Object obj) {
-        return (obj instanceof ScriptObject)? ((ScriptObject)obj).getListenerCount() : 0;
-    }
-
-    /**
      * Dump all Nashorn debug mode counters. Calling this may be better if
      * you want to print all counters. This way you can avoid too many callsites
      * due to counter access itself!!
      * @param self self reference
      * @return undefined
      */
-    @SuppressWarnings("resource")
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
     public static Object dumpCounters(final Object self) {
-        final PrintWriter out = Context.getCurrentErr();
-
+        final PrintStream out = System.err;
         out.println("ScriptObject count " + ScriptObject.getCount());
         out.println("Scope count " + ScriptObject.getScopeCount());
         out.println("ScriptObject listeners added " + PropertyListenerManager.getListenersAdded());
         out.println("ScriptObject listeners removed " + PropertyListenerManager.getListenersRemoved());
-        out.println("ScriptFunction constructor calls " + ScriptFunction.getConstructorCount());
+        out.println("ScriptObject listeners dead " + PropertyListenerManager.getListenersDead());
+        out.println("ScriptFunction count " + ScriptObject.getCount());
         out.println("ScriptFunction invokes " + ScriptFunction.getInvokes());
         out.println("ScriptFunction allocations " + ScriptFunction.getAllocations());
         out.println("PropertyMap count " + PropertyMap.getCount());
         out.println("PropertyMap cloned " + PropertyMap.getClonedCount());
-        out.println("PropertyMap shared " + PropertyMap.getSharedCount());
-        out.println("PropertyMap duplicated " + PropertyMap.getDuplicatedCount());
         out.println("PropertyMap history hit " + PropertyMap.getHistoryHit());
         out.println("PropertyMap proto invalidations " + PropertyMap.getProtoInvalidations());
         out.println("PropertyMap proto history hit " + PropertyMap.getProtoHistoryHit());
@@ -219,9 +268,7 @@ public final class NativeDebug extends ScriptObject {
         out.println("Callsite count " + LinkerCallSite.getCount());
         out.println("Callsite misses " + LinkerCallSite.getMissCount());
         out.println("Callsite misses by site at " + LinkerCallSite.getMissSamplingPercentage() + "%");
-
         LinkerCallSite.getMissCounts(out);
-
         return UNDEFINED;
     }
 }

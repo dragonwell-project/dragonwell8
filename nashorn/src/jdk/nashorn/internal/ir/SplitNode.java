@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,65 +25,93 @@
 
 package jdk.nashorn.internal.ir;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import jdk.nashorn.internal.codegen.CompileUnit;
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.codegen.MethodEmitter;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+
 
 /**
  * Node indicating code is split across classes.
  */
-@Immutable
-public class SplitNode extends LexicalContextStatement {
+public class SplitNode extends Node {
     /** Split node method name. */
     private final String name;
 
     /** Compilation unit. */
-    private final CompileUnit compileUnit;
+    private CompileUnit compileUnit;
+
+    /** Method emitter for current method. */
+    private MethodEmitter method;
+
+    /** Method emitter for caller method. */
+    private MethodEmitter caller;
+
+    /** Containing function. */
+    private final FunctionNode functionNode;
+
+    /** A list of target labels in parent methods this split node may encounter. */
+    private final List<MethodEmitter.Label> externalTargets;
+
+    /** True if this split node or any of its children contain a return statement. */
+    private boolean hasReturn;
 
     /** Body of split code. */
-    private final Node body;
+    private Node body;
 
     /**
      * Constructor
      *
-     * @param name        name of split node
-     * @param body        body of split code
-     * @param compileUnit compile unit to use for the body
+     * @param name          name of split node
+     * @param functionNode  function node to split in
+     * @param body          body of split code
      */
-    public SplitNode(final String name, final Node body, final CompileUnit compileUnit) {
-        super(-1, body.getToken(), body.getFinish());
-        this.name        = name;
-        this.body        = body;
-        this.compileUnit = compileUnit;
+    public SplitNode(final String name, final FunctionNode functionNode, final Node body) {
+        super(body.getSource(), body.getToken(), body.getFinish());
+
+        this.name         = name;
+        this.functionNode = functionNode;
+        this.body         = body;
+        this.externalTargets = new ArrayList<>();
     }
 
-    private SplitNode(final SplitNode splitNode, final Node body) {
+    private SplitNode(final SplitNode splitNode, final CopyState cs) {
         super(splitNode);
-        this.name        = splitNode.name;
-        this.body        = body;
-        this.compileUnit = splitNode.compileUnit;
-    }
 
-    /**
-     * Get the body for this split node - i.e. the actual code it encloses
-     * @return body for split node
-     */
-    public Node getBody() {
-        return body;
-    }
-
-    private SplitNode setBody(final LexicalContext lc, final Node body) {
-        if (this.body == body) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new SplitNode(this, body));
+        name         = splitNode.name;
+        functionNode = (FunctionNode)cs.existingOrSame(splitNode.functionNode);
+        body         = cs.existingOrCopy(splitNode.body);
+        externalTargets = new ArrayList<>();
     }
 
     @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterSplitNode(this)) {
-            return visitor.leaveSplitNode(setBody(lc, body.accept(visitor)));
+    protected Node copy(final CopyState cs) {
+        return new SplitNode(this, cs);
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        final CompileUnit   saveCompileUnit = visitor.getCurrentCompileUnit();
+        final MethodEmitter saveMethod      = visitor.getCurrentMethodEmitter();
+
+        setCaller(saveMethod);
+
+        visitor.setCurrentCompileUnit(getCompileUnit());
+        visitor.setCurrentMethodEmitter(getMethodEmitter());
+
+        try {
+            if (visitor.enter(this) != null) {
+                body = body.accept(visitor);
+
+                return visitor.leave(this);
+            }
+        } finally {
+            visitor.setCurrentCompileUnit(saveCompileUnit);
+            visitor.setCurrentMethodEmitter(saveMethod);
         }
+
         return this;
     }
 
@@ -93,6 +121,22 @@ public class SplitNode extends LexicalContextStatement {
         sb.append(compileUnit.getClass().getSimpleName());
         sb.append(") ");
         body.toString(sb);
+    }
+
+    /**
+     * Get the method emitter of the caller for this split node
+     * @return caller method emitter
+     */
+    public MethodEmitter getCaller() {
+        return caller;
+    }
+
+    /**
+     * Set the caller method emitter for this split node
+     * @param caller method emitter
+     */
+    public void setCaller(final MethodEmitter caller) {
+        this.caller = caller;
     }
 
     /**
@@ -111,4 +155,67 @@ public class SplitNode extends LexicalContextStatement {
         return compileUnit;
     }
 
+    /**
+     * Set the compile unit for this split node
+     * @param compileUnit compile unit
+     */
+    public void setCompileUnit(final CompileUnit compileUnit) {
+        this.compileUnit = compileUnit;
+    }
+
+    /**
+     * Get the method emitter for this split node
+     * @return method emitter
+     */
+    public MethodEmitter getMethodEmitter() {
+        return method;
+    }
+
+    /**
+     * Set the method emitter for this split node
+     * @param method method emitter
+     */
+    public void setMethodEmitter(final MethodEmitter method) {
+        this.method = method;
+    }
+
+    /**
+     * Get the function node this SplitNode splits
+     * @return function node reference
+     */
+    public FunctionNode getFunctionNode() {
+        return functionNode;
+    }
+
+    /**
+     * Get the external targets for this SplitNode
+     * @return list of external targets
+     */
+    public List<MethodEmitter.Label> getExternalTargets() {
+        return Collections.unmodifiableList(externalTargets);
+    }
+
+    /**
+     * Add an external target for this SplitNode
+     * @param targetLabel target label
+     */
+    public void addExternalTarget(final MethodEmitter.Label targetLabel) {
+        externalTargets.add(targetLabel);
+    }
+
+    /**
+     * Check whether this SplitNode returns a value
+     * @return true if return
+     */
+    public boolean hasReturn() {
+        return hasReturn;
+    }
+
+    /**
+     * Set whether this SplitNode returns a value or not
+     * @param hasReturn true if return exists, false otherwise
+     */
+    public void setHasReturn(final boolean hasReturn) {
+        this.hasReturn = hasReturn;
+    }
 }

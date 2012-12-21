@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,16 @@
  * NASHORN-758 : nashorn shell command line options improvements
  *
  * @test
- * @option -Dnashorn.test.foo=bar
- * @option -Dnashorn.test.hello=world
+ * @option -Dfoo=bar
+ * @option -Dhello=world
  * @run
  */
 
 
-if (java.lang.System.getProperty("nashorn.test.foo") != "bar") {
-    fail("System property 'nashorn.test.foo' != 'bar'");
+if (java.lang.System.getProperty("foo") != "bar") {
+    fail("System property 'foo' != 'bar'");
 }
 
-if (java.lang.System.getProperty("nashorn.test.hello") != "world") {
-    fail("System property 'nashorn.test.hello' != 'world'");
+if (java.lang.System.getProperty("hello") != "world") {
+    fail("System property 'hello' != 'world'");
 }

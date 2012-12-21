@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package jdk.nashorn.internal.runtime.arrays;
 
 import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.ScriptObject;
 
 /**
  * Array index computation helpers. that both throw exceptions or return
@@ -45,7 +44,7 @@ public final class ArrayIndex {
     /**
      * Fast conversion of non-negative integer string to long.
      * @param key Key as a string.
-     * @return long value of string or {@code -1} if string does not represent a valid index.
+     * @return long value of string or -1.
      */
     private static long fromString(final String key) {
         long value = 0;
@@ -53,7 +52,7 @@ public final class ArrayIndex {
 
         // Check for empty string or leading 0
         if (length == 0 || (length > 1 && key.charAt(0) == '0')) {
-            return INVALID_ARRAY_INDEX;
+            return -1;
         }
 
         // Fast toNumber.
@@ -62,7 +61,7 @@ public final class ArrayIndex {
 
             // If not a digit.
             if (digit < '0' || digit > '9') {
-                return INVALID_ARRAY_INDEX;
+                return -1;
             }
 
             // Insert digit.
@@ -70,7 +69,7 @@ public final class ArrayIndex {
 
             // Check for overflow (need to catch before wrap around.)
             if (value > MAX_ARRAY_INDEX) {
-                return INVALID_ARRAY_INDEX;
+                return -1;
             }
         }
 
@@ -81,92 +80,133 @@ public final class ArrayIndex {
      * Returns a valid array index in an int, if the object represents one. This
      * routine needs to perform quickly since all keys are tested with it.
      *
-     * <p>The {@code key} parameter must be a JavaScript primitive type, i.e. one of
-     * {@code String}, {@code Number}, {@code Boolean}, {@code null}, or {@code undefined}.
-     * {@code ScriptObject} instances should be converted to primitive with
-     * {@code String.class} hint before being passed to this method.</p>
-     *
-     * @param  key key to check for array index.
-     * @return the array index, or {@code -1} if {@code key} does not represent a valid index.
-     *         Note that negative return values other than {@code -1} are considered valid and can be converted to
-     *         the actual index using {@link #toLongIndex(int)}.
+     * @param  key key to check for array index
+     * @return valid array index, or negative value if not valid
      */
-    public static int getArrayIndex(final Object key) {
-        if (key instanceof Integer) {
-            return getArrayIndex(((Integer) key).intValue());
-        } else if (key instanceof Double) {
-            return getArrayIndex(((Double) key).doubleValue());
+    public static int getArrayIndexNoThrow(final Object key) {
+        if (key instanceof Number) {
+            return getArrayIndexNoThrow(((Number)key).doubleValue());
         } else if (key instanceof String) {
-            return (int)fromString((String) key);
-        } else if (key instanceof Long) {
-            return getArrayIndex(((Long) key).longValue());
+            return (int)fromString((String)key);
         } else if (key instanceof ConsString) {
             return (int)fromString(key.toString());
         }
 
-        assert !(key instanceof ScriptObject);
-        return INVALID_ARRAY_INDEX;
+        return -1;
     }
 
     /**
-     * Returns a valid array index in an int, if {@code key} represents one.
+     * Returns a valid array index in an int, if the object represents one
      *
      * @param key key to check
-     * @return the array index, or {@code -1} if {@code key} is not a valid array index.
+     * @return array index for key
+     * @throws InvalidArrayIndexException if not a valid array index key
      */
-    public static int getArrayIndex(final int key) {
-        return (key >= 0) ? key : INVALID_ARRAY_INDEX;
+    public static int getArrayIndex(final Object key) throws InvalidArrayIndexException {
+        final int index = getArrayIndexNoThrow(key);
+        if (index != -1) {
+            return index;
+        }
+
+        throw new InvalidArrayIndexException(key);
     }
 
     /**
-     * Returns a valid array index in an int, if the long represents one.
+     * Returns a valid array index in an int, if the long represents one
      *
      * @param key key to check
-     * @return the array index, or {@code -1} if long is not a valid array index.
-     *         Note that negative return values other than {@code -1} are considered valid and can be converted to
-     *         the actual index using {@link #toLongIndex(int)}.
+     * @return valid index or a negative value if long is not a valid array index
      */
-    public static int getArrayIndex(final long key) {
+    public static int getArrayIndexNoThrow(final long key) {
         if (key >= 0 && key <= MAX_ARRAY_INDEX) {
             return (int)key;
         }
 
-        return INVALID_ARRAY_INDEX;
+        return -1;
+    }
+
+    /**
+     * Returns a valid array index in an int, if the long represents one
+     *
+     * @param key key to check
+     * @return valid index for the long
+     * @throws InvalidArrayIndexException if long is not a valid array index
+     */
+    public static int getArrayIndex(final long key) throws InvalidArrayIndexException {
+        final int index = getArrayIndexNoThrow(key);
+        if (index != -1) {
+            return index;
+        }
+
+        throw new InvalidArrayIndexException(key);
     }
 
 
     /**
-     * Return a valid index for this double, if it represents one.
+     * Return a valid index for this double, if it represents one
      *
      * Doubles that aren't representable exactly as longs/ints aren't working
      * array indexes, however, array[1.1] === array["1.1"] in JavaScript.
      *
      * @param key the key to check
-     * @return the array index this double represents or {@code -1} if this isn't a valid index.
-     *         Note that negative return values other than {@code -1} are considered valid and can be converted to
-     *         the actual index using {@link #toLongIndex(int)}.
+     * @return the array index this double represents or a negative value if this isn't an index
      */
-    public static int getArrayIndex(final double key) {
+    public static int getArrayIndexNoThrow(final double key) {
         if (JSType.isRepresentableAsInt(key)) {
-            return getArrayIndex((int) key);
+            final int intKey = (int)key;
+            if (intKey >= 0) {
+                return intKey;
+            }
         } else if (JSType.isRepresentableAsLong(key)) {
-            return getArrayIndex((long) key);
+            return getArrayIndexNoThrow((long)key);
         }
 
-        return INVALID_ARRAY_INDEX;
+        return -1;
     }
 
-
     /**
-     * Return a valid array index for this string, if it represents one.
+     * Return a valid array index for this double, if it represents one
+     *
+     * Doubles that aren't representable exactly as longs/ints aren't working
+     * array indexes, however, array[1.1] === array["1.1"] in JavaScript.
      *
      * @param key the key to check
-     * @return the array index this string represents or {@code -1} if this isn't a valid index.
-     *         Note that negative return values other than {@code -1} are considered valid and can be converted to
-     *         the actual index using {@link #toLongIndex(int)}.
+     * @return the array index this double represents
+     * @throws InvalidArrayIndexException if this isn't an array index
      */
-    public static int getArrayIndex(final String key) {
+    public static int getArrayIndex(final double key) throws InvalidArrayIndexException {
+        final int index = getArrayIndexNoThrow(key);
+        if (index != -1) {
+            return index;
+        }
+
+        throw new InvalidArrayIndexException(key);
+    }
+
+    /**
+     * Return a valid array index for this string, if it represents one
+     *
+     * @param key the key to check
+     * @return the array index this string represents or a negative value if this isn't an index
+     */
+    public static int getArrayIndexNoThrow(final String key) {
         return (int)fromString(key);
+    }
+
+    /**
+     * Return a valid array index for this string, if it represents one
+     *
+     * @param key the key to check
+     * @return the array index this string represents
+     * @throws InvalidArrayIndexException if the string isn't an array index
+     */
+    public static int getArrayIndex(final String key) throws InvalidArrayIndexException {
+        final int index = getArrayIndexNoThrow(key);
+        if (index != -1) {
+            return index;
+        }
+
+        throw new InvalidArrayIndexException(key);
     }
 
     /**
@@ -184,7 +224,7 @@ public final class ArrayIndex {
     /**
      * Convert an index to a long value. This basically amounts to ANDing it
      * with {@link JSType#MAX_UINT}, as the maximum array index in JavaScript
-     * is 0xfffffffe
+     * is 0xffffffff
      *
      * @param index index to convert to long form
      * @return index as uint32 in a long
@@ -194,15 +234,14 @@ public final class ArrayIndex {
     }
 
     /**
-     * Convert an index to a key string. This is the same as calling {@link #toLongIndex(int)}
-     * and converting the result to String.
+     * Check whether a key string can be used as a valid numeric array index in
+     * JavaScript
      *
-     * @param index index to convert
-     * @return index as string
+     * @param key the key
+     * @return true if key works as a valid numeric array index
      */
-    public static String toKey(final int index) {
-        return Long.toString(index & JSType.MAX_UINT);
+    public static boolean isIndexKey(final String key) {
+       return ArrayIndex.getArrayIndexNoThrow(key) >= 0;
     }
-
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,265 +25,298 @@
 
 package jdk.nashorn.internal.objects;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
-import java.util.ArrayList;
+import java.lang.invoke.MethodHandles;
+import jdk.nashorn.internal.codegen.objects.FunctionObjectCreator;
 import jdk.nashorn.internal.runtime.GlobalFunctions;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptFunction;
-import jdk.nashorn.internal.runtime.ScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptObject;
-import jdk.nashorn.internal.lookup.Lookup;
-import jdk.nashorn.internal.runtime.AccessorProperty;
+import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.Source;
+import jdk.nashorn.internal.runtime.linker.Lookup;
 
 /**
  * Concrete implementation of ScriptFunction. This sets correct map for the
  * function objects -- to expose properties like "prototype", "length" etc.
  */
 public class ScriptFunctionImpl extends ScriptFunction {
+    // per-function object flags
+    private static final int IS_STRICT  = 0b0000_0001;
+    private static final int IS_BUILTIN = 0b0000_0010;
 
-    /** Reference to constructor prototype. */
-    private Object prototype;
-
-    // property map for strict mode functions
-    private static final PropertyMap strictmodemap$;
-    // property map for bound functions
-    private static final PropertyMap boundfunctionmap$;
-    // property map for non-strict, non-bound functions.
-    private static final PropertyMap map$;
-
-    static PropertyMap getInitialMap() {
-        return map$;
+    // set this function to be a builtin function
+    private void setIsBuiltin() {
+        flags |= IS_BUILTIN;
     }
 
-    static PropertyMap getInitialAnonymousMap() {
-        return AnonymousFunction.getInitialMap();
+    // set this function to be a ECMAScript strict function
+    private void setIsStrict() {
+        flags |= IS_STRICT;
     }
 
-    static PropertyMap getInitialStrictMap() {
-        return strictmodemap$;
-    }
+    private static final MethodHandle BOUND_FUNCTION    = findOwnMH("boundFunction",    Object.class, ScriptFunction.class, Object.class, Object[].class, Object.class, Object[].class);
+    private static final MethodHandle BOUND_CONSTRUCTOR = findOwnMH("boundConstructor", Object.class, ScriptFunction.class, Object[].class, Object.class, Object[].class);
 
-    static PropertyMap getInitialBoundMap() {
-        return boundfunctionmap$;
-    }
+    private static final PropertyMap nasgenmap$;
 
-    // Marker object for lazily initialized prototype object
-    private static final Object LAZY_PROTOTYPE = new Object();
-
-    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final MethodHandle[] specs, final Global global) {
-        super(name, invokeHandle, global.getFunctionMap(), null, specs, false, true, true);
-        init(global);
-    }
+    private int flags;
 
     /**
-     * Constructor called by Nasgen generated code, no membercount, use the default map.
-     * Creates builtin functions only.
+     * Constructor
+     *
+     * Called by Nasgen generated code, no membercount, use the default map
+     * Creates builtin functions only
      *
      * @param name name of function
      * @param invokeHandle handle for invocation
      * @param specs specialized versions of this method, if available, null otherwise
      */
     ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final MethodHandle[] specs) {
-        this(name, invokeHandle, specs, Global.instance());
-    }
-
-    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final MethodHandle[] specs, final Global global) {
-        super(name, invokeHandle, map.addAll(global.getFunctionMap()), null, specs, false, true, true);
-        init(global);
+        this(name, invokeHandle, nasgenmap$, specs);
     }
 
     /**
-     * Constructor called by Nasgen generated code, no membercount, use the map passed as argument.
-     * Creates builtin functions only.
+     * Constructor
+     *
+     * Called by Nasgen generated code, no membercount, use the default map
+     * Creates builtin functions only
      *
      * @param name name of function
-     * @param invokeHandle handle for invocation
+     * @param methodHandle handle for invocation
      * @param map initial property map
      * @param specs specialized versions of this method, if available, null otherwise
      */
-    ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final MethodHandle[] specs) {
-        this(name, invokeHandle, map, specs, Global.instance());
-    }
-
-    private ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final MethodHandle[] specs, final boolean isStrict, final boolean isBuiltin, final boolean isConstructor, final Global global) {
-        super(name, methodHandle, getMap(global, isStrict), scope, specs, isStrict, isBuiltin, isConstructor);
-        init(global);
+    ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final PropertyMap map, final MethodHandle[] specs) {
+        super(name, methodHandle, (nasgenmap$ == map) ? nasgenmap$ : map.addAll(nasgenmap$), null, null, 0, false, specs);
+        this.setIsBuiltin();
+        init();
     }
 
     /**
-     * Constructor called by Global.newScriptFunction (runtime).
+     * Constructor
+     *
+     * Called by Global.newScriptFunction (runtime)
      *
      * @param name name of function
      * @param methodHandle handle for invocation
      * @param scope scope object
+     * @param strict are we in strict mode
      * @param specs specialized versions of this method, if available, null otherwise
-     * @param isStrict are we in strict mode
-     * @param isBuiltin is this a built-in function
-     * @param isConstructor can the function be used as a constructor (most can; some built-ins are restricted).
      */
-    ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final MethodHandle[] specs, final boolean isStrict, final boolean isBuiltin, final boolean isConstructor) {
-        this(name, methodHandle, scope, specs, isStrict, isBuiltin, isConstructor, Global.instance());
-    }
-
-    private ScriptFunctionImpl(final RecompilableScriptFunctionData data, final ScriptObject scope, final Global global) {
-        super(data, getMap(global, data.isStrict()), scope);
-        init(global);
+    ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final boolean strict, final MethodHandle[] specs) {
+        super(name, methodHandle, getMap(strict), scope, specs);
+        if (strict) {
+            this.setIsStrict();
+        }
+        init();
     }
 
     /**
-     * Constructor called by (compiler) generated code for {@link ScriptObject}s.
+     * Constructor
      *
-     * @param data static function data
+     * Called by (compiler) generated code for {@link ScriptObject}s. Code is
+     * generated by {@link FunctionObjectCreator}
+     *
+     * TODO this is a horrible constructor - can we do it with fewer args?
+     *
+     * @param name name of function
+     * @param methodHandle handle for invocation
      * @param scope scope object
+     * @param source source
+     * @param token token
+     * @param allocator instance constructor for function
+     * @param allocatorMap initial map that constructor will keep reference to for future instantiations
+     * @param needCallee does the function use the {@code callee} variable
+     * @param strict are we in strict mode
      */
-    public ScriptFunctionImpl(final RecompilableScriptFunctionData data, final ScriptObject scope) {
-        this(data, scope, Global.instance());
-    }
-
-    /**
-     * Only invoked internally from {@link BoundScriptFunctionImpl} constructor.
-     * @param data the script function data for the bound function.
-     * @param global the global object
-     */
-    ScriptFunctionImpl(final ScriptFunctionData data, final Global global) {
-        super(data, global.getBoundFunctionMap(), null);
-        init(global);
+    public ScriptFunctionImpl(
+            final String name,
+            final MethodHandle methodHandle,
+            final ScriptObject scope,
+            final Source source,
+            final long token,
+            final MethodHandle allocator,
+            final PropertyMap allocatorMap,
+            final boolean needCallee,
+            final boolean strict) {
+        super(name, methodHandle, getMap(strict), scope, source, token, allocator, allocatorMap, needCallee, null);
+        if (strict) {
+            this.setIsStrict();
+        }
+        init();
     }
 
     static {
-        final ArrayList<Property> properties = new ArrayList<>(3);
-        properties.add(AccessorProperty.create("prototype", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE, G$PROTOTYPE, S$PROTOTYPE));
-        properties.add(AccessorProperty.create("length",  Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE | Property.NOT_WRITABLE, G$LENGTH, null));
-        properties.add(AccessorProperty.create("name", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE | Property.NOT_WRITABLE, G$NAME, null));
-        map$ = PropertyMap.newMap(properties);
-        strictmodemap$ = createStrictModeMap(map$);
-        boundfunctionmap$ = createBoundFunctionMap(strictmodemap$);
-        // There are order dependencies between normal map, struct map and bound map
-        // We can make these 'shared' only after initialization of all three.
-        map$.setIsShared();
-        strictmodemap$.setIsShared();
-        boundfunctionmap$.setIsShared();
+        PropertyMap map = PropertyMap.newMap(ScriptFunctionImpl.class);
+        map = Lookup.newProperty(map, "prototype", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE, G$PROTOTYPE, S$PROTOTYPE);
+        map = Lookup.newProperty(map, "length",    Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE | Property.NOT_WRITABLE, G$LENGTH, null);
+        map = Lookup.newProperty(map, "name",      Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE | Property.NOT_WRITABLE, G$NAME, null);
+        nasgenmap$ = map;
     }
 
     // function object representing TypeErrorThrower
     private static ScriptFunction typeErrorThrower;
 
-    /*
-     * ECMA section 13.2.3 The [[ThrowTypeError]] Function Object
-     */
     static synchronized ScriptFunction getTypeErrorThrower() {
         if (typeErrorThrower == null) {
-            // use "getter" so that [[ThrowTypeError]] function's arity is 0 - as specified in step 10 of section 13.2.3
-            final ScriptFunctionImpl func = new ScriptFunctionImpl("TypeErrorThrower", Lookup.TYPE_ERROR_THROWER_GETTER, null, null, false, false, false);
-            func.setPrototype(UNDEFINED);
-            // Non-constructor built-in functions do not have "prototype" property
-            func.deleteOwnProperty(func.getMap().findProperty("prototype"));
-            func.preventExtensions();
-            typeErrorThrower = func;
+            //name handle
+            final ScriptFunctionImpl func = new ScriptFunctionImpl("TypeErrorThrower", Lookup.TYPE_ERROR_THROWER_SETTER, null, false, null);
+            // clear constructor handle...
+            func.constructHandle = null;
+            func.prototype       = UNDEFINED;
+            typeErrorThrower     = func;
         }
 
         return typeErrorThrower;
     }
 
-    private static PropertyMap createStrictModeMap(final PropertyMap map) {
-        final int flags = Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE;
-        PropertyMap newMap = map;
-        // Need to add properties directly to map since slots are assigned speculatively by newUserAccessors.
-        newMap = newMap.addProperty(map.newUserAccessors("arguments", flags));
-        newMap = newMap.addProperty(map.newUserAccessors("caller", flags));
-        return newMap;
+    // add a new property that throws TypeError on get as well as set
+    static synchronized PropertyMap newThrowerProperty(final PropertyMap map, final String name, final int flags) {
+        return map.newProperty(name, flags, Lookup.TYPE_ERROR_THROWER_GETTER, Lookup.TYPE_ERROR_THROWER_SETTER);
     }
+
+    // property map for strict mode functions - lazily initialized
+    private static PropertyMap strictmodemap$;
 
     // Choose the map based on strict mode!
-    private static PropertyMap getMap(final Global global, final boolean strict) {
-        return strict ? global.getStrictFunctionMap() : global.getFunctionMap();
-    }
+    private static PropertyMap getMap(final boolean strict) {
+        if (strict) {
+            synchronized (ScriptFunctionImpl.class) {
+                if (strictmodemap$ == null) {
+                    // In strict mode, the following properties should throw TypeError
+                    strictmodemap$ = nasgenmap$;
+                    strictmodemap$ = newThrowerProperty(strictmodemap$, "arguments", Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE);
+                    strictmodemap$ = newThrowerProperty(strictmodemap$, "caller",    Property.NOT_ENUMERABLE | Property.NOT_CONFIGURABLE);
+                }
+            }
+            return strictmodemap$;
+        }
 
-    private static PropertyMap createBoundFunctionMap(final PropertyMap strictModeMap) {
-        // Bound function map is same as strict function map, but additionally lacks the "prototype" property, see
-        // ECMAScript 5.1 section 15.3.4.5
-        return strictModeMap.deleteProperty(strictModeMap.findProperty("prototype"));
+        return nasgenmap$;
     }
 
     // Instance of this class is used as global anonymous function which
     // serves as Function.prototype object.
     private static class AnonymousFunction extends ScriptFunctionImpl {
-        private static final PropertyMap anonmap$ = PropertyMap.newMap().setIsShared();
+        private static final PropertyMap nasgenmap$$ = PropertyMap.newMap(AnonymousFunction.class);
 
-        static PropertyMap getInitialMap() {
-            return anonmap$;
-        }
-
-        AnonymousFunction(final Global global) {
-            super("", GlobalFunctions.ANONYMOUS, global.getAnonymousFunctionMap(), null);
+        AnonymousFunction() {
+            super("", GlobalFunctions.ANONYMOUS, nasgenmap$$, null);
         }
     }
 
-    static ScriptFunctionImpl newAnonymousFunction(final Global global) {
-        return new AnonymousFunction(global);
+    static ScriptFunctionImpl newAnonymousFunction() {
+        return new AnonymousFunction();
+    }
+
+    @Override
+    public final boolean isStrict() {
+        return (flags & IS_STRICT) != 0;
+    }
+
+    @Override
+    public final boolean isBuiltin() {
+        return (flags & IS_BUILTIN) != 0;
     }
 
     /**
-     * Factory method for non-constructor built-in functions
+     * Factory method for non-constructor functions
+     *
+     * @param name   function name
+     * @param methodHandle handle for invocation
+     * @param specs  specialized versions of function if available, null otherwise
+     * @param strict are we in strict mode
+     * @return new ScriptFunction
+     */
+    public static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final MethodHandle[] specs, final boolean strict) {
+        final ScriptFunctionImpl func = new ScriptFunctionImpl(name, methodHandle, null, strict, specs);
+
+        func.setIsBuiltin();
+        func.setConstructHandle(null);
+        func.setPrototype(UNDEFINED);
+
+        return func;
+    }
+
+    /**
+     * Factory method for non-constructor functions
      *
      * @param name   function name
      * @param methodHandle handle for invocation
      * @param specs  specialized versions of function if available, null otherwise
      * @return new ScriptFunction
      */
-    static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final MethodHandle[] specs) {
-        final ScriptFunctionImpl func = new ScriptFunctionImpl(name, methodHandle, null, specs, false, true, false);
-        func.setPrototype(UNDEFINED);
-        // Non-constructor built-in functions do not have "prototype" property
-        func.deleteOwnProperty(func.getMap().findProperty("prototype"));
-
-        return func;
+    public static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final MethodHandle[] specs) {
+        return makeFunction(name, methodHandle, specs, false);
     }
 
     /**
-     * Factory method for non-constructor built-in functions
+     * Factory method for non-constructor functions
      *
      * @param name   function name
      * @param methodHandle handle for invocation
      * @return new ScriptFunction
      */
-    static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle) {
+    public static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle) {
         return makeFunction(name, methodHandle, null);
     }
 
-    @Override
-    public ScriptFunction makeSynchronizedFunction(final Object sync) {
-        final MethodHandle mh = MH.insertArguments(ScriptFunction.INVOKE_SYNC, 0, this, sync);
-        return makeFunction(getName(), mh);
-    }
-
     /**
-     * Same as {@link ScriptFunction#makeBoundFunction(Object, Object[])}. The only reason we override it is so that we
-     * can expose it to methods in this package.
-     * @param self the self to bind to this function. Can be null (in which case, null is bound as this).
-     * @param args additional arguments to bind to this function. Can be null or empty to not bind additional arguments.
-     * @return a function with the specified self and parameters bound.
-     */
-    @Override
-    protected ScriptFunction makeBoundFunction(Object self, Object[] args) {
-        return super.makeBoundFunction(self, args);
-    }
-
-    /**
-     * This method is used to create a bound function based on this function.
+     * This method is used to create a bound function. See also
+     * {@link NativeFunction#bind(Object, Object...)} method implementation.
      *
-     * @param data the {@code ScriptFunctionData} specifying the functions immutable portion.
-     * @return a function initialized from the specified data. Its parent scope will be set to null, therefore the
-     * passed in data should not expect a callee.
+     * @param thiz this reference to bind
+     * @param args arguments to bind
      */
     @Override
-    protected ScriptFunction makeBoundFunction(final ScriptFunctionData data) {
-        return new BoundScriptFunctionImpl(data, getTargetFunction());
+    public ScriptFunction makeBoundFunction(final Object thiz, final Object[] args) {
+        Object[] allArgs = args;
+
+        if (allArgs == null) {
+            allArgs = ScriptRuntime.EMPTY_ARRAY;
+        }
+
+        final MethodHandle   boundMethod = MH.insertArguments(BOUND_FUNCTION, 0, this, thiz, allArgs);
+        final ScriptFunction boundFunc   = makeFunction("", boundMethod, null, true);
+
+        MethodHandle consHandle  = this.getConstructHandle();
+
+        if (consHandle != null) {
+            consHandle = MH.insertArguments(BOUND_CONSTRUCTOR, 0, this, allArgs);
+        }
+
+        boundFunc.setConstructHandle(consHandle);
+        int newArity = this.getArity();
+        if (newArity != -1) {
+            newArity -= Math.min(newArity, allArgs.length);
+        }
+        boundFunc.setArity(newArity);
+
+        return boundFunc;
+    }
+
+    @SuppressWarnings("unused")
+    private static Object boundFunction(final ScriptFunction wrapped, final Object boundThiz, final Object[] boundArgs, final Object thiz, final Object[] args) {
+        final Object[] allArgs = new Object[boundArgs.length + args.length];
+
+        System.arraycopy(boundArgs, 0, allArgs, 0, boundArgs.length);
+        System.arraycopy(args, 0, allArgs, boundArgs.length, args.length);
+
+        return ScriptRuntime.apply(wrapped, boundThiz, allArgs);
+    }
+
+    @SuppressWarnings("unused")
+    private static Object boundConstructor(final ScriptFunction wrapped, final Object[] boundArgs, final Object thiz, final Object[] args) {
+        final Object[] allArgs = new Object[boundArgs.length + args.length];
+        System.arraycopy(boundArgs, 0, allArgs, 0, boundArgs.length);
+        System.arraycopy(args, 0, allArgs, boundArgs.length, args.length);
+
+        return ScriptRuntime.construct(wrapped, allArgs);
     }
 
     // return Object.prototype - used by "allocate"
@@ -292,33 +325,21 @@ public class ScriptFunctionImpl extends ScriptFunction {
         return Global.objectPrototype();
     }
 
-    @Override
-    public final Object getPrototype() {
-        if (prototype == LAZY_PROTOTYPE) {
-            prototype = new PrototypeObject(this);
-        }
-        return prototype;
-    }
-
-    @Override
-    public final void setPrototype(final Object prototype) {
-        this.prototype = prototype;
-    }
-
     // Internals below..
-    private void init(final Global global) {
-        this.setProto(global.getFunctionPrototype());
-        this.prototype = LAZY_PROTOTYPE;
+    private void init() {
+        this.setProto(Global.instance().getFunctionPrototype());
+        this.setPrototype(new PrototypeObject(this));
 
-        // We have to fill user accessor functions late as these are stored
-        // in this object rather than in the PropertyMap of this object.
-
-        if (findProperty("arguments", true) != null) {
-            setUserAccessors("arguments", getTypeErrorThrower(), getTypeErrorThrower());
+        if (isStrict()) {
+            final ScriptFunction func = getTypeErrorThrower();
+            // We have to fill user accessor functions late as these are stored
+            // in this object rather than in the PropertyMap of this object.
+            setUserAccessors("arguments", func, func);
+            setUserAccessors("caller", func, func);
         }
+    }
 
-        if (findProperty("caller", true) != null) {
-            setUserAccessors("caller", getTypeErrorThrower(), getTypeErrorThrower());
-        }
+    private static MethodHandle findOwnMH(final String name, final Class<?> rtype, final Class<?>... types) {
+        return MH.findStatic(MethodHandles.lookup(), ScriptFunctionImpl.class, name, MH.type(rtype, types));
     }
 }

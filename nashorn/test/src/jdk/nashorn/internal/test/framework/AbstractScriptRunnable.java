@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_CHECK_COMPI
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_COMPARE;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_EXPECT_COMPILE_FAIL;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_EXPECT_RUN_FAIL;
-import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_FORK;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_IGNORE_STD_ERROR;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_RUN;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_FAIL_LIST;
@@ -69,8 +68,6 @@ public abstract class AbstractScriptRunnable {
     protected final boolean checkCompilerMsg;
     // .EXPECTED file compared for this or test?
     protected final boolean compare;
-    // should test run in a separate process?
-    protected final boolean fork;
     // ignore stderr output?
     protected final boolean ignoreStdError;
     // Foo.js.OUTPUT file where test stdout messages go
@@ -101,7 +98,6 @@ public abstract class AbstractScriptRunnable {
         this.checkCompilerMsg = testOptions.containsKey(OPTIONS_CHECK_COMPILE_MSG);
         this.ignoreStdError = testOptions.containsKey(OPTIONS_IGNORE_STD_ERROR);
         this.compare = testOptions.containsKey(OPTIONS_COMPARE);
-        this.fork = testOptions.containsKey(OPTIONS_FORK);
 
         final String testName = testFile.getName();
         this.outputFileName = buildDir + File.separator + testName + ".OUTPUT";
@@ -109,6 +105,7 @@ public abstract class AbstractScriptRunnable {
         this.copyExpectedFileName = buildDir + File.separator + testName + ".EXPECTED";
         this.expectedFileName = testFile.getPath() + ".EXPECTED";
 
+        final String failListString = System.getProperty(TEST_JS_FAIL_LIST);
         if (failListString != null) {
             final String[] failedTests = failListString.split(" ");
             for (final String failedTest : failedTests) {
@@ -120,7 +117,7 @@ public abstract class AbstractScriptRunnable {
     // run this test - compile or compile-and-run depending on option passed
     public void runTest() throws IOException {
         log(toString());
-        Thread.currentThread().setName(testFile.getPath());
+
         if (shouldRun) {
             // Analysis of failing tests list -
             // if test is in failing list it must fail
@@ -150,15 +147,10 @@ public abstract class AbstractScriptRunnable {
     }
 
     // shared context or not?
-    protected static final boolean sharedContext = Boolean.getBoolean(TEST_JS_SHARED_CONTEXT);
-    protected static final String failListString = System.getProperty(TEST_JS_FAIL_LIST);
-    // VM options when a @fork test is executed by a separate process
-    protected static final String[] forkJVMOptions;
+    protected static final boolean sharedContext;
     static {
-        String vmOptions = System.getProperty(TestConfig.TEST_FORK_JVM_OPTIONS);
-        forkJVMOptions = (vmOptions != null)? vmOptions.split(" ") : new String[0];
+        sharedContext = Boolean.getBoolean(TEST_JS_SHARED_CONTEXT);
     }
-
     private static ThreadLocal<ScriptEvaluator> evaluators = new ThreadLocal<>();
 
     /**

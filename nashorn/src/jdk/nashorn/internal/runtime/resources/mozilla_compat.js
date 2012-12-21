@@ -1,21 +1,21 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- *
+ * 
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
  * published by the Free Software Foundation.
- *
+ * 
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * version 2 for more details (a copy is included in the LICENSE file that
  * accompanied this code).
- *
+ * 
  * You should have received a copy of the GNU General Public License version
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- *
+ * 
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
@@ -26,88 +26,6 @@
  * the standard global objects. Please note that it is incomplete. Only the most
  * often used functionality is supported.
  */
-
-// JavaAdapter
-Object.defineProperty(this, "JavaAdapter", {
-    configurable: true, enumerable: false, writable: true,
-    value: function() {
-        if (arguments.length < 2) {
-            throw new TypeError("JavaAdapter requires atleast two arguments");
-        }
-
-        var types = Array.prototype.slice.call(arguments, 0, arguments.length - 1);
-        var NewType = Java.extend.apply(Java, types);
-        return new NewType(arguments[arguments.length - 1]);
-    }
-});
-
-
-// importPackage
-// avoid unnecessary chaining of __noSuchProperty__ again
-// in case user loads this script more than once.
-if (typeof importPackage == 'undefined') {
-
-Object.defineProperty(this, "importPackage", {
-    configurable: true, enumerable: false, writable: true,
-    value: (function() {
-        var _packages = [];
-        var global = this;
-        var oldNoSuchProperty = global.__noSuchProperty__;
-        var __noSuchProperty__ = function(name) {
-            'use strict';
-            for (var i in _packages) {
-                try {
-                    var type = Java.type(_packages[i] + "." + name);
-                    global[name] = type;
-                    return type;
-                } catch (e) {}
-            }
-
-            if (oldNoSuchProperty) {
-                return oldNoSuchProperty.call(this, name);
-            } else {
-                if (this === undefined) {
-                    throw new ReferenceError(name + " is not defined");
-                } else {
-                    return undefined;
-                }
-            }
-        }
-
-        Object.defineProperty(global, "__noSuchProperty__", {
-            writable: true, configurable: true, enumerable: false,
-            value: __noSuchProperty__
-        });
-
-        var prefix = "[JavaPackage ";
-        return function() {
-            for (var i in arguments) {
-                var pkgName = arguments[i];
-                if ((typeof pkgName) != 'string') {
-                    pkgName = String(pkgName);
-                    // extract name from JavaPackage object
-                    if (pkgName.startsWith(prefix)) {
-                        pkgName = pkgName.substring(prefix.length, pkgName.length - 1);
-                    }
-                }
-                _packages.push(pkgName);
-            }
-        }
-    })()
-});
-
-}
-
-// sync
-Object.defineProperty(this, "sync", {
-    configurable: true, enumerable: false, writable: true,
-    value: function(func, syncobj) {
-        if (arguments.length < 1 || arguments.length > 2 ) {
-            throw "sync(function [,object]) parameter count mismatch";
-        }
-        return Packages.jdk.nashorn.api.scripting.ScriptUtils.makeSynchronizedFunction(func, syncobj);
-    }
-});
 
 // Object.prototype.__defineGetter__
 Object.defineProperty(Object.prototype, "__defineGetter__", {
@@ -152,6 +70,17 @@ Object.defineProperty(Object.prototype, "__lookupSetter__", {
             obj = Object.getPrototypeOf(obj);
         }
         return undefined;
+    }
+});
+
+// Object.prototype.__proto__ (read-only)
+Object.defineProperty(Object.prototype, "__proto__", {
+    configurable: true, enumerable: false,
+    get: function() {
+        return Object.getPrototypeOf(this);
+    },
+    set: function(x) {
+        throw new TypeError("__proto__ set not supported");
     }
 });
 
@@ -362,16 +291,11 @@ Object.defineProperty(String.prototype, "sup", {
 // Rhino: global.importClass
 Object.defineProperty(this, "importClass", {
     configurable: true, enumerable: false, writable: true,
-    value: function() {
-        for (var arg in arguments) {
-            var clazz = arguments[arg];
-            if (Java.isType(clazz)) {
-                var className = Java.typeName(clazz);
-                var simpleName = className.substring(className.lastIndexOf('.') + 1);
-                this[simpleName] = clazz;
-            } else {
-                throw new TypeError(clazz + " is not a Java class");
-            }
+    value: function(clazz) {
+        if (Java.isType(clazz)) {
+            this[clazz.class.getSimpleName()] = clazz;
+        } else {
+            throw new TypeError(clazz + " is not a Java class");
         }
     }
 });

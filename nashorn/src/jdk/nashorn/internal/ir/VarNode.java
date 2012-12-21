@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,67 +25,70 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * Node represents a var/let declaration.
  */
-@Immutable
-public final class VarNode extends Statement implements Assignment<IdentNode> {
+public class VarNode extends Node implements Assignment<IdentNode> {
     /** Var name. */
-    private final IdentNode name;
+    private IdentNode name;
 
     /** Initialization expression. */
-    private final Expression init;
+    private Node init;
 
-    /** Is this a var statement (as opposed to a "var" in a for loop statement) */
-    private final int flags;
+    /** Is this a function var node */
+    private boolean isFunctionVarNode;
 
-    /** Flag that determines if this function node is a statement */
-    public static final int IS_STATEMENT = 1 << 0;
-
-    /** Flag that determines if this is the last function declaration in a function
-     *  This is used to micro optimize the placement of return value assignments for
-     *  a program node */
-    public static final int IS_LAST_FUNCTION_DECLARATION = 1 << 1;
+    /** Should append VarNode to statement list? */
+    private final boolean shouldAppend;
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
-     * @param token      token
-     * @param finish     finish
-     * @param name       name of variable
-     * @param init       init node or null if just a declaration
+     * @param source the source
+     * @param token  token
+     * @param finish finish
+     * @param name   name of variable
+     * @param init   init node or null if just a declaration
      */
-    public VarNode(final int lineNumber, final long token, final int finish, final IdentNode name, final Expression init) {
-        this(lineNumber, token, finish, name, init, IS_STATEMENT);
-    }
-
-    private VarNode(final VarNode varNode, final IdentNode name, final Expression init, final int flags) {
-        super(varNode);
-        this.name = init == null ? name : name.setIsInitializedHere();
-        this.init = init;
-        this.flags = flags;
+    public VarNode(final Source source, final long token, final int finish, final IdentNode name, final Node init) {
+        this(source, token, finish, name, init, true);
     }
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
-     * @param token      token
-     * @param finish     finish
-     * @param name       name of variable
-     * @param init       init node or null if just a declaration
-     * @param flags      flags
+     * @param source the source
+     * @param token  token
+     * @param finish finish
+     * @param name   name of variable
+     * @param init   init node or null if just a declaration
+     * @param shouldAppend should this turn into explicit code, like if it were an ExecuteNode
      */
-    public VarNode(final int lineNumber, final long token, final int finish, final IdentNode name, final Expression init, final int flags) {
-        super(lineNumber, token, finish);
+    public VarNode(final Source source, final long token, final int finish, final IdentNode name, final Node init, final boolean shouldAppend) {
+        super(source, token, finish);
 
-        this.name  = init == null ? name : name.setIsInitializedHere();
+        this.name  = name;
         this.init  = init;
-        this.flags = flags;
+        this.shouldAppend = shouldAppend;
+        if (init != null) {
+            this.name.setIsInitializedHere();
+        }
+    }
+
+    private VarNode(final VarNode varNode, final CopyState cs) {
+        super(varNode);
+
+        this.name = (IdentNode)cs.existingOrCopy(varNode.name);
+        this.init = cs.existingOrCopy(varNode.init);
+        this.shouldAppend = varNode.shouldAppend;
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new VarNode(this, cs);
     }
 
     @Override
@@ -99,14 +102,20 @@ public final class VarNode extends Statement implements Assignment<IdentNode> {
     }
 
     @Override
-    public VarNode setAssignmentDest(IdentNode n) {
-        return setName(n);
+    public void setAssignmentDest(final IdentNode node) {
+        setName(name);
     }
 
     @Override
-    public Expression getAssignmentSource() {
+    public Node getAssignmentSource() {
         return isAssignment() ? getInit() : null;
     }
+
+    @Override
+    public void setAssignmentSource(final Node source) {
+        setInit(source);
+    }
+
 
     /**
      * Does this variable declaration have an init value
@@ -117,22 +126,47 @@ public final class VarNode extends Statement implements Assignment<IdentNode> {
     }
 
     /**
+     * Test to see if two VarNodes are the same.
+     * @param other Other VarNode.
+     * @return True if the VarNodes are the same.
+     */
+    @Override
+    public boolean equals(final Object other) {
+        if (other instanceof VarNode) {
+            final VarNode otherNode    = (VarNode)other;
+            final boolean nameMatches  = name.equals(otherNode.name);
+            if (hasInit() != otherNode.hasInit()) {
+                return false;
+            } else if (init == null) {
+                return nameMatches;
+            } else {
+                return nameMatches && init.equals(otherNode.init);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode() ^ (init == null ? 0 : init.hashCode());
+    }
+
+    /**
      * Assist in IR navigation.
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterVarNode(this)) {
-            final IdentNode  newName = (IdentNode)name.accept(visitor);
-            final Expression newInit = init == null ? null : (Expression)init.accept(visitor);
-            final VarNode    newThis;
-            if (name != newName || init != newInit) {
-                newThis = new VarNode(this, newName, newInit, flags);
-            } else {
-                newThis = this;
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            name = (IdentNode)name.accept(visitor);
+
+            if (init != null) {
+                init = init.accept(visitor);
             }
-            return visitor.leaveVarNode(newThis);
+
+            return visitor.leave(this);
         }
+
         return this;
     }
 
@@ -151,20 +185,16 @@ public final class VarNode extends Statement implements Assignment<IdentNode> {
      * If this is an assignment of the form {@code var x = init;}, get the init part.
      * @return the expression to initialize the variable to, null if just a declaration
      */
-    public Expression getInit() {
+    public Node getInit() {
         return init;
     }
 
     /**
      * Reset the initialization expression
      * @param init new initialization expression
-     * @return a node equivalent to this one except for the requested change.
      */
-    public VarNode setInit(final Expression init) {
-        if (this.init == init) {
-            return this;
-        }
-        return new VarNode(this, name, init, flags);
+    public void setInit(final Node init) {
+        this.init = init;
     }
 
     /**
@@ -178,53 +208,42 @@ public final class VarNode extends Statement implements Assignment<IdentNode> {
     /**
      * Reset the identifier for this VarNode
      * @param name new IdentNode representing the variable being set or declared
-     * @return a node equivalent to this one except for the requested change.
      */
-    public VarNode setName(final IdentNode name) {
-        if (this.name == name) {
-            return this;
-        }
-        return new VarNode(this, name, init, flags);
-    }
-
-    private VarNode setFlags(final int flags) {
-        if (this.flags == flags) {
-            return this;
-        }
-        return new VarNode(this, name, init, flags);
+    public void setName(final IdentNode name) {
+        this.name = name;
     }
 
     /**
-     * Check if a flag is set for this var node
-     * @param flag flag
-     * @return true if flag is set
+     * Check if this is a virtual assignment of a function node. Function nodes declared
+     * with a name are hoisted to the top of the scope and appear as symbols too. This is
+     * implemented by representing them as virtual VarNode assignments added to the code
+     * during lowering
+     *
+     * @see FunctionNode
+     *
+     * @return true if this is a virtual function declaration
      */
-    public boolean getFlag(final int flag) {
-        return (flags & flag) == flag;
+    public boolean isFunctionVarNode() {
+        return isFunctionVarNode;
     }
 
     /**
-     * Set a flag for this var node
-     * @param flag flag
-     * @return new node if flags changed, same otherwise
+     * Flag this var node as a virtual function var node assignment as described in
+     * {@link VarNode#isFunctionVarNode()}
      */
-    public VarNode setFlag(final int flag) {
-        return setFlags(flags | flag);
+    public void setIsFunctionVarNode() {
+        this.isFunctionVarNode = true;
     }
 
     /**
-     * Returns true if this is a var statement (as opposed to a var initializer in a for loop).
-     * @return true if this is a var statement (as opposed to a var initializer in a for loop).
+     * Is this the var for a for-in node or other construct that means
+     * manual or no appends of this varNode to the statement list in
+     * Lower? The default is yes as most VarNodes are auto-append to
+     * the end of the statement list when lowered
+     *
+     * @return should compiler append var node to statement list
      */
-    public boolean isStatement() {
-        return (flags & IS_STATEMENT) != 0;
-    }
-
-    /**
-     * Returns true if this is a function declaration.
-     * @return true if this is a function declaration.
-     */
-    public boolean isFunctionDeclaration() {
-        return init instanceof FunctionNode && ((FunctionNode)init).isDeclared();
+    public boolean shouldAppend() {
+        return shouldAppend;
     }
 }

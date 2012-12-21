@@ -1,72 +1,24 @@
-ReferenceError:35:Invalid left hand side for assignment
-1++
-^
-ReferenceError:42:Invalid left hand side for assignment
-1--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++1
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---1
-  ^
-ReferenceError:35:Invalid left hand side for assignment
-0++
-^
-ReferenceError:42:Invalid left hand side for assignment
-0--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++0
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---0
-  ^
-ReferenceError:35:Invalid left hand side for assignment
-3.14++
-^
-ReferenceError:42:Invalid left hand side for assignment
-3.14--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++3.14
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---3.14
-  ^
-ReferenceError:35:Invalid left hand side for assignment
-true++
-^
-ReferenceError:42:Invalid left hand side for assignment
-true--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++true
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---true
-  ^
-ReferenceError:35:Invalid left hand side for assignment
-false++
-^
-ReferenceError:42:Invalid left hand side for assignment
-false--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++false
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---false
-  ^
-ReferenceError:35:Invalid left hand side for assignment
-null++
-^
-ReferenceError:42:Invalid left hand side for assignment
-null--
-^
-ReferenceError:49:Invalid left hand side for assignment
-++null
-  ^
-ReferenceError:56:Invalid left hand side for assignment
---null
-  ^
+ReferenceError: "1" can not be used as the left-hand side of assignment
+ReferenceError: "1" can not be used as the left-hand side of assignment
+ReferenceError: "1" can not be used as the left-hand side of assignment
+ReferenceError: "1" can not be used as the left-hand side of assignment
+ReferenceError: "0" can not be used as the left-hand side of assignment
+ReferenceError: "0" can not be used as the left-hand side of assignment
+ReferenceError: "0" can not be used as the left-hand side of assignment
+ReferenceError: "0" can not be used as the left-hand side of assignment
+ReferenceError: "3.14" can not be used as the left-hand side of assignment
+ReferenceError: "3.14" can not be used as the left-hand side of assignment
+ReferenceError: "3.14" can not be used as the left-hand side of assignment
+ReferenceError: "3.14" can not be used as the left-hand side of assignment
+ReferenceError: "true" can not be used as the left-hand side of assignment
+ReferenceError: "true" can not be used as the left-hand side of assignment
+ReferenceError: "true" can not be used as the left-hand side of assignment
+ReferenceError: "true" can not be used as the left-hand side of assignment
+ReferenceError: "false" can not be used as the left-hand side of assignment
+ReferenceError: "false" can not be used as the left-hand side of assignment
+ReferenceError: "false" can not be used as the left-hand side of assignment
+ReferenceError: "false" can not be used as the left-hand side of assignment
+ReferenceError: "null" can not be used as the left-hand side of assignment
+ReferenceError: "null" can not be used as the left-hand side of assignment
+ReferenceError: "null" can not be used as the left-hand side of assignment
+ReferenceError: "null" can not be used as the left-hand side of assignment

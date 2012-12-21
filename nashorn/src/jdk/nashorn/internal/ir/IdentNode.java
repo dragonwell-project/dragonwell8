@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,48 +28,40 @@ package jdk.nashorn.internal.ir;
 import static jdk.nashorn.internal.codegen.CompilerConstants.__DIR__;
 import static jdk.nashorn.internal.codegen.CompilerConstants.__FILE__;
 import static jdk.nashorn.internal.codegen.CompilerConstants.__LINE__;
+import static jdk.nashorn.internal.codegen.objects.ObjectClassGenerator.DEBUG_FIELDS;
 
+import jdk.nashorn.internal.codegen.objects.ObjectClassGenerator;
 import jdk.nashorn.internal.codegen.types.Type;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for an identifier.
  */
-@Immutable
-public final class IdentNode extends Expression implements PropertyKey, FunctionCall {
-    private static final int PROPERTY_NAME     = 1 << 0;
-    private static final int INITIALIZED_HERE  = 1 << 1;
-    private static final int FUNCTION          = 1 << 2;
-    private static final int FUTURESTRICT_NAME = 1 << 3;
-
+public class IdentNode extends Node implements PropertyKey, TypeOverride, FunctionCall {
     /** Identifier. */
     private final String name;
 
     /** Type for a callsite, e.g. X in a get()X or a set(X)V */
-    private final Type callSiteType;
+    private Type callSiteType;
 
-    private final int flags;
+    /** flag for an ident that is the property name of an AccessNode. */
+    private boolean isPropertyName;
+
+    /** flag for an ident on the left hand side of <code>var lhs = rhs;</code>. */
+    private boolean isInitializedHere;
 
     /**
      * Constructor
      *
+     * @param source  the source
      * @param token   token
      * @param finish  finish position
      * @param name    name of identifier
      */
-    public IdentNode(final long token, final int finish, final String name) {
-        super(token, finish);
-        this.name = name.intern();
-        this.callSiteType = null;
-        this.flags = 0;
-    }
-
-    private IdentNode(final IdentNode identNode, final String name, final Type callSiteType, final int flags) {
-        super(identNode);
+    public IdentNode(final Source source, final long token, final int finish, final String name) {
+        super(source, token, finish);
         this.name = name;
-        this.callSiteType = callSiteType;
-        this.flags = flags;
     }
 
     /**
@@ -79,9 +71,9 @@ public final class IdentNode extends Expression implements PropertyKey, Function
      */
     public IdentNode(final IdentNode identNode) {
         super(identNode);
-        this.name         = identNode.getName();
-        this.callSiteType = null;
-        this.flags        = identNode.flags;
+        this.name              = identNode.getName();
+        this.isPropertyName    = identNode.isPropertyName;
+        this.isInitializedHere = identNode.isInitializedHere;
     }
 
     @Override
@@ -99,15 +91,48 @@ public final class IdentNode extends Expression implements PropertyKey, Function
         return callSiteType != null;
     }
 
+    @Override
+    public void setType(final Type type) {
+        if (DEBUG_FIELDS && getSymbol() != null && !Type.areEquivalent(getSymbol().getSymbolType(), type)) {
+            ObjectClassGenerator.LOG.info(getClass().getName() + " " + this + " => " + type + " instead of " + getType());
+        }
+        this.callSiteType = type;
+        // do NOT, repeat NOT touch the symbol here. it might be a local variable or whatever. This is the override if it isn't
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new IdentNode(this);
+    }
+
+    /**
+     * Test to see if two IdentNode are the same.
+     *
+     * @param other Other ident.
+     * @return true if the idents are the same.
+     */
+    @Override
+    public boolean equals(final Object other) {
+        if (other instanceof IdentNode) {
+            return name.equals(((IdentNode)other).name);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
     /**
      * Assist in IR navigation.
      *
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterIdentNode(this)) {
-            return visitor.leaveIdentNode(this);
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            return visitor.leave(this);
         }
 
         return this;
@@ -118,7 +143,7 @@ public final class IdentNode extends Expression implements PropertyKey, Function
         if (hasCallSiteType()) {
             sb.append('{');
             final String desc = getType().getDescriptor();
-            sb.append(desc.charAt(desc.length() - 1) == ';' ? 'O' : getType().getDescriptor());
+            sb.append(desc.charAt(desc.length() - 1) == ';' ? "O" : getType().getDescriptor());
             sb.append('}');
         }
 
@@ -138,9 +163,15 @@ public final class IdentNode extends Expression implements PropertyKey, Function
         return getName();
     }
 
+    /**
+     * We can only override type if the symbol lives in the scope, otherwise
+     * it is strongly determined by the local variable already allocated
+     *
+     * @return true if can have callsite type
+     */
     @Override
-    public boolean isLocal() {
-        return !getSymbol().isScope();
+    public boolean canHaveCallSiteType() {
+        return getSymbol() != null && getSymbol().isScope();
     }
 
     /**
@@ -148,37 +179,14 @@ public final class IdentNode extends Expression implements PropertyKey, Function
      * @return true if this is a property name
      */
     public boolean isPropertyName() {
-        return (flags & PROPERTY_NAME) != 0;
+        return isPropertyName;
     }
 
     /**
      * Flag this IdentNode as a property name
-     * @return a node equivalent to this one except for the requested change.
      */
-    public IdentNode setIsPropertyName() {
-        if (isPropertyName()) {
-            return this;
-        }
-        return new IdentNode(this, name, callSiteType, flags | PROPERTY_NAME);
-    }
-
-    /**
-     * Check if this IdentNode is a future strict name
-     * @return true if this is a future strict name
-     */
-    public boolean isFutureStrictName() {
-        return (flags & FUTURESTRICT_NAME) != 0;
-    }
-
-    /**
-     * Flag this IdentNode as a future strict name
-     * @return a node equivalent to this one except for the requested change.
-     */
-    public IdentNode setIsFutureStrictName() {
-        if (isFutureStrictName()) {
-            return this;
-        }
-        return new IdentNode(this, name, callSiteType, flags | FUTURESTRICT_NAME);
+    public void setIsPropertyName() {
+        isPropertyName = true;
     }
 
     /**
@@ -186,18 +194,14 @@ public final class IdentNode extends Expression implements PropertyKey, Function
      * @return true if IdentNode is initialized on creation
      */
     public boolean isInitializedHere() {
-        return (flags & INITIALIZED_HERE) != 0;
+        return isInitializedHere;
     }
 
     /**
      * Flag IdentNode to be initialized on creation
-     * @return a node equivalent to this one except for the requested change.
      */
-    public IdentNode setIsInitializedHere() {
-        if (isInitializedHere()) {
-            return this;
-        }
-        return new IdentNode(this, name, callSiteType, flags | INITIALIZED_HERE);
+    public void setIsInitializedHere() {
+        isInitializedHere = true;
     }
 
     /**
@@ -207,22 +211,11 @@ public final class IdentNode extends Expression implements PropertyKey, Function
      * @return true if this IdentNode is special
      */
     public boolean isSpecialIdentity() {
-        return name.equals(__DIR__.symbolName()) || name.equals(__FILE__.symbolName()) || name.equals(__LINE__.symbolName());
+        return name.equals(__DIR__.tag()) || name.equals(__FILE__.tag()) || name.equals(__LINE__.tag());
     }
 
     @Override
     public boolean isFunction() {
-        return (flags & FUNCTION) != 0;
-    }
-
-    /**
-     * Mark this node as being the callee operand of a {@link CallNode}.
-     * @return an ident node identical to this one in all aspects except with its function flag set.
-     */
-    public IdentNode setIsFunction() {
-        if (isFunction()) {
-            return this;
-        }
-        return new IdentNode(this, name, callSiteType, flags | FUNCTION);
+        return false;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,7 @@
 package jdk.nashorn.internal.runtime.arrays;
 
 import java.util.Iterator;
-import java.util.List;
-import jdk.nashorn.api.scripting.JSObject;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptObject;
 
@@ -40,7 +39,7 @@ import jdk.nashorn.internal.runtime.ScriptObject;
 abstract public class ArrayLikeIterator<T> implements Iterator<T> {
 
     /** current element index in iteration */
-    protected long index;
+    protected int index;
 
     /** should undefined elements be included in the iteration? */
     protected final boolean includeUndefined;
@@ -50,7 +49,7 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
      *
      * @param includeUndefined should undefined elements be included in the iteration?
      */
-    ArrayLikeIterator(final boolean includeUndefined) {
+    protected ArrayLikeIterator(final boolean includeUndefined) {
         this.includeUndefined = includeUndefined;
         this.index = 0;
     }
@@ -59,6 +58,7 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
      * Is this a reverse order iteration?
      * @return true if reverse
      */
+    @SuppressWarnings("static-method")
     public boolean isReverse() {
         return false;
     }
@@ -67,7 +67,7 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
      * Go the the next valid element index of the iterator
      * @return next index
      */
-    protected long bumpIndex() {
+    protected int bumpIndex() {
         return index++;
     }
 
@@ -75,7 +75,7 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
      * Return the next valid element index of the iterator
      * @return next index
      */
-    public long nextIndex() {
+    public int nextIndex() {
         return index;
     }
 
@@ -88,7 +88,7 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
      * Get the length of the iteration
      * @return length
      */
-    public abstract long getLength();
+    public abstract int getLength();
 
     /**
      * ArrayLikeIterator factory
@@ -119,24 +119,12 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
         Object obj = object;
 
         if (ScriptObject.isArray(obj)) {
-            return new ScriptArrayIterator((ScriptObject) obj, includeUndefined);
+            return new ArrayIterator((ScriptObject) obj, includeUndefined);
         }
 
-        obj = JSType.toScriptObject(obj);
+        obj = JSType.toObject(Context.getGlobal(), obj);
         if (obj instanceof ScriptObject) {
-            return new ScriptObjectIterator((ScriptObject)obj, includeUndefined);
-        }
-
-        if (obj instanceof JSObject) {
-            return new JSObjectIterator((JSObject)obj, includeUndefined);
-        }
-
-        if (obj instanceof List) {
-            return new JavaListIterator((List<?>)obj, includeUndefined);
-        }
-
-        if (obj != null && obj.getClass().isArray()) {
-            return new JavaArrayIterator(obj, includeUndefined);
+            return new MapIterator((ScriptObject)obj, includeUndefined);
         }
 
         return new EmptyArrayLikeIterator();
@@ -152,25 +140,15 @@ abstract public class ArrayLikeIterator<T> implements Iterator<T> {
         Object obj = object;
 
         if (ScriptObject.isArray(obj)) {
-            return new ReverseScriptArrayIterator((ScriptObject) obj, includeUndefined);
+            return new ReverseArrayIterator((ScriptObject) obj, includeUndefined);
         }
 
-        obj = JSType.toScriptObject(obj);
+        obj = JSType.toObject(Context.getGlobal(), obj);
         if (obj instanceof ScriptObject) {
-            return new ReverseScriptObjectIterator((ScriptObject)obj, includeUndefined);
+            return new ReverseMapIterator((ScriptObject)obj, includeUndefined);
         }
 
-        if (obj instanceof JSObject) {
-            return new ReverseJSObjectIterator((JSObject)obj, includeUndefined);
-        }
-
-        if (obj instanceof List) {
-            return new ReverseJavaListIterator((List<?>)obj, includeUndefined);
-        }
-
-        if (obj != null && obj.getClass().isArray()) {
-            return new ReverseJavaArrayIterator(obj, includeUndefined);
-        }
+        assert !obj.getClass().isArray();
 
         return new EmptyArrayLikeIterator();
     }

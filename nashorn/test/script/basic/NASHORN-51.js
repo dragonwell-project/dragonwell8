@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -35,28 +35,28 @@ for (i in literals) {
         eval(literals[i] + "++");
         print("ERROR!! post increment : " + literals[i]);
     } catch (e) {
-        printError(e);
+        print(e);
     }
 
     try {
         eval(literals[i] + "--");
         print("ERROR!! post decrement : " + literals[i]);
     } catch (e) {
-        printError(e);
+        print(e);
     }
 
     try {
         eval("++" + literals[i]);
         print("ERROR!! pre increment : " + literals[i]);
     } catch (e) {
-        printError(e);
+        print(e);
     }
 
     try {
         eval("--" + literals[i]);
         print("ERROR!! pre decrement : " + literals[i]);
     } catch (e) {
-        printError(e);
+        print(e);
     }
 }
 

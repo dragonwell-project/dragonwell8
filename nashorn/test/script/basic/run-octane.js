@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -26,24 +26,33 @@
  */
 
 var tests = [
-    {file:"box2d",suite:"Box2DBenchmark"},
-    {file:"code-load",suite:"CodeLoad"},
-    {file:"crypto",suite:"Crypto"},
-    {file:"deltablue",suite:"DeltaBlue"},
-    {file:"earley-boyer", suite:"EarleyBoyer"},
-    {file:"gbemu", suite:"GameboyBenchmark"},
-    {file:"mandreel", suite:"MandreelBenchmark"},
-    {file:"navier-stokes", suite:"NavierStokes"},
-    {file:"pdfjs", suite:"PdfJS"},
-    {file:"raytrace", suite:"RayTrace"},
-    {file:"regexp", suite:"RegExpSuite"},
-    {file:"richards", suite:"Richards"},
-    {file:"splay", suite:"Splay"}
+    "box2d.js",
+    "code-load.js",
+    "crypto.js", 
+    "deltablue.js", 
+    "earley-boyer.js", 
+    "gbemu.js",	     
+    "navier-stokes.js", 
+    "pdfjs.js",
+    "raytrace.js",
+    "regexp.js", 
+    "richards.js", 
+    "splay.js" 
 ];
+
+// hack, teardown breaks things defined in the global space, making it impossible
+// to do multiple consecutive benchmark runs with the same harness. I think it's a bug
+// that the setup and teardown aren't each others constructor and destructor but rather
+// that the benchmarks rely on partial global state. For shame, Octane! 
+var ignoreTeardown = [
+    { name: "box2d.js" },
+    { name: "gbemu.js" },
+];
+
 var dir = (typeof(__DIR__) == 'undefined') ? "test/script/basic/" : __DIR__;
 
 // TODO: why is this path hard coded when it's defined in project properties?
-var path = dir + "../external/octane/";
+var path = dir + "../external/octane/benchmarks/";
 
 var runtime = "";
 var verbose = false;
@@ -54,119 +63,110 @@ function endsWith(str, suffix) {
     return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
 
-function should_compile_only(name) {
-    return (typeof compile_only !== 'undefined')
-}
-
 function run_one_benchmark(arg, iters) {
+
+    load(path + 'base.js');
+    load(arg);
+
     var file_name;
-    var file = (arg.file + ".js").split('/');
-    
-    file_name = path + file[file.length - 1];
-    
-    var compile_and_return = should_compile_only(file_name);
-    if (compile_and_return) {
-	if (typeof compile_only === 'undefined') { //for a run, skip compile onlies, don't even compile them
-	    return;
-	}
+
+    var file = arg.split('/');
+    if (file.length == 1) {
+        file = arg.split('\\');
+    }    
+
+    //trim off trailing path separators
+    while (file[file.length - 1].indexOf(".js") == -1) {
+	file.pop();
     }
+    file_name = file[file.length - 1];
     
-    print_verbose("Loading... " + file_name);
-    load(file_name);
-    
-    if (compile_and_return) {
-	print_always("Compiled OK: " + arg.file);
+    if (typeof compile_only !== 'undefined') {
+	print("Compiled OK: " + file_name);
 	return;
     }
     
     var success = true;
+    var hiscore = 0;
+    var loscore = 10e8;
     var current_name;
+    
+    function PrintResult(name, result) {
+	current_name = name;
+    }
+        
+    function PrintError(name, error) {
+	current_name = name;
+	PrintResult(name, error);
+	success = false;
+    }
+        
+    function PrintScore(score) {
+	if (success) {
+	    if (+score >= hiscore) {
+		hiscore = +score;
+	    }
+	    if (+score <= loscore) {
+		loscore = +score;
+	    }
+	}
+
+	if (verbose) {
+	    print("Score: " + score);
+	}
+    }
     
     if (iters == undefined) {
 	iters = numberOfIterations;
     } else {
 	numberOfIterations = iters;
     }
+
+    print(runtime + ": running " + file_name + "...");
+
+    for (var i = 0; i < numberOfIterations; i++) {
+	var callbacks =
+	    { NotifyResult: PrintResult,
+	      NotifyError: PrintError,
+	      NotifyScore: PrintScore };	
+
+	for (j in ignoreTeardown) {
+	    var ignore = ignoreTeardown[j];
+	    if (endsWith(arg, ignore.name)) {
+		var teardownOverride = ignore.teardown;
+		if (!teardownOverride) {
+		    teardownOverride = function() {};
+		}
+
+		for (k in BenchmarkSuite.suites) {
+		    var benchmarks = BenchmarkSuite.suites[k].benchmarks;
+		    for (l in benchmarks) {
+			benchmarks[l].TearDown = teardownOverride;
+		    }
+                }
+		break;
+	    }
+	}
+	
+	BenchmarkSuite.RunSuites(callbacks);
+    }
     
-    var benchmarks = eval(arg.suite + ".benchmarks");
-    var min_score  = 1e9;
-    var max_score  = 0;
-    var mean_score = 0;
-
-    try {
-	for (var x = 0; x < benchmarks.length ; x++) { 
-	    benchmarks[x].Setup();
-	}
-	print_verbose("Running '" + arg.file + "' for " + iters + " iterations of no less than " + min_time + " seconds (" + runtime + ")");
-	
-	var scores = [];
-	
-	var min_time_ms = min_time * 1000;
-	var len = benchmarks.length;    
-	
-	for (var it = 0; it < iters + 1; it++) {
-	    //every iteration must take a minimum of 10 secs
-	    var ops = 0;
-	    var elapsed = 0;
-	    var start = new Date;
-	    do {
-		for (var i = 0; i < len; i++) {
-		    benchmarks[i].run();
-		}	    
-		ops += len;
-		elapsed = new Date - start;
-	    } while (elapsed < min_time * 1000);
-	    
-	    var score = ops / elapsed * 1000 * 60;
-	    scores.push(score);
-	    var name = it == 0 ? "warmup" : "iteration " + it;   
-	    print_verbose("[" + arg.file + "] " + name + " finished " + score.toFixed(0) + " ops/minute");
-	}
-
-	for (var x = 0; x < benchmarks.length ; x++) { 
-	    benchmarks[x].TearDown();
-	}
-
-	for (var x = 1; x < iters + 1 ; x++) {
-	    mean_score += scores[x];
-	    min_score = Math.min(min_score, scores[x]);
-	    max_score = Math.max(max_score, scores[x]);
-	}
-	mean_score /= iters;    
-
-    } catch (e) {
-	print_always("*** Aborted and setting score to zero. Reason: " + e);
-	mean_score = min_score = max_score = 0;
-	scores = [0];
-    }
-
-    var res = "[" + arg.file + "] " + mean_score.toFixed(0);
-    if (verbose) {
-	res += " ops/minute (" + min_score.toFixed(0) + "-" + max_score.toFixed(0) + "), warmup=" + scores[0].toFixed(0);
-    }
-    print_always(res);
-}
-
-function print_always(x) {
-    print(x);
-}
-
-function print_verbose(x) {
-    if (verbose) {
-	print(x);
-    }
+    var start = "Score: ";
+    if (runtime != "") {
+	start = runtime + ": ";
+    } 
+    print(start + current_name + ' (version ' + BenchmarkSuite.version + '): ' + loscore + '-' + hiscore);
 }
 
 function run_suite(tests, iters) {
     for (var idx = 0; idx < tests.length; idx++) {
-	run_one_benchmark(tests[idx], iters);
+	run_one_benchmark(tests[idx], iters, false);
     }
 }
 
 runtime = "command line";
 
 var args = [];
-
 if (typeof $ARGS !== 'undefined') {
     args = $ARGS;
 } else if (typeof arguments !== 'undefined' && arguments.length != 0) {
@@ -192,7 +192,6 @@ if (new_args.length != 0) {
 
 var tests_found = [];
 var iters = undefined;
-var min_time = 5;
 
 for (var i = 0; i < args.length; i++) { 
     arg = args[i];
@@ -202,41 +201,21 @@ for (var i = 0; i < args.length; i++) {
 	runtime = args[++i];
     } else if (arg == "--verbose") {
 	verbose = true;
-    } else if (arg == "--min-time") {
-	min_time = +args[++i];
     } else if (arg == "") {
 	continue; //skip
     } else {
-	var found = false;
-	for (j in tests) {
-	    if (tests[j].file === arg) {
-		tests_found.push(tests[j]);
-		found = true;
-		break;
-	    }
-	}
-	if (!found) {
-	    var str = "unknown test name: '" + arg + "' -- valid names are: ";
-	    for (j in tests) {
-		if (j != 0) {
-		    str += ", ";
-		}
-		str += "'" + tests[j].file + "'";
-	    }
-	    throw str;
-	}
+	tests_found.push(arg);
     }
 }
 
 if (tests_found.length == 0) {    
     for (i in tests) {
-	tests_found.push(tests[i]);
+	tests_found.push(path + tests[i]);
     }
 } 
 
 tests_found.sort();
 
-load(path + 'base.js');
 run_suite(tests_found, iters);
 
 

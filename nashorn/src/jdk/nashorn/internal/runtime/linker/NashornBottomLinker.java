@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,25 +27,18 @@ package jdk.nashorn.internal.runtime.linker;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.Map;
-import java.util.HashMap;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.beans.BeansLinker;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.GuardingDynamicLinker;
-import jdk.internal.dynalink.linker.GuardingTypeConverterFactory;
-import jdk.internal.dynalink.linker.LinkRequest;
-import jdk.internal.dynalink.linker.LinkerServices;
-import jdk.internal.dynalink.support.Guards;
 import jdk.nashorn.internal.runtime.Context;
-import jdk.nashorn.internal.runtime.JSType;
+import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
+import org.dynalang.dynalink.linker.GuardingDynamicLinker;
+import org.dynalang.dynalink.linker.LinkRequest;
+import org.dynalang.dynalink.linker.LinkerServices;
+import org.dynalang.dynalink.support.Guards;
 
 /**
  * Nashorn bottom linker; used as a last-resort catch-all linker for all linking requests that fall through all other
@@ -54,7 +47,7 @@ import jdk.nashorn.internal.runtime.ScriptRuntime;
  * setters for Java objects that couldn't be linked by any other linker, and throw appropriate ECMAScript errors for
  * attempts to invoke arbitrary Java objects as functions or constructors.
  */
-final class NashornBottomLinker implements GuardingDynamicLinker, GuardingTypeConverterFactory {
+class NashornBottomLinker implements GuardingDynamicLinker {
 
     @Override
     public GuardedInvocation getGuardedInvocation(final LinkRequest linkRequest, final LinkerServices linkerServices)
@@ -81,40 +74,29 @@ final class NashornBottomLinker implements GuardingDynamicLinker, GuardingTypeCo
     private static final MethodHandle EMPTY_ELEM_SETTER =
             MH.dropArguments(EMPTY_PROP_SETTER, 0, Object.class);
 
-    private static GuardedInvocation linkBean(final LinkRequest linkRequest, final LinkerServices linkerServices) throws Exception {
+    private static GuardedInvocation linkBean(final LinkRequest linkRequest, final LinkerServices linkerServices) {
         final NashornCallSiteDescriptor desc = (NashornCallSiteDescriptor)linkRequest.getCallSiteDescriptor();
         final Object self = linkRequest.getReceiver();
         final String operator = desc.getFirstOperator();
         switch (operator) {
         case "new":
-            if(BeansLinker.isDynamicMethod(self)) {
-                throw typeError("method.not.constructor", ScriptRuntime.safeToString(self));
+            if(isJavaDynamicMethod(self)) {
+                typeError(Context.getGlobal(), "method.not.constructor", ScriptRuntime.safeToString(self));
+            } else {
+                typeError(Context.getGlobal(), "not.a.function", ScriptRuntime.safeToString(self));
             }
-            throw typeError("not.a.function", ScriptRuntime.safeToString(self));
+            break;
         case "call":
-            // Support dyn:call on any object that supports some @FunctionalInterface
-            // annotated interface. This way Java method, constructor references or
-            // implementations of java.util.function.* interfaces can be called as though
-            // those are script functions.
-            final Method m = getFunctionalInterfaceMethod(self.getClass());
-            if (m != null) {
-                final MethodType callType = desc.getMethodType();
-                // 'callee' and 'thiz' passed from script + actual arguments
-                if (callType.parameterCount() != m.getParameterCount() + 2) {
-                    throw typeError("no.method.matches.args", ScriptRuntime.safeToString(self));
-                }
-                return new GuardedInvocation(
-                        // drop 'thiz' passed from the script.
-                        MH.dropArguments(desc.getLookup().unreflect(m), 1, callType.parameterType(1)),
-                        Guards.getInstanceOfGuard(m.getDeclaringClass())).asType(callType);
+            if(isJavaDynamicMethod(self)) {
+                typeError(Context.getGlobal(), "no.method.matches.args", ScriptRuntime.safeToString(self));
+            } else {
+                typeError(Context.getGlobal(), "not.a.function", ScriptRuntime.safeToString(self));
             }
-            if(BeansLinker.isDynamicMethod(self)) {
-                throw typeError("no.method.matches.args", ScriptRuntime.safeToString(self));
-            }
-            throw typeError("not.a.function", ScriptRuntime.safeToString(self));
+            break;
         case "callMethod":
         case "getMethod":
-            throw typeError("no.such.function", getArgument(linkRequest), ScriptRuntime.safeToString(self));
+            typeError(Context.getGlobal(), "no.such.function", getArgument(linkRequest), ScriptRuntime.safeToString(self));
+            break;
         case "getProp":
         case "getElem":
             if (desc.getOperand() != null) {
@@ -133,27 +115,14 @@ final class NashornBottomLinker implements GuardingDynamicLinker, GuardingTypeCo
         throw new AssertionError("unknown call type " + desc);
     }
 
-    @Override
-    public GuardedInvocation convertToType(final Class<?> sourceType, final Class<?> targetType) throws Exception {
-        final GuardedInvocation gi = convertToTypeNoCast(sourceType, targetType);
-        return gi == null ? null : gi.asType(MH.type(targetType, sourceType));
-    }
-
     /**
-     * Main part of the implementation of {@link GuardingTypeConverterFactory#convertToType(Class, Class)} that doesn't
-     * care about adapting the method signature; that's done by the invoking method. Returns conversion from Object to String/number/boolean (JS primitive types).
-     * @param sourceType the source type
-     * @param targetType the target type
-     * @return a guarded invocation that converts from the source type to the target type.
-     * @throws Exception if something goes wrong
+     * Returns true if the object is a Dynalink dynamic method. Unfortunately, the dynamic method classes are package
+     * private in Dynalink, so this is the closest we can get to determining it.
+     * @param obj the object we want to test for being a dynamic method
+     * @return true if it is a dynamic method, false otherwise.
      */
-    private static GuardedInvocation convertToTypeNoCast(final Class<?> sourceType, final Class<?> targetType) throws Exception {
-        final MethodHandle mh = CONVERTERS.get(targetType);
-        if (mh != null) {
-            return new GuardedInvocation(mh, null);
-        }
-
-        return null;
+    private static boolean isJavaDynamicMethod(Object obj) {
+        return obj.getClass().getName().endsWith("DynamicMethod");
     }
 
     private static GuardedInvocation getInvocation(final MethodHandle handle, final Object self, final LinkerServices linkerServices, final CallSiteDescriptor desc) {
@@ -167,34 +136,30 @@ final class NashornBottomLinker implements GuardingDynamicLinker, GuardingTypeCo
     }
 
     private static GuardedInvocation linkNull(final LinkRequest linkRequest) {
+        final ScriptObject global = Context.getGlobal();
         final NashornCallSiteDescriptor desc = (NashornCallSiteDescriptor)linkRequest.getCallSiteDescriptor();
         final String operator = desc.getFirstOperator();
         switch (operator) {
         case "new":
         case "call":
-            throw typeError("not.a.function", "null");
+            typeError(global, "not.a.function", "null");
+            break;
         case "callMethod":
         case "getMethod":
-            throw typeError("no.such.function", getArgument(linkRequest), "null");
+            typeError(global, "no.such.function", getArgument(linkRequest), "null");
+            break;
         case "getProp":
         case "getElem":
-            throw typeError("cant.get.property", getArgument(linkRequest), "null");
+            typeError(global, "cant.get.property", getArgument(linkRequest), "null");
+            break;
         case "setProp":
         case "setElem":
-            throw typeError("cant.set.property", getArgument(linkRequest), "null");
+            typeError(global, "cant.set.property", getArgument(linkRequest), "null");
+            break;
         default:
             break;
         }
         throw new AssertionError("unknown call type " + desc);
-    }
-
-    private static final Map<Class<?>, MethodHandle> CONVERTERS = new HashMap<>();
-    static {
-        CONVERTERS.put(boolean.class, JSType.TO_BOOLEAN.methodHandle());
-        CONVERTERS.put(double.class, JSType.TO_NUMBER.methodHandle());
-        CONVERTERS.put(int.class, JSType.TO_INTEGER.methodHandle());
-        CONVERTERS.put(long.class, JSType.TO_LONG.methodHandle());
-        CONVERTERS.put(String.class, JSType.TO_STRING.methodHandle());
     }
 
     private static String getArgument(final LinkRequest linkRequest) {
@@ -203,45 +168,5 @@ final class NashornBottomLinker implements GuardingDynamicLinker, GuardingTypeCo
             return desc.getNameToken(2);
         }
         return ScriptRuntime.safeToString(linkRequest.getArguments()[1]);
-    }
-
-    // cache of @FunctionalInterface method of implementor classes
-    private static final ClassValue<Method> FUNCTIONAL_IFACE_METHOD = new ClassValue<Method>() {
-        @Override
-        protected Method computeValue(final Class<?> type) {
-            return findFunctionalInterfaceMethod(type);
-        }
-
-        private Method findFunctionalInterfaceMethod(final Class<?> clazz) {
-            if (clazz == null) {
-                return null;
-            }
-
-            for (Class<?> iface : clazz.getInterfaces()) {
-                // check accessiblity up-front
-                if (! Context.isAccessibleClass(iface)) {
-                    continue;
-                }
-
-                // check for @FunctionalInterface
-                if (iface.isAnnotationPresent(FunctionalInterface.class)) {
-                    // return the first abstract method
-                    for (final Method m : iface.getMethods()) {
-                        if (Modifier.isAbstract(m.getModifiers())) {
-                            return m;
-                        }
-                    }
-                }
-            }
-
-            // did not find here, try super class
-            return findFunctionalInterfaceMethod(clazz.getSuperclass());
-        }
-    };
-
-    // Returns @FunctionalInterface annotated interface's single abstract
-    // method. If not found, returns null.
-    static Method getFunctionalInterfaceMethod(final Class<?> clazz) {
-        return FUNCTIONAL_IFACE_METHOD.get(clazz);
     }
 }

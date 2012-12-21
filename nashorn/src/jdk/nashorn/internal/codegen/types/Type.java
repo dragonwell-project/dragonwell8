@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.DUP_X2;
 import static jdk.internal.org.objectweb.asm.Opcodes.IALOAD;
 import static jdk.internal.org.objectweb.asm.Opcodes.IASTORE;
 import static jdk.internal.org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static jdk.internal.org.objectweb.asm.Opcodes.LALOAD;
 import static jdk.internal.org.objectweb.asm.Opcodes.LASTORE;
 import static jdk.internal.org.objectweb.asm.Opcodes.NEWARRAY;
 import static jdk.internal.org.objectweb.asm.Opcodes.POP;
@@ -44,11 +43,11 @@ import static jdk.internal.org.objectweb.asm.Opcodes.POP2;
 import static jdk.internal.org.objectweb.asm.Opcodes.SWAP;
 import static jdk.internal.org.objectweb.asm.Opcodes.T_DOUBLE;
 import static jdk.internal.org.objectweb.asm.Opcodes.T_INT;
-import static jdk.internal.org.objectweb.asm.Opcodes.T_LONG;
 
 import java.lang.invoke.MethodHandle;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 
@@ -107,10 +106,20 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
     Type(final String name, final Class<?> clazz, final int weight, final int slots) {
         this.name       = name;
         this.clazz      = clazz;
-        this.descriptor = jdk.internal.org.objectweb.asm.Type.getDescriptor(clazz);
+        this.descriptor = Type.getDescriptor(clazz);
         this.weight     = weight;
         assert weight >= MIN_WEIGHT && weight <= MAX_WEIGHT : "illegal type weight: " + weight;
         this.slots      = slots;
+    }
+
+    /**
+     * Return an internal descriptor for a type
+     *
+     * @param type the type
+     * @return descriptor string
+     */
+    public static String getDescriptor(final Class<?> type) {
+        return jdk.internal.org.objectweb.asm.Type.getDescriptor(type);
     }
 
     /**
@@ -292,16 +301,6 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
     }
 
     /**
-     * Determines whether this type represents an primitive type according to the ECMAScript specification,
-     * which includes Boolean, Number, and String.
-     *
-     * @return true if a JavaScript primitive type, false otherwise.
-     */
-    public boolean isJSPrimitive() {
-        return !isObject() || isString();
-    }
-
-    /**
      * Determines whether a type is the BOOLEAN type
      * @return true if BOOLEAN, false otherwise
      */
@@ -451,12 +450,7 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
         if (type0.isArray() && type1.isArray()) {
             return ((ArrayType)type0).getElementType() == ((ArrayType)type1).getElementType() ? type0 : Type.OBJECT;
         } else if (type0.isArray() != type1.isArray()) {
-            //array and non array is always object, widest(Object[], int) NEVER returns Object[], which has most weight. that does not make sense
-            return Type.OBJECT;
-        } else if (type0.isObject() && type1.isObject() && type0.getTypeClass() != type1.getTypeClass()) {
-            // Object<type=String> and Object<type=ScriptFunction> will produce Object
-            // TODO: maybe find most specific common superclass?
-            return Type.OBJECT;
+            return Type.OBJECT; //array and non array is always object, widest(Object[], int) NEVER returns Object[], which has most weight. that does not make sense
         }
         return type0.weight() > type1.weight() ? type0 : type1;
     }
@@ -562,19 +556,19 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
      * @return the Type representing this class
      */
     public static Type typeFor(final Class<?> clazz) {
-        final Type type = cache.get(clazz);
-        if(type != null) {
-            return type;
+        Type type = cache.get(clazz);
+
+        if (type == null) {
+            assert !clazz.isPrimitive() || clazz == void.class;
+            if (clazz.isArray()) {
+                type = new ArrayType(clazz);
+            } else {
+                type = new ObjectType(clazz);
+            }
+            cache.put(clazz, type);
         }
-        assert !clazz.isPrimitive() || clazz == void.class;
-        final Type newType;
-        if (clazz.isArray()) {
-            newType = new ArrayType(clazz);
-        } else {
-            newType = new ObjectType(clazz);
-        }
-        final Type existingType = cache.putIfAbsent(clazz, newType);
-        return existingType == null ? newType : existingType;
+
+        return type;
     }
 
     @Override
@@ -622,12 +616,6 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
         return this;
     }
 
-    @Override
-    public Type loadEmpty(final MethodVisitor method) {
-        assert false : "unsupported operation";
-        return null;
-    }
-
     /**
      * Superclass logic for pop for all types
      *
@@ -659,56 +647,55 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
     }
 
     private static void swap(final MethodVisitor method, final Type above, final Type below) {
+        final MethodVisitor mv = method;
         if (below.isCategory2()) {
             if (above.isCategory2()) {
-                method.visitInsn(DUP2_X2);
-                method.visitInsn(POP2);
+                mv.visitInsn(DUP2_X2);
+                mv.visitInsn(POP2);
             } else {
-                method.visitInsn(DUP_X2);
-                method.visitInsn(POP);
+                mv.visitInsn(DUP_X2);
+                mv.visitInsn(POP);
             }
         } else {
             if (above.isCategory2()) {
-                method.visitInsn(DUP2_X1);
-                method.visitInsn(POP2);
+                mv.visitInsn(DUP2_X1);
+                mv.visitInsn(POP2);
             } else {
-                method.visitInsn(SWAP);
+                mv.visitInsn(SWAP);
             }
         }
-    }
 
-    /** Mappings between java classes and their Type singletons */
-    private static final ConcurrentMap<Class<?>, Type> cache = new ConcurrentHashMap<>();
+    }
 
     /**
      * This is the boolean singleton, used for all boolean types
      */
-    public static final Type BOOLEAN = putInCache(new BooleanType());
+    public static final Type BOOLEAN = new BooleanType();
 
     /**
      * This is an integer type, i.e INT, INT32.
      */
-    public static final Type INT = putInCache(new IntType());
+    public static final Type INT = new IntType();
 
     /**
      * This is the number singleton, used for all number types
      */
-    public static final Type NUMBER = putInCache(new NumberType());
+    public static final Type NUMBER = new NumberType();
 
     /**
      * This is the long singleton, used for all long types
      */
-    public static final Type LONG = putInCache(new LongType());
+    public static final Type LONG = new LongType();
 
     /**
      * A string singleton
      */
-    public static final Type STRING = putInCache(new ObjectType(String.class));
+    public static final Type STRING = new ObjectType(String.class);
 
     /**
      * This is the object singleton, used for all object types
      */
-    public static final Type OBJECT = putInCache(new ObjectType());
+    public static final Type OBJECT = new ObjectType();
 
     /**
      * This is the singleton for integer arrays
@@ -748,19 +735,19 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
 
         @Override
         public Type aload(final MethodVisitor method) {
-            method.visitInsn(LALOAD);
-            return LONG;
+            method.visitInsn(IALOAD);
+            return INT;
         }
 
         @Override
         public Type newarray(final MethodVisitor method) {
-            method.visitIntInsn(NEWARRAY, T_LONG);
+            method.visitIntInsn(NEWARRAY, T_INT);
             return this;
         }
 
         @Override
         public Type getElementType() {
-            return LONG;
+            return INT;
         }
     };
 
@@ -792,13 +779,13 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
     };
 
     /** Singleton for method handle arrays used for properties etc. */
-    public static final ArrayType METHODHANDLE_ARRAY = putInCache(new ArrayType(MethodHandle[].class));
+    public static final ArrayType METHODHANDLE_ARRAY = new ArrayType(new MethodHandle[0].getClass());
 
     /** This is the singleton for string arrays */
-    public static final ArrayType STRING_ARRAY = putInCache(new ArrayType(String[].class));
+    public static final ArrayType STRING_ARRAY = new ArrayType(new String[0].getClass());
 
     /** This is the singleton for object arrays */
-    public static final ArrayType OBJECT_ARRAY = putInCache(new ArrayType(Object[].class));
+    public static final ArrayType OBJECT_ARRAY = new ArrayType(new Object[0].getClass());
 
     /** This type, always an object type, just a toString override */
     public static final Type THIS = new ObjectType() {
@@ -855,6 +842,12 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
         }
 
         @Override
+        public Type loadEmpty(final MethodVisitor method) {
+            assert false : "unsupported operation";
+            return null;
+        }
+
+        @Override
         public Type convert(final MethodVisitor method, final Type to) {
             assert false : "unsupported operation";
             return null;
@@ -872,8 +865,18 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
         }
     };
 
-    private static <T extends Type> T putInCache(T type) {
-        cache.put(type.getTypeClass(), type);
-        return type;
+    /** Mappings between java classes and their Type singletons */
+    private static final Map<Class<?>, Type> cache = Collections.synchronizedMap(new HashMap<Class<?>, Type>());
+
+    //TODO may need to be cleared, as all types are retained throughout code generation
+    static {
+        cache.put(BOOLEAN.getTypeClass(), BOOLEAN);
+        cache.put(INT.getTypeClass(),     INT);
+        cache.put(LONG.getTypeClass(),    LONG);
+        cache.put(NUMBER.getTypeClass(),  NUMBER);
+        cache.put(STRING.getTypeClass(),  STRING);
+        cache.put(OBJECT.getTypeClass(),  OBJECT);
+        cache.put(OBJECT_ARRAY.getTypeClass(), OBJECT_ARRAY);
     }
+
 }

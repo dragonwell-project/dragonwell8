@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,33 +25,37 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.codegen.MethodEmitter;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for {@code break} statements.
  */
-@Immutable
-public final class BreakNode extends Statement {
+public class BreakNode extends LabeledNode {
 
-    private final IdentNode label;
-
-    /**
+     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     source code
      * @param token      token
      * @param finish     finish
-     * @param label      label for break or null if none
+     * @param labelNode  break label
+     * @param targetNode node to break to
+     * @param tryChain   surrounding try chain
      */
-    public BreakNode(final int lineNumber, final long token, final int finish, final IdentNode label) {
-        super(lineNumber, token, finish);
-        this.label = label;
+    public BreakNode(final Source source, final long token, final int finish, final LabelNode labelNode, final Node targetNode, final TryNode tryChain) {
+        super(source, token, finish, labelNode, targetNode, tryChain);
+        setHasGoto();
+    }
+
+    private BreakNode(final BreakNode breakNode, final CopyState cs) {
+        super(breakNode, cs);
     }
 
     @Override
-    public boolean hasGoto() {
-        return true;
+    protected Node copy(final CopyState cs) {
+        return new BreakNode(this, cs);
     }
 
     /**
@@ -59,29 +63,35 @@ public final class BreakNode extends Statement {
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterBreakNode(this)) {
-            return visitor.leaveBreakNode(this);
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            return visitor.leave(this);
         }
 
         return this;
     }
 
     /**
-     * Get the label for this break node
-     * @return label, or null if none
+     * Return the target label of this break node.
+     * @return the target label.
      */
-    public IdentNode getLabel() {
-        return label;
+    public MethodEmitter.Label getTargetLabel() {
+        if (targetNode instanceof BreakableNode) {
+            return ((BreakableNode)targetNode).getBreakLabel();
+        } else if (targetNode instanceof Block) {
+            return ((Block)targetNode).getBreakLabel();
+        }
+
+        throw new AssertionError("Invalid break target " + targetNode.getClass());
     }
 
     @Override
     public void toString(final StringBuilder sb) {
         sb.append("break");
 
-        if (label != null) {
+        if (labelNode != null) {
             sb.append(' ');
-            label.toString(sb);
+            labelNode.getLabel().toString(sb);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 
 /**
- * Try to call System.exit, quit and exit.
+ * Try to call System.exit.
  *
  * @test
  * @security
@@ -38,20 +38,6 @@ function check(e) {
 
 try {
     java.lang.System.exit(0);
-    // will not reach here regardless of outcome..
-} catch (e) {
-    check(e);
-}
-
-try {
-    quit();
-    // will not reach here regardless of outcome..
-} catch (e) {
-    check(e);
-}
-
-try {
-    exit(0);
     // will not reach here regardless of outcome..
 } catch (e) {
     check(e);

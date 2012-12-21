@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -60,13 +60,23 @@ function test_jquery(url) {
     var name;
     
     try {    
-	var split = url.split('/');
-	name = split[split.length - 1];
-	var path  = __DIR__ + "../external/jquery/" + name;
 	try {
-	    load(path);
+	    var split = url.split('/');
+	    name = split[split.length - 1];
+	    var path  = __DIR__ + "../external/jquery/" + name;
+	    try {
+		load(path);
+	    } catch (e) {
+		checkWindow(e);
+	    }
 	} catch (e) {
-	    checkWindow(e);
+	    // try to load it from the internet, if we for some licensing reason
+	    // aren't allowed to ship third party code under MIT license
+	    try {
+		load(url);
+	    } catch (e) {
+		checkWindow(e);
+	    }
 	}
     } catch (e) {
 	print("Unexpected exception " + e);
@@ -74,6 +84,8 @@ function test_jquery(url) {
     
     print("done " + name);
 }
+
+
 
 for each (url in urls) {
     test_jquery(url);

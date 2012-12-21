@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -40,6 +40,7 @@ public final class NashornGuards {
     private static final MethodHandle IS_SCRIPTOBJECT          = findOwnMH("isScriptObject", boolean.class, Object.class);
     private static final MethodHandle IS_SCRIPTFUNCTION        = findOwnMH("isScriptFunction", boolean.class, Object.class);
     private static final MethodHandle IS_MAP                   = findOwnMH("isMap", boolean.class, Object.class, PropertyMap.class);
+    private static final MethodHandle IS_FUNCTION_MH           = findOwnMH("isFunctionMH", boolean.class, Object.class, MethodHandle.class);
     private static final MethodHandle IS_INSTANCEOF_2          = findOwnMH("isInstanceOf2", boolean.class, Object.class, Class.class, Class.class);
 
     // don't create me!
@@ -85,6 +86,19 @@ public final class NashornGuards {
         return MH.insertArguments(IS_INSTANCEOF_2, 1, class1, class2);
     }
 
+    /**
+     * Get the guard that checks if a {@link ScriptFunction} is equal to
+     * a known ScriptFunction, using reference comparison
+     *
+     * @param function The ScriptFunction to check against. This will be bound to the guard method handle
+     *
+     * @return method handle for guard
+     */
+    public static MethodHandle getFunctionGuard(final ScriptFunction function) {
+        assert function.getInvokeHandle() != null;
+        return MH.insertArguments(IS_FUNCTION_MH, 1, function.getInvokeHandle());
+    }
+
     @SuppressWarnings("unused")
     private static boolean isScriptObject(final Object self) {
         return self instanceof ScriptObject;
@@ -98,6 +112,11 @@ public final class NashornGuards {
     @SuppressWarnings("unused")
     private static boolean isMap(final Object self, final PropertyMap map) {
         return self instanceof ScriptObject && ((ScriptObject)self).getMap() == map;
+    }
+
+    @SuppressWarnings("unused")
+    private static boolean isFunctionMH(final Object self, final MethodHandle mh) {
+        return self instanceof ScriptFunction && ((ScriptFunction)self).getInvokeHandle() == mh;
     }
 
     @SuppressWarnings("unused")

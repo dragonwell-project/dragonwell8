@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,8 @@ import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_CHECK_COMPI
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_COMPARE;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_EXPECT_COMPILE_FAIL;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_EXPECT_RUN_FAIL;
-import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_FORK;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_IGNORE_STD_ERROR;
 import static jdk.nashorn.internal.test.framework.TestConfig.OPTIONS_RUN;
-import static jdk.nashorn.internal.test.framework.TestConfig.TEST_FAILED_LIST_FILE;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_ENABLE_STRICT_MODE;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_EXCLUDES_FILE;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_EXCLUDE_DIR;
@@ -43,9 +41,7 @@ import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_LIST;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_ROOTS;
 import static jdk.nashorn.internal.test.framework.TestConfig.TEST_JS_UNCHECKED_DIR;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -90,22 +86,6 @@ final class TestFinder {
     static <T> void findAllTests(final List<T> tests, final Set<String> orphans, final TestFactory<T> testFactory) throws Exception {
         final String framework = System.getProperty(TEST_JS_FRAMEWORK);
         final String testList = System.getProperty(TEST_JS_LIST);
-        final String failedTestFileName = System.getProperty(TEST_FAILED_LIST_FILE);
-        if(failedTestFileName != null) {
-            File failedTestFile = new File(failedTestFileName);
-            if(failedTestFile.exists() && failedTestFile.length() > 0L) {
-                try(final BufferedReader r = new BufferedReader(new FileReader(failedTestFile))) {
-                    for(;;) {
-                        final String testFileName = r.readLine();
-                        if(testFileName == null) {
-                            break;
-                        }
-                        handleOneTest(framework, new File(testFileName).toPath(), tests, orphans, testFactory);
-                    }
-                }
-                return;
-            }
-        }
         if (testList == null || testList.length() == 0) {
             // Run the tests under the test roots dir, selected by the
             // TEST_JS_INCLUDES patterns
@@ -209,7 +189,6 @@ final class TestFinder {
         boolean checkCompilerMsg = false;
         boolean noCompare = false;
         boolean ignoreStdError = false;
-        boolean fork = false;
 
         final List<String> engineOptions = new ArrayList<>();
         final List<String> scriptArguments = new ArrayList<>();
@@ -286,9 +265,6 @@ final class TestFinder {
                 case "@option":
                     engineOptions.add(scanner.next());
                     break;
-                case "@fork":
-                    fork = true;
-                    break;
                 }
 
                 // negative tests are expected to fail at runtime only
@@ -328,9 +304,6 @@ final class TestFinder {
             }
             if (ignoreStdError) {
                 testOptions.put(OPTIONS_IGNORE_STD_ERROR, "true");
-            }
-            if (fork) {
-                testOptions.put(OPTIONS_FORK, "true");
             }
 
             tests.add(factory.createTest(framework, testFile.toFile(), engineOptions, testOptions, scriptArguments));

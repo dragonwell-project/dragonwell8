@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,12 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.PrintWriter;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -43,15 +44,14 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import jdk.internal.dynalink.ChainedCallSite;
-import jdk.internal.dynalink.DynamicLinker;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.Debug;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.options.Options;
+import org.dynalang.dynalink.ChainedCallSite;
+import org.dynalang.dynalink.DynamicLinker;
+import org.dynalang.dynalink.linker.GuardedInvocation;
 
 
 /**
@@ -79,9 +79,8 @@ public class LinkerCallSite extends ChainedCallSite {
      * @param flags    Call site specific flags.
      * @return New LinkerCallSite.
      */
-    static LinkerCallSite newLinkerCallSite(final MethodHandles.Lookup lookup, final String name, final MethodType type,
-            final int flags) {
-        final NashornCallSiteDescriptor desc = NashornCallSiteDescriptor.get(lookup, name, type, flags);
+    static LinkerCallSite newLinkerCallSite(final String name, final MethodType type, final int flags) {
+        final NashornCallSiteDescriptor desc = NashornCallSiteDescriptor.get(name, type, flags);
 
         if (desc.isProfile()) {
             return ProfilingLinkerCallSite.newProfilingLinkerCallSite(desc);
@@ -133,7 +132,7 @@ public class LinkerCallSite extends ChainedCallSite {
     }
 
     private static String getScriptLocation() {
-        final StackTraceElement caller = DynamicLinker.getLinkedCallSiteLocation();
+        final StackTraceElement caller = DynamicLinker.getRelinkedCallSiteLocation();
         return caller == null ? "unknown location" : (caller.getFileName() + ":" + caller.getLineNumber());
     }
 
@@ -276,35 +275,24 @@ public class LinkerCallSite extends ChainedCallSite {
         }
 
         static class ProfileDumper implements Runnable {
-            @SuppressWarnings("resource")
             @Override
             public void run() {
-                PrintWriter out    = null;
-                boolean fileOutput = false;
+                OutputStream out;
 
                 try {
-                    try {
-                        out = new PrintWriter(new FileOutputStream(PROFILEFILE));
-                        fileOutput = true;
-                    } catch (final FileNotFoundException e) {
-                        out = Context.getCurrentErr();
-                    }
-
-                    dump(out);
-                } finally {
-                    if (out != null && fileOutput) {
-                        out.close();
-                    }
+                    out = new FileOutputStream(PROFILEFILE);
+                } catch (final FileNotFoundException e) {
+                    out = new PrintStream(System.err); //TODO abstraction break- why is this hard coded to System.err when everything else uses the context
                 }
-            }
 
-            private static void dump(final PrintWriter out) {
-                int index = 0;
-                for (final ProfilingLinkerCallSite callSite : profileCallSites) {
-                   out.println("" + (index++) + '\t' +
-                                  callSite.getDescriptor().getName() + '\t' +
-                                  callSite.totalTime + '\t' +
-                                  callSite.hitCount);
+                try (PrintStream stream = new PrintStream(out)) {
+                    int index = 0;
+                    for (final ProfilingLinkerCallSite callSite : profileCallSites) {
+                       stream.println("" + (index++) + '\t' +
+                                      callSite.getDescriptor().getName() + '\t' +
+                                      callSite.totalTime + '\t' +
+                                      callSite.hitCount);
+                    }
                 }
             }
         }
@@ -317,7 +305,13 @@ public class LinkerCallSite extends ChainedCallSite {
 
         private static final MethodHandle TRACEOBJECT = findOwnMH("traceObject", Object.class, MethodHandle.class, Object[].class);
         private static final MethodHandle TRACEVOID   = findOwnMH("traceVoid", void.class, MethodHandle.class, Object[].class);
-        private static final MethodHandle TRACEMISS   = findOwnMH("traceMiss", void.class, String.class, Object[].class);
+        private static final MethodHandle TRACEMISS   = findOwnMH("traceMiss", void.class, Object[].class);
+
+        private static final PrintStream out = System.err; //TODO abstraction break- why is this hard coded to System.err when everything else uses the context
+
+        /*
+         * Constructor
+         */
 
         TracingLinkerCallSite(final NashornCallSiteDescriptor desc) {
            super(desc);
@@ -363,10 +357,10 @@ public class LinkerCallSite extends ChainedCallSite {
                 return relink;
             }
             final MethodType type = relink.type();
-            return MH.foldArguments(relink, MH.asType(MH.asCollector(MH.insertArguments(TRACEMISS, 0, this, "MISS " + getScriptLocation() + " "), Object[].class, type.parameterCount()), type.changeReturnType(void.class)));
+            return MH.foldArguments(relink, MH.asType(MH.asCollector(MH.bindTo(TRACEMISS, this), Object[].class, type.parameterCount()), type.changeReturnType(void.class)));
         }
 
-        private void printObject(final PrintWriter out, final Object arg) {
+        private void printObject(final Object arg) {
             if (!getNashornDescriptor().isTraceObjects()) {
                 out.print((arg instanceof ScriptObject) ? "ScriptObject" : arg);
                 return;
@@ -396,7 +390,7 @@ public class LinkerCallSite extends ChainedCallSite {
                         if (value instanceof ScriptObject) {
                             out.print("...");
                         } else {
-                            printObject(out, value);
+                            printObject(value);
                         }
 
                         isFirst = false;
@@ -409,19 +403,19 @@ public class LinkerCallSite extends ChainedCallSite {
             }
         }
 
-        private void tracePrint(final PrintWriter out, final String tag, final Object[] args, final Object result) {
+        private void tracePrint(final String tag, final Object[] args, final Object result) {
             //boolean isVoid = type().returnType() == void.class;
             out.print(Debug.id(this) + " TAG " + tag);
             out.print(getDescriptor().getName() + "(");
 
             if (args.length > 0) {
-                printObject(out, args[0]);
+                printObject(args[0]);
                 for (int i = 1; i < args.length; i++) {
                     final Object arg = args[i];
                     out.print(", ");
 
                     if (getNashornDescriptor().isTraceScope() || !(arg instanceof ScriptObject && ((ScriptObject)arg).isScope())) {
-                        printObject(out, arg);
+                        printObject(arg);
                     } else {
                         out.print("SCOPE");
                     }
@@ -432,7 +426,7 @@ public class LinkerCallSite extends ChainedCallSite {
 
             if (tag.equals("EXIT  ")) {
                 out.print(" --> ");
-                printObject(out, result);
+                printObject(result);
             }
 
             out.println();
@@ -448,12 +442,11 @@ public class LinkerCallSite extends ChainedCallSite {
          *
          * @throws Throwable if invocation fails or throws exception/error
          */
-        @SuppressWarnings({"unused", "resource"})
+        @SuppressWarnings("unused")
         public Object traceObject(final MethodHandle mh, final Object... args) throws Throwable {
-            final PrintWriter out = Context.getCurrentErr();
-            tracePrint(out, "ENTER ", args, null);
+            tracePrint("ENTER ", args, null);
             final Object result = mh.invokeWithArguments(args);
-            tracePrint(out, "EXIT  ", args, result);
+            tracePrint("EXIT  ", args, result);
 
             return result;
         }
@@ -466,25 +459,23 @@ public class LinkerCallSite extends ChainedCallSite {
          *
          * @throws Throwable if invocation fails or throws exception/error
          */
-        @SuppressWarnings({"unused", "resource"})
+        @SuppressWarnings("unused")
         public void traceVoid(final MethodHandle mh, final Object... args) throws Throwable {
-            final PrintWriter out = Context.getCurrentErr();
-            tracePrint(out, "ENTER ", args, null);
+            tracePrint("ENTER ", args, null);
             mh.invokeWithArguments(args);
-            tracePrint(out, "EXIT  ", args, null);
+            tracePrint("EXIT  ", args, null);
         }
 
         /**
          * Tracer function that logs a callsite miss
          *
-         * @param desc callsite descriptor string
          * @param args arguments to function
          *
          * @throws Throwable if invocation failes or throws exception/error
          */
         @SuppressWarnings("unused")
-        public void traceMiss(final String desc, final Object... args) throws Throwable {
-            tracePrint(Context.getCurrentErr(), desc, args, null);
+        public void traceMiss(final Object... args) throws Throwable {
+            tracePrint("MISS ", args, null);
         }
 
         private static MethodHandle findOwnMH(final String name, final Class<?> rtype, final Class<?>... types) {
@@ -531,7 +522,7 @@ public class LinkerCallSite extends ChainedCallSite {
      * Dump the miss counts collected so far to a given output stream
      * @param out print stream
      */
-    public static void getMissCounts(final PrintWriter out) {
+    public static void getMissCounts(final PrintStream out) {
         final ArrayList<Entry<String, AtomicInteger>> entries = new ArrayList<>(missCounts.entrySet());
 
         Collections.sort(entries, new Comparator<Map.Entry<String, AtomicInteger>>() {

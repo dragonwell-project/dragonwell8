@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,15 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import jdk.nashorn.internal.codegen.types.Type;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.parser.TokenType;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for a runtime call.
+ *
  */
-@Immutable
-public class RuntimeNode extends Expression {
+public class RuntimeNode extends Node implements TypeOverride {
 
     /**
      * Request enum used for meta-information about the runtime request
@@ -52,6 +52,8 @@ public class RuntimeNode extends Expression {
         NEW,
         /** Typeof operator */
         TYPEOF,
+        /** void type */
+        VOID,
         /** Reference error type */
         REFERENCE_ERROR,
         /** Delete operator */
@@ -62,17 +64,17 @@ public class RuntimeNode extends Expression {
         EQ_STRICT(TokenType.EQ_STRICT, Type.BOOLEAN, 2, true),
         /** == operator with at least one object */
         EQ(TokenType.EQ, Type.BOOLEAN, 2, true),
-        /** {@literal >=} operator with at least one object */
+        /** >= operator with at least one object */
         GE(TokenType.GE, Type.BOOLEAN, 2, true),
-        /** {@literal >} operator with at least one object */
+        /** > operator with at least one object */
         GT(TokenType.GT, Type.BOOLEAN, 2, true),
         /** in operator */
         IN(TokenType.IN, Type.BOOLEAN, 2),
         /** instanceof operator */
         INSTANCEOF(TokenType.INSTANCEOF, Type.BOOLEAN, 2),
-        /** {@literal <=} operator with at least one object */
+        /** <= operator with at least one object */
         LE(TokenType.LE, Type.BOOLEAN, 2, true),
-        /** {@literal <} operator with at least one object */
+        /** < operator with at least one object */
         LT(TokenType.LT, Type.BOOLEAN, 2, true),
         /** !== operator with at least one object */
         NE_STRICT(TokenType.NE_STRICT, Type.BOOLEAN, 2, true),
@@ -143,52 +145,6 @@ public class RuntimeNode extends Expression {
         }
 
         /**
-         * Get the non-strict name for this request.
-         *
-         * @return the name without _STRICT suffix
-         */
-        public String nonStrictName() {
-            switch(this) {
-            case NE_STRICT:
-                return NE.name();
-            case EQ_STRICT:
-                return EQ.name();
-            default:
-                return name();
-            }
-        }
-
-        /**
-         * Derive a runtime node request type for a node
-         * @param node the node
-         * @return request type
-         */
-        public static Request requestFor(final Node node) {
-            assert node.isComparison();
-            switch (node.tokenType()) {
-            case EQ_STRICT:
-                return Request.EQ_STRICT;
-            case NE_STRICT:
-                return Request.NE_STRICT;
-            case EQ:
-                return Request.EQ;
-            case NE:
-                return Request.NE;
-            case LT:
-                return Request.LT;
-            case LE:
-                return Request.LE;
-            case GT:
-                return Request.GT;
-            case GE:
-                return Request.GE;
-            default:
-                assert false;
-                return null;
-            }
-        }
-
-        /**
          * Is this an EQ or EQ_STRICT?
          *
          * @param request a request
@@ -212,7 +168,7 @@ public class RuntimeNode extends Expression {
 
         /**
          * If this request can be reversed, return the reverse request
-         * Eq EQ {@literal ->} NE.
+         * Eq EQ -> NE.
          *
          * @param request request to reverse
          *
@@ -296,111 +252,57 @@ public class RuntimeNode extends Expression {
     private final Request request;
 
     /** Call arguments. */
-    private final List<Expression> args;
+    private final List<Node> args;
 
-    /** is final - i.e. may not be removed again, lower in the code pipeline */
-    private final boolean isFinal;
+    /** Call site override - e.g. we know that a ScriptRuntime.ADD will return an int */
+    private Type callSiteType;
 
     /**
      * Constructor
      *
+     * @param source  the source
      * @param token   token
      * @param finish  finish
      * @param request the request
      * @param args    arguments to request
      */
-    public RuntimeNode(final long token, final int finish, final Request request, final List<Expression> args) {
-        super(token, finish);
+    public RuntimeNode(final Source source, final long token, final int finish, final Request request, final List<Node> args) {
+        super(source, token, finish);
 
         this.request      = request;
         this.args         = args;
-        this.isFinal      = false;
     }
 
-    private RuntimeNode(final RuntimeNode runtimeNode, final Request request, final boolean isFinal, final List<Expression> args) {
+    /**
+     * Constructor
+     *
+     * @param source  the source
+     * @param token   token
+     * @param finish  finish
+     * @param request the request
+     * @param args    arguments to request
+     */
+    public RuntimeNode(final Source source, final long token, final int finish, final Request request, final Node... args) {
+        this(source, token, finish, request, Arrays.asList(args));
+    }
+
+    private RuntimeNode(final RuntimeNode runtimeNode, final CopyState cs) {
         super(runtimeNode);
 
-        this.request      = request;
-        this.args         = args;
-        this.isFinal      = isFinal;
-    }
+        final List<Node> newArgs = new ArrayList<>();
 
-    /**
-     * Constructor
-     *
-     * @param token   token
-     * @param finish  finish
-     * @param request the request
-     * @param args    arguments to request
-     */
-    public RuntimeNode(final long token, final int finish, final Request request, final Expression... args) {
-        this(token, finish, request, Arrays.asList(args));
-    }
-
-    /**
-     * Constructor
-     *
-     * @param parent  parent node from which to inherit source, token, finish
-     * @param request the request
-     * @param args    arguments to request
-     */
-    public RuntimeNode(final Expression parent, final Request request, final Expression... args) {
-        this(parent, request, Arrays.asList(args));
-    }
-
-    /**
-     * Constructor
-     *
-     * @param parent  parent node from which to inherit source, token, finish
-     * @param request the request
-     * @param args    arguments to request
-     */
-    public RuntimeNode(final Expression parent, final Request request, final List<Expression> args) {
-        super(parent);
-
-        this.request      = request;
-        this.args         = args;
-        this.isFinal      = false;
-    }
-
-    /**
-     * Constructor
-     *
-     * @param parent  parent node from which to inherit source, token, finish and arguments
-     * @param request the request
-     */
-    public RuntimeNode(final UnaryNode parent, final Request request) {
-        this(parent, request, parent.rhs());
-    }
-
-    /**
-     * Constructor
-     *
-     * @param parent  parent node from which to inherit source, token, finish and arguments
-     * @param request the request
-     */
-    public RuntimeNode(final BinaryNode parent, final Request request) {
-        this(parent, request, parent.lhs(), parent.rhs());
-    }
-
-    /**
-     * Is this node final - i.e. it can never be replaced with other nodes again
-     * @return true if final
-     */
-    public boolean isFinal() {
-        return isFinal;
-    }
-
-    /**
-     * Flag this node as final - i.e it may never be replaced with other nodes again
-     * @param isFinal is the node final, i.e. can not be removed and replaced by a less generic one later in codegen
-     * @return same runtime node if already final, otherwise a new one
-     */
-    public RuntimeNode setIsFinal(final boolean isFinal) {
-        if (this.isFinal == isFinal) {
-            return this;
+        for (final Node arg : runtimeNode.args) {
+            newArgs.add(cs.existingOrCopy(arg));
         }
-        return new RuntimeNode(this, request, isFinal, args);
+
+        this.request      = runtimeNode.request;
+        this.args         = newArgs;
+        this.callSiteType = runtimeNode.callSiteType;
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new RuntimeNode(this, cs);
     }
 
     /**
@@ -408,17 +310,31 @@ public class RuntimeNode extends Expression {
      */
     @Override
     public Type getType() {
-        return request.getReturnType();
+        return hasCallSiteType() ? callSiteType : request.getReturnType();
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterRuntimeNode(this)) {
-            final List<Expression> newArgs = new ArrayList<>();
-            for (final Node arg : args) {
-                newArgs.add((Expression)arg.accept(visitor));
+    public void setType(final Type type) {
+        this.callSiteType = type;
+    }
+
+    @Override
+    public boolean canHaveCallSiteType() {
+        return request == Request.ADD;
+    }
+
+    private boolean hasCallSiteType() {
+        return callSiteType != null;
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            for (int i = 0, count = args.size(); i < count; i++) {
+                args.set(i, args.get(i).accept(visitor));
             }
-            return visitor.leaveRuntimeNode(setArgs(newArgs));
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -449,15 +365,8 @@ public class RuntimeNode extends Expression {
      * Get the arguments for this runtime node
      * @return argument list
      */
-    public List<Expression> getArgs() {
+    public List<Node> getArgs() {
         return Collections.unmodifiableList(args);
-    }
-
-    private RuntimeNode setArgs(final List<Expression> args) {
-        if (this.args == args) {
-            return this;
-        }
-        return new RuntimeNode(this, request, isFinal, args);
     }
 
     /**
@@ -476,7 +385,7 @@ public class RuntimeNode extends Expression {
      * @return true if all arguments now are primitive
      */
     public boolean isPrimitive() {
-        for (final Expression arg : args) {
+        for (final Node arg : args) {
             if (arg.getType().isObject()) {
                 return false;
             }

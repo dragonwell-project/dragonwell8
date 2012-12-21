@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR base for accessing/indexing nodes.
@@ -33,57 +33,69 @@ import jdk.nashorn.internal.ir.annotations.Immutable;
  * @see AccessNode
  * @see IndexNode
  */
-@Immutable
-public abstract class BaseNode extends Expression implements FunctionCall {
+public abstract class BaseNode extends Node implements FunctionCall {
 
     /** Base Node. */
-    protected final Expression base;
-
-    private final boolean isFunction;
+    protected Node base;
 
     /**
      * Constructor
      *
+     * @param source source code
      * @param token  token
      * @param finish finish
      * @param base   base node
-     * @param isFunction is this a function
      */
-    public BaseNode(final long token, final int finish, final Expression base, final boolean isFunction) {
-        super(token, base.getStart(), finish);
-        this.base            = base;
-        this.isFunction      = isFunction;
+    public BaseNode(final Source source, final long token, final int finish, final Node base) {
+        super(source, token, finish);
+        this.base = base;
+        setStart(base.getStart());
     }
 
     /**
-     * Copy constructor for immutable nodes
-     * @param baseNode node to inherit from
-     * @param base base
-     * @param isFunction is this a function
+     * Copy constructor
+     *
+     * @param baseNode the base node
+     * @param cs       a copy state
      */
-    protected BaseNode(final BaseNode baseNode, final Expression base, final boolean isFunction) {
+    protected BaseNode(final BaseNode baseNode, final CopyState cs) {
         super(baseNode);
-        this.base            = base;
-        this.isFunction      = isFunction;
+        base = cs.existingOrCopy(baseNode.getBase());
+        setStart(base.getStart());
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        if (!super.equals(other)) {
+            return false;
+        }
+        final BaseNode baseNode = (BaseNode)other;
+        return base.equals(baseNode.getBase());
+    }
+
+    @Override
+    public int hashCode() {
+        return base.hashCode();
     }
 
     /**
      * Get the base node for this access
      * @return the base node
      */
-    public Expression getBase() {
+    public Node getBase() {
         return base;
+    }
+
+    /**
+     * Reset the base node for this access
+     * @param base new base node
+     */
+    public void setBase(final Node base) {
+        this.base = base;
     }
 
     @Override
     public boolean isFunction() {
-        return isFunction;
+        return false;
     }
-
-    /**
-     * Mark this node as being the callee operand of a {@link CallNode}.
-     * @return a base node identical to this one in all aspects except with its function flag set.
-     */
-    public abstract BaseNode setIsFunction();
-
 }

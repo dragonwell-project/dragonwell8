@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,14 @@
 package jdk.nashorn.internal.parser;
 
 import java.io.File;
+import jdk.nashorn.internal.codegen.Compiler;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ErrorManager;
+import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.options.Options;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -42,6 +43,7 @@ public class ParserTest {
     private static final boolean VERBOSE   = Boolean.valueOf(System.getProperty("parsertest.verbose"));
     private static final boolean TEST262   = Boolean.valueOf(System.getProperty("parsertest.test262"));
 
+    private static final String ES5CONFORM_DIR    = System.getProperty("es5conform.testcases.dir");
     private static final String TEST_BASIC_DIR  = System.getProperty("test.basic.dir");
     private static final String TEST262_SUITE_DIR = System.getProperty("test262.suite.dir");
 
@@ -55,21 +57,17 @@ public class ParserTest {
     }
 
     private Context context;
+    private ScriptObject global;
 
-    @BeforeClass
-    public void setupTest() {
+    public ParserTest() {
         final Options options = new Options("nashorn");
         options.set("anon.functions", true);
         options.set("parse.only", true);
         options.set("scripting", true);
 
         ErrorManager errors = new ErrorManager();
-        this.context = new Context(options, errors, Thread.currentThread().getContextClassLoader());
-    }
-
-    @AfterClass
-    public void tearDownTest() {
-        this.context = null;
+        this.context = new Context(options, errors);
+        this.global = context.createGlobal();
     }
 
     @Test
@@ -82,6 +80,7 @@ public class ParserTest {
                 }
             });
         }
+        parseTestSet(ES5CONFORM_DIR, null);
         parseTestSet(TEST_BASIC_DIR, null);
     }
 
@@ -130,6 +129,8 @@ public class ParserTest {
             log("Begin parsing " + file.getAbsolutePath());
         }
 
+        final ScriptObject oldGlobal = Context.getGlobal();
+        final boolean globalChanged = (oldGlobal != global);
         try {
             final char[] buffer = Source.readFully(file);
             boolean excluded = false;
@@ -153,8 +154,14 @@ public class ParserTest {
                 }
             };
             errors.setLimit(0);
+            if (globalChanged) {
+                Context.setGlobal(global);
+            }
             final Source   source   = new Source(file.getAbsolutePath(), buffer);
-            new Parser(context.getEnv(), source, errors).parse();
+            final Compiler compiler = Compiler.compiler(source, context, errors, context._strict);
+
+            final Parser parser = new Parser(compiler);
+            parser.parse(CompilerConstants.RUN_SCRIPT.tag());
             if (errors.getNumberOfErrors() > 0) {
                 log("Parse failed: " + file.getAbsolutePath());
                 failed++;
@@ -167,6 +174,10 @@ public class ParserTest {
                 exp.printStackTrace(System.out);
             }
             failed++;
+        } finally {
+            if (globalChanged) {
+                Context.setGlobal(oldGlobal);
+            }
         }
 
         if (VERBOSE) {

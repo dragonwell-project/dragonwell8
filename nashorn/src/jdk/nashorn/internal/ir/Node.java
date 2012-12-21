@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,49 +25,51 @@
 
 package jdk.nashorn.internal.ir;
 
-import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.parser.Token;
-import jdk.nashorn.internal.parser.TokenType;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * Nodes are used to compose Abstract Syntax Trees.
+ *
  */
-public abstract class Node implements Cloneable {
+public abstract class Node extends Location {
+    /** Node symbol. */
+    private Symbol nodeSymbol;
+
     /** Start of source range. */
-    protected final int start;
+    protected int start;
 
     /** End of source range. */
     protected int finish;
 
-    /** Token descriptor. */
-    private final long token;
+    /** Has this node been resolved - i.e. emitted code already */
+    private boolean isResolved;
+
+    /** Is this node terminal */
+    private boolean isTerminal;
+
+    /** Is this a goto node */
+    private boolean hasGoto;
+
+    /** Is this a discard */
+    private boolean shouldDiscard;
 
     /**
      * Constructor
      *
+     * @param source the source
      * @param token  token
      * @param finish finish
      */
-    public Node(final long token, final int finish) {
-        this.token  = token;
-        this.start  = Token.descPosition(token);
-        this.finish = finish;
-    }
+    public Node(final Source source, final long token, final int finish) {
+        super(source, token);
 
-    /**
-     * Constructor
-     *
-     * @param token   token
-     * @param start   start
-     * @param finish  finish
-     */
-    protected Node(final long token, final int start, final int finish) {
-        this.start = start;
+        start  = Token.descPosition(token);
         this.finish = finish;
-        this.token = token;
     }
 
     /**
@@ -76,9 +78,37 @@ public abstract class Node implements Cloneable {
      * @param node source node
      */
     protected Node(final Node node) {
-        this.token  = node.token;
-        this.start  = node.start;
-        this.finish = node.finish;
+        super(node);
+
+        this.nodeSymbol    = node.nodeSymbol;
+        this.isResolved    = node.isResolved;
+        this.isTerminal    = node.isTerminal;
+        this.hasGoto       = node.hasGoto;
+        this.shouldDiscard = node.shouldDiscard;
+        this.start         = node.start;
+        this.finish        = node.finish;
+    }
+
+    /**
+     * Check if the node has a type. The default behavior is to go into the symbol
+     * and check the symbol type, but there may be overrides, for example in
+     * getters that require a different type than the internal representation
+     *
+     * @return true if a type exists
+     */
+    public boolean hasType() {
+        return getSymbol() != null;
+    }
+
+    /**
+     * Returns the type of the node. Typically this is the symbol type. No types
+     * are stored in the node itself, unless it implements TypeOverride
+     *
+     * @return the type of the node.
+     */
+    public Type getType() {
+        assert hasType();
+        return nodeSymbol.getSymbolType();
     }
 
     /**
@@ -127,21 +157,97 @@ public abstract class Node implements Cloneable {
     }
 
     /**
-     * Returns true if this node represents a comparison operator
-     * @return true if comparison
+     * Test to see if code been generated for this node. Set isResolved if not.
+     *
+     * @return True if node has already been resolved.
      */
-    public boolean isComparison() {
+    public boolean testResolved() {
+        if (isResolved()) {
+            return true;
+        }
+
+        setIsResolved();
+
         return false;
     }
 
     /**
-     * For reference copies - ensure that labels in the copy node are unique
-     * using an appropriate copy constructor
-     * @param lc lexical context
-     * @return new node or same of no labels
+     * Is this a debug info node like LineNumberNode etc?
+     *
+     * @return true if this is a debug node
      */
-    public Node ensureUniqueLabels(final LexicalContext lc) {
-        return this;
+    public boolean isDebug() {
+        return false;
+    }
+
+    /**
+     * Helper class used for node cloning
+     */
+    public static final class CopyState {
+        private final IdentityHashMap<Node, Node> cloneMap = new IdentityHashMap<>();
+
+        /**
+         * Find existing or create new copy of the node.
+         *
+         * @param node Node to copy.
+         *
+         * @return New object.
+         */
+        public Node existingOrCopy(final Node node) {
+            if (node != null) {
+                Node copy = cloneMap.get(node);
+
+                if (copy == null) {
+                    copy = node.copy(this);
+                    cloneMap.put(node, copy);
+                }
+
+                return copy;
+            }
+
+            return node;
+        }
+
+        /**
+         * Find existing or use old copy of the node.
+         *
+         * @param node Node to copy.
+         *
+         * @return new object.
+         */
+        public Node existingOrSame(final Node node) {
+            if (node != null) {
+                Node copy = cloneMap.get(node);
+
+                if (copy == null) {
+                    copy = node;
+                }
+
+                return copy;
+            }
+
+            return node;
+        }
+    }
+
+    /**
+     * Deep copy the node.
+     *
+     * @return Deep copy of the  Node.
+     */
+    @Override
+    public final Node clone() {
+        return copy(new CopyState());
+    }
+
+    /**
+     * Deep copy the node.
+     *
+     * @param cs CopyState passed around to re-use certain nodes.
+     * @return Deep copy of the  Node.
+     */
+    protected Node copy(final CopyState cs) {
+        return cs.existingOrCopy(this);
     }
 
     /**
@@ -149,7 +255,7 @@ public abstract class Node implements Cloneable {
      * @param visitor Node visitor.
      * @return node the node or its replacement after visitation, null if no further visitations are required
      */
-    public abstract Node accept(NodeVisitor<? extends LexicalContext> visitor);
+    public abstract Node accept(NodeVisitor visitor);
 
     @Override
     public String toString() {
@@ -172,7 +278,35 @@ public abstract class Node implements Cloneable {
      * @return true if terminal
      */
     public boolean hasTerminalFlags() {
-        return isTerminal() || hasGoto();
+        return isTerminal || hasGoto;
+    }
+
+    /**
+     * Copy the terminal flags state of a node to another node
+     *
+     * @param other source node
+     */
+    public void copyTerminalFlags(final Node other) {
+        isTerminal = other.isTerminal;
+        hasGoto    = other.hasGoto;
+    }
+
+    /**
+     * Check if the return value of this expression should be discarded
+     * @return true if return value is discarded
+     */
+    public boolean shouldDiscard() {
+        return shouldDiscard;
+    }
+
+    /**
+     * Setter that determines whether this node's return value should be discarded
+     * or not
+     *
+     * @param shouldDiscard true if return value is discarded, false otherwise
+     */
+    public void setDiscard(final boolean shouldDiscard) {
+        this.shouldDiscard = shouldDiscard;
     }
 
     /**
@@ -197,7 +331,29 @@ public abstract class Node implements Cloneable {
      * @return true if node has goto semantics
      */
     public boolean hasGoto() {
-        return false;
+        return hasGoto;
+    }
+
+    /**
+     * Flag this node as having goto semantics as described in {@link Node#hasGoto()}
+     */
+    public void setHasGoto() {
+        this.hasGoto = true;
+    }
+
+    /**
+     * Check whether this node is resolved, i.e. code has been generated for it
+     * @return true if node is resolved
+     */
+    public boolean isResolved() {
+        return isResolved;
+    }
+
+    /**
+     * Flag this node as resolved, i.e. code has been generated for it
+     */
+    public void setIsResolved() {
+        this.isResolved = true;
     }
 
     /**
@@ -208,68 +364,32 @@ public abstract class Node implements Cloneable {
         return start;
     }
 
-    @Override
-    protected Object clone() {
-        try {
-            return super.clone();
-        } catch (final CloneNotSupportedException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    @Override
-    public final boolean equals(final Object other) {
-        return super.equals(other);
-    }
-
-    @Override
-    public final int hashCode() {
-        return super.hashCode();
+    /**
+     * Set start position for node
+     * @param start start position
+     */
+    public void setStart(final int start) {
+        this.start = start;
     }
 
     /**
-     * Return token position from a token descriptor.
+     * Return the Symbol the compiler has assigned to this Node. The symbol
+     * is the place where it's expression value is stored after evaluation
      *
-     * @return Start position of the token in the source.
+     * @return the symbol
      */
-    public int position() {
-        return Token.descPosition(token);
+    public Symbol getSymbol() {
+        return nodeSymbol;
     }
 
     /**
-     * Return token length from a token descriptor.
+     * Assign a symbol to this node. See {@link Node#getSymbol()} for explanation
+     * of what a symbol is
      *
-     * @return Length of the token.
+     * @param symbol the symbol
      */
-    public int length() {
-        return Token.descLength(token);
-    }
-
-    /**
-     * Return token tokenType from a token descriptor.
-     *
-     * @return Type of token.
-     */
-    public TokenType tokenType() {
-        return Token.descType(token);
-    }
-
-    /**
-     * Test token tokenType.
-     *
-     * @param type a type to check this token against
-     * @return true if token types match.
-     */
-    public boolean isTokenType(final TokenType type) {
-        return Token.descType(token) == type;
-    }
-
-    /**
-     * Get the token for this location
-     * @return the token
-     */
-    public long getToken() {
-        return token;
+    public void setSymbol(final Symbol symbol) {
+        nodeSymbol = symbol;
     }
 
     /**
@@ -279,29 +399,34 @@ public abstract class Node implements Cloneable {
      * @return true if this node is terminal
      */
     public boolean isTerminal() {
-        return false;
+        return isTerminal;
     }
 
-    //on change, we have to replace the entire list, that's we can't simple do ListIterator.set
-    static <T extends Node> List<T> accept(final NodeVisitor<? extends LexicalContext> visitor, final Class<T> clazz, final List<T> list) {
-        boolean changed = false;
-        final List<T> newList = new ArrayList<>();
+    /**
+     * Set this to be a terminal node, i.e. it terminates control flow as described
+     * in {@link Node#isTerminal()}
+     *
+     * @param isTerminal true if this is a terminal node, false otherwise
+     */
+    public void setIsTerminal(final boolean isTerminal) {
+        this.isTerminal = isTerminal;
+    }
 
-        for (final Node node : list) {
-            final T newNode = node == null ? null : clazz.cast(node.accept(visitor));
-            if (newNode != node) {
-                changed = true;
+    /**
+     * Return last node in a statement list.
+     *
+     * @param statements Statement list.
+     *
+     * @return Last (non-debug) statement or null if empty block.
+     */
+    public static Node lastStatement(final List<Node> statements) {
+        for (int lastIndex = statements.size() - 1; lastIndex >= 0; lastIndex--) {
+            final Node node = statements.get(lastIndex);
+            if (!node.isDebug()) {
+                return node;
             }
-            newList.add(newNode);
         }
 
-        return changed ? newList : list;
-    }
-
-    static <T extends LexicalContextNode> T replaceInLexicalContext(final LexicalContext lc, final T oldNode, final T newNode) {
-        if (lc != null) {
-            lc.replace(oldNode, newNode);
-        }
-        return newNode;
+        return null;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.util.StringTokenizer;
  * the separators are quoted either by ' and ", or whatever quotes the user
  * supplies they will be ignored and considered part of another token
  */
-public final class QuotedStringTokenizer {
+public class QuotedStringTokenizer {
     private final LinkedList<String> tokens;
 
     private final char quotes[];
@@ -72,7 +72,7 @@ public final class QuotedStringTokenizer {
      *            all the characters that should be accepted as quotes, default
      *            is ' or "
      */
-    private QuotedStringTokenizer(final String str, final String delim, final char[] quotes) {
+    public QuotedStringTokenizer(final String str, final String delim, final char[] quotes) {
         this.quotes = quotes;
 
         boolean delimIsWhitespace = true;

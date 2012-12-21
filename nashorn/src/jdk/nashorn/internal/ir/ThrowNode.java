@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,46 +25,49 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.ir.annotations.Ignore;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for THROW statements.
  */
-@Immutable
-public final class ThrowNode extends Statement {
+public class ThrowNode extends Node {
     /** Exception expression. */
-    private final Expression expression;
+    private Node expression;
 
-    private final int flags;
-
-    /** Is this block a synthethic rethrow created by finally inlining? */
-    public static final int IS_SYNTHETIC_RETHROW = 1;
+    /** Try chain. */
+    @Reference @Ignore
+    private final TryNode tryChain;
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
      * @param expression expression to throw
-     * @param flags      flags
+     * @param tryChain   surrounding try chain
      */
-    public ThrowNode(final int lineNumber, final long token, final int finish, final Expression expression, final int flags) {
-        super(lineNumber, token, finish);
+    public ThrowNode(final Source source, final long token, final int finish, final Node expression, final TryNode tryChain) {
+        super(source, token, finish);
+
         this.expression = expression;
-        this.flags = flags;
+        this.tryChain = tryChain;
+        setIsTerminal(true);
     }
 
-    private ThrowNode(final ThrowNode node, final Expression expression, final int flags) {
-        super(node);
-        this.expression = expression;
-        this.flags = flags;
+    private ThrowNode(final ThrowNode throwNode, final CopyState cs) {
+        super(throwNode);
+
+        expression = cs.existingOrCopy(throwNode.expression);
+        tryChain = (TryNode)cs.existingOrSame(throwNode.tryChain);
     }
 
     @Override
-    public boolean isTerminal() {
-        return true;
+    protected Node copy(final CopyState cs) {
+        return new ThrowNode(this, cs);
     }
 
     /**
@@ -72,9 +75,10 @@ public final class ThrowNode extends Statement {
      * @param visitor IR navigating visitor.
      */
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterThrowNode(this)) {
-            return visitor.leaveThrowNode(setExpression((Expression)expression.accept(visitor)));
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            setExpression(expression.accept(visitor));
+            return visitor.leave(this);
         }
 
         return this;
@@ -93,30 +97,23 @@ public final class ThrowNode extends Statement {
      * Get the expression that is being thrown by this node
      * @return expression
      */
-    public Expression getExpression() {
+    public Node getExpression() {
         return expression;
     }
 
     /**
      * Reset the expression being thrown by this node
      * @param expression new expression
-     * @return new or same thrownode
      */
-    public ThrowNode setExpression(final Expression expression) {
-        if (this.expression == expression) {
-            return this;
-        }
-        return new ThrowNode(this, expression, flags);
+    public void setExpression(final Node expression) {
+        this.expression = expression;
     }
 
     /**
-     * Is this a throw a synthetic rethrow in a synthetic catch-all block
-     * created when inlining finally statements? In that case we never
-     * wrap whatever is thrown into an ECMAException, just rethrow it.
-     * @return true if synthetic throw node
+     * Get surrounding tryChain for this node
+     * @return try chain
      */
-    public boolean isSyntheticRethrow() {
-        return (flags & IS_SYNTHETIC_RETHROW) == IS_SYNTHETIC_RETHROW;
+    public TryNode getTryChain() {
+        return tryChain;
     }
-
 }

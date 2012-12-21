@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.lang.annotation.RetentionPolicy;
  * AST traversal and cloning. Cloning currently as a rule uses
  * existingOrSame for references and otherwise existingOrCopy
  * <p>
+ * TODO this could probably be automated using the @Reference annotation.
  */
 
 @Retention(value=RetentionPolicy.RUNTIME)

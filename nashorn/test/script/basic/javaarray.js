@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
 
 (function() {
     var nargs = arguments.length;
-    var args = new (Java.type("java.lang.Object[]"))(nargs);
+    var args = java.lang.reflect.Array.newInstance(java.lang.Object.class, nargs);
     print(args.length);
     for (var i = 0; i < nargs; i++) {
         var arg = arguments[i];
@@ -41,7 +41,7 @@
 
 var z; // undefined
 
-var intArray = new (Java.type("int[]"))(1);
+var intArray = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 1);
 intArray[0] = 10;
 print(intArray[0]);
 print(intArray.length);
@@ -50,19 +50,19 @@ print(intArray[0]);
 intArray[0] = 10.1;
 print(intArray[0]);
 
-var boolArray = new (Java.type("boolean[]"))(2);
+var boolArray = java.lang.reflect.Array.newInstance(java.lang.Boolean.TYPE, 2);
 boolArray[0] = true;
 print(boolArray[0]);
 print(boolArray[1]);
 print(boolArray.length);
 
-var charArray = new (Java.type("char[]"))(1);
+var charArray = java.lang.reflect.Array.newInstance(java.lang.Character.TYPE, 1);
 charArray[0] = 'j';
 print(charArray[0]);
 print(charArray.length);
 
 
-var doubleArray = new (Java.type("double[]"))(1)
+var doubleArray = java.lang.reflect.Array.newInstance(java.lang.Double.TYPE, 1)
 doubleArray[0]=z
 print(doubleArray[0])
 doubleArray[0]=1

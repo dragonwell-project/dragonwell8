@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,10 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.Iterator;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
@@ -52,6 +51,9 @@ public enum CompilerConstants {
 
     /** lazy prefix for classes of jitted methods */
     LAZY("Lazy"),
+
+    /** leaf tag used for functions that require no scope */
+    LEAF("__leaf__"),
 
     /** constructor name */
     INIT("<init>"),
@@ -80,72 +82,61 @@ public enum CompilerConstants {
     /** method name for Java method that is script entry point */
     RUN_SCRIPT("runScript"),
 
-    /**
-     * "this" name symbol for a parameter representing ECMAScript "this" in static methods that are compiled
-     * representations of ECMAScript functions. It is not assigned a slot, as its position in the method signature is
-     * dependent on other factors (most notably, callee can precede it).
-     */
-    THIS("this"),
+    /** this name and slot */
+    THIS("this", 0),
 
     /** this debugger symbol */
-    THIS_DEBUGGER(":this"),
+    THIS_DEBUGGER("__this__"),
 
     /** scope name, type and slot */
-    SCOPE(":scope", ScriptObject.class, 2),
+    SCOPE("__scope__", ScriptObject.class, 2),
 
     /** the return value variable name were intermediate results are stored for scripts */
-    RETURN(":return"),
+    SCRIPT_RETURN("__return__"),
 
     /** the callee value variable when necessary */
-    CALLEE(":callee", ScriptFunction.class),
+    CALLEE("__callee__", ScriptFunction.class, 1),
 
     /** the varargs variable when necessary */
-    VARARGS(":varargs", Object[].class),
+    VARARGS("__varargs__"),
 
-    /** the arguments variable (visible to function body). Initially set to ARGUMENTS, but can be reassigned by code in
-     * the function body.*/
-    ARGUMENTS_VAR("arguments", Object.class),
-
-    /** the internal arguments object, when necessary (not visible to scripts, can't be reassigned). */
-    ARGUMENTS(":arguments", ScriptObject.class),
+    /** the arguments vector when necessary and the slot */
+    ARGUMENTS("arguments", Object.class, 2),
 
     /** prefix for iterators for for (x in ...) */
-    ITERATOR_PREFIX(":i", Iterator.class),
+    ITERATOR_PREFIX("$iter"),
 
     /** prefix for tag variable used for switch evaluation */
-    SWITCH_TAG_PREFIX(":s"),
+    SWITCH_TAG_PREFIX("$tag"),
 
     /** prefix for all exceptions */
-    EXCEPTION_PREFIX(":e", Throwable.class),
+    EXCEPTION_PREFIX("$exception"),
 
     /** prefix for quick slots generated in Store */
-    QUICK_PREFIX(":q"),
+    QUICK_PREFIX("$quick"),
 
     /** prefix for temporary variables */
-    TEMP_PREFIX(":t"),
+    TEMP_PREFIX("$temp"),
 
     /** prefix for literals */
-    LITERAL_PREFIX(":l"),
+    LITERAL_PREFIX("$lit"),
+
+    /** prefix for map */
+    MAP("$map", 1),
 
     /** prefix for regexps */
-    REGEX_PREFIX(":r"),
+    REGEX_PREFIX("$regex"),
 
-    /** "this" used in non-static Java methods; always in slot 0 */
-    JAVA_THIS(null, 0),
+    /** init scope */
+    INIT_SCOPE("$scope", 2),
 
-    /** Map parameter in scope object constructors; always in slot 1 */
-    INIT_MAP(null, 1),
-
-    /** Parent scope parameter in scope object constructors; always in slot 2 */
-    INIT_SCOPE(null, 2),
-
-    /** Arguments parameter in scope object constructors; in slot 3 when present */
-    INIT_ARGUMENTS(null, 3),
+    /** init arguments */
+    INIT_ARGUMENTS("$arguments", 3),
 
     /** prefix for all ScriptObject subclasses with fields, @see ObjectGenerator */
-    JS_OBJECT_PREFIX("JO"),
+    JS_OBJECT_PREFIX("JO$"),
 
-    /** name for allocate method in JO objects */
+    /** name for allocate method in JO$ objects */
     ALLOCATE("allocate"),
 
     /** prefix for split methods, @see Splitter */
@@ -169,30 +160,30 @@ public enum CompilerConstants {
     /** get array suffix */
     GET_ARRAY_SUFFIX("$array");
 
-    private final String symbolName;
+    private final String tag;
     private final Class<?> type;
     private final int slot;
 
     private CompilerConstants() {
-        this.symbolName = name();
+        this.tag = name();
         this.type = null;
         this.slot = -1;
     }
 
-    private CompilerConstants(final String symbolName) {
-        this(symbolName, -1);
+    private CompilerConstants(final String tag) {
+        this(tag, -1);
     }
 
-    private CompilerConstants(final String symbolName, final int slot) {
-        this(symbolName, null, slot);
+    private CompilerConstants(final String tag, final int slot) {
+        this(tag, null, slot);
     }
 
-    private CompilerConstants(final String symbolName, final Class<?> type) {
-        this(symbolName, type, -1);
+    private CompilerConstants(final String tag, final Class<?> type) {
+        this(tag, type, -1);
     }
 
-    private CompilerConstants(final String symbolName, final Class<?> type, final int slot) {
-        this.symbolName  = symbolName;
+    private CompilerConstants(final String tag, final Class<?> type, final int slot) {
+        this.tag  = tag;
         this.type = type;
         this.slot = slot;
     }
@@ -204,8 +195,8 @@ public enum CompilerConstants {
      *
      * @return the tag
      */
-    public final String symbolName() {
-        return symbolName;
+    public final String tag() {
+        return tag;
     }
 
     /**
@@ -267,7 +258,7 @@ public enum CompilerConstants {
      * @return the internal descriptor for this type
      */
     public static String typeDescriptor(final Class<?> clazz) {
-        return Type.typeFor(clazz).getDescriptor();
+        return Type.getDescriptor(clazz);
     }
 
     /**
@@ -279,7 +270,7 @@ public enum CompilerConstants {
      * @return Call representing void constructor for type
      */
     public static Call constructorNoLookup(final Class<?> clazz) {
-        return specialCallNoLookup(clazz, INIT.symbolName(), void.class);
+        return specialCallNoLookup(clazz, INIT.tag(), void.class);
     }
 
     /**
@@ -292,7 +283,7 @@ public enum CompilerConstants {
      * @return Call representing constructor for type
      */
     public static Call constructorNoLookup(final String className, final Class<?>... ptypes) {
-        return specialCallNoLookup(className, INIT.symbolName(), methodDescriptor(void.class, ptypes));
+        return specialCallNoLookup(className, INIT.tag(), methodDescriptor(void.class, ptypes));
     }
 
     /**
@@ -305,7 +296,7 @@ public enum CompilerConstants {
      * @return Call representing constructor for type
      */
     public static Call constructorNoLookup(final Class<?> clazz, final Class<?>... ptypes) {
-        return specialCallNoLookup(clazz, INIT.symbolName(), void.class, ptypes);
+        return specialCallNoLookup(clazz, INIT.tag(), void.class, ptypes);
     }
 
     /**
@@ -322,7 +313,7 @@ public enum CompilerConstants {
         return new Call(null, className, name, desc) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokespecial(className, name, descriptor);
+                return method.invokeSpecial(className, name, descriptor);
             }
         };
     }
@@ -356,7 +347,7 @@ public enum CompilerConstants {
         return new Call(null, className, name, desc) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokestatic(className, name, descriptor);
+                return method.invokeStatic(className, name, descriptor);
             }
         };
     }
@@ -391,7 +382,7 @@ public enum CompilerConstants {
         return new Call(null, className(clazz), name, methodDescriptor(rtype, ptypes)) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokevirtual(className, name, descriptor);
+                return method.invokeVirtual(className, name, descriptor);
             }
         };
     }
@@ -411,7 +402,7 @@ public enum CompilerConstants {
         return new Call(null, className(clazz), name, methodDescriptor(rtype, ptypes)) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokeinterface(className, name, descriptor);
+                return method.invokeInterface(className, name, descriptor);
             }
         };
     }
@@ -493,6 +484,20 @@ public enum CompilerConstants {
     }
 
     /**
+     * Create a static call, looking up the method handle for it at the same time
+     *
+     * @param clazz  the class
+     * @param name   the name of the method
+     * @param rtype  the return type of the method
+     * @param ptypes the parameter types of the method
+     *
+     * @return the call object representing the static call
+     */
+    public static Call staticCall(final Class<?> clazz, final String name, final Class<?> rtype, final Class<?>... ptypes) {
+        return staticCall(MethodHandles.publicLookup(), clazz, name, rtype, ptypes);
+    }
+
+    /**
      * Create a static call, given an explicit lookup, looking up the method handle for it at the same time
      *
      * @param lookup the lookup
@@ -507,9 +512,23 @@ public enum CompilerConstants {
         return new Call(MH.findStatic(lookup, clazz, name, MH.type(rtype, ptypes)), className(clazz), name, methodDescriptor(rtype, ptypes)) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokestatic(className, name, descriptor);
+                return method.invokeStatic(className, name, descriptor);
             }
         };
+    }
+
+    /**
+     * Create a virtual call, looking up the method handle for it at the same time
+     *
+     * @param clazz  the class
+     * @param name   the name of the method
+     * @param rtype  the return type of the method
+     * @param ptypes the parameter types of the method
+     *
+     * @return the call object representing the virtual call
+     */
+    public static Call virtualCall(final Class<?> clazz, final String name, final Class<?> rtype, final Class<?>... ptypes) {
+        return virtualCall(MethodHandles.publicLookup(), clazz, name, rtype, ptypes);
     }
 
     /**
@@ -527,7 +546,7 @@ public enum CompilerConstants {
         return new Call(MH.findVirtual(lookup, clazz, name, MH.type(rtype, ptypes)), className(clazz), name, methodDescriptor(rtype, ptypes)) {
             @Override
             public MethodEmitter invoke(final MethodEmitter method) {
-                return method.invokevirtual(className, name, descriptor);
+                return method.invokeVirtual(className, name, descriptor);
             }
         };
     }

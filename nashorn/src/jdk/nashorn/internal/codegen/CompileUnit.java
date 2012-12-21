@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,16 +28,14 @@ package jdk.nashorn.internal.codegen;
 /**
  * Used to track split class compilation.
  */
-public class CompileUnit implements Comparable<CompileUnit> {
+public class CompileUnit {
     /** Current class name */
     private final String className;
 
     /** Current class generator */
-    private ClassEmitter classEmitter;
+    private final ClassEmitter classEmitter;
 
     private long weight;
-
-    private Class<?> clazz;
 
     CompileUnit(final String className, final ClassEmitter classEmitter) {
         this(className, classEmitter, 0L);
@@ -50,32 +48,10 @@ public class CompileUnit implements Comparable<CompileUnit> {
     }
 
     /**
-     * Return the class that contains the code for this unit, null if not
-     * generated yet
-     *
-     * @return class with compile unit code
-     */
-    public Class<?> getCode() {
-        return clazz;
-    }
-
-    /**
-     * Set class when it exists. Only accessible from compiler
-     * @param clazz class with code for this compile unit
-     */
-    void setCode(final Class<?> clazz) {
-        clazz.getClass(); // null check
-        this.clazz = clazz;
-        // Revisit this - refactor to avoid null-ed out non-final fields
-        // null out emitter
-        this.classEmitter = null;
-    }
-
-    /**
      * Add weight to this compile unit
      * @param w weight to add
      */
-    void addWeight(final long w) {
+    public void addWeight(final long w) {
         this.weight += w;
     }
 
@@ -83,7 +59,7 @@ public class CompileUnit implements Comparable<CompileUnit> {
      * Get the current weight of the compile unit.
      * @return the unit's weight
      */
-    long getWeight() {
+    public long getWeight() {
         return weight;
     }
 
@@ -115,10 +91,5 @@ public class CompileUnit implements Comparable<CompileUnit> {
     @Override
     public String toString() {
         return "[classname=" + className + " weight=" + weight + '/' + Splitter.SPLIT_THRESHOLD + ']';
-    }
-
-    @Override
-    public int compareTo(CompileUnit o) {
-        return className.compareTo(o.className);
     }
 }

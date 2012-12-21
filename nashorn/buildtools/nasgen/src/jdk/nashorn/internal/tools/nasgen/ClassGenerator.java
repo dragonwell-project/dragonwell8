@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.nashorn.internal.tools.nasgen;
 
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_FINAL;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_STATIC;
@@ -37,24 +36,14 @@ import static jdk.nashorn.internal.tools.nasgen.StringConstants.GETTER_PREFIX;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.GET_CLASS_NAME;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.GET_CLASS_NAME_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.INIT;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.ACCESSORPROPERTY_CREATE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.ACCESSORPROPERTY_CREATE_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.ACCESSORPROPERTY_TYPE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.LIST_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.ARRAYLIST_TYPE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.ARRAYLIST_INIT_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.COLLECTION_TYPE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.COLLECTION_ADD;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.COLLECTION_ADD_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.COLLECTIONS_TYPE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.COLLECTIONS_EMPTY_LIST;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_FIELD_NAME;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_SETISSHARED;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_SETISSHARED_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_NEWMAP;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_NEWMAP_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_TYPE;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.LOOKUP_NEWPROPERTY;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.LOOKUP_NEWPROPERTY_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.LOOKUP_TYPE;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_FIELD_NAME;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_NEWMAP;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_NEWMAP_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_TYPE;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.OBJECT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTIONIMPL_MAKEFUNCTION;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTIONIMPL_MAKEFUNCTION_DESC;
@@ -152,14 +141,14 @@ public class ClassGenerator {
     }
 
     static MethodGenerator makeStaticInitializer(final ClassVisitor cv, final String name) {
-        final int access =  ACC_PUBLIC | ACC_STATIC;
+        final int access = ACC_PUBLIC | ACC_STATIC;
         final String desc = DEFAULT_INIT_DESC;
         final MethodVisitor mv = cv.visitMethod(access, name, desc, null, null);
         return new MethodGenerator(mv, access, name, desc);
     }
 
     static MethodGenerator makeConstructor(final ClassVisitor cv) {
-        final int access = 0;
+        final int access = ACC_PUBLIC;
         final String name = INIT;
         final String desc = DEFAULT_INIT_DESC;
         final MethodVisitor mv = cv.visitMethod(access, name, desc, null, null);
@@ -171,30 +160,18 @@ public class ClassGenerator {
         return new MethodGenerator(mv, access, name, desc);
     }
 
-    static void emitStaticInitPrefix(final MethodGenerator mi, final String className, final int memberCount) {
+    static void emitStaticInitPrefix(final MethodGenerator mi, final String className) {
         mi.visitCode();
-        if (memberCount > 0) {
-            // new ArrayList(int)
-            mi.newObject(ARRAYLIST_TYPE);
-            mi.dup();
-            mi.push(memberCount);
-            mi.invokeSpecial(ARRAYLIST_TYPE, INIT, ARRAYLIST_INIT_DESC);
-            // stack: ArrayList
-        } else {
-            // java.util.Collections.EMPTY_LIST
-            mi.getStatic(COLLECTIONS_TYPE, COLLECTIONS_EMPTY_LIST, LIST_DESC);
-            // stack List
-        }
+        mi.pushNull();
+        mi.putStatic(className, MAP_FIELD_NAME, MAP_DESC);
+        mi.loadClass(className);
+        mi.invokeStatic(MAP_TYPE, MAP_NEWMAP, MAP_NEWMAP_DESC);
+        mi.storeLocal(0);
     }
 
     static void emitStaticInitSuffix(final MethodGenerator mi, final String className) {
-        // stack: Collection
-        // pmap = PropertyMap.newMap(Collection<Property>);
-        mi.invokeStatic(PROPERTYMAP_TYPE, PROPERTYMAP_NEWMAP, PROPERTYMAP_NEWMAP_DESC);
-        // pmap.setIsShared();
-        mi.invokeVirtual(PROPERTYMAP_TYPE, PROPERTYMAP_SETISSHARED, PROPERTYMAP_SETISSHARED_DESC);
-        // $nasgenmap$ = pmap;
-        mi.putStatic(className, PROPERTYMAP_FIELD_NAME, PROPERTYMAP_DESC);
+        mi.loadLocal(0);
+        mi.putStatic(className, MAP_FIELD_NAME, MAP_DESC);
         mi.returnVoid();
         mi.computeMaxs();
         mi.visitEnd();
@@ -258,9 +235,9 @@ public class ClassGenerator {
     }
 
     static void addMapField(final ClassVisitor cv) {
-        // add a PropertyMap static field
-        final FieldVisitor fv = cv.visitField(ACC_PRIVATE | ACC_STATIC | ACC_FINAL,
-            PROPERTYMAP_FIELD_NAME, PROPERTYMAP_DESC, null, null);
+        // add a MAP static field
+        final FieldVisitor fv = cv.visitField(ACC_PRIVATE | ACC_STATIC,
+            MAP_FIELD_NAME, MAP_DESC, null, null);
         if (fv != null) {
             fv.visitEnd();
         }
@@ -301,11 +278,7 @@ public class ClassGenerator {
 
     static void linkerAddGetterSetter(final MethodGenerator mi, final String className, final MemberInfo memInfo) {
         final String propertyName = memInfo.getName();
-        // stack: Collection
-        // dup of Collection instance
-        mi.dup();
-
-        // property = AccessorProperty.create(key, flags, getter, setter);
+        mi.loadLocal(0);
         mi.loadLiteral(propertyName);
         // setup flags
         mi.push(memInfo.getAttributes());
@@ -319,21 +292,13 @@ public class ClassGenerator {
             javaName = SETTER_PREFIX + memInfo.getJavaName();
             mi.visitLdcInsn(new Handle(H_INVOKEVIRTUAL, className, javaName, setterDesc(memInfo)));
         }
-        mi.invokeStatic(ACCESSORPROPERTY_TYPE, ACCESSORPROPERTY_CREATE, ACCESSORPROPERTY_CREATE_DESC);
-        // boolean Collection.add(property)
-        mi.invokeInterface(COLLECTION_TYPE, COLLECTION_ADD, COLLECTION_ADD_DESC);
-        // pop return value of Collection.add
-        mi.pop();
-        // stack: Collection
+        mi.invokeStatic(LOOKUP_TYPE, LOOKUP_NEWPROPERTY, LOOKUP_NEWPROPERTY_DESC);
+        mi.storeLocal(0);
     }
 
     static void linkerAddGetterSetter(final MethodGenerator mi, final String className, final MemberInfo getter, final MemberInfo setter) {
         final String propertyName = getter.getName();
-        // stack: Collection
-        // dup of Collection instance
-        mi.dup();
-
-        // property = AccessorProperty.create(key, flags, getter, setter);
+        mi.loadLocal(0);
         mi.loadLiteral(propertyName);
         // setup flags
         mi.push(getter.getAttributes());
@@ -347,12 +312,8 @@ public class ClassGenerator {
             mi.visitLdcInsn(new Handle(H_INVOKESTATIC, className,
                     setter.getJavaName(), setter.getJavaDesc()));
         }
-        mi.invokeStatic(ACCESSORPROPERTY_TYPE, ACCESSORPROPERTY_CREATE, ACCESSORPROPERTY_CREATE_DESC);
-        // boolean Collection.add(property)
-        mi.invokeInterface(COLLECTION_TYPE, COLLECTION_ADD, COLLECTION_ADD_DESC);
-        // pop return value of Collection.add
-        mi.pop();
-        // stack: Collection
+        mi.invokeStatic(LOOKUP_TYPE, LOOKUP_NEWPROPERTY, LOOKUP_NEWPROPERTY_DESC);
+        mi.storeLocal(0);
     }
 
     static ScriptClassInfo getScriptClassInfo(final String fileName) throws IOException {

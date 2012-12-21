@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,18 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.runtime.JSType.digit;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.Locale;
 
 /**
  * Utilities used by Global class.
+ *
+ * These are actual implementation methods for functions exposed by global
+ * scope. The code lives here to share the code across the contexts.
  */
-public final class GlobalFunctions {
+public class GlobalFunctions {
 
     /** Methodhandle to implementation of ECMA 15.1.2.2, parseInt */
     public static final MethodHandle PARSEINT = findOwnMH("parseInt",   double.class, Object.class, Object.class, Object.class);
@@ -90,7 +92,6 @@ public final class GlobalFunctions {
     public static double parseInt(final Object self, final Object string, final Object rad) {
         final String str    = JSType.trimLeft(JSType.toString(string));
         final int    length = str.length();
-        int          radix  = JSType.toInt32(rad);
 
         // empty string is not valid
         if (length == 0) {
@@ -114,6 +115,7 @@ public final class GlobalFunctions {
         }
 
         boolean stripPrefix = true;
+        int     radix = JSType.toInt32(rad);
 
         if (radix != 0) {
             if (radix < 2 || radix > 36) {
@@ -211,7 +213,7 @@ loop:
             switch (ch) {
             case '.':
                 // dot allowed only once
-                if (exponentOffset != -1 || dotSeen) {
+                if (dotSeen) {
                     break loop;
                 }
                 dotSeen = true;
@@ -370,16 +372,11 @@ loop:
                 sb.append(ch);
             } else if (ch < 256) {
                 sb.append('%');
-                if (ch < 16) {
-                    sb.append('0');
-                }
-                sb.append(Integer.toHexString(ch).toUpperCase(Locale.ENGLISH));
+                final byte b = (byte)ch;
+                sb.append(Integer.toHexString(b & 0xFF).toUpperCase());
             } else {
                 sb.append("%u");
-                if (ch < 4096) {
-                    sb.append('0');
-                }
-                sb.append(Integer.toHexString(ch).toUpperCase(Locale.ENGLISH));
+                sb.append(Integer.toHexString(ch & 0xFFFF).toUpperCase());
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,19 +25,20 @@
 
 package jdk.nashorn.internal.tools.nasgen;
 
-import static jdk.internal.org.objectweb.asm.Opcodes.ACC_FINAL;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static jdk.internal.org.objectweb.asm.Opcodes.ACC_SUPER;
 import static jdk.internal.org.objectweb.asm.Opcodes.H_INVOKESTATIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.V1_7;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.CONSTRUCTOR_SUFFIX;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.DEFAULT_INIT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.INIT;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_DUPLICATE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_DUPLICATE_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_FIELD_NAME;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROPERTYMAP_TYPE;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_DUPLICATE;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_DUPLICATE_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_FIELD_NAME;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.MAP_TYPE;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.OBJECT_DESC;
+import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROTOTYPE;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROTOTYPEOBJECT_SETCONSTRUCTOR;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROTOTYPEOBJECT_SETCONSTRUCTOR_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.PROTOTYPEOBJECT_TYPE;
@@ -46,8 +47,6 @@ import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTIONIM
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTIONIMPL_TYPE;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTION_SETARITY;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTION_SETARITY_DESC;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTION_SETPROTOTYPE;
-import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTION_SETPROTOTYPE_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTFUNCTION_TYPE;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTOBJECT_INIT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTOBJECT_TYPE;
@@ -80,7 +79,7 @@ public class ConstructorGenerator extends ClassGenerator {
     byte[] getClassBytes() {
         // new class extensing from ScriptObject
         final String superClass = (constructor != null)? SCRIPTFUNCTIONIMPL_TYPE : SCRIPTOBJECT_TYPE;
-        cw.visit(V1_7, ACC_FINAL, className, null, superClass, null);
+        cw.visit(V1_7, ACC_PUBLIC | ACC_SUPER, className, null, superClass, null);
         if (memberCount > 0) {
             // add fields
             emitFields();
@@ -129,14 +128,14 @@ public class ConstructorGenerator extends ClassGenerator {
 
     private void emitStaticInitializer() {
         final MethodGenerator mi = makeStaticInitializer();
-        emitStaticInitPrefix(mi, className, memberCount);
+        emitStaticInitPrefix(mi, className);
 
         for (final MemberInfo memInfo : scriptClassInfo.getMembers()) {
             if (memInfo.isConstructorFunction() || memInfo.isConstructorProperty()) {
                 linkerAddGetterSetter(mi, className, memInfo);
             } else if (memInfo.isConstructorGetter()) {
                 final MemberInfo setter = scriptClassInfo.findSetter(memInfo);
-                linkerAddGetterSetter(mi, scriptClassInfo.getJavaName(), memInfo, setter);
+                linkerAddGetterSetter(mi, className, memInfo, setter);
             }
         }
         emitStaticInitSuffix(mi, className);
@@ -170,10 +169,10 @@ public class ConstructorGenerator extends ClassGenerator {
 
     private void loadMap(final MethodGenerator mi) {
         if (memberCount > 0) {
-            mi.getStatic(className, PROPERTYMAP_FIELD_NAME, PROPERTYMAP_DESC);
+            mi.getStatic(className, MAP_FIELD_NAME, MAP_DESC);
             // make sure we use duplicated PropertyMap so that original map
-            // stays intact and so can be used for many globals.
-            mi.invokeVirtual(PROPERTYMAP_TYPE, PROPERTYMAP_DUPLICATE, PROPERTYMAP_DUPLICATE_DESC);
+            // stays intact and so can be used for many globals in same context
+            mi.invokeVirtual(MAP_TYPE, MAP_DUPLICATE, MAP_DUPLICATE_DESC);
         }
     }
 
@@ -239,7 +238,7 @@ public class ConstructorGenerator extends ClassGenerator {
             mi.loadThis();
             mi.invokeStatic(PROTOTYPEOBJECT_TYPE, PROTOTYPEOBJECT_SETCONSTRUCTOR,
                     PROTOTYPEOBJECT_SETCONSTRUCTOR_DESC);
-            mi.invokeVirtual(SCRIPTFUNCTION_TYPE, SCRIPTFUNCTION_SETPROTOTYPE, SCRIPTFUNCTION_SETPROTOTYPE_DESC);
+            mi.putField(SCRIPTFUNCTION_TYPE, PROTOTYPE, OBJECT_DESC);
         }
     }
 

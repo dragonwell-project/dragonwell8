@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,8 @@
 package jdk.nashorn.internal.runtime.options;
 
 import java.io.PrintWriter;
-import java.security.AccessControlContext;
 import java.security.AccessController;
-import java.security.Permissions;
 import java.security.PrivilegedAction;
-import java.security.ProtectionDomain;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +39,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
-import java.util.PropertyPermission;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
 import java.util.TimeZone;
@@ -53,22 +49,14 @@ import jdk.nashorn.internal.runtime.QuotedStringTokenizer;
 
 /**
  * Manages global runtime options.
+ *
  */
 public final class Options {
-    // permission to just read nashorn.* System properties
-    private static AccessControlContext createPropertyReadAccCtxt() {
-        final Permissions perms = new Permissions();
-        perms.add(new PropertyPermission("nashorn.*", "read"));
-        return new AccessControlContext(new ProtectionDomain[] { new ProtectionDomain(null, perms) });
-    }
-
-    private static final AccessControlContext READ_PROPERTY_ACC_CTXT = createPropertyReadAccCtxt();
-
     /** Resource tag. */
     private final String resource;
 
     /** Error writer. */
-    private final PrintWriter err;
+    private final PrintWriter errors;
 
     /** File list. */
     private final List<String> files;
@@ -79,29 +67,15 @@ public final class Options {
     /** The options map of enabled options */
     private final TreeMap<String, Option<?>> options;
 
-    /** System property that can be used for command line option propagation */
-    private static final String NASHORN_ARGS_PROPERTY = "nashorn.args";
-
     /**
-     * Constructor
-     *
-     * Options will use System.err as the output stream for any errors
+     * Constructor.
      *
      * @param resource resource prefix for options e.g. "nashorn"
+     * @param errors   error stream for reporting parse errors
      */
-    public Options(final String resource) {
-        this(resource, new PrintWriter(System.err, true));
-    }
-
-    /**
-     * Constructor
-     *
-     * @param resource resource prefix for options e.g. "nashorn"
-     * @param err      error stream for reporting parse errors
-     */
-    public Options(final String resource, final PrintWriter err) {
+    public Options(final String resource, final PrintWriter errors) {
         this.resource  = resource;
-        this.err       = err;
+        this.errors    = errors;
         this.files     = new ArrayList<>();
         this.arguments = new ArrayList<>();
         this.options   = new TreeMap<>();
@@ -114,10 +88,19 @@ public final class Options {
                 if (v != null) {
                     set(t.getKey(), createOption(t, v));
                 } else if (t.getDefaultValue() != null) {
-                    set(t.getKey(), createOption(t, t.getDefaultValue()));
+                     set(t.getKey(), createOption(t, t.getDefaultValue()));
                  }
             }
         }
+    }
+
+    /**
+     * Constructor
+     *
+     * @param resource  e.g. "nashorn"
+     */
+    public Options(final String resource) {
+        this(resource, new PrintWriter(System.err, true));
     }
 
     /**
@@ -157,7 +140,7 @@ public final class Options {
                             return false;
                         }
                     }
-                }, READ_PROPERTY_ACC_CTXT);
+                });
     }
 
     /**
@@ -184,7 +167,7 @@ public final class Options {
                             return defValue;
                         }
                     }
-                }, READ_PROPERTY_ACC_CTXT);
+                });
     }
 
     /**
@@ -211,12 +194,12 @@ public final class Options {
                             return defValue;
                         }
                     }
-                }, READ_PROPERTY_ACC_CTXT);
+                });
     }
 
     /**
      * Return an option given its resource key. If the key doesn't begin with
-     * {@literal <resource>}.option it will be completed using the resource from this
+     * <resource>.option it will be completed using the resource from this
      * instance
      *
      * @param key key for option
@@ -256,13 +239,7 @@ public final class Options {
      */
     public String getString(final String key) {
         final Option<?> option = get(key);
-        if (option != null) {
-            final String value = (String)option.getValue();
-            if(value != null) {
-                return value.intern();
-            }
-        }
-        return null;
+        return option != null ? (String)option.getValue() : null;
     }
 
     /**
@@ -366,17 +343,17 @@ public final class Options {
                 // display extended help information
                 displayHelp(true);
             } else {
-                err.println(((IllegalOptionException)e).getTemplate());
+                errors.println(((IllegalOptionException)e).getTemplate());
             }
             return;
         }
 
         if (e != null && e.getMessage() != null) {
-            err.println(getMsg("option.error.invalid.option",
+            errors.println(getMsg("option.error.invalid.option",
                     e.getMessage(),
                     helpOptionTemplate.getShortName(),
                     helpOptionTemplate.getName()));
-            err.println();
+            errors.println();
             return;
         }
 
@@ -391,8 +368,8 @@ public final class Options {
     public void displayHelp(final boolean extended) {
         for (final OptionTemplate t : Options.validOptions) {
             if ((extended || !t.isUndocumented()) && t.getResource().equals(resource)) {
-                err.println(t);
-                err.println();
+                errors.println(t);
+                errors.println();
             }
         }
     }
@@ -407,14 +384,6 @@ public final class Options {
     public void process(final String[] args) {
         final LinkedList<String> argList = new LinkedList<>();
         Collections.addAll(argList, args);
-
-        final String extra = getStringProperty(NASHORN_ARGS_PROPERTY, null);
-        if (extra != null) {
-            final StringTokenizer st = new StringTokenizer(extra);
-            while (st.hasMoreTokens()) {
-                argList.add(st.nextToken());
-            }
-        }
 
         while (!argList.isEmpty()) {
             final String arg = argList.remove(0);
@@ -431,9 +400,8 @@ public final class Options {
                 continue;
             }
 
-            // If it doesn't start with -, it's a file. But, if it is just "-",
-            // then it is a file representing standard input.
-            if (!arg.startsWith("-") || arg.length() == 1) {
+            // if it doesn't start with -, it's a file
+            if (!arg.startsWith("-")) {
                 files.add(arg);
                 continue;
             }
@@ -446,7 +414,7 @@ public final class Options {
                     System.setProperty(value.substring(0, eq), value.substring(eq + 1));
                 } else {
                     // -Dfoo is fine. Set System property "foo" with "" as it's value
-                    if (!value.isEmpty()) {
+                    if (!value.equals("")) {
                         System.setProperty(value, "");
                     } else {
                         // do not allow empty property name
@@ -513,10 +481,10 @@ public final class Options {
         case "timezone":
             // default value "TimeZone.getDefault()"
             return new Option<>(TimeZone.getTimeZone(value));
-        case "locale":
-            return new Option<>(Locale.forLanguageTag(value));
         case "keyvalues":
             return new KeyValueOption(value);
+        case "values":
+            return new ValueOption(value);
         case "log":
             final KeyValueOption kv = new KeyValueOption(value);
             Logging.initialize(kv.getValues());
@@ -525,7 +493,7 @@ public final class Options {
             return new Option<>(value != null && Boolean.parseBoolean(value));
         case "integer":
             try {
-                return new Option<>((value == null) ? 0 : Integer.parseInt(value));
+                return new Option<>((Integer)((value == null)? 0 : Integer.parseInt(value)));
             } catch (final NumberFormatException nfe) {
                 throw new IllegalOptionException(t);
             }
@@ -581,7 +549,15 @@ public final class Options {
     private static String definePropPrefix;
 
     static {
-        Options.bundle = ResourceBundle.getBundle(Options.MESSAGES_RESOURCE, Locale.getDefault());
+        // Without do privileged, under security manager messages can not be
+        // loaded.
+        Options.bundle = AccessController.doPrivileged(new PrivilegedAction<ResourceBundle>() {
+            @Override
+            public ResourceBundle run() {
+                return ResourceBundle.getBundle(Options.MESSAGES_RESOURCE, Locale.getDefault());
+            }
+        });
+
         Options.validOptions = new TreeSet<>();
         Options.usage        = new HashMap<>();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,14 +33,13 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Where;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 
 /**
  * ECMA 15.11.6.6 URIError
  */
 @ScriptClass("Error")
-public final class NativeURIError extends ScriptObject {
+public class NativeURIError extends ScriptObject {
 
     /** message property in instance */
     @Property(name = NativeError.MESSAGE)
@@ -54,24 +53,13 @@ public final class NativeURIError extends ScriptObject {
     @Property(attributes = Attribute.NOT_ENUMERABLE, where = Where.PROTOTYPE)
     public Object message;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
-    NativeURIError(final Object msg, final Global global) {
-        super(global.getURIErrorPrototype(), global.getURIErrorMap());
+    NativeURIError(final Object msg) {
+        this.setProto(Global.instance().getURIErrorPrototype());
         if (msg != UNDEFINED) {
             this.instMessage = JSType.toString(msg);
         } else {
-            this.delete(NativeError.MESSAGE, false);
+            this.delete(NativeError.MESSAGE, Global.isStrict());
         }
-    }
-
-    private NativeURIError(final Object msg) {
-        this(msg, Global.instance());
     }
 
     @Override

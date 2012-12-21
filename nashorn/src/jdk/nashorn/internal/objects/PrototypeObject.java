@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,16 +26,15 @@
 package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
+import jdk.nashorn.internal.runtime.linker.Lookup;
 
 /**
  * Instances of this class serve as "prototype" object for script functions.
@@ -44,7 +43,7 @@ import jdk.nashorn.internal.runtime.ScriptObject;
  *
  */
 public class PrototypeObject extends ScriptObject {
-    private static final PropertyMap map$;
+    private static final PropertyMap nasgenmap$;
 
     private Object constructor;
 
@@ -52,22 +51,13 @@ public class PrototypeObject extends ScriptObject {
     private static final MethodHandle SET_CONSTRUCTOR = findOwnMH("setConstructor", void.class, Object.class, Object.class);
 
     static {
-        final ArrayList<Property> properties = new ArrayList<>(1);
-        properties.add(AccessorProperty.create("constructor", Property.NOT_ENUMERABLE, GET_CONSTRUCTOR, SET_CONSTRUCTOR));
-        map$ = PropertyMap.newMap(properties).setIsShared();
-    }
-
-    static PropertyMap getInitialMap() {
-        return map$;
-    }
-
-    private PrototypeObject(final Global global, final PropertyMap map) {
-        super(map != map$? map.addAll(global.getPrototypeObjectMap()) : global.getPrototypeObjectMap());
-        setProto(global.getObjectPrototype());
+        PropertyMap map = PropertyMap.newMap(PrototypeObject.class);
+        map = Lookup.newProperty(map, "constructor", Property.NOT_ENUMERABLE, GET_CONSTRUCTOR, SET_CONSTRUCTOR);
+        nasgenmap$ = map;
     }
 
     PrototypeObject() {
-        this(Global.instance(), map$);
+        this(nasgenmap$);
     }
 
     /**
@@ -75,12 +65,13 @@ public class PrototypeObject extends ScriptObject {
      *
      * @param map property map
      */
-    PrototypeObject(final PropertyMap map) {
-        this(Global.instance(), map);
+    public PrototypeObject(final PropertyMap map) {
+        super(map != nasgenmap$ ? map.addAll(nasgenmap$) : nasgenmap$);
+        setProto(Global.objectPrototype());
     }
 
     PrototypeObject(final ScriptFunction func) {
-        this(Global.instance(), map$);
+        this();
         this.constructor = func;
     }
 
@@ -89,7 +80,7 @@ public class PrototypeObject extends ScriptObject {
      * @param self self reference
      * @return constructor, probably, but not necessarily, a {@link ScriptFunction}
      */
-    static Object getConstructor(final Object self) {
+    public static Object getConstructor(final Object self) {
         return (self instanceof PrototypeObject) ?
             ((PrototypeObject)self).getConstructor() :
             UNDEFINED;
@@ -100,7 +91,7 @@ public class PrototypeObject extends ScriptObject {
      * @param self self reference
      * @param constructor constructor, probably, but not necessarily, a {@link ScriptFunction}
      */
-    static void setConstructor(final Object self, final Object constructor) {
+    public static void setConstructor(final Object self, final Object constructor) {
         if (self instanceof PrototypeObject) {
             ((PrototypeObject)self).setConstructor(constructor);
         }

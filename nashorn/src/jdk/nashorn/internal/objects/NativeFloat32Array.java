@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,8 @@ package jdk.nashorn.internal.objects;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
 import jdk.nashorn.internal.objects.annotations.Function;
-import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
-import jdk.nashorn.internal.objects.annotations.Where;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.arrays.ArrayData;
 
@@ -40,17 +37,8 @@ import jdk.nashorn.internal.runtime.arrays.ArrayData;
  * Float32 array for the TypedArray extension
  */
 @ScriptClass("Float32Array")
-public final class NativeFloat32Array extends ArrayBufferView {
-    /**
-     * The size in bytes of each element in the array.
-     */
-    @Property(attributes = Attribute.NOT_ENUMERABLE | Attribute.NOT_WRITABLE | Attribute.NOT_CONFIGURABLE, where = Where.CONSTRUCTOR)
-    public static final int BYTES_PER_ELEMENT = 4;
-
-    // initialized by nasgen
-    @SuppressWarnings("unused")
-    private static PropertyMap $nasgenmap$;
-
+public class NativeFloat32Array extends ArrayBufferView {
+    private static final int BYTES_PER_ELEMENT = 4;
     private static final Factory FACTORY = new Factory(BYTES_PER_ELEMENT) {
         @Override
         public ArrayBufferView construct(final NativeArrayBuffer buffer, final int byteOffset, final int length) {
@@ -145,11 +133,6 @@ public final class NativeFloat32Array extends ArrayBufferView {
     }
 
     @Override
-    public String getClassName() {
-        return "Float32Array";
-    }
-
-    @Override
     protected Factory factory() {
         return FACTORY;
     }
@@ -197,7 +180,7 @@ public final class NativeFloat32Array extends ArrayBufferView {
     }
 
     @Override
-    protected ScriptObject getPrototype(final Global global) {
-        return global.getFloat32ArrayPrototype();
+    protected ScriptObject getPrototype() {
+        return Global.instance().getFloat32ArrayPrototype();
     }
 }

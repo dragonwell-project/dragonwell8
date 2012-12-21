@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,17 +28,19 @@ package jdk.nashorn.api.scripting;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import org.testng.TestNG;
 import org.testng.annotations.Test;
 
 /**
  * Test that we can create multiple, independent script engines and use those
  * independently.
- *
- * @test
- * @run testng jdk.nashorn.api.scripting.MultipleEngineTest
  */
 
 public class MultipleEngineTest {
+    public static void main(final String[] args) {
+        TestNG.main(args);
+    }
+
     @Test
     public void createAndUseManyEngine() throws ScriptException {
         final ScriptEngineManager m = new ScriptEngineManager();

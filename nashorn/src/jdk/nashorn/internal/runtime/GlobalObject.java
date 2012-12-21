@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,29 +26,21 @@
 package jdk.nashorn.internal.runtime;
 
 import java.lang.invoke.MethodHandle;
-import java.util.concurrent.Callable;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.LinkRequest;
-import jdk.nashorn.internal.runtime.linker.InvokeByName;
+import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
 
 /**
- * Runtime interface to the global scope objects.
+ * Runtime interface to the global scope of the current context.
+ * NOTE: never access {@code jdk.nashorn.internal.objects.Global} class directly
+ * from runtime/parser/codegen/ir etc. Always go through this interface.
+ * <p>
+ * The reason for this is that all objects in the @{code jdk.nashorn.internal.objects.*} package
+ * are different per Context and loaded separately by each Context class loader. Attempting
+ * to directly refer to an object in this package from the rest of the runtime
+ * will lead to {@code ClassNotFoundException} thrown upon link time
  */
 
 public interface GlobalObject {
-    /**
-     * Is this global of the given Context?
-     * @param ctxt the context
-     * @return true if this global belongs to the given Context
-     */
-    public boolean isOfContext(final Context ctxt);
-
-    /**
-     * Does this global belong to a strict Context?
-     * @return true if this global belongs to a strict Context
-     */
-    public boolean isStrictContext();
-
     /**
      * Initialize standard builtin objects like "Object", "Array", "Function" etc.
      * as well as our extension builtin objects like "Java", "JSAdapter" as properties
@@ -76,17 +68,35 @@ public interface GlobalObject {
      */
    public Object wrapAsObject(Object obj);
 
-
     /**
-     * Wrapper for {@link jdk.nashorn.internal.objects.Global#primitiveLookup(LinkRequest, Object)}
+     * Wrapper for {@link jdk.nashorn.internal.objects.Global#numberLookup(NashornCallSiteDescriptor, Number)}
      *
-     * @param request the link request for the dynamic call site.
+     * @param callSite call site descriptor
      * @param self     self reference
      *
      * @return guarded invocation
      */
-   public GuardedInvocation primitiveLookup(LinkRequest request, Object self);
+   public GuardedInvocation numberLookup(NashornCallSiteDescriptor callSite, Number self);
 
+    /**
+     * Wrapper for {@link jdk.nashorn.internal.objects.Global#stringLookup(NashornCallSiteDescriptor, CharSequence)}
+     *
+     * @param callSite call site descriptor
+     * @param self     self reference
+     *
+     * @return guarded invocation
+     */
+   public GuardedInvocation stringLookup(NashornCallSiteDescriptor callSite, CharSequence self);
+
+    /**
+     * Wrapper for {@link jdk.nashorn.internal.objects.Global#booleanLookup(NashornCallSiteDescriptor, Boolean)}
+     *
+     * @param callSite call site descriptor
+     * @param self     self reference
+     *
+     * @return guarded invocation
+     */
+   public GuardedInvocation booleanLookup(NashornCallSiteDescriptor callSite, Boolean self);
 
     /**
      * Wrapper for {@link jdk.nashorn.internal.objects.Global#newObject()}
@@ -225,20 +235,4 @@ public interface GlobalObject {
      * @param clazz compiled Class object for the source
      */
     public void cacheClass(Source source, Class<?> clazz);
-
-    /**
-     * Get cached InvokeByName object for the given key
-     * @param key key to be associated with InvokeByName object
-     * @param creator if InvokeByName is absent 'creator' is called to make one (lazy init)
-     * @return InvokeByName object associated with the key.
-     */
-    public InvokeByName getInvokeByName(final Object key, final Callable<InvokeByName> creator);
-
-    /**
-     * Get cached dynamic method handle for the given key
-     * @param key key to be associated with dynamic method handle
-     * @param creator if method handle is absent 'creator' is called to make one (lazy init)
-     * @return dynamic method handle associated with the key.
-     */
-    public MethodHandle getDynamicInvoker(final Object key, final Callable<MethodHandle> creator);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,10 @@
 package jdk.nashorn.internal.runtime.arrays;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Array;
 import jdk.nashorn.internal.runtime.GlobalObject;
-import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
+import jdk.nashorn.internal.runtime.linker.Bootstrap;
 
 /**
  * ArrayData - abstraction for wrapping array elements
@@ -55,7 +56,7 @@ public abstract class ArrayData {
      * Constructor
      * @param length Virtual length of the array.
      */
-    protected ArrayData(final long length) {
+    public ArrayData(final long length) {
         this.length = length;
     }
 
@@ -74,13 +75,8 @@ public abstract class ArrayData {
      * @return ArrayData
      */
     public static ArrayData allocate(final int length) {
-        if (length == 0) {
-            return new IntArrayData();
-        } else if (length >= SparseArrayData.MAX_DENSE_LENGTH) {
-            return new SparseArrayData(EMPTY_ARRAY, length);
-        } else {
-            return new DeletedRangeArrayFilter(new IntArrayData(length), 0, length - 1);
-        }
+        final ArrayData arrayData = new IntArrayData(length);
+        return length == 0 ? arrayData : new DeletedRangeArrayFilter(arrayData, 0, length - 1);
     }
 
     /**
@@ -182,14 +178,6 @@ public abstract class ArrayData {
     }
 
     /**
-     * Return a copy of the array that can be modified without affecting this instance.
-     * It is safe to return themselves for immutable subclasses.
-     *
-     * @return a new array
-     */
-    public abstract ArrayData copy();
-
-    /**
      * Return a copy of the array data as an Object array.
      *
      * @return an Object array
@@ -203,7 +191,20 @@ public abstract class ArrayData {
      * @return and array of the given type
      */
     public Object asArrayOfType(final Class<?> componentType) {
-        return JSType.convertArray(asObjectArray(), componentType);
+        final Object[] src = asObjectArray();
+        final int l = src.length;
+        final Object dst = Array.newInstance(componentType, l);
+        final MethodHandle converter = Bootstrap.getLinkerServices().getTypeConverter(Object.class, componentType);
+        try {
+            for (int i = 0; i < src.length; i++) {
+                Array.set(dst, i, invoke(converter, src[i]));
+            }
+        } catch (final RuntimeException | Error e) {
+            throw e;
+        } catch (final Throwable t) {
+            throw new RuntimeException(t);
+        }
+        return dst;
     }
 
     /**
@@ -292,29 +293,6 @@ public abstract class ArrayData {
      * @return new array data (or same)
      */
     public abstract ArrayData set(int index, double value, boolean strict);
-
-    /**
-     * Set an empty value at a given index. Should only affect Object array.
-     *
-     * @param index the index
-     * @return new array data (or same)
-     */
-    public ArrayData setEmpty(final int index) {
-        // Do nothing.
-        return this;
-    }
-
-    /**
-     * Set an empty value for a given range. Should only affect Object array.
-     *
-     * @param lo range low end
-     * @param hi range high end
-     * @return new array data (or same)
-     */
-    public ArrayData setEmpty(final long lo, final long hi) {
-        // Do nothing.
-        return this;
-    }
 
     /**
      * Get an int value from a given index
@@ -461,23 +439,7 @@ public abstract class ArrayData {
      */
     public abstract ArrayData slice(long from, long to);
 
-    /**
-     * Fast splice operation. This just modifies the array according to the number of
-     * elements added and deleted but does not insert the added elements. Throws
-     * {@code UnsupportedOperationException} if fast splice operation is not supported
-     * for this class or arguments.
-     *
-     * @param start start index of splice operation
-     * @param removed number of removed elements
-     * @param added number of added elements
-     * @throws UnsupportedOperationException if fast splice is not supported for the class or arguments.
-     */
-    public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
-        throw new UnsupportedOperationException();
-    }
-
-
-    static Class<?> widestType(final Object... items) {
+    private static Class<?> widestType(final Object... items) {
         assert items.length > 0;
 
         Class<?> widest = Integer.class;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.nashorn.internal.runtime.arrays;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.GlobalObject;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
 
@@ -39,11 +40,6 @@ final class FrozenArrayFilter extends SealedArrayFilter {
     }
 
     @Override
-    public ArrayData copy() {
-        return this;
-    }
-
-    @Override
     public PropertyDescriptor getDescriptor(final GlobalObject global, final int index) {
         return global.newDataDescriptor(getObject(index), false, true, false);
     }
@@ -51,7 +47,7 @@ final class FrozenArrayFilter extends SealedArrayFilter {
     @Override
     public ArrayData set(final int index, final int value, final boolean strict) {
         if (strict) {
-            throw typeError("cant.set.property", Integer.toString(index), "frozen array");
+            typeError(Context.getGlobal(), "cant.set.property", Integer.toString(index), "frozen array");
         }
         return this;
     }
@@ -59,7 +55,7 @@ final class FrozenArrayFilter extends SealedArrayFilter {
     @Override
     public ArrayData set(final int index, final long value, final boolean strict) {
         if (strict) {
-            throw typeError("cant.set.property", Integer.toString(index), "frozen array");
+            typeError(Context.getGlobal(), "cant.set.property", Integer.toString(index), "frozen array");
         }
         return this;
     }
@@ -67,7 +63,7 @@ final class FrozenArrayFilter extends SealedArrayFilter {
     @Override
     public ArrayData set(final int index, final double value, final boolean strict) {
         if (strict) {
-            throw typeError("cant.set.property", Integer.toString(index), "frozen array");
+            typeError(Context.getGlobal(), "cant.set.property", Integer.toString(index), "frozen array");
         }
         return this;
     }
@@ -75,7 +71,7 @@ final class FrozenArrayFilter extends SealedArrayFilter {
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
         if (strict) {
-            throw typeError("cant.set.property", Integer.toString(index), "frozen array");
+            typeError(Context.getGlobal(), "cant.set.property", Integer.toString(index), "frozen array");
         }
         return this;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,21 +33,18 @@ import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 
 import java.util.Locale;
 import java.util.TimeZone;
-import java.util.concurrent.Callable;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
 import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.SpecializedConstructor;
 import jdk.nashorn.internal.objects.annotations.Where;
-import jdk.nashorn.internal.parser.DateParser;
 import jdk.nashorn.internal.runtime.ConsString;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
+import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
-import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.linker.InvokeByName;
 
 /**
@@ -75,11 +72,11 @@ public final class NativeDate extends ScriptObject {
     private static final int FORMAT_LOCAL_TIME      = 5;
 
     // Constants defined in ECMA 15.9.1.10
-    private static final int    hoursPerDay      = 24;
-    private static final int    minutesPerHour   = 60;
-    private static final int    secondsPerMinute = 60;
-    private static final int    msPerSecond   = 1_000;
-    private static final int    msPerMinute  = 60_000;
+    private static final double hoursPerDay      = 24;
+    private static final double minutesPerHour   = 60;
+    private static final double secondsPerMinute = 60;
+    private static final double msPerSecond   = 1_000;
+    private static final double msPerMinute  = 60_000;
     private static final double msPerHour = 3_600_000;
     private static final double msPerDay = 86_400_000;
 
@@ -96,46 +93,22 @@ public final class NativeDate extends ScriptObject {
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
 
-    private static final Object TO_ISO_STRING = new Object();
-
-    private static InvokeByName getTO_ISO_STRING() {
-        return Global.instance().getInvokeByName(TO_ISO_STRING,
-                new Callable<InvokeByName>() {
-                    @Override
-                    public InvokeByName call() {
-                        return new InvokeByName("toISOString", ScriptObject.class, Object.class, Object.class);
-                    }
-                });
-    }
+    private static final InvokeByName TO_ISO_STRING = new InvokeByName("toISOString", ScriptObject.class, Object.class,
+            Object.class);
 
     private double time;
     private final TimeZone timezone;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
+    NativeDate() {
+        this(System.currentTimeMillis());
     }
 
-    private NativeDate(final double time, final ScriptObject proto, final PropertyMap map) {
-        super(proto, map);
-        final ScriptEnvironment env = Global.getEnv();
+    NativeDate(final double time) {
+        final Context context = Global.getThisContext();
 
         this.time = time;
-        this.timezone = env._timezone;
-    }
-
-    NativeDate(final double time, final Global global) {
-        this(time, global.getDatePrototype(), global.getDateMap());
-    }
-
-    private NativeDate (final double time) {
-        this(time, Global.instance());
-    }
-
-    private NativeDate() {
-        this(System.currentTimeMillis());
+        this.timezone = context.getTimeZone();
+        this.setProto(Global.instance().getDatePrototype());
     }
 
     @Override
@@ -175,10 +148,6 @@ public final class NativeDate extends ScriptObject {
      */
     @Constructor(arity = 7)
     public static Object construct(final boolean isNew, final Object self, final Object... args) {
-        if (! isNew) {
-            return toStringImpl(new NativeDate(), FORMAT_DATE_TIME);
-        }
-
         NativeDate result;
         switch (args.length) {
         case 0:
@@ -208,13 +177,12 @@ public final class NativeDate extends ScriptObject {
             break;
          }
 
-         return result;
+         return isNew ? result : toStringImpl(new NativeDate(), FORMAT_DATE_TIME);
     }
 
     @Override
     public String safeToString() {
-        final String str = isValidDate() ? toISOStringImpl(this) : INVALID_DATE;
-        return "[Date " + str + "]";
+        return "[Date " + toISOStringImpl(this) + "]";
     }
 
     @Override
@@ -550,7 +518,7 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE)
     public static Object getTimezoneOffset(final Object self) {
         final NativeDate nd = getNativeDate(self);
-        if (nd != null && nd.isValidDate()) {
+        if (nd != null) {
             final long msec = (long) nd.getTime();
             return - nd.getTimeZone().getOffset(msec) / msPerMinute;
         }
@@ -566,8 +534,8 @@ public final class NativeDate extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
     public static Object setTime(final Object self, final Object time) {
-        final NativeDate nd  = getNativeDate(self);
         final double     num = timeClip(JSType.toNumber(time));
+        final NativeDate nd  = getNativeDate(self);
         nd.setTime(num);
         return num;
     }
@@ -582,7 +550,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
     public static Object setMilliseconds(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, MILLISECOND, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, MILLISECOND, args, true);
+        }
         return nd.getTime();
     }
 
@@ -596,7 +566,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
     public static Object setUTCMilliseconds(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, MILLISECOND, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, MILLISECOND, args, false);
+        }
         return nd.getTime();
     }
 
@@ -610,7 +582,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 2)
     public static Object setSeconds(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, SECOND, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, SECOND, args, true);
+        }
         return nd.getTime();
     }
 
@@ -624,7 +598,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 2)
     public static Object setUTCSeconds(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, SECOND, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, SECOND, args, false);
+        }
         return nd.getTime();
     }
 
@@ -638,7 +614,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 3)
     public static Object setMinutes(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, MINUTE, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, MINUTE, args, true);
+        }
         return nd.getTime();
     }
 
@@ -652,7 +630,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 3)
     public static Object setUTCMinutes(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, MINUTE, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, MINUTE, args, false);
+        }
         return nd.getTime();
     }
 
@@ -666,7 +646,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 4)
     public static Object setHours(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, HOUR, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, HOUR, args, true);
+        }
         return nd.getTime();
     }
 
@@ -680,7 +662,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 4)
     public static Object setUTCHours(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, HOUR, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, HOUR, args, false);
+        }
         return nd.getTime();
     }
 
@@ -694,7 +678,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
     public static Object setDate(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, DAY, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, DAY, args, true);
+        }
         return nd.getTime();
     }
 
@@ -708,7 +694,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
     public static Object setUTCDate(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, DAY, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, DAY, args, false);
+        }
         return nd.getTime();
     }
 
@@ -722,7 +710,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 2)
     public static Object setMonth(final Object self, final Object... args) {
         final NativeDate nd = getNativeDate(self);
-        setFields(nd, MONTH, args, true);
+        if (nd.isValidDate()) {
+            setFields(nd, MONTH, args, true);
+        }
         return nd.getTime();
     }
 
@@ -736,7 +726,9 @@ public final class NativeDate extends ScriptObject {
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 2)
     public static Object setUTCMonth(final Object self, final Object... args) {
         final NativeDate nd = ensureNativeDate(self);
-        setFields(nd, MONTH, args, false);
+        if (nd.isValidDate()) {
+            setFields(nd, MONTH, args, false);
+        }
         return nd.getTime();
     }
 
@@ -754,11 +746,7 @@ public final class NativeDate extends ScriptObject {
             setFields(nd, YEAR, args, true);
         } else {
             final double[] d = convertArgs(args, 0, YEAR, YEAR, 3);
-            if (d != null) {
-                nd.setTime(timeClip(utc(makeDate(makeDay(d[0], d[1], d[2]), 0), nd.getTimeZone())));
-            } else {
-                nd.setTime(NaN);
-            }
+            nd.setTime(timeClip(utc(makeDate(makeDay(d[0], d[1], d[2]), 0), nd.getTimeZone())));
         }
         return nd.getTime();
     }
@@ -793,21 +781,21 @@ public final class NativeDate extends ScriptObject {
     public static Object setYear(final Object self, final Object year) {
         final NativeDate nd = getNativeDate(self);
         if (isNaN(nd.getTime())) {
-            nd.setTime(utc(0, nd.getTimeZone()));
+            return null;
         }
 
         final double yearNum = JSType.toNumber(year);
         if (isNaN(yearNum)) {
             nd.setTime(NaN);
-            return nd.getTime();
+            return nd;
         }
-        int yearInt = (int)yearNum;
+        int yearInt = JSType.toInteger(yearNum);
         if (0 <= yearInt && yearInt <= 99) {
             yearInt += 1900;
         }
         setFields(nd, YEAR, new Object[] {yearInt}, true);
 
-        return nd.getTime();
+        return nd;
     }
 
     /**
@@ -856,6 +844,10 @@ public final class NativeDate extends ScriptObject {
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
     public static Object toJSON(final Object self, final Object key) {
+        if (self instanceof NativeDate) {
+            final NativeDate nd = (NativeDate)self;
+            return (isNaN(nd.getTime())) ? null : toISOStringImpl(nd);
+        }
         // NOTE: Date.prototype.toJSON is generic. Accepts other objects as well.
         final Object selfObj = Global.toObject(self);
         if (!(selfObj instanceof ScriptObject)) {
@@ -863,25 +855,26 @@ public final class NativeDate extends ScriptObject {
         }
         final ScriptObject sobj  = (ScriptObject)selfObj;
         final Object       value = sobj.getDefaultValue(Number.class);
-        if (value instanceof Number) {
-            final double num = ((Number)value).doubleValue();
-            if (isInfinite(num) || isNaN(num)) {
-                return null;
-            }
+
+        final double num = (value instanceof Number) ? ((Number)value).doubleValue() : NaN;
+
+        if (isInfinite(num) || isNaN(num)) {
+            return null;
         }
 
         try {
-            final InvokeByName toIsoString = getTO_ISO_STRING();
-            final Object func = toIsoString.getGetter().invokeExact(sobj);
-            if (Bootstrap.isCallable(func)) {
-                return toIsoString.getInvoker().invokeExact(func, sobj, key);
+            final Object func = TO_ISO_STRING.getGetter().invokeExact(sobj);
+            if (func instanceof ScriptFunction) {
+                return TO_ISO_STRING.getInvoker().invokeExact(func, sobj, key);
             }
-            throw typeError("not.a.function", ScriptRuntime.safeToString(func));
+            typeError(Global.instance(), "not.a.function", ScriptRuntime.safeToString(func));
         } catch (final RuntimeException | Error e) {
             throw e;
         } catch (final Throwable t) {
             throw new RuntimeException(t);
         }
+
+        return null;
     }
 
     // -- Internals below this point
@@ -895,7 +888,7 @@ public final class NativeDate extends ScriptObject {
             if (fields[DateParser.TIMEZONE] != null) {
                 d -= fields[DateParser.TIMEZONE] * 60000;
             } else {
-                d = utc(d, Global.getEnv()._timezone);
+                d = utc(d, Global.getThisContext().getTimeZone());
             }
             d = timeClip(d);
             return d;
@@ -926,13 +919,13 @@ public final class NativeDate extends ScriptObject {
                 case FORMAT_DATE :
                 case FORMAT_LOCAL_DATE_TIME:
                     // EEE MMM dd yyyy
-                    sb.append(weekDays[weekDay(t)])
+                    sb.append(weekDays[(int) weekDay(t)])
                             .append(' ')
-                            .append(months[monthFromTime(t)])
+                            .append(months[(int) monthFromTime(t)])
                             .append(' ');
-                    zeroPad(sb, dayFromTime(t), 2);
+                    zeroPad(sb, (int) dayFromTime(t), 2);
                     sb.append(' ');
-                    zeroPad(sb, yearFromTime(t), 4);
+                    zeroPad(sb, (int) yearFromTime(t), 4);
                     if (format == FORMAT_DATE) {
                         break;
                     }
@@ -948,11 +941,11 @@ public final class NativeDate extends ScriptObject {
                     offset = (offset / 60) * 100 + offset % 60;
 
                     // HH:mm:ss GMT+HHmm
-                    zeroPad(sb, hourFromTime(t), 2);
+                    zeroPad(sb, (int) hourFromTime(t), 2);
                     sb.append(':');
-                    zeroPad(sb, minFromTime(t), 2);
+                    zeroPad(sb, (int) minFromTime(t), 2);
                     sb.append(':');
-                    zeroPad(sb, secFromTime(t), 2);
+                    zeroPad(sb, (int) secFromTime(t), 2);
                     sb.append(" GMT")
                             .append(offset < 0 ? '-' : '+');
                     zeroPad(sb, Math.abs(offset), 4);
@@ -963,20 +956,20 @@ public final class NativeDate extends ScriptObject {
 
                 case FORMAT_LOCAL_DATE:
                     // yyyy-MM-dd
-                    zeroPad(sb, yearFromTime(t), 4);
+                    zeroPad(sb, (int) yearFromTime(t), 4);
                     sb.append('-');
-                    zeroPad(sb, monthFromTime(t) + 1, 2);
+                    zeroPad(sb, (int) monthFromTime(t) + 1, 2);
                     sb.append('-');
-                    zeroPad(sb, dayFromTime(t), 2);
+                    zeroPad(sb, (int) dayFromTime(t), 2);
                     break;
 
                 case FORMAT_LOCAL_TIME:
                     // HH:mm:ss
-                    zeroPad(sb, hourFromTime(t), 2);
+                    zeroPad(sb, (int) hourFromTime(t), 2);
                     sb.append(':');
-                    zeroPad(sb, minFromTime(t), 2);
+                    zeroPad(sb, (int) minFromTime(t), 2);
                     sb.append(':');
-                    zeroPad(sb, secFromTime(t), 2);
+                    zeroPad(sb, (int) secFromTime(t), 2);
                     break;
 
                 default:
@@ -996,24 +989,26 @@ public final class NativeDate extends ScriptObject {
             final StringBuilder sb = new StringBuilder(29);
             final double t = nd.getTime();
             // EEE, dd MMM yyyy HH:mm:ss z
-            sb.append(weekDays[weekDay(t)])
+            sb.append(weekDays[(int) weekDay(t)])
                     .append(", ");
-            zeroPad(sb, dayFromTime(t), 2);
+            zeroPad(sb, (int) dayFromTime(t), 2);
             sb.append(' ')
-                    .append(months[monthFromTime(t)])
+                    .append(months[(int) monthFromTime(t)])
                     .append(' ');
-            zeroPad(sb, yearFromTime(t), 4);
+            zeroPad(sb, (int) yearFromTime(t), 4);
             sb.append(' ');
-            zeroPad(sb, hourFromTime(t), 2);
+            zeroPad(sb, (int) hourFromTime(t), 2);
             sb.append(':');
-            zeroPad(sb, minFromTime(t), 2);
+            zeroPad(sb, (int) minFromTime(t), 2);
             sb.append(':');
-            zeroPad(sb, secFromTime(t), 2);
+            zeroPad(sb, (int) secFromTime(t), 2);
             sb.append(" GMT");
             return sb.toString();
         }
 
-        throw rangeError("invalid.date");
+        rangeError(Global.instance(), "invalid.date");
+
+        return INVALID_DATE;
     }
 
     private static String toISOStringImpl(final Object self) {
@@ -1023,24 +1018,26 @@ public final class NativeDate extends ScriptObject {
             final StringBuilder sb = new StringBuilder(24);
             final double t = nd.getTime();
             // yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
-            zeroPad(sb, yearFromTime(t), 4);
+            zeroPad(sb, (int) yearFromTime(t), 4);
             sb.append('-');
-            zeroPad(sb, monthFromTime(t) + 1, 2);
+            zeroPad(sb, (int) monthFromTime(t) + 1, 2);
             sb.append('-');
-            zeroPad(sb, dayFromTime(t), 2);
+            zeroPad(sb, (int) dayFromTime(t), 2);
             sb.append('T');
-            zeroPad(sb, hourFromTime(t), 2);
+            zeroPad(sb, (int) hourFromTime(t), 2);
             sb.append(':');
-            zeroPad(sb, minFromTime(t), 2);
+            zeroPad(sb, (int) minFromTime(t), 2);
             sb.append(':');
-            zeroPad(sb, secFromTime(t), 2);
+            zeroPad(sb, (int) secFromTime(t), 2);
             sb.append('.');
-            zeroPad(sb, msFromTime(t), 3);
+            zeroPad(sb, (int) msFromTime(t), 3);
             sb.append("Z");
             return sb.toString();
         }
 
-        throw rangeError("invalid.date");
+        rangeError(Global.instance(), "invalid.date");
+
+        return INVALID_DATE;
     }
 
     // ECMA 15.9.1.2 Day (t)
@@ -1072,30 +1069,29 @@ public final class NativeDate extends ScriptObject {
     }
 
     // ECMA 15.9.1.3 Year Number
-    private static double timeFromYear(final int y) {
+    private static double timeFromYear(final double y) {
         return dayFromYear(y) * msPerDay;
     }
 
-    // ECMA 15.9.1.3 Year Number
-    private static int yearFromTime(final double t) {
-        int y = (int) Math.floor(t / (msPerDay * 365.2425)) + 1970;
+    private static double yearFromTime(final double t) {
+        double y = Math.floor(t / (msPerDay * 365.2425)) + 1970;
         final double t2 = timeFromYear(y);
         if (t2 > t) {
             y--;
-        } else if (t2 + msPerDay * daysInYear(y) <= t) {
+        } else if (t2 + msPerDay * daysInYear((int) y) <= t) {
             y++;
         }
         return y;
     }
 
-    private static int dayWithinYear(final double t, final int year) {
-        return (int) (day(t) - dayFromYear(year));
+    private static double dayWithinYear(final double t, final double year) {
+        return day(t) - dayFromYear(year);
     }
 
-    private static int monthFromTime(final double t) {
-        final int year = yearFromTime(t);
-        final int day = dayWithinYear(t, year);
-        final int[] firstDay = firstDayInMonth[isLeapYear(year) ? 1 : 0];
+    private static double monthFromTime(final double t) {
+        final double year = yearFromTime(t);
+        final double day = dayWithinYear(t, year);
+        final int[] firstDay = firstDayInMonth[isLeapYear((int) year) ? 1 : 0];
         int month = 0;
 
         while (month < 11 && firstDay[month + 1] <= day) {
@@ -1104,10 +1100,10 @@ public final class NativeDate extends ScriptObject {
         return month;
     }
 
-    private static int dayFromTime(final double t)  {
-        final int year = yearFromTime(t);
-        final int day = dayWithinYear(t, year);
-        final int[] firstDay = firstDayInMonth[isLeapYear(year) ? 1 : 0];
+    private static double dayFromTime(final double t)  {
+        final double year = yearFromTime(t);
+        final double day = dayWithinYear(t, year);
+        final int[] firstDay = firstDayInMonth[isLeapYear((int) year) ? 1 : 0];
         int month = 0;
 
         while (month < 11 && firstDay[month + 1] <= day) {
@@ -1122,8 +1118,11 @@ public final class NativeDate extends ScriptObject {
         return firstDay[month];
     }
 
-    private static int weekDay(final double time) {
-        final int day = (int) (day(time) + 4) % 7;
+    private static double weekDay(final double time) {
+        if (isNaN(time)) {
+            return NaN;
+        }
+        final double day = (day(time) + 4) % 7;
         return day < 0 ? day + 7 : day;
     }
 
@@ -1138,26 +1137,26 @@ public final class NativeDate extends ScriptObject {
     }
 
     // ECMA 15.9.1.10 Hours, Minutes, Second, and Milliseconds
-    private static int hourFromTime(final double t) {
-        final int h = (int) (Math.floor(t / msPerHour) % hoursPerDay);
+    private static double hourFromTime(final double t) {
+        final double h = Math.floor(t / msPerHour) % hoursPerDay;
         return h < 0 ? h + hoursPerDay: h;
     }
-    private static int minFromTime(final double t) {
-        final int m = (int) (Math.floor(t / msPerMinute) % minutesPerHour);
+    private static double minFromTime(final double t) {
+        final double m = Math.floor(t / msPerMinute) % minutesPerHour;
         return m < 0 ? m + minutesPerHour : m;
     }
 
-    private static int secFromTime(final double t) {
-        final int s = (int) (Math.floor(t / msPerSecond) % secondsPerMinute);
+    private static double secFromTime(final double t) {
+        final double s = Math.floor(t / msPerSecond) % secondsPerMinute;
         return s < 0 ? s + secondsPerMinute : s;
     }
 
-    private static int msFromTime(final double t) {
-        final int m = (int) (t % msPerSecond);
+    private static double msFromTime(final double t) {
+        final double m = t % msPerSecond;
         return m < 0 ? m + msPerSecond : m;
     }
 
-    private static int valueFromTime(final int unit, final double t) {
+    private static double valueFromTime(final int unit, final double t) {
         switch (unit) {
             case YEAR: return yearFromTime(t);
             case MONTH: return monthFromTime(t);
@@ -1178,12 +1177,12 @@ public final class NativeDate extends ScriptObject {
     // ECMA 15.9.1.12 MakeDay (year, month, date)
     private static double makeDay(final double year, final double month, final double date) {
         final double y = year + Math.floor(month / 12);
-        int m = (int) (month % 12);
+        double m = month % 12;
         if (m < 0) {
             m += 12;
         }
-        double d = dayFromYear(y);
-        d += dayFromMonth(m, (int) y);
+        double d = Math.floor(dayFromYear(y));
+        d += dayFromMonth((int) m, (int) y);
 
         return d + date - 1;
     }
@@ -1207,18 +1206,13 @@ public final class NativeDate extends ScriptObject {
     // Convert Date constructor args, checking for NaN, filling in defaults etc.
     private static double[] convertCtorArgs(final Object[] args) {
         final double[] d = new double[7];
-        boolean nullReturn = false;
 
-        // should not bailout on first NaN or infinite. Need to convert all
-        // subsequent args for possible side-effects via valueOf/toString overrides
-        // on argument objects.
         for (int i = 0; i < d.length; i++) {
             if (i < args.length) {
                 final double darg = JSType.toNumber(args[i]);
                 if (isNaN(darg) || isInfinite(darg)) {
-                    nullReturn = true;
+                    return null;
                 }
-
                 d[i] = (long)darg;
             } else {
                 d[i] = i == 2 ? 1 : 0; // day in month defaults to 1
@@ -1229,39 +1223,31 @@ public final class NativeDate extends ScriptObject {
             d[0] += 1900;
         }
 
-        return nullReturn? null : d;
+        return d;
     }
 
     // This method does the hard work for all setter methods: If a value is provided
     // as argument it is used, otherwise the value is calculated from the existing time value.
     private static double[] convertArgs(final Object[] args, final double time, final int fieldId, final int start, final int length) {
         final double[] d = new double[length];
-        boolean nullReturn = false;
 
-        // Need to call toNumber on all args for side-effects - even if an argument
-        // fails to convert to number, subsequent toNumber calls needed for possible
-        // side-effects via valueOf/toString overrides.
         for (int i = start; i < start + length; i++) {
             if (fieldId <= i && i < fieldId + args.length) {
                 final double darg = JSType.toNumber(args[i - fieldId]);
                 if (isNaN(darg) || isInfinite(darg)) {
-                    nullReturn = true;
+                    return null;
                 }
-
                 d[i - start] = (long) darg;
             } else {
                 // Date.prototype.set* methods require first argument to be defined
                 if (i == fieldId) {
-                    nullReturn = true;
+                    return null;
                 }
-
-                if (!nullReturn && !isNaN(time)) {
-                    d[i - start] = valueFromTime(i, time);
-                }
+                d[i - start] = valueFromTime(i, time);
             }
         }
+        return d;
 
-        return nullReturn ? null : d;
     }
 
     // ECMA 15.9.1.14 TimeClip (time)
@@ -1282,7 +1268,8 @@ public final class NativeDate extends ScriptObject {
         } else if (self != null && self == Global.instance().getDatePrototype()) {
             return Global.instance().DEFAULT_DATE;
         } else {
-            throw typeError("not.a.date", ScriptRuntime.safeToString(self));
+            typeError(Global.instance(), "not.a.date", ScriptRuntime.safeToString(self));
+            return null;
         }
     }
 
@@ -1307,10 +1294,6 @@ public final class NativeDate extends ScriptObject {
         }
         final double time = local ? nd.getLocalTime() : nd.getTime();
         final double d[] = convertArgs(args, time, fieldId, start, length);
-
-        if (! nd.isValidDate()) {
-            return;
-        }
 
         double newTime;
         if (d == null) {

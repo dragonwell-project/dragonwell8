@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,7 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Setter;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.regexp.RegExpResult;
+import jdk.nashorn.internal.runtime.RegExpMatch;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.arrays.ArrayData;
 
@@ -41,7 +40,7 @@ import jdk.nashorn.internal.runtime.arrays.ArrayData;
  * RegExp.prototype.exec method.
  */
 @ScriptClass("RegExpExecResult")
-public final class NativeRegExpExecResult extends ScriptObject {
+public class NativeRegExpExecResult extends ScriptObject {
     /** index property */
     @Property
     public Object index;
@@ -50,24 +49,11 @@ public final class NativeRegExpExecResult extends ScriptObject {
     @Property
     public Object input;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
-    NativeRegExpExecResult(final RegExpResult result, final Global global) {
-        super(global.getArrayPrototype(), global.getRegExpExecResultMap());
-        setIsArray();
-        this.setArray(ArrayData.allocate(result.getGroups().clone()));
-        this.index = result.getIndex();
-        this.input = result.getInput();
-    }
-
-    @Override
-    public String getClassName() {
-        return "Array";
+    NativeRegExpExecResult(final RegExpMatch match) {
+        setProto(Global.instance().getArrayPrototype());
+        this.setArray(ArrayData.allocate(match.getGroups().clone()));
+        this.index = match.getIndex();
+        this.input = match.getInput();
     }
 
     /**

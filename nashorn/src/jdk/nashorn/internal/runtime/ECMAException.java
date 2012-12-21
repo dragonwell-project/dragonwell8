@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,10 @@ import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import javax.script.ScriptException;
 import jdk.nashorn.api.scripting.NashornException;
+import jdk.nashorn.api.scripting.NashornScriptEngine;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.codegen.CompilerConstants.FieldAccess;
+import jdk.nashorn.internal.scripts.JS$;
 
 /**
  * Exception used to implement ECMAScript "throw" from scripts. The actual thrown
@@ -45,6 +47,7 @@ import jdk.nashorn.internal.codegen.CompilerConstants.FieldAccess;
 public final class ECMAException extends NashornException {
     /**
      * Method handle pointing to the constructor {@link ECMAException#ECMAException(Object, String, int, int)},
+     * used from {@link jdk.nashorn.internal.codegen.CodeGenerator}
      */
     public static final Call THROW_INIT = constructorNoLookup(ECMAException.class, Object.class, String.class, int.class, int.class);
 
@@ -52,6 +55,19 @@ public final class ECMAException extends NashornException {
     public static final FieldAccess THROWN = virtualField(ECMAException.class, "thrown", Object.class);
 
     private static final String EXCEPTION_PROPERTY = "nashornException";
+
+    /** We assume that compiler generates script classes into the known package. */
+    private static final String scriptPackage;
+
+    /** Package (internal) name where Nashorn script engine implementation lives */
+    private static final String enginePackageInternal;
+
+    static {
+        String name = JS$.class.getName();
+        scriptPackage = name.substring(0, name.lastIndexOf('.'));
+        name = NashornScriptEngine.class.getName();
+        enginePackageInternal = name.substring(0, name.lastIndexOf('.')).replace(".", "/");
+    }
 
     /** Object thrown. */
     public final Object thrown;
@@ -66,7 +82,10 @@ public final class ECMAException extends NashornException {
      * @param column    column number of throw
      */
     public ECMAException(final Object thrown, final String fileName, final int line, final int column) {
-        super(ScriptRuntime.safeToString(thrown), asThrowable(thrown), fileName, line, column);
+        super(ScriptRuntime.safeToString(thrown), asThrowable(thrown));
+        setFileName(fileName);
+        setLineNumber(line);
+        setColumnNumber(column);
         this.thrown = thrown;
         setExceptionToThrown();
     }
@@ -82,6 +101,8 @@ public final class ECMAException extends NashornException {
         super(ScriptRuntime.safeToString(thrown), cause);
         this.thrown = thrown;
         setExceptionToThrown();
+        // location is not directly available, get it from stack trace
+        setLocationFromStack();
     }
 
     /**
@@ -130,6 +151,29 @@ public final class ECMAException extends NashornException {
     }
 
     /**
+     * Check if a stack trace element is in JavaScript
+     *
+     * @param frame frame
+     *
+     * @return true if frame is in the script
+     */
+    public static boolean isScriptFrame(final StackTraceElement frame) {
+        final String className = frame.getClassName();
+
+        // Look for script package in class name (into which compiler puts generated code)
+        if (className.startsWith(scriptPackage)) {
+            final String source = frame.getFileName();
+            /*
+             * Make sure that it is not some Java code that Nashorn has in that package!
+             * also, we don't want to report JavaScript code that lives in script engine implementation
+             * We want to report only user's own scripts and not any of our own scripts like "engine.js"
+             */
+            return source != null && !source.endsWith(".java") && !source.contains(enginePackageInternal);
+        }
+        return false;
+    }
+
+    /**
      * Print the stack trace for a {@code ScriptObject} representing an error
      *
      * @param errObj the error object
@@ -137,10 +181,11 @@ public final class ECMAException extends NashornException {
      */
     public static Object printStackTrace(final ScriptObject errObj) {
         final Object exception = getException(errObj);
+        //TODO context err instead of System.err default
         if (exception instanceof Throwable) {
-            ((Throwable)exception).printStackTrace(Context.getCurrentErr());
+            ((Throwable)exception).printStackTrace();
         } else {
-            Context.err("<stack trace not available>");
+            System.err.println("<stack trace not available>");
         }
         return UNDEFINED;
     }
@@ -237,7 +282,7 @@ public final class ECMAException extends NashornException {
             return (String)name;
         }
 
-        return name + ": " + msg;
+        return (String)name + ": " + (String)msg;
     }
 
     private static Throwable asThrowable(final Object obj) {
@@ -256,6 +301,25 @@ public final class ECMAException extends NashornException {
             final ScriptObject sobj = (ScriptObject)thrown;
             if (!sobj.has(EXCEPTION_PROPERTY)) {
                 sobj.addOwnProperty(EXCEPTION_PROPERTY, Property.NOT_ENUMERABLE, this);
+            }
+        }
+    }
+
+    private void setLocationFromStack() {
+        // This is not so pretty - but it gets the job done. Note that the stack
+        // trace has been already filled by "fillInStackTrace" call from Throwable
+        // constructor and so we don't pay additional cost for it.
+
+        // Find the first JavaScript frame by walking and set file, line from it
+        // Usually, we should be able to find it in just few frames depth.
+        for (final StackTraceElement ste : getStackTrace()) {
+            if (isScriptFrame(ste)) {
+                // Whatever here is compiled from JavaScript code
+                setFileName(ste.getFileName());
+                setLineNumber(ste.getLineNumber());
+                // Hard luck - no column number info
+                setColumnNumber(-1);
+                break;
             }
         }
     }

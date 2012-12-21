@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,8 @@ print(file + " : " + __LINE__);
 load(__DIR__ + "loadedfile.js");
 
 // Add check for base part of a URL. We can't test __DIR__ inside
-// a script that is downloaded from a URL. check for SourceHelper.baseURL
+// a script that is downloaded from a URL. check for Source.baseURL
 // which is exposed as __DIR__ for URL case.
 
 var url = new java.net.URL("http://www.acme.com:8080/foo/bar.js");
-print(Packages.jdk.nashorn.test.models.SourceHelper.baseURL(url));
+print(Packages.jdk.nashorn.internal.runtime.Source.baseURL(url));

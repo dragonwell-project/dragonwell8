@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,50 +25,63 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * TernaryNode nodes represent three operand operations (?:).
  */
-@Immutable
-public final class TernaryNode extends Expression {
-    private final Expression test;
-
-    private final Expression trueExpr;
-
+public class TernaryNode extends BinaryNode {
     /** Third argument. */
-    private final Expression falseExpr;
+    private Node third;
 
     /**
      * Constructor
      *
-     * @param token     token
-     * @param test      test expression
-     * @param trueExpr  expression evaluated when test evaluates to true
-     * @param falseExpr expression evaluated when test evaluates to true
+     * @param source the source
+     * @param token  token
+     * @param lhs    left hand side node
+     * @param rhs    right hand side node
+     * @param third  third node
      */
-    public TernaryNode(final long token, final Expression test, final Expression trueExpr, final Expression falseExpr) {
-        super(token, falseExpr.getFinish());
-        this.test = test;
-        this.trueExpr = trueExpr;
-        this.falseExpr = falseExpr;
+    public TernaryNode(final Source source, final long token, final Node lhs, final Node rhs, final Node third) {
+        super(source, token, lhs, rhs);
+
+        this.finish = third.getFinish();
+        this.third = third;
     }
 
-    private TernaryNode(final TernaryNode ternaryNode, final Expression test, final Expression trueExpr, final Expression falseExpr) {
-        super(ternaryNode);
-        this.test = test;
-        this.trueExpr = trueExpr;
-        this.falseExpr = falseExpr;
+    private TernaryNode(final TernaryNode ternaryNode, final CopyState cs) {
+        super(ternaryNode, cs);
+
+        third = cs.existingOrCopy(ternaryNode.third);
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterTernaryNode(this)) {
-            final Expression newTest = (Expression)getTest().accept(visitor);
-            final Expression newTrueExpr = (Expression)getTrueExpression().accept(visitor);
-            final Expression newFalseExpr = (Expression)falseExpr.accept(visitor);
-            return visitor.leaveTernaryNode(setTest(newTest).setTrueExpression(newTrueExpr).setFalseExpression1(newFalseExpr));
+    protected Node copy(final CopyState cs) {
+        return new TernaryNode(this, cs);
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        if (!super.equals(other)) {
+            return false;
+        }
+        return third.equals(((TernaryNode)other).third());
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode() ^ third().hashCode();
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            lhs = lhs.accept(visitor);
+            rhs = rhs.accept(visitor);
+            third = third.accept(visitor);
+            return visitor.leave(this);
         }
 
         return this;
@@ -76,103 +89,52 @@ public final class TernaryNode extends Expression {
 
     @Override
     public void toString(final StringBuilder sb) {
-        final boolean testParen  = tokenType().needsParens(getTest().tokenType(), true);
-        final boolean trueParen  = tokenType().needsParens(getTrueExpression().tokenType(), false);
-        final boolean falseParen = tokenType().needsParens(getFalseExpression().tokenType(), false);
+        final boolean lhsParen   = tokenType().needsParens(lhs().tokenType(), true);
+        final boolean rhsParen   = tokenType().needsParens(rhs().tokenType(), false);
+        final boolean thirdParen = tokenType().needsParens(third().tokenType(), false);
 
-        if (testParen) {
+        if (lhsParen) {
             sb.append('(');
         }
-        getTest().toString(sb);
-        if (testParen) {
+        lhs().toString(sb);
+        if (lhsParen) {
             sb.append(')');
         }
 
         sb.append(" ? ");
 
-        if (trueParen) {
+        if (rhsParen) {
             sb.append('(');
         }
-        getTrueExpression().toString(sb);
-        if (trueParen) {
+        rhs().toString(sb);
+        if (rhsParen) {
             sb.append(')');
         }
 
         sb.append(" : ");
 
-        if (falseParen) {
+        if (thirdParen) {
             sb.append('(');
         }
-        getFalseExpression().toString(sb);
-        if (falseParen) {
+        third().toString(sb);
+        if (thirdParen) {
             sb.append(')');
         }
     }
 
-    @Override
-    public boolean isLocal() {
-        return getTest().isLocal()
-                && getTrueExpression().isLocal()
-                && getFalseExpression().isLocal();
+    /**
+     * Get the "third" node for this ternary expression, i.e. "z" in x ? y : z
+     * @return a node
+     */
+    public Node third() {
+        return third;
     }
 
     /**
-     * Get the test expression for this ternary expression, i.e. "x" in x ? y : z
-     * @return the test expression
+     * Reset the "third" node for this ternary expression, i.e. "z" in x ? y : z
+     * @param third a node
      */
-    public Expression getTest() {
-        return test;
-    }
-
-    /**
-     * Get the true expression for this ternary expression, i.e. "y" in x ? y : z
-     * @return the true expression
-     */
-    public Expression getTrueExpression() {
-        return trueExpr;
-    }
-
-    /**
-     * Get the false expression for this ternary expression, i.e. "z" in x ? y : z
-     * @return the false expression
-     */
-    public Expression getFalseExpression() {
-        return falseExpr;
-    }
-
-    /**
-     * Set the test expression for this node
-     * @param test new test expression
-     * @return a node equivalent to this one except for the requested change.
-     */
-    public TernaryNode setTest(final Expression test) {
-        if (this.test == test) {
-            return this;
-        }
-        return new TernaryNode(this, test, trueExpr, falseExpr);
-    }
-
-    /**
-     * Set the true expression for this node
-     * @param trueExpr new true expression
-     * @return a node equivalent to this one except for the requested change.
-     */
-    public TernaryNode setTrueExpression(final Expression trueExpr) {
-        if (this.trueExpr == trueExpr) {
-            return this;
-        }
-        return new TernaryNode(this, test, trueExpr, falseExpr);
-    }
-
-    /**
-     * Set the false expression for this node
-     * @param falseExpr new false expression
-     * @return a node equivalent to this one except for the requested change.
-     */
-    public TernaryNode setFalseExpression1(final Expression falseExpr) {
-        if (this.falseExpr == falseExpr) {
-            return this;
-        }
-        return new TernaryNode(this, test, trueExpr, falseExpr);
+    public void setThird(final Node third) {
+        this.third = third;
     }
 }

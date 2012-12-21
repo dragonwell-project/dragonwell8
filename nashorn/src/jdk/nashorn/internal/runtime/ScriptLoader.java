@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,36 +26,34 @@
 package jdk.nashorn.internal.runtime;
 
 import java.security.CodeSource;
-import java.security.ProtectionDomain;
 
 /**
- * Responsible for loading script generated classes.
+ * Responsible for loading generated and disk based classes.
  *
  */
 final class ScriptLoader extends NashornLoader {
-    private static final String NASHORN_PKG_PREFIX = "jdk.nashorn.internal.";
-
-    private final Context context;
-
-    /*package-private*/ Context getContext() {
-        return context;
-    }
-
     /**
      * Constructor.
      */
     ScriptLoader(final ClassLoader parent, final Context context) {
-        super(parent);
-        this.context = context;
+        super(parent, context);
     }
 
     @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    protected synchronized Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
         checkPackageAccess(name);
-        if (name.startsWith(NASHORN_PKG_PREFIX)) {
-            return context.getSharedLoader().loadClass(name);
+
+        // check the cache first
+        Class<?> cl = findLoadedClass(name);
+        if (cl == null) {
+            cl = getParent().loadClass(name);
         }
-        return super.loadClass(name, resolve);
+
+        if (resolve) {
+            resolveClass(cl);
+        }
+
+        return cl;
     }
 
     // package-private and private stuff below this point
@@ -70,9 +68,6 @@ final class ScriptLoader extends NashornLoader {
      * @return Installed class.
      */
     synchronized Class<?> installClass(final String name, final byte[] data, final CodeSource cs) {
-        if (cs == null) {
-            return defineClass(name, data, 0, data.length, new ProtectionDomain(null, getPermissions(null)));
-        }
         return defineClass(name, data, 0, data.length, cs);
     }
 }

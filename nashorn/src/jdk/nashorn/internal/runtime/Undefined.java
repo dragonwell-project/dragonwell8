@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,15 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
-import jdk.internal.dynalink.support.Guards;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
+import org.dynalang.dynalink.support.CallSiteDescriptorFactory;
+import org.dynalang.dynalink.support.Guards;
 
 /**
  * Unique instance of this class is used to represent JavaScript undefined.
@@ -97,26 +97,30 @@ public final class Undefined extends DefaultPropertyAccess {
         switch (operator) {
         case "new":
         case "call":
-            throw lookupTypeError("cant.call.undefined", desc);
+            lookupTypeError("cant.call.undefined", desc);
+            break;
         case "callMethod":
-            throw lookupTypeError("cant.read.property.of.undefined", desc);
+            lookupTypeError("cant.read.property.of.undefined", desc);
         // NOTE: we support getElem and setItem as JavaScript doesn't distinguish items from properties. Nashorn itself
         // emits "dyn:getProp:identifier" for "<expr>.<identifier>" and "dyn:getElem" for "<expr>[<expr>]", but we are
         // more flexible here and dispatch not on operation name (getProp vs. getElem), but rather on whether the
         // operation has an associated name or not.
+            break;
         case "getProp":
         case "getElem":
         case "getMethod":
             if (desc.getNameTokenCount() < 3) {
                 return findGetIndexMethod(desc);
             }
-            throw lookupTypeError("cant.read.property.of.undefined", desc);
+            lookupTypeError("cant.read.property.of.undefined", desc);
+            break;
         case "setProp":
         case "setElem":
             if (desc.getNameTokenCount() < 3) {
                 return findSetIndexMethod(desc);
             }
-            throw lookupTypeError("cant.set.property.of.undefined", desc);
+            lookupTypeError("cant.set.property.of.undefined", desc);
+            break;
         default:
             break;
         }
@@ -124,8 +128,8 @@ public final class Undefined extends DefaultPropertyAccess {
         return null;
     }
 
-    private static ECMAException lookupTypeError(final String msg, final CallSiteDescriptor desc) {
-        return typeError(msg, desc.getNameTokenCount() > 2 ? desc.getNameToken(2) : null);
+    private static void lookupTypeError(final String msg, final CallSiteDescriptor desc) {
+        typeError(Context.getGlobal(), msg, desc.getNameTokenCount() > 2 ? desc.getNameToken(2) : null);
     }
 
     /**
@@ -170,17 +174,19 @@ public final class Undefined extends DefaultPropertyAccess {
 
     @Override
     public Object get(final Object key) {
-        throw typeError("cant.read.property.of.undefined", ScriptRuntime.safeToString(key));
+        typeError(Context.getGlobal(), "cant.read.property.of.undefined", ScriptRuntime.safeToString(key));
+        return ScriptRuntime.UNDEFINED;
     }
 
     @Override
     public void set(final Object key, final Object value, final boolean strict) {
-        throw typeError("cant.set.property.of.undefined", ScriptRuntime.safeToString(key));
+        typeError(Context.getGlobal(), "cant.set.property.of.undefined", ScriptRuntime.safeToString(key));
     }
 
     @Override
     public boolean delete(final Object key, final boolean strict) {
-        throw typeError("cant.delete.property.of.undefined", ScriptRuntime.safeToString(key));
+        typeError(Context.getGlobal(), "cant.delete.property.of.undefined", ScriptRuntime.safeToString(key));
+        return false;
     }
 
     @Override

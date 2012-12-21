@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,13 +54,4 @@ public interface PropertyListener {
      *
      */
     public void propertyModified(ScriptObject object, Property oldProp, Property newProp);
-
-    /**
-     * Given object's __proto__ has changed.
-     *
-     * @param object object whose __proto__ has changed.
-     * @param oldProto old __proto__
-     * @param newProto new __proto__
-     */
-    public void protoChanged(ScriptObject object, ScriptObject oldProto, ScriptObject newProto);
 }

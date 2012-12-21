@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import java.util.Map;
  * Manages constants needed by code generation.  Objects are maintained in an
  * interning maps to remove duplicates.
  */
-class ConstantData {
+public class ConstantData {
     /** Constant table. */
     final List<Object> constants;
 

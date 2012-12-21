@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,13 +41,6 @@ final class DeletedArrayFilter extends ArrayFilter {
         super(underlying);
 
         this.deleted = new BitVector(underlying.length());
-    }
-
-    @Override
-    public ArrayData copy() {
-        DeletedArrayFilter copy = new DeletedArrayFilter(underlying.copy());
-        copy.getDeleted().copy(deleted);
-        return copy;
     }
 
     @Override
@@ -149,7 +142,6 @@ final class DeletedArrayFilter extends ArrayFilter {
         final long longIndex = ArrayIndex.toLongIndex(index);
         assert longIndex >= 0 && longIndex < length();
         deleted.set(longIndex);
-        underlying.setEmpty(index);
         return this;
     }
 
@@ -157,7 +149,6 @@ final class DeletedArrayFilter extends ArrayFilter {
     public ArrayData delete(final long fromIndex, final long toIndex) {
         assert fromIndex >= 0 && fromIndex <= toIndex && toIndex < length();
         deleted.setRange(fromIndex, toIndex + 1);
-        underlying.setEmpty(fromIndex, toIndex);
         return this;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,74 +25,73 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representing a FOR statement.
+ *
  */
-@Immutable
-public final class ForNode extends LoopNode {
+public class ForNode extends WhileNode {
     /** Initialize expression. */
-    private final Expression init;
+    private Node init;
 
     /** Test expression. */
-    private final Expression modify;
+    private Node modify;
 
     /** Iterator symbol. */
     private Symbol iterator;
 
-    /** Is this a normal for loop? */
-    public static final int IS_FOR      = 1 << 0;
+    /** is for in */
+    private boolean isForIn;
 
-    /** Is this a normal for in loop? */
-    public static final int IS_FOR_IN   = 1 << 1;
-
-    /** Is this a normal for each in loop? */
-    public static final int IS_FOR_EACH = 1 << 2;
-
-    private final int flags;
+    /** is for each */
+    private boolean isForEach;
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
-     * @param init       initialization expression
-     * @param test       test
-     * @param body       body
-     * @param modify     modify
-     * @param flags      flags
      */
-    public ForNode(final int lineNumber, final long token, final int finish, final Expression init, final Expression test, final Block body, final Expression modify, final int flags) {
-        super(lineNumber, token, finish, test, body, false);
-        this.init   = init;
-        this.modify = modify;
-        this.flags  = flags;
+    public ForNode(final Source source, final long token, final int finish) {
+        super(source, token, finish);
     }
 
-    private ForNode(final ForNode forNode, final Expression init, final Expression test, final Block body, final Expression modify, final int flags, final boolean controlFlowEscapes) {
-        super(forNode, test, body, controlFlowEscapes);
-        this.init   = init;
-        this.modify = modify;
-        this.flags  = flags;
-        this.iterator = forNode.iterator; //TODO is this acceptable? symbols are never cloned, just copied as references
-    }
+    private ForNode(final ForNode forNode, final CopyState cs) {
+        super(forNode, cs);
 
-    @Override
-    public Node ensureUniqueLabels(LexicalContext lc) {
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
+        this.init      = cs.existingOrCopy(forNode.init);
+        this.modify    = cs.existingOrCopy(forNode.modify);
+        this.iterator  = forNode.iterator;
+        this.isForIn   = forNode.isForIn;
+        this.isForEach = forNode.isForEach;
     }
 
     @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterForNode(this)) {
-            return visitor.leaveForNode(
-                setInit(lc, init == null ? null : (Expression)init.accept(visitor)).
-                setTest(lc, test == null ? null : (Expression)test.accept(visitor)).
-                setModify(lc, modify == null ? null : (Expression)modify.accept(visitor)).
-                setBody(lc, (Block)body.accept(visitor)));
+    protected Node copy(final CopyState cs) {
+        return new ForNode(this, cs);
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            if (init != null) {
+                init = init.accept(visitor);
+            }
+
+            if (test != null) {
+                test = test.accept(visitor);
+            }
+
+            if (modify != null) {
+                modify = modify.accept(visitor);
+            }
+
+            body = (Block)body.accept(visitor);
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -123,38 +122,20 @@ public final class ForNode extends LoopNode {
         sb.append(')');
     }
 
-    @Override
-    public boolean hasGoto() {
-        return !isForIn() && test == null;
-    }
-
-    @Override
-    public boolean mustEnter() {
-        if (isForIn()) {
-            return false; //may be an empty set to iterate over, then we skip the loop
-        }
-        return test == null;
-    }
-
     /**
      * Get the initialization expression for this for loop
      * @return the initialization expression
      */
-    public Expression getInit() {
+    public Node getInit() {
         return init;
     }
 
     /**
      * Reset the initialization expression for this for loop
-     * @param lc lexical context
      * @param init new initialization expression
-     * @return new for node if changed or existing if not
      */
-    public ForNode setInit(final LexicalContext lc, final Expression init) {
-        if (this.init == init) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
+    public void setInit(final Node init) {
+        this.init = init;
     }
 
     /**
@@ -162,16 +143,14 @@ public final class ForNode extends LoopNode {
      * @return true if this is a for in constructor
      */
     public boolean isForIn() {
-        return (flags & IS_FOR_IN) != 0;
+        return isForIn;
     }
 
     /**
      * Flag this to be a for in construct
-     * @param lc lexical context
-     * @return new for node if changed or existing if not
      */
-    public ForNode setIsForIn(final LexicalContext lc) {
-        return setFlags(lc, flags | IS_FOR_IN);
+    public void setIsForIn() {
+        this.isForIn = true;
     }
 
     /**
@@ -180,16 +159,14 @@ public final class ForNode extends LoopNode {
      * @return true if this is a for each construct
      */
     public boolean isForEach() {
-        return (flags & IS_FOR_EACH) != 0;
+        return isForEach;
     }
 
     /**
      * Flag this to be a for each construct
-     * @param lc lexical context
-     * @return new for node if changed or existing if not
      */
-    public ForNode setIsForEach(final LexicalContext lc) {
-        return setFlags(lc, flags | IS_FOR_EACH);
+    public void setIsForEach() {
+        this.isForEach = true;
     }
 
     /**
@@ -212,62 +189,25 @@ public final class ForNode extends LoopNode {
      * Get the modification expression for this ForNode
      * @return the modification expression
      */
-    public Expression getModify() {
+    public Node getModify() {
         return modify;
     }
 
     /**
      * Reset the modification expression for this ForNode
-     * @param lc lexical context
      * @param modify new modification expression
-     * @return new for node if changed or existing if not
      */
-    public ForNode setModify(final LexicalContext lc, final Expression modify) {
-        if (this.modify == modify) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
+    public void setModify(final Node modify) {
+        this.modify = modify;
     }
 
     @Override
-    public Expression getTest() {
+    public Node getTest() {
         return test;
     }
 
     @Override
-    public ForNode setTest(final LexicalContext lc, final Expression test) {
-        if (this.test == test) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
+    public void setTest(final Node test) {
+        this.test = test;
     }
-
-    @Override
-    public Block getBody() {
-        return body;
-    }
-
-    @Override
-    public ForNode setBody(final LexicalContext lc, final Block body) {
-        if (this.body == body) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
-    }
-
-    @Override
-    public ForNode setControlFlowEscapes(final LexicalContext lc, final boolean controlFlowEscapes) {
-        if (this.controlFlowEscapes == controlFlowEscapes) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
-    }
-
-    private ForNode setFlags(final LexicalContext lc, final int flags) {
-        if (this.flags == flags) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
-    }
-
 }

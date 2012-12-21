@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,59 +25,65 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.codegen.MethodEmitter;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for CONTINUE statements.
+ *
  */
-@Immutable
-public class ContinueNode extends Statement {
-
-    private IdentNode label;
+public class ContinueNode extends LabeledNode {
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
-     * @param label      label for break or null if none
+     * @param labelNode  the continue label
+     * @param targetNode node to continue to
+     * @param tryChain   surrounding try chain
      */
-    public ContinueNode(final int lineNumber, final long token, final int finish, final IdentNode label) {
-        super(lineNumber, token, finish);
-        this.label = label;
+    public ContinueNode(final Source source, final long token, final int finish, final LabelNode labelNode, final Node targetNode, final TryNode tryChain) {
+        super(source, token, finish, labelNode, targetNode, tryChain);
+        setHasGoto();
+    }
+
+    private ContinueNode(final ContinueNode continueNode, final CopyState cs) {
+        super(continueNode, cs);
     }
 
     @Override
-    public boolean hasGoto() {
-        return true;
+    protected Node copy(final CopyState cs) {
+        return new ContinueNode(this, cs);
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterContinueNode(this)) {
-            return visitor.leaveContinueNode(this);
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            return visitor.leave(this);
         }
 
         return this;
     }
 
     /**
-     * Get the label for this break node
-     * @return label, or null if none
+     * Return the target label of this continue node.
+     * @return the target label.
      */
-    public IdentNode getLabel() {
-        return label;
+    public MethodEmitter.Label getTargetLabel() {
+        assert targetNode instanceof WhileNode : "continue target must be a while node";
+        return ((WhileNode)targetNode).getContinueLabel();
     }
 
     @Override
     public void toString(final StringBuilder sb) {
         sb.append("continue");
 
-        if (label != null) {
+        if (labelNode != null) {
             sb.append(' ');
-            label.toString(sb);
+            labelNode.getLabel().toString(sb);
         }
     }
 }

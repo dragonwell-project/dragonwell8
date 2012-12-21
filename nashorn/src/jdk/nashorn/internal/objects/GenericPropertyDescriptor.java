@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
@@ -52,17 +51,14 @@ public final class GenericPropertyDescriptor extends ScriptObject implements Pro
     @Property
     public Object enumerable;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
+    GenericPropertyDescriptor() {
+        this(false, false);
     }
 
-    GenericPropertyDescriptor(final boolean configurable, final boolean enumerable, final Global global) {
-        super(global.getObjectPrototype(), global.getGenericPropertyDescriptorMap());
+    GenericPropertyDescriptor(final boolean configurable, final boolean enumerable) {
         this.configurable = configurable;
         this.enumerable   = enumerable;
+        setProto(Global.objectPrototype());
     }
 
     @Override
@@ -128,16 +124,17 @@ public final class GenericPropertyDescriptor extends ScriptObject implements Pro
 
     @Override
     public PropertyDescriptor fillFrom(final ScriptObject sobj) {
+        final boolean strict = getContext()._strict;
         if (sobj.has(CONFIGURABLE)) {
             this.configurable = JSType.toBoolean(sobj.get(CONFIGURABLE));
         } else {
-            delete(CONFIGURABLE, false);
+            delete(CONFIGURABLE, strict);
         }
 
         if (sobj.has(ENUMERABLE)) {
             this.enumerable = JSType.toBoolean(sobj.get(ENUMERABLE));
         } else {
-            delete(ENUMERABLE, false);
+            delete(ENUMERABLE, strict);
         }
 
         return this;
@@ -153,11 +150,11 @@ public final class GenericPropertyDescriptor extends ScriptObject implements Pro
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof GenericPropertyDescriptor)) {
+        if (!(obj instanceof AccessorPropertyDescriptor)) {
             return false;
         }
 
-        final GenericPropertyDescriptor other = (GenericPropertyDescriptor)obj;
+        final AccessorPropertyDescriptor other = (AccessorPropertyDescriptor)obj;
         return ScriptRuntime.sameValue(configurable, other.configurable) &&
                ScriptRuntime.sameValue(enumerable, other.enumerable);
     }

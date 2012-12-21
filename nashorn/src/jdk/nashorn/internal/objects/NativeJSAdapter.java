@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@ package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -35,20 +35,17 @@ import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.nashorn.internal.objects.annotations.Constructor;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.runtime.FindProperty;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
-import jdk.nashorn.internal.lookup.Lookup;
-import jdk.nashorn.internal.scripts.JO;
+import jdk.nashorn.internal.runtime.linker.Lookup;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
 
 /**
  * This class is the implementation of the Nashorn-specific global object named {@code JSAdapter}. It can be
@@ -75,16 +72,13 @@ import jdk.nashorn.internal.scripts.JO;
  *    delete x.p;                 // calls y.__delete__
  *    for (i in x) { print(i); }  // calls y.__getIds__
  * </pre>
- * <p>
  * JavaScript caller of adapter object is isolated from the fact that the property access/mutation/deletion are really
  * calls to JavaScript methods on adaptee.
- * </p>
- * <p>
+ * </p><p>
  * JSAdapter constructor can optionally receive an "overrides" object. Properties of overrides object is copied to
  * JSAdapter instance. When user accessed property is one of these, then adaptee's methods like {@code __get__},
  * {@code __put__} etc. are not called for those. This can be used to make certain "preferred" properties that can be
  * accessed in the usual/faster way avoiding proxy mechanism. Example:
- * </p>
  * <pre>
  *     var x = new JSAdapter({ foo: 444, bar: 6546 }) {
  *          __get__: function(name) { return name; }
@@ -143,27 +137,26 @@ public final class NativeJSAdapter extends ScriptObject {
 
     private static final MethodHandle IS_JSADAPTOR = findOwnMH("isJSAdaptor", boolean.class, Object.class, Object.class, MethodHandle.class, Object.class, ScriptFunction.class);
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
-    NativeJSAdapter(final Object overrides, final ScriptObject adaptee, final ScriptObject proto, final PropertyMap map) {
-        super(proto, map);
+    NativeJSAdapter(final ScriptObject proto, final Object overrides, final ScriptObject adaptee) {
         this.adaptee = wrapAdaptee(adaptee);
+        this.setProto(proto);
         if (overrides instanceof ScriptObject) {
             this.overrides = true;
             final ScriptObject sobj = (ScriptObject)overrides;
-            this.addBoundProperties(sobj);
+            final Iterator<String> iter = sobj.propertyIterator();
+            while (iter.hasNext()) {
+                final String prop = iter.next();
+                super.set(prop, sobj.get(prop), false);
+            }
         } else {
             this.overrides = false;
         }
     }
 
     private static ScriptObject wrapAdaptee(final ScriptObject adaptee) {
-        return new JO(adaptee, Global.instance().getObjectMap());
+        final ScriptObject sobj = new jdk.nashorn.internal.scripts.JO$();
+        sobj.setProto(adaptee);
+        return sobj;
     }
 
     @Override
@@ -546,7 +539,8 @@ public final class NativeJSAdapter extends ScriptObject {
         Object adaptee;
 
         if (args == null || args.length == 0) {
-            throw typeError("not.an.object", "null");
+            typeError(Global.instance(), "not.an.object", "null");
+            return null; //won't reach, but fixed warning
         }
 
         switch (args.length) {
@@ -569,15 +563,14 @@ public final class NativeJSAdapter extends ScriptObject {
         }
 
         if (!(adaptee instanceof ScriptObject)) {
-            throw typeError("not.an.object", ScriptRuntime.safeToString(adaptee));
+            typeError(Global.instance(), "not.an.object", ScriptRuntime.safeToString(adaptee));
         }
 
-        final Global global = Global.instance();
         if (proto != null && !(proto instanceof ScriptObject)) {
-            proto = global.getJSAdapterPrototype();
+            proto = Global.instance().getJSAdapterPrototype();
         }
 
-        return new NativeJSAdapter(overrides, (ScriptObject)adaptee, (ScriptObject)proto, global.getJSAdapterMap());
+        return new NativeJSAdapter((ScriptObject)proto, overrides, (ScriptObject)adaptee);
     }
 
     @Override
@@ -586,10 +579,10 @@ public final class NativeJSAdapter extends ScriptObject {
     }
 
     @Override
-    protected GuardedInvocation findCallMethodMethod(final CallSiteDescriptor desc, final LinkRequest request) {
+    protected GuardedInvocation findCallMethodMethod(final CallSiteDescriptor desc, final boolean megaMorphic) {
         if (overrides && super.hasOwnProperty(desc.getNameToken(2))) {
             try {
-                final GuardedInvocation inv = super.findCallMethodMethod(desc, request);
+                final GuardedInvocation inv = super.findCallMethodMethod(desc, megaMorphic);
                 if (inv != null) {
                     return inv;
                 }
@@ -602,11 +595,11 @@ public final class NativeJSAdapter extends ScriptObject {
     }
 
     @Override
-    protected GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final LinkRequest request, final String operation) {
+    protected GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final boolean megaMorphic, final String operation) {
         final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
         if (overrides && super.hasOwnProperty(name)) {
             try {
-                final GuardedInvocation inv = super.findGetMethod(desc, request, operation);
+                final GuardedInvocation inv = super.findGetMethod(desc, megaMorphic, operation);
                 if (inv != null) {
                     return inv;
                 }
@@ -622,18 +615,15 @@ public final class NativeJSAdapter extends ScriptObject {
         case "getMethod":
             final FindProperty find = adaptee.findProperty(__call__, true);
             if (find != null) {
-                final Object value = getObjectValue(find);
-                if (value instanceof ScriptFunction) {
-                    final ScriptFunctionImpl func = (ScriptFunctionImpl)value;
-                    // TODO: It's a shame we need to produce a function bound to this and name, when we'd only need it bound
-                    // to name. Probably not a big deal, but if we can ever make it leaner, it'd be nice.
-                    return new GuardedInvocation(MH.dropArguments(MH.constant(Object.class,
-                            func.makeBoundFunction(this, new Object[] { name })), 0, Object.class),
-                            adaptee.getMap().getProtoGetSwitchPoint(adaptee.getProto(), __call__),
-                            testJSAdaptor(adaptee, null, null, null));
-                }
+                final ScriptFunction func = (ScriptFunction)getObjectValue(find);
+                // TODO: It's a shame we need to produce a function bound to this and name, when we'd only need it bound
+                // to name. Probably not a big deal, but if we can ever make it leaner, it'd be nice.
+                return new GuardedInvocation(MH.dropArguments(MH.constant(Object.class,
+                        func.makeBoundFunction(this, new Object[] { name })), 0, Object.class),
+                        adaptee.getMap().getProtoGetSwitchPoint(__call__), testJSAdaptor(adaptee, null, null, null));
             }
-            throw typeError("no.such.function", desc.getNameToken(2), ScriptRuntime.safeToString(this));
+            typeError(Global.instance(), "no.such.function", desc.getNameToken(2), ScriptRuntime.safeToString(this));
+            break;
         default:
             break;
         }
@@ -642,10 +632,10 @@ public final class NativeJSAdapter extends ScriptObject {
     }
 
     @Override
-    protected GuardedInvocation findSetMethod(final CallSiteDescriptor desc, final LinkRequest request) {
+    protected GuardedInvocation findSetMethod(final CallSiteDescriptor desc, final boolean megaMorphic) {
         if (overrides && super.hasOwnProperty(desc.getNameToken(CallSiteDescriptor.NAME_OPERAND))) {
             try {
-                final GuardedInvocation inv = super.findSetMethod(desc, request);
+                final GuardedInvocation inv = super.findSetMethod(desc, megaMorphic);
                 if (inv != null) {
                     return inv;
                 }
@@ -691,29 +681,27 @@ public final class NativeJSAdapter extends ScriptObject {
         final MethodType type = desc.getMethodType();
         if (findData != null) {
             final String name = desc.getNameTokenCount() > 2 ? desc.getNameToken(2) : null;
-            final Object value = getObjectValue(findData);
-            if (value instanceof ScriptFunction) {
-                final ScriptFunction func = (ScriptFunction)value;
+            final ScriptFunction func = (ScriptFunction)getObjectValue(findData);
 
-                final MethodHandle methodHandle = getCallMethodHandle(findData, type,
+            final MethodHandle methodHandle = getCallMethodHandle(findData, type,
                     useName ? name : null);
-                if (methodHandle != null) {
-                    return new GuardedInvocation(
-                            methodHandle,
-                            adaptee.getMap().getProtoGetSwitchPoint(adaptee.getProto(), hook),
-                            testJSAdaptor(adaptee, findData.getGetter(Object.class), findData.getOwner(), func));
-                }
-             }
+            if (methodHandle != null) {
+                return new GuardedInvocation(
+                        methodHandle,
+                        adaptee.getMap().getProtoGetSwitchPoint(hook),
+                        testJSAdaptor(adaptee, findData.getGetter(Object.class), findData.getOwner(), func));
+            }
         }
 
         switch (hook) {
         case __call__:
-            throw typeError("no.such.function", desc.getNameToken(2), ScriptRuntime.safeToString(this));
+            typeError(Global.instance(), "no.such.function", desc.getNameToken(2), ScriptRuntime.safeToString(this));
+            throw new AssertionError("should not reach here");
         default:
             final MethodHandle methodHandle = hook.equals(__put__) ?
             MH.asType(Lookup.EMPTY_SETTER, type) :
             Lookup.emptyGetter(type.returnType());
-            return new GuardedInvocation(methodHandle, adaptee.getMap().getProtoGetSwitchPoint(adaptee.getProto(), hook), testJSAdaptor(adaptee, null, null, null));
+            return new GuardedInvocation(methodHandle, adaptee.getMap().getProtoGetSwitchPoint(hook), testJSAdaptor(adaptee, null, null, null));
         }
     }
 

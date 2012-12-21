@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,51 +25,57 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation of an object literal property.
  */
-@Immutable
-public final class PropertyNode extends Node {
+public class PropertyNode extends Node {
 
     /** Property key. */
-    private final PropertyKey key;
+    private PropertyKey key;
 
     /** Property value. */
-    private final Expression value;
+    private Node value;
 
     /** Property getter. */
-    private final FunctionNode getter;
+    @Reference
+    private Node getter;
 
     /** Property getter. */
-    private final FunctionNode setter;
+    @Reference
+    private Node setter;
 
     /**
      * Constructor
      *
+     * @param source  the source
      * @param token   token
      * @param finish  finish
      * @param key     the key of this property
      * @param value   the value of this property
-     * @param getter  getter function body
-     * @param setter  setter function body
      */
-    public PropertyNode(final long token, final int finish, final PropertyKey key, final Expression value, final FunctionNode getter, final FunctionNode setter) {
-        super(token, finish);
+    public PropertyNode(final Source source, final long token, final int finish, final PropertyKey key, final Node value) {
+        super(source, token, finish);
+
         this.key    = key;
         this.value  = value;
-        this.getter = getter;
-        this.setter = setter;
     }
 
-    private PropertyNode(final PropertyNode propertyNode, final PropertyKey key, final Expression value, final FunctionNode getter, final FunctionNode setter) {
+    private PropertyNode(final PropertyNode propertyNode, final CopyState cs) {
         super(propertyNode);
-        this.key    = key;
-        this.value  = value;
-        this.getter = getter;
-        this.setter = setter;
+
+        this.key    = (PropertyKey)cs.existingOrCopy((Node)propertyNode.key);
+        this.value  = cs.existingOrCopy(propertyNode.value);
+        this.getter = cs.existingOrSame(propertyNode.getter);
+        this.setter = cs.existingOrSame(propertyNode.setter);
+    }
+
+    @Override
+    protected Node copy(final CopyState cs) {
+        return new PropertyNode(this, cs);
     }
 
     /**
@@ -81,13 +87,23 @@ public final class PropertyNode extends Node {
     }
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterPropertyNode(this)) {
-            return visitor.leavePropertyNode(
-                setKey((PropertyKey)((Node)key).accept(visitor)).
-                setValue(value == null ? null : (Expression)value.accept(visitor)).
-                setGetter(getter == null ? null : (FunctionNode)getter.accept(visitor)).
-                setSetter(setter == null ? null : (FunctionNode)setter.accept(visitor)));
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            key = (PropertyKey)((Node)key).accept(visitor);
+
+            if (value != null) {
+                value = value.accept(visitor);
+            }
+
+            if (getter != null) {
+                getter = getter.accept(visitor);
+            }
+
+            if (setter != null) {
+                setter = setter.accept(visitor);
+            }
+
+            return visitor.leave(this);
         }
 
         return this;
@@ -120,74 +136,55 @@ public final class PropertyNode extends Node {
      * Get the getter for this property
      * @return getter or null if none exists
      */
-    public FunctionNode getGetter() {
+    public Node getGetter() {
         return getter;
     }
 
     /**
      * Set the getter of this property, null if none
      * @param getter getter
-     * @return same node or new node if state changed
      */
-    public PropertyNode setGetter(final FunctionNode getter) {
-        if (this.getter == getter) {
-            return this;
-        }
-        return new PropertyNode(this, key, value, getter, setter);
+    public void setGetter(final Node getter) {
+        this.getter = getter;
     }
 
     /**
      * Return the key for this property node
      * @return the key
      */
-    public Expression getKey() {
-        return (Expression)key;
-    }
-
-    private PropertyNode setKey(final PropertyKey key) {
-        if (this.key == key) {
-            return this;
-        }
-        return new PropertyNode(this, key, value, getter, setter);
+    public Node getKey() {
+        return (Node)key;
     }
 
     /**
      * Get the setter for this property
      * @return setter or null if none exists
      */
-    public FunctionNode getSetter() {
+    public Node getSetter() {
         return setter;
     }
 
     /**
      * Set the setter for this property, null if none
      * @param setter setter
-     * @return same node or new node if state changed
      */
-    public PropertyNode setSetter(final FunctionNode setter) {
-        if (this.setter == setter) {
-            return this;
-        }
-        return new PropertyNode(this, key, value, getter, setter);
+    public void setSetter(final Node setter) {
+        this.setter = setter;
     }
 
     /**
      * Get the value of this property
      * @return property value
      */
-    public Expression getValue() {
+    public Node getValue() {
         return value;
     }
 
     /**
      * Set the value of this property
      * @param value new value
-     * @return same node or new node if state changed
      */
-    public PropertyNode setValue(final Expression value) {
-        if (this.value == value) {
-            return this;
-        }
-        return new PropertyNode(this, key, value, getter, setter);
-   }
+    public void setValue(final Node value) {
+        this.value = value;
+    }
 }

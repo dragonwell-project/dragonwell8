@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.util.Deque;
  * instances of <tt>ConsString</tt> or {@link String}. Copying of characters to
  * a proper string is delayed until it becomes necessary.
  */
-public final class ConsString implements CharSequence {
+public class ConsString implements CharSequence {
 
     private CharSequence left, right;
     final private int length;
@@ -57,7 +57,10 @@ public final class ConsString implements CharSequence {
 
     @Override
     public String toString() {
-        return (String) flattened();
+        if (!flat) {
+            flatten();
+        }
+        return (String) left;
     }
 
     @Override
@@ -67,19 +70,18 @@ public final class ConsString implements CharSequence {
 
     @Override
     public char charAt(final int index) {
-        return flattened().charAt(index);
+        if (!flat) {
+            flatten();
+        }
+        return left.charAt(index);
     }
 
     @Override
     public CharSequence subSequence(final int start, final int end) {
-        return flattened().subSequence(start, end);
-    }
-
-    private CharSequence flattened() {
         if (!flat) {
             flatten();
         }
-        return left;
+        return left.subSequence(start, end);
     }
 
     private void flatten() {

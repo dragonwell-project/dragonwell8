@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import jdk.nashorn.internal.objects.annotations.Property;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Where;
 import jdk.nashorn.internal.runtime.JSType;
-import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 
 /**
@@ -41,7 +40,7 @@ import jdk.nashorn.internal.runtime.ScriptObject;
  *
  */
 @ScriptClass("Error")
-public final class NativeTypeError extends ScriptObject {
+public class NativeTypeError extends ScriptObject {
 
     /** message property in instance */
     @Property(name = NativeError.MESSAGE)
@@ -55,24 +54,13 @@ public final class NativeTypeError extends ScriptObject {
     @Property(attributes = Attribute.NOT_ENUMERABLE, where = Where.PROTOTYPE)
     public Object message;
 
-    // initialized by nasgen
-    private static PropertyMap $nasgenmap$;
-
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
-    NativeTypeError(final Object msg, final Global global) {
-        super(global.getTypeErrorPrototype(), global.getTypeErrorMap());
+    NativeTypeError(final Object msg) {
+        this.setProto(Global.instance().getTypeErrorPrototype());
         if (msg != UNDEFINED) {
             this.instMessage = JSType.toString(msg);
         } else {
-            delete(NativeError.MESSAGE, false);
+            delete(NativeError.MESSAGE, Global.isStrict());
         }
-    }
-
-    private NativeTypeError(final Object msg) {
-        this(msg, Global.instance());
     }
 
     @Override

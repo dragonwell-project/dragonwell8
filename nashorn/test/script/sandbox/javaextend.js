@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  */
 
 function model(n) {
-  return Java.type("jdk.nashorn.test.models." + n)
+  return Java.type("jdk.nashorn.internal.test.models." + n)
 }
 
 // Can't extend a final class  
@@ -47,13 +47,6 @@ try {
 // Can't extend a non-public class
 try {
     Java.extend(model("NonPublicClass"))
-} catch(e) {
-    print(e)
-}
-
-// Can't extend two classes
-try {
-    Java.extend(java.lang.Thread,java.lang.Number)
 } catch(e) {
     print(e)
 }
@@ -105,28 +98,5 @@ print("oo-proto-overridden-equals  : " + (new oo(new Proto())).equals({}))
 // additional constructor arguments (a token). Also demonstrates how can
 // you access the Java adapter instance from the script (just store it in the
 // scope, in this example, "cwa") to retrieve the token later on.
-var cwa = new (Java.extend(model("ConstructorWithArgument")))("cwa-token", function() { print(cwa.token) })
+var cwa = new (Java.extend(model("ConstructorWithArgument")))(function() { print(cwa.token) }, "cwa-token")
 cwa.doSomething()
-
-// Do the same thing with proprietary syntax and object literal
-var cwa2 = new (model("ConstructorWithArgument"))("cwa2-token") { doSomething: function() { print("cwa2-" + cwa2.token ) } }
-cwa2.doSomething()
-
-// Implement two interfaces
-var desertToppingAndFloorWax = new (Java.extend(model("DessertTopping"), model("FloorWax"))) {
-    pourOnDessert: function() { print("Glop; IM IN UR DESSERT NOW") },
-    shineUpTheFloor: function() { print("The floor sure is shining!") }
-}
-var dtfwDriver = new (model("DessertToppingFloorWaxDriver"))
-dtfwDriver.decorateDessert(desertToppingAndFloorWax)
-dtfwDriver.waxFloor(desertToppingAndFloorWax)
-
-// Extend a class and implement two interfaces. For additional measure, put the class in between the two interfaces
-var desertToppingFloorWaxAndToothpaste = new (Java.extend(model("DessertTopping"), model("Toothpaste"), model("FloorWax"))) {
-    pourOnDessert: function() { print("Yum") },
-    shineUpTheFloor: function() { print("Scrub, scrub, scrub") },
-    applyToBrushImpl: function() { print("It's a dessert topping! It's a floor wax! It's a toothpaste!") }
-}
-dtfwDriver.decorateDessert(desertToppingFloorWaxAndToothpaste)
-dtfwDriver.waxFloor(desertToppingFloorWaxAndToothpaste)
-desertToppingFloorWaxAndToothpaste.applyToBrush();

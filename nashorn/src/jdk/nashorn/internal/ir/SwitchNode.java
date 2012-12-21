@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,82 +28,79 @@ package jdk.nashorn.internal.ir;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import jdk.nashorn.internal.codegen.Label;
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.codegen.MethodEmitter.Label;
+import jdk.nashorn.internal.ir.annotations.Ignore;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation of a SWITCH statement.
  */
-@Immutable
-public final class SwitchNode extends BreakableStatement {
+public class SwitchNode extends BreakableNode {
     /** Switch expression. */
-    private final Expression expression;
-
-    /** Switch cases. */
-    private final List<CaseNode> cases;
-
-    /** Switch default index. */
-    private final int defaultCaseIndex;
+    private Node expression;
 
     /** Tag symbol. */
     private Symbol tag;
 
+    /** Switch cases. */
+    private List<CaseNode> cases;
+
+    /** Switch default. */
+    @Reference @Ignore //points to one of the members in the list above, don't traverse twice
+    private CaseNode defaultCase;
+
     /**
      * Constructor
      *
-     * @param lineNumber  lineNumber
-     * @param token       token
-     * @param finish      finish
-     * @param expression  switch expression
-     * @param cases       cases
-     * @param defaultCase the default case node - null if none, otherwise has to be present in cases list
+     * @param source  the source
+     * @param token   token
+     * @param finish  finish
      */
-    public SwitchNode(final int lineNumber, final long token, final int finish, final Expression expression, final List<CaseNode> cases, final CaseNode defaultCase) {
-        super(lineNumber, token, finish, new Label("switch_break"));
-        this.expression       = expression;
-        this.cases            = cases;
-        this.defaultCaseIndex = defaultCase == null ? -1 : cases.indexOf(defaultCase);
+    public SwitchNode(final Source source, final long token, final int finish) {
+        super(source, token, finish);
+
+        expression  = null;
+        tag         = null;
+        cases       = null;
+        defaultCase = null;
+        breakLabel  = new Label("switch_break");
     }
 
-    private SwitchNode(final SwitchNode switchNode, final Expression expression, final List<CaseNode> cases, final int defaultCase) {
+    private SwitchNode(final SwitchNode switchNode, final CopyState cs) {
         super(switchNode);
-        this.expression       = expression;
-        this.cases            = cases;
-        this.defaultCaseIndex = defaultCase;
-        this.tag              = switchNode.getTag(); //TODO are symbols inhereted as references?
-    }
 
-    @Override
-    public Node ensureUniqueLabels(final LexicalContext lc) {
         final List<CaseNode> newCases = new ArrayList<>();
-        for (final CaseNode caseNode : cases) {
-            newCases.add(new CaseNode(caseNode, caseNode.getTest(), caseNode.getBody()));
+
+        for (final CaseNode caseNode : switchNode.getCases()) {
+           newCases.add((CaseNode)cs.existingOrCopy(caseNode));
         }
-        return Node.replaceInLexicalContext(lc, this, new SwitchNode(this, expression, newCases, defaultCaseIndex));
+
+        expression  = cs.existingOrCopy(switchNode.getExpression());
+        tag         = switchNode.getTag();
+        cases       = newCases;
+        defaultCase = (CaseNode)cs.existingOrCopy(switchNode.getDefaultCase());
+        breakLabel  = new Label(switchNode.getBreakLabel());
     }
 
     @Override
-    public boolean isTerminal() {
-        //there must be a default case, and that including all other cases must terminate
-        if (!cases.isEmpty() && defaultCaseIndex != -1) {
-            for (final CaseNode caseNode : cases) {
-                if (!caseNode.isTerminal()) {
-                    return false;
-                }
+    protected Node copy(final CopyState cs) {
+        return new SwitchNode(this, cs);
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            expression = expression.accept(visitor);
+
+            for (int i = 0, count = cases.size(); i < count; i++) {
+                cases.set(i, (CaseNode)cases.get(i).accept(visitor));
             }
-            return true;
-        }
-        return false;
 
-    }
+            //the default case is in the cases list and should not be explicitly traversed!
 
-    @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterSwitchNode(this)) {
-            return visitor.leaveSwitchNode(
-                setExpression(lc, (Expression)expression.accept(visitor)).
-                setCases(lc, Node.accept(visitor, CaseNode.class, cases), defaultCaseIndex));
+            return visitor.leave(this);
         }
 
         return this;
@@ -117,14 +114,6 @@ public final class SwitchNode extends BreakableStatement {
     }
 
     /**
-     * Return the case node that is default case
-     * @return default case or null if none
-     */
-    public CaseNode getDefaultCase() {
-        return defaultCaseIndex == -1 ? null : cases.get(defaultCaseIndex);
-    }
-
-    /**
      * Get the cases in this switch
      * @return a list of case nodes
      */
@@ -133,54 +122,43 @@ public final class SwitchNode extends BreakableStatement {
     }
 
     /**
-     * Replace case nodes with new list. the cases have to be the same
-     * and the default case index the same. This is typically used
-     * by NodeVisitors who perform operations on every case node
-     * @param lc    lexical context
-     * @param cases list of cases
-     * @return new switcy node or same if no state was changed
+     * Set or reset the list of cases in this switch
+     * @param cases a list of cases, case nodes
      */
-    public SwitchNode setCases(final LexicalContext lc, final List<CaseNode> cases) {
-        return setCases(lc, cases, defaultCaseIndex);
-    }
-
-    private SwitchNode setCases(final LexicalContext lc, final List<CaseNode> cases, final int defaultCaseIndex) {
-        if (this.cases == cases) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new SwitchNode(this, expression, cases, defaultCaseIndex));
+    public void setCases(final List<CaseNode> cases) {
+        this.cases = cases;
     }
 
     /**
-     * Set or reset the list of cases in this switch
-     * @param lc lexical context
-     * @param cases a list of cases, case nodes
-     * @param defaultCase a case in the list that is the default - must be in the list or class will assert
-     * @return new switch node or same if no state was changed
+     * Get the default case for this switch
+     * @return default case node
      */
-    public SwitchNode setCases(final LexicalContext lc, final List<CaseNode> cases, final CaseNode defaultCase) {
-        return setCases(lc, cases, defaultCase == null ? -1 : cases.indexOf(defaultCase));
+    public CaseNode getDefaultCase() {
+        return defaultCase;
+    }
+
+    /**
+     * Set the default case for this switch
+     * @param defaultCase default case node
+     */
+    public void setDefaultCase(final CaseNode defaultCase) {
+        this.defaultCase = defaultCase;
     }
 
     /**
      * Return the expression to switch on
      * @return switch expression
      */
-    public Expression getExpression() {
+    public Node getExpression() {
         return expression;
     }
 
     /**
      * Set or reset the expression to switch on
-     * @param lc lexical context
      * @param expression switch expression
-     * @return new switch node or same if no state was changed
      */
-    public SwitchNode setExpression(final LexicalContext lc, final Expression expression) {
-        if (this.expression == expression) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new SwitchNode(this, expression, cases, defaultCaseIndex));
+    public void setExpression(final Node expression) {
+        this.expression = expression;
     }
 
     /**

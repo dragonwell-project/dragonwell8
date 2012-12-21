@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.nashorn.internal.parser;
 
-import java.util.Locale;
 import static jdk.nashorn.internal.parser.TokenKind.BINARY;
 import static jdk.nashorn.internal.parser.TokenKind.BRACKET;
 import static jdk.nashorn.internal.parser.TokenKind.FUTURE;
@@ -44,7 +43,6 @@ public enum TokenType {
     ERROR          (SPECIAL,  null),
     EOF            (SPECIAL,  null),
     EOL            (SPECIAL,  null),
-    COMMENT        (SPECIAL,  null),
 
     NOT            (UNARY,   "!",    14, false),
     NE             (BINARY,  "!=",    9, true),
@@ -94,7 +92,7 @@ public enum TokenType {
     ASSIGN_BIT_OR  (BINARY,  "|=",    2, false),
     OR             (BINARY,  "||",    4, true),
     RBRACE         (BRACKET, "}"),
-    BIT_NOT        (UNARY,   "~",     14, false),
+    BIT_NOT        (BINARY,  "~",    14, false),
 
     // ECMA 7.6.1.1 Keywords, 7.6.1.2 Future Reserved Words.
     // All other Java keywords are commented out.
@@ -170,14 +168,12 @@ public enum TokenType {
     FLOATING       (LITERAL,  null),
     STRING         (LITERAL,  null),
     ESCSTRING      (LITERAL,  null),
-    EXECSTRING     (LITERAL,  null),
     IDENT          (LITERAL,  null),
     REGEX          (LITERAL,  null),
     XML            (LITERAL,  null),
-    OBJECT         (LITERAL,  null),
-    ARRAY          (LITERAL,  null),
 
     COMMALEFT      (IR,       null),
+    CONVERT        (IR,       null),
     DISCARD        (IR,       null),
     DECPOSTFIX     (IR,       null),
     INCPOSTFIX     (IR,       null);
@@ -250,7 +246,7 @@ public enum TokenType {
     }
 
     public String getNameOrType() {
-        return name == null ? super.name().toLowerCase(Locale.ENGLISH) : name;
+        return name == null ? super.name().toLowerCase() : name;
     }
 
     public TokenType getNext() {
@@ -277,13 +273,8 @@ public enum TokenType {
         return name != null && name.length() > 0 && name.charAt(0) == c;
     }
 
-    static TokenType[] getValues() {
+    public static TokenType[] getValues() {
        return values;
-    }
-
-    @Override
-    public String toString() {
-        return getNameOrType();
     }
 
     static {

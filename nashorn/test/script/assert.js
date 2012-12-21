@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -61,22 +61,3 @@ Object.defineProperty(this, "fail", {
         }
     }
 });
-
-Object.defineProperty(this, "printError", {
-    configuable: true,
-    enumerable: false,
-    writable: true,
-    value: function (e) {
-        var msg = e.message;
-        var str = e.name + ':';
-        if (e.lineNumber > 0) {
-            str += e.lineNumber + ':';
-        }
-        if (e.columnNumber > 0) {
-            str += e.columnNumber + ':';
-        }
-        str += msg.substring(msg.indexOf(' ') + 1);
-        print(str);
-    }
-});
-

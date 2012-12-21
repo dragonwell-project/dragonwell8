@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,40 +25,40 @@
 
 package jdk.nashorn.internal.ir;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * IR representation for an empty statement.
+ *
  */
-@Immutable
-public final class EmptyNode extends Statement {
+public class EmptyNode extends Node {
 
     /**
      * Constructor
      *
      * @param node node to wrap
      */
-    public EmptyNode(final Statement node) {
+    public EmptyNode(final Node node) {
         super(node);
     }
 
     /**
      * Constructor
      *
-     * @param lineNumber line number
+     * @param source     the source
      * @param token      token
      * @param finish     finish
      */
-    public EmptyNode(final int lineNumber, final long token, final int finish) {
-        super(lineNumber, token, finish);
+    public EmptyNode(final Source source, final long token, final int finish) {
+        super(source, token, finish);
     }
 
 
     @Override
-    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterEmptyNode(this)) {
-            return visitor.leaveEmptyNode(this);
+    public Node accept(final NodeVisitor visitor) {
+        if (visitor.enter(this) != null) {
+            return visitor.leave(this);
         }
         return this;
     }

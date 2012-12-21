@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,24 +25,25 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
-import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Map;
-import jdk.internal.dynalink.support.TypeUtilities;
 import jdk.nashorn.internal.runtime.ConsString;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptObject;
+import org.dynalang.dynalink.support.TypeUtilities;
 
 /**
- * Utility class shared by {@code NashornLinker} and {@code NashornPrimitiveLinker} for converting JS values to Java
+ * Utility class shared by {@link NashornLinker} and {@code NashornPrimitiveLinker} for converting JS values to Java
  * types.
  */
-final class JavaArgumentConverters {
+public class JavaArgumentConverters {
 
     private static final MethodHandle TO_BOOLEAN        = findOwnMH("toBoolean", Boolean.class, Object.class);
     private static final MethodHandle TO_STRING         = findOwnMH("toString", String.class, Object.class);
@@ -109,7 +110,7 @@ final class JavaArgumentConverters {
                 return Character.valueOf((char) ival);
             }
 
-            throw typeError("cant.convert.number.to.char");
+            typeError(Context.getGlobal(), "cant.convert.number.to.char");
         }
 
         final String s = toString(o);
@@ -118,7 +119,7 @@ final class JavaArgumentConverters {
         }
 
         if (s.length() != 1) {
-            throw typeError("cant.convert.string.to.char");
+            typeError(Context.getGlobal(), "cant.convert.string.to.char");
         }
 
         return s.charAt(0);
@@ -211,20 +212,6 @@ final class JavaArgumentConverters {
                 return null;
             } else if (obj instanceof Long) {
                 return (Long) obj;
-            } else if (obj instanceof Integer) {
-                return ((Integer)obj).longValue();
-            } else if (obj instanceof Double) {
-                final Double d = (Double)obj;
-                if(Double.isInfinite(d.doubleValue())) {
-                    return 0L;
-                }
-                return d.longValue();
-            } else if (obj instanceof Float) {
-                final Float f = (Float)obj;
-                if(Float.isInfinite(f.floatValue())) {
-                    return 0L;
-                }
-                return f.longValue();
             } else if (obj instanceof Number) {
                 return ((Number)obj).longValue();
             } else if (obj instanceof String || obj instanceof ConsString) {

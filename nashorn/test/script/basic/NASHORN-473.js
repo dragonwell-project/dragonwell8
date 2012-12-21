@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @run
  */
 
-var boolArr = new (Java.type("boolean[]"))(2);
+var boolArr = java.lang.reflect.Array.newInstance(java.lang.Boolean.TYPE, 2);
 boolArr[0] = true;
 boolArr[1] = false;
 

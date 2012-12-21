@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,6 @@ import org.testng.annotations.Test;
 
 /**
  * Basic Context API tests.
- *
- * @test
- * @run testng jdk.nashorn.internal.runtime.ContextTest
  */
 public class ContextTest {
     // basic context eval test
@@ -44,7 +41,7 @@ public class ContextTest {
     public void evalTest() {
         final Options options = new Options("");
         final ErrorManager errors = new ErrorManager();
-        final Context cx = new Context(options, errors, Thread.currentThread().getContextClassLoader());
+        final Context cx = new Context(options, errors);
         final ScriptObject oldGlobal = Context.getGlobal();
         Context.setGlobal(cx.createGlobal());
         try {
@@ -52,19 +49,18 @@ public class ContextTest {
             assertTrue(32.0 == ((Number)(eval(cx, "<evalTest>", code))).doubleValue());
 
             code = "obj = { js: 'nashorn' }; obj.js";
-            assertEquals(eval(cx, "<evalTest2>", code), "nashorn");
+            assertEquals("nashorn", eval(cx, "<evalTest2>", code));
         } finally {
             Context.setGlobal(oldGlobal);
         }
     }
 
-    // basic check for JS reflection access - java.util.Map-like access on ScriptObject
+    // basic check for JS reflection access
     @Test
     public void reflectionTest() {
         final Options options = new Options("");
         final ErrorManager errors = new ErrorManager();
-        final Context cx = new Context(options, errors, Thread.currentThread().getContextClassLoader());
-        final boolean strict = cx.getEnv()._strict;
+        final Context cx = new Context(options, errors);
         final ScriptObject oldGlobal = Context.getGlobal();
         Context.setGlobal(cx.createGlobal());
 
@@ -74,11 +70,12 @@ public class ContextTest {
 
             final Object obj = cx.getGlobal().get("obj");
 
-            assertTrue(obj instanceof ScriptObject);
+            assertTrue(obj instanceof Map);
 
-            final ScriptObject sobj = (ScriptObject)obj;
+            @SuppressWarnings("unchecked")
+            final Map<Object, Object> map = (Map<Object, Object>)obj;
             int count = 0;
-            for (final Map.Entry<?, ?> ex : sobj.entrySet()) {
+            for (final Map.Entry<?, ?> ex : map.entrySet()) {
                 final Object key = ex.getKey();
                 if (key.equals("x")) {
                     assertTrue(ex.getValue() instanceof Number);
@@ -92,13 +89,13 @@ public class ContextTest {
                     count++;
                 }
             }
-            assertEquals(count, 2);
-            assertEquals(sobj.size(), 2);
+            assertEquals(2, count);
+            assertEquals(2, map.size());
 
             // add property
-            sobj.put("zee", "hello", strict);
-            assertEquals(sobj.get("zee"), "hello");
-            assertEquals(sobj.size(), 3);
+            map.put("zee", "hello");
+            assertEquals("hello", map.get("zee"));
+            assertEquals(3, map.size());
 
         } finally {
             Context.setGlobal(oldGlobal);
@@ -108,7 +105,7 @@ public class ContextTest {
     private Object eval(final Context cx, final String name, final String code) {
         final Source source = new Source(name, code);
         final ScriptObject global = Context.getGlobal();
-        final ScriptFunction func = cx.compileScript(source, global);
+        final ScriptFunction func = cx.compileScript(source, global, cx._strict);
         return func != null ? ScriptRuntime.apply(func, global) : null;
     }
 }

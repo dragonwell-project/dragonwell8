@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,18 +125,6 @@ abstract class ArrayFilter extends ArrayData {
         underlying = underlying.set(index, value, strict);
         setLength(underlying.length());
 
-        return this;
-    }
-
-    @Override
-    public ArrayData setEmpty(final int index) {
-        underlying.setEmpty(index);
-        return this;
-    }
-
-    @Override
-    public ArrayData setEmpty(final long lo, final long hi) {
-        underlying.setEmpty(lo, hi);
         return this;
     }
 

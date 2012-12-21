@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -49,3 +49,8 @@ for each (i in s) print(i);
 // 'each' is a contextual keyword. Ok to use as identifier elsewhere..
 var each = "This is each";
 print(each);
+
+// it is ok to use "each" is usual for loop. Ignored as noise word.
+for each (var i = 0; i < 10; i++) {
+    print(i);
+}

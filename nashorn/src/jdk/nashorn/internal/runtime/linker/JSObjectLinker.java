@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,33 +28,59 @@ package jdk.nashorn.internal.runtime.linker;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.HashMap;
-import java.util.Map;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.GuardingTypeConverterFactory;
-import jdk.internal.dynalink.linker.LinkRequest;
-import jdk.internal.dynalink.linker.LinkerServices;
-import jdk.internal.dynalink.linker.TypeBasedGuardingDynamicLinker;
-import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
-import jdk.nashorn.api.scripting.JSObject;
-import jdk.nashorn.internal.lookup.MethodHandleFactory;
-import jdk.nashorn.internal.lookup.MethodHandleFunctionality;
+import java.util.Objects;
 import jdk.nashorn.internal.runtime.JSType;
+import netscape.javascript.JSObject;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
+import org.dynalang.dynalink.linker.LinkRequest;
+import org.dynalang.dynalink.linker.LinkerServices;
+import org.dynalang.dynalink.linker.TypeBasedGuardingDynamicLinker;
+import org.dynalang.dynalink.support.CallSiteDescriptorFactory;
 
 /**
  * A Dynalink linker to handle web browser built-in JS (DOM etc.) objects as well
  * as ScriptObjects from other Nashorn contexts.
  */
-final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTypeConverterFactory {
+public final class JSObjectLinker implements TypeBasedGuardingDynamicLinker {
+   /**
+     * Instances of this class are used to represent a method member of a JSObject
+     */
+    private static final class JSObjectMethod {
+        // The name of the JSObject method property
+        private final String name;
+
+        JSObjectMethod(final String name) {
+            this.name = name;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        static GuardedInvocation lookup(final CallSiteDescriptor desc) {
+            final String operator = CallSiteDescriptorFactory.tokenizeOperators(desc).get(0);
+            switch (operator) {
+                case "call": {
+                    // collect everything except the first two - JSObjectMethod instance and the actual 'self'
+                    final int paramCount = desc.getMethodType().parameterCount();
+                    final MethodHandle caller = MH.asCollector(JSOBJECTMETHOD_CALL, Object[].class, paramCount - 2);
+                    return new GuardedInvocation(caller, null, IS_JSOBJECTMETHOD_GUARD);
+                }
+                default:
+                    return null;
+            }
+        }
+    }
+
     @Override
     public boolean canLinkType(final Class<?> type) {
         return canLinkTypeStatic(type);
     }
 
     static boolean canLinkTypeStatic(final Class<?> type) {
-        // can link JSObject
-        return JSObject.class.isAssignableFrom(type);
+        // can link JSObject and JSObjectMethod
+        return JSObject.class.isAssignableFrom(type) || JSObjectMethod.class.isAssignableFrom(type);
     }
 
     @Override
@@ -71,28 +97,14 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
         final GuardedInvocation inv;
         if (self instanceof JSObject) {
             inv = lookup(desc);
+        } else if (self instanceof JSObjectMethod) {
+            inv = JSObjectMethod.lookup(desc);
         } else {
             throw new AssertionError(); // Should never reach here.
         }
 
         return Bootstrap.asType(inv, linkerServices, desc);
     }
-
-    @Override
-    public GuardedInvocation convertToType(final Class<?> sourceType, final Class<?> targetType) throws Exception {
-        final boolean sourceIsAlwaysJSObject = JSObject.class.isAssignableFrom(sourceType);
-        if(!sourceIsAlwaysJSObject && !sourceType.isAssignableFrom(JSObject.class)) {
-            return null;
-        }
-
-        final MethodHandle converter = CONVERTERS.get(targetType);
-        if(converter == null) {
-            return null;
-        }
-
-        return new GuardedInvocation(converter, sourceIsAlwaysJSObject ? null : IS_JSOBJECT_GUARD).asType(MethodType.methodType(targetType, sourceType));
-    }
-
 
     private static GuardedInvocation lookup(final CallSiteDescriptor desc) {
         final String operator = CallSiteDescriptorFactory.tokenizeOperators(desc).get(0);
@@ -101,45 +113,50 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
             case "getProp":
             case "getElem":
             case "getMethod":
-                return c > 2 ? findGetMethod(desc) : findGetIndexMethod();
+                return c > 2 ? findGetMethod(desc, operator) : findGetIndexMethod();
             case "setProp":
             case "setElem":
                 return c > 2 ? findSetMethod(desc) : findSetIndexMethod();
             case "call":
-                return findCallMethod(desc);
+            case "callMethod":
+                return findCallMethod(desc, operator);
             case "new":
-                return findNewMethod(desc);
             default:
                 return null;
         }
     }
 
-    private static GuardedInvocation findGetMethod(final CallSiteDescriptor desc) {
-        final MethodHandle getter = MH.insertArguments(JSOBJECT_GETMEMBER, 1, desc.getNameToken(2));
+    private static GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final String operator) {
+        // if "getMethod" then return JSObjectMethod object - which just holds the name of the method
+        // subsequently, link on dyn:call for JSObjectMethod will actually call that method
+        final MethodHandle getter = MH.insertArguments("getMethod".equals(operator)? JSOBJECT_GETMETHOD : JSOBJECT_GET, 1, desc.getNameToken(2));
         return new GuardedInvocation(getter, null, IS_JSOBJECT_GUARD);
     }
 
     private static GuardedInvocation findGetIndexMethod() {
-        return new GuardedInvocation(JSOBJECTLINKER_GET, null, IS_JSOBJECT_GUARD);
+        return new GuardedInvocation(JSOBJECT_GET, null, IS_JSOBJECT_GUARD);
     }
 
     private static GuardedInvocation findSetMethod(final CallSiteDescriptor desc) {
-        final MethodHandle getter = MH.insertArguments(JSOBJECT_SETMEMBER, 1, desc.getNameToken(2));
+        final MethodHandle getter = MH.insertArguments(JSOBJECT_PUT, 1, desc.getNameToken(2));
         return new GuardedInvocation(getter, null, IS_JSOBJECT_GUARD);
     }
 
     private static GuardedInvocation findSetIndexMethod() {
-        return new GuardedInvocation(JSOBJECTLINKER_PUT, null, IS_JSOBJECT_GUARD);
+        return new GuardedInvocation(JSOBJECT_PUT, null, IS_JSOBJECT_GUARD);
     }
 
-    private static GuardedInvocation findCallMethod(final CallSiteDescriptor desc) {
-        final MethodHandle func = MH.asCollector(JSOBJECT_CALL, Object[].class, desc.getMethodType().parameterCount() - 2);
+    private static GuardedInvocation findCallMethod(final CallSiteDescriptor desc, final String operator) {
+        // if operator is "call", then 'self' is a JSObject function object already. Use 'call' as the method name
+        final String methodName = "callMethod".equals(operator)? desc.getNameToken(2) : "call";
+        MethodHandle func = MH.insertArguments(JSOBJECT_CALL, 1, methodName);
+        func = MH.asCollector(func, Object[].class, desc.getMethodType().parameterCount() - 1);
         return new GuardedInvocation(func, null, IS_JSOBJECT_GUARD);
     }
 
-    private static GuardedInvocation findNewMethod(final CallSiteDescriptor desc) {
-        final MethodHandle func = MH.asCollector(JSOBJECT_NEW, Object[].class, desc.getMethodType().parameterCount() - 1);
-        return new GuardedInvocation(func, null, IS_JSOBJECT_GUARD);
+    @SuppressWarnings("unused")
+    private static boolean isJSObjectMethod(final Object self) {
+        return self instanceof JSObjectMethod;
     }
 
     @SuppressWarnings("unused")
@@ -147,49 +164,45 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
         return self instanceof JSObject;
     }
 
+
+    @SuppressWarnings("unused")
+    private static Object getMethod(final Object jsobj, final Object key) {
+        return new JSObjectMethod(Objects.toString(key));
+    }
+
     @SuppressWarnings("unused")
     private static Object get(final Object jsobj, final Object key) {
-        if (key instanceof Integer) {
-            return ((JSObject)jsobj).getSlot((Integer)key);
+        if (key instanceof String) {
+            return ((JSObject)jsobj).getMember((String)key);
         } else if (key instanceof Number) {
             final int index = getIndex((Number)key);
             if (index > -1) {
                 return ((JSObject)jsobj).getSlot(index);
             }
-        } else if (key instanceof String) {
-            return ((JSObject)jsobj).getMember((String)key);
         }
         return null;
     }
 
     @SuppressWarnings("unused")
     private static void put(final Object jsobj, final Object key, final Object value) {
-        if (key instanceof Integer) {
-            ((JSObject)jsobj).setSlot((Integer)key, value);
+        if (key instanceof String) {
+            ((JSObject)jsobj).setMember((String)key, value);
         } else if (key instanceof Number) {
             ((JSObject)jsobj).setSlot(getIndex((Number)key), value);
-        } else if (key instanceof String) {
-            ((JSObject)jsobj).setMember((String)key, value);
         }
     }
 
     @SuppressWarnings("unused")
-    private static int toInt32(final JSObject obj) {
-        return JSType.toInt32(toNumber(obj));
+    private static Object call(final Object jsobj, final Object method, final Object... args) {
+        return ((JSObject)jsobj).call(Objects.toString(method), args);
     }
 
     @SuppressWarnings("unused")
-    private static long toInt64(final JSObject obj) {
-        return JSType.toInt64(toNumber(obj));
-    }
-
-    private static double toNumber(final JSObject obj) {
-        return obj == null ? 0 : obj.toNumber();
-    }
-
-    @SuppressWarnings("unused")
-    private static boolean toBoolean(final JSObject obj) {
-        return obj != null;
+    private static Object jsObjectMethodCall(final Object jsObjMethod, final Object jsobj, final Object... args) {
+        // we have JSObjectMethod, JSObject and args. Get method name from JSObjectMethod instance
+        final String methodName = ((JSObjectMethod)jsObjMethod).getName();
+        // call the method on JSObject
+        return ((JSObject)jsobj).call(methodName, args);
     }
 
     private static int getIndex(final Number n) {
@@ -199,39 +212,21 @@ final class JSObjectLinker implements TypeBasedGuardingDynamicLinker, GuardingTy
 
     private static final MethodHandleFunctionality MH = MethodHandleFactory.getFunctionality();
 
-    // method handles of the current class
-    private static final MethodHandle IS_JSOBJECT_GUARD  = findOwnMH("isJSObject", boolean.class, Object.class);
-    private static final MethodHandle JSOBJECTLINKER_GET = findOwnMH("get", Object.class, Object.class, Object.class);
-    private static final MethodHandle JSOBJECTLINKER_PUT = findOwnMH("put", Void.TYPE, Object.class, Object.class, Object.class);
-
-    // method handles of JSObject class
-    private static final MethodHandle JSOBJECT_GETMEMBER  = findJSObjectMH("getMember", Object.class, String.class);
-    private static final MethodHandle JSOBJECT_SETMEMBER  = findJSObjectMH("setMember", Void.TYPE, String.class, Object.class);
-    private static final MethodHandle JSOBJECT_CALL       = findJSObjectMH("call", Object.class, Object.class, Object[].class);
-    private static final MethodHandle JSOBJECT_NEW        = findJSObjectMH("newObject", Object.class, Object[].class);
-
-    private static final Map<Class<?>, MethodHandle> CONVERTERS = new HashMap<>();
-    static {
-        CONVERTERS.put(boolean.class, findOwnMH("toBoolean", boolean.class, JSObject.class));
-        CONVERTERS.put(int.class, findOwnMH("toInt32", int.class, JSObject.class));
-        CONVERTERS.put(long.class, findOwnMH("toInt64", long.class, JSObject.class));
-        CONVERTERS.put(double.class, findOwnMH("toNumber", double.class, JSObject.class));
-    }
+    private static final MethodHandle IS_JSOBJECTMETHOD_GUARD = findOwnMH("isJSObjectMethod", boolean.class, Object.class);
+    private static final MethodHandle IS_JSOBJECT_GUARD = findOwnMH("isJSObject", boolean.class, Object.class);
+    private static final MethodHandle JSOBJECT_GETMETHOD = findOwnMH("getMethod", Object.class, Object.class, Object.class);
+    private static final MethodHandle JSOBJECT_GET = findOwnMH("get", Object.class, Object.class, Object.class);
+    private static final MethodHandle JSOBJECT_PUT = findOwnMH("put", Void.TYPE, Object.class, Object.class, Object.class);
+    private static final MethodHandle JSOBJECT_CALL = findOwnMH("call", Object.class, Object.class, Object.class, Object[].class);
+    private static final MethodHandle JSOBJECTMETHOD_CALL = findOwnMH("jsObjectMethodCall", Object.class, Object.class, Object.class, Object[].class);
 
     private static MethodHandle findOwnMH(final String name, final Class<?> rtype, final Class<?>... types) {
-        return findMH(name, JSObjectLinker.class, rtype, types);
-    }
-
-    private static MethodHandle findJSObjectMH(final String name, final Class<?> rtype, final Class<?>... types) {
-        return findMH(name, JSObject.class, rtype, types);
-    }
-
-    private static MethodHandle findMH(final String name, final Class<?> target, final Class<?> rtype, final Class<?>... types) {
+        final Class<?>   own = JSObjectLinker.class;
         final MethodType mt  = MH.type(rtype, types);
         try {
-            return MH.findStatic(MethodHandles.lookup(), target, name, mt);
+            return MH.findStatic(MethodHandles.lookup(), own, name, mt);
         } catch (final MethodHandleFactory.LookupException e) {
-            return MH.findVirtual(MethodHandles.lookup(), target, name, mt);
+            return MH.findVirtual(MethodHandles.lookup(), own, name, mt);
         }
     }
 }

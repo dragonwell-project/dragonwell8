@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,32 +25,38 @@
 
 package jdk.nashorn.internal.ir;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.LITERAL_PREFIX;
+import static jdk.nashorn.internal.codegen.CompilerConstants.TEMP_PREFIX;
+import static jdk.nashorn.internal.ir.Symbol.IS_CONSTANT;
+import static jdk.nashorn.internal.ir.Symbol.IS_TEMP;
+
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.Stack;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.Compiler;
-import jdk.nashorn.internal.codegen.CompilerConstants;
+import jdk.nashorn.internal.codegen.Frame;
+import jdk.nashorn.internal.codegen.MethodEmitter;
 import jdk.nashorn.internal.codegen.Namespace;
+import jdk.nashorn.internal.codegen.Splitter;
+import jdk.nashorn.internal.codegen.Transform;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.annotations.Ignore;
-import jdk.nashorn.internal.ir.annotations.Immutable;
+import jdk.nashorn.internal.ir.annotations.Reference;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
-import jdk.nashorn.internal.runtime.ScriptFunction;
+import jdk.nashorn.internal.parser.Parser;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.UserAccessorProperty;
-import jdk.nashorn.internal.runtime.linker.LinkerCallSite;
 
 /**
  * IR representation for function (or script.)
+ *
  */
-@Immutable
-public final class FunctionNode extends LexicalContextExpression implements Flags<FunctionNode> {
-
-    /** Type used for all FunctionNodes */
-    public static final Type FUNCTION_TYPE = Type.typeFor(ScriptFunction.class);
+public class FunctionNode extends Block {
 
     /** Function kinds */
     public enum Kind {
@@ -64,392 +70,381 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         SETTER
     }
 
-    /** Compilation states available */
-    public enum CompilationState {
-        /** compiler is ready */
-        INITIALIZED,
-        /** method has been parsed */
-        PARSED,
-        /** method has been parsed */
-        PARSE_ERROR,
-        /** constant folding pass */
-        CONSTANT_FOLDED,
-        /** method has been lowered */
-        LOWERED,
-        /** method hass been attributed */
-        ATTR,
-        /** method has been split */
-        SPLIT,
-        /** method has had its types finalized */
-        FINALIZED,
-        /** method has been emitted to bytecode */
-        EMITTED
-    }
-    /** Source of entity. */
-    private final Source source;
-
     /** External function identifier. */
     @Ignore
-    private final IdentNode ident;
-
-    /** Parsed version of functionNode */
-    @Ignore
-    private final FunctionNode snapshot;
-
-    /** The body of the function node */
-    private final Block body;
+    private IdentNode ident;
 
     /** Internal function name. */
-    private final String name;
+    private String name;
 
     /** Compilation unit. */
-    private final CompileUnit compileUnit;
+    private CompileUnit compileUnit;
+
+    /** Method emitter for current method. */
+    private MethodEmitter method;
 
     /** Function kind. */
-    private final Kind kind;
+    private Kind kind;
 
     /** List of parameters. */
-    private final List<IdentNode> parameters;
+    private List<IdentNode> parameters;
+
+    /** List of nested functions. */
+    private List<FunctionNode> functions;
 
     /** First token of function. **/
-    private final long firstToken;
+    private long firstToken;
 
     /** Last token of function. **/
-    private final long lastToken;
+    private long lastToken;
 
-    /** Declared symbols in this function node */
-    @Ignore
-    private final Set<Symbol> declaredSymbols;
+    /** Variable frames. */
+    private Frame frames;
 
     /** Method's namespace. */
     private final Namespace namespace;
 
-    /** Current compilation state */
+    /** Node representing current this. */
     @Ignore
-    private final EnumSet<CompilationState> compilationState;
+    private IdentNode thisNode;
 
+    /** Node representing current scope. */
     @Ignore
-    private final Compiler.Hints hints;
+    private IdentNode scopeNode;
 
-    /** Properties of this object assigned in this function */
+    /** Node representing return value. */
     @Ignore
-    private HashSet<String> thisProperties;
+    private IdentNode resultNode;
+
+    /** Node representing current arguments. */
+    @Ignore
+    private IdentNode argumentsNode;
+
+    /** Node representing callee */
+    @Ignore
+    private IdentNode calleeNode;
+
+    /** Node representing varargs */
+    @Ignore
+    private IdentNode varArgsNode;
+
+    /** this access properties. */
+    private final LinkedHashMap<String, Node> thisProperties;
+
+    /** Pending label list. */
+    private final Stack<LabelNode> labelStack;
+
+    /** Pending control list. */
+    private final Stack<Node> controlStack;
+
+    /** Variable declarations in the function's scope */
+    @Ignore
+    private final List<VarNode> declarations;
+
+    /** VarNode for this function statement */
+    @Reference @Ignore //this is explicit code anyway and should not be traverseda after lower
+    private VarNode funcVarNode;
+
+    /** Line number for function declaration */
+    @Reference @Ignore
+    private LineNumberNode funcVarLineNumberNode;
 
     /** Function flags. */
-    private final int flags;
-
-    private final int lineNumber;
+    private int flags;
 
     /** Is anonymous function flag. */
-    public static final int IS_ANONYMOUS                = 1 << 0;
-
-    /** Is the function created in a function declaration (as opposed to a function expression) */
-    public static final int IS_DECLARED                 = 1 << 1;
-
+    private static final int IS_ANONYMOUS            = 0b0000_0000_0000_0001;
+    /** Is statement flag */
+    private static final int IS_STATEMENT            = 0b0000_0000_0000_0010;
     /** is this a strict mode function? */
-    public static final int IS_STRICT                   = 1 << 2;
-
-    /** Does the function use the "arguments" identifier ? */
-    public static final int USES_ARGUMENTS              = 1 << 3;
-
+    private static final int IS_STRICT_MODE          = 0b0000_0000_0000_0100;
+    /** is this is a vararg function? */
+    private static final int IS_VAR_ARG              = 0b0000_0000_0000_1000;
+    /** Are we lowered ? */
+    private static final int IS_LOWERED              = 0b0000_0000_0001_0000;
     /** Has this node been split because it was too large? */
-    public static final int IS_SPLIT                    = 1 << 4;
-
-    /** Does the function call eval? If it does, then all variables in this function might be get/set by it and it can
-     * introduce new variables into this function's scope too.*/
-    public static final int HAS_EVAL                    = 1 << 5;
-
-    /** Does a nested function contain eval? If it does, then all variables in this function might be get/set by it. */
-    public static final int HAS_NESTED_EVAL = 1 << 6;
-
-    /** Does this function have any blocks that create a scope? This is used to determine if the function needs to
-     * have a local variable slot for the scope symbol. */
-    public static final int HAS_SCOPE_BLOCK = 1 << 7;
-
-    /**
-     * Flag this function as one that defines the identifier "arguments" as a function parameter or nested function
-     * name. This precludes it from needing to have an Arguments object defined as "arguments" local variable. Note that
-     * defining a local variable named "arguments" still requires construction of the Arguments object (see
-     * ECMAScript 5.1 Chapter 10.5).
-     * @see #needsArguments()
-     */
-    public static final int DEFINES_ARGUMENTS           = 1 << 8;
-
-    /** Does this function or any of its descendants use variables from an ancestor function's scope (incl. globals)? */
-    public static final int USES_ANCESTOR_SCOPE         = 1 << 9;
-
+    private static final int IS_SPLIT                = 0b0000_0000_0010_0000;
     /** Is this function lazily compiled? */
-    public static final int IS_LAZY                     = 1 << 10;
+    private static final int IS_LAZY                 = 0b0000_0000_0100_0000;
+    /** Do we have throws ? */
+    private static final int HAS_THROWS              = 0b0000_0000_1000_0000;
+    /** Do we have calls ? */
+    private static final int HAS_CALLS               = 0b0000_0001_0000_0000;
+    /** Has yield flag */
+    private static final int HAS_YIELD               = 0b0000_0010_0000_0000;
+    /** Does the function contain eval? */
+    private static final int HAS_EVAL                = 0b0000_0100_0000_0000;
+    /** Does the function contain a with block ? */
+    private static final int HAS_WITH                = 0b0000_1000_0000_0000;
+    /** Does a child function contain a with or eval? */
+    private static final int HAS_CHILD_WITH_OR_EVAL  = 0b0001_0000_0000_0000;
+    /** Hide arguments? */
+    private static final int HIDE_ARGS               = 0b0010_0000_0000_0000;
+    /** Does the function need a self symbol? */
+    private static final int NEEDS_SELF_SYMBOL       = 0b0100_0000_0000_0000;
 
-    /** Does this function have lazy, yet uncompiled children */
-    public static final int HAS_LAZY_CHILDREN           = 1 << 11;
-
-    /** Does this function have lazy, yet uncompiled children */
-    public static final int IS_PROGRAM                  = 1 << 12;
-
-    /** Does this function have nested declarations? */
-    public static final int HAS_FUNCTION_DECLARATIONS   = 1 << 13;
-
-    /** Can this function be specialized? */
-    public static final int CAN_SPECIALIZE              = 1 << 14;
-
-    /** Does this function or any nested functions contain an eval? */
-    private static final int HAS_DEEP_EVAL = HAS_EVAL | HAS_NESTED_EVAL;
-
+    /** Does this function or any nested functions contain a with or an eval? */
+    private static final int HAS_DEEP_WITH_OR_EVAL = HAS_EVAL | HAS_WITH | HAS_CHILD_WITH_OR_EVAL;
     /** Does this function need to store all its variables in scope? */
-    private static final int HAS_ALL_VARS_IN_SCOPE = HAS_DEEP_EVAL | IS_SPLIT | HAS_LAZY_CHILDREN;
+    private static final int HAS_ALL_VARS_IN_SCOPE = HAS_DEEP_WITH_OR_EVAL | IS_SPLIT;
+    /** Does this function need a scope object? */
+    private static final int NEEDS_SCOPE           = HAS_ALL_VARS_IN_SCOPE | IS_VAR_ARG;
 
-    /** Does this function potentially need "arguments"? Note that this is not a full test, as further negative check of REDEFINES_ARGS is needed. */
-    private static final int MAYBE_NEEDS_ARGUMENTS = USES_ARGUMENTS | HAS_EVAL;
-
-    /** Does this function need the parent scope? It needs it if either it or its descendants use variables from it, or have a deep eval.
-     *  We also pessimistically need a parent scope if we have lazy children that have not yet been compiled */
-    private static final int NEEDS_PARENT_SCOPE = USES_ANCESTOR_SCOPE | HAS_DEEP_EVAL | HAS_LAZY_CHILDREN;
 
     /** What is the return type of this function? */
-    private Type returnType = Type.UNKNOWN;
+    private Type returnType = Type.OBJECT;
+
+    /** Transforms that have been applied to this function, a list as some transforms conceivably can run many times */
+    @Ignore
+    private final List<Class<? extends Transform>> appliedTransforms;
+
+    /**
+     * Used to keep track of a function's parent blocks.
+     * This is needed when a (finally body) block is cloned than contains inner functions.
+     * Does not include function.getParent().
+     */
+    @Ignore
+    private List<Block> referencingParentBlocks;
 
     /**
      * Constructor
      *
-     * @param source     the source
-     * @param lineNumber line number
-     * @param token      token
-     * @param finish     finish
-     * @param firstToken first token of the funtion node (including the function declaration)
-     * @param namespace  the namespace
-     * @param ident      the identifier
-     * @param name       the name of the function
-     * @param parameters parameter list
-     * @param kind       kind of function as in {@link FunctionNode.Kind}
-     * @param flags      initial flags
+     * @param source   the source
+     * @param token    token
+     * @param finish   finish
+     * @param compiler the compiler
+     * @param parent   the parent block
+     * @param ident    the identifier
+     * @param name     the name of the function
      */
-    public FunctionNode(
-        final Source source,
-        final int lineNumber,
-        final long token,
-        final int finish,
-        final long firstToken,
-        final Namespace namespace,
-        final IdentNode ident,
-        final String name,
-        final List<IdentNode> parameters,
-        final FunctionNode.Kind kind,
-        final int flags) {
-        super(token, finish);
+    @SuppressWarnings("LeakingThisInConstructor")
+    public FunctionNode(final Source source, final long token, final int finish, final Compiler compiler, final Block parent, final IdentNode ident, final String name) {
+        super(source, token, finish, parent, null);
 
-        this.source           = source;
-        this.lineNumber       = lineNumber;
-        this.ident            = ident;
-        this.name             = name;
-        this.kind             = kind;
-        this.parameters       = parameters;
-        this.firstToken       = firstToken;
-        this.lastToken        = token;
-        this.namespace        = namespace;
-        this.compilationState = EnumSet.of(CompilationState.INITIALIZED);
-        this.declaredSymbols  = new HashSet<>();
-        this.flags            = flags;
-        this.compileUnit      = null;
-        this.body             = null;
-        this.snapshot         = null;
-        this.hints            = null;
+        this.ident             = ident;
+        this.name              = name;
+        this.kind              = Kind.NORMAL;
+        this.parameters        = new ArrayList<>();
+        this.functions         = new ArrayList<>();
+        this.firstToken        = token;
+        this.lastToken         = token;
+        this.namespace         = new Namespace(compiler.getNamespace().getParent());
+        this.thisProperties    = new LinkedHashMap<>();
+        this.labelStack        = new Stack<>();
+        this.controlStack      = new Stack<>();
+        this.declarations      = new ArrayList<>();
+        this.appliedTransforms = new ArrayList<>();
+        // my block -> function is this. We added @SuppressWarnings("LeakingThisInConstructor") as NetBeans identifies
+        // it as such a leak - this is a false positive as we're setting this into a field of the object being
+        // constructed, so it can't be seen from other threads.
+        this.function          = this;
     }
 
-    private FunctionNode(
-        final FunctionNode functionNode,
-        final long lastToken,
-        final int flags,
-        final String name,
-        final Type returnType,
-        final CompileUnit compileUnit,
-        final EnumSet<CompilationState> compilationState,
-        final Block body,
-        final List<IdentNode> parameters,
-        final FunctionNode snapshot,
-        final Compiler.Hints hints) {
-        super(functionNode);
-        this.lineNumber       = functionNode.lineNumber;
-        this.flags            = flags;
-        this.name             = name;
-        this.returnType       = returnType;
-        this.compileUnit      = compileUnit;
-        this.lastToken        = lastToken;
-        this.compilationState = compilationState;
-        this.body             = body;
-        this.parameters       = parameters;
-        this.snapshot         = snapshot;
-        this.hints            = hints;
+    @SuppressWarnings("LeakingThisInConstructor")
+    private FunctionNode(final FunctionNode functionNode, final CopyState cs) {
+        super(functionNode, cs);
 
-        // the fields below never change - they are final and assigned in constructor
-        this.source          = functionNode.source;
-        this.ident           = functionNode.ident;
-        this.namespace       = functionNode.namespace;
-        this.declaredSymbols = functionNode.declaredSymbols;
-        this.kind            = functionNode.kind;
-        this.firstToken      = functionNode.firstToken;
-        this.thisProperties  = functionNode.thisProperties;
+        this.ident = (IdentNode)cs.existingOrCopy(functionNode.ident);
+        this.name  = functionNode.name;
+        this.kind  = functionNode.kind;
+
+        this.parameters = new ArrayList<>();
+        for (final IdentNode param : functionNode.getParameters()) {
+            this.parameters.add((IdentNode) cs.existingOrCopy(param));
+        }
+
+        this.functions         = new ArrayList<>();
+        this.firstToken        = functionNode.firstToken;
+        this.lastToken         = functionNode.lastToken;
+        this.namespace         = functionNode.getNamespace();
+        this.thisNode          = (IdentNode)cs.existingOrCopy(functionNode.thisNode);
+        this.scopeNode         = (IdentNode)cs.existingOrCopy(functionNode.scopeNode);
+        this.resultNode        = (IdentNode)cs.existingOrCopy(functionNode.resultNode);
+        this.argumentsNode     = (IdentNode)cs.existingOrCopy(functionNode.argumentsNode);
+        this.varArgsNode       = (IdentNode)cs.existingOrCopy(functionNode.varArgsNode);
+        this.calleeNode        = (IdentNode)cs.existingOrCopy(functionNode.calleeNode);
+        this.thisProperties    = new LinkedHashMap<>();
+        this.labelStack        = new Stack<>();
+        this.controlStack      = new Stack<>();
+        this.declarations      = new ArrayList<>();
+        this.appliedTransforms = new ArrayList<>();
+
+        for (final VarNode decl : functionNode.getDeclarations()) {
+            declarations.add((VarNode) cs.existingOrCopy(decl)); //TODO same?
+        }
+
+        this.flags = functionNode.flags;
+
+        this.funcVarNode = (VarNode)cs.existingOrCopy(functionNode.funcVarNode);
+        /** VarNode for this function statement */
+
+        // my block -> function is this. We added @SuppressWarnings("LeakingThisInConstructor") as NetBeans identifies
+        // it as such a leak - this is a false positive as we're setting this into a field of the object being
+        // constructed, so it can't be seen from other threads.
+        this.function = this;
     }
 
     @Override
-    public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
-        if (visitor.enterFunctionNode(this)) {
-            return visitor.leaveFunctionNode(setBody(lc, (Block)body.accept(visitor)));
+    protected Node copy(final CopyState cs) {
+        // deep clone all parent blocks
+        return fixBlockChain(new FunctionNode(this, cs));
+    }
+
+    @Override
+    public Node accept(final NodeVisitor visitor) {
+        final FunctionNode saveFunctionNode = visitor.getCurrentFunctionNode();
+        final Block        saveBlock        = visitor.getCurrentBlock();
+
+        visitor.setCurrentFunctionNode(this);
+        visitor.setCurrentCompileUnit(getCompileUnit());
+        visitor.setCurrentMethodEmitter(getMethodEmitter());
+        visitor.setCurrentBlock(this);
+
+        try {
+            if (visitor.enter(this) != null) {
+                if (ident != null) {
+                    ident = (IdentNode)ident.accept(visitor);
+                }
+
+                for (int i = 0, count = parameters.size(); i < count; i++) {
+                    parameters.set(i, (IdentNode)parameters.get(i).accept(visitor));
+                }
+
+                for (int i = 0, count = functions.size(); i < count; i++) {
+                    functions.set(i, (FunctionNode)functions.get(i).accept(visitor));
+                }
+
+                for (int i = 0, count = statements.size(); i < count; i++) {
+                    statements.set(i, statements.get(i).accept(visitor));
+                }
+
+                return visitor.leave(this);
+            }
+        } finally {
+            visitor.setCurrentBlock(saveBlock);
+            visitor.setCurrentFunctionNode(saveFunctionNode);
+            visitor.setCurrentCompileUnit(saveFunctionNode != null ? saveFunctionNode.getCompileUnit() : null);
+            visitor.setCurrentMethodEmitter(saveFunctionNode != null ? saveFunctionNode.getMethodEmitter() : null);
         }
+
         return this;
     }
 
     /**
-     * Get the source for this function
-     * @return the source
-     */
-    public Source getSource() {
-        return source;
-    }
-
-    /**
-     * Returns the line number.
-     * @return the line number.
-     */
-    public int getLineNumber() {
-        return lineNumber;
-    }
-
-    /**
-     * Get the version of this function node's code as it looked upon construction
-     * i.e typically parsed and nothing else
-     * @return initial version of function node
-     */
-    public FunctionNode getSnapshot() {
-        return snapshot;
-    }
-
-    /**
-     * Throw away the snapshot, if any, to save memory. Used when heuristic
-     * determines that a method is not worth specializing
+     * Locate the parent function.
      *
-     * @param lc lexical context
-     * @return new function node if a snapshot was present, now with snapsnot null
+     * @return Parent function.
      */
-    public FunctionNode clearSnapshot(final LexicalContext lc) {
-        if (this.snapshot == null) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, null, hints));
+    public FunctionNode findParentFunction() {
+        return getParent() != null ? getParent().getFunction() : null;
     }
 
     /**
-     * Take a snapshot of this function node at a given point in time
-     * and store it in the function node
-     * @param lc lexical context
-     * @return function node
-     */
-    public FunctionNode snapshot(final LexicalContext lc) {
-        if (this.snapshot == this) {
-            return this;
-        }
-        if (isProgram() || parameters.isEmpty()) {
-            return this; //never specialize anything that won't be recompiled
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, this, hints));
-    }
-
-    /**
-     * Can this function node be regenerated with more specific type args?
-     * @return true if specialization is possible
-     */
-    public boolean canSpecialize() {
-        return snapshot != null && getFlag(CAN_SPECIALIZE);
-    }
-
-    /**
-     * Get the compilation state of this function
-     * @return the compilation state
-     */
-    public EnumSet<CompilationState> getState() {
-        return compilationState;
-    }
-
-    /**
-     * Check whether this FunctionNode has reached a give CompilationState.
+     * Add parent name to the builder.
      *
-     * @param state the state to check for
-     * @return true of the node is in the given state
+     * @param sb String builder.
      */
-    public boolean hasState(final EnumSet<CompilationState> state) {
-        return compilationState.equals(state);
-    }
-
-    /**
-     * Check whether the state of this FunctionNode contains a given compilation
-     * state.
-     *
-     * A node can be in many states at once, e.g. both lowered and initialized.
-     * To check for an exact state, use {FunctionNode{@link #hasState(EnumSet)}
-     *
-     * @param state state to check for
-     * @return true if state is present in the total compilation state of this FunctionNode
-     */
-    public boolean hasState(final CompilationState state) {
-        return compilationState.contains(state);
-    }
-
-    /**
-     * Add a state to the total CompilationState of this node, e.g. if
-     * FunctionNode has been lowered, the compiler will add
-     * {@code CompilationState#LOWERED} to the state vector
-     *
-     * @param lc lexical context
-     * @param state {@link CompilationState} to add
-     * @return function node or a new one if state was changed
-     */
-    public FunctionNode setState(final LexicalContext lc, final CompilationState state) {
-        if (this.compilationState.contains(state)) {
-            return this;
+    @Override
+    public void addParentName(final StringBuilder sb) {
+        if (!isScript()) {
+            sb.append(getName());
+            sb.append("$");
         }
-        final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
-        newState.add(state);
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, newState, body, parameters, snapshot, hints));
     }
 
-    /**
-     * Get any compiler hints that may associated with the function
-     * @return compiler hints
+    /*
+     * Frame management.
      */
-    public Compiler.Hints getHints() {
-        return this.hints == null ? Compiler.Hints.EMPTY : hints;
-    }
 
     /**
-     * Set compiler hints for this function
-     * @param lc    lexical context
-     * @param hints compiler hints
-     * @return new function if hints changed
+     * Push a new block frame.
+     *
+     * @return the new frame
      */
-    public FunctionNode setHints(final LexicalContext lc, final Compiler.Hints hints) {
-        if (this.hints == hints) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+    public final Frame pushFrame() {
+        frames = new Frame(frames);
+        return frames;
     }
 
     /**
-     * Create a unique name in the namespace of this FunctionNode
-     * @param base prefix for name
-     * @return base if no collision exists, otherwise a name prefix with base
+     * Pop a block frame.
+     */
+    public final void popFrame() {
+        frames = frames.getPrevious();
+    }
+
+    /**
+     * return a unique name in the scope of the function.
+     *
+     * @param base Base string.
+     *
+     * @return Unique name.
      */
     public String uniqueName(final String base) {
         return namespace.uniqueName(base);
     }
 
+    /**
+     * Create a temporary variable to the current frame.
+     *
+     * @param type  Strong type of symbol.
+     * @param node  Primary node to use symbol.
+     *
+     * @return Symbol used.
+     */
+    public Symbol newTemporary(final Type type, final Node node) {
+        Symbol sym = node.getSymbol();
+
+        // If no symbol already present.
+        if (sym == null) {
+            final String uname = uniqueName(TEMP_PREFIX.tag());
+            sym = new Symbol(uname, IS_TEMP, type);
+            sym.setNode(node);
+        }
+
+        // Assign a slot if it doesn't have one.
+        if (!sym.hasSlot()) {
+            frames.addSymbol(sym);
+        }
+
+        // Set symbol to node.
+        node.setSymbol(sym);
+
+        return sym;
+    }
+
+    /**
+     * Create a virtual symbol for a literal.
+     *
+     * @param literalNode Primary node to use symbol.
+     *
+     * @return Symbol used.
+     */
+    public Symbol newLiteral(final LiteralNode<?> literalNode) {
+        final String uname = uniqueName(LITERAL_PREFIX.tag());
+        final Symbol sym = new Symbol(uname, IS_CONSTANT, literalNode.getType());
+        sym.setNode(literalNode);
+        literalNode.setSymbol(sym);
+
+        return sym;
+    }
+
+    /**
+     * Add a property to the constructor (function) based on this.x usage.
+     *
+     * @param key  Name of property.
+     * @param node Value node (has type.)
+     */
+    public void addThisProperty(final String key, final Node node) {
+        if (node == null) {
+            return;
+        }
+
+        thisProperties.put(key, node);
+    }
 
     @Override
     public void toString(final StringBuilder sb) {
-        sb.append('[');
-        sb.append(returnType);
-        sb.append(']');
-        sb.append(' ');
-
         sb.append("function");
 
         if (ident != null) {
@@ -473,35 +468,23 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         sb.append(')');
     }
 
-    @Override
-    public boolean getFlag(final int flag) {
-        return (flags & flag) != 0;
-    }
-
-    @Override
-    public FunctionNode setFlags(final LexicalContext lc, int flags) {
-        if (this.flags == flags) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
-    }
-
-    @Override
-    public FunctionNode clearFlag(final LexicalContext lc, final int flag) {
-        return setFlags(lc, flags & ~flag);
-    }
-
-    @Override
-    public FunctionNode setFlag(final LexicalContext lc, final int flag) {
-        return setFlags(lc, flags | flag);
+    /**
+     * Determine if script function.
+     *
+     * @return True if script function.
+     */
+    public boolean isScript() {
+        return getParent() == null;
     }
 
     /**
-     * Returns true if the function is the top-level program.
-     * @return True if this function node represents the top-level program.
+     * Get the control stack. Used when parsing to establish nesting depths of
+     * different control structures
+     *
+     * @return the control stack
      */
-    public boolean isProgram() {
-        return getFlag(IS_PROGRAM);
+    public Stack<Node> getControlStack() {
+        return controlStack;
     }
 
     /**
@@ -509,7 +492,37 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if lazy
      */
     public boolean isLazy() {
-        return getFlag(IS_LAZY);
+        return (flags & IS_LAZY) != 0;
+    }
+
+    /**
+     * Set if this function should be lazily generated
+     * @param isLazy is lazy
+     */
+    public void setIsLazy(final boolean isLazy) {
+        this.flags = isLazy ? flags | IS_LAZY : flags & ~IS_LAZY;
+    }
+
+    /**
+     * Check if the {@code with} keyword is used in this function
+     *
+     * @return true if {@code with} is used
+     */
+    public boolean hasWith() {
+        return (flags & HAS_WITH) != 0;
+    }
+
+    /**
+     * Flag this function as using the {@code with} keyword
+     */
+    public void setHasWith() {
+        this.flags |= HAS_WITH;
+        // with requires scope in parents.
+        FunctionNode parentFunction = findParentFunction();
+        while (parentFunction != null) {
+            parentFunction.setHasNestedWithOrEval();
+            parentFunction = parentFunction.findParentFunction();
+        }
     }
 
     /**
@@ -518,7 +531,36 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if {@code eval} is used
      */
     public boolean hasEval() {
-        return getFlag(HAS_EVAL);
+        return (flags & HAS_EVAL) != 0;
+    }
+
+    /**
+     * Flag this function as using the {@code eval} keyword
+     */
+    public void setHasEval() {
+        this.flags |= HAS_EVAL;
+        // eval requires scope in parents.
+        FunctionNode parentFunction = findParentFunction();
+        while (parentFunction != null) {
+            parentFunction.setHasNestedWithOrEval();
+            parentFunction = parentFunction.findParentFunction();
+        }
+    }
+
+    private void setHasNestedWithOrEval() {
+        flags |= HAS_CHILD_WITH_OR_EVAL;
+    }
+
+    /**
+     * Test whether this function or any of its nested functions contains a <tt>with</tt> statement
+     * or an <tt>eval</tt> call.
+     *
+     * @see #hasWith()
+     * @see #hasEval()
+     * @return true if this or a nested function contains with or eval
+     */
+    public boolean hasDeepWithOrEval() {
+        return (flags & HAS_DEEP_WITH_OR_EVAL) != 0;
     }
 
     /**
@@ -530,27 +572,114 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Check whether this function has nested function declarations
-     * @return true if nested function declarations exist
+     * Set the first token for this function
+     * @param firstToken the first token
      */
-    public boolean hasDeclaredFunctions() {
-        return getFlag(HAS_FUNCTION_DECLARATIONS);
+    public void setFirstToken(final long firstToken) {
+        this.firstToken = firstToken;
     }
 
     /**
-     * Check if this function's generated Java method needs a {@code callee} parameter. Functions that need access to
-     * their parent scope, functions that reference themselves, and non-strict functions that need an Arguments object
-     * (since it exposes {@code arguments.callee} property) will need to have a callee parameter. We also return true
-     * for split functions to make sure symbols slots are the same in the main and split methods.
+     * Get all nested functions
+     * @return list of nested functions in this function
+     */
+    public List<FunctionNode> getFunctions() {
+        return Collections.unmodifiableList(functions);
+    }
+
+    /**
+     * Get the label stack. This is used by the parser to establish
+     * label nesting depth
      *
-     * @return true if the function's generated Java method needs a {@code callee} parameter.
+     * @return the label stack
+     */
+    public Stack<LabelNode> getLabelStack() {
+        return labelStack;
+    }
+
+    /**
+     * Check if this function has a {@code yield} usage
+     *
+     * @return true if function uses {@code yield}
+     */
+    public boolean hasYield() {
+        return (flags & HAS_YIELD) != 0;
+    }
+
+    /**
+     * Flag this function as using the {@code yield} keyword
+     */
+    public void setHasYield() {
+        this.flags |= HAS_YIELD;
+    }
+
+    /**
+     * If this function needs to use var args, return the identifier to the node used
+     * for the var args structure
+     *
+     * @return IdentNode representing the var args structure
+     */
+    public IdentNode getVarArgsNode() {
+        return varArgsNode;
+    }
+
+    /**
+     * Set the identifier to the node used for the var args structure
+     *
+     * @param varArgsNode IdentNode representing the var args
+     */
+    public void setVarArgsNode(final IdentNode varArgsNode) {
+        this.varArgsNode = varArgsNode;
+    }
+
+    /**
+     * If this function uses the {@code callee} variable, return the node used
+     * as this variable
+     *
+     * @return an IdentNode representing the {@code callee} variable
+     */
+    public IdentNode getCalleeNode() {
+        return calleeNode;
+    }
+
+    /**
+     * If this function uses the {@code callee} variable, set the node representing the
+     * callee
+     * @param calleeNode an IdentNode representing the callee
+     */
+    public void setCalleeNode(final IdentNode calleeNode) {
+        this.calleeNode = calleeNode;
+    }
+
+    /**
+     * Check if this function needs the {@code callee} parameter
+     * @return true if the function uses {@code callee}
      */
     public boolean needsCallee() {
-        return needsParentScope() || needsSelfSymbol() || isSplit() || (needsArguments() && !isStrict());
+        return getCalleeNode() != null;
     }
 
     /**
-     * Get the identifier for this function, this is its symbol.
+     * If this is a function where {@code arguments} is used, return the node used as the {@code arguments}
+     * variable
+     * @return an IdentNode representing {@code arguments}
+     */
+    public IdentNode getArgumentsNode() {
+        return argumentsNode;
+    }
+
+    /**
+     * If this is a Function where {@code arguments} is used, an identifier to the node representing
+     * the {@code arguments} value has to be supplied by the compiler
+     *
+     * @param argumentsNode IdentNode that represents {@code arguments}
+     */
+    public void setArgumentsNode(final IdentNode argumentsNode) {
+        this.argumentsNode = argumentsNode;
+    }
+
+    /**
+     * Get the identifier for this function
      * @return the identifier as an IdentityNode
      */
     public IdentNode getIdent() {
@@ -558,107 +687,45 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Return a set of symbols declared in this function node. This
-     * is only relevant after Attr, otherwise it will be an empty
-     * set as no symbols have been introduced
-     * @return set of declared symbols in function
+     * Reset the identifier for this function
+     * @param ident IdentNode for new identifier
      */
-    public Set<Symbol> getDeclaredSymbols() {
-        return Collections.unmodifiableSet(declaredSymbols);
+    public void setIdent(final IdentNode ident) {
+        this.ident = ident;
     }
 
     /**
-     * Add a declared symbol to this function node
-     * @param symbol symbol that is declared
-     */
-    public void addDeclaredSymbol(final Symbol symbol) {
-        declaredSymbols.add(symbol);
-    }
-
-    /**
-     * Get the function body
-     * @return the function body
-     */
-    public Block getBody() {
-        return body;
-    }
-
-    /**
-     * Reset the function body
-     * @param lc lexical context
-     * @param body new body
-     * @return new function node if body changed, same if not
-     */
-    public FunctionNode setBody(final LexicalContext lc, final Block body) {
-        if(this.body == body) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags | (body.needsScope() ? FunctionNode.HAS_SCOPE_BLOCK : 0), name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
-    }
-
-    /**
-     * Does this function's method needs to be variable arity (gather all script-declared parameters in a final
-     * {@code Object[]} parameter. Functions that need to have the "arguments" object as well as functions that simply
-     * declare too many arguments for JVM to handle with fixed arity will need to be variable arity.
-     * @return true if the Java method in the generated code that implements this function needs to be variable arity.
-     * @see #needsArguments()
-     * @see LinkerCallSite#ARGLIMIT
+     * Check if this function needs to use var args, which is the case for
+     * e.g. {@code eval} and functions where {@code arguments} is used
+     *
+     * @return true if the function needs to use var args
      */
     public boolean isVarArg() {
-        return needsArguments() || parameters.size() > LinkerCallSite.ARGLIMIT;
+        return (flags & IS_VAR_ARG) != 0 && !isScript();
     }
 
     /**
-     * Returns true if this function needs to have an Arguments object defined as a local variable named "arguments".
-     * Functions that use "arguments" as identifier and don't define it as a name of a parameter or a nested function
-     * (see ECMAScript 5.1 Chapter 10.5), as well as any function that uses eval or with, or has a nested function that
-     * does the same, will have an "arguments" object. Also, if this function is a script, it will not have an
-     * "arguments" object, because it does not have local variables; rather the Global object will have an explicit
-     * "arguments" property that provides command-line arguments for the script.
-     * @return true if this function needs an arguments object.
+     * Flag this function as needing to use var args vector
      */
-    public boolean needsArguments() {
-        // uses "arguments" or calls eval, but it does not redefine "arguments", and finally, it's not a script, since
-        // for top-level script, "arguments" is picked up from Context by Global.init() instead.
-        return getFlag(MAYBE_NEEDS_ARGUMENTS) && !getFlag(DEFINES_ARGUMENTS) && !isProgram();
+    public void setIsVarArg() {
+        this.flags |= IS_VAR_ARG;
     }
 
     /**
-     * Returns true if this function needs access to its parent scope. Functions referencing variables outside their
-     * scope (including global variables), as well as functions that call eval or have a with block, or have nested
-     * functions that call eval or have a with block, will need a parent scope. Top-level script functions also need a
-     * parent scope since they might be used from within eval, and eval will need an externally passed scope.
-     * @return true if the function needs parent scope.
+     * Ugly special case:
+     * Tells the compiler if {@code arguments} variable should be hidden and given
+     * a unique name, for example if it is used as an explicit parameter name
+     * @return true of {@code arguments} should be hidden
      */
-    public boolean needsParentScope() {
-        return getFlag(NEEDS_PARENT_SCOPE) || isProgram();
+    public boolean hideArguments() {
+        return (flags & HIDE_ARGS) != 0;
     }
 
     /**
-     * Register a property assigned to the this object in this function.
-     * @param key the property name
+     * Flag this function as needing to hide the {@code arguments} vectir
      */
-    public void addThisProperty(final String key) {
-        if (thisProperties == null) {
-            thisProperties = new HashSet<>();
-        }
-        thisProperties.add(key);
-    }
-
-    /**
-     * Get the number of properties assigned to the this object in this function.
-     * @return number of properties
-     */
-    public int countThisProperties() {
-        return thisProperties == null ? 0 : thisProperties.size();
-    }
-
-    /**
-     * Returns true if any of the blocks in this function create their own scope.
-     * @return true if any of the blocks in this function create their own scope.
-     */
-    public boolean hasScopeBlock() {
-        return getFlag(HAS_SCOPE_BLOCK);
+    public void setHideArguments() {
+        this.flags |= HIDE_ARGS;
     }
 
     /**
@@ -671,6 +738,15 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
+     * Set the kind of this function
+     * @see FunctionNode.Kind
+     * @param kind the kind
+     */
+    public void setKind(final Kind kind) {
+        this.kind = kind;
+    }
+
+    /**
      * Return the last token for this function's code
      * @return last token
      */
@@ -680,15 +756,10 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
 
     /**
      * Set the last token for this function's code
-     * @param lc lexical context
      * @param lastToken the last token
-     * @return function node or a new one if state was changed
      */
-    public FunctionNode setLastToken(final LexicalContext lc, final long lastToken) {
-        if (this.lastToken == lastToken) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+    public void setLastToken(final long lastToken) {
+        this.lastToken = lastToken;
     }
 
     /**
@@ -699,46 +770,62 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         return name;
     }
 
-
     /**
-     * Set the internal name for this function
-     * @param lc    lexical context
-     * @param name new name
-     * @return new function node if changed, otherwise the same
+     * Set the name of this function
+     * @param name the name
      */
-    public FunctionNode setName(final LexicalContext lc, final String name) {
-        if (this.name.equals(name)) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+    public void setName(final String name) {
+        this.name = name;
+    }
+
+    @Override
+    public boolean needsScope() {
+        return needsScope || isScript() || (flags & NEEDS_SCOPE) != 0;
     }
 
     /**
-     * Check if this function should have all its variables in its own scope. Scripts, split sub-functions, and
-     * functions having with and/or eval blocks are such.
+     * Check if this function should have all its variables in scope, regardless
+     * of other properties.
      *
      * @return true if all variables should be in scope
      */
-    public boolean allVarsInScope() {
-        return isProgram() || getFlag(HAS_ALL_VARS_IN_SCOPE);
+    public boolean varsInScope() {
+        return isScript() || (flags & HAS_ALL_VARS_IN_SCOPE) != 0;
+    }
+
+    /**
+     * Check if a {@link Transform} has been taken place to this method.
+     * @param transform to check for
+     * @return true if transform has been applied
+     */
+    public boolean isTransformApplied(final Class<? extends Transform> transform) {
+        return appliedTransforms.contains(transform);
+    }
+
+    /**
+     * Tag this function with an applied transform
+     * @param transform the transform
+     */
+    public void registerTransform(final Class<? extends Transform> transform) {
+        appliedTransforms.add(transform);
     }
 
     /**
      * Checks if this function is a sub-function generated by splitting a larger one
+     * @see Splitter
      *
      * @return true if this function is split from a larger one
      */
     public boolean isSplit() {
-        return getFlag(IS_SPLIT);
+        return (flags & IS_SPLIT) != 0;
     }
 
     /**
-     * Checks if this function has yet-to-be-generated child functions
-     *
-     * @return true if there are lazy child functions
+     * Flag this function node as being a sub-function generated by the splitter
+     * @see Splitter
      */
-    public boolean hasLazyChildren() {
-        return getFlag(HAS_LAZY_CHILDREN);
+    public void setIsSplit() {
+        this.flags |= IS_SPLIT;
     }
 
     /**
@@ -750,25 +837,61 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Reset the compile unit used to compile this function
-     * @see Compiler
-     * @param  lc lexical context
-     * @param  parameters the compile unit
-     * @return function node or a new one if state was changed
+     * Set the paremeters to this function
+     * @param parameters a list of IdentNodes representing parameters in left to right order
      */
-    public FunctionNode setParameters(final LexicalContext lc, final List<IdentNode> parameters) {
-        if (this.parameters == parameters) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+    public void setParameters(final List<IdentNode> parameters) {
+        this.parameters = parameters;
     }
 
     /**
-     * Check if this function is created as a function declaration (as opposed to function expression)
-     * @return true if function is declared.
+     * Get the identifier for the variable in which the function return value
+     * should be stored
+     * @return an IdentNode representing the return value
      */
-    public boolean isDeclared() {
-        return getFlag(IS_DECLARED);
+    public IdentNode getResultNode() {
+        return resultNode;
+    }
+
+    /**
+     * Set the identifier representing the variable in which the function return
+     * value should be stored
+     * @param resultNode an IdentNode representing the return value
+     */
+    public void setResultNode(final IdentNode resultNode) {
+        this.resultNode = resultNode;
+    }
+
+    /**
+     * Get the identifier representing this function's scope
+     * @return an IdentNode representing this function's scope
+     */
+    public IdentNode getScopeNode() {
+        return scopeNode;
+    }
+
+    /**
+     * Set the identifier representing this function's scope
+     * @param scopeNode an IdentNode representing this function's scope
+     */
+    public void setScopeNode(final IdentNode scopeNode) {
+        this.scopeNode = scopeNode;
+    }
+
+    /**
+     * Check if this function is a statement
+     * @return true if function is a statement
+     */
+    public boolean isStatement() {
+        return (flags & IS_STATEMENT) != 0;
+    }
+
+    /**
+     * Flag this function as a statement
+     * @see Parser
+     */
+    public void setIsStatement() {
+        this.flags |= IS_STATEMENT;
     }
 
     /**
@@ -776,7 +899,15 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if function is anonymous
      */
     public boolean isAnonymous() {
-        return getFlag(IS_ANONYMOUS);
+        return (flags & IS_ANONYMOUS) != 0;
+    }
+
+    /**
+     * Flag this function as an anonymous function.
+     * @see Parser
+     */
+    public void setIsAnonymous() {
+        this.flags |= IS_ANONYMOUS;
     }
 
     /**
@@ -785,12 +916,100 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @return true if function needs a symbol for self
      */
     public boolean needsSelfSymbol() {
-        return body.getFlag(Block.NEEDS_SELF_SYMBOL);
+        return (flags & NEEDS_SELF_SYMBOL) != 0;
+    }
+
+    /**
+     * Flag the function as needing a self symbol. This is needed only for
+     * self referring functions
+     */
+    public void setNeedsSelfSymbol() {
+        this.flags |= NEEDS_SELF_SYMBOL;
+    }
+
+    /**
+     * Return the node representing {@code this} in this function
+     * @return IdentNode representing {@code this}
+     */
+    public IdentNode getThisNode() {
+        return thisNode;
+    }
+
+    /**
+     * Set the node representing {@code this} in this function
+     * @param thisNode identifier representing {@code this}
+     */
+    public void setThisNode(final IdentNode thisNode) {
+        this.thisNode = thisNode;
+    }
+
+    /**
+     * Every function declared as {@code function x()} is internally hoisted
+     * and represented as {@code var x = function()  ... }. This getter returns
+     * the VarNode representing this virtual assignment
+     *
+     * @return the var node emitted for setting this function symbol
+     */
+    public VarNode getFunctionVarNode() {
+        return funcVarNode;
+    }
+
+    /**
+     * Set the virtual VarNode assignment for this function.
+     * @see FunctionNode#getFunctionVarNode()
+     *
+     * @param varNode the virtual var node assignment
+     */
+    public void setFunctionVarNode(final VarNode varNode) {
+        funcVarNode = varNode;
+    }
+
+    /**
+     * The line number information where the function was declared must be propagated
+     * to the virtual {@code var x = function() ... } assignment described in
+     * {@link FunctionNode#getFunctionVarNode()}
+     * This maintains the line number of the declaration
+     *
+     * @return a line number node representing the line this function was declared
+     */
+    public LineNumberNode getFunctionVarLineNumberNode() {
+        return funcVarLineNumberNode;
+    }
+
+    /**
+     * Set the virtual VarNode assignment for this function, along with
+     * a line number node for tracking the original start line of the function
+     * declaration
+     *
+     * @param varNode    the virtual var node assignment
+     * @param lineNumber the line number node for the function declaration
+     */
+    public void setFunctionVarNode(final VarNode varNode, final LineNumberNode lineNumber) {
+        funcVarNode           = varNode;
+        funcVarLineNumberNode = lineNumber;
+    }
+
+    /**
+     * Get a all properties accessed with {@code this} used as a base in this
+     * function - the map is ordered upon assignment order in the control flow
+     *
+     * @return map a map of property name to node mapping for this accesses
+     */
+    public Map<String, Node> getThisProperties() {
+        return Collections.unmodifiableMap(thisProperties);
+    }
+
+    /**
+     * Get the namespace this function uses for its symbols
+     * @return the namespace
+     */
+    public Namespace getNamespace() {
+        return namespace;
     }
 
     @Override
     public Type getType() {
-        return FUNCTION_TYPE;
+        return getReturnType();
     }
 
     /**
@@ -806,46 +1025,161 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
 
     /**
      * Set the function return type
-     * @param lc lexical context
+     *
      * @param returnType new return type
-     * @return function node or a new one if state was changed
      */
-    public FunctionNode setReturnType(final LexicalContext lc, final Type returnType) {
+    public void setReturnType(final Type returnType) {
         //we never bother with object types narrower than objects, that will lead to byte code verification errors
         //as for instance even if we know we are returning a string from a method, the code generator will always
         //treat it as an object, at least for now
-        if (this.returnType == returnType) {
-            return this;
+        this.returnType = returnType.isObject() ? Type.OBJECT : returnType;
+        // Adjust type of result node symbol
+        if (returnType != Type.UNKNOWN) {
+            resultNode.getSymbol().setTypeOverride(this.returnType);
         }
-        final Type type = Type.widest(this.returnType, returnType.isObject() ? Type.OBJECT : returnType);
-        return Node.replaceInLexicalContext(
-            lc,
-            this,
-            new FunctionNode(
-                this,
-                lastToken,
-                flags,
-                name,
-                type,
-                compileUnit,
-                compilationState,
-                body.setReturnType(type),
-                parameters,
-                snapshot,
-                hints));
+    }
+
+    /**
+     * Set strict mode on or off for this function
+     *
+     * @param isStrictMode true if strict mode should be enabled
+     */
+    public void setStrictMode(final boolean isStrictMode) {
+        flags = isStrictMode ? flags | IS_STRICT_MODE : flags & ~IS_STRICT_MODE;
     }
 
     /**
      * Check if the function is generated in strict mode
      * @return true if strict mode enabled for function
      */
-    public boolean isStrict() {
-        return getFlag(IS_STRICT);
+    public boolean isStrictMode() {
+        return (flags & IS_STRICT_MODE) != 0;
     }
+
+    /**
+     * Set the lowered state
+     *
+     * @param isLowered lowered state
+     */
+    public void setIsLowered(final boolean isLowered) {
+        flags = isLowered ? flags | IS_LOWERED : flags & ~IS_LOWERED;
+    }
+
+    /**
+     * Get the lowered
+     *
+     * @return true if function is lowered
+     */
+    public boolean isLowered() {
+        return (flags & IS_LOWERED) != 0;
+    }
+
+    /**
+     * Set if function has calls
+     *
+     * @param hasCalls does the function have calls?
+     */
+    public void setHasCalls(final boolean hasCalls) {
+        flags = hasCalls ? flags | HAS_CALLS : flags & ~HAS_CALLS;
+    }
+
+    /**
+     * Check if function has calls
+     *
+     * @return true if function has calls
+     */
+    public boolean hasCalls() {
+        return (flags & HAS_CALLS) != 0;
+    }
+
+    /**
+     * Set if the function has throws
+     *
+     * @param hasThrows does the function have throw statements
+     */
+    public void setHasThrows(final boolean hasThrows) {
+        flags = hasThrows ? flags | HAS_THROWS : flags & ~HAS_THROWS;
+    }
+
+    /**
+     * Can the function throw exceptioons
+     *
+     * @return true if function throws exceptions
+     */
+    public boolean hasThrows() {
+        return (flags & HAS_THROWS) != 0;
+    }
+
+    /**
+     * Add a new function to the function list.
+     *
+     * @param functionNode Function node to add.
+     */
+    @Override
+    public void addFunction(final FunctionNode functionNode) {
+        assert functionNode != null;
+        functions.add(functionNode);
+    }
+
+    /**
+     * Add a list of functions to the function list.
+     *
+     * @param functionNodes  Function nodes to add.
+     */
+    @Override
+    public void addFunctions(final List<FunctionNode> functionNodes) {
+        functions.addAll(functionNodes);
+    }
+
+    /**
+     * Set a function list
+     *
+     * @param functionNodes to set
+     */
+    @Override
+    public void setFunctions(final List<FunctionNode> functionNodes) {
+        this.functions = functionNodes;
+    }
+
+    /**
+     * Add a variable declaration that should be visible to the entire function
+     * scope. Parser does this.
+     *
+     * @param varNode a var node
+     */
+    public void addDeclaration(final VarNode varNode) {
+        declarations.add(varNode);
+    }
+
+    /**
+     * Return all variable declarations from this function scope
+     *
+     * @return all VarNodes in scope
+     */
+    public List<VarNode> getDeclarations() {
+        return Collections.unmodifiableList(declarations);
+    }
+
+    /**
+     * @return the unit index
+     */
+//    public int getUnit() {
+ //       return unit;
+ //   }
+
+    /**
+     * Set the index of this function's compile unit. Used by splitter.
+     * @see Splitter
+     * @param unit the unit index
+     */
+//    public void setUnit(final int unit) {
+//        this.unit = unit;
+//    }
 
     /**
      * Get the compile unit used to compile this function
      * @see Compiler
+     * @see Splitter
      * @return the compile unit
      */
     public CompileUnit getCompileUnit() {
@@ -855,33 +1189,54 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /**
      * Reset the compile unit used to compile this function
      * @see Compiler
-     * @param lc lexical context
+     * @see Splitter
      * @param compileUnit the compile unit
-     * @return function node or a new one if state was changed
      */
-    public FunctionNode setCompileUnit(final LexicalContext lc, final CompileUnit compileUnit) {
-        if (this.compileUnit == compileUnit) {
-            return this;
-        }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+    public void setCompileUnit(final CompileUnit compileUnit) {
+        this.compileUnit = compileUnit;
     }
 
     /**
-     * Create a temporary variable to the current frame.
-     *
-     * @param block that needs the temporary
-     * @param type  Strong type of symbol.
-     * @param node  Primary node to use symbol.
-     *
-     * @return Symbol used.
+     * Return the method emitter used to write bytecode for this function
+     * @return the method emitter
      */
+    public MethodEmitter getMethodEmitter() {
+        return method;
+    }
 
     /**
-     * Get the symbol for a compiler constant, or null if not available (yet)
-     * @param cc compiler constant
-     * @return symbol for compiler constant, or null if not defined yet (for example in Lower)
+     * Set the method emitter that is to be used to write bytecode for this function
+     * @param method a method emitter
      */
-    public Symbol compilerConstant(final CompilerConstants cc) {
-        return body.getExistingSymbol(cc.symbolName());
+    public void setMethodEmitter(final MethodEmitter method) {
+        this.method = method;
+    }
+
+    /**
+     * Each FunctionNode maintains a list of reference to its parent blocks.
+     * Add a parent block to this function.
+     *
+     * @param parentBlock  a block to remember as parent
+     */
+    public void addReferencingParentBlock(final Block parentBlock) {
+        assert parentBlock.getFunction() == function.findParentFunction(); // all parent blocks must be in the same function
+        if (parentBlock != function.getParent()) {
+            if (referencingParentBlocks == null) {
+                referencingParentBlocks = new LinkedList<>();
+            }
+            referencingParentBlocks.add(parentBlock);
+        }
+    }
+
+    /**
+     * Get the known parent blocks to this function
+     *
+     * @return list of parent blocks
+     */
+    public List<Block> getReferencingParentBlocks() {
+        if (referencingParentBlocks == null) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(referencingParentBlocks);
     }
 }

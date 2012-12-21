@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ public class Scanner {
      * @param start   position index in content where to start
      * @param length  length of input
      */
-    protected Scanner(final char[] content, final int line, final int start, final int length) {
+    public Scanner(final char[] content, final int line, final int start, final int length) {
         this.content  = content;
         this.position = start;
         this.limit    = start + length;
@@ -75,7 +75,7 @@ public class Scanner {
      *
      * @param content content to scan
      */
-    protected Scanner(final String content) {
+    public Scanner(final String content) {
         this(content.toCharArray(), 0, 0, content.length());
     }
 
