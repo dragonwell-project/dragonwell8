@@ -91,8 +91,13 @@ void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
   if (index_size == sizeof(u2)) {
     load_unsigned_short(index, Address(r13, bcp_offset));
   } else if (index_size == sizeof(u4)) {
-    Unimplemented();
     assert(EnableInvokeDynamic, "giant index used only for JSR 292");
+    ldrw(index, Address(rbcp, bcp_offset));
+    // Check if the secondary index definition is still ~x, otherwise
+    // we have to change the following assembler code to calculate the
+    // plain index.
+    assert(ConstantPool::decode_invokedynamic_index(~123) == 123, "else change next line");
+    eonw(index, index, 0);  // convert to plain index
   } else if (index_size == sizeof(u1)) {
     assert(EnableInvokeDynamic, "tiny index used only for JSR 292");
     Unimplemented();

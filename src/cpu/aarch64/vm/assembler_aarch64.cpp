@@ -34,8 +34,9 @@
 #include "assembler_aarch64.inline.hpp"
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.hpp"
+#include "interpreter/interpreter.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee082950;
+const unsigned long Assembler::asm_bp = 0x7fffee1601f8;
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -1182,10 +1183,10 @@ Disassembly of section .text:
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
 #else
-#define BLOCK_COMMENT(str) __ block_comment(str)
+#define BLOCK_COMMENT(str) block_comment(str)
 #endif
 
-#define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
+#define BIND(label) bind(label); __ BLOCK_COMMENT(#label ":")
 
 #ifndef PRODUCT
   {
@@ -1500,6 +1501,12 @@ void Assembler::b(const Address &dest) {
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   b(dest.target());
+}
+
+void Assembler::bl(const Address &dest) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  bl(dest.target());
 }
 
 void Assembler::adr(Register r, const Address &dest) {
@@ -1943,6 +1950,16 @@ RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_ad
                                                       Register tmp,
                                                       int offset) { Unimplemented(); return RegisterOrConstant(r0); }
 
+void MacroAssembler:: notify(int type) {
+  if (type == bytecode_start) {
+    set_last_Java_frame(esp, rfp, (address)NULL);
+    Assembler:: notify(type);
+    reset_last_Java_frame(true, false);
+  }
+  else
+    Assembler:: notify(type);
+}
+
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.
 // The receiver klass is in recv_klass.
@@ -2250,8 +2267,50 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
 void MacroAssembler::verify_oop(Register reg, const char* s) {
   if (!VerifyOops) return;
 
-  Unimplemented();
+  assert(reg != rmethod, "bad reg in verify_oop");
+
+  // Pass register number to verify_oop_subroutine
+  char* b = new char[strlen(s) + 50];
+  sprintf(b, "verify_oop: %s: %s", reg->name(), s);
+  BLOCK_COMMENT("verify_oop {");
+  stp(r0, rscratch1, Address(pre(sp, -16)));
+
+  ExternalAddress buffer((address) b);
+  // our contract is not to modify anything
+  mov(rscratch1, buffer.target());
+  stp(rscratch1, reg, Address(pre(sp, -16)));
+
+  // call indirectly to solve generation ordering problem
+  stp(reg, lr, Address(pre(sp, -16)));
+  lea(rscratch1, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
+  ldr(rscratch1, Address(rscratch1));
+  blr(rscratch1);
+  ldp(reg, lr, Address(post(sp, 16)));
+  add(sp, sp, 2 * wordSize);
+  ldp(r0, rscratch1, Address(post(sp, 16)));
+
+  BLOCK_COMMENT("} verify_oop");
 }
+
+Address MacroAssembler::argument_address(RegisterOrConstant arg_slot,
+                                         int extra_slot_offset) {
+  // cf. TemplateTable::prepare_invoke(), if (load_receiver).
+  int stackElementSize = Interpreter::stackElementSize;
+  int offset = Interpreter::expr_offset_in_bytes(extra_slot_offset+0);
+#ifdef ASSERT
+  int offset1 = Interpreter::expr_offset_in_bytes(extra_slot_offset+1);
+  assert(offset1 - offset == stackElementSize, "correct arithmetic");
+#endif
+  if (arg_slot.is_constant()) {
+    return Address(esp, arg_slot.as_constant() * stackElementSize
+		   + offset);
+  } else {
+    add(rscratch1, esp, arg_slot.as_register(),
+	ext::uxtx, exact_log2(stackElementSize));
+    return Address(rscratch1, offset);
+  }
+}
+
 
 void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
@@ -2659,13 +2718,33 @@ int MacroAssembler::load_signed_byte32(Register dst, Address src) {
   return off;
 }
 
+void MacroAssembler::load_sized_value(Register dst, Address src, size_t size_in_bytes, bool is_signed, Register dst2) {
+  switch (size_in_bytes) {
+  case  8:  ldr(dst, src); break;
+  case  4:  ldrw(dst, src); break;
+  case  2:  is_signed ? load_signed_short(dst, src) : load_unsigned_short(dst, src); break;
+  case  1:  is_signed ? load_signed_byte( dst, src) : load_unsigned_byte( dst, src); break;
+  default:  ShouldNotReachHere();
+  }
+}
+
+void MacroAssembler::store_sized_value(Address dst, Register src, size_t size_in_bytes, Register src2) {
+  switch (size_in_bytes) {
+  case  8:  str(src, dst); break;
+  case  4:  strw(src, dst); break;
+  case  2:  strh(src, dst); break;
+  case  1:  strb(src, dst); break;
+  default:  ShouldNotReachHere();
+  }
+}
+
 void MacroAssembler::decrementw(Register reg, int value)
 {
   if (value < 0)  { incrementw(reg, -value);      return; }
   if (value == 0) {                               return; }
   if (value < (1 << 12)) { subw(reg, reg, value); return; }
   /* else */ {
-    assert(reg != rscratch2, "invalid dst for register decrement");
+    guarantee(reg != rscratch2, "invalid dst for register decrement");
     movw(rscratch2, (unsigned)value);
     subw(reg, reg, rscratch2);
   }
@@ -2778,7 +2857,7 @@ void MacroAssembler::push(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;  // Only push an even nuber of regs
 
-  for (unsigned i = 0; i < count; i+= 2)
+  for (int i = count - 2; i >= 0; i-= 2)
     stp(as_Register(regs[i]), as_Register(regs[i+1]),
 	Address(pre(stack, -2 * wordSize)));
 }
@@ -2786,7 +2865,7 @@ void MacroAssembler::push(unsigned int bitset, Register stack) {
 void MacroAssembler::pop(unsigned int bitset, Register stack) {
   // Scan bitset to accumulate register pairs
   unsigned char regs[32];
-  int count = 0;
+  unsigned count = 0;
   for (int reg = 0; reg <= 30; reg++) {
     if (1 & bitset)
       regs[count++] = reg;
@@ -2795,7 +2874,7 @@ void MacroAssembler::pop(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;
 
-  for (int i = count - 2; i >= 0; i-= 2)
+  for (unsigned i = 0; i < count; i+= 2)
     ldp(as_Register(regs[i]), as_Register(regs[i+1]),
 	Address(post(stack, 2 * wordSize)));
 }

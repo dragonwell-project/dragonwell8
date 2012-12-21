@@ -691,18 +691,94 @@ class StubGenerator: public StubCodeGenerator {
   // Stack after saving c_rarg3:
   //    [tos + 0]: saved c_rarg3
   //    [tos + 1]: saved c_rarg2
-  //    [tos + 2]: saved r12 (several TemplateTable methods use it)
-  //    [tos + 3]: saved flags
-  //    [tos + 4]: return address
-  //  * [tos + 5]: error message (char*)
-  //  * [tos + 6]: object to verify (oop)
-  //  * [tos + 7]: saved rax - saved by caller and bashed
-  //  * [tos + 8]: saved r10 (rscratch1) - saved by caller
+  //    [tos + 2]: scratch -- saves LR around call to debug64
+  //    [tos + 3]: saved lr
+  //  * [tos + 4]: error message (char*)
+  //  * [tos + 5]: object to verify (oop)
+  //  * [tos + 6]: saved r0 - saved by caller and bashed
+  //  * [tos + 7]: saved rscratch1 - saved by caller
   //  * = popped on exit
+  address generate_verify_oop() {
+    StubCodeMark mark(this, "StubRoutines", "verify_oop");
+    address start = __ pc();
 
-  // NOTE: this is called from within Java code so it needs no prolog
+    Label exit, error;
 
-  address generate_verify_oop() { Unimplemented(); return 0; }
+    // __ pushf();
+    // __ incrementl(ExternalAddress((address) StubRoutines::verify_oop_count_addr()));
+
+    // __ push(r12);
+
+    // save c_rarg2 and c_rarg3
+    __ stp(c_rarg3, c_rarg2, Address(__ pre(sp, -16)));
+
+    enum {
+           // After previous pushes.
+           oop_to_verify = 5 * wordSize,
+           saved_r0      = 6 * wordSize,
+
+           // Before the call to MacroAssembler::debug(), see below.
+           return_addr   = (32+2) * wordSize,
+           error_msg     = (32+3) * wordSize
+    };
+
+    // get object
+    __ ldr(r0, Address(sp, oop_to_verify));
+
+    // make sure object is 'reasonable'
+    __ cbz(r0, exit); // if obj is NULL it is OK
+
+    // Check if the oop is in the right area of memory
+    __ mov(c_rarg2, r0);
+    __ mov(c_rarg3, (intptr_t) Universe::verify_oop_mask());
+    __ andr(c_rarg2, c_rarg2, c_rarg3);
+    __ mov(c_rarg3, (intptr_t) Universe::verify_oop_bits());
+    __ cmp(c_rarg2, c_rarg3);
+    __ br(Assembler::NE, error);
+
+    // make sure klass is 'reasonable', which is not zero.
+    __ load_klass(r0, r0);  // get klass
+    __ cbz(r0, error);      // if klass is NULL it is broken
+    // TODO: Future assert that klass is lower 4g memory for UseCompressedKlassPointers
+
+    // return if everything seems ok
+    __ bind(exit);
+    __ ldp(c_rarg3, c_rarg2, Address(__ post(sp, 16)));
+    __ ret(lr);
+
+    // handle errors
+    __ bind(error);
+    __ ldp(c_rarg3, c_rarg2, Address(__ post(sp, 16)));
+    __ str(lr, Address(sp, 0));
+    __ ldp(zr, lr, Address(sp, 0));
+    __ ldp(r0, rscratch1, Address(sp, 2 * wordSize));
+    __ push(0x7fffffff, sp);
+    // debug(char* msg, int64_t pc, int64_t regs[])
+    // We've popped the registers we'd saved (c_rarg3, c_rarg2), and
+    // pushed all the registers, so now the stack looks like:
+    //    [tos +  0] 32 saved registers
+    //    [ + 0]: garbage
+    //    [ + 1]: saved lr
+    //  * [ + 2]: error message (char*)
+    //  * [ + 3]: object to verify (oop)
+    //  * [ + 4]: saved r0 - saved by caller and bashed
+    //  * [ + 5]: saved rscratch1 - saved by caller
+
+    __ ldr(c_rarg0, Address(sp, error_msg));    // pass address of error message
+    __ ldr(c_rarg1, Address(sp, return_addr));  // pass return address
+    __ mov(c_rarg2, sp);                          // pass address of regs on stack
+    __ mov(r19, sp);                               // remember rsp
+    __ sub(sp, sp, frame::arg_reg_save_area_bytes); // windows  ????
+    BLOCK_COMMENT("call MacroAssembler::debug");
+    __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
+    __ brx86(rscratch1, 3, 0, 1);
+    __ mov(sp, r19);                               // restore rsp
+    __ pop(0x7fffffff, sp);
+    __ ldr(lr, Address(sp, 0));
+    __ ret(lr);
+
+    return start;
+  }
 
   //
   // Verify that a register contains clean 32-bits positive value
@@ -1224,8 +1300,12 @@ class StubGenerator: public StubCodeGenerator {
                                                 SharedRuntime::
                                                 throw_StackOverflowError));
   }
-    
-  void generate_all() {  }
+
+  void generate_all() {
+    // support for verify_oop (must happen after universe_init)
+    StubRoutines::_verify_oop_subroutine_entry     = generate_verify_oop();
+    StubRoutines::_throw_IncompatibleClassChangeError_entry = generate_throw_exception("IncompatibleClassChangeError throw_exception", CAST_FROM_FN_PTR(address, SharedRuntime::throw_IncompatibleClassChangeError));
+  }
 
  public:
   StubGenerator(CodeBuffer* code, bool all) : StubCodeGenerator(code) {

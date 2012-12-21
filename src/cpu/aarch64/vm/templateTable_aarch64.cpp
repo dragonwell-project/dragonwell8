@@ -2618,8 +2618,7 @@ void TemplateTable::prepare_invoke(Register method, Register index, int byte_no)
     // Address recv_addr = __ argument_address(recv, no_return_pc_pushed_yet + receiver_is_at_end);
     // __ movptr(recv, recv_addr);
     __ add(rscratch1, esp, recv, ext::uxtx, 3); // FIXME: uxtb here?
-    __ sub(rscratch1, rscratch1, Interpreter::expr_offset_in_bytes(1));
-    __ ldr(recv, Address(rscratch1));
+    __ ldr(recv, Address(rscratch1, -Interpreter::expr_offset_in_bytes(1)));
     __ verify_oop(recv);
   }
 
@@ -2675,8 +2674,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   // get receiver klass
   __ null_check(recv, oopDesc::klass_offset_in_bytes());
   __ load_klass(r0, recv);
-
-  __ verify_oop(r0);
 
   // profile this call
   __ profile_virtual_call(r0, rlocals, r3);
@@ -2825,9 +2822,66 @@ void TemplateTable::invokeinterface(int byte_no) {
   return;
 }
 
+<<<<<<< HEAD
 void TemplateTable::invokedynamic(int byte_no)
 {
   __ call_Unimplemented();
+=======
+void TemplateTable::invokehandle(int byte_no) {
+  transition(vtos, vtos);
+  assert(byte_no == f1_byte, "use this argument");
+
+  if (!EnableInvokeDynamic) {
+    // rewriter does not generate this bytecode
+    __ should_not_reach_here();
+    return;
+  }
+
+  prepare_invoke(byte_no,
+                 rmethod, r0,  // get f2 Method*, f1 MethodType
+                 r2);
+  __ verify_method_ptr(r2);
+  __ verify_oop(r2);
+  __ null_check(r2);
+
+  // Note:  rax_mtype is already pushed (if necessary) by prepare_invoke
+
+  // FIXME: profile the LambdaForm also
+  __ profile_final_call(rscratch1);
+
+  __ jump_from_interpreted(rmethod, r0);
+}
+
+void TemplateTable::invokedynamic(int byte_no) {
+  transition(vtos, vtos);
+  assert(byte_no == f1_byte, "use this argument");
+
+  if (!EnableInvokeDynamic) {
+    // We should not encounter this bytecode if !EnableInvokeDynamic.
+    // The verifier will stop it.  However, if we get past the verifier,
+    // this will stop the thread in a reasonable way, without crashing the JVM.
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                     InterpreterRuntime::throw_IncompatibleClassChangeError));
+    // the call_VM checks for exception, so we should never return here.
+    __ should_not_reach_here();
+    return;
+  }
+
+  prepare_invoke(byte_no, rmethod, r0);
+
+  // rax: CallSite object (from cpool->resolved_references[])
+  // rbx: MH.linkToCallSite method (from f2)
+
+  // Note:  rax_callsite is already pushed by prepare_invoke
+
+  // %%% should make a type profile for any invokedynamic that takes a ref argument
+  // profile this call
+  __ profile_call(rbcp);
+
+  __ verify_oop(r0);
+
+  __ jump_from_interpreted(rmethod, r0);
+>>>>>>> 4d5df24... First cut of method handles.
 }
 
 

@@ -337,7 +337,7 @@ namespace ext
 class Address VALUE_OBJ_CLASS_SPEC {
  public:
 
-  enum mode { base_plus_offset, pre, post, pcrel,
+  enum mode { no_mode, base_plus_offset, pre, post, pcrel,
 	      base_plus_offset_reg, literal };
 
   enum ScaleFactor { times_4, times_8 };
@@ -390,6 +390,8 @@ class Address VALUE_OBJ_CLASS_SPEC {
   address          _target;
 
  public:
+  Address()
+    : _mode(no_mode) { }
   Address(Register r)
     : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg) { }
   Address(Register r, int o)
@@ -1766,7 +1768,7 @@ public:
 
   enum NotifyType { method_entry, method_reentry, method_exit, bytecode_start };
 
-  void notify(int type) {
+  virtual void notify(int type) {
     starti;
     //  109
     f(0b101, 31, 29);
@@ -1897,6 +1899,8 @@ class MacroAssembler: public Assembler {
   virtual void call_Unimplemented() {
     haltsim();
   }
+
+  virtual void notify(int type);
 
   // aliases defined in AARCH64 spec
 
@@ -2624,6 +2628,13 @@ public:
   // only if +VerifyOops
   void verify_oop(Register reg, const char* s = "broken oop");
   void verify_oop_addr(Address addr, const char * s = "broken oop addr");
+
+// TODO: verify method and klass metadata (compare against vptr?)
+  void _verify_method_ptr(Register reg, const char * msg, const char * file, int line) {}
+  void _verify_klass_ptr(Register reg, const char * msg, const char * file, int line){}
+
+#define verify_method_ptr(reg) _verify_method_ptr(reg, "broken method " #reg, __FILE__, __LINE__)
+#define verify_klass_ptr(reg) _verify_klass_ptr(reg, "broken klass " #reg, __FILE__, __LINE__)
 
   // only if +VerifyFPU
   void verify_FPU(int stack_depth, const char* s = "illegal FPU state");
