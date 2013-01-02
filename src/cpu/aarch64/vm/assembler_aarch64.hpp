@@ -1293,6 +1293,7 @@ public:
   void add_sub_extended_reg(unsigned op, unsigned decode,
     Register Rd, Register Rn, Register Rm,
     unsigned opt, ext::operation option, unsigned imm) {
+    guarantee(imm <= 4, "shift amount must be < 4");
     f(op, 31, 29), f(decode, 28, 24), f(opt, 23, 22), f(1, 21);
     f(option, 15, 13), f(imm, 12, 10);
   }
