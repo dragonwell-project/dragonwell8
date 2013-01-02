@@ -114,17 +114,25 @@ void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
   assert_different_registers(cache, rcpool);
   get_cache_index_at_bcp(index, bcp_offset, index_size);
   assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
+<<<<<<< HEAD
   // convert from field index to ConstantPoolCacheEntry index
   lsl(index, index, 2);
 <<<<<<< HEAD
   add(cache, rcpool, index, Assembler::LSL, 3);
 =======
+=======
+  // convert from field index to ConstantPoolCacheEntry
+>>>>>>> 3b32820... Simplify constant pool access.
   // aarch64 already has the cache in rcpool so there is no need to
   // install it in cache. instead we pre-add the indexed offset to
   // rcpool and return it in cache. All clients of this method need to
   // be modified accordingly.
+<<<<<<< HEAD
   lea(cache, Address(rcpool, index, Address::lsl(3)));
 >>>>>>> 6cb6361... Rewrite integer division logic.
+=======
+  add(cache, rcpool, index, Assembler::LSL, 5);
+>>>>>>> 3b32820... Simplify constant pool access.
 }
 
 
