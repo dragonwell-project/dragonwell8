@@ -43,6 +43,7 @@ static RegisterOrConstant constant(int value) {
   return RegisterOrConstant(value);
 }
 
+<<<<<<< HEAD
 address MethodHandleEntry::start_compiled_entry(MacroAssembler* _masm,
                                                 address interpreted_entry) { Unimplemented(); return 0; }
 
@@ -91,6 +92,14 @@ void MethodHandles::RicochetFrame::verify_clean(MacroAssembler* _masm) { __ call
 #endif //ASSERT
 
 void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) { __ call_Unimplemented(); }
+=======
+void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) {
+  if (VerifyMethodHandles)
+    verify_klass(_masm, klass_reg, SystemDictionary::WK_KLASS_ENUM_NAME(java_lang_Class),
+                 "MH argument is a Class");
+  __ ldr(klass_reg, Address(klass_reg, java_lang_Class::klass_offset_in_bytes()));
+}
+>>>>>>> 2b777357... Fixed recent 6 TCK failures for method handles
 
 void MethodHandles::load_conversion_vminfo(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { __ call_Unimplemented(); }
 
@@ -115,7 +124,33 @@ void MethodHandles::verify_argslot(MacroAssembler* _masm,
 =======
 void MethodHandles::verify_klass(MacroAssembler* _masm,
                                  Register obj, SystemDictionary::WKID klass_id,
-                                 const char* error_message) {  }
+                                 const char* error_message) {
+  Klass** klass_addr = SystemDictionary::well_known_klass_addr(klass_id);
+  KlassHandle klass = SystemDictionary::well_known_klass(klass_id);
+  Register temp = rscratch2;
+  Register temp2 = rscratch1; // used by MacroAssembler::cmpptr
+  Label L_ok, L_bad;
+  BLOCK_COMMENT("verify_klass {");
+  __ verify_oop(obj);
+  __ cbz(obj, L_bad);
+  __ push(temp);
+  __ push(temp2);
+  __ load_klass(temp, obj);
+  __ cmpptr(temp, ExternalAddress((address) klass_addr));
+  __ br(Assembler::EQ, L_ok);
+  intptr_t super_check_offset = klass->super_check_offset();
+  __ ldr(temp, Address(temp, super_check_offset));
+  __ cmpptr(temp, ExternalAddress((address) klass_addr));
+  __ br(Assembler::EQ, L_ok);
+  __ pop(temp2);
+  __ pop(temp); 
+  __ bind(L_bad);
+  __ stop(error_message);
+  __ BIND(L_ok);
+  __ pop(temp2);
+  __ pop(temp); 
+  BLOCK_COMMENT("} verify_klass");
+}
 
 void MethodHandles::verify_ref_kind(MacroAssembler* _masm, int ref_kind, Register member_reg, Register temp) {  }
 >>>>>>> 4d5df24... First cut of method handles.
@@ -362,7 +397,6 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     DEBUG_ONLY(argp = noreg);
     Register rmember = rmethod;  // MemberName ptr; incoming method ptr is dead now
     __ pop(rmember);             // extract last argument
-    __ push(lr);                 // return address
     generate_method_handle_dispatch(_masm, iid, recv, rmember, not_for_compiler_entry);
   }
 

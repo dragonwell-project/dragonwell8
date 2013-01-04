@@ -182,8 +182,9 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 
   Label L_got_cache, L_giant_index;
   if (EnableInvokeDynamic) {
-    // __ cmpb(Address(r13, 0), Bytecodes::_invokedynamic);
-    // __ jcc(Assembler::equal, L_giant_index);
+    __ ldrb(r1, Address(rbcp, 0));
+    __ cmpw(r1, Bytecodes::_invokedynamic);
+    __ br(Assembler::EQ, L_giant_index);
   }
   // Pop N words from the stack
   __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u2));
@@ -206,8 +207,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // out of the main line of code...
   if (EnableInvokeDynamic) {
     __ bind(L_giant_index);
-    // __ get_cache_and_index_at_bcp(rbx, rcx, 1, sizeof(u4));
-    // __ jmp(L_got_cache);
+    __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u4));
+    __ b(L_got_cache);
   }
 
   return entry;
