@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_GLOBALS_X86_HPP
-#define CPU_X86_VM_GLOBALS_X86_HPP
+#ifndef CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -75,4 +75,17 @@ define_pd_global(intx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS 
 
 // avoid biased locking while we are bootstrapping the aarch64 build
 define_pd_global(bool, UseBiasedLocking, false);
+<<<<<<< HEAD
 #endif // CPU_X86_VM_GLOBALS_X86_HPP
+=======
+
+#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
+                                                                            \
+  product(bool, NotifySimulator, true,                                      \
+         "tell the AArch64 sim where we are in method code")                \
+                                                                            \
+  product(bool, UseSimulatorCache, false,                                   \
+         "tell the AArch64 sim where we are in method code")                \
+
+#endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+>>>>>>> 30661d7... modified all header include guard symbols to use _AARCH64_ in place of _X86_

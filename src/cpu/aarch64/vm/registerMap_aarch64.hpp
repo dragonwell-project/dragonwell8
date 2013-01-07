@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_REGISTERMAP_X86_HPP
-#define CPU_X86_VM_REGISTERMAP_X86_HPP
+#ifndef CPU_AARCH64_VM_REGISTERMAP_AARCH64_HPP
+#define CPU_AARCH64_VM_REGISTERMAP_AARCH64_HPP
 
 // machine-dependent implemention for register maps
   friend class frame;
@@ -41,4 +41,4 @@
   void pd_initialize() {}
   void pd_initialize_from(const RegisterMap* map) {}
 
-#endif // CPU_X86_VM_REGISTERMAP_X86_HPP
+#endif // CPU_AARCH64_VM_REGISTERMAP_AARCH64_HPP

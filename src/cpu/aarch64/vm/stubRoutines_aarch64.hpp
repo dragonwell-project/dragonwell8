@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_STUBROUTINES_X86_64_HPP
-#define CPU_X86_VM_STUBROUTINES_X86_64_HPP
+#ifndef CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP
+#define CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
@@ -118,4 +118,4 @@ class x86 {
   }
 };
 
-#endif // CPU_X86_VM_STUBROUTINES_X86_64_HPP
+#endif // CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP

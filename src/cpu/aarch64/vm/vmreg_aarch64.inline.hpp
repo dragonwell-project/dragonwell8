@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_VMREG_X86_INLINE_HPP
-#define CPU_X86_VM_VMREG_X86_INLINE_HPP
+#ifndef CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP
+#define CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP
 
 inline VMReg RegisterImpl::as_VMReg() {
   if( this==noreg ) return VMRegImpl::Bad();
@@ -71,4 +71,4 @@ inline   bool VMRegImpl::is_concrete() {
   return is_even(value());
 }
 
-#endif // CPU_X86_VM_VMREG_X86_INLINE_HPP
+#endif // CPU_AARCH64_VM_VMREG_AARCH64_INLINE_HPP

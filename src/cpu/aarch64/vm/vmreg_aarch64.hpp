@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef CPU_X86_VM_VMREG_X86_HPP
-#define CPU_X86_VM_VMREG_X86_HPP
+#ifndef CPU_AARCH64_VM_VMREG_AARCH64_HPP
+#define CPU_AARCH64_VM_VMREG_AARCH64_HPP
 
   bool is_Register();
   Register as_Register();
 
   bool is_FloatRegister();
   FloatRegister as_FloatRegister();
-#endif // CPU_X86_VM_VMREG_X86_HPP
+#endif // CPU_AARCH64_VM_VMREG_AARCH64_HPP

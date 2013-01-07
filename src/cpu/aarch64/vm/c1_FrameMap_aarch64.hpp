@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_C1_FRAMEMAP_X86_HPP
-#define CPU_X86_VM_C1_FRAMEMAP_X86_HPP
+#ifndef CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
+#define CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
 
 //  On i486 the frame looks as follows:
 //
@@ -66,5 +66,5 @@ static int nof_caller_save_cpu_regs() { Unimplemented(); return 0; }
 static int last_cpu_reg()             { Unimplemented(); return 0 ; }
 static int last_byte_reg()            { Unimplemented(); return 0; }
 
-#endif // CPU_X86_VM_C1_FRAMEMAP_X86_HPP
+#endif // CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
 

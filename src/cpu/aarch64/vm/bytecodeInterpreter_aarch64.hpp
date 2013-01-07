@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_BYTECODEINTERPRETER_X86_HPP
-#define CPU_X86_VM_BYTECODEINTERPRETER_X86_HPP
+#ifndef CPU_AARCH64_VM_BYTECODEINTERPRETER_AARCH64_HPP
+#define CPU_AARCH64_VM_BYTECODEINTERPRETER_AARCH64_HPP
 
 // Platform specific for C++ based Interpreter
 
@@ -112,4 +112,4 @@ inline intptr_t* sender_sp() {
 #define SET_LOCALS_LONG_FROM_ADDR(addr, offset) (((VMJavaVal64*)&locals[-((offset)+1)])->l = \
                                                 ((VMJavaVal64*)(addr))->l)
 
-#endif // CPU_X86_VM_BYTECODEINTERPRETER_X86_HPP
+#endif // CPU_AARCH64_VM_BYTECODEINTERPRETER_AARCH64_HPP

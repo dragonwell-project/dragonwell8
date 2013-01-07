@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_INTERPRETER_X86_HPP
-#define CPU_X86_VM_INTERPRETER_X86_HPP
+#ifndef CPU_AARCH64_VM_INTERPRETER_AARCH64_HPP
+#define CPU_AARCH64_VM_INTERPRETER_AARCH64_HPP
 
  public:
   static Address::ScaleFactor stackElementScale() {
@@ -42,4 +42,4 @@
     return stackElementWords * i;
   }
 
-#endif // CPU_X86_VM_INTERPRETER_X86_HPP
+#endif // CPU_AARCH64_VM_INTERPRETER_AARCH64_HPP

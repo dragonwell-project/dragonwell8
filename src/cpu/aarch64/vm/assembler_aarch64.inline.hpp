@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_ASSEMBLER_X86_INLINE_HPP
-#define CPU_X86_VM_ASSEMBLER_X86_INLINE_HPP
+#ifndef CPU_AARCH64_VM_ASSEMBLER_AARCH64_INLINE_HPP
+#define CPU_AARCH64_VM_ASSEMBLER_AARCH64_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/codeBuffer.hpp"
@@ -36,4 +36,4 @@ inline void MacroAssembler::pd_print_patched_instruction(address branch) { Unimp
 
 #endif // ndef PRODUCT
 
-#endif // CPU_X86_VM_ASSEMBLER_X86_INLINE_HPP
+#endif // CPU_AARCH64_VM_ASSEMBLER_AARCH64_INLINE_HPP

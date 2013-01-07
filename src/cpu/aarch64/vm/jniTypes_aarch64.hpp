@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_JNITYPES_X86_HPP
-#define CPU_X86_VM_JNITYPES_X86_HPP
+#ifndef CPU_AARCH64_VM_JNITYPES_AARCH64_HPP
+#define CPU_AARCH64_VM_JNITYPES_AARCH64_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
@@ -130,4 +130,4 @@ public:
 #undef _JNI_SLOT_OFFSET
 };
 
-#endif // CPU_X86_VM_JNITYPES_X86_HPP
+#endif // CPU_AARCH64_VM_JNITYPES_AARCH64_HPP

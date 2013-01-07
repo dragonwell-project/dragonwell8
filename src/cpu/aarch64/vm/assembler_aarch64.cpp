@@ -23,10 +23,6 @@
  *
  */
 
-#undef TARGET_ARCH_x86
-#define TARGET_ARCH_AARCH64
-#define CPU_X86_VM_REGISTER_X86_HPP
-
 #include <stdio.h>
 #include <sys/types.h>
 

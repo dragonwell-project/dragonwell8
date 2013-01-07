@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_JAVAFRAMEANCHOR_X86_HPP
-#define CPU_X86_VM_JAVAFRAMEANCHOR_X86_HPP
+#ifndef CPU_AARCH64_VM_JAVAFRAMEANCHOR_AARCH64_HPP
+#define CPU_AARCH64_VM_JAVAFRAMEANCHOR_AARCH64_HPP
 
 private:
 
@@ -83,4 +83,4 @@ public:
   // Assert (last_Java_sp == NULL || fp == NULL)
   void set_last_Java_fp(intptr_t* fp)                { _last_Java_fp = fp; }
 
-#endif // CPU_X86_VM_JAVAFRAMEANCHOR_X86_HPP
+#endif // CPU_AARCH64_VM_JAVAFRAMEANCHOR_AARCH64_HPP

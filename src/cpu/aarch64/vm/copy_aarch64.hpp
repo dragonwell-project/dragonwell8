@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_COPY_X86_HPP
-#define CPU_X86_VM_COPY_X86_HPP
+#ifndef CPU_AARCH64_VM_COPY_AARCH64_HPP
+#define CPU_AARCH64_VM_COPY_AARCH64_HPP
 
 // Inline functions for memory copy and fill.
 
@@ -77,4 +77,4 @@ static void pd_zero_to_bytes(void* to, size_t count) {
   (void)memset(to, 0, count);
 }
 
-#endif // CPU_X86_VM_COPY_X86_HPP
+#endif // CPU_AARCH64_VM_COPY_AARCH64_HPP

@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_ICACHE_X86_HPP
-#define CPU_X86_VM_ICACHE_X86_HPP
+#ifndef CPU_AARCH64_VM_ICACHE_AARCH64_HPP
+#define CPU_AARCH64_VM_ICACHE_AARCH64_HPP
 
 // Interface for updating the instruction cache.  Whenever the VM modifies
 // code, part of the processor instruction cache potentially has to be flushed.
@@ -58,4 +58,4 @@ class ICache : public AbstractICache {
 #endif // AMD64
 };
 
-#endif // CPU_X86_VM_ICACHE_X86_HPP
+#endif // CPU_AARCH64_VM_ICACHE_AARCH64_HPP

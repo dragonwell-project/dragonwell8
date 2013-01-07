@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_RELOCINFO_X86_HPP
-#define CPU_X86_VM_RELOCINFO_X86_HPP
+#ifndef CPU_AARCH64_VM_RELOCINFO_AARCH64_HPP
+#define CPU_AARCH64_VM_RELOCINFO_AARCH64_HPP
 
   // machine-dependent parts of class relocInfo
  private:
@@ -40,4 +40,4 @@
 #endif
   };
 
-#endif // CPU_X86_VM_RELOCINFO_X86_HPP
+#endif // CPU_AARCH64_VM_RELOCINFO_AARCH64_HPP

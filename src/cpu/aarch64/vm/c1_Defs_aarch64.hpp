@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_C1_DEFS_X86_HPP
-#define CPU_X86_VM_C1_DEFS_X86_HPP
+#ifndef CPU_AARCH64_VM_C1_DEFS_AARCH64_HPP
+#define CPU_AARCH64_VM_C1_DEFS_AARCH64_HPP
 
 // native word offsets from memory address (little endian)
 enum {
@@ -70,4 +70,4 @@ enum {
   pd_float_saved_as_double = true
 };
 
-#endif // CPU_X86_VM_C1_DEFS_X86_HPP
+#endif // CPU_AARCH64_VM_C1_DEFS_AARCH64_HPP

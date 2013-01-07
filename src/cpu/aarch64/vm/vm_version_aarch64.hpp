@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_VM_VERSION_X86_HPP
-#define CPU_X86_VM_VM_VERSION_X86_HPP
+#ifndef CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP
+#define CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -661,4 +661,4 @@ public:
   }
 };
 
-#endif // CPU_X86_VM_VM_VERSION_X86_HPP
+#endif // CPU_AARCH64_VM_VM_VERSION_AARCH64_HPP

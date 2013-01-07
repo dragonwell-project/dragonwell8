@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_BYTES_X86_HPP
-#define CPU_X86_VM_BYTES_X86_HPP
+#ifndef CPU_AARCH64_VM_BYTES_AARCH64_HPP
+#define CPU_AARCH64_VM_BYTES_AARCH64_HPP
 
 #include "memory/allocation.hpp"
 
@@ -89,4 +89,4 @@ class Bytes: AllStatic {
 #endif
 
 
-#endif // CPU_X86_VM_BYTES_X86_HPP
+#endif // CPU_AARCH64_VM_BYTES_AARCH64_HPP

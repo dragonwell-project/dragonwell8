@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_DISASSEMBLER_X86_HPP
-#define CPU_X86_VM_DISASSEMBLER_X86_HPP
+#ifndef CPU_AARCH64_VM_DISASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_VM_DISASSEMBLER_AARCH64_HPP
 
   static int pd_instruction_alignment() {
     return 1;
@@ -33,4 +33,4 @@
     return "";
   }
 
-#endif // CPU_X86_VM_DISASSEMBLER_X86_HPP
+#endif // CPU_AARCH64_VM_DISASSEMBLER_AARCH64_HPP

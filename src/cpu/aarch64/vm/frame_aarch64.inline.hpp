@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_FRAME_X86_INLINE_HPP
-#define CPU_X86_VM_FRAME_X86_INLINE_HPP
+#ifndef CPU_AARCH64_VM_FRAME_AARCH64_INLINE_HPP
+#define CPU_AARCH64_VM_FRAME_AARCH64_INLINE_HPP
 
 // Inline functions for AArch64 frames:
 
@@ -303,4 +303,4 @@ inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
   *((oop*) map->location(r0->as_VMReg())) = obj;
 }
 
-#endif // CPU_X86_VM_FRAME_X86_INLINE_HPP
+#endif // CPU_AARCH64_VM_FRAME_AARCH64_INLINE_HPP

@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_NATIVEINST_X86_HPP
-#define CPU_X86_VM_NATIVEINST_X86_HPP
+#ifndef CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP
+#define CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP
 
 #include "asm/assembler.hpp"
 #include "memory/allocation.hpp"
@@ -316,4 +316,4 @@ inline bool NativeInstruction::is_safepoint_poll() { Unimplemented(); return fal
 
 inline bool NativeInstruction::is_mov_literal64() { Unimplemented(); return false; }
 
-#endif // CPU_X86_VM_NATIVEINST_X86_HPP
+#endif // CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP

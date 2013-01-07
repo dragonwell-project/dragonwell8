@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_INTERP_MASM_X86_64_HPP
-#define CPU_X86_VM_INTERP_MASM_X86_64_HPP
+#ifndef CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
+#define CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
 
 #include "assembler_aarch64.inline.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -268,4 +268,4 @@ class InterpreterMacroAssembler: public MacroAssembler {
   }
 };
 
-#endif // CPU_X86_VM_INTERP_MASM_X86_64_HPP
+#endif // CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP

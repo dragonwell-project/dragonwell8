@@ -1,4 +1,4 @@
-/*
+x/*
  * Copyright (c) 1997, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_CPPINTERPRETER_X86_HPP
-#define CPU_X86_VM_CPPINTERPRETER_X86_HPP
+#ifndef CPU_AARCH64_VM_CPPINTERPRETER_AARCH64_HPP
+#define CPU_AARCH64_VM_CPPINTERPRETER_AARCH64_HPP
 
 
   protected:
@@ -35,4 +35,4 @@
   // Max size with JVMTI
   const static int InterpreterCodeSize = 168 * 1024;
 
-#endif // CPU_X86_VM_CPPINTERPRETER_X86_HPP
+#endif // CPU_AARCH64_VM_CPPINTERPRETER_AARCH64_HPP

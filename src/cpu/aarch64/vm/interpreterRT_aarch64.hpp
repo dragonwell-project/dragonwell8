@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_INTERPRETERRT_X86_HPP
-#define CPU_X86_VM_INTERPRETERRT_X86_HPP
+#ifndef CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP
+#define CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP
 
 #include "memory/allocation.hpp"
 
@@ -79,4 +79,4 @@ class SignatureHandlerGenerator: public NativeSignatureIterator {
   static Register temp();
 };
 
-#endif // CPU_X86_VM_INTERPRETERRT_X86_HPP
+#endif // CPU_AARCH64_VM_INTERPRETERRT_AARCH64_HPP

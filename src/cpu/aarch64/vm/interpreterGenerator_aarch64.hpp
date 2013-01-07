@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_INTERPRETERGENERATOR_X86_HPP
-#define CPU_X86_VM_INTERPRETERGENERATOR_X86_HPP
+#ifndef CPU_AARCH64_VM_INTERPRETERGENERATOR_AARCH64_HPP
+#define CPU_AARCH64_VM_INTERPRETERGENERATOR_AARCH64_HPP
 
 
 // Generation of Interpreter
@@ -50,4 +50,4 @@ private:
   void generate_counter_incr(Label* overflow, Label* profile_method, Label* profile_method_continue);
   void generate_counter_overflow(Label* do_continue);
 
-#endif // CPU_X86_VM_INTERPRETERGENERATOR_X86_HPP
+#endif // CPU_AARCH64_VM_INTERPRETERGENERATOR_AARCH64_HPP

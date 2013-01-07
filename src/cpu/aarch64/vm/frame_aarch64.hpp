@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_FRAME_X86_HPP
-#define CPU_X86_VM_FRAME_X86_HPP
+#ifndef CPU_AARCH64_VM_FRAME_AARCH64_HPP
+#define CPU_AARCH64_VM_FRAME_AARCH64_HPP
 
 #include "runtime/synchronizer.hpp"
 #include "utilities/top.hpp"
@@ -210,4 +210,4 @@
   inline interpreterState get_interpreterState() const;
 #endif // CC_INTERP
 
-#endif // CPU_X86_VM_FRAME_X86_HPP
+#endif // CPU_AARCH64_VM_FRAME_AARCH64_HPP

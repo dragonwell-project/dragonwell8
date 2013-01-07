@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_CPPINTERPRETERGENERATOR_X86_HPP
-#define CPU_X86_VM_CPPINTERPRETERGENERATOR_X86_HPP
+#ifndef CPU_AARCH64_VM_CPPINTERPRETERGENERATOR_AARCH64_HPP
+#define CPU_AARCH64_VM_CPPINTERPRETERGENERATOR_AARCH64_HPP
 
  protected:
 
@@ -50,4 +50,4 @@
                                           const Register sender_sp,
                                           bool native); // C++ interpreter only
 
-#endif // CPU_X86_VM_CPPINTERPRETERGENERATOR_X86_HPP
+#endif // CPU_AARCH64_VM_CPPINTERPRETERGENERATOR_AARCH64_HPP
