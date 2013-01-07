@@ -32,7 +32,9 @@
 #include "assembler_aarch64.hpp"
 #include "interpreter/interpreter.hpp"
 
-const unsigned long Assembler::asm_bp = 0x00007fffee0939c0;
+#ifndef PRODUCT
+const unsigned long Assembler::asm_bp = 0x00007fffee07a730;
+#endif
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
@@ -59,6 +61,13 @@ const unsigned long Assembler::asm_bp = 0x00007fffee0939c0;
 extern "C" void entry(CodeBuffer *cb);
 
 #define __ _masm.
+#ifdef PRODUCT
+#define BLOCK_COMMENT(str) /* nothing */
+#else
+#define BLOCK_COMMENT(str) block_comment(str)
+#endif
+
+#define BIND(label) bind(label); __ BLOCK_COMMENT(#label ":")
 
 static float unpack(unsigned value);
 
@@ -1174,15 +1183,6 @@ Disassembly of section .text:
     }
     assert(ok, "Assembler smoke test failed");
   }
-#endif // ASSERT
-
-#ifdef PRODUCT
-#define BLOCK_COMMENT(str) /* nothing */
-#else
-#define BLOCK_COMMENT(str) block_comment(str)
-#endif
-
-#define BIND(label) bind(label); __ BLOCK_COMMENT(#label ":")
 
 #ifndef PRODUCT
   {
@@ -1218,8 +1218,9 @@ Disassembly of section .text:
   __ push(3, sp);
   __ pop(3, sp);
 
-}
 #endif // PRODUCT
+#endif // ASSERT
+}
 
 #undef __
 

@@ -312,7 +312,6 @@ class PrePost {
   Register _r;
 public:
   PrePost(Register reg, int o) : _r(reg), _offset(o) { }
-  PrePost(Register reg, ByteSize disp) : _r(reg), _offset(in_bytes(disp)) { }
   int offset() { return _offset; }
   Register reg() { return _r; }
 };
@@ -320,12 +319,10 @@ public:
 class Pre : public PrePost {
 public:
   Pre(Register reg, int o) : PrePost(reg, o) { }
-  Pre(Register reg, ByteSize disp) : PrePost(reg, disp) { }
 };
 class Post : public PrePost {
 public:
   Post(Register reg, int o) : PrePost(reg, o) { }
-  Post(Register reg, ByteSize disp) : PrePost(reg, disp) { }
 };
 
 namespace ext
@@ -400,9 +397,11 @@ class Address VALUE_OBJ_CLASS_SPEC {
     : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
   Address(Register r, unsigned long o)
     : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
+#ifdef ASSERT
   Address(Register r, ByteSize disp)
     : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)),
       _index(noreg) { }
+#endif
   Address(Register r, Register r1, extend ext = lsl())
     : _mode(base_plus_offset_reg), _base(r), _index(r1),
     _ext(ext), _offset(0) { }
@@ -2450,16 +2449,6 @@ public:
 
   DEBUG_ONLY(void verify_heapbase(const char* msg);)
 
-  // Int division/remainder for Java
-  // (as idivl, but checks for special case as described in JVM spec.)
-  // returns idivl instruction offset for implicit exception handling
-  int corrected_idivl(Register reg);
-
-  // Long division/remainder for Java
-  // (as idivq, but checks for special case as described in JVM spec.)
-  // returns idivq instruction offset for implicit exception handling
-  int corrected_idivq(Register reg);
-
   void int3();
 
   // Long operation macros for a 32bit cpu
@@ -2703,7 +2692,6 @@ public:
   Condition negate_condition(Condition cond);
 
   // Arithmetics
-
 
   void addptr(Address dst, int32_t src) { Unimplemented(); }
   void addptr(Address dst, Register src);

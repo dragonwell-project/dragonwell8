@@ -20,7 +20,7 @@ void aarch64TestHook()
   BufferBlob* b = BufferBlob::create("aarch64Test", 500000);
   CodeBuffer code(b);
   MacroAssembler _masm(&code);
-  entry(_masm.code());
+  entry(&code);
   // dive now before we hit all the Unimplemented() calls
   // exit(0);
 
