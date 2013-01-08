@@ -26,23 +26,25 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.referenceError;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.nashorn.internal.codegen.ObjectClassGenerator;
-import jdk.nashorn.internal.lookup.Lookup;
+
+import jdk.nashorn.internal.codegen.objects.ObjectClassGenerator;
+import jdk.nashorn.internal.runtime.linker.Lookup;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
+import jdk.nashorn.internal.runtime.linker.NashornGuardedInvocation;
 import jdk.nashorn.internal.runtime.linker.NashornGuards;
 
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.linker.GuardedInvocation;
 
 /**
  * Instances of this class are quite ephemeral; they only exist for the duration of an invocation of
- * {@link ScriptObject#findSetMethod(CallSiteDescriptor, jdk.internal.dynalink.linker.LinkRequest)} and
- * serve as the actual encapsulation of the algorithm for creating an appropriate property setter method.
+ * {@link ScriptObject#findSetMethod(CallSiteDescriptor, boolean)} and serve as the actual encapsulation of the
+ * algorithm for creating an appropriate property setter method.
  */
-final class SetMethodCreator {
+class SetMethodCreator {
     // See constructor parameters for description of fields
     private final ScriptObject sobj;
     private final PropertyMap map;
@@ -87,16 +89,21 @@ final class SetMethodCreator {
     private class SetMethod {
         private final MethodHandle methodHandle;
         private final Property property;
+        private final int invokeFlags;
 
         /**
          * Creates a new lookup result.
          * @param methodHandle the actual method handle
          * @param property the property object. Can be null in case we're creating a new property in the global object.
+         * @param invokeFlags flags for the invocation. Normally either 0, or
+         * {@link NashornCallSiteDescriptor#CALLSITE_STRICT} when an existing property with a strict function for a
+         * property setter is discovered.
          */
-        SetMethod(final MethodHandle methodHandle, final Property property) {
+        SetMethod(final MethodHandle methodHandle, final Property property, final int invokeFlags) {
             assert methodHandle != null;
             this.methodHandle = methodHandle;
             this.property = property;
+            this.invokeFlags = invokeFlags;
         }
 
         /**
@@ -104,7 +111,7 @@ final class SetMethodCreator {
          * @return the composed guarded invocation that represents the dynamic setter method for the property.
          */
         GuardedInvocation createGuardedInvocation() {
-            return new GuardedInvocation(methodHandle, getGuard());
+            return new NashornGuardedInvocation(methodHandle, null, getGuard(), invokeFlags);
         }
 
         private MethodHandle getGuard() {
@@ -139,7 +146,7 @@ final class SetMethodCreator {
         // In strict mode, assignment can not create a new variable.
         // See also ECMA Annex C item 4. ReferenceError is thrown.
         if (NashornCallSiteDescriptor.isScope(desc) && NashornCallSiteDescriptor.isStrict(desc)) {
-            throw referenceError("not.defined", getName());
+            referenceError(Context.getGlobal(), "not.defined", getName());
         }
     }
 
@@ -151,41 +158,53 @@ final class SetMethodCreator {
         assert methodHandle != null;
         assert property     != null;
 
-        final ScriptObject prototype = find.getOwner();
         final MethodHandle boundHandle;
-        if (!property.hasSetterFunction(prototype) && find.isInherited()) {
-            boundHandle = ScriptObject.bindTo(methodHandle, prototype);
+        if (!property.hasSetterFunction() && find.isInherited()) {
+            boundHandle = ScriptObject.bindTo(methodHandle, find.getOwner());
         } else {
             boundHandle = methodHandle;
         }
-        return new SetMethod(boundHandle, property);
+        return new SetMethod(boundHandle, property, getExistingPropertySetterInvokeFlags());
+    }
+
+    private int getExistingPropertySetterInvokeFlags() {
+        final ScriptFunction setter = find.getSetterFunction();
+        if (setter != null && setter.isStrict()) {
+            return NashornCallSiteDescriptor.CALLSITE_STRICT;
+        }
+        return 0;
     }
 
     private SetMethod createGlobalPropertySetter() {
-        final ScriptObject global = Context.getGlobalTrusted();
-        return new SetMethod(ScriptObject.bindTo(global.addSpill(getName()), global), null);
+        final ScriptObject global = Context.getGlobal();
+        return new SetMethod(ScriptObject.bindTo(global.addSpill(getName()), global), null, 0);
     }
 
     private SetMethod createNewPropertySetter() {
-        final SetMethod sm = map.getFieldCount() < map.getFieldMaximum() ? createNewFieldSetter() : createNewSpillPropertySetter();
+        final int nextEmbed = sobj.findEmbed();
+        final SetMethod sm;
+        if (nextEmbed >= ScriptObject.EMBED_SIZE) {
+            sm = createNewSpillPropertySetter();
+        } else {
+            sm = createNewEmbedPropertySetter(nextEmbed);
+        }
+
         sobj.notifyPropertyAdded(sobj, sm.property);
         return sm;
-    }
-
-    private SetMethod createNewFieldSetter() {
-        final PropertyMap oldMap = getMap();
-        final Property property = new AccessorProperty(getName(), 0, sobj.getClass(), oldMap.getFieldCount());
-        final PropertyMap newMap = oldMap.addProperty(property);
-        MethodHandle setter = MH.insertArguments(ScriptObject.SETFIELD, 0, desc, oldMap, newMap, property.getSetter(Object.class, newMap));
-
-        return new SetMethod(MH.asType(setter, Lookup.SET_OBJECT_TYPE), property);
     }
 
     private SetMethod createNewSpillPropertySetter() {
         final int nextSpill = getMap().getSpillLength();
 
-        final Property property = new AccessorProperty(getName(), Property.IS_SPILL, nextSpill);
-        return new SetMethod(createSpillMethodHandle(nextSpill, property), property);
+        final Property property = createSpillProperty(nextSpill);
+        return new SetMethod(createSpillMethodHandle(nextSpill, property), property, 0);
+    }
+
+    private Property createSpillProperty(final int nextSpill) {
+        final MethodHandle getter = MH.asType(MH.insertArguments(MH.arrayElementGetter(Object[].class), 1, nextSpill), Lookup.GET_OBJECT_TYPE);
+        final MethodHandle setter = MH.asType(MH.insertArguments(MH.arrayElementSetter(Object[].class), 1, nextSpill), Lookup.SET_OBJECT_TYPE);
+
+        return new SpillProperty(getName(), Property.IS_SPILL, nextSpill, getter, setter);
     }
 
     private MethodHandle createSpillMethodHandle(final int nextSpill, Property property) {
@@ -201,6 +220,14 @@ final class SetMethodCreator {
             final int newLength = (nextSpill + ScriptObject.SPILL_RATE) / ScriptObject.SPILL_RATE * ScriptObject.SPILL_RATE;
             return MH.insertArguments(ScriptObject.SETSPILLWITHGROW, 0, desc, oldMap, newMap, nextSpill, newLength);
         }
+    }
+
+    private SetMethod createNewEmbedPropertySetter(final int nextEmbed) {
+        sobj.useEmbed(nextEmbed);
+        final Property property = new SpillProperty(getName(), 0, nextEmbed, ScriptObject.GET_EMBED[nextEmbed], ScriptObject.SET_EMBED[nextEmbed]);
+        //TODO specfields
+        final MethodHandle methodHandle = MH.insertArguments(ScriptObject.SETEMBED, 0, desc, getMap(), getNewMap(property), property.getSetter(Object.class, getMap()), nextEmbed);
+        return new SetMethod(methodHandle, property, 0);
     }
 
     private PropertyMap getNewMap(Property property) {
