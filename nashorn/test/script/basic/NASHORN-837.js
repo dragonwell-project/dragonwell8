@@ -28,13 +28,23 @@
  * @run
  */
 
+var failed = false;
+
 try {
-    throw new TypeError('error');
-} catch (iox) {
-    var f = function() {
-        if(iox.message != 'error') {
-            print("Failure! iox did not throw correct exception");
-        }
+    try {
+	throw new TypeError('error');
+    } catch (iox) {
+	function f() {
+	    print(iox.message);
+	}
     }
+    f();
+} catch (e) {
+    failed = (e instanceof ReferenceError);
+    //iox not defined should be thrown
 }
-f();
+
+if (!failed) {
+    print("Failure! iox did not throw correct exception");
+}
+
