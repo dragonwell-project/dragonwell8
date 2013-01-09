@@ -23,23 +23,61 @@
  * questions.
  */
 
-package sun.awt;
+package jdk.internal.util.xml.impl;
+
+import java.io.Reader;
 
 /**
- * A GraphicsConfiguration implements the TextureSizeConstraining
- * interface to indicate that it imposes certain limitations on the
- * maximum size of supported textures.
+ * A parsed entity input state.
+ *
+ * This class represents a parsed entity input state. The parser uses
+ * an instance of this class to manage input.
  */
-public interface TextureSizeConstraining {
+
+public class Input {
+
+    /** The entity public identifier or null. */
+    public String pubid;
+    /** The entity systen identifier or null. */
+    public String sysid;
+    /** The encoding from XML declaration or null */
+    public String xmlenc;
+    /** The XML version from XML declaration or 0x0000 */
+    public char xmlver;
+    /** The entity reader. */
+    public Reader src;
+    /** The character buffer. */
+    public char[] chars;
+    /** The length of the character buffer. */
+    public int chLen;
+    /** The index of the next character to read. */
+    public int chIdx;
+    /** The next input in a chain. */
+    public Input next;
 
     /**
-     * Returns the maximum width of any texture image.
+     * Constructor.
+     *
+     * @param buffsize The input buffer size.
      */
-    public int getMaxTextureWidth();
+    public Input(int buffsize) {
+        chars = new char[buffsize];
+        chLen = chars.length;
+    }
 
     /**
-     * Returns the maximum height of any texture image.
+     * Constructor.
+     *
+     * @param buff The input buffer.
      */
-    public int getMaxTextureHeight();
+    public Input(char[] buff) {
+        chars = buff;
+        chLen = chars.length;
+    }
 
+    /**
+     * Constructor.
+     */
+    public Input() {
+    }
 }
