@@ -290,6 +290,22 @@ class StubGenerator: public StubCodeGenerator {
     BLOCK_COMMENT("call Java function");
     __ call (c_rarg4);
 
+#ifndef PRODUCT
+    // tell the simulator we have returned to the stub
+
+    // we do this here because the notify will already have been done
+    // if we get to the next instruction via an exception
+    //
+    // n.b. adding this instruction here affects the calculation of
+    // whether or not a routine returns to the call stub (used when
+    // doing stack walks) since the normal test is to check the return
+    // pc against the address saved below. so we may need to allow for
+    // this extra instruction in the check.
+
+    if (NotifySimulator) {
+      __ notify(Assembler::method_reentry);
+    }
+#endif
     // save current address for use by exception handling code
 
     return_address = __ pc();

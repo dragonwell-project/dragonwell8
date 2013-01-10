@@ -605,6 +605,12 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // initialize fixed part of activation frame
   generate_fixed_frame(true, rscratch1);
+#ifndef PRODUCT
+  // tell the simulator that a method has been entered
+  if (NotifySimulator) {
+    __ notify(Assembler::method_entry);
+  }
+#endif
 
   // make sure method is native & not abstract
 #ifdef ASSERT
@@ -1333,6 +1339,13 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_locals();
   __ restore_constant_pool_cache();
   __ reinit_heapbase();  // restore rheapbase as heapbase.
+#ifndef PRODUCT
+  // tell the simulator that the caller method has been reentered
+  if (NotifySimulator) {
+    __ get_method(rmethod);
+    __ notify(Assembler::method_reentry);
+  }
+#endif
   // Entry point for exceptions thrown within interpreter code
   Interpreter::_throw_exception_entry = __ pc();
   // If we came here via a NullPointerException on the receiver of a
