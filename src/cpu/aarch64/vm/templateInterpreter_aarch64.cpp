@@ -1645,7 +1645,23 @@ void TemplateInterpreterGenerator::stop_interpreter_at() {
   __ pop(rscratch1);
 }
 
+#include <sys/mman.h>
+#include <unistd.h>
+
 extern "C" {
+  static int PAGESIZE = getpagesize();
+  int is_mapped_address(u_int64_t address)
+  {
+    address = (address & ~((u_int64_t)PAGESIZE - 1));
+    if (msync((void *)address, PAGESIZE, MS_ASYNC) == 0) {
+      return true;
+    }
+    if (errno != ENOMEM) {
+      return true;
+    }
+    return false;
+  }
+
   void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
   {
     if (method != 0) {
@@ -1659,19 +1675,14 @@ extern "C" {
     }
 
     if (verify) {
-      // verify the supplied method oop
-      // is the 'method*' in range
-      intptr_t checkVal = (intptr_t)methodVal;
-      if (checkVal == 0) {
+      if (!is_mapped_address(methodVal)) {
 	return;
       }
-      if ((checkVal & Universe::verify_oop_mask()) != Universe::verify_oop_bits()) {
+      Metadata *md = (Metadata*)methodVal;
+      if (!md->is_valid()) {
 	return;
       }
-      // is the klass of the 'methodOop' a sensible value
-      checkVal = (intptr_t)((Method*)checkVal)->method_holder();
-
-      if (checkVal == 0) {
+      if (!md->is_method()) {
 	return;
       }
     }
