@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,7 @@ import java.util.regex.Pattern;
  * <p>Pattern and the logic for parameter position: java.util.Formatter
  *
  */
-final class Formatter {
-
-    private Formatter() {
-    }
+public final class Formatter {
 
     /**
      * Method which converts javascript types to java types for the
@@ -59,8 +56,8 @@ final class Formatter {
      * @param args arguments referenced by the format specifiers in format
      * @return a formatted string
      */
-    static String format(final String format, final Object[] args) {
-        final Matcher m = FS_PATTERN.matcher(format);
+    public static String format(final String format, final Object[] args) {
+        Matcher m = FS_PATTERN.matcher(format);
         int positionalParameter = 1;
 
         while (m.find()) {
@@ -143,7 +140,7 @@ final class Formatter {
     /**
      * Method to parse the integer of the argument index.
      *
-     * @param s string to parse
+     * @param s
      * @return -1 if parsing failed, 0 if string is null, > 0 integer
      */
     private static int index(final String s) {
@@ -152,9 +149,7 @@ final class Formatter {
         if (s != null) {
             try {
                 index = Integer.parseInt(s.substring(0, s.length() - 1));
-            } catch (final NumberFormatException e) {
-                //ignored
-            }
+            } catch (NumberFormatException e) { }
         } else {
             index = 0;
         }
@@ -166,7 +161,7 @@ final class Formatter {
      * Method to check if a string contains '&lt;'. This is used to find out if
      * previous parameter is used.
      *
-     * @param s string to check
+     * @param s
      * @return true if '&lt;' is in the string, else false
      */
     private static boolean isPreviousArgument(final String s) {
