@@ -1691,10 +1691,9 @@ public:
 
    haltsim
 
-   takes no arguments, causes sim to run dumpState() and then return from
-   run() with STATUS_HALT -- maybe it should enters debug first? The
-   linking code which enters the sim via run() will call fatal() when it
-   sees STATUS_HALT.
+   takes no arguments, causes the sim to enter a debug break and then
+   return from the simulator run() call with STATUS_HALT? The linking
+   code will call fatal() when it sees STATUS_HALT.
 
    brx86 Xn, Wm
    brx86 Xn, #gpargs, #fpargs, #type
@@ -1884,11 +1883,6 @@ class MacroAssembler: public Assembler {
   virtual void check_and_handle_earlyret(Register java_thread);
 
   void call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions = true);
-
-  // helpers for FPU flag access
-  // tmp is a temporary register, if none is available use noreg
-  void save_rax   (Register tmp);
-  void restore_rax(Register tmp);
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
@@ -2635,7 +2629,6 @@ public:
   // prints msg and continues
   void warn(const char* msg);
 
-  static void debug32(int rdi, int rsi, int rbp, int rsp, int rbx, int rdx, int rcx, int rax, int eip, char* msg);
   static void debug64(char* msg, int64_t pc, int64_t regs[]);
 
   void os_breakpoint();
@@ -2821,45 +2814,6 @@ public:
 
   // Data
 
-#if 0
-  void cmov32( Condition cc, Register dst, Address  src);
-  void cmov32( Condition cc, Register dst, Register src);
-
-  void cmov(   Condition cc, Register dst, Register src) { Unimplemented(); }
-
-  void cmovptr(Condition cc, Register dst, Address  src) { Unimplemented(); }
-  void cmovptr(Condition cc, Register dst, Register src) { Unimplemented(); }
-
-  void movoop(Register dst, jobject obj);
-  void movoop(Address dst, jobject obj);
-
-  void movptr(Register dst, Address src);
-
-  void movptr(Register dst, intptr_t src);
-  void movptr(Register dst, Register src);
-  void movptr(Address dst, intptr_t src);
-
-  void movptr(Address dst, Register src);
-
-  void movptr(Register dst, RegisterOrConstant src) { Unimplemented(); }
-
-#ifdef _LP64
-  // Generally the next two are only used for moving NULL
-  // Although there are situations in initializing the mark word where
-  // they could be used. They are dangerous.
-
-  // They only exist on LP64 so that int32_t and intptr_t are not the same
-  // and we have ambiguous declarations.
-
-  void movptr(Address dst, int32_t imm32);
-  void movptr(Register dst, int32_t imm32);
-#endif // _LP64
-
-
-  void pushptr(Address src) { Unimplemented(); }
-  void popptr(Address src) { Unimplemented(); }
-#endif
-
   void pushoop(jobject obj);
 
   // sign extend as need a l to ptr sized element
@@ -2871,7 +2825,7 @@ public:
 
 #undef VIRTUAL
 
-  // MacroAssembler routines found actually to be needed
+  // MacroAssembler routines found definitely to be needed
 
   // Stack push and pop individual 64 bit registers
   void push(Register src);

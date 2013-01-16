@@ -96,7 +96,6 @@ aarch64_prolog:
 	lea (entry_offset)(%r11), %rdx
 	// load call type code in arg reg 1
 	mov (calltype_offset)(%r11), %rsi
-	// if we need a return value push a stack slot for it
 	// load current stack pointer in arg reg 0
 	mov %rsp, %rdi
 	// switch to alt stack

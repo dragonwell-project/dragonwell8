@@ -68,8 +68,6 @@ class RegisterImpl: public AbstractRegisterImpl {
 CONSTANT_REGISTER_DECLARATION(Register, noreg, (-1));
 
 
-extern const Register r1; // enum { r1_RegisterEnumValue = ((1)) };
-
 CONSTANT_REGISTER_DECLARATION(Register, r0,    (0));
 CONSTANT_REGISTER_DECLARATION(Register, r1,    (1));
 CONSTANT_REGISTER_DECLARATION(Register, r2,    (2));

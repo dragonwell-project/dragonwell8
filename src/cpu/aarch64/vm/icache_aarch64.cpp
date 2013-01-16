@@ -33,7 +33,7 @@ extern "C" void setup_arm_sim();
 
 int _flush_icache_stub_dummy(address addr, int lines, int magic)
 {
-  // no need to do any cache flushing on x86 so just obey th eimplicit
+  // no need to do any cache flushing on x86 so just obey the implicit
   // contract to return the magic arg
 
   return magic;
@@ -65,6 +65,9 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   __ dsb(Assembler::SY);
   __ dmb(Assembler::SY);
   __ isb();
+  // args 1 and 2 identify the start address and size of the flush
+  // region but we cannot use them on ARM. the stub is supposed to
+  // return the 3rd argument
   __ mov(r0, r2);
   __ ret(r30);
 

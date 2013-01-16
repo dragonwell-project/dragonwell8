@@ -25,6 +25,6 @@
 #ifndef CPU_AARCH64_VM_BYTECODES_AARCH64_HPP
 #define CPU_AARCH64_VM_BYTECODES_AARCH64_HPP
 
-// No i486 specific bytecodes
+// No aarch64 specific bytecodes
 
 #endif // CPU_AARCH64_VM_BYTECODES_AARCH64_HPP

@@ -2308,7 +2308,7 @@ Address MacroAssembler::argument_address(RegisterOrConstant arg_slot,
   }
 }
 
-
+// n.b. this is implemented in subclass MacroAssembler
 void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
 void MacroAssembler::call_VM_leaf_base(address entry_point,
@@ -2549,7 +2549,7 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   // returns the (pc) offset of the idivl instruction - may be needed
   // for implicit exceptions.
   //
-  // consraint : ra/rb =/= rscratch1
+  // constraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
@@ -2600,7 +2600,7 @@ int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
   // returns the (pc) offset of the idivq instruction - may be needed
   // for implicit exceptions.
   //
-  // consraint : ra/rb =/= rscratch1
+  // constraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long

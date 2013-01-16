@@ -98,10 +98,10 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg6:   parameter size (in words)              int
   //    c_rarg7:   thread                                 Thread*
   //
-  // There is no return form the stub itself as any Java result
+  // There is no return from the stub itself as any Java result
   // is written to result
   //
-  // we save r30 (lr)a as the return PC at the base of the frame and
+  // we save r30 (lr) as the return PC at the base of the frame and
   // link r29 (fp) below it as the frame pointer installing sp (r31)
   // into fp.
   //
@@ -1297,6 +1297,7 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::x86::_get_previous_fp_entry = generate_get_previous_fp();
     StubRoutines::x86::_get_previous_sp_entry = generate_get_previous_sp();
 
+<<<<<<< HEAD
     // we don't need this or aarch64
 
     // StubRoutines::x86::_verify_mxcsr_entry    = generate_verify_mxcsr();
@@ -1309,6 +1310,8 @@ class StubGenerator: public StubCodeGenerator {
                                CAST_FROM_FN_PTR(address, SharedRuntime::throw_WrongMethodTypeException),
                                j_rarg0, j_rarg1);
 
+=======
+>>>>>>> 016d9c2... updated comments in code and deleted a little cruft
     // Build this early so it's available for the interpreter.
     StubRoutines::_throw_StackOverflowError_entry =
       generate_throw_exception("StackOverflowError throw_exception",

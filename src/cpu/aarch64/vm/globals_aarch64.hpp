@@ -80,12 +80,12 @@ define_pd_global(bool, UseBiasedLocking, false);
 =======
 
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
-                                                                            \
-  product(bool, NotifySimulator, true,                                      \
-         "tell the AArch64 sim where we are in method code")                \
-                                                                            \
-  product(bool, UseSimulatorCache, false,                                   \
-         "tell the AArch64 sim where we are in method code")                \
+                                                                           \
+  product(bool, NotifySimulator, true,                                     \
+         "tell the AArch64 sim where we are in method code")               \
+                                                                           \
+  product(bool, UseSimulatorCache, false,                                  \
+         "tell sim to cache memory updates until exclusive op occurs")     \
 
 #endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
 >>>>>>> 30661d7... modified all header include guard symbols to use _AARCH64_ in place of _X86_

@@ -5,6 +5,9 @@
 #include "../../../../../../simulator/simulator.hpp"
 
 /*
+ * a routine to initialise and enter ARM simulator execution when
+ * calling into ARM code from x86 code.
+ *
  * we maintain a simulator per-thread and provide it with 8 Mb of
  * stack space
  */
@@ -17,8 +20,36 @@ extern "C" u_int64_t get_alt_stack()
 
 extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
 {
-  // stack layout is as below - the number of registers
-  // needed for the ARM call is determined by calltype
+  // n.b. this function runs on the simulator stack so as to avoid
+  // simulator frames appearing in between VM x86 and ARM frames. note
+  // that arfgument sp points to the old (VM) stack from which the
+  // call into the sim was made. The stack switch and entry into this
+  // routine is handled by x86 prolog code planted in the head of the
+  // ARM code buffer which the sim is about to start executing (see
+  // aarch64_linkage.S).
+  //
+  // The first ARM instruction in the buffer is identified by fnptr
+  // stored at the top of the old stack. x86 register contents precede
+  // fnptr. preceding that are the fp and return address of the VM
+  // caller into ARM code. any extra, non-register arguments passed to
+  // the linkage routine precede the fp (this is as per any normal x86
+  // call wirth extra args).
+  //
+  // note that the sim creates Java frames on the Java stack just
+  // above sp (i.e. directly above fnptr). it sets the sim FP register
+  // to the pushed fp for the caller effectively eliding the register
+  // data saved by the linkage routine.
+  //
+  // x86 register call arguments are loaded from the stack into ARM
+  // call registers. if extra arguments occur preceding the x86
+  // caller's fp then they are copied either into extra ARM registers
+  // (ARM has 8 rather than 6 gp call registers) or up the stack
+  // beyond the saved x86 registers so that they immediately precede
+  // the ARM frame where the ARM calling convention expects them to
+  // be.
+  //
+  // n.b. the number of register/stack values passed to the ARM code
+  // is determined by calltype
   //
   // +--------+  
   // | fnptr  |  <--- argument sp points here
@@ -63,8 +94,7 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   // | . . .  |     (i.e. 1 * calladdr + 1 * rax  + 6 * gp call regs
   //                      + 8 * fp call regs + 2 * frame words)
   //
-  // TODO : for now we create a sim at every call and give it a fresh
-  // stack eventually we may need to reuse a sim/stack per thread
+  // we use a unique sim/stack per thread
   const int cursor2_offset = 18;
   const int fp_offset = 16;
   u_int64_t *cursor = (u_int64_t *)sp;
@@ -77,7 +107,7 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
     AArch64Simulator::useCache = 1;
   }
   AArch64Simulator *sim = AArch64Simulator::current();
-  // set up start pc
+  // set up initial sim pc, sp and fp registers
   sim->init(*cursor++, (u_int64_t)sp, (u_int64_t)fp);
   u_int64_t *return_slot = cursor++;
 

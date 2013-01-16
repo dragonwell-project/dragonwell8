@@ -34,10 +34,6 @@
 #include "oops/oop.inline2.hpp"
 
 int InlineCacheBuffer::ic_stub_code_size() {
-  // TODO -- this is just dummy code to get us bootstrapped far enough
-  // to be able to test the Assembler. this is th efirst
-  // processor-specific routine to get called during bootstrap.
-
   return NativeInstruction::instruction_size * 2;
 }
 

@@ -37,11 +37,10 @@
 // Layout of asm interpreter frame:
 //    [expression stack      ] * <- sp
 
-//    [monitors              ]   \
-//     ...                        | monitor block size
-//    [monitors              ]   /
-
-//    [monitor block size    ]
+//    [monitors[0]           ]   \
+//     ...                        | monitor block size = k
+//    [monitors[k-1]         ]   /
+//    [frame initial esp     ] ( == &monitors[0], initially here)       initial_sp_offset
 //    [byte code index/pointr]                   = bcx()                bcx_offset
 
 //    [pointer to locals     ]                   = locals()             locals_offset
