@@ -29,15 +29,9 @@
  private:
   enum {
     // Intel instructions are byte-aligned.
+    // FIXME for AARCH64
     offset_unit        =  1,
-
-    // Encodes Assembler::disp32_operand vs. Assembler::imm32_operand.
-#ifndef AMD64
-    format_width       =  1
-#else
-    // vs Assembler::narrow_oop_operand.
     format_width       =  2
-#endif
   };
 
 #endif // CPU_AARCH64_VM_RELOCINFO_AARCH64_HPP

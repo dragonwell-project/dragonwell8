@@ -28,12 +28,6 @@
 #include "memory/allocation.hpp"
 
 class Bytes: AllStatic {
- private:
-#ifndef AMD64
-  // Helper function for swap_u8
-  static inline u8   swap_u8_base(u4 x, u4 y);        // compiler-dependent implementation
-#endif // AMD64
-
  public:
   // Returns true if the byte ordering used by Java is different from the native byte ordering
   // of the underlying machine. For example, this is true for Intel x86, but false for Solaris

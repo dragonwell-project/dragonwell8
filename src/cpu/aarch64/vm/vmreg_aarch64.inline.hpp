@@ -27,11 +27,7 @@
 
 inline VMReg RegisterImpl::as_VMReg() {
   if( this==noreg ) return VMRegImpl::Bad();
-#ifdef AMD64
   return VMRegImpl::as_VMReg(encoding() << 1 );
-#else
-  return VMRegImpl::as_VMReg(encoding() );
-#endif // AMD64
 }
 
 inline VMReg FloatRegisterImpl::as_VMReg() {
@@ -50,11 +46,7 @@ inline Register VMRegImpl::as_Register() {
 
   assert( is_Register(), "must be");
   // Yuk
-#ifdef AMD64
   return ::as_Register(value() >> 1);
-#else
-  return ::as_Register(value());
-#endif // AMD64
 }
 
 inline FloatRegister VMRegImpl::as_FloatRegister() {
@@ -65,9 +57,6 @@ inline FloatRegister VMRegImpl::as_FloatRegister() {
 
 inline   bool VMRegImpl::is_concrete() {
   assert(is_reg(), "must be");
-#ifndef AMD64
-  if (is_Register()) return true;
-#endif // AMD64
   return is_even(value());
 }
 

@@ -46,19 +46,11 @@
 
 
 static void pd_fill_to_words(HeapWord* tohw, size_t count, juint value) {
-#ifdef AMD64
   julong* to = (julong*) tohw;
   julong  v  = ((julong) value << 32) | value;
   while (count-- > 0) {
     *to++ = v;
   }
-#else
-  juint* to = (juint*)tohw;
-  count *= HeapWordSize / BytesPerInt;
-  while (count-- > 0) {
-    *to++ = value;
-  }
-#endif // AMD64
 }
 
 static void pd_fill_to_aligned_words(HeapWord* tohw, size_t count, juint value) {
