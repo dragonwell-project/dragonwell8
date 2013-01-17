@@ -52,7 +52,6 @@ define_pd_global(intx, OnStackReplacePercentage,     140);
 define_pd_global(intx, ConditionalMoveLimit,         3);
 define_pd_global(intx, FLOATPRESSURE,                6);
 define_pd_global(intx, FreqInlineSize,               325);
-#ifdef AMD64
 define_pd_global(intx, INTPRESSURE,                  13);
 define_pd_global(intx, InteriorEntryAlignment,       16);
 define_pd_global(intx, NewSizeThreadIncrease, ScaleForWordSize(4*K));
@@ -63,18 +62,6 @@ define_pd_global(intx, CodeCacheExpansionSize,       64*K);
 
 // Ergonomics related flags
 define_pd_global(uint64_t,MaxRAM,                    128ULL*G);
-#else
-define_pd_global(intx, INTPRESSURE,                  6);
-define_pd_global(intx, InteriorEntryAlignment,       4);
-define_pd_global(intx, NewSizeThreadIncrease,        4*K);
-define_pd_global(intx, LoopUnrollLimit,              50);     // Design center runs on 1.3.1
-// InitialCodeCacheSize derived from specjbb2000 run.
-define_pd_global(intx, InitialCodeCacheSize,         2304*K); // Integral multiple of CodeCacheExpansionSize
-define_pd_global(intx, CodeCacheExpansionSize,       32*K);
-
-// Ergonomics related flags
-define_pd_global(uint64_t,MaxRAM,                    4ULL*G);
-#endif // AMD64
 define_pd_global(intx, RegisterCostAreaRatio,        16000);
 
 // Peephole and CISC spilling both break the graph, and so makes the
