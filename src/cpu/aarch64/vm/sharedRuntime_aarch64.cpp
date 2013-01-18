@@ -63,6 +63,7 @@ class SimpleRuntimeFrame {
   };
 };
 
+// FIXME -- this is used by C1
 class RegisterSaver {
  public:
   static OopMap* save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words);

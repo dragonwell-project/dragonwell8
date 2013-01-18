@@ -2394,6 +2394,8 @@ public:
   void store_check_part_1(Register obj);
   void store_check_part_2(Register obj);
 
+  // currently unimplemented
+#if 0
   // C 'boolean' to Java boolean: x == 0 ? 0 : 1
   void c2bool(Register x);
 
@@ -2403,20 +2405,26 @@ public:
   void movbool(Address dst, bool boolconst);
   void movbool(Address dst, Register src);
   void testbool(Register dst);
+#endif
 
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 
   void load_heap_oop(Register dst, Address src);
+
   void load_heap_oop_not_null(Register dst, Address src);
   void store_heap_oop(Address dst, Register src);
 
+  // currently unimplemented
   // Used for storing NULL. All other oop constants should be
   // stored using routines that take a jobject.
   void store_heap_oop_null(Address dst);
 
+  // currently unimplemented
+#if 0
   void load_prototype_header(Register dst, Register src);
+#endif
 
   void store_klass_gap(Register dst, Register src);
 
@@ -2433,18 +2441,39 @@ public:
   void encode_heap_oop_not_null(Register dst, Register src);
   void decode_heap_oop_not_null(Register dst, Register src);
 
+  // currently unimplemented
+#if 0
   void set_narrow_oop(Register dst, jobject obj);
   void set_narrow_oop(Address dst, jobject obj);
   void cmp_narrow_oop(Register dst, jobject obj);
   void cmp_narrow_oop(Address dst, jobject obj);
+#endif
 
   // if heap base register is used - reinit it with the correct value
   void reinit_heapbase();
 
   DEBUG_ONLY(void verify_heapbase(const char* msg);)
 
-  void int3();
+<<<<<<< HEAD
+=======
+  // Int division/remainder for Java
+  // (as idivl, but checks for special case as described in JVM spec.)
+  // returns idivl instruction offset for implicit exception handling
+  int corrected_idivl(Register reg);
 
+  // Long division/remainder for Java
+  // (as idivq, but checks for special case as described in JVM spec.)
+  // returns idivq instruction offset for implicit exception handling
+  int corrected_idivq(Register reg);
+
+  // currently unimplemented
+#if 0
+>>>>>>> fbb75ef... removed lots of redundant code
+  void int3();
+#endif
+
+  // currently unimplemented
+#if 0
   // Long operation macros for a 32bit cpu
   // Long negation for Java
   void lneg(Register hi, Register lo);
@@ -2471,7 +2500,10 @@ public:
 
   // Division by power of 2, rounding towards 0
   void division_with_shift(Register reg, int shift_value);
+#endif
 
+  // unimpelements
+#if 0
   // Compares the top-most stack entries on the FPU stack and sets the eflags as follows:
   //
   // CF (corresponds to C0) if x < y
@@ -2520,17 +2552,26 @@ public:
 
   void push_FPU_state();
   void pop_FPU_state();
+#endif
 
   void push_CPU_state();
+  // unimplemented
+#if 0
   void pop_CPU_state();
+#endif
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
 
+  // unimplemented
+#if 0
   // Callee saved registers handling
   void push_callee_saved_registers();
   void pop_callee_saved_registers();
+#endif
 
+  // unimplemented
+#if 0
   // allocation
   void eden_allocate(
     Register obj,                      // result: pointer to object after successful allocation
@@ -2548,6 +2589,7 @@ public:
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   Register tlab_refill(Label& retry_tlab, Label& try_eden, Label& slow_case); // returns TLS address
+#endif
   void incr_allocated_bytes(Register thread,
                             Register var_size_in_bytes, int con_size_in_bytes,
                             Register t1 = noreg);
@@ -2594,6 +2636,8 @@ public:
                            Register temp_reg,
                            Label& L_success);
 
+  // unimplemented
+#if 0
   // method handles (JSR 292)
   void check_method_handle_type(Register mtype_reg, Register mh_reg,
                                 Register temp_reg,
@@ -2601,17 +2645,24 @@ public:
   void load_method_handle_vmslots(Register vmslots_reg, Register mh_reg,
                                   Register temp_reg);
   void jump_to_method_handle_entry(Register mh_reg, Register temp_reg);
+#endif
   Address argument_address(RegisterOrConstant arg_slot, int extra_slot_offset = 0);
 
 
   //----
+#if 0
+  // method handles (JSR 292)
   void set_word_if_not_zero(Register reg); // sets reg to 1 if not zero, otherwise 0
+#endif
 
   // Debugging
 
   // only if +VerifyOops
   void verify_oop(Register reg, const char* s = "broken oop");
+  // unimplemented
+#if 0
   void verify_oop_addr(Address addr, const char * s = "broken oop addr");
+#endif
 
 // TODO: verify method and klass metadata (compare against vptr?)
   void _verify_method_ptr(Register reg, const char * msg, const char * file, int line) {}
@@ -2631,7 +2682,10 @@ public:
 
   static void debug64(char* msg, int64_t pc, int64_t regs[]);
 
+  // unimplemented
+#if 0
   void os_breakpoint();
+#endif
 
   void untested()                                { stop("untested"); }
 
@@ -2639,7 +2693,10 @@ public:
 
   void should_not_reach_here()                   { stop("should not reach here"); }
 
+  // unimplemented
+#if 0
   void print_CPU_state();
+#endif
 
   // Stack overflow checking
   void bang_stack_with_offset(int offset) {
@@ -2649,9 +2706,12 @@ public:
     ldr(zr, Address(sp, rscratch2));
   }
 
+  // unimplemented
+#if 0
   // Writes to stack successive pages until offset reached to check for
   // stack overflow + shadow pages.  Also, clobbers tmp
   void bang_stack_size(Register size, Register tmp);
+#endif
 
   virtual RegisterOrConstant delayed_value_impl(intptr_t* delayed_value_addr,
                                                 Register tmp,
@@ -2660,6 +2720,8 @@ public:
   // Support for serializing memory accesses between threads
   void serialize_memory(Register thread, Register tmp);
 
+  // unimplemented
+#if 0
   void verify_tlab();
 
   // Biased locking support
@@ -2683,29 +2745,37 @@ public:
 
 
   Condition negate_condition(Condition cond);
+#endif
 
   // Arithmetics
 
   void addptr(Address dst, int32_t src) { Unimplemented(); }
+  // unimplemented
+#if 0
   void addptr(Address dst, Register src);
+#endif
 
   void addptr(Register dst, Address src) { Unimplemented(); }
+  // unimplemented
+#if 0
   void addptr(Register dst, int32_t src);
   void addptr(Register dst, Register src);
+#endif
   void addptr(Register dst, RegisterOrConstant src) { Unimplemented(); }
 
+  // unimplemented
+#if 0
   void andptr(Register dst, int32_t src);
+#endif
   void andptr(Register src1, Register src2) { Unimplemented(); }
 
+  // unimplemented
+#if 0
   // renamed to drag out the casting of address to int32_t/intptr_t
   void cmp32(Register src1, int32_t imm);
 
   void cmp32(Register src1, Address src2);
-
-#ifndef _LP64
-  void cmpoop(Address dst, jobject obj);
-  void cmpoop(Register dst, jobject obj);
-#endif // _LP64
+#endif
 
   void cmpptr(Register src1, Register src2) { Unimplemented(); }
   void cmpptr(Register src1, Address src2);
@@ -2724,10 +2794,16 @@ public:
 
   void notptr(Register dst) { Unimplemented(); }
 
+  // unimplemented
+#if 0
   void shlptr(Register dst, int32_t shift);
+#endif
   void shlptr(Register dst) { Unimplemented(); }
 
+  // unimplemented
+#if 0
   void shrptr(Register dst, int32_t shift);
+#endif
   void shrptr(Register dst) { Unimplemented(); }
 
   void sarptr(Register dst) { Unimplemented(); }
@@ -2736,10 +2812,13 @@ public:
   void subptr(Address dst, int32_t src) { Unimplemented(); }
 
   void subptr(Register dst, Address src) { Unimplemented(); }
+  // unimplemented
+#if 0
   void subptr(Register dst, int32_t src);
   // Force generation of a 4 byte immediate value even if it fits into 8bit
   void subptr_imm32(Register dst, int32_t src);
   void subptr(Register dst, Register src);
+#endif
   void subptr(Register dst, RegisterOrConstant src) { Unimplemented(); }
 
   void sbbptr(Address dst, int32_t src) { Unimplemented(); }
@@ -2752,6 +2831,7 @@ public:
 
 
 
+  // unimplemented
 #if 0
 
   // Perhaps we should implement this one
@@ -2776,11 +2856,14 @@ public:
 
   // Jumps
 
+  // unimplemented
+#if 0
   // NOTE: these jumps tranfer to the effective address of dst NOT
   // the address contained by dst. This is because this is more natural
   // for jumps/calls.
   void jump(Address dst);
   void jump_cc(Condition cc, Address dst);
+#endif
 
   // Floating
 
@@ -2797,13 +2880,14 @@ public:
 
   void fmul_s(Address src)        { Unimplemented(); }
 
-  void ldmxcsr(Address src) { Unimplemented(); }
-
+  // unimplemented
+#if 0
   // compute pow(x,y) and exp(x) with x86 instructions. Don't cover
   // all corner cases and may result in NaN and require fallback to a
   // runtime call.
   void fast_pow();
   void fast_exp();
+#endif
 
   // computes exp(x). Fallback to runtime call included.
   void exp_with_fallback(int num_fpu_regs_in_use) { Unimplemented(); }
@@ -2814,18 +2898,22 @@ public:
 
   // Data
 
+  // unimplemented
+#if 0
   void pushoop(jobject obj);
+#endif
 
   // sign extend as need a l to ptr sized element
   void movl2ptr(Register dst, Address src) { Unimplemented(); }
   void movl2ptr(Register dst, Register src) { Unimplemented(); }
 
+  // unimplemented
+#if 0
   // C2 compiled method's prolog code.
   void verified_entry(int framesize, bool stack_bang, bool fp_mode_24b);
+#endif
 
 #undef VIRTUAL
-
-  // MacroAssembler routines found definitely to be needed
 
   // Stack push and pop individual 64 bit registers
   void push(Register src);

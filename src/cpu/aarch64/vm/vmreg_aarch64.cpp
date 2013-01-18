@@ -45,6 +45,6 @@ void VMRegImpl::set_regName() {
   }
 
   for ( ; i < ConcreteRegisterImpl::number_of_registers ; i ++ ) {
-    regName[i] = "NON-GPR-FPR-XMM";
+    regName[i] = "NON-GPR-FPR";
   }
 }

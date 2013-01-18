@@ -64,11 +64,7 @@ define_pd_global(intx, PreInflateSpin,           10);
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, false);
 
-#ifdef _ALLBSD_SOURCE
-define_pd_global(bool, UseMembar,            true);
-#else
 define_pd_global(bool, UseMembar,            false);
-#endif
 
 // GC Ergo Flags
 define_pd_global(intx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread

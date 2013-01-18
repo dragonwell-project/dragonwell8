@@ -26,16 +26,7 @@
 #include "asm/assembler.hpp"
 #include "asm/register.hpp"
 #include "register_aarch64.hpp"
-#ifdef TARGET_ARCH_MODEL_x86_32
-# include "interp_masm_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
-# include "interp_masm_x86_64.hpp"
-#endif
-
-#ifdef TARGET_ARCH_MODEL_aarch64
 # include "interp_masm_aarch64.hpp"
-#endif
 
 REGISTER_DEFINITION(Register, r0);
 REGISTER_DEFINITION(Register, r1);

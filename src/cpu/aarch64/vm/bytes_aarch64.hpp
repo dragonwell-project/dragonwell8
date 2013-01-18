@@ -66,21 +66,9 @@ class Bytes: AllStatic {
 
 
 // The following header contains the implementations of swap_u2, swap_u4, and swap_u8[_base]
-#ifdef TARGET_OS_ARCH_linux_x86
-# include "bytes_linux_x86.inline.hpp"
-#endif
+
 #ifdef TARGET_OS_ARCH_linux_aarch64
 # include "bytes_linux_aarch64.inline.hpp"
 #endif
-#ifdef TARGET_OS_ARCH_solaris_x86
-# include "bytes_solaris_x86.inline.hpp"
-#endif
-#ifdef TARGET_OS_ARCH_windows_x86
-# include "bytes_windows_x86.inline.hpp"
-#endif
-#ifdef TARGET_OS_ARCH_bsd_x86
-# include "bytes_bsd_x86.inline.hpp"
-#endif
-
 
 #endif // CPU_AARCH64_VM_BYTES_AARCH64_HPP

@@ -26,7 +26,7 @@
 #ifndef _JAVASOFT_JNI_MD_H_
 #define _JAVASOFT_JNI_MD_H_
 
-#if defined(SOLARIS) || defined(LINUX) || defined(_ALLBSD_SOURCE)
+#if defined(LINUX)
 
 #if defined(__GNUC__) && (__GNUC__ > 4) || (__GNUC__ == 4) && (__GNUC_MINOR__ > 2)
   #define JNIEXPORT     __attribute__((visibility("default")))
@@ -49,13 +49,6 @@
   typedef long long jlong;
 #endif
 
-#else
-  #define JNIEXPORT __declspec(dllexport)
-  #define JNIIMPORT __declspec(dllimport)
-  #define JNICALL __stdcall
-
-  typedef int jint;
-  typedef __int64 jlong;
 #endif
 
 typedef signed char jbyte;

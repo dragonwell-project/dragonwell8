@@ -47,7 +47,6 @@ class x86 {
  private:
   static address _get_previous_fp_entry;
   static address _get_previous_sp_entry;
-  static address _verify_mxcsr_entry;
 
   static address _f2i_fixup;
   static address _f2l_fixup;
@@ -58,7 +57,6 @@ class x86 {
   static address _float_sign_flip;
   static address _double_sign_mask;
   static address _double_sign_flip;
-  static address _mxcsr_std;
 
  public:
 
@@ -70,11 +68,6 @@ class x86 {
   static address get_previous_sp_entry()
   {
     return _get_previous_sp_entry;
-  }
-
-  static address verify_mxcsr_entry()
-  {
-    return _verify_mxcsr_entry;
   }
 
   static address f2i_fixup()
@@ -115,11 +108,6 @@ class x86 {
   static address double_sign_flip()
   {
     return _double_sign_flip;
-  }
-
-  static address mxcsr_std()
-  {
-    return _mxcsr_std;
   }
 };
 

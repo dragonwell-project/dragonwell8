@@ -27,7 +27,7 @@
 
  public:
   static Address::ScaleFactor stackElementScale() {
-    return NOT_LP64(Address::times_4) LP64_ONLY(Address::times_8);
+    return Address::times_8;
   }
 
   // Offset from rsp (which points to the last stack element)

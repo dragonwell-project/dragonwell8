@@ -39,15 +39,6 @@
 #ifdef TARGET_OS_FAMILY_linux
 # include "thread_linux.inline.hpp"
 #endif
-#ifdef TARGET_OS_FAMILY_solaris
-# include "thread_solaris.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_windows
-# include "thread_windows.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_bsd
-# include "thread_bsd.inline.hpp"
-#endif
 
 
 // Implementation of InterpreterMacroAssembler
@@ -165,7 +156,7 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
 //      Rsub_klass: subklass
 //
 // Kills:
-//      rcx, rdi
+//      r2, r5
 void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
                                                   Label& ok_is_subtype) {
   assert(Rsub_klass != r0, "r0 holds superklass");
@@ -425,7 +416,7 @@ void InterpreterMacroAssembler::remove_activation(
   // objects has been unlocked)
   bind(unlocked);
 
-  // rax: Might contain return value
+  // r0: Might contain return value
 
   // Check that all monitors are unlocked
   {
@@ -512,7 +503,7 @@ void InterpreterMacroAssembler::remove_activation(
 //      c_rarg1: BasicObjectLock to be used for locking
 //
 // Kills:
-//      rax
+//      r0
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, .. (param regs)
 //      rscratch1, rscratch2 (scratch regs)
 void InterpreterMacroAssembler::lock_object(Register lock_reg)
@@ -612,7 +603,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 //      c_rarg1: BasicObjectLock for lock
 //
 // Kills:
-//      rax
+//      r0
 //      c_rarg0, c_rarg1, c_rarg2, c_rarg3, ... (param regs)
 //      rscratch1, rscratch2 (scratch regs)
 void InterpreterMacroAssembler::unlock_object(Register lock_reg)

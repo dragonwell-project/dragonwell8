@@ -41,15 +41,6 @@
 #ifdef TARGET_OS_FAMILY_linux
 # include "thread_linux.inline.hpp"
 #endif
-#ifdef TARGET_OS_FAMILY_solaris
-# include "thread_solaris.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_windows
-# include "thread_windows.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_bsd
-# include "thread_bsd.inline.hpp"
-#endif
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
@@ -655,19 +646,6 @@ class StubGenerator: public StubCodeGenerator {
 
   address generate_get_previous_sp() { return 0; }
 
-  //----------------------------------------------------------------------------------------------------
-  // Support for void verify_mxcsr()
-  //
-  // This routine is used with -Xcheck:jni to verify that native
-  // JNI code does not return to Java code without restoring the
-  // MXCSR register to our expected state.
-
-  // NOTE: on x86 this is called from the cpp and template
-  // interpreters and internally from the call stub -- we can probbaly
-  // do without any equivalent for aarch64 for now at least
-
-  address generate_verify_mxcsr() { Unimplemented(); return 0; }
-
   // NOTE: these fixup routines appear only to be called from the
   // opto code (they are mentioned in x86_64.ad) so we can do
   // without them for now on aarch64
@@ -679,11 +657,6 @@ class StubGenerator: public StubCodeGenerator {
   address generate_d2i_fixup() { Unimplemented(); return 0; }
 
   address generate_d2l_fixup() { Unimplemented(); return 0; }
-
-  // NOTE: this appears only to be used internal to the x86 call stub
-  // to support the mxcsr code so we can do without it for now on aarch64
-
-  address generate_fp_mask(const char *stub_name, int64_t mask) { Unimplemented(); return 0; }
 
   // The following routine generates a subroutine to throw an
   // asynchronous UnknownError when an unsafe access gets a fault that

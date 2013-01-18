@@ -31,15 +31,6 @@
 #ifdef TARGET_OS_FAMILY_linux
 # include "os_linux.inline.hpp"
 #endif
-#ifdef TARGET_OS_FAMILY_solaris
-# include "os_solaris.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_windows
-# include "os_windows.inline.hpp"
-#endif
-#ifdef TARGET_OS_FAMILY_bsd
-# include "os_bsd.inline.hpp"
-#endif
 
 #include "../../../../../simulator/simulator.hpp"
 
@@ -48,7 +39,6 @@ int VM_Version::_model;
 int VM_Version::_stepping;
 int VM_Version::_cpuFeatures;
 const char*           VM_Version::_features_str = "";
-VM_Version::CpuidInfo VM_Version::_cpuid_info   = { 0, };
 
 static BufferBlob* stub_blob;
 static const int stub_size = 550;
