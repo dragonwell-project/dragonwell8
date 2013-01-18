@@ -22,25 +22,18 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_OS_LINUX_X86_INLINE_HPP
-#define OS_CPU_LINUX_X86_VM_OS_LINUX_X86_INLINE_HPP
+#ifndef OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_INLINE_HPP
+#define OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_INLINE_HPP
 
 #include "runtime/os.hpp"
 
 // See http://www.technovelty.org/code/c/reading-rdtsc.htl for details
 inline jlong os::rdtsc() {
-#ifndef AMD64
-  // 64 bit result in edx:eax
-  uint64_t res;
-  __asm__ __volatile__ ("rdtsc" : "=A" (res));
-  return (jlong)res;
-#else
   uint64_t res;
   uint32_t ts1, ts2;
   __asm__ __volatile__ ("rdtsc" : "=a" (ts1), "=d" (ts2));
   res = ((uint64_t)ts1 | (uint64_t)ts2 << 32);
   return (jlong)res;
-#endif // AMD64
 }
 
-#endif // OS_CPU_LINUX_X86_VM_OS_LINUX_X86_INLINE_HPP
+#endif // OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_INLINE_HPP

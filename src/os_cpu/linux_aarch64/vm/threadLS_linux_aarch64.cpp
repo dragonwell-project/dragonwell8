@@ -52,40 +52,6 @@
 // MADV_DONTNEED on Linux keeps the virtual memory mapping, but zaps the
 // physical memory page (i.e. similar to MADV_FREE on Solaris).
 
-#if !defined(AMD64) && !defined(MINIMIZE_RAM_USAGE)
-Thread* ThreadLocalStorage::_sp_map[1UL << (SP_BITLENGTH - PAGE_SHIFT)];
-
-void ThreadLocalStorage::generate_code_for_get_thread() {
-    // nothing we can do here for user-level thread
-}
-
-void ThreadLocalStorage::pd_init() {
-  assert(align_size_down(os::vm_page_size(), PAGE_SIZE) == os::vm_page_size(),
-         "page size must be multiple of PAGE_SIZE");
-}
-
-void ThreadLocalStorage::pd_set_thread(Thread* thread) {
-  os::thread_local_storage_at_put(ThreadLocalStorage::thread_index(), thread);
-  address stack_top = os::current_stack_base();
-  size_t stack_size = os::current_stack_size();
-
-  for (address p = stack_top - stack_size; p < stack_top; p += PAGE_SIZE) {
-    // pd_set_thread() is called with non-NULL value when a new thread is
-    // created/attached, or with NULL value when a thread is about to exit.
-    // If both "thread" and the corresponding _sp_map[] entry are non-NULL,
-    // they should have the same value. Otherwise it might indicate that the
-    // stack page is shared by multiple threads. However, a more likely cause
-    // for this assertion to fail is that an attached thread exited without
-    // detaching itself from VM, which is a program error and could cause VM
-    // to crash.
-    assert(thread == NULL || _sp_map[(uintptr_t)p >> PAGE_SHIFT] == NULL ||
-           thread == _sp_map[(uintptr_t)p >> PAGE_SHIFT],
-           "thread exited without detaching from VM??");
-    _sp_map[(uintptr_t)p >> PAGE_SHIFT] = thread;
-  }
-}
-#else
-
 void ThreadLocalStorage::generate_code_for_get_thread() {
     // nothing we can do here for user-level thread
 }
@@ -96,4 +62,3 @@ void ThreadLocalStorage::pd_init() {
 void ThreadLocalStorage::pd_set_thread(Thread* thread) {
   os::thread_local_storage_at_put(ThreadLocalStorage::thread_index(), thread);
 }
-#endif // !AMD64 && !MINIMIZE_RAM_USAGE

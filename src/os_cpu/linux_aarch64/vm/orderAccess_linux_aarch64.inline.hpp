@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_ORDERACCESS_LINUX_X86_INLINE_HPP
-#define OS_CPU_LINUX_X86_VM_ORDERACCESS_LINUX_X86_INLINE_HPP
+#ifndef OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP
+#define OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP
 
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
@@ -38,11 +38,7 @@ inline void OrderAccess::storeload()  { fence(); }
 
 inline void OrderAccess::acquire() {
   volatile intptr_t local_dummy;
-#ifdef AMD64
   __asm__ volatile ("movq 0(%%rsp), %0" : "=r" (local_dummy) : : "memory");
-#else
-  __asm__ volatile ("movl 0(%%esp),%0" : "=r" (local_dummy) : : "memory");
-#endif // AMD64
 }
 
 inline void OrderAccess::release() {
@@ -54,11 +50,7 @@ inline void OrderAccess::release() {
 inline void OrderAccess::fence() {
   if (os::is_MP()) {
     // always use locked addl since mfence is sometimes expensive
-#ifdef AMD64
     __asm__ volatile ("lock; addl $0,0(%%rsp)" : : : "cc", "memory");
-#else
-    __asm__ volatile ("lock; addl $0,0(%%esp)" : : : "cc", "memory");
-#endif
   }
 }
 
@@ -111,14 +103,7 @@ inline void     OrderAccess::store_fence(jint*   p, jint   v) {
 }
 
 inline void     OrderAccess::store_fence(jlong*   p, jlong   v) {
-#ifdef AMD64
-  __asm__ __volatile__ ("xchgq (%2), %0"
-                        : "=r" (v)
-                        : "0" (v), "r" (p)
-                        : "memory");
-#else
   *p = v; fence();
-#endif // AMD64
 }
 
 // AMD64 copied the bodies for the the signed version. 32bit did this. As long as the
@@ -131,25 +116,17 @@ inline void     OrderAccess::store_fence(jfloat*  p, jfloat  v) { *p = v; fence(
 inline void     OrderAccess::store_fence(jdouble* p, jdouble v) { *p = v; fence(); }
 
 inline void     OrderAccess::store_ptr_fence(intptr_t* p, intptr_t v) {
-#ifdef AMD64
   __asm__ __volatile__ ("xchgq (%2), %0"
                         : "=r" (v)
                         : "0" (v), "r" (p)
                         : "memory");
-#else
-  store_fence((jint*)p, (jint)v);
-#endif // AMD64
 }
 
 inline void     OrderAccess::store_ptr_fence(void**    p, void*    v) {
-#ifdef AMD64
   __asm__ __volatile__ ("xchgq (%2), %0"
                         : "=r" (v)
                         : "0" (v), "r" (p)
                         : "memory");
-#else
-  store_fence((jint*)p, (jint)v);
-#endif // AMD64
 }
 
 // Must duplicate definitions instead of calling store_fence because we don't want to cast away volatile.
@@ -173,14 +150,10 @@ inline void     OrderAccess::release_store_fence(volatile jint*   p, jint   v) {
 }
 
 inline void     OrderAccess::release_store_fence(volatile jlong*   p, jlong   v) {
-#ifdef AMD64
   __asm__ __volatile__ (  "xchgq (%2), %0"
                           : "=r" (v)
                           : "0" (v), "r" (p)
                           : "memory");
-#else
-  release_store(p, v); fence();
-#endif // AMD64
 }
 
 inline void     OrderAccess::release_store_fence(volatile jubyte*  p, jubyte  v) { release_store_fence((volatile jbyte*)p,  (jbyte)v);  }
@@ -192,24 +165,16 @@ inline void     OrderAccess::release_store_fence(volatile jfloat*  p, jfloat  v)
 inline void     OrderAccess::release_store_fence(volatile jdouble* p, jdouble v) { *p = v; fence(); }
 
 inline void     OrderAccess::release_store_ptr_fence(volatile intptr_t* p, intptr_t v) {
-#ifdef AMD64
   __asm__ __volatile__ (  "xchgq (%2), %0"
                           : "=r" (v)
                           : "0" (v), "r" (p)
                           : "memory");
-#else
-  release_store_fence((volatile jint*)p, (jint)v);
-#endif // AMD64
 }
 inline void     OrderAccess::release_store_ptr_fence(volatile void*     p, void*    v) {
-#ifdef AMD64
   __asm__ __volatile__ (  "xchgq (%2), %0"
                           : "=r" (v)
                           : "0" (v), "r" (p)
                           : "memory");
-#else
-  release_store_fence((volatile jint*)p, (jint)v);
-#endif // AMD64
 }
 
-#endif // OS_CPU_LINUX_X86_VM_ORDERACCESS_LINUX_X86_INLINE_HPP
+#endif // OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP

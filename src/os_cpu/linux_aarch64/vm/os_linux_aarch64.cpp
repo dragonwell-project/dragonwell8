@@ -82,29 +82,15 @@
 # include <ucontext.h>
 # include <fpu_control.h>
 
-#ifdef AMD64
 #define REG_SP REG_RSP
 #define REG_PC REG_RIP
 #define REG_FP REG_RBP
 #define SPELL_REG_SP "rsp"
 #define SPELL_REG_FP "rbp"
-#else
-#define REG_SP REG_UESP
-#define REG_PC REG_EIP
-#define REG_FP REG_EBP
-#define SPELL_REG_SP "esp"
-#define SPELL_REG_FP "ebp"
-#endif // AMD64
 
 address os::current_stack_pointer() {
-#ifdef SPARC_WORKS
-  register void *esp;
-  __asm__("mov %%"SPELL_REG_SP", %0":"=r"(esp));
-  return (address) ((char*)esp + sizeof(long)*2);
-#else
   register void *esp __asm__ (SPELL_REG_SP);
   return (address) esp;
-#endif
 }
 
 char* os::non_memory_address_word() {
@@ -196,12 +182,7 @@ frame os::get_sender_for_C_frame(frame* fr) {
 }
 
 intptr_t* _get_previous_fp() {
-#ifdef SPARC_WORKS
-  register intptr_t **ebp;
-  __asm__("mov %%"SPELL_REG_FP", %0":"=r"(ebp));
-#else
   register intptr_t **ebp __asm__ (SPELL_REG_FP);
-#endif
   return (intptr_t*) *ebp;   // we want what it points to.
 }
 
@@ -228,10 +209,8 @@ enum {
 
 extern "C" void Fetch32PFI () ;
 extern "C" void Fetch32Resume () ;
-#ifdef AMD64
 extern "C" void FetchNPFI () ;
 extern "C" void FetchNResume () ;
-#endif // AMD64
 
 extern "C" JNIEXPORT int
 JVM_handle_linux_signal(int sig,
@@ -299,12 +278,10 @@ JVM_handle_linux_signal(int sig,
        uc->uc_mcontext.gregs[REG_PC] = intptr_t(Fetch32Resume) ;
        return 1 ;
     }
-#ifdef AMD64
     if (pc == (address) FetchNPFI) {
        uc->uc_mcontext.gregs[REG_PC] = intptr_t (FetchNResume) ;
        return 1 ;
     }
-#endif // AMD64
 
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {
@@ -366,7 +343,6 @@ JVM_handle_linux_signal(int sig,
       }
       else
 
-#ifdef AMD64
       if (sig == SIGFPE  &&
           (info->si_code == FPE_INTDIV || info->si_code == FPE_FLTDIV)) {
         stub =
@@ -375,33 +351,6 @@ JVM_handle_linux_signal(int sig,
                                               pc,
                                               SharedRuntime::
                                               IMPLICIT_DIVIDE_BY_ZERO);
-#else
-      if (sig == SIGFPE /* && info->si_code == FPE_INTDIV */) {
-        // HACK: si_code does not work on linux 2.2.12-20!!!
-        int op = pc[0];
-        if (op == 0xDB) {
-          // FIST
-          // TODO: The encoding of D2I in i486.ad can cause an exception
-          // prior to the fist instruction if there was an invalid operation
-          // pending. We want to dismiss that exception. From the win_32
-          // side it also seems that if it really was the fist causing
-          // the exception that we do the d2i by hand with different
-          // rounding. Seems kind of weird.
-          // NOTE: that we take the exception at the NEXT floating point instruction.
-          assert(pc[0] == 0xDB, "not a FIST opcode");
-          assert(pc[1] == 0x14, "not a FIST opcode");
-          assert(pc[2] == 0x24, "not a FIST opcode");
-          return true;
-        } else if (op == 0xF7) {
-          // IDIV
-          stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_DIVIDE_BY_ZERO);
-        } else {
-          // TODO: handle more cases if we are using other x86 instructions
-          //   that can generate SIGFPE signal on linux.
-          tty->print_cr("unknown opcode 0x%X with SIGFPE.", op);
-          fatal("please update this code.");
-        }
-#endif // AMD64
       } else if (sig == SIGSEGV &&
                !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
           // Determination of interpreter/vtable stub/compiled code null exception
@@ -433,85 +382,6 @@ JVM_handle_linux_signal(int sig,
       return true;
     }
   }
-
-#ifndef AMD64
-  // Execution protection violation
-  //
-  // This should be kept as the last step in the triage.  We don't
-  // have a dedicated trap number for a no-execute fault, so be
-  // conservative and allow other handlers the first shot.
-  //
-  // Note: We don't test that info->si_code == SEGV_ACCERR here.
-  // this si_code is so generic that it is almost meaningless; and
-  // the si_code for this condition may change in the future.
-  // Furthermore, a false-positive should be harmless.
-  if (UnguardOnExecutionViolation > 0 &&
-      (sig == SIGSEGV || sig == SIGBUS) &&
-      uc->uc_mcontext.gregs[REG_TRAPNO] == trap_page_fault) {
-    int page_size = os::vm_page_size();
-    address addr = (address) info->si_addr;
-    address pc = os::Linux::ucontext_get_pc(uc);
-    // Make sure the pc and the faulting address are sane.
-    //
-    // If an instruction spans a page boundary, and the page containing
-    // the beginning of the instruction is executable but the following
-    // page is not, the pc and the faulting address might be slightly
-    // different - we still want to unguard the 2nd page in this case.
-    //
-    // 15 bytes seems to be a (very) safe value for max instruction size.
-    bool pc_is_near_addr =
-      (pointer_delta((void*) addr, (void*) pc, sizeof(char)) < 15);
-    bool instr_spans_page_boundary =
-      (align_size_down((intptr_t) pc ^ (intptr_t) addr,
-                       (intptr_t) page_size) > 0);
-
-    if (pc == addr || (pc_is_near_addr && instr_spans_page_boundary)) {
-      static volatile address last_addr =
-        (address) os::non_memory_address_word();
-
-      // In conservative mode, don't unguard unless the address is in the VM
-      if (addr != last_addr &&
-          (UnguardOnExecutionViolation > 1 || os::address_is_in_vm(addr))) {
-
-        // Set memory to RWX and retry
-        address page_start =
-          (address) align_size_down((intptr_t) addr, (intptr_t) page_size);
-        bool res = os::protect_memory((char*) page_start, page_size,
-                                      os::MEM_PROT_RWX);
-
-        if (PrintMiscellaneous && Verbose) {
-          char buf[256];
-          jio_snprintf(buf, sizeof(buf), "Execution protection violation "
-                       "at " INTPTR_FORMAT
-                       ", unguarding " INTPTR_FORMAT ": %s, errno=%d", addr,
-                       page_start, (res ? "success" : "failed"), errno);
-          tty->print_raw_cr(buf);
-        }
-        stub = pc;
-
-        // Set last_addr so if we fault again at the same address, we don't end
-        // up in an endless loop.
-        //
-        // There are two potential complications here.  Two threads trapping at
-        // the same address at the same time could cause one of the threads to
-        // think it already unguarded, and abort the VM.  Likely very rare.
-        //
-        // The other race involves two threads alternately trapping at
-        // different addresses and failing to unguard the page, resulting in
-        // an endless loop.  This condition is probably even more unlikely than
-        // the first.
-        //
-        // Although both cases could be avoided by using locks or thread local
-        // last_addr, these solutions are unnecessary complication: this
-        // handler is a best-effort safety net, not a complete solution.  It is
-        // disabled by default and should only be used as a workaround in case
-        // we missed any no-execute-unsafe VM code.
-
-        last_addr = addr;
-      }
-    }
-  }
-#endif // !AMD64
 
   if (stub != NULL) {
     // save all thread context in case we need to restore it
@@ -548,131 +418,37 @@ JVM_handle_linux_signal(int sig,
 }
 
 void os::Linux::init_thread_fpu_state(void) {
-#ifndef AMD64
-  // set fpu to 53 bit precision
-  set_fpu_control_word(0x27f);
-#endif // !AMD64
 }
 
 int os::Linux::get_fpu_control_word(void) {
-#ifdef AMD64
   return 0;
-#else
-  int fpu_control;
-  _FPU_GETCW(fpu_control);
-  return fpu_control & 0xffff;
-#endif // AMD64
 }
 
 void os::Linux::set_fpu_control_word(int fpu_control) {
-#ifndef AMD64
-  _FPU_SETCW(fpu_control);
-#endif // !AMD64
 }
 
 // Check that the linux kernel version is 2.4 or higher since earlier
 // versions do not support SSE without patches.
 bool os::supports_sse() {
-#ifdef AMD64
   return true;
-#else
-  struct utsname uts;
-  if( uname(&uts) != 0 ) return false; // uname fails?
-  char *minor_string;
-  int major = strtol(uts.release,&minor_string,10);
-  int minor = strtol(minor_string+1,NULL,10);
-  bool result = (major > 2 || (major==2 && minor >= 4));
-#ifndef PRODUCT
-  if (PrintMiscellaneous && Verbose) {
-    tty->print("OS version is %d.%d, which %s support SSE/SSE2\n",
-               major,minor, result ? "DOES" : "does NOT");
-  }
-#endif
-  return result;
-#endif // AMD64
 }
 
 bool os::is_allocatable(size_t bytes) {
-#ifdef AMD64
-  // unused on amd64?
   return true;
-#else
-
-  if (bytes < 2 * G) {
-    return true;
-  }
-
-  char* addr = reserve_memory(bytes, NULL);
-
-  if (addr != NULL) {
-    release_memory(addr, bytes);
-  }
-
-  return addr != NULL;
-#endif // AMD64
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // thread stack
 
-#ifdef AMD64
 size_t os::Linux::min_stack_allowed  = 64 * K;
 
 // amd64: pthread on amd64 is always in floating stack mode
 bool os::Linux::supports_variable_stack_size() {  return true; }
-#else
-size_t os::Linux::min_stack_allowed  =  (48 DEBUG_ONLY(+4))*K;
-
-#ifdef __GNUC__
-#define GET_GS() ({int gs; __asm__ volatile("movw %%gs, %w0":"=q"(gs)); gs&0xffff;})
-#endif
-
-// Test if pthread library can support variable thread stack size. LinuxThreads
-// in fixed stack mode allocates 2M fixed slot for each thread. LinuxThreads
-// in floating stack mode and NPTL support variable stack size.
-bool os::Linux::supports_variable_stack_size() {
-  if (os::Linux::is_NPTL()) {
-     // NPTL, yes
-     return true;
-
-  } else {
-    // Note: We can't control default stack size when creating a thread.
-    // If we use non-default stack size (pthread_attr_setstacksize), both
-    // floating stack and non-floating stack LinuxThreads will return the
-    // same value. This makes it impossible to implement this function by
-    // detecting thread stack size directly.
-    //
-    // An alternative approach is to check %gs. Fixed-stack LinuxThreads
-    // do not use %gs, so its value is 0. Floating-stack LinuxThreads use
-    // %gs (either as LDT selector or GDT selector, depending on kernel)
-    // to access thread specific data.
-    //
-    // Note that %gs is a reserved glibc register since early 2001, so
-    // applications are not allowed to change its value (Ulrich Drepper from
-    // Redhat confirmed that all known offenders have been modified to use
-    // either %fs or TSD). In the worst case scenario, when VM is embedded in
-    // a native application that plays with %gs, we might see non-zero %gs
-    // even LinuxThreads is running in fixed stack mode. As the result, we'll
-    // return true and skip _thread_safety_check(), so we may not be able to
-    // detect stack-heap collisions. But otherwise it's harmless.
-    //
-#ifdef __GNUC__
-    return (GET_GS() != 0);
-#else
-    return false;
-#endif
-  }
-}
-#endif // AMD64
 
 // return default stack size for thr_type
 size_t os::Linux::default_stack_size(os::ThreadType thr_type) {
   // default stack size (compiler thread needs larger stack)
-#ifdef AMD64
   size_t s = (thr_type == os::compiler_thread ? 4 * M : 1 * M);
-#else
-  size_t s = (thr_type == os::compiler_thread ? 2 * M : 512 * K);
-#endif // AMD64
   return s;
 }
 
@@ -769,7 +545,6 @@ void os::print_context(outputStream *st, void *context) {
 
   ucontext_t *uc = (ucontext_t*)context;
   st->print_cr("Registers:");
-#ifdef AMD64
   st->print(  "RAX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RAX]);
   st->print(", RBX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RBX]);
   st->print(", RCX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RCX]);
@@ -796,21 +571,6 @@ void os::print_context(outputStream *st, void *context) {
   st->print(", ERR=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_ERR]);
   st->cr();
   st->print("  TRAPNO=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_TRAPNO]);
-#else
-  st->print(  "EAX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EAX]);
-  st->print(", EBX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EBX]);
-  st->print(", ECX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_ECX]);
-  st->print(", EDX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EDX]);
-  st->cr();
-  st->print(  "ESP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_UESP]);
-  st->print(", EBP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EBP]);
-  st->print(", ESI=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_ESI]);
-  st->print(", EDI=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EDI]);
-  st->cr();
-  st->print(  "EIP=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EIP]);
-  st->print(", EFLAGS=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_EFL]);
-  st->print(", CR2=" INTPTR_FORMAT, uc->uc_mcontext.cr2);
-#endif // AMD64
   st->cr();
   st->cr();
 
@@ -841,7 +601,6 @@ void os::print_register_info(outputStream *st, void *context) {
 
   // this is only for the "general purpose" registers
 
-#ifdef AMD64
   st->print("RAX="); print_location(st, uc->uc_mcontext.gregs[REG_RAX]);
   st->print("RBX="); print_location(st, uc->uc_mcontext.gregs[REG_RBX]);
   st->print("RCX="); print_location(st, uc->uc_mcontext.gregs[REG_RCX]);
@@ -858,32 +617,15 @@ void os::print_register_info(outputStream *st, void *context) {
   st->print("R13="); print_location(st, uc->uc_mcontext.gregs[REG_R13]);
   st->print("R14="); print_location(st, uc->uc_mcontext.gregs[REG_R14]);
   st->print("R15="); print_location(st, uc->uc_mcontext.gregs[REG_R15]);
-#else
-  st->print("EAX="); print_location(st, uc->uc_mcontext.gregs[REG_EAX]);
-  st->print("EBX="); print_location(st, uc->uc_mcontext.gregs[REG_EBX]);
-  st->print("ECX="); print_location(st, uc->uc_mcontext.gregs[REG_ECX]);
-  st->print("EDX="); print_location(st, uc->uc_mcontext.gregs[REG_EDX]);
-  st->print("ESP="); print_location(st, uc->uc_mcontext.gregs[REG_ESP]);
-  st->print("EBP="); print_location(st, uc->uc_mcontext.gregs[REG_EBP]);
-  st->print("ESI="); print_location(st, uc->uc_mcontext.gregs[REG_ESI]);
-  st->print("EDI="); print_location(st, uc->uc_mcontext.gregs[REG_EDI]);
-#endif // AMD64
 
   st->cr();
 }
 
 void os::setup_fpu() {
-#ifndef AMD64
-  address fpu_cntrl = StubRoutines::addr_fpu_cntrl_wrd_std();
-  __asm__ volatile (  "fldcw (%0)" :
-                      : "r" (fpu_cntrl) : "memory");
-#endif // !AMD64
 }
 
 #ifndef PRODUCT
 void os::verify_stack_alignment() {
-#ifdef AMD64
   assert(((intptr_t)os::current_stack_pointer() & (StackAlignmentInBytes-1)) == 0, "incorrect stack alignment");
-#endif
 }
 #endif

@@ -22,6 +22,9 @@
  *
  */
 
+#ifndef OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP
+
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "assembler_aarch64.inline.hpp"
@@ -56,3 +59,4 @@ void MacroAssembler::get_thread(Register dst) {
   pop(saved_regs, sp);
 }
 
+#endif // OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP

@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_VMSTRUCTS_LINUX_X86_HPP
-#define OS_CPU_LINUX_X86_VM_VMSTRUCTS_LINUX_X86_HPP
+#ifndef OS_CPU_LINUX_AARCH64_VM_VMSTRUCTS_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_VM_VMSTRUCTS_LINUX_AARCH64_HPP
 
 // These are the OS and CPU-specific fields, types and integer
 // constants required by the Serviceability Agent. This file is
@@ -62,4 +62,4 @@
   /* This must be the last entry, and must be present */                \
   last_entry()
 
-#endif // OS_CPU_LINUX_X86_VM_VMSTRUCTS_LINUX_X86_HPP
+#endif // OS_CPU_LINUX_AARCH64_VM_VMSTRUCTS_LINUX_AARCH64_HPP

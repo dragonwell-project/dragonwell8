@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_ATOMIC_LINUX_X86_INLINE_HPP
-#define OS_CPU_LINUX_X86_VM_ATOMIC_LINUX_X86_INLINE_HPP
+#ifndef OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_INLINE_HPP
+#define OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_INLINE_HPP
 
 #include "orderAccess_linux_aarch64.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -100,7 +100,6 @@ inline jint     Atomic::cmpxchg    (jint     exchange_value, volatile jint*     
   return exchange_value;
 }
 
-#ifdef AMD64
 inline void Atomic::store    (jlong    store_value, jlong*    dest) { *dest = store_value; }
 inline void Atomic::store    (jlong    store_value, volatile jlong*    dest) { *dest = store_value; }
 
@@ -161,61 +160,4 @@ inline void*    Atomic::cmpxchg_ptr(void*    exchange_value, volatile void*     
 
 inline jlong Atomic::load(volatile jlong* src) { return *src; }
 
-#else // !AMD64
-
-inline intptr_t Atomic::add_ptr(intptr_t add_value, volatile intptr_t* dest) {
-  return (intptr_t)Atomic::add((jint)add_value, (volatile jint*)dest);
-}
-
-inline void*    Atomic::add_ptr(intptr_t add_value, volatile void*     dest) {
-  return (void*)Atomic::add((jint)add_value, (volatile jint*)dest);
-}
-
-
-inline void Atomic::inc_ptr(volatile intptr_t* dest) {
-  inc((volatile jint*)dest);
-}
-
-inline void Atomic::dec_ptr(volatile intptr_t* dest) {
-  dec((volatile jint*)dest);
-}
-
-inline intptr_t Atomic::xchg_ptr(intptr_t exchange_value, volatile intptr_t* dest) {
-  return (intptr_t)xchg((jint)exchange_value, (volatile jint*)dest);
-}
-
-extern "C" {
-  // defined in linux_x86.s
-  jlong _Atomic_cmpxchg_long(jlong, volatile jlong*, jlong, bool);
-  void _Atomic_move_long(volatile jlong* src, volatile jlong* dst);
-}
-
-inline jlong    Atomic::cmpxchg    (jlong    exchange_value, volatile jlong*    dest, jlong    compare_value) {
-  return _Atomic_cmpxchg_long(exchange_value, dest, compare_value, os::is_MP());
-}
-
-inline intptr_t Atomic::cmpxchg_ptr(intptr_t exchange_value, volatile intptr_t* dest, intptr_t compare_value) {
-  return (intptr_t)cmpxchg((jint)exchange_value, (volatile jint*)dest, (jint)compare_value);
-}
-
-inline void*    Atomic::cmpxchg_ptr(void*    exchange_value, volatile void*     dest, void*    compare_value) {
-  return (void*)cmpxchg((jint)exchange_value, (volatile jint*)dest, (jint)compare_value);
-}
-
-inline jlong Atomic::load(volatile jlong* src) {
-  volatile jlong dest;
-  _Atomic_move_long(src, &dest);
-  return dest;
-}
-
-inline void Atomic::store(jlong store_value, jlong* dest) {
-  _Atomic_move_long((volatile jlong*)&store_value, (volatile jlong*)dest);
-}
-
-inline void Atomic::store(jlong store_value, volatile jlong* dest) {
-  _Atomic_move_long((volatile jlong*)&store_value, dest);
-}
-
-#endif // AMD64
-
-#endif // OS_CPU_LINUX_X86_VM_ATOMIC_LINUX_X86_INLINE_HPP
+#endif // OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_INLINE_HPP

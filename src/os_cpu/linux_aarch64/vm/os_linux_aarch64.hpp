@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_X86_VM_OS_LINUX_X86_HPP
-#define OS_CPU_LINUX_X86_VM_OS_LINUX_X86_HPP
+#ifndef OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_HPP
 
   static void setup_fpu();
   static bool supports_sse();
@@ -36,4 +36,4 @@
   // Note: Currently only used in 64 bit Windows implementations
   static bool register_code_area(char *low, char *high) { return true; }
 
-#endif // OS_CPU_LINUX_X86_VM_OS_LINUX_X86_HPP
+#endif // OS_CPU_LINUX_AARCH64_VM_OS_LINUX_AARCH64_HPP
