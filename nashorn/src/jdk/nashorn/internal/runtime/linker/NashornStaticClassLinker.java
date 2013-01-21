@@ -25,17 +25,17 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
-import jdk.internal.dynalink.CallSiteDescriptor;
-import jdk.internal.dynalink.beans.BeansLinker;
-import jdk.internal.dynalink.beans.StaticClass;
-import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.internal.dynalink.linker.GuardingDynamicLinker;
-import jdk.internal.dynalink.linker.LinkRequest;
-import jdk.internal.dynalink.linker.LinkerServices;
-import jdk.internal.dynalink.linker.TypeBasedGuardingDynamicLinker;
-import jdk.internal.dynalink.support.Guards;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ECMAErrors;
+import org.dynalang.dynalink.CallSiteDescriptor;
+import org.dynalang.dynalink.beans.BeansLinker;
+import org.dynalang.dynalink.beans.StaticClass;
+import org.dynalang.dynalink.linker.GuardedInvocation;
+import org.dynalang.dynalink.linker.GuardingDynamicLinker;
+import org.dynalang.dynalink.linker.LinkRequest;
+import org.dynalang.dynalink.linker.LinkerServices;
+import org.dynalang.dynalink.linker.TypeBasedGuardingDynamicLinker;
+import org.dynalang.dynalink.support.Guards;
 
 /**
  * Internal linker for {@link StaticClass} objects, only ever used by Nashorn engine and not exposed to other engines.
@@ -49,7 +49,7 @@ import jdk.nashorn.internal.runtime.ECMAErrors;
  *   var r = new Runnable(function() { print("Hello World" })
  * </pre>
  */
-final class NashornStaticClassLinker implements TypeBasedGuardingDynamicLinker {
+class NashornStaticClassLinker implements TypeBasedGuardingDynamicLinker {
     private static final GuardingDynamicLinker staticClassLinker = BeansLinker.getLinkerForClass(StaticClass.class);
 
     @Override
@@ -64,19 +64,15 @@ final class NashornStaticClassLinker implements TypeBasedGuardingDynamicLinker {
         if (self.getClass() != StaticClass.class) {
             return null;
         }
-        final Class<?> receiverClass = ((StaticClass) self).getRepresentedClass();
-        Bootstrap.checkReflectionAccess(receiverClass);
         final CallSiteDescriptor desc = request.getCallSiteDescriptor();
         // We intercept "new" on StaticClass instances to provide additional capabilities
         if ("new".equals(desc.getNameToken(CallSiteDescriptor.OPERATOR))) {
-            // make sure new is on accessible Class
-            Context.checkPackageAccess(receiverClass);
-
+            final Class<?> receiverClass = ((StaticClass) self).getRepresentedClass();
             // Is the class abstract? (This includes interfaces.)
-            if (NashornLinker.isAbstractClass(receiverClass)) {
+            if (JavaAdapterFactory.isAbstractClass(receiverClass)) {
                 // Change this link request into a link request on the adapter class.
                 final Object[] args = request.getArguments();
-                args[0] = JavaAdapterFactory.getAdapterClassFor(new Class<?>[] { receiverClass }, null);
+                args[0] = JavaAdapterFactory.getAdapterClassFor(new Class<?>[] { receiverClass });
                 final LinkRequest adapterRequest = request.replaceArguments(request.getCallSiteDescriptor(), args);
                 final GuardedInvocation gi = checkNullConstructor(delegate(linkerServices, adapterRequest), receiverClass);
                 // Finally, modify the guard to test for the original abstract class.
@@ -93,12 +89,12 @@ final class NashornStaticClassLinker implements TypeBasedGuardingDynamicLinker {
     }
 
     private static GuardedInvocation delegate(LinkerServices linkerServices, final LinkRequest request) throws Exception {
-        return NashornBeansLinker.getGuardedInvocation(staticClassLinker, request, linkerServices);
+        return staticClassLinker.getGuardedInvocation(request, linkerServices);
     }
 
     private static GuardedInvocation checkNullConstructor(final GuardedInvocation ctorInvocation, final Class<?> receiverClass) {
         if(ctorInvocation == null) {
-            throw ECMAErrors.typeError("no.constructor.matches.args", receiverClass.getName());
+            ECMAErrors.typeError(Context.getGlobal(), "no.constructor.matches.args", receiverClass.getName());
         }
         return ctorInvocation;
     }
