@@ -1721,7 +1721,8 @@ extern "C" {
 
   JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
   {
-    bccheck1(methodVal, bcpVal, verify, method, bcidx, decode);
+    if (! ((Method *)methodVal)->is_native())
+      bccheck1(methodVal, bcpVal, verify, method, bcidx, decode);
   }
 }
 
