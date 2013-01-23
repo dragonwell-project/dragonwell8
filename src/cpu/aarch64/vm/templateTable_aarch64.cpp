@@ -511,8 +511,9 @@ void TemplateTable::fast_iload()
 void TemplateTable::lload()
 {
   transition(vtos, ltos);
-  locals_index(r1);
-  __ ldr(r0, laddress(r1, rscratch1, _masm));
+  __ ldrb(r1, at_bcp(1));
+  __ sub(r1, rlocals, r1, ext::uxtw, LogBytesPerWord);
+  __ ldr(r0, Address(r1, Interpreter::local_offset_in_bytes(1)));
 }
 
 void TemplateTable::fload()
