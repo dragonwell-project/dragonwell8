@@ -114,18 +114,6 @@ ifneq (,$(findstring $(ARCH), ppc ppc64))
   HS_ARCH = ppc
 endif
 
-# AARCH64
-
-# AARCH64 is currently signalled by SRCARCH == aarch64
-# however it relies upon builing with ARCH = amd64
-
-ifeq ($(SRCARCH), aarch64)
-  ARCH_DATA_MODEL  = 64
-  PLATFORM         = linux-aarch64
-  VM_PLATFORM      = linux_aarch64
-  HS_ARCH          = x86
-endif
-
 # On 32 bit linux we build server and client, on 64 bit just server.
 ifeq ($(JVM_VARIANTS),)
   ifeq ($(ARCH_DATA_MODEL), 32)

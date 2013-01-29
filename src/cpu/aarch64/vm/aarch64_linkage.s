@@ -33,7 +33,8 @@
         .globl aarch64_stub_prolog
         .p2align  4
 aarch64_stub_prolog:
-4:	lea 1f(%rip), %r11 // entry point
+	// entry point
+4:	lea 1f(%rip), %r11
 	mov 2f(%rip), %r10
 	jmp *%r10
 2:	.quad aarch64_prolog
