@@ -25,98 +25,67 @@
 
 package jdk.nashorn.internal.codegen;
 
-import java.util.ArrayList;
-import java.util.List;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.BinaryNode;
 import jdk.nashorn.internal.ir.Block;
-import jdk.nashorn.internal.ir.BlockStatement;
 import jdk.nashorn.internal.ir.EmptyNode;
-import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
+import jdk.nashorn.internal.ir.ExecuteNode;
 import jdk.nashorn.internal.ir.IfNode;
-import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.LiteralNode;
-import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode;
 import jdk.nashorn.internal.ir.Node;
-import jdk.nashorn.internal.ir.Statement;
 import jdk.nashorn.internal.ir.TernaryNode;
 import jdk.nashorn.internal.ir.UnaryNode;
-import jdk.nashorn.internal.ir.VarNode;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.runtime.DebugLogger;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.Source;
 
 /**
  * Simple constant folding pass, executed before IR is starting to be lowered.
  */
-final class FoldConstants extends NodeVisitor<LexicalContext> {
+public class FoldConstants extends NodeVisitor {
 
     private static final DebugLogger LOG = new DebugLogger("fold");
 
-    FoldConstants() {
-        super(new LexicalContext());
-    }
-
     @Override
-    public Node leaveUnaryNode(final UnaryNode unaryNode) {
+    public Node leave(final UnaryNode unaryNode) {
         final LiteralNode<?> literalNode = new UnaryNodeConstantEvaluator(unaryNode).eval();
         if (literalNode != null) {
-            LOG.info("Unary constant folded ", unaryNode, " to ", literalNode);
+            LOG.info("Unary constant folded " + unaryNode + " to " + literalNode);
             return literalNode;
         }
         return unaryNode;
     }
 
     @Override
-    public Node leaveBinaryNode(final BinaryNode binaryNode) {
+    public Node leave(final BinaryNode binaryNode) {
         final LiteralNode<?> literalNode = new BinaryNodeConstantEvaluator(binaryNode).eval();
         if (literalNode != null) {
-            LOG.info("Binary constant folded ", binaryNode, " to ", literalNode);
+            LOG.info("Binary constant folded " + binaryNode + " to " + literalNode);
             return literalNode;
         }
         return binaryNode;
     }
 
     @Override
-    public boolean enterFunctionNode(final FunctionNode functionNode) {
-        return !functionNode.isLazy();
-    }
-
-    @Override
-    public Node leaveFunctionNode(final FunctionNode functionNode) {
-        return functionNode.setState(lc, CompilationState.CONSTANT_FOLDED);
-    }
-
-    @Override
-    public Node leaveIfNode(final IfNode ifNode) {
+    public Node leave(final IfNode ifNode) {
         final Node test = ifNode.getTest();
-        if (test instanceof LiteralNode.PrimitiveLiteralNode) {
-            final boolean isTrue = ((LiteralNode.PrimitiveLiteralNode<?>)test).isTrue();
-            final Block executed = isTrue ? ifNode.getPass() : ifNode.getFail();
-            final Block dropped  = isTrue ? ifNode.getFail() : ifNode.getPass();
-            final List<Statement> statements = new ArrayList<>();
-
-            if (executed != null) {
-                statements.addAll(executed.getStatements()); // Get statements form executed branch
+        if (test instanceof LiteralNode) {
+            final Block shortCut = ((LiteralNode<?>)test).isTrue() ? ifNode.getPass() : ifNode.getFail();
+            if (shortCut != null) {
+                return new ExecuteNode(shortCut);
             }
-            if (dropped != null) {
-                extractVarNodes(dropped, statements); // Get var-nodes from non-executed branch
-            }
-            if (statements.isEmpty()) {
-                return new EmptyNode(ifNode);
-            }
-            return BlockStatement.createReplacement(ifNode, ifNode.getFinish(), statements);
+            return new EmptyNode(ifNode);
         }
         return ifNode;
     }
 
     @Override
-    public Node leaveTernaryNode(final TernaryNode ternaryNode) {
-        final Node test = ternaryNode.getTest();
-        if (test instanceof LiteralNode.PrimitiveLiteralNode) {
-            return ((LiteralNode.PrimitiveLiteralNode<?>)test).isTrue() ? ternaryNode.getTrueExpression() : ternaryNode.getFalseExpression();
+    public Node leave(final TernaryNode ternaryNode) {
+        final Node test = ternaryNode.lhs();
+        if (test instanceof LiteralNode) {
+            return ((LiteralNode<?>)test).isTrue() ? ternaryNode.rhs() : ternaryNode.third();
         }
         return ternaryNode;
     }
@@ -128,11 +97,13 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
      */
     abstract static class ConstantEvaluator<T extends Node> {
         protected T            parent;
+        protected final Source source;
         protected final long   token;
         protected final int    finish;
 
         protected ConstantEvaluator(final T parent) {
             this.parent = parent;
+            this.source = parent.getSource();
             this.token  = parent.getToken();
             this.finish = parent.getFinish();
         }
@@ -143,17 +114,6 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
          * @return the literal node
          */
         protected abstract LiteralNode<?> eval();
-    }
-
-    private static void extractVarNodes(final Block block, final List<Statement> statements) {
-        final LexicalContext lc = new LexicalContext();
-        block.accept(lc, new NodeVisitor<LexicalContext>(lc) {
-            @Override
-            public boolean enterVarNode(VarNode varNode) {
-                statements.add(varNode.setInit(null));
-                return false;
-            }
-        });
     }
 
     private static class UnaryNodeConstantEvaluator extends ConstantEvaluator<UnaryNode> {
@@ -169,10 +129,6 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
                 return null;
             }
 
-            if (rhsNode instanceof ArrayLiteralNode) {
-                return null;
-            }
-
             final LiteralNode<?> rhs = (LiteralNode<?>)rhsNode;
             final boolean rhsInteger = rhs.getType().isInteger();
 
@@ -181,23 +137,23 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
             switch (parent.tokenType()) {
             case ADD:
                 if (rhsInteger) {
-                    literalNode = LiteralNode.newInstance(token, finish, rhs.getInt32());
+                    literalNode = LiteralNode.newInstance(source, token, finish, rhs.getInt32());
                 } else {
-                    literalNode = LiteralNode.newInstance(token, finish, rhs.getNumber());
+                    literalNode = LiteralNode.newInstance(source, token, finish, rhs.getNumber());
                 }
                 break;
             case SUB:
                 if (rhsInteger && rhs.getInt32() != 0) { // @see test/script/basic/minuszero.js
-                    literalNode = LiteralNode.newInstance(token, finish, -rhs.getInt32());
+                    literalNode = LiteralNode.newInstance(source, token, finish, -rhs.getInt32());
                 } else {
-                    literalNode = LiteralNode.newInstance(token, finish, -rhs.getNumber());
+                    literalNode = LiteralNode.newInstance(source, token, finish, -rhs.getNumber());
                 }
                 break;
             case NOT:
-                literalNode = LiteralNode.newInstance(token, finish, !rhs.getBoolean());
+                literalNode = LiteralNode.newInstance(source, token, finish, !rhs.getBoolean());
                 break;
             case BIT_NOT:
-                literalNode = LiteralNode.newInstance(token, finish, ~rhs.getInt32());
+                literalNode = LiteralNode.newInstance(source, token, finish, ~rhs.getInt32());
                 break;
             default:
                 return null;
@@ -244,10 +200,6 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
             final LiteralNode<?> lhs = (LiteralNode<?>)parent.lhs();
             final LiteralNode<?> rhs = (LiteralNode<?>)parent.rhs();
 
-            if (lhs instanceof ArrayLiteralNode || rhs instanceof ArrayLiteralNode) {
-                return null;
-            }
-
             final Type widest = Type.widest(lhs.getType(), rhs.getType());
 
             boolean isInteger = widest.isInteger();
@@ -267,7 +219,7 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
                         break;
                     }
                     assert res instanceof CharSequence : res + " was not a CharSequence, it was a " + res.getClass();
-                    return LiteralNode.newInstance(token, finish, res.toString());
+                    return LiteralNode.newInstance(source, token, finish, res.toString());
                 }
                 return null;
             case MUL:
@@ -280,33 +232,33 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
                 value = lhs.getNumber() - rhs.getNumber();
                 break;
             case SHR:
-                return LiteralNode.newInstance(token, finish, (lhs.getInt32() >>> rhs.getInt32()) & JSType.MAX_UINT);
+                return LiteralNode.newInstance(source, token, finish, (lhs.getInt32() >>> rhs.getInt32()) & 0xffff_ffffL);
             case SAR:
-                return LiteralNode.newInstance(token, finish, lhs.getInt32() >> rhs.getInt32());
+                return LiteralNode.newInstance(source, token, finish, lhs.getInt32() >> rhs.getInt32());
             case SHL:
-                return LiteralNode.newInstance(token, finish, lhs.getInt32() << rhs.getInt32());
+                return LiteralNode.newInstance(source, token, finish, lhs.getInt32() << rhs.getInt32());
             case BIT_XOR:
-                return LiteralNode.newInstance(token, finish, lhs.getInt32() ^ rhs.getInt32());
+                return LiteralNode.newInstance(source, token, finish, lhs.getInt32() ^ rhs.getInt32());
             case BIT_AND:
-                return LiteralNode.newInstance(token, finish, lhs.getInt32() & rhs.getInt32());
+                return LiteralNode.newInstance(source, token, finish, lhs.getInt32() & rhs.getInt32());
             case BIT_OR:
-                return LiteralNode.newInstance(token, finish, lhs.getInt32() | rhs.getInt32());
+                return LiteralNode.newInstance(source, token, finish, lhs.getInt32() | rhs.getInt32());
             case GE:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.GE(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.GE(lhs.getObject(), rhs.getObject()));
             case LE:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.LE(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.LE(lhs.getObject(), rhs.getObject()));
             case GT:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.GT(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.GT(lhs.getObject(), rhs.getObject()));
             case LT:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.LT(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.LT(lhs.getObject(), rhs.getObject()));
             case NE:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.NE(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.NE(lhs.getObject(), rhs.getObject()));
             case NE_STRICT:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.NE_STRICT(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.NE_STRICT(lhs.getObject(), rhs.getObject()));
             case EQ:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.EQ(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.EQ(lhs.getObject(), rhs.getObject()));
             case EQ_STRICT:
-                return LiteralNode.newInstance(token, finish, ScriptRuntime.EQ_STRICT(lhs.getObject(), rhs.getObject()));
+                return LiteralNode.newInstance(source, token, finish, ScriptRuntime.EQ_STRICT(lhs.getObject(), rhs.getObject()));
             default:
                 return null;
             }
@@ -315,12 +267,12 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
             isLong    &= value != 0.0 && JSType.isRepresentableAsLong(value);
 
             if (isInteger) {
-                return LiteralNode.newInstance(token, finish, (int)value);
+                return LiteralNode.newInstance(source, token, finish, JSType.toInt32(value));
             } else if (isLong) {
-                return LiteralNode.newInstance(token, finish, (long)value);
+                return LiteralNode.newInstance(source, token, finish, JSType.toLong(value));
             }
 
-            return LiteralNode.newInstance(token, finish, value);
+            return LiteralNode.newInstance(source, token, finish, value);
         }
     }
 }
