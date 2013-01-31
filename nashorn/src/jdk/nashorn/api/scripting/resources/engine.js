@@ -39,16 +39,6 @@ Object.defineProperty(this, "__noSuchProperty__", {
     }
 });
 
-Object.defineProperty(this, "__noSuchMethod__", {
-    configurable: true,
-    enumerable: false,
-    writable: true,
-    value: function (name, args) {
-        'use strict';
-        return engine.__noSuchMethod__(this, context, name, args);
-    }
-});
-
 function print(str) {
     var writer = context.getWriter();
     if (! (writer instanceof java.io.PrintWriter)) {
