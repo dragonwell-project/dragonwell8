@@ -47,7 +47,8 @@ function runScriptEngine(opts, code) {
         try {
             // set new standard err
             System.setErr(newErr);
-            var engine = fac.getScriptEngine(Java.to(opts, "java.lang.String[]"));
+            var strType = Java.type("java.lang.String");
+            var engine = fac.getScriptEngine(Java.toJavaArray(opts, strType));
             engine.eval(code);
             newErr.flush();
             return new java.lang.String(baos.toByteArray());

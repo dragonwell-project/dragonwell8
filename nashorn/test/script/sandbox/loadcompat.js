@@ -48,7 +48,3 @@ if (typeof JavaAdapter != 'function') {
 if (typeof importPackage != 'function') {
     fail("importPackage function is missing in compatibility script");
 }
-
-if (typeof sync != 'function') {
-    fail("sync function is missing in compatibility script");
-}

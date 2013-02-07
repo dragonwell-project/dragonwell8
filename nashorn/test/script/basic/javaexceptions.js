@@ -31,7 +31,7 @@
 try {
     new java.io.FileInputStream("non_existent_file");
 } catch (e) {
-    print(e instanceof java.io.FileNotFoundException);
+    print(e instanceof java.io.FileNotFoundException || e instanceof java.lang.SecurityException);
 }
 
 try {
