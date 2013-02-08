@@ -665,8 +665,11 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
 #ifndef CC_INTERP
 
 void InterpreterMacroAssembler::test_method_data_pointer(Register mdp,
-                                                         Label& zero_continue) { Unimplemented(); }
-
+                                                         Label& zero_continue) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  ldr(mdp, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
+  cbnz(mdp, zero_continue);
+}
 
 // Set the method data pointer for the current bcp.
 void InterpreterMacroAssembler::set_method_data_pointer_for_bcp() { Unimplemented(); }
@@ -898,7 +901,15 @@ void InterpreterMacroAssembler::notify_method_exit(
 void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
                                                         int increment, int mask,
                                                         Register scratch, bool preloaded,
-                                                        Condition cond, Label* where) { Unimplemented(); }
+                                                        Condition cond, Label* where) {
+  if (!preloaded) {
+    ldr(scratch, counter_addr);
+  }
+  add(scratch, scratch, increment);
+  str(scratch, counter_addr);
+  ands(scratch, scratch, mask);
+  br(cond, *where);
+}
 
 void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
                                                   int number_of_arguments) {

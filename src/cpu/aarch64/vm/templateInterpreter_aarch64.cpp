@@ -283,18 +283,101 @@ address TemplateInterpreterGenerator::generate_safept_entry_for(
 // Note: checking for negative value instead of overflow
 //       so we have a 'sticky' overflow test
 //
-// rbx: method
-// ecx: invocation counter
+// rmethod: method
+// r19: invocation counter
 //
 void InterpreterGenerator::generate_counter_incr(
         Label* overflow,
         Label* profile_method,
         Label* profile_method_continue) {
-  // FIXME: We'll need this once we have a compiler.
+  const Address invocation_counter(rmethod, in_bytes(Method::invocation_counter_offset()) +
+				            in_bytes(InvocationCounter::counter_offset()));
+  // Note: In tiered we increment either counters in Method* or in MDO depending if we're profiling or not.
+  if (TieredCompilation) {
+    int increment = InvocationCounter::count_increment;
+    int mask = ((1 << Tier0InvokeNotifyFreqLog)  - 1) << InvocationCounter::count_shift;
+    Label no_mdo, done;
+    if (ProfileInterpreter) {
+      // Are we profiling?
+      __ ldr(r0, Address(rmethod, Method::method_data_offset()));
+      __ cbz(r0, no_mdo);
+      // Increment counter in the MDO
+      const Address mdo_invocation_counter(r0, in_bytes(MethodData::invocation_counter_offset()) +
+                                                in_bytes(InvocationCounter::counter_offset()));
+      __ increment_mask_and_jump(mdo_invocation_counter, increment, mask, rscratch1, false, Assembler::EQ, overflow);
+      __ b(done);
+    }
+    __ bind(no_mdo);
+    // Increment counter in Method* (we don't need to load it, it's in ecx).
+    __ increment_mask_and_jump(invocation_counter, increment, mask, rscratch1, true, Assembler::EQ, overflow);
+    __ bind(done);
+  } else {
+    const Address backedge_counter(rmethod,
+                                   Method::backedge_counter_offset() +
+                                   InvocationCounter::counter_offset());
+
+    if (ProfileInterpreter) { // %%% Merge this into MethodData*
+      const Address invocation_counter
+	= Address(rmethod, Method::interpreter_invocation_counter_offset());
+      __ ldrw(r1, invocation_counter);
+      __ addw(r1, r1, 1);
+      __ strw(r1, invocation_counter);
+    }
+    // Update standard invocation counters
+    __ ldrw(r0, backedge_counter);   // load backedge counter
+
+    __ addw(r19, r19, InvocationCounter::count_increment);
+    __ andw(r0, r0, InvocationCounter::count_mask_value); // mask out the status bits
+
+    __ strw(r19, invocation_counter); // save invocation count
+    __ addw(r0, r0, r19);                // add both counters
+
+    // profile_method is non-null only for interpreted method so
+    // profile_method != NULL == !native_call
+
+    if (ProfileInterpreter && profile_method != NULL) {
+      // Test to see if we should create a method data oop
+      __ ldr(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterProfileLimit));
+      __ cmp(r0, rscratch2);
+      __ br(Assembler::LT, *profile_method_continue);
+
+      // if no method data exists, go to profile_method
+      __ test_method_data_pointer(r0, *profile_method);
+    }
+
+    __ lea(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterInvocationLimit));
+    __ ldrw(rscratch2, rscratch2);
+    __ cmpw(r0, rscratch2);
+    __ br(Assembler::HS, *overflow);
+  }
 }
 
 void InterpreterGenerator::generate_counter_overflow(Label* do_continue) {
-  // FIXME: We'll need this once we have a compiler.
+
+  // Asm interpreter on entry
+  // On return (i.e. jump to entry_point) [ back to invocation of interpreter ]
+  // Everything as it was on entry
+
+  const Address invocation_counter(rmethod,
+                                   Method::invocation_counter_offset() +
+                                   InvocationCounter::counter_offset());
+
+  // InterpreterRuntime::frequency_counter_overflow takes two
+  // arguments, the first (thread) is passed by call_VM, the second
+  // indicates if the counter overflow occurs at a backwards branch
+  // (NULL bcp).  We pass zero for it.  The call returns the address
+  // of the verified entry point for the method or NULL if the
+  // compilation did not complete (either went background or bailed
+  // out).
+  __ mov(c_rarg1, 0);
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::frequency_counter_overflow),
+             c_rarg1);
+
+  // Preserve invariant that r13/r14 contain bcp/locals of sender frame
+  // and jump to the interpreted entry.
+  __ b(*do_continue);
 }
 
 // See if we've got enough room on the stack for locals plus overhead.
@@ -600,7 +683,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ andr(sp, esp, -16);
 
   if (inc_counter) {
+<<<<<<< HEAD
     __ prfm(invocation_counter);  // (pre-)fetch invocation count
+=======
+    __ ldrw(r19, invocation_counter);  // (pre-)fetch invocation count
+>>>>>>> c2ebca3... C1: Implement invocation counters.
   }
 
   // initialize fixed part of activation frame
@@ -1009,13 +1096,13 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
   __ mov(sp, rscratch1);
 
+  __ ret(lr);
+
   if (inc_counter) {
     // Handle overflow of counter and compile method
     __ bind(invocation_counter_overflow);
     generate_counter_overflow(&continue_after_compile);
   }
-
-  __ ret(lr);
 
   return entry_point;
 }
@@ -1080,7 +1167,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // (pre-)fetch invocation count
   if (inc_counter) {
-    __ ldr(r2, invocation_counter);
+    __ ldrw(r19, invocation_counter);
   }
 
   // And the base dispatch table
@@ -1293,7 +1380,22 @@ address AbstractInterpreterGenerator::generate_method_entry(
 
 // These should never be compiled since the interpreter will prefer
 // the compiled version to the intrinsic version.
-bool AbstractInterpreter::can_be_compiled(methodHandle m) { return false; }
+bool AbstractInterpreter::can_be_compiled(methodHandle m) {
+  switch (method_kind(m)) {
+    case Interpreter::java_lang_math_sin     : // fall thru
+    case Interpreter::java_lang_math_cos     : // fall thru
+    case Interpreter::java_lang_math_tan     : // fall thru
+    case Interpreter::java_lang_math_abs     : // fall thru
+    case Interpreter::java_lang_math_log     : // fall thru
+    case Interpreter::java_lang_math_log10   : // fall thru
+    case Interpreter::java_lang_math_sqrt    : // fall thru
+    case Interpreter::java_lang_math_pow     : // fall thru
+    case Interpreter::java_lang_math_exp     :
+      return false;
+    default:
+      return true;
+  }
+}
 
 // How much stack a method activation needs in words.
 int AbstractInterpreter::size_top_interpreter_activation(methodOop method) {

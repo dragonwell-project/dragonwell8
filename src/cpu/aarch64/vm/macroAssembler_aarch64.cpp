@@ -1260,26 +1260,11 @@ void MacroAssembler::incrementw(Address dst, int value)
 
 
 void MacroAssembler::pusha() {
-  // need to push all registers including original sp
-  for (Register reg = r0; reg <= r30; reg = as_Register(reg->encoding() + 1))
-    push(reg);
-  // cannot push sp as str will treat it as zr !!!
-  mov(r0, sp);
-  push(r0);
-  // re-establish r0? we probably only use pusha when we are about to
-  // exit so we don't necessarily have to do this but let's leave the
-  // registers as they were just in case.
-  ldr(r0, Address(sp, 31 * wordSize));
+  push(0x7fffffff, sp);
 }
 
 void MacroAssembler::popa() {
-  // need to pop all registers including original sp
-  pop(r0);
-  mov(sp, r0);
-  for (Register reg = r30;
-       reg->is_valid() && reg >= r0;
-       reg = as_Register(reg->encoding() - 1))
-    pop(reg);
+  pop(0x7fffffff, sp);
 }
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
