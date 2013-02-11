@@ -123,8 +123,11 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
 void G1PreBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
+<<<<<<< HEAD
 void G1UnsafeGetObjSATBBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
+=======
+>>>>>>> 014bf92... Exhume c1 files.
 jbyte* G1PostBarrierStub::_byte_map_base = NULL;
 
 jbyte* G1PostBarrierStub::byte_map_base_slow() { Unimplemented(); return 0; }

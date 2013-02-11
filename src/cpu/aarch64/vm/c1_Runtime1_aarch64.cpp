@@ -29,7 +29,11 @@
 #include "c1/c1_Runtime1.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_aarch64.hpp"
+<<<<<<< HEAD
 #include "oops/compiledICHolderOop.hpp"
+=======
+#include "oops/compiledICHolder.hpp"
+>>>>>>> 014bf92... Exhume c1 files.
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "register_aarch64.hpp"

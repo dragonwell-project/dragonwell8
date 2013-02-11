@@ -169,8 +169,11 @@ void LIRGenerator::do_LogicOp(LogicOp* x) { Unimplemented(); }
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
 void LIRGenerator::do_CompareOp(CompareOp* x) { Unimplemented(); }
 
+<<<<<<< HEAD
 void LIRGenerator::do_AttemptUpdate(Intrinsic* x) { Unimplemented(); }
 
+=======
+>>>>>>> 014bf92... Exhume c1 files.
 void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) { Unimplemented(); }
 
 void LIRGenerator::do_MathIntrinsic(Intrinsic* x) { Unimplemented(); }
