@@ -446,6 +446,7 @@ class ComputeMoveOrder: public StackObj {
 // returns.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 methodHandle method,
                                                 int compile_id,
@@ -1382,6 +1383,14 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
 }
 >>>>>>> 5487b31... Dummy wrappers from x86
+=======
+nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
+                                                methodHandle method,
+                                                int compile_id,
+                                                BasicType *in_sig_bt,
+                                                VMRegPair *in_regs,
+                                                BasicType ret_type) { Unimplemented(); return 0; }
+>>>>>>> cd717cb... Backed out changeset 418016d94e7e
 =======
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 methodHandle method,
