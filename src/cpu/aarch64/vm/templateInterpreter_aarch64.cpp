@@ -375,8 +375,6 @@ void InterpreterGenerator::generate_counter_overflow(Label* do_continue) {
                               InterpreterRuntime::frequency_counter_overflow),
              c_rarg1);
 
-  // Preserve invariant that r13/r14 contain bcp/locals of sender frame
-  // and jump to the interpreted entry.
   __ b(*do_continue);
 }
 
