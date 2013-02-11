@@ -28,7 +28,4 @@ TYPE=COMPILER2
 
 VM_SUBDIR = server
 
-# for now don't make compiler2 if building aarch64
-ifneq($(SRCARCH), aarch64)
 CFLAGS += -DCOMPILER2
-endif

@@ -28,7 +28,4 @@ TYPE=COMPILER1
 
 VM_SUBDIR = client
 
-# for now don't make compiler1 if building aarch64
-ifneq ($(SRCARCH), aarch64)
 CFLAGS += -DCOMPILER1
-endif
