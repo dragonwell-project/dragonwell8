@@ -313,105 +313,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
                                          VMRegPair *regs,
-                                         int total_args_passed) {
-// We return the amount of VMRegImpl stack slots we need to reserve for all
-// the arguments NOT counting out_preserve_stack_slots.
-
-    static const Register INT_ArgReg[Argument::n_int_register_parameters_c] = {
-      c_rarg0, c_rarg1, c_rarg2, c_rarg3, c_rarg4, c_rarg5,  c_rarg6,  c_rarg7
-    };
-    static const FloatRegister FP_ArgReg[Argument::n_float_register_parameters_c] = {
-      c_farg0, c_farg1, c_farg2, c_farg3,
-      c_farg4, c_farg5, c_farg6, c_farg7
-    };
-
-    uint int_args = 0;
-    uint fp_args = 0;
-    uint stk_args = 0; // inc by 2 each time
-
-    for (int i = 0; i < total_args_passed; i++) {
-      switch (sig_bt[i]) {
-      case T_BOOLEAN:
-      case T_CHAR:
-      case T_BYTE:
-      case T_SHORT:
-      case T_INT:
-        if (int_args < Argument::n_int_register_parameters_c) {
-          regs[i].set1(INT_ArgReg[int_args++]->as_VMReg());
-#ifdef _WIN64
-          fp_args++;
-          // Allocate slots for callee to stuff register args the stack.
-          stk_args += 2;
-#endif
-        } else {
-          regs[i].set1(VMRegImpl::stack2reg(stk_args));
-          stk_args += 2;
-        }
-        break;
-      case T_LONG:
-        assert(sig_bt[i + 1] == T_VOID, "expecting half");
-        // fall through
-      case T_OBJECT:
-      case T_ARRAY:
-      case T_ADDRESS:
-      case T_METADATA:
-        if (int_args < Argument::n_int_register_parameters_c) {
-          regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
-#ifdef _WIN64
-          fp_args++;
-          stk_args += 2;
-#endif
-        } else {
-          regs[i].set2(VMRegImpl::stack2reg(stk_args));
-          stk_args += 2;
-        }
-        break;
-      case T_FLOAT:
-        if (fp_args < Argument::n_float_register_parameters_c) {
-          regs[i].set1(FP_ArgReg[fp_args++]->as_VMReg());
-#ifdef _WIN64
-          int_args++;
-          // Allocate slots for callee to stuff register args the stack.
-          stk_args += 2;
-#endif
-        } else {
-          regs[i].set1(VMRegImpl::stack2reg(stk_args));
-          stk_args += 2;
-        }
-        break;
-      case T_DOUBLE:
-        assert(sig_bt[i + 1] == T_VOID, "expecting half");
-        if (fp_args < Argument::n_float_register_parameters_c) {
-          regs[i].set2(FP_ArgReg[fp_args++]->as_VMReg());
-#ifdef _WIN64
-          int_args++;
-          // Allocate slots for callee to stuff register args the stack.
-          stk_args += 2;
-#endif
-        } else {
-          regs[i].set2(VMRegImpl::stack2reg(stk_args));
-          stk_args += 2;
-        }
-        break;
-      case T_VOID: // Halves of longs and doubles
-        assert(i != 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "expecting half");
-        regs[i].set_bad();
-        break;
-      default:
-        ShouldNotReachHere();
-        break;
-      }
-    }
-#ifdef _WIN64
-  // windows abi requires that we always allocate enough stack space
-  // for 4 64bit registers to be stored down.
-  if (stk_args < 8) {
-    stk_args = 8;
-  }
-#endif // _WIN64
-
-  return stk_args;
-}
+                                         int total_args_passed) { Unimplemented(); return 0; }
 
 // On 64 bit we will store integer like items to the stack as
 // 64 bits items (sparc abi) even though java would only store
@@ -542,6 +444,7 @@ class ComputeMoveOrder: public StackObj {
 // convention (handlizes oops, etc), transitions to native, makes the call,
 // returns to java state (possibly blocking), unhandlizes any result and
 // returns.
+<<<<<<< HEAD
 <<<<<<< HEAD
 nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 methodHandle method,
@@ -1479,6 +1382,14 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
 }
 >>>>>>> 5487b31... Dummy wrappers from x86
+=======
+nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
+                                                methodHandle method,
+                                                int compile_id,
+                                                BasicType *in_sig_bt,
+                                                VMRegPair *in_regs,
+                                                BasicType ret_type) { Unimplemented(); return 0; }
+>>>>>>> cd717cb... Backed out changeset 418016d94e7e
 
 #ifdef HAVE_DTRACE_H
 // ---------------------------------------------------------------------------
