@@ -33,19 +33,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import org.testng.TestNG;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * @test
- * @build jdk.nashorn.api.javaaccess.SharedObject jdk.nashorn.api.javaaccess.Person jdk.nashorn.api.javaaccess.NumberAccessTest
- * @run testng/othervm jdk.nashorn.api.javaaccess.NumberAccessTest
- */
 public class NumberAccessTest {
 
     private static ScriptEngine e = null;
-    private static SharedObject o = null;
+    private static SharedObject o = new SharedObject();
 
     public static void main(final String[] args) {
         TestNG.main(args);
@@ -55,15 +49,8 @@ public class NumberAccessTest {
     public static void setUpClass() throws ScriptException {
         final ScriptEngineManager m = new ScriptEngineManager();
         e = m.getEngineByName("nashorn");
-        o = new SharedObject();
         e.put("o", o);
-        e.eval("var SharedObject = Packages.jdk.nashorn.api.javaaccess.SharedObject;");
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-        e = null;
-        o = null;
+        e.eval("var SharedObject = Packages.jdk.nashorn.internal.access.SharedObject;");
     }
 
     // --------------------------------long
@@ -81,7 +68,7 @@ public class NumberAccessTest {
         e.eval("var p_long_array = o.publicLongArray;");
         assertEquals(o.publicLongArray[0], e.eval("o.publicLongArray[0];"));
         assertArrayEquals(o.publicLongArray, (long[])e.get("p_long_array"));
-        e.eval("var t_long_arr = new (Java.type(\"long[]\"))(3);" +
+        e.eval("var t_long_arr = java.lang.reflect.Array.newInstance(java.lang.Long.TYPE, 3);" +
                 "t_long_arr[0] = -189009;" +
                 "t_long_arr[1] = 456;" +
                 "t_long_arr[2] = 600000001;" +
@@ -105,7 +92,7 @@ public class NumberAccessTest {
         e.eval("var ps_long_array = SharedObject.publicStaticLongArray;");
         assertEquals(SharedObject.publicStaticLongArray[0], e.eval("SharedObject.publicStaticLongArray[0];"));
         assertArrayEquals(SharedObject.publicStaticLongArray, (long[])e.get("ps_long_array"));
-        e.eval("var ts_long_arr = new (Java.type(\"long[]\"))(3);" +
+        e.eval("var ts_long_arr = java.lang.reflect.Array.newInstance(java.lang.Long.TYPE, 3);" +
                 "ts_long_arr[0] = -189009;" +
                 "ts_long_arr[1] = 456;" +
                 "ts_long_arr[2] = 600000001;" +
@@ -129,7 +116,7 @@ public class NumberAccessTest {
         e.eval("var pf_long_array = o.publicFinalLongArray;");
         assertEquals(o.publicFinalLongArray[0], e.eval("o.publicFinalLongArray[0];"));
         assertArrayEquals(o.publicFinalLongArray, (long[])e.get("pf_long_array"));
-        e.eval("var tf_long_arr = new (Java.type(\"long[]\"))(3);" +
+        e.eval("var tf_long_arr = java.lang.reflect.Array.newInstance(java.lang.Long.TYPE, 3);" +
                 "tf_long_arr[0] = -189009;" +
                 "tf_long_arr[1] = 456;" +
                 "tf_long_arr[2] = 600000001;" +
@@ -153,7 +140,7 @@ public class NumberAccessTest {
         e.eval("var psf_long_array = SharedObject.publicStaticFinalLongArray;");
         assertEquals(SharedObject.publicStaticFinalLongArray[0], e.eval("SharedObject.publicStaticFinalLongArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalLongArray, (long[])e.get("psf_long_array"));
-        e.eval("var tsf_long_arr = new (Java.type(\"long[]\"))(3);" +
+        e.eval("var tsf_long_arr = java.lang.reflect.Array.newInstance(java.lang.Long.TYPE, 3);" +
                 "tsf_long_arr[0] = -189009;" +
                 "tsf_long_arr[1] = 456;" +
                 "tsf_long_arr[2] = 600000001;" +
@@ -179,7 +166,7 @@ public class NumberAccessTest {
         e.eval("var p_int_array = o.publicIntArray;");
         assertEquals(o.publicIntArray[0], e.eval("o.publicIntArray[0];"));
         assertArrayEquals(o.publicIntArray, (int[])e.get("p_int_array"));
-        e.eval("var t_int_arr = new (Java.type(\"int[]\"))(3);" +
+        e.eval("var t_int_arr = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3);" +
                 "t_int_arr[0] = 4;" +
                 "t_int_arr[1] = 5;" +
                 "t_int_arr[2] = 6;" +
@@ -202,7 +189,7 @@ public class NumberAccessTest {
         e.eval("var ps_int_array = SharedObject.publicStaticIntArray;");
         assertEquals(SharedObject.publicStaticIntArray[0], e.eval("SharedObject.publicStaticIntArray[0];"));
         assertArrayEquals(SharedObject.publicStaticIntArray, (int[])e.get("ps_int_array"));
-        e.eval("var ts_int_arr = new (Java.type(\"int[]\"))(3);" +
+        e.eval("var ts_int_arr = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3);" +
                 "ts_int_arr[0] = 4;" +
                 "ts_int_arr[1] = 5;" +
                 "ts_int_arr[2] = 6;" +
@@ -226,7 +213,7 @@ public class NumberAccessTest {
         e.eval("var pf_int_array = o.publicFinalIntArray;");
         assertEquals(o.publicFinalIntArray[0], e.eval("o.publicFinalIntArray[0];"));
         assertArrayEquals(o.publicFinalIntArray, (int[])e.get("pf_int_array"));
-        e.eval("var tf_int_arr = new (Java.type(\"int[]\"))(3);" +
+        e.eval("var tf_int_arr = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3);" +
                 "tf_int_arr[0] = 4;" +
                 "tf_int_arr[1] = 5;" +
                 "tf_int_arr[2] = 6;" +
@@ -249,7 +236,7 @@ public class NumberAccessTest {
         e.eval("var psf_int_array = SharedObject.publicStaticFinalIntArray;");
         assertEquals(SharedObject.publicStaticFinalIntArray[0], e.eval("SharedObject.publicStaticFinalIntArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalIntArray, (int[])e.get("psf_int_array"));
-        e.eval("var tsf_int_arr = new (Java.type(\"int[]\"))(3);" +
+        e.eval("var tsf_int_arr = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3);" +
                 "tsf_int_arr[0] = 4;" +
                 "tsf_int_arr[1] = 5;" +
                 "tsf_int_arr[2] = 6;" +
@@ -274,7 +261,7 @@ public class NumberAccessTest {
         e.eval("var p_byte_array = o.publicByteArray;");
         assertEquals(o.publicByteArray[0], e.eval("o.publicByteArray[0];"));
         assertArrayEquals(o.publicByteArray, (byte[])e.get("p_byte_array"));
-        e.eval("var t_byte_arr = new (Java.type(\"byte[]\"))(3);" +
+        e.eval("var t_byte_arr = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, 3);" +
                 "t_byte_arr[0] = -18;" +
                 "t_byte_arr[1] = 56;" +
                 "t_byte_arr[2] = 60;" +
@@ -297,7 +284,7 @@ public class NumberAccessTest {
         e.eval("var ps_byte_array = SharedObject.publicStaticByteArray;");
         assertEquals(SharedObject.publicStaticByteArray[0], e.eval("SharedObject.publicStaticByteArray[0];"));
         assertArrayEquals(SharedObject.publicStaticByteArray, (byte[])e.get("ps_byte_array"));
-        e.eval("var ts_byte_arr = new (Java.type(\"byte[]\"))(3);" +
+        e.eval("var ts_byte_arr = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, 3);" +
                 "ts_byte_arr[0] = -18;" +
                 "ts_byte_arr[1] = 56;" +
                 "ts_byte_arr[2] = 60;" +
@@ -320,7 +307,7 @@ public class NumberAccessTest {
         e.eval("var pf_byte_array = o.publicFinalByteArray;");
         assertEquals(o.publicFinalByteArray[0], e.eval("o.publicFinalByteArray[0];"));
         assertArrayEquals(o.publicFinalByteArray, (byte[])e.get("pf_byte_array"));
-        e.eval("var tf_byte_arr = new (Java.type(\"byte[]\"))(3);" +
+        e.eval("var tf_byte_arr = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, 3);" +
                 "tf_byte_arr[0] = -18;" +
                 "tf_byte_arr[1] = 56;" +
                 "tf_byte_arr[2] = 60;" +
@@ -343,7 +330,7 @@ public class NumberAccessTest {
         e.eval("var psf_byte_array = SharedObject.publicStaticFinalByteArray;");
         assertEquals(SharedObject.publicStaticFinalByteArray[0], e.eval("SharedObject.publicStaticFinalByteArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalByteArray, (byte[])e.get("psf_byte_array"));
-        e.eval("var tsf_byte_arr = new (Java.type(\"byte[]\"))(3);" +
+        e.eval("var tsf_byte_arr = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, 3);" +
                 "tsf_byte_arr[0] = -18;" +
                 "tsf_byte_arr[1] = 56;" +
                 "tsf_byte_arr[2] = 60;" +
@@ -368,7 +355,7 @@ public class NumberAccessTest {
         e.eval("var p_short_array = o.publicShortArray;");
         assertEquals(o.publicShortArray[0], e.eval("o.publicShortArray[0];"));
         assertArrayEquals(o.publicShortArray, (short[])e.get("p_short_array"));
-        e.eval("var t_short_arr = new (Java.type(\"short[]\"))(3);" +
+        e.eval("var t_short_arr = java.lang.reflect.Array.newInstance(java.lang.Short.TYPE, 3);" +
                 "t_short_arr[0] = 90;" +
                 "t_short_arr[1] = 5;" +
                 "t_short_arr[2] = -6000;" +
@@ -391,7 +378,7 @@ public class NumberAccessTest {
         e.eval("var ps_short_array = SharedObject.publicStaticShortArray;");
         assertEquals(SharedObject.publicStaticShortArray[0], e.eval("SharedObject.publicStaticShortArray[0];"));
         assertArrayEquals(SharedObject.publicStaticShortArray, (short[])e.get("ps_short_array"));
-        e.eval("var ts_short_arr = new (Java.type(\"short[]\"))(3);" +
+        e.eval("var ts_short_arr = java.lang.reflect.Array.newInstance(java.lang.Short.TYPE, 3);" +
                 "ts_short_arr[0] = 90;" +
                 "ts_short_arr[1] = 5;" +
                 "ts_short_arr[2] = -6000;" +
@@ -414,7 +401,7 @@ public class NumberAccessTest {
         e.eval("var pf_short_array = o.publicFinalShortArray;");
         assertEquals(o.publicFinalShortArray[0], e.eval("o.publicFinalShortArray[0];"));
         assertArrayEquals(o.publicFinalShortArray, (short[])e.get("pf_short_array"));
-        e.eval("var tf_short_arr = new (Java.type(\"short[]\"))(3);" +
+        e.eval("var tf_short_arr = java.lang.reflect.Array.newInstance(java.lang.Short.TYPE, 3);" +
                 "tf_short_arr[0] = 90;" +
                 "tf_short_arr[1] = 5;" +
                 "tf_short_arr[2] = -6000;" +
@@ -437,7 +424,7 @@ public class NumberAccessTest {
         e.eval("var psf_short_array = SharedObject.publicStaticFinalShortArray;");
         assertEquals(SharedObject.publicStaticFinalShortArray[0], e.eval("SharedObject.publicStaticFinalShortArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalShortArray, (short[])e.get("psf_short_array"));
-        e.eval("var tsf_short_arr = new (Java.type(\"short[]\"))(3);" +
+        e.eval("var tsf_short_arr = java.lang.reflect.Array.newInstance(java.lang.Short.TYPE, 3);" +
                 "tsf_short_arr[0] = 90;" +
                 "tsf_short_arr[1] = 5;" +
                 "tsf_short_arr[2] = -6000;" +
@@ -471,7 +458,7 @@ public class NumberAccessTest {
         e.eval("var p_char_array = o.publicCharArray;");
         assertEquals(o.publicCharArray[0], e.eval("o.publicCharArray[0];"));
         assertArrayEquals(o.publicCharArray, (char[])e.get("p_char_array"));
-        e.eval("var t_char_arr = new (Java.type(\"char[]\"))(3);" +
+        e.eval("var t_char_arr = java.lang.reflect.Array.newInstance(java.lang.Character.TYPE, 3);" +
                 "t_char_arr[0] = 'F';" +
                 "t_char_arr[1] = 'o';" +
                 "t_char_arr[2] = 'o';" +
@@ -494,7 +481,7 @@ public class NumberAccessTest {
         e.eval("var ps_char_array = SharedObject.publicStaticCharArray;");
         assertEquals(SharedObject.publicStaticCharArray[0], e.eval("SharedObject.publicStaticCharArray[0];"));
         assertArrayEquals(SharedObject.publicStaticCharArray, (char[])e.get("ps_char_array"));
-        e.eval("var ts_char_arr = new (Java.type(\"char[]\"))(3);" +
+        e.eval("var ts_char_arr = java.lang.reflect.Array.newInstance(java.lang.Character.TYPE, 3);" +
                 "ts_char_arr[0] = 'G';" +
                 "ts_char_arr[1] = 'o';" +
                 "ts_char_arr[2] = 'o';" +
@@ -517,7 +504,7 @@ public class NumberAccessTest {
         e.eval("var pf_char_array = o.publicFinalCharArray;");
         assertEquals(o.publicFinalCharArray[0], e.eval("o.publicFinalCharArray[0];"));
         assertArrayEquals(o.publicFinalCharArray, (char[])e.get("pf_char_array"));
-        e.eval("var tf_char_arr = new (Java.type(\"char[]\"))(3);" +
+        e.eval("var tf_char_arr = java.lang.reflect.Array.newInstance(java.lang.Character.TYPE, 3);" +
                 "tf_char_arr[0] = 'F';" +
                 "tf_char_arr[1] = 'o';" +
                 "tf_char_arr[2] = 'o';" +
@@ -540,7 +527,7 @@ public class NumberAccessTest {
         e.eval("var psf_char_array = SharedObject.publicStaticFinalCharArray;");
         assertEquals(SharedObject.publicStaticFinalCharArray[0], e.eval("SharedObject.publicStaticFinalCharArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalCharArray, (char[])e.get("psf_char_array"));
-        e.eval("var tsf_char_arr = new (Java.type(\"char[]\"))(3);" +
+        e.eval("var tsf_char_arr = java.lang.reflect.Array.newInstance(java.lang.Character.TYPE, 3);" +
                 "tsf_char_arr[0] = 'Z';" +
                 "tsf_char_arr[1] = 'o';" +
                 "tsf_char_arr[2] = 'o';" +
@@ -577,7 +564,7 @@ public class NumberAccessTest {
         e.eval("var p_float_array = o.publicFloatArray;");
         assertEquals(o.publicFloatArray[0], e.eval("o.publicFloatArray[0];"));
         assertArrayEquals(o.publicFloatArray, (float[])e.get("p_float_array"), 1e-10f);
-        e.eval("var t_float_arr = new (Java.type(\"float[]\"))(3);" +
+        e.eval("var t_float_arr = java.lang.reflect.Array.newInstance(java.lang.Float.TYPE, 3);" +
                 "t_float_arr[0] = 9.0;" +
                 "t_float_arr[1] = 5.12345;" +
                 "t_float_arr[2] = -60.03;" +
@@ -612,7 +599,7 @@ public class NumberAccessTest {
         e.eval("var ps_float_array = SharedObject.publicStaticFloatArray;");
         assertEquals(SharedObject.publicStaticFloatArray[0], e.eval("SharedObject.publicStaticFloatArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFloatArray, (float[])e.get("ps_float_array"), 1e-10f);
-        e.eval("var ts_float_arr = new (Java.type(\"float[]\"))(3);" +
+        e.eval("var ts_float_arr = java.lang.reflect.Array.newInstance(java.lang.Float.TYPE, 3);" +
                 "ts_float_arr[0] = 9.0;" +
                 "ts_float_arr[1] = 5.12345;" +
                 "ts_float_arr[2] = -60.03;" +
@@ -635,7 +622,7 @@ public class NumberAccessTest {
         e.eval("var pf_float_array = o.publicFinalFloatArray;");
         assertEquals(o.publicFinalFloatArray[0], e.eval("o.publicFinalFloatArray[0];"));
         assertArrayEquals(o.publicFinalFloatArray, (float[])e.get("pf_float_array"), 1e-10f);
-        e.eval("var tf_float_arr = new (Java.type(\"float[]\"))(3);" +
+        e.eval("var tf_float_arr = java.lang.reflect.Array.newInstance(java.lang.Float.TYPE, 3);" +
                 "tf_float_arr[0] = 9.0;" +
                 "tf_float_arr[1] = 5.12345;" +
                 "tf_float_arr[2] = -60.03;" +
@@ -658,7 +645,7 @@ public class NumberAccessTest {
         e.eval("var psf_float_array = SharedObject.publicStaticFinalFloatArray;");
         assertEquals(SharedObject.publicStaticFinalFloatArray[0], e.eval("SharedObject.publicStaticFinalFloatArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalFloatArray, (float[])e.get("psf_float_array"), 1e-10f);
-        e.eval("var tsf_float_arr = new (Java.type(\"float[]\"))(3);" +
+        e.eval("var tsf_float_arr = java.lang.reflect.Array.newInstance(java.lang.Float.TYPE, 3);" +
                 "tsf_float_arr[0] = 9.0;" +
                 "tsf_float_arr[1] = 5.12345;" +
                 "tsf_float_arr[2] = -60.03;" +
@@ -695,7 +682,7 @@ public class NumberAccessTest {
         e.eval("var p_double_array = o.publicDoubleArray;");
         assertEquals(o.publicDoubleArray[0], e.eval("o.publicDoubleArray[0];"));
         assertArrayEquals(o.publicDoubleArray, (double[])e.get("p_double_array"), 1e-10);
-        e.eval("var t_double_arr = new (Java.type(\"double[]\"))(3);" +
+        e.eval("var t_double_arr = java.lang.reflect.Array.newInstance(java.lang.Double.TYPE, 3);" +
                 "t_double_arr[0] = 9e10;" +
                 "t_double_arr[1] = 0.677777;" +
                 "t_double_arr[2] = -0.0000001;" +
@@ -730,7 +717,7 @@ public class NumberAccessTest {
         e.eval("var ps_double_array = SharedObject.publicStaticDoubleArray;");
         assertEquals(SharedObject.publicStaticDoubleArray[0], e.eval("SharedObject.publicStaticDoubleArray[0];"));
         assertArrayEquals(SharedObject.publicStaticDoubleArray, (double[])e.get("ps_double_array"), 1e-10);
-        e.eval("var ts_double_arr = new (Java.type(\"double[]\"))(3);" +
+        e.eval("var ts_double_arr = java.lang.reflect.Array.newInstance(java.lang.Double.TYPE, 3);" +
                 "ts_double_arr[0] = 9e10;" +
                 "ts_double_arr[1] = 0.677777;" +
                 "ts_double_arr[2] = -0.0000001;" +
@@ -753,7 +740,7 @@ public class NumberAccessTest {
         e.eval("var pf_double_array = o.publicFinalDoubleArray;");
         assertEquals(o.publicFinalDoubleArray[0], e.eval("o.publicFinalDoubleArray[0];"));
         assertArrayEquals(o.publicFinalDoubleArray, (double[])e.get("pf_double_array"), 1e-10);
-        e.eval("var tf_double_arr = new (Java.type(\"double[]\"))(3);" +
+        e.eval("var tf_double_arr = java.lang.reflect.Array.newInstance(java.lang.Double.TYPE, 3);" +
                 "tf_double_arr[0] = 9e10;" +
                 "tf_double_arr[1] = 0.677777;" +
                 "tf_double_arr[2] = -0.0000001;" +
@@ -776,7 +763,7 @@ public class NumberAccessTest {
         e.eval("var psf_double_array = SharedObject.publicStaticFinalDoubleArray;");
         assertEquals(SharedObject.publicStaticFinalDoubleArray[0], e.eval("SharedObject.publicStaticFinalDoubleArray[0];"));
         assertArrayEquals(SharedObject.publicStaticFinalDoubleArray, (double[])e.get("psf_double_array"), 1e-10);
-        e.eval("var tsf_double_arr = new (Java.type(\"double[]\"))(3);" +
+        e.eval("var tsf_double_arr = java.lang.reflect.Array.newInstance(java.lang.Double.TYPE, 3);" +
                 "tsf_double_arr[0] = 9e10;" +
                 "tsf_double_arr[1] = 0.677777;" +
                 "tsf_double_arr[2] = -0.0000001;" +

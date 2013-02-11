@@ -32,19 +32,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import org.testng.TestNG;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * @test
- * @build jdk.nashorn.api.javaaccess.SharedObject jdk.nashorn.api.javaaccess.Person jdk.nashorn.api.javaaccess.NumberBoxingTest
- * @run testng/othervm jdk.nashorn.api.javaaccess.NumberBoxingTest
- */
 public class NumberBoxingTest {
 
     private static ScriptEngine e = null;
-    private static SharedObject o = null;
+    private static SharedObject o = new SharedObject();
 
     public static void main(final String[] args) {
         TestNG.main(args);
@@ -54,15 +48,8 @@ public class NumberBoxingTest {
     public static void setUpClass() throws ScriptException {
         final ScriptEngineManager m = new ScriptEngineManager();
         e = m.getEngineByName("nashorn");
-        o = new SharedObject();
         e.put("o", o);
-        e.eval("var SharedObject = Packages.jdk.nashorn.api.javaaccess.SharedObject;");
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-        e = null;
-        o = null;
+        e.eval("var SharedObject = Packages.jdk.nashorn.internal.access.SharedObject;");
     }
 
     // --------------------------------long

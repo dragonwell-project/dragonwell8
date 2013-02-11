@@ -25,9 +25,11 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.runtime.ScriptObject.isArray;
+
 import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
-import java.util.concurrent.Callable;
+import java.util.List;
 import jdk.nashorn.internal.ir.LiteralNode;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.ObjectNode;
@@ -35,7 +37,6 @@ import jdk.nashorn.internal.ir.PropertyNode;
 import jdk.nashorn.internal.ir.UnaryNode;
 import jdk.nashorn.internal.parser.JSONParser;
 import jdk.nashorn.internal.parser.TokenType;
-import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 
 /**
@@ -43,19 +44,8 @@ import jdk.nashorn.internal.runtime.linker.Bootstrap;
  */
 public final class JSONFunctions {
     private JSONFunctions() {}
-
-    private static final Object REVIVER_INVOKER = new Object();
-
-    private static MethodHandle getREVIVER_INVOKER() {
-        return ((GlobalObject)Context.getGlobal()).getDynamicInvoker(REVIVER_INVOKER,
-                new Callable<MethodHandle>() {
-                    @Override
-                    public MethodHandle call() {
-                        return Bootstrap.createDynamicInvoker("dyn:call", Object.class,
-                            ScriptFunction.class, ScriptObject.class, String.class, Object.class);
-                    }
-                });
-    }
+    private static final MethodHandle REVIVER_INVOKER = Bootstrap.createDynamicInvoker("dyn:call", Object.class,
+            ScriptFunction.class, ScriptObject.class, String.class, Object.class);
 
     /**
      * Returns JSON-compatible quoted version of the given string.
@@ -76,16 +66,21 @@ public final class JSONFunctions {
      */
     public static Object parse(final Object text, final Object reviver) {
         final String     str     = JSType.toString(text);
+        final Context    context = Context.getContextTrusted();
         final JSONParser parser  = new JSONParser(
                 new Source("<json>", str),
-                new Context.ThrowErrorManager());
+                new Context.ThrowErrorManager(),
+                (context != null) ?
+                    context._strict :
+                    false);
 
         Node node;
 
         try {
             node = parser.parse();
         } catch (final ParserException e) {
-            throw ECMAErrors.syntaxError(e, "invalid.json", e.getMessage());
+            ECMAErrors.syntaxError(e, "invalid.json", e.getMessage());
+            return ScriptRuntime.UNDEFINED;
         }
 
         final ScriptObject global = Context.getGlobalTrusted();
@@ -102,7 +97,7 @@ public final class JSONFunctions {
         if (reviver instanceof ScriptFunction) {
             assert global instanceof GlobalObject;
             final ScriptObject root = ((GlobalObject)global).newObject();
-            root.addOwnProperty("", Property.WRITABLE_ENUMERABLE_CONFIGURABLE, unfiltered);
+            root.set("", unfiltered, root.isStrictContext());
             return walk(root, "", (ScriptFunction)reviver);
         }
         return unfiltered;
@@ -111,8 +106,11 @@ public final class JSONFunctions {
     // This is the abstract "Walk" operation from the spec.
     private static Object walk(final ScriptObject holder, final Object name, final ScriptFunction reviver) {
         final Object val = holder.get(name);
-        if (val instanceof ScriptObject) {
+        if (val == ScriptRuntime.UNDEFINED) {
+            return val;
+        } else if (val instanceof ScriptObject) {
             final ScriptObject     valueObj = (ScriptObject)val;
+            final boolean          strict   = valueObj.isStrictContext();
             final Iterator<String> iter     = valueObj.propertyIterator();
 
             while (iter.hasNext()) {
@@ -120,20 +118,38 @@ public final class JSONFunctions {
                 final Object newElement = walk(valueObj, key, reviver);
 
                 if (newElement == ScriptRuntime.UNDEFINED) {
-                    valueObj.delete(key, false);
+                    valueObj.delete(key, strict);
                 } else {
-                    setPropertyValue(valueObj, key, newElement, false);
+                    valueObj.set(key, newElement, strict);
                 }
             }
-        }
 
-        try {
-             // Object.class, ScriptFunction.class, ScriptObject.class, String.class, Object.class);
-             return getREVIVER_INVOKER().invokeExact(reviver, holder, JSType.toString(name), val);
-        } catch(Error|RuntimeException t) {
-            throw t;
-        } catch(final Throwable t) {
-            throw new RuntimeException(t);
+            return valueObj;
+        } else if (isArray(val)) {
+            final ScriptObject      valueArray = (ScriptObject)val;
+            final boolean          strict     = valueArray.isStrictContext();
+            final Iterator<String> iter       = valueArray.propertyIterator();
+
+            while (iter.hasNext()) {
+                final String key        = iter.next();
+                final Object newElement = walk(valueArray, valueArray.get(key), reviver);
+
+                if (newElement == ScriptRuntime.UNDEFINED) {
+                    valueArray.delete(key, strict);
+                } else {
+                    valueArray.set(key, newElement, strict);
+                }
+            }
+            return valueArray;
+        } else {
+            try {
+                // Object.class, ScriptFunction.class, ScriptObject.class, String.class, Object.class);
+                return REVIVER_INVOKER.invokeExact(reviver, holder, JSType.toString(name), val);
+            } catch(Error|RuntimeException t) {
+                throw t;
+            } catch(final Throwable t) {
+                throw new RuntimeException(t);
+            }
         }
     }
 
@@ -175,13 +191,14 @@ public final class JSONFunctions {
         } else if (node instanceof ObjectNode) {
             final ObjectNode   objNode  = (ObjectNode) node;
             final ScriptObject object   = ((GlobalObject)global).newObject();
+            final boolean      strict   = global.isStrictContext();
+            final List<Node>   elements = objNode.getElements();
 
-            for (final PropertyNode pNode: objNode.getElements()) {
+            for (final Node elem : elements) {
+                final PropertyNode pNode     = (PropertyNode) elem;
                 final Node         valueNode = pNode.getValue();
 
-                final String name = pNode.getKeyName();
-                final Object value = convertNode(global, valueNode);
-                setPropertyValue(object, name, value, false);
+                object.set(pNode.getKeyName(), convertNode(global, valueNode), strict);
             }
 
             return object;
@@ -191,21 +208,6 @@ public final class JSONFunctions {
             return -((LiteralNode<?>)unaryNode.rhs()).getNumber();
         } else {
             return null;
-        }
-    }
-
-    // add a new property if does not exist already, or else set old property
-    private static void setPropertyValue(final ScriptObject sobj, final String name, final Object value, final boolean strict) {
-        final int index = ArrayIndex.getArrayIndex(name);
-        if (ArrayIndex.isValidArrayIndex(index)) {
-            // array index key
-            sobj.defineOwnProperty(index, value);
-        } else if (sobj.getMap().findProperty(name) != null) {
-            // pre-existing non-inherited property, call set
-            sobj.set(name, value, strict);
-        } else {
-            // add new property
-            sobj.addOwnProperty(name, Property.WRITABLE_ENUMERABLE_CONFIGURABLE, value);
         }
     }
 

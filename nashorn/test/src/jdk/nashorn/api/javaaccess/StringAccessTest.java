@@ -32,19 +32,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import org.testng.TestNG;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * @test
- * @build jdk.nashorn.api.javaaccess.SharedObject jdk.nashorn.api.javaaccess.Person jdk.nashorn.api.javaaccess.StringAccessTest
- * @run testng/othervm jdk.nashorn.api.javaaccess.StringAccessTest
- */
 public class StringAccessTest {
 
     private static ScriptEngine e = null;
-    private static SharedObject o = null;
+    private static SharedObject o = new SharedObject();
 
     public static void main(final String[] args) {
         TestNG.main(args);
@@ -54,15 +48,8 @@ public class StringAccessTest {
     public static void setUpClass() throws ScriptException {
         final ScriptEngineManager m = new ScriptEngineManager();
         e = m.getEngineByName("nashorn");
-        o = new SharedObject();
         e.put("o", o);
-        e.eval("var SharedObject = Packages.jdk.nashorn.api.javaaccess.SharedObject;");
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-        e = null;
-        o = null;
+        e.eval("var SharedObject = Packages.jdk.nashorn.internal.access.SharedObject;");
     }
 
     @Test
@@ -79,7 +66,7 @@ public class StringAccessTest {
         e.eval("var p_string_array = o.publicStringArray;");
         assertEquals(o.publicStringArray[0], e.eval("o.publicStringArray[0]"));
         assertArrayEquals(o.publicStringArray, (String[])e.get("p_string_array"));
-        e.eval("var t_string_arr = new (Java.type(\"java.lang.String[]\"))(3);" +
+        e.eval("var t_string_arr = java.lang.reflect.Array.newInstance(java.lang.String.class, 3);" +
                 "t_string_arr[0] = 'abc';" +
                 "t_string_arr[1] = '123';" +
                 "t_string_arr[2] = 'xyzzzz';" +
@@ -103,7 +90,7 @@ public class StringAccessTest {
         e.eval("var ps_string_array = SharedObject.publicStaticStringArray;");
         assertEquals(SharedObject.publicStaticStringArray[0], e.eval("SharedObject.publicStaticStringArray[0]"));
         assertArrayEquals(SharedObject.publicStaticStringArray, (String[])e.get("ps_string_array"));
-        e.eval("var ts_string_arr = new (Java.type(\"java.lang.String[]\"))(3);" +
+        e.eval("var ts_string_arr = java.lang.reflect.Array.newInstance(java.lang.String.class, 3);" +
                 "ts_string_arr[0] = 'abc';" +
                 "ts_string_arr[1] = '123';" +
                 "ts_string_arr[2] = 'xyzzzz';" +
@@ -127,7 +114,7 @@ public class StringAccessTest {
         e.eval("var pf_string_array = o.publicFinalStringArray;");
         assertEquals(o.publicFinalStringArray[0], e.eval("o.publicFinalStringArray[0]"));
         assertArrayEquals(o.publicFinalStringArray, (String[])e.get("pf_string_array"));
-        e.eval("var tf_string_arr = new (Java.type(\"java.lang.String[]\"))(3);" +
+        e.eval("var tf_string_arr = java.lang.reflect.Array.newInstance(java.lang.String.class, 3);" +
                 "tf_string_arr[0] = 'abc';" +
                 "tf_string_arr[1] = '123';" +
                 "tf_string_arr[2] = 'xyzzzz';" +
@@ -151,7 +138,7 @@ public class StringAccessTest {
         e.eval("var psf_string_array = SharedObject.publicStaticFinalStringArray;");
         assertEquals(SharedObject.publicStaticFinalStringArray[0], e.eval("SharedObject.publicStaticFinalStringArray[0]"));
         assertArrayEquals(SharedObject.publicStaticFinalStringArray, (String[])e.get("psf_string_array"));
-        e.eval("var tsf_string_arr = new (Java.type(\"java.lang.String[]\"))(3);" +
+        e.eval("var tsf_string_arr = java.lang.reflect.Array.newInstance(java.lang.String.class, 3);" +
                 "tsf_string_arr[0] = 'abc';" +
                 "tsf_string_arr[1] = '123';" +
                 "tsf_string_arr[2] = 'xyzzzz';" +

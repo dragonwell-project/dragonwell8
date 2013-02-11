@@ -36,19 +36,13 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import org.testng.TestNG;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * @test
- * @build jdk.nashorn.api.javaaccess.SharedObject jdk.nashorn.api.javaaccess.Person jdk.nashorn.api.javaaccess.MethodAccessTest
- * @run testng/othervm jdk.nashorn.api.javaaccess.MethodAccessTest
- */
 public class MethodAccessTest {
 
     private static ScriptEngine e = null;
-    private static SharedObject o = null;
+    private static SharedObject o = new SharedObject();
 
     public static void main(final String[] args) {
         TestNG.main(args);
@@ -58,17 +52,10 @@ public class MethodAccessTest {
     public static void setUpClass() throws ScriptException {
         final ScriptEngineManager m = new ScriptEngineManager();
         e = m.getEngineByName("nashorn");
-        o = new SharedObject();
         o.setEngine(e);
         e.put("o", o);
-        e.eval("var SharedObject = Packages.jdk.nashorn.api.javaaccess.SharedObject;");
-        e.eval("var Person = Packages.jdk.nashorn.api.javaaccess.Person;");
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-        e = null;
-        o = null;
+        e.eval("var SharedObject = Packages.jdk.nashorn.internal.access.SharedObject;");
+        e.eval("var Person = Packages.jdk.nashorn.internal.access.Person;");
     }
 
     @Test
@@ -338,13 +325,13 @@ public class MethodAccessTest {
 
     @Test
     public void accessDefaultConstructor() throws ScriptException {
-        e.eval("var dc = new Packages.jdk.nashorn.api.javaaccess.Person()");
+        e.eval("var dc = new Packages.jdk.nashorn.internal.access.Person()");
         assertEquals(new Person(), e.get("dc"));
     }
 
     @Test
     public void accessCustomConstructor() throws ScriptException {
-        e.eval("var cc = new Packages.jdk.nashorn.api.javaaccess.Person(17)");
+        e.eval("var cc = new Packages.jdk.nashorn.internal.access.Person(17)");
         assertEquals(new Person(17), e.get("cc"));
     }
 
@@ -412,7 +399,7 @@ public class MethodAccessTest {
 
     @Test
     public void accessMethodMixedWithEllipsis() throws ScriptException {
-        assertArrayEquals(new Object[] { "Hello", 10, true, -100500, 80d }, (Object[])e.eval("o.methodMixedWithEllipsis('Hello', 10, true, -100500,80.0);"));
+        assertArrayEquals(new Object[] { "Hello", 10, true, -100500, 80 }, (Object[])e.eval("o.methodMixedWithEllipsis('Hello', 10, true, -100500,80.0);"));
         assertArrayEquals(new Object[] { "Nashorn", 15 }, (Object[])e.eval("o.methodMixedWithEllipsis('Nashorn',15);"));
     }
 
@@ -431,8 +418,8 @@ public class MethodAccessTest {
 
     @Test
     public void accessMethodDoubleVSintOverloaded() throws ScriptException {
-        assertEquals("double", e.eval("o.overloadedMethodDoubleVSint(0.0);"));
-        assertEquals("double", e.eval("o.overloadedMethodDoubleVSint(1000.0);"));
+        assertEquals("int", e.eval("o.overloadedMethodDoubleVSint(0.0);"));
+        assertEquals("int", e.eval("o.overloadedMethodDoubleVSint(1000.0);"));
         assertEquals("double", e.eval("o.overloadedMethodDoubleVSint(0.01);"));
         assertEquals("double", e.eval("o.overloadedMethodDoubleVSint(100.02);"));
         assertEquals("int", e.eval("o.overloadedMethodDoubleVSint(0);"));
