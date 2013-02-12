@@ -158,7 +158,7 @@ REGISTER_DECLARATION(Register, esp,      r20);
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
 namespace asm_util {
-  uint32_t encode_immediate_v2(int is32, uint64_t imm);
+  uint32_t encode_logical_immediate(int is32, uint64_t imm);
 };
 
 using namespace asm_util;
@@ -704,7 +704,7 @@ public:
 #define INSN(NAME, decode, is32)				\
   void NAME(Register Rd, Register Rn, uint64_t imm) {		\
     starti;							\
-    uint32_t val = encode_immediate_v2(is32, imm);		\
+    uint32_t val = encode_logical_immediate(is32, imm);		\
     f(decode, 31, 29), f(0b100100, 28, 23), f(val, 22, 10);	\
     srf(Rd, 0), zrf(Rn, 5);					\
   }
@@ -721,7 +721,7 @@ public:
 #define INSN(NAME, decode, is32)				\
   void NAME(Register Rd, Register Rn, uint64_t imm) {		\
     starti;							\
-    uint32_t val = encode_immediate_v2(is32, imm);		\
+    uint32_t val = encode_logical_immediate(is32, imm);		\
     f(decode, 31, 29), f(0b100100, 28, 23), f(val, 22, 10);	\
     zrf(Rd, 0), zrf(Rn, 5);					\
   }

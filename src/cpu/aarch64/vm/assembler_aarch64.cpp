@@ -41,6 +41,12 @@ const unsigned long Assembler::asm_bp = 0x00007fffee089300;
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/sharedRuntime.hpp"
 
+// for the moment we reuse the logical/floating point immediate encode
+// and decode functiosn provided by the simulator. when we move to
+// real hardware we will need to pull taht code into here
+
+#include "../../../../../../simulator/immediate.hpp"
+
 // #include "gc_interface/collectedHeap.inline.hpp"
 // #include "interpreter/interpreter.hpp"
 // #include "memory/cardTableModRefBS.hpp"
@@ -1264,199 +1270,6 @@ void Address::lea(MacroAssembler *as, Register r) const {
 #undef __
 }
 
-// ------------- Stolen from binutils begin -------------------------------------
-
-/* Build the accepted values for immediate logical SIMD instructions.
- *
- * The valid encodings of the immediate value are:
- *   opc<0> j:jjjjj  i:iii:ii  SIMD size  R             S
- *   1      ssssss   rrrrrr       64      UInt(rrrrrr)  UInt(ssssss)
- *   0      0sssss   0rrrrr       32      UInt(rrrrr)   UInt(sssss)
- *   0      10ssss   00rrrr       16      UInt(rrrr)    UInt(ssss)
- *   0      110sss   000rrr       8       UInt(rrr)     UInt(sss)
- *   0      1110ss   0000rr       4       UInt(rr)      UInt(ss)
- *   0      11110s   00000r       2       UInt(r)       UInt(s)
- *   other combinations                   UNPREDICTABLE
- *
- * Let's call E the SIMD size.
- *
- * The immediate value is: S+1 bits '1' rotated to the right by R.
- *
- * The total of valid encodings is 64^2 + 32^2 + ... + 2^2 = 5460.
- *
- * This means we have the following number of distinct values:
- *   - for S = E - 1, all values of R generate a word full of '1'
- *      so we have 2 + 4 + ... + 64 = 126 ways of encoding 0xf...f
- *   - for S != E - 1, all value are obviously distinct
- *      so we have #{ for all E: (E - 1) * R (where R = E) } values
- *        = 64*63 + 32*31 + ... + 2*1 = 5334
- *   - it is obvious that for two different values of E, if S != E - 1
- *      then we can't generate the same value.
- * So the total number of distinct values is 5334 + 1 = 5335 (out of
- * a total of 5460 valid encodings).
- */
-#define TOTAL_IMM_NB  5334
-
-typedef struct {
-  uint64_t imm;
-  uint32_t encoding;
-} simd_imm_encoding_v2;
-
-static simd_imm_encoding_v2 simd_immediates_v2[TOTAL_IMM_NB];
-
-static int
-simd_imm_encoding_cmp_v2(const void *i1, const void *i2)
-{
-  const simd_imm_encoding_v2 *imm1 = (const simd_imm_encoding_v2 *)i1;
-  const simd_imm_encoding_v2 *imm2 = (const simd_imm_encoding_v2 *)i2;
-
-  if (imm1->imm < imm2->imm)
-    return -1;
-  if (imm1->imm > imm2->imm)
-    return +1;
-  return 0;
-}
-
-/* immediate bitfield encoding
- * imm13<12> imm13<5:0> imm13<11:6> SIMD size R      S
- * 1         ssssss     rrrrrr      64        rrrrrr ssssss
- * 0         0sssss     0rrrrr      32        rrrrr  sssss
- * 0         10ssss     00rrrr      16        rrrr   ssss
- * 0         110sss     000rrr      8         rrr    sss
- * 0         1110ss     0000rr      4         rr     ss
- * 0         11110s     00000r      2         r      s
- */
-static inline int encode_immediate_bitfield(int is64, uint32_t s, uint32_t r)
-{
-  return (is64 << 12) | (r << 6) | s;
-}
-
-static void
-build_immediate_table_v2(void) __attribute__ ((constructor));
-
-static void
-build_immediate_table_v2(void)
-{
-  uint32_t log_e, e, s, r, s_mask;
-  uint64_t mask, imm;
-  int nb_imms;
-  int is64;
-
-  nb_imms = 0;
-  for (log_e = 1; log_e <= 6; log_e++) {
-    e = 1u << log_e;
-    if (log_e == 6) {
-      is64 = 1;
-      mask = 0xffffffffffffffffull;
-      s_mask = 0;
-    } else {
-      is64 = 0;
-      mask = (1ull << e) - 1;
-      /* log_e  s_mask
-       *  1     ((1 << 4) - 1) << 2 = 111100
-       *  2     ((1 << 3) - 1) << 3 = 111000
-       *  3     ((1 << 2) - 1) << 4 = 110000
-       *  4     ((1 << 1) - 1) << 5 = 100000
-       *  5     ((1 << 0) - 1) << 6 = 000000
-       */
-      s_mask = ((1u << (5 - log_e)) - 1) << (log_e + 1);
-    }
-    for (s = 0; s < e - 1; s++) {
-      for (r = 0; r < e; r++) {
-        /* s+1 consecutive bits to 1 (s < 63) */
-        imm = (1ull << (s + 1)) - 1;
-        /* rotate right by r */
-        if (r != 0)
-          imm = (imm >> r) | ((imm << (e - r)) & mask);
-        /* replicate the constant depending on SIMD size */
-        switch (log_e) {
-        case 1: imm = (imm <<  2) | imm;
-        case 2: imm = (imm <<  4) | imm;
-        case 3: imm = (imm <<  8) | imm;
-        case 4: imm = (imm << 16) | imm;
-        case 5: imm = (imm << 32) | imm;
-        case 6:
-          break;
-        default:
-          abort ();
-        }
-        simd_immediates_v2[nb_imms].imm = imm;
-        simd_immediates_v2[nb_imms].encoding =
-          encode_immediate_bitfield(is64, s | s_mask, r);
-        nb_imms++;
-      }
-    }
-  }
-  gas_assert(nb_imms == TOTAL_IMM_NB);
-  qsort(simd_immediates_v2, nb_imms,
-        sizeof(simd_immediates_v2[0]), simd_imm_encoding_cmp_v2);
-}
-
-/* Create a valid encoding for imm.  Returns ffffffff since it's an invalid
-   encoding.  */
-uint32_t
-asm_util::encode_immediate_v2(int is32, uint64_t imm)
-{
-  simd_imm_encoding_v2 imm_enc;
-  const simd_imm_encoding_v2 *imm_encoding;
-
-  if (is32) {
-    /* Allow all zeros or all ones in top 32-bits, so that
-       constant expressions like ~1 are permitted. */
-    if (imm >> 32 != 0 && imm >> 32 != 0xffffffff)
-      return 0xffffffff;
-    /* Replicate the 32 lower bits to the 32 upper bits.  */
-    imm &= 0xffffffff;
-    imm |= imm << 32;
-  }
-
-  imm_enc.imm = imm;
-  imm_encoding = (const simd_imm_encoding_v2 *)
-    bsearch(&imm_enc, simd_immediates_v2, TOTAL_IMM_NB,
-            sizeof(simd_immediates_v2[0]), simd_imm_encoding_cmp_v2);
-  if (imm_encoding == NULL)
-    return 0xffffffff;
-  return imm_encoding->encoding;
-}
-
-static uint32_t encode_v2_imm_float_bits(uint32_t imm)
-{
-  return
-    ((imm >> 19) & 0x7f)          /* b[25:19] -> b[6:0] */
-    | ((imm >> (31 - 7)) & 0x80); /* b[31]    -> b[7]   */
-}
-
-static uint64_t
-expand_fp_imm(int is_dp, uint32_t imm8)
-{
-  uint64_t imm;
-  uint32_t imm8_7, imm8_6_0, imm8_6, imm8_6_repl4;
-
-  imm8_7 = (imm8 >> 7) & 0x01;   /* imm8<7>   */
-  imm8_6_0 = imm8 & 0x7f; /* imm8<6:0> */
-  imm8_6 = imm8_6_0 >> 6;         /* imm8<6>   */
-  imm8_6_repl4 = (imm8_6 << 3) | (imm8_6 << 2)
-    | (imm8_6 << 1) | imm8_6;     /* Replicate(imm8<6>,4) */
-  if (is_dp) {
-    imm = (imm8_7 << (63-32))                           /* imm8<7>              */
-      | ((imm8_6 ^ 1) << (62-32))                       /* NOT(imm8<6>)         */
-      | (imm8_6_repl4 << (58-32)) | (imm8_6 << (57-32))
-      | (imm8_6 << (56-32)) | (imm8_6 << (55-32))       /* Replicate(imm8<6>,7) */
-      | (imm8_6_0 << (48-32));                          /* imm8<6>:imm8<5:0>    */
-    imm <<= 32;
-  } else {
-    imm = (imm8_7 << 31)     /* imm8<7>              */
-      | ((imm8_6 ^ 1) << 30) /* NOT(imm8<6>)         */
-      | (imm8_6_repl4 << 26) /* Replicate(imm8<6>,4) */
-      | (imm8_6_0 << 19);    /* imm8<6>:imm8<5:0>    */
-  }
-
-  return imm;
-}
-
-// ------------- Stolen from binutils end -------------------------------------
-
-
 Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
   _is_lval = false;
   _target = target;
@@ -1657,7 +1470,7 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
 }
 
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
-  return encode_immediate_v2(is32, imm) != 0xffffffff;
+  return encode_logical_immediate(is32, imm) != 0xffffffff;
 }
 
 int AbstractAssembler::code_fill_byte() {
@@ -2311,6 +2124,7 @@ Address MacroAssembler::argument_address(RegisterOrConstant arg_slot,
 // n.b. this is implemented in subclass MacroAssembler
 void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 
+<<<<<<< HEAD
 void MacroAssembler::call_VM_leaf_base(address entry_point,
                                        int number_of_arguments) {
   call_VM_leaf_base1(entry_point, number_of_arguments, 0, ret_type_integral);
@@ -2652,15 +2466,46 @@ static float unpack(unsigned value) {
   };
   ival = expand_fp_imm(false, value);
   return val;
+=======
+
+// these are the functions provided by the simulator which are used to
+// encode and decode logical immediates and floating point immediates
+//
+//   u_int64_t logical_immediate_for_encoding(u_int32_t encoding);
+//
+//   u_int32_t encoding_for_logical_immediate(u_int64_t immediate);
+//
+//   u_int64_t fp_immediate_for_encoding(u_int32_t imm8, int is_dp);
+//
+//   u_int32_t encoding_for_fp_immediate(float immediate);
+//
+// we currently import these from the simulator librray but the
+// definitions will need to be moved to here when we switch to real
+// hardware.
+
+// and now the routines called by the assembler which encapsulate the
+// above encode and decode functions
+
+uint32_t
+asm_util::encode_logical_immediate(int is32, uint64_t imm)
+{
+  if (is32) {
+    /* Allow all zeros or all ones in top 32-bits, so that
+       constant expressions like ~1 are permitted. */
+    if (imm >> 32 != 0 && imm >> 32 != 0xffffffff)
+      return 0xffffffff;
+    /* Replicate the 32 lower bits to the 32 upper bits.  */
+    imm &= 0xffffffff;
+    imm |= imm << 32;
+  }
+
+  return encoding_for_logical_immediate(imm);
+>>>>>>> 89c9b9e... removed binutils code for logical/fp immediate encode and decode
 }
 
 unsigned Assembler::pack(double value) {
-  union {
-    unsigned ival;
-    float val;
-  };
-  val = (float)value;
-  unsigned result = encode_v2_imm_float_bits(ival);
+  float val = (float)value;
+  unsigned result = encoding_for_fp_immediate(val);
   guarantee(unpack(result) == value,
 	    "Invalid floating-point immediate operand");
   return result;
@@ -2668,6 +2513,7 @@ unsigned Assembler::pack(double value) {
 
 // MacroAssembler routines found actually to be needed
 
+<<<<<<< HEAD
 void MacroAssembler::push(Register src)
 {
   str(src, Address(pre(esp, -1 * wordSize)));
@@ -3327,6 +3173,15 @@ void  MacroAssembler::decode_heap_oop(Register r) {
     bind(done);
   }
   verify_oop(r, "broken oop in decode_heap_oop");
+=======
+static float unpack(unsigned value) {
+  union {
+    unsigned ival;
+    float val;
+  };
+  ival = fp_immediate_for_encoding(value, 0);
+  return val;
+>>>>>>> 89c9b9e... removed binutils code for logical/fp immediate encode and decode
 }
 
 void  MacroAssembler::decode_heap_oop_not_null(Register r) {
