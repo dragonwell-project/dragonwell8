@@ -88,6 +88,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
 
+
 /**
  * A convenience default bootstrapper that exposes static bootstrap methods which language runtimes that need the very
  * default behavior can use with minimal setup. When first referenced, it will create a dynamic linker with default
@@ -133,7 +134,7 @@ public class DefaultBootstrapper {
      * @param type the method signature at the call site
      * @return a new {@link MonomorphicCallSite} linked with the default dynamic linker.
      */
-    public static CallSite publicBootstrap(MethodHandles.Lookup caller, String name, MethodType type) {
+    public static CallSite publicBootstrap(@SuppressWarnings("unused") MethodHandles.Lookup caller, String name, MethodType type) {
         return bootstrapInternal(MethodHandles.publicLookup(), name, type);
     }
 

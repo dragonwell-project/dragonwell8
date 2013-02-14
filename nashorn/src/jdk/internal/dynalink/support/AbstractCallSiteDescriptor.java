@@ -88,6 +88,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.util.Objects;
 import jdk.internal.dynalink.CallSiteDescriptor;
 
+
 /**
  * A base class for call site descriptor implementations. Provides reconstruction of the name from the tokens, as well
  * as a generally useful {@code equals} and {@code hashCode} methods.
@@ -139,9 +140,8 @@ public abstract class AbstractCallSiteDescriptor implements CallSiteDescriptor {
 
     @Override
     public int hashCode() {
-        final MethodHandles.Lookup lookup = getLookup();
-        int h = lookup.lookupClass().hashCode() + 31 * lookup.lookupModes();
         final int c = getNameTokenCount();
+        int h = 0;
         for(int i = 0; i < c; ++i) {
             h = h * 31 + getNameToken(i).hashCode();
         }

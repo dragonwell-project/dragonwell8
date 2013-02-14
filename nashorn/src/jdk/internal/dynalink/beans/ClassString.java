@@ -91,16 +91,12 @@ import jdk.internal.dynalink.linker.LinkerServices;
 import jdk.internal.dynalink.support.Guards;
 import jdk.internal.dynalink.support.TypeUtilities;
 
+
 /**
  *
  * @author Attila Szegedi
  */
 final class ClassString {
-    /**
-     * An anonymous inner class used solely to represent the "type" of null values for method applicability checking.
-     */
-    static final Class<?> NULL_CLASS = (new Object() { /* Intentionally empty */ }).getClass();
-
     private final Class<?>[] classes;
     private int hashCode;
 
@@ -110,6 +106,10 @@ final class ClassString {
 
     ClassString(MethodType type) {
         this(type.parameterArray());
+    }
+
+    Class<?>[] getClasses() {
+        return classes;
     }
 
     @Override
@@ -151,8 +151,8 @@ final class ClassString {
     }
 
     List<MethodHandle> getMaximallySpecifics(List<MethodHandle> methods, LinkerServices linkerServices, boolean varArg) {
-        return MaximallySpecific.getMaximallySpecificMethodHandles(getApplicables(methods, linkerServices, varArg),
-                varArg, classes, linkerServices);
+        return MaximallySpecific.getMaximallySpecificMethods(getApplicables(methods, linkerServices, varArg), varArg,
+                classes, linkerServices);
     }
 
     /**
@@ -204,9 +204,6 @@ final class ClassString {
     }
 
     private static boolean canConvert(LinkerServices ls, Class<?> from, Class<?> to) {
-        if(from == NULL_CLASS) {
-            return !to.isPrimitive();
-        }
         return ls == null ? TypeUtilities.isMethodInvocationConvertible(from, to) : ls.canConvert(from, to);
     }
 }

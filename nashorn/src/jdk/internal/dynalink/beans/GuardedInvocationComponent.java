@@ -86,6 +86,7 @@ package jdk.internal.dynalink.beans;
 import java.lang.invoke.MethodHandle;
 import jdk.internal.dynalink.linker.GuardedInvocation;
 
+
 /**
  * Represents one component for a GuardedInvocation of a potentially composite operation of an
  * {@link AbstractJavaLinker}. In addition to holding a guarded invocation, it holds semantic information about its
@@ -195,8 +196,8 @@ class GuardedInvocationComponent {
                                 return this;
                             }
                             break;
-                        default:
-                            throw new AssertionError();
+                        case NONE:
+                            throw new AssertionError(); // Not possible
                     }
                     break;
                 case EXACT_CLASS:
@@ -216,8 +217,8 @@ class GuardedInvocationComponent {
                                 return this;
                             }
                             break;
-                        default:
-                            throw new AssertionError();
+                        case NONE:
+                            throw new AssertionError(); // Not possible
                     }
                     break;
                 case IS_ARRAY:
@@ -230,12 +231,10 @@ class GuardedInvocationComponent {
                             break;
                         case IS_ARRAY:
                             return this;
-                        default:
-                            throw new AssertionError();
+                        case NONE:
+                            throw new AssertionError(); // Not possible
                     }
                     break;
-                default:
-                    throw new AssertionError();
             }
             throw new AssertionError("Incompatible composition " + this + " vs " + other);
         }

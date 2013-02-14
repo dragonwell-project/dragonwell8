@@ -88,8 +88,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jdk.internal.dynalink.DynamicLinker;
 import jdk.internal.dynalink.linker.LinkerServices;
+
 
 /**
  * Utility methods for creating typical guards. TODO: introduce reasonable caching of created guards.
@@ -116,11 +116,11 @@ public class Guards {
     public static MethodHandle isOfClass(Class<?> clazz, MethodType type) {
         final Class<?> declaredType = type.parameterType(0);
         if(clazz == declaredType) {
-            LOG.log(Level.WARNING, "isOfClassGuardAlwaysTrue", new Object[] { clazz.getName(), 0, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isOfClassGuardAlwaysTrue", new Object[] { clazz.getName(), 0, type });
             return constantTrue(type);
         }
         if(!declaredType.isAssignableFrom(clazz)) {
-            LOG.log(Level.WARNING, "isOfClassGuardAlwaysFalse", new Object[] { clazz.getName(), 0, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isOfClassGuardAlwaysFalse", new Object[] { clazz.getName(), 0, type });
             return constantFalse(type);
         }
         return getClassBoundArgumentTest(IS_OF_CLASS, clazz, 0, type);
@@ -153,11 +153,11 @@ public class Guards {
     public static MethodHandle isInstance(Class<?> clazz, int pos, MethodType type) {
         final Class<?> declaredType = type.parameterType(pos);
         if(clazz.isAssignableFrom(declaredType)) {
-            LOG.log(Level.WARNING, "isInstanceGuardAlwaysTrue", new Object[] { clazz.getName(), pos, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isInstanceGuardAlwaysTrue", new Object[] { clazz.getName(), pos, type });
             return constantTrue(type);
         }
         if(!declaredType.isAssignableFrom(clazz)) {
-            LOG.log(Level.WARNING, "isInstanceGuardAlwaysFalse", new Object[] { clazz.getName(), pos, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isInstanceGuardAlwaysFalse", new Object[] { clazz.getName(), pos, type });
             return constantFalse(type);
         }
         return getClassBoundArgumentTest(IS_INSTANCE, clazz, pos, type);
@@ -175,11 +175,11 @@ public class Guards {
     public static MethodHandle isArray(int pos, MethodType type) {
         final Class<?> declaredType = type.parameterType(pos);
         if(declaredType.isArray()) {
-            LOG.log(Level.WARNING, "isArrayGuardAlwaysTrue", new Object[] { pos, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isArrayGuardAlwaysTrue", new Object[] { pos, type });
             return constantTrue(type);
         }
         if(!declaredType.isAssignableFrom(Object[].class)) {
-            LOG.log(Level.WARNING, "isArrayGuardAlwaysFalse", new Object[] { pos, type, DynamicLinker.getLinkedCallSiteLocation() });
+            LOG.log(Level.WARNING, "isArrayGuardAlwaysFalse", new Object[] { pos, type });
             return constantFalse(type);
         }
         return asType(IS_ARRAY, pos, type);
@@ -259,24 +259,23 @@ public class Guards {
                 type.changeReturnType(Boolean.TYPE), new int[] { pos });
     }
 
+    private static final MethodHandle IS_OF_CLASS = new Lookup(MethodHandles.lookup()).findStatic(Guards.class,
+            "isOfClass", MethodType.methodType(Boolean.TYPE, Class.class, Object.class));
+
     private static final MethodHandle IS_INSTANCE = Lookup.PUBLIC.findVirtual(Class.class, "isInstance",
             MethodType.methodType(Boolean.TYPE, Object.class));
 
-    private static final MethodHandle IS_OF_CLASS;
-    private static final MethodHandle IS_ARRAY;
-    private static final MethodHandle IS_IDENTICAL;
-    private static final MethodHandle IS_NULL;
-    private static final MethodHandle IS_NOT_NULL;
+    private static final MethodHandle IS_ARRAY = new Lookup(MethodHandles.lookup()).findStatic(Guards.class, "isArray",
+            MethodType.methodType(Boolean.TYPE, Object.class));
 
-    static {
-        final Lookup lookup = new Lookup(MethodHandles.lookup());
+    private static final MethodHandle IS_IDENTICAL = new Lookup(MethodHandles.lookup()).findStatic(Guards.class,
+            "isIdentical", MethodType.methodType(Boolean.TYPE, Object.class, Object.class));
 
-        IS_OF_CLASS  = lookup.findOwnStatic("isOfClass",   Boolean.TYPE, Class.class, Object.class);
-        IS_ARRAY     = lookup.findOwnStatic("isArray",     Boolean.TYPE, Object.class);
-        IS_IDENTICAL = lookup.findOwnStatic("isIdentical", Boolean.TYPE, Object.class, Object.class);
-        IS_NULL      = lookup.findOwnStatic("isNull",      Boolean.TYPE, Object.class);
-        IS_NOT_NULL  = lookup.findOwnStatic("isNotNull",   Boolean.TYPE, Object.class);
-    }
+    private static final MethodHandle IS_NULL = new Lookup(MethodHandles.lookup()).findStatic(Guards.class,
+            "isNull", MethodType.methodType(Boolean.TYPE, Object.class));
+
+    private static final MethodHandle IS_NOT_NULL = new Lookup(MethodHandles.lookup()).findStatic(Guards.class,
+            "isNotNull", MethodType.methodType(Boolean.TYPE, Object.class));
 
     /**
      * Creates a guard method that tests its only argument for being of an exact particular class.

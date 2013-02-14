@@ -106,19 +106,7 @@ class StaticClassIntrospector extends FacetIntrospector {
 
     @Override
     MethodHandle editMethodHandle(MethodHandle mh) {
-        return editStaticMethodHandle(mh);
-    }
-
-    static MethodHandle editStaticMethodHandle(MethodHandle mh) {
-        return dropReceiver(mh, Object.class);
-    }
-
-    static MethodHandle editConstructorMethodHandle(MethodHandle cmh) {
-        return dropReceiver(cmh, StaticClass.class);
-    }
-
-    private static MethodHandle dropReceiver(final MethodHandle mh, final Class<?> receiverClass) {
-        MethodHandle newHandle = MethodHandles.dropArguments(mh, 0, receiverClass);
+        MethodHandle newHandle = MethodHandles.dropArguments(mh, 0, Object.class);
         // NOTE: this is a workaround for the fact that dropArguments doesn't preserve vararg collector state.
         if(mh.isVarargsCollector() && !newHandle.isVarargsCollector()) {
             final MethodType type = mh.type();

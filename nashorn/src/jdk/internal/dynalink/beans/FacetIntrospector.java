@@ -94,12 +94,13 @@ import java.util.Collections;
 import java.util.Map;
 import jdk.internal.dynalink.support.Lookup;
 
+
 /**
  * Base for classes that expose class field and method information to an {@link AbstractJavaLinker}. There are
  * subclasses for instance (bean) and static facet of a class.
  * @author Attila Szegedi
  */
-abstract class FacetIntrospector {
+abstract class FacetIntrospector implements AutoCloseable {
     private final Class<?> clazz;
     private final boolean instance;
     private final boolean isRestricted;
@@ -168,6 +169,10 @@ abstract class FacetIntrospector {
         return editMethodHandle(Lookup.PUBLIC.unreflectSetter(field));
     }
 
+    MethodHandle unreflect(Method method) {
+        return editMethodHandle(Lookup.PUBLIC.unreflect(method));
+    }
+
     /**
      * Returns an edited method handle. A facet might need to edit an unreflected method handle before it is usable with
      * the facet. By default, returns the passed method handle unchanged. The class' static facet will introduce a
@@ -176,4 +181,8 @@ abstract class FacetIntrospector {
      * @return the edited method handle.
      */
     abstract MethodHandle editMethodHandle(MethodHandle mh);
+
+    @Override
+    public void close() {
+    }
 }

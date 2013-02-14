@@ -94,6 +94,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import jdk.internal.dynalink.linker.LinkerServices;
 import jdk.internal.dynalink.support.Lookup;
 
+
 /**
  * Represents a subset of overloaded methods for a certain method name on a certain class. It can be either a fixarg or
  * a vararg subset depending on the subclass. The method is for a fixed number of arguments though (as it is generated
@@ -135,7 +136,7 @@ class OverloadedMethod {
         varArgMethods.trimToSize();
 
         final MethodHandle bound = SELECT_METHOD.bindTo(this);
-        final MethodHandle collecting = SingleDynamicMethod.collectArguments(bound, argNum).asType(
+        final MethodHandle collecting = SimpleDynamicMethod.collectArguments(bound, argNum).asType(
                 callSiteType.changeReturnType(MethodHandle.class));
         invoker = MethodHandles.foldArguments(MethodHandles.exactInvoker(callSiteType), collecting);
     }
@@ -152,7 +153,7 @@ class OverloadedMethod {
         final Class<?>[] argTypes = new Class[args.length];
         for(int i = 0; i < argTypes.length; ++i) {
             final Object arg = args[i];
-            argTypes[i] = arg == null ? ClassString.NULL_CLASS : arg.getClass();
+            argTypes[i] = arg == null ? callSiteType.parameterType(i) : arg.getClass();
         }
         final ClassString classString = new ClassString(argTypes);
         MethodHandle method = argTypesToMethods.get(classString);
@@ -167,7 +168,7 @@ class OverloadedMethod {
                     break;
                 }
                 case 1: {
-                    method = SingleDynamicMethod.getInvocation(methods.get(0), callSiteType, linkerServices);
+                    method = new SimpleDynamicMethod(methods.get(0)).getInvocation(callSiteType, linkerServices);
                     break;
                 }
                 default: {

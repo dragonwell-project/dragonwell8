@@ -81,34 +81,33 @@
        ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-package jdk.internal.dynalink.linker;
+package jdk.internal.dynalink.beans;
 
-import jdk.internal.dynalink.support.TypeUtilities;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
 /**
- * Optional interface that can be implemented by {@link GuardingDynamicLinker} implementations to provide
- * language-runtime specific implicit type conversion capabilities. Note that if you implement this interface, you will
- * very likely want to implement {@link ConversionComparator} interface too, as your additional language-specific
- * conversions, in absence of a strategy for prioritizing these conversions, will cause more ambiguity in selecting the
- * correct overload when trying to link to an overloaded POJO method.
- *
+ * This class is never referenced directly from code of any other class, but is loaded into a secure class loader that
+ * gives it no permissions whatsoever, so it can be used to reliably test whether a given package has restricted access
+ * or not. See {@link CheckRestrictedPackageInternal} for details.
  * @author Attila Szegedi
+ * @version $Id: $
  */
-public interface GuardingTypeConverterFactory {
-    /**
-     * Returns a guarded invocation that receives an Object of the specified source type and returns an Object converted
-     * to the specified target type. The type of the invocation is targetType(sourceType), while the type of the guard
-     * is boolean(sourceType). Note that this will never be invoked for type conversions allowed by the JLS 5.3 "Method
-     * Invocation Conversion", see {@link TypeUtilities#isMethodInvocationConvertible(Class, Class)} for details. An
-     * implementation can assume it is never requested to produce a converter for these conversions.
-     *
-     * @param sourceType source type
-     * @param targetType the target type.
-     * @return a guarded invocation that can take an object (if it passes guard) and returns another object that is its
-     * representation coerced into the target type. In case the factory is certain it is unable to handle a conversion,
-     * it can return null. In case the factory is certain that it can always handle the conversion, it can return an
-     * unconditional invocation (one whose guard is null).
-     * @throws Exception if there was an error during creation of the converter
-     */
-    public GuardedInvocation convertToType(Class<?> sourceType, Class<?> targetType) throws Exception;
+class RestrictedPackageTester implements PrivilegedAction<Void> {
+
+    private final String pkgName;
+
+    private RestrictedPackageTester(String pkgName) {
+        this.pkgName = pkgName;
+    }
+
+    static void checkPackageAccess(String pkgName) {
+        AccessController.doPrivileged(new RestrictedPackageTester(pkgName));
+    }
+
+    @Override
+    public Void run() {
+        System.getSecurityManager().checkPackageAccess(pkgName);
+        return null;
+    }
 }

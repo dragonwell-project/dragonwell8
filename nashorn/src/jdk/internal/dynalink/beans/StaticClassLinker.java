@@ -87,24 +87,27 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
-import java.util.Arrays;
-import java.util.Collection;
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.beans.GuardedInvocationComponent.ValidationType;
 import jdk.internal.dynalink.linker.GuardedInvocation;
+import jdk.internal.dynalink.linker.GuardingDynamicLinker;
 import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.internal.dynalink.linker.LinkerServices;
 import jdk.internal.dynalink.linker.TypeBasedGuardingDynamicLinker;
 import jdk.internal.dynalink.support.Lookup;
+
 
 /**
  * Provides a linker for the {@link StaticClass} objects.
  * @author Attila Szegedi
  */
 class StaticClassLinker implements TypeBasedGuardingDynamicLinker {
-    private static final ClassValue<SingleClassStaticsLinker> linkers = new ClassValue<SingleClassStaticsLinker>() {
+    private final ClassValue<GuardingDynamicLinker> linkers = new ClassValue<GuardingDynamicLinker>() {
         @Override
-        protected SingleClassStaticsLinker computeValue(Class<?> clazz) {
+        protected GuardingDynamicLinker computeValue(Class<?> clazz) {
             return new SingleClassStaticsLinker(clazz);
         }
     };
@@ -129,13 +132,20 @@ class StaticClassLinker implements TypeBasedGuardingDynamicLinker {
         private static DynamicMethod createConstructorMethod(Class<?> clazz) {
             if(clazz.isArray()) {
                 final MethodHandle boundArrayCtor = ARRAY_CTOR.bindTo(clazz.getComponentType());
-                return new SimpleDynamicMethod(StaticClassIntrospector.editConstructorMethodHandle(
-                        boundArrayCtor.asType(boundArrayCtor.type().changeReturnType(clazz))), clazz, "<init>");
+                return new SimpleDynamicMethod(drop(boundArrayCtor.asType(boundArrayCtor.type().changeReturnType(
+                        clazz))), clazz, "<init>");
             }
-            if(CheckRestrictedPackage.isRestrictedClass(clazz)) {
-                return null;
+
+            final Constructor<?>[] ctrs = clazz.getConstructors();
+            final List<MethodHandle> mhs = new ArrayList<>(ctrs.length);
+            for(int i = 0; i < ctrs.length; ++i) {
+                mhs.add(drop(Lookup.PUBLIC.unreflectConstructor(ctrs[i])));
             }
-            return createDynamicMethod(Arrays.asList(clazz.getConstructors()), clazz, "<init>");
+            return createDynamicMethod(mhs, clazz, "<init>");
+        }
+
+        private static MethodHandle drop(MethodHandle mh) {
+            return MethodHandles.dropArguments(mh, 0, StaticClass.class);
         }
 
         @Override
@@ -152,26 +162,15 @@ class StaticClassLinker implements TypeBasedGuardingDynamicLinker {
             }
             final CallSiteDescriptor desc = request.getCallSiteDescriptor();
             final String op = desc.getNameToken(CallSiteDescriptor.OPERATOR);
+            final MethodType methodType = desc.getMethodType();
             if("new" == op && constructor != null) {
-                final MethodHandle ctorInvocation = constructor.getInvocation(desc, linkerServices);
+                final MethodHandle ctorInvocation = constructor.getInvocation(methodType, linkerServices);
                 if(ctorInvocation != null) {
-                    return new GuardedInvocation(ctorInvocation, getClassGuard(desc.getMethodType()));
+                    return new GuardedInvocation(ctorInvocation, getClassGuard(methodType));
                 }
             }
             return null;
         }
-    }
-
-    static Collection<String> getReadableStaticPropertyNames(Class<?> clazz) {
-        return linkers.get(clazz).getReadablePropertyNames();
-    }
-
-    static Collection<String> getWritableStaticPropertyNames(Class<?> clazz) {
-        return linkers.get(clazz).getWritablePropertyNames();
-    }
-
-    static Collection<String> getStaticMethodNames(Class<?> clazz) {
-        return linkers.get(clazz).getMethodNames();
     }
 
     @Override
@@ -189,16 +188,14 @@ class StaticClassLinker implements TypeBasedGuardingDynamicLinker {
         return type == StaticClass.class;
     }
 
-    /*private*/ static final MethodHandle GET_CLASS;
-    /*private*/ static final MethodHandle IS_CLASS;
+    /*private*/ static final MethodHandle GET_CLASS = new Lookup(MethodHandles.lookup()).findVirtual(StaticClass.class,
+            "getRepresentedClass", MethodType.methodType(Class.class));
+
+    /*private*/ static final MethodHandle IS_CLASS = new Lookup(MethodHandles.lookup()).findStatic(StaticClassLinker.class,
+            "isClass", MethodType.methodType(Boolean.TYPE, Class.class, Object.class));
+
     /*private*/ static final MethodHandle ARRAY_CTOR = Lookup.PUBLIC.findStatic(Array.class, "newInstance",
             MethodType.methodType(Object.class, Class.class, int.class));
-
-    static {
-        final Lookup lookup = new Lookup(MethodHandles.lookup());
-        GET_CLASS = lookup.findVirtual(StaticClass.class, "getRepresentedClass", MethodType.methodType(Class.class));
-        IS_CLASS = lookup.findOwnStatic("isClass", Boolean.TYPE, Class.class, Object.class);
-    }
 
     @SuppressWarnings("unused")
     private static boolean isClass(Class<?> clazz, Object obj) {
