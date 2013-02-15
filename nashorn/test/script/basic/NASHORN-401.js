@@ -34,6 +34,7 @@ print(t.method2(10));
 print(t.method2(10.2));
 print(t.method2("a"));
 
+print(t.method3(10));
 print(t.method3("10"));
 print(t.method3("10.2"));
 print(t.method3("foo"));
