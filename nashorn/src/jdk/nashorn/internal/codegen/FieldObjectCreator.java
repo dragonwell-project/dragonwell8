@@ -28,17 +28,12 @@ package jdk.nashorn.internal.codegen;
 import static jdk.nashorn.internal.codegen.CompilerConstants.ARGUMENTS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.constructorNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.typeDescriptor;
-import static jdk.nashorn.internal.codegen.ObjectClassGenerator.getPaddedFieldCount;
 import static jdk.nashorn.internal.codegen.types.Type.OBJECT;
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.getArrayIndex;
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 
 import java.util.Iterator;
 import java.util.List;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.Symbol;
-import jdk.nashorn.internal.runtime.Context;
-import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
@@ -52,13 +47,6 @@ import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
  * @see jdk.nashorn.internal.ir.Node
  */
 public abstract class FieldObjectCreator<T> extends ObjectCreator {
-
-    private         String        fieldObjectClassName;
-    private         Class<?>      fieldObjectClass;
-    private         int           fieldCount;
-    private         int           paddedFieldCount;
-    private         int           paramCount;
-
     /** array of corresponding values to symbols (null for no values) */
     private final List<T> values;
 
@@ -91,9 +79,14 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
         super(codegen, keys, symbols, isScope, hasArguments);
         this.values        = values;
         this.callSiteFlags = codegen.getCallSiteFlags();
+    }
 
-        countFields();
-        findClass();
+    /**
+     * Loads the scope on the stack through the passed method emitter.
+     * @param method the method emitter to use
+     */
+    protected void loadScope(final MethodEmitter method) {
+        method.loadScope();
     }
 
     /**
@@ -112,7 +105,7 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
             loadScope(method);
 
             if (hasArguments()) {
-                method.loadCompilerConstant(ARGUMENTS);
+                method.loadArguments();
                 method.invoke(constructorNoLookup(getClassName(), PropertyMap.class, ScriptObject.class, ARGUMENTS.type()));
             } else {
                 method.invoke(constructorNoLookup(getClassName(), PropertyMap.class, ScriptObject.class));
@@ -132,22 +125,15 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
             final T      value  = valueIter.next();
 
             if (symbol != null && value != null) {
-                final int index = getArrayIndex(key);
+                final int index = ArrayIndex.getArrayIndexNoThrow(key);
 
-                if (!isValidArrayIndex(index)) {
+                if (index < 0) {
                     putField(method, key, symbol.getFieldIndex(), value);
                 } else {
-                    putSlot(method, ArrayIndex.toLongIndex(index), value);
+                    putSlot(method, index, value);
                 }
             }
         }
-    }
-
-    @Override
-    protected PropertyMap makeMap() {
-        assert propertyMap == null : "property map already initialized";
-        propertyMap = newMapCreator(fieldObjectClass).makeFieldMap(hasArguments(), fieldCount, paddedFieldCount);
-        return propertyMap;
     }
 
     /**
@@ -156,6 +142,15 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
      * @param value Value to load.
      */
     protected abstract void loadValue(T value);
+
+    /**
+     * Determine the type of a value. Defined by anonymous subclasses in code gen.
+     *
+     * @param value Value to inspect.
+     *
+     * @return Value type.
+     */
+    protected abstract Type getValueType(T value);
 
     /**
      * Store a value in a field of the generated class object.
@@ -169,6 +164,13 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
         method.dup();
 
         loadValue(value);
+
+        final Type valueType = getValueType(value);
+        // for example when we have a with scope
+        if (valueType.isObject() || valueType.isBoolean()) {
+            method.convert(OBJECT);
+        }
+
         method.convert(OBJECT);
         method.putField(getClassName(), ObjectClassGenerator.getFieldName(fieldIndex, Type.OBJECT), typeDescriptor(Object.class));
     }
@@ -180,57 +182,10 @@ public abstract class FieldObjectCreator<T> extends ObjectCreator {
      * @param index  Slot index.
      * @param value  Value to store.
      */
-    private void putSlot(final MethodEmitter method, final long index, final T value) {
+    private void putSlot(final MethodEmitter method, final int index, final T value) {
         method.dup();
-        if (JSType.isRepresentableAsInt(index)) {
-            method.load((int) index);
-        } else {
-            method.load(index);
-        }
+        method.load(index);
         loadValue(value);
         method.dynamicSetIndex(callSiteFlags);
     }
-
-    /**
-     * Locate (or indirectly create) the object container class.
-     */
-    private void findClass() {
-        fieldObjectClassName = isScope() ?
-                ObjectClassGenerator.getClassName(fieldCount, paramCount) :
-                ObjectClassGenerator.getClassName(paddedFieldCount);
-
-        try {
-            this.fieldObjectClass = Context.forStructureClass(Compiler.binaryName(fieldObjectClassName));
-        } catch (final ClassNotFoundException e) {
-            throw new AssertionError("Nashorn has encountered an internal error.  Structure can not be created.");
-        }
-    }
-
-    /**
-     * Get the class name for the object class,
-     * e.g. {@code com.nashorn.oracle.scripts.JO2P0}
-     *
-     * @return script class name
-     */
-    String getClassName() {
-        return fieldObjectClassName;
-    }
-
-    /**
-     * Tally the number of fields and parameters.
-     */
-    private void countFields() {
-        for (final Symbol symbol : this.symbols) {
-            if (symbol != null) {
-                if (hasArguments() && symbol.isParam()) {
-                    symbol.setFieldIndex(paramCount++);
-                } else {
-                    symbol.setFieldIndex(fieldCount++);
-                }
-            }
-        }
-
-        paddedFieldCount = getPaddedFieldCount(fieldCount);
-    }
-
 }

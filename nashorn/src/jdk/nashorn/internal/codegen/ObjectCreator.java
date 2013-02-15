@@ -25,16 +25,18 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
-
 import java.util.List;
 import jdk.nashorn.internal.ir.Symbol;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.PropertyMap;
 
 /**
  * Base class for object creation code generation.
  */
 public abstract class ObjectCreator {
+
+    /** Compile unit for this ObjectCreator, see CompileUnit */
+    protected final CompileUnit   compileUnit;
 
     /** List of keys to initiate in this ObjectCreator */
     protected final List<String>  keys;
@@ -45,11 +47,13 @@ public abstract class ObjectCreator {
     /** Code generator */
     protected final CodeGenerator codegen;
 
-    /** Property map */
-    protected PropertyMap   propertyMap;
-
-    private final boolean       isScope;
-    private final boolean       hasArguments;
+    private   final boolean       isScope;
+    private   final boolean       hasArguments;
+    private         int           fieldCount;
+    private         int           paramCount;
+    private         String        fieldObjectClassName;
+    private         Class<?>      fieldObjectClass;
+    private         PropertyMap   propertyMap;
 
     /**
      * Constructor
@@ -62,10 +66,44 @@ public abstract class ObjectCreator {
      */
     protected ObjectCreator(final CodeGenerator codegen, final List<String> keys, final List<Symbol> symbols, final boolean isScope, final boolean hasArguments) {
         this.codegen       = codegen;
+        this.compileUnit   = codegen.getCurrentCompileUnit();
         this.keys          = keys;
         this.symbols       = symbols;
         this.isScope       = isScope;
         this.hasArguments  = hasArguments;
+
+        countFields();
+        findClass();
+    }
+
+    /**
+     * Tally the number of fields and parameters.
+     */
+    private void countFields() {
+        for (final Symbol symbol : this.symbols) {
+            if (symbol != null) {
+                if (hasArguments() && symbol.isParam()) {
+                    symbol.setFieldIndex(paramCount++);
+                } else {
+                    symbol.setFieldIndex(fieldCount++);
+                }
+            }
+        }
+    }
+
+    /**
+     * Locate (or indirectly create) the object container class.
+     */
+    private void findClass() {
+        fieldObjectClassName = isScope() ?
+            ObjectClassGenerator.getClassName(fieldCount, paramCount) :
+            ObjectClassGenerator.getClassName(fieldCount);
+
+        try {
+            this.fieldObjectClass = Context.forStructureClass(Compiler.binaryName(fieldObjectClassName));
+        } catch (final ClassNotFoundException e) {
+            throw new AssertionError("Nashorn has encountered an internal error.  Structure can not be created.");
+        }
     }
 
     /**
@@ -73,12 +111,6 @@ public abstract class ObjectCreator {
      * @param method Script method.
      */
     protected abstract void makeObject(final MethodEmitter method);
-
-    /**
-     * Construct the property map appropriate for the object.
-     * @return the newly created property map
-     */
-    protected abstract PropertyMap makeMap();
 
     /**
      * Create a new MapCreator
@@ -90,11 +122,16 @@ public abstract class ObjectCreator {
     }
 
     /**
-     * Loads the scope on the stack through the passed method emitter.
-     * @param method the method emitter to use
+     * Construct the property map appropriate for the object.
+     * @return the newly created property map
      */
-    protected void loadScope(final MethodEmitter method) {
-        method.loadCompilerConstant(SCOPE);
+    protected PropertyMap makeMap() {
+        if (keys.isEmpty()) { //empty map
+            propertyMap = PropertyMap.newMap(fieldObjectClass);
+        } else {
+            propertyMap = newMapCreator(fieldObjectClass).makeMap(hasArguments());
+        }
+        return propertyMap;
     }
 
     /**
@@ -105,6 +142,16 @@ public abstract class ObjectCreator {
     protected MethodEmitter loadMap(final MethodEmitter method) {
         codegen.loadConstant(propertyMap);
         return method;
+    }
+
+    /**
+     * Get the class name for the object class,
+     * e.g. {@code com.nashorn.oracle.scripts.JO$2P0}
+     *
+     * @return script class name
+     */
+    String getClassName() {
+        return fieldObjectClassName;
     }
 
     /**

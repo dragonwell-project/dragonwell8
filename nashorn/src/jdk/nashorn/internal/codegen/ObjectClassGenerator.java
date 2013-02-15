@@ -28,13 +28,13 @@ package jdk.nashorn.internal.codegen;
 import static jdk.nashorn.internal.codegen.Compiler.SCRIPTS_PACKAGE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.ALLOCATE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.INIT_ARGUMENTS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.INIT_MAP;
 import static jdk.nashorn.internal.codegen.CompilerConstants.INIT_SCOPE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.JAVA_THIS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.JS_OBJECT_PREFIX;
+import static jdk.nashorn.internal.codegen.CompilerConstants.MAP;
 import static jdk.nashorn.internal.codegen.CompilerConstants.className;
 import static jdk.nashorn.internal.codegen.CompilerConstants.constructorNoLookup;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.linker.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -53,7 +53,6 @@ import jdk.nashorn.internal.runtime.DebugLogger;
 import jdk.nashorn.internal.runtime.FunctionScope;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.options.Options;
@@ -69,21 +68,16 @@ public final class ObjectClassGenerator {
     static final String SCOPE_MARKER = "P";
 
     /**
-     * Minimum number of extra fields in an object.
-     */
-    static final int FIELD_PADDING  = 4;
-
-    /**
      * Debug field logger
      * Should we print debugging information for fields when they are generated and getters/setters are called?
      */
-    public static final DebugLogger LOG = new DebugLogger("fields", "nashorn.fields.debug");
+    public static final DebugLogger LOG          = new DebugLogger("fields", "nashorn.fields.debug");
 
     /**
      * is field debugging enabled. Several modules in codegen and properties use this, hence
      * public access.
      */
-    public static final boolean DEBUG_FIELDS = LOG.isEnabled();
+    public static final boolean     DEBUG_FIELDS = LOG.isEnabled();
 
     /**
      * Should the runtime only use java.lang.Object slots for fields? If this is false, the representation
@@ -117,7 +111,7 @@ public final class ObjectClassGenerator {
     private final Context context;
 
     /**
-     * The list of available accessor types in width order. This order is used for type guesses narrow{@literal ->} wide
+     * The list of available accessor types in width order. This order is used for type guesses narrow->wide
      *  in the dual--fields world
      */
     public static final List<Type> ACCESSOR_TYPES = Collections.unmodifiableList(
@@ -189,7 +183,7 @@ public final class ObjectClassGenerator {
 
     /**
      * Return the accessor type based on its index in [0..getNumberOfAccessorTypes())
-     * Indexes are ordered narrower{@literal ->}wider / optimistic{@literal ->}pessimistic. Invalidations always
+     * Indexes are ordered narrower->wider / optimistic->pessimistic. Invalidations always
      * go to a type of higher index
      *
      * @param index accessor type index
@@ -209,8 +203,8 @@ public final class ObjectClassGenerator {
      * @return The class name.
      */
     public static String getClassName(final int fieldCount) {
-        return fieldCount != 0 ? SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.symbolName() + fieldCount :
-                                 SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.symbolName();
+        return fieldCount != 0 ? SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.tag() + fieldCount :
+                                 SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.tag();
     }
 
     /**
@@ -223,23 +217,7 @@ public final class ObjectClassGenerator {
      * @return The class name.
      */
     public static String getClassName(final int fieldCount, final int paramCount) {
-        return SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.symbolName() + fieldCount + SCOPE_MARKER + paramCount;
-    }
-
-    /**
-     * Returns the number of fields in the JavaScript scope class. Its name had to be generated using either
-     * {@link #getClassName(int)} or {@link #getClassName(int, int)}.
-     * @param clazz the JavaScript scope class.
-     * @return the number of fields in the scope class.
-     */
-    public static int getFieldCount(Class<?> clazz) {
-        final String name = clazz.getSimpleName();
-        final String prefix = JS_OBJECT_PREFIX.symbolName();
-        if(prefix.equals(name)) {
-            return 0;
-        }
-        final int scopeMarker = name.indexOf(SCOPE_MARKER);
-        return Integer.parseInt(scopeMarker == -1 ? name.substring(prefix.length()) : name.substring(prefix.length(), scopeMarker));
+        return SCRIPTS_PACKAGE + '/' + JS_OBJECT_PREFIX.tag() + fieldCount + SCOPE_MARKER + paramCount;
     }
 
     /**
@@ -317,10 +295,10 @@ public final class ObjectClassGenerator {
         final String       className    = getClassName(fieldCount);
         final String       superName    = className(ScriptObject.class);
         final ClassEmitter classEmitter = newClassEmitter(className, superName);
-
-        addFields(classEmitter, fieldCount);
+        final List<String> initFields   = addFields(classEmitter, fieldCount);
 
         final MethodEmitter init = newInitMethod(classEmitter);
+        initializeToUndefined(init, className, initFields);
         init.returnVoid();
         init.end();
 
@@ -391,7 +369,7 @@ public final class ObjectClassGenerator {
      * @return Open class emitter.
      */
     private ClassEmitter newClassEmitter(final String className, final String superName) {
-        final ClassEmitter classEmitter = new ClassEmitter(context.getEnv(), className, superName);
+        final ClassEmitter classEmitter = new ClassEmitter(context, className, superName);
         classEmitter.begin();
 
         return classEmitter;
@@ -408,7 +386,7 @@ public final class ObjectClassGenerator {
         final MethodEmitter init = classEmitter.init(PropertyMap.class);
         init.begin();
         init.load(Type.OBJECT, JAVA_THIS.slot());
-        init.load(Type.OBJECT, INIT_MAP.slot());
+        init.load(Type.OBJECT, MAP.slot());
         init.invoke(constructorNoLookup(ScriptObject.class, PropertyMap.class));
 
         return init;
@@ -423,7 +401,7 @@ public final class ObjectClassGenerator {
         final MethodEmitter init = classEmitter.init(PropertyMap.class, ScriptObject.class);
         init.begin();
         init.load(Type.OBJECT, JAVA_THIS.slot());
-        init.load(Type.OBJECT, INIT_MAP.slot());
+        init.load(Type.OBJECT, MAP.slot());
         init.load(Type.OBJECT, INIT_SCOPE.slot());
         init.invoke(constructorNoLookup(FunctionScope.class, PropertyMap.class, ScriptObject.class));
 
@@ -436,13 +414,13 @@ public final class ObjectClassGenerator {
      * @return Open method emitter.
      */
     private static MethodEmitter newInitScopeWithArgumentsMethod(final ClassEmitter classEmitter) {
-        final MethodEmitter init = classEmitter.init(PropertyMap.class, ScriptObject.class, ScriptObject.class);
+        final MethodEmitter init = classEmitter.init(PropertyMap.class, ScriptObject.class, Object.class);
         init.begin();
         init.load(Type.OBJECT, JAVA_THIS.slot());
-        init.load(Type.OBJECT, INIT_MAP.slot());
+        init.load(Type.OBJECT, MAP.slot());
         init.load(Type.OBJECT, INIT_SCOPE.slot());
         init.load(Type.OBJECT, INIT_ARGUMENTS.slot());
-        init.invoke(constructorNoLookup(FunctionScope.class, PropertyMap.class, ScriptObject.class, ScriptObject.class));
+        init.invoke(constructorNoLookup(FunctionScope.class, PropertyMap.class, ScriptObject.class, Object.class));
 
         return init;
     }
@@ -470,7 +448,7 @@ public final class ObjectClassGenerator {
      * @param className    Name of JavaScript class.
      */
     private static void newAllocate(final ClassEmitter classEmitter, final String className) {
-        final MethodEmitter allocate = classEmitter.method(EnumSet.of(Flag.PUBLIC, Flag.STATIC), ALLOCATE.symbolName(), ScriptObject.class, PropertyMap.class);
+        final MethodEmitter allocate = classEmitter.method(EnumSet.of(Flag.PUBLIC, Flag.STATIC), ALLOCATE.tag(), ScriptObject.class, PropertyMap.class);
         allocate.begin();
         allocate._new(className);
         allocate.dup();
@@ -490,13 +468,12 @@ public final class ObjectClassGenerator {
         classEmitter.end();
 
         final byte[] code = classEmitter.toByteArray();
-        final ScriptEnvironment env = context.getEnv();
 
-        if (env._print_code) {
-            env.getErr().println(ClassEmitter.disassemble(code));
+        if (context != null && context._print_code) {
+            Context.getCurrentErr().println(ClassEmitter.disassemble(code));
         }
 
-        if (env._verify_code) {
+        if (context != null && context._verify_code) {
             context.verify(code);
         }
 
@@ -702,15 +679,6 @@ public final class ObjectClassGenerator {
             assert false;
             return null;
         }
-    }
-
-    /**
-     * Add padding to field count to avoid creating too many classes and have some spare fields
-     * @param count the field count
-     * @return the padded field count
-     */
-    static int getPaddedFieldCount(final int count) {
-        return count / FIELD_PADDING * FIELD_PADDING + FIELD_PADDING;
     }
 
     //

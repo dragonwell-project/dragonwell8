@@ -25,15 +25,13 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.getArrayIndex;
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
-
 import java.util.ArrayList;
 import java.util.List;
 import jdk.nashorn.internal.ir.Symbol;
 import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
+import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 
 /**
  * Class that creates PropertyMap sent to script object constructors.
@@ -43,64 +41,48 @@ public class MapCreator {
     private final Class<?> structure;
 
     /** key set for object map */
-    final List<String> keys;
+    private final String[] keys;
 
     /** corresponding symbol set for object map */
-    final List<Symbol> symbols;
+    private final Symbol[] symbols;
 
     /**
      * Constructor
      *
-     * @param structure structure to generate map for (a JO subclass)
+     * @param structure structure to generate map for (a JO$ subclass)
      * @param keys      list of keys for map
      * @param symbols   list of symbols for map
      */
     MapCreator(final Class<?> structure, final List<String> keys, final List<Symbol> symbols) {
+        final int size   = keys.size();
+
         this.structure = structure;
-        this.keys      = keys;
-        this.symbols   = symbols;
+        this.keys      = keys.toArray(new String[size]);
+        this.symbols   = symbols.toArray(new Symbol[size]);
     }
 
     /**
      * Constructs a property map based on a set of fields.
      *
      * @param hasArguments does the created object have an "arguments" property
-     * @param fieldCount    Number of fields in use.
-     * @param fieldMaximum Number of fields available.
      *
      * @return New map populated with accessor properties.
      */
-    PropertyMap makeFieldMap(final boolean hasArguments, final int fieldCount, final int fieldMaximum) {
+    PropertyMap makeMap(final boolean hasArguments) {
         final List<Property> properties = new ArrayList<>();
+
         assert keys != null;
 
-        for (int i = 0, length = keys.size(); i < length; i++) {
-            final String key    = keys.get(i);
-            final Symbol symbol = symbols.get(i);
+        for (int i = 0; i < keys.length; i++) {
+            final String key    = keys[i];
+            final Symbol symbol = symbols[i];
 
-            if (symbol != null && !isValidArrayIndex(getArrayIndex(key))) {
+            if (symbol != null && !ArrayIndex.isIndexKey(key)) {
                 properties.add(new AccessorProperty(key, getPropertyFlags(symbol, hasArguments), structure, symbol.getFieldIndex()));
             }
         }
 
-        return PropertyMap.newMap(properties, fieldCount, fieldMaximum, 0);
-    }
-
-    PropertyMap makeSpillMap(final boolean hasArguments) {
-        final List<Property> properties = new ArrayList<>();
-        int spillIndex = 0;
-        assert keys != null;
-
-        for (int i = 0, length = keys.size(); i < length; i++) {
-            final String key    = keys.get(i);
-            final Symbol symbol = symbols.get(i);
-
-            if (symbol != null && !isValidArrayIndex(getArrayIndex(key))) {
-                properties.add(new AccessorProperty(key, getPropertyFlags(symbol, hasArguments), spillIndex++));
-            }
-        }
-
-        return PropertyMap.newMap(properties, 0, 0, spillIndex);
+        return PropertyMap.newMap(structure, properties);
     }
 
     /**
@@ -132,10 +114,6 @@ public class MapCreator {
 
         if (symbol.canBeUndefined()) {
             flags |= Property.CAN_BE_UNDEFINED;
-        }
-
-        if (symbol.isFunctionDeclaration()) {
-            flags |= Property.IS_FUNCTION_DECLARATION;
         }
 
         return flags;
