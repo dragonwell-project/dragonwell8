@@ -111,7 +111,8 @@ class MacroAssembler: public Assembler {
     }
   }
   inline void mov(Register Rd, Register Rn) {
-    if (Rd == sp || Rn == sp) {
+    if (Rd == Rn) {
+    } else if (Rd == sp || Rn == sp) {
       add(Rd, Rn, 0U);
     } else {
       orr(Rd, zr, Rn);
@@ -354,6 +355,8 @@ public:
   {
     mov(dst, (long)i);
   }
+
+  void mov(Register dst, Address a);
 
   // macro instructions for accessing and updating floating point
   // status register

@@ -82,11 +82,35 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     // PC-rel. addressing
     offset = target-branch;
     int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
-    offset >>= shift;
+    if (shift) {
+      unsigned insn2 = ((unsigned*)branch)[1];
+      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+	// Load/store register (unsigned immediate)
+	unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
+	u_int64_t dest = (u_int64_t)target;
+	unsigned offset_lo = dest & 0xfff;
+	Instruction_aarch64::patch(branch + sizeof (unsigned),
+				    21, 10, offset_lo >> size);
+	guarantee(((dest >> size) << size) == dest, "misaligned target");
+	guarantee(Instruction_aarch64::extract(insn, 4, 0)
+		  == Instruction_aarch64::extract(insn2, 9, 5),
+		  "Registers should be the same");
+	offset >>= shift;
+      } else {
+	ShouldNotReachHere();
+      }
+    }
     int offset_lo = offset & 3;
     offset >>= 2;
     Instruction_aarch64::spatch(branch, 18, 5, offset);
-    Instruction_aarch64::spatch(branch, 30, 29, offset_lo);
+    Instruction_aarch64::patch(branch, 30, 29, offset_lo);
+  } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
+    // Move wide constant
+    u_int64_t dest = (u_int64_t)target;
+    Instruction_aarch64::patch(branch, 20, 5, dest & 0xffff);
+    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
+    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
+    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16));
   } else {
     ShouldNotReachHere();
   }
@@ -107,7 +131,7 @@ address MacroAssembler::pd_call_destination(address branch) {
   } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011010) {
     // Compare & branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 23, 5);
-  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
+   } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
     // Test & branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 18, 5);
   } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
@@ -116,8 +140,20 @@ address MacroAssembler::pd_call_destination(address branch) {
     offset |= Instruction_aarch64::sextract(insn, 18, 5);
     offset <<= 2;
     int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
-    if (shift)
+    if (shift) {
       offset <<= shift;
+      uint64_t target_page = ((uint64_t)branch) + offset;
+      target_page &= ((uint64_t)-1) << shift;
+      unsigned insn2 = ((unsigned*)branch)[1];
+      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+	// Load/store register (unsigned immediate)
+	unsigned int byte_offset = Instruction_aarch64::extract(insn2, 21, 10);
+	unsigned int size = Instruction_aarch64::extract(insn2, 31, 30);
+	return address(target_page + (byte_offset << size));
+      } else {
+	ShouldNotReachHere();
+      }
+    }
   } else {
     ShouldNotReachHere();
   }
@@ -875,6 +911,19 @@ void MacroAssembler::null_check(Register reg, int offset) {
 // MacroAssembler protected routines needed to implement
 // public methods
 
+void MacroAssembler::mov(Register r, Address dest) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  u_int64_t imm64 = (u_int64_t)dest.target();
+  movz(r, imm64 & 0xffff);
+  imm64 >>= 16;
+  movk(r, imm64 & 0xffff, 16);
+  imm64 >>= 16;
+  movk(r, imm64 & 0xffff, 32);
+  imm64 >>= 16;
+  movk(r, imm64 & 0xffff, 48);
+}
+
 void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 {
   if (operand_valid_for_logical_immdiate(0, imm64)) {
@@ -1584,8 +1633,9 @@ void MacroAssembler::push_CPU_state() {
 SkipIfEqual::SkipIfEqual(
     MacroAssembler* masm, const bool* flag_addr, bool value) {
   _masm = masm;
-  _masm->mov(rscratch1, (address)flag_addr);
-  _masm->ldrb(rscratch1, rscratch1);
+  unsigned long offset;
+  _masm->adrp(rscratch1, ExternalAddress((address)flag_addr), offset);
+  _masm->ldrb(rscratch1, Address(rscratch1, offset));
   _masm->cbzw(rscratch1, _label);
 }
 

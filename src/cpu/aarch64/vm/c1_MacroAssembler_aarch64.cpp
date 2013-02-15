@@ -63,16 +63,25 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) { Unimplemented(); }
 
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes) { Unimplemented(); }
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
+  // Make sure there is enough stack space for this method's activation.
+  // Note that we do this before doing an enter().
+  generate_stack_overflow_check(frame_size_in_bytes);
+  enter();
+  sub(sp, sp, frame_size_in_bytes); // does not emit code for frame_size == 0
+}
 
 
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) { Unimplemented(); }
+void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
+  leave();
+}
 
 
 void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) { Unimplemented(); }
 
 
-void C1_MacroAssembler::verified_entry() { Unimplemented(); }
+void C1_MacroAssembler::verified_entry() {
+}
 
 
 #ifndef PRODUCT

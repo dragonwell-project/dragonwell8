@@ -33,7 +33,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee089300;
+const unsigned long Assembler::asm_bp = 0x00007fffee091d10;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -88,7 +88,7 @@ void entry(CodeBuffer *cb) {
   //   printf("\n");
   // }
 
-  MacroAssembler _masm(cb);
+  Assembler _masm(cb);
   address entry = __ pc();
 
   // Smoke test for assembler
@@ -169,7 +169,7 @@ void entry(CodeBuffer *cb) {
     __ adr(r6, __ pc());                               //	adr	x6, .
     __ adr(r6, back);                                  //	adr	x6, back
     __ adr(r6, forth);                                 //	adr	x6, forth
-    __ adrp(r21, __ pc());                             //	adrp	x21, .
+    __ _adrp(r21, __ pc());                             //	adrp	x21, .
 
 // RegImmAbsOp
     __ tbz(r1, 1, __ pc());                            //	tbz	x1, #1, .
@@ -1195,7 +1195,6 @@ Disassembly of section .text:
     Label l, loop, empty;
     address a = __ pc();
     __ adr(r3, l);
-    __ adrp(r4, l);
     __ bl(empty);
     __ movz(r0, 0);
     __ BIND(loop);
@@ -1209,20 +1208,6 @@ Disassembly of section .text:
     __ ret(lr);
   }
 
-  // Test LEA
-  __ lea(r0, Address(sp, 120));
-  __ lea(r0, Address(sp, -120));
-  __ lea(r1, Address(sp, r1, Address::lsl(3)));
-  __ lea(r1, Address(sp, r2, Address::sxtw(3)));
-
-  __ add(r1, r0, 0xff000);
-  __ add(r1, r0, -0xff000);
-
-  __ push(1, sp);
-  __ pop(1, sp);
-
-  __ push(3, sp);
-  __ pop(3, sp);
 
 #endif // PRODUCT
 #endif // ASSERT
@@ -1246,8 +1231,9 @@ extern "C" {
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
 
-void Address::lea(MacroAssembler *as, Register r) const {
 #define __ as->
+
+void Address::lea(MacroAssembler *as, Register r) const {
   switch(_mode) {
   case base_plus_offset: {
     if (_offset > 0)
@@ -1267,9 +1253,212 @@ void Address::lea(MacroAssembler *as, Register r) const {
   default:
     ShouldNotReachHere();
   }
-#undef __
 }
 
+<<<<<<< HEAD
+=======
+void Assembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  byte_offset = (int64_t)dest.target() & 0xfff;
+  _adrp(reg1, dest.target());
+}
+
+#undef __
+// ------------- Stolen from binutils begin -------------------------------------
+
+/* Build the accepted values for immediate logical SIMD instructions.
+ *
+ * The valid encodings of the immediate value are:
+ *   opc<0> j:jjjjj  i:iii:ii  SIMD size  R             S
+ *   1      ssssss   rrrrrr       64      UInt(rrrrrr)  UInt(ssssss)
+ *   0      0sssss   0rrrrr       32      UInt(rrrrr)   UInt(sssss)
+ *   0      10ssss   00rrrr       16      UInt(rrrr)    UInt(ssss)
+ *   0      110sss   000rrr       8       UInt(rrr)     UInt(sss)
+ *   0      1110ss   0000rr       4       UInt(rr)      UInt(ss)
+ *   0      11110s   00000r       2       UInt(r)       UInt(s)
+ *   other combinations                   UNPREDICTABLE
+ *
+ * Let's call E the SIMD size.
+ *
+ * The immediate value is: S+1 bits '1' rotated to the right by R.
+ *
+ * The total of valid encodings is 64^2 + 32^2 + ... + 2^2 = 5460.
+ *
+ * This means we have the following number of distinct values:
+ *   - for S = E - 1, all values of R generate a word full of '1'
+ *      so we have 2 + 4 + ... + 64 = 126 ways of encoding 0xf...f
+ *   - for S != E - 1, all value are obviously distinct
+ *      so we have #{ for all E: (E - 1) * R (where R = E) } values
+ *        = 64*63 + 32*31 + ... + 2*1 = 5334
+ *   - it is obvious that for two different values of E, if S != E - 1
+ *      then we can't generate the same value.
+ * So the total number of distinct values is 5334 + 1 = 5335 (out of
+ * a total of 5460 valid encodings).
+ */
+#define TOTAL_IMM_NB  5334
+
+typedef struct {
+  uint64_t imm;
+  uint32_t encoding;
+} simd_imm_encoding_v2;
+
+static simd_imm_encoding_v2 simd_immediates_v2[TOTAL_IMM_NB];
+
+static int
+simd_imm_encoding_cmp_v2(const void *i1, const void *i2)
+{
+  const simd_imm_encoding_v2 *imm1 = (const simd_imm_encoding_v2 *)i1;
+  const simd_imm_encoding_v2 *imm2 = (const simd_imm_encoding_v2 *)i2;
+
+  if (imm1->imm < imm2->imm)
+    return -1;
+  if (imm1->imm > imm2->imm)
+    return +1;
+  return 0;
+}
+
+/* immediate bitfield encoding
+ * imm13<12> imm13<5:0> imm13<11:6> SIMD size R      S
+ * 1         ssssss     rrrrrr      64        rrrrrr ssssss
+ * 0         0sssss     0rrrrr      32        rrrrr  sssss
+ * 0         10ssss     00rrrr      16        rrrr   ssss
+ * 0         110sss     000rrr      8         rrr    sss
+ * 0         1110ss     0000rr      4         rr     ss
+ * 0         11110s     00000r      2         r      s
+ */
+static inline int encode_immediate_bitfield(int is64, uint32_t s, uint32_t r)
+{
+  return (is64 << 12) | (r << 6) | s;
+}
+
+static void
+build_immediate_table_v2(void) __attribute__ ((constructor));
+
+static void
+build_immediate_table_v2(void)
+{
+  uint32_t log_e, e, s, r, s_mask;
+  uint64_t mask, imm;
+  int nb_imms;
+  int is64;
+
+  nb_imms = 0;
+  for (log_e = 1; log_e <= 6; log_e++) {
+    e = 1u << log_e;
+    if (log_e == 6) {
+      is64 = 1;
+      mask = 0xffffffffffffffffull;
+      s_mask = 0;
+    } else {
+      is64 = 0;
+      mask = (1ull << e) - 1;
+      /* log_e  s_mask
+       *  1     ((1 << 4) - 1) << 2 = 111100
+       *  2     ((1 << 3) - 1) << 3 = 111000
+       *  3     ((1 << 2) - 1) << 4 = 110000
+       *  4     ((1 << 1) - 1) << 5 = 100000
+       *  5     ((1 << 0) - 1) << 6 = 000000
+       */
+      s_mask = ((1u << (5 - log_e)) - 1) << (log_e + 1);
+    }
+    for (s = 0; s < e - 1; s++) {
+      for (r = 0; r < e; r++) {
+        /* s+1 consecutive bits to 1 (s < 63) */
+        imm = (1ull << (s + 1)) - 1;
+        /* rotate right by r */
+        if (r != 0)
+          imm = (imm >> r) | ((imm << (e - r)) & mask);
+        /* replicate the constant depending on SIMD size */
+        switch (log_e) {
+        case 1: imm = (imm <<  2) | imm;
+        case 2: imm = (imm <<  4) | imm;
+        case 3: imm = (imm <<  8) | imm;
+        case 4: imm = (imm << 16) | imm;
+        case 5: imm = (imm << 32) | imm;
+        case 6:
+          break;
+        default:
+          abort ();
+        }
+        simd_immediates_v2[nb_imms].imm = imm;
+        simd_immediates_v2[nb_imms].encoding =
+          encode_immediate_bitfield(is64, s | s_mask, r);
+        nb_imms++;
+      }
+    }
+  }
+  gas_assert(nb_imms == TOTAL_IMM_NB);
+  qsort(simd_immediates_v2, nb_imms,
+        sizeof(simd_immediates_v2[0]), simd_imm_encoding_cmp_v2);
+}
+
+/* Create a valid encoding for imm.  Returns ffffffff since it's an invalid
+   encoding.  */
+uint32_t
+asm_util::encode_immediate_v2(int is32, uint64_t imm)
+{
+  simd_imm_encoding_v2 imm_enc;
+  const simd_imm_encoding_v2 *imm_encoding;
+
+  if (is32) {
+    /* Allow all zeros or all ones in top 32-bits, so that
+       constant expressions like ~1 are permitted. */
+    if (imm >> 32 != 0 && imm >> 32 != 0xffffffff)
+      return 0xffffffff;
+    /* Replicate the 32 lower bits to the 32 upper bits.  */
+    imm &= 0xffffffff;
+    imm |= imm << 32;
+  }
+
+  imm_enc.imm = imm;
+  imm_encoding = (const simd_imm_encoding_v2 *)
+    bsearch(&imm_enc, simd_immediates_v2, TOTAL_IMM_NB,
+            sizeof(simd_immediates_v2[0]), simd_imm_encoding_cmp_v2);
+  if (imm_encoding == NULL)
+    return 0xffffffff;
+  return imm_encoding->encoding;
+}
+
+static uint32_t encode_v2_imm_float_bits(uint32_t imm)
+{
+  return
+    ((imm >> 19) & 0x7f)          /* b[25:19] -> b[6:0] */
+    | ((imm >> (31 - 7)) & 0x80); /* b[31]    -> b[7]   */
+}
+
+static uint64_t
+expand_fp_imm(int is_dp, uint32_t imm8)
+{
+  uint64_t imm;
+  uint32_t imm8_7, imm8_6_0, imm8_6, imm8_6_repl4;
+
+  imm8_7 = (imm8 >> 7) & 0x01;   /* imm8<7>   */
+  imm8_6_0 = imm8 & 0x7f; /* imm8<6:0> */
+  imm8_6 = imm8_6_0 >> 6;         /* imm8<6>   */
+  imm8_6_repl4 = (imm8_6 << 3) | (imm8_6 << 2)
+    | (imm8_6 << 1) | imm8_6;     /* Replicate(imm8<6>,4) */
+  if (is_dp) {
+    imm = (imm8_7 << (63-32))                           /* imm8<7>              */
+      | ((imm8_6 ^ 1) << (62-32))                       /* NOT(imm8<6>)         */
+      | (imm8_6_repl4 << (58-32)) | (imm8_6 << (57-32))
+      | (imm8_6 << (56-32)) | (imm8_6 << (55-32))       /* Replicate(imm8<6>,7) */
+      | (imm8_6_0 << (48-32));                          /* imm8<6>:imm8<5:0>    */
+    imm <<= 32;
+  } else {
+    imm = (imm8_7 << 31)     /* imm8<7>              */
+      | ((imm8_6 ^ 1) << 30) /* NOT(imm8<6>)         */
+      | (imm8_6_repl4 << 26) /* Replicate(imm8<6>,4) */
+      | (imm8_6_0 << 19);    /* imm8<6>:imm8<5:0>    */
+  }
+
+  return imm;
+}
+
+// ------------- Stolen from binutils end -------------------------------------
+
+
+>>>>>>> 0413a70... Enable C1 compiler.
 Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
   _is_lval = false;
   _target = target;
@@ -1471,6 +1660,16 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
 
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_logical_immediate(is32, imm) != 0xffffffff;
+}
+
+bool Assembler::operand_valid_for_float_immediate(double imm) {
+  union {
+    unsigned ival;
+    float val;
+  };
+  val = (float)imm;
+  unsigned result = encode_v2_imm_float_bits(ival);
+  return unpack(result) == imm;
 }
 
 int AbstractAssembler::code_fill_byte() {

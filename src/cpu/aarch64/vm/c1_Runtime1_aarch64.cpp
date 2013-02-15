@@ -134,7 +134,9 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
 static void restore_live_registers_except_rax(StubAssembler* sasm, bool restore_fpu_registers = true) { Unimplemented(); }
 
 
-void Runtime1::initialize_pd() { Unimplemented(); }
+void Runtime1::initialize_pd() {
+  // nothing to do
+}
 
 
 // target: the entry point of the method that creates and posts the exception oop

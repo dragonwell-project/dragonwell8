@@ -31,7 +31,9 @@
 #include "runtime/safepoint.hpp"
 
 
-void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) { Unimplemented(); }
+void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
+  MacroAssembler::pd_patch_instruction(addr(), x);
+}
 
 
 address Relocation::pd_call_destination(address orig_addr) {
@@ -57,4 +59,14 @@ void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) 
 
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
 
+<<<<<<< HEAD
 void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
+=======
+void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest)  {
+  address old_addr = old_addr_for(addr(), src, dest);
+  MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+}
+
+void metadata_Relocation::pd_fix_value(address x) {
+}
+>>>>>>> 0413a70... Enable C1 compiler.

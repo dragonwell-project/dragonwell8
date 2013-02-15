@@ -84,7 +84,22 @@ LIR_Opr LIRGenerator::syncTempOpr()     { Unimplemented(); return LIR_OprFact::i
 LIR_Opr LIRGenerator::getThreadTemp()   { Unimplemented(); LIR_OprFact::illegalOpr; }
 
 
-LIR_Opr LIRGenerator::result_register_for(ValueType* type, bool callee) { Unimplemented(); return LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::result_register_for(ValueType* type, bool callee) {
+  LIR_Opr opr;
+  switch (type->tag()) {
+    case intTag:     opr = FrameMap::r0_opr;          break;
+    case objectTag:  opr = FrameMap::r0_oop_opr;      break;
+    case longTag:    opr = FrameMap::long0_opr;        break;
+    case floatTag:   opr = FrameMap::fpu0_float_opr;  break;
+    case doubleTag:  opr = FrameMap::fpu0_double_opr;  break;
+
+    case addressTag:
+    default: ShouldNotReachHere(); return LIR_OprFact::illegalOpr;
+  }
+
+  assert(opr->type_field() == as_OprType(as_BasicType(type)), "type mismatch");
+  return opr;
+}
 
 
 LIR_Opr LIRGenerator::rlock_byte(BasicType type) { Unimplemented(); return LIR_OprFact::illegalOpr; }
@@ -150,7 +165,66 @@ void LIRGenerator::do_NegateOp(NegateOp* x) { Unimplemented(); }
 
 // for  _fadd, _fmul, _fsub, _fdiv, _frem
 //      _dadd, _dmul, _dsub, _ddiv, _drem
-void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) { Unimplemented(); }
+void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
+  LIRItem left(x->x(),  this);
+  LIRItem right(x->y(), this);
+  LIRItem* left_arg  = &left;
+  LIRItem* right_arg = &right;
+  assert(!left.is_stack() || !right.is_stack(), "can't both be memory operands");
+  bool must_load_both = (x->op() == Bytecodes::_frem || x->op() == Bytecodes::_drem);
+  if (left.is_register() || x->x()->type()->is_constant() || must_load_both) {
+    left.load_item();
+  } else {
+    left.dont_load_item();
+  }
+
+  // do not load right operand if it is a constant.  only 0 and 1 are
+  // loaded because there are special instructions for loading them
+  // without memory access (not needed for SSE2 instructions)
+  bool must_load_right = false;
+  if (right.is_constant()) {
+    LIR_Const* c = right.result()->as_constant_ptr();
+    assert(c != NULL, "invalid constant");
+    assert(c->type() == T_FLOAT || c->type() == T_DOUBLE, "invalid type");
+    must_load_right = true;
+  }
+
+  if (must_load_both) {
+    // frem and drem destroy also right operand, so move it to a new register
+    right.set_destroys_register();
+    right.load_item();
+  } else if (right.is_register() || must_load_right) {
+    right.load_item();
+  } else {
+    right.dont_load_item();
+  }
+  LIR_Opr reg = rlock(x);
+  LIR_Opr tmp = LIR_OprFact::illegalOpr;
+  if (x->is_strictfp() && (x->op() == Bytecodes::_dmul || x->op() == Bytecodes::_ddiv)) {
+    tmp = new_register(T_DOUBLE);
+  }
+
+  if ((UseSSE >= 1 && x->op() == Bytecodes::_frem) || (UseSSE >= 2 && x->op() == Bytecodes::_drem)) {
+    // special handling for frem and drem: no SSE instruction, so must use FPU with temporary fpu stack slots
+    LIR_Opr fpu0, fpu1;
+    if (x->op() == Bytecodes::_frem) {
+      fpu0 = LIR_OprFact::single_fpu(0);
+      fpu1 = LIR_OprFact::single_fpu(1);
+    } else {
+      fpu0 = LIR_OprFact::double_fpu(0);
+      fpu1 = LIR_OprFact::double_fpu(1);
+    }
+    __ move(right.result(), fpu1); // order of left and right operand is important!
+    __ move(left.result(), fpu0);
+    __ rem (fpu0, fpu1, fpu0);
+    __ move(fpu0, reg);
+
+  } else {
+    arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), x->is_strictfp(), tmp);
+  }
+
+  set_result(x, round_item(reg));
+}
 
 // for  _ladd, _lmul, _lsub, _ldiv, _lrem
 void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) { Unimplemented(); }
@@ -158,7 +232,23 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) { Unimplemented(); }
 // for: _iadd, _imul, _isub, _idiv, _irem
 void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) { Unimplemented(); }
 
-void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) { Unimplemented(); }
+void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
+  // when an operand with use count 1 is the left operand, then it is
+  // likely that no move for 2-operand-LIR-form is necessary
+  if (x->is_commutative() && x->y()->as_Constant() == NULL && x->x()->use_count() > x->y()->use_count()) {
+    x->swap_operands();
+  }
+
+  ValueTag tag = x->type()->tag();
+  assert(x->x()->type()->tag() == tag && x->y()->type()->tag() == tag, "wrong parameters");
+  switch (tag) {
+    case floatTag:
+    case doubleTag:  do_ArithmeticOp_FPU(x);  return;
+    case longTag:    do_ArithmeticOp_Long(x); return;
+    case intTag:     do_ArithmeticOp_Int(x);  return;
+  }
+  ShouldNotReachHere();
+}
 
 // _ishl, _lshl, _ishr, _lshr, _iushr, _lushr
 void LIRGenerator::do_ShiftOp(ShiftOp* x) { Unimplemented(); }
@@ -184,7 +274,65 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) { Unimplemented(); }
 // _i2b, _i2c, _i2s
 LIR_Opr fixed_register_for(BasicType type) { Unimplemented(); }
 
-void LIRGenerator::do_Convert(Convert* x) { Unimplemented(); }
+void LIRGenerator::do_Convert(Convert* x) {
+  bool fixed_input, fixed_result, round_result, needs_stub;
+
+  switch (x->op()) {
+    case Bytecodes::_i2l: // fall through
+    case Bytecodes::_l2i: // fall through
+    case Bytecodes::_i2b: // fall through
+    case Bytecodes::_i2c: // fall through
+    case Bytecodes::_i2s: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
+
+    case Bytecodes::_f2d: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
+    case Bytecodes::_d2f: fixed_input = false;       fixed_result = UseSSE == 1; round_result = UseSSE < 1; needs_stub = false; break;
+    case Bytecodes::_i2f: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 1; needs_stub = false; break;
+    case Bytecodes::_i2d: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
+    case Bytecodes::_f2i: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = true;  break;
+    case Bytecodes::_d2i: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = true;  break;
+    case Bytecodes::_l2f: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 1; needs_stub = false; break;
+    case Bytecodes::_l2d: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 2; needs_stub = false; break;
+    case Bytecodes::_f2l: fixed_input = true;        fixed_result = true;        round_result = false;      needs_stub = false; break;
+    case Bytecodes::_d2l: fixed_input = true;        fixed_result = true;        round_result = false;      needs_stub = false; break;
+    default: ShouldNotReachHere();
+  }
+
+  LIRItem value(x->value(), this);
+  value.load_item();
+  LIR_Opr input = value.result();
+  LIR_Opr result = rlock(x);
+
+  // arguments of lir_convert
+  LIR_Opr conv_input = input;
+  LIR_Opr conv_result = result;
+  ConversionStub* stub = NULL;
+
+  if (fixed_input) {
+    conv_input = fixed_register_for(input->type());
+    __ move(input, conv_input);
+  }
+
+  assert(fixed_result == false || round_result == false, "cannot set both");
+  if (fixed_result) {
+    conv_result = fixed_register_for(result->type());
+  } else if (round_result) {
+    result = new_register(result->type());
+    set_vreg_flag(result, must_start_in_memory);
+  }
+
+  if (needs_stub) {
+    stub = new ConversionStub(x->op(), conv_input, conv_result);
+  }
+
+  __ convert(x->op(), conv_input, conv_result, stub, new_register(T_INT));
+
+  if (result != conv_result) {
+    __ move(conv_result, result);
+  }
+
+  assert(result->is_virtual(), "result must be virtual register");
+  set_result(x, result);
+}
 
 void LIRGenerator::do_NewInstance(NewInstance* x) { Unimplemented(); }
 
@@ -194,7 +342,9 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) { Unimplemented(); }
 
 void LIRGenerator::do_NewMultiArray(NewMultiArray* x) { Unimplemented(); }
 
-void LIRGenerator::do_BlockBegin(BlockBegin* x) { Unimplemented(); }
+void LIRGenerator::do_BlockBegin(BlockBegin* x) {
+  // nothing to do for now
+}
 
 void LIRGenerator::do_CheckCast(CheckCast* x) { Unimplemented(); }
 
@@ -216,3 +366,5 @@ void LIRGenerator::get_Object_unsafe(LIR_Opr dst, LIR_Opr src, LIR_Opr offset,
 
 void LIRGenerator::put_Object_unsafe(LIR_Opr src, LIR_Opr offset, LIR_Opr data,
                                      BasicType type, bool is_volatile) { Unimplemented(); }
+
+void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) { Unimplemented(); }

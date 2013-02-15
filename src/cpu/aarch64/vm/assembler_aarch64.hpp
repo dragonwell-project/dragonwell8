@@ -665,7 +665,9 @@ public:
   void NAME(Register Rd, const Address &dest);
 
   INSN(adr, 0, 0);
-  INSN(adrp, 1, 12);
+  INSN(_adrp, 1, 12);
+
+  void adrp(Register Rd, const Address &dest, unsigned long &offset);
 
 #undef INSN
 
@@ -1820,6 +1822,7 @@ public:
   virtual void bang_stack_with_offset(int offset);
 
   bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
+  bool operand_valid_for_float_immediate(double imm);
 };
 
 Instruction_aarch64::~Instruction_aarch64() {

@@ -345,10 +345,15 @@ void InterpreterGenerator::generate_counter_incr(
       __ test_method_data_pointer(r0, *profile_method);
     }
 
-    __ lea(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterInvocationLimit));
-    __ ldrw(rscratch2, rscratch2);
-    __ cmpw(r0, rscratch2);
-    __ br(Assembler::HS, *overflow);
+    {
+      unsigned long offset;
+      __ adrp(rscratch2,
+	      ExternalAddress((address)&InvocationCounter::InterpreterInvocationLimit),
+	      offset);
+      __ ldrw(rscratch2, Address(rscratch2, offset));
+      __ cmpw(r0, rscratch2);
+      __ br(Assembler::HS, *overflow);
+    }
   }
 }
 
@@ -932,8 +937,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // check for safepoint operation in progress and/or pending suspend requests
   {
     Label Continue;
-    __ mov(rscratch2, SafepointSynchronize::address_of_state());
-    __ ldr(rscratch2, rscratch2);
+    {
+      unsigned long offset;
+      __ adrp(rscratch2, SafepointSynchronize::address_of_state(), offset);
+      __ ldr(rscratch2, Address(rscratch2, offset));
+    }
     assert(SafepointSynchronize::_not_synchronized == 0,
 	   "SafepointSynchronize::_not_synchronized");
     Label L;

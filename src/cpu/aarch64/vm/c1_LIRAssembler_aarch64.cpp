@@ -73,11 +73,26 @@ LIR_Opr LIR_Assembler::osrBufferPointer() { Unimplemented(); return 0; }
 //--------------fpu register translations-----------------------
 
 
-address LIR_Assembler::float_constant(float f) { Unimplemented(); return 0; }
+address LIR_Assembler::float_constant(float f) {
+  address const_addr = __ float_constant(f);
+  if (const_addr == NULL) {
+    bailout("const section overflow");
+    return __ code()->consts()->start();
+  } else {
+    return const_addr;
+  }
+}
 
 
-address LIR_Assembler::double_constant(double d) { Unimplemented(); return 0; }
-
+address LIR_Assembler::double_constant(double d) {
+  address const_addr = __ double_constant(d);
+  if (const_addr == NULL) {
+    bailout("const section overflow");
+    return __ code()->consts()->start();
+  } else {
+    return const_addr;
+  }
+}
 
 void LIR_Assembler::set_24bit_FPU() { Unimplemented(); }
 
@@ -122,38 +137,123 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo* info) 
 
 
 // This specifies the rsp decrement needed to build the frame
-int LIR_Assembler::initial_frame_size_in_bytes() { Unimplemented(); return 0; }
+int LIR_Assembler::initial_frame_size_in_bytes() {
+  // if rounding, must let FrameMap know!
+
+  // The frame_map records size in slots (32bit word)
+
+  // subtract two words to account for return address and link
+  return (frame_map()->framesize() - (2*VMRegImpl::slots_per_word))  * VMRegImpl::stack_slot_size;
+}
 
 
-int LIR_Assembler::emit_exception_handler() { Unimplemented(); return 0; }
+int LIR_Assembler::emit_exception_handler() { __ call_Unimplemented(); return 0; }
 
 
 // Emit the code to remove the frame from the stack in the exception
 // unwind path.
-int LIR_Assembler::emit_unwind_handler() { Unimplemented(); return 0; }
+int LIR_Assembler::emit_unwind_handler() { __ call_Unimplemented(); return 0; }
 
 
-int LIR_Assembler::emit_deopt_handler() { Unimplemented(); return 0; }
+int LIR_Assembler::emit_deopt_handler() { __ call_Unimplemented(); return 0; }
 
 
 // This is the fast version of java.lang.String.compare; it has not
 // OSR-entry and therefore, we generate a slow version for OSR's
-void LIR_Assembler::emit_string_compare(LIR_Opr arg0, LIR_Opr arg1, LIR_Opr dst, CodeEmitInfo* info) { Unimplemented(); }
+void LIR_Assembler::emit_string_compare(LIR_Opr arg0, LIR_Opr arg1, LIR_Opr dst, CodeEmitInfo* info) { __ call_Unimplemented(); }
 
 
 
-void LIR_Assembler::return_op(LIR_Opr result) { Unimplemented(); }
+void LIR_Assembler::return_op(LIR_Opr result) {
+  assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
+  // Pop the stack before the safepoint code
+  __ remove_frame(initial_frame_size_in_bytes());
+
+  bool result_is_oop = result->is_valid() ? result->is_oop() : false;
+
+  // Note: we do not need to round double result; float result has the right precision
+  // the poll sets the condition code, but no data registers
+  Address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()),
+		       relocInfo::poll_return_type);
+
+  unsigned long byte_offset;
+  __ adrp(rscratch1, polling_page, byte_offset);
+  __ ldr(zr, Address(rscratch1, byte_offset));
+
+  __ ret(lr);
+}
 
 
-int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) { Unimplemented(); return 0; }
+int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) { __ call_Unimplemented(); return 0; }
 
 
-void LIR_Assembler::move_regs(Register from_reg, Register to_reg) { Unimplemented(); }
+void LIR_Assembler::move_regs(Register from_reg, Register to_reg) { __ call_Unimplemented(); }
 
-void LIR_Assembler::swap_reg(Register a, Register b) { Unimplemented(); }
+void LIR_Assembler::swap_reg(Register a, Register b) { __ call_Unimplemented(); }
 
 
-void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) { Unimplemented(); }
+void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(src->is_constant(), "should not call otherwise");
+  assert(dest->is_register(), "should not call otherwise");
+  LIR_Const* c = src->as_constant_ptr();
+
+  switch (c->type()) {
+    case T_INT: {
+      assert(patch_code == lir_patch_none, "no patching handled here");
+      __ mov(dest->as_register(), c->as_jint());
+      break;
+    }
+
+    case T_ADDRESS: {
+      assert(patch_code == lir_patch_none, "no patching handled here");
+      __ mov(dest->as_register(), c->as_jint());
+      break;
+    }
+
+    case T_LONG: {
+      assert(patch_code == lir_patch_none, "no patching handled here");
+      __ mov(dest->as_register_lo(), (intptr_t)c->as_jlong());
+      break;
+    }
+
+    case T_OBJECT: {
+      if (patch_code != lir_patch_none) {
+        jobject2reg_with_patching(dest->as_register(), info);
+      } else {
+        Unimplemented();
+      }
+      break;
+    }
+
+    case T_METADATA: {
+      Unimplemented();
+      break;
+    }
+
+    case T_FLOAT: {
+      if (__ operand_valid_for_float_immediate(c->as_jfloat())) {
+	__ fmovs(dest->as_float_reg(), (c->as_jfloat()));
+      } else {
+	__ ldrs(dest->as_float_reg(),
+		InternalAddress(float_constant(c->as_jfloat())));
+      }
+      break;
+    }
+
+    case T_DOUBLE: {
+      if (__ operand_valid_for_float_immediate(c->as_jdouble())) {
+	__ fmovd(dest->as_double_reg(), (c->as_jdouble()));
+      } else {
+	__ adr(rscratch1, InternalAddress(double_constant(c->as_jdouble())));
+	__ ldrd(dest->as_double_reg(), Address(rscratch1));
+      }
+      break;
+    }
+
+    default:
+      ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) { Unimplemented(); }
 
@@ -191,7 +291,41 @@ void LIR_Assembler::emit_op3(LIR_Op3* op) { Unimplemented(); }
 
 void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) { Unimplemented(); }
 
-void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) { Unimplemented(); }
+void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
+  LIR_Opr src  = op->in_opr();
+  LIR_Opr dest = op->result_opr();
+  Register tmp = op->tmp1()->as_register();
+
+  switch (op->bytecode()) {
+    case Bytecodes::_d2i:
+      {
+	Label L_Okay;
+	__ clear_fpsr();
+	__ fcvtzdw(dest->as_register(), src->as_double_reg());
+	__ get_fpsr(tmp);
+	__ cbnzw(tmp, *(op->stub()->entry()));
+	__ bind(*op->stub()->continuation());
+	break;
+      }
+    case Bytecodes::_i2d:
+      {
+	__ scvtfwd(dest->as_double_reg(), src->as_register());
+	break;
+      }
+    case Bytecodes::_l2d:
+      {
+	__ scvtfd(dest->as_double_reg(), src->as_register_lo());
+	break;
+      }
+    case Bytecodes::_f2d:
+      {
+	__ fcvts(dest->as_double_reg(), src->as_float_reg());
+	break;
+      }
+
+    default: ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) { Unimplemented(); }
 
@@ -212,7 +346,101 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) { Unimplemen
 void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) { Unimplemented(); }
 
 
-void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack) { Unimplemented(); }
+void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack) {
+  assert(info == NULL, "should never be used, idiv/irem and ldiv/lrem not handled by this method");
+
+  if (left->is_single_cpu()) {
+    assert(left == dest, "left and dest must be equal");
+    Register lreg = left->as_register();
+
+    if (right->is_single_cpu()) {
+      // cpu register - cpu register
+      Register rreg = right->as_register();
+      switch (code) {
+      case lir_add: __ add (dest->as_register(), lreg, rreg); break;
+      case lir_sub:
+      case lir_mul:
+      default:      ShouldNotReachHere();
+      }
+
+    } else if (right->is_stack()) {
+      // cpu register - stack
+      Address raddr = frame_map()->address_for_slot(right->single_stack_ix());
+      switch (code) {
+        case lir_add:
+        case lir_sub:
+        default:      ShouldNotReachHere();
+      }
+
+    } else if (right->is_constant()) {
+      // cpu register - constant
+      jint c = right->as_constant_ptr()->as_jint();
+      switch (code) {
+        case lir_add: {
+        }
+        case lir_sub: {
+        }
+        default: ShouldNotReachHere();
+      }
+
+    } else {
+      ShouldNotReachHere();
+    }
+
+  } else if (left->is_double_cpu()) {
+    assert(left == dest, "left and dest must be equal");
+    Register lreg_lo = left->as_register_lo();
+    Register lreg_hi = left->as_register_hi();
+
+    if (right->is_double_cpu()) {
+      // cpu register - cpu register
+      Register rreg_lo = right->as_register_lo();
+      Register rreg_hi = right->as_register_hi();
+      assert_different_registers(lreg_lo, rreg_lo);
+      switch (code) {
+        case lir_add:
+        case lir_sub:
+        case lir_mul:
+        default:
+          ShouldNotReachHere();
+      }
+
+    } else if (right->is_constant()) {
+      jlong c = right->as_constant_ptr()->as_jlong_bits();
+      switch (code) {
+        case lir_add:
+        case lir_sub:
+        default:
+          ShouldNotReachHere();
+      }
+    } else {
+      ShouldNotReachHere();
+    }
+  } else if (left->is_single_fpu()) {
+    ShouldNotReachHere();
+  } else if (left->is_double_fpu()) {
+    if (right->is_double_fpu()) {
+      // cpu register - cpu register
+      switch (code) {
+      case lir_add: __ faddd (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
+      case lir_sub:
+      case lir_mul:
+      default:
+	ShouldNotReachHere();
+      }
+    } else {
+      if (right->is_constant()) {
+	ShouldNotReachHere();
+      }
+      ShouldNotReachHere();
+    }
+  } else if (left->is_single_stack() || left->is_address()) {
+    assert(left == dest, "left and dest must be equal");
+    ShouldNotReachHere();
+  } else {
+    ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::arith_fpu_implementation(LIR_Code code, int left_index, int right_index, int dest_index, bool pop_fpu_stack) { Unimplemented(); }
 
@@ -322,7 +550,9 @@ void LIR_Assembler::membar_storeload() { Unimplemented(); }
 void LIR_Assembler::get_thread(LIR_Opr result_reg) { Unimplemented(); }
 
 
-void LIR_Assembler::peephole(LIR_List*) { Unimplemented(); }
+void LIR_Assembler::peephole(LIR_List*) {
+}
 
+void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp) { Unimplemented(); }
 
 #undef __

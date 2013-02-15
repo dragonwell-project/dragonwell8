@@ -163,6 +163,11 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm) { Unimplemented
 
 void RegisterSaver::restore_result_registers(MacroAssembler* masm) { Unimplemented(); }
 
+// Is vector's size (in bytes) bigger than a size saved by default?
+// 16 bytes XMM registers are saved by default using fxsave/fxrstor instructions.
+bool SharedRuntime::is_wide_vector(int size) {
+  return size > 16;
+}
 // The java_calling_convention describes stack locations as ideal slots on
 // a frame with no abi restrictions. Since we must observe abi restrictions
 // (like the placement of the register window) the slots must be biased by
@@ -287,7 +292,163 @@ static void gen_i2c_adapter(MacroAssembler *masm,
                             int comp_args_on_stack,
                             const BasicType *sig_bt,
                             const VMRegPair *regs) {
- __ call_Unimplemented(); 
+
+  // Note: r13 contains the senderSP on entry. We must preserve it since
+  // we may do a i2c -> c2i transition if we lose a race where compiled
+  // code goes non-entrant while we get args ready.
+  // In addition we use r13 to locate all the interpreter args as
+  // we must align the stack to 16 bytes on an i2c entry else we
+  // lose alignment we expect in all compiled code and register
+  // save code can segv when fxsave instructions find improperly
+  // aligned stack pointer.
+
+  // Adapters can be frameless because they do not require the caller
+  // to perform additional cleanup work, such as correcting the stack pointer.
+  // An i2c adapter is frameless because the *caller* frame, which is interpreted,
+  // routinely repairs its own stack pointer (from interpreter_frame_last_sp),
+  // even if a callee has modified the stack pointer.
+  // A c2i adapter is frameless because the *callee* frame, which is interpreted,
+  // routinely repairs its caller's stack pointer (from sender_sp, which is set
+  // up via the senderSP register).
+  // In other words, if *either* the caller or callee is interpreted, we can
+  // get the stack pointer repaired after a call.
+  // This is why c2i and i2c adapters cannot be indefinitely composed.
+  // In particular, if a c2i adapter were to somehow call an i2c adapter,
+  // both caller and callee would be compiled methods, and neither would
+  // clean up the stack pointer changes performed by the two adapters.
+  // If this happens, control eventually transfers back to the compiled
+  // caller, but with an uncorrected stack, causing delayed havoc.
+
+  if (VerifyAdapterCalls &&
+      (Interpreter::code() != NULL || StubRoutines::code1() != NULL)) {
+#if 0
+    // So, let's test for cascading c2i/i2c adapters right now.
+    //  assert(Interpreter::contains($return_addr) ||
+    //         StubRoutines::contains($return_addr),
+    //         "i2c adapter must return to an interpreter frame");
+    __ block_comment("verify_i2c { ");
+    Label L_ok;
+    if (Interpreter::code() != NULL)
+      range_check(masm, rax, r11,
+                  Interpreter::code()->code_start(), Interpreter::code()->code_end(),
+                  L_ok);
+    if (StubRoutines::code1() != NULL)
+      range_check(masm, rax, r11,
+                  StubRoutines::code1()->code_begin(), StubRoutines::code1()->code_end(),
+                  L_ok);
+    if (StubRoutines::code2() != NULL)
+      range_check(masm, rax, r11,
+                  StubRoutines::code2()->code_begin(), StubRoutines::code2()->code_end(),
+                  L_ok);
+    const char* msg = "i2c adapter must return to an interpreter frame";
+    __ block_comment(msg);
+    __ stop(msg);
+    __ bind(L_ok);
+    __ block_comment("} verify_i2ce ");
+#endif
+  }
+
+  // Cut-out for having no stack args.  Since up to 2 int/oop args are passed
+  // in registers, we will occasionally have no stack args.
+  int comp_words_on_stack = 0;
+  if (comp_args_on_stack) {
+    __ call_Unimplemented();
+  }
+
+  // Will jump to the compiled code just as if compiled code was doing it.
+  // Pre-load the register-jump target early, to schedule it better.
+  __ ldr(rscratch1, Address(rmethod, in_bytes(Method::from_compiled_offset())));
+
+  // Now generate the shuffle code.
+  for (int i = 0; i < total_args_passed; i++) {
+    if (sig_bt[i] == T_VOID) {
+      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
+      continue;
+    }
+
+    // Pick up 0, 1 or 2 words from SP+offset.
+
+    assert(!regs[i].second()->is_valid() || regs[i].first()->next() == regs[i].second(),
+            "scrambled load targets?");
+    // Load in argument order going down.
+    int ld_off = (total_args_passed - i - 1)*Interpreter::stackElementSize;
+    // Point to interpreter value (vs. tag)
+    int next_off = ld_off - Interpreter::stackElementSize;
+    //
+    //
+    //
+    VMReg r_1 = regs[i].first();
+    VMReg r_2 = regs[i].second();
+    if (!r_1->is_valid()) {
+      assert(!r_2->is_valid(), "");
+      continue;
+    }
+    if (r_1->is_stack()) {
+      // Convert stack slot to an SP offset (+ wordSize to account for return address )
+      int st_off = regs[i].first()->reg2stack()*VMRegImpl::stack_slot_size + wordSize;
+      if (!r_2->is_valid()) {
+        // sign extend???
+        __ ldrsw(rscratch2, Address(esp, ld_off));
+        __ str(rscratch2, Address(sp, st_off));
+      } else {
+        //
+        // We are using two optoregs. This can be either T_OBJECT,
+        // T_ADDRESS, T_LONG, or T_DOUBLE the interpreter allocates
+        // two slots but only uses one for thr T_LONG or T_DOUBLE case
+        // So we must adjust where to pick up the data to match the
+        // interpreter.
+        //
+        // Interpreter local[n] == MSW, local[n+1] == LSW however locals
+        // are accessed as negative so LSW is at LOW address
+
+        // ld_off is MSW so get LSW
+        const int offset = (sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
+                           next_off : ld_off;
+        __ ldr(rscratch2, Address(esp, ld_off));
+        // st_off is LSW (i.e. reg.first())
+        __ str(rscratch2, Address(sp, st_off));
+      }
+    } else if (r_1->is_Register()) {  // Register argument
+      Register r = r_1->as_Register();
+      if (r_2->is_valid()) {
+        //
+        // We are using two VMRegs. This can be either T_OBJECT,
+        // T_ADDRESS, T_LONG, or T_DOUBLE the interpreter allocates
+        // two slots but only uses one for thr T_LONG or T_DOUBLE case
+        // So we must adjust where to pick up the data to match the
+        // interpreter.
+
+        const int offset = (sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
+                           next_off : ld_off;
+
+        // this can be a misaligned move
+        __ ldr(r, Address(esp, offset));
+      } else {
+        // sign extend and use a full word?
+        __ ldrw(r, Address(esp, ld_off));
+      }
+    } else {
+      if (!r_2->is_valid()) {
+        __ ldrs(r_1->as_FloatRegister(), Address(esp, ld_off));
+      } else {
+        __ ldrd(r_1->as_FloatRegister(), Address(esp, next_off));
+      }
+    }
+  }
+
+  // 6243940 We might end up in handle_wrong_method if
+  // the callee is deoptimized as we race thru here. If that
+  // happens we don't want to take a safepoint because the
+  // caller frame will look interpreted and arguments are now
+  // "compiled" so it is much better to make this transition
+  // invisible to the stack walking code. Unfortunately if
+  // we try and find the callee by normal means a safepoint
+  // is possible. So we stash the desired callee in the thread
+  // and the vm will find there should this case occur.
+
+  __ str(rmethod, Address(rthread, JavaThread::callee_target_offset()));
+
+  __ br(rscratch1);
 }
 
 // ---------------------------------------------------------------
@@ -301,6 +462,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   address c2i_unverified_entry = __ pc();
   address c2i_entry = __ pc();
   Label skip_fixup;
+
+  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
 
   __ call_Unimplemented();
   __ b(skip_fixup);
@@ -1430,8 +1593,9 @@ nmethod *SharedRuntime::generate_dtrace_nmethod(MacroAssembler *masm,
 int Deoptimization::last_frame_adjust(int callee_parameters, int callee_locals ) { Unimplemented(); return 0; }
 
 
-uint SharedRuntime::out_preserve_stack_slots() { Unimplemented(); return 0; }
-
+uint SharedRuntime::out_preserve_stack_slots() {
+  return 0;
+}
 
 //------------------------------generate_deopt_blob----------------------------
 void SharedRuntime::generate_deopt_blob() {  }

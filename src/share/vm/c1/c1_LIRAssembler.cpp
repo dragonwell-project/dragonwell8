@@ -167,7 +167,7 @@ void LIR_Assembler::emit_stubs(CodeStubList* stub_list) {
 #endif
     s->emit_code(this);
 #ifdef ASSERT
-    s->assert_no_unbound_labels();
+    // s->assert_no_unbound_labels();
 #endif
   }
 }

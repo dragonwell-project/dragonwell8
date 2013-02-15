@@ -26,17 +26,10 @@
 #define CPU_X86_VM_C1_LINEARSCAN_X86_HPP
 
 inline bool LinearScan::is_processed_reg_num(int reg_num) {
-  Unimplemented();
-  return false;
+  return reg_num <= FrameMap::last_cpu_reg() || reg_num >= pd_nof_cpu_regs_frame_map;
 }
 
 inline int LinearScan::num_physical_regs(BasicType type) {
-  Unimplemented();
-  // Intel requires two cpu registers for long,
-  // but requires only one fpu register for double
-  if (LP64_ONLY(false &&) type == T_LONG) {
-    return 2;
-  }
   return 1;
 }
 
@@ -53,16 +46,26 @@ inline bool LinearScan::is_caller_save(int assigned_reg) {
 
 
 inline void LinearScan::pd_add_temps(LIR_Op* op) {
-  Unimplemented();
+  // FIXME ??
 }
 
 
 // Implementation of LinearScanWalker
 
 inline bool LinearScanWalker::pd_init_regs_for_alloc(Interval* cur) {
-  Unimplemented();
+  if (allocator()->gen()->is_vreg_flag_set(cur->reg_num(), LIRGenerator::callee_saved)) {
+    assert(cur->type() != T_FLOAT && cur->type() != T_DOUBLE, "cpu regs only");
+    _first_reg = pd_first_callee_saved_reg;
+    _last_reg = pd_last_callee_saved_reg;
+    return true;
+  } else if (cur->type() == T_INT || cur->type() == T_LONG || cur->type() == T_OBJECT || cur->type() == T_ADDRESS || cur->type() == T_METADATA) {
+    _first_reg = pd_first_cpu_reg;
+    _last_reg = pd_last_allocatable_cpu_reg;
+    return true;
+  }
   return false;
 }
+
 
 
 class FpuStackAllocator VALUE_OBJ_CLASS_SPEC {

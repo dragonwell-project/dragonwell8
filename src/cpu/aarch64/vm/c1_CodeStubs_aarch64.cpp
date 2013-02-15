@@ -41,7 +41,14 @@
 float ConversionStub::float_zero = 0.0;
 double ConversionStub::double_zero = 0.0;
 
-void ConversionStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void ConversionStub::emit_code(LIR_Assembler* ce) { 
+  __ bind(_entry);
+  __ fmovd(v0, input()->as_double_reg());
+  __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
+			0, 1, MacroAssembler::ret_type_integral);
+  __ mov(result()->as_register(), r0);
+  __ b(_continuation);
+}
 
 void CounterOverflowStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 

@@ -75,6 +75,8 @@ define_pd_global(bool, UseBiasedLocking, false);
 #endif // CPU_X86_VM_GLOBALS_X86_HPP
 =======
 
+define_pd_global(intx, InlineSmallCode,          1000);
+
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
                                                                            \
   product(bool, NotifySimulator, true,                                     \
