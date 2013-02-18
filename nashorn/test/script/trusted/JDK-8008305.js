@@ -54,6 +54,6 @@ try {
     fail("Expected SecurityException from script!");
 } catch (e) {
     if (! (e instanceof SecurityException)) {
-        fail("Expected SecurityException, but got " + e);
+        faile("Expected SecurityException, but got " + e);
     }
 }

@@ -25,12 +25,10 @@
 
 package jdk.nashorn.api.scripting;
 
-import java.io.CharArrayReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
-import java.nio.charset.Charset;
-import jdk.nashorn.internal.runtime.Source;
 
 /**
  * A Reader that reads from a URL. Used to make sure that the reader
@@ -38,46 +36,12 @@ import jdk.nashorn.internal.runtime.Source;
  */
 public final class URLReader extends Reader {
     // underlying URL
-    private final URL url;
-    // Charset used to convert
-    private final Charset cs;
-
+    private URL url;
     // lazily initialized underlying reader for URL
     private Reader reader;
 
-    /**
-     * Constructor
-     *
-     * @param url URL for this URLReader
-     * @throws NullPointerException if url is null
-     */
     public URLReader(final URL url) {
-        this(url, (Charset)null);
-    }
-
-    /**
-     * Constructor
-     *
-     * @param url URL for this URLReader
-     * @param charsetName  Name of the Charset used to convert bytes to chars
-     * @throws NullPointerException if url is null
-     */
-    public URLReader(final URL url, final String charsetName) {
-        this(url, Charset.forName(charsetName));
-    }
-
-    /**
-     * Constructor
-     *
-     * @param url URL for this URLReader
-     * @param cs  Charset used to convert bytes to chars
-     * @throws NullPointerException if url is null
-     */
-    public URLReader(final URL url, final Charset cs) {
-        // null check
-        url.getClass();
         this.url = url;
-        this.cs  = cs;
     }
 
     @Override
@@ -98,20 +62,11 @@ public final class URLReader extends Reader {
         return url;
     }
 
-    /**
-     * Charset used by this reader
-     *
-     * @return the Chartset used to convert bytes to chars
-     */
-    public Charset getCharset() {
-        return cs;
-    }
-
     // lazily initialize char array reader using URL content
     private Reader getReader() throws IOException {
         synchronized (lock) {
             if (reader == null) {
-                reader = new CharArrayReader(Source.readFully(url, cs));
+                reader = new InputStreamReader(url.openStream());
             }
         }
 
