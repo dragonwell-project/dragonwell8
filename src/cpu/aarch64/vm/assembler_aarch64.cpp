@@ -1658,6 +1658,18 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
   srf(Rd, 0), srf(Rn, 5);
 }
 
+bool Assembler::operand_valid_for_add_sub_immediate(long imm) {
+  bool shift = false;
+  imm = abs(imm);
+  if (imm < (1 << 11))
+    return true;
+  if (imm < (1 << 24)
+      && ((imm >> 12) << 12 == imm)) {
+    return true;
+  }
+  return false;
+}
+
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_logical_immediate(is32, imm) != 0xffffffff;
 }

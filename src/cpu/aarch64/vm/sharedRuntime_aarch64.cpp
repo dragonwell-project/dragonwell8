@@ -348,11 +348,11 @@ static void gen_i2c_adapter(MacroAssembler *masm,
 #endif
   }
 
-  // Cut-out for having no stack args.  Since up to 2 int/oop args are passed
-  // in registers, we will occasionally have no stack args.
-  int comp_words_on_stack = 0;
+  // Cut-out for having no stack args.
+  int comp_words_on_stack = round_to(comp_args_on_stack*VMRegImpl::stack_slot_size, wordSize)>>LogBytesPerWord;
   if (comp_args_on_stack) {
-    __ call_Unimplemented();
+    __ sub(rscratch1, sp, comp_words_on_stack * wordSize);
+    __ andr(sp, rscratch1, -16);
   }
 
   // Will jump to the compiled code just as if compiled code was doing it.
@@ -385,7 +385,7 @@ static void gen_i2c_adapter(MacroAssembler *masm,
     }
     if (r_1->is_stack()) {
       // Convert stack slot to an SP offset (+ wordSize to account for return address )
-      int st_off = regs[i].first()->reg2stack()*VMRegImpl::stack_slot_size + wordSize;
+      int st_off = regs[i].first()->reg2stack()*VMRegImpl::stack_slot_size;
       if (!r_2->is_valid()) {
         // sign extend???
         __ ldrsw(rscratch2, Address(esp, ld_off));

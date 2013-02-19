@@ -260,15 +260,113 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) { Unimplemented(); }
 void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info, bool wide) { Unimplemented(); }
 
 
-void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) { Unimplemented(); }
+void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
+  assert(src->is_register(), "should not call otherwise");
+  assert(dest->is_register(), "should not call otherwise");
 
-void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool pop_fpu_stack) { Unimplemented(); }
+  // move between cpu-registers
+  if (dest->is_single_cpu()) {
+    if (src->type() == T_LONG) {
+      // Can do LONG -> OBJECT
+      move_regs(src->as_register_lo(), dest->as_register());
+      return;
+    }
+    assert(src->is_single_cpu(), "must match");
+    if (src->type() == T_OBJECT) {
+      __ verify_oop(src->as_register());
+    }
+    move_regs(src->as_register(), dest->as_register());
+
+  } else if (dest->is_double_cpu()) {
+    if (src->type() == T_OBJECT || src->type() == T_ARRAY) {
+      // Surprising to me but we can see move of a long to t_object
+      __ verify_oop(src->as_register());
+      move_regs(src->as_register(), dest->as_register_lo());
+      return;
+    }
+    assert(src->is_double_cpu(), "must match");
+    Register f_lo = src->as_register_lo();
+    Register f_hi = src->as_register_hi();
+    Register t_lo = dest->as_register_lo();
+    Register t_hi = dest->as_register_hi();
+    assert(f_hi == f_lo, "must be same");
+    assert(t_hi == t_lo, "must be same");
+    move_regs(f_lo, t_lo);
+
+  } else if (dest->is_single_fpu()) {
+    __ fmovs(dest->as_float_reg(), src->as_float_reg());
+
+  } else if (dest->is_double_fpu()) {
+    __ fmovd(src->as_double_reg(), src->as_double_reg());
+
+  } else {
+    ShouldNotReachHere();
+  }
+}
+
+void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool pop_fpu_stack) {
+    if (src->is_single_cpu()) {
+    if (type == T_ARRAY || type == T_OBJECT) {
+      __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
+      __ verify_oop(src->as_register());
+    } else if (type == T_METADATA) {
+      __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
+    } else {
+      __ strw(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
+    }
+
+  } else if (src->is_double_cpu()) {
+    Address dest_addr_LO = frame_map()->address_for_slot(dest->double_stack_ix(), lo_word_offset_in_bytes);
+    __ str(src->as_register_lo(), dest_addr_LO);
+
+  } else if (src->is_single_fpu()) {
+    Address dest_addr = frame_map()->address_for_slot(dest->single_stack_ix());
+    __ strs(src->as_float_reg(), dest_addr);
+
+  } else if (src->is_double_fpu()) {
+    Address dest_addr = frame_map()->address_for_slot(dest->double_stack_ix());
+    __ strd(src->as_double_reg(), dest_addr);
+
+  } else {
+    ShouldNotReachHere();
+  }
+
+}
 
 
 void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool pop_fpu_stack, bool wide, bool /* unaligned */) { Unimplemented(); }
 
 
-void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) { Unimplemented(); }
+void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
+  assert(src->is_stack(), "should not call otherwise");
+  assert(dest->is_register(), "should not call otherwise");
+
+  if (dest->is_single_cpu()) {
+    if (type == T_ARRAY || type == T_OBJECT) {
+      __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
+      __ verify_oop(dest->as_register());
+    } else if (type == T_METADATA) {
+      __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
+    } else {
+      __ ldrw(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
+    }
+
+  } else if (dest->is_double_cpu()) {
+    Address src_addr_LO = frame_map()->address_for_slot(src->double_stack_ix(), lo_word_offset_in_bytes);
+    __ ldr(dest->as_register_lo(), src_addr_LO);
+
+  } else if (dest->is_single_fpu()) {
+    Address src_addr = frame_map()->address_for_slot(src->single_stack_ix());
+    __ ldrs(dest->as_float_reg(), src_addr);
+
+  } else if (dest->is_double_fpu()) {
+    Address src_addr = frame_map()->address_for_slot(src->double_stack_ix());
+    __ ldrd(dest->as_double_reg(), src_addr);
+
+  } else {
+    ShouldNotReachHere();
+  }
+}
 
 
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) { Unimplemented(); }
@@ -307,6 +405,11 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ bind(*op->stub()->continuation());
 	break;
       }
+    case Bytecodes::_i2f:
+      {
+	__ scvtfws(dest->as_float_reg(), src->as_register());
+	break;
+      }
     case Bytecodes::_i2d:
       {
 	__ scvtfwd(dest->as_double_reg(), src->as_register());
@@ -320,6 +423,18 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
     case Bytecodes::_f2d:
       {
 	__ fcvts(dest->as_double_reg(), src->as_float_reg());
+	break;
+      }
+    case Bytecodes::_i2l:
+      {
+	__ sxtw(dest->as_register_lo(), src->as_register());
+	break;
+      }
+
+    case Bytecodes::_l2i:
+      {
+	// FIXME: This could be a no-op
+	__ uxtw(dest->as_register(), src->as_register_lo());
 	break;
       }
 
@@ -357,7 +472,7 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       // cpu register - cpu register
       Register rreg = right->as_register();
       switch (code) {
-      case lir_add: __ add (dest->as_register(), lreg, rreg); break;
+      case lir_add: __ addw (dest->as_register(), lreg, rreg); break;
       case lir_sub:
       case lir_mul:
       default:      ShouldNotReachHere();
@@ -388,7 +503,6 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
     }
 
   } else if (left->is_double_cpu()) {
-    assert(left == dest, "left and dest must be equal");
     Register lreg_lo = left->as_register_lo();
     Register lreg_hi = left->as_register_hi();
 
@@ -398,17 +512,25 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       Register rreg_hi = right->as_register_hi();
       assert_different_registers(lreg_lo, rreg_lo);
       switch (code) {
-        case lir_add:
-        case lir_sub:
-        case lir_mul:
-        default:
-          ShouldNotReachHere();
+      case lir_add: __ add (dest->as_register_lo(), lreg_lo, rreg_lo); break;
+      case lir_sub:
+      case lir_mul: __ mul (dest->as_register_lo(), lreg_lo, rreg_lo); break;
+      default:
+	ShouldNotReachHere();
       }
 
     } else if (right->is_constant()) {
       jlong c = right->as_constant_ptr()->as_jlong_bits();
       switch (code) {
         case lir_add:
+	  if (__ operand_valid_for_add_sub_immediate(c))
+	    __ add(dest->as_register_lo(), lreg_lo, c);
+	  else {
+	    __ mov(rscratch1, c);
+	    __ add(dest->as_register_lo(), lreg_lo, rscratch1);
+	  }
+	  break;
+
         case lir_sub:
         default:
           ShouldNotReachHere();
@@ -417,14 +539,20 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       ShouldNotReachHere();
     }
   } else if (left->is_single_fpu()) {
-    ShouldNotReachHere();
+      switch (code) {
+      case lir_add: __ fadds (dest->as_float_reg(), left->as_float_reg(), right->as_float_reg()); break;
+      case lir_sub:
+      case lir_mul:
+      default:
+	ShouldNotReachHere();
+      }
   } else if (left->is_double_fpu()) {
     if (right->is_double_fpu()) {
       // cpu register - cpu register
       switch (code) {
       case lir_add: __ faddd (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
       case lir_sub:
-      case lir_mul:
+      case lir_mul: __ fmuld (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
       default:
 	ShouldNotReachHere();
       }

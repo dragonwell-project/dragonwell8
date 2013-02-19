@@ -1098,7 +1098,7 @@ IntervalUseKind LinearScan::use_kind_of_input_operand(LIR_Op* op, LIR_Opr opr) {
   }
 
 
-#ifdef X86
+#if defined(X86) && !defined(TARGET_ARCH_aarch64)
   if (op->code() == lir_cmove) {
     // conditional moves can handle stack operands
     assert(op->result_opr()->is_register(), "result must always be in a register");
@@ -5424,6 +5424,7 @@ bool LinearScanWalker::alloc_free_reg(Interval* cur) {
     split_pos = MIN2(_use_pos[reg], _use_pos[regHi]);
 
   } else {
+    reg = find_free_reg(reg_needed_until, interval_to, hint_reg, any_reg, &need_split);
     reg = find_free_reg(reg_needed_until, interval_to, hint_reg, any_reg, &need_split);
     if (reg == any_reg) {
       return false;
