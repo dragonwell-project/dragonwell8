@@ -25,14 +25,15 @@
 
 package jdk.nashorn.internal.runtime.regexp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
-import jdk.nashorn.internal.parser.Lexer;
 import jdk.nashorn.internal.parser.Scanner;
 import jdk.nashorn.internal.runtime.BitVector;
 
@@ -43,9 +44,16 @@ import jdk.nashorn.internal.runtime.BitVector;
 final class RegExpScanner extends Scanner {
 
     /**
-     * String builder used to rewrite the pattern for the currently used regexp factory.
+     * String builder to accumulate the result - this contains verbatim parsed JavaScript.
+     * to get the java equivalent we need to create a Pattern token and return its toString()
      */
     private final StringBuilder sb;
+
+    /** Is this the special case of a regexp that never matches anything */
+    private boolean neverMatches;
+
+    /** The resulting java.util.regex pattern string. */
+    private String javaPattern;
 
     /** Expected token table */
     private final Map<Character, Integer> expected = new HashMap<>();
@@ -54,37 +62,362 @@ final class RegExpScanner extends Scanner {
     private final List<Capture> caps = new LinkedList<>();
 
     /** Forward references to capturing parenthesis to be resolved later.*/
-    private final LinkedList<Integer> forwardReferences = new LinkedList<>();
+    private final Map<Integer, Token> forwardReferences = new LinkedHashMap<>();
 
     /** Current level of zero-width negative lookahead assertions. */
-    private int negLookaheadLevel;
+    private int negativeLookaheadLevel;
 
-    /** Sequential id of current top-level zero-width negative lookahead assertion. */
-    private int negLookaheadGroup;
-
-    /** Are we currently inside a character class? */
-    private boolean inCharClass = false;
-
-    /** Are we currently inside a negated character class? */
-    private boolean inNegativeClass = false;
-
-    private static final String NON_IDENT_ESCAPES = "$^*+(){}[]|\\.?-";
+    private static final String NON_IDENT_ESCAPES = "$^*+(){}[]|\\.?";
 
     private static class Capture {
-        /** Zero-width negative lookaheads enclosing the capture. */
-        private final int negLookaheadLevel;
-        /** Sequential id of top-level negative lookaheads containing the capture. */
-        private  final int negLookaheadGroup;
+        /**
+         * Zero-width negative lookaheads enclosing the capture.
+         */
+        private final int negativeLookaheadLevel;
+        /**
+         * Captures that live inside a negative lookahead are dead after the
+         * lookahead and will be undefined if referenced from outside.
+         */
+        private boolean isDead;
 
-        Capture(final int negLookaheadGroup, final int negLookaheadLevel) {
-            this.negLookaheadGroup = negLookaheadGroup;
-            this.negLookaheadLevel = negLookaheadLevel;
+        Capture(final int negativeLookaheadLevel) {
+            this.negativeLookaheadLevel = negativeLookaheadLevel;
         }
 
-        boolean isContained(final int group, final int level) {
-            return group == this.negLookaheadGroup && level >= this.negLookaheadLevel;
+        public int getNegativeLookaheadLevel() {
+            return negativeLookaheadLevel;
         }
 
+        public boolean isDead() {
+            return isDead;
+        }
+
+        public void setDead() {
+            this.isDead = true;
+        }
+    }
+
+    /**
+     * This is a token - the JavaScript regexp is scanned into a token tree
+     * A token has other tokens as children as well as "atoms", i.e. Strings.
+     */
+    private static class Token {
+
+        private enum Type {
+            PATTERN,
+            DISJUNCTION,
+            ALTERNATIVE,
+            TERM,
+            ASSERTION,
+            QUANTIFIER,
+            QUANTIFIER_PREFIX,
+            ATOM,
+            PATTERN_CHARACTER,
+            ATOM_ESCAPE,
+            CHARACTER_ESCAPE,
+            CONTROL_ESCAPE,
+            CONTROL_LETTER,
+            IDENTITY_ESCAPE,
+            DECIMAL_ESCAPE,
+            CHARACTERCLASS_ESCAPE,
+            CHARACTERCLASS,
+            CLASSRANGES,
+            NON_EMPTY_CLASSRANGES,
+            NON_EMPTY_CLASSRANGES_NODASH,
+            CLASSATOM,
+            CLASSATOM_NODASH,
+            CLASS_ESCAPE,
+            DECIMALDIGITS,
+            HEX_ESCAPESEQUENCE,
+            UNICODE_ESCAPESEQUENCE,
+        }
+
+        /**
+         * Token tyoe
+         */
+        private final Token.Type type;
+
+        /**
+         * Child nodes
+         */
+        private final List<Object> children;
+
+        /**
+         * Parent node
+         */
+        private Token parent;
+
+        /**
+         * Dead code flag
+         */
+        private boolean isDead;
+
+        private static final Map<Type, ToString> toStringMap = new HashMap<>();
+        private static final ToString DEFAULT_TOSTRING = new ToString();
+
+        private static String unicode(final int value) {
+            final StringBuilder sb = new StringBuilder();
+            final String hex = Integer.toHexString(value);
+            sb.append('u');
+            for (int i = 0; i < 4 - hex.length(); i++) {
+                sb.append('0');
+            }
+            sb.append(hex);
+
+            return sb.toString();
+        }
+
+        static {
+            toStringMap.put(Type.CHARACTERCLASS, new ToString() {
+                @Override
+                public String toString(final Token token) {
+                    return super.toString(token).replace("\\b", "\b");
+                }
+            });
+
+            // for some reason java regexps don't like control characters on the
+            // form "\\ca".match([string with ascii 1 at char0]). Translating
+            // them to unicode does it though.
+            toStringMap.put(Type.CHARACTER_ESCAPE, new ToString() {
+                @Override
+                public String toString(final Token token) {
+                    final String str = super.toString(token);
+                    if (str.length() == 2) {
+                        return Token.unicode(Character.toLowerCase(str.charAt(1)) - 'a' + 1);
+                    }
+                    return str;
+                }
+            });
+
+            toStringMap.put(Type.DECIMAL_ESCAPE, new ToString() {
+                @Override
+                public String toString(final Token token) {
+                    final String str = super.toString(token);
+
+                    if ("\0".equals(str)) {
+                        return str;
+                    }
+
+                    int value;
+
+                    if (!token.hasParentOfType(Type.CLASSRANGES)) {
+                        return str;
+                    }
+
+                    value = Integer.parseInt(str, 8); //throws exception that leads to SyntaxError if not octal
+                    if (value > 0xff) {
+                        throw new NumberFormatException(str);
+                    }
+
+                    return Token.unicode(value);
+                }
+            });
+
+        }
+
+        /**
+         * JavaScript Token to Java regex substring framework.
+         */
+        private static class ToString {
+            String toString(final Token token) {
+                final Object[] children = token.getChildren();
+
+                // Allow the installed regexp factory to perform global substitutions.
+                switch (children.length) {
+                    case 0:
+                        return "";
+                    case 1:
+                        return RegExpFactory.replace(children[0].toString());
+                    default:
+                        final StringBuilder sb = new StringBuilder();
+                        for (final Object child : children) {
+                            sb.append(child);
+                        }
+                        return RegExpFactory.replace(sb.toString());
+                }
+            }
+        }
+
+        /**
+         * Token iterator. Doesn't return "atom" children. i.e. string representations,
+         * just tokens
+         *
+         */
+        private static class TokenIterator implements Iterator<Token> {
+            private final List<Token> preorder;
+
+            private void init(final Token root) {
+                preorder.add(root);
+                for (final Object child : root.getChildren()) {
+                    if (child instanceof Token) {
+                        init((Token)child);
+                    }
+                }
+            }
+
+            TokenIterator(final Token root) {
+                preorder = new ArrayList<>();
+                init(root);
+            }
+
+            @Override
+            public boolean hasNext() {
+                return !preorder.isEmpty();
+            }
+
+            @Override
+            public Token next() {
+                return preorder.remove(0);
+            }
+
+            @Override
+            public void remove() {
+                next();
+            }
+        }
+
+        /**
+         * Constructor
+         * @param type the token type
+         */
+        Token(final Token.Type type) {
+            this.type = type;
+            children = new ArrayList<>();
+        }
+
+        /**
+         * Add a an "atom" child to a token
+         * @param child the child to add
+         * @return the token (for chaining)
+         */
+        public Token add(final String child) {
+            children.add(child);
+            return this;
+        }
+
+        /**
+         * Add a child to a token
+         * @param child the child
+         * @return the token (for chaining)
+         */
+        public Token add(final Token child) {
+            if (child != null) {
+                children.add(child);
+                child.setParent(this);
+            }
+            return this;
+        }
+
+        /**
+         * Remove a child from a token
+         * @param child the child to remove
+         * @return true if successful
+         */
+        public boolean remove(final Token child) {
+            return children.remove(child);
+        }
+
+        /**
+         * Remove the last child from a token
+         * @return the removed child
+         */
+        public Object removeLast() {
+            return children.remove(children.size() - 1);
+        }
+
+        /**
+         * Flag this token as dead code
+         * @param isDead is it dead or not
+         */
+        private void setIsDead(final boolean isDead) {
+            this.isDead = isDead;
+        }
+
+        /**
+         * Is this token dead code
+         * @return boolean
+         */
+        private boolean getIsDead() {
+            return isDead;
+        }
+
+        /**
+         * Get the parent of this token
+         * @return parent token
+         */
+        public Token getParent() {
+            return parent;
+        }
+
+        public boolean hasParentOfType(final Token.Type parentType) {
+            for (Token p = getParent(); p != null; p = p.getParent()) {
+                if (p.getType() == parentType) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean hasChildOfType(final Token.Type childType) {
+            for (final Iterator<Token> iter = iterator() ; iter.hasNext() ; ) {
+                if (iter.next().getType() == childType) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Set the parent of this token
+         * @param parent
+         */
+        private void setParent(final Token parent) {
+            this.parent = parent;
+        }
+
+        /**
+         * Get the children of this token
+         * @return an array of children, never null
+         */
+        public Object[] getChildren() {
+            return children.toArray();
+        }
+
+        /**
+         * Reset this token, remove all children
+         */
+        public void reset() {
+            children.clear();
+        }
+
+        /**
+         * Get a preorder token iterator with this token as root
+         * @return an iterator
+         */
+        public Iterator<Token> iterator() {
+            return new TokenIterator(this);
+        }
+
+        /**
+         * Get the type of this token
+         * @return type
+         */
+        public Type getType() {
+            return type;
+        }
+
+        /**
+         * Turn this token into Java regexp compatible text
+         * @return part of a java regexp
+         */
+        @Override
+        public String toString() {
+            ToString t = toStringMap.get(getType());
+            if (t == null) {
+                t = DEFAULT_TOSTRING;
+            }
+            return t.toString(this);
+        }
     }
 
     /**
@@ -100,18 +433,17 @@ final class RegExpScanner extends Scanner {
     }
 
     private void processForwardReferences() {
+        if (neverMatches()) {
+            return;
+        }
 
-        Iterator<Integer> iterator = forwardReferences.descendingIterator();
-        while (iterator.hasNext()) {
-            final int pos = iterator.next();
-            final int num = iterator.next();
-            if (num > caps.size()) {
-                // Non-existing backreference. If the number begins with a valid octal convert it to
-                // Unicode escape and append the rest to a literal character sequence.
-                final StringBuilder buffer = new StringBuilder();
-                octalOrLiteral(Integer.toString(num), buffer);
-                sb.insert(pos, buffer);
+        for (final Map.Entry<Integer, Token> fwdRef : forwardReferences.entrySet()) {
+            if (fwdRef.getKey().intValue() > caps.size()) {
+                neverMatches = true;
+                break;
             }
+
+            fwdRef.getValue().setIsDead(true);
         }
 
         forwardReferences.clear();
@@ -127,21 +459,48 @@ final class RegExpScanner extends Scanner {
     public static RegExpScanner scan(final String string) {
         final RegExpScanner scanner = new RegExpScanner(string);
 
+        Token pattern;
+
         try {
-            scanner.disjunction();
+            pattern = scanner.pattern();
         } catch (final Exception e) {
-            throw new PatternSyntaxException(e.getMessage(), string, scanner.position);
+            throw new PatternSyntaxException(e.getMessage(), string, scanner.sb.length());
         }
 
         scanner.processForwardReferences();
+        if (scanner.neverMatches()) {
+            return null; // never matches
+        }
 
-        // Throw syntax error unless we parsed the entire JavaScript regexp without syntax errors
-        if (scanner.position != string.length()) {
-            final String p = scanner.getStringBuilder().toString();
+        // go over the code and remove dead code
+        final Iterator<Token> iter = pattern.iterator();
+        while (iter.hasNext()) {
+            final Token next = iter.next();
+            if (next.getIsDead()) {
+                next.getParent().remove(next);
+            }
+        }
+
+        // turn the pattern into a string, p, the java equivalent string for our js regexp
+        final String p = pattern.toString();
+        // if builder contains all tokens that were sent in, we know
+        // we correctly parsed the entire JavaScript regexp without syntax errors
+        if (!string.equals(scanner.getStringBuilder().toString())) {
             throw new PatternSyntaxException(string, p, p.length() + 1);
         }
 
+        scanner.javaPattern = p;
         return scanner;
+     }
+
+    /**
+     * Does this regexp ever match anything? Use of e.g. [], which is legal in JavaScript,
+     * is an example where we never match
+     *
+     * @return boolean
+     */
+    private boolean neverMatches() {
+        return neverMatches;
     }
 
     final StringBuilder getStringBuilder() {
@@ -149,14 +508,14 @@ final class RegExpScanner extends Scanner {
     }
 
     String getJavaPattern() {
-        return sb.toString();
+        return javaPattern;
     }
 
     BitVector getGroupsInNegativeLookahead() {
         BitVector vec = null;
         for (int i = 0; i < caps.size(); i++) {
             final Capture cap = caps.get(i);
-            if (cap.negLookaheadLevel > 0) {
+            if (cap.getNegativeLookaheadLevel() > 0) {
                 if (vec == null) {
                     vec = new BitVector(caps.size() + 1);
                 }
@@ -168,10 +527,13 @@ final class RegExpScanner extends Scanner {
 
     /**
      * Commit n characters to the builder and to a given token
+     * @param token Uncommitted token.
      * @param n     Number of characters.
      * @return Committed token
      */
-    private boolean commit(final int n) {
+    private Token commit(final Token token, final int n) {
+        final int startIn = position;
+
         switch (n) {
         case 1:
             sb.append(ch0);
@@ -192,7 +554,11 @@ final class RegExpScanner extends Scanner {
             assert false : "Should not reach here";
         }
 
-        return true;
+        if (token == null) {
+            return null;
+        }
+
+        return token.add(sb.substring(startIn, sb.length()));
     }
 
     /**
@@ -221,20 +587,35 @@ final class RegExpScanner extends Scanner {
      */
 
     /*
+     * Pattern ::
+     *      Disjunction
+     */
+    private Token pattern() {
+        final Token token = new Token(Token.Type.PATTERN);
+
+        final Token child = disjunction();
+        return token.add(child);
+    }
+
+    /*
      * Disjunction ::
      *      Alternative
      *      Alternative | Disjunction
      */
-    private void disjunction() {
+    private Token disjunction() {
+        final Token token = new Token(Token.Type.DISJUNCTION);
+
         while (true) {
-            alternative();
+            token.add(alternative());
 
             if (ch0 == '|') {
-                commit(1);
+                commit(token, 1);
             } else {
                 break;
             }
         }
+
+        return token;
     }
 
     /*
@@ -242,10 +623,15 @@ final class RegExpScanner extends Scanner {
      *      [empty]
      *      Alternative Term
      */
-    private void alternative() {
-        while (term()) {
-            // do nothing
+    private Token alternative() {
+        final Token token = new Token(Token.Type.ALTERNATIVE);
+
+        Token child;
+        while ((child = term()) != null) {
+            token.add(child);
         }
+
+        return token;
     }
 
     /*
@@ -254,21 +640,48 @@ final class RegExpScanner extends Scanner {
      *      Atom
      *      Atom Quantifier
      */
-    private boolean term() {
+    private Token term() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.TERM);
+        Token child;
 
-        if (assertion()) {
-            return true;
+        child = assertion();
+        if (child != null) {
+            return token.add(child);
         }
 
-        if (atom()) {
-            quantifier();
-            return true;
+        child = atom();
+        if (child != null) {
+            boolean emptyCharacterClass = false;
+            if ("[]".equals(child.toString())) {
+                emptyCharacterClass = true;
+            }
+
+            token.add(child);
+
+            final Token quantifier = quantifier();
+            if (quantifier != null) {
+                token.add(quantifier);
+            }
+
+            if (emptyCharacterClass) {
+                if (quantifier == null) {
+                    neverMatches = true; //never matches ever.
+                } else {
+                    //if we can get away with max zero, remove this entire token
+                    final String qs = quantifier.toString();
+                    if ("+".equals(qs) || "*".equals(qs) || qs.startsWith("{0,")) {
+                        token.setIsDead(true);
+                    }
+                }
+            }
+
+            return token;
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
@@ -280,18 +693,19 @@ final class RegExpScanner extends Scanner {
      *      ( ? = Disjunction )
      *      ( ? ! Disjunction )
      */
-    private boolean assertion() {
+    private Token assertion() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.ASSERTION);
 
         switch (ch0) {
         case '^':
         case '$':
-            return commit(1);
+            return commit(token, 1);
 
         case '\\':
             if (ch1 == 'b' || ch1 == 'B') {
-                return commit(2);
+                return commit(token, 2);
             }
             break;
 
@@ -303,21 +717,24 @@ final class RegExpScanner extends Scanner {
                 break;
             }
             final boolean isNegativeLookahead = (ch2 == '!');
-            commit(3);
+            commit(token, 3);
 
             if (isNegativeLookahead) {
-                if (negLookaheadLevel == 0) {
-                    negLookaheadGroup++;
+                negativeLookaheadLevel++;
+            }
+            final Token disjunction = disjunction();
+            if (isNegativeLookahead) {
+                for (final Capture cap : caps) {
+                    if (cap.getNegativeLookaheadLevel() >= negativeLookaheadLevel) {
+                        cap.setDead();
+                    }
                 }
-                negLookaheadLevel++;
-            }
-            disjunction();
-            if (isNegativeLookahead) {
-                negLookaheadLevel--;
+                negativeLookaheadLevel--;
             }
 
-            if (ch0 == ')') {
-                return commit(1);
+            if (disjunction != null && ch0 == ')') {
+                token.add(disjunction);
+                return commit(token, 1);
             }
             break;
 
@@ -326,7 +743,8 @@ final class RegExpScanner extends Scanner {
         }
 
         restart(startIn, startOut);
-        return false;
+
+        return null;
     }
 
     /*
@@ -334,14 +752,17 @@ final class RegExpScanner extends Scanner {
      *      QuantifierPrefix
      *      QuantifierPrefix ?
      */
-    private boolean quantifier() {
-        if (quantifierPrefix()) {
+    private Token quantifier() {
+        final Token token = new Token(Token.Type.QUANTIFIER);
+        final Token child = quantifierPrefix();
+        if (child != null) {
+            token.add(child);
             if (ch0 == '?') {
-                commit(1);
+                commit(token, 1);
             }
-            return true;
+            return token;
         }
-        return false;
+        return null;
     }
 
     /*
@@ -353,46 +774,45 @@ final class RegExpScanner extends Scanner {
      *      { DecimalDigits , }
      *      { DecimalDigits , DecimalDigits }
      */
-    private boolean quantifierPrefix() {
+    private Token quantifierPrefix() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.QUANTIFIER_PREFIX);
 
         switch (ch0) {
         case '*':
         case '+':
         case '?':
-            return commit(1);
+            return commit(token, 1);
 
         case '{':
-            commit(1);
+            commit(token, 1);
 
-            if (!decimalDigits()) {
+            final Token child = decimalDigits();
+            if (child == null) {
                 break; // not a quantifier - back out
             }
             push('}');
+            token.add(child);
 
             if (ch0 == ',') {
-                commit(1);
-                decimalDigits();
+                commit(token, 1);
+                token.add(decimalDigits());
             }
 
             if (ch0 == '}') {
                 pop('}');
-                commit(1);
-            } else {
-                // Bad quantifier should be rejected but is accepted by all major engines
-                restart(startIn, startOut);
-                return false;
+                commit(token, 1);
             }
 
-            return true;
+            return token;
 
         default:
             break;
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
@@ -405,48 +825,81 @@ final class RegExpScanner extends Scanner {
      *      ( ? : Disjunction )
      *
      */
-    private boolean atom() {
+    private Token atom() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.ATOM);
+        Token child;
 
-        if (patternCharacter()) {
-            return true;
+        child = patternCharacter();
+        if (child != null) {
+            return token.add(child);
         }
 
         if (ch0 == '.') {
-            return commit(1);
+            return commit(token, 1);
         }
 
         if (ch0 == '\\') {
-            commit(1);
+            commit(token, 1);
+            child = atomEscape();
 
-            if (atomEscape()) {
-                return true;
+            if (child != null) {
+                if (child.hasChildOfType(Token.Type.IDENTITY_ESCAPE)) {
+                    final char idEscape = child.toString().charAt(0);
+                    if (NON_IDENT_ESCAPES.indexOf(idEscape) == -1) {
+                        token.reset();
+                    }
+                }
+
+                token.add(child);
+
+                // forward backreferences always match empty. JavaScript != Java
+                if (child.hasChildOfType(Token.Type.DECIMAL_ESCAPE) && !"\u0000".equals(child.toString())) {
+                    final int refNum = Integer.parseInt(child.toString());
+
+                    if (refNum - 1 < caps.size() && caps.get(refNum - 1).isDead()) {
+                        // reference to dead in-negative-lookahead capture
+                        token.setIsDead(true);
+                    } else if (caps.size() < refNum) {
+                        // forward reference: always matches against empty string (dead token).
+                        // invalid reference (non-existant capture): pattern never matches.
+                        forwardReferences.put(refNum, token);
+                    }
+                }
+
+                return token;
             }
         }
 
-        if (characterClass()) {
-            return true;
+        child = characterClass();
+        if (child != null) {
+            return token.add(child);
         }
 
         if (ch0 == '(') {
-            commit(1);
+            boolean capturingParens = true;
+            commit(token, 1);
             if (ch0 == '?' && ch1 == ':') {
-                commit(2);
-            } else {
-                caps.add(new Capture(negLookaheadGroup, negLookaheadLevel));
+                capturingParens = false;
+                commit(token, 2);
             }
 
-            disjunction();
-
-            if (ch0 == ')') {
-                commit(1);
-                return true;
+            child = disjunction();
+            if (child != null) {
+                token.add(child);
+                if (ch0 == ')') {
+                    final Token atom = commit(token, 1);
+                    if (capturingParens) {
+                        caps.add(new Capture(negativeLookaheadLevel));
+                    }
+                    return atom;
+                }
             }
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
@@ -454,9 +907,9 @@ final class RegExpScanner extends Scanner {
      *      SourceCharacter but not any of: ^$\.*+?()[]{}|
      */
     @SuppressWarnings("fallthrough")
-    private boolean patternCharacter() {
+    private Token patternCharacter() {
         if (atEOF()) {
-            return false;
+            return null;
         }
 
         switch (ch0) {
@@ -471,26 +924,23 @@ final class RegExpScanner extends Scanner {
         case ')':
         case '[':
         case '|':
-            return false;
+            return null;
 
         case '}':
         case ']':
             final int n = expected.get(ch0);
             if (n != 0) {
-                return false;
+                return null;
             }
 
        case '{':
            // if not a valid quantifier escape curly brace to match itself
            // this ensures compatibility with other JS implementations
-           if (!quantifierPrefix()) {
-               sb.append('\\');
-               return commit(1);
-           }
-           return false;
+           final Token quant = quantifierPrefix();
+           return (quant == null) ? commit(new Token(Token.Type.PATTERN_CHARACTER).add("\\"), 1) : null;
 
         default:
-            return commit(1); // SOURCECHARACTER
+            return commit(new Token(Token.Type.PATTERN_CHARACTER), 1); // SOURCECHARACTER
         }
     }
 
@@ -500,9 +950,27 @@ final class RegExpScanner extends Scanner {
      *      CharacterEscape
      *      CharacterClassEscape
      */
-    private boolean atomEscape() {
-        // Note that contrary to ES 5.1 spec we put identityEscape() last because it acts as a catch-all
-        return decimalEscape() || characterClassEscape() || characterEscape() || identityEscape();
+    private Token atomEscape() {
+        final Token token = new Token(Token.Type.ATOM_ESCAPE);
+        Token child;
+
+        child = decimalEscape();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        child = characterClassEscape();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        child = characterEscape();
+        if (child != null) {
+            return token.add(child);
+        }
+
+
+        return null;
     }
 
     /*
@@ -513,31 +981,48 @@ final class RegExpScanner extends Scanner {
      *      UnicodeEscapeSequence
      *      IdentityEscape
      */
-    private boolean characterEscape() {
+    private Token characterEscape() {
         final int startIn  = position;
         final int startOut = sb.length();
 
-        if (controlEscape()) {
-            return true;
+        final Token token = new Token(Token.Type.CHARACTER_ESCAPE);
+        Token child;
+
+        child = controlEscape();
+        if (child != null) {
+            return token.add(child);
         }
 
         if (ch0 == 'c') {
-            commit(1);
-            if (controlLetter()) {
-                return true;
+            commit(token, 1);
+            child = controlLetter();
+            if (child != null) {
+                return token.add(child);
             }
             restart(startIn, startOut);
         }
 
-        if (hexEscapeSequence() || unicodeEscapeSequence()) {
-            return true;
+        child = hexEscapeSequence();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        child = unicodeEscapeSequence();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        child = identityEscape();
+        if (child != null) {
+            return token.add(child);
         }
 
         restart(startIn, startOut);
-        return false;
+
+        return null;
     }
 
-    private boolean scanEscapeSequence(final char leader, final int length) {
+    private boolean scanEscapeSequence(final char leader, final int length, final Token token) {
         final int startIn  = position;
         final int startOut = sb.length();
 
@@ -545,11 +1030,11 @@ final class RegExpScanner extends Scanner {
             return false;
         }
 
-        commit(1);
+        commit(token, 1);
         for (int i = 0; i < length; i++) {
             final char ch0l = Character.toLowerCase(ch0);
             if ((ch0l >= 'a' && ch0l <= 'f') || isDecimalDigit(ch0)) {
-                commit(1);
+                commit(token, 1);
             } else {
                 restart(startIn, startOut);
                 return false;
@@ -559,29 +1044,37 @@ final class RegExpScanner extends Scanner {
         return true;
     }
 
-    private boolean hexEscapeSequence() {
-        return scanEscapeSequence('x', 2);
+    private Token hexEscapeSequence() {
+        final Token token = new Token(Token.Type.HEX_ESCAPESEQUENCE);
+        if (scanEscapeSequence('x', 2, token)) {
+            return token;
+        }
+        return null;
     }
 
-    private boolean unicodeEscapeSequence() {
-        return scanEscapeSequence('u', 4);
+    private Token unicodeEscapeSequence() {
+        final Token token = new Token(Token.Type.UNICODE_ESCAPESEQUENCE);
+        if (scanEscapeSequence('u', 4, token)) {
+            return token;
+        }
+        return null;
     }
 
     /*
      * ControlEscape ::
      *      one of fnrtv
      */
-    private boolean controlEscape() {
+    private Token controlEscape() {
         switch (ch0) {
         case 'f':
         case 'n':
         case 'r':
         case 't':
         case 'v':
-            return commit(1);
+            return commit(new Token(Token.Type.CONTROL_ESCAPE), 1);
 
         default:
-            return false;
+            return null;
         }
     }
 
@@ -590,19 +1083,19 @@ final class RegExpScanner extends Scanner {
      *      one of abcdefghijklmnopqrstuvwxyz
      *      ABCDEFGHIJKLMNOPQRSTUVWXYZ
      */
-    private boolean controlLetter() {
-        // To match other engines we also accept '0'..'9' and '_' as control letters inside a character class.
-        if ((ch0 >= 'A' && ch0 <= 'Z') || (ch0 >= 'a' && ch0 <= 'z')
-                || (inCharClass && (isDecimalDigit(ch0) || ch0 == '_'))) {
-            // for some reason java regexps don't like control characters on the
-            // form "\\ca".match([string with ascii 1 at char0]). Translating
-            // them to unicode does it though.
-            sb.setLength(sb.length() - 1);
-            unicode(ch0 % 32, sb);
-            skip(1);
-            return true;
+    private Token controlLetter() {
+        final char c = Character.toUpperCase(ch0);
+        if (c >= 'A' && c <= 'Z') {
+            final Token token = new Token(Token.Type.CONTROL_LETTER);
+            commit(token, 1);
+            return token;
         }
-        return false;
+        return null;
+        /*
+        Token token = new Token(Token.Type.CONTROL_LETTER);
+        commit(null, 1);//add original char to builder not to token
+        this.neverMatches = c < 'A' || c > 'Z';
+        return token.add(""+c);*/
     }
 
     /*
@@ -611,128 +1104,56 @@ final class RegExpScanner extends Scanner {
      *      <ZWJ>  (200c)
      *      <ZWNJ> (200d)
      */
-    private boolean identityEscape() {
-        if (atEOF()) {
-            throw new RuntimeException("\\ at end of pattern"); // will be converted to PatternSyntaxException
-        }
-        // ES 5.1 A.7 requires "not IdentifierPart" here but all major engines accept any character here.
-        if (ch0 == 'c') {
-            sb.append('\\'); // Treat invalid \c control sequence as \\c
-        } else if (NON_IDENT_ESCAPES.indexOf(ch0) == -1) {
-            sb.setLength(sb.length() - 1);
-        }
-        return commit(1);
+    private Token identityEscape() {
+        final Token token = new Token(Token.Type.IDENTITY_ESCAPE);
+        commit(token, 1);
+        return token;
     }
 
     /*
      * DecimalEscape ::
      *      DecimalIntegerLiteral [lookahead DecimalDigit]
      */
-    private boolean decimalEscape() {
+    private Token decimalEscape() {
+        final Token token = new Token(Token.Type.DECIMAL_ESCAPE);
         final int startIn  = position;
         final int startOut = sb.length();
 
-        if (ch0 == '0' && !isOctalDigit(ch1)) {
-            skip(1);
+        if (ch0 == '0' && !isDecimalDigit(ch1)) {
+            commit(token, 1);
+            token.removeLast();
             //  DecimalEscape :: 0. If i is zero, return the EscapeValue consisting of a <NUL> character (Unicodevalue0000);
-            sb.append("\u0000");
-            return true;
+            return token.add("\u0000");
         }
 
         if (isDecimalDigit(ch0)) {
-
-            if (ch0 == '0') {
-                // We know this is an octal escape.
-                if (inCharClass) {
-                    // Convert octal escape to unicode escape if inside character class.
-                    int octalValue = 0;
-                    while (isOctalDigit(ch0)) {
-                        octalValue = octalValue * 8 + ch0 - '0';
-                        skip(1);
-                    }
-
-                    unicode(octalValue, sb);
-
-                } else {
-                    // Copy decimal escape as-is
-                    decimalDigits();
-                }
-            } else {
-                // This should be a backreference, but could also be an octal escape or even a literal string.
-                int decimalValue = 0;
-                while (isDecimalDigit(ch0)) {
-                    decimalValue = decimalValue * 10 + ch0 - '0';
-                    skip(1);
-                }
-
-                if (inCharClass) {
-                    // No backreferences in character classes. Encode as unicode escape or literal char sequence
-                    sb.setLength(sb.length() - 1);
-                    octalOrLiteral(Integer.toString(decimalValue), sb);
-
-                } else if (decimalValue <= caps.size()) {
-                    //  Captures inside a negative lookahead are undefined when referenced from the outside.
-                    if (!caps.get(decimalValue - 1).isContained(negLookaheadGroup, negLookaheadLevel)) {
-                        // Reference to capture in negative lookahead, omit from output buffer.
-                        sb.setLength(sb.length() - 1);
-                    } else {
-                        // Append backreference to output buffer.
-                        sb.append(decimalValue);
-                    }
-                } else {
-                    // Forward references to a capture group are always undefined so we can omit it from the output buffer.
-                    // However, if the target capture does not exist, we need to rewrite the reference as hex escape
-                    // or literal string, so register the reference for later processing.
-                    sb.setLength(sb.length() - 1);
-                    forwardReferences.add(decimalValue);
-                    forwardReferences.add(sb.length());
-                }
-
+            while (isDecimalDigit(ch0)) {
+                commit(token, 1);
             }
-            return true;
+            return token;
         }
 
         restart(startIn, startOut);
-        return false;
+
+        return null;
     }
 
     /*
      * CharacterClassEscape ::
      *  one of dDsSwW
      */
-    private boolean characterClassEscape() {
+    private Token characterClassEscape() {
         switch (ch0) {
-        // java.util.regex requires translation of \s and \S to explicit character list
         case 's':
-            if (RegExpFactory.usesJavaUtilRegex()) {
-                sb.setLength(sb.length() - 1);
-                // No nested class required if we already are inside a character class
-                if (inCharClass) {
-                    sb.append(Lexer.getWhitespaceRegExp());
-                } else {
-                    sb.append('[').append(Lexer.getWhitespaceRegExp()).append(']');
-                }
-                skip(1);
-                return true;
-            }
-            return commit(1);
         case 'S':
-            if (RegExpFactory.usesJavaUtilRegex()) {
-                sb.setLength(sb.length() - 1);
-                // In negative class we must use intersection to get double negation ("not anything else than space")
-                sb.append(inNegativeClass ? "&&[" : "[^").append(Lexer.getWhitespaceRegExp()).append(']');
-                skip(1);
-                return true;
-            }
-            return commit(1);
         case 'd':
         case 'D':
         case 'w':
         case 'W':
-            return commit(1);
+            return commit(new Token(Token.Type.CHARACTERCLASS_ESCAPE), 1);
 
         default:
-            return false;
+            return null;
         }
     }
 
@@ -741,44 +1162,29 @@ final class RegExpScanner extends Scanner {
      *      [ [lookahead {^}] ClassRanges ]
      *      [ ^ ClassRanges ]
      */
-    private boolean characterClass() {
+    private Token characterClass() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.CHARACTERCLASS);
 
         if (ch0 == '[') {
-            try {
-                inCharClass = true;
-                push(']');
-                commit(1);
+            push(']');
+            commit(token, 1);
 
-                if (ch0 == '^') {
-                    inNegativeClass = true;
-                    commit(1);
-                }
+            if (ch0 == '^') {
+                commit(token, 1);
+            }
 
-                if (classRanges() && ch0 == ']') {
-                    pop(']');
-                    commit(1);
-
-                    // Substitute empty character classes [] and [^] that never or always match
-                    if (position == startIn + 2) {
-                        sb.setLength(sb.length() - 1);
-                        sb.append("^\\s\\S]");
-                    } else if (position == startIn + 3 && inNegativeClass) {
-                        sb.setLength(sb.length() - 2);
-                        sb.append("\\s\\S]");
-                    }
-
-                    return true;
-                }
-            } finally {
-                inCharClass = false;  // no nested character classes in JavaScript
-                inNegativeClass = false;
+            final Token child = classRanges();
+            if (child != null && ch0 == ']') {
+                pop(']');
+                token.add(child);
+                return commit(token, 1);
             }
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
@@ -786,9 +1192,8 @@ final class RegExpScanner extends Scanner {
      *      [empty]
      *      NonemptyClassRanges
      */
-    private boolean classRanges() {
-        nonemptyClassRanges();
-        return true;
+    private Token classRanges() {
+        return new Token(Token.Type.CLASSRANGES).add(nonemptyClassRanges());
     }
 
     /*
@@ -797,27 +1202,40 @@ final class RegExpScanner extends Scanner {
      *      ClassAtom NonemptyClassRangesNoDash
      *      ClassAtom - ClassAtom ClassRanges
      */
-    private boolean nonemptyClassRanges() {
+    private Token nonemptyClassRanges() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.NON_EMPTY_CLASSRANGES);
+        Token child;
 
-        if (classAtom()) {
+        child = classAtom();
+        if (child != null) {
+            token.add(child);
 
             if (ch0 == '-') {
-                commit(1);
+                commit(token, 1);
 
-                if (classAtom() && classRanges()) {
-                    return true;
+                final Token child1 = classAtom();
+                final Token child2 = classRanges();
+                if (child1 != null && child2 != null) {
+                    token.add(child1);
+                    token.add(child2);
+
+                    return token;
                 }
             }
 
-            nonemptyClassRangesNoDash();
+            child = nonemptyClassRangesNoDash();
+            if (child != null) {
+                token.add(child);
+                return token;
+            }
 
-            return true;
+            return token;
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
@@ -826,44 +1244,61 @@ final class RegExpScanner extends Scanner {
      *      ClassAtomNoDash NonemptyClassRangesNoDash
      *      ClassAtomNoDash - ClassAtom ClassRanges
      */
-    private boolean nonemptyClassRangesNoDash() {
+    private Token nonemptyClassRangesNoDash() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.NON_EMPTY_CLASSRANGES_NODASH);
+        Token child;
 
-        if (classAtomNoDash()) {
+        child = classAtomNoDash();
+        if (child != null) {
+            token.add(child);
 
             // need to check dash first, as for e.g. [a-b|c-d] will otherwise parse - as an atom
             if (ch0 == '-') {
-               commit(1);
+               commit(token, 1);
 
-               if (classAtom() && classRanges()) {
-                   return true;
+               final Token child1 = classAtom();
+               final Token child2 = classRanges();
+               if (child1 != null && child2 != null) {
+                   token.add(child1);
+                   return token.add(child2);
                }
                //fallthru
            }
 
-            nonemptyClassRangesNoDash();
-            return true; // still a class atom
+            child = nonemptyClassRangesNoDash();
+            if (child != null) {
+                token.add(child);
+            }
+            return token; // still a class atom
         }
 
-        if (classAtom()) {
-            return true;
+        child = classAtom();
+        if (child != null) {
+            return token.add(child);
         }
 
         restart(startIn, startOut);
-        return false;
+        return null;
     }
 
     /*
      * ClassAtom : - ClassAtomNoDash
      */
-    private boolean classAtom() {
+    private Token classAtom() {
+        final Token token = new Token(Token.Type.CLASSATOM);
 
         if (ch0 == '-') {
-            return commit(1);
+            return commit(token, 1);
         }
 
-        return classAtomNoDash();
+        final Token child = classAtomNoDash();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        return null;
     }
 
     /*
@@ -871,34 +1306,33 @@ final class RegExpScanner extends Scanner {
      *      SourceCharacter but not one of \ or ] or -
      *      \ ClassEscape
      */
-    private boolean classAtomNoDash() {
-        if (atEOF()) {
-            return false;
-        }
+    private Token classAtomNoDash() {
         final int startIn  = position;
         final int startOut = sb.length();
+        final Token token  = new Token(Token.Type.CLASSATOM_NODASH);
 
         switch (ch0) {
         case ']':
         case '-':
-            return false;
+        case '\0':
+            return null;
 
         case '[':
             // unescaped left square bracket - add escape
-            sb.append('\\');
-            return commit(1);
+            return commit(token.add("\\"), 1);
 
         case '\\':
-            commit(1);
-            if (classEscape()) {
-                return true;
+            commit(token, 1);
+            final Token child = classEscape();
+            if (child != null) {
+                return token.add(child);
             }
 
             restart(startIn, startOut);
-            return false;
+            return null;
 
         default:
-            return commit(1);
+            return commit(token, 1);
         }
     }
 
@@ -909,73 +1343,46 @@ final class RegExpScanner extends Scanner {
      *      CharacterEscape
      *      CharacterClassEscape
      */
-    private boolean classEscape() {
+    private Token classEscape() {
+        final Token token = new Token(Token.Type.CLASS_ESCAPE);
+        Token child;
 
-        if (decimalEscape()) {
-            return true;
+        child = decimalEscape();
+        if (child != null) {
+            return token.add(child);
         }
 
         if (ch0 == 'b') {
-            sb.setLength(sb.length() - 1);
-            sb.append('\b');
-            skip(1);
-            return true;
+            return commit(token, 1);
         }
 
-        // Note that contrary to ES 5.1 spec we put identityEscape() last because it acts as a catch-all
-        return characterEscape() || characterClassEscape() || identityEscape();
+        child = characterEscape();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        child = characterClassEscape();
+        if (child != null) {
+            return token.add(child);
+        }
+
+        return null;
     }
 
     /*
      * DecimalDigits
      */
-    private boolean decimalDigits() {
+    private Token decimalDigits() {
         if (!isDecimalDigit(ch0)) {
-            return false;
+            return null;
         }
 
+        final Token token = new Token(Token.Type.DECIMALDIGITS);
         while (isDecimalDigit(ch0)) {
-            commit(1);
+            commit(token, 1);
         }
 
-        return true;
-    }
-
-    private static void unicode(final int value, final StringBuilder buffer) {
-        final String hex = Integer.toHexString(value);
-        buffer.append('u');
-        for (int i = 0; i < 4 - hex.length(); i++) {
-            buffer.append('0');
-        }
-        buffer.append(hex);
-    }
-
-    // Convert what would have been a backreference into a unicode escape, or a number literal, or both.
-    private static void octalOrLiteral(final String numberLiteral, final StringBuilder buffer) {
-        final int length = numberLiteral.length();
-        int octalValue = 0;
-        int pos = 0;
-        // Maximum value for octal escape is 0377 (255) so we stop the loop at 32
-        while (pos < length && octalValue < 0x20) {
-            final char ch = numberLiteral.charAt(pos);
-            if (isOctalDigit(ch)) {
-                octalValue = octalValue * 8 + ch - '0';
-            } else {
-                break;
-            }
-            pos++;
-        }
-        if (octalValue > 0) {
-            buffer.append('\\');
-            unicode(octalValue, buffer);
-            buffer.append(numberLiteral.substring(pos));
-        } else {
-            buffer.append(numberLiteral);
-        }
-    }
-
-    private static boolean isOctalDigit(final char ch) {
-        return ch >= '0' && ch <= '7';
+        return token;
     }
 
     private static boolean isDecimalDigit(final char ch) {

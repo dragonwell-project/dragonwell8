@@ -60,7 +60,7 @@ public abstract class RegExp {
      * @param flags the flags string
      */
     protected RegExp(final String source, final String flags) {
-        this.source = source.length() == 0 ? "(?:)" : source;
+        this.source = source;
         for (int i = 0; i < flags.length(); i++) {
             final char ch = flags.charAt(i);
             switch (ch) {
@@ -156,7 +156,7 @@ public abstract class RegExp {
      *
      * @param key the message key
      * @param str string argument
-     * @throws jdk.nashorn.internal.runtime.ParserException unconditionally
+     * @throws jdk.nashorn.internal.runtime.ParserException
      */
     protected static void throwParserException(final String key, final String str) throws ParserException {
         throw new ParserException(ECMAErrors.getMessage("parser.error.regex." + key, str));
