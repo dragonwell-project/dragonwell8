@@ -22,6 +22,7 @@ package jdk.nashorn.internal.runtime.regexp.joni;
 import static jdk.nashorn.internal.runtime.regexp.joni.BitStatus.bsAt;
 
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
 
 import jdk.nashorn.internal.runtime.regexp.joni.constants.StackPopLevel;
 import jdk.nashorn.internal.runtime.regexp.joni.constants.StackType;
@@ -34,6 +35,10 @@ abstract class StackMachine extends Matcher implements StackType {
 
     protected final int[]repeatStk;
     protected final int memStartStk, memEndStk;
+
+    // CEC
+    protected byte[] stateCheckBuff; // move to int[] ?
+    int stateCheckBuffSize;
 
     protected StackMachine(Regex regex, char[] chars, int p , int end) {
         super(regex, chars, p, end);
@@ -99,12 +104,67 @@ abstract class StackMachine extends Matcher implements StackType {
         stk++;
     }
 
+    // CEC
+
+    // STATE_CHECK_POS
+    private int stateCheckPos(int s, int snum) {
+        return (s - str) * regex.numCombExpCheck + (snum - 1);
+    }
+
+    // STATE_CHECK_VAL
+    protected final boolean stateCheckVal(int s, int snum) {
+        if (stateCheckBuff != null) {
+            int x = stateCheckPos(s, snum);
+            return (stateCheckBuff[x / 8] & (1 << (x % 8))) != 0;
+        }
+        return false;
+    }
+
+    // ELSE_IF_STATE_CHECK_MARK
+    private void stateCheckMark() {
+        StackEntry e = stack[stk];
+        int x = stateCheckPos(e.getStatePStr(), e.getStateCheck());
+        stateCheckBuff[x / 8] |= (1 << (x % 8));
+    }
+
+    // STATE_CHECK_BUFF_INIT
+    private static final int STATE_CHECK_BUFF_MALLOC_THRESHOLD_SIZE = 16;
+    protected final void stateCheckBuffInit(int strLength, int offset, int stateNum) {
+        if (stateNum > 0 && strLength >= Config.CHECK_STRING_THRESHOLD_LEN) {
+            int size = ((strLength + 1) * stateNum + 7) >>> 3;
+            offset = (offset * stateNum) >>> 3;
+
+            if (size > 0 && offset < size && size < Config.CHECK_BUFF_MAX_SIZE) {
+                if (size >= STATE_CHECK_BUFF_MALLOC_THRESHOLD_SIZE) {
+                    stateCheckBuff = new byte[size];
+                } else {
+                    // same impl, reduce...
+                    stateCheckBuff = new byte[size];
+                }
+                Arrays.fill(stateCheckBuff, offset, (size - offset), (byte)0);
+                stateCheckBuffSize = size;
+            } else {
+                stateCheckBuff = null; // reduce
+                stateCheckBuffSize = 0;
+            }
+        } else {
+            stateCheckBuff = null; // reduce
+            stateCheckBuffSize = 0;
+        }
+    }
+
+    protected final void stateCheckBuffClear() {
+        stateCheckBuff = null;
+        stateCheckBuffSize = 0;
+    }
+
     private void push(int type, int pat, int s, int prev) {
         StackEntry e = ensure1();
         e.type = type;
         e.setStatePCode(pat);
         e.setStatePStr(s);
         e.setStatePStrPrev(prev);
+        if (Config.USE_COMBINATION_EXPLOSION_CHECK) e.setStateCheck(0);
         stk++;
     }
 
@@ -112,7 +172,28 @@ abstract class StackMachine extends Matcher implements StackType {
         StackEntry e = stack[stk];
         e.type = type;
         e.setStatePCode(pat);
+        if (Config.USE_COMBINATION_EXPLOSION_CHECK) e.setStateCheck(0);
         stk++;
+    }
+
+    protected final void pushAltWithStateCheck(int pat, int s, int sprev, int snum) {
+        StackEntry e = ensure1();
+        e.type = ALT;
+        e.setStatePCode(pat);
+        e.setStatePStr(s);
+        e.setStatePStrPrev(sprev);
+        if (Config.USE_COMBINATION_EXPLOSION_CHECK) e.setStateCheck(stateCheckBuff != null ? snum : 0);
+        stk++;
+    }
+
+    protected final void pushStateCheck(int s, int snum) {
+        if (stateCheckBuff != null) {
+            StackEntry e = ensure1();
+            e.type = STATE_CHECK_MARK;
+            e.setStatePStr(s);
+            e.setStateCheck(snum);
+            stk++;
+        }
     }
 
     protected final void pushAlt(int pat, int s, int prev) {
@@ -213,6 +294,19 @@ abstract class StackMachine extends Matcher implements StackType {
         stk++;
     }
 
+    protected final void pushCallFrame(int pat) {
+        StackEntry e = ensure1();
+        e.type = CALL_FRAME;
+        e.setCallFrameRetAddr(pat);
+        stk++;
+    }
+
+    protected final void pushReturn() {
+        StackEntry e = ensure1();
+        e.type = RETURN;
+        stk++;
+    }
+
     // stack debug routines here
     // ...
 
@@ -237,6 +331,8 @@ abstract class StackMachine extends Matcher implements StackType {
 
             if ((e.type & MASK_POP_USED) != 0) {
                 return e;
+            } else if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                if (e.type == STATE_CHECK_MARK) stateCheckMark();
             }
         }
     }
@@ -250,6 +346,8 @@ abstract class StackMachine extends Matcher implements StackType {
             } else if (e.type == MEM_START) {
                 repeatStk[memStartStk + e.getMemNum()] = e.getMemStart();
                 repeatStk[memEndStk + e.getMemNum()] = e.getMemEnd();
+            } else if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                if (e.type == STATE_CHECK_MARK) stateCheckMark();
             }
         }
     }
@@ -270,6 +368,8 @@ abstract class StackMachine extends Matcher implements StackType {
             } else if (e.type == MEM_END) {
                 repeatStk[memStartStk + e.getMemNum()] = e.getMemStart();
                 repeatStk[memEndStk + e.getMemNum()] = e.getMemEnd();
+            } else if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                if (e.type == STATE_CHECK_MARK) stateCheckMark();
             }
         }
     }
@@ -291,6 +391,8 @@ abstract class StackMachine extends Matcher implements StackType {
             } else if (e.type == MEM_END){
                 repeatStk[memStartStk + e.getMemNum()] = e.getMemStart();
                 repeatStk[memEndStk + e.getMemNum()] = e.getMemStart();
+            } else if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                if (e.type == STATE_CHECK_MARK) stateCheckMark();
             }
         }
     }
@@ -312,6 +414,8 @@ abstract class StackMachine extends Matcher implements StackType {
             } else if (e.type == MEM_END) {
                 repeatStk[memStartStk + e.getMemNum()] = e.getMemStart();
                 repeatStk[memEndStk + e.getMemNum()] = e.getMemEnd();
+            } else if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                if (e.type == STATE_CHECK_MARK) stateCheckMark();
             }
         }
     }
@@ -458,7 +562,7 @@ abstract class StackMachine extends Matcher implements StackType {
                                         isNull = 0;
                                         break;
                                     } else if (endp != s) {
-                                        isNull = -1; /* empty, but position changed */
+                                        isNull = -1;; /* empty, but position changed */
                                     }
                                 }
                                 k++;

@@ -30,4 +30,8 @@ public class ValueException extends SyntaxException{
         super(message.replaceAll("%n", str));
     }
 
+    public ValueException(String message, byte[]bytes, int p, int end) {
+        this(message, new String(bytes, p, end - p));
+    }
+
 }

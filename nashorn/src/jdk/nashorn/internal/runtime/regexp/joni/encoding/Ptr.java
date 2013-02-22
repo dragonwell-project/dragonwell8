@@ -19,17 +19,17 @@
  */
 package jdk.nashorn.internal.runtime.regexp.joni.encoding;
 
-public final class ObjPtr<T> {
-    public ObjPtr() {
-        this(null);
+public final class Ptr {
+    public Ptr() {
+        this(0);
     }
 
-    public ObjPtr(T p) {
+    public Ptr(int p) {
         this.p = p;
     }
 
-    public T p;
+    public int p;
 
-    static final ObjPtr<Void> NULL = new ObjPtr<Void>();
+    public static final Ptr NULL = new Ptr(0);
 }
 

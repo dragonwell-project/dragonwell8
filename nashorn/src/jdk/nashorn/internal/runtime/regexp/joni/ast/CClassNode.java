@@ -22,6 +22,7 @@ package jdk.nashorn.internal.runtime.regexp.joni.ast;
 import jdk.nashorn.internal.runtime.regexp.joni.*;
 import jdk.nashorn.internal.runtime.regexp.joni.constants.CCSTATE;
 import jdk.nashorn.internal.runtime.regexp.joni.constants.CCVALTYPE;
+import jdk.nashorn.internal.runtime.regexp.joni.encoding.AsciiTables;
 import jdk.nashorn.internal.runtime.regexp.joni.encoding.CharacterType;
 import jdk.nashorn.internal.runtime.regexp.joni.encoding.IntHolder;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ErrorMessages;
@@ -39,48 +40,40 @@ public final class CClassNode extends Node {
 
     private int ctype;                      // for hashing purposes
 
-    private final static short AsciiCtypeTable[] = {
-            0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008,
-            0x4008, 0x420c, 0x4209, 0x4208, 0x4208, 0x4208, 0x4008, 0x4008,
-            0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008,
-            0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008, 0x4008,
-            0x4284, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0,
-            0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0,
-            0x78b0, 0x78b0, 0x78b0, 0x78b0, 0x78b0, 0x78b0, 0x78b0, 0x78b0,
-            0x78b0, 0x78b0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x41a0,
-            0x41a0, 0x7ca2, 0x7ca2, 0x7ca2, 0x7ca2, 0x7ca2, 0x7ca2, 0x74a2,
-            0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2,
-            0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2, 0x74a2,
-            0x74a2, 0x74a2, 0x74a2, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x51a0,
-            0x41a0, 0x78e2, 0x78e2, 0x78e2, 0x78e2, 0x78e2, 0x78e2, 0x70e2,
-            0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2,
-            0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2, 0x70e2,
-            0x70e2, 0x70e2, 0x70e2, 0x41a0, 0x41a0, 0x41a0, 0x41a0, 0x4008,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
-            0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000
-    };
-
     // node_new_cclass
     public CClassNode() {}
+
+    public CClassNode(int ctype, boolean not, int sbOut, int[]ranges) {
+        this(not, sbOut, ranges);
+        this.ctype = ctype;
+    }
 
     public void clear() {
         bs.clear();
         flags = 0;
         mbuf = null;
+    }
+
+    // node_new_cclass_by_codepoint_range, only used by shared Char Classes
+    public CClassNode(boolean not, int sbOut, int[]ranges) {
+        if (not) setNot();
+        // bs.clear();
+
+        if (sbOut > 0 && ranges != null) {
+            int n = ranges[0];
+            for (int i=0; i<n; i++) {
+                int from = ranges[i * 2 + 1];
+                int to = ranges[i * 2 + 2];
+                for (int j=from; j<=to; j++) {
+                    if (j >= sbOut) {
+                        setupBuffer(ranges);
+                        return;
+                    }
+                    bs.set(j);
+                }
+            }
+        }
+        setupBuffer(ranges);
     }
 
     @Override
@@ -127,6 +120,13 @@ public final class CClassNode extends Node {
         if (isNot()) flags.append("NOT ");
         if (isShare()) flags.append("SHARE ");
         return flags.toString();
+    }
+
+    private void setupBuffer(int[]ranges) {
+        if (ranges != null) {
+            if (ranges[0] == 0) return;
+            mbuf = new CodeRangeBuffer(ranges);
+        }
     }
 
     public boolean isEmpty() {
@@ -330,13 +330,13 @@ public final class CClassNode extends Node {
                 if (not) {
                     for (int c = 0; c < BitSet.SINGLE_BYTE_SIZE; c++) {
                         // if (!ASCIIEncoding.INSTANCE.isCodeCType(c, ctype)) bs.set(c);
-                        if ((AsciiCtypeTable[c] & (1 << ctype)) == 0) bs.set(c);
+                        if ((AsciiTables.AsciiCtypeTable[c] & (1 << ctype)) == 0) bs.set(c);
                     }
                     addAllMultiByteRange();
                 } else {
                     for (int c = 0; c < BitSet.SINGLE_BYTE_SIZE; c++) {
                         // if (ASCIIEncoding.INSTANCE.isCodeCType(c, ctype)) bs.set(c);
-                        if ((AsciiCtypeTable[c] & (1 << ctype)) != 0) bs.set(c);
+                        if ((AsciiTables.AsciiCtypeTable[c] & (1 << ctype)) != 0) bs.set(c);
                     }
                 }
                 return;
@@ -497,7 +497,11 @@ public final class CClassNode extends Node {
         boolean found;
 
         if (code > 0xff) {
-            found = mbuf != null && mbuf.isInCodeRange(code);
+            if (mbuf == null) {
+                found = false;
+            } else {
+                found = EncodingHelper.isInCodeRange(mbuf.getCodeRange(), code);
+            }
         } else {
             found = bs.at(code);
         }

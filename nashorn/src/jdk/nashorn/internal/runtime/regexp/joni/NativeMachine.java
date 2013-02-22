@@ -17,19 +17,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package jdk.nashorn.internal.runtime.regexp.joni.encoding;
+package jdk.nashorn.internal.runtime.regexp.joni;
 
-public final class ObjPtr<T> {
-    public ObjPtr() {
-        this(null);
+public abstract class NativeMachine extends Matcher {
+
+    protected NativeMachine(Regex regex, char[] chars, int p, int end) {
+        super(regex, chars, p, end);
     }
-
-    public ObjPtr(T p) {
-        this.p = p;
-    }
-
-    public T p;
-
-    static final ObjPtr<Void> NULL = new ObjPtr<Void>();
 }
-

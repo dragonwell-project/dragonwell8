@@ -21,9 +21,8 @@ package jdk.nashorn.internal.runtime.regexp.joni.ast;
 
 import jdk.nashorn.internal.runtime.regexp.joni.Config;
 import jdk.nashorn.internal.runtime.regexp.joni.ScanEnvironment;
+import jdk.nashorn.internal.runtime.regexp.joni.constants.Reduce;
 import jdk.nashorn.internal.runtime.regexp.joni.constants.TargetInfo;
-
-import static jdk.nashorn.internal.runtime.regexp.joni.ast.QuantifierNode.ReduceType.*;
 
 public final class QuantifierNode extends StateNode {
 
@@ -38,33 +37,8 @@ public final class QuantifierNode extends StateNode {
     public Node nextHeadExact;
     public boolean isRefered;           /* include called node. don't eliminate even if {0} */
 
-    enum ReduceType {
-        ASIS,       /* as is */
-        DEL,        /* delete parent */
-        A,          /* to '*'    */
-        AQ,         /* to '*?'   */
-        QQ,         /* to '??'   */
-        P_QQ,       /* to '+)??' */
-        PQ_Q,       /* to '+?)?' */
-    }
-
-    private final static ReduceType[][] REDUCE_TABLE = {
-            {DEL,     A,      A,      QQ,     AQ,     ASIS}, /* '?'  */
-            {DEL,     DEL,    DEL,    P_QQ,   P_QQ,   DEL},  /* '*'  */
-            {A,       A,      DEL,    ASIS,   P_QQ,   DEL},  /* '+'  */
-            {DEL,     AQ,     AQ,     DEL,    AQ,     AQ},   /* '??' */
-            {DEL,     DEL,    DEL,    DEL,    DEL,    DEL},  /* '*?' */
-            {ASIS,    PQ_Q,   DEL,    AQ,     AQ,     DEL}   /* '+?' */
-    };
-
-    private final static String PopularQStr[] = new String[] {
-            "?", "*", "+", "??", "*?", "+?"
-    };
-
-    private final static String ReduceQStr[]= new String[] {
-            "", "", "*", "*?", "??", "+ and ??", "+? and ?"
-    };
-
+    // USE_COMBINATION_EXPLOSION_CHECK
+    public int  combExpCheckNum;        /* 1,2,3...: check,  0: no check  */
 
     public QuantifierNode(int lower, int upper, boolean byNumber) {
         this.lower = lower;
@@ -118,6 +92,7 @@ public final class QuantifierNode extends StateNode {
         value.append("\n  headExact: " + pad(headExact, level + 1));
         value.append("\n  nextHeadExact: " + pad(nextHeadExact, level + 1));
         value.append("\n  isRefered: " + isRefered);
+        value.append("\n  combExpCheckNum: " + combExpCheckNum);
 
         return value.toString();
     }
@@ -159,6 +134,7 @@ public final class QuantifierNode extends StateNode {
         headExact = other.headExact;
         nextHeadExact = other.nextHeadExact;
         isRefered = other.isRefered;
+        combExpCheckNum = other.combExpCheckNum;
     }
 
     public void reduceNestedQuantifier(QuantifierNode other) {
@@ -167,7 +143,7 @@ public final class QuantifierNode extends StateNode {
 
         if (pnum < 0 || cnum < 0) return;
 
-        switch(REDUCE_TABLE[cnum][pnum]) {
+        switch(Reduce.REDUCE_TABLE[cnum][pnum]) {
         case DEL:
             // no need to set the parent here...
             // swap ?
@@ -223,7 +199,6 @@ public final class QuantifierNode extends StateNode {
         other.target = null; // remove target from reduced quantifier
     }
 
-    @SuppressWarnings("fallthrough")
     public int setQuantifier(Node tgt, boolean group, ScanEnvironment env, char[] chars, int p, int end) {
         if (lower == 1 && upper == 1) return 1;
 
@@ -251,20 +226,20 @@ public final class QuantifierNode extends StateNode {
 
             if (Config.USE_WARNING_REDUNDANT_NESTED_REPEAT_OPERATOR) {
                 if (!isByNumber() && !qnt.isByNumber() && env.syntax.warnReduntantNestedRepeat()) {
-                    switch(REDUCE_TABLE[targetQNum][nestQNum]) {
+                    switch(Reduce.REDUCE_TABLE[targetQNum][nestQNum]) {
                     case ASIS:
                         break;
 
                     case DEL:
-                        env.reg.getWarnings().warn(new String(chars, p, end) +
+                        env.reg.warnings.warn(new String(chars, p, end) +
                                 " redundant nested repeat operator");
                         break;
 
                     default:
-                        env.reg.getWarnings().warn(new String(chars, p, end) +
-                                " nested repeat operator " + PopularQStr[targetQNum] +
-                                " and " + PopularQStr[nestQNum] + " was replaced with '" +
-                                ReduceQStr[REDUCE_TABLE[targetQNum][nestQNum].ordinal()] + "'");
+                        env.reg.warnings.warn(new String(chars, p, end) +
+                                " nested repeat operator " + Reduce.PopularQStr[targetQNum] +
+                                " and " + Reduce.PopularQStr[nestQNum] + " was replaced with '" +
+                                Reduce.ReduceQStr[Reduce.REDUCE_TABLE[targetQNum][nestQNum].ordinal()] + "'");
                     }
                 }
             } // USE_WARNING_REDUNDANT_NESTED_REPEAT_OPERATOR

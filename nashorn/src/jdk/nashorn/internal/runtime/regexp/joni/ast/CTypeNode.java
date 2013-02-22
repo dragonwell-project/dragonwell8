@@ -17,19 +17,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package jdk.nashorn.internal.runtime.regexp.joni.encoding;
+package jdk.nashorn.internal.runtime.regexp.joni.ast;
 
-public final class ObjPtr<T> {
-    public ObjPtr() {
-        this(null);
+public final class CTypeNode extends Node {
+    public int ctype;
+    public boolean not;
+
+    public CTypeNode(int type, boolean not) {
+        this.ctype= type;
+        this.not = not;
     }
 
-    public ObjPtr(T p) {
-        this.p = p;
+    @Override
+    public int getType() {
+        return CTYPE;
     }
 
-    public T p;
+    @Override
+    public String getName() {
+        return "Character Type";
+    }
 
-    static final ObjPtr<Void> NULL = new ObjPtr<Void>();
+    @Override
+    public String toString(int level) {
+        StringBuilder value = new StringBuilder();
+        value.append("\n  ctype: " + ctype);
+        value.append("\n  not: " + not);
+
+        return value.toString();
+    }
+
 }
-

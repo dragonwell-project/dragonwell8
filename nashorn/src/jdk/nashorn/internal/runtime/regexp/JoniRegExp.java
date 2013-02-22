@@ -84,7 +84,9 @@ public class JoniRegExp extends RegExp {
                 this.regex = new Regex(javaPattern, 0, javaPattern.length, option, Syntax.JAVASCRIPT);
                 this.groupsInNegativeLookahead = parsed.getGroupsInNegativeLookahead();
             }
-        } catch (final PatternSyntaxException | JOniException e2) {
+        } catch (final PatternSyntaxException e2) {
+            throwParserException("syntax", e2.getMessage());
+        } catch (JOniException e2) {
             throwParserException("syntax", e2.getMessage());
         }
     }
@@ -95,14 +97,14 @@ public class JoniRegExp extends RegExp {
             return null;
         }
 
-        RegExpMatcher currentMatcher = this.matcher;
+        RegExpMatcher matcher = this.matcher;
 
-        if (currentMatcher == null || input != currentMatcher.getInput()) {
-            currentMatcher = new JoniMatcher(input);
-            this.matcher   = currentMatcher;
+        if (matcher == null || input != matcher.getInput()) {
+            matcher = new JoniMatcher(input);
+            this.matcher = matcher;
         }
 
-        return currentMatcher;
+        return matcher;
     }
 
     /**
@@ -111,24 +113,28 @@ public class JoniRegExp extends RegExp {
     public static class Factory extends RegExpFactory {
 
         @Override
-        public RegExp compile(final String pattern, final String flags) throws ParserException {
+        protected RegExp compile(final String pattern, final String flags) throws ParserException {
             return new JoniRegExp(pattern, flags);
         }
 
+        @Override
+        protected String replaceToken(final String str) {
+            return str.equals("[^]") ? "[\\s\\S]" : str;
+        }
     }
 
     class JoniMatcher implements RegExpMatcher {
         final String input;
-        final Matcher joniMatcher;
+        final Matcher matcher;
 
         JoniMatcher(final String input) {
             this.input = input;
-            this.joniMatcher = regex.matcher(input.toCharArray());
+            this.matcher = regex.matcher(input.toCharArray());
         }
 
         @Override
         public boolean search(final int start) {
-            return joniMatcher.search(start, input.length(), Option.NONE) > -1;
+            return matcher.search(start, input.length(), Option.NONE) > -1;
         }
 
         @Override
@@ -138,27 +144,27 @@ public class JoniRegExp extends RegExp {
 
         @Override
         public int start() {
-            return joniMatcher.getBegin();
+            return matcher.getBegin();
         }
 
         @Override
         public int start(final int group) {
-            return group == 0 ? start() : joniMatcher.getRegion().beg[group];
+            return group == 0 ? start() : matcher.getRegion().beg[group];
         }
 
         @Override
         public int end() {
-            return joniMatcher.getEnd();
+            return matcher.getEnd();
         }
 
         @Override
         public int end(final int group) {
-            return group == 0 ? end() : joniMatcher.getRegion().end[group];
+            return group == 0 ? end() : matcher.getRegion().end[group];
         }
 
         @Override
         public String group() {
-            return input.substring(joniMatcher.getBegin(), joniMatcher.getEnd());
+            return input.substring(matcher.getBegin(), matcher.getEnd());
         }
 
         @Override
@@ -166,13 +172,13 @@ public class JoniRegExp extends RegExp {
             if (group == 0) {
                 return group();
             }
-            final Region region = joniMatcher.getRegion();
+            final Region region = matcher.getRegion();
             return input.substring(region.beg[group], region.end[group]);
         }
 
         @Override
         public int groupCount() {
-            final Region region = joniMatcher.getRegion();
+            final Region region = matcher.getRegion();
             return region == null ? 0 : region.numRegs - 1;
         }
     }

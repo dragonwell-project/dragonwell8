@@ -19,12 +19,13 @@
  */
 package jdk.nashorn.internal.runtime.regexp.joni.ast;
 
+import jdk.nashorn.internal.runtime.regexp.joni.Config;
 import jdk.nashorn.internal.runtime.regexp.joni.Option;
 import jdk.nashorn.internal.runtime.regexp.joni.constants.EncloseType;
 
 public final class EncloseNode extends StateNode implements EncloseType {
 
-    public final int type;                // enclose type
+    public int type;                // enclose type
     public int regNum;
     public int option;
     public Node target;             /* EncloseNode : ENCLOSE_MEMORY */
@@ -41,8 +42,10 @@ public final class EncloseNode extends StateNode implements EncloseType {
     }
 
     // node_new_enclose_memory
-    public EncloseNode() {
+    public EncloseNode(int option, boolean isNamed) {
         this(MEMORY);
+        if (isNamed) setNamedGroup();
+        if (Config.USE_SUBEXP_CALL) this.option = option;
     }
 
     // node_new_option
@@ -101,12 +104,44 @@ public final class EncloseNode extends StateNode implements EncloseType {
         return types.toString();
     }
 
+    public void setEncloseStatus(int flag) {
+        state |= flag;
+    }
+
+    public void clearEncloseStatus(int flag) {
+        state &= ~flag;
+    }
+
+    public void clearMemory() {
+        type &= ~MEMORY;
+    }
+
+    public void setMemory() {
+        type |= MEMORY;
+    }
+
     public boolean isMemory() {
         return (type & MEMORY) != 0;
     }
 
+    public void clearOption() {
+        type &= ~OPTION;
+    }
+
+    public void setOption() {
+        type |= OPTION;
+    }
+
     public boolean isOption() {
         return (type & OPTION) != 0;
+    }
+
+    public void clearStopBacktrack() {
+        type &= ~STOP_BACKTRACK;
+    }
+
+    public void setStopBacktrack() {
+        type |= STOP_BACKTRACK;
     }
 
     public boolean isStopBacktrack() {

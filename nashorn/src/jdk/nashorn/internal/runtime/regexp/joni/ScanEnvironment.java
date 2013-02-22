@@ -39,10 +39,19 @@ public final class ScanEnvironment {
 
     final public Regex reg;
 
+    int numCall;
+    UnsetAddrList unsetAddrList; // USE_SUBEXP_CALL
     public int numMem;
+
+    int numNamed; // USE_NAMED_GROUP
 
     public Node memNodes[];
 
+    // USE_COMBINATION_EXPLOSION_CHECK
+    int numCombExpCheck;
+    int combExpMaxRegNum;
+    int currMaxRegNum;
+    boolean hasRecursion;
 
     public ScanEnvironment(Regex regex, Syntax syntax) {
         this.reg = regex;
@@ -57,8 +66,17 @@ public final class ScanEnvironment {
         btMemEnd = bsClear();
         backrefedMem = bsClear();
 
+        numCall = 0;
         numMem = 0;
+
+        numNamed = 0;
+
         memNodes = null;
+
+        numCombExpCheck = 0;
+        combExpMaxRegNum = 0;
+        currMaxRegNum = 0;
+        hasRecursion = false;
     }
 
     public int addMemEntry() {
@@ -109,4 +127,11 @@ public final class ScanEnvironment {
         }
     }
 
+    void closeBracketWithoutEscapeWarn(String s) {
+        if (Config.USE_WARN) {
+            if (syntax.warnCCOpNotEscaped()) {
+                reg.warnings.warn("regular expression has '" + s + "' without escape");
+            }
+        }
+    }
 }

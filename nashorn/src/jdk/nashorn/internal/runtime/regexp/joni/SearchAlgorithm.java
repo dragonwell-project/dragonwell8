@@ -28,17 +28,14 @@ public abstract class SearchAlgorithm {
 
     public static final SearchAlgorithm NONE = new SearchAlgorithm() {
 
-        @Override
         public final String getName() {
             return "NONE";
         }
 
-        @Override
         public final int search(Regex regex, char[] text, int textP, int textEnd, int textRange) {
             return textP;
         }
 
-        @Override
         public final int searchBackward(Regex regex, char[] text, int textP, int adjustText, int textEnd, int textStart, int s_, int range_) {
             return textP;
         }
@@ -47,12 +44,10 @@ public abstract class SearchAlgorithm {
 
     public static final SearchAlgorithm SLOW = new SearchAlgorithm() {
 
-        @Override
         public final String getName() {
             return "EXACT";
         }
 
-        @Override
         public final int search(Regex regex, char[] text, int textP, int textEnd, int textRange) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -83,7 +78,6 @@ public abstract class SearchAlgorithm {
             return -1;
         }
 
-        @Override
         public final int searchBackward(Regex regex, char[] text, int textP, int adjustText, int textEnd, int textStart, int s_, int range_) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -120,12 +114,10 @@ public abstract class SearchAlgorithm {
             this.caseFoldFlag = regex.caseFoldFlag;
         }
 
-        @Override
         public final String getName() {
             return "EXACT_IC";
         }
 
-        @Override
         public final int search(Regex regex, char[] text, int textP, int textEnd, int textRange) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -144,7 +136,6 @@ public abstract class SearchAlgorithm {
             return -1;
         }
 
-        @Override
         public final int searchBackward(Regex regex, char[] text, int textP, int adjustText, int textEnd, int textStart, int s_, int range_) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -172,16 +163,14 @@ public abstract class SearchAlgorithm {
             }
             return true;
         }
-    }
+    };
 
     public static final SearchAlgorithm BM = new SearchAlgorithm() {
 
-        @Override
         public final String getName() {
             return "EXACT_BM";
         }
 
-        @Override
         public final int search(Regex regex, char[] text, int textP, int textEnd, int textRange) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -223,7 +212,6 @@ public abstract class SearchAlgorithm {
 
         private static final int BM_BACKWARD_SEARCH_LENGTH_THRESHOLD = 100;
 
-        @Override
         public final int searchBackward(Regex regex, char[] text, int textP, int adjustText, int textEnd, int textStart, int s_, int range_) {
             char[] target = regex.exact;
             int targetP = regex.exactP;
@@ -275,12 +263,10 @@ public abstract class SearchAlgorithm {
 
     public static final SearchAlgorithm MAP = new SearchAlgorithm() {
 
-        @Override
         public final String getName() {
             return "MAP";
         }
 
-        @Override
         public final int search(Regex regex, char[] text, int textP, int textEnd, int textRange) {
             byte[] map = regex.map;
             int s = textP;
@@ -292,7 +278,6 @@ public abstract class SearchAlgorithm {
             return -1;
         }
 
-        @Override
         public final int searchBackward(Regex regex, char[] text, int textP, int adjustText, int textEnd, int textStart, int s_, int range_) {
             byte[] map = regex.map;
             int s = textStart;

@@ -22,6 +22,8 @@ package jdk.nashorn.internal.runtime.regexp.joni;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.AnchorNode;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.BackRefNode;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.CClassNode;
+import jdk.nashorn.internal.runtime.regexp.joni.ast.CTypeNode;
+import jdk.nashorn.internal.runtime.regexp.joni.ast.CallNode;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.ConsAltNode;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.EncloseNode;
 import jdk.nashorn.internal.runtime.regexp.joni.ast.Node;
@@ -54,7 +56,7 @@ abstract class Compiler implements ErrorMessages {
 
     private void compileStringRawNode(StringNode sn) {
         if (sn.length() <= 0) return;
-        addCompileString(sn.chars, sn.p, sn.length(), false);
+        addCompileString(sn.chars, sn.p, 1 /*sb*/, sn.length(), false);
     }
 
     private void compileStringNode(StringNode node) {
@@ -74,14 +76,17 @@ abstract class Compiler implements ErrorMessages {
             slen++;
             p++;
         }
-        addCompileString(chars, prev, slen, ambig);
+        addCompileString(chars, prev, 1, slen, ambig);
     }
 
-    protected abstract void addCompileString(char[] chars, int p, int strLength, boolean ignoreCase);
+    protected abstract void addCompileString(char[] chars, int p, int mbLength, int strLength, boolean ignoreCase);
 
     protected abstract void compileCClassNode(CClassNode node);
+    protected abstract void compileCTypeNode(CTypeNode node);
     protected abstract void compileAnyCharNode();
+    protected abstract void compileCallNode(CallNode node);
     protected abstract void compileBackrefNode(BackRefNode node);
+    protected abstract void compileCECQuantifierNode(QuantifierNode node);
     protected abstract void compileNonCECQuantifierNode(QuantifierNode node);
     protected abstract void compileOptionNode(EncloseNode node);
     protected abstract void compileEncloseNode(EncloseNode node);
@@ -113,6 +118,10 @@ abstract class Compiler implements ErrorMessages {
             compileCClassNode((CClassNode)node);
             break;
 
+        case NodeType.CTYPE:
+            compileCTypeNode((CTypeNode)node);
+            break;
+
         case NodeType.CANY:
             compileAnyCharNode();
             break;
@@ -121,8 +130,19 @@ abstract class Compiler implements ErrorMessages {
             compileBackrefNode((BackRefNode)node);
             break;
 
+        case NodeType.CALL:
+            if (Config.USE_SUBEXP_CALL) {
+                compileCallNode((CallNode)node);
+                break;
+            } // USE_SUBEXP_CALL
+            break;
+
         case NodeType.QTFR:
-            compileNonCECQuantifierNode((QuantifierNode)node);
+            if (Config.USE_COMBINATION_EXPLOSION_CHECK) {
+                compileCECQuantifierNode((QuantifierNode)node);
+            } else {
+                compileNonCECQuantifierNode((QuantifierNode)node);
+            }
             break;
 
         case NodeType.ENCLOSE:

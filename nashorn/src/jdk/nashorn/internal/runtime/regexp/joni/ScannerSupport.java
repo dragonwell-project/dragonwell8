@@ -21,6 +21,9 @@ package jdk.nashorn.internal.runtime.regexp.joni;
 
 import jdk.nashorn.internal.runtime.regexp.joni.encoding.IntHolder;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ErrorMessages;
+import jdk.nashorn.internal.runtime.regexp.joni.exception.InternalException;
+import jdk.nashorn.internal.runtime.regexp.joni.exception.SyntaxException;
+import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 
 abstract class ScannerSupport extends IntHolder implements ErrorMessages {
 
@@ -33,8 +36,6 @@ abstract class ScannerSupport extends IntHolder implements ErrorMessages {
     private final int begin;            // pattern begin position for reset() support
     private final int end;              // pattern end position for reset() support
     protected int _p;                   // used by mark()/restore() to mark positions
-
-    private final static int INT_SIGN_BIT = 1 << 31;
 
     protected ScannerSupport(char[] chars, int p, int end) {
         this.chars = chars;
@@ -51,6 +52,8 @@ abstract class ScannerSupport extends IntHolder implements ErrorMessages {
     protected int getEnd() {
         return end;
     }
+
+    private final int INT_SIGN_BIT = 1 << 31;
 
     protected final int scanUnsignedNumber() {
         int last = c;
@@ -150,6 +153,26 @@ abstract class ScannerSupport extends IntHolder implements ErrorMessages {
 
     protected final boolean left() {
         return p < stop;
+    }
+
+    protected void newSyntaxException(String message) {
+        throw new SyntaxException(message);
+    }
+
+    protected void newValueException(String message) {
+        throw new ValueException(message);
+    }
+
+    protected void newValueException(String message, String str) {
+        throw new ValueException(message, str);
+    }
+
+    protected void newValueException(String message, int p, int end) {
+        throw new ValueException(message, new String(chars, p, end - p));
+    }
+
+    protected void newInternalException(String message) {
+        throw new InternalException(message);
     }
 
 }
