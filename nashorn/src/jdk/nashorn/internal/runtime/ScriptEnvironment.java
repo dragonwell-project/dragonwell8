@@ -26,13 +26,9 @@
 package jdk.nashorn.internal.runtime;
 
 import java.io.PrintWriter;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.TimeZone;
-
 import jdk.nashorn.internal.codegen.Namespace;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
 import jdk.nashorn.internal.runtime.options.KeyValueOption;
@@ -54,7 +50,10 @@ public final class ScriptEnvironment {
     private final Namespace namespace;
 
     /** Current Options object. */
-    private final Options options;
+    private Options options;
+
+    /** Always allow functions as statements */
+    public final boolean _anon_functions;
 
     /** Size of the per-global Class cache size */
     public final int     _class_cache_size;
@@ -83,53 +82,14 @@ public final class ScriptEnvironment {
     /** Show full Nashorn version */
     public final boolean _fullversion;
 
-    /** Launch using as fx application */
-    public final boolean _fx;
-
-    /** Use single Global instance per jsr223 engine instance. */
-    public final boolean _global_per_engine;
-
-    /**
-     * Behavior when encountering a function declaration in a lexical context where only statements are acceptable
-     * (function declarations are source elements, but not statements).
-     */
-    public enum FunctionStatementBehavior {
-        /**
-         * Accept the function declaration silently and treat it as if it were a function expression assigned to a local
-         * variable.
-         */
-        ACCEPT,
-        /**
-         * Log a parser warning, but accept the function declaration and treat it as if it were a function expression
-         * assigned to a local variable.
-         */
-        WARNING,
-        /**
-         * Raise a {@code SyntaxError}.
-         */
-        ERROR
-    }
-
-    /**
-     * Behavior when encountering a function declaration in a lexical context where only statements are acceptable
-     * (function declarations are source elements, but not statements).
-     */
-    public final FunctionStatementBehavior _function_statement;
-
-    /** Should lazy compilation take place */
-    public final boolean _lazy_compilation;
-
     /** Create a new class loaded for each compilation */
     public final boolean _loader_per_compile;
-
-    /** Do not support Java support extensions. */
-    public final boolean _no_java;
 
     /** Do not support non-standard syntax extensions. */
     public final boolean _no_syntax_extensions;
 
-    /** Do not support typed arrays. */
-    public final boolean _no_typed_arrays;
+    /** Package to which generated class files are added */
+    public final String  _package;
 
     /** Only parse the source code, do not compile */
     public final boolean _parse_only;
@@ -143,9 +103,6 @@ public final class ScriptEnvironment {
     /** Print resulting bytecode for script */
     public final boolean _print_code;
 
-    /** Print memory usage for IR after each phase */
-    public final boolean _print_mem_usage;
-
     /** Print function will no print newline characters */
     public final boolean _print_no_newline;
 
@@ -158,14 +115,8 @@ public final class ScriptEnvironment {
     /** print symbols and their contents for the script */
     public final boolean _print_symbols;
 
-    /** range analysis for known types */
-    public final boolean _range_analysis;
-
     /** is this environment in scripting mode? */
     public final boolean _scripting;
-
-    /** is the JIT allowed to specializ calls based on callsite types? */
-    public final Set<String> _specialize_calls;
 
     /** is this environment in strict mode? */
     public final boolean _strict;
@@ -189,12 +140,13 @@ public final class ScriptEnvironment {
      * @param out output print writer
      * @param err error print writer
      */
-    public ScriptEnvironment(final Options options, final PrintWriter out, final PrintWriter err) {
+    ScriptEnvironment(final Options options, final PrintWriter out, final PrintWriter err) {
         this.out = out;
         this.err = err;
         this.namespace = new Namespace();
         this.options = options;
 
+        _anon_functions       = options.getBoolean("anon.functions");
         _class_cache_size     = options.getInteger("class.cache.size");
         _compile_only         = options.getBoolean("compile.only");
         _debug_lines          = options.getBoolean("debug.lines");
@@ -203,45 +155,21 @@ public final class ScriptEnvironment {
         _early_lvalue_error   = options.getBoolean("early.lvalue.error");
         _empty_statements     = options.getBoolean("empty.statements");
         _fullversion          = options.getBoolean("fullversion");
-        if(options.getBoolean("function.statement.error")) {
-            _function_statement = FunctionStatementBehavior.ERROR;
-        } else if(options.getBoolean("function.statement.warning")) {
-            _function_statement = FunctionStatementBehavior.WARNING;
-        } else {
-            _function_statement = FunctionStatementBehavior.ACCEPT;
-        }
-        _fx                   = options.getBoolean("fx");
-        _global_per_engine    = options.getBoolean("global.per.engine");
-        _lazy_compilation     = options.getBoolean("lazy.compilation");
         _loader_per_compile   = options.getBoolean("loader.per.compile");
-        _no_java              = options.getBoolean("no.java");
         _no_syntax_extensions = options.getBoolean("no.syntax.extensions");
-        _no_typed_arrays      = options.getBoolean("no.typed.arrays");
+        _package              = options.getString("package");
         _parse_only           = options.getBoolean("parse.only");
         _print_ast            = options.getBoolean("print.ast");
         _print_lower_ast      = options.getBoolean("print.lower.ast");
         _print_code           = options.getBoolean("print.code");
-        _print_mem_usage      = options.getBoolean("print.mem.usage");
         _print_no_newline     = options.getBoolean("print.no.newline");
         _print_parse          = options.getBoolean("print.parse");
         _print_lower_parse    = options.getBoolean("print.lower.parse");
         _print_symbols        = options.getBoolean("print.symbols");
-        _range_analysis       = options.getBoolean("range.analysis");
         _scripting            = options.getBoolean("scripting");
         _strict               = options.getBoolean("strict");
         _version              = options.getBoolean("version");
         _verify_code          = options.getBoolean("verify.code");
-
-        final String specialize = options.getString("specialize.calls");
-        if (specialize == null) {
-            _specialize_calls = null;
-        } else {
-            _specialize_calls = new HashSet<>();
-            final StringTokenizer st = new StringTokenizer(specialize, ",");
-            while (st.hasMoreElements()) {
-                _specialize_calls.add(st.nextToken());
-            }
-        }
 
         int callSiteFlags = 0;
         if (options.getBoolean("profile.callsites")) {
@@ -266,31 +194,14 @@ public final class ScriptEnvironment {
         }
         this._callsite_flags = callSiteFlags;
 
-        final Option<?> timezoneOption = options.get("timezone");
-        if (timezoneOption != null) {
-            this._timezone = (TimeZone)timezoneOption.getValue();
+        final Option<?> option = options.get("timezone");
+        if (option != null) {
+            this._timezone = (TimeZone)option.getValue();
         } else {
             this._timezone  = TimeZone.getDefault();
         }
 
-        final Option<?> localeOption = options.get("locale");
-        if (localeOption != null) {
-            this._locale = (Locale)localeOption.getValue();
-        } else {
-            this._locale = Locale.getDefault();
-        }
-    }
-
-    /**
-     * Can we specialize a particular method name?
-     * @param functionName method name
-     * @return true if we are allowed to generate versions of this method
-     */
-    public boolean canSpecialize(final String functionName) {
-        if (_specialize_calls == null) {
-            return false;
-        }
-        return _specialize_calls.isEmpty() || _specialize_calls.contains(functionName);
+        this._locale = Locale.getDefault();
     }
 
     /**
