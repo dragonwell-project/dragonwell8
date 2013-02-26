@@ -93,6 +93,11 @@ else   #linux
 CPU             = $(shell uname -m)
 ARCH1=$(CPU:x86_64=amd64)
 ARCH=$(ARCH1:i686=i386)
+ifeq ($(BUILD_AARCH64),true)
+CONFIGURE_ARGS= --target=aarch64-none-linux-gnu
+LP64=1
+CFLAGS+= -DTARGET_ARCH_aarch64
+endif
 ifdef LP64
 CFLAGS/sparcv9	+= -m64
 CFLAGS/amd64	+= -m64
