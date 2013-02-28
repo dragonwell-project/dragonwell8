@@ -27,7 +27,7 @@
 
  private:
 
-  Address::ScaleFactor array_element_size(BasicType type) const;
+  int array_element_size(BasicType type) const;
 
   void arith_fpu_implementation(LIR_Code code, int left_index, int right_index, int dest_index, bool pop_fpu_stack);
 

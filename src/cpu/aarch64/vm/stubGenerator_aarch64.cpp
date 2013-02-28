@@ -23,12 +23,12 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/assembler.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/instanceOop.hpp"
-#include "oops/methodOop.hpp"
+#include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -37,10 +37,8 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/thread.inline.hpp"
 #include "utilities/top.hpp"
-#ifdef TARGET_OS_FAMILY_linux
-# include "thread_linux.inline.hpp"
-#endif
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
@@ -83,7 +81,7 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg0:   call wrapper address                   address
   //    c_rarg1:   result                                 address
   //    c_rarg2:   result type                            BasicType
-  //    c_rarg3:   method                                 methodOop
+  //    c_rarg3:   method                                 Method*
   //    c_rarg4:   (interpreter) entry point              address
   //    c_rarg5:   parameters                             intptr_t*
   //    c_rarg6:   parameter size (in words)              int
@@ -279,7 +277,7 @@ class StubGenerator: public StubCodeGenerator {
     //      rmethod: Method*
     //      esp: sender sp
     BLOCK_COMMENT("call Java function");
-    __ call (c_rarg4);
+    __ blr(c_rarg4);
 
 #ifndef PRODUCT
     // tell the simulator we have returned to the stub
@@ -789,9 +787,9 @@ class StubGenerator: public StubCodeGenerator {
   //  Output:
   //     rax   - &from[element count - 1]
   //
-  void array_overlap_test(address no_overlap_target, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(Label& L_no_overlap, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(address no_overlap_target, Label* NOLp, Address::ScaleFactor sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
+  void array_overlap_test(Label& L_no_overlap, int sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
 
   // Shuffle first three arg regs on Windows into Linux/Solaris locations.
   //
@@ -1189,9 +1187,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
-    __ adr(rscratch1, the_pc);
-    __ mov(rscratch2, sp);
-    __ set_last_Java_frame(rscratch2, rfp, rscratch1);
+    __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
 
     // Call runtime
     if (arg1 != noreg) {
@@ -1270,21 +1266,6 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::x86::_get_previous_fp_entry = generate_get_previous_fp();
     StubRoutines::x86::_get_previous_sp_entry = generate_get_previous_sp();
 
-<<<<<<< HEAD
-    // we don't need this or aarch64
-
-    // StubRoutines::x86::_verify_mxcsr_entry    = generate_verify_mxcsr();
-
-    // Build this early so it's available for the interpreter.  Stub
-    // expects the required and actual types as register arguments in
-    // j_rarg0 and j_rarg1 respectively.
-    StubRoutines::_throw_WrongMethodTypeException_entry =
-      generate_throw_exception("WrongMethodTypeException throw_exception",
-                               CAST_FROM_FN_PTR(address, SharedRuntime::throw_WrongMethodTypeException),
-                               j_rarg0, j_rarg1);
-
-=======
->>>>>>> 016d9c2... updated comments in code and deleted a little cruft
     // Build this early so it's available for the interpreter.
     StubRoutines::_throw_StackOverflowError_entry =
       generate_throw_exception("StackOverflowError throw_exception",

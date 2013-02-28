@@ -27,7 +27,7 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/universe.inline.hpp"
-#include "oops/methodOop.hpp"
+#include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
@@ -270,7 +270,7 @@ void InterpreterRuntime::SignatureHandlerGenerator::generate(uint64_t fingerprin
 
   // store the call format in the method
   __ movw(r0, call_format);
-  __ str(r0, Address(rmethod, methodOopDesc::call_format_offset()));
+  __ str(r0, Address(rmethod, Method::call_format_offset()));
 
   // return result handler
   __ lea(r0, ExternalAddress(Interpreter::result_handler(method()->result_type())));
@@ -336,7 +336,6 @@ class SlowSignatureHandler
       *_to++ = (*from_addr == 0) ? NULL : (intptr_t) from_addr;
       _num_int_args++;
     }
-      _num_int_args++;
   }
 
   virtual void pass_float()
@@ -410,10 +409,10 @@ class SlowSignatureHandler
 
 IRT_ENTRY(address,
           InterpreterRuntime::slow_signature_handler(JavaThread* thread,
-                                                     methodOopDesc* method,
+                                                     Method* method,
                                                      intptr_t* from,
                                                      intptr_t* to))
-  methodHandle m(thread, (methodOop)method);
+  methodHandle m(thread, (Method*)method);
   assert(m->is_native(), "sanity check");
 
   // handle arguments

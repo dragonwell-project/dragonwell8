@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include "asm/assembler.hpp"
+#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "../../../../../../simulator/cpustate.hpp"
 #include "../../../../../../simulator/simulator.hpp"
 

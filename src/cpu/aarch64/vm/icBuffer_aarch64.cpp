@@ -23,8 +23,8 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/assembler.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "code/icBuffer.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecodes.hpp"
@@ -38,10 +38,10 @@ int InlineCacheBuffer::ic_stub_code_size() {
 }
 
 
-void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, oop cached_oop, address entry_point) { Unimplemented(); }
+void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached_value, address entry_point) { Unimplemented(); }
 
 
 address InlineCacheBuffer::ic_buffer_entry_point(address code_begin) { Unimplemented(); return 0; }
 
 
-oop InlineCacheBuffer::ic_buffer_cached_oop(address code_begin) { Unimplemented(); return 0; }
+void *InlineCacheBuffer::ic_buffer_cached_value(address code_begin) { Unimplemented(); return 0; }

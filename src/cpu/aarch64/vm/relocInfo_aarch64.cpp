@@ -23,8 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/assembler.inline.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
 #include "code/relocInfo.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"
@@ -37,7 +36,10 @@ void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
 
 
 address Relocation::pd_call_destination(address orig_addr) {
-  return MacroAssembler::pd_call_destination(orig_addr);
+  if (orig_addr != NULL) {
+    return MacroAssembler::pd_call_destination(orig_addr);
+  }
+  return MacroAssembler::pd_call_destination(addr());
 }
 
 
@@ -59,9 +61,6 @@ void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) 
 
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
 
-<<<<<<< HEAD
-void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
-=======
 void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest)  {
   address old_addr = old_addr_for(addr(), src, dest);
   MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
@@ -69,4 +68,3 @@ void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, Co
 
 void metadata_Relocation::pd_fix_value(address x) {
 }
->>>>>>> 0413a70... Enable C1 compiler.

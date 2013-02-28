@@ -184,12 +184,14 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 }
 
 
-int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) { __ call_Unimplemented(); return 0; }
+int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) { Unimplemented(); return 0; }
 
 
-void LIR_Assembler::move_regs(Register from_reg, Register to_reg) { __ call_Unimplemented(); }
+void LIR_Assembler::move_regs(Register from_reg, Register to_reg) {
+  __ mov(to_reg, from_reg);
+}
 
-void LIR_Assembler::swap_reg(Register a, Register b) { __ call_Unimplemented(); }
+void LIR_Assembler::swap_reg(Register a, Register b) { Unimplemented(); }
 
 
 void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
@@ -226,7 +228,11 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
     }
 
     case T_METADATA: {
-      Unimplemented();
+      if (patch_code != lir_patch_none) {
+        klass2reg_with_patching(dest->as_register(), info);
+      } else {
+        __ mov_metadata(dest->as_register(), c->as_metadata());
+      }
       break;
     }
 
@@ -369,6 +375,13 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
 }
 
 
+void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
+  Metadata* o = NULL;
+  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_klass_id);
+  __ mov_metadata(reg, o);
+  patching_epilog(patch, lir_patch_normal, reg, info);
+}
+
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) { Unimplemented(); }
 
 
@@ -381,9 +394,10 @@ void LIR_Assembler::prefetchr(LIR_Opr src) { Unimplemented(); }
 void LIR_Assembler::prefetchw(LIR_Opr src) { Unimplemented(); }
 
 
-NEEDS_CLEANUP; // This could be static?
-Address::ScaleFactor LIR_Assembler::array_element_size(BasicType type) const { Unimplemented(); return Address::times_4; }
-
+int LIR_Assembler::array_element_size(BasicType type) const {
+  int elem_size = type2aelembytes(type);
+  return exact_log2(elem_size);
+}
 
 void LIR_Assembler::emit_op3(LIR_Op3* op) { Unimplemented(); }
 
@@ -444,7 +458,38 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 
 void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) { Unimplemented(); }
 
-void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) { Unimplemented(); }
+void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
+  Register len =  op->len()->as_register();
+  __ uxtw(len, len);
+
+  if (UseSlowPath ||
+      (!UseFastNewObjectArray && (op->type() == T_OBJECT || op->type() == T_ARRAY)) ||
+      (!UseFastNewTypeArray   && (op->type() != T_OBJECT && op->type() != T_ARRAY))) {
+    __ b(*op->stub()->entry());
+  } else {
+    Register tmp1 = op->tmp1()->as_register();
+    Register tmp2 = op->tmp2()->as_register();
+    Register tmp3 = op->tmp3()->as_register();
+    if (len == tmp1) {
+      tmp1 = tmp3;
+    } else if (len == tmp2) {
+      tmp2 = tmp3;
+    } else if (len == tmp3) {
+      // everything is ok
+    } else {
+      __ mov(tmp3, len);
+    }
+    __ allocate_array(op->obj()->as_register(),
+                      len,
+                      tmp1,
+                      tmp2,
+                      arrayOopDesc::header_size(op->type()),
+                      array_element_size(op->type()),
+                      op->klass()->as_register(),
+                      *op->stub()->entry());
+  }
+  __ bind(*op->stub()->continuation());
+}
 
 void LIR_Assembler::type_profile_helper(Register mdo,
                                         ciMethodData *md, ciProfileData *data,

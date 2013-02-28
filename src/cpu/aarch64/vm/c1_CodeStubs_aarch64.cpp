@@ -73,10 +73,27 @@ void NewInstanceStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
 // Implementation of NewTypeArrayStub
 
-NewTypeArrayStub::NewTypeArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info) { Unimplemented(); }
+// Implementation of NewTypeArrayStub
+
+NewTypeArrayStub::NewTypeArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info) {
+  _klass_reg = klass_reg;
+  _length = length;
+  _result = result;
+  _info = new CodeEmitInfo(info);
+}
 
 
-void NewTypeArrayStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  assert(_length->as_register() == r19, "length must in r19,");
+  assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
+  __ bl(RuntimeAddress(Runtime1::entry_for(Runtime1::new_type_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  assert(_result->as_register() == r0, "result must in r0");
+  __ b(_continuation);
+}
 
 
 // Implementation of NewObjectArrayStub
@@ -130,11 +147,6 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
 void G1PreBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
-<<<<<<< HEAD
-void G1UnsafeGetObjSATBBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
-
-=======
->>>>>>> 014bf92... Exhume c1 files.
 jbyte* G1PostBarrierStub::_byte_map_base = NULL;
 
 jbyte* G1PostBarrierStub::byte_map_base_slow() { Unimplemented(); return 0; }

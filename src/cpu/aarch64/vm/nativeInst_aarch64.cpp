@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"

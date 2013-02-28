@@ -71,9 +71,6 @@ define_pd_global(intx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS 
 
 // avoid biased locking while we are bootstrapping the aarch64 build
 define_pd_global(bool, UseBiasedLocking, false);
-<<<<<<< HEAD
-#endif // CPU_X86_VM_GLOBALS_X86_HPP
-=======
 
 define_pd_global(intx, InlineSmallCode,          1000);
 
@@ -86,4 +83,3 @@ define_pd_global(intx, InlineSmallCode,          1000);
          "tell sim to cache memory updates until exclusive op occurs")     \
 
 #endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
->>>>>>> 30661d7... modified all header include guard symbols to use _AARCH64_ in place of _X86_

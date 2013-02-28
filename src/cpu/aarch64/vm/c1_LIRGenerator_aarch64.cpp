@@ -109,20 +109,73 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) { Unimplemented(); return LIR_O
 
 
 // i486 instructions can inline constants
-bool LIRGenerator::can_store_as_constant(Value v, BasicType type) const { Unimplemented(); return false; }
+bool LIRGenerator::can_store_as_constant(Value v, BasicType type) const { return false; }
 
 
-bool LIRGenerator::can_inline_as_constant(Value v) const { Unimplemented(); return false; }
+bool LIRGenerator::can_inline_as_constant(Value v) const {
+  // FIXME: Just a guess
+  if (v->type()->as_IntConstant() != NULL) {
+    return v->type()->as_IntConstant()->value() == 0;
+  } else if (v->type()->as_LongConstant() != NULL) {
+    return v->type()->as_LongConstant()->value() == 0L;
+  } else if (v->type()->as_ObjectConstant() != NULL) {
+    return v->type()->as_ObjectConstant()->value()->is_null_object();
+  } else {
+    return false;
+  }
+}
 
 
-bool LIRGenerator::can_inline_as_constant(LIR_Const* c) const { Unimplemented(); return false; }
+bool LIRGenerator::can_inline_as_constant(LIR_Const* c) const { return false; }
 
 
 LIR_Opr LIRGenerator::safepoint_poll_register() { Unimplemented(); return LIR_OprFact::illegalOpr; }
 
 
 LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
-                                            int shift, int disp, BasicType type) { Unimplemented(); return 0; }
+                                            int shift, int disp, BasicType type) {
+  assert(base->is_register(), "must be");
+
+  // accumulate fixed displacements
+  if (index->is_constant()) {
+    disp += index->as_constant_ptr()->as_jint() << shift;
+    index = LIR_OprFact::illegalOpr;
+  }
+
+  if (index->is_register()) {
+    // apply the shift and accumulate the displacement
+    if (shift > 0) {
+      LIR_Opr tmp = new_pointer_register();
+      __ shift_left(index, shift, tmp);
+      index = tmp;
+    }
+    if (disp != 0) {
+      LIR_Opr tmp = new_pointer_register();
+      if (Assembler::is_simm13(disp)) {
+        __ add(tmp, LIR_OprFact::intptrConst(disp), tmp);
+        index = tmp;
+      } else {
+        __ move(LIR_OprFact::intptrConst(disp), tmp);
+        __ add(tmp, index, tmp);
+        index = tmp;
+      }
+      disp = 0;
+    }
+  } else if (disp != 0 && !Assembler::is_simm13(disp)) {
+    // index is illegal so replace it with the displacement loaded into a register
+    index = new_pointer_register();
+    __ move(LIR_OprFact::intptrConst(disp), index);
+    disp = 0;
+  }
+
+  // at this point we either have base + index or base + displacement
+  if (disp == 0) {
+    return new LIR_Address(base, index, type);
+  } else {
+    assert(Assembler::is_simm13(disp), "must be");
+    return new LIR_Address(base, disp, type);
+  }
+}
 
 
 LIR_Address* LIRGenerator::emit_array_address(LIR_Opr array_opr, LIR_Opr index_opr,
@@ -247,11 +300,6 @@ void LIRGenerator::do_LogicOp(LogicOp* x) { Unimplemented(); }
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
 void LIRGenerator::do_CompareOp(CompareOp* x) { Unimplemented(); }
 
-<<<<<<< HEAD
-void LIRGenerator::do_AttemptUpdate(Intrinsic* x) { Unimplemented(); }
-
-=======
->>>>>>> 014bf92... Exhume c1 files.
 void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) { Unimplemented(); }
 
 void LIRGenerator::do_MathIntrinsic(Intrinsic* x) { Unimplemented(); }
@@ -324,7 +372,29 @@ void LIRGenerator::do_Convert(Convert* x) {
 
 void LIRGenerator::do_NewInstance(NewInstance* x) { Unimplemented(); }
 
-void LIRGenerator::do_NewTypeArray(NewTypeArray* x) { Unimplemented(); }
+void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
+  CodeEmitInfo* info = state_for(x, x->state());
+
+  LIRItem length(x->length(), this);
+  length.load_item_force(FrameMap::r19_opr);
+
+  LIR_Opr reg = result_register_for(x->type());
+  LIR_Opr tmp1 = FrameMap::r2_oop_opr;
+  LIR_Opr tmp2 = FrameMap::r4_oop_opr;
+  LIR_Opr tmp3 = FrameMap::r5_oop_opr;
+  LIR_Opr tmp4 = reg;
+  LIR_Opr klass_reg = FrameMap::r3_metadata_opr;
+  LIR_Opr len = length.result();
+  BasicType elem_type = x->elt_type();
+
+  __ metadata2reg(ciTypeArrayKlass::make(elem_type)->constant_encoding(), klass_reg);
+
+  CodeStub* slow_path = new NewTypeArrayStub(klass_reg, len, reg, info);
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, elem_type, klass_reg, slow_path);
+
+  LIR_Opr result = rlock_result(x);
+  __ move(reg, result);
+}
 
 void LIRGenerator::do_NewObjectArray(NewObjectArray* x) { Unimplemented(); }
 

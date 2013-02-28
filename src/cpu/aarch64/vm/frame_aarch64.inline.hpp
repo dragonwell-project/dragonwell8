@@ -25,6 +25,8 @@
 #ifndef CPU_AARCH64_VM_FRAME_AARCH64_INLINE_HPP
 #define CPU_AARCH64_VM_FRAME_AARCH64_INLINE_HPP
 
+#include "code/codeCache.hpp"
+
 // Inline functions for AArch64 frames:
 
 // Constructors:
@@ -38,7 +40,14 @@ inline frame::frame() {
   _deopt_state = unknown;
 }
 
+static int spin;
+
 inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = sp;
   _fp = fp;
@@ -57,6 +66,11 @@ inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = unextended_sp;
   _fp = fp;
@@ -76,6 +90,11 @@ inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address
 }
 
 inline frame::frame(intptr_t* sp, intptr_t* fp) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = sp;
   _fp = fp;
@@ -221,14 +240,14 @@ inline intptr_t* frame::interpreter_frame_mdx_addr() const {
 
 // Constant pool cache
 
-inline constantPoolCacheOop* frame::interpreter_frame_cache_addr() const {
-  return (constantPoolCacheOop*)addr_at(interpreter_frame_cache_offset);
+inline ConstantPoolCache** frame::interpreter_frame_cache_addr() const {
+  return (ConstantPoolCache**)addr_at(interpreter_frame_cache_offset);
 }
 
 // Method
 
-inline methodOop* frame::interpreter_frame_method_addr() const {
-  return (methodOop*)addr_at(interpreter_frame_method_offset);
+inline Method** frame::interpreter_frame_method_addr() const {
+  return (Method**)addr_at(interpreter_frame_method_offset);
 }
 
 // top of expression stack

@@ -26,7 +26,7 @@
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
-#include "oops/methodOop.hpp"
+#include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
@@ -438,14 +438,13 @@ frame frame::sender_for_interpreter_frame(RegisterMap* map) const {
 // frame::sender_for_compiled_frame
 frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   assert(map != NULL, "map must be set");
-  assert(!is_ricochet_frame(), "caller must handle this");
 
   // frame owned by optimizing compiler
   assert(_cb->frame_size() >= 0, "must have non-zero frame size");
   intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
   intptr_t* unextended_sp = sender_sp;
 
-  // On Intel the return_address is always the word on the stack
+  // The return_address is always the word on the stack
   address sender_pc = (address) *(sender_sp-1);
 
   // This is the saved value of fp which may or may not really be an FP.
@@ -482,7 +481,6 @@ frame frame::sender(RegisterMap* map) const {
   if (is_entry_frame())       return sender_for_entry_frame(map);
   if (is_interpreted_frame()) return sender_for_interpreter_frame(map);
   assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
-  if (is_ricochet_frame())    return sender_for_ricochet_frame(map);
 
   if (_cb != NULL) {
     return sender_for_compiled_frame(map);
@@ -495,7 +493,7 @@ frame frame::sender(RegisterMap* map) const {
 
 bool frame::interpreter_frame_equals_unpacked_fp(intptr_t* fp) {
   assert(is_interpreted_frame(), "must be interpreter frame");
-  methodOop method = interpreter_frame_method();
+  Method* method = interpreter_frame_method();
   // When unpacking an optimized frame the frame pointer is
   // adjusted with:
   int diff = (method->max_locals() - method->size_of_parameters()) *
@@ -532,10 +530,10 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
 
   // first the method
 
-  methodOop m = *interpreter_frame_method_addr();
+  Method* m = *interpreter_frame_method_addr();
 
   // validate the method we'd find in this potential sender
-  if (!Universe::heap()->is_valid_method(m)) return false;
+  if (!m->is_valid_method()) return false;
 
   // stack frames shouldn't be much larger than max_stack elements
 
@@ -552,11 +550,9 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
 
   // validate constantPoolCacheOop
 
-  constantPoolCacheOop cp = *interpreter_frame_cache_addr();
+  ConstantPoolCache* cp = *interpreter_frame_cache_addr();
 
-  if (cp == NULL ||
-      !Space::is_aligned(cp) ||
-      !Universe::heap()->is_permanent((void*)cp)) return false;
+  if (cp == NULL || !cp->is_metadata()) return false;
 
   // validate locals
 
@@ -577,7 +573,7 @@ BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result)
   interpreterState istate = get_interpreterState();
 #endif // CC_INTERP
   assert(is_interpreted_frame(), "interpreted frame expected");
-  methodOop method = interpreter_frame_method();
+  Method* method = interpreter_frame_method();
   BasicType type = method->result_type();
 
   intptr_t* tos_addr;
@@ -644,9 +640,7 @@ intptr_t* frame::interpreter_frame_tos_at(jint offset) const {
   values.describe(frame_no, fp() + frame::name##_offset, #name)
 
 void frame::describe_pd(FrameValues& values, int frame_no) {
-  if (is_ricochet_frame()) {
-    MethodHandles::RicochetFrame::describe(this, values, frame_no);
-  } else if (is_interpreted_frame()) {
+  if (is_interpreted_frame()) {
     DESCRIBE_FP_OFFSET(interpreter_frame_sender_sp);
     DESCRIBE_FP_OFFSET(interpreter_frame_last_sp);
     DESCRIBE_FP_OFFSET(interpreter_frame_method);
@@ -668,12 +662,7 @@ intptr_t* frame::real_fp() const {
   if (_cb != NULL) {
     // use the frame size if valid
     int size = _cb->frame_size();
-    if ((size > 0) &&
-        (! is_ricochet_frame())) {
-      // Work-around: ricochet explicitly excluded because frame size is not
-      // constant for the ricochet blob but its frame_size could not, for
-      // some reasons, be declared as <= 0. This potentially confusing
-      // size declaration should be fixed as another CR.
+    if (size > 0) {
       return unextended_sp() + size;
     }
   }
@@ -705,12 +694,12 @@ extern "C" void pf(unsigned long fp) {
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
   unsigned long *p = (unsigned long *)fp;
 
-  methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
-  if(m->is_perm() && m->is_method()) {
+  Method* m = (Method*)p[frame::interpreter_frame_method_offset];
+  if(m->is_method()) {
     ResourceMark rm;
     printf("%s\n", m->name_and_sig_as_C_string());
   } else
-    printf("not a methodOop\n");
+    printf("not a Method\n");
 }
 
 // support for printing out where we are in a Java method
@@ -719,7 +708,7 @@ extern "C" void pf(unsigned long fp) {
 extern "C" void pm(unsigned long fp, unsigned long bcx) {
   DESCRIBE_FP_OFFSET(interpreter_frame_method);
   unsigned long *p = (unsigned long *)fp;
-  methodOop m = (methodOop)p[frame::interpreter_frame_method_offset];
+  Method* m = (Method*)p[frame::interpreter_frame_method_offset];
   int bci = 0;
   const char *name;
   if (m->validate_bci_from_bcx(bcx) < 0

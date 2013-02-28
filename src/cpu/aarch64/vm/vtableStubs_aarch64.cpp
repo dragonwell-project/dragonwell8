@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/assembler.hpp"
+#include "asm/macroAssembler.hpp"
 #include "assembler_aarch64.inline.hpp"
 #include "code/vtableStubs.hpp"
 #include "interp_masm_aarch64.hpp"

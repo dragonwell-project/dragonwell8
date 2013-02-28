@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/allocation.inline.hpp"
@@ -43,85 +44,24 @@ static RegisterOrConstant constant(int value) {
   return RegisterOrConstant(value);
 }
 
-<<<<<<< HEAD
-address MethodHandleEntry::start_compiled_entry(MacroAssembler* _masm,
-                                                address interpreted_entry) { Unimplemented(); return 0; }
-
-MethodHandleEntry* MethodHandleEntry::finish_compiled_entry(MacroAssembler* _masm,
-                                                address start_addr) { Unimplemented(); return 0; }
-
-// stack walking support
-
-frame MethodHandles::ricochet_frame_sender(const frame& fr, RegisterMap *map) { Unimplemented(); return fr; }
-
-void MethodHandles::ricochet_frame_oops_do(const frame& fr, OopClosure* blk, const RegisterMap* reg_map) { Unimplemented(); }
-
-oop MethodHandles::RicochetFrame::compute_saved_args_layout(bool read_cache, bool write_cache) { Unimplemented(); return 0; }
-
-void MethodHandles::RicochetFrame::generate_ricochet_blob(MacroAssembler* _masm,
-                                                          // output params:
-                                                          int* bounce_offset,
-                                                          int* exception_offset,
-                                                          int* frame_size_in_words) {
-  __ call_Unimplemented();
-}
-
-void MethodHandles::RicochetFrame::enter_ricochet_frame(MacroAssembler* _masm,
-                                                        Register rcx_recv,
-                                                        Register rax_argv,
-                                                        address return_handler,
-                                                        Register rbx_temp) { __ call_Unimplemented(); }
-
-void MethodHandles::RicochetFrame::leave_ricochet_frame(MacroAssembler* _masm,
-                                                        Register rcx_recv,
-                                                        Register new_sp_reg,
-                                                        Register sender_pc_reg){ __ call_Unimplemented(); }
-
-// Emit code to verify that RBP is pointing at a valid ricochet frame.
-#ifndef PRODUCT
-enum {
-  ARG_LIMIT = 255, SLOP = 4,
-  // use this parameter for checking for garbage stack movements:
-  UNREASONABLE_STACK_MOVE = (ARG_LIMIT + SLOP)
-  // the slop defends against false alarms due to fencepost errors
-};
-#endif
-
-#ifdef ASSERT
-void MethodHandles::RicochetFrame::verify_clean(MacroAssembler* _masm) { __ call_Unimplemented(); }
-#endif //ASSERT
-
-void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) { __ call_Unimplemented(); }
-=======
 void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) {
   if (VerifyMethodHandles)
     verify_klass(_masm, klass_reg, SystemDictionary::WK_KLASS_ENUM_NAME(java_lang_Class),
                  "MH argument is a Class");
   __ ldr(klass_reg, Address(klass_reg, java_lang_Class::klass_offset_in_bytes()));
 }
->>>>>>> 2b777357... Fixed recent 6 TCK failures for method handles
-
-void MethodHandles::load_conversion_vminfo(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { __ call_Unimplemented(); }
-
-void MethodHandles::load_conversion_dest_type(MacroAssembler* _masm, Register reg, Address conversion_field_addr) { __ call_Unimplemented(); }
-
-void MethodHandles::load_stack_move(MacroAssembler* _masm,
-                                    Register rdi_stack_move,
-                                    Register rcx_amh,
-                                    bool might_be_negative) { __ call_Unimplemented(); }
 
 #ifdef ASSERT
-void MethodHandles::RicochetFrame::verify_offsets() {  }
-
-void MethodHandles::RicochetFrame::verify() const {  }
+static int check_nonzero(const char* xname, int x) {
+  assert(x != 0, err_msg("%s should be nonzero", xname));
+  return x;
+}
+#define NONZERO(x) check_nonzero(#x, x)
+#else //ASSERT
+#define NONZERO(x) (x)
 #endif //PRODUCT
 
 #ifdef ASSERT
-<<<<<<< HEAD
-void MethodHandles::verify_argslot(MacroAssembler* _masm,
-                                   Register argslot_reg,
-                                   const char* error_message) { __ call_Unimplemented(); }
-=======
 void MethodHandles::verify_klass(MacroAssembler* _masm,
                                  Register obj, SystemDictionary::WKID klass_id,
                                  const char* error_message) {
@@ -153,89 +93,9 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
 }
 
 void MethodHandles::verify_ref_kind(MacroAssembler* _masm, int ref_kind, Register member_reg, Register temp) {  }
->>>>>>> 4d5df24... First cut of method handles.
 
-void MethodHandles::verify_argslots(MacroAssembler* _masm,
-                                    RegisterOrConstant arg_slots,
-                                    Register arg_slot_base_reg,
-                                    bool negate_argslots,
-                                    const char* error_message) { __ call_Unimplemented(); }
-
-<<<<<<< HEAD
-// Make sure that arg_slots has the same sign as the given direction.
-// If (and only if) arg_slots is a assembly-time constant, also allow it to be zero.
-void MethodHandles::verify_stack_move(MacroAssembler* _masm,
-                                      RegisterOrConstant arg_slots, int direction) { __ call_Unimplemented(); }
-
-void MethodHandles::verify_klass(MacroAssembler* _masm,
-                                 Register obj, KlassHandle klass,
-                                 const char* error_message) { __ call_Unimplemented(); }
 #endif //ASSERT
 
-void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp) { __ call_Unimplemented(); }
-
-// Code generation
-address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* _masm) { __ call_Unimplemented(); }
-
-// Helper to insert argument slots into the stack.
-// arg_slots must be a multiple of stack_move_unit() and < 0
-// rax_argslot is decremented to point to the new (shifted) location of the argslot
-// But, rdx_temp ends up holding the original value of rax_argslot.
-void MethodHandles::insert_arg_slots(MacroAssembler* _masm,
-                                     RegisterOrConstant arg_slots,
-                                     Register rax_argslot,
-                                     Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-// Helper to remove argument slots from the stack.
-// arg_slots must be a multiple of stack_move_unit() and > 0
-void MethodHandles::remove_arg_slots(MacroAssembler* _masm,
-                                     RegisterOrConstant arg_slots,
-                                     Register rax_argslot,
-                                     Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-// Helper to copy argument slots to the top of the stack.
-// The sequence starts with rax_argslot and is counted by slot_count
-// slot_count must be a multiple of stack_move_unit() and >= 0
-// This function blows the temps but does not change rax_argslot.
-void MethodHandles::push_arg_slots(MacroAssembler* _masm,
-                                   Register rax_argslot,
-                                   RegisterOrConstant slot_count,
-                                   int skip_words_count,
-                                   Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-// in-place movement; no change to rsp
-// blows rax_temp, rdx_temp
-void MethodHandles::move_arg_slots_up(MacroAssembler* _masm,
-                                      Register rbx_bottom,  // invariant
-                                      Address  top_addr,     // can use rax_temp
-                                      RegisterOrConstant positive_distance_in_slots,
-                                      Register rax_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-// in-place movement; no change to rsp
-// blows rax_temp, rdx_temp
-void MethodHandles::move_arg_slots_down(MacroAssembler* _masm,
-                                        Address  bottom_addr,  // can use rax_temp
-                                        Register rbx_top,      // invariant
-                                        RegisterOrConstant negative_distance_in_slots,
-                                        Register rax_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-// Copy from a field or array element to a stacked argument slot.
-// is_element (ignored) says whether caller is loading an array element instead of an instance field.
-void MethodHandles::move_typed_arg(MacroAssembler* _masm,
-                                   BasicType type, bool is_element,
-                                   Address slot_dest, Address value_src,
-                                   Register rbx_temp, Register rdx_temp) { __ call_Unimplemented(); }
-
-void MethodHandles::move_return_value(MacroAssembler* _masm, BasicType type,
-                                      Address return_slot) { __ call_Unimplemented(); }
-
-#ifndef PRODUCT
-#define DESCRIBE_RICOCHET_OFFSET(rf, name) \
-  values.describe(frame_no, (intptr_t *) (((uintptr_t)rf) + MethodHandles::RicochetFrame::name##_offset_in_bytes()), #name)
-
-void MethodHandles::RicochetFrame::describe(const frame* fr, FrameValues& values, int frame_no) {  }
-#endif // ASSERT
-=======
 void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp,
                                             bool for_compiler_entry) {
   assert(method == rmethod, "interpreter calling convention");
@@ -290,8 +150,9 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
 
   if (VerifyMethodHandles && !for_compiler_entry) {
     // make sure recv is already on stack
+    __ ldr(temp2, Address(method_temp, Method::const_offset()));
     __ load_sized_value(temp2,
-                        Address(method_temp, Method::size_of_parameters_offset()),
+                        Address(temp2, ConstMethod::size_of_parameters_offset()),
                         sizeof(u2), /*is_signed*/ false);
     // assert(sizeof(u2) == sizeof(Method::_size_of_parameters), "");
     Label L;
@@ -330,8 +191,6 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
   Register temp   = r0;
   Register mh     = r1;   // MH receiver; dies quickly and is recycled
 
-  address code_start = __ pc();
-
   // here's where control starts out:
   __ align(CodeEntryAlignment);
   address entry_point = __ pc();
@@ -357,8 +216,9 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
   int ref_kind = signature_polymorphic_intrinsic_ref_kind(iid);
   assert(ref_kind != 0 || iid == vmIntrinsics::_invokeBasic, "must be _invokeBasic or a linkTo intrinsic");
   if (ref_kind == 0 || MethodHandles::ref_kind_has_receiver(ref_kind)) {
+    __ ldr(argp, Address(rmethod, Method::const_offset()));
     __ load_sized_value(argp,
-                        Address(rmethod, Method::size_of_parameters_offset()),
+                        Address(argp, ConstMethod::size_of_parameters_offset()),
                         sizeof(u2), /*is_signed*/ false);
     // assert(sizeof(u2) == sizeof(Method::_size_of_parameters), "");
     r3_first_arg_addr = __ argument_address(argp, -1);
@@ -371,26 +231,9 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     DEBUG_ONLY(argp = noreg);
   }
 
-  // rdx_first_arg_addr is live!
+  // r3_first_arg_addr is live!
 
-  if (TraceMethodHandles) {
-    const char* name = vmIntrinsics::name_at(iid);
-    if (*name == '_')  name += 1;
-    const size_t len = strlen(name) + 50;
-    char* qname = NEW_C_HEAP_ARRAY(char, len, mtInternal);
-    const char* suffix = "";
-    if (vmIntrinsics::method_for(iid) == NULL ||
-        !vmIntrinsics::method_for(iid)->access_flags().is_public()) {
-      if (is_signature_polymorphic_static(iid))
-        suffix = "/static";
-      else
-        suffix = "/private";
-    }
-    jio_snprintf(qname, len, "MethodHandle::interpreter_entry::%s%s", name, suffix);
-    // note: stub look for mh in rcx
-    trace_method_handle(_masm, qname);
-  }
-
+  trace_method_handle_interpreter_entry(_masm, iid);
   if (iid == vmIntrinsics::_invokeBasic) {
     generate_method_handle_dispatch(_masm, iid, mh, noreg, not_for_compiler_entry);
 
@@ -405,14 +248,6 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     Register rmember = rmethod;  // MemberName ptr; incoming method ptr is dead now
     __ pop(rmember);             // extract last argument
     generate_method_handle_dispatch(_masm, iid, recv, rmember, not_for_compiler_entry);
-  }
-
-  if (PrintMethodHandleStubs) {
-    address code_end = __ pc();
-    tty->print_cr("--------");
-    tty->print_cr("method handle interpreter entry for %s", vmIntrinsics::name_at(iid));
-    Disassembler::decode(code_start, code_end);
-    tty->cr();
   }
 
   return entry_point;
@@ -438,8 +273,6 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
   assert_different_registers(temp1, temp2, temp3, receiver_reg);
   assert_different_registers(temp1, temp2, temp3, member_reg);
-  if (!for_compiler_entry)
-    assert_different_registers(temp1, temp2, temp3, saved_last_sp_register());  // don't trash lastSP
 
   if (iid == vmIntrinsics::_invokeBasic) {
     // indirect through MH.form.vmentry.vmtarget
@@ -502,14 +335,13 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
     //  rsi/r13 - interpreter linkage (if interpreted)
     //  r2, rdx, rsi, rdi, r8, r8 - compiler arguments (if compiled)
 
-    bool method_is_live = false;
+    Label L_incompatible_class_change_error;
     switch (iid) {
     case vmIntrinsics::_linkToSpecial:
       if (VerifyMethodHandles) {
         verify_ref_kind(_masm, JVM_REF_invokeSpecial, member_reg, temp3);
       }
       __ ldr(rmethod, member_vmtarget);
-      method_is_live = true;
       break;
 
     case vmIntrinsics::_linkToStatic:
@@ -517,7 +349,6 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeStatic, member_reg, temp3);
       }
       __ ldr(rmethod, member_vmtarget);
-      method_is_live = true;
       break;
 
     case vmIntrinsics::_linkToVirtual:
@@ -546,7 +377,6 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
       // get target Method* & entry point
       __ lookup_virtual_method(temp1_recv_klass, temp2_index, rmethod);
-      method_is_live = true;
       break;
     }
 
@@ -574,42 +404,34 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       }
 
       // given intf, index, and recv klass, dispatch to the implementation method
-      Label L_no_such_interface;
       __ lookup_interface_method(temp1_recv_klass, temp3_intf,
                                  // note: next two args must be the same:
                                  rindex, rmethod,
                                  temp2,
-                                 L_no_such_interface);
-
-      __ verify_method_ptr(rmethod);
-      jump_from_method_handle(_masm, rmethod, temp2, for_compiler_entry);
-      __ hlt(0);
-
-      __ bind(L_no_such_interface);
-      __ b(RuntimeAddress(StubRoutines::throw_IncompatibleClassChangeError_entry()));
+                                 L_incompatible_class_change_error);
       break;
     }
 
     default:
-      fatal(err_msg("unexpected intrinsic %d: %s", iid, vmIntrinsics::name_at(iid)));
+      fatal(err_msg_res("unexpected intrinsic %d: %s", iid, vmIntrinsics::name_at(iid)));
       break;
     }
 
-    if (method_is_live) {
-      // live at this point:  rmethod, rsi/r13 (if interpreted)
+    // live at this point:  rmethod, rsi/r13 (if interpreted)
 
-      // After figuring out which concrete method to call, jump into it.
-      // Note that this works in the interpreter with no data motion.
-      // But the compiled version will require that r2_recv be shifted out.
-      __ verify_method_ptr(rmethod);
-      jump_from_method_handle(_masm, rmethod, temp1, for_compiler_entry);
+    // After figuring out which concrete method to call, jump into it.
+    // Note that this works in the interpreter with no data motion.
+    // But the compiled version will require that r2_recv be shifted out.
+    __ verify_method_ptr(rmethod);
+    jump_from_method_handle(_masm, rmethod, temp1, for_compiler_entry);
+    if (iid == vmIntrinsics::_linkToInterface) {
+      __ bind(L_incompatible_class_change_error);
+      __ b(RuntimeAddress(StubRoutines::throw_IncompatibleClassChangeError_entry()));
     }
   }
 }
->>>>>>> 4d5df24... First cut of method handles.
 
 #ifndef PRODUCT
-extern "C" void print_method_handle(oop mh);
 void trace_method_handle_stub(const char* adaptername,
                               oop mh,
                               intptr_t* saved_regs,
@@ -628,13 +450,3 @@ void trace_method_handle_stub_wrapper(MethodHandleStubArguments* args) {  }
 
 void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {  }
 #endif //PRODUCT
-
-// which conversion op types are implemented here?
-int MethodHandles::adapter_conversion_ops_supported_mask() { return 0; }
-
-//------------------------------------------------------------------------------
-// MethodHandles::generate_method_handle_stub
-//
-// Generate an "entry" field for a method handle.
-// This determines how the method handle will respond to calls.
-void MethodHandles::generate_method_handle_stub(MacroAssembler* _masm, MethodHandles::EntryKind ek) { __ call_Unimplemented(); }

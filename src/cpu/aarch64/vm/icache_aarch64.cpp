@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
 #include "runtime/icache.hpp"
 
 extern void aarch64TestHook();

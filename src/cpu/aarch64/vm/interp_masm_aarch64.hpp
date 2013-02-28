@@ -25,8 +25,10 @@
 #ifndef CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
 #define CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
 
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "interpreter/invocationCounter.hpp"
+#include "runtime/frame.hpp"
 
 // This file specializes the assember with interpreter-specific macros
 
@@ -85,6 +87,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
     ldr(rcpool, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
   }
 
+  void get_dispatch();
+
   // Helpers for runtime call arguments/results
 
   // Helpers for runtime call arguments/results
@@ -92,18 +96,24 @@ class InterpreterMacroAssembler: public MacroAssembler {
     ldr(reg, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
   }
 
+  void get_const(Register reg) {
+    get_method(reg);
+    ldr(reg, Address(reg, in_bytes(Method::const_offset())));
+  }
+
   void get_constant_pool(Register reg) {
-    ldr(reg, Address(rmethod, in_bytes(methodOopDesc::constants_offset())));
+    get_const(reg);
+    ldr(reg, Address(reg, in_bytes(ConstMethod::constants_offset())));
   }
 
   void get_constant_pool_cache(Register reg) {
     get_constant_pool(reg);
-    ldr(reg, Address(reg, constantPoolOopDesc::cache_offset_in_bytes()));
+    ldr(reg, Address(reg, ConstantPool::cache_offset_in_bytes()));
   }
 
   void get_cpool_and_tags(Register cpool, Register tags) {
     get_constant_pool(cpool);
-    ldr(tags, Address(cpool, constantPoolOopDesc::tags_offset_in_bytes()));
+    ldr(tags, Address(cpool, ConstantPool::tags_offset_in_bytes()));
   }
 
   void get_unsigned_2_byte_index_at_bcp(Register reg, int bcp_offset);
@@ -111,6 +121,9 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_cache_and_index_and_bytecode_at_bcp(Register cache, Register index, Register bytecode, int byte_no, int bcp_offset, size_t index_size = sizeof(u2));
   void get_cache_entry_pointer_at_bcp(Register cache, Register tmp, int bcp_offset, size_t index_size = sizeof(u2));
   void get_cache_index_at_bcp(Register index, int bcp_offset, size_t index_size = sizeof(u2));
+
+  // load cpool->resolved_references(index);
+  void load_resolved_reference_at_index(Register result, Register index);
 
   void pop_ptr(Register r = r0);
   void pop_i(Register r = r0);
@@ -263,7 +276,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   virtual void call_Unimplemented() {
     save_bcp();
-    set_last_Java_frame(esp, rfp, (address) pc());
+    set_last_Java_frame(esp, rfp, (address) pc(), rscratch1);
     haltsim();
   }
 };
