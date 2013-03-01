@@ -975,6 +975,8 @@ public:
   INSN(blr, 0b0001);
   INSN(ret, 0b0010);
 
+  void ret(void *p); // This forces a compile-time error for ret(0)
+
 #undef INSN
 
 #define INSN(NAME, opc)				\

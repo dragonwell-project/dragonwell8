@@ -56,7 +56,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
 
   // do the call
   mov(rscratch1, RuntimeAddress(entry));
-  brx86(rscratch1, args_size, 8, 1);
+  brx86(rscratch1, args_size + 1, 8, 1);
   bind(retaddr);
   int call_offset = offset();
   // verify callee-saved register
@@ -444,7 +444,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ add(t1, t1, obj);       // body start
           __ initialize_body(t1, arr_size, 0, t2);
           __ verify_oop(obj);
-          __ ret(0);
+          __ ret(lr);
 
           __ bind(slow_path);
         }

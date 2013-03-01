@@ -2102,7 +2102,7 @@ Register MacroAssembler::tlab_refill(Label& retry,
 
   // if tlab is currently allocated (top or end != null) then
   // fill [top, end + alignment_reserve) with array object
-  cbnz(top, do_refill);
+  cbz(top, do_refill);
 
   // set up the mark word
   mov(rscratch1, (intptr_t)markOopDesc::prototype()->copy_set_hash(0x2));
@@ -2201,7 +2201,7 @@ void MacroAssembler::eden_allocate(Register obj,
     br(Assembler::HI, slow_case);
     // Compare obj with the top addr, and if still equal, store the new top addr in
     // end at the address of the top addr pointer. Sets ZF if was equal, and clears
-    // it otherwise. Use lock prefix for atomicity on MPs.
+    // it otherwise.
     Label ok;
     lea(rscratch2, heap_top);
     cmpxchgptr(obj, end, rscratch2, rscratch1, ok, retry);
