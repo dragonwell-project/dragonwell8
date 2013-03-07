@@ -273,9 +273,6 @@ void FrameMap::initialize() {
   for (int i = 0; i < nof_caller_save_fpu_regs; i++) {
     _caller_save_fpu_regs[i] = LIR_OprFact::single_fpu(i + 16);
   }
-  for (int i = 0; i < nof_caller_save_cpu_regs(); i++) {
-    _caller_save_cpu_regs[i] = LIR_OprFact::single_cpu(i + 19);
-  }
 }
 
 

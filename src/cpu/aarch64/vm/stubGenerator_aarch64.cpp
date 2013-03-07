@@ -208,6 +208,9 @@ class StubGenerator: public StubCodeGenerator {
 
     address aarch64_entry = __ pc();
 
+    // Save sender's SP for stack traces.
+    __ mov(rscratch1, sp);
+    __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);

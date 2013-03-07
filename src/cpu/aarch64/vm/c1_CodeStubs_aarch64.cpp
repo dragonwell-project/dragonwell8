@@ -55,12 +55,27 @@ void CounterOverflowStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index,
                                bool throw_index_out_of_bounds_exception)
   : _throw_index_out_of_bounds_exception(throw_index_out_of_bounds_exception)
-  , _index(index) { Unimplemented(); }
+  , _index(index)
+{
+  assert(info != NULL, "must have info");
+  _info = new CodeEmitInfo(info);
+}
 
+void RangeCheckStub::emit_code(LIR_Assembler* ce) { __ call_Unimplemented(); }
 
-void RangeCheckStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void DivByZeroStub::emit_code(LIR_Assembler* ce) {
+  if (_offset != -1) {
+    ce->compilation()->implicit_exception_table()->append(_offset, __ offset());
+  }
+  __ bind(_entry);
+  __ bl(Address(Runtime1::entry_for(Runtime1::throw_div0_exception_id), relocInfo::runtime_call_type));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+#ifdef ASSERT
+  __ should_not_reach_here();
+#endif
+}
 
-void DivByZeroStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 
 
 // Implementation of NewInstanceStub

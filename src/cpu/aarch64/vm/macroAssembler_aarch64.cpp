@@ -1084,14 +1084,14 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 }
 
 int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
-				    bool want_remainder)
+				    bool want_remainder, Register scratch)
 {
   // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivl instruction - may be needed
   // for implicit exceptions.
   //
-  // constraint : ra/rb =/= rscratch1
+  // constraint : ra/rb =/= scratch
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
@@ -1101,13 +1101,13 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   //         quotient  (= ra idiv rb)         min_long
   //         remainder (= ra irem rb)         0
 
-  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
+  assert(ra != scratch && rb != scratch, "reg cannot be scratch");
   static const int64_t min_long = 0x80000000;
-  Label normal_case, special_case, nonzero;
+  Label normal_case, special_case;
 
   // check for special cases
-  movw(rscratch1, min_long);
-  cmpw(ra, rscratch1);
+  movw(scratch, min_long);
+  cmpw(ra, scratch);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
   cmn(rb, 1);
@@ -1124,8 +1124,8 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   if (! want_remainder) {
     sdivw(result, ra, rb);
   } else {
-    sdivw(rscratch1, ra, rb);
-    msubw(result, rscratch1, rb, ra);
+    sdivw(scratch, ra, rb);
+    msubw(result, scratch, rb, ra);
   }
 
   // normal and special case exit
@@ -1135,14 +1135,14 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
 }
 
 int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
-				    bool want_remainder)
+				    bool want_remainder, Register scratch)
 {
   // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivq instruction - may be needed
   // for implicit exceptions.
   //
-  // constraint : ra/rb =/= rscratch1
+  // constraint : ra/rb =/= scratch
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
@@ -1152,13 +1152,13 @@ int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
   //         quotient  (= ra idiv rb)         min_long
   //         remainder (= ra irem rb)         0
 
-  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
+  assert(ra != scratch && rb != scratch, "reg cannot be scratch");
   static const int64_t min_long = 0x8000000000000000ULL;
   Label normal_case, special_case, nonzero;
 
   // check for special cases
-  mov(rscratch1, min_long);
-  cmp(ra, rscratch1);
+  mov(scratch, min_long);
+  cmp(ra, scratch);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
   cmn(rb, 1);
@@ -1175,8 +1175,8 @@ int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
   if (! want_remainder) {
     sdiv(result, ra, rb);
   } else {
-    sdiv(rscratch1, ra, rb);
-    msub(result, rscratch1, rb, ra);
+    sdiv(scratch, ra, rb);
+    msub(result, scratch, rb, ra);
   }
 
   // normal and special case exit

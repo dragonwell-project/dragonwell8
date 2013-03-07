@@ -81,7 +81,7 @@ LIR_Opr LIRGenerator::divOutOpr()       { Unimplemented(); return LIR_OprFact::i
 LIR_Opr LIRGenerator::remOutOpr()       { Unimplemented(); return LIR_OprFact::illegalOpr; }
 LIR_Opr LIRGenerator::shiftCountOpr()   { Unimplemented(); return LIR_OprFact::illegalOpr; }
 LIR_Opr LIRGenerator::syncTempOpr()     { Unimplemented(); return LIR_OprFact::illegalOpr; }
-LIR_Opr LIRGenerator::getThreadTemp()   { Unimplemented(); LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::getThreadTemp()   { return LIR_OprFact::illegalOpr; }
 
 
 LIR_Opr LIRGenerator::result_register_for(ValueType* type, bool callee) {
@@ -115,7 +115,7 @@ bool LIRGenerator::can_store_as_constant(Value v, BasicType type) const { return
 bool LIRGenerator::can_inline_as_constant(Value v) const {
   // FIXME: Just a guess
   if (v->type()->as_IntConstant() != NULL) {
-    return v->type()->as_IntConstant()->value() == 0;
+    return Assembler::operand_valid_for_add_sub_immediate(v->type()->as_IntConstant()->value());
   } else if (v->type()->as_LongConstant() != NULL) {
     return v->type()->as_LongConstant()->value() == 0L;
   } else if (v->type()->as_ObjectConstant() != NULL) {
@@ -129,7 +129,9 @@ bool LIRGenerator::can_inline_as_constant(Value v) const {
 bool LIRGenerator::can_inline_as_constant(LIR_Const* c) const { return false; }
 
 
-LIR_Opr LIRGenerator::safepoint_poll_register() { Unimplemented(); return LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::safepoint_poll_register() {
+  return LIR_OprFact::illegalOpr;
+}
 
 
 LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
@@ -151,17 +153,17 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
     }
     if (disp != 0) {
       LIR_Opr tmp = new_pointer_register();
-      if (Assembler::is_simm13(disp)) {
-        __ add(tmp, LIR_OprFact::intptrConst(disp), tmp);
-        index = tmp;
+      if (Assembler::operand_valid_for_add_sub_immediate(disp)) {
+        __ add(tmp, tmp, LIR_OprFact::intptrConst(disp));
+	index = tmp;
       } else {
-        __ move(LIR_OprFact::intptrConst(disp), tmp);
+	__ move(tmp, LIR_OprFact::intptrConst(disp));
         __ add(tmp, index, tmp);
         index = tmp;
       }
       disp = 0;
     }
-  } else if (disp != 0 && !Assembler::is_simm13(disp)) {
+  } else if (disp != 0 && !Address::offset_ok_for_immed(disp, shift)) {
     // index is illegal so replace it with the displacement loaded into a register
     index = new_pointer_register();
     __ move(LIR_OprFact::intptrConst(disp), index);
@@ -179,8 +181,45 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
 
 
 LIR_Address* LIRGenerator::emit_array_address(LIR_Opr array_opr, LIR_Opr index_opr,
-                                              BasicType type, bool needs_card_mark) { Unimplemented(); return 0; }
+                                              BasicType type, bool needs_card_mark) {
+  int offset_in_bytes = arrayOopDesc::base_offset_in_bytes(type);
+  int elem_size = type2aelembytes(type);
+  int shift = exact_log2(elem_size);
 
+  LIR_Address* addr;
+  if (index_opr->is_constant()) {
+    addr = new LIR_Address(array_opr,
+                           offset_in_bytes + index_opr->as_jint() * elem_size, type);
+  } else {
+// #ifdef _LP64
+//     if (index_opr->type() == T_INT) {
+//       LIR_Opr tmp = new_register(T_LONG);
+//       __ convert(Bytecodes::_i2l, index_opr, tmp);
+//       index_opr = tmp;
+//     }
+// #endif
+    if (offset_in_bytes) {
+      LIR_Opr tmp = new_pointer_register();
+      __ add(array_opr, LIR_OprFact::intConst(offset_in_bytes), tmp);
+      array_opr = tmp;
+      offset_in_bytes = 0;
+    }
+    addr =  new LIR_Address(array_opr,
+                            index_opr,
+                            LIR_Address::scale(type),
+                            offset_in_bytes, type);
+  }
+  if (needs_card_mark) {
+    // This store will need a precise card mark, so go ahead and
+    // compute the full adddres instead of computing once for the
+    // store and again for the card mark.
+    LIR_Opr tmp = new_pointer_register();
+    __ leal(LIR_OprFact::address(addr), tmp);
+    return new LIR_Address(tmp, type);
+  } else {
+    return addr;
+  }
+}
 
 LIR_Opr LIRGenerator::load_immediate(int x, BasicType type) { Unimplemented(); return LIR_OprFact::illegalOpr; }
 
@@ -207,7 +246,82 @@ void LIRGenerator::store_stack_parameter (LIR_Opr item, ByteSize offset_from_sp)
 //----------------------------------------------------------------------
 
 
-void LIRGenerator::do_StoreIndexed(StoreIndexed* x) { Unimplemented(); }
+void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
+  assert(x->is_pinned(),"");
+  bool needs_range_check = true;
+  bool use_length = x->length() != NULL;
+  bool obj_store = x->elt_type() == T_ARRAY || x->elt_type() == T_OBJECT;
+  bool needs_store_check = obj_store && (x->value()->as_Constant() == NULL ||
+                                         !get_jobject_constant(x->value())->is_null_object() ||
+                                         x->should_profile());
+
+  LIRItem array(x->array(), this);
+  LIRItem index(x->index(), this);
+  LIRItem value(x->value(), this);
+  LIRItem length(this);
+
+  array.load_item();
+  index.load_nonconstant();
+
+  if (use_length) {
+    needs_range_check = x->compute_needs_range_check();
+    if (needs_range_check) {
+      length.set_instruction(x->length());
+      length.load_item();
+    }
+  }
+  if (needs_store_check) {
+    value.load_item();
+  } else {
+    value.load_for_store(x->elt_type());
+  }
+
+  set_no_result(x);
+
+  // the CodeEmitInfo must be duplicated for each different
+  // LIR-instruction because spilling can occur anywhere between two
+  // instructions and so the debug information must be different
+  CodeEmitInfo* range_check_info = state_for(x);
+  CodeEmitInfo* null_check_info = NULL;
+  if (x->needs_null_check()) {
+    null_check_info = new CodeEmitInfo(range_check_info);
+  }
+
+  // emit array address setup early so it schedules better
+  // FIXME?  No harm in this on aarch64, and it might help
+  LIR_Address* array_addr = emit_array_address(array.result(), index.result(), x->elt_type(), obj_store);
+
+  if (GenerateRangeChecks && needs_range_check) {
+    if (use_length) {
+      __ cmp(lir_cond_belowEqual, length.result(), index.result());
+      __ branch(lir_cond_belowEqual, T_INT, new RangeCheckStub(range_check_info, index.result()));
+    } else {
+      array_range_check(array.result(), index.result(), null_check_info, range_check_info);
+      // range_check also does the null check
+      null_check_info = NULL;
+    }
+  }
+
+  if (GenerateArrayStoreCheck && needs_store_check) {
+    LIR_Opr tmp1 = new_register(objectType);
+    LIR_Opr tmp2 = new_register(objectType);
+    LIR_Opr tmp3 = new_register(objectType);
+
+    CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
+    __ store_check(value.result(), array.result(), tmp1, tmp2, tmp3, store_check_info, x->profiled_method(), x->profiled_bci());
+  }
+
+  if (obj_store) {
+    // Needs GC write barriers.
+    pre_barrier(LIR_OprFact::address(array_addr), LIR_OprFact::illegalOpr /* pre_val */,
+                true /* do_load */, false /* patch */, NULL);
+    __ move(value.result(), array_addr, null_check_info);
+    // Seems to be a precise
+    post_barrier(LIR_OprFact::address(array_addr), value.result());
+  } else {
+    __ move(value.result(), array_addr, null_check_info);
+  }
+}
 
 void LIRGenerator::do_MonitorEnter(MonitorEnter* x) { Unimplemented(); }
 
@@ -259,6 +373,52 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
 
 // for  _ladd, _lmul, _lsub, _ldiv, _lrem
 void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
+  if (x->op() == Bytecodes::_ldiv || x->op() == Bytecodes::_lrem ) {
+    // long division is implemented as a direct call into the runtime
+    LIRItem left(x->x(), this);
+    LIRItem right(x->y(), this);
+
+    // the check for division by zero destroys the right operand
+    right.set_destroys_register();
+
+    BasicTypeList signature(2);
+    signature.append(T_LONG);
+    signature.append(T_LONG);
+    CallingConvention* cc = frame_map()->c_calling_convention(&signature);
+
+    // check for division by zero (destroys registers of right operand!)
+    CodeEmitInfo* info = state_for(x);
+
+    const LIR_Opr result_reg = result_register_for(x->type());
+    left.load_item_force(cc->at(1));
+    right.load_item();
+
+    __ move(right.result(), cc->at(0));
+
+    __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
+    __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
+
+    address entry;
+    switch (x->op()) {
+    case Bytecodes::_lrem:
+      entry = CAST_FROM_FN_PTR(address, SharedRuntime::lrem);
+      break; // check if dividend is 0 is done elsewhere
+    case Bytecodes::_ldiv:
+      entry = CAST_FROM_FN_PTR(address, SharedRuntime::ldiv);
+      break; // check if dividend is 0 is done elsewhere
+    case Bytecodes::_lmul:
+      entry = CAST_FROM_FN_PTR(address, SharedRuntime::lmul);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
+
+    LIR_Opr result = rlock_result(x);
+    __ call_runtime_leaf(entry, getThreadTemp(), result_reg, cc->args());
+    __ move(result_reg, result);
+
+    return;
+  }
   // missing test if instr is commutative and if we should swap
   LIRItem left(x->x(), this);
   LIRItem right(x->y(), this);
@@ -271,7 +431,70 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
 }
 
 // for: _iadd, _imul, _isub, _idiv, _irem
-void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) { Unimplemented(); }
+void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
+
+  // missing test if instr is commutative and if we should swap
+  LIRItem left(x->x(),  this);
+  LIRItem right(x->y(), this);
+  LIRItem* left_arg = &left;
+  LIRItem* right_arg = &right;
+  if (x->is_commutative() && left.is_stack() && right.is_register()) {
+    // swap them if left is real stack (or cached) and right is real register(not cached)
+    left_arg = &right;
+    right_arg = &left;
+  }
+
+  left_arg->load_item();
+
+  // do not need to load right, as we can handle stack and constants
+  if (x->op() == Bytecodes::_imul ) {
+    // check if we can use shift instead
+    bool use_constant = false;
+    bool use_tmp = false;
+    if (right_arg->is_constant()) {
+      int iconst = right_arg->get_jint_constant();
+      if (iconst > 0) {
+	if (is_power_of_2(iconst)) {
+	  use_constant = true;
+	} else if (is_power_of_2(iconst - 1) || is_power_of_2(iconst + 1)) {
+	  use_constant = true;
+	  use_tmp = true;
+	}
+      }
+    }
+    if (use_constant) {
+      right_arg->dont_load_item();
+    } else {
+      right_arg->load_item();
+    }
+    LIR_Opr tmp = LIR_OprFact::illegalOpr;
+    if (use_tmp) {
+      tmp = new_register(T_INT);
+    }
+    rlock_result(x);
+
+    arithmetic_op_int(x->op(), x->operand(), left_arg->result(), right_arg->result(), tmp);
+  } else {
+    bool is_div_rem = x->op() == Bytecodes::_idiv || x->op() == Bytecodes::_irem;
+    right_arg->dont_load_item();
+    rlock_result(x);
+    if (is_div_rem) {
+      right_arg->load_item();
+      CodeEmitInfo* info = state_for(x);
+      LIR_Opr tmp = new_register(T_INT);
+      __ cmp(lir_cond_equal, right_arg->result(), LIR_OprFact::longConst(0));
+      __ branch(lir_cond_equal, T_INT, new DivByZeroStub(info));
+      info = state_for(x);
+      if (x->op() == Bytecodes::_irem) {
+	__ irem(left_arg->result(), right_arg->result(), x->operand(), tmp, info);
+      } else if (x->op() == Bytecodes::_idiv) {
+	__ idiv(left_arg->result(), right_arg->result(), x->operand(), tmp, info);
+      }
+    } else {
+      arithmetic_op_int(x->op(), x->operand(), left_arg->result(), right_arg->result(), new_register(T_INT));
+    }
+  }
+}
 
 void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
   // when an operand with use count 1 is the left operand, then it is
@@ -408,7 +631,61 @@ void LIRGenerator::do_CheckCast(CheckCast* x) { Unimplemented(); }
 
 void LIRGenerator::do_InstanceOf(InstanceOf* x) { Unimplemented(); }
 
-void LIRGenerator::do_If(If* x) { Unimplemented(); }
+void LIRGenerator::do_If(If* x) {
+  assert(x->number_of_sux() == 2, "inconsistency");
+  ValueTag tag = x->x()->type()->tag();
+  bool is_safepoint = x->is_safepoint();
+
+  If::Condition cond = x->cond();
+
+  LIRItem xitem(x->x(), this);
+  LIRItem yitem(x->y(), this);
+  LIRItem* xin = &xitem;
+  LIRItem* yin = &yitem;
+
+  if (tag == longTag) {
+    // for longs, only conditions "eql", "neq", "lss", "geq" are valid;
+    // mirror for other conditions
+    if (cond == If::gtr || cond == If::leq) {
+      cond = Instruction::mirror(cond);
+      xin = &yitem;
+      yin = &xitem;
+    }
+    xin->set_destroys_register();
+  }
+  xin->load_item();
+  if (tag == longTag && yin->is_constant() && yin->get_jlong_constant() == 0 && (cond == If::eql || cond == If::neq)) {
+    // inline long zero
+    yin->dont_load_item();
+  } else if (tag == longTag || tag == floatTag || tag == doubleTag) {
+    // longs cannot handle constants at right side
+    yin->load_item();
+  } else {
+    yin->dont_load_item();
+  }
+
+  // add safepoint before generating condition code so it can be recomputed
+  if (x->is_safepoint()) {
+    // increment backedge counter if needed
+    increment_backedge_counter(state_for(x, x->state_before()), x->profiled_bci());
+    __ safepoint(LIR_OprFact::illegalOpr, state_for(x, x->state_before()));
+  }
+  set_no_result(x);
+
+  LIR_Opr left = xin->result();
+  LIR_Opr right = yin->result();
+  __ cmp(lir_cond(cond), left, right);
+  // Generate branch profiling. Profiling code doesn't kill flags.
+  profile_branch(x, cond);
+  move_to_phi(x->state());
+  if (x->x()->type()->is_float_kind()) {
+    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+  } else {
+    __ branch(lir_cond(cond), right->type(), x->tsux());
+  }
+  assert(x->default_sux() == x->fsux(), "wrong destination above");
+  __ jump(x->default_sux());
+}
 
 LIR_Opr LIRGenerator::getThreadPointer() { Unimplemented(); return LIR_OprFact::illegalOpr; }
 

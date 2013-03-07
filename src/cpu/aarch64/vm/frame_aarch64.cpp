@@ -437,43 +437,15 @@ frame frame::sender_for_interpreter_frame(RegisterMap* map) const {
 //------------------------------------------------------------------------------
 // frame::sender_for_compiled_frame
 frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  assert(map != NULL, "map must be set");
-
-  // frame owned by optimizing compiler
-  assert(_cb->frame_size() >= 0, "must have non-zero frame size");
-  intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
-  intptr_t* unextended_sp = sender_sp;
-
-  // The return_address is always the word on the stack
-  address sender_pc = (address) *(sender_sp-1);
-
-  // This is the saved value of fp which may or may not really be an FP.
-  // It is only an FP if the sender is an interpreter frame (or C1?).
-  intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
-
-  if (map->update_map()) {
-    // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    // For C1, the runtime stub might not have oop maps, so set this flag
-    // outside of update_register_map.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != NULL) {
-      OopMapSet::update_register_map(this, map);
-    }
-
-    // Since the prolog does the save and restore of fp there is no oopmap
-    // for it so we must fill in its location as if there was an oopmap entry
-    // since if our caller was compiled code there could be live jvm state in it.
-    update_map_with_saved_link(map, saved_fp_addr);
-  }
-
-  assert(sender_sp != sp(), "must have changed");
-  return frame(sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  // On aarch64, compiled methods have a full frame.  If we want to
+  // make frameless methods (C2?) we can fix this when we do so.
+  return frame(sender_sp(), link(), sender_pc());
 }
 
 
 //------------------------------------------------------------------------------
 // frame::sender
-frame frame::sender(RegisterMap* map) const {
+frame frame::zsender(RegisterMap* map) const {
   // Default is we done have to follow them. The sender_for_xxx will
   // update it accordingly
   map->set_include_argument_oops(false);
@@ -490,6 +462,10 @@ frame frame::sender(RegisterMap* map) const {
   return frame(sender_sp(), link(), sender_pc());
 }
 
+frame frame::sender(RegisterMap* map) const {
+  frame value = zsender(map);
+  return value;
+}
 
 bool frame::interpreter_frame_equals_unpacked_fp(intptr_t* fp) {
   assert(is_interpreted_frame(), "must be interpreter frame");
@@ -680,7 +656,13 @@ intptr_t* frame::real_fp() const {
 	   p[frame::name##_offset], #name);			\
   }
 
-extern "C" void pf(unsigned long fp) {
+static __thread long nextfp;
+static __thread long nextpc;
+
+extern "C" void pf(unsigned long fp, unsigned long pc) {
+  if (! fp)
+    return;
+
   DESCRIBE_FP_OFFSET(sender_sp);
   DESCRIBE_FP_OFFSET(return_addr);
   DESCRIBE_FP_OFFSET(link);
@@ -694,12 +676,21 @@ extern "C" void pf(unsigned long fp) {
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
   unsigned long *p = (unsigned long *)fp;
 
-  Method* m = (Method*)p[frame::interpreter_frame_method_offset];
-  if(m->is_method()) {
-    ResourceMark rm;
-    printf("%s\n", m->name_and_sig_as_C_string());
-  } else
-    printf("not a Method\n");
+  if (Interpreter::contains((address)pc)) {
+    Method* m = (Method*)p[frame::interpreter_frame_method_offset];
+    if(m->is_method()) {
+      ResourceMark rm;
+      printf("%s\n", m->name_and_sig_as_C_string());
+    } else
+      printf("not a Method\n");
+  }
+
+  nextfp = p[frame::link_offset];
+  nextpc = p[frame::return_addr_offset];
+}
+
+extern "C" void npf() {
+  pf (nextfp, nextpc);
 }
 
 // support for printing out where we are in a Java method

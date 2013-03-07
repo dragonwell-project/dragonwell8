@@ -2150,11 +2150,12 @@ class LIR_List: public CompilationResourceObj {
 #endif
 #if defined (TARGET_ARCH_aarch64)
   void convert(Bytecodes::Code code, LIR_Opr left, LIR_Opr dst,
-	       ConversionStub* stub, LIR_Opr tmp1) {
-    append(new LIR_OpConvert(code, left, dst, stub, tmp1, LIR_OprDesc::illegalOpr())); 
+	       ConversionStub* stub = NULL, LIR_Opr tmp1 = LIR_OprDesc::illegalOpr()) {
+    append(new LIR_OpConvert(code, left, dst, stub, tmp1, LIR_OprDesc::illegalOpr()));
   }
-#endif
+#else
   void convert(Bytecodes::Code code, LIR_Opr left, LIR_Opr dst, ConversionStub* stub = NULL/*, bool is_32bit = false*/) { append(new LIR_OpConvert(code, left, dst, stub)); }
+#endif
 
   void logical_and (LIR_Opr left, LIR_Opr right, LIR_Opr dst) { append(new LIR_Op2(lir_logic_and,  left, right, dst)); }
   void logical_or  (LIR_Opr left, LIR_Opr right, LIR_Opr dst) { append(new LIR_Op2(lir_logic_or,   left, right, dst)); }

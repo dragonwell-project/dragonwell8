@@ -79,7 +79,6 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
     ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     cbz(rscratch1, L);
     // exception pending => remove activation and forward to exception handler
-    ldr(r0, Address(rthread, Thread::pending_exception_offset()));
     // make sure that the vm_results are cleared
     if (oop_result1->is_valid()) {
       str(zr, Address(rthread, JavaThread::vm_result_offset()));
@@ -254,6 +253,8 @@ static OopMap* save_live_registers(StubAssembler* sasm,
     for (int i = 30; i >= 0; i -= 2)
       __ stpd(as_FloatRegister(i), as_FloatRegister(i+1),
 	      Address(__ pre(sp, -2 * wordSize)));
+  } else {
+    __ add(sp, sp, -32 * wordSize);
   }
 
   return generate_oop_map(sasm, save_fpu_registers);
@@ -267,7 +268,10 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
     for (int i = 0; i < 32; i += 2)
       __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
 	      Address(__ post(sp, 2 * wordSize)));
+  } else {
+    __ add(sp, sp, 32 * wordSize);
   }
+
   __ pop(0x3fffffff, sp);
 }
 
@@ -277,9 +281,12 @@ static void restore_live_registers_except_rax(StubAssembler* sasm, bool restore_
     for (int i = 0; i < 32; i += 2)
       __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
 	      Address(__ post(sp, 2 * wordSize)));
+  } else {
+    __ add(sp, sp, 32 * wordSize);
   }
+
   __ ldp(zr, r1, Address(__ post(sp, 16)));
-  __ pop(0x7ffffffc, sp);
+  __ pop(0x3ffffffc, sp);
 }
 
 
@@ -306,10 +313,133 @@ void Runtime1::initialize_pd() {
 // target: the entry point of the method that creates and posts the exception oop
 // has_argument: true if the exception needs an argument (passed on stack because registers must be preserved)
 
-OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) { Unimplemented(); return 0; }
+OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {
+  // make a frame and preserve the caller's caller-save registers
+  OopMap* oop_map = save_live_registers(sasm);
+  int call_offset;
+  if (!has_argument) {
+    call_offset = __ call_RT(noreg, noreg, target);
+  } else {
+    call_offset = __ call_RT(noreg, noreg, target, r0);
+  }
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(call_offset, oop_map);
+
+  __ should_not_reach_here();
+  return oop_maps;
+}
 
 
-OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) { Unimplemented(); return 0; }
+OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
+  __ block_comment("generate_handle_exception");
+
+  // incoming parameters
+  const Register exception_oop = r0;
+  const Register exception_pc  = r3;
+  // other registers used in this stub
+
+  // Save registers, if required.
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* oop_map = NULL;
+  switch (id) {
+  case forward_exception_id:
+    // We're handling an exception in the context of a compiled frame.
+    // The registers have been saved in the standard places.  Perform
+    // an exception lookup in the caller and dispatch to the handler
+    // if found.  Otherwise unwind and dispatch to the callers
+    // exception handler.
+    oop_map = generate_oop_map(sasm, 1 /*thread*/);
+
+    // load and clear pending exception oop into r0
+    __ ldr(exception_oop, Address(rthread, Thread::pending_exception_offset()));
+    __ str(zr, Address(rthread, Thread::pending_exception_offset()));
+
+    // load issuing PC (the return address for this stub) into r3
+    __ ldr(exception_pc, Address(rfp, 1*BytesPerWord));
+
+    // make sure that the vm_results are cleared (may be unnecessary)
+    __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
+    __ str(zr, Address(rthread, JavaThread::vm_result_2_offset()));
+    break;
+  default:
+    __ should_not_reach_here();
+    break;
+  }
+
+  // verify that only r0 and r3 are valid at this time
+  __ invalidate_registers(false, true, true, false, true, true);
+  // verify that r0 contains a valid exception
+  __ verify_not_null_oop(exception_oop);
+
+#ifdef ASSERT
+  // check that fields in JavaThread for exception oop and issuing pc are
+  // empty before writing to them
+  Label oop_empty;
+  __ ldr(rscratch1, Address(rthread, JavaThread::exception_oop_offset()));
+  __ cbz(rscratch1, oop_empty);
+  __ stop("exception oop already set");
+  __ bind(oop_empty);
+
+  Label pc_empty;
+  __ ldr(rscratch1, Address(rthread, JavaThread::exception_pc_offset()));
+  __ cbz(rscratch1, pc_empty);
+  __ stop("exception pc already set");
+  __ bind(pc_empty);
+#endif
+
+  // save exception oop and issuing pc into JavaThread
+  // (exception handler will load it from here)
+  __ str(exception_oop, Address(rthread, JavaThread::exception_oop_offset()));
+  __ str(exception_pc, Address(rthread, JavaThread::exception_pc_offset()));
+
+  // patch throwing pc into return address (has bci & oop map)
+  __ str(exception_pc, Address(rfp, 1*BytesPerWord));
+
+  // compute the exception handler.
+  // the exception oop and the throwing pc are read from the fields in JavaThread
+  int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, exception_handler_for_pc));
+  oop_maps->add_gc_map(call_offset, oop_map);
+
+  // r0: handler address
+  //      will be the deopt blob if nmethod was deoptimized while we looked up
+  //      handler regardless of whether handler existed in the nmethod.
+
+  // only r0 is valid at this time, all other registers have been destroyed by the runtime call
+  __ invalidate_registers(false, true, true, true, true, true);
+
+  // patch the return address, this stub will directly return to the exception handler
+  __ str(r0, Address(rfp, 1*BytesPerWord));
+
+  switch (id) {
+  case forward_exception_id:
+  case handle_exception_nofpu_id:
+  case handle_exception_id:
+    // Restore the registers that were saved at the beginning.
+    restore_live_registers(sasm, id == handle_exception_nofpu_id);
+    break;
+  case handle_exception_from_callee_id:
+    // WIN64_ONLY: No need to add frame::arg_reg_save_area_bytes to SP
+    // since we do a leave anyway.
+
+    // Pop the return address since we are possibly changing SP (restoring from BP).
+    __ leave();
+
+    // Restore SP from FP if the exception PC is a method handle call site.
+    {
+      Label nope;
+      __ ldr(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
+      __ cbnz(rscratch1, nope);
+      __ call_Unimplemented();
+      __ bind(nope);
+    }
+
+    __ ret(lr);  // jump to exception handler
+    break;
+  default:  ShouldNotReachHere();
+  }
+
+  return oop_maps;
+}
 
 
 void Runtime1::generate_unwind_exception(StubAssembler *sasm) { Unimplemented(); }
@@ -320,6 +450,9 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) { Un
 
 OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
+  const Register exception_oop = r0;
+  const Register exception_pc  = r3;
+
   // for better readability
   const bool must_gc_arguments = true;
   const bool dont_gc_arguments = false;
@@ -329,10 +462,20 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
   // stub code & info for the different stubs
   OopMapSet* oop_maps = NULL;
+  OopMap* oop_map = NULL;
   switch (id) {
+    {
     case forward_exception_id:
       {
-        __ call_Unimplemented();
+        oop_maps = generate_handle_exception(id, sasm);
+        __ leave();
+        __ ret(lr);
+      }
+      break;
+
+    case throw_div0_exception_id:
+      { StubFrame f(sasm, "throw_div0_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_div0_exception), false);
       }
       break;
 
@@ -477,6 +620,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ should_not_reach_here();
       }
       break;
+    }
   }
   return oop_maps;
 }

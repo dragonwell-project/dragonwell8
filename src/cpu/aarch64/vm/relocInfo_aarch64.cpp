@@ -59,7 +59,10 @@ void Relocation::pd_swap_in_breakpoint(address x, short* instrs, int instrlen) {
 
 void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) { Unimplemented(); }
 
-void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
+void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
+  address old_addr = old_addr_for(addr(), src, dest);
+  MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+}
 
 void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest)  {
   address old_addr = old_addr_for(addr(), src, dest);

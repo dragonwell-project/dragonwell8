@@ -177,8 +177,23 @@ void C1_MacroAssembler::verified_entry() {
 
 void C1_MacroAssembler::verify_stack_oop(int stack_offset) { Unimplemented(); }
 
-void C1_MacroAssembler::verify_not_null_oop(Register r) { Unimplemented(); }
+void C1_MacroAssembler::verify_not_null_oop(Register r) {
+  if (!VerifyOops) return;
+  Label not_null;
+  cbnz(r, not_null);
+  stop("non-null oop required");
+  bind(not_null);
+  verify_oop(r);
+}
 
-void C1_MacroAssembler::invalidate_registers(bool inv_rax, bool inv_rbx, bool inv_rcx, bool inv_rdx, bool inv_rsi, bool inv_rdi) { Unimplemented(); }
-
+void C1_MacroAssembler::invalidate_registers(bool inv_rax, bool inv_rbx, bool inv_rcx, bool inv_rdx, bool inv_rsi, bool inv_rdi) {
+#ifdef ASSERT
+  if (inv_rax) mov(r0, 0xDEAD);
+  if (inv_rbx) mov(r19, 0xDEAD);
+  if (inv_rcx) mov(r2, 0xDEAD);
+  if (inv_rdx) mov(r3, 0xDEAD);
+  if (inv_rsi) mov(r4, 0xDEAD);
+  if (inv_rdi) mov(r5, 0xDEAD);
+#endif
+}
 #endif // ifndef PRODUCT

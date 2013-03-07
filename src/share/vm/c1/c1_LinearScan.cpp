@@ -4559,7 +4559,7 @@ void Interval::print(outputStream* out) const {
 #endif
 #endif
     } else {
-      ShouldNotReachHere();
+      // ShouldNotReachHere();
     }
   } else {
     type_name = type2name(type());

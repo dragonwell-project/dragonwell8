@@ -399,9 +399,9 @@ public:
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
   int corrected_idivl(Register result, Register ra, Register rb,
-		      bool want_remainder);
+		      bool want_remainder, Register tmp = rscratch1);
   int corrected_idivq(Register result, Register ra, Register rb,
-		      bool want_remainder);
+		      bool want_remainder, Register tmp = rscratch1);
 
   // Support for NULL-checks
   //

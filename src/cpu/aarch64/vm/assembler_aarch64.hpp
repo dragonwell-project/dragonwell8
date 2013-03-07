@@ -539,6 +539,15 @@ class Address VALUE_OBJ_CLASS_SPEC {
   }
 
   void lea(MacroAssembler *, Register) const;
+
+  static bool offset_ok_for_immed(int offset, int shift = 0) {
+    unsigned mask = (1 << shift) - 1;
+    if (offset < 0 || offset & mask) {
+      return (abs(offset) < (1 << (20 - 12))); // Unscaled offset
+    } else {
+      return ((offset >> shift) < (1 << (21 - 10 + 1))); // Scaled, unsigned offset
+    }
+  }
 };
 
 // Convience classes
@@ -1840,9 +1849,9 @@ public:
   // Stack overflow checking
   virtual void bang_stack_with_offset(int offset);
 
-  bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
-  bool operand_valid_for_add_sub_immediate(long imm);
-  bool operand_valid_for_float_immediate(double imm);
+  static bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
+  static bool operand_valid_for_add_sub_immediate(long imm);
+  static bool operand_valid_for_float_immediate(double imm);
 };
 
 Instruction_aarch64::~Instruction_aarch64() {
