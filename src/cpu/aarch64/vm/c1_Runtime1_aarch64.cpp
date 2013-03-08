@@ -442,7 +442,73 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
 }
 
 
-void Runtime1::generate_unwind_exception(StubAssembler *sasm) { Unimplemented(); }
+void Runtime1::generate_unwind_exception(StubAssembler *sasm) {
+  // incoming parameters
+  const Register exception_oop = r0;
+  // callee-saved copy of exception_oop during runtime call
+  const Register exception_oop_callee_saved = r19;
+  // other registers used in this stub
+  const Register exception_pc = r3;
+  const Register handler_addr = r1;
+
+  // verify that only r0, is valid at this time
+  __ invalidate_registers(false, true, true, true, true, true);
+
+#ifdef ASSERT
+  // check that fields in JavaThread for exception oop and issuing pc are empty
+  Label oop_empty;
+  __ ldr(rscratch1, Address(rthread, JavaThread::exception_oop_offset()));
+  __ cbz(rscratch1, oop_empty);
+  __ stop("exception oop must be empty");
+  __ bind(oop_empty);
+
+  Label pc_empty;
+  __ ldr(rscratch1, Address(rthread, JavaThread::exception_pc_offset()));
+  __ cbz(rscratch1, pc_empty);
+  __ stop("exception pc must be empty");
+  __ bind(pc_empty);
+#endif
+
+  // save exception_oop in callee-saved register to preserve it during runtime calls
+  __ verify_not_null_oop(exception_oop);
+  __ mov(exception_oop_callee_saved, exception_oop);
+
+  // search the exception handler address of the caller (using the return address)
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), rthread, lr);
+  // r0: exception handler address of the caller
+
+  // Only R0 and R19 are valid at this time; all other registers have been destroyed by the call.
+  __ invalidate_registers(false, false, true, true, false, true);
+
+  // move result of call into correct register
+  __ mov(handler_addr, r0);
+
+  // Restore exception oop to R0 (required convention of exception handler).
+  __ mov(exception_oop, exception_oop_callee_saved);
+
+  // verify that there is really a valid exception in r0
+  __ verify_not_null_oop(exception_oop);
+
+  {
+    Label foo;
+    __ ldrw(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
+    __ cbz(rscratch1, foo);
+    __ mov(sp, rfp);
+    __ bind(foo);
+  }
+
+  // continue at exception handler (return address removed)
+  // note: do *not* remove arguments when unwinding the
+  //       activation since the caller assumes having
+  //       all arguments on the stack when entering the
+  //       runtime to determine the exception handler
+  //       (GC happens at call site with arguments!)
+  // r0: exception oop
+  // r3: throwing pc
+  // r1: exception handler
+  __ br(handler_addr);
+}
+
 
 
 OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) { Unimplemented(); return 0; }
@@ -610,6 +676,14 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ ret(lr);
 
         // r0: new array
+      }
+      break;
+
+    case unwind_exception_id:
+      { __ set_info("unwind_exception", dont_gc_arguments);
+        // note: no stubframe since we are about to leave the current
+        //       activation and we are calling a leaf VM function only.
+        generate_unwind_exception(sasm);
       }
       break;
 

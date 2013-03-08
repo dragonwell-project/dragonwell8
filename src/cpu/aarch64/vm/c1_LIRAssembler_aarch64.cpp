@@ -220,7 +220,59 @@ int LIR_Assembler::emit_exception_handler() {
 
 // Emit the code to remove the frame from the stack in the exception
 // unwind path.
-int LIR_Assembler::emit_unwind_handler() { __ call_Unimplemented(); return 0; }
+int LIR_Assembler::emit_unwind_handler() {
+#ifndef PRODUCT
+  if (CommentedAssembly) {
+    _masm->block_comment("Unwind handler");
+  }
+#endif
+
+  int offset = code_offset();
+
+  // Fetch the exception from TLS and clear out exception related thread state
+  __ ldr(r0, Address(rthread, JavaThread::exception_oop_offset()));
+  __ str(zr, Address(rthread, JavaThread::exception_oop_offset()));
+  __ str(zr, Address(rthread, JavaThread::exception_pc_offset()));
+
+  __ bind(_unwind_handler_entry);
+  __ verify_not_null_oop(r0);
+  if (method()->is_synchronized() || compilation()->env()->dtrace_method_probes()) {
+    __ mov(r19, r0);  // Preserve the exception
+  }
+
+  // Preform needed unlocking
+  MonitorExitStub* stub = NULL;
+  if (method()->is_synchronized()) {
+    monitor_address(0, FrameMap::r0_opr);
+    stub = new MonitorExitStub(FrameMap::r0_opr, true, 0);
+    __ unlock_object(r5, r4, r0, *stub->entry());
+    __ bind(*stub->continuation());
+  }
+
+  if (compilation()->env()->dtrace_method_probes()) {
+    __ call_Unimplemented();
+#if 0
+    __ movptr(Address(rsp, 0), rax);
+    __ mov_metadata(Address(rsp, sizeof(void*)), method()->constant_encoding());
+    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit)));
+#endif
+  }
+
+  if (method()->is_synchronized() || compilation()->env()->dtrace_method_probes()) {
+    __ mov(r0, r19);  // Restore the exception
+  }
+
+  // remove the activation and dispatch to the unwind handler
+  __ remove_frame(initial_frame_size_in_bytes());
+  __ b(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
+
+  // Emit the slow path assembly
+  if (stub != NULL) {
+    stub->emit_code(this);
+  }
+
+  return offset;
+}
 
 
 int LIR_Assembler::emit_deopt_handler() { __ call_Unimplemented(); return 0; }

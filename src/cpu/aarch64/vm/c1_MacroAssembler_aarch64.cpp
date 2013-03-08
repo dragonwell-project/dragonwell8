@@ -38,7 +38,7 @@
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) { Unimplemented(); return 0; }
 
 
-void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case) { Unimplemented(); }
+void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case) { call_Unimplemented(); }
 
 
 // Defines obj, preserves var_size_in_bytes

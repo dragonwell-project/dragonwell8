@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee1ed564;
+const unsigned long Assembler::asm_bp = 0x00007fffee0832ec;
 #endif
 
 #include "compiler/disassembler.hpp"
