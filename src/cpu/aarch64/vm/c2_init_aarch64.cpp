@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,13 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/assembler.hpp"
-#include "interpreter/bytecodeInterpreter.hpp"
-#include "interpreter/bytecodeInterpreter.inline.hpp"
-#include "interpreter/interpreter.hpp"
-#include "interpreter/interpreterRuntime.hpp"
-#include "oops/methodData.hpp"
-#include "oops/method.hpp"
-#include "oops/oop.inline.hpp"
-#include "prims/jvmtiExport.hpp"
-#include "prims/jvmtiThreadState.hpp"
-#include "runtime/deoptimization.hpp"
-#include "runtime/frame.inline.hpp"
-#include "runtime/sharedRuntime.hpp"
-#include "runtime/stubRoutines.hpp"
-#include "runtime/synchronizer.hpp"
-#include "runtime/vframeArray.hpp"
-#include "utilities/debug.hpp"
-#ifdef TARGET_ARCH_MODEL_x86_32
-# include "interp_masm_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
-# include "interp_masm_x86_64.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_aarch64
-# include "interp_masm_aarch64.hpp"
-#endif
+#include "opto/compile.hpp"
+#include "opto/node.hpp"
 
-#ifdef CC_INTERP
+// processor dependent initialization for i486
 
-#endif // CC_INTERP (all)
+void Compile::pd_compiler2_init() {
+  guarantee(CodeEntryAlignment >= InteriorEntryAlignment, "" );
+  // QQQ presumably all 64bit cpu's support this. Seems like the ifdef could
+  // simply be left out.
+}

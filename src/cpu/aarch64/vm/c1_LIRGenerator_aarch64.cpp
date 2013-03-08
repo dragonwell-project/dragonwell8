@@ -74,8 +74,8 @@ void LIRItem::load_nonconstant() {
 //--------------------------------------------------------------
 
 
-LIR_Opr LIRGenerator::exceptionOopOpr() { Unimplemented(); return LIR_OprFact::illegalOpr; }
-LIR_Opr LIRGenerator::exceptionPcOpr()  { Unimplemented(); return LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::exceptionOopOpr() { return FrameMap::r0_oop_opr; }
+LIR_Opr LIRGenerator::exceptionPcOpr()  { return FrameMap::r3_opr; }
 LIR_Opr LIRGenerator::divInOpr()        { Unimplemented(); return LIR_OprFact::illegalOpr; }
 LIR_Opr LIRGenerator::divOutOpr()       { Unimplemented(); return LIR_OprFact::illegalOpr; }
 LIR_Opr LIRGenerator::remOutOpr()       { Unimplemented(); return LIR_OprFact::illegalOpr; }
@@ -687,7 +687,9 @@ void LIRGenerator::do_If(If* x) {
   __ jump(x->default_sux());
 }
 
-LIR_Opr LIRGenerator::getThreadPointer() { Unimplemented(); return LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::getThreadPointer() {
+   return FrameMap::as_pointer_opr(rthread);
+}
 
 void LIRGenerator::trace_block_entry(BlockBegin* block) { Unimplemented(); }
 

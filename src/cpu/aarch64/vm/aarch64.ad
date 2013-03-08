@@ -1,0 +1,514 @@
+//
+// Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+// DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+//
+// This code is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 only, as
+// published by the Free Software Foundation.
+//
+// This code is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// version 2 for more details (a copy is included in the LICENSE file that
+// accompanied this code).
+//
+// You should have received a copy of the GNU General Public License version
+// 2 along with this work; if not, write to the Free Software Foundation,
+// Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+//
+// Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+// or visit www.oracle.com if you need additional information or have any
+// questions.
+//
+//
+
+// AMD64 Architecture Description File
+
+//----------REGISTER DEFINITION BLOCK------------------------------------------
+// This information is used by the matcher and the register allocator to
+// describe individual registers and classes of registers within the target
+// archtecture.
+
+register %{
+//----------Architecture Description Register Definitions----------------------
+// General Registers
+// "reg_def"  name ( register save type, C convention save type,
+//                   ideal register type, encoding );
+// Register Save Types:
+//
+// NS  = No-Save:       The register allocator assumes that these registers
+//                      can be used without saving upon entry to the method, &
+//                      that they do not need to be saved at call sites.
+//
+// SOC = Save-On-Call:  The register allocator assumes that these registers
+//                      can be used without saving upon entry to the method,
+//                      but that they must be saved at call sites.
+//
+// SOE = Save-On-Entry: The register allocator assumes that these registers
+//                      must be saved before using them upon entry to the
+//                      method, but they do not need to be saved at call
+//                      sites.
+//
+// AS  = Always-Save:   The register allocator assumes that these registers
+//                      must be saved before using them upon entry to the
+//                      method, & that they must be saved at call sites.
+//
+// Ideal Register Type is used to determine how to save & restore a
+// register.  Op_RegI will get spilled with LoadI/StoreI, Op_RegP will get
+// spilled with LoadP/StoreP.  If the register supports both, use Op_RegI.
+//
+// The encoding number is the actual bit-pattern placed into the opcodes.
+
+// General Registers
+
+reg_def R0   (SOC, SOC, Op_RegI,  0, r0->as_VMReg());
+
+// Specify priority of register selection within phases of register
+// allocation.  Highest priority is first.  A useful heuristic is to
+// give registers a low priority when they are required by machine
+// instructions, like EAX and EDX on I486, and choose no-save registers
+// before save-on-call, & save-on-call before save-on-entry.  Registers
+// which participate in fixed calling sequences should come last.
+// Registers which are used as pairs must fall on an even boundary.
+
+alloc_class chunk0(R0);
+
+//----------Architecture Description Register Classes--------------------------
+// Several register classes are automatically defined based upon information in
+// this architecture description.
+// 1) reg_class inline_cache_reg           ( /* as def'd in frame section */ )
+// 2) reg_class compiler_method_oop_reg    ( /* as def'd in frame section */ )
+// 2) reg_class interpreter_method_oop_reg ( /* as def'd in frame section */ )
+// 3) reg_class stack_slots( /* one chunk of stack-based "registers" */ )
+//
+
+// Class for all pointer registers (including RSP)
+reg_class any_reg(R0);
+
+%}
+
+
+//----------SOURCE BLOCK-------------------------------------------------------
+// This is a block of C++ code which provides values, functions, and
+// definitions necessary in the rest of the architecture description
+source %{
+#define   RELOC_IMM64    Assembler::imm_operand
+#define   RELOC_DISP32   Assembler::disp32_operand
+
+#define __ _masm.
+
+int emit_deopt_handler(CodeBuffer& cbuf) { Unimplemented(); return 0; }
+
+uint reloc_java_to_interp() { Unimplemented(); return 0; }
+
+bool Matcher::is_short_branch_offset(int rule, int br_size, int offset) { Unimplemented();  return false;}
+
+bool Matcher::narrow_oop_use_complex_address() { Unimplemented();  return false;}
+
+bool SafePointNode::needs_polling_address_input() { Unimplemented(); return false; }
+
+%}
+
+//----------ENCODING BLOCK-----------------------------------------------------
+// This block specifies the encoding classes used by the compiler to
+// output byte streams.  Encoding classes are parameterized macros
+// used by Machine Instruction Nodes in order to generate the bit
+// encoding of the instruction.  Operands specify their base encoding
+// interface with the interface keyword.  There are currently
+// supported four interfaces, REG_INTER, CONST_INTER, MEMORY_INTER, &
+// COND_INTER.  REG_INTER causes an operand to generate a function
+// which returns its register number when queried.  CONST_INTER causes
+// an operand to generate a function which returns the value of the
+// constant when queried.  MEMORY_INTER causes an operand to generate
+// four functions which return the Base Register, the Index Register,
+// the Scale Value, and the Offset Value of the operand when queried.
+// COND_INTER causes an operand to generate six functions which return
+// the encoding code (ie - encoding bits for the instruction)
+// associated with each basic boolean condition for a conditional
+// instruction.
+//
+// Instructions specify two basic values for encoding.  Again, a
+// function is available to check if the constant displacement is an
+// oop. They use the ins_encode keyword to specify their encoding
+// classes (which must be a sequence of enc_class names, and their
+// parameters, specified in the encoding block), and they use the
+// opcode keyword to specify, in order, their primary, secondary, and
+// tertiary opcode.  Only the opcode sections which a particular
+// instruction needs for encoding need to be specified.
+encode %{
+  // Build emit functions for each basic byte or larger field in the
+  // intel encoding scheme (opcode, rm, sib, immediate), and call them
+  // from C++ code in the enc_class source block.  Emit functions will
+  // live in the main source block for now.  In future, we can
+  // generalize this by adding a syntax that specifies the sizes of
+  // fields in an order, so that the adlc can build the emit functions
+  // automagically
+
+  // Emit primary opcode
+  enc_class OpcP
+  %{
+    emit_opcode(cbuf, $primary);
+  %}
+
+%}
+
+
+
+//----------FRAME--------------------------------------------------------------
+// Definition of frame structure and management information.
+//
+//  S T A C K   L A Y O U T    Allocators stack-slot number
+//                             |   (to get allocators register number
+//  G  Owned by    |        |  v    add OptoReg::stack0())
+//  r   CALLER     |        |
+//  o     |        +--------+      pad to even-align allocators stack-slot
+//  w     V        |  pad0  |        numbers; owned by CALLER
+//  t   -----------+--------+----> Matcher::_in_arg_limit, unaligned
+//  h     ^        |   in   |  5
+//        |        |  args  |  4   Holes in incoming args owned by SELF
+//  |     |        |        |  3
+//  |     |        +--------+
+//  V     |        | old out|      Empty on Intel, window on Sparc
+//        |    old |preserve|      Must be even aligned.
+//        |     SP-+--------+----> Matcher::_old_SP, even aligned
+//        |        |   in   |  3   area for Intel ret address
+//     Owned by    |preserve|      Empty on Sparc.
+//       SELF      +--------+
+//        |        |  pad2  |  2   pad to align old SP
+//        |        +--------+  1
+//        |        | locks  |  0
+//        |        +--------+----> OptoReg::stack0(), even aligned
+//        |        |  pad1  | 11   pad to align new SP
+//        |        +--------+
+//        |        |        | 10
+//        |        | spills |  9   spills
+//        V        |        |  8   (pad0 slot for callee)
+//      -----------+--------+----> Matcher::_out_arg_limit, unaligned
+//        ^        |  out   |  7
+//        |        |  args  |  6   Holes in outgoing args owned by CALLEE
+//     Owned by    +--------+
+//      CALLEE     | new out|  6   Empty on Intel, window on Sparc
+//        |    new |preserve|      Must be even-aligned.
+//        |     SP-+--------+----> Matcher::_new_SP, even aligned
+//        |        |        |
+//
+// Note 1: Only region 8-11 is determined by the allocator.  Region 0-5 is
+//         known from SELF's arguments and the Java calling convention.
+//         Region 6-7 is determined per call site.
+// Note 2: If the calling convention leaves holes in the incoming argument
+//         area, those holes are owned by SELF.  Holes in the outgoing area
+//         are owned by the CALLEE.  Holes should not be nessecary in the
+//         incoming area, as the Java calling convention is completely under
+//         the control of the AD file.  Doubles can be sorted and packed to
+//         avoid holes.  Holes in the outgoing arguments may be nessecary for
+//         varargs C calling conventions.
+// Note 3: Region 0-3 is even aligned, with pad2 as needed.  Region 3-5 is
+//         even aligned with pad0 as needed.
+//         Region 6 is even aligned.  Region 6-7 is NOT even aligned;
+//         region 6-11 is even aligned; it may be padded out more so that
+//         the region from SP to FP meets the minimum stack alignment.
+// Note 4: For I2C adapters, the incoming FP may not meet the minimum stack
+//         alignment.  Region 11, pad1, may be dynamically extended so that
+//         SP meets the minimum alignment.
+
+frame
+%{
+  // What direction does stack grow in (assumed to be same for C & Java)
+  stack_direction(TOWARDS_LOW);
+
+  // These three registers define part of the calling convention
+  // between compiled code and the interpreter.
+  inline_cache_reg(R0);                // Inline Cache Register
+  interpreter_method_oop_reg(R0);      // Method Oop Register when
+                                        // calling interpreter
+
+  // Number of stack slots consumed by locking an object
+  sync_stack_slots(2);
+
+  // Compiled code's Frame Pointer
+  frame_pointer(R0);
+
+  // Interpreter stores its frame pointer in a register which is
+  // stored to the stack by I2CAdaptors.
+  // I2CAdaptors convert from interpreted java to compiled java.
+  interpreter_frame_pointer(R0);
+
+  // Stack alignment requirement
+  stack_alignment(StackAlignmentInBytes); // Alignment size in bytes (128-bit -> 16 bytes)
+
+  // Number of stack slots between incoming argument block and the start of
+  // a new frame.  The PROLOG must add this many slots to the stack.  The
+  // EPILOG must remove this many slots.  amd64 needs two slots for
+  // return address.
+  in_preserve_stack_slots(4 + 2 * VerifyStackAtCalls);
+
+  // Number of outgoing stack slots killed above the out_preserve_stack_slots
+  // for calls to C.  Supports the var-args backing area for register parms.
+  varargs_C_out_slots_killed(frame::arg_reg_save_area_bytes/BytesPerInt);
+
+  // The after-PROLOG location of the return address.  Location of
+  // return address specifies a type (REG or STACK) and a number
+  // representing the register number (i.e. - use a register name) or
+  // stack slot.
+  // Ret Addr is on stack in slot 0 if no locks or verification or alignment.
+  // Otherwise, it is above the locks and verification slot and alignment word
+  return_addr(STACK - 2 +
+              round_to((Compile::current()->in_preserve_stack_slots() +
+                        Compile::current()->fixed_slots()),
+                       stack_alignment_in_slots()));
+
+  // Body of function which returns an integer array locating
+  // arguments either in registers or in stack slots.  Passed an array
+  // of ideal registers called "sig" and a "length" count.  Stack-slot
+  // offsets are based on outgoing arguments, i.e. a CALLER setting up
+  // arguments for a CALLEE.  Incoming stack arguments are
+  // automatically biased by the preserve_stack_slots field above.
+
+  calling_convention
+  %{
+    // No difference between ingoing/outgoing just pass false
+    SharedRuntime::java_calling_convention(sig_bt, regs, length, false);
+  %}
+
+  c_calling_convention
+  %{
+    // This is obviously always outgoing
+    (void) SharedRuntime::c_calling_convention(sig_bt, regs, length);
+  %}
+
+  // Location of compiled Java return values.  Same as C for now.
+  return_value
+  %{
+    return 0;
+  %}
+%}
+
+//----------ATTRIBUTES---------------------------------------------------------
+//----------Operand Attributes-------------------------------------------------
+op_attrib op_cost(0);        // Required cost attribute
+
+//----------Instruction Attributes---------------------------------------------
+ins_attrib ins_cost(100);       // Required cost attribute
+ins_attrib ins_size(8);         // Required size attribute (in bits)
+ins_attrib ins_short_branch(0); // Required flag: is this instruction
+                                // a non-matching short branch variant
+                                // of some long branch?
+ins_attrib ins_alignment(1);    // Required alignment attribute (must
+                                // be a power of 2) specifies the
+                                // alignment that some part of the
+                                // instruction (not necessarily the
+                                // start) requires.  If > 1, a
+                                // compute_padding() function must be
+                                // provided for the instruction
+
+//----------OPERANDS-----------------------------------------------------------
+// Operand definitions must precede instruction definitions for correct parsing
+// in the ADLC because operands constitute user defined types which are used in
+// instruction definitions.
+
+//----------Simple Operands----------------------------------------------------
+
+
+//----------OPERAND CLASSES----------------------------------------------------
+// Operand Classes are groups of operands that are used as to simplify
+// instruction definitions by not requiring the AD writer to specify separate
+// instructions for every form of operand when the instruction accepts
+// multiple operand types with the same basic encoding and format.  The classic
+// case of this is memory operands.
+
+
+//----------PIPELINE-----------------------------------------------------------
+// Rules which define the behavior of the target architectures pipeline.
+// Integer ALU reg operation
+pipeline %{
+
+attributes %{
+  fixed_size_instructions;        // Fixed size instructions
+  max_instructions_per_bundle = 3;   // Up to 3 instructions per bundle
+  instruction_unit_size = 4;         // An instruction is 1 bytes long
+  instruction_fetch_unit_size = 16;  // The processor fetches one line
+  instruction_fetch_units = 1;       // of 16 bytes
+
+  // List of nop instructions
+  //nops( MachNop );
+%}
+
+//----------RESOURCES----------------------------------------------------------
+// Resources are the functional units available to the machine
+
+resources( D0, D1, D2, DECODE = D0 | D1 | D2,
+           MS0, MS1, MS2, MEM = MS0 | MS1 | MS2,
+           BR, FPU,
+           ALU0, ALU1, ALU2, ALU = ALU0 | ALU1 | ALU2);
+
+//----------PIPELINE DESCRIPTION-----------------------------------------------
+// Pipeline Description specifies the stages in the machine's pipeline
+
+// Generic P2/P3 pipeline
+pipe_desc(S0, S1, S2, S3, S4, S5);
+
+//----------PIPELINE CLASSES---------------------------------------------------
+// Pipeline Classes describe the stages in which input and output are
+// referenced by the hardware pipeline.
+
+// The real do-nothing guy
+pipe_class empty()
+%{
+    instruction_count(0);
+%}
+
+// Define the class for the Nop node
+define
+%{
+   MachNop = empty;
+%}
+
+%}
+//----------INSTRUCTIONS-------------------------------------------------------
+//
+// match      -- States which machine-independent subtree may be replaced
+//               by this instruction.
+// ins_cost   -- The estimated cost of this instruction is used by instruction
+//               selection to identify a minimum cost tree of machine
+//               instructions that matches a tree of machine-independent
+//               instructions.
+// format     -- A string providing the disassembly for this instruction.
+//               The value of an instruction's operand may be inserted
+//               by referring to it with a '$' prefix.
+// opcode     -- Three instruction opcodes may be provided.  These are referred
+//               to within an encode class as $primary, $secondary, and $tertiary
+//               rrspectively.  The primary opcode is commonly used to
+//               indicate the type of machine instruction, while secondary
+//               and tertiary are often used for prefix options or addressing
+//               modes.
+// ins_encode -- A list of encode classes with parameters. The encode class
+//               name must have been defined in an 'enc_class' specification
+//               in the encode section of the architecture description.
+
+
+
+//----------PEEPHOLE RULES-----------------------------------------------------
+// These must follow all instruction definitions as they use the names
+// defined in the instructions definitions.
+//
+// peepmatch ( root_instr_name [preceding_instruction]* );
+//
+// peepconstraint %{
+// (instruction_number.operand_name relational_op instruction_number.operand_name
+//  [, ...] );
+// // instruction numbers are zero-based using left to right order in peepmatch
+//
+// peepreplace ( instr_name  ( [instruction_number.operand_name]* ) );
+// // provide an instruction_number.operand_name for each operand that appears
+// // in the replacement instruction's match rule
+//
+// ---------VM FLAGS---------------------------------------------------------
+//
+// All peephole optimizations can be turned off using -XX:-OptoPeephole
+//
+// Each peephole rule is given an identifying number starting with zero and
+// increasing by one in the order seen by the parser.  An individual peephole
+// can be enabled, and all others disabled, by using -XX:OptoPeepholeAt=#
+// on the command-line.
+//
+// ---------CURRENT LIMITATIONS----------------------------------------------
+//
+// Only match adjacent instructions in same basic block
+// Only equality constraints
+// Only constraints between operands, not (0.dest_reg == RAX_enc)
+// Only one replacement instruction
+//
+// ---------EXAMPLE----------------------------------------------------------
+//
+// // pertinent parts of existing instructions in architecture description
+// instruct movI(rRegI dst, rRegI src)
+// %{
+//   match(Set dst (CopyI src));
+// %}
+//
+// instruct incI_rReg(rRegI dst, immI1 src, rFlagsReg cr)
+// %{
+//   match(Set dst (AddI dst src));
+//   effect(KILL cr);
+// %}
+//
+// // Change (inc mov) to lea
+// peephole %{
+//   // increment preceeded by register-register move
+//   peepmatch ( incI_rReg movI );
+//   // require that the destination register of the increment
+//   // match the destination register of the move
+//   peepconstraint ( 0.dst == 1.dst );
+//   // construct a replacement instruction that sets
+//   // the destination to ( move's source register + one )
+//   peepreplace ( leaI_rReg_immI( 0.dst 1.src 0.src ) );
+// %}
+//
+
+// Implementation no longer uses movX instructions since
+// machine-independent system no longer uses CopyX nodes.
+//
+// peephole
+// %{
+//   peepmatch (incI_rReg movI);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (decI_rReg movI);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (addI_rReg_imm movI);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (incL_rReg movL);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (decL_rReg movL);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (addL_rReg_imm movL);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+// %}
+
+// peephole
+// %{
+//   peepmatch (addP_rReg_imm movP);
+//   peepconstraint (0.dst == 1.dst);
+//   peepreplace (leaP_rReg_imm(0.dst 1.src 0.src));
+// %}
+
+// // Change load of spilled value to only a spill
+// instruct storeI(memory mem, rRegI src)
+// %{
+//   match(Set mem (StoreI mem src));
+// %}
+//
+// instruct loadI(rRegI dst, memory mem)
+// %{
+//   match(Set dst (LoadI mem));
+// %}
+//
+
+//----------SMARTSPILL RULES---------------------------------------------------
+// These must follow all instruction definitions as they use the names
+// defined in the instructions definitions.

@@ -1571,6 +1571,8 @@ void os::abort(bool dump_core) {
     out.print_raw_cr(buf);
     out.print_raw_cr("Dumping core ...");
 #endif
+    out.print_raw_cr("LOOPING...");
+    for (;;);
     ::abort(); // dump core
   }
 

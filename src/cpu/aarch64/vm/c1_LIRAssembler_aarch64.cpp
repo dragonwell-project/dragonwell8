@@ -66,7 +66,9 @@ static void select_different_registers(Register preserve,
 bool LIR_Assembler::is_small_constant(LIR_Opr opr) { Unimplemented(); return false; }
 
 
-LIR_Opr LIR_Assembler::receiverOpr() { Unimplemented(); return 0; }
+LIR_Opr LIR_Assembler::receiverOpr() {
+  return FrameMap::receiver_opr;
+}
 
 LIR_Opr LIR_Assembler::osrBufferPointer() { Unimplemented(); return 0; }
 
@@ -142,12 +144,12 @@ Address LIR_Assembler::as_Address_hi(LIR_Address* addr) {
 }
 
 Address LIR_Assembler::as_Address(LIR_Address* addr) {
-  ShouldNotReachHere();
+  return as_Address(addr, rscratch1);
 }
-
 
 Address LIR_Assembler::as_Address_lo(LIR_Address* addr) {
   return as_Address(addr, rscratch1);  // Ouch
+  // FIXME: This needs to be much more clever.  See x86.
 }
 
 
@@ -395,8 +397,28 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 
 void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) { Unimplemented(); }
 
-void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info, bool wide) { Unimplemented(); }
+void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info, bool wide) {
+  assert(src->is_constant(), "should not call otherwise");
+  LIR_Const* c = src->as_constant_ptr();
+  LIR_Address* to_addr = dest->as_address_ptr();
 
+  switch (c->type()) {
+  case T_ADDRESS:
+    {
+    assert(c->as_jint() == 0, "should be");
+    __ str(zr, as_Address(to_addr, rscratch1));
+    break;
+  }
+  case T_OBJECT:
+    {
+    assert(c->as_jobject() == 0, "should be");
+    __ str(zr, as_Address(to_addr, rscratch1));
+    break;
+  }
+  default:
+    ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
   assert(src->is_register(), "should not call otherwise");
@@ -1037,7 +1059,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
 void LIR_Assembler::comp_fl2i(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dst, LIR_Op2* op) { Unimplemented(); }
 
 
-void LIR_Assembler::align_call(LIR_Code code) { Unimplemented(); }
+void LIR_Assembler::align_call(LIR_Code code) {  }
 
 
 void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) { Unimplemented(); }
@@ -1059,7 +1081,11 @@ void LIR_Assembler::emit_static_call_stub() { Unimplemented(); }
 void LIR_Assembler::throw_op(LIR_Opr exceptionPC, LIR_Opr exceptionOop, CodeEmitInfo* info) { Unimplemented(); }
 
 
-void LIR_Assembler::unwind_op(LIR_Opr exceptionOop) { Unimplemented(); }
+void LIR_Assembler::unwind_op(LIR_Opr exceptionOop) {
+  assert(exceptionOop->as_register() == r0, "must match");
+
+  __ b(_unwind_handler_entry);
+}
 
 
 void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr dest, LIR_Opr tmp) { Unimplemented(); }
