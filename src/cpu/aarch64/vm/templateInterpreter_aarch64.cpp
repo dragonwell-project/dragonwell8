@@ -1433,6 +1433,8 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_locals();
   __ restore_constant_pool_cache();
   __ reinit_heapbase();  // restore rheapbase as heapbase.
+  __ get_dispatch();
+
 #ifndef PRODUCT
   // tell the simulator that the caller method has been reentered
   if (NotifySimulator) {
