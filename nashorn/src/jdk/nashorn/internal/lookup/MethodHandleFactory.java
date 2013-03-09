@@ -137,7 +137,7 @@ public final class MethodHandleFactory {
      */
     static Object traceReturn(final DebugLogger logger, final Object value) {
         final String str = "\treturn: " + stripName(value) + " [type=" + (value == null ? "null" : stripName(value.getClass()) + ']');
-        logger.log(TRACE_LEVEL, str);
+        logger.log(str, TRACE_LEVEL);
         return value;
     }
 
@@ -173,7 +173,7 @@ public final class MethodHandleFactory {
         }
 
         assert logger != null;
-        logger.log(TRACE_LEVEL, sb);
+        logger.log(sb.toString(), TRACE_LEVEL);
         stacktrace(logger);
     }
 
@@ -184,7 +184,7 @@ public final class MethodHandleFactory {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         final PrintStream ps = new PrintStream(baos);
         new Throwable().printStackTrace(ps);
-        logger.log(TRACE_LEVEL, baos.toString());
+        logger.log(baos.toString(), TRACE_LEVEL);
     }
 
     private static String argString(final Object arg) {
@@ -565,7 +565,7 @@ public final class MethodHandleFactory {
 
         @Override
         public MethodHandle asSpreader(final MethodHandle handle, final Class<?> arrayType, final int arrayLength) {
-            final MethodHandle mh = super.asSpreader(handle, arrayType, arrayLength);
+            final MethodHandle mh = super.asCollector(handle, arrayType, arrayLength);
             return debug(mh, "asSpreader", handle, arrayType, arrayLength);
         }
 
@@ -614,7 +614,7 @@ public final class MethodHandleFactory {
         @Override
         public SwitchPoint createSwitchPoint() {
             final SwitchPoint sp = super.createSwitchPoint();
-            LOG.log(TRACE_LEVEL, "createSwitchPoint ", sp);
+            LOG.log("createSwitchPoint " + sp, TRACE_LEVEL);
             return sp;
         }
 
@@ -627,7 +627,7 @@ public final class MethodHandleFactory {
         @Override
         public MethodType type(final Class<?> returnType, final Class<?>... paramTypes) {
             final MethodType mt = super.type(returnType, paramTypes);
-            LOG.log(TRACE_LEVEL, "methodType ", returnType, " ", Arrays.toString(paramTypes), " ", mt);
+            LOG.log("methodType " + returnType + ' ' + Arrays.toString(paramTypes) + ' ' + mt, TRACE_LEVEL);
             return mt;
         }
     }
@@ -638,7 +638,7 @@ public final class MethodHandleFactory {
     private static class TraceCreateMethodHandleFunctionality extends TraceMethodHandleFunctionality {
         @Override
         public MethodHandle debug(final MethodHandle master, final String str, final Object... args) {
-            LOG.log(TRACE_LEVEL, str, " ", describe(args));
+            LOG.log(str + ' ' + describe(args), TRACE_LEVEL);
             stacktrace(LOG);
             return master;
         }
