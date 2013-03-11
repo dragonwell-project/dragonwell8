@@ -1062,8 +1062,10 @@ void LIR_Assembler::comp_fl2i(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Op
 void LIR_Assembler::align_call(LIR_Code code) {  }
 
 
-void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) { Unimplemented(); }
-
+void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
+  __ bl(Address(op->addr(), rtype));
+  add_call_info(code_offset(), op->info());
+}
 
 
 void LIR_Assembler::ic_call(LIR_OpJavaCall* op) { Unimplemented(); }
@@ -1075,7 +1077,24 @@ void LIR_Assembler::vtable_call(LIR_OpJavaCall* op) {
 }
 
 
-void LIR_Assembler::emit_static_call_stub() { Unimplemented(); }
+void LIR_Assembler::emit_static_call_stub() {
+  address call_pc = __ pc();
+  address stub = __ start_a_stub(call_stub_size);
+  if (stub == NULL) {
+    bailout("static call stub overflow");
+    return;
+  }
+
+  int start = __ offset();
+
+  __ relocate(static_stub_Relocation::spec(call_pc));
+  __ mov_metadata(r19, (Metadata*)NULL);
+  // must be set to -1 at code generation time
+  __ b(RuntimeAddress(__ pc()));
+
+  assert(__ offset() - start <= call_stub_size, "stub too big");
+  __ end_a_stub();
+}
 
 
 void LIR_Assembler::throw_op(LIR_Opr exceptionPC, LIR_Opr exceptionOop, CodeEmitInfo* info) { Unimplemented(); }

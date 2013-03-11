@@ -1193,7 +1193,7 @@ public:
 };
 
 #ifdef ASSERT
-inline bool AbstractAssembler::pd_check_instruction_mark() { Unimplemented(); return false; }
+inline bool AbstractAssembler::pd_check_instruction_mark() { return false; }
 #endif
 
 /**
