@@ -129,7 +129,6 @@ class NativeCall: public NativeInstruction {
     offset &= (1 << 26) - 1; // mask off insn part
     insn |= offset;
     set_int_at(displacement_offset, insn);
-
   }
 
   // Similar to replace_mt_safe, but just changes the destination.  The
@@ -155,7 +154,7 @@ class NativeCall: public NativeInstruction {
 
   static bool is_call_at(address instr) {
     const uint32_t insn = (*(uint32_t*)instr);
-    return (insn & 0b1111110000000000000000000000000u) == 0b10010100000000000000000000000000u;
+    return (insn >> 26) == 0b100101;
   }
 
   static bool is_call_before(address return_address) {

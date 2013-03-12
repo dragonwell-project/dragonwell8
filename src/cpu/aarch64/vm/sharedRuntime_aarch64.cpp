@@ -1807,9 +1807,10 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   __ str(rmethod, Address(sp, RegisterSaver::rmethod_offset_in_bytes()));
 
   // FIXME: rmethod is an allocated call-saved register.  We should
-  // not be corrupting it.
+  // not be corrupting it.  We really should be using a call-clobbered
+  // register for rmethod.
 
-  // O0 is where we want to jump, overwrite G3 which is saved and scratch
+  // r0 is where we want to jump, overwrite rscratch1 which is saved and scratch
   __ str(r0, Address(sp, RegisterSaver::rscratch1_offset_in_bytes()));
   RegisterSaver::restore_live_registers(masm);
 
