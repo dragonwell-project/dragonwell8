@@ -51,7 +51,7 @@
 #include "oops/method.hpp"
 #endif // !PRODUCT
 
-#include "../../../../../../simulator/simulator.hpp"
+#include "simulator.hpp"
 
 #define __ _masm->
 
@@ -193,17 +193,6 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 		     in_bytes(ConstantPoolCache::base_offset()) +
 		     3 * wordSize));
   __ add(esp, esp, r1, Assembler::LSL, 3);
-
-  // Restore machine SP in case i2c adjusted it
-  __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
-  __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
-  __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
-	 + (EnableInvokeDynamic ? 2 : 0));
-  __ ldr(rscratch2,
-	 Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
-  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtw, 3);
-  __ andr(sp, rscratch1, -16);
-
 #ifdef ASSERT
   __ spillcheck(rscratch1, rscratch2);
 #endif // ASSERT
@@ -213,7 +202,6 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     __ notify(Assembler::method_reentry);
   }
 #endif
-  __ get_dispatch();
   __ dispatch_next(state, step);
 
   // out of the main line of code...
@@ -357,15 +345,10 @@ void InterpreterGenerator::generate_counter_incr(
       __ test_method_data_pointer(r0, *profile_method);
     }
 
-    {
-      unsigned long offset;
-      __ adrp(rscratch2,
-	      ExternalAddress((address)&InvocationCounter::InterpreterInvocationLimit),
-	      offset);
-      __ ldrw(rscratch2, Address(rscratch2, offset));
-      __ cmpw(r0, rscratch2);
-      __ br(Assembler::HS, *overflow);
-    }
+    __ lea(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterInvocationLimit));
+    __ ldrw(rscratch2, rscratch2);
+    __ cmpw(r0, rscratch2);
+    __ br(Assembler::HS, *overflow);
   }
 }
 
@@ -875,7 +858,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // It is enough that the pc() points into the right code
   // segment. It does not have to be the correct return pc.
-  __ set_last_Java_frame(esp, rfp, (address)NULL, rscratch1);
+  __ set_last_Java_frame(esp, rfp, (address) __ pc());
 
   // change thread state
 #ifdef ASSERT
@@ -931,11 +914,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // check for safepoint operation in progress and/or pending suspend requests
   {
     Label Continue;
-    {
-      unsigned long offset;
-      __ adrp(rscratch2, SafepointSynchronize::address_of_state(), offset);
-      __ ldr(rscratch2, Address(rscratch2, offset));
-    }
+    __ mov(rscratch2, SafepointSynchronize::address_of_state());
+    __ ldr(rscratch2, rscratch2);
     assert(SafepointSynchronize::_not_synchronized == 0,
 	   "SafepointSynchronize::_not_synchronized");
     Label L;
@@ -1164,7 +1144,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   }
 
   // And the base dispatch table
-  __ get_dispatch();
+  __ mov(rdispatch, (intptr_t)Interpreter::dispatch_table());
 
   // initialize fixed part of activation frame
   generate_fixed_frame(false, r10);
@@ -1433,8 +1413,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ restore_locals();
   __ restore_constant_pool_cache();
   __ reinit_heapbase();  // restore rheapbase as heapbase.
-  __ get_dispatch();
-
 #ifndef PRODUCT
   // tell the simulator that the caller method has been reentered
   if (NotifySimulator) {
@@ -1573,7 +1551,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ mov(c_rarg1, sp);
   __ ldr(c_rarg2, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   // PC must point into interpreter here
-  __ set_last_Java_frame(noreg, rfp, (address)NULL, rscratch1);
+  __ set_last_Java_frame(noreg, rfp, __ pc());
   __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::popframe_move_outgoing_args), rthread, c_rarg1, c_rarg2);
   __ reset_last_Java_frame(true, true);
   // Restore the last_sp and null it out

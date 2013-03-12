@@ -107,44 +107,17 @@ inline NativeCall* nativeCall_at(address address);
 
 class NativeCall: public NativeInstruction {
  public:
-  enum Aarch64_specific_constants {
-    instruction_size            =    4,
-    instruction_offset          =    0,
-    displacement_offset         =    0,
-    return_address_offset       =    4
-  };
-
   enum { cache_line_size = BytesPerWord };  // conservative estimate!
-  address instruction_address() const       { return addr_at(instruction_offset); }
-  address next_instruction_address() const  { return addr_at(return_address_offset); }
-  int   displacement() const                { return (int_at(displacement_offset) << 7) >> 5; }
-  address displacement_address() const      { return addr_at(displacement_offset); }
-  address return_address() const            { return addr_at(return_address_offset); }
+  address instruction_address() const            { Unimplemented(); return 0; }
+  address next_instruction_address() const       { Unimplemented(); return 0; }
+  int   displacement() const                     { Unimplemented(); return 0; }
+  address displacement_address() const           { Unimplemented(); return 0; }
+  address return_address() const                 { Unimplemented(); return 0; }
   address destination() const;
-  void  set_destination(address dest)       {
-    int offset = dest - instruction_address();
-    unsigned int insn = 0b100101 << 26;
-    assert((offset & 3) == 0, "should be");
-    offset >>= 2;
-    offset &= (1 << 26) - 1; // mask off insn part
-    insn |= offset;
-    set_int_at(displacement_offset, insn);
-  }
+  void  set_destination(address dest)            { Unimplemented(); }
+  void  set_destination_mt_safe(address dest);
 
-  // Similar to replace_mt_safe, but just changes the destination.  The
-  // important thing is that free-running threads are able to execute
-  // this call instruction at all times.  If the call is an immediate BL
-  // instruction we can simply rely on atomicity of 32-bit writes to
-  // make sure other threads will see no intermediate states.
-
-  // We cannot rely on locks here, since the free-running threads must run at
-  // full speed.
-  //
-  // Used in the runtime linkage of calls; see class CompiledIC.
-  // (Cf. 4506997 and 4479829, where threads witnessed garbage displacements.)
-  void  set_destination_mt_safe(address dest) { set_destination(dest); }
-
-  void  verify_alignment()                       { ; }
+  void  verify_alignment()                       { Unimplemented(); }
   void  verify();
   void  print();
 
@@ -152,19 +125,11 @@ class NativeCall: public NativeInstruction {
   inline friend NativeCall* nativeCall_at(address address);
   inline friend NativeCall* nativeCall_before(address return_address);
 
-  static bool is_call_at(address instr) {
-    const uint32_t insn = (*(uint32_t*)instr);
-    return (insn >> 26) == 0b100101;
-  }
+  static bool is_call_at(address instr) { Unimplemented(); return false; }
 
-  static bool is_call_before(address return_address) {
-    return is_call_at(return_address - NativeCall::return_address_offset);
-  }
+  static bool is_call_before(address return_address) { Unimplemented(); return false; }
 
-  static bool is_call_to(address instr, address target) {
-    return nativeInstruction_at(instr)->is_call() &&
-      nativeCall_at(instr)->destination() == target;
-  }
+  static bool is_call_to(address instr, address target) { Unimplemented(); return false; }
 
   // MT-safe patching of a call instruction.
   static void insert(address code_pos, address entry);
@@ -172,21 +137,9 @@ class NativeCall: public NativeInstruction {
   static void replace_mt_safe(address instr_addr, address code_buffer);
 };
 
-inline NativeCall* nativeCall_at(address address) {
-  NativeCall* call = (NativeCall*)(address - NativeCall::instruction_offset);
-#ifdef ASSERT
-  call->verify();
-#endif
-  return call;
-}
+inline NativeCall* nativeCall_at(address address) { Unimplemented(); return 0; }
 
-inline NativeCall* nativeCall_before(address return_address) {
-  NativeCall* call = (NativeCall*)(return_address - NativeCall::return_address_offset);
-#ifdef ASSERT
-  call->verify();
-#endif
-  return call;
-}
+inline NativeCall* nativeCall_before(address return_address) { Unimplemented(); return 0; }
 
 // An interface for accessing/manipulating native mov reg, imm32 instructions.
 // (used to manipulate inlined 32bit data dll calls, etc.)

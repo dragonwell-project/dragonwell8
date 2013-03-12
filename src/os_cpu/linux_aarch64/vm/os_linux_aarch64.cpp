@@ -23,7 +23,7 @@
  */
 
 // no precompiled headers
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -33,7 +33,6 @@
 #include "jvm_linux.h"
 #include "memory/allocation.inline.hpp"
 #include "mutex_linux.inline.hpp"
-#include "nativeInst_aarch64.hpp"
 #include "os_share_linux.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm.h"
@@ -48,17 +47,11 @@
 #include "runtime/osThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
-#include "thread_linux.inline.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-#ifdef COMPILER1
-#include "c1/c1_Runtime1.hpp"
-#endif
-#ifdef COMPILER2
-#include "opto/runtime.hpp"
-#endif
-#include "../../../../../simulator/simulator.hpp"
+#include "simulator.hpp"
 
 // put OS-includes here
 # include <sys/types.h>
@@ -101,15 +94,14 @@ char* os::non_memory_address_word() {
   return (char*) -1;
 }
 
-void os::initialize_thread() {
+void os::initialize_thread(Thread *thr) {
 #ifdef ASSERT
-  Thread *thread = Thread::current();
-  if (!thread->is_Java_thread()) {
+  if (!thr->is_Java_thread()) {
     // Nothing to do!
     return;
   }
 
-  JavaThread *java_thread = JavaThread::current();
+  JavaThread *java_thread = (JavaThread *)thr;
   // spill frames are a fixed size of N (== 6?) saved registers at 8
   // bytes per register a 64K byte stack allows a call depth of 8K / N
 #define SPILL_STACK_SIZE (1 << 16)
@@ -118,7 +110,6 @@ void os::initialize_thread() {
   java_thread->set_spill_stack(spill_stack + SPILL_STACK_SIZE);
   java_thread->set_spill_stack_limit(spill_stack);
 #endif // ASSERT
-  // Nothing to do!
 }
 
 address os::Linux::ucontext_get_pc(ucontext_t * uc) {

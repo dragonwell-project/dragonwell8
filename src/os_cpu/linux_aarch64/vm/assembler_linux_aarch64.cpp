@@ -26,8 +26,8 @@
 #define OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP
 
 #include "precompiled.hpp"
-#include "asm/assembler.hpp"
-#include "assembler_aarch64.inline.hpp"
+#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/threadLocalStorage.hpp"
 

@@ -81,39 +81,12 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
   } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
     // PC-rel. addressing
     offset = target-branch;
-    int shift = Instruction_aarch64::extract(insn, 31, 31);
-    if (shift) {
-      uint64_t pc_page = (uint64_t)branch >> 12;
-      uint64_t adr_page = (uint64_t)target >> 12;
-      offset = adr_page - pc_page;
-
-      unsigned insn2 = ((unsigned*)branch)[1];
-      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
-	// Load/store register (unsigned immediate)
-	unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
-	u_int64_t dest = (u_int64_t)target;
-	unsigned offset_lo = dest & 0xfff;
-	Instruction_aarch64::patch(branch + sizeof (unsigned),
-				    21, 10, offset_lo >> size);
-	guarantee(((dest >> size) << size) == dest, "misaligned target");
-	guarantee(Instruction_aarch64::extract(insn, 4, 0)
-		  == Instruction_aarch64::extract(insn2, 9, 5),
-		  "Registers should be the same");
-      } else {
-	ShouldNotReachHere();
-      }
-    }
+    int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
+    offset >>= shift;
     int offset_lo = offset & 3;
     offset >>= 2;
-    Instruction_aarch64::spatch(branch, 23, 5, offset);
-    Instruction_aarch64::patch(branch, 30, 29, offset_lo);
-  } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
-    // Move wide constant
-    u_int64_t dest = (u_int64_t)target;
-    Instruction_aarch64::patch(branch, 20, 5, dest & 0xffff);
-    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
-    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
-    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16));
+    Instruction_aarch64::spatch(branch, 18, 5, offset);
+    Instruction_aarch64::spatch(branch, 30, 29, offset_lo);
   } else {
     ShouldNotReachHere();
   }
@@ -134,39 +107,17 @@ address MacroAssembler::pd_call_destination(address branch) {
   } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011010) {
     // Compare & branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 23, 5);
-   } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
+  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
     // Test & branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 18, 5);
   } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
     // PC-rel. addressing
     offset = Instruction_aarch64::extract(insn, 30, 29);
-    offset |= Instruction_aarch64::sextract(insn, 23, 5) << 2;
+    offset |= Instruction_aarch64::sextract(insn, 18, 5);
+    offset <<= 2;
     int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
-    if (shift) {
+    if (shift)
       offset <<= shift;
-      uint64_t target_page = ((uint64_t)branch) + offset;
-      target_page &= ((uint64_t)-1) << shift;
-      unsigned insn2 = ((unsigned*)branch)[1];
-      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
-	// Load/store register (unsigned immediate)
-	unsigned int byte_offset = Instruction_aarch64::extract(insn2, 21, 10);
-	unsigned int size = Instruction_aarch64::extract(insn2, 31, 30);
-	return address(target_page + (byte_offset << size));
-      } else {
-	ShouldNotReachHere();
-      }
-    } else {
-      ShouldNotReachHere();
-    }
-  } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
-    // Move wide constant
-    // FIXME: We assume these instructions are movz, movk, movk, movk.
-    // We don't assert this; we should.
-    u_int32_t *insns = (u_int32_t *)branch;
-    return address(u_int64_t(Instruction_aarch64::extract(insns[0], 20, 5))
-		   + (u_int64_t(Instruction_aarch64::extract(insns[1], 20, 5)) << 16)
-		   + (u_int64_t(Instruction_aarch64::extract(insns[2], 20, 5)) << 32)
-		   + (u_int64_t(Instruction_aarch64::extract(insns[3], 20, 5)) << 48));
   } else {
     ShouldNotReachHere();
   }
@@ -200,59 +151,41 @@ void MacroAssembler::reset_last_Java_frame(bool clear_fp,
 // has to be reset to 0. This is required to allow proper stack traversal.
 void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          Register last_java_fp,
-                                         Register last_java_pc,
-					 Register scratch) {
-
-  if (last_java_pc->is_valid()) {
-      str(last_java_pc, Address(rthread,
-				JavaThread::frame_anchor_offset()
-				+ JavaFrameAnchor::last_Java_pc_offset()));
-    }
-
+                                         Register last_java_pc) {
   // determine last_java_sp register
-  if (last_java_sp == sp) {
-    mov(scratch, sp);
-    last_java_sp = scratch;
-  } else if (!last_java_sp->is_valid()) {
+  if (!last_java_sp->is_valid()) {
     last_java_sp = esp;
   }
-
-  str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
 
   // last_java_fp is optional
   if (last_java_fp->is_valid()) {
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
   }
+
+  str(last_java_pc, Address(rthread,
+			 JavaThread::frame_anchor_offset()
+			 + JavaFrameAnchor::last_Java_pc_offset()));
+
+  str(last_java_sp, Address(rthread, JavaThread::last_Java_sp_offset()));
 }
 
 void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          Register last_java_fp,
-                                         address  last_java_pc,
-					 Register scratch) {
+                                         address  last_java_pc) {
+  // protect rscratch1
+  stp(rscratch1, zr, Address(pre(sp, -2 * wordSize)));
+
   if (last_java_pc != NULL) {
-    mov(scratch, last_java_pc);
+    mov(rscratch1, last_java_pc);
   } else {
-    adr(scratch, pc());
+    Label here;
+    adr(rscratch1, here);
+    bind(here);
   }
 
-  str(scratch, Address(rthread,
-		       JavaThread::frame_anchor_offset()
-		       + JavaFrameAnchor::last_Java_pc_offset()));
+  set_last_Java_frame(last_java_sp, last_java_fp, rscratch1);
 
-  set_last_Java_frame(last_java_sp, last_java_fp, noreg, scratch);
-}
-
-void MacroAssembler::set_last_Java_frame(Register last_java_sp,
-                                         Register last_java_fp,
-                                         Label &L,
-					 Register scratch) {
-  if (L.is_bound()) {
-    set_last_Java_frame(last_java_sp, last_java_fp, target(L), scratch);
-  } else {
-    InstructionMark im(this);
-    L.add_patch_at(code(), locator());
-    set_last_Java_frame(last_java_sp, last_java_fp, (address)NULL, scratch);
-  }
+  ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
 }
 
 // added to make this compile
@@ -318,7 +251,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   // set last Java frame before call
   assert(last_java_sp != rfp, "can't use rfp");
 
-  set_last_Java_frame(last_java_sp, rfp, (address)NULL, rscratch1);
+  set_last_Java_frame(last_java_sp, rfp, (address)NULL);
 
   // do the call, remove parameters
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);
@@ -942,19 +875,6 @@ void MacroAssembler::null_check(Register reg, int offset) {
 // MacroAssembler protected routines needed to implement
 // public methods
 
-void MacroAssembler::mov(Register r, Address dest) {
-  InstructionMark im(this);
-  code_section()->relocate(inst_mark(), dest.rspec());
-  u_int64_t imm64 = (u_int64_t)dest.target();
-  movz(r, imm64 & 0xffff);
-  imm64 >>= 16;
-  movk(r, imm64 & 0xffff, 16);
-  imm64 >>= 16;
-  movk(r, imm64 & 0xffff, 32);
-  imm64 >>= 16;
-  movk(r, imm64 & 0xffff, 48);
-}
-
 void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 {
   if (operand_valid_for_logical_immdiate(0, imm64)) {
@@ -1088,14 +1008,14 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 }
 
 int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
-				    bool want_remainder, Register scratch)
+				    bool want_remainder)
 {
   // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivl instruction - may be needed
   // for implicit exceptions.
   //
-  // constraint : ra/rb =/= scratch
+  // constraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
@@ -1105,13 +1025,13 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   //         quotient  (= ra idiv rb)         min_long
   //         remainder (= ra irem rb)         0
 
-  assert(ra != scratch && rb != scratch, "reg cannot be scratch");
+  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
   static const int64_t min_long = 0x80000000;
-  Label normal_case, special_case;
+  Label normal_case, special_case, nonzero;
 
   // check for special cases
-  movw(scratch, min_long);
-  cmpw(ra, scratch);
+  movw(rscratch1, min_long);
+  cmpw(ra, rscratch1);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
   cmn(rb, 1);
@@ -1128,8 +1048,8 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   if (! want_remainder) {
     sdivw(result, ra, rb);
   } else {
-    sdivw(scratch, ra, rb);
-    msubw(result, scratch, rb, ra);
+    sdivw(rscratch1, ra, rb);
+    msubw(result, rscratch1, rb, ra);
   }
 
   // normal and special case exit
@@ -1139,14 +1059,14 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
 }
 
 int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
-				    bool want_remainder, Register scratch)
+				    bool want_remainder)
 {
   // Full implementation of Java idiv and irem; checks for special
   // case as described in JVM spec., p.243 & p.271.  The function
   // returns the (pc) offset of the idivq instruction - may be needed
   // for implicit exceptions.
   //
-  // constraint : ra/rb =/= scratch
+  // constraint : ra/rb =/= rscratch1
   //         normal case                          special case
   //
   // input : ra: dividend                         min_long
@@ -1156,13 +1076,13 @@ int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
   //         quotient  (= ra idiv rb)         min_long
   //         remainder (= ra irem rb)         0
 
-  assert(ra != scratch && rb != scratch, "reg cannot be scratch");
+  assert(ra != rscratch1 && rb != rscratch1, "reg cannot be rscratch1");
   static const int64_t min_long = 0x8000000000000000ULL;
   Label normal_case, special_case, nonzero;
 
   // check for special cases
-  mov(scratch, min_long);
-  cmp(ra, scratch);
+  mov(rscratch1, min_long);
+  cmp(ra, rscratch1);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
   cmn(rb, 1);
@@ -1179,8 +1099,8 @@ int MacroAssembler::corrected_idivq(Register result, Register ra, Register rb,
   if (! want_remainder) {
     sdiv(result, ra, rb);
   } else {
-    sdiv(scratch, ra, rb);
-    msub(result, scratch, rb, ra);
+    sdiv(rscratch1, ra, rb);
+    msub(result, rscratch1, rb, ra);
   }
 
   // normal and special case exit
@@ -1383,22 +1303,6 @@ void MacroAssembler::pop(unsigned int bitset, Register stack) {
     ldp(as_Register(regs[i]), as_Register(regs[i+1]),
 	Address(post(stack, 2 * wordSize)));
 }
-
-#ifdef ASSERT
-void MacroAssembler::verify_heapbase(const char* msg) {
-  assert (UseCompressedOops || UseCompressedKlassPointers, "should be compressed");
-  assert (Universe::heap() != NULL, "java heap should be initialized");
-  if (CheckCompressedOops) {
-    Label ok;
-    push(1 << rscratch1->encoding(), sp); // cmpptr trashes rscratch1
-    cmpptr(rheapbase, ExternalAddress((address)Universe::narrow_ptrs_base_addr()));
-    br(Assembler::EQ, ok);
-    stop(msg);
-    bind(ok);
-    pop(1 << rscratch1->encoding(), sp);
-  }
-}
-#endif
 
 void MacroAssembler::stop(const char* msg) {
   address ip = pc();
@@ -1674,15 +1578,14 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
 }
 
 void MacroAssembler::push_CPU_state() {
-    push(0x3fffffff, sp);         // integer registers except lr & sp
+  call_Unimplemented();
 }
 
 SkipIfEqual::SkipIfEqual(
     MacroAssembler* masm, const bool* flag_addr, bool value) {
   _masm = masm;
-  unsigned long offset;
-  _masm->adrp(rscratch1, ExternalAddress((address)flag_addr), offset);
-  _masm->ldrb(rscratch1, Address(rscratch1, offset));
+  _masm->mov(rscratch1, (address)flag_addr);
+  _masm->ldrb(rscratch1, rscratch1);
   _masm->cbzw(rscratch1, _label);
 }
 
@@ -1695,6 +1598,22 @@ void MacroAssembler::cmpptr(Register src1, Address src2) {
   ldr(rscratch1, Address(rscratch1));
   cmp(src1, rscratch1);
 }
+
+#ifdef ASSERT
+void MacroAssembler::verify_heapbase(const char* msg) {
+  assert (UseCompressedOops || UseCompressedKlassPointers, "should be compressed");
+  assert (Universe::heap() != NULL, "java heap should be initialized");
+  if (CheckCompressedOops) {
+    Label ok;
+    push(rscratch1); // cmpptr trashes rscratch1
+    cmpptr(rheapbase, ExternalAddress((address)Universe::narrow_ptrs_base_addr()));
+    br(Assembler::EQ, ok);
+    stop(msg);
+    bind(ok);
+    pop(rscratch1);
+  }
+}
+#endif
 
 void MacroAssembler::store_check(Register obj) {
   // Does a store check for the oop in register obj. The content of
@@ -1811,19 +1730,13 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
   }
 #endif
   verify_oop(src, "broken oop in encode_heap_oop_not_null2");
-
-  Register data = src;
-  if (Universe::narrow_oop_base() != NULL) {
+  {
+    Label nonnull;
+    cbz(src, nonnull);
     sub(dst, src, rheapbase);
-    data = dst;
+    lsr(dst, dst, LogMinObjAlignmentInBytes);
+    bind(nonnull);
   }
-  if (Universe::narrow_oop_shift() != 0) {
-    assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
-    lsr(dst, data, LogMinObjAlignmentInBytes);
-    data = dst;
-  }
-  if (data == src)
-    mov(dst, src);
 }
 
 void  MacroAssembler::decode_heap_oop(Register r) {
@@ -1944,6 +1857,7 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   // Also do not verify_oop as this is called by verify_oop.
   if (Universe::narrow_klass_shift() != 0) {
     assert(LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
+    assert(LogKlassAlignmentInBytes == Address::times_8, "klass not aligned on 64bits?");
     if (Universe::narrow_klass_base() != NULL) {
       add(dst, rheapbase, src, Assembler::LSL, LogKlassAlignmentInBytes);
     } else {
@@ -2007,238 +1921,3 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
                                            Register tmp,
                                            Register tmp2) { Unimplemented(); }
 
-Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
-  assert(oop_recorder() != NULL, "this assembler needs a Recorder");
-  int index = oop_recorder()->allocate_metadata_index(obj);
-  RelocationHolder rspec = metadata_Relocation::spec(index);
-  return Address((address)obj, rspec);
-}
-
-void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
-  unsigned long offset;
-  mov(dst, allocate_metadata_address(obj));
-}
-
-// Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
-void MacroAssembler::tlab_allocate(Register obj,
-                                   Register var_size_in_bytes,
-                                   int con_size_in_bytes,
-                                   Register t1,
-                                   Register t2,
-                                   Label& slow_case) {
-  assert_different_registers(obj, t1, t2);
-  assert_different_registers(obj, var_size_in_bytes, t1);
-  Register end = t2;
-
-  // verify_tlab();
-
-  ldr(obj, Address(rthread, JavaThread::tlab_top_offset()));
-  if (var_size_in_bytes == noreg) {
-    lea(end, Address(obj, con_size_in_bytes));
-  } else {
-    lea(end, Address(obj, var_size_in_bytes));
-  }
-  ldr(rscratch1, Address(rthread, JavaThread::tlab_end_offset()));
-  cmp(end, rscratch1);
-  br(Assembler::HI, slow_case);
-
-  // update the tlab top pointer
-  str(end, Address(rthread, JavaThread::tlab_top_offset()));
-
-  // recover var_size_in_bytes if necessary
-  if (var_size_in_bytes == end) {
-    sub(var_size_in_bytes, var_size_in_bytes, obj);
-  }
-  // verify_tlab();
-}
-
-// Preserves r19, and r3.
-Register MacroAssembler::tlab_refill(Label& retry,
-                                     Label& try_eden,
-                                     Label& slow_case) {
-  Register top = r0;
-  Register t1  = r2;
-  Register t2  = r4;
-  assert_different_registers(top, rthread, t1, t2, /* preserve: */ r19, r3);
-  Label do_refill, discard_tlab;
-
-  if (CMSIncrementalMode || !Universe::heap()->supports_inline_contig_alloc()) {
-    // No allocation in the shared eden.
-    b(slow_case);
-  }
-
-  ldr(top, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-  ldr(t1,  Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-
-  // calculate amount of free space
-  sub(t1, t1, top);
-  lsr(t1, t1, LogHeapWordSize);
-
-  // Retain tlab and allocate object in shared space if
-  // the amount free in the tlab is too large to discard.
-
-  ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_refill_waste_limit_offset())));
-  cmp(t1, rscratch1);
-  br(Assembler::LE, discard_tlab);
-
-  // Retain
-  // ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_refill_waste_limit_offset())));
-  mov(t2, (int32_t) ThreadLocalAllocBuffer::refill_waste_limit_increment());
-  add(rscratch1, rscratch1, t2);
-  str(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_refill_waste_limit_offset())));
-
-  if (TLABStats) {
-    // increment number of slow_allocations
-    addmw(Address(rthread, in_bytes(JavaThread::tlab_slow_allocations_offset())),
-	 1, rscratch1);
-  }
-  b(try_eden);
-
-  bind(discard_tlab);
-  if (TLABStats) {
-    // increment number of refills
-    addmw(Address(rthread, in_bytes(JavaThread::tlab_number_of_refills_offset())), 1,
-	 rscratch1);
-    // accumulate wastage -- t1 is amount free in tlab
-    addmw(Address(rthread, in_bytes(JavaThread::tlab_fast_refill_waste_offset())), t1,
-	 rscratch1);
-  }
-
-  // if tlab is currently allocated (top or end != null) then
-  // fill [top, end + alignment_reserve) with array object
-  cbz(top, do_refill);
-
-  // set up the mark word
-  mov(rscratch1, (intptr_t)markOopDesc::prototype()->copy_set_hash(0x2));
-  str(rscratch1, Address(top, oopDesc::mark_offset_in_bytes()));
-  // set the length to the remaining space
-  sub(t1, t1, typeArrayOopDesc::header_size(T_INT));
-  add(t1, t1, (int32_t)ThreadLocalAllocBuffer::alignment_reserve());
-  lsl(t1, t1, log2_intptr(HeapWordSize/sizeof(jint)));
-  strw(t1, Address(top, arrayOopDesc::length_offset_in_bytes()));
-  // set klass to intArrayKlass
-  {
-    unsigned long offset;
-    // dubious reloc why not an oop reloc?
-    adrp(rscratch1, ExternalAddress((address)Universe::intArrayKlassObj_addr()),
-	 offset);
-    ldr(t1, Address(rscratch1, offset));
-  }
-  // store klass last.  concurrent gcs assumes klass length is valid if
-  // klass field is not null.
-  store_klass(top, t1);
-
-  mov(t1, top);
-  ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_start_offset())));
-  sub(t1, t1, rscratch1);
-  incr_allocated_bytes(rthread, t1, 0, rscratch1);
-
-  // refill the tlab with an eden allocation
-  bind(do_refill);
-  ldr(t1, Address(rthread, in_bytes(JavaThread::tlab_size_offset())));
-  lsl(t1, t1, LogHeapWordSize);
-  // allocate new tlab, address returned in top
-  eden_allocate(top, t1, 0, t2, slow_case);
-
-  // Check that t1 was preserved in eden_allocate.
-#ifdef ASSERT
-  if (UseTLAB) {
-    Label ok;
-    Register tsize = r4;
-    assert_different_registers(tsize, rthread, t1);
-    str(tsize, Address(pre(sp, -16)));
-    ldr(tsize, Address(rthread, in_bytes(JavaThread::tlab_size_offset())));
-    lsl(tsize, tsize, LogHeapWordSize);
-    cmp(t1, tsize);
-    br(Assembler::EQ, ok);
-    STOP("assert(t1 != tlab size)");
-    should_not_reach_here();
-
-    bind(ok);
-    ldr(tsize, Address(post(sp, 16)));
-  }
-#endif
-  str(top, Address(rthread, in_bytes(JavaThread::tlab_start_offset())));
-  str(top, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-  add(top, top, t1);
-  sub(top, top, (int32_t)ThreadLocalAllocBuffer::alignment_reserve_in_bytes());
-  str(top, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-  verify_tlab();
-  b(retry);
-
-  return rthread; // for use by caller
-}
-
-// Defines obj, preserves var_size_in_bytes
-void MacroAssembler::eden_allocate(Register obj,
-                                   Register var_size_in_bytes,
-                                   int con_size_in_bytes,
-                                   Register t1,
-                                   Label& slow_case) {
-  assert_different_registers(obj, var_size_in_bytes, t1);
-  if (CMSIncrementalMode || !Universe::heap()->supports_inline_contig_alloc()) {
-    b(slow_case);
-  } else {
-    Register end = t1;
-    Label retry;
-    bind(retry);
-    ExternalAddress heap_top((address) Universe::heap()->top_addr());
-    {
-      unsigned long offset;
-      adrp(rscratch1, heap_top, offset);
-      ldr(obj, Address(rscratch1, offset));
-    }
-    if (var_size_in_bytes == noreg) {
-      lea(end, Address(obj, con_size_in_bytes));
-    } else {
-      lea(end, Address(obj, var_size_in_bytes));
-    }
-    // if end < obj then we wrapped around => object too long => slow case
-    cmp(end, obj);
-    br(Assembler::LO, slow_case);
-    {
-      unsigned long offset;
-      adrp(rscratch1, ExternalAddress((address) Universe::heap()->end_addr()), offset);
-      ldr(rscratch1, Address(rscratch1, offset));
-    }
-    cmp(end, rscratch1);
-    br(Assembler::HI, slow_case);
-    // Compare obj with the top addr, and if still equal, store the new top addr in
-    // end at the address of the top addr pointer. Sets ZF if was equal, and clears
-    // it otherwise.
-    Label ok;
-    lea(rscratch2, heap_top);
-    cmpxchgptr(obj, end, rscratch2, rscratch1, ok, retry);
-    bind(ok);
-  }
-}
-
-void MacroAssembler::verify_tlab() {
-#ifdef ASSERT
-  if (UseTLAB && VerifyOops) {
-    Label next, ok;
-    Register t1 = r4;
-
-    str(t1, Address(pre(sp, -16)));
-    push(t1);
-
-    ldr(t1, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-    ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_start_offset())));
-    cmp(t1, rscratch1);
-    br(Assembler::HS, next);
-    STOP("assert(top >= start)");
-    should_not_reach_here();
-
-    bind(next);
-    ldr(t1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-    ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-    cmp(t1, rscratch1);
-    br(Assembler::HS, ok);
-    STOP("assert(top <= end)");
-    should_not_reach_here();
-
-    bind(ok);
-    ldr(t1, Address(post(sp, 16)));
-  }
-#endif
-}

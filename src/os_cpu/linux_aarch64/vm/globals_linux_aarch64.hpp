@@ -36,9 +36,7 @@ define_pd_global(intx, CompilerThreadStackSize,  0);
 
 define_pd_global(uintx,JVMInvokeMethodSlack,     8192);
 
-// Only used on 64 bit platforms
+// Used on 64 bit platforms for UseCompressedOops base address or CDS
 define_pd_global(uintx,HeapBaseMinAddress,       2*G);
-// Only used on 64 bit Windows platforms
-define_pd_global(bool, UseVectoredExceptions,    false);
 
 #endif // OS_CPU_LINUX_AARCH64_VM_GLOBALS_LINUX_AARCH64_HPP

@@ -48,8 +48,7 @@ inline void OrderAccess::release() {
 }
 
 inline void OrderAccess::fence() {
-  // if (os::is_MP()) 
-  {
+  if (os::is_MP()) {
     // always use locked addl since mfence is sometimes expensive
     __asm__ volatile ("lock; addl $0,0(%%rsp)" : : : "cc", "memory");
   }

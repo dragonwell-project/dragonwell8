@@ -85,28 +85,9 @@ class MacroAssembler: public Assembler {
   // Load Effective Address
   void lea(Register r, const Address &a) { a.lea(this, r); }
 
-  void addmw(Address a, Register incr, Register scratch) {
-    ldrw(scratch, a);
-    addw(scratch, scratch, incr);
-    strw(scratch, a);
-  }
-
-  // Add constant to memory word
-  void addmw(Address a, int imm, Register scratch) {
-    ldrw(scratch, a);
-    if (imm > 0)
-      addw(scratch, scratch, (unsigned)imm);
-    else
-      subw(scratch, scratch, (unsigned)-imm);
-    strw(scratch, a);
-  }
-
-  virtual void _call_Unimplemented(address call_site) {
-    mov(rscratch2, call_site);
+  virtual void call_Unimplemented() {
     haltsim();
   }
-
-#define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
 
   virtual void notify(int type);
 
@@ -130,8 +111,7 @@ class MacroAssembler: public Assembler {
     }
   }
   inline void mov(Register Rd, Register Rn) {
-    if (Rd == Rn) {
-    } else if (Rd == sp || Rn == sp) {
+    if (Rd == sp || Rn == sp) {
       add(Rd, Rn, 0U);
     } else {
       orr(Rd, zr, Rn);
@@ -375,8 +355,6 @@ public:
     mov(dst, (long)i);
   }
 
-  void mov(Register dst, Address a);
-
   // macro instructions for accessing and updating floating point
   // status register
   //
@@ -402,9 +380,9 @@ public:
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
   int corrected_idivl(Register result, Register ra, Register rb,
-		      bool want_remainder, Register tmp = rscratch1);
+		      bool want_remainder);
   int corrected_idivq(Register result, Register ra, Register rb,
-		      bool want_remainder, Register tmp = rscratch1);
+		      bool want_remainder);
 
   // Support for NULL-checks
   //
@@ -578,18 +556,11 @@ public:
   // last Java Frame (fills frame anchor)
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
-                           address last_java_pc,
-			   Register scratch);
+                           address last_java_pc);
 
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
-                           Label &last_java_pc,
-			   Register scratch);
-
-  void set_last_Java_frame(Register last_java_sp,
-                           Register last_java_fp,
-                           Register last_java_pc,
-			   Register scratch);
+                           Register last_java_pc);
 
   void reset_last_Java_frame(Register thread, bool clearfp, bool clear_pc);
 
@@ -782,11 +753,10 @@ public:
 #endif
 
   void push_CPU_state();
-
-  void pop_CPU_state() { 
-    pop(0x3fffffff, sp);         // integer registers except lr & sp
-  }
-
+  // unimplemented
+#if 0
+  void pop_CPU_state();
+#endif
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -799,7 +769,7 @@ public:
 #endif
 
   // unimplemented
-
+#if 0
   // allocation
   void eden_allocate(
     Register obj,                      // result: pointer to object after successful allocation
@@ -817,8 +787,7 @@ public:
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   Register tlab_refill(Label& retry_tlab, Label& try_eden, Label& slow_case); // returns TLS address
-  void verify_tlab();
-
+#endif
   void incr_allocated_bytes(Register thread,
                             Register var_size_in_bytes, int con_size_in_bytes,
                             Register t1 = noreg);
@@ -1133,8 +1102,6 @@ public:
 
   // Data
 
-  void mov_metadata(Register dst, Metadata* obj);
-  Address allocate_metadata_address(Metadata* obj);
   // unimplemented
 #if 0
   void pushoop(jobject obj);
@@ -1197,7 +1164,7 @@ public:
 };
 
 #ifdef ASSERT
-inline bool AbstractAssembler::pd_check_instruction_mark() { return false; }
+inline bool AbstractAssembler::pd_check_instruction_mark() { Unimplemented(); return false; }
 #endif
 
 /**
