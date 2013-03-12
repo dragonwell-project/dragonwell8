@@ -73,9 +73,10 @@ class RegisterSaver {
   // Used by deoptimization when it is managing result register
   // values on its own
 
-  static int rmethod_offset_in_bytes(void)    { return (32 + rmethod->encoding) * wordSize; }
+  static int r0_offset_in_bytes(void)    { return (32 + r0->encoding()) * wordSize; }
+  static int rmethod_offset_in_bytes(void)    { return (32 + rmethod->encoding()) * wordSize; }
   static int rdx_offset_in_bytes(void)    { Unimplemented(); return 0; }
-  static int rscratch1_offset_in_bytes(void)    { return (32 + rscratch1->encoding) * wordSize; }
+  static int rscratch1_offset_in_bytes(void)    { return (32 + rscratch1->encoding()) * wordSize; }
   static int xmm0_offset_in_bytes(void)   { Unimplemented(); return 0; }
   static int return_offset_in_bytes(void) { Unimplemented(); return 0; }
 

@@ -81,8 +81,12 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
   } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
     // PC-rel. addressing
     offset = target-branch;
-    int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
+    int shift = Instruction_aarch64::extract(insn, 31, 31);
     if (shift) {
+      uint64_t pc_page = (uint64_t)branch >> 12;
+      uint64_t adr_page = (uint64_t)target >> 12;
+      offset = adr_page - pc_page;
+
       unsigned insn2 = ((unsigned*)branch)[1];
       if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
 	// Load/store register (unsigned immediate)
@@ -95,7 +99,6 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
 	guarantee(Instruction_aarch64::extract(insn, 4, 0)
 		  == Instruction_aarch64::extract(insn2, 9, 5),
 		  "Registers should be the same");
-	offset >>= shift;
       } else {
 	ShouldNotReachHere();
       }
@@ -137,8 +140,7 @@ address MacroAssembler::pd_call_destination(address branch) {
   } else if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
     // PC-rel. addressing
     offset = Instruction_aarch64::extract(insn, 30, 29);
-    offset |= Instruction_aarch64::sextract(insn, 23, 5);
-    offset <<= 2;
+    offset |= Instruction_aarch64::sextract(insn, 23, 5) << 2;
     int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
     if (shift) {
       offset <<= shift;
@@ -153,6 +155,8 @@ address MacroAssembler::pd_call_destination(address branch) {
       } else {
 	ShouldNotReachHere();
       }
+    } else {
+      ShouldNotReachHere();
     }
   } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
     // Move wide constant
