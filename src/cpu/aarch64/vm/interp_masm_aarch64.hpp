@@ -274,10 +274,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void notify_method_entry();
   void notify_method_exit(TosState state, NotifyMethodExitMode mode);
 
-  virtual void call_Unimplemented() {
+  virtual void _call_Unimplemented(address call_site) {
     save_bcp();
     set_last_Java_frame(esp, rfp, (address) pc(), rscratch1);
-    haltsim();
+    MacroAssembler::_call_Unimplemented(call_site);
   }
 };
 

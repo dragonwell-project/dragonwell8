@@ -1050,6 +1050,8 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
 	else
 	  __ cmp(reg1, imm);
 	return;
+      } else {
+	ShouldNotReachHere();
       }
     }
   }

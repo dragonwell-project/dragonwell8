@@ -101,9 +101,12 @@ class MacroAssembler: public Assembler {
     strw(scratch, a);
   }
 
-  virtual void call_Unimplemented() {
+  virtual void _call_Unimplemented(address call_site) {
+    mov(rscratch2, call_site);
     haltsim();
   }
+
+#define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
 
   virtual void notify(int type);
 
@@ -779,10 +782,11 @@ public:
 #endif
 
   void push_CPU_state();
-  // unimplemented
-#if 0
-  void pop_CPU_state();
-#endif
+
+  void pop_CPU_state() { 
+    pop(0x3fffffff, sp);         // integer registers except lr & sp
+  }
+
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);

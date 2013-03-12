@@ -455,10 +455,10 @@ class StubGenerator: public StubCodeGenerator {
   // converted into a Java-level exception.
   //
   // Contract with Java-level exception handlers:
-  // rax: exception
-  // rdx: throwing pc
+  // r0: exception
+  // r3: throwing pc
   //
-  // NOTE: At entry of this stub, exception-pc must be on stack !!
+  // NOTE: At entry of this stub, exception-pc must be in LR !!
 
   // NOTE: this is always used as a jump target within generated code
   // so it just needs to be generated code wiht no x86 prolog

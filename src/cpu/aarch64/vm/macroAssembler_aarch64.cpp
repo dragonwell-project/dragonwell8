@@ -1670,7 +1670,7 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
 }
 
 void MacroAssembler::push_CPU_state() {
-  call_Unimplemented();
+    push(0x3fffffff, sp);         // integer registers except lr & sp
 }
 
 SkipIfEqual::SkipIfEqual(

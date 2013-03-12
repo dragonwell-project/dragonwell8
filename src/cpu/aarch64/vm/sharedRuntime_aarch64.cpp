@@ -73,9 +73,9 @@ class RegisterSaver {
   // Used by deoptimization when it is managing result register
   // values on its own
 
-  static int rax_offset_in_bytes(void)    { Unimplemented(); return 0; }
+  static int rmethod_offset_in_bytes(void)    { return (32 + rmethod->encoding) * wordSize; }
   static int rdx_offset_in_bytes(void)    { Unimplemented(); return 0; }
-  static int rbx_offset_in_bytes(void)    { Unimplemented(); return 0; }
+  static int rscratch1_offset_in_bytes(void)    { return (32 + rscratch1->encoding) * wordSize; }
   static int xmm0_offset_in_bytes(void)   { Unimplemented(); return 0; }
   static int return_offset_in_bytes(void) { Unimplemented(); return 0; }
 
@@ -139,12 +139,20 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
   // We push rfp twice in this sequence because we want the real rfp
   // to be under the return like a normal enter.
 
-  __ enter();          // rsp becomes 16-byte aligned here
-  __ push_CPU_state(); // Push a multiple of 16 bytes
+  __ enter();
+  __ push_CPU_state();
   if (frame::arg_reg_save_area_bytes != 0) {
     // Allocate argument register save area
     __ sub(sp, sp, frame::arg_reg_save_area_bytes);
   }
+
+  // if (save_fpu_registers) {
+    // for (int i = 30; i >= 0; i -= 2)
+    //   __ stpd(as_FloatRegister(i), as_FloatRegister(i+1),
+    // 	      Address(__ pre(sp, -2 * wordSize)));
+  // } else {
+    __ add(sp, sp, -32 * wordSize);
+  // }
 
   // Set an oopmap for the call site.  This oopmap will map all
   // oop-registers and debug-info registers as callee-saved.  This
@@ -152,16 +160,59 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
   // debug-info recordings, as well as let GC find all oops.
 
   OopMapSet *oop_maps = new OopMapSet();
-  OopMap* map = new OopMap(frame_size_in_slots, 0);
+  OopMap* oop_map = new OopMap(frame_size_in_slots, 0);
 
-  __ call_Unimplemented();
+  for (int i = 0; i < FrameMap::nof_cpu_regs; i++) {
+    Register r = as_Register(i);
+    if (i >= 19 && i <= 28) {
+      int sp_offset = i;
+      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
+                                r->as_VMReg());
+    }
+  }
 
-  return map;
+  // if (save_fpu_registers) {
+  //   for (int i = 0; i < FrameMap::nof_fpu_regs; i++) {
+  //     FloatRegister r = as_FloatRegister(i);
+  //     if (i >= 8 && i <= 15) {
+  // 	int sp_offset = fpu_reg_save_offsets[i];
+  // 	oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
+  // 				  r->as_VMReg());
+  //     }
+  //   }
+  // }
+
+  return oop_map;
 }
 
-void RegisterSaver::restore_live_registers(MacroAssembler* masm) { Unimplemented(); }
+void RegisterSaver::restore_live_registers(MacroAssembler* masm) {
+  // if (save_fpu_registers) {
+  // for (int i = 0; i < 32; i += 2)
+  //   __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
+  // 	    Address(__ post(sp, 2 * wordSize)));
+  // } else {
+    __ add(sp, sp, 32 * wordSize);
+ // }
+  __ pop_CPU_state();
+  __ leave();
+}
 
-void RegisterSaver::restore_result_registers(MacroAssembler* masm) { Unimplemented(); }
+void RegisterSaver::restore_result_registers(MacroAssembler* masm) {
+
+  // Just restore result register. Only used by deoptimization. By
+  // now any callee save register that needs to be restored to a c2
+  // caller of the deoptee has been extracted into the vframeArray
+  // and will be stuffed into the c2i adapter we create for later
+  // restoration so only result registers need to be restored here.
+
+  // Restore fp result register
+  __ ldrd(v0, Address(sp, xmm0_offset_in_bytes()));
+  // Restore integer result register
+  __ ldr(r0, Address(sp, r0_offset_in_bytes()));
+
+  // Pop all of the register save are off the stack except the return address
+  __ add(sp, sp, return_offset_in_bytes());
+}
 
 // Is vector's size (in bytes) bigger than a size saved by default?
 // 16 bytes XMM registers are saved by default using fxsave/fxrstor instructions.
@@ -1710,23 +1761,81 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 // must do any gc of the args.
 //
 RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const char* name) {
+  assert (StubRoutines::forward_exception_entry() != NULL, "must be generated before");
+
   // allocate space for the code
   ResourceMark rm;
 
   CodeBuffer buffer(name, 1000, 512);
   MacroAssembler* masm                = new MacroAssembler(&buffer);
 
-  int frame_size_in_words = 10;
+  int frame_size_in_words;
 
   OopMapSet *oop_maps = new OopMapSet();
   OopMap* map = NULL;
 
   int start = __ offset();
 
+  map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+
   int frame_complete = __ offset();
 
-  __ call_Unimplemented();
+  __ set_last_Java_frame(sp, rfp, address(NULL), rscratch1);
 
+  __ mov(c_rarg0, rthread);
+  __ mov(rscratch1, RuntimeAddress(destination));
+
+  __ brx86(rscratch1, 1, 0, 1);
+
+  // Set an oopmap for the call site.
+  // We need this not only for callee-saved registers, but also for volatile
+  // registers that the compiler might be keeping live across a safepoint.
+
+  oop_maps->add_gc_map( __ offset() - start, map);
+
+  // rax contains the address we are going to jump to assuming no exception got installed
+
+  // clear last_Java_sp
+  __ reset_last_Java_frame(false, false);
+  // check for pending exceptions
+  Label pending;
+  __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+  __ cbnz(rscratch1, pending);
+
+  // get the returned Method*
+  __ get_vm_result_2(rmethod, rthread);
+  __ str(rmethod, Address(sp, RegisterSaver::rmethod_offset_in_bytes()));
+
+  // FIXME: rmethod is an allocated call-saved register.  We should
+  // not be corrupting it.
+
+  // O0 is where we want to jump, overwrite G3 which is saved and scratch
+  __ str(r0, Address(sp, RegisterSaver::rscratch1_offset_in_bytes()));
+  RegisterSaver::restore_live_registers(masm);
+
+  // We are back the the original state on entry and ready to go.
+
+  __ br(rscratch1);
+
+  // Pending exception after the safepoint
+
+  __ bind(pending);
+
+  RegisterSaver::restore_live_registers(masm);
+
+  // exception pending => remove activation and forward to exception handler
+
+  __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
+
+  __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
+  __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+  // -------------
+  // make sure all code is generated
+  masm->flush();
+
+  // return the  blob
+  // frame_size_words or bytes??
   return RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, true);
 }
 

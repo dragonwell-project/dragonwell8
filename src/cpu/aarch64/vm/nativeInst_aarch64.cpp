@@ -35,12 +35,16 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-void NativeInstruction::wrote(int offset) { Unimplemented(); }
+void NativeInstruction::wrote(int offset) {
+  // FIXME: Native needs ISB here
+; }
 
 
-void NativeCall::verify() { Unimplemented(); }
+void NativeCall::verify() { ; }
 
-address NativeCall::destination() const { Unimplemented(); return 0; }
+address NativeCall::destination() const {
+  return instruction_address() + displacement();
+}
 
 void NativeCall::print() { Unimplemented(); }
 
@@ -52,22 +56,6 @@ void NativeCall::insert(address code_pos, address entry) { Unimplemented(); }
 // selfs (spinlock). Then patches the last byte, and then atomicly replaces
 // the jmp's with the first 4 byte of the new instruction.
 void NativeCall::replace_mt_safe(address instr_addr, address code_buffer) { Unimplemented(); }
-
-
-// Similar to replace_mt_safe, but just changes the destination.  The
-// important thing is that free-running threads are able to execute this
-// call instruction at all times.  If the displacement field is aligned
-// we can simply rely on atomicity of 32-bit writes to make sure other threads
-// will see no intermediate states.  Otherwise, the first two bytes of the
-// call are guaranteed to be aligned, and can be atomically patched to a
-// self-loop to guard the instruction while we change the other bytes.
-
-// We cannot rely on locks here, since the free-running threads must run at
-// full speed.
-//
-// Used in the runtime linkage of calls; see class CompiledIC.
-// (Cf. 4506997 and 4479829, where threads witnessed garbage displacements.)
-void NativeCall::set_destination_mt_safe(address dest) { Unimplemented(); }
 
 
 void NativeMovConstReg::verify() { Unimplemented(); }
