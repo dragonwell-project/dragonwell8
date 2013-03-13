@@ -145,10 +145,16 @@ inline NativeCall* nativeCall_before(address return_address) { Unimplemented(); 
 // (used to manipulate inlined 32bit data dll calls, etc.)
 class NativeMovConstReg: public NativeInstruction {
  public:
-  address instruction_address() const { Unimplemented(); return 0; }
-  address next_instruction_address() const { Unimplemented(); return 0; }
-  intptr_t data() const { Unimplemented(); return 0; }
-  void  set_data(intptr_t x) { Unimplemented(); };
+  enum Aarch64_specific_constants {
+    instruction_size            =    4 * 4,
+    instruction_offset          =    0,
+    displacement_offset         =    0,
+  };
+
+  address instruction_address() const       { return addr_at(instruction_offset); }
+  address next_instruction_address() const  { return addr_at(instruction_size); }
+  intptr_t data() const;
+  void  set_data(intptr_t x);
 
   void  verify();
   void  print();
@@ -160,11 +166,32 @@ class NativeMovConstReg: public NativeInstruction {
   inline friend NativeMovConstReg* nativeMovConstReg_at(address address);
   inline friend NativeMovConstReg* nativeMovConstReg_before(address address);
 };
-inline NativeMovConstReg* nativeMovConstReg_at(address address) { Unimplemented(); return 0; }
+
+inline NativeMovConstReg* nativeMovConstReg_at(address address) {
+  NativeMovConstReg* test = (NativeMovConstReg*)(address - NativeMovConstReg::instruction_offset);
+#ifdef ASSERT
+  test->verify();
+#endif
+  return test;
+}
+
+inline NativeMovConstReg* nativeMovConstReg_before(address address) {
+  NativeMovConstReg* test = (NativeMovConstReg*)(address - NativeMovConstReg::instruction_size - NativeMovConstReg::instruction_offset);
+#ifdef ASSERT
+  test->verify();
+#endif
+  return test;
+}
 
 class NativeMovConstRegPatching: public NativeMovConstReg {
  private:
-  friend NativeMovConstRegPatching* nativeMovConstRegPatching_at(address address) { Unimplemented(); return 0; }
+    friend NativeMovConstRegPatching* nativeMovConstRegPatching_at(address address) {
+    NativeMovConstRegPatching* test = (NativeMovConstRegPatching*)(address - instruction_offset);
+    #ifdef ASSERT
+      test->verify();
+    #endif
+    return test;
+    }
 };
 
 // An interface for accessing/manipulating native moves of the form:
@@ -233,16 +260,19 @@ class NativeLoadAddress: public NativeMovRegMem {
   friend NativeLoadAddress* nativeLoadAddress_at (address address) { Unimplemented(); return 0; }
 };
 
-// jump rel32off
-
 class NativeJump: public NativeInstruction {
  public:
+  enum Intel_specific_constants {
+    instruction_size            =    4,
+    instruction_offset          =    0,
+    data_offset                 =    0,
+    next_instruction_offset     =    4
+  };
 
-  address instruction_address() const { Unimplemented(); return 0; }
-  address next_instruction_address() const { Unimplemented(); return 0; }
-  address jump_destination() const { Unimplemented(); return 0; }
-
-  void  set_jump_destination(address dest) { Unimplemented(); }
+  address instruction_address() const       { return addr_at(instruction_offset); }
+  address next_instruction_address() const  { return addr_at(instruction_size); }
+  address jump_destination() const;
+  void set_jump_destination(address dest);
 
   // Creation
   inline friend NativeJump* nativeJump_at(address address);
@@ -259,22 +289,19 @@ class NativeJump: public NativeInstruction {
   static void patch_verified_entry(address entry, address verified_entry, address dest);
 };
 
-inline NativeJump* nativeJump_at(address address) { Unimplemented(); return 0; };
+inline NativeJump* nativeJump_at(address address) {
+  NativeJump* jump = (NativeJump*)(address - NativeJump::instruction_offset);
+#ifdef ASSERT
+  jump->verify();
+#endif
+  return jump;
+}
 
-// Handles all kinds of jump on Intel. Long/far, conditional/unconditional
-class NativeGeneralJump: public NativeInstruction {
- public:
-  address instruction_address() const { Unimplemented(); return 0; }
-  address jump_destination()    const;
-
-  // Creation
-  inline friend NativeGeneralJump* nativeGeneralJump_at(address address);
-
-  // Insertion of native general jump instruction
+class NativeGeneralJump: public NativeJump {
+public:
   static void insert_unconditional(address code_pos, address entry);
   static void replace_mt_safe(address instr_addr, address code_buffer);
-
-  void verify();
+  static void verify();
 };
 
 inline NativeGeneralJump* nativeGeneralJump_at(address address) { Unimplemented(); return 0; }

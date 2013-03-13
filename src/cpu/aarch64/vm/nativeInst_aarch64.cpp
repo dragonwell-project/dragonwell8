@@ -54,6 +54,7 @@ void NativeCall::insert(address code_pos, address entry) { Unimplemented(); }
 void NativeCall::replace_mt_safe(address instr_addr, address code_buffer) { Unimplemented(); }
 
 
+<<<<<<< HEAD
 // Similar to replace_mt_safe, but just changes the destination.  The
 // important thing is that free-running threads are able to execute this
 // call instruction at all times.  If the displacement field is aligned
@@ -71,6 +72,20 @@ void NativeCall::set_destination_mt_safe(address dest) { Unimplemented(); }
 
 
 void NativeMovConstReg::verify() { Unimplemented(); }
+=======
+void NativeMovConstReg::verify() {
+  // make sure code pattern is actually mov reg64, imm64 instructions
+}
+
+intptr_t NativeMovConstReg::data() const {
+  return (intptr_t)MacroAssembler::pd_call_destination(instruction_address());
+}
+
+void NativeMovConstReg::set_data(intptr_t x) {
+  MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
+};
+
+>>>>>>> c3651e4... NativeInst support
 
 
 void NativeMovConstReg::print() { Unimplemented(); }
@@ -101,7 +116,7 @@ void NativeLoadAddress::print() { Unimplemented(); }
 
 //--------------------------------------------------------------------------------
 
-void NativeJump::verify() { Unimplemented(); }
+void NativeJump::verify() { ; }
 
 
 void NativeJump::insert(address code_pos, address entry) { Unimplemented(); }
@@ -123,19 +138,18 @@ void NativeJump::check_verified_entry_alignment(address entry, address verified_
 }
 
 
+address NativeJump::jump_destination() const          {
+  return MacroAssembler::pd_call_destination(instruction_address());
+}
+
+void NativeJump::set_jump_destination(address dest) {
+  MacroAssembler::pd_patch_instruction(instruction_address(), dest);
+};
+
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
-// The problem: jmp <dest> is a 5-byte instruction. Atomical write can be only with 4 bytes.
-// First patches the first word atomically to be a jump to itself.
-// Then patches the last byte  and then atomically patches the first word (4-bytes),
-// thus inserting the desired jump
-// This code is mt-safe with the following conditions: entry point is 4 byte aligned,
-// entry point is in same cache line as unverified entry point, and the instruction being
-// patched is >= 5 byte (size of patch).
-//
-// In C2 the 5+ byte sized instruction is enforced by code in MachPrologNode::emit.
-// In C1 the restriction is enforced by CodeEmitter::method_entry
-//
+
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) { Unimplemented(); }
+
 
 void NativePopReg::insert(address code_pos, Register reg) { Unimplemented(); }
 
@@ -154,8 +168,4 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) { 
 // the jmp's with the first 4 byte of the new instruction.
 void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) { Unimplemented(); }
 
-
-
-address NativeGeneralJump::jump_destination() const { Unimplemented(); return 0; }
-
-bool NativeInstruction::is_dtrace_trap() { Unimplemented(); return false; }
+bool NativeInstruction::is_dtrace_trap() { return false; }
