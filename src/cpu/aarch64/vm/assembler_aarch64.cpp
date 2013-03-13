@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee089300;
+const unsigned long Assembler::asm_bp = 0x00007fffee07f0a0;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -44,7 +44,7 @@ const unsigned long Assembler::asm_bp = 0x00007fffee089300;
 // and decode functiosn provided by the simulator. when we move to
 // real hardware we will need to pull taht code into here
 
-#include "immediate.hpp"
+#include "../../../../../../simulator/immediate.hpp"
 
 // #include "gc_interface/collectedHeap.inline.hpp"
 // #include "interpreter/interpreter.hpp"
@@ -87,7 +87,7 @@ void entry(CodeBuffer *cb) {
   //   printf("\n");
   // }
 
-  MacroAssembler _masm(cb);
+  Assembler _masm(cb);
   address entry = __ pc();
 
   // Smoke test for assembler
@@ -168,7 +168,7 @@ void entry(CodeBuffer *cb) {
     __ adr(r6, __ pc());                               //	adr	x6, .
     __ adr(r6, back);                                  //	adr	x6, back
     __ adr(r6, forth);                                 //	adr	x6, forth
-    __ adrp(r21, __ pc());                             //	adrp	x21, .
+    __ _adrp(r21, __ pc());                             //	adrp	x21, .
 
 // RegImmAbsOp
     __ tbz(r1, 1, __ pc());                            //	tbz	x1, #1, .
@@ -1194,7 +1194,6 @@ Disassembly of section .text:
     Label l, loop, empty;
     address a = __ pc();
     __ adr(r3, l);
-    __ adrp(r4, l);
     __ bl(empty);
     __ movz(r0, 0);
     __ BIND(loop);
@@ -1208,20 +1207,6 @@ Disassembly of section .text:
     __ ret(lr);
   }
 
-  // Test LEA
-  __ lea(r0, Address(sp, 120));
-  __ lea(r0, Address(sp, -120));
-  __ lea(r1, Address(sp, r1, Address::lsl(3)));
-  __ lea(r1, Address(sp, r2, Address::sxtw(3)));
-
-  __ add(r1, r0, 0xff000);
-  __ add(r1, r0, -0xff000);
-
-  __ push(1, sp);
-  __ pop(1, sp);
-
-  __ push(3, sp);
-  __ pop(3, sp);
 
 #endif // PRODUCT
 #endif // ASSERT
@@ -1245,8 +1230,9 @@ extern "C" {
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
 
-void Address::lea(MacroAssembler *as, Register r) const {
 #define __ as->
+
+void Address::lea(MacroAssembler *as, Register r) const {
   switch(_mode) {
   case base_plus_offset: {
     if (_offset > 0)
@@ -1266,8 +1252,40 @@ void Address::lea(MacroAssembler *as, Register r) const {
   default:
     ShouldNotReachHere();
   }
-#undef __
 }
+
+void Assembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  byte_offset = (int64_t)dest.target() & 0xfff;
+  _adrp(reg1, dest.target());
+}
+
+#undef __
+
+#define starti Instruction_aarch64 do_not_use(this); set_current(&do_not_use)
+
+  void Assembler::adr(Register Rd, address adr) {
+    long offset = adr - pc();
+    int offset_lo = offset & 3;
+    offset >>= 2;
+    starti;
+    f(0, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5);
+    rf(Rd, 0);
+  }
+
+  void Assembler::_adrp(Register Rd, address adr) {
+    uint64_t pc_page = (uint64_t)pc() >> 12;
+    uint64_t adr_page = (uint64_t)adr >> 12;
+    long offset = adr_page - pc_page;
+    int offset_lo = offset & 3;
+    offset >>= 2;
+    starti;
+    f(1, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5);
+    rf(Rd, 0);
+  }
+
+#undef starti
 
 Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
   _is_lval = false;
@@ -1405,8 +1423,30 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
   srf(Rd, 0), srf(Rn, 5);
 }
 
+bool Assembler::operand_valid_for_add_sub_immediate(long imm) {
+  bool shift = false;
+  imm = abs(imm);
+  if (imm < (1 << 11))
+    return true;
+  if (imm < (1 << 24)
+      && ((imm >> 12) << 12 == imm)) {
+    return true;
+  }
+  return false;
+}
+
 bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
   return encode_logical_immediate(is32, imm) != 0xffffffff;
+}
+
+bool Assembler::operand_valid_for_float_immediate(double imm) {
+  union {
+    unsigned ival;
+    float val;
+  };
+  val = (float)imm;
+  unsigned result = fp_immediate_for_encoding(ival, true);
+  return encoding_for_fp_immediate(result) == imm;
 }
 
 int AbstractAssembler::code_fill_byte() {

@@ -26,9 +26,6 @@
 #define CPU_AARCH64_VM_INTERPRETER_AARCH64_HPP
 
  public:
-  static Address::ScaleFactor stackElementScale() {
-    return Address::times_8;
-  }
 
   // Offset from rsp (which points to the last stack element)
   static int expr_offset_in_bytes(int i) { return stackElementSize * i; }

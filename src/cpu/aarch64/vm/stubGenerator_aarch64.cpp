@@ -208,6 +208,9 @@ class StubGenerator: public StubCodeGenerator {
 
     address aarch64_entry = __ pc();
 
+    // Save sender's SP for stack traces.
+    __ mov(rscratch1, sp);
+    __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);
@@ -787,9 +790,9 @@ class StubGenerator: public StubCodeGenerator {
   //  Output:
   //     rax   - &from[element count - 1]
   //
-  void array_overlap_test(address no_overlap_target, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(Label& L_no_overlap, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(address no_overlap_target, Label* NOLp, Address::ScaleFactor sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
+  void array_overlap_test(Label& L_no_overlap, int sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
 
   // Shuffle first three arg regs on Windows into Linux/Solaris locations.
   //
@@ -1187,9 +1190,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
-    __ adr(rscratch1, the_pc);
-    __ mov(rscratch2, sp);
-    __ set_last_Java_frame(rscratch2, rfp, rscratch1);
+    __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
 
     // Call runtime
     if (arg1 != noreg) {

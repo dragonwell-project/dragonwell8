@@ -333,32 +333,52 @@ void LIRGenerator::do_NegateOp(NegateOp* x) { Unimplemented(); }
 // for  _fadd, _fmul, _fsub, _fdiv, _frem
 //      _dadd, _dmul, _dsub, _ddiv, _drem
 void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
+
+  if (x->op() == Bytecodes::_frem || x->op() == Bytecodes::_drem) {
+    // float remainder is implemented as a direct call into the runtime
+    LIRItem right(x->x(), this);
+    LIRItem left(x->y(), this);
+
+    BasicTypeList signature(2);
+    if (x->op() == Bytecodes::_frem) {
+      signature.append(T_FLOAT);
+      signature.append(T_FLOAT);
+    } else {
+      signature.append(T_DOUBLE);
+      signature.append(T_DOUBLE);
+    }
+    CallingConvention* cc = frame_map()->c_calling_convention(&signature);
+
+    const LIR_Opr result_reg = result_register_for(x->type());
+    left.load_item_force(cc->at(1));
+    right.load_item();
+
+    __ move(right.result(), cc->at(0));
+
+    address entry;
+    if (x->op() == Bytecodes::_frem) {
+      entry = CAST_FROM_FN_PTR(address, SharedRuntime::frem);
+    } else {
+      entry = CAST_FROM_FN_PTR(address, SharedRuntime::drem);
+    }
+
+    LIR_Opr result = rlock_result(x);
+    __ call_runtime_leaf(entry, getThreadTemp(), result_reg, cc->args());
+    __ move(result_reg, result);
+
+    return;
+  }
+
   LIRItem left(x->x(),  this);
   LIRItem right(x->y(), this);
   LIRItem* left_arg  = &left;
   LIRItem* right_arg = &right;
 
-  if (!(right.is_register() || right.is_constant()))
-    right.load_item();
+  // Always load right hand side.
+  right.load_item();
+
   if (!left.is_register())
     left.load_item();
-
-  // do not load right operand if it is a constant.  only 0 and 1 are
-  // loaded because there are special instructions for loading them
-  // without memory access (not needed for SSE2 instructions)
-  bool must_load_right = false;
-  if (right.is_constant()) {
-    LIR_Const* c = right.result()->as_constant_ptr();
-    assert(c != NULL, "invalid constant");
-    assert(c->type() == T_FLOAT || c->type() == T_DOUBLE, "invalid type");
-    must_load_right = true;
-  }
-
-  if (right.is_register() || must_load_right) {
-    right.load_item();
-  } else {
-    right.dont_load_item();
-  }
 
   LIR_Opr reg = rlock(x);
   LIR_Opr tmp = LIR_OprFact::illegalOpr;

@@ -220,7 +220,8 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   int frame_size_in_slots = frame_size_in_bytes / sizeof(jint);
   OopMap* oop_map = new OopMap(frame_size_in_slots, 0);
 
-  for (int i = 0; i < FrameMap::nof_cpu_regs; i++) {
+  int i;
+  for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
     Register r = as_Register(i);
     if (i >= 19 && i <= 28) {
       int sp_offset = cpu_reg_save_offsets[i];
@@ -230,7 +231,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   }
 
   if (save_fpu_registers) {
-    for (int i = 0; i < FrameMap::nof_fpu_regs; i++) {
+    for (i = 0; i < FrameMap::nof_fpu_regs; i++) {
       FloatRegister r = as_FloatRegister(i);
       if (i >= 8 && i <= 15) {
 	int sp_offset = fpu_reg_save_offsets[i];

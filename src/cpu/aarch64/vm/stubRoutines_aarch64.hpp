@@ -34,7 +34,9 @@
 // call_stub_return_address one instruction beyond the notify. the
 // latter address is sued by the stack unwind code when doign an
 // exception return.
-static bool    returns_to_call_stub(address return_pc)   { return return_pc == _call_stub_return_address + (NotifySimulator ? -4 : 0); }
+static bool    returns_to_call_stub(address return_pc)   {
+  return return_pc == _call_stub_return_address + (NotifySimulator ? -4 : 0);
+}
 
 enum platform_dependent_constants {
   code_size1 = 19000,          // simply increase if too small (assembler will crash if too small)

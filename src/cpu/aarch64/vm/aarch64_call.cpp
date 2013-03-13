@@ -3,8 +3,8 @@
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "cpustate.hpp"
-#include "simulator.hpp"
+#include "../../../../../../simulator/cpustate.hpp"
+#include "../../../../../../simulator/simulator.hpp"
 
 /*
  * a routine to initialise and enter ARM simulator execution when

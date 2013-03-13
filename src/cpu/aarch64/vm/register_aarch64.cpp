@@ -33,9 +33,11 @@ const int ConcreteRegisterImpl::max_fpr = ConcreteRegisterImpl::max_gpr +
 const char* RegisterImpl::name() const {
   const char* names[number_of_registers] = {
     "c_rarg0", "c_rarg1", "c_rarg2", "c_rarg3", "c_rarg4", "c_rarg5", "c_rarg6", "c_rarg7",
-    "rscratch1", "rscratch2", "rcpool", "rmonitors", "rlocals", "rmethod", "rbcp", "rdispatch",
-    "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
-    "r24", "r25", "r26", "rheapbase", "rthread", "rfp", "lr", "r31"
+    "rscratch1", "rscratch2",
+    "r10", "r11", "r12", "r13", "r14", "r15", "r16",
+    "r17", "r18", "r19",
+    "resp", "rdispatch", "rlocals", "rmonitors", "rcpool", "rheapbase",
+    "rthread", "rfp", "lr", "r31"
   };
   return is_valid() ? names[encoding()] : "noreg";
 }

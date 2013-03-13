@@ -73,6 +73,12 @@ void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
   rev16(reg, reg);
 }
 
+void InterpreterMacroAssembler::get_dispatch() {
+  unsigned long offset;
+  adrp(rdispatch, ExternalAddress((address)Interpreter::dispatch_table()), offset);
+  lea(rdispatch, Address(rdispatch, offset));
+}
+
 void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
                                                        int bcp_offset,
                                                        size_t index_size) {
