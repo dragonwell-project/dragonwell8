@@ -300,7 +300,6 @@ void MacroAssembler::call_VM_base(Register oop_result,
   assert(java_thread == rthread, "unexpected register");
 #ifdef ASSERT
   // TraceBytecodes does not use r12 but saves it over the call, so don't verify
-  // r12 is the heapbase.
   // if ((UseCompressedOops || UseCompressedKlassPointers) && !TraceBytecodes) verify_heapbase("call_VM_base: heap base corrupted?");
 #endif // ASSERT
 
@@ -849,15 +848,14 @@ void MacroAssembler::call_VM_leaf_base1(address entry_point,
 					ret_type type) {
   Label E, L;
 
-  // protect rscratch1
-  stp(rscratch1, zr, Address(pre(sp, -2 * wordSize)));
+  stp(rscratch1, rmethod, Address(pre(sp, -2 * wordSize)));
 
   // We add 1 to number_of_arguments because the thread in arg0 is
   // not counted
   mov(rscratch1, entry_point);
   brx86(rscratch1, number_of_gp_arguments + 1, number_of_fp_arguments, type);
 
-  ldp(rscratch1, zr, Address(post(sp, 2 * wordSize)));
+  ldp(rscratch1, rmethod, Address(post(sp, 2 * wordSize)));
 }
 
 void MacroAssembler::call_VM_leaf(address entry_point, int number_of_arguments) {

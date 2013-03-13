@@ -111,8 +111,11 @@ REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 REGISTER_DECLARATION(Register, rscratch1, r8);
 REGISTER_DECLARATION(Register, rscratch2, r9);
 
+// current method -- must be in a call-clobbered register
+REGISTER_DECLARATION(Register, rmethod,   r12);
+
 // non-volatile (callee-save) registers are r16-29
-// of which the following are dedicated gloabl state
+// of which the following are dedicated global state
 
 // link register
 REGISTER_DECLARATION(Register, lr,        r30);
@@ -128,8 +131,6 @@ REGISTER_DECLARATION(Register, rcpool,    r26);
 REGISTER_DECLARATION(Register, rmonitors, r25);
 // locals on stack
 REGISTER_DECLARATION(Register, rlocals,   r24);
-// current method
-REGISTER_DECLARATION(Register, rmethod,   r23);
 // bytecode pointer
 REGISTER_DECLARATION(Register, rbcp,      r22);
 // Dispatch table base
