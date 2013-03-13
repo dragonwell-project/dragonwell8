@@ -48,7 +48,7 @@ enum {
   pd_first_callee_saved_reg = 19 - 2,
   pd_last_callee_saved_reg = 26 - 2,
 
-  pd_last_allocatable_cpu_reg = 25,
+  pd_last_allocatable_cpu_reg = 24,
 
   pd_nof_cpu_regs_reg_alloc = 25,  // number of registers that are visible to register allocator
   pd_nof_fpu_regs_reg_alloc = 32,  // number of registers that are visible to register allocator
