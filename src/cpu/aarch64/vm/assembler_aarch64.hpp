@@ -591,7 +591,7 @@ class InternalAddress: public Address {
   InternalAddress(address target) : Address(target, relocInfo::internal_word_type) {}
 };
 
-const int FPUStateSizeInWords = 27; // FIXME   :-)
+const int FPUStateSizeInWords = 32 * 2;
 
 class Assembler : public AbstractAssembler {
 

@@ -149,7 +149,25 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 }
 
 
-void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) { Unimplemented(); }
+void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
+  verify_oop(receiver);
+  // explicit NULL check not needed since load from [klass_offset] causes a trap
+  // check against inline cache
+  assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
+  int start_offset = offset();
+
+  load_klass(rscratch1, receiver);
+  cmp(rscratch1, iCache);
+
+  // if icache check fails, then jump to runtime routine
+  // Note: RECEIVER must still contain the receiver!
+  Label dont;
+  br(Assembler::EQ, dont);
+  b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  bind(dont);
+  const int ic_cmp_size = 4 * 4;
+  assert(UseCompressedKlassPointers || offset() - start_offset == ic_cmp_size, "check alignment in emit_method_entry");
+}
 
 
 void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {

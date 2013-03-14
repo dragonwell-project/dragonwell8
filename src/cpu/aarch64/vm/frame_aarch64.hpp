@@ -134,7 +134,7 @@
     entry_frame_after_call_words                     = 19,
     entry_frame_call_wrapper_offset                  = -8,
 
-    arg_reg_save_area_bytes                          =  0,
+    arg_reg_save_area_bytes                          =  (32 + 32) * 8,
 
     // TODO - check that this is still correct
     // Native frames

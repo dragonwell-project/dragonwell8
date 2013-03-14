@@ -223,17 +223,26 @@ LIR_Address* LIRGenerator::emit_array_address(LIR_Opr array_opr, LIR_Opr index_o
 
 LIR_Opr LIRGenerator::load_immediate(int x, BasicType type) { Unimplemented(); return LIR_OprFact::illegalOpr; }
 
-void LIRGenerator::increment_counter(address counter, BasicType type, int step) { Unimplemented(); }
+void LIRGenerator::increment_counter(address counter, BasicType type, int step) {
+  LIR_Opr pointer = new_pointer_register();
+  __ move(LIR_OprFact::intptrConst(counter), pointer);
+  LIR_Address* addr = new LIR_Address(pointer, type);
+  increment_counter(addr, step);
+}
 
 
-void LIRGenerator::increment_counter(LIR_Address* addr, int step) { Unimplemented(); }
+void LIRGenerator::increment_counter(LIR_Address* addr, int step) {
+  LIR_Opr reg = new_register(T_INT);
+  __ load(addr, reg);
+  __ add(reg, reg, LIR_OprFact::intConst(step));
+  __ store(reg, addr);
+}
 
 void LIRGenerator::cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info) { Unimplemented(); }
 
-void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr base, int disp, BasicType type, CodeEmitInfo* info) { Unimplemented(); }
-
-
-void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr base, LIR_Opr disp, BasicType type, CodeEmitInfo* info) { Unimplemented(); }
+void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr base, int disp, BasicType type, CodeEmitInfo* info) {
+  __ cmp_reg_mem(condition, reg, new LIR_Address(base, disp, type), info);
+}
 
 
 bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result, LIR_Opr tmp) { Unimplemented(); return false; }

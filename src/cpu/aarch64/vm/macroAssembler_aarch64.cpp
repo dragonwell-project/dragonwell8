@@ -228,6 +228,9 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   if (last_java_pc != NULL) {
     mov(scratch, last_java_pc);
   } else {
+    // FIXME: This is almost never correct.  We should delete all
+    // cases of set_last_Java_frame with last_java_pc=NULL and use the
+    // correct return address instead.
     adr(scratch, pc());
   }
 
@@ -346,6 +349,22 @@ void MacroAssembler::call_VM_base(Register oop_result,
 
 void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions) {
   call_VM_base(oop_result, noreg, noreg, entry_point, number_of_arguments, check_exceptions);
+}
+
+void MacroAssembler::call(Address entry) {
+  if (true // reachable(entry)
+      ) {
+    bl(entry);
+  } else {
+    lea(rscratch1, entry);
+    blr(rscratch1);
+  }
+}
+
+void MacroAssembler::ic_call(address entry) {
+  RelocationHolder rh = virtual_call_Relocation::spec(pc());
+  mov(r0, ExternalAddress((address)Universe::non_oop_word()));
+  call(Address(entry, rh));
 }
 
 // Implementation of call_VM versions

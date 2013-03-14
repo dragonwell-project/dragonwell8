@@ -1085,6 +1085,14 @@ public:
 
   // void call(Label& L, relocInfo::relocType rtype);
 
+  // NOTE: this call tranfers to the effective address of entry NOT
+  // the address contained by entry. This is because this is more natural
+  // for jumps/calls.
+  void call(Address entry);
+
+  // Emit the CompiledIC call idiom
+  void ic_call(address entry);
+
   // Jumps
 
   // unimplemented

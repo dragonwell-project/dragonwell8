@@ -157,7 +157,27 @@ void LIR_Assembler::osr_entry() { Unimplemented(); }
 
 
 // inline cache check; done before the frame is built.
-int LIR_Assembler::check_icache() { Unimplemented(); return 0; }
+int LIR_Assembler::check_icache() {
+  Register receiver = FrameMap::receiver_opr->as_register();
+  Register ic_klass = IC_Klass;
+  const int ic_cmp_size = 4 * 4;
+  const bool do_post_padding = VerifyOops || UseCompressedKlassPointers;
+  if (!do_post_padding) {
+    // insert some nops so that the verified entry point is aligned on CodeEntryAlignment
+    while ((__ offset() + ic_cmp_size) % CodeEntryAlignment != 0) {
+      __ nop();
+    }
+  }
+  int offset = __ offset();
+  __ inline_cache_check(receiver, IC_Klass);
+  assert(__ offset() % CodeEntryAlignment == 0 || do_post_padding, "alignment must be correct");
+  if (do_post_padding) {
+    // force alignment after the cache check.
+    // It's been verified to be aligned if !VerifyOops
+    __ align(CodeEntryAlignment);
+  }
+  return offset;
+}
 
 
 void LIR_Assembler::jobject2reg(jobject o, Register reg) {
@@ -1071,7 +1091,10 @@ void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
 }
 
 
-void LIR_Assembler::ic_call(LIR_OpJavaCall* op) { Unimplemented(); }
+void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
+  __ ic_call(op->addr());
+  add_call_info(code_offset(), op->info());
+}
 
 
 /* Currently, vtable-dispatch is only enabled for sparc platforms */
