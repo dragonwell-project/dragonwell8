@@ -111,7 +111,11 @@ REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 REGISTER_DECLARATION(Register, rscratch1, r8);
 REGISTER_DECLARATION(Register, rscratch2, r9);
 
+<<<<<<< HEAD
 // current method -- must be in a call-clobbered register
+=======
+// current method
+>>>>>>> adbadf4... switch to using r12 as rmethod
 REGISTER_DECLARATION(Register, rmethod,   r12);
 
 // non-volatile (callee-save) registers are r16-29
