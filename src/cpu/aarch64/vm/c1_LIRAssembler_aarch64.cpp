@@ -958,6 +958,8 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       case lir_add: __ add (dest->as_register_lo(), lreg_lo, rreg_lo); break;
       case lir_sub: __ sub (dest->as_register_lo(), lreg_lo, rreg_lo); break;
       case lir_mul: __ mul (dest->as_register_lo(), lreg_lo, rreg_lo); break;
+      case lir_div: __ corrected_idivq(dest->as_register_lo(), lreg_lo, rreg_lo, false, rscratch1); break;
+      case lir_rem: __ corrected_idivq(dest->as_register_lo(), lreg_lo, rreg_lo, true, rscratch1); break;
       default:
 	ShouldNotReachHere();
       }
@@ -965,29 +967,8 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
     } else if (right->is_constant()) {
       jlong c = right->as_constant_ptr()->as_jlong_bits();
       switch (code) {
-        case lir_add:
-	  if (__ operand_valid_for_add_sub_immediate(c))
-	    __ add(dest->as_register_lo(), lreg_lo, c);
-	  else {
-	    __ mov(rscratch1, c);
-	    __ add(dest->as_register_lo(), lreg_lo, rscratch1);
-	  }
-	  break;
-
-      case lir_rem:
-	{
-	  Label no_div0;
-	  __ cbnz(lreg_lo, no_div0);
-	  __ call_Unimplemented();
-	  __ bind(no_div0);
-	  // r0 <== r1 lrem r0
-	  __ mov(rscratch2, c);
-	  __ corrected_idivq(dest->as_register_lo(), lreg_lo, rscratch2,
-			     /* want_remainder */ true, rscratch1);
-	}
-	break;
-
-        case lir_sub:
+        case lir_add: __ add(dest->as_register_lo(), lreg_lo, c); break;
+        case lir_sub: __ sub(dest->as_register_lo(), lreg_lo, c); break;
         default:
           ShouldNotReachHere();
       }

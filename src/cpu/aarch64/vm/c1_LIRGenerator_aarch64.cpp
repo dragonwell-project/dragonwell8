@@ -402,61 +402,55 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
 
 // for  _ladd, _lmul, _lsub, _ldiv, _lrem
 void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
-  if (x->op() == Bytecodes::_ldiv || x->op() == Bytecodes::_lrem ) {
-    // long division is implemented as a direct call into the runtime
-    LIRItem left(x->x(), this);
-    LIRItem right(x->y(), this);
 
-    // the check for division by zero destroys the right operand
-    right.set_destroys_register();
-
-    BasicTypeList signature(2);
-    signature.append(T_LONG);
-    signature.append(T_LONG);
-    CallingConvention* cc = frame_map()->c_calling_convention(&signature);
-
-    // check for division by zero (destroys registers of right operand!)
-    CodeEmitInfo* info = state_for(x);
-
-    const LIR_Opr result_reg = result_register_for(x->type());
-    left.load_item_force(cc->at(1));
-    right.load_item();
-
-    __ move(right.result(), cc->at(0));
-
-    __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
-    __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
-
-    address entry;
-    switch (x->op()) {
-    case Bytecodes::_lrem:
-      entry = CAST_FROM_FN_PTR(address, SharedRuntime::lrem);
-      break; // check if dividend is 0 is done elsewhere
-    case Bytecodes::_ldiv:
-      entry = CAST_FROM_FN_PTR(address, SharedRuntime::ldiv);
-      break; // check if dividend is 0 is done elsewhere
-    case Bytecodes::_lmul:
-      entry = CAST_FROM_FN_PTR(address, SharedRuntime::lmul);
-      break;
-    default:
-      ShouldNotReachHere();
-    }
-
-    LIR_Opr result = rlock_result(x);
-    __ call_runtime_leaf(entry, getThreadTemp(), result_reg, cc->args());
-    __ move(result_reg, result);
-
-    return;
-  }
   // missing test if instr is commutative and if we should swap
   LIRItem left(x->x(), this);
   LIRItem right(x->y(), this);
 
-  left.load_item();
-  // don't load constants to save register
-  right.load_nonconstant();
-  rlock_result(x);
-  arithmetic_op_long(x->op(), x->operand(), left.result(), right.result(), NULL);
+  if (x->op() == Bytecodes::_ldiv || x->op() == Bytecodes::_lrem) {
+
+    // the check for division by zero destroys the right operand
+    right.set_destroys_register();
+
+    // check for division by zero (destroys registers of right operand!)
+    CodeEmitInfo* info = state_for(x);
+
+    left.load_item();
+    right.load_item();
+
+    __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
+    __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
+
+    rlock_result(x);
+    switch (x->op()) {
+    case Bytecodes::_lrem:
+      __ rem (left.result(), right.result(), x->operand());
+      break;
+    case Bytecodes::_ldiv:
+      __ div (left.result(), right.result(), x->operand());
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+
+
+  } else {
+    assert (x->op() == Bytecodes::_lmul || x->op() == Bytecodes::_ladd || x->op() == Bytecodes::_lsub,
+	    "expect lmul, ladd or lsub");
+    // add, sub, mul
+    left.load_item();
+    if (x->op() == Bytecodes::_lmul
+	|| ! Assembler::operand_valid_for_add_sub_immediate(right.get_jlong_constant())) {
+      right.load_item();
+    } else { // add, sub
+      assert (x->op() == Bytecodes::_ladd || x->op() == Bytecodes::_lsub, "expect ladd or lsub");
+      // don't load constants to save register
+      right.load_nonconstant();
+    }
+    rlock_result(x);
+    arithmetic_op_long(x->op(), x->operand(), left.result(), right.result(), NULL);
+  }
 }
 
 // for: _iadd, _imul, _isub, _idiv, _irem
