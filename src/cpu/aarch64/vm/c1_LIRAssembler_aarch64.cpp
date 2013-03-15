@@ -306,6 +306,17 @@ void LIR_Assembler::emit_string_compare(LIR_Opr arg0, LIR_Opr arg1, LIR_Opr dst,
 
 
 
+void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
+  _masm->code_section()->relocate(adr, relocInfo::poll_type);
+  int pc_offset = code_offset();
+  flush_debug_info(pc_offset);
+  info->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
+  if (info->exception_handlers() != NULL) {
+    compilation()->add_exception_handlers_for_pco(pc_offset, info->exception_handlers());
+  }
+}
+
+
 void LIR_Assembler::return_op(LIR_Opr result) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
   // Pop the stack before the safepoint code
@@ -315,28 +326,20 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
   // Note: we do not need to round double result; float result has the right precision
   // the poll sets the condition code, but no data registers
-  Address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()),
-		       relocInfo::poll_return_type);
-
-  unsigned long byte_offset;
-  __ adrp(rscratch1, polling_page, byte_offset);
-  __ ldr(zr, Address(rscratch1, byte_offset));
+  address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+  __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
 
   __ ret(lr);
 }
 
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
-  Address polling_page(os::get_polling_page()
-		       + (SafepointPollOffset % os::vm_page_size() + __ offset()),
-                              relocInfo::poll_type);
+  address polling_page(os::get_polling_page()
+		       + (SafepointPollOffset % os::vm_page_size() + __ offset()));
   guarantee(info != NULL, "Shouldn't be NULL");
-  {
-    unsigned long off;
-    add_debug_info_for_branch(info);
-    __ adrp(rscratch1, polling_page, off);
-    __ ldrw(zr, Address(rscratch1, off));
-  }
+  address insn = __ read_polling_page(rscratch1, polling_page, relocInfo::poll_type);
+  add_debug_info_for_branch(insn, info);
+
   return __ offset();
 }
 

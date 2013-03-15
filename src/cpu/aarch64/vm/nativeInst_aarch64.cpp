@@ -146,6 +146,11 @@ void NativeJump::set_jump_destination(address dest) {
   MacroAssembler::pd_patch_instruction(instruction_address(), dest);
 };
 
+bool NativeInstruction::is_safepoint_poll() {
+  address addr = addr_at(-4);
+  return os::is_poll_address(MacroAssembler::pd_call_destination(addr));
+}
+
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
 
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) { Unimplemented(); }

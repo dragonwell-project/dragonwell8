@@ -97,7 +97,7 @@
   // Note: NEVER push values directly, but only through following push_xxx functions;
   //       This helps us to track the rsp changes compared to the entry rsp (->_rsp_offset)
 
-void push_jint (jint i)     { Unimplemented(); }
+  void push_jint (jint i)     { Unimplemented(); }
   void push_oop  (jobject o)  { Unimplemented(); }
   // Seems to always be in wordSize
   void push_addr (Address a)  { Unimplemented(); }
@@ -109,5 +109,7 @@ void push_jint (jint i)     { Unimplemented(); }
   void dec_stack_after_call (int nof_words) { Unimplemented(); }
 
   void invalidate_registers(bool inv_rax, bool inv_rbx, bool inv_rcx, bool inv_rdx, bool inv_rsi, bool inv_rdi) PRODUCT_RETURN;
+
+  address read_polling_page(Register r, address page, relocInfo::relocType rtype);
 
 #endif // CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP

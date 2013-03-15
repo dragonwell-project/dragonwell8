@@ -571,15 +571,23 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
 }
 
 // virtual method calling
-// n.b. x86 allows RegisterOrConstant for vtable_index
 void MacroAssembler::lookup_virtual_method(Register recv_klass,
-                                           Register vtable_index,
+                                           RegisterOrConstant vtable_index,
                                            Register method_result) {
   const int base = InstanceKlass::vtable_start_offset() * wordSize;
   assert(vtableEntry::size() * wordSize == 8,
          "adjust the scaling in the code below");
-  lea(method_result, Address(recv_klass, vtable_index, Address::lsl(3)));
-  ldr(method_result, Address(method_result, base + vtableEntry::method_offset_in_bytes()));
+  int vtable_offset_in_bytes = base + vtableEntry::method_offset_in_bytes();
+
+  if (vtable_index.is_register()) {
+    lea(method_result, Address(recv_klass,
+			       vtable_index.as_register(),
+			       Address::lsl(LogBytesPerWord)));
+    ldr(method_result, Address(method_result, vtable_offset_in_bytes));
+  } else {
+    vtable_offset_in_bytes += vtable_index.as_constant() * wordSize;
+    ldr(method_result, Address(recv_klass, vtable_offset_in_bytes));
+  }
 }
 
 void MacroAssembler::check_klass_subtype(Register sub_klass,

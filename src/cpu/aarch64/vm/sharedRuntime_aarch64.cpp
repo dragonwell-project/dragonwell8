@@ -1689,12 +1689,66 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   address start   = __ pc();
   address call_pc = NULL;
   int frame_size_in_words;
-
-  __ call_Unimplemented();
+  bool cause_return = (poll_type == POLL_AT_RETURN);
+  bool save_vectors = (poll_type == POLL_AT_VECTOR_LOOP);
 
   // Save registers, fpu state, and flags
   map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
+  // The following is basically a call_VM.  However, we need the precise
+  // address of the call in order to generate an oopmap. Hence, we do all the
+  // work outselves.
+
+  Label retaddr;
+  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+
+  // The return address must always be correct so that frame constructor never
+  // sees an invalid pc.
+
+  if (!cause_return) {
+    // overwrite the return address pushed by save_live_registers
+    __ ldr(c_rarg0, Address(rthread, JavaThread::saved_exception_pc_offset()));
+    __ str(c_rarg0, Address(rfp, wordSize));
+  }
+
+  // Do the call
+  __ mov(c_rarg0, rthread);
+  __ lea(rscratch1, RuntimeAddress(call_ptr));
+  __ brx86(rscratch1, 1, 0, 1);
+  __ bind(retaddr);
+
+  // Set an oopmap for the call site.  This oopmap will map all
+  // oop-registers and debug-info registers as callee-saved.  This
+  // will allow deoptimization at this safepoint to find all possible
+  // debug-info recordings, as well as let GC find all oops.
+
+  oop_maps->add_gc_map( __ pc() - start, map);
+
+  Label noException;
+
+  __ reset_last_Java_frame(false, false);
+
+  __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+  __ cbz(rscratch1, noException);
+
+  // Exception pending
+
+  RegisterSaver::restore_live_registers(masm);
+
+  __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+  // No exception case
+  __ bind(noException);
+
+  // Normal exit, restore registers and exit.
+  RegisterSaver::restore_live_registers(masm);
+
+  __ ret(lr);
+
+  // Make sure all code is generated
+  masm->flush();
+
+  // Fill-out other meta info
   return SafepointBlob::create(&buffer, oop_maps, frame_size_in_words);
 }
 
@@ -1754,10 +1808,6 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   // get the returned Method*
   __ get_vm_result_2(rmethod, rthread);
   __ str(rmethod, Address(sp, RegisterSaver::rmethod_offset_in_bytes()));
-
-  // FIXME: rmethod is an allocated call-saved register.  We should
-  // not be corrupting it.  We really should be using a call-clobbered
-  // register for rmethod.
 
   // r0 is where we want to jump, overwrite rscratch1 which is saved and scratch
   __ str(r0, Address(sp, RegisterSaver::rscratch1_offset_in_bytes()));

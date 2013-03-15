@@ -405,16 +405,17 @@ class Address VALUE_OBJ_CLASS_SPEC {
       _is_lval(false),
       _target(target)  { }
   Address(address target, relocInfo::relocType rtype = relocInfo::external_word_type);
-  Address(Register base, RegisterOrConstant index, extend ext = lsl(), int o = 0)
+  Address(Register base, RegisterOrConstant index, extend ext = lsl())
     : _base (base),
-      _ext(ext), _offset(o), _target(0) {
+      _ext(ext), _offset(0), _target(0) {
     if (index.is_register()) {
       _mode = base_plus_offset_reg;
       _index = index.as_register();
-      assert(o == 0, "inconsistent address");
     } else {
+      guarantee(ext.option() == ext::uxtx, "should be");
+      assert(index.is_constant(), "should be");
       _mode = base_plus_offset;
-      _offset = o;
+      _offset = index.as_constant() << ext.shift();
     }
   }
 

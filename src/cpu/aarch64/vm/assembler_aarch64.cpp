@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee07f0a0;
+const unsigned long Assembler::asm_bp = 0x00007fffee1626f8;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -1257,7 +1257,7 @@ void Address::lea(MacroAssembler *as, Register r) const {
 void Assembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
-  byte_offset = (int64_t)dest.target() & 0xfff;
+  byte_offset = (uint64_t)dest.target() & 0xfff;
   _adrp(reg1, dest.target());
 }
 

@@ -830,7 +830,7 @@ public:
   // virtual method calling
   // n.b. x86 allows RegisterOrConstant for vtable_index
   void lookup_virtual_method(Register recv_klass,
-                             Register vtable_index,
+                             RegisterOrConstant vtable_index,
                              Register method_result);
 
   // Test sub_klass against super_klass, with fast and slow paths.

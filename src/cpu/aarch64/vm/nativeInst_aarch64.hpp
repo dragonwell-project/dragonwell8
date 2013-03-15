@@ -60,7 +60,7 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   inline bool is_return();
   inline bool is_jump();
   inline bool is_cond_jump();
-  inline bool is_safepoint_poll();
+  bool is_safepoint_poll();
   inline bool is_mov_literal64();
 
  protected:
@@ -339,7 +339,6 @@ inline bool NativeInstruction::is_call()         { Unimplemented(); return false
 inline bool NativeInstruction::is_return()       { Unimplemented(); return false; }
 inline bool NativeInstruction::is_jump()         { Unimplemented(); return false; }
 inline bool NativeInstruction::is_cond_jump()    { Unimplemented(); return false; }
-inline bool NativeInstruction::is_safepoint_poll() { Unimplemented(); return false; }
 
 inline bool NativeInstruction::is_mov_literal64() { Unimplemented(); return false; }
 

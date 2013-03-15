@@ -220,9 +220,9 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
   // There is no requirement that any ordering here matches any ordering c2 gives
   // it's optoregs.
 
-    number_of_registers =      RegisterImpl::number_of_registers +
-                               2 * FloatRegisterImpl::number_of_registers +
-                               1 // flags
+    number_of_registers = (2 * RegisterImpl::number_of_registers +
+                           2 * FloatRegisterImpl::number_of_registers +
+                           1) // flags
   };
 
   // added to make it compile
