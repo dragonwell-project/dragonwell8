@@ -440,13 +440,15 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
 	    "expect lmul, ladd or lsub");
     // add, sub, mul
     left.load_item();
-    if (x->op() == Bytecodes::_lmul
-	|| ! Assembler::operand_valid_for_add_sub_immediate(right.get_jlong_constant())) {
-      right.load_item();
-    } else { // add, sub
-      assert (x->op() == Bytecodes::_ladd || x->op() == Bytecodes::_lsub, "expect ladd or lsub");
-      // don't load constants to save register
-      right.load_nonconstant();
+    if (! right.is_register()) {
+      if (x->op() == Bytecodes::_lmul
+	  || ! Assembler::operand_valid_for_add_sub_immediate(right.get_jlong_constant())) {
+	right.load_item();
+      } else { // add, sub
+	assert (x->op() == Bytecodes::_ladd || x->op() == Bytecodes::_lsub, "expect ladd or lsub");
+	// don't load constants to save register
+	right.load_nonconstant();
+      }
     }
     rlock_result(x);
     arithmetic_op_long(x->op(), x->operand(), left.result(), right.result(), NULL);
