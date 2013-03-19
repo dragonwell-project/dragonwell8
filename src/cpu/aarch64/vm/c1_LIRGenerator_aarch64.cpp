@@ -548,7 +548,90 @@ void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
 }
 
 // _ishl, _lshl, _ishr, _lshr, _iushr, _lushr
-void LIRGenerator::do_ShiftOp(ShiftOp* x) { Unimplemented(); }
+void LIRGenerator::do_ShiftOp(ShiftOp* x) {
+
+  LIRItem left(x->x(),  this);
+  LIRItem right(x->y(), this);
+
+  left.load_item();
+
+  rlock_result(x);
+  if (right.is_constant()) {
+    right.dont_load_item();
+    
+    switch (x->op()) {
+    case Bytecodes::_ishl: {
+      int c = right.get_jint_constant() & 0x1f;
+      __ shift_left(left.result(), c, x->operand());
+      break;
+    }
+    case Bytecodes::_ishr: {
+      int c = right.get_jint_constant() & 0x1f;
+      __ shift_right(left.result(), c, x->operand());
+      break;
+    }
+    case Bytecodes::_iushr: {
+      int c = right.get_jint_constant() & 0x1f;
+      __ unsigned_shift_right(left.result(), c, x->operand());
+      break;
+    }
+    case Bytecodes::_lshl: {
+      int c = right.get_jint_constant() & 0x3f;
+      __ shift_left(left.result(), c, x->operand());
+      break;
+    }
+    case Bytecodes::_lshr: {
+      int c = right.get_jint_constant() & 0x3f;
+      __ shift_right(left.result(), c, x->operand());
+      break;
+    }
+    case Bytecodes::_lushr: {
+      int c = right.get_jint_constant() & 0x3f;
+      __ unsigned_shift_right(left.result(), c, x->operand());
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+    }
+  } else {
+    right.load_item();
+    LIR_Opr tmp = new_register(T_INT);
+    switch (x->op()) {
+    case Bytecodes::_ishl: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x1f), tmp);
+      __ shift_left(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    case Bytecodes::_ishr: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x1f), tmp);
+      __ shift_right(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    case Bytecodes::_iushr: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x1f), tmp);
+      __ unsigned_shift_right(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    case Bytecodes::_lshl: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x3f), tmp);
+      __ shift_left(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    case Bytecodes::_lshr: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x3f), tmp);
+      __ shift_right(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    case Bytecodes::_lushr: {
+      __ logical_and(right.result(), LIR_OprFact::intConst(0x3f), tmp);
+      __ unsigned_shift_right(left.result(), tmp, x->operand(), tmp);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+    }
+  }
+}
 
 // _iand, _land, _ior, _lor, _ixor, _lxor
 void LIRGenerator::do_LogicOp(LogicOp* x) { Unimplemented(); }
