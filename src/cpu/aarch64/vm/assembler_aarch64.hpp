@@ -150,7 +150,7 @@ REGISTER_DECLARATION(Register, esp,      r20);
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
 namespace asm_util {
-  uint32_t encode_logical_immediate(int is32, uint64_t imm);
+  uint32_t encode_logical_immediate(bool is32, uint64_t imm);
 };
 
 using namespace asm_util;
@@ -1855,7 +1855,7 @@ public:
   // Stack overflow checking
   virtual void bang_stack_with_offset(int offset);
 
-  static bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
+  static bool operand_valid_for_logical_immediate(bool is32, uint64_t imm);
   static bool operand_valid_for_add_sub_immediate(long imm);
   static bool operand_valid_for_float_immediate(double imm);
 };

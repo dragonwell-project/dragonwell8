@@ -634,7 +634,36 @@ void LIRGenerator::do_ShiftOp(ShiftOp* x) {
 }
 
 // _iand, _land, _ior, _lor, _ixor, _lxor
-void LIRGenerator::do_LogicOp(LogicOp* x) { Unimplemented(); }
+void LIRGenerator::do_LogicOp(LogicOp* x) {
+
+  LIRItem left(x->x(),  this);
+  LIRItem right(x->y(), this);
+
+  left.load_item();
+
+  rlock_result(x);
+  if (right.is_constant()
+      && ((right.type()->tag() == intTag
+	   && Assembler::operand_valid_for_logical_immediate(true, right.get_jint_constant()))
+	  || (right.type()->tag() == longTag
+	      && Assembler::operand_valid_for_logical_immediate(false, right.get_jlong_constant()))))  {
+    right.dont_load_item();
+  } else {
+    right.load_item();
+  }
+  switch (x->op()) {
+  case Bytecodes::_iand:
+  case Bytecodes::_land:
+    __ logical_and(left.result(), right.result(), x->operand()); break;
+  case Bytecodes::_ior:
+  case Bytecodes::_lor:
+    __ logical_or (left.result(), right.result(), x->operand()); break;
+  case Bytecodes::_ixor:
+  case Bytecodes::_lxor:
+    __ logical_xor(left.result(), right.result(), x->operand()); break;
+  default: Unimplemented();
+  }
+}
 
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
 void LIRGenerator::do_CompareOp(CompareOp* x) { Unimplemented(); }
