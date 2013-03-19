@@ -1135,7 +1135,7 @@ int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
   cmpw(ra, scratch);
   br(Assembler::NE, normal_case);
   // check for -1 in rb
-  cmn(rb, 1);
+  cmnw(rb, 1);
   br(Assembler::NE, normal_case);
   if (! want_remainder)
     mov(result, ra);
