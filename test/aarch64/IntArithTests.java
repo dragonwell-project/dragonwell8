@@ -6,7 +6,11 @@ public class IntArithTests {
     private static final int IIMM24_3 = 0x1000; // first 12 bit shifted imm
     private static final int IIMM24_4 = 0xfff000; // Last 12 bit shifted imm
     private static final int IIMM24_5 = 0x1001000; // Should not encode as imm
-    
+
+    private static int test_neg(int a) {
+	return -a;
+    }
+
     private static int test_addi(int a, int b) {
 	return a + b;
     }
@@ -83,6 +87,7 @@ public class IntArithTests {
     }
 
     public static void main(String[] args) {
+	assertThat(test_neg(10) == -10);
 	assertThat(test_addi(3, 2) == 5);
 	assertThat(test_addi(Integer.MAX_VALUE, 1) == Integer.MIN_VALUE);
 	assertThat(test_addic0(3) == 4);

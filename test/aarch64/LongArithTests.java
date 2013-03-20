@@ -7,7 +7,11 @@ public class LongArithTests {
     private static final long IIMM24_3 = 0x1000; // first 12 bit shifted imm
     private static final long IIMM24_4 = 0xfff000; // Last 12 bit shifted imm
     private static final long IIMM24_5 = 0x1001000; // Should not encode as imm
-    
+
+    private static long test_neg(long a) {
+	return -a;
+    }
+
     private static long test_add(long a, long b) {
 	return a + b;
     }
@@ -84,6 +88,7 @@ public class LongArithTests {
     }
 
     public static void main(String[] args) {
+	assertThat(test_neg(10) == -10);
 	assertThat(test_add(3, 2) == 5);
 	assertThat(test_add(Long.MAX_VALUE, 1) == Long.MIN_VALUE);
 	assertThat(test_addc0(3) == 4);

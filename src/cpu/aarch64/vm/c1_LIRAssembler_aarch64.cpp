@@ -1235,7 +1235,22 @@ void LIR_Assembler::align_backward_branch_target() {
 }
 
 
-void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) { Unimplemented(); }
+void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
+  if (left->is_single_cpu()) {
+    assert(dest->is_single_cpu(), "expect single result reg");
+    __ negw(dest->as_register(), left->as_register());
+  } else if (left->is_double_cpu()) {
+    assert(dest->is_double_cpu(), "expect double result reg");
+    __ neg(dest->as_register_lo(), left->as_register_lo());
+  } else if (left->is_single_fpu()) {
+    assert(dest->is_single_fpu(), "expect single float result reg");
+    __ fnegs(dest->as_float_reg(), left->as_float_reg());
+  } else {
+    assert(left->is_double_fpu(), "expect double float operand reg");
+    assert(dest->is_double_fpu(), "expect double float result reg");
+    __ fnegd(dest->as_double_reg(), left->as_double_reg());
+  }
+}
 
 
 void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) { Unimplemented(); }

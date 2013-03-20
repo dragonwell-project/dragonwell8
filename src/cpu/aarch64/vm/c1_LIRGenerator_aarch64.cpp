@@ -349,7 +349,14 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) { Unimplemented(); }
 void LIRGenerator::do_MonitorExit(MonitorExit* x) { Unimplemented(); }
 
 // _ineg, _lneg, _fneg, _dneg
-void LIRGenerator::do_NegateOp(NegateOp* x) { Unimplemented(); }
+void LIRGenerator::do_NegateOp(NegateOp* x) {
+  
+  LIRItem from(x->x(), this);
+  from.load_item();
+  LIR_Opr result = rlock_result(x);
+  __ negate (from.result(), result);
+
+}
 
 // for  _fadd, _fmul, _fsub, _fdiv, _frem
 //      _dadd, _dmul, _dsub, _ddiv, _drem
