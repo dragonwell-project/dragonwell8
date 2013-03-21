@@ -700,6 +700,13 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
       printf("%s\n", m->name_and_sig_as_C_string());
     } else
       printf("not a Method\n");
+  } else {
+    CodeBlob *cb = CodeCache::find_blob((address)pc);
+    if (cb != NULL && cb->is_nmethod()) {
+      ResourceMark rm;
+      nmethod* nm = (nmethod*)cb;
+      printf("nmethod %s\n", nm->method()->name_and_sig_as_C_string());
+    }
   }
 
   nextfp = p[frame::link_offset];
