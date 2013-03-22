@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee1626f8;
+const unsigned long Assembler::asm_bp = 0x00007fffee1f09f8;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -1235,6 +1235,8 @@ extern "C" {
 void Address::lea(MacroAssembler *as, Register r) const {
   switch(_mode) {
   case base_plus_offset: {
+    if (_offset == 0 && _base == r) // it's a nop
+      break;
     if (_offset > 0)
       __ add(r, _base, _offset);
     else
@@ -1403,6 +1405,7 @@ void Assembler::wrap_label(Label &L, int prfop, prefetch_insn insn) {
   // the absolute value of the immediate as for uimm24.
 void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
 				  int negated_op) {
+  assert(uimm || Rd != Rn, "should be");
   union {
     unsigned u;
     int imm;

@@ -83,7 +83,11 @@ class MacroAssembler: public Assembler {
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
 
   // Load Effective Address
-  void lea(Register r, const Address &a) { a.lea(this, r); }
+  void lea(Register r, const Address &a) {
+    InstructionMark im(this);
+    code_section()->relocate(inst_mark(), a.rspec());
+    a.lea(this, r);
+  }
 
   void addmw(Address a, Register incr, Register scratch) {
     ldrw(scratch, a);

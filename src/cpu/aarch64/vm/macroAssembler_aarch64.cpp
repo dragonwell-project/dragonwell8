@@ -83,19 +83,37 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     offset = target-branch;
     int shift = Instruction_aarch64::extract(insn, 31, 31) ? 12 : 0;
     if (shift) {
+<<<<<<< HEAD
+=======
+      u_int64_t dest = (u_int64_t)target;
+      uint64_t pc_page = (uint64_t)branch >> 12;
+      uint64_t adr_page = (uint64_t)target >> 12;
+      unsigned offset_lo = dest & 0xfff;
+      offset = adr_page - pc_page;
+
+>>>>>>> 190152e... More magamorphic calls
       unsigned insn2 = ((unsigned*)branch)[1];
       if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
 	// Load/store register (unsigned immediate)
 	unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
-	u_int64_t dest = (u_int64_t)target;
-	unsigned offset_lo = dest & 0xfff;
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				    21, 10, offset_lo >> size);
 	guarantee(((dest >> size) << size) == dest, "misaligned target");
 	guarantee(Instruction_aarch64::extract(insn, 4, 0)
 		  == Instruction_aarch64::extract(insn2, 9, 5),
 		  "Registers should be the same");
+<<<<<<< HEAD
 	offset >>= shift;
+=======
+      } else if (Instruction_aarch64::extract(insn2, 31, 29) == 0b100
+		 && Instruction_aarch64::extract(insn2, 23, 22) == 0b00) {
+	// add (immediate)
+	Instruction_aarch64::patch(branch + sizeof (unsigned),
+				   21, 10, offset_lo);
+	guarantee(Instruction_aarch64::extract(insn, 4, 0)
+		  == Instruction_aarch64::extract(insn2, 4, 0),
+		  "Registers should be the same");
+>>>>>>> 190152e... More magamorphic calls
       } else {
 	ShouldNotReachHere();
       }
@@ -949,11 +967,8 @@ void MacroAssembler::null_check(Register reg, int offset) {
   if (needs_explicit_null_check(offset)) {
     // provoke OS NULL exception if reg = NULL by
     // accessing M[reg] w/o changing any (non-CC) registers
-    // NOTE: cmpl is plenty here to provoke a segv
+    // NOTE: this is plenty to provoke a segv
     ldr(zr, Address(reg));
-    // Note: should probably use testl(rax, Address(reg, 0));
-    //       may be shorter code (however, this version of
-    //       testl needs to be implemented first)
   } else {
     // nothing to do, (later) access of M[reg + offset]
     // will provoke OS NULL exception if reg = NULL
@@ -2228,7 +2243,11 @@ void MacroAssembler::eden_allocate(Register obj,
     // end at the address of the top addr pointer. Sets ZF if was equal, and clears
     // it otherwise.
     Label ok;
-    lea(rscratch2, heap_top);
+    {
+      unsigned long offset;
+      adrp(rscratch2, heap_top, offset);
+      lea(rscratch2, Address(rscratch2, offset));
+    }
     cmpxchgptr(obj, end, rscratch2, rscratch1, ok, retry);
     bind(ok);
   }
