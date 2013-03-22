@@ -203,11 +203,10 @@ enum reg_save_layout {
 // Save off registers which might be killed by calls into the runtime.
 // Tries to smart of about FP registers.  In particular we separate
 // saving and describing the FPU registers for deoptimization since we
-// have to save the FPU registers twice if we describe them and on P4
-// saving FPU registers which don't contain anything appears
-// expensive.  The deopt blob is the only thing which needs to
-// describe FPU registers.  In all other cases it should be sufficient
-// to simply save their current value.
+// have to save the FPU registers twice if we describe them.  The
+// deopt blob is the only thing which needs to describe FPU registers.
+// In all other cases it should be sufficient to simply save their
+// current value.
 
 static int cpu_reg_save_offsets[FrameMap::nof_cpu_regs];
 static int fpu_reg_save_offsets[FrameMap::nof_fpu_regs];
@@ -223,7 +222,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   int i;
   for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
     Register r = as_Register(i);
-    if (i >= 19 && i <= 28) {
+    if (i <= 28 && i != rscratch1->encoding() && i != rscratch2->encoding()) {
       int sp_offset = cpu_reg_save_offsets[i];
       oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
                                 r->as_VMReg());
@@ -233,7 +232,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   if (save_fpu_registers) {
     for (i = 0; i < FrameMap::nof_fpu_regs; i++) {
       FloatRegister r = as_FloatRegister(i);
-      if (i >= 8 && i <= 15) {
+      {
 	int sp_offset = fpu_reg_save_offsets[i];
 	oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
 				  r->as_VMReg());
@@ -293,19 +292,19 @@ static void restore_live_registers_except_rax(StubAssembler* sasm, bool restore_
 
 void Runtime1::initialize_pd() {
   int i;
-  int sp_offset = 0; //  start doubleword aligned
-
-  for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
-    Register r = as_Register(i);
-    cpu_reg_save_offsets[i] = sp_offset;
-    sp_offset++;
-  }
+  int sp_offset = 0;
 
   // all float registers are saved explicitly
   assert(FrameMap::nof_fpu_regs == 32, "double registers not handled here");
   for (i = 0; i < FrameMap::nof_fpu_regs; i++) {
     fpu_reg_save_offsets[i] = sp_offset;
-    sp_offset++;
+    sp_offset += 2;   // SP offsets are in halfwords
+  }
+
+  for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
+    Register r = as_Register(i);
+    cpu_reg_save_offsets[i] = sp_offset;
+    sp_offset += 2;   // SP offsets are in halfwords
   }
 }
 
