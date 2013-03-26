@@ -1384,8 +1384,11 @@ void MacroAssembler::popa() {
 }
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
-void MacroAssembler::push(unsigned int bitset, Register stack) {
+// Return the number of registers pushed
+int MacroAssembler::push(unsigned int bitset, Register stack) {
   // need to push all registers including original sp
+
+  int words_pushed = 0;
 
   // Scan bitset to accumulate register pairs
   unsigned char regs[32];
@@ -1398,12 +1401,18 @@ void MacroAssembler::push(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;  // Only push an even nuber of regs
 
-  for (int i = count - 2; i >= 0; i-= 2)
+  for (int i = count - 2; i >= 0; i-= 2) {
     stp(as_Register(regs[i]), as_Register(regs[i+1]),
 	Address(pre(stack, -2 * wordSize)));
+    words_pushed += 2;
+  }
+
+  return words_pushed;
 }
 
-void MacroAssembler::pop(unsigned int bitset, Register stack) {
+int MacroAssembler::pop(unsigned int bitset, Register stack) {
+  int words_pushed = 0;
+
   // Scan bitset to accumulate register pairs
   unsigned char regs[32];
   unsigned count = 0;
@@ -1415,9 +1424,13 @@ void MacroAssembler::pop(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;
 
-  for (unsigned i = 0; i < count; i+= 2)
+  for (unsigned i = 0; i < count; i+= 2) {
     ldp(as_Register(regs[i]), as_Register(regs[i+1]),
 	Address(post(stack, 2 * wordSize)));
+    words_pushed += 2;
+  }
+
+  return words_pushed;
 }
 
 #ifdef ASSERT
@@ -1710,7 +1723,23 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
 }
 
 void MacroAssembler::push_CPU_state() {
+<<<<<<< HEAD
   call_Unimplemented();
+=======
+    push(0x3fffffff, sp);         // integer registers except lr & sp
+
+    for (int i = 30; i >= 0; i -= 2)
+      stpd(as_FloatRegister(i), as_FloatRegister(i+1),
+	   Address(pre(sp, -2 * wordSize)));
+}
+
+void MacroAssembler::pop_CPU_state() {
+  for (int i = 0; i < 32; i += 2)
+    ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
+	 Address(post(sp, 2 * wordSize)));
+
+  pop(0x3fffffff, sp);         // integer registers except lr & sp
+>>>>>>> c85caa2... New functions: newInstance, call site patching, c2i adapters, deoptimization blobs.
 }
 
 SkipIfEqual::SkipIfEqual(
@@ -2282,3 +2311,29 @@ void MacroAssembler::verify_tlab() {
   }
 #endif
 }
+
+// Writes to stack successive pages until offset reached to check for
+// stack overflow + shadow pages.  This clobbers tmp.
+void MacroAssembler::bang_stack_size(Register size, Register tmp) {
+  mov(tmp, sp);
+  // Bang stack for total size given plus shadow page size.
+  // Bang one page at a time because large size can bang beyond yellow and
+  // red zones.
+  Label loop;
+  bind(loop);
+  lea(tmp, Address(tmp, -os::vm_page_size()));
+  str(size, Address(tmp));
+  subw(size, size, os::vm_page_size());
+  br(Assembler::GT, loop);
+
+  // Bang down shadow pages too.
+  // The -1 because we already subtracted 1 page.
+  for (int i = 0; i< StackShadowPages-1; i++) {
+    // this could be any sized move but this is can be a debugging crumb
+    // so the bigger the better.
+    lea(tmp, Address(tmp, -os::vm_page_size()));
+    str(size, Address(tmp));
+  }
+}
+
+

@@ -745,7 +745,23 @@ void LIRGenerator::do_Convert(Convert* x) {
   set_result(x, result);
 }
 
-void LIRGenerator::do_NewInstance(NewInstance* x) { Unimplemented(); }
+void LIRGenerator::do_NewInstance(NewInstance* x) {
+#ifndef PRODUCT
+  if (PrintNotLoaded && !x->klass()->is_loaded()) {
+    tty->print_cr("   ###class not loaded at new bci %d", x->printable_bci());
+  }
+#endif
+  CodeEmitInfo* info = state_for(x, x->state());
+  LIR_Opr reg = result_register_for(x->type());
+  new_instance(reg, x->klass(),
+                       FrameMap::r2_oop_opr,
+                       FrameMap::r5_oop_opr,
+                       FrameMap::r4_oop_opr,
+                       LIR_OprFact::illegalOpr,
+                       FrameMap::r3_metadata_opr, info);
+  LIR_Opr result = rlock_result(x);
+  __ move(reg, result);
+}
 
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   CodeEmitInfo* info = state_for(x, x->state());

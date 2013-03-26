@@ -80,10 +80,30 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewInstanceStub
 
-NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKlass* klass, CodeEmitInfo* info, Runtime1::StubID stub_id) { Unimplemented(); }
+NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKlass* klass, CodeEmitInfo* info, Runtime1::StubID stub_id) {
+  _result = result;
+  _klass = klass;
+  _klass_reg = klass_reg;
+  _info = new CodeEmitInfo(info);
+  assert(stub_id == Runtime1::new_instance_id                 ||
+         stub_id == Runtime1::fast_new_instance_id            ||
+         stub_id == Runtime1::fast_new_instance_init_check_id,
+         "need new_instance id");
+  _stub_id   = stub_id;
+}
 
 
-void NewInstanceStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+
+void NewInstanceStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  __ add(r3, _klass_reg->as_register(), zr);   // FIXME: This is just mov(r3, _klass_reg->as_register())
+  __ bl(RuntimeAddress(Runtime1::entry_for(_stub_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  assert(_result->as_register() == r0, "result must in rax,");
+  __ b(_continuation);
+}
 
 
 // Implementation of NewTypeArrayStub
@@ -139,11 +159,135 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
 // - in runtime: preserve all registers (rspecially objects, i.e., source and destination object)
 // - in runtime: after initializing class, restore original code, reexecute instruction
 
-int PatchingStub::_patch_info_offset = 0;
+int PatchingStub::_patch_info_offset = -NativeGeneralJump::instruction_size;
 
-void PatchingStub::align_patch_site(MacroAssembler* masm) { Unimplemented(); }
+void PatchingStub::align_patch_site(MacroAssembler* masm) {
+}
 
-void PatchingStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void PatchingStub::emit_code(LIR_Assembler* ce) {
+  assert(NativeCall::instruction_size <= _bytes_to_copy && _bytes_to_copy <= 0xFF, "not enough room for call");
+
+  Label call_patch;
+
+  // static field accesses have special semantics while the class
+  // initializer is being run so we emit a test which can be used to
+  // check that this code is being executed by the initializing
+  // thread.
+  address being_initialized_entry = __ pc();
+  if (CommentedAssembly) {
+    __ block_comment(" patch template");
+  }
+  if (_id == load_klass_id) {
+    // produce a copy of the load klass instruction for use by the being initialized case
+#ifdef ASSERT
+    address start = __ pc();
+#endif
+    Metadata* o = NULL;
+    __ mov_metadata(_obj, o);
+#ifdef ASSERT
+    for (int i = 0; i < _bytes_to_copy; i++) {
+      address ptr = (address)(_pc_start + i);
+      int a_byte = (*ptr) & 0xFF;
+      assert(a_byte == *start++, "should be the same code");
+    }
+#endif
+  } else if (_id == load_mirror_id) {
+    // produce a copy of the load mirror instruction for use by the being
+    // initialized case
+#ifdef ASSERT
+    address start = __ pc();
+#endif
+    jobject o = NULL;
+    __ mov(_obj, zr);
+#ifdef ASSERT
+    for (int i = 0; i < _bytes_to_copy; i++) {
+      address ptr = (address)(_pc_start + i);
+      int a_byte = (*ptr) & 0xFF;
+      assert(a_byte == *start++, "should be the same code");
+    }
+#endif
+  } else {
+    // make a copy the code which is going to be patched.
+    for (int i = 0; i < _bytes_to_copy; i++) {
+      address ptr = (address)(_pc_start + i);
+      int a_byte = (*ptr) & 0xFF;
+      __ emit_int8(a_byte);
+    }
+  }
+
+  address end_of_patch = __ pc();
+  int bytes_to_skip = 0;
+  if (_id == load_mirror_id) {
+    int offset = __ offset();
+    if (CommentedAssembly) {
+      __ block_comment(" being_initialized check");
+    }
+    assert(_obj != noreg, "must be a valid register");
+    Register tmp = r0;
+    Register tmp2 = r19;
+    __ stp(tmp, tmp2, Address(__ pre(sp, -2 * wordSize)));
+    // Load without verification to keep code size small. We need it because
+    // begin_initialized_entry_offset has to fit in a byte. Also, we know it's not null.
+    __ ldr(tmp2, Address(_obj, java_lang_Class::klass_offset_in_bytes()));
+    __ ldr(tmp, Address(tmp2, InstanceKlass::init_thread_offset()));
+    __ cmp(rthread, tmp);
+    __ ldp(tmp, tmp2, Address(__ post(sp, 2 * wordSize)));
+    __ br(Assembler::NE, call_patch);
+
+    // access_field patches may execute the patched code before it's
+    // copied back into place so we need to jump back into the main
+    // code of the nmethod to continue execution.
+    __ b(_patch_site_continuation);
+
+    // make sure this extra code gets skipped
+    bytes_to_skip += __ offset() - offset;
+  }
+  if (CommentedAssembly) {
+    __ block_comment("patch data encoded as movl");
+  }
+  // Now emit the patch record telling the runtime how to find the
+  // pieces of the patch.
+  int sizeof_patch_record = 8;
+  bytes_to_skip += sizeof_patch_record;
+
+  // emit the offsets needed to find the code to patch
+  int being_initialized_entry_offset = __ pc() - being_initialized_entry + sizeof_patch_record;
+
+  __ movzw(r0, being_initialized_entry_offset << 8);
+  __ movkw(r0, (bytes_to_skip) + (_bytes_to_copy << 8), 16);
+
+  address patch_info_pc = __ pc();
+  assert(patch_info_pc - end_of_patch == bytes_to_skip, "incorrect patch info");
+
+  address entry = __ pc();
+  NativeGeneralJump::insert_unconditional((address)_pc_start, entry);
+  address target = NULL;
+  relocInfo::relocType reloc_type = relocInfo::none;
+  switch (_id) {
+    case access_field_id:  target = Runtime1::entry_for(Runtime1::access_field_patching_id); break;
+    case load_klass_id:    target = Runtime1::entry_for(Runtime1::load_klass_patching_id); reloc_type = relocInfo::metadata_type; break;
+    case load_mirror_id:   target = Runtime1::entry_for(Runtime1::load_mirror_patching_id); reloc_type = relocInfo::oop_type; break;
+    default: ShouldNotReachHere();
+  }
+  __ bind(call_patch);
+
+  if (CommentedAssembly) {
+    __ block_comment("patch entry point");
+  }
+  __ bl(RuntimeAddress(target));
+  assert(_patch_info_offset == (patch_info_pc - __ pc()), "must not change");
+  ce->add_call_info_here(_info);
+  int jmp_off = __ offset();
+  __ b(_patch_site_entry);
+  // Add enough nops so deoptimization can overwrite the jmp above with a call
+  // and not destroy the world.
+  __ nop(); __ nop();
+  if (_id == load_klass_id || _id == load_mirror_id) {
+    CodeSection* cs = __ code_section();
+    RelocIterator iter(cs, (address)_pc_start, (address)(_pc_start + 1));
+    relocInfo::change_reloc_info_for_address(&iter, (address) _pc_start, reloc_type, relocInfo::none);
+  }
+}
 
 
 void DeoptimizeStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }

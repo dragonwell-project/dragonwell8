@@ -274,7 +274,7 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
   __ pop(0x3fffffff, sp);
 }
 
-static void restore_live_registers_except_rax(StubAssembler* sasm, bool restore_fpu_registers = true)  {
+static void restore_live_registers_except_r0(StubAssembler* sasm, bool restore_fpu_registers = true)  {
 
   if (restore_fpu_registers) {
     for (int i = 0; i < 32; i += 2)
@@ -510,7 +510,115 @@ void Runtime1::generate_unwind_exception(StubAssembler *sasm) {
 
 
 
-OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) { Unimplemented(); return 0; }
+OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
+  // use the maximum number of runtime-arguments here because it is difficult to
+  // distinguish each RT-Call.
+  // Note: This number affects also the RT-Call in generate_handle_exception because
+  //       the oop-map is shared for all calls.
+  const int num_rt_args = 2;  // thread + dummy
+
+  DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
+  assert(deopt_blob != NULL, "deoptimization blob must have been created");
+
+  OopMap* oop_map = save_live_registers(sasm, num_rt_args);
+
+  __ mov(c_rarg0, rthread);
+  __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
+  // do the call
+  __ mov(rscratch1, RuntimeAddress(target));
+  __ brx86(rscratch1, 1, 0, 0);
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(__ offset(), oop_map);
+  // verify callee-saved register
+#ifdef ASSERT
+  { Label L;
+    __ get_thread(rscratch1);
+    __ cmp(rthread, rscratch1);
+    __ br(Assembler::EQ, L);
+    __ stop("StubAssembler::call_RT: rthread not callee saved?");
+    __ bind(L);
+  }
+#endif
+  __ reset_last_Java_frame(true, false);
+
+  // check for pending exceptions
+  { Label L;
+    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+    __ cbz(rscratch1, L);
+    // exception pending => remove activation and forward to exception handler
+
+    { Label L1;
+      __ cbnz(r0, L1);                                  // have we deoptimized?
+      __ b(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
+      __ bind(L1);
+    }
+
+    // the deopt blob expects exceptions in the special fields of
+    // JavaThread, so copy and clear pending exception.
+
+    // load and clear pending exception
+    __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
+    __ str(zr, Address(rthread, Thread::pending_exception_offset()));
+
+    // check that there is really a valid exception
+    __ verify_not_null_oop(r0);
+
+    // load throwing pc: this is the return address of the stub
+    __ mov(r3, lr);
+
+#ifdef ASSERT
+    // check that fields in JavaThread for exception oop and issuing pc are empty
+    Label oop_empty;
+    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+    __ cbz(rscratch1, oop_empty);
+    __ stop("exception oop must be empty");
+    __ bind(oop_empty);
+
+    Label pc_empty;
+    __ ldr(rscratch1, Address(rthread, JavaThread::exception_pc_offset()));
+    __ cbz(rscratch1, pc_empty);
+    __ stop("exception pc must be empty");
+    __ bind(pc_empty);
+#endif
+
+    // store exception oop and throwing pc to JavaThread
+    __ str(r0, Address(rthread, JavaThread::exception_oop_offset()));
+    __ str(r3, Address(rthread, JavaThread::exception_pc_offset()));
+
+    restore_live_registers(sasm);
+
+    __ leave();
+
+    // Forward the exception directly to deopt blob. We can blow no
+    // registers and must leave throwing pc on the stack.  A patch may
+    // have values live in registers so the entry point with the
+    // exception in tls.
+    __ b(RuntimeAddress(deopt_blob->unpack_with_exception_in_tls()));
+
+    __ bind(L);
+  }
+
+
+  // Runtime will return true if the nmethod has been deoptimized during
+  // the patching process. In that case we must do a deopt reexecute instead.
+
+  Label reexecuteEntry, cont;
+
+  __ cbz(r0, cont);                                 // have we deoptimized?
+
+  // Will reexecute. Proper return address is already on the stack we just restore
+  // registers, pop all of our frame but the return address and jump to the deopt blob
+  restore_live_registers(sasm);
+  __ leave();
+  __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
+
+  __ bind(cont);
+  restore_live_registers(sasm);
+  __ leave();
+  __ ret(lr);
+
+  return oop_maps;
+}
 
 
 OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
@@ -548,8 +656,98 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
     case fast_new_instance_id:
     case fast_new_instance_init_check_id:
       {
-	__ call_Unimplemented();
+        Register klass = r3; // Incoming
+        Register obj   = r0; // Result
+
+        if (id == new_instance_id) {
+          __ set_info("new_instance", dont_gc_arguments);
+        } else if (id == fast_new_instance_id) {
+          __ set_info("fast new_instance", dont_gc_arguments);
+        } else {
+          assert(id == fast_new_instance_init_check_id, "bad StubID");
+          __ set_info("fast new_instance init check", dont_gc_arguments);
+        }
+
+        if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
+            UseTLAB && FastTLABRefill) {
+          Label slow_path;
+          Register obj_size = r2;
+          Register t1       = r19;
+          Register t2       = r4;
+          assert_different_registers(klass, obj, obj_size, t1, t2);
+
+          __ stp(r5, r19, Address(__ pre(sp, -2 * wordSize)));
+
+          if (id == fast_new_instance_init_check_id) {
+            // make sure the klass is initialized
+            __ ldrb(rscratch1, Address(klass, InstanceKlass::init_state_offset()));
+            __ cmpw(rscratch1, InstanceKlass::fully_initialized);
+            __ br(Assembler::NE, slow_path);
+          }
+
+#ifdef ASSERT
+          // assert object can be fast path allocated
+          {
+            Label ok, not_ok;
+            __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
+            __ cmp(obj_size, 0u);
+            __ br(Assembler::LE, not_ok);  // make sure it's an instance (LH > 0)
+            __ tstw(obj_size, Klass::_lh_instance_slow_path_bit);
+            __ br(Assembler::EQ, ok);
+            __ bind(not_ok);
+            __ stop("assert(can be fast path allocated)");
+            __ should_not_reach_here();
+            __ bind(ok);
+          }
+#endif // ASSERT
+
+          // if we got here then the TLAB allocation failed, so try
+          // refilling the TLAB or allocating directly from eden.
+          Label retry_tlab, try_eden;
+          const Register thread =
+            __ tlab_refill(retry_tlab, try_eden, slow_path); // does not destroy r3 (klass), returns r5
+
+          __ bind(retry_tlab);
+
+          // get the instance size (size is postive so movl is fine for 64bit)
+          __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
+
+          __ tlab_allocate(obj, obj_size, 0, t1, t2, slow_path);
+
+          __ initialize_object(obj, klass, obj_size, 0, t1, t2);
+          __ verify_oop(obj);
+          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
+          __ ret(lr);
+
+          __ bind(try_eden);
+          // get the instance size (size is postive so movl is fine for 64bit)
+          __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
+
+          __ eden_allocate(obj, obj_size, 0, t1, slow_path);
+          __ incr_allocated_bytes(thread, obj_size, 0, rscratch1);
+
+          __ initialize_object(obj, klass, obj_size, 0, t1, t2);
+          __ verify_oop(obj);
+          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
+          __ ret(lr);
+
+          __ bind(slow_path);
+          __ ldp(r5, r19, Address(__ post(sp, 2 * wordSize)));
+        }
+
+        __ enter();
+        OopMap* map = save_live_registers(sasm, 2);
+        int call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+        __ verify_oop(obj);
+        __ leave();
+        __ ret(lr);
+
+        // r0,: new instance
       }
+
       break;
 
     case new_type_array_id:
@@ -670,7 +868,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
-        restore_live_registers_except_rax(sasm);
+        restore_live_registers_except_r0(sasm);
 
         __ verify_oop(obj);
         __ leave();
@@ -685,6 +883,27 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // note: no stubframe since we are about to leave the current
         //       activation and we are calling a leaf VM function only.
         generate_unwind_exception(sasm);
+      }
+      break;
+
+    case access_field_patching_id:
+      { StubFrame f(sasm, "access_field_patching", dont_gc_arguments);
+        // we should set up register map
+        oop_maps = generate_patching(sasm, CAST_FROM_FN_PTR(address, access_field_patching));
+      }
+      break;
+
+    case load_klass_patching_id:
+      { StubFrame f(sasm, "load_klass_patching", dont_gc_arguments);
+        // we should set up register map
+        oop_maps = generate_patching(sasm, CAST_FROM_FN_PTR(address, move_klass_patching));
+      }
+      break;
+
+    case load_mirror_patching_id:
+      { StubFrame f(sasm, "load_mirror_patching", dont_gc_arguments);
+        // we should set up register map
+        oop_maps = generate_patching(sasm, CAST_FROM_FN_PTR(address, move_mirror_patching));
       }
       break;
 

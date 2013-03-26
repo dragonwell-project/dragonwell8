@@ -465,7 +465,7 @@ void TemplateTable::ldc2_w()
   // get type
   __ lea(r2, Address(r2, r0, Address::lsl(0)));
   __ load_unsigned_byte(r2, Address(r2, tags_offset));
-  __ cmpw(r2, JVM_CONSTANT_Double);
+  __ cmpw(r2, (int)JVM_CONSTANT_Double);
   __ br(Assembler::NE, Long);
   // dtos
   __ lea (r2, Address(r1, r0, Address::lsl(3)));

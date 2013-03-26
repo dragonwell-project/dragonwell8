@@ -81,7 +81,7 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   void set_ptr_at (int offset, intptr_t  ptr) { *(intptr_t*) addr_at(offset) = ptr;  wrote(offset); }
   void set_oop_at (int offset, oop  o)        { *(oop*) addr_at(offset) = o;  wrote(offset); }
 
-  // This doesn't really do anything on Intel, but it is the place where
+  // This doesn't really do anything on AArch64, but it is the place where
   // cache invalidation belongs, generically:
   void wrote(int offset);
 
@@ -262,7 +262,7 @@ class NativeLoadAddress: public NativeMovRegMem {
 
 class NativeJump: public NativeInstruction {
  public:
-  enum Intel_specific_constants {
+  enum AArch64_specific_constants {
     instruction_size            =    4,
     instruction_offset          =    0,
     data_offset                 =    0,
@@ -299,6 +299,12 @@ inline NativeJump* nativeJump_at(address address) {
 
 class NativeGeneralJump: public NativeJump {
 public:
+  enum AArch64_specific_constants {
+    instruction_size            =    4,
+    instruction_offset          =    0,
+    data_offset                 =    0,
+    next_instruction_offset     =    4
+  };
   static void insert_unconditional(address code_pos, address entry);
   static void replace_mt_safe(address instr_addr, address code_buffer);
   static void verify();

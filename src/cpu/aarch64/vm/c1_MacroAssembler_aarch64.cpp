@@ -111,10 +111,59 @@ void C1_MacroAssembler::initialize_body(Register obj, Register len_in_bytes, int
 }
 
 
-void C1_MacroAssembler::allocate_object(Register obj, Register t1, Register t2, int header_size, int object_size, Register klass, Label& slow_case) { Unimplemented(); }
+void C1_MacroAssembler::allocate_object(Register obj, Register t1, Register t2, int header_size, int object_size, Register klass, Label& slow_case) {
+  assert_different_registers(obj, t1, t2); // XXX really?
+  assert(header_size >= 0 && object_size >= header_size, "illegal sizes");
 
-void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register var_size_in_bytes, int con_size_in_bytes, Register t1, Register t2) { Unimplemented(); }
+  try_allocate(obj, noreg, object_size * BytesPerWord, t1, t2, slow_case);
 
+  initialize_object(obj, klass, noreg, object_size * HeapWordSize, t1, t2);
+}
+
+void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register var_size_in_bytes, int con_size_in_bytes, Register t1, Register t2) {
+  assert((con_size_in_bytes & MinObjAlignmentInBytesMask) == 0,
+         "con_size_in_bytes is not multiple of alignment");
+  const int hdr_size_in_bytes = instanceOopDesc::header_size() * HeapWordSize;
+
+  initialize_header(obj, klass, noreg, t1, t2);
+
+  // clear rest of allocated space
+  const Register index = t2;
+  const int threshold = 6 * BytesPerWord;   // approximate break even point for code size (see comments below)
+  if (var_size_in_bytes != noreg) {
+    mov(index, var_size_in_bytes);
+    initialize_body(obj, index, hdr_size_in_bytes, zr);
+  } else if (con_size_in_bytes <= threshold) {
+    // use explicit null stores
+    // code size = 2 + 3*n bytes (n = number of fields to clear)
+    for (int i = hdr_size_in_bytes; i < con_size_in_bytes; i += BytesPerWord)
+      str(zr, Address(obj, i));
+  } else if (con_size_in_bytes > hdr_size_in_bytes) {
+    // use loop to null out the fields
+    // code size = 16 bytes for even n (n = number of fields to clear)
+    // initialize last object field first if odd number of fields
+    mov(index, (con_size_in_bytes - hdr_size_in_bytes) >> 3);
+    // initialize last object field if constant size is odd
+    if (((con_size_in_bytes - hdr_size_in_bytes) & 4) != 0)
+      str(zr, Address(obj, con_size_in_bytes - (1*BytesPerWord)));
+    // initialize remaining object fields: index is a multiple of 2
+    mov(t1, zr);
+    {
+      Label loop;
+      bind(loop);
+      sub(index, index, 1);
+      stp(zr, t1, Address(obj, index, Address::uxtw(LogBytesPerWord + 1)));
+      cbnz(index, loop);
+    }
+  }
+
+  if (CURRENT_ENV->dtrace_alloc_probes()) {
+    assert(obj == r0, "must be");
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
+  }
+
+  verify_oop(obj);
+}
 void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, int header_size, int f, Register klass, Label& slow_case) {
   assert_different_registers(obj, len, t1, t2, klass);
 

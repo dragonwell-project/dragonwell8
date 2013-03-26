@@ -863,7 +863,23 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
   }
 }
 
-void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) { Unimplemented(); }
+void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) {
+  if (op->init_check()) {
+    __ ldrb(rscratch1, Address(op->klass()->as_register(),
+			       InstanceKlass::init_state_offset()));
+    __ cmpw(rscratch1, InstanceKlass::fully_initialized);
+    add_debug_info_for_null_check_here(op->stub()->info());
+    __ br(Assembler::NE, *op->stub()->entry());
+  }
+  __ allocate_object(op->obj()->as_register(),
+                     op->tmp1()->as_register(),
+                     op->tmp2()->as_register(),
+                     op->header_size(),
+                     op->object_size(),
+                     op->klass()->as_register(),
+                     *op->stub()->entry());
+  __ bind(*op->stub()->continuation());
+}
 
 void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
@@ -1136,9 +1152,8 @@ void LIR_Assembler::emit_static_call_stub() {
   int start = __ offset();
 
   __ relocate(static_stub_Relocation::spec(call_pc));
-  __ mov_metadata(r19, (Metadata*)NULL);
-  // must be set to -1 at code generation time
-  __ b(RuntimeAddress(__ pc()));
+  __ mov_metadata(rmethod, (Metadata*)NULL);
+  __ b(__ pc());
 
   assert(__ offset() - start <= call_stub_size, "stub too big");
   __ end_a_stub();

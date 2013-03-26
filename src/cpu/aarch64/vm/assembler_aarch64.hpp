@@ -1279,7 +1279,7 @@ public:
     starti;						\
     f(0, 21);						\
     assert_cond(kind != ROR);				\
-    zrf(Rd, 0), zrf(Rn, 5), rf(Rm, 16);			\
+    zrf(Rd, 0), zrf(Rn, 5), zrf(Rm, 16);		\
     op_shifted_reg(0b01011, kind, shift, size, op);	\
   }
 

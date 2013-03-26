@@ -139,7 +139,14 @@ void NativeJump::check_verified_entry_alignment(address entry, address verified_
 
 
 address NativeJump::jump_destination() const          {
-  return MacroAssembler::pd_call_destination(instruction_address());
+  address dest = MacroAssembler::pd_call_destination(instruction_address());
+
+  // We use jump to self as the unresolved address which the inline
+  // cache code (and relocs) know about
+
+  // return -1 if jump to self
+  dest = (dest == (address) this) ? (address) -1 : dest;
+  return dest;
 }
 
 void NativeJump::set_jump_destination(address dest) {
@@ -161,10 +168,20 @@ void NativePopReg::insert(address code_pos, Register reg) { Unimplemented(); }
 
 void NativeIllegalInstruction::insert(address code_pos) { Unimplemented(); }
 
-void NativeGeneralJump::verify() { Unimplemented(); }
+void NativeGeneralJump::verify() {  }
 
 
-void NativeGeneralJump::insert_unconditional(address code_pos, address entry) { Unimplemented(); }
+void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
+  ptrdiff_t disp = entry - code_pos;
+#ifdef AMD64
+  guarantee(((int)disp << 4) >> 4 == disp, "must be 26-bit offset");
+#endif // AMD64
+
+  unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3fff);
+
+  *(unsigned int*)code_pos = insn;
+  ICache::invalidate_range(code_pos, instruction_size);
+}
 
 
 // MT-safe patching of a long jump instruction.

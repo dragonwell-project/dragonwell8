@@ -113,7 +113,9 @@ class MacroAssembler: public Assembler {
 
   // aliases defined in AARCH64 spec
 
-  inline void cmpw(Register Rd, unsigned imm)  { subsw(zr, Rd, imm); }
+
+  template<class T>
+  inline void  cmpw(Register Rd, T imm)  { subsw(zr, Rd, imm); }
   inline void cmp(Register Rd, unsigned imm)  { subs(zr, Rd, imm); }
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
@@ -783,10 +785,14 @@ public:
 #endif
 
   void push_CPU_state();
+<<<<<<< HEAD
   // unimplemented
 #if 0
   void pop_CPU_state();
 #endif
+=======
+  void pop_CPU_state() ;
+>>>>>>> c85caa2... New functions: newInstance, call site patching, c2i adapters, deoptimization blobs.
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -941,12 +947,9 @@ public:
     ldr(zr, Address(sp, rscratch2));
   }
 
-  // unimplemented
-#if 0
   // Writes to stack successive pages until offset reached to check for
   // stack overflow + shadow pages.  Also, clobbers tmp
   void bang_stack_size(Register size, Register tmp);
-#endif
 
   virtual RegisterOrConstant delayed_value_impl(intptr_t* delayed_value_addr,
                                                 Register tmp,
@@ -1168,8 +1171,8 @@ public:
   void pusha();
   void popa();
 
-  void push(unsigned int bitset, Register stack);
-  void pop(unsigned int bitset, Register stack);
+  int push(unsigned int bitset, Register stack);
+  int pop(unsigned int bitset, Register stack);
 
   void repne_scan(Register addr, Register value, Register count,
 		  Register scratch);
