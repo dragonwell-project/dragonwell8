@@ -1146,6 +1146,7 @@ public:
 
   void mov_metadata(Register dst, Metadata* obj);
   Address allocate_metadata_address(Metadata* obj);
+  Address constant_oop_address(jobject obj);
   // unimplemented
 #if 0
   void pushoop(jobject obj);

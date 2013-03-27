@@ -2084,6 +2084,13 @@ void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
   mov(dst, allocate_metadata_address(obj));
 }
 
+Address MacroAssembler::constant_oop_address(jobject obj) {
+  assert(oop_recorder() != NULL, "this assembler needs an OopRecorder");
+  assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "not an oop");
+  int oop_index = oop_recorder()->find_index(obj);
+  return Address((address)obj, oop_Relocation::spec(oop_index));
+}
+
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
 void MacroAssembler::tlab_allocate(Register obj,
                                    Register var_size_in_bytes,

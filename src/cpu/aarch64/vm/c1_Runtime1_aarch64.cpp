@@ -319,7 +319,7 @@ OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address targe
   if (!has_argument) {
     call_offset = __ call_RT(noreg, noreg, target);
   } else {
-    call_offset = __ call_RT(noreg, noreg, target, r0);
+    call_offset = __ call_RT(noreg, noreg, target, rscratch1);
   }
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(call_offset, oop_map);
@@ -875,6 +875,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ ret(lr);
 
         // r0: new array
+      }
+      break;
+
+    case throw_range_check_failed_id:
+      { StubFrame f(sasm, "range_check_failed", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_range_check_exception), true);
       }
       break;
 

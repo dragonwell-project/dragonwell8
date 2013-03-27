@@ -61,7 +61,23 @@ RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index,
   _info = new CodeEmitInfo(info);
 }
 
-void RangeCheckStub::emit_code(LIR_Assembler* ce) { __ call_Unimplemented(); }
+void RangeCheckStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+  if (_index->is_cpu_register()) {
+    __ mov(rscratch1, _index->as_register());
+  } else {
+    __ mov(rscratch1, _index->as_jint());
+  }
+  Runtime1::StubID stub_id;
+  if (_throw_index_out_of_bounds_exception) {
+    stub_id = Runtime1::throw_index_exception_id;
+  } else {
+    stub_id = Runtime1::throw_range_check_failed_id;
+  }
+  __ call(RuntimeAddress(Runtime1::entry_for(stub_id)));
+  ce->add_call_info_here(_info);
+  debug_only(__ should_not_reach_here());
+}
 
 void DivByZeroStub::emit_code(LIR_Assembler* ce) {
   if (_offset != -1) {
