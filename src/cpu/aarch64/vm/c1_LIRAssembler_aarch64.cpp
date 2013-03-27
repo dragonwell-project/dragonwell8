@@ -926,7 +926,43 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) { Unimplemented(); }
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) { Unimplemented(); }
 
-void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) { Unimplemented(); }
+void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) {
+
+  Assembler::Condition acond, ncond;
+  switch (condition) {
+  case lir_cond_equal:        acond = Assembler::EQ; ncond = Assembler::NE; break;
+  case lir_cond_notEqual:     acond = Assembler::NE; ncond = Assembler::EQ; break;
+  case lir_cond_less:         acond = Assembler::LT; ncond = Assembler::GE; break;
+  case lir_cond_lessEqual:    acond = Assembler::LE; ncond = Assembler::GT; break;
+  case lir_cond_greaterEqual: acond = Assembler::GE; ncond = Assembler::LT; break;
+  case lir_cond_greater:      acond = Assembler::GT; ncond = Assembler::LE; break;
+  case lir_cond_belowEqual:   Unimplemented(); break;
+  case lir_cond_aboveEqual:   Unimplemented(); break;
+  default:                    ShouldNotReachHere();
+  }
+
+  assert(opr1->is_constant(), "expect constant for opr1");
+  assert(opr2->is_constant(), "expect constant for opr2");
+  assert(result->is_single_cpu(), "expect single register for result");
+
+  jint val1 = opr1->as_jint();
+  jint val2 = opr2->as_jint();
+  if (val1 == 0 && val2 == 1) {
+    __ cset(result->as_register(), ncond);
+  } else if (val1 = 1 && val2 == 0) {
+    __ cset(result->as_register(), acond);
+  } else {
+    Unimplemented();
+    /*
+    I think the below is correct, but since I don't know yet how this can be
+    triggered, and thus, how to verify correctness, I leave that Unimplemented() until we hit it.
+
+    __ mov(rscratch1, val1);
+    __ mov(rscratch2, val2);
+    __ csel(result->as_register(), rscratch1, rscratch2, acond);
+    */
+  }
+}
 
 void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack) {
   assert(info == NULL, "should never be used, idiv/irem and ldiv/lrem not handled by this method");
@@ -1113,8 +1149,19 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
 	return;
       }
     }
+  } else if (opr1->is_single_fpu()) {
+    FloatRegister reg1 = opr1->as_float_reg();
+    assert(opr2->is_single_fpu(), "expect single float register");
+    FloatRegister reg2 = opr2->as_float_reg();
+    __ fcmps(reg1, reg2);
+  } else if (opr1->is_double_fpu()) {
+    FloatRegister reg1 = opr1->as_double_reg();
+    assert(opr2->is_double_fpu(), "expect double float register");
+    FloatRegister reg2 = opr2->as_double_reg();
+    __ fcmpd(reg1, reg2);
+  } else {
+    ShouldNotReachHere();
   }
-  ShouldNotReachHere();
 }
 
 void LIR_Assembler::comp_fl2i(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dst, LIR_Op2* op) { Unimplemented(); }
