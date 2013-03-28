@@ -526,7 +526,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
   // do the call
   __ mov(rscratch1, RuntimeAddress(target));
-  __ brx86(rscratch1, 1, 0, 0);
+  __ brx86(rscratch1, 1, 0, 1);
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(__ offset(), oop_map);
   // verify callee-saved register

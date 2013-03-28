@@ -94,15 +94,23 @@ void NativeMovConstReg::print() { Unimplemented(); }
 
 int NativeMovRegMem::instruction_start() const { Unimplemented(); return 0; }
 
-address NativeMovRegMem::instruction_address() const { Unimplemented(); return 0; }
+address NativeMovRegMem::instruction_address() const      { return addr_at(instruction_offset); }
 
 address NativeMovRegMem::next_instruction_address() const { Unimplemented(); return 0; }
 
 int NativeMovRegMem::offset() const { Unimplemented(); return 0; }
 
-void NativeMovRegMem::set_offset(int x) { Unimplemented(); }
+void NativeMovRegMem::set_offset(int x) {
+  // FIXME: This assumes that the offset is moved into rscratch1 with
+  // a sequence of four MOV instructions.
+  MacroAssembler::pd_patch_instruction(instruction_address(), (address)intptr_t(x));
+}
 
-void NativeMovRegMem::verify() { Unimplemented(); }
+void NativeMovRegMem::verify() {
+#ifdef ASSERT
+  address dest = MacroAssembler::pd_call_destination(instruction_address());
+#endif
+}
 
 
 void NativeMovRegMem::print() { Unimplemented(); }
@@ -183,11 +191,22 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   ICache::invalidate_range(code_pos, instruction_size);
 }
 
-
 // MT-safe patching of a long jump instruction.
 // First patches first word of instruction to two jmp's that jmps to them
 // selfs (spinlock). Then patches the last byte, and then atomicly replaces
 // the jmp's with the first 4 byte of the new instruction.
-void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) { Unimplemented(); }
+//
+// FIXME: I don't think that this can be done on AArch64.  The memory
+// is not coherent, so it does no matter what order we patch things
+// in.  The only way to do it AFAIK is to have:
+//
+//    ldr rscratch, 0f
+//    b rscratch
+// 0: absolute address
+//
+void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) {
+  uint32_t instr = *(uint32_t*)code_buffer;
+  *(uint32_t*)instr_addr = instr;
+}
 
 bool NativeInstruction::is_dtrace_trap() { return false; }

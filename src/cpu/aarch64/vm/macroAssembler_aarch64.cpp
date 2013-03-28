@@ -982,6 +982,10 @@ void MacroAssembler::mov(Register r, Address dest) {
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   u_int64_t imm64 = (u_int64_t)dest.target();
+  mov64(r, imm64);
+}
+
+void MacroAssembler::mov64(Register r, uintptr_t imm64) {
   movz(r, imm64 & 0xffff);
   imm64 >>= 16;
   movk(r, imm64 & 0xffff, 16);
@@ -2077,6 +2081,22 @@ Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
   int index = oop_recorder()->allocate_metadata_index(obj);
   RelocationHolder rspec = metadata_Relocation::spec(index);
   return Address((address)obj, rspec);
+}
+
+void MacroAssembler::movoop(Register dst, jobject obj) {
+  // This is fugly, but it allows us to embed an easily patchable OOP
+  // into the instruction stream.
+  InstructionMark im(this);
+  if (uintptr_t(pc()) % wordSize == 0) {
+    ldr(dst, pc() + 8);
+    b(pc() + 12);
+  } else {
+    ldr(dst, pc() + 12);
+    b(pc() + 16);
+    emit_int32(0xdeaddead);
+  }
+  address here = pc();
+  emit_data64((int64_t)obj, oop_Relocation::spec_for_immediate());
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {

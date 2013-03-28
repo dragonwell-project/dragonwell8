@@ -133,9 +133,13 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     assert(addr->disp() == 0, "must be");
     return Address(base, index, Address::sxtw(addr->scale()));
   } else  {
-    intptr_t addr_offset = (intptr_t(addr->disp()) << addr->scale());
-    assert(Address::offset_ok_for_immed(addr_offset, 0), "must be");
-    return Address(base, addr_offset);
+    intptr_t addr_offset = intptr_t(addr->disp());
+    if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
+      return Address(base, addr_offset, Address::lsl(addr->scale()));
+    else {
+      __ mov64(rscratch1, addr_offset); // Make a full four-instruction mov
+      return Address(base, rscratch1, Address::lsl(addr->scale()));
+    }
   }
 }
 
@@ -191,7 +195,21 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
   }
 }
 
-void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo* info) { Unimplemented(); }
+void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) {
+  // Allocate a new index in table to hold the object once it's been patched
+  int oop_index = __ oop_recorder()->allocate_oop_index(NULL);
+  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_mirror_id, oop_index);
+
+  Address addrlit(NULL, oop_Relocation::spec(oop_index));
+  assert(addrlit.rspec().type() == relocInfo::oop_type, "must be an oop reloc");
+  // It may not seem necessary to use a movz/movk quad to load a NULL
+  // into dest, but the NULL will be dynamically patched later and the
+  // patched value may be large.  We must therefore generate the
+  // sethi/add as a placeholders
+  __ mov(reg, addrlit);
+
+  patching_epilog(patch, lir_patch_normal, reg, info);
+}
 
 
 // This specifies the rsp decrement needed to build the frame
@@ -1207,7 +1225,34 @@ void LIR_Assembler::emit_static_call_stub() {
 }
 
 
-void LIR_Assembler::throw_op(LIR_Opr exceptionPC, LIR_Opr exceptionOop, CodeEmitInfo* info) { Unimplemented(); }
+void LIR_Assembler::throw_op(LIR_Opr exceptionPC, LIR_Opr exceptionOop, CodeEmitInfo* info) {
+  assert(exceptionOop->as_register() == r0, "must match");
+  assert(exceptionPC->as_register() == r3, "must match");
+
+  // exception object is not added to oop map by LinearScan
+  // (LinearScan assumes that no oops are in fixed registers)
+  info->add_register_oop(exceptionOop);
+  Runtime1::StubID unwind_id;
+
+  // get current pc information
+  // pc is only needed if the method has an exception handler, the unwind code does not need it.
+  int pc_for_athrow_offset = __ offset();
+  InternalAddress pc_for_athrow(__ pc());
+  __ lea(exceptionPC->as_register(), pc_for_athrow);
+  add_call_info(pc_for_athrow_offset, info); // for exception handler
+
+  __ verify_not_null_oop(r0);
+  // search an exception handler (rax: exception oop, rdx: throwing pc)
+  if (compilation()->has_fpu_code()) {
+    unwind_id = Runtime1::handle_exception_id;
+  } else {
+    unwind_id = Runtime1::handle_exception_nofpu_id;
+  }
+  __ bl(RuntimeAddress(Runtime1::entry_for(unwind_id)));
+
+  // FIXME: enough room for two byte trap   ????
+  __ nop();
+}
 
 
 void LIR_Assembler::unwind_op(LIR_Opr exceptionOop) {

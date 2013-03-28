@@ -45,7 +45,8 @@ static int spin;
 inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
   intptr_t a = intptr_t(sp);
   intptr_t b = intptr_t(fp);
-  if (sp > fp || (fp - sp > 0x100000))
+  if (fp)
+    if (sp > fp || (fp - sp > 0x100000))
       for(;;)
 	asm("nop");
   _sp = sp;

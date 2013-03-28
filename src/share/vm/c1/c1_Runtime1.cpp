@@ -946,7 +946,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   }
 
   // Now copy code back
-
+#if 1
   {
     MutexLockerEx ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
     //
@@ -1162,7 +1162,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       }
     }
   }
-
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.
   if (ScavengeRootsInCode && ((mirror.not_null() && mirror()->is_scavengable()) ||

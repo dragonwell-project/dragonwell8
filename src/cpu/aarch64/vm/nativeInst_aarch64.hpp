@@ -211,6 +211,13 @@ class NativeMovConstRegPatching: public NativeMovConstReg {
 // class must skip the xor instruction.
 
 class NativeMovRegMem: public NativeInstruction {
+  enum AArch64_specific_constants {
+    instruction_size            =    4,
+    instruction_offset          =    0,
+    data_offset                 =    0,
+    next_instruction_offset     =    4
+  };
+
  public:
   // helper
   int instruction_start() const;
@@ -235,7 +242,13 @@ class NativeMovRegMem: public NativeInstruction {
   inline friend NativeMovRegMem* nativeMovRegMem_at (address address);
 };
 
-inline NativeMovRegMem* nativeMovRegMem_at (address address) { Unimplemented(); return 0; }
+inline NativeMovRegMem* nativeMovRegMem_at (address address) {
+  NativeMovRegMem* test = (NativeMovRegMem*)(address - NativeMovRegMem::instruction_offset);
+#ifdef ASSERT
+  test->verify();
+#endif
+  return test;
+}
 
 class NativeMovRegMemPatching: public NativeMovRegMem {
  private:
@@ -310,7 +323,11 @@ public:
   static void verify();
 };
 
-inline NativeGeneralJump* nativeGeneralJump_at(address address) { Unimplemented(); return 0; }
+inline NativeGeneralJump* nativeGeneralJump_at(address address) {
+  NativeGeneralJump* jump = (NativeGeneralJump*)(address);
+  debug_only(jump->verify();)
+  return jump;
+}
 
 class NativePopReg : public NativeInstruction {
  public:
@@ -343,7 +360,26 @@ class NativeTstRegMem: public NativeInstruction {
 inline bool NativeInstruction::is_illegal()      { Unimplemented(); return false; }
 inline bool NativeInstruction::is_call()         { Unimplemented(); return false; }
 inline bool NativeInstruction::is_return()       { Unimplemented(); return false; }
-inline bool NativeInstruction::is_jump()         { Unimplemented(); return false; }
+
+inline bool NativeInstruction::is_jump() {
+  uint32_t insn = *(uint32_t*)addr_at(0);
+
+  if (Instruction_aarch64::extract(insn, 30, 26) == 0b00101) {
+    // Unconditional branch (immediate)
+    return true;
+  } else if (Instruction_aarch64::extract(insn, 31, 25) == 0b0101010) {
+    // Conditional branch (immediate)
+    return true;
+  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011010) {
+    // Compare & branch (immediate)
+    return true;
+  } else if (Instruction_aarch64::extract(insn, 30, 25) == 0b011011) {
+    // Test & branch (immediate)
+    return true;
+  } else
+    return false;
+}
+
 inline bool NativeInstruction::is_cond_jump()    { Unimplemented(); return false; }
 
 inline bool NativeInstruction::is_mov_literal64() { Unimplemented(); return false; }

@@ -379,6 +379,7 @@ public:
   }
 
   void mov(Register dst, Address a);
+  void mov64(Register r, uintptr_t imm64);
 
   // macro instructions for accessing and updating floating point
   // status register
@@ -1151,6 +1152,8 @@ public:
 #if 0
   void pushoop(jobject obj);
 #endif
+
+  void movoop(Register dst, jobject obj);
 
   // sign extend as need a l to ptr sized element
   void movl2ptr(Register dst, Address src) { Unimplemented(); }

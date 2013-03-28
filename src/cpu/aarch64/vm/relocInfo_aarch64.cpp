@@ -47,7 +47,9 @@ void Relocation::pd_set_call_destination(address x) {
   MacroAssembler::pd_patch_instruction(addr(), x);
 }
 
-address* Relocation::pd_address_in_code() { Unimplemented(); return 0; }
+address* Relocation::pd_address_in_code() {
+  return (address*)(addr() + 8);
+}
 
 
 address Relocation::pd_get_address_from_code() { Unimplemented(); return 0; }

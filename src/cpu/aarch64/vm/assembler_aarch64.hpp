@@ -1858,6 +1858,9 @@ public:
   static bool operand_valid_for_logical_immediate(bool is32, uint64_t imm);
   static bool operand_valid_for_add_sub_immediate(long imm);
   static bool operand_valid_for_float_immediate(double imm);
+
+  void emit_data64(jlong data, relocInfo::relocType rtype, int format = 0);
+  void emit_data64(jlong data, RelocationHolder const& rspec, int format = 0);
 };
 
 Instruction_aarch64::~Instruction_aarch64() {

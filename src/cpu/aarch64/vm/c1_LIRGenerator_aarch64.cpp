@@ -174,7 +174,7 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
   if (disp == 0) {
     return new LIR_Address(base, index, type);
   } else {
-    assert(Assembler::is_simm13(disp), "must be");
+    assert(Address::offset_ok_for_immed(disp, 0), "must be");
     return new LIR_Address(base, disp, type);
   }
 }
