@@ -225,11 +225,17 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
   generate_stack_overflow_check(frame_size_in_bytes);
   enter();
   sub(sp, sp, frame_size_in_bytes); // does not emit code for frame_size == 0
+  if (NotifySimulator) {
+    notify(Assembler::method_entry);
+  }
 }
 
 
 void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
   leave();
+  if (NotifySimulator) {
+    notify(Assembler::method_reentry);
+  }
 }
 
 

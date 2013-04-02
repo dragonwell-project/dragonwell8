@@ -346,7 +346,6 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   // the poll sets the condition code, but no data registers
   address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
   __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
-
   __ ret(lr);
 }
 

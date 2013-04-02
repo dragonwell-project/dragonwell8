@@ -35,6 +35,9 @@
 #include "compiler/compileLog.hpp"
 #include "c1/c1_RangeCheckElimination.hpp"
 
+#ifdef TARGET_ARCH_aarch64
+#include "../../../../../../simulator/simulator.hpp"
+#endif
 
 typedef enum {
   _t_compile,
@@ -333,6 +336,19 @@ int Compilation::emit_code_body() {
   if (!setup_code_buffer(code(), allocator()->num_calls())) {
     BAILOUT_("size requested greater than avail code buffer size", 0);
   }
+
+#ifdef TARGET_ARCH_aarch64
+  if (NotifySimulator) {
+    char name[400];
+    strcpy(name, _method->holder()->name()->as_utf8());
+    strcat(name, ".");
+    strcat(name, _method->name()->as_utf8());
+    strcat(name, _method->signature()->as_symbol()->as_utf8());
+    unsigned char *base = code()->insts()->start();
+    AArch64Simulator::current()->notifyCompile(name, base);
+  }
+#endif
+
   code()->initialize_oop_recorder(env()->oop_recorder());
 
   _masm = new C1_MacroAssembler(code());

@@ -1760,7 +1760,7 @@ extern "C" {
     return false;
   }
 
-  void bccheck1(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
+  void bccheck1(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, char *decode)
   {
     if (method != 0) {
       method[0] = '\0';
@@ -1772,45 +1772,66 @@ extern "C" {
       decode[0] = 0;
     }
 
-    if (verify) {
-      if (!is_mapped_address(methodVal)) {
+    if (Interpreter::contains((address)pc)) {
+      AArch64Simulator *sim = AArch64Simulator::current();
+      Method* meth;
+      address bcp;
+      if (fp) {
+#define FRAME_SLOT_METHOD 3
+#define FRAME_SLOT_BCP 7
+	meth = (Method*)sim->getMemory()->loadU64(fp - (FRAME_SLOT_METHOD << 3));
+	bcp = (address)sim->getMemory()->loadU64(fp - (FRAME_SLOT_BCP << 3));
+#undef FRAME_SLOT_METHOD
+#undef FRAME_SLOT_BCP
+      } else {
+	meth = (Method*)sim->getCPUState().xreg(RMETHOD, 0);
+	bcp = (address)sim->getCPUState().xreg(RBCP, 0);
+      }
+      if (meth->is_native()) {
 	return;
       }
-      Metadata *md = (Metadata*)methodVal;
-      if (!md->is_valid()) {
-	return;
+      if(method && meth->is_method()) {
+	ResourceMark rm;
+	method[0] = 'I';
+	method[1] = ' ';
+	meth->name_and_sig_as_C_string(method + 2, 398);
       }
-      if (!md->is_method()) {
-	return;
+      if (bcidx) {
+	if (meth->contains(bcp)) {
+	  *bcidx = meth->bci_from(bcp);
+	} else {
+	  *bcidx = -2;
+	}
       }
-    }
-
-    Method* meth = (Method*)methodVal;
-    address bcp = (address)bcpVal;
-    if (method) {
-     meth->name_and_sig_as_C_string(method, 400);
-    }
-    if (bcidx) {
-     if (meth->contains(bcp)) {
-    	*bcidx = meth->bci_from(bcp);
-     } else {
-    	*bcidx = -2;
-     }
-    }
-    if (decode) {
-      if (!BytecodeTracer::closure()) {
-	BytecodeTracer::set_closure(BytecodeTracer::std_closure());
+      if (decode) {
+	if (!BytecodeTracer::closure()) {
+	  BytecodeTracer::set_closure(BytecodeTracer::std_closure());
+	}
+	stringStream str(decode, 400);
+	BytecodeTracer::trace(meth, bcp, &str);
       }
-      stringStream str(decode, 400);
-      BytecodeTracer::trace(meth, bcp, &str);
+    } else {
+      if (method) {
+	CodeBlob *cb = CodeCache::find_blob((address)pc);
+	if (cb != NULL && cb->is_nmethod()) {
+	  ResourceMark rm;
+	  nmethod* nm = (nmethod*)cb;
+	  method[0] = 'C';
+	  method[1] = ' ';
+	  nm->method()->name_and_sig_as_C_string(method + 2, 398);
+	} else if (cb != NULL && cb->is_adapter_blob()) {
+	  strcpy(method, "B adapter blob");
+	} else if (cb != NULL && cb->is_runtime_stub()) {
+	  strcpy(method, "B runtime stub");
+	}
+      }
     }
   }
 
 
-  JNIEXPORT void bccheck(u_int64_t methodVal, u_int64_t bcpVal, int verify, char *method, int *bcidx, char *decode)
+  JNIEXPORT void bccheck(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, char *decode)
   {
-    if (! ((Method *)methodVal)->is_native())
-      bccheck1(methodVal, bcpVal, verify, method, bcidx, decode);
+    bccheck1(pc, fp, method, bcidx, decode);
   }
 }
 
