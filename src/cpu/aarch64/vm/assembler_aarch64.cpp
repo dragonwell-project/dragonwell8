@@ -1237,6 +1237,7 @@ void Assembler::emit_data64(jlong data,
 
 extern "C" {
   void das(uint64_t start, int len) {
+    ResourceMark rm;
     len <<= 2;
     if (len < 0)
       Disassembler::decode((address)start + len, (address)start);

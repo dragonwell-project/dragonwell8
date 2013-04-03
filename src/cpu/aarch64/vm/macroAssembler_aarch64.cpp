@@ -1760,8 +1760,9 @@ SkipIfEqual::~SkipIfEqual() {
 }
 
 void MacroAssembler::cmpptr(Register src1, Address src2) {
-  lea(rscratch1, src2);
-  ldr(rscratch1, Address(rscratch1));
+  unsigned long offset;
+  adrp(rscratch1, src2, offset);
+  ldr(rscratch1, Address(rscratch1, offset));
   cmp(src1, rscratch1);
 }
 
@@ -2084,19 +2085,14 @@ Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
 }
 
 void MacroAssembler::movoop(Register dst, jobject obj) {
-  // This is fugly, but it allows us to embed an easily patchable OOP
-  // into the instruction stream.
-  InstructionMark im(this);
-  if (uintptr_t(pc()) % wordSize == 0) {
-    ldr(dst, pc() + 8);
-    b(pc() + 12);
+  if (obj == NULL) {
+    mov(dst, zr);
   } else {
-    ldr(dst, pc() + 12);
-    b(pc() + 16);
-    emit_int32(0xdeaddead);
+    int oop_index = oop_recorder()->find_index(obj);
+    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "should be real oop");
+    RelocationHolder rspec = oop_Relocation::spec(oop_index);
+    mov(dst, Address((address)obj, rspec));
   }
-  address here = pc();
-  emit_data64((int64_t)obj, oop_Relocation::spec_for_immediate());
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {

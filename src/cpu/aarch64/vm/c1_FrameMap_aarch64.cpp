@@ -271,7 +271,7 @@ void FrameMap::initialize() {
   receiver_opr = as_oop_opr(regs.first()->as_Register());
 
   for (int i = 0; i < nof_caller_save_fpu_regs; i++) {
-    _caller_save_fpu_regs[i] = LIR_OprFact::single_fpu(i + 16);
+    _caller_save_fpu_regs[i] = LIR_OprFact::single_fpu(i);
   }
 }
 

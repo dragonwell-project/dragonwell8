@@ -53,6 +53,7 @@ void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached
   masm->b(ExternalAddress(entry_point));
   masm->bind(l);
   masm->emit_int64((int64_t)cached_value);
+  0;
 }
 
 address InlineCacheBuffer::ic_buffer_entry_point(address code_begin) {

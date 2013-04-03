@@ -98,7 +98,9 @@ address NativeMovRegMem::instruction_address() const      { return addr_at(instr
 
 address NativeMovRegMem::next_instruction_address() const { Unimplemented(); return 0; }
 
-int NativeMovRegMem::offset() const { Unimplemented(); return 0; }
+int NativeMovRegMem::offset() const  {
+  return (int)(intptr_t)MacroAssembler::pd_call_destination(instruction_address());
+}
 
 void NativeMovRegMem::set_offset(int x) {
   // FIXME: This assumes that the offset is moved into rscratch1 with

@@ -222,7 +222,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   int i;
   for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
     Register r = as_Register(i);
-    if (i <= 28 && i != rscratch1->encoding() && i != rscratch2->encoding()) {
+    if (i <= 18 && i != rscratch1->encoding() && i != rscratch2->encoding()) {
       int sp_offset = cpu_reg_save_offsets[i];
       oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
                                 r->as_VMReg());
@@ -360,6 +360,19 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
     __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
     __ str(zr, Address(rthread, JavaThread::vm_result_2_offset()));
     break;
+  case handle_exception_nofpu_id:
+  case handle_exception_id:
+    // At this point all registers MAY be live.
+    oop_map = save_live_registers(sasm, id == handle_exception_nofpu_id);
+    break;
+  case handle_exception_from_callee_id: {
+    // At this point all registers except exception oop (r0) and
+    // exception pc (lr) are dead.
+    const int frame_size = 2 /*fp, return address*/;
+    oop_map = new OopMap(frame_size * VMRegImpl::slots_per_word, 0);
+    sasm->set_frame_size(frame_size);
+    break;
+  }
   default:
     __ should_not_reach_here();
     break;
@@ -878,6 +891,39 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case register_finalizer_id:
+      {
+        __ set_info("register_finalizer", dont_gc_arguments);
+
+        // This is called via call_runtime so the arguments
+        // will be place in C abi locations
+
+        __ verify_oop(c_rarg0);
+
+        // load the klass and check the has finalizer flag
+        Label register_finalizer;
+        Register t = r5;
+        __ load_klass(t, r0);
+        __ ldrw(t, Address(t, Klass::access_flags_offset()));
+        __ tst(t, JVM_ACC_HAS_FINALIZER);
+        __ br(Assembler::NE, register_finalizer);
+        __ ret(lr);
+
+        __ bind(register_finalizer);
+        __ enter();
+        OopMap* oop_map = save_live_registers(sasm, 2 /*num_rt_args */);
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, SharedRuntime::register_finalizer), r0);
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, oop_map);
+
+        // Now restore all the live registers
+        restore_live_registers(sasm);
+
+        __ leave();
+        __ ret(lr);
+      }
+      break;
+
     case throw_range_check_failed_id:
       { StubFrame f(sasm, "range_check_failed", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_range_check_exception), true);
@@ -910,6 +956,19 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       { StubFrame f(sasm, "load_mirror_patching", dont_gc_arguments);
         // we should set up register map
         oop_maps = generate_patching(sasm, CAST_FROM_FN_PTR(address, move_mirror_patching));
+      }
+      break;
+
+    case handle_exception_nofpu_id:
+    case handle_exception_id:
+      { StubFrame f(sasm, "handle_exception", dont_gc_arguments);
+        oop_maps = generate_handle_exception(id, sasm);
+      }
+      break;
+
+    case handle_exception_from_callee_id:
+      { StubFrame f(sasm, "handle_exception_from_callee", dont_gc_arguments);
+        oop_maps = generate_handle_exception(id, sasm);
       }
       break;
 

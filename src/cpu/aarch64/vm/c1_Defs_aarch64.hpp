@@ -36,6 +36,7 @@ enum {
   pd_strict_fp_requires_explicit_rounding = false
 };
 
+// FIXME: There are no callee-saved
 
 // registers
 enum {
@@ -43,23 +44,24 @@ enum {
   pd_nof_fpu_regs_frame_map = FloatRegisterImpl::number_of_registers,  // number of registers used during code emission
 
   pd_nof_caller_save_cpu_regs_frame_map = 19 - 2,  // number of registers killed by calls
-  pd_nof_caller_save_fpu_regs_frame_map = 16,  // number of registers killed by calls
+  pd_nof_caller_save_fpu_regs_frame_map = 32,  // number of registers killed by calls
 
   pd_first_callee_saved_reg = 19 - 2,
   pd_last_callee_saved_reg = 26 - 2,
 
-  pd_last_allocatable_cpu_reg = 24,
+  pd_last_allocatable_cpu_reg = 16,
 
-  pd_nof_cpu_regs_reg_alloc = 25,  // number of registers that are visible to register allocator
-  pd_nof_fpu_regs_reg_alloc = 32,  // number of registers that are visible to register allocator
+  pd_nof_cpu_regs_reg_alloc
+    = pd_last_allocatable_cpu_reg + 1,  // number of registers that are visible to register allocator
+  pd_nof_fpu_regs_reg_alloc = 8,  // number of registers that are visible to register allocator
 
   pd_nof_cpu_regs_linearscan = 32, // number of registers visible to linear scan
   pd_nof_fpu_regs_linearscan = pd_nof_fpu_regs_frame_map, // number of registers visible to linear scan
   pd_nof_xmm_regs_linearscan = 0, // like sparc we don't have any of these 
   pd_first_cpu_reg = 0,
-  pd_last_cpu_reg = 25,
+  pd_last_cpu_reg = 16,
   pd_first_byte_reg = 0,
-  pd_last_byte_reg = 25,
+  pd_last_byte_reg = 16,
   pd_first_fpu_reg = pd_nof_cpu_regs_frame_map,
   pd_last_fpu_reg =  pd_first_fpu_reg + 31,
 

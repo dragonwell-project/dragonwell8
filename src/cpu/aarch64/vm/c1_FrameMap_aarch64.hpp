@@ -137,15 +137,9 @@
   static bool is_caller_save_register (LIR_Opr opr) { return true; }
   static bool is_caller_save_register (Register r) { return true; }
 
-  static int adjust_reg_range(int range) {
-    // Reduce the number of available regs (to free r12) in case of compressed oops
-    if (UseCompressedOops || UseCompressedKlassPointers) return range - 1;
-    return range;
-  }
-
-  static int nof_caller_save_cpu_regs() { return adjust_reg_range(pd_nof_caller_save_cpu_regs_frame_map); }
-  static int last_cpu_reg()             { return adjust_reg_range(pd_last_cpu_reg);  }
-  static int last_byte_reg()            { return adjust_reg_range(pd_last_byte_reg); }
+  static int nof_caller_save_cpu_regs() { return pd_nof_caller_save_cpu_regs_frame_map; }
+  static int last_cpu_reg()             { return pd_last_cpu_reg;  }
+  static int last_byte_reg()            { return pd_last_byte_reg; }
 
 #endif // CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
 

@@ -613,7 +613,7 @@ static void gen_i2c_adapter(MacroAssembler *masm,
         // ld_off is MSW so get LSW
         const int offset = (sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
                            next_off : ld_off;
-        __ ldr(rscratch2, Address(esp, ld_off));
+        __ ldr(rscratch2, Address(esp, offset));
         // st_off is LSW (i.e. reg.first())
         __ str(rscratch2, Address(sp, st_off));
       }
