@@ -2732,6 +2732,7 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
       // least and most significant words, respectively.
 
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
       // the exact location of fpu stack values is only known
       // during fpu stack allocation, so the stack allocator object
       // must be present
@@ -2740,6 +2741,7 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
       opr = _fpu_stack_allocator->to_fpu_stack(opr);
 
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi(), "assumed in calculation (only fpu_regnrLo is used)");
+#endif
 #endif
 #ifdef SPARC
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi() + 1, "assumed in calculation (only fpu_regnrHi is used)");

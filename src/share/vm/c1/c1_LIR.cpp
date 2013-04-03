@@ -562,7 +562,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       assert(opConvert->_info == NULL, "must be");
       if (opConvert->_opr->is_valid())       do_input(opConvert->_opr);
       if (opConvert->_result->is_valid())    do_output(opConvert->_result);
-#if defined(PPC)
+#if defined(PPC) || defined(TARGET_ARCH_aarch64)
       if (opConvert->_tmp1->is_valid())      do_temp(opConvert->_tmp1);
       if (opConvert->_tmp2->is_valid())      do_temp(opConvert->_tmp2);
 #endif
