@@ -230,7 +230,7 @@ class NativeMovRegMem: public NativeInstruction {
 
   void  set_offset(int x);
 
-  void  add_offset_in_bytes(int add_offset) { Unimplemented(); }
+  void  add_offset_in_bytes(int add_offset)     { set_offset ( ( offset() + add_offset ) ); }
 
   void verify();
   void print ();
