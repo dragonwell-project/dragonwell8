@@ -2268,40 +2268,42 @@ void MacroAssembler::eden_allocate(Register obj,
     b(slow_case);
   } else {
     Register end = t1;
+    Register heap_end = rscratch2;
     Label retry;
     bind(retry);
+    {
+      unsigned long offset;
+      adrp(rscratch1, ExternalAddress((address) Universe::heap()->end_addr()), offset);
+      ldr(heap_end, Address(rscratch1, offset));
+    }
+
     ExternalAddress heap_top((address) Universe::heap()->top_addr());
+
+    // Get the current top of the heap
     {
       unsigned long offset;
       adrp(rscratch1, heap_top, offset);
-      ldr(obj, Address(rscratch1, offset));
+      lea(rscratch1, Address(rscratch1, offset));
+      ldaxr(obj, rscratch1);
     }
+
+    // Adjust it my the size of our new object
     if (var_size_in_bytes == noreg) {
       lea(end, Address(obj, con_size_in_bytes));
     } else {
       lea(end, Address(obj, var_size_in_bytes));
     }
-    // if end < obj then we wrapped around => object too long => slow case
+
+    // if end < obj then we wrapped around high memory
     cmp(end, obj);
     br(Assembler::LO, slow_case);
-    {
-      unsigned long offset;
-      adrp(rscratch1, ExternalAddress((address) Universe::heap()->end_addr()), offset);
-      ldr(rscratch1, Address(rscratch1, offset));
-    }
-    cmp(end, rscratch1);
+
+    cmp(end, heap_end);
     br(Assembler::HI, slow_case);
-    // Compare obj with the top addr, and if still equal, store the new top addr in
-    // end at the address of the top addr pointer. Sets ZF if was equal, and clears
-    // it otherwise.
-    Label ok;
-    {
-      unsigned long offset;
-      adrp(rscratch2, heap_top, offset);
-      lea(rscratch2, Address(rscratch2, offset));
-    }
-    cmpxchgptr(obj, end, rscratch2, rscratch1, ok, retry);
-    bind(ok);
+
+    // If heap_top hasn't been changed by some other thread, update it.
+    stlxr(rscratch1, end, rscratch1);
+    cbnzw(rscratch1, retry);
   }
 }
 
