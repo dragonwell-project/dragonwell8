@@ -536,10 +536,12 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   OopMap* oop_map = save_live_registers(sasm, num_rt_args);
 
   __ mov(c_rarg0, rthread);
-  __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
+  Label retaddr;
+  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
   // do the call
   __ mov(rscratch1, RuntimeAddress(target));
   __ brx86(rscratch1, 1, 0, 1);
+  __ bind(retaddr);
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(__ offset(), oop_map);
   // verify callee-saved register

@@ -56,6 +56,11 @@ Bytecodes::Code Template::bytecode() const {
 
 
 void Template::generate(InterpreterMacroAssembler* masm) {
+#ifdef TARGET_OS_ARCH_linux_aarch64
+  if (NotifySimulator
+      && bytecode() != Bytecodes::_return)
+    masm->notify(Assembler::bytecode_start);
+#endif
   // parameter passing
   TemplateTable::_desc = this;
   TemplateTable::_masm = masm;

@@ -101,9 +101,12 @@ class TemplateTable: AllStatic {
   static Template        _template_table_wide[Bytecodes::number_of_codes];
 
   static Template*       _desc;                  // the current template to be generated
+ public:
   static Bytecodes::Code bytecode()              { return _desc->bytecode(); }
 
+ private:
   static BarrierSet*     _bs;                    // Cache the barrier set.
+
  public:
   //%note templates_1
   static InterpreterMacroAssembler* _masm;       // the assembler used when generating templates

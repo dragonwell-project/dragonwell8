@@ -227,7 +227,45 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 }
 
 address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state,
-                                                               int step) { __ call_Unimplemented(); return 0; }
+                                                               int step) {
+  address entry = __ pc();
+  // NULL last_sp until next java call
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ restore_bcp();
+  __ restore_locals();
+  __ restore_constant_pool_cache();
+  __ get_method(rmethod);
+  // handle exceptions
+  {
+    Label L;
+    __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
+    __ cbz(rscratch1, L);
+    __ call_VM(noreg,
+               CAST_FROM_FN_PTR(address,
+                                InterpreterRuntime::throw_pending_exception));
+    __ should_not_reach_here();
+    __ bind(L);
+  }
+
+  // The deopt handler leaves SP (not ESP) pointing to the top of
+  // stack; fix that, then move SP out of the way.
+  __ mov(esp, sp);
+
+  __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
+  __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
+  __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
+	 + (EnableInvokeDynamic ? 2 : 0));
+  __ ldr(rscratch2,
+	 Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
+  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtw, 3);
+  __ andr(sp, rscratch1, -16);
+
+
+  __ get_dispatch();
+  __ dispatch_next(state, step);
+  return entry;
+}
+
 
 int AbstractInterpreter::BasicType_as_index(BasicType type) {
   int i = 0;
@@ -562,12 +600,6 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   // from the stack. instead enter() will save lr and leave will
   // restore it later
 
-  // Save previous sp
-  if (stack_pointer == sp) {
-    __ mov(rscratch1, sp);
-    stack_pointer = rscratch1;
-  }
-
   // Save previous sp.  If this is a native call, the higher word of
   // this pair will be used for oop_temp so it must be zeroed.
   // FIXME: Should we not always push zr?
@@ -580,7 +612,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
 
   // set sender sp
   // leave last_sp as null
-  __ stp(zr, esp, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(zr, r13, Address(__ pre(sp, -2 * wordSize)));
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));      // get ConstMethod
   __ add(rbcp, rscratch1, in_bytes(ConstMethod::codes_offset())); // get codebase
   if (ProfileInterpreter) {
@@ -1417,7 +1449,79 @@ int AbstractInterpreter::layout_activation(Method* method,
                                            int callee_locals,
                                            frame* caller,
                                            frame* interpreter_frame,
-                                           bool is_top_frame) { Unimplemented(); return 0; }
+                                           bool is_top_frame) {
+  // Note: This calculation must exactly parallel the frame setup
+  // in AbstractInterpreterGenerator::generate_method_entry.
+  // If interpreter_frame!=NULL, set up the method, locals, and monitors.
+  // The frame interpreter_frame, if not NULL, is guaranteed to be the
+  // right size, as determined by a previous call to this method.
+  // It is also guaranteed to be walkable even though it is in a skeletal state
+
+  // fixed size of an interpreter frame:
+  int max_locals = method->max_locals() * Interpreter::stackElementWords;
+  int extra_locals = (method->max_locals() - method->size_of_parameters()) *
+                     Interpreter::stackElementWords;
+
+  int overhead = frame::sender_sp_offset -
+                 frame::interpreter_frame_initial_sp_offset;
+  // Our locals were accounted for by the caller (or last_frame_adjust
+  // on the transistion) Since the callee parameters already account
+  // for the callee's params we only need to account for the extra
+  // locals.
+  int size = overhead +
+         (callee_locals - callee_param_count)*Interpreter::stackElementWords +
+         moncount * frame::interpreter_frame_monitor_size() +
+         tempcount* Interpreter::stackElementWords + popframe_extra_args;
+  if (interpreter_frame != NULL) {
+#ifdef ASSERT
+    if (!EnableInvokeDynamic)
+      // @@@ FIXME: Should we correct interpreter_frame_sender_sp in the calling sequences?
+      // Probably, since deoptimization doesn't work yet.
+      assert(caller->unextended_sp() == interpreter_frame->interpreter_frame_sender_sp(), "Frame not properly walkable");
+    assert(caller->sp() == interpreter_frame->sender_sp(), "Frame not properly walkable(2)");
+#endif
+
+    interpreter_frame->interpreter_frame_set_method(method);
+    // NOTE the difference in using sender_sp and
+    // interpreter_frame_sender_sp interpreter_frame_sender_sp is
+    // the original sp of the caller (the unextended_sp) and
+    // sender_sp is fp+16 XXX
+    intptr_t* locals = interpreter_frame->sender_sp() + max_locals - 1;
+
+#ifdef ASSERT
+    if (caller->is_interpreted_frame()) {
+      assert(locals < caller->fp() + frame::interpreter_frame_initial_sp_offset, "bad placement");
+    }
+#endif
+
+    interpreter_frame->interpreter_frame_set_locals(locals);
+    BasicObjectLock* montop = interpreter_frame->interpreter_frame_monitor_begin();
+    BasicObjectLock* monbot = montop - moncount;
+    interpreter_frame->interpreter_frame_set_monitor_end(monbot);
+
+    // Set last_sp
+    intptr_t*  esp = (intptr_t*) monbot -
+                     tempcount*Interpreter::stackElementWords -
+                     popframe_extra_args;
+    interpreter_frame->interpreter_frame_set_last_sp(esp);
+
+    // All frames but the initial (oldest) interpreter frame we fill in have
+    // a value for sender_sp that allows walking the stack but isn't
+    // truly correct. Correct the value here.
+    if (extra_locals != 0 &&
+        interpreter_frame->sender_sp() ==
+        interpreter_frame->interpreter_frame_sender_sp()) {
+      interpreter_frame->set_interpreter_frame_sender_sp(caller->sp() +
+                                                         extra_locals);
+    }
+    *interpreter_frame->interpreter_frame_cache_addr() =
+      method->constants()->cache();
+
+    // interpreter_frame->obj_at_put(frame::sender_sp_offset,
+    // 				  (oop)interpreter_frame->addr_at(frame::sender_sp_offset));
+  }
+  return size;
+}
 
 //-----------------------------------------------------------------------------
 // Exceptions

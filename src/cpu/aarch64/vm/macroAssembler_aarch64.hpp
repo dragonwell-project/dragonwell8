@@ -51,8 +51,16 @@ class MacroAssembler: public Assembler {
 
   VIRTUAL void call_VM_leaf_base(
     address entry_point,               // the entry point
-    int     number_of_arguments        // the number of arguments to pop after the call
+    int     number_of_arguments,        // the number of arguments to pop after the call
+    Label *retaddr = NULL
   );
+
+  VIRTUAL void call_VM_leaf_base(
+    address entry_point,               // the entry point
+    int     number_of_arguments,        // the number of arguments to pop after the call
+    Label &retaddr) {
+    call_VM_leaf_base(entry_point, number_of_arguments, &retaddr);
+  }
 
   // This is the base routine called by the different versions of call_VM. The interpreter
   // may customize this version by overriding it for its purposes (e.g., to save/restore
@@ -1207,7 +1215,8 @@ public:
     address  entry_point,             // the entry point
     int      number_of_gp_arguments,  // the number of gp reg arguments to pass
     int      number_of_fp_arguments,  // the number of fp reg arguments to pass
-    ret_type type		      // the return type for the call
+    ret_type type,		      // the return type for the call
+    Label*   retaddr = NULL
   );
 };
 

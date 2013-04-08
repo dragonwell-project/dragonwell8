@@ -236,6 +236,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   // last_java_fp is optional
   if (last_java_fp->is_valid()) {
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
+  } else {
+    ShouldNotReachHere();
   }
 }
 
@@ -334,10 +336,11 @@ void MacroAssembler::call_VM_base(Register oop_result,
   // set last Java frame before call
   assert(last_java_sp != rfp, "can't use rfp");
 
-  set_last_Java_frame(last_java_sp, rfp, (address)NULL, rscratch1);
+  Label l;
+  set_last_Java_frame(last_java_sp, rfp, l, rscratch1);
 
   // do the call, remove parameters
-  MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);
+  MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, l);
 
   // reset last Java frame
   // Only interpreter should have to clear fp
@@ -883,14 +886,16 @@ Address MacroAssembler::argument_address(RegisterOrConstant arg_slot,
 }
 
 void MacroAssembler::call_VM_leaf_base(address entry_point,
-                                       int number_of_arguments) {
-  call_VM_leaf_base1(entry_point, number_of_arguments, 0, ret_type_integral);
+                                       int number_of_arguments,
+				       Label *retaddr) {
+  call_VM_leaf_base1(entry_point, number_of_arguments, 0, ret_type_integral, retaddr);
 }
 
 void MacroAssembler::call_VM_leaf_base1(address entry_point,
 					int number_of_gp_arguments,
 					int number_of_fp_arguments,
-					ret_type type) {
+					ret_type type,
+					Label *retaddr) {
   Label E, L;
 
   stp(rscratch1, rmethod, Address(pre(sp, -2 * wordSize)));
@@ -899,6 +904,8 @@ void MacroAssembler::call_VM_leaf_base1(address entry_point,
   // not counted
   mov(rscratch1, entry_point);
   brx86(rscratch1, number_of_gp_arguments + 1, number_of_fp_arguments, type);
+  if (retaddr)
+    bind(*retaddr);
 
   ldp(rscratch1, rmethod, Address(post(sp, 2 * wordSize)));
 }
@@ -966,7 +973,7 @@ void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0, Reg
 void MacroAssembler::null_check(Register reg, int offset) {
   if (needs_explicit_null_check(offset)) {
     // provoke OS NULL exception if reg = NULL by
-    // accessing M[reg] w/o changing any (non-CC) registers
+    // accessing M[reg] w/o changing any registers
     // NOTE: this is plenty to provoke a segv
     ldr(zr, Address(reg));
   } else {
@@ -986,6 +993,13 @@ void MacroAssembler::mov(Register r, Address dest) {
 }
 
 void MacroAssembler::mov64(Register r, uintptr_t imm64) {
+#ifndef PRODUCT
+    {
+      char buffer[64];
+      snprintf(buffer, sizeof(buffer), "0x%"PRIX64, imm64);
+      block_comment(buffer);
+    }
+#endif
   movz(r, imm64 & 0xffff);
   imm64 >>= 16;
   movk(r, imm64 & 0xffff, 16);
@@ -997,6 +1011,13 @@ void MacroAssembler::mov64(Register r, uintptr_t imm64) {
 
 void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 {
+#ifndef PRODUCT
+    {
+      char buffer[64];
+      snprintf(buffer, sizeof(buffer), "0x%"PRIX64, imm64);
+      block_comment(buffer);
+    }
+#endif
   if (operand_valid_for_logical_immediate(false, imm64)) {
     orr(dst, zr, imm64);
   } else {
@@ -1103,6 +1124,13 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 
 void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 {
+#ifndef PRODUCT
+    {
+      char buffer[64];
+      snprintf(buffer, sizeof(buffer), "0x%"PRIX32, imm32);
+      block_comment(buffer);
+    }
+#endif
   if (operand_valid_for_logical_immediate(true, imm32)) {
     orrw(dst, zr, imm32);
   } else {
@@ -2340,15 +2368,17 @@ void MacroAssembler::verify_tlab() {
 // Writes to stack successive pages until offset reached to check for
 // stack overflow + shadow pages.  This clobbers tmp.
 void MacroAssembler::bang_stack_size(Register size, Register tmp) {
+  assert_different_registers(tmp, size, rscratch1);
   mov(tmp, sp);
   // Bang stack for total size given plus shadow page size.
   // Bang one page at a time because large size can bang beyond yellow and
   // red zones.
   Label loop;
+  mov(rscratch1, os::vm_page_size());
   bind(loop);
   lea(tmp, Address(tmp, -os::vm_page_size()));
+  subsw(size, size, rscratch1);
   str(size, Address(tmp));
-  subw(size, size, os::vm_page_size());
   br(Assembler::GT, loop);
 
   // Bang down shadow pages too.

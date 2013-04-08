@@ -2518,6 +2518,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
                     _adapters->number_of_entries(), (method->is_static() ? "static" : "receiver"),
                     method->signature()->as_C_string(), insts_size);
       tty->print_cr("c2i argument handler starts at %p",entry->get_c2i_entry());
+      address a = entry->get_c2i_entry();
       if (Verbose || PrintStubCode) {
         address first_pc = entry->base_address();
         if (first_pc != NULL) {

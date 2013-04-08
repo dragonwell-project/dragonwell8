@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee1f09f8;
+const unsigned long Assembler::asm_bp = 0x00007fffee097c64;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -1440,6 +1440,7 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
     imm = -imm;
     op = negated_op;
   }
+  assert(Rd != sp || imm % 16 == 0, "misaligned stack");
   if (imm >= (1 << 11)
       && ((imm >> 12) << 12 == imm)) {
     imm >>= 12;

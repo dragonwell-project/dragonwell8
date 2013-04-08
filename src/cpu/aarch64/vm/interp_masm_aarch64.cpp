@@ -268,6 +268,8 @@ void InterpreterMacroAssembler::store_ptr(int n, Register val) {
 
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
+  // set sender sp
+  mov(r13, sp);
   // record last_sp
   str(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }
@@ -497,12 +499,13 @@ void InterpreterMacroAssembler::remove_activation(
   // get sender esp
   ldr(esp,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
-  // sender sp
-  ldr(rscratch1, Address(rfp, frame::sender_sp_offset * wordSize));
-
   // remove frame anchor
   leave();
-  mov(sp, rscratch1);
+  // If we're returning to interpreted code we will shortly be
+  // adjusting SP to allow some space for ESP.  If we're returning to
+  // compiled code the saved sender SP was saved in sender_sp, so this
+  // restores it.
+  andr(sp, esp, -16);
 }
 
 #endif // C_INTERP

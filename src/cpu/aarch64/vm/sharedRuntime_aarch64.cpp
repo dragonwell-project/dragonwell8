@@ -191,8 +191,8 @@ void RegisterSaver::restore_result_registers(MacroAssembler* masm) { Unimplement
   // Restore integer result register
   __ ldr(r0, Address(sp, r0_offset_in_bytes()));
 
-  // Pop all of the register save are off the stack except the return address
-  __ add(sp, sp, return_offset_in_bytes());
+  // Pop all of the register save are off the stack
+  __ add(sp, sp, round_to(return_offset_in_bytes(), 16));
 }
 >>>>>>> c85caa2... New functions: newInstance, call site patching, c2i adapters, deoptimization blobs.
 
@@ -361,24 +361,14 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  // We must save registers r19 ... r28 because the compiler knows
-  // they are callee-saved
-  int words_pushed = __ push(0x7ff80000, sp); // All callee-saved registers, plus LR
-
-  // Registers d8-d15 (s8-s15) must be preserved by a callee across
-  // subroutine calls; the remaining registers (v0-v7, v16-v31) do not
-  // need to be preserved (or should be preserved by the
-  // caller).
-  for (int i = 15; i >= 8; i -= 2) {
-    __ stpd(as_FloatRegister(i-1), as_FloatRegister(i),
-	 Address(__ pre(sp, -2 * wordSize)));
-    words_pushed += 2 * wordSize;
-  }
+  int words_pushed = 0;
 
   // Since all args are passed on the stack, total_args_passed *
   // Interpreter::stackElementSize is the space we need.
 
   int extraspace = total_args_passed * Interpreter::stackElementSize;
+
+  __ mov(r13, sp);
 
   // stack is aligned, keep it that way
   extraspace = round_to(extraspace, 2*wordSize);
@@ -485,15 +475,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   __ mov(esp, sp); // Interp expects args on caller's expression stack
 
   __ ldr(rscratch1, Address(rmethod, in_bytes(Method::interpreter_entry_offset())));
-  __ blr(rscratch1);
-
-  if (extraspace)
-    __ add(sp, sp, extraspace);
-  for (int i = 8; i <= 15; i += 2)
-    __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
-	    Address(__ post(sp, 2 * wordSize)));
-  __ pop(0x7ff80000, sp); // All callee-saved registers, plus LR
-  __ ret(lr);
+  __ br(rscratch1);
 }
 
 
@@ -1949,7 +1931,10 @@ nmethod *SharedRuntime::generate_dtrace_nmethod(MacroAssembler *masm,
 
 // this function returns the adjust size (in number of words) to a c2i adapter
 // activation for use during deoptimization
-int Deoptimization::last_frame_adjust(int callee_parameters, int callee_locals ) { Unimplemented(); return 0; }
+int Deoptimization::last_frame_adjust(int callee_parameters, int callee_locals ) {
+  // FIXME: This is a guess
+  return (callee_locals - callee_parameters) * Interpreter::stackElementWords;
+}
 
 
 //------------------------------generate_deopt_blob----------------------------
@@ -2080,8 +2065,9 @@ void SharedRuntime::generate_deopt_blob() {
 
   // fetch_unroll_info needs to call last_java_frame().
 
-  __ set_last_Java_frame(noreg, noreg, noreg, rscratch1);
-#ifdef ASSERT
+  Label retaddr;
+  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+#ifdef ASSERT0
   { Label L;
     __ ldr(rscratch1, Address(rthread,
 			      JavaThread::last_Java_fp_offset()));
@@ -2092,13 +2078,14 @@ void SharedRuntime::generate_deopt_blob() {
 #endif // ASSERT
   __ mov(c_rarg0, rthread);
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::fetch_unroll_info)));
-  __ brx86(rscratch1, 1, 0, 0);
+  __ brx86(rscratch1, 1, 0, 1);
+  __ bind(retaddr);
 
   // Need to have an oopmap that tells fetch_unroll_info where to
   // find any register it might need.
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(false, false);
+  __ reset_last_Java_frame(true, false);
 
   // Load UnrollBlock* into rdi
   __ mov(r5, r0);
@@ -2141,18 +2128,18 @@ void SharedRuntime::generate_deopt_blob() {
   // when we are done the return to frame 3 will still be on the stack.
 
   // Pop deoptimized frame
-  __ ldr(r2, Address(r5, Deoptimization::UnrollBlock::size_of_deoptimized_frame_offset_in_bytes()));
+  __ ldrw(r2, Address(r5, Deoptimization::UnrollBlock::size_of_deoptimized_frame_offset_in_bytes()));
   __ add(sp, sp, r2);
 
   // sp should be pointing at the return address to the caller (3)
 
   // Stack bang to make sure there's enough room for these interpreter frames.
   if (UseStackBanging) {
-    __ ldr(r19, Address(r5, Deoptimization::UnrollBlock::total_frame_sizes_offset_in_bytes()));
+    __ ldrw(r19, Address(r5, Deoptimization::UnrollBlock::total_frame_sizes_offset_in_bytes()));
     __ bang_stack_size(r19, r2);
   }
 
-  // Load address of array of frame pcs into rcx
+  // Load address of array of frame pcs into r2
   __ ldr(r2, Address(r5, Deoptimization::UnrollBlock::frame_pcs_offset_in_bytes()));
 
   // Trash the old pc
@@ -2172,7 +2159,7 @@ void SharedRuntime::generate_deopt_blob() {
   // frame and the stack walking of interpreter_sender will get the unextended sp
   // value and not the "real" sp value.
 
-  const Register sender_sp = r8;
+  const Register sender_sp = r6;
 
   __ mov(sender_sp, sp);
   __ ldrw(r19, Address(r5,
@@ -2185,7 +2172,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ mov(rscratch2, rscratch1);
   Label loop;
   __ bind(loop);
-  __ ldr(r19, Address(r4, 0));          // Load frame size
+  __ ldr(r19, Address(__ post(r4, wordSize)));          // Load frame size
 #ifdef CC_INTERP
   __ subptr(rbx, 4*wordSize);           // we'll push pc and ebp by hand and
 #ifdef ASSERT
@@ -2197,7 +2184,8 @@ void SharedRuntime::generate_deopt_blob() {
 #else
   __ sub(r19, r19, 2*wordSize);           // We'll push pc and fp by hand
 #endif // CC_INTERP
-  __ enter();                           // Save old & set new ebp
+  __ ldr(lr, Address(__ post(r2, wordSize)));  // Load pc
+  __ enter();                           // Save old & set new fp
   __ sub(sp, sp, r19);                  // Prolog
 #ifdef CC_INTERP
   __ movptr(Address(rfp,
@@ -2209,8 +2197,6 @@ void SharedRuntime::generate_deopt_blob() {
   __ str(sender_sp, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize)); // Make it walkable
 #endif /* CC_INTERP */
   __ mov(sender_sp, sp);               // Pass sender_sp to next frame
-  __ add(r4, r4, wordSize);             // Bump array pointer (sizes)
-  __ add(r2, r2, wordSize);             // Bump array pointer (pcs)
   __ sub(r3, r3, 1);                   // Decrement counter
   __ cbnz(r3, loop);
 
@@ -2234,12 +2220,12 @@ void SharedRuntime::generate_deopt_blob() {
   // Use rfp because the frames look interpreted now
   // Don't need the precise return PC here, just precise enough to point into this code blob.
   address the_pc = __ pc();
-  __ set_last_Java_frame(noreg, rfp, the_pc, rscratch1);
+  __ set_last_Java_frame(sp, rfp, address(NULL), rscratch1);
 
   __ mov(c_rarg0, rthread);
   __ movw(c_rarg1, rcpool); // second arg: exec_mode
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::unpack_frames)));
-  __ brx86(rscratch1, 1, 0, 0);
+  __ brx86(rscratch1, 2, 0, 0);
 
   // Set an oopmap for the call site
   // Use the same PC we used for the last java frame
