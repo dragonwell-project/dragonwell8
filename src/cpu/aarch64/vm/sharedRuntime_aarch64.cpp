@@ -41,6 +41,7 @@
 #include "opto/runtime.hpp"
 #endif
 
+#include "../../../../../../simulator/simulator.hpp"
 #define __ masm->
 
 const int StackAlignmentInSlots = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
@@ -660,6 +661,69 @@ static void gen_i2c_adapter(MacroAssembler *masm,
   __ br(rscratch1);
 }
 
+static void generate_i2c_adapter_name(char *result, int total_args_passed, const BasicType *sig_bt)
+{
+  strcpy(result, "i2c(");
+  int idx = 4;
+  for (int i = 0; i < total_args_passed; i++) {
+    switch(sig_bt[i]) {
+    case T_BOOLEAN:
+      result[idx++] = 'Z';
+      break;
+    case T_CHAR:
+      result[idx++] = 'C';
+      break;
+    case T_FLOAT:
+      result[idx++] = 'F';
+      break;
+    case T_DOUBLE:
+      assert((i < (total_args_passed - 1)) && (sig_bt[i+1] == T_VOID),
+	     "double must be followed by void");
+      i++;
+      result[idx++] = 'D';
+      break;
+    case T_BYTE:
+      result[idx++] = 'B';
+      break;
+    case T_SHORT:
+      result[idx++] = 'S';
+      break;
+    case T_INT:
+      result[idx++] = 'I';
+      break;
+    case T_LONG:
+      assert((i < (total_args_passed - 1)) && (sig_bt[i+1] == T_VOID),
+	     "long must be followed by void");
+      i++;
+      result[idx++] = 'L';
+      break;
+    case T_OBJECT:
+      result[idx++] = 'O';
+      break;
+    case T_ARRAY:
+      result[idx++] = '[';
+      break;
+    case T_ADDRESS:
+      result[idx++] = 'P';
+      break;
+    case T_NARROWOOP:
+      result[idx++] = 'N';
+      break;
+    case T_METADATA:
+      result[idx++] = 'M';
+      break;
+    case T_NARROWKLASS:
+      result[idx++] = 'K';
+      break;
+    default:
+      result[idx++] = '?';
+      break;
+    }
+  }
+  result[idx++] = ')';
+  result[idx] = '\0';
+}
+
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                                             int total_args_passed,
@@ -671,12 +735,29 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   Label skip_fixup;
 
   address i2c_entry = __ pc();
+
+  char name[400];
+  AArch64Simulator *sim = NULL;
+
+  if (NotifySimulator) {
+    generate_i2c_adapter_name(name, total_args_passed, sig_bt);
+    sim = AArch64Simulator::current();
+    sim->notifyCompile(name, i2c_entry);
+  }
+
   gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
 
   __ call_Unimplemented();
   __ b(skip_fixup);
 
   address c2i_entry = __ pc();
+
+  if (NotifySimulator) {
+    name[0] = 'c';
+    name[2] = 'i';
+    sim->notifyCompile(name, c2i_entry);
+  }
+
   gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
 
   __ flush();
