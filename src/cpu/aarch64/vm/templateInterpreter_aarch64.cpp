@@ -229,12 +229,11 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state,
                                                                int step) {
   address entry = __ pc();
-  // NULL last_sp until next java call
-  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ restore_bcp();
   __ restore_locals();
   __ restore_constant_pool_cache();
   __ get_method(rmethod);
+
   // handle exceptions
   {
     Label L;
@@ -247,21 +246,23 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state,
     __ bind(L);
   }
 
-  // The deopt handler leaves SP (not ESP) pointing to the top of
-  // stack; fix that, then move SP out of the way.
-  __ mov(esp, sp);
+  __ get_dispatch();
 
+  // Calculate stack limit
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
   __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
   __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
 	 + (EnableInvokeDynamic ? 2 : 0));
   __ ldr(rscratch2,
 	 Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
-  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtw, 3);
+  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtx, 3);
   __ andr(sp, rscratch1, -16);
 
+  // Restore expression stack pointer
+  __ ldr(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  // NULL last_sp until next java call
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
-  __ get_dispatch();
   __ dispatch_next(state, step);
   return entry;
 }
@@ -1472,6 +1473,11 @@ int AbstractInterpreter::layout_activation(Method* method,
          (callee_locals - callee_param_count)*Interpreter::stackElementWords +
          moncount * frame::interpreter_frame_monitor_size() +
          tempcount* Interpreter::stackElementWords + popframe_extra_args;
+
+  // On AArch64 we always keep the stack pointer 16-aligned, so we
+  // must round up here.
+  size = round_to(size, 2);
+
   if (interpreter_frame != NULL) {
 #ifdef ASSERT
     if (!EnableInvokeDynamic)

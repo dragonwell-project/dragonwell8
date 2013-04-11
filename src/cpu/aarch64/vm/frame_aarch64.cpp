@@ -465,7 +465,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 frame frame::zsender(RegisterMap* map) const {
   // Default is we done have to follow them. The sender_for_xxx will
   // update it accordingly
-  map->set_include_argument_oops(false);
+   map->set_include_argument_oops(false);
 
   if (is_entry_frame())       return sender_for_entry_frame(map);
   if (is_interpreted_frame()) return sender_for_interpreter_frame(map);
@@ -474,6 +474,7 @@ frame frame::zsender(RegisterMap* map) const {
   if (_cb != NULL) {
     return sender_for_compiled_frame(map);
   }
+
   // Must be native-compiled frame, i.e. the marshaling code for native
   // methods that exists in the core system.
   return frame(sender_sp(), link(), sender_pc());
@@ -695,7 +696,7 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
 
   if (Interpreter::contains((address)pc)) {
     Method* m = (Method*)p[frame::interpreter_frame_method_offset];
-    if(m->is_method()) {
+    if(m && m->is_method()) {
       ResourceMark rm;
       printf("%s\n", m->name_and_sig_as_C_string());
     } else

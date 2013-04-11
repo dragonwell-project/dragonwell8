@@ -2023,10 +2023,14 @@ void SharedRuntime::generate_deopt_blob() {
   // tos: stack at point of call to method that threw the exception (i.e. only
   // args are on the stack, no return address)
 
-  // save the return address
-  // It will be patched later with the throwing pc. The correct value is not
-  // available now because loading it from memory would destroy registers.
-  __ stp(zr, lr, Address(__ pre(sp, -2 * wordSize)));
+  // The return address pushed by save_live_registers will be patched
+  // later with the throwing pc. The correct value is not available
+  // now because loading it from memory would destroy registers.
+
+  // NB: The SP at this point must be the SP of the method that is
+  // being deoptimized.  Deoptimization assumes that the frame created
+  // here by save_live_registers is immediately below the method's SP.
+  // This is a somewhat fragile mechanism.
 
   // Save everything in sight.
   map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
