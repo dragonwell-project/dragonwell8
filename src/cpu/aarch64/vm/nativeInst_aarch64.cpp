@@ -168,6 +168,11 @@ bool NativeInstruction::is_safepoint_poll() {
   return os::is_poll_address(MacroAssembler::pd_call_destination(addr));
 }
 
+bool NativeInstruction::is_adrp_at(address instr) {
+  unsigned insn = *(unsigned*)instr;
+  return (Instruction_aarch64::extract(insn, 31, 24) & 0b10011111) == 0b10010000;
+}
+
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
 
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) { Unimplemented(); }

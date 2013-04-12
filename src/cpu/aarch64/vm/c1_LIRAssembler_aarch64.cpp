@@ -368,8 +368,6 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
   bool result_is_oop = result->is_valid() ? result->is_oop() : false;
 
-  // Note: we do not need to round double result; float result has the right precision
-  // the poll sets the condition code, but no data registers
   address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
   __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
   __ ret(lr);
@@ -380,8 +378,11 @@ int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   address polling_page(os::get_polling_page()
 		       + (SafepointPollOffset % os::vm_page_size() + __ offset()));
   guarantee(info != NULL, "Shouldn't be NULL");
-  address insn = __ read_polling_page(rscratch1, polling_page, relocInfo::poll_type);
-  add_debug_info_for_branch(insn, info);
+  unsigned long off;
+  __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
+  add_debug_info_for_branch(info);  // This isn't just debug info:
+				    // it's the oop map
+  __ ldrw(zr, Address(rscratch1, off));
 
   return __ offset();
 }

@@ -533,7 +533,7 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
     }
     rlock_result(x);
     arithmetic_op_int(x->op(), x->operand(), left_arg->result(), right_arg->result(), new_register(T_INT));
-  }      
+  }
 }
 
 void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
@@ -822,11 +822,10 @@ void LIRGenerator::do_If(If* x) {
     xin->set_destroys_register();
   }
   xin->load_item();
-  if (tag == longTag && yin->is_constant() && yin->get_jlong_constant() == 0 && (cond == If::eql || cond == If::neq)) {
-    // inline long zero
+  if (tag == longTag && yin->is_constant()
+      &&  Assembler::operand_valid_for_add_sub_immediate(yin->get_jlong_constant())) {
     yin->dont_load_item();
   } else if (tag == longTag || tag == floatTag || tag == doubleTag) {
-    // longs cannot handle constants at right side
     yin->load_item();
   } else {
     yin->dont_load_item();
@@ -840,8 +839,16 @@ void LIRGenerator::do_If(If* x) {
   }
   set_no_result(x);
 
+  if (tag == intTag) {
+    if (yin->is_constant()
+	&& ! Assembler::operand_valid_for_add_sub_immediate(yin->get_jint_constant())) {
+      yin->load_item();
+    }
+  }
+
   LIR_Opr left = xin->result();
   LIR_Opr right = yin->result();
+
   __ cmp(lir_cond(cond), left, right);
   // Generate branch profiling. Profiling code doesn't kill flags.
   profile_branch(x, cond);

@@ -91,6 +91,8 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   static void test() {}                 // override for testing
 
   inline friend NativeInstruction* nativeInstruction_at(address address);
+
+  static bool is_adrp_at(address instr);
 };
 
 inline NativeInstruction* nativeInstruction_at(address address) {
