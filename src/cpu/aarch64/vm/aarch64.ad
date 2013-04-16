@@ -22,7 +22,7 @@
 //
 //
 
-// AMD64 Architecture Description File
+// AArch64 Architecture Description File
 
 //----------REGISTER DEFINITION BLOCK------------------------------------------
 // This information is used by the matcher and the register allocator to
@@ -59,9 +59,181 @@ register %{
 //
 // The encoding number is the actual bit-pattern placed into the opcodes.
 
+// We must define the 64 bit int registers in two 32 bit halves, the
+// real lower register and a virtual upper half register. upper halves
+// are used by the register allocator but are not actually supplied as
+// operands to memory ops.
+//
+// follow the C1 compiler in making registers
+//
+//   r0-r7,r10-r26 volatile (caller save)
+//   r27-r32 system (no save, no allocate)
+//   r8-r9 invisible to the allocator (so we can use them as scratch regs)
+//
+// as regards Java usage. we don't use any callee save registers
+// because this makes it difficult to de-optimise a frame (see comment
+// in x86 implementation of Deoptimization::unwind_callee_save_values)
+//
+
 // General Registers
 
-reg_def R0   (SOC, SOC, Op_RegI,  0, r0->as_VMReg());
+reg_def R0      ( SOC, SOC, Op_RegI,  0, r0->as_VMReg()         );
+reg_def R0_H    ( SOC, SOC, Op_RegI,  0, r0->as_VMReg()->next() );
+reg_def R1      ( SOC, SOC, Op_RegI,  1, r1->as_VMReg()         );
+reg_def R1_H    ( SOC, SOC, Op_RegI,  1, r1->as_VMReg()->next() );
+reg_def R2      ( SOC, SOC, Op_RegI,  2, r2->as_VMReg()         );
+reg_def R2_H    ( SOC, SOC, Op_RegI,  2, r2->as_VMReg()->next() );
+reg_def R3      ( SOC, SOC, Op_RegI,  3, r3->as_VMReg()         );
+reg_def R3_H    ( SOC, SOC, Op_RegI,  3, r3->as_VMReg()->next() );
+reg_def R4      ( SOC, SOC, Op_RegI,  4, r4->as_VMReg()         );
+reg_def R4_H    ( SOC, SOC, Op_RegI,  4, r4->as_VMReg()->next() );
+reg_def R5      ( SOC, SOC, Op_RegI,  5, r5->as_VMReg()         );
+reg_def R5_H    ( SOC, SOC, Op_RegI,  5, r5->as_VMReg()->next() );
+reg_def R6      ( SOC, SOC, Op_RegI,  6, r6->as_VMReg()         );
+reg_def R6_H    ( SOC, SOC, Op_RegI,  6, r6->as_VMReg()->next() );
+reg_def R7      ( SOC, SOC, Op_RegI,  7, r7->as_VMReg()         );
+reg_def R7_H    ( SOC, SOC, Op_RegI,  7, r7->as_VMReg()->next() );
+reg_def R10     ( SOC, SOC, Op_RegI, 10, r10->as_VMReg()        );
+reg_def R10_H   ( SOC, SOC, Op_RegI, 10, r10->as_VMReg()->next());
+reg_def R11     ( SOC, SOC, Op_RegI, 11, r11->as_VMReg()        );
+reg_def R11_H   ( SOC, SOC, Op_RegI, 11, r11->as_VMReg()->next());
+reg_def R12     ( SOC, SOC, Op_RegI, 12, r12->as_VMReg()        );
+reg_def R12_H   ( SOC, SOC, Op_RegI, 12, r12->as_VMReg()->next());
+reg_def R13     ( SOC, SOC, Op_RegI, 13, r13->as_VMReg()        );
+reg_def R13_H   ( SOC, SOC, Op_RegI, 13, r13->as_VMReg()->next());
+reg_def R14     ( SOC, SOC, Op_RegI, 14, r14->as_VMReg()        );
+reg_def R14_H   ( SOC, SOC, Op_RegI, 14, r14->as_VMReg()->next());
+reg_def R15     ( SOC, SOC, Op_RegI, 15, r15->as_VMReg()        );
+reg_def R15_H   ( SOC, SOC, Op_RegI, 15, r15->as_VMReg()->next());
+reg_def R16     ( SOC, SOC, Op_RegI, 16, r16->as_VMReg()        );
+reg_def R16_H   ( SOC, SOC, Op_RegI, 16, r16->as_VMReg()->next());
+reg_def R17     ( SOC, SOC, Op_RegI, 17, r17->as_VMReg()        );
+reg_def R17_H   ( SOC, SOC, Op_RegI, 17, r17->as_VMReg()->next());
+reg_def R18     ( SOC, SOC, Op_RegI, 18, r18->as_VMReg()        );
+reg_def R18_H   ( SOC, SOC, Op_RegI, 18, r18->as_VMReg()->next());
+reg_def R19     ( SOC, SOE, Op_RegI, 19, r19->as_VMReg()        );
+reg_def R19_H   ( SOC, SOE, Op_RegI, 19, r19->as_VMReg()->next());
+reg_def R20     ( SOC, SOE, Op_RegI, 20, r20->as_VMReg()        );
+reg_def R20_H   ( SOC, SOE, Op_RegI, 20, r20->as_VMReg()->next());
+reg_def R21     ( SOC, SOE, Op_RegI, 21, r21->as_VMReg()        );
+reg_def R21_H   ( SOC, SOE, Op_RegI, 21, r21->as_VMReg()->next());
+reg_def R22     ( SOC, SOE, Op_RegI, 22, r22->as_VMReg()        );
+reg_def R22_H   ( SOC, SOE, Op_RegI, 22, r22->as_VMReg()->next());
+reg_def R23     ( SOC, SOE, Op_RegI, 23, r23->as_VMReg()        );
+reg_def R23_H   ( SOC, SOE, Op_RegI, 23, r23->as_VMReg()->next());
+reg_def R24     ( SOC, SOE, Op_RegI, 24, r24->as_VMReg()        );
+reg_def R24_H   ( SOC, SOE, Op_RegI, 24, r24->as_VMReg()->next());
+reg_def R25     ( SOC, SOE, Op_RegI, 25, r25->as_VMReg()        );
+reg_def R25_H   ( SOC, SOE, Op_RegI, 25, r25->as_VMReg()->next());
+reg_def R26     ( SOC, SOE, Op_RegI, 26, r26->as_VMReg()        );
+reg_def R26_H   ( SOC, SOE, Op_RegI, 26, r26->as_VMReg()->next());
+reg_def R27     (  NS, SOE, Op_RegI, 27, r27->as_VMReg()        ); // heapbase
+reg_def R27_H   (  NS, SOE, Op_RegI, 27, r27->as_VMReg()->next());  
+reg_def R28     (  NS, SOE, Op_RegI, 28, r28->as_VMReg()        ); // thread
+reg_def R28_H   (  NS, SOE, Op_RegI, 28, r28->as_VMReg()->next());
+reg_def R29     (  NS,  NS, Op_RegI, 29, r29->as_VMReg()        ); // fp
+reg_def R29_H   (  NS,  NS, Op_RegI, 29, r29->as_VMReg()->next());
+reg_def R30     (  NS,  NS, Op_RegI, 30, r30->as_VMReg()        ); // lr
+reg_def R30_H   (  NS,  NS, Op_RegI, 30, r30->as_VMReg()->next());
+reg_def R31     (  NS,  NS, Op_RegI, 31, r31_sp->as_VMReg()     ); // sp
+reg_def R31_H   (  NS,  NS, Op_RegI, 31, r31_sp->as_VMReg()->next());
+
+// ----------------------------
+// Float/Double Registers
+// ----------------------------
+
+// Double Registers
+
+// The rules of ADL require that double registers be defined in pairs.
+// Each pair must be two 32-bit values, but not necessarily a pair of
+// single float registers. In each pair, ADLC-assigned register numbers
+// must be adjacent, with the lower number even. Finally, when the
+// CPU stores such a register pair to memory, the word associated with
+// the lower ADLC-assigned number must be stored to the lower address.
+
+// AArch64 has 32 floating-point registers. Each can store a vector of
+// single or double precision floating-point values up to 8 * 32
+// floats, 4 * 64 bit floats or 2 * 128 bit floats.  We currently only
+// use the first float or double element of the vector.
+
+// for Java use float registers v0-v15 are always save on call whereas
+// the platform ABI treats v8-v15 as callee save). float registers
+// v16-v31 are NS as per the platofrm spec
+
+  reg_def V0   ( SOC, SOC, Op_RegF,  0, v0->as_VMReg()         );
+  reg_def V0_H ( SOC, SOC, Op_RegF,  0, v0->as_VMReg()->next() );
+  reg_def V1   ( SOC, SOC, Op_RegF,  1, v1->as_VMReg()         );
+  reg_def V1_H ( SOC, SOC, Op_RegF,  1, v1->as_VMReg()->next() );
+  reg_def V2   ( SOC, SOC, Op_RegF,  2, v2->as_VMReg()         );
+  reg_def V2_H ( SOC, SOC, Op_RegF,  2, v2->as_VMReg()->next() );
+  reg_def V3   ( SOC, SOC, Op_RegF,  3, v3->as_VMReg()         );
+  reg_def V3_H ( SOC, SOC, Op_RegF,  3, v3->as_VMReg()->next() );
+  reg_def V4   ( SOC, SOC, Op_RegF,  4, v4->as_VMReg()         );
+  reg_def V4_H ( SOC, SOC, Op_RegF,  4, v4->as_VMReg()->next() );
+  reg_def V5   ( SOC, SOC, Op_RegF,  5, v5->as_VMReg()         );
+  reg_def V5_H ( SOC, SOC, Op_RegF,  5, v5->as_VMReg()->next() );
+  reg_def V6   ( SOC, SOC, Op_RegF,  6, v6->as_VMReg()         );
+  reg_def V6_H ( SOC, SOC, Op_RegF,  6, v6->as_VMReg()->next() );
+  reg_def V7   ( SOC, SOC, Op_RegF,  7, v7->as_VMReg()         );
+  reg_def V7_H ( SOC, SOC, Op_RegF,  7, v7->as_VMReg()->next() );
+  reg_def V8   ( SOC, SOE, Op_RegF,  8, v8->as_VMReg()         );
+  reg_def V8_H ( SOC, SOE, Op_RegF,  8, v8->as_VMReg()->next() );
+  reg_def V9   ( SOC, SOE, Op_RegF,  9, v9->as_VMReg()         );
+  reg_def V9_H ( SOC, SOE, Op_RegF,  9, v9->as_VMReg()->next() );
+  reg_def V10  ( SOC, SOE, Op_RegF, 10, v10->as_VMReg()        );
+  reg_def V10_H( SOC, SOE, Op_RegF, 10, v10->as_VMReg()->next());
+  reg_def V11  ( SOC, SOE, Op_RegF, 11, v11->as_VMReg()        );
+  reg_def V11_H( SOC, SOE, Op_RegF, 11, v11->as_VMReg()->next());
+  reg_def V12  ( SOC, SOE, Op_RegF, 12, v12->as_VMReg()        );
+  reg_def V12_H( SOC, SOE, Op_RegF, 12, v12->as_VMReg()->next());
+  reg_def V13  ( SOC, SOE, Op_RegF, 13, v13->as_VMReg()        );
+  reg_def V13_H( SOC, SOE, Op_RegF, 13, v13->as_VMReg()->next());
+  reg_def V14  ( SOC, SOE, Op_RegF, 14, v14->as_VMReg()        );
+  reg_def V14_H( SOC, SOE, Op_RegF, 14, v14->as_VMReg()->next());
+  reg_def V15  ( SOC, SOE, Op_RegF, 15, v15->as_VMReg()        );
+  reg_def V15_H( SOC, SOE, Op_RegF, 15, v15->as_VMReg()->next());
+  reg_def V16  (  NS,  NS, Op_RegF, 16, v16->as_VMReg()        );
+  reg_def V16_H(  NS,  NS, Op_RegF, 16, v16->as_VMReg()->next());
+  reg_def V17  (  NS,  NS, Op_RegF, 17, v17->as_VMReg()        );
+  reg_def V17_H(  NS,  NS, Op_RegF, 17, v17->as_VMReg()->next());
+  reg_def V18  (  NS,  NS, Op_RegF, 18, v18->as_VMReg()        );
+  reg_def V18_H(  NS,  NS, Op_RegF, 18, v18->as_VMReg()->next());
+  reg_def V19  (  NS,  NS, Op_RegF, 19, v19->as_VMReg()        );
+  reg_def V19_H(  NS,  NS, Op_RegF, 19, v19->as_VMReg()->next());
+  reg_def V20  (  NS,  NS, Op_RegF, 20, v20->as_VMReg()        );
+  reg_def V20_H(  NS,  NS, Op_RegF, 20, v20->as_VMReg()->next());
+  reg_def V21  (  NS,  NS, Op_RegF, 21, v21->as_VMReg()        );
+  reg_def V21_H(  NS,  NS, Op_RegF, 21, v21->as_VMReg()->next());
+  reg_def V22  (  NS,  NS, Op_RegF, 22, v22->as_VMReg()        );
+  reg_def V22_H(  NS,  NS, Op_RegF, 22, v22->as_VMReg()->next());
+  reg_def V23  (  NS,  NS, Op_RegF, 23, v23->as_VMReg()        );
+  reg_def V23_H(  NS,  NS, Op_RegF, 23, v23->as_VMReg()->next());
+  reg_def V24  (  NS,  NS, Op_RegF, 24, v24->as_VMReg()        );
+  reg_def V24_H(  NS,  NS, Op_RegF, 24, v24->as_VMReg()->next());
+  reg_def V25  (  NS,  NS, Op_RegF, 25, v25->as_VMReg()        );
+  reg_def V25_H(  NS,  NS, Op_RegF, 25, v25->as_VMReg()->next());
+  reg_def V26  (  NS,  NS, Op_RegF, 26, v26->as_VMReg()        );
+  reg_def V26_H(  NS,  NS, Op_RegF, 26, v26->as_VMReg()->next());
+  reg_def V27  (  NS,  NS, Op_RegF, 27, v27->as_VMReg()        );
+  reg_def V27_H(  NS,  NS, Op_RegF, 27, v27->as_VMReg()->next());
+  reg_def V28  (  NS,  NS, Op_RegF, 28, v28->as_VMReg()        );
+  reg_def V28_H(  NS,  NS, Op_RegF, 28, v28->as_VMReg()->next());
+  reg_def V29  (  NS,  NS, Op_RegF, 29, v29->as_VMReg()        );
+  reg_def V29_H(  NS,  NS, Op_RegF, 29, v29->as_VMReg()->next());
+  reg_def V30  (  NS,  NS, Op_RegF, 30, v30->as_VMReg()        );
+  reg_def V30_H(  NS,  NS, Op_RegF, 30, v30->as_VMReg()->next());
+  reg_def V31  (  NS,  NS, Op_RegF, 31, v31->as_VMReg()        );
+  reg_def V31_H(  NS,  NS, Op_RegF, 31, v31->as_VMReg()->next());
+
+// ----------------------------
+// Special Registers
+// ----------------------------
+
+// the AArch64 CSPR status flag register is not directly acessible as
+// instruction operand. the FPSR status flag register is a system
+// register which can be written/read using MSR/MRS but again does not
+// appear as an operand (a code identifying the FSPR occurs as an
+// immediate value in the instruction).
 
 // Specify priority of register selection within phases of register
 // allocation.  Highest priority is first.  A useful heuristic is to
@@ -71,7 +243,87 @@ reg_def R0   (SOC, SOC, Op_RegI,  0, r0->as_VMReg());
 // which participate in fixed calling sequences should come last.
 // Registers which are used as pairs must fall on an even boundary.
 
-alloc_class chunk0(R0);
+alloc_class chunk0(
+    // volatiles
+    R10, R10_H,
+    R11, R11_H,
+    R12, R12_H,
+    R13, R13_H,
+    R14, R14_H,
+    R15, R15_H,
+    R16, R16_H,
+    R17, R17_H,
+    R18, R18_H,
+
+    // arg registers
+    R0, R0_H,
+    R1, R1_H,
+    R2, R2_H,
+    R3, R3_H,
+    R4, R4_H,
+    R5, R5_H,
+    R6, R6_H,
+    R7, R7_H,
+
+    // non-volatiles
+    R19, R19_H,
+    R20, R20_H,
+    R21, R21_H,
+    R22, R22_H,
+    R23, R23_H,
+    R24, R24_H,
+    R25, R25_H,
+    R26, R26_H,
+    
+    // non-allocatable registers
+
+    R27, R27_H, // heapbase
+    R28, R28_H, // thread
+    R29, R29_H, // fp
+    R30, R30_H, // lr
+    R31, R31_H, // sp
+);
+
+alloc_class chunk1(
+
+    // no save
+    V16, V16_H,
+    V17, V17_H,
+    V18, V18_H,
+    V19, V19_H,
+    V20, V20_H,
+    V21, V21_H,
+    V22, V22_H,
+    V23, V23_H,
+    V24, V24_H,
+    V25, V25_H,
+    V26, V26_H,
+    V27, V27_H,
+    V28, V28_H,
+    V29, V29_H,
+    V30, V30_H,
+    V31, V31_H,
+
+    // arg registers
+    V0, V0_H,
+    V1, V1_H,
+    V2, V2_H,
+    V3, V3_H,
+    V4, V4_H,
+    V5, V5_H,
+    V6, V6_H,
+    V7, V7_H,
+
+    // non-volatiles
+    V8, V8_H,
+    V9, V9_H,
+    V10, V10_H,
+    V11, V11_H,
+    V12, V12_H,
+    V13, V13_H,
+    V14, V14_H,
+    V15, V15_H,
+);
 
 //----------Architecture Description Register Classes--------------------------
 // Several register classes are automatically defined based upon information in
@@ -82,30 +334,810 @@ alloc_class chunk0(R0);
 // 3) reg_class stack_slots( /* one chunk of stack-based "registers" */ )
 //
 
-// Class for all pointer registers (including RSP)
-reg_class any_reg(R0);
+// Class for all 32 bit integer registers -- excludes SP which will
+// never be used as an integer register
+reg_class any_reg32(
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    R16,
+    R17,
+    R18,
+    R19,
+    R20,
+    R21,
+    R22,
+    R23,
+    R24,
+    R25,
+    R26,
+    R27,
+    R28,
+    R29,
+    R30
+);
 
+// Class for all long integer registers (including RSP)
+reg_class any_reg(
+    R0, R0_H,
+    R1, R1_H,
+    R2, R2_H,
+    R3, R3_H,
+    R4, R4_H,
+    R5, R5_H,
+    R6, R6_H,
+    R7, R7_H,
+    R10, R10_H,
+    R11, R11_H,
+    R12, R12_H,
+    R13, R13_H,
+    R14, R14_H,
+    R15, R15_H,
+    R16, R16_H,
+    R17, R17_H,
+    R18, R18_H,
+    R19, R19_H,
+    R20, R20_H,
+    R21, R21_H,
+    R22, R22_H,
+    R23, R23_H,
+    R24, R24_H,
+    R25, R25_H,
+    R26, R26_H,
+    R27, R27_H,
+    R28, R28_H,
+    R29, R29_H,
+    R30, R30_H,
+    R31, R31_H
+);
+
+// Class for all long integer registers except RSP
+reg_class no_sp_reg(
+    R0, R0_H,
+    R1, R1_H,
+    R2, R2_H,
+    R3, R3_H,
+    R4, R4_H,
+    R5, R5_H,
+    R6, R6_H,
+    R7, R7_H,
+    R10, R10_H,
+    R11, R11_H,
+    R12, R12_H,
+    R13, R13_H,
+    R14, R14_H,
+    R15, R15_H,
+    R16, R16_H,
+    R17, R17_H,
+    R18, R18_H,
+    R19, R19_H,
+    R20, R20_H,
+    R21, R21_H,
+    R22, R22_H,
+    R23, R23_H,
+    R24, R24_H,
+    R25, R25_H,
+    R26, R26_H,
+    R27, R27_H,
+    R28, R28_H,
+    R29, R29_H,
+    R30, R30_H
+);
+
+// Class for long sp register
+reg_class sp_reg(
+  R31, R31_H
+);
+
+// Class for all pointer registers
+reg_class ptr_reg(
+    R0, R0_H,
+    R1, R1_H,
+    R2, R2_H,
+    R3, R3_H,
+    R4, R4_H,
+    R5, R5_H,
+    R6, R6_H,
+    R7, R7_H,
+    R10, R10_H,
+    R11, R11_H,
+    R12, R12_H,
+    R13, R13_H,
+    R14, R14_H,
+    R15, R15_H,
+    R16, R16_H,
+    R17, R17_H,
+    R18, R18_H,
+    R19, R19_H,
+    R20, R20_H,
+    R21, R21_H,
+    R22, R22_H,
+    R23, R23_H,
+    R24, R24_H,
+    R25, R25_H,
+    R26, R26_H,
+    R27, R27_H,
+    R28, R28_H,
+    R29, R29_H,
+    R30, R30_H,
+    R31, R31_H
+);
+
+// Class for all float registers
+reg_class float_reg(
+    V0,
+    V1,
+    V2,
+    V3,
+    V4,
+    V5,
+    V6,
+    V7,
+    V8,
+    V9,
+    V10,
+    V11,
+    V12,
+    V13,
+    V14,
+    V15,
+    V16,
+    V17,
+    V18,
+    V19,
+    V20,
+    V21,
+    V22,
+    V23,
+    V24,
+    V25,
+    V26,
+    V27,
+    V28,
+    V29,
+    V30,
+    V31
+);
+
+// Double precision float registers have virtual `high halves' that
+// are needed by the allocator.
+// Class for all double registers
+reg_class double_reg(
+    V0, V0_H, 
+    V1, V1_H, 
+    V2, V2_H, 
+    V3, V3_H, 
+    V4, V4_H, 
+    V5, V5_H, 
+    V6, V6_H, 
+    V7, V7_H, 
+    V8, V8_H, 
+    V9, V9_H, 
+    V10, V10_H, 
+    V11, V11_H, 
+    V12, V12_H, 
+    V13, V13_H, 
+    V14, V14_H, 
+    V15, V15_H, 
+    V16, V16_H, 
+    V17, V17_H, 
+    V18, V18_H, 
+    V19, V19_H, 
+    V20, V20_H, 
+    V21, V21_H, 
+    V22, V22_H, 
+    V23, V23_H, 
+    V24, V24_H, 
+    V25, V25_H, 
+    V26, V26_H, 
+    V27, V27_H, 
+    V28, V28_H, 
+    V29, V29_H, 
+    V30, V30_H, 
+    V31, V31_H, 
+);
+
+%}
+
+//----------DEFINITION BLOCK---------------------------------------------------
+// Define name --> value mappings to inform the ADLC of an integer valued name
+// Current support includes integer values in the range [0, 0x7FFFFFFF]
+// Format:
+//        int_def  <name>         ( <int_value>, <expression>);
+// Generated Code in ad_<arch>.hpp
+//        #define  <name>   (<expression>)
+//        // value == <int_value>
+// Generated code in ad_<arch>.cpp adlc_verification()
+//        assert( <name> == <int_value>, "Expect (<expression>) to equal <int_value>");
+//
+
+// we follow the ppc-aix port in using a simple cost model which ranks
+// register operations as cheap, memory ops as more expensive and
+// branches as most expensive. the first two have a low as well as a
+// normal cost. huge cost appears to be a way of saying don't do
+// something
+
+definitions %{
+  // The default cost (of an ALU instruction).
+  int_def DEFAULT_COST_LOW        (     30,      30);
+  int_def DEFAULT_COST            (    100,     100);
+  int_def HUGE_COST               (1000000, 1000000);
+
+  // Memory refs
+  int_def MEMORY_REF_COST_LOW     (    200, DEFAULT_COST * 2);
+  int_def MEMORY_REF_COST         (    300, DEFAULT_COST * 3);
+
+  // Branches are even more expensive.
+  int_def BRANCH_COST             (    900, DEFAULT_COST * 9);
+  int_def CALL_COST               (   1300, DEFAULT_COST * 13);
 %}
 
 
 //----------SOURCE BLOCK-------------------------------------------------------
 // This is a block of C++ code which provides values, functions, and
 // definitions necessary in the rest of the architecture description
+
+source_hpp %{
+
+%}
+
 source %{
-#define   RELOC_IMM64    Assembler::imm_operand
-#define   RELOC_DISP32   Assembler::disp32_operand
 
 #define __ _masm.
 
-int emit_deopt_handler(CodeBuffer& cbuf) { Unimplemented(); return 0; }
+// advance declaratuons for helper functions to convert register
+// indices to register objects
 
-uint reloc_java_to_interp() { Unimplemented(); return 0; }
+// the ad file has to provide implementations of certain methods
+// expected by the generic code
+//
+// REQUIRED FUNCTIONALITY
 
-bool Matcher::is_short_branch_offset(int rule, int br_size, int offset) { Unimplemented();  return false;}
+//=============================================================================
 
-bool Matcher::narrow_oop_use_complex_address() { Unimplemented();  return false;}
+// !!!!! Special hack to get all types of calls to specify the byte offset
+//       from the start of the call to the point where the return address
+//       will point.
 
-bool SafePointNode::needs_polling_address_input() { Unimplemented(); return false; }
+int MachCallStaticJavaNode::ret_addr_offset()
+{
+  Unimplemented();
+  // TODO: check this it should just be a bl
+  return 4;
+}
+
+int MachCallDynamicJavaNode::ret_addr_offset()
+{
+  Unimplemented();
+  // TODO: work out special cases
+  // Offset is 4 with late expanded calls (bl is one instruction). We
+  // use late expanded calls if we use inline caches and do not update
+  // method data.
+  return 4;
+}
+
+int MachCallRuntimeNode::ret_addr_offset() {
+  Unimplemented();
+  // TODO: check this borrowed from ppc_aix port (10 instructions?)
+  return 4;
+}
+
+// Indicate if the safepoint node needs the polling page as an input
+bool SafePointNode::needs_polling_address_input()
+{
+  Unimplemented();
+  return true;
+}
+
+//=============================================================================
+
+// Emit an interrupt that is caught by the debugger (for debugging compiler).
+void emit_break(CodeBuffer &cbuf) {
+  Unimplemented();
+}
+
+#ifndef PRODUCT
+void MachBreakpointNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
+  Unimplemented();
+  st->print("BREAKPOINT");
+}
+#endif
+
+void MachBreakpointNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
+  Unimplemented();
+}
+
+uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
+  Unimplemented();
+  return MachNode::size(ra_);
+}
+
+//=============================================================================
+
+#ifndef PRODUCT
+  void MachNopNode::format(PhaseRegAlloc*, outputStream* st) const {
+    Unimplemented();
+    st->print("nop \t# %d bytes pad for loops and calls", _count);
+  }
+#endif
+
+  void MachNopNode::emit(CodeBuffer &cbuf, PhaseRegAlloc*) const {
+    Unimplemented();
+    MacroAssembler _masm(&cbuf);
+    for (int i = 0; i < _count; i++) { 
+      __ nop();
+    }
+  }
+
+  uint MachNopNode::size(PhaseRegAlloc*) const {
+    Unimplemented();
+    return _count;
+  }
+
+//=============================================================================
+const RegMask& MachConstantBaseNode::_out_RegMask = RegMask::Empty;
+
+int Compile::ConstantTable::calculate_table_base_offset() const {
+  Unimplemented();
+  return 0;  // absolute addressing, no offset
+}
+
+void MachConstantBaseNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const {
+  // Empty encoding
+}
+
+uint MachConstantBaseNode::size(PhaseRegAlloc* ra_) const {
+  Unimplemented();
+  return 0;
+}
+
+#ifndef PRODUCT
+void MachConstantBaseNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
+  st->print("-- \t// MachConstantBaseNode (empty encoding)");
+}
+#endif
+
+#ifndef PRODUCT
+void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
+  Unimplemented();
+}
+#endif
+
+void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
+  Unimplemented();
+}
+
+uint MachPrologNode::size(PhaseRegAlloc* ra_) const
+{
+  Unimplemented();
+  return MachNode::size(ra_); // too many variables; just compute it
+                              // the hard way
+}
+
+int MachPrologNode::reloc() const
+{
+  Unimplemented();
+  // Return number of relocatable values contained in this instruction.
+  return 1; // 1 for load_from_polling_page.
+}
+
+//=============================================================================
+
+#ifndef PRODUCT
+void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
+  Unimplemented();
+  Compile* C = ra_->C;
+
+  st->print("EPILOG\n\t");
+  st->print("restore return pc\n\t");
+  st->print("pop frame\n\t");
+
+  if (do_polling() && C->is_method_compilation()) {
+    st->print("touch polling page\n\t");
+  }
+}
+
+void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
+  Unimplemented();
+}
+
+uint MachEpilogNode::size(PhaseRegAlloc *ra_) const {
+  Unimplemented();
+  // Variable size. Determine dynamically.
+  return MachNode::size(ra_);
+}
+
+int MachEpilogNode::reloc() const {
+  Unimplemented();
+  // Return number of relocatable values contained in this instruction.
+  return 1; // 1 for load_from_polling_page.
+}
+
+const Pipeline * MachEpilogNode::pipeline() const {
+  Unimplemented();
+  return MachNode::pipeline_class();
+}
+
+// This method seems to be obsolete. It is declared in machnode.hpp
+// and defined in all *.ad files, but it is never called. Should we
+// get rid of it?
+int MachEpilogNode::safepoint_offset() const {
+  Unimplemented();
+  assert(do_polling(), "no return for this epilog node");
+  return 0;
+}
+#endif
+
+//=============================================================================
+
+// Figure out which register class each belongs in: rc_int, rc_float or
+// rc_stack.
+enum RC { rc_bad, rc_int, rc_float, rc_stack };
+
+static enum RC rc_class(OptoReg::Name reg) {
+
+  Unimplemented();
+
+  if (reg == OptoReg::Bad) {
+    return rc_bad;
+  }
+
+  // we have 32 int registers * 2 halves
+
+  if (reg < 64) {
+    return rc_int;
+  }
+
+  // we have 32 float register * 2 halves
+  if (reg < 64 + 64) {
+    return rc_float;
+  }
+
+  // we have no flags registers
+
+  return rc_stack;
+}
+
+uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, bool do_size, outputStream *st) const {
+  Unimplemented();
+}
+
+#ifndef PRODUCT
+void MachSpillCopyNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
+  Unimplemented();
+  if (!ra_)
+    st->print("N%d = SpillCopy(N%d)", _idx, in(1)->_idx);
+  else
+    implementation(NULL, ra_, false, st);
+}
+#endif
+
+void MachSpillCopyNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
+  Unimplemented();
+  implementation(&cbuf, ra_, false, NULL);
+}
+
+uint MachSpillCopyNode::size(PhaseRegAlloc *ra_) const {
+  Unimplemented();
+  return implementation(NULL, ra_, true, NULL);
+}
+
+//=============================================================================
+
+#ifndef PRODUCT
+void BoxLockNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
+  Unimplemented();
+}
+#endif
+
+void BoxLockNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
+  Unimplemented();
+}
+
+uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
+  Unimplemented();
+  // BoxLockNode is not a MachNode, so we can't just call MachNode::size(ra_).
+  return 4;
+}
+
+//=============================================================================
+
+#ifndef PRODUCT
+void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
+{
+  Unimplemented();
+}
+#endif
+
+void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
+{
+  Unimplemented();
+}
+
+uint MachUEPNode::size(PhaseRegAlloc* ra_) const
+{
+  Unimplemented();
+  return MachNode::size(ra_);
+}
+
+// REQUIRED EMIT CODE
+
+//=============================================================================
+
+// emit call stub, compiled java to interpreter
+void emit_java_to_interp(CodeBuffer& cbuf)
+{
+  Unimplemented();
+}
+
+// size of call stub, compiled java to interpretor
+uint size_java_to_interp()
+{
+  Unimplemented();
+  return 0;
+}
+
+// relocation entries for call stub, compiled java to interpretor
+uint reloc_java_to_interp()
+{
+  Unimplemented();
+  return 0;
+}
+
+uint size_exception_handler()
+{
+  Unimplemented();
+  return 0;
+}
+
+// Emit exception handler code.
+int emit_exception_handler(CodeBuffer& cbuf)
+{
+  Unimplemented();
+  return 0;
+}
+
+uint size_deopt_handler()
+{
+  Unimplemented();
+  return 0;
+}
+
+// Emit deopt handler code.
+int emit_deopt_handler(CodeBuffer& cbuf)
+{
+  Unimplemented();
+  return 0;
+}
+
+// REQUIRED MATCHER CODE
+
+//=============================================================================
+
+const bool Matcher::match_rule_supported(int opcode) {
+
+  Unimplemented();
+
+  if (!has_match_rule(opcode)) {
+    return false;
+  }
+
+  return true;  // Per default match rules are supported.
+}
+
+int Matcher::regnum_to_fpu_offset(int regnum)
+{
+  Unimplemented();
+  return 0;
+}
+
+bool Matcher::is_short_branch_offset(int rule, int br_size, int offset)
+{
+  Unimplemented();
+  return false;
+}
+
+const bool Matcher::isSimpleConstant64(jlong value) {
+  Unimplemented();
+  // Will one (StoreL ConL) be cheaper than two (StoreI ConI)?.
+  // Probably always true, even if a temp register is required.
+  return true;
+}
+
+// true just means we have fast l2f conversion
+const bool Matcher::convL2FSupported(void) {
+  return true;
+}
+
+// Vector width in bytes.
+const int Matcher::vector_width_in_bytes(BasicType bt) {
+  Unimplemented();
+  return 8;
+}
+
+// Limits on vector size (number of elements) loaded into vector.
+const int Matcher::max_vector_size(const BasicType bt) {
+  Unimplemented();
+  return vector_width_in_bytes(bt)/type2aelembytes(bt);
+}
+const int Matcher::min_vector_size(const BasicType bt) {
+  Unimplemented();
+  int max_size = max_vector_size(bt);
+  // Min size which can be loaded into vector is 4 bytes.
+  int size = (type2aelembytes(bt) == 1) ? 4 : 2;
+  return MIN2(size,max_size);
+}
+
+// Vector ideal reg.
+const int Matcher::vector_ideal_reg(int len) {
+  Unimplemented();
+  return Op_RegL;
+}
+
+// Only lowest bits of xmm reg are used for vector shift count.
+const int Matcher::vector_shift_count_ideal_reg(int size) {
+  Unimplemented();
+  return Op_RegL;
+}
+
+// x86 supports misaligned vectors store/load.
+const bool Matcher::misaligned_vectors_ok() {
+  Unimplemented();
+  return !AlignVector; // can be changed by flag
+}
+
+// false => size gets scaled to BytesPerLong, ok.
+const bool Matcher::init_array_count_is_in_bytes = false;
+
+// Threshold size for cleararray.
+const int Matcher::init_array_short_size = 8 * BytesPerLong;
+
+// Use conditional move (CMOVL) on Power7.
+const int Matcher::long_cmove_cost() {
+  Unimplemented();
+  // long cmoves are no more expensive than int cmoves
+  return 0;
+}
+
+const int Matcher::float_cmove_cost() {
+  Unimplemented();
+  // hmm, x86 and ppc use this???
+  return ConditionalMoveLimit;
+}
+
+// Should the Matcher clone shifts on addressing modes, expecting them
+// to be subsumed into complex addressing expressions or compute them
+// into registers?  True for Intel but false for most RISCs
+const bool Matcher::clone_shift_expressions = false;
+
+// Do we need to mask the count passed to shift instructions or does
+// the cpu only look at the lower 5/6 bits anyway?
+const bool Matcher::need_masked_shift_count = false;
+
+// This affects two different things:
+//  - how Decode nodes are matched
+//  - how ImplicitNullCheck opportunities are recognized
+// If true, the matcher will try to remove all Decodes and match them
+// (as operands) into nodes. NullChecks are not prepared to deal with 
+// Decodes by final_graph_reshaping().
+// If false, final_graph_reshaping() forces the decode behind the Cmp
+// for a NullCheck. The matcher matches the Decode node into a register.
+// Implicit_null_check optimization moves the Decode along with the 
+// memory operation back up before the NullCheck.
+bool Matcher::narrow_oop_use_complex_address() {
+  Unimplemented();
+  return false;
+}
+
+bool Matcher::narrow_klass_use_complex_address() {
+  Unimplemented();
+  return false;
+}
+
+// Is it better to copy float constants, or load them directly from
+// memory?  Intel can load a float constant from a direct address,
+// requiring no extra registers.  Most RISCs will have to materialize
+// an address into a register first, so they would do better to copy
+// the constant from stack.
+const bool Matcher::rematerialize_float_constants = false;
+
+// If CPU can load and store mis-aligned doubles directly then no
+// fixup is needed.  Else we split the double into 2 integer pieces
+// and move it piece-by-piece.  Only happens when passing doubles into
+// C code as the Java calling convention forces doubles to be aligned.
+const bool Matcher::misaligned_doubles_ok = true;
+
+// No-op on amd64
+void Matcher::pd_implicit_null_fixup(MachNode *node, uint idx) {
+  Unimplemented();
+}
+
+// Advertise here if the CPU requires explicit rounding operations to
+// implement the UseStrictFP mode.
+const bool Matcher::strict_fp_requires_explicit_rounding = false;
+
+// Are floats converted to double when stored to stack during
+// deoptimization?
+bool Matcher::float_in_double() { return true; }
+
+// Do ints take an entire long register or just half?
+// The relevant question is how the int is callee-saved:
+// the whole long is written but de-opt'ing will have to extract
+// the relevant 32 bits.
+const bool Matcher::int_in_long = true;
+
+// Return whether or not this register is ever used as an argument.
+// This function is used on startup to build the trampoline stubs in
+// generateOptoStub.  Registers not mentioned will be killed by the VM
+// call in the trampoline, and arguments in those registers not be
+// available to the callee.
+bool Matcher::can_be_java_arg(int reg)
+{
+  return
+    reg ==  R0_num || reg == R0_H_num ||
+    reg ==  R1_num || reg == R1_H_num ||
+    reg ==  R2_num || reg == R2_H_num ||
+    reg ==  R3_num || reg == R3_H_num ||
+    reg ==  R4_num || reg == R4_H_num ||
+    reg ==  R5_num || reg == R5_H_num ||
+    reg ==  R6_num || reg == R6_H_num ||
+    reg ==  R7_num || reg == R7_H_num ||
+    reg ==  V0_num || reg == V0_H_num ||
+    reg ==  V1_num || reg == V1_H_num ||
+    reg ==  V2_num || reg == V2_H_num ||
+    reg ==  V3_num || reg == V3_H_num ||
+    reg ==  V4_num || reg == V4_H_num ||
+    reg ==  V5_num || reg == V5_H_num ||
+    reg ==  V6_num || reg == V6_H_num ||
+    reg ==  V7_num || reg == V7_H_num;
+}
+
+bool Matcher::is_spillable_arg(int reg)
+{
+  return can_be_java_arg(reg);
+}
+
+bool Matcher::use_asm_for_ldiv_by_con(jlong divisor) {
+  return false;
+}
+
+RegMask Matcher::divI_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
+// Register for MODI projection of divmodI.
+RegMask Matcher::modI_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
+// Register for DIVL projection of divmodL.
+RegMask Matcher::divL_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
+// Register for MODL projection of divmodL.
+RegMask Matcher::modL_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
+const RegMask Matcher::method_handle_invoke_SP_save_mask() {
+  return RegMask();
+}
 
 %}
 
@@ -144,12 +1176,51 @@ encode %{
   // fields in an order, so that the adlc can build the emit functions
   // automagically
 
-  // Emit primary opcode
-  enc_class OpcP
-  %{
-    emit_opcode(cbuf, $primary);
+  // catch all for unimplemented encodings
+  enc_class enc_unimplemented %{
+    MacroAssembler _masm(&cbuf);
+    __ unimplemented("C2 catch all");    
   %}
 
+  enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register dst_reg = as_Register($dst$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ ldrsbw(dst_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ ldrsbw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ ldrsbw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      } 
+    }
+  %}
+
+  enc_class aarch64_enc_ldrsb(iRegL dst, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register dst_reg = as_Register($dst$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ ldrsb(dst_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ ldrsb(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ ldrsb(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      }
+    }
+  %}
 %}
 
 
@@ -205,45 +1276,48 @@ encode %{
 // Note 3: Region 0-3 is even aligned, with pad2 as needed.  Region 3-5 is
 //         even aligned with pad0 as needed.
 //         Region 6 is even aligned.  Region 6-7 is NOT even aligned;
+//           (the latter is true on Intel but is it false on AArch64?)
 //         region 6-11 is even aligned; it may be padded out more so that
 //         the region from SP to FP meets the minimum stack alignment.
 // Note 4: For I2C adapters, the incoming FP may not meet the minimum stack
 //         alignment.  Region 11, pad1, may be dynamically extended so that
 //         SP meets the minimum alignment.
 
-frame
-%{
+frame %{
   // What direction does stack grow in (assumed to be same for C & Java)
   stack_direction(TOWARDS_LOW);
 
   // These three registers define part of the calling convention
   // between compiled code and the interpreter.
-  inline_cache_reg(R0);                // Inline Cache Register
-  interpreter_method_oop_reg(R0);      // Method Oop Register when
+  inline_cache_reg(R0);                 // Inline Cache Register
+  interpreter_method_oop_reg(R12);      // Method Oop Register when
                                         // calling interpreter
 
   // Number of stack slots consumed by locking an object
   sync_stack_slots(2);
 
   // Compiled code's Frame Pointer
-  frame_pointer(R0);
+  frame_pointer(R31);
 
   // Interpreter stores its frame pointer in a register which is
   // stored to the stack by I2CAdaptors.
   // I2CAdaptors convert from interpreted java to compiled java.
-  interpreter_frame_pointer(R0);
+  interpreter_frame_pointer(R29);
 
   // Stack alignment requirement
   stack_alignment(StackAlignmentInBytes); // Alignment size in bytes (128-bit -> 16 bytes)
 
   // Number of stack slots between incoming argument block and the start of
   // a new frame.  The PROLOG must add this many slots to the stack.  The
-  // EPILOG must remove this many slots.  amd64 needs two slots for
-  // return address.
-  in_preserve_stack_slots(4 + 2 * VerifyStackAtCalls);
+  // EPILOG must remove this many slots. aarch64 needs two slots for
+  // return address and fp.
+  // TODO think this is correct but check
+  in_preserve_stack_slots(4);
 
   // Number of outgoing stack slots killed above the out_preserve_stack_slots
   // for calls to C.  Supports the var-args backing area for register parms.
+  // TODO: arg_reg_save_area_bytes count 32 fp and 32 gp regs which is overkill
+  // probably does not matter but check it anyway
   varargs_C_out_slots_killed(frame::arg_reg_save_area_bytes/BytesPerInt);
 
   // The after-PROLOG location of the return address.  Location of
@@ -252,6 +1326,9 @@ frame
   // stack slot.
   // Ret Addr is on stack in slot 0 if no locks or verification or alignment.
   // Otherwise, it is above the locks and verification slot and alignment word
+  // TODO this may well be correct but need to check why that - 2 is there
+  // ppc port uses 0 but we definitely need to allow for fixed_slots
+  // which folds in the space used for monitors
   return_addr(STACK - 2 +
               round_to((Compile::current()->in_preserve_stack_slots() +
                         Compile::current()->fixed_slots()),
@@ -279,21 +1356,47 @@ frame
   // Location of compiled Java return values.  Same as C for now.
   return_value
   %{
-    return 0;
+    // TODO do we allow ideal_reg == Op_RegN???
+    assert(ideal_reg >= Op_RegI && ideal_reg <= Op_RegL,
+           "only return normal values");
+
+    static const int lo[Op_RegL + 1] = { // enum name
+      0,                                 // Op_Node
+      0,                                 // Op_Set
+      R0_num,                            // Op_RegN
+      R0_num,                            // Op_RegI
+      R0_num,                            // Op_RegP
+      V0_num,                            // Op_RegF
+      V0_num,                            // Op_RegD
+      R0_num                             // Op_RegL
+    };
+  
+    static const int hi[Op_RegL + 1] = { // enum name
+      0,                                 // Op_Node
+      0,                                 // Op_Set
+      OptoReg::Bad,                       // Op_RegN
+      OptoReg::Bad,                      // Op_RegI
+      R0_H_num,                          // Op_RegP
+      OptoReg::Bad,                      // Op_RegF
+      V0_H_num,                          // Op_RegD
+      R0_H_num                           // Op_RegL
+    };
+
+    return OptoRegPair(hi[ideal_reg], lo[ideal_reg]);
   %}
 %}
 
 //----------ATTRIBUTES---------------------------------------------------------
 //----------Operand Attributes-------------------------------------------------
-op_attrib op_cost(0);        // Required cost attribute
+op_attrib op_cost(1);        // Required cost attribute
 
 //----------Instruction Attributes---------------------------------------------
-ins_attrib ins_cost(100);       // Required cost attribute
-ins_attrib ins_size(8);         // Required size attribute (in bits)
+ins_attrib ins_cost(DEFAULT_COST); // Required cost attribute
+ins_attrib ins_size(32);        // Required size attribute (in bits)
 ins_attrib ins_short_branch(0); // Required flag: is this instruction
                                 // a non-matching short branch variant
                                 // of some long branch?
-ins_attrib ins_alignment(1);    // Required alignment attribute (must
+ins_attrib ins_alignment(4);    // Required alignment attribute (must
                                 // be a power of 2) specifies the
                                 // alignment that some part of the
                                 // instruction (not necessarily the
@@ -308,6 +1411,544 @@ ins_attrib ins_alignment(1);    // Required alignment attribute (must
 
 //----------Simple Operands----------------------------------------------------
 
+// Integer operands 32 bit
+// 32 bit immediate
+operand immI()
+%{
+  match(ConI);
+
+  op_cost(10);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 32 bit zero
+operand immI0()
+%{
+  predicate(n->get_int() == 0);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 32 bit unit increment
+operand immI_1()
+%{
+  predicate(n->get_int() == 1);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 32 bit unit decrement
+operand immI_M1()
+%{
+  predicate(n->get_int() == -1);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Scale values for scaled offset addressing modes
+operand immIU2()
+%{
+  predicate(0 <= n->get_int() && (n->get_int() <= 3));
+  match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 26 bit signed offset -- for pc-relative branches
+operand immI26()
+%{
+  predicate(((-(1 << 25)) <= n->get_int()) && (n->get_int() < (1 << 25)));
+  match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 19 bit signed offset -- for pc-relative loads
+operand immI19()
+%{
+  predicate(((-(1 << 18)) <= n->get_int()) && (n->get_int() < (1 << 18)));
+  match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 12 bit unsigned offset -- for base plus immediate loads
+operand immIU12()
+%{
+  predicate((0 <= n->get_int()) && (n->get_int() < (1 << 12)));
+  match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Valid 9 bit unsigned offset
+operand immI9()
+%{
+  predicate(((-(1 << 8)) <= n->get_int()) && (n->get_int() < (1 << 8)));
+  match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 32 bit integer valid for add sub immediate
+operand immIAddSub()
+%{
+  predicate(Assembler::operand_valid_for_add_sub_immediate((long)n->get_int()));
+  match(ConI);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 32 bit unsigned integer valid for logical immediate
+// TODO -- check this is right when e.g the mask is 0x80000000
+operand immIULog()
+%{
+  predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_int()));
+  match(ConI);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Integer operands 64 bit
+// 64 bit immediate
+operand immL()
+%{
+  match(ConL);
+
+  op_cost(20);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 64 bit zero
+operand immL0()
+%{
+  predicate(n->get_long() == 0);
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 64 bit unit increment
+operand immL_1()
+%{
+  predicate(n->get_long() == 1);
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 64 bit unit decrement
+operand immL_M1()
+%{
+  predicate(n->get_long() == 1);
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 64 bit integer valid for add sub immediate
+operand immLAddSub()
+%{
+  predicate(Assembler::operand_valid_for_add_sub_immediate(n->get_long()));
+  match(ConL);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 64 bit integer valid for logical immediate
+operand immLULog()
+%{
+  predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_long()));
+  match(ConL);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Pointer operands
+// Pointer Immediate
+operand immP()
+%{
+  match(ConP);
+
+  op_cost(10);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// NULL Pointer Immediate
+operand immP0()
+%{
+  predicate(n->get_ptr() == 0);
+  match(ConP);
+
+  op_cost(5);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Float and Double operands
+// Double Immediate
+operand immD() %{
+  match(ConD);
+  op_cost(40);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// constant 'double +0.0'.
+operand immD0() %{
+  predicate((n->getd() == 0) &&
+            (fpclassify(n->getd()) == FP_ZERO) && (signbit(n->getd()) == 0));
+  match(ConD);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Float Immediate
+operand immF() %{
+  match(ConF);
+  op_cost(40);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// constant 'float +0.0'.
+operand immF0() %{
+  predicate((n->getf() == 0) &&
+            (fpclassify(n->getf()) == FP_ZERO) && (signbit(n->getf()) == 0));
+  match(ConF);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Narrow pointer operands
+// Narrow Pointer Immediate
+operand immN() %{
+  match(ConN);
+
+  op_cost(10);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Narrow NULL Pointer Immediate
+operand immN0() %{
+  predicate(n->get_narrowcon() == 0);
+  match(ConN);
+
+  op_cost(5);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Integer 32 bit Register Operands
+// Integer 32 bitRegister (excludes SP)
+operand iRegI() %{
+  constraint(ALLOC_IN_RC(any_reg32));
+  match(RegI);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Integer 64 bit Register Operands
+// Integer 64 bit Register (includes SP)
+operand iRegL() %{
+  constraint(ALLOC_IN_RC(any_reg));
+  match(RegL);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Integer 64 bit Register not SP
+operand iRegLNoSP() %{
+  constraint(ALLOC_IN_RC(no_sp_reg));
+  match(RegL);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer Register Operands
+// Pointer Register
+operand iRegP() %{
+  constraint(ALLOC_IN_RC(any_reg));
+  match(RegP);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register not SP
+operand iRegPNoSP() %{
+  constraint(ALLOC_IN_RC(no_sp_reg));
+  match(RegP);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer Register Operands
+// Narrow Pointer Register
+operand iRegN() %{
+  constraint(ALLOC_IN_RC(any_reg));
+  match(RegN);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Integer 64 bit Register not SP
+operand iRegNNoSP() %{
+  constraint(ALLOC_IN_RC(no_sp_reg));
+  match(RegN);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Float Register
+// Float register operands
+operand vRegF()
+%{
+  constraint(ALLOC_IN_RC(float_reg));
+  match(RegF);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Double Register
+// Double register operands
+operand vRegD()
+%{
+  constraint(ALLOC_IN_RC(double_reg));
+  match(RegD);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+//----------Memory Operands----------------------------------------------------
+operand indirect(iRegP reg)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(reg);
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index(0xffffffff);
+    scale(0x0);
+    disp(0x0);
+  %}
+%}
+
+// TODO this is the pattern used by x86/ppc but for aarch64 extended
+// reg we probably want to match (LShiftI ireg scale) need to see if
+// the ideal code will ever generate an LShiftI
+
+operand indIndexScaledOffset(iRegP reg, iRegL lreg, immIU2 scale, immI off)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP (AddP reg (LShiftL lreg scale)) off);
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($lreg);
+    scale($scale);
+    disp($off);
+  %}
+%}
+
+// TODO as per indIndexScaledOffset
+operand indIndexScaled(iRegP reg, iRegL lreg, immIU2 scale)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg (LShiftL lreg scale));
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($lreg);
+    scale($scale);
+    disp(0x0);
+  %}
+%}
+
+operand indIndex(iRegP reg, iRegL lreg)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg lreg);
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($lreg);
+    scale(0x0);
+    disp(0x0);
+  %}
+%}
+
+operand indOffU12(iRegP reg, immIU12 off)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg off);
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index(0xffffffff);
+    scale(0x0);
+    disp($off);
+  %}
+%}
+
+operand indOffI9(iRegP reg, immI9 off)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg off);
+  op_cost(100);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index(0xffffffff);
+    scale(0xffffffff);
+    disp($off);
+  %}
+%}
+
+//----------Special Memory Operands--------------------------------------------
+// Stack Slot Operand - This operand is used for loading and storing temporary
+//                      values on the stack where a match requires a value to
+//                      flow through memory.
+operand stackSlotP(sRegP reg)
+%{
+  constraint(ALLOC_IN_RC(stack_slots));
+  op_cost(100);
+  // No match rule because this operand is only generated in matching
+  // match(RegP);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base(0x1e);  // RSP
+    index(0x0);  // No Index
+    scale(0x0);  // No Scale
+    disp($reg);  // Stack Offset
+  %}
+%}
+
+operand stackSlotI(sRegI reg)
+%{
+  constraint(ALLOC_IN_RC(stack_slots));
+  // No match rule because this operand is only generated in matching
+  // match(RegI);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base(0x1e);  // RSP
+    index(0x0);  // No Index
+    scale(0x0);  // No Scale
+    disp($reg);  // Stack Offset
+  %}
+%}
+
+operand stackSlotF(sRegF reg)
+%{
+  constraint(ALLOC_IN_RC(stack_slots));
+  // No match rule because this operand is only generated in matching
+  // match(RegF);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base(0x1e);  // RSP
+    index(0x0);  // No Index
+    scale(0x0);  // No Scale
+    disp($reg);  // Stack Offset
+  %}
+%}
+
+operand stackSlotD(sRegD reg)
+%{
+  constraint(ALLOC_IN_RC(stack_slots));
+  // No match rule because this operand is only generated in matching
+  // match(RegD);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base(0x1e);  // RSP
+    index(0x0);  // No Index
+    scale(0x0);  // No Scale
+    disp($reg);  // Stack Offset
+  %}
+%}
+
+operand stackSlotL(sRegL reg)
+%{
+  constraint(ALLOC_IN_RC(stack_slots));
+  // No match rule because this operand is only generated in matching
+  // match(RegL);
+  format %{ "[$reg]" %}
+  interface(MEMORY_INTER) %{
+    base(0x1e);  // RSP
+    index(0x0);  // No Index
+    scale(0x0);  // No Scale
+    disp($reg);  // Stack Offset
+  %}
+%}
+
+// Operands for expressing Control Flow
+// NOTE: Label is a predefined operand which should not be redefined in
+//       the AD file. It is generically handled within the ADLC.
+
+//----------Conditional Branch Operands----------------------------------------
+// Comparison Op  - This is the operation of the comparison, and is limited to
+//                  the following set of codes:
+//                  L (<), LE (<=), G (>), GE (>=), E (==), NE (!=)
+//
+// Other attributes of the comparison, such as unsignedness, are specified
+// by the comparison instruction that sets a condition code flags register.
+// That result is represented by a flags operand whose subtype is appropriate
+// to the unsignedness (etc.) of the comparison.
+//
+// Later, the instruction which matches both the Comparison Op (a Bool) and
+// the flags (produced by the Cmp) specifies the coding of the comparison op
+// by matching a specific subtype of Bool operand below, such as cmpOpU.
+
+// TODO do we also need cmpOpU, cmpOpUCF and cmpOpUCF2
+operand cmpOp()
+%{
+  match(Bool);
+
+  format %{ "" %}
+  interface(COND_INTER) %{
+    equal(0x0, "eq");
+    not_equal(0x1, "ne");
+    less(0x4, "lt");
+    greater_equal(0xA, "ge");
+    less_equal(0xD, "le");
+    greater(0xC, "gt");
+  %}
+%}
 
 //----------OPERAND CLASSES----------------------------------------------------
 // Operand Classes are groups of operands that are used as to simplify
@@ -316,6 +1957,7 @@ ins_attrib ins_alignment(1);    // Required alignment attribute (must
 // multiple operand types with the same basic encoding and format.  The classic
 // case of this is memory operands.
 
+opclass memory(indirect, indIndexScaledOffset, indIndexScaled, indIndex,indOffU12, indOffI9);
 
 //----------PIPELINE-----------------------------------------------------------
 // Rules which define the behavior of the target architectures pipeline.
@@ -323,15 +1965,24 @@ ins_attrib ins_alignment(1);    // Required alignment attribute (must
 pipeline %{
 
 attributes %{
-  fixed_size_instructions;        // Fixed size instructions
-  max_instructions_per_bundle = 3;   // Up to 3 instructions per bundle
-  instruction_unit_size = 4;         // An instruction is 1 bytes long
-  instruction_fetch_unit_size = 16;  // The processor fetches one line
-  instruction_fetch_units = 1;       // of 16 bytes
+  // ARM instructions are of fixed length
+  fixed_size_instructions;        // Fixed size instructions TODO does
+  // TODO does this relate to how many instructions can be scheduled
+  // at once? just guess 8 for now
+  max_instructions_per_bundle = 8;   // Up to 8 instructions per bundle
+  // ARM instructions come in 32-bit word units
+  instruction_unit_size = 4;         // An instruction is 4 bytes long
+  // TODO identify correct cache line size  just guess 64 for now
+  instruction_fetch_unit_size = 64;  // The processor fetches one line
+  instruction_fetch_units = 1;       // of 64 bytes
 
   // List of nop instructions
   //nops( MachNop );
 %}
+
+// We don't use an actual pipeline model so don't care about resources
+// or description. we do use pipeline classes to introduce fixed
+// latencies
 
 //----------RESOURCES----------------------------------------------------------
 // Resources are the functional units available to the machine
@@ -351,16 +2002,46 @@ pipe_desc(S0, S1, S2, S3, S4, S5);
 // Pipeline Classes describe the stages in which input and output are
 // referenced by the hardware pipeline.
 
-// The real do-nothing guy
-pipe_class empty()
+// Empty pipeline class
+pipe_class pipe_class_empty()
 %{
-    instruction_count(0);
+  single_instruction;
+  fixed_latency(0);
 %}
 
-// Define the class for the Nop node
-define
-%{
-   MachNop = empty;
+// Default pipeline class.
+pipe_class pipe_class_default() %{
+  single_instruction;
+  fixed_latency(2);
+%}
+
+// Pipeline class for compares.
+pipe_class pipe_class_compare() %{
+  single_instruction;
+  fixed_latency(16);
+%}
+
+// Pipeline class for traps.
+pipe_class pipe_class_trap() %{
+  single_instruction;
+  fixed_latency(100);
+%}
+
+// Pipeline class for memory operations.
+pipe_class pipe_class_memory() %{
+  single_instruction;
+  fixed_latency(16);
+%}
+
+// Pipeline class for call.
+pipe_class pipe_class_call() %{
+  single_instruction;
+  fixed_latency(100);
+%}
+
+// Define the class for the Nop node.
+define %{
+   MachNop = pipe_class_default;
 %}
 
 %}
@@ -384,6 +2065,19 @@ define
 // ins_encode -- A list of encode classes with parameters. The encode class
 //               name must have been defined in an 'enc_class' specification
 //               in the encode section of the architecture description.
+
+// Load Byte (8 bit signed)
+instruct loadB(iRegI dst, memory mem)
+%{
+  match(Set dst (LoadB mem));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldrsb  $dst, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_ldrsbw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
 
 
 
@@ -421,12 +2115,12 @@ define
 // ---------EXAMPLE----------------------------------------------------------
 //
 // // pertinent parts of existing instructions in architecture description
-// instruct movI(rRegI dst, rRegI src)
+// instruct movI(iRegI dst, iRegI src)
 // %{
 //   match(Set dst (CopyI src));
 // %}
 //
-// instruct incI_rReg(rRegI dst, immI1 src, rFlagsReg cr)
+// instruct incI_iReg(iRegI dst, immI1 src, rFlagsReg cr)
 // %{
 //   match(Set dst (AddI dst src));
 //   effect(KILL cr);
@@ -435,13 +2129,13 @@ define
 // // Change (inc mov) to lea
 // peephole %{
 //   // increment preceeded by register-register move
-//   peepmatch ( incI_rReg movI );
+//   peepmatch ( incI_iReg movI );
 //   // require that the destination register of the increment
 //   // match the destination register of the move
 //   peepconstraint ( 0.dst == 1.dst );
 //   // construct a replacement instruction that sets
 //   // the destination to ( move's source register + one )
-//   peepreplace ( leaI_rReg_immI( 0.dst 1.src 0.src ) );
+//   peepreplace ( leaI_iReg_immI( 0.dst 1.src 0.src ) );
 // %}
 //
 
@@ -450,60 +2144,60 @@ define
 //
 // peephole
 // %{
-//   peepmatch (incI_rReg movI);
+//   peepmatch (incI_iReg movI);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+//   peepreplace (leaI_iReg_immI(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (decI_rReg movI);
+//   peepmatch (decI_iReg movI);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+//   peepreplace (leaI_iReg_immI(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (addI_rReg_imm movI);
+//   peepmatch (addI_iReg_imm movI);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaI_rReg_immI(0.dst 1.src 0.src));
+//   peepreplace (leaI_iReg_immI(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (incL_rReg movL);
+//   peepmatch (incL_iReg movL);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+//   peepreplace (leaL_iReg_immL(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (decL_rReg movL);
+//   peepmatch (decL_iReg movL);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+//   peepreplace (leaL_iReg_immL(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (addL_rReg_imm movL);
+//   peepmatch (addL_iReg_imm movL);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaL_rReg_immL(0.dst 1.src 0.src));
+//   peepreplace (leaL_iReg_immL(0.dst 1.src 0.src));
 // %}
 
 // peephole
 // %{
-//   peepmatch (addP_rReg_imm movP);
+//   peepmatch (addP_iReg_imm movP);
 //   peepconstraint (0.dst == 1.dst);
-//   peepreplace (leaP_rReg_imm(0.dst 1.src 0.src));
+//   peepreplace (leaP_iReg_imm(0.dst 1.src 0.src));
 // %}
 
 // // Change load of spilled value to only a spill
-// instruct storeI(memory mem, rRegI src)
+// instruct storeI(memory mem, iRegI src)
 // %{
 //   match(Set mem (StoreI mem src));
 // %}
 //
-// instruct loadI(rRegI dst, memory mem)
+// instruct loadI(iRegI dst, memory mem)
 // %{
 //   match(Set dst (LoadI mem));
 // %}
