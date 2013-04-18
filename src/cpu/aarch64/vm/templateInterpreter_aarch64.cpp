@@ -388,7 +388,10 @@ void InterpreterGenerator::generate_counter_incr(
 
     if (ProfileInterpreter && profile_method != NULL) {
       // Test to see if we should create a method data oop
-      __ ldr(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterProfileLimit));
+      unsigned long offset;
+      __ adrp(rscratch2, ExternalAddress((address)&InvocationCounter::InterpreterProfileLimit),
+	      offset);
+      __ ldrw(rscratch2, Address(rscratch2, offset));
       __ cmp(r0, rscratch2);
       __ br(Assembler::LT, *profile_method_continue);
 
@@ -617,16 +620,15 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));      // get ConstMethod
   __ add(rbcp, rscratch1, in_bytes(ConstMethod::codes_offset())); // get codebase
   if (ProfileInterpreter) {
-    // Label method_data_continue;
-    // __ movptr(rdx, Address(rbx, in_bytes(Method::method_data_offset())));
-    // __ testptr(rdx, rdx);
-    // __ jcc(Assembler::zero, method_data_continue);
-    // __ addptr(rdx, in_bytes(MethodData::data_offset()));
-    // __ bind(method_data_continue);
-    // __ push(rdx);      // set the mdp (method data pointer)
+    Label method_data_continue;
+    __ ldr(rscratch1, Address(rmethod, Method::method_data_offset()));
+    __ cbz(rscratch1, method_data_continue);
+    __ lea(rscratch1, Address(rscratch1, in_bytes(MethodData::data_offset())));
+    __ bind(method_data_continue);
+    __ stp(rscratch1, rmethod, Address(__ pre(sp, -2 * wordSize)));  // save Method* and mdp (method data pointer)
   } else {
+    __ stp(zr, rmethod, Address(__ pre(sp, -2 * wordSize)));        // save Method* (no mdp)
   }
-  __ stp(zr, rmethod, Address(__ pre(sp, -2 * wordSize)));        // save Method*
 
   __ ldr(rcpool, Address(rmethod, Method::const_offset()));
   __ ldr(rcpool, Address(rcpool, ConstMethod::constants_offset()));
@@ -1306,6 +1308,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
       __ bind(profile_method);
       __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method));
       __ set_method_data_pointer_for_bcp();
+      // don't think we need this
       __ get_method(r1);
       __ b(profile_method_continue);
     }
