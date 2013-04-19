@@ -32,6 +32,8 @@
   // initialization
   void pd_init() { _rsp_offset = 0; }
 
+void zero_memory(Register addr, Register len, Register t1);
+
  public:
   void try_allocate(
     Register obj,                      // result: pointer to object after successful allocation

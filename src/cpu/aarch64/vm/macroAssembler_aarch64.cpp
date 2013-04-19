@@ -274,6 +274,21 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   }
 }
 
+int MacroAssembler::biased_locking_enter(Register lock_reg,
+                                         Register obj_reg,
+                                         Register swap_reg,
+                                         Register tmp_reg,
+                                         bool swap_reg_contains_mark,
+                                         Label& done,
+                                         Label* slow_case,
+                                         BiasedLockingCounters* counters) {
+  Unimplemented();
+}
+
+void MacroAssembler::biased_locking_exit(Register obj_reg, Register temp_reg, Label& done) {
+  Unimplemented();
+}
+
 // added to make this compile
 
 REGISTER_DEFINITION(Register, noreg);

@@ -40,6 +40,12 @@
 
 
 
+#ifndef PRODUCT
+#define COMMENT(x)   do { __ block_comment(x); } while (0)
+#else
+#define COMMENT(x)
+#endif
+
 NEEDS_CLEANUP // remove this definitions ?
 const Register IC_Klass    = r0;   // where the IC klass is cached
 const Register SYNC_header = r0;   // synchronization header
@@ -131,7 +137,14 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     else
       index = opr->as_register_lo();
     assert(addr->disp() == 0, "must be");
-    return Address(base, index, Address::sxtw(addr->scale()));
+    switch(opr->type()) {
+      case T_INT:
+	return Address(base, index, Address::sxtw(addr->scale()));
+      case T_LONG:
+	return Address(base, index, Address::lsl(addr->scale()));
+      default:
+	ShouldNotReachHere();
+      }
   } else  {
     intptr_t addr_offset = intptr_t(addr->disp());
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
@@ -471,6 +484,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
 
   switch (c->type()) {
   case T_ADDRESS:
+  case T_INT:
     {
     assert(c->as_jint() == 0, "should be");
     __ str(zr, as_Address(to_addr, rscratch1));
@@ -568,12 +582,13 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
   if (type == T_ARRAY || type == T_OBJECT) {
     __ verify_oop(src->as_register());
-#ifdef _LP64
+
     if (UseCompressedOops && !wide) {
       __ mov(compressed_src, src->as_register());
       __ encode_heap_oop(compressed_src);
+    } else {
+      compressed_src = src->as_register();
     }
-#endif
   }
 
   if (patch_code != lir_patch_none) {
@@ -737,15 +752,19 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_BYTE:    // fall through
+    case T_BYTE:
+      __ ldrsb(dest->as_register(), as_Address(from_addr));
+      break;
     case T_BOOLEAN: {
       __ ldrb(dest->as_register(), as_Address(from_addr));
       break;
     }
 
-    case T_CHAR:    // fall through
+    case T_CHAR:
+      __ ldrh(dest->as_register(), as_Address(from_addr));
+      break;
     case T_SHORT:
-      __ ldrw(dest->as_register(), as_Address(from_addr));
+      __ ldrsh(dest->as_register(), as_Address(from_addr));
       break;
 
     default:
@@ -895,14 +914,24 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ sxtw(dest->as_register_lo(), src->as_register());
 	break;
       }
-
     case Bytecodes::_l2i:
       {
 	_masm->block_comment("FIXME: This could be a no-op");
 	__ uxtw(dest->as_register(), src->as_register_lo());
 	break;
       }
-
+    case Bytecodes::_d2l:
+      {
+	Label L_Okay;
+	__ clear_fpsr();
+	__ fcvtzd(dest->as_register_lo(), src->as_double_reg());
+	__ get_fpsr(rscratch1);
+	__ cbzw(rscratch1, L_Okay);
+	__ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2l),
+			      0, 1, MacroAssembler::ret_type_integral);
+	__ bind(L_Okay);
+	break;
+      }
     default: ShouldNotReachHere();
   }
 }
@@ -965,7 +994,17 @@ void LIR_Assembler::type_profile_helper(Register mdo,
 void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, Label* failure, Label* obj_is_null) { Unimplemented(); }
 
 
-void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) { Unimplemented(); }
+void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
+  LIR_Code code = op->code();
+  if (code == lir_checkcast) {
+    Register obj = op->object()->as_register();
+    Register dst = op->result_opr()->as_register();
+    if (dst != obj) {
+      __ mov(dst, obj);
+    }
+  }
+  COMMENT("emit_opTypeCheck Unimplemented();");
+}
 
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) { Unimplemented(); }
@@ -1017,6 +1056,9 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 
     if (right->is_single_cpu()) {
       // cpu register - cpu register
+
+      assert(left->type() == T_INT && right->type() == T_INT && dest->type() == T_INT,
+	     "should be");
       Register rreg = right->as_register();
       switch (code) {
       case lir_add: __ addw (dest->as_register(), lreg, rreg); break;
@@ -1028,12 +1070,25 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
     } else if (right->is_constant()) {
       // cpu register - constant
       jint c = right->as_constant_ptr()->as_jint();
-      switch (code) {
+
+      switch(left->type()) {
+      case T_INT:
+	switch (code) {
+        case lir_add: __ addw(dreg, lreg, c); break;
+        case lir_sub: __ subw(dreg, lreg, c); break;
+        default: ShouldNotReachHere();
+	}
+	break;
+      case T_OBJECT:
+      case T_ADDRESS:
+	switch (code) {
         case lir_add: __ add(dreg, lreg, c); break;
         case lir_sub: __ sub(dreg, lreg, c); break;
         default: ShouldNotReachHere();
+	}
+	break;
+	ShouldNotReachHere();
       }
-
     } else {
       ShouldNotReachHere();
     }
@@ -1155,7 +1210,7 @@ void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 }
 
 
-// we assume that rax, and rdx can be overwritten
+
 void LIR_Assembler::arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr temp, LIR_Opr result, CodeEmitInfo* info) { Unimplemented(); }
 
 
@@ -1181,10 +1236,24 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
     }
 
     if (opr2->is_constant()) {
-      jlong imm =
-	(opr2->type() == T_LONG)
-	? opr2->as_constant_ptr()->as_jlong()
-	: opr2->as_constant_ptr()->as_jint();
+      jlong imm;
+      switch(opr2->type()) {
+      case T_LONG:
+	imm = opr2->as_constant_ptr()->as_jlong();
+	break;
+      case T_INT:
+      case T_ADDRESS:
+	imm = opr2->as_constant_ptr()->as_jint();
+	break;
+      case T_OBJECT:
+      case T_ARRAY:
+	imm = jlong(opr2->as_constant_ptr()->as_jobject());
+	break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
+
       if (Assembler::operand_valid_for_add_sub_immediate(imm)) {
 	if (opr1->is_single_cpu())
 	  __ cmpw(reg1, imm);
@@ -1192,7 +1261,8 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
 	  __ cmp(reg1, imm);
 	return;
       }
-    }
+    } else
+      ShouldNotReachHere();
   } else if (opr1->is_single_fpu()) {
     FloatRegister reg1 = opr1->as_float_reg();
     assert(opr2->is_single_fpu(), "expect single float register");
@@ -1289,21 +1359,32 @@ void LIR_Assembler::unwind_op(LIR_Opr exceptionOop) {
 
 
 void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr dest, LIR_Opr tmp) {
-  if (left->is_single_cpu()) {
-    switch (code) {
-    case lir_shl:  __ lslvw (dest->as_register(), left->as_register(), count->as_register()); break;
-    case lir_shr:  __ asrvw (dest->as_register(), left->as_register(), count->as_register()); break;
-    case lir_ushr: __ lsrvw (dest->as_register(), left->as_register(), count->as_register()); break;
-    default:
-      ShouldNotReachHere();
+  Register lreg = left->is_single_cpu() ? left->as_register() : left->as_register_lo();
+  Register dreg = dest->is_single_cpu() ? dest->as_register() : dest->as_register_lo();
+
+  switch (left->type()) {
+    case T_INT: {
+      switch (code) {
+      case lir_shl:  __ lslvw (dreg, lreg, count->as_register()); break;
+      case lir_shr:  __ asrvw (dreg, lreg, count->as_register()); break;
+      case lir_ushr: __ lsrvw (dreg, lreg, count->as_register()); break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
       break;
-    }
-  } else {
-    assert (left->is_double_cpu(), "single or double cpu register expected");
-    switch (code) {
-    case lir_shl:  __ lslv (dest->as_register_lo(), left->as_register_lo(), count->as_register()); break;
-    case lir_shr:  __ asrv (dest->as_register_lo(), left->as_register_lo(), count->as_register()); break;
-    case lir_ushr: __ lsrv (dest->as_register_lo(), left->as_register_lo(), count->as_register()); break;
+    case T_LONG:
+    case T_ADDRESS:
+    case T_OBJECT:
+      switch (code) {
+      case lir_shl:  __ lslv (dreg, lreg, count->as_register()); break;
+      case lir_shr:  __ asrv (dreg, lreg, count->as_register()); break;
+      case lir_ushr: __ lsrv (dreg, lreg, count->as_register()); break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
+      break;
     default:
       ShouldNotReachHere();
       break;
@@ -1313,21 +1394,32 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
 
 
 void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr dest) {
+  Register dreg = dest->is_single_cpu() ? dest->as_register() : dest->as_register_lo();
+  Register lreg = left->is_single_cpu() ? left->as_register() : left->as_register_lo();
 
-  if (left->is_single_cpu()) {
-    switch (code) {
-    case lir_shl:  __ lslw (dest->as_register(), left->as_register(), count); break;
-    case lir_shr:  __ asrw (dest->as_register(), left->as_register(), count); break;
-    case lir_ushr: __ lsrw (dest->as_register(), left->as_register(), count); break;
-    default:
-      ShouldNotReachHere();
+  switch (left->type()) {
+    case T_INT: {
+      switch (code) {
+      case lir_shl:  __ lslw (dreg, lreg, count); break;
+      case lir_shr:  __ asrw (dreg, lreg, count); break;
+      case lir_ushr: __ lsrw (dreg, lreg, count); break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
       break;
-    }
-  } else {
-    switch (code) {
-    case lir_shl:  __ lsl (dest->as_register_lo(), left->as_register_lo(), count); break;
-    case lir_shr:  __ asr (dest->as_register_lo(), left->as_register_lo(), count); break;
-    case lir_ushr: __ lsr (dest->as_register_lo(), left->as_register_lo(), count); break;
+    case T_LONG:
+    case T_ADDRESS:
+    case T_OBJECT:
+      switch (code) {
+      case lir_shl:  __ lsl (dreg, lreg, count); break;
+      case lir_shr:  __ asr (dreg, lreg, count); break;
+      case lir_ushr: __ lsr (dreg, lreg, count); break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
+      break;
     default:
       ShouldNotReachHere();
       break;
@@ -1368,7 +1460,348 @@ void LIR_Assembler::store_parameter(jobject o,  int offset_from_rsp_in_words) {
 // This code replaces a call to arraycopy; no exception may
 // be thrown in this code, they must be thrown in the System.arraycopy
 // activation frame; we could save some checks if this would not be the case
-void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) { Unimplemented(); }
+void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
+  ciArrayKlass* default_type = op->expected_type();
+  Register src = op->src()->as_register();
+  Register dst = op->dst()->as_register();
+  Register src_pos = op->src_pos()->as_register();
+  Register dst_pos = op->dst_pos()->as_register();
+  Register length  = op->length()->as_register();
+  Register tmp = op->tmp()->as_register();
+
+  CodeStub* stub = op->stub();
+  int flags = op->flags();
+  BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
+  if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+
+  // if we don't know anything, just go through the generic arraycopy
+  if (default_type == NULL) {
+    Label done;
+    // save outgoing arguments on stack in case call to System.arraycopy is needed
+    // HACK ALERT. This code used to push the parameters in a hardwired fashion
+    // for interpreter calling conventions. Now we have to do it in new style conventions.
+    // For the moment until C1 gets the new register allocator I just force all the
+    // args to the right place (except the register args) and then on the back side
+    // reload the register args properly if we go slow path. Yuck
+
+    // These are proper for the calling convention
+    store_parameter(length, 2);
+    store_parameter(dst_pos, 1);
+    store_parameter(dst, 0);
+
+    // these are just temporary placements until we need to reload
+    store_parameter(src_pos, 3);
+    store_parameter(src, 4);
+    NOT_LP64(assert(src == r2 && src_pos == r3, "mismatch in calling convention");)
+
+    address C_entry = CAST_FROM_FN_PTR(address, Runtime1::arraycopy);
+
+    address copyfunc_addr = StubRoutines::generic_arraycopy();
+
+    // pass arguments: may push as this is not a safepoint; SP must be fix at each safepoint
+
+    // The arguments are in java calling convention so we can trivially shift them to C
+    // convention
+    assert_different_registers(c_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4);
+    __ mov(c_rarg0, j_rarg0);
+    assert_different_registers(c_rarg1, j_rarg2, j_rarg3, j_rarg4);
+    __ mov(c_rarg1, j_rarg1);
+    assert_different_registers(c_rarg2, j_rarg3, j_rarg4);
+    __ mov(c_rarg2, j_rarg2);
+    assert_different_registers(c_rarg3, j_rarg4);
+    __ mov(c_rarg3, j_rarg3);
+    __ mov(c_rarg4, j_rarg4);
+    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
+      __ ldr(rscratch1, RuntimeAddress(C_entry));
+      __ brx86(rscratch1, 5, 0, 0);
+    } else {
+#ifndef PRODUCT
+      if (PrintC1Statistics) {
+        __ incrementw(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
+      }
+#endif
+      __ bl(RuntimeAddress(copyfunc_addr));
+    }
+
+    __ cbz(r0, *stub->continuation());
+
+    if (copyfunc_addr != NULL) {
+      __ mov(tmp, r0);
+      __ eor(tmp, tmp, -1);
+    }
+
+    // Reload values from the stack so they are where the stub
+    // expects them.
+    __ str(dst,     Address(sp, 0*BytesPerWord));
+    __ str(dst_pos, Address(sp, 1*BytesPerWord));
+    __ str(length,  Address(sp, 2*BytesPerWord));
+    __ str(src_pos, Address(sp, 3*BytesPerWord));
+    __ str(src,     Address(sp, 4*BytesPerWord));
+
+    if (copyfunc_addr != NULL) {
+      __ subw(length, length, tmp);
+      __ addw(src_pos, src_pos, tmp);
+      __ addw(dst_pos, dst_pos, tmp);
+    }
+    __ b(*stub->entry());
+
+    __ bind(*stub->continuation());
+    return;
+  }
+
+  assert(default_type != NULL && default_type->is_array_klass() && default_type->is_loaded(), "must be true at this point");
+
+  int elem_size = type2aelembytes(basic_type);
+  int shift_amount;
+  int scale = exact_log2(elem_size);
+
+  Address src_length_addr = Address(src, arrayOopDesc::length_offset_in_bytes());
+  Address dst_length_addr = Address(dst, arrayOopDesc::length_offset_in_bytes());
+  Address src_klass_addr = Address(src, oopDesc::klass_offset_in_bytes());
+  Address dst_klass_addr = Address(dst, oopDesc::klass_offset_in_bytes());
+
+  // length and pos's are all sign extended at this point on 64bit
+
+  // test for NULL
+  if (flags & LIR_OpArrayCopy::src_null_check) {
+    __ cbz(src, *stub->entry());
+  }
+  if (flags & LIR_OpArrayCopy::dst_null_check) {
+    __ cbz(dst, *stub->entry());
+  }
+
+  // check if negative
+  if (flags & LIR_OpArrayCopy::src_pos_positive_check) {
+    __ cmpw(src_pos, 0);
+    __ br(Assembler::LT, *stub->entry());
+  }
+  if (flags & LIR_OpArrayCopy::dst_pos_positive_check) {
+    __ cmpw(dst_pos, 0);
+    __ br(Assembler::LT, *stub->entry());
+  }
+
+  if (flags & LIR_OpArrayCopy::src_range_check) {
+    __ lea(tmp, Address(src_pos, length));
+    __ ldrw(rscratch1, src_length_addr);
+    __ cmpw(tmp, rscratch1);
+    __ br(Assembler::HI, *stub->entry());
+  }
+  if (flags & LIR_OpArrayCopy::dst_range_check) {
+    __ lea(tmp, Address(dst_pos, length));
+    __ ldrw(rscratch1, dst_length_addr);
+    __ cmpw(tmp, rscratch1);
+    __ br(Assembler::HI, *stub->entry());
+  }
+
+  if (flags & LIR_OpArrayCopy::length_positive_check) {
+    __ cmpw(length, 0);
+    __ br(Assembler::LT, *stub->entry());
+    __ br(Assembler::EQ, *stub->continuation());
+  }
+
+  if (flags & LIR_OpArrayCopy::type_check) {
+    // We don't know the array types are compatible
+    if (basic_type != T_OBJECT) {
+      // Simple test for basic type arrays
+      if (UseCompressedKlassPointers) {
+        __ ldrw(tmp, src_klass_addr);
+        __ ldrw(rscratch1, dst_klass_addr);
+        __ cmpw(tmp, rscratch1);
+      } else {
+        __ ldr(tmp, src_klass_addr);
+        __ ldr(rscratch1, dst_klass_addr);
+        __ cmp(tmp, rscratch1);
+      }
+      __ br(Assembler::NE, *stub->entry());
+    } else {
+      // For object arrays, if src is a sub class of dst then we can
+      // safely do the copy.
+      Label cont, slow;
+
+#define PUSH(r1, r2)					\
+      stp(r1, r2, __ pre(sp, -2 * wordSize));
+
+#define POP(r1, r2)					\
+      ldp(r1, r2, __ post(sp, 2 * wordSize));
+
+      __ PUSH(src, dst);
+
+      __ load_klass(src, src);
+      __ load_klass(dst, dst);
+
+      __ check_klass_subtype_fast_path(src, dst, tmp, &cont, &slow, NULL);
+
+      __ PUSH(src, dst);
+      __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::slow_subtype_check_id)));
+      __ POP(src, dst);
+
+      __ cbnz(src, cont);
+
+      __ bind(slow);
+      __ POP(src, dst);
+
+      address copyfunc_addr = StubRoutines::checkcast_arraycopy();
+      if (copyfunc_addr != NULL) { // use stub if available
+        // src is not a sub class of dst so we have to do a
+        // per-element check.
+
+        int mask = LIR_OpArrayCopy::src_objarray|LIR_OpArrayCopy::dst_objarray;
+        if ((flags & mask) != mask) {
+          // Check that at least both of them object arrays.
+          assert(flags & mask, "one of the two should be known to be an object array");
+
+          if (!(flags & LIR_OpArrayCopy::src_objarray)) {
+            __ load_klass(tmp, src);
+          } else if (!(flags & LIR_OpArrayCopy::dst_objarray)) {
+            __ load_klass(tmp, dst);
+          }
+          int lh_offset = in_bytes(Klass::layout_helper_offset());
+          Address klass_lh_addr(tmp, lh_offset);
+          jint objArray_lh = Klass::array_layout_helper(T_OBJECT);
+	  __ ldrw(rscratch1, klass_lh_addr);
+          __ cmpw(rscratch1, objArray_lh);
+          __ br(Assembler::NE, *stub->entry());
+        }
+
+       // Spill because stubs can use any register they like and it's
+       // easier to restore just those that we care about.
+       store_parameter(dst, 0);
+       store_parameter(dst_pos, 1);
+       store_parameter(length, 2);
+       store_parameter(src_pos, 3);
+       store_parameter(src, 4);
+
+        __ uxtw(length, length); // FIXME ??  higher 32bits must be null
+
+        __ lea(c_rarg0, Address(src, src_pos, Address::uxtw(scale)));
+	__ add(c_rarg0, c_rarg0, arrayOopDesc::base_offset_in_bytes(basic_type));
+        assert_different_registers(c_rarg0, dst, dst_pos, length);
+        __ lea(c_rarg1, Address(dst, dst_pos, Address::uxtw(scale)));
+	__ add(c_rarg1, c_rarg1, arrayOopDesc::base_offset_in_bytes(basic_type));
+        assert_different_registers(c_rarg1, dst, length);
+        __ mov(c_rarg2, length);
+        assert_different_registers(c_rarg2, dst);
+
+        __ load_klass(c_rarg4, dst);
+        __ ldr(c_rarg4, Address(c_rarg4, ObjArrayKlass::element_klass_offset()));
+        __ ldrw(c_rarg3, Address(c_rarg4, Klass::super_check_offset_offset()));
+        __ call(RuntimeAddress(copyfunc_addr));
+
+#ifndef PRODUCT
+        if (PrintC1Statistics) {
+          Label failed;
+          __ cbnz(r0, failed);
+          __ incrementw(ExternalAddress((address)&Runtime1::_arraycopy_checkcast_cnt));
+          __ bind(failed);
+        }
+#endif
+
+        __ cbnz(r0, *stub->continuation());
+
+#ifndef PRODUCT
+        if (PrintC1Statistics) {
+          __ incrementw(ExternalAddress((address)&Runtime1::_arraycopy_checkcast_attempt_cnt));
+        }
+#endif
+
+        __ eor(tmp, r0, -1);
+
+        // Restore previously spilled arguments
+        __ ldr   (dst,     Address(sp, 0*BytesPerWord));
+        __ ldr   (dst_pos, Address(sp, 1*BytesPerWord));
+        __ ldr   (length,  Address(sp, 2*BytesPerWord));
+        __ ldr   (src_pos, Address(sp, 3*BytesPerWord));
+        __ ldr   (src,     Address(sp, 4*BytesPerWord));
+
+
+        __ subw(length, length, tmp);
+        __ addw(src_pos, src_pos, tmp);
+        __ addw(dst_pos, dst_pos, tmp);
+      }
+
+      __ b(*stub->entry());
+
+      __ bind(cont);
+      __ POP(src, dst);
+    }
+  }
+
+#ifdef ASSERT
+  if (basic_type != T_OBJECT || !(flags & LIR_OpArrayCopy::type_check)) {
+    // Sanity check the known type with the incoming class.  For the
+    // primitive case the types must match exactly with src.klass and
+    // dst.klass each exactly matching the default type.  For the
+    // object array case, if no type check is needed then either the
+    // dst type is exactly the expected type and the src type is a
+    // subtype which we can't check or src is the same array as dst
+    // but not necessarily exactly of type default_type.
+    Label known_ok, halt;
+    __ mov_metadata(tmp, default_type->constant_encoding());
+#ifdef _LP64
+    if (UseCompressedKlassPointers) {
+      __ encode_klass_not_null(tmp);
+    }
+#endif
+
+    if (basic_type != T_OBJECT) {
+
+      if (UseCompressedKlassPointers) {
+	__ ldrw(rscratch1, dst_klass_addr);
+	__ cmpw(tmp, rscratch1);
+      } else {
+	__ ldr(rscratch1, dst_klass_addr);
+	__ cmp(tmp, rscratch1);
+      }
+      __ br(Assembler::NE, halt);
+      if (UseCompressedKlassPointers) {
+	__ ldrw(rscratch1, src_klass_addr);
+	__ cmpw(tmp, rscratch1);
+      } else {
+	__ ldr(rscratch1, src_klass_addr);
+	__ cmp(tmp, rscratch1);
+      }
+      __ br(Assembler::EQ, known_ok);
+    } else {
+      if (UseCompressedKlassPointers) {
+	__ ldrw(rscratch1, dst_klass_addr);
+	__ cmpw(tmp, rscratch1);
+      } else {
+	__ ldr(rscratch1, dst_klass_addr);
+	__ cmp(tmp, rscratch1);
+      }
+      __ br(Assembler::EQ, known_ok);
+      __ cmp(src, dst);
+      __ br(Assembler::EQ, known_ok);
+    }
+    __ bind(halt);
+    __ stop("incorrect type information in arraycopy");
+    __ bind(known_ok);
+  }
+#endif
+
+#ifndef PRODUCT
+  if (PrintC1Statistics) {
+    __ incrementw(ExternalAddress(Runtime1::arraycopy_count_address(basic_type)));
+  }
+#endif
+
+  __ lea(c_rarg0, Address(src, src_pos, Address::uxtw(scale)));
+  __ add(c_rarg0, c_rarg0, arrayOopDesc::base_offset_in_bytes(basic_type));
+  assert_different_registers(c_rarg0, dst, dst_pos, length);
+  __ lea(c_rarg1, Address(dst, dst_pos, Address::uxtw(scale)));
+  __ add(c_rarg1, c_rarg1, arrayOopDesc::base_offset_in_bytes(basic_type));
+  assert_different_registers(c_rarg1, dst, length);
+  __ mov(c_rarg2, length);
+  assert_different_registers(c_rarg2, dst);
+
+  bool disjoint = (flags & LIR_OpArrayCopy::overlapping) == 0;
+  bool aligned = (flags & LIR_OpArrayCopy::unaligned) == 0;
+  const char *name;
+  address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false);
+  __ call_VM_leaf(entry, 0);
+
+  __ bind(*stub->continuation());
+}
 
 
 void LIR_Assembler::emit_lock(LIR_OpLock* op) { Unimplemented(); }
@@ -1406,7 +1839,9 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) { Unimplemented(); }
+void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) {
+  __ lea(dest->as_register_lo(), as_Address(addr->as_address_ptr()));
+}
 
 
 void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* args, LIR_Opr tmp, CodeEmitInfo* info) {
@@ -1458,18 +1893,164 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
   }
 }
 
-void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) { Unimplemented(); }
+void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
+  if (dest->is_address()) {
+      LIR_Address* to_addr = dest->as_address_ptr();
+      Register compressed_src = rscratch1;
+      if (type == T_ARRAY || type == T_OBJECT) {
+	__ verify_oop(src->as_register());
+	if (UseCompressedOops) {
+      __ mov(compressed_src, src->as_register());
+      __ encode_heap_oop(compressed_src);
+	}
+      }
 
+      if (dest->is_double_cpu())
+	__ lea(rscratch1, as_Address(to_addr));
+      else
+	__ lea(rscratch1, as_Address_lo(to_addr));
 
-void LIR_Assembler::membar() { Unimplemented(); }
+      int null_check_here = code_offset();
+      switch (type) {
+      case T_ARRAY:   // fall through
+      case T_OBJECT:  // fall through
+	if (UseCompressedOops) {
+	  __ stlrw(compressed_src, rscratch1);
+	} else {
+	  __ stlr(compressed_src, rscratch1);
+	}
+	break;
+      case T_METADATA:
+	// We get here to store a method pointer to the stack to pass to
+	// a dtrace runtime call. This can't work on 64 bit with
+	// compressed klass ptrs: T_METADATA can be a compressed klass
+	// ptr or a 64 bit method pointer.
+	LP64_ONLY(ShouldNotReachHere());
+	__ stlr(src->as_register(), rscratch1);
+	break;
+      case T_ADDRESS:
+	__ stlr(src->as_register(), rscratch1);
+	break;
+      case T_INT:
+	__ stlrw(src->as_register(), rscratch1);
+	break;
 
-void LIR_Assembler::membar_acquire() { Unimplemented(); }
+      case T_LONG: {
+	__ stlr(src->as_register_lo(), rscratch1);
+	break;
+      }
 
-void LIR_Assembler::membar_release() { Unimplemented(); }
+      case T_BYTE:    // fall through
+      case T_BOOLEAN: {
+	__ stlrb(src->as_register(), rscratch1);
+	break;
+      }
+
+      case T_CHAR:    // fall through
+      case T_SHORT:
+	__ stlrw(src->as_register(), rscratch1);
+	break;
+
+      default:
+	ShouldNotReachHere();
+      }
+      if (info != NULL) {
+	add_debug_info_for_null_check(null_check_here, info);
+      }
+  } else if (src->is_address()) {
+    LIR_Address* from_addr = src->as_address_ptr();
+    Register compressed_dest = rscratch1;
+    if (type == T_ARRAY || type == T_OBJECT) {
+      __ verify_oop(dest->as_register());
+      if (UseCompressedOops) {
+	__ mov(compressed_dest, dest->as_register());
+	__ encode_heap_oop(compressed_dest);
+      }
+    }
+
+    if (src->is_double_cpu())
+      __ lea(rscratch1, as_Address(from_addr));
+    else
+      __ lea(rscratch1, as_Address_lo(from_addr));
+
+    int null_check_here = code_offset();
+    switch (type) {
+    case T_ARRAY:   // fall through
+    case T_OBJECT:  // fall through
+      if (UseCompressedOops) {
+	__ ldarw(dest->as_register(), rscratch1);
+      } else {
+	__ ldar(dest->as_register(), rscratch1);
+      }
+      break;
+    case T_ADDRESS:
+      __ ldar(dest->as_register(), rscratch1);
+      break;
+    case T_INT:
+      __ ldarw(dest->as_register(), rscratch1);
+      break;
+    case T_LONG: {
+      __ ldar(dest->as_register_lo(), rscratch1);
+      break;
+    }
+
+    case T_BYTE:    // fall through
+    case T_BOOLEAN: {
+      __ ldarb(dest->as_register(), rscratch1);
+      break;
+    }
+
+    case T_CHAR:    // fall through
+    case T_SHORT:
+      __ ldarw(dest->as_register(), rscratch1);
+      break;
+
+    default:
+      ShouldNotReachHere();
+    }
+    if (info != NULL) {
+      add_debug_info_for_null_check(null_check_here, info);
+    }
+
+    if (type == T_ARRAY || type == T_OBJECT) {
+      if (UseCompressedOops) {
+	__ decode_heap_oop(dest->as_register());
+      }
+      __ verify_oop(dest->as_register());
+    } else if (type == T_ADDRESS && from_addr->disp() == oopDesc::klass_offset_in_bytes()) {
+      if (UseCompressedKlassPointers) {
+	__ decode_klass_not_null(dest->as_register());
+      }
+    }
+  } else
+    ShouldNotReachHere();
+}
+
+#ifndef PRODUCT
+#define COMMENT(x)   do { __ block_comment(x); } while (0)
+#else
+#define COMMENT(x)
+#endif
+
+void LIR_Assembler::membar() {
+  __ dmb(__ SY);
+  COMMENT("membar");
+}
+
+void LIR_Assembler::membar_acquire() { 
+  __ block_comment("membar_acquire");
+}
+
+void LIR_Assembler::membar_release() {
+  __ block_comment("membar_release");
+}
 
 void LIR_Assembler::membar_loadload() { Unimplemented(); }
 
-void LIR_Assembler::membar_storestore() { Unimplemented(); }
+void LIR_Assembler::membar_storestore() {
+  COMMENT("membar_storestore");
+  __ dmb(__ ST);
+}
 
 void LIR_Assembler::membar_loadstore() { Unimplemented(); }
 

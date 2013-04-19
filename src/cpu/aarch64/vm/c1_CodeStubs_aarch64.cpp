@@ -149,12 +149,25 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewObjectArrayStub
 
-NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info) { Unimplemented(); }
+NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info) {
+  _klass_reg = klass_reg;
+  _result = result;
+  _length = length;
+  _info = new CodeEmitInfo(info);
+}
 
 
-void NewObjectArrayStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
-
-
+void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  assert(_length->as_register() == r19, "length must in r19,");
+  assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
+  __ bl(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  assert(_result->as_register() == r0, "result must in r0");
+  __ b(_continuation);
+}
 // Implementation of MonitorAccessStubs
 
 MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info)
@@ -316,10 +329,58 @@ void ImplicitNullCheckStub::emit_code(LIR_Assembler* ce) {
 }
 
 
-void SimpleExceptionStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void SimpleExceptionStub::emit_code(LIR_Assembler* ce) {
+  __ should_not_reach_here();
+}
 
 
-void ArrayCopyStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
+  //---------------slow case: call to native-----------------
+  __ bind(_entry);
+  // Figure out where the args should go
+  // This should really convert the IntrinsicID to the Method* and signature
+  // but I don't know how to do that.
+  //
+  VMRegPair args[5];
+  BasicType signature[5] = { T_OBJECT, T_INT, T_OBJECT, T_INT, T_INT};
+  SharedRuntime::java_calling_convention(signature, args, 5, true);
+
+  // push parameters
+  // (src, src_pos, dest, destPos, length)
+  Register r[5];
+  r[0] = src()->as_register();
+  r[1] = src_pos()->as_register();
+  r[2] = dst()->as_register();
+  r[3] = dst_pos()->as_register();
+  r[4] = length()->as_register();
+
+  // next registers will get stored on the stack
+  for (int i = 0; i < 5 ; i++ ) {
+    VMReg r_1 = args[i].first();
+    if (r_1->is_stack()) {
+      int st_off = r_1->reg2stack() * wordSize;
+      __ str (r[i], Address(sp, st_off));
+    } else {
+      assert(r[i] == args[i].first()->as_Register(), "Wrong register for arg ");
+    }
+  }
+
+  ce->align_call(lir_static_call);
+
+  ce->emit_static_call_stub();
+  Address resolve(SharedRuntime::get_resolve_static_call_stub(),
+		  relocInfo::static_call_type);
+  __ bl(resolve);
+  ce->add_call_info_here(info());
+
+#ifndef PRODUCT
+  __ lea(rscratch2, ExternalAddress((address)&Runtime1::_arraycopy_slowcase_cnt));
+  __ incrementw(Address(rscratch2));
+#endif
+
+  __ b(_continuation);
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 #ifndef SERIALGC
