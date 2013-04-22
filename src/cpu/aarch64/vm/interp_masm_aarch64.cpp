@@ -681,7 +681,7 @@ void InterpreterMacroAssembler::test_method_data_pointer(Register mdp,
                                                          Label& zero_continue) {
   assert(ProfileInterpreter, "must be profiling interpreter");
   ldr(mdp, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
-  cbnz(mdp, zero_continue);
+  cbz(mdp, zero_continue);
 }
 
 // Set the method data pointer for the current bcp.
