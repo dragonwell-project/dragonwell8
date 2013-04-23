@@ -2499,7 +2499,191 @@ uint SharedRuntime::out_preserve_stack_slots() {
 
 #ifdef COMPILER2
 //------------------------------generate_uncommon_trap_blob--------------------
-void SharedRuntime::generate_uncommon_trap_blob() { Unimplemented(); }
+void SharedRuntime::generate_uncommon_trap_blob() {
+  // Allocate space for the code
+  ResourceMark rm;
+  // Setup code generation tools
+  CodeBuffer buffer("uncommon_trap_blob", 2048, 1024);
+  MacroAssembler* masm = new MacroAssembler(&buffer);
+
+  // TODO check various assumptions here
+  //
+  // call unimplemented to make sure we actually check this later
+  __ call_Unimplemented();
+
+  assert(SimpleRuntimeFrame::framesize % 4 == 0, "sp not 16-byte aligned");
+
+  address start = __ pc();
+
+  // Push self-frame.  We get here with a return address in LR
+  // and sp should be 16 byte aligned
+  // push rfp and retaddr by hand
+  __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
+  // now push the rest of the (empty) simple frame
+  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Epilog!
+
+  // compiler left unloaded_class_index in j_rarg0 move to where the
+  // runtime expects it.
+  __ movw(c_rarg1, j_rarg0);
+
+  // TODO: work out what to use as the last pc here (Intel supplied NULL)
+  // for now supply label into generated code as per handler blob below
+  Label retaddr;
+  __ set_last_Java_frame(noreg, noreg, retaddr, rscratch1);
+
+  // Call C code.  Need thread but NOT official VM entry
+  // crud.  We cannot block on this call, no GC can happen.  Call should
+  // capture callee-saved registers as well as return values.
+  // Thread is in rdi already.
+  //
+  // UnrollBlock* uncommon_trap(JavaThread* thread, jint unloaded_class_index);
+  //
+  // n.b. 2 gp args, 0 fp args, integral return type
+
+  __ mov(c_rarg0, rthread);
+  __ lea(rscratch1,
+	 RuntimeAddress(CAST_FROM_FN_PTR(address,
+					 Deoptimization::uncommon_trap)));
+  __ brx86(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
+  __ bind(retaddr);
+
+  // Set an oopmap for the call site
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(SimpleRuntimeFrame::framesize, 0);
+
+  // location of rfp is known implicitly by the frame sender code
+
+  oop_maps->add_gc_map(__ pc() - start, map);
+
+  __ reset_last_Java_frame(false, false);
+
+  // move UnrollBlock* into r4
+  __ mov(r4, r0);
+
+  // Pop all the frames we must move/replace.
+  //
+  // Frame picture (youngest to oldest)
+  // 1: self-frame (no frame link)
+  // 2: deopting frame  (no frame link)
+  // 3: caller of deopting frame (could be compiled/interpreted).
+
+  // Pop self-frame.  We have no frame, and must rely only on r0 and sp.
+  __ add(sp, sp, (SimpleRuntimeFrame::framesize) << LogBytesPerInt); // Epilog!
+
+  // Pop deoptimized frame (int)
+  __ ldrw(r2, Address(r4,
+		      Deoptimization::UnrollBlock::
+		      size_of_deoptimized_frame_offset_in_bytes()));
+  __ add(sp, sp, r2);
+
+  // sp should now be pointing at the top of the caller (3) frame
+
+  // Stack bang to make sure there's enough room for these interpreter frames.
+  if (UseStackBanging) {
+    __ ldrw(r1, Address(r4,
+			Deoptimization::UnrollBlock::
+			total_frame_sizes_offset_in_bytes()));
+    __ bang_stack_size(r1, r2);
+  }
+
+  // Load address of array of frame pcs into r2 (address*)
+  __ ldr(r2, Address(r4,
+		     Deoptimization::UnrollBlock::frame_pcs_offset_in_bytes()));
+
+  // Load address of array of frame sizes into r5 (intptr_t*)
+  __ ldr(r5, Address(r4,
+		     Deoptimization::UnrollBlock::
+		     frame_sizes_offset_in_bytes()));
+
+  // Counter
+  __ ldrw(r3, Address(r4,
+		      Deoptimization::UnrollBlock::
+		      number_of_frames_offset_in_bytes())); // (int)
+
+  // Pick up the initial fp we should save
+  __ ldr(rfp,
+	 Address(r4,
+		 Deoptimization::UnrollBlock::initial_info_offset_in_bytes()));
+
+  // Now adjust the caller's stack to make up for the extra locals but
+  // record the original sp so that we can save it in the skeletal
+  // interpreter frame and the stack walking of interpreter_sender
+  // will get the unextended sp value and not the "real" sp value.
+
+  const Register sender_sp = r8;
+
+  __ mov(sender_sp, sp);
+  __ ldrw(r2, Address(r4,
+		      Deoptimization::UnrollBlock::
+		      caller_adjustment_offset_in_bytes())); // (int)
+  __ sub(sp, sp, r2);
+
+  // Push interpreter frames in a loop
+  Label loop;
+  __ bind(loop);
+  __ ldr(r1, Address(r5, 0));       // Load frame size
+  __ sub(r1, r1, 2 * wordSize);	    // We'll push pc and rfp by hand
+  __ ldr(lr, Address(r2, 0));	    // Save return address
+  __ enter();			    // and old rfp & set new rfp
+  __ sub(sp, sp, r1);		    // Prolog
+#ifdef CC_INTERP
+  __ movptr(Address(rbp,
+                  -(sizeof(BytecodeInterpreter)) + in_bytes(byte_offset_of(BytecodeInterpreter, _sender_sp))),
+            sender_sp); // Make it walkable
+#else // CC_INTERP
+  __ str(sender_sp, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize)); // Make it walkable
+  // This value is corrected by layout_activation_impl
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+#endif // CC_INTERP
+  __ mov(sender_sp, sp);          // Pass sender_sp to next frame
+  __ add(r5, r5, wordSize);	  // Bump array pointer (sizes)
+  __ add(r2, r2, wordSize);	  // Bump array pointer (pcs)
+  __ subsw(r3, r3, 1);		  // Decrement counter
+  __ br(Assembler::GT, loop);
+  __ ldr(lr, Address(r3, 0));	  // save final return address
+  __ enter();			  // & old rfp & set new rfp
+  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Prolog
+
+  // Use rfp because the frames look interpreted now
+  // Save "the_pc" since it cannot easily be retrieved using the last_java_SP after we aligned SP.
+  // Don't need the precise return PC here, just precise enough to point into this code blob.
+  address the_pc = __ pc();
+  __ set_last_Java_frame(noreg, rfp, the_pc, rscratch1);
+
+  // Call C code.  Need thread but NOT official VM entry
+  // crud.  We cannot block on this call, no GC can happen.  Call should
+  // restore return values to their stack-slots with the new SP.
+  // Thread is in rdi already.
+  //
+  // BasicType unpack_frames(JavaThread* thread, int exec_mode);
+  //
+  // n.b. 2 gp args, 0 fp args, integral return type
+
+  // sp should already be aligned
+  __ mov(c_rarg0, rthread);
+  __ movw(c_rarg1, (unsigned)Deoptimization::Unpack_uncommon_trap);
+  __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::unpack_frames)));
+  __ brx86(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
+
+  // Set an oopmap for the call site
+  // Use the same PC we used for the last java frame
+  oop_maps->add_gc_map(the_pc - start, new OopMap(SimpleRuntimeFrame::framesize, 0));
+
+  // Clear fp AND pc
+  __ reset_last_Java_frame(true, true);
+
+  // Pop self-frame.
+  __ leave();                 // Epilog
+
+  // Jump to interpreter
+  __ ret(lr);
+
+  // Make sure all code is generated
+  masm->flush();
+
+  _uncommon_trap_blob =  UncommonTrapBlob::create(&buffer, oop_maps,
+                                                 SimpleRuntimeFrame::framesize >> 1);
+}
 #endif // COMPILER2
 
 
