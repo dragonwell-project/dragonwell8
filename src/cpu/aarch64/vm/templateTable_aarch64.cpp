@@ -1692,7 +1692,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
       // Out-of-line code to allocate method data oop.
       __ bind(profile_method);
       __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method));
-      __ load_unsigned_byte(r1, Address(r13, 0));  // restore target bytecode
+      __ load_unsigned_byte(r1, Address(rbcp, 0));  // restore target bytecode
       __ set_method_data_pointer_for_bcp();
       __ b(dispatch);
     }
