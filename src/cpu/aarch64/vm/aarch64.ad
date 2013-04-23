@@ -962,17 +962,15 @@ const bool Matcher::convL2FSupported(void) {
 
 // Vector width in bytes.
 const int Matcher::vector_width_in_bytes(BasicType bt) {
-  Unimplemented();
-  return 8;
+  // TODO fixme
+  return 0;
 }
 
 // Limits on vector size (number of elements) loaded into vector.
 const int Matcher::max_vector_size(const BasicType bt) {
-  Unimplemented();
   return vector_width_in_bytes(bt)/type2aelembytes(bt);
 }
 const int Matcher::min_vector_size(const BasicType bt) {
-  Unimplemented();
   int max_size = max_vector_size(bt);
   // Min size which can be loaded into vector is 4 bytes.
   int size = (type2aelembytes(bt) == 1) ? 4 : 2;
@@ -981,20 +979,21 @@ const int Matcher::min_vector_size(const BasicType bt) {
 
 // Vector ideal reg.
 const int Matcher::vector_ideal_reg(int len) {
-  Unimplemented();
-  return Op_RegL;
+  // TODO fixme
+  return Op_RegD;
 }
 
 // Only lowest bits of xmm reg are used for vector shift count.
 const int Matcher::vector_shift_count_ideal_reg(int size) {
-  Unimplemented();
+  // TODO fixme
   return Op_RegL;
 }
 
 // x86 supports misaligned vectors store/load.
 const bool Matcher::misaligned_vectors_ok() {
-  Unimplemented();
-  return !AlignVector; // can be changed by flag
+  // TODO fixme
+  // return !AlignVector; // can be changed by flag
+  return false;
 }
 
 // false => size gets scaled to BytesPerLong, ok.
@@ -1003,9 +1002,8 @@ const bool Matcher::init_array_count_is_in_bytes = false;
 // Threshold size for cleararray.
 const int Matcher::init_array_short_size = 8 * BytesPerLong;
 
-// Use conditional move (CMOVL) on Power7.
+// Use conditional move (CMOVL)
 const int Matcher::long_cmove_cost() {
-  Unimplemented();
   // long cmoves are no more expensive than int cmoves
   return 0;
 }
