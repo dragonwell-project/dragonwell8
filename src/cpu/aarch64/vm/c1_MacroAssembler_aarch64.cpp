@@ -78,39 +78,75 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
 }
 
 // Zero words; len is in bytes
-// Destroys all registers
+// Destroys all registers except addr
+// len must be a nonzero multiple of wordSize
 void C1_MacroAssembler::zero_memory(Register addr, Register len, Register t1) {
   assert_different_registers(addr, len, t1, rscratch1, rscratch2);
-  block_comment("zero memory");
-  Label finished;
-  // use loop to null out the fields
-  // initialize last object field first if odd number of fields
-  tst(len, BytesPerWord);
-  lea(rscratch1, Address(addr, len));
 
-  Label is_even, entry_point, loop, top, bottom;
+#ifdef ASSERT
+  { Label L;
+    tst(len, BytesPerWord - 1);
+    br(Assembler::EQ, L);
+    stop("len is not a multiple of BytesPerWord");
+    bind(L);
+  }
+#endif
+
+#ifndef PRODUCT
+  block_comment("zero memory");
+#endif
+
+  Label finished;
+
+  lsr(len, len, LogBytesPerWord);
+  mov(rscratch1, addr);
+
+  // The algorithm first zeroes words until the number of words
+  // remaining is a multiple of 8, then enters a loop that writes 8
+  // words at a time.  The idea is to get small arrays done quickly
+  // because these are the common case.  Also, we don't want to bloat
+  // the VM with a lot of code: it's a compromise between speed and
+  // size.  We should really emit the large block out of line.
+
+  Label is_even;
+  tst(len, 1);
   br(Assembler::EQ, is_even);
-  str(zr, Address(rscratch1, -wordSize));
+  str(zr, Address(post(rscratch1, wordSize)));
+  sub(len, len, 1);
   bind(is_even);
 
-  lsr(len, len, LogBytesPerWord + 1);
-  andr(rscratch1, len, 3);
-  // len is now in pairs of words
-  lsr(len, len, exact_log2(4));  // 4 pairs of words/iteration
+  // len is now a multiple of 2
 
-  adr(rscratch2, bottom);
-  sub(rscratch2, rscratch2, rscratch1, ext::uxtx, 2);
-  mov(t1, zr);
-  br(rscratch2);
+  {
+    // Initialize the first few words.  This loop iterates at most 3
+    // times.
 
+    Label bottom, loop;
+    mov(t1, zr);
+    b(bottom);
+
+    bind(loop);
+    stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
+    sub(len, len, 2);
+    bind(bottom);
+    tst(len, 7);
+    br(NE, loop);
+  }
+
+  // len is now a multiple of 8
+
+  cbz(len, finished);
+
+  Label top;
   bind(top);
-  sub(len, len, 1);
-  stp(zr, t1, Address(post(addr, 2 * wordSize)));
-  stp(zr, t1, Address(post(addr, 2 * wordSize)));
-  stp(zr, t1, Address(post(addr, 2 * wordSize)));
-  stp(zr, t1, Address(post(addr, 2 * wordSize)));
-  bind(bottom);
+  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
+  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
+  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
+  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
+  sub(len, len, 8);
   cbnz(len, top);
+
+  bind(finished);
 }
 
 // preserves obj, destroys len_in_bytes
@@ -132,11 +168,12 @@ void C1_MacroAssembler::initialize_body(Register obj, Register len_in_bytes, int
   }
 #endif
 
-  str(obj, Address(pre(sp, -2 * wordSize)));
+  // Preserve obj
   if (hdr_size_in_bytes)
     add(obj, obj, hdr_size_in_bytes);
   zero_memory(obj, index, t1);
-  ldr(obj, Address(post(sp, 2 * wordSize)));
+  if (hdr_size_in_bytes)
+    sub(obj, obj, hdr_size_in_bytes);
 
   // done
   bind(done);
