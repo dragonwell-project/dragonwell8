@@ -2871,17 +2871,132 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
 // This code is entered with a jmp.
 //
 // Arguments:
-//   rax: exception oop
-//   rdx: exception pc
+//   r0: exception oop
+//   r3: exception pc
 //
 // Results:
-//   rax: exception oop
-//   rdx: exception pc in caller or ???
+//   r0: exception oop
+//   r3: exception pc in caller or ???
 //   destination: exception handler of caller
 //
 // Note: the exception pc MUST be at a call (precise debug information)
-//       Registers rax, rdx, rcx, rsi, rdi, r8-r11 are not callee saved.
+//       Registers r0, r3, r2, r4, r5, r8-r11 are not callee saved.
 //
 
-void OptoRuntime::generate_exception_blob() { Unimplemented(); }
+void OptoRuntime::generate_exception_blob() {
+  assert(!OptoRuntime::is_callee_saved_register(R3_num), "");
+  assert(!OptoRuntime::is_callee_saved_register(R0_num), "");
+  assert(!OptoRuntime::is_callee_saved_register(R2_num), "");
+
+  assert(SimpleRuntimeFrame::framesize % 4 == 0, "sp not 16-byte aligned");
+
+  // Allocate space for the code
+  ResourceMark rm;
+  // Setup code generation tools
+  CodeBuffer buffer("exception_blob", 2048, 1024);
+  MacroAssembler* masm = new MacroAssembler(&buffer);
+
+  // TODO check various assumptions made here
+  //
+  // make sure we do so before running this
+  __ call_Unimplemented();
+
+  address start = __ pc();
+
+  // push rfp and retaddr by hand
+  // Exception pc is 'return address' for stack walker
+  __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
+  // there are no callee save registers so just allocate the
+  // rest of the frame empty
+  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Prolog
+
+  // Store exception in Thread object. We cannot pass any arguments to the
+  // handle_exception call, since we do not want to make any assumption
+  // about the size of the frame where the exception happened in.
+  // c_rarg0 is either rdi (Linux) or rcx (Windows).
+  __ str(r0, Address(rthread, JavaThread::exception_oop_offset()));
+  __ str(r3, Address(rthread, JavaThread::exception_pc_offset()));
+
+  // This call does all the hard work.  It checks if an exception handler
+  // exists in the method.
+  // If so, it returns the handler address.
+  // If not, it prepares for stack-unwinding, restoring the callee-save
+  // registers of the frame being removed.
+  //
+  // address OptoRuntime::handle_exception_C(JavaThread* thread)
+  //
+  // n.b. 1 gp arg, 0 fp args, integral return type
+
+  // the stack should always be aligned
+  address the_pc = __ pc();
+  __ set_last_Java_frame(noreg, noreg, the_pc, rscratch1);
+  __ mov(c_rarg0, rthread);
+  __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, OptoRuntime::handle_exception_C)));
+  __ brx86(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
+
+  // Set an oopmap for the call site.  This oopmap will only be used if we
+  // are unwinding the stack.  Hence, all locations will be dead.
+  // Callee-saved registers will be the same as the frame above (i.e.,
+  // handle_exception_stub), since they were restored when we got the
+  // exception.
+
+  OopMapSet* oop_maps = new OopMapSet();
+
+  oop_maps->add_gc_map(the_pc - start, new OopMap(SimpleRuntimeFrame::framesize, 0));
+
+  __ reset_last_Java_frame(false, true);
+
+  // Restore callee-saved registers
+
+  // rfp is an implicitly saved callee saved register (i.e. the calling
+  // convention will save restore it in prolog/epilog) Other than that
+  // there are no callee save registers now that adapter frames are gone.
+
+  __ add(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Epilog
+  __ ldp(rfp, r3, Address(__ post(sp, 2 * wordSize)));
+
+  // r0: exception handler
+
+  // Restore SP from BP if the exception PC is a MethodHandle call site.
+  __ ldrw(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
+  // n.b. Intel uses special register rbp_mh_SP_save here but we will
+  // just hard wire rfp
+  __ cmpw(rscratch1, zr);
+  // the obvious way to conditionally copy rfp to sp if NE
+  // Label skip;
+  // __ br(Assembler::EQ, skip);
+  // __ mov(sp, rfp);
+  // __ bind(skip);
+  // same but branchless
+  __ mov(rscratch1, sp);
+  __ csel(rscratch1, rfp, rscratch1, Assembler::NE);
+  __ mov(sp, rscratch1);
+
+  // We have a handler in r0 (could be deopt blob).
+  __ mov(r8, r0);
+
+  // Get the exception oop
+  __ ldr(r0, Address(rthread, JavaThread::exception_oop_offset()));
+  // Get the exception pc in case we are deoptimized
+  __ ldr(r4, Address(rthread, JavaThread::exception_pc_offset()));
+#ifdef ASSERT
+  __ str(zr, Address(rthread, JavaThread::exception_handler_pc_offset()));
+  __ str(zr, Address(rthread, JavaThread::exception_pc_offset()));
+#endif
+  // Clear the exception oop so GC no longer processes it as a root.
+  __ str(zr, Address(rthread, JavaThread::exception_oop_offset()));
+
+  // r0: exception oop
+  // r8:  exception handler
+  // r4: exception pc
+  // Jump to handler
+
+  __ br(r8);
+
+  // Make sure all code is generated
+  masm->flush();
+
+  // Set exception blob
+  _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
+}
 #endif // COMPILER2
