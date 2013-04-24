@@ -683,23 +683,28 @@ public:
 
 #undef INSN
 
+  void add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
+			 int negated_op);
+
   // Add/subtract (immediate)
-#define INSN(NAME, decode)						\
-  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift = 0) { \
+#define INSN(NAME, decode, negated)					\
+  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift) {	\
     starti;								\
     f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
     zrf(Rd, 0), srf(Rn, 5);						\
+  }									\
+									\
+  void NAME(Register Rd, Register Rn, unsigned imm) {			\
+    starti;								\
+    add_sub_immediate(Rd, Rn, imm, decode, negated);			\
   }
 
-  INSN(addsw, 0b001);
-  INSN(subsw, 0b011);
-  INSN(adds,  0b101);
-  INSN(subs,  0b111);
+  INSN(addsw, 0b001, 0b011);
+  INSN(subsw, 0b011, 0b001);
+  INSN(adds,  0b101, 0b111);
+  INSN(subs,  0b111, 0b101);
 
 #undef INSN
-
-  void add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
-			 int negated_op);
 
 #define INSN(NAME, decode, negated)			\
   void NAME(Register Rd, Register Rn, unsigned imm) {	\

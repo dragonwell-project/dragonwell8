@@ -1428,7 +1428,9 @@ void Assembler::wrap_label(Label &L, int prfop, prefetch_insn insn) {
   // the absolute value of the immediate as for uimm24.
 void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
 				  int negated_op) {
-  assert(uimm || Rd != Rn, "should be");
+  bool sets_flags = op & 1;   // this op sets flags
+  assert(sets_flags || uimm || Rd != Rn, "insn is a NOP");
+
   union {
     unsigned u;
     int imm;
@@ -1447,7 +1449,15 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
     shift = true;
   }
   f(op, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10);
-  srf(Rd, 0), srf(Rn, 5);
+
+  // add/subtract immediate ops with the S bit set treat r31 as zr;
+  // with S unset they use sp.
+  if (sets_flags)
+    zrf(Rd, 0);
+  else
+    srf(Rd, 0);
+
+  srf(Rn, 5);
 }
 
 bool Assembler::operand_valid_for_add_sub_immediate(long imm) {

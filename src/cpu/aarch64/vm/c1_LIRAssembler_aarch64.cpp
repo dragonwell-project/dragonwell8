@@ -1024,27 +1024,36 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
   default:                    ShouldNotReachHere();
   }
 
-  assert(opr1->is_constant(), "expect constant for opr1");
-  assert(opr2->is_constant(), "expect constant for opr2");
   assert(result->is_single_cpu(), "expect single register for result");
-
-  jint val1 = opr1->as_jint();
-  jint val2 = opr2->as_jint();
-  if (val1 == 0 && val2 == 1) {
-    __ cset(result->as_register(), ncond);
-  } else if (val1 = 1 && val2 == 0) {
-    __ cset(result->as_register(), acond);
-  } else {
-    Unimplemented();
-    /*
-    I think the below is correct, but since I don't know yet how this can be
-    triggered, and thus, how to verify correctness, I leave that Unimplemented() until we hit it.
-
-    __ mov(rscratch1, val1);
-    __ mov(rscratch2, val2);
-    __ csel(result->as_register(), rscratch1, rscratch2, acond);
-    */
+  if (opr1->is_constant() && opr2->is_constant()) {
+    jint val1 = opr1->as_jint();
+    jint val2 = opr2->as_jint();
+    if (val1 == 0 && val2 == 1) {
+      __ cset(result->as_register(), ncond);
+      return;
+    } else if (val1 = 1 && val2 == 0) {
+      __ cset(result->as_register(), acond);
+      return;
+    }
   }
+
+  if (opr1->is_stack()) {
+    stack2reg(opr1, FrameMap::r8_opr, result->type());
+    opr1 = FrameMap::r8_opr;
+  } else if (opr1->is_constant()) {
+    const2reg(opr1, FrameMap::r8_opr, lir_patch_none, NULL);
+    opr1 = FrameMap::r8_opr;
+  }
+
+  if (opr2->is_stack()) {
+    stack2reg(opr2, FrameMap::r9_opr, result->type());
+    opr2 = FrameMap::r9_opr;
+  } else if (opr2->is_constant()) {
+    const2reg(opr2, FrameMap::r9_opr, lir_patch_none, NULL);
+    opr2 = FrameMap::r9_opr;
+  }
+
+  __ csel(result->as_register(), opr1->as_register(), opr2->as_register(), acond);
 }
 
 void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack) {
