@@ -1474,7 +1474,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // as far as the interpreter and the compiler(s) are concerned.
 
 
-  const Register ic_reg = r0;
+  const Register ic_reg = rscratch2;
   const Register receiver = j_rarg0;
 
   Label hit;

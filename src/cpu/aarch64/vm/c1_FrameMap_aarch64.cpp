@@ -189,6 +189,7 @@ void FrameMap::initialize() {
   map_register(i, r28); r28_opr = LIR_OprFact::single_cpu(i); i++; // rthread
   map_register(i, r29); r29_opr = LIR_OprFact::single_cpu(i); i++; // rfp
   map_register(i, r30); r30_opr = LIR_OprFact::single_cpu(i); i++; // lr
+  map_register(i, r31_sp); sp_opr = LIR_OprFact::single_cpu(i); i++; // sp
   map_register(i, r8); r8_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch1
   map_register(i, r9); r9_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch2
 

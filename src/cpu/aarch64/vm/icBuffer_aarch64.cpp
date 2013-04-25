@@ -49,7 +49,7 @@ void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached
   // assert(cached_value == NULL || cached_oop->is_perm(), "must be perm oop");
 
   Label l;
-  masm->ldr(r0, l);
+  masm->ldr(rscratch2, l);
   masm->b(ExternalAddress(entry_point));
   masm->bind(l);
   masm->emit_int64((int64_t)cached_value);

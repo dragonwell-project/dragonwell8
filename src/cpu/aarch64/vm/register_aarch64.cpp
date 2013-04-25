@@ -37,7 +37,7 @@ const char* RegisterImpl::name() const {
     "r10", "r11", "r12", "r13", "r14", "r15", "r16",
     "r17", "r18", "r19",
     "resp", "rdispatch", "rbcp", "r23", "rlocals", "rmonitors", "rcpool", "rheapbase",
-    "rthread", "rfp", "lr", "r31"
+    "rthread", "rfp", "lr", "sp"
   };
   return is_valid() ? names[encoding()] : "noreg";
 }

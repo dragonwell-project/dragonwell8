@@ -133,7 +133,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 #endif
 
   // Entry arguments:
-  //  r0: Interface
+  //  rscratch2: Interface
   //  j_rarg0: Receiver
 
   // Free registers (non-args) are r0 (interface), rmethod
@@ -151,7 +151,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
   // Get Method* and entrypoint for compiler
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
-                             r10, r0, itable_index,
+                             r10, rscratch2, itable_index,
                              // outputs: method, scan temp. reg
                              rmethod, r11,
                              throw_icce);

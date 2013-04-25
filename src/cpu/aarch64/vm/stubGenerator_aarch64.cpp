@@ -490,14 +490,15 @@ class StubGenerator: public StubCodeGenerator {
 
     // compute exception handler into r19
     __ mov(c_rarg1, lr);
+    __ mov(r19, lr); // LR is still live: it will become the throwing
+		     // PC.  Save it (callee-saved) R19
     BLOCK_COMMENT("call exception_handler_for_return_address");
     __ call_VM_leaf(CAST_FROM_FN_PTR(address,
                          SharedRuntime::exception_handler_for_return_address),
                     rthread, c_rarg1);
+    // setup r0 & r3 & clear pending exception
+    __ mov(r3, r19);
     __ mov(r19, r0);
-
-    // setup r0 & r3, remove return address & clear pending exception
-    __ mov(r3, lr);
     __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
     __ str(zr, Address(rthread, Thread::pending_exception_offset()));
 
@@ -511,7 +512,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
 
-    // continue at exception handler (return address removed)
+    // continue at exception handler
     // r0: exception
     // r19: exception handler
     // r3: throwing pc

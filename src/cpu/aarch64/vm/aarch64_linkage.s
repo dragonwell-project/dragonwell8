@@ -88,7 +88,7 @@ aarch64_prolog:
 	// temporarily save r11 while we find the other stack
 	push %r11
 	// retrieve alt stack
-	call get_alt_stack
+	call get_alt_stack@PLT
 	pop %r11
 	// push start of arm code
 	lea (arm_code_offset)(%r11), %rsi

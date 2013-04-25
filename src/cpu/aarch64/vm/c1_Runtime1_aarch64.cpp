@@ -481,24 +481,26 @@ void Runtime1::generate_unwind_exception(StubAssembler *sasm) {
   __ bind(pc_empty);
 #endif
 
-  // save exception_oop in callee-saved register to preserve it during runtime calls
-  __ verify_not_null_oop(exception_oop);
-  __ mov(exception_oop_callee_saved, exception_oop);
+  // Save our return address because
+  // exception_handler_for_return_address will destroy it.  We also
+  // save exception_oop
+  __ stp(lr, exception_oop, Address(__ pre(sp, -2 * wordSize)));
 
   // search the exception handler address of the caller (using the return address)
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::exception_handler_for_return_address), rthread, lr);
   // r0: exception handler address of the caller
 
-  // Only R0 and R19 are valid at this time; all other registers have been destroyed by the call.
-  __ invalidate_registers(false, false, true, true, false, true);
+  // Only R0 is valid at this time; all other registers have been
+  // destroyed by the call.
+  __ invalidate_registers(false, true, true, true, false, true);
 
   // move result of call into correct register
   __ mov(handler_addr, r0);
 
-  // Restore exception oop to R0 (required convention of exception handler).
-  __ mov(exception_oop, exception_oop_callee_saved);
+  // get throwing pc (= return address).
+  // lr has been destroyed by the call
+  __ ldp(r3, exception_oop, Address(__ post(sp, 2 * wordSize)));
 
-  // verify that there is really a valid exception in r0
   __ verify_not_null_oop(exception_oop);
 
   {
