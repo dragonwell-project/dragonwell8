@@ -1053,6 +1053,9 @@ public:
   void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
 		  Label &suceed, Label &fail);
 
+  void cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
+		  Label &suceed, Label &fail);
+
   void imulptr(Register dst, Register src) { Unimplemented(); }
 
 

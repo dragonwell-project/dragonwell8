@@ -707,7 +707,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
     case T_CHAR:    // fall through
     case T_SHORT:
-      __ strw(src->as_register(), as_Address(to_addr));
+      __ strh(src->as_register(), as_Address(to_addr));
       break;
 
     default:
@@ -997,6 +997,18 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ bind(L_Okay);
 	break;
       }
+    case Bytecodes::_f2i:
+      {
+	Label L_Okay;
+	__ clear_fpsr();
+	__ fcvtzs(dest->as_register(), src->as_float_reg());
+	__ get_fpsr(rscratch1);
+	__ cbzw(rscratch1, L_Okay);
+	__ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
+			      0, 1, MacroAssembler::ret_type_integral);
+	__ bind(L_Okay);
+	break;
+      }
     default: ShouldNotReachHere();
   }
 }
@@ -1072,7 +1084,33 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 }
 
 
-void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) { Unimplemented(); }
+void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
+  Register addr = as_reg(op->addr());
+  Register newval = as_reg(op->new_value());
+  Register cmpval = as_reg(op->cmp_value());
+  Register result = op->result_opr()->as_register();
+  Label succeed, fail, around;
+
+  if ( op->code() == lir_cas_obj) {
+    if (UseCompressedOops) {
+      __ encode_heap_oop(cmpval);
+      __ encode_heap_oop(newval);
+      __ cmpxchgw(cmpval, newval, addr, rscratch1, succeed, fail);
+    } else
+      {
+      __ cmpxchgptr(cmpval, newval, addr, rscratch1, succeed, fail);
+      }
+  } else {
+    Unimplemented();
+  }
+  __ bind(fail);
+  __ mov(result, zr);
+  __ b(around);
+  __ bind(succeed);
+  __ mov(result, 1);
+  __ bind(around);
+}
+
 
 void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) {
 

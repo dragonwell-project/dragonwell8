@@ -682,7 +682,76 @@ void LIRGenerator::do_LogicOp(LogicOp* x) {
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
 void LIRGenerator::do_CompareOp(CompareOp* x) { Unimplemented(); }
 
-void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) { Unimplemented(); }
+void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
+  assert(x->number_of_arguments() == 4, "wrong type");
+  LIRItem obj   (x->argument_at(0), this);  // object
+  LIRItem offset(x->argument_at(1), this);  // offset of field
+  LIRItem cmp   (x->argument_at(2), this);  // value to compare with field
+  LIRItem val   (x->argument_at(3), this);  // replace field with val if matches cmp
+
+  assert(obj.type()->tag() == objectTag, "invalid type");
+
+  // In 64bit the type can be long, sparc doesn't have this assert
+  // assert(offset.type()->tag() == intTag, "invalid type");
+
+  assert(cmp.type()->tag() == type->tag(), "invalid type");
+  assert(val.type()->tag() == type->tag(), "invalid type");
+
+  // get address of field
+  obj.load_item();
+  offset.load_nonconstant();
+  val.load_item();
+  cmp.load_item();
+
+  LIR_Address* a;
+  if(offset.result()->is_constant()) {
+    jlong c = offset.result()->as_jlong();
+    if ((jlong)((jint)c) == c) {
+      a = new LIR_Address(obj.result(),
+                          (jint)c,
+                          as_BasicType(type));
+    } else {
+      LIR_Opr tmp = new_register(T_LONG);
+      __ move(offset.result(), tmp);
+      a = new LIR_Address(obj.result(),
+                          tmp,
+                          as_BasicType(type));
+    }
+  } else {
+    a = new LIR_Address(obj.result(),
+                        offset.result(),
+                        LIR_Address::times_1,
+                        0,
+                        as_BasicType(type));
+  }
+  LIR_Opr addr = new_pointer_register();
+  __ leal(LIR_OprFact::address(a), addr);
+
+  if (type == objectType) {  // Write-barrier needed for Object fields.
+    // Do the pre-write barrier, if any.
+    pre_barrier(addr, LIR_OprFact::illegalOpr /* pre_val */,
+                true /* do_load */, false /* patch */, NULL);
+  }
+
+  LIR_Opr result = rlock_result(x);
+
+  LIR_Opr ill = LIR_OprFact::illegalOpr;  // for convenience
+  if (type == objectType)
+    __ cas_obj(addr, cmp.result(), val.result(), new_register(T_INT), new_register(T_INT),
+	       result);
+  else if (type == intType)
+    __ cas_int(addr, cmp.result(), val.result(), ill, ill);
+  else if (type == longType)
+    __ cas_long(addr, cmp.result(), val.result(), ill, ill);
+  else {
+    ShouldNotReachHere();
+  }
+
+  if (type == objectType) {   // Write-barrier needed for Object fields.
+    // Seems to be precise
+    post_barrier(addr, val.result());
+  }
+}
 
 void LIRGenerator::do_MathIntrinsic(Intrinsic* x) { Unimplemented(); }
 
@@ -1006,9 +1075,27 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
 }
 
 void LIRGenerator::get_Object_unsafe(LIR_Opr dst, LIR_Opr src, LIR_Opr offset,
-                                     BasicType type, bool is_volatile) { Unimplemented(); }
+                                     BasicType type, bool is_volatile) {
+  LIR_Address* addr = new LIR_Address(src, offset, type);
+  __ load(addr, dst);
+}
+
 
 void LIRGenerator::put_Object_unsafe(LIR_Opr src, LIR_Opr offset, LIR_Opr data,
-                                     BasicType type, bool is_volatile) { Unimplemented(); }
+                                     BasicType type, bool is_volatile) {
+  LIR_Address* addr = new LIR_Address(src, offset, type);
+  bool is_obj = (type == T_ARRAY || type == T_OBJECT);
+  if (is_obj) {
+    // Do the pre-write barrier, if any.
+    pre_barrier(LIR_OprFact::address(addr), LIR_OprFact::illegalOpr /* pre_val */,
+		true /* do_load */, false /* patch */, NULL);
+    __ move(data, addr);
+    assert(src->is_register(), "must be register");
+    // Seems to be a precise address
+    post_barrier(LIR_OprFact::address(addr), data);
+  } else {
+    __ move(data, addr);
+  }
+}
 
 void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) { Unimplemented(); }

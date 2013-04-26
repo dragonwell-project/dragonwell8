@@ -1483,8 +1483,9 @@ int MacroAssembler::pop(unsigned int bitset, Register stack) {
   return words_pushed;
 }
 
-#ifdef ASSERT
+#ifdef ASSERT 
 void MacroAssembler::verify_heapbase(const char* msg) {
+#if 0
   assert (UseCompressedOops || UseCompressedKlassPointers, "should be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
   if (CheckCompressedOops) {
@@ -1496,6 +1497,7 @@ void MacroAssembler::verify_heapbase(const char* msg) {
     bind(ok);
     pop(1 << rscratch1->encoding(), sp);
   }
+#endif
 }
 #endif
 
@@ -1634,6 +1636,32 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
   stlxr(tmp, newv, addr);
+  cbzw(tmp, succeed);
+  // retry so we only ever return after a load fails to compare
+  // ensures we don't return a stale value after a failed write.
+  b(retry_load);
+  // if the memory word differs we return it in oldv and signal a fail
+  bind(nope);
+  mov(oldv, tmp);
+  b(fail);
+}
+
+void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
+				Label &succeed, Label &fail) {
+  // oldv holds comparison value
+  // newv holds value to write in exchange
+  // addr identifies memory word to compare against/update
+  // tmp returns 0/1 for success/failure
+  Label retry_load, nope;
+  
+  bind(retry_load);
+  // flush and load exclusive from the memory location
+  // and fail if it is not what we expect
+  ldaxrw(tmp, addr);
+  cmp(tmp, oldv);
+  br(Assembler::NE, nope);
+  // if we store+flush with no intervening write tmp wil be zero
+  stlxrw(tmp, newv, addr);
   cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.

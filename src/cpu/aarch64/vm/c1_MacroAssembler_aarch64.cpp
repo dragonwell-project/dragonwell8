@@ -66,10 +66,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   lea(rscratch2, Address(obj, hdr_offset));
   cmpxchgptr(hdr, disp_hdr, rscratch2, rscratch1, done, fail);
   // if the object header was the same, we're done
-  if (PrintBiasedLockingStatistics) {
-    addmw(ExternalAddress((address)BiasedLocking::fast_path_entry_count_addr()),
-	  1, rscratch1);
-  }
   bind(fail);
   // if the object header was not the same, it is now in the hdr register
   // => test if it is a stack pointer into the same stack (recursive locking), i.e.:
@@ -94,6 +90,10 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   cbnz(hdr, slow_case);
   // done
   bind(done);
+  if (PrintBiasedLockingStatistics) {
+    addmw(ExternalAddress((address)BiasedLocking::fast_path_entry_count_addr()),
+	  1, rscratch1);
+  }
   return null_check_offset;
 }
 

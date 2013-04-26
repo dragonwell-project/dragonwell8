@@ -172,7 +172,16 @@ StubFrame::StubFrame(StubAssembler* sasm, const char* name, bool must_gc_argumen
 
 // load parameters that were stored with LIR_Assembler::store_parameter
 // Note: offsets for store_parameter and load_argument must match
-void StubFrame::load_argument(int offset_in_words, Register reg) { Unimplemented(); }
+void StubFrame::load_argument(int offset_in_words, Register reg) {
+  // rbp, + 0: link
+  //     + 1: return address
+  //     + 2: argument with offset 0
+  //     + 3: argument with offset 1
+  //     + 4: ...
+
+  __ ldr(reg, Address(rfp, (offset_in_words + 2) * BytesPerWord));
+}
+
 
 StubFrame::~StubFrame() {
   __ leave();
@@ -915,7 +924,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         __ bind(register_finalizer);
         __ enter();
-        OopMap* oop_map = save_live_registers(sasm, 2 /*num_rt_args */);
+        OopMap* oop_map = save_live_registers(sasm);
         int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, SharedRuntime::register_finalizer), r0);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, oop_map);
@@ -925,6 +934,50 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         __ leave();
         __ ret(lr);
+      }
+      break;
+
+    case monitorenter_nofpu_id:
+      save_fpu_registers = false;
+      // fall through
+    case monitorenter_id:
+      {
+        StubFrame f(sasm, "monitorenter", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, save_fpu_registers);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(1, r0); // r0,: object
+        f.load_argument(0, r1); // r1,: lock address
+
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorenter), r0, r1);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm, save_fpu_registers);
+      }
+      break;
+
+    case monitorexit_nofpu_id:
+      save_fpu_registers = false;
+      // fall through
+    case monitorexit_id:
+      {
+        StubFrame f(sasm, "monitorexit", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, save_fpu_registers);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(0, r0); // r0,: lock address
+
+        // note: really a leaf routine but must setup last java sp
+        //       => use call_RT for now (speed can be improved by
+        //       doing last java sp setup manually)
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, monitorexit), r0);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm, save_fpu_registers);
       }
       break;
 
