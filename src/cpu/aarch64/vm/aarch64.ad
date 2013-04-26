@@ -235,6 +235,9 @@ reg_def R31_H   (  NS,  NS, Op_RegI, 31, r31_sp->as_VMReg()->next());
 // appear as an operand (a code identifying the FSPR occurs as an
 // immediate value in the instruction).
 
+reg_def RFLAGS(SOC, SOC, 0, 32, VMRegImpl::Bad());
+
+
 // Specify priority of register selection within phases of register
 // allocation.  Highest priority is first.  A useful heuristic is to
 // give registers a low priority when they are required by machine
@@ -325,6 +328,8 @@ alloc_class chunk1(
     V15, V15_H,
 );
 
+alloc_class chunk2(RFLAGS);
+
 //----------Architecture Description Register Classes--------------------------
 // Several register classes are automatically defined based upon information in
 // this architecture description.
@@ -403,7 +408,7 @@ reg_class any_reg(
 );
 
 // Class for all long integer registers except RSP
-reg_class no_sp_reg(
+reg_class no_special_reg(
     R0, R0_H,
     R1, R1_H,
     R2, R2_H,
@@ -414,7 +419,7 @@ reg_class no_sp_reg(
     R7, R7_H,
     R10, R10_H,
     R11, R11_H,
-    R12, R12_H,
+    R12, R12_H,			// rmethod
     R13, R13_H,
     R14, R14_H,
     R15, R15_H,
@@ -429,9 +434,35 @@ reg_class no_sp_reg(
     R24, R24_H,
     R25, R25_H,
     R26, R26_H,
-    R27, R27_H,
-    R28, R28_H,
-    R29, R29_H,
+ /* R27, R27_H,	*/		// heapbase
+ /* R28, R28_H, */		// thread
+ /* R29, R29_H, */		// fp
+ /* R30, R30_H, */		// lr
+ /* R31, R31_H */		// sp
+);
+
+// Class for method register
+reg_class method_reg(
+    R12, R12_H
+);
+
+// Class for heapbase register
+reg_class heapbase_reg(
+    R27, R27_H
+);
+
+// Class for thread register
+reg_class thread_reg(
+    R28, R28_H
+);
+
+// Class for frame pointer register
+reg_class fp_reg(
+    R29, R29_H
+);
+
+// Class for link register
+reg_class lr_reg(
     R30, R30_H
 );
 
@@ -545,8 +576,11 @@ reg_class double_reg(
     V28, V28_H, 
     V29, V29_H, 
     V30, V30_H, 
-    V31, V31_H, 
+    V31, V31_H
 );
+
+// Singleton class for condition codes
+reg_class int_flags(RFLAGS);
 
 %}
 
@@ -1517,6 +1551,81 @@ encode %{
     }
   %}
 
+  // compare instruction encodings
+
+  enc_class aarch64_enc_cmpw(iRegI src1, iRegI src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    Register reg2 = as_Register($src2$$reg);
+    __ cmpw(reg1, reg2);
+  %}
+
+  enc_class aarch64_enc_cmpw_imm_addsub(iRegI src1, immI12 src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg = as_Register($src1$$reg);
+    int32_t val = $src2$$constant;
+    if (val > 0) {
+      __ subsw(zr, reg, val);
+    } else {
+      __ addsw(zr, reg, -val);
+    }
+  %}
+
+  enc_class aarch64_enc_cmpw_imm(iRegI src1, immI src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    u_int32_t val = (u_int32_t)$src2$$constant;
+    __ movw(rscratch1, val);
+    __ cmpw(reg1, rscratch1);
+  %}
+
+  enc_class aarch64_enc_cmp(iRegL src1, iRegL src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    Register reg2 = as_Register($src2$$reg);
+    __ cmp(reg1, reg2);
+  %}
+
+  enc_class aarch64_enc_cmp_imm_addsub(iRegL src1, immL12 src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg = as_Register($src1$$reg);
+    int64_t val = $src2$$constant;
+    if (val > 0) {
+      __ subs(zr, reg, val);
+    } else {
+      __ adds(zr, reg, -val);
+    }
+  %}
+
+  enc_class aarch64_enc_cmp_imm(iRegL src1, immL src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    u_int64_t val = (u_int64_t)$src2$$constant;
+    __ movw(rscratch1, val);
+    __ cmpw(reg1, rscratch1);
+  %}
+
+  enc_class aarch64_enc_cmpp(iRegP src1, iRegP src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    Register reg2 = as_Register($src2$$reg);
+    __ cmp(reg1, reg2);
+  %}
+
+  enc_class aarch64_enc_cmpn(iRegN src1, iRegN src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg1 = as_Register($src1$$reg);
+    Register reg2 = as_Register($src2$$reg);
+    __ cmp(reg1, reg2);
+  %}
+
+  enc_class aarch64_enc_tail_call(iRegP jump_target) %{
+    MacroAssembler _masm(&cbuf);
+    Register target_reg = as_Register($jump_target$$reg);
+    __ bl(target_reg);
+  %}
+
+
 %}
 
 
@@ -1585,9 +1694,12 @@ frame %{
 
   // These three registers define part of the calling convention
   // between compiled code and the interpreter.
-  inline_cache_reg(R0);                 // Inline Cache Register
-  interpreter_method_oop_reg(R12);      // Method Oop Register when
-                                        // calling interpreter
+
+  // Inline Cache Register or methodOop for I2C.
+  inline_cache_reg(R12);
+
+  // Method Oop Register when calling interpreter.
+  interpreter_method_oop_reg(R12);
 
   // Number of stack slots consumed by locking an object
   sync_stack_slots(2);
@@ -2002,9 +2114,9 @@ operand iRegL() %{
   interface(REG_INTER);
 %}
 
-// Integer 64 bit Register not SP
-operand iRegLNoSP() %{
-  constraint(ALLOC_IN_RC(no_sp_reg));
+// Integer 64 bit Register not Special
+operand iRegLNoSpecial() %{
+  constraint(ALLOC_IN_RC(no_special_reg));
   match(RegL);
   format %{ %}
   interface(REG_INTER);
@@ -2019,9 +2131,9 @@ operand iRegP() %{
   interface(REG_INTER);
 %}
 
-// Pointer 64 bit Register not SP
-operand iRegPNoSP() %{
-  constraint(ALLOC_IN_RC(no_sp_reg));
+// Pointer 64 bit Register not Special
+operand iRegPNoSpecial() %{
+  constraint(ALLOC_IN_RC(no_special_reg));
   match(RegP);
   format %{ %}
   interface(REG_INTER);
@@ -2036,9 +2148,9 @@ operand iRegN() %{
   interface(REG_INTER);
 %}
 
-// Integer 64 bit Register not SP
-operand iRegNNoSP() %{
-  constraint(ALLOC_IN_RC(no_sp_reg));
+// Integer 64 bit Register not Special
+operand iRegNNoSpecial() %{
+  constraint(ALLOC_IN_RC(no_special_reg));
   match(RegN);
   format %{ %}
   interface(REG_INTER);
@@ -2062,6 +2174,60 @@ operand vRegD()
   constraint(ALLOC_IN_RC(double_reg));
   match(RegD);
 
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Flags register, used as output of compare instructions
+operand rFlagsReg()
+%{
+  constraint(ALLOC_IN_RC(int_flags));
+  match(RegFlags);
+
+  format %{ "RFLAGS" %}
+  interface(REG_INTER);
+%}
+
+// Flags register, used as output of unsigned compare instructions
+// operand rFlagsRegU()
+// %{
+//   constraint(ALLOC_IN_RC(int_flags));
+//   match(RegFlags);
+
+//   format %{ "RFLAGS" %}
+//   interface(REG_INTER);
+// %}
+
+// Flags register, used as output of FLOATING POINT compare instructions
+// operand rFlagsRegF)
+// %{
+//   constraint(ALLOC_IN_RC(int_flags));
+//   match(RegFlags);
+
+//   format %{ "RFLAGS" %}
+//   interface(REG_INTER);
+// %}
+
+// Special Registers
+
+// Method Register
+operand inline_cache_RegP(iRegP reg) %{
+  constraint(ALLOC_IN_RC(method_reg)); // inline_cache_reg
+  match(reg);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand interpreter_method_oop_RegP(iRegP reg) %{
+  constraint(ALLOC_IN_RC(method_reg)); // interpreter_method_oop_reg
+  match(reg);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand lr_RegP(iRegP reg) %{
+  constraint(ALLOC_IN_RC(lr_reg)); // link_reg
+  match(reg);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2258,10 +2424,10 @@ operand cmpOp()
   interface(COND_INTER) %{
     equal(0x0, "eq");
     not_equal(0x1, "ne");
-    less(0x4, "lt");
-    greater_equal(0xA, "ge");
-    less_equal(0xD, "le");
-    greater(0xC, "gt");
+    less(0xb, "lt");
+    greater_equal(0xa, "ge");
+    less_equal(0xd, "le");
+    greater(0xc, "gt");
   %}
 %}
 
@@ -2719,6 +2885,168 @@ instruct loadConNKlass(iRegN dst, immNKlass con) %{
   ins_pipe(pipe_class_default);
 %}
 
+// ============================================================================
+// Compare Instructions
+
+instruct compI_iRegI(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  match(Set cr (CmpI op1 op2));
+
+  effect(DEF cr, USE op1, USE op2);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmpw  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmpw(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compI_iRegI_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
+%{
+  match(Set cr (CmpI op1 zero));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "tstw  $op1" %}
+
+  ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
+%{
+  match(Set cr (CmpI op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmpw  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmpw_imm_addsub(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compI_iRegI_immI(rFlagsReg cr, iRegI op1, immI op2)
+%{
+  match(Set cr (CmpI op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmpw  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmpw_imm(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compL_iRegL(rFlagsReg cr, iRegL op1, iRegL op2)
+%{
+  match(Set cr (CmpL op1 op2));
+
+  effect(DEF cr, USE op1, USE op2);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmp(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compL_iRegL_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
+%{
+  match(Set cr (CmpL op1 zero));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "tst  $op1" %}
+
+  ins_encode(aarch64_enc_cmp_imm_addsub(op1, zero));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegL op1, immLAddSub op2)
+%{
+  match(Set cr (CmpL op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmp_imm_addsub(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compL_iRegL_immL(rFlagsReg cr, iRegL op1, immL op2)
+%{
+  match(Set cr (CmpL op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, $op2" %}
+
+  ins_encode(aarch64_enc_cmp_imm(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compP_iRegP(rFlagsReg cr, iRegP op1, iRegP op2)
+%{
+  match(Set cr (CmpP op1 op2));
+
+  effect(DEF cr, USE op1, USE op2);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, $op2\t // ptr" %}
+
+  ins_encode(aarch64_enc_cmpp(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compN_iRegN(rFlagsReg cr, iRegN op1, iRegN op2)
+%{
+  match(Set cr (CmpN op1 op2));
+
+  effect(DEF cr, USE op1, USE op2);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, $op2\t // compressed ptr" %}
+
+  ins_encode(aarch64_enc_cmpn(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+// ============================================================================
+// Procedure Call/Return Instructions
+
+// Tail Call; Jump from runtime stub to Java code.
+// Also known as an 'interprocedural jump'.
+// Target of jump will eventually return to caller.
+// TailJump below removes the return address.
+instruct TailCalljmpInd(iRegP jump_target, inline_cache_RegP method_oop)
+%{
+  match(TailCall jump_target method_oop);
+
+  ins_cost(CALL_COST);
+
+  format %{ "br $jump_target\t# $method_oop holds method oop" %}
+
+  ins_encode(aarch64_enc_tail_call(jump_target));
+
+  ins_pipe(pipe_class_call);
+%}
 
 
 
