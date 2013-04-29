@@ -1619,6 +1619,18 @@ encode %{
     __ cmp(reg1, reg2);
   %}
 
+  enc_class aarch64_enc_b(label lbl) %{
+    MacroAssembler _masm(&cbuf);
+    Label *L = $lbl$$label;
+    __ b(*L);
+  %}
+
+  enc_class aarch64_enc_br_con(cmpOp cmp, label lbl) %{
+    MacroAssembler _masm(&cbuf);
+    Label *L = $lbl$$label;
+    __ br ((Assembler::Condition)$cmp$$cmpcode, *L);
+  %}
+
   enc_class aarch64_enc_tail_call(iRegP jump_target) %{
     MacroAssembler _masm(&cbuf);
     Register target_reg = as_Register($jump_target$$reg);
@@ -3034,14 +3046,14 @@ instruct compN_iRegN(rFlagsReg cr, iRegN op1, iRegN op2)
 // Direct Branch.
 instruct branch(label lbl) %{
   match(Goto);
-  effect(USE lbl);
-  ins_cost(BRANCH_COST);
 
+  effect(USE lbl);
+
+  ins_cost(BRANCH_COST);
   format %{ "b  $lbl" %}
-  ins_encode %{
-    Label* L = $lbl$$label;
-    __ b(*L);
-  %}
+
+  ins_encode(aarch64_enc_b(lbl));
+
   ins_pipe(pipe_class_default);
 %}
 
@@ -3049,20 +3061,19 @@ instruct branch(label lbl) %{
 instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl) %{
   // Same match rule as `branchConFar'.
   match(If cmp cr);
-  effect(USE lbl);
-  ins_cost(BRANCH_COST);
 
+  effect(USE lbl);
+
+  ins_cost(BRANCH_COST);
   // If set to 1 this indicates that the current instruction is a
   // short variant of a long branch. This avoids using this
   // instruction in first-pass matching. It will then only be used in
   // the `Shorten_branches' pass.
   // ins_short_branch(1);
-
   format %{ "b$cmp  $lbl" %}
-  ins_encode %{
-    Label *L = $lbl$$label;
-    __ br((Assembler::Condition)($cmp$$cmpcode), *L);
-  %}
+
+  ins_encode(aarch64_enc_br_con(cmp, lbl));
+
   ins_pipe(pipe_class_default);
 %}
 
@@ -3072,17 +3083,16 @@ instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl) %{
 // counted loop end branch near
 instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl) %{
   match(CountedLoopEnd cmp cr);
-  effect(USE lbl);
-  ins_cost(BRANCH_COST);
 
+  effect(USE lbl);
+
+  ins_cost(BRANCH_COST);
   // short variant.
   // ins_short_branch(1);
-
   format %{ "b$cmp $lbl \t// counted loop end" %}
-  ins_encode %{
-    Label *L = $lbl$$label;
-    __ br((Assembler::Condition)($cmp$$cmpcode), *L);
-  %}
+
+  ins_encode(aarch64_enc_br_con(cmp, lbl));
+
   ins_pipe(pipe_class_default);
 %}
 
