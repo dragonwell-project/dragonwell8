@@ -1171,6 +1171,48 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
   return RegMask();
 }
 
+// helper for encoding java_to_runtime calls on sim
+//
+// this is needed to compute the extra arguments required when
+// planting a call to the simulator brx86 instruction. the TypeFunc
+// can be queried to identify the counts for integral, and floating
+// arguments and the return type
+
+static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
+{
+  int gps = 0;
+  int fps = 0;
+  const TypeTuple *domain = tf->domain();
+  int max = domain->cnt();
+  for (int i = TypeFunc::Parms; i < max; i++) {
+    const Type *t = domain->field_at(i);
+    switch(t->basic_type()) {
+    case T_FLOAT:
+    case T_DOUBLE:
+      fps++;
+    default:
+      gps++;
+    }
+  }
+  gpcnt = gps;
+  fpcnt = fps;
+  BasicType rt = tf->return_type();
+  switch (rt) {
+  case T_VOID:
+    rtype = MacroAssembler::ret_type_void;
+    break;
+  default:
+    rtype = MacroAssembler::ret_type_integral;
+    break;
+  case T_FLOAT:
+    rtype = MacroAssembler::ret_type_float;
+    break;
+  case T_DOUBLE:
+    rtype = MacroAssembler::ret_type_double;
+    break;
+  }
+}
+
 %}
 
 //----------ENCODING BLOCK-----------------------------------------------------
@@ -1631,6 +1673,21 @@ encode %{
     __ br ((Assembler::Condition)$cmp$$cmpcode, *L);
   %}
 
+  enc_class aarch64_enc_java_to_runtime(method meth) %{
+    MacroAssembler _masm(&cbuf);
+    int gpcnt;
+    int fpcnt;
+    int rtype;
+    getCallInfo(tf(), gpcnt, fpcnt, rtype);
+    __ ldr(rscratch1, RuntimeAddress((address)$meth$$method));
+    __ brx86(rscratch1, gpcnt, fpcnt, rtype);
+  %}
+
+  enc_class aarch64_enc_ret() %{
+    MacroAssembler _masm(&cbuf);
+    __ ret(lr);
+  %}
+
   enc_class aarch64_enc_tail_call(iRegP jump_target) %{
     MacroAssembler _masm(&cbuf);
     Register target_reg = as_Register($jump_target$$reg);
@@ -1639,7 +1696,6 @@ encode %{
 
 
 %}
-
 
 
 //----------FRAME--------------------------------------------------------------
@@ -3102,6 +3158,22 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl) %{
 // ============================================================================
 // Procedure Call/Return Instructions
 
+// Call Runtime Instruction
+
+instruct CallRuntimeDirect(method meth) %{
+  match(CallRuntime);
+
+  effect(USE meth);
+
+  ins_cost(CALL_COST);
+
+  format %{ "CALL, runtime" %}
+
+  ins_encode( aarch64_enc_java_to_runtime(meth) );
+
+  ins_pipe(pipe_class_call);
+%}
+
 // Tail Call; Jump from runtime stub to Java code.
 // Also known as an 'interprocedural jump'.
 // Target of jump will eventually return to caller.
@@ -3117,6 +3189,15 @@ instruct TailCalljmpInd(iRegP jump_target, inline_cache_RegP method_oop)
   ins_encode(aarch64_enc_tail_call(jump_target));
 
   ins_pipe(pipe_class_call);
+%}
+
+// Return Instruction
+// epilog node loads ret address into lr as part of frame pop
+instruct Ret() %{
+  match(Return);
+  format %{ "ret\t// return register" %}
+  ins_encode( aarch64_enc_ret() );
+  ins_pipe(pipe_class_default);
 %}
 
 
