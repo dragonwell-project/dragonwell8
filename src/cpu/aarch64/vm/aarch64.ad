@@ -2411,6 +2411,14 @@ operand interpreter_method_oop_RegP(iRegP reg) %{
   interface(REG_INTER);
 %}
 
+// Thread Register
+operand thread_RegP(iRegP reg) %{
+  constraint(ALLOC_IN_RC(lr_reg)); // link_reg
+  match(reg);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 operand lr_RegP(iRegP reg) %{
   constraint(ALLOC_IN_RC(lr_reg)); // link_reg
   match(reg);
@@ -3436,9 +3444,30 @@ instruct TailCalljmpInd(iRegP jump_target, inline_cache_RegP method_oop)
 // epilog node loads ret address into lr as part of frame pop
 instruct Ret() %{
   match(Return);
+
   format %{ "ret\t// return register" %}
+
   ins_encode( aarch64_enc_ret() );
   ins_pipe(pipe_class_default);
+%}
+
+//----------OS and Locking Instructions----------------------------------------
+// This name is KNOWN by the ADLC and cannot be changed.
+// The ADLC forces a 'TypeRawPtr::BOTTOM' output type
+// for this guy.
+// Get a DEF on thread_RegP, no costs, no encoding, use
+// 'ins_should_rematerialize(true)' to avoid spilling.
+instruct tlsLoadP(thread_RegP dst) %{
+  match(Set dst (ThreadLocal));
+
+  ins_cost(0);
+
+  format %{ " -- \t// $dst=Thread::current(), empty" %}
+
+  size(0);
+
+  ins_encode( /*empty*/ );
+  ins_pipe(pipe_class_empty);
 %}
 
 
