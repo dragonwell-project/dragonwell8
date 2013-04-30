@@ -760,9 +760,7 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(c_rarg1, Address(sp, return_addr));  // pass return address
     __ mov(c_rarg2, sp);                          // pass address of regs on stack
     __ mov(r19, sp);                               // remember rsp
-#ifndef PRODUCT
-    assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
-#endif
+    __ sub(sp, sp, frame::arg_reg_save_area_bytes); // windows  ????
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
     __ brx86(rscratch1, 3, 0, 1);
@@ -1161,9 +1159,8 @@ class StubGenerator: public StubCodeGenerator {
     // Note that we only have to preserve callee-saved registers since
     // the compilers are responsible for supplying a continuation point
     // if they expect all registers to be preserved.
-    // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
     enum layout {
-      rfp_off = 0,
+      rfp_off = frame::arg_reg_save_area_bytes/BytesPerInt,
       rfp_off2,
       return_off,
       return_off2,
