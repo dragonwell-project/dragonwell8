@@ -701,7 +701,6 @@ uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
 
 #ifndef PRODUCT
   void MachNopNode::format(PhaseRegAlloc*, outputStream* st) const {
-    Unimplemented();
     st->print("nop \t# %d bytes pad for loops and calls", _count);
   }
 #endif
@@ -715,7 +714,6 @@ uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
   }
 
   uint MachNopNode::size(PhaseRegAlloc*) const {
-    Unimplemented();
     return _count;
   }
 
