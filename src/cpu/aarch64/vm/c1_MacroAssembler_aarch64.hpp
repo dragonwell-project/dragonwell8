@@ -47,6 +47,10 @@ void zero_memory(Register addr, Register len, Register t1);
   void initialize_header(Register obj, Register klass, Register len, Register t1, Register t2);
   void initialize_body(Register obj, Register len_in_bytes, int hdr_size_in_bytes, Register t1);
 
+  void float_cmp(bool is_float, int unordered_result,
+		 FloatRegister f0, FloatRegister f1,
+		 Register result);
+
   // locking
   // hdr     : must be rax, contents destroyed
   // obj     : must point to the object to lock, contents preserved

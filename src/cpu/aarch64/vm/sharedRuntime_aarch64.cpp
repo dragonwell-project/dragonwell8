@@ -990,7 +990,28 @@ static void object_move(MacroAssembler* masm,
 static void float_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
 
 // A long move
-static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
+static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
+  if (src.first()->is_stack()) {
+    if (dst.first()->is_stack()) {
+      // stack to stack
+      __ ldr(rscratch1, Address(rfp, reg2offset_in(src.first())));
+      __ str(rscratch1, Address(sp, reg2offset_out(dst.first())));
+    } else {
+      // stack to reg
+      __ ldr(dst.first()->as_Register(), Address(rfp, reg2offset_in(src.first())));
+    }
+  } else if (dst.first()->is_stack()) {
+    // reg to stack
+    // Do we really have to sign extend???
+    // __ movslq(src.first()->as_Register(), src.first()->as_Register());
+    __ str(src.first()->as_Register(), Address(sp, reg2offset_out(dst.first())));
+  } else {
+    if (dst.first() != src.first()) {
+      __ mov(dst.first()->as_Register(), src.first()->as_Register());
+    }
+  }
+}
+
 
 // A double move
 static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
@@ -1030,12 +1051,12 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm, BasicType ret_ty
   }
 }
 static void save_args(MacroAssembler *masm, int arg_count, int first_arg, VMRegPair *args) {
-  unsigned long x = 0;
+  unsigned long x = 0;  // Register bit vector
   for ( int i = first_arg ; i < arg_count ; i++ ) {
     if (args[i].first()->is_Register()) {
       x |= 1 << args[i].first()->as_Register()->encoding();
-    } else {
-      Unimplemented();
+    } else if (args[i].first()->is_FloatRegister()) {
+      __ strd(args[i].first()->as_FloatRegister(), Address(__ pre(sp, -2 * wordSize)));
     }
   }
   if (x)
@@ -1048,11 +1069,18 @@ static void restore_args(MacroAssembler *masm, int arg_count, int first_arg, VMR
     if (args[i].first()->is_Register()) {
       x |= 1 << args[i].first()->as_Register()->encoding();
     } else {
-      Unimplemented();
+      ;
     }
   }
   if (x)
     __ pop(x, sp);
+  for ( int i = first_arg ; i < arg_count ; i++ ) {
+    if (args[i].first()->is_Register()) {
+      ;
+    } else if (args[i].first()->is_FloatRegister()) {
+      __ ldrd(args[i].first()->as_FloatRegister(), Address(__ post(sp, 2 * wordSize)));
+    }
+  }
 }
 
 

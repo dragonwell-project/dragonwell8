@@ -35,6 +35,36 @@
 #include "runtime/os.hpp"
 #include "runtime/stubRoutines.hpp"
 
+void C1_MacroAssembler::float_cmp(bool is_float, int unordered_result,
+				  FloatRegister f0, FloatRegister f1,
+				  Register result)
+{
+  Label done;
+  if (is_float) {
+    fcmps(f0, f1);
+  } else {
+    fcmpd(f0, f1);
+  }
+  if (unordered_result < 0) {
+    // we want -1 for unordered or less than, 0 for equal and 1 for
+    // greater than.
+    mov(result, (u_int64_t)-1L);
+    // for FP LT tests less than or unordered
+    br(Assembler::LT, done);
+    // install 0 for EQ otherwise 1
+    csinc(result, zr, zr, Assembler::EQ);
+  } else {
+    // we want -1 for less than, 0 for equal and 1 for unordered or
+    // greater than.
+    mov(result, 1L);
+    // for FP HI tests greater than or unordered
+    br(Assembler::HI, done);
+    // install 0 for EQ otherwise ~0
+    csinv(result, zr, zr, Assembler::EQ);
+  }
+  bind(done);
+}
+
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
   const int aligned_mask = BytesPerWord -1;
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
@@ -98,7 +128,38 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 }
 
 
-void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case) { call_Unimplemented(); }
+void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case) {
+  const int aligned_mask = BytesPerWord -1;
+  const int hdr_offset = oopDesc::mark_offset_in_bytes();
+  assert(hdr != obj && hdr != disp_hdr && obj != disp_hdr, "registers must be different");
+  Label done;
+
+  if (UseBiasedLocking) {
+    // load object
+    ldr(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
+    biased_locking_exit(obj, hdr, done);
+  }
+
+  // load displaced header
+  ldr(hdr, Address(disp_hdr, 0));
+  // if the loaded hdr is NULL we had recursive locking
+  // if we had recursive locking, we are done
+  cbz(hdr, done);
+  if (!UseBiasedLocking) {
+    // load object
+    ldr(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
+  }
+  verify_oop(obj);
+  // test if object header is pointing to the displaced header, and if so, restore
+  // the displaced header in the object - if the object header is not pointing to
+  // the displaced header, get the object header instead
+  // if the object header was not pointing to the displaced header,
+  // we do unlocking via runtime call
+  lea(rscratch1, Address(obj, hdr_offset));
+  cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, slow_case);
+  // done
+  bind(done);
+}
 
 
 // Defines obj, preserves var_size_in_bytes

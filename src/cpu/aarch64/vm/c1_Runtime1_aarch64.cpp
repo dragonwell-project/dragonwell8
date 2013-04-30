@@ -678,6 +678,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case throw_null_pointer_exception_id:
+      { StubFrame f(sasm, "throw_null_pointer_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_null_pointer_exception), false);
+      }
+      break;
+
     case new_instance_id:
     case fast_new_instance_id:
     case fast_new_instance_init_check_id:

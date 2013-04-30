@@ -1462,7 +1462,7 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
 
 bool Assembler::operand_valid_for_add_sub_immediate(long imm) {
   bool shift = false;
-  imm = abs(imm);
+  imm = labs(imm);
   if (imm < (1 << 12))
     return true;
   if (imm < (1 << 24)

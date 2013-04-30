@@ -1721,11 +1721,16 @@ private:
 public:
 
   void fmovs(FloatRegister Vn, double value) {
-    fmov_imm(Vn, value, 0b00);
-
+    if (value)
+      fmov_imm(Vn, value, 0b00);
+    else
+      fmovs(Vn, zr);
   }
   void fmovd(FloatRegister Vn, double value) {
-    fmov_imm(Vn, value, 0b01);
+    if (value)
+      fmov_imm(Vn, value, 0b01);
+    else
+      fmovd(Vn, zr);
   }
 
 /* Simulator extensions to the ISA

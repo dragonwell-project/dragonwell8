@@ -87,8 +87,10 @@ void NativeMovConstReg::set_data(intptr_t x) {
 
 >>>>>>> c3651e4... NativeInst support
 
-
-void NativeMovConstReg::print() { Unimplemented(); }
+void NativeMovConstReg::print() {
+  tty->print_cr(PTR_FORMAT ": mov reg, " INTPTR_FORMAT,
+                instruction_address(), data());
+}
 
 //-------------------------------------------------------------------
 
@@ -175,7 +177,15 @@ bool NativeInstruction::is_adrp_at(address instr) {
 
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
 
-void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) { Unimplemented(); }
+void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) {
+  ptrdiff_t disp = dest - verified_entry;
+  guarantee(disp < 1 << 27 && disp > - (1 << 27), "branch overflow");
+
+  unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3ffffff);
+
+  *(unsigned int*)verified_entry = insn;
+  ICache::invalidate_range(verified_entry, instruction_size);
+}
 
 
 void NativePopReg::insert(address code_pos, Register reg) { Unimplemented(); }
@@ -188,11 +198,9 @@ void NativeGeneralJump::verify() {  }
 
 void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   ptrdiff_t disp = entry - code_pos;
-#ifdef AMD64
-  guarantee(((int)disp << 4) >> 4 == disp, "must be 26-bit offset");
-#endif // AMD64
+  guarantee(disp < 1 << 27 && disp > - (1 << 27), "branch overflow");
 
-  unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3fff);
+  unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3ffffff);
 
   *(unsigned int*)code_pos = insn;
   ICache::invalidate_range(code_pos, instruction_size);

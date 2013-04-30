@@ -351,13 +351,48 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 }
 
-void LIRGenerator::do_MonitorEnter(MonitorEnter* x) { ; }
+void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
+  assert(x->is_pinned(),"");
+  LIRItem obj(x->obj(), this);
+  obj.load_item();
 
-void LIRGenerator::do_MonitorExit(MonitorExit* x) { ; }
+  set_no_result(x);
 
-// _ineg, _lneg, _fneg, _dneg
+  // "lock" stores the address of the monitor stack slot, so this is not an oop
+  LIR_Opr lock = new_register(T_INT);
+  // Need a scratch register for biased locking
+  LIR_Opr scratch = LIR_OprFact::illegalOpr;
+  if (UseBiasedLocking) {
+    scratch = new_register(T_INT);
+  }
+
+  CodeEmitInfo* info_for_exception = NULL;
+  if (x->needs_null_check()) {
+    info_for_exception = state_for(x);
+  }
+  // this CodeEmitInfo must not have the xhandlers because here the
+  // object is already locked (xhandlers expect object to be unlocked)
+  CodeEmitInfo* info = state_for(x, x->state(), true);
+  monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
+                        x->monitor_no(), info_for_exception, info);
+}
+
+
+void LIRGenerator::do_MonitorExit(MonitorExit* x) {
+  assert(x->is_pinned(),"");
+
+  LIRItem obj(x->obj(), this);
+  obj.dont_load_item();
+
+  LIR_Opr lock = new_register(T_INT);
+  LIR_Opr obj_temp = new_register(T_INT);
+  set_no_result(x);
+  monitor_exit(obj_temp, lock, syncTempOpr(), LIR_OprFact::illegalOpr, x->monitor_no());
+}
+
+
 void LIRGenerator::do_NegateOp(NegateOp* x) {
-  
+
   LIRItem from(x->x(), this);
   from.load_item();
   LIR_Opr result = rlock_result(x);
@@ -680,7 +715,26 @@ void LIRGenerator::do_LogicOp(LogicOp* x) {
 }
 
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
-void LIRGenerator::do_CompareOp(CompareOp* x) { Unimplemented(); }
+void LIRGenerator::do_CompareOp(CompareOp* x) {
+  LIRItem left(x->x(), this);
+  LIRItem right(x->y(), this);
+  ValueTag tag = x->x()->type()->tag();
+  if (tag == longTag) {
+    left.set_destroys_register();
+  }
+  left.load_item();
+  right.load_item();
+  LIR_Opr reg = rlock_result(x);
+
+  if (x->x()->type()->is_float_kind()) {
+    Bytecodes::Code code = x->op();
+    __ fcmp2int(left.result(), right.result(), reg, (code == Bytecodes::_fcmpl || code == Bytecodes::_dcmpl));
+  } else if (x->x()->type()->tag() == longTag) {
+    __ lcmp2int(left.result(), right.result(), reg);
+  } else {
+    Unimplemented();
+  }
+}
 
 void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   assert(x->number_of_arguments() == 4, "wrong type");
@@ -746,6 +800,8 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   else {
     ShouldNotReachHere();
   }
+
+  __ logical_xor(FrameMap::r8_opr, LIR_OprFact::intConst(1), result);
 
   if (type == objectType) {   // Write-barrier needed for Object fields.
     // Seems to be precise
@@ -1021,7 +1077,7 @@ void LIRGenerator::do_If(If* x) {
   if (tag == longTag && yin->is_constant()
       &&  Assembler::operand_valid_for_add_sub_immediate(yin->get_jlong_constant())) {
     yin->dont_load_item();
-  } else if (tag == longTag || tag == floatTag || tag == doubleTag) {
+  } else if (tag == longTag || tag == floatTag || tag == doubleTag || tag == objectTag) {
     yin->load_item();
   } else {
     yin->dont_load_item();
