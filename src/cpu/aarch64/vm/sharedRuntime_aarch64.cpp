@@ -57,7 +57,9 @@ class SimpleRuntimeFrame {
     // The frame sender code expects that rbp will be in the "natural" place and
     // will override any oopMap setting for it. We must therefore force the layout
     // so that it agrees with the frame sender code.
-    rbp_off = frame::arg_reg_save_area_bytes/BytesPerInt,
+    // we don't expect any arg reg save area so aarch64 asserts that
+    // frame::arg_reg_save_area_bytes == 0
+    rbp_off = 0,
     rbp_off2,
     return_off, return_off2,
     framesize
@@ -325,21 +327,15 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   // This needs to be a long call since we will relocate this adapter to
   // the codeBuffer and it may not reach
 
-  // Allocate argument register save area
-  if (frame::arg_reg_save_area_bytes != 0) {
-    __ sub(sp, sp, frame::arg_reg_save_area_bytes);
-  }
+#ifndef PRODUCT
+  assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
+#endif
 
   __ mov(rscratch1, c_rarg1);
   __ mov(c_rarg1, r0);
   __ mov(c_rarg0, rscratch1);
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::fixup_callers_callsite)));
   __ brx86(rscratch1, 2, 0, 0);
-
-  // De-allocate argument register save area
-  if (frame::arg_reg_save_area_bytes != 0) {
-    __ add(sp, sp, frame::arg_reg_save_area_bytes);
-  }
 
   __ pop_CPU_state();
   // restore sp
@@ -1930,7 +1926,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     save_native_result(masm, ret_type, stack_slots);
     __ mov(c_rarg0, rthread);
     __ mov(r19, sp); // remember sp
-    __ sub(rscratch1, sp, frame::arg_reg_save_area_bytes);
+#ifndef PRODUCT
+  assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
+#endif
     __ andr(sp, rscratch1, -16); // align stack as required by ABI
     if (!is_critical_native) {
       __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans)));
@@ -2104,7 +2102,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     __ mov(c_rarg0, obj_reg);
     __ mov(r20, sp); // remember sp
-    __ sub(rscratch1, sp, frame::arg_reg_save_area_bytes); // windows
     __ andr(sp, rscratch1, -16); // align stack as required by ABI
 
     // Save pending exception around call to VM (which contains an EXCEPTION_MARK)

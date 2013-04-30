@@ -1597,8 +1597,6 @@ void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       case lir_logic_xor: __ eorw (dst->as_register(), left->as_register(), right->as_register()); break;
       default: ShouldNotReachHere(); break;
       }
-    } else {
-      ShouldNotReachHere();
     }
   } else {
     assert (right->is_double_cpu() || right->is_constant(), "single register or constant expected");
