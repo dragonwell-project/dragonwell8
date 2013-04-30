@@ -1536,6 +1536,126 @@ encode %{
     }
   %}
 
+  enc_class aarch64_enc_strb(iRegI src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register src_reg = as_Register($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ strb(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strb(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strb(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      } 
+    }
+  %}
+
+  enc_class aarch64_enc_strh(iRegI src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register src_reg = as_Register($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ strh(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strh(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strh(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      }
+    }
+  %}
+
+  enc_class aarch64_enc_strw(iRegI src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register src_reg = as_Register($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ strw(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strw(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strw(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      } 
+    }
+  %}
+
+  enc_class aarch64_enc_str(iRegL src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register src_reg = as_Register($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ str(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ str(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ str(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      }
+    }
+  %}
+
+  enc_class aarch64_enc_strs(vRegF src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    FloatRegister src_reg = as_FloatRegister($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ strs(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strs(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strs(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      }
+    }
+  %}
+
+  enc_class aarch64_enc_strd(vRegD src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    FloatRegister src_reg = as_FloatRegister($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+      __ strd(src_reg, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strd(src_reg, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strd(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+      }
+    }
+  %}
+
   enc_class aarch64_enc_movw_imm(iRegI dst, immI src) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
@@ -2613,6 +2733,11 @@ define %{
 //               name must have been defined in an 'enc_class' specification
 //               in the encode section of the architecture description.
 
+// ============================================================================
+// Memory (Load/Store) Instructions
+
+// Load Instructions
+
 // Load Byte (8 bit signed)
 instruct loadB(iRegI dst, memory mem)
 %{
@@ -2949,6 +3074,124 @@ instruct loadConNKlass(iRegN dst, immNKlass con) %{
   ins_encode(aarch64_enc_mov_nk(dst, con));
 
   ins_pipe(pipe_class_default);
+%}
+
+// Store Instructions
+
+// Store Byte
+instruct storeB(iRegI src, memory mem)
+%{
+  match(Set mem (StoreB mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strb  $src, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_strb(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Char/Short
+instruct storeC(iRegI src, memory mem)
+%{
+  match(Set mem (StoreC mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strh  $src, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_strh(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Integer
+instruct storeI(iRegI src, memory mem)
+%{
+  match(Set mem(StoreI mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strw  $src, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_strw(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// ConvL2I + StoreI.
+instruct storeI_convL2I(iRegL src, memory mem) %{
+  match(Set mem (StoreI mem (ConvL2I src)));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stw  l2i($src), $mem" %}
+
+  ins_encode(aarch64_enc_strw(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Long (64 bit signed)
+instruct storeL(iRegL src, memory mem)
+%{
+  match(Set mem (StoreL mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "str  $src, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_str(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Pointer
+instruct storeP(iRegP src, memory mem)
+%{
+  match(Set mem (StoreP mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "str  $src, $mem\t# ptr" %}
+
+  ins_encode(aarch64_enc_str(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Compressed Pointer
+instruct storeN(iRegN src, memory mem)
+%{
+  match(Set mem (StoreN mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strw  $src, $mem\t# compressed ptr" %}
+
+  ins_encode(aarch64_enc_strw(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Float
+instruct storeF(vRegF src, memory mem)
+%{
+  match(Set mem (StoreF mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strs  $src, $mem\t# float" %}
+
+  ins_encode( aarch64_enc_strs(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Double
+instruct storeD(vRegD src, memory mem)
+%{
+  match(Set mem (StoreD mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strd  $src, $mem\t# double" %}
+
+  ins_encode( aarch64_enc_strd(src, mem) );
+
+  ins_pipe(pipe_class_memory);
 %}
 
 // ============================================================================
