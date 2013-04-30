@@ -113,7 +113,7 @@ reg_def R18     ( SOC, SOC, Op_RegI, 18, r18->as_VMReg()        );
 reg_def R18_H   ( SOC, SOC, Op_RegI, 18, r18->as_VMReg()->next());
 reg_def R19     ( SOC, SOE, Op_RegI, 19, r19->as_VMReg()        );
 reg_def R19_H   ( SOC, SOE, Op_RegI, 19, r19->as_VMReg()->next());
-reg_def R20     ( SOC, SOE, Op_RegI, 20, r20->as_VMReg()        );
+reg_def R20     ( SOC, SOE, Op_RegI, 20, r20->as_VMReg()        ); // caller esp
 reg_def R20_H   ( SOC, SOE, Op_RegI, 20, r20->as_VMReg()->next());
 reg_def R21     ( SOC, SOE, Op_RegI, 21, r21->as_VMReg()        );
 reg_def R21_H   ( SOC, SOE, Op_RegI, 21, r21->as_VMReg()->next());
@@ -747,19 +747,37 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
 #endif
 
 void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  Unimplemented();
+  Compile* C = ra_->C;
+  MacroAssembler _masm(&cbuf);
+
+  const long framesize = ((long)C->frame_slots()) << LogBytesPerInt;
+  assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
+
+  const Register return_pc            = r29; // Must match return_addr() in frame section.
+  const Register callers_sp           = r20;
+
+  // push lr and rfp to create a frame
+  __ enter();
+
+  if (C->need_stack_bang(framesize) && UseStackBanging) {
+    __ call_Unimplemented();
+  }
+  if (__ operand_valid_for_add_sub_immediate(framesize)) {
+    __ sub(sp, sp, framesize);
+  } else {
+    __ mov(rscratch1, framesize);
+    __ sub(sp, sp, rscratch1);
+  }
 }
 
 uint MachPrologNode::size(PhaseRegAlloc* ra_) const
 {
-  Unimplemented();
   return MachNode::size(ra_); // too many variables; just compute it
                               // the hard way
 }
 
 int MachPrologNode::reloc() const
 {
-  Unimplemented();
   // Return number of relocatable values contained in this instruction.
   return 1; // 1 for load_from_polling_page.
 }
