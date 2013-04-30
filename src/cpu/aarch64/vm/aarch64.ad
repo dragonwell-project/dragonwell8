@@ -1792,8 +1792,6 @@ frame %{
 
   // Number of outgoing stack slots killed above the out_preserve_stack_slots
   // for calls to C.  Supports the var-args backing area for register parms.
-  // TODO: arg_reg_save_area_bytes count 32 fp and 32 gp regs which is overkill
-  // probably does not matter but check it anyway
   varargs_C_out_slots_killed(frame::arg_reg_save_area_bytes/BytesPerInt);
 
   // The after-PROLOG location of the return address.  Location of

@@ -2516,9 +2516,10 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   // and sp should be 16 byte aligned
   // push rfp and retaddr by hand
   __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-  // now push the rest of the (empty) simple frame
-  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Epilog!
-
+  // we don't expect an arg reg save area
+#ifndef PRODUCT
+  assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
+#endif
   // compiler left unloaded_class_index in j_rarg0 move to where the
   // runtime expects it.
   __ movw(c_rarg1, j_rarg0);
@@ -2639,7 +2640,6 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   __ br(Assembler::GT, loop);
   __ ldr(lr, Address(r3, 0));	  // save final return address
   __ enter();			  // & old rfp & set new rfp
-  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Prolog
 
   // Use rfp because the frames look interpreted now
   // Save "the_pc" since it cannot easily be retrieved using the last_java_SP after we aligned SP.
@@ -2903,10 +2903,11 @@ void OptoRuntime::generate_exception_blob() {
   // push rfp and retaddr by hand
   // Exception pc is 'return address' for stack walker
   __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-  // there are no callee save registers so just allocate the
-  // rest of the frame empty
-  __ sub(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Prolog
-
+  // there are no callee save registers and we don't expect an
+  // arg reg save area
+#ifndef PRODUCT
+  assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
+#endif
   // Store exception in Thread object. We cannot pass any arguments to the
   // handle_exception call, since we do not want to make any assumption
   // about the size of the frame where the exception happened in.
@@ -2948,8 +2949,7 @@ void OptoRuntime::generate_exception_blob() {
   // rfp is an implicitly saved callee saved register (i.e. the calling
   // convention will save restore it in prolog/epilog) Other than that
   // there are no callee save registers now that adapter frames are gone.
-
-  __ add(sp, sp, (SimpleRuntimeFrame::framesize - 4) << LogBytesPerInt); // Epilog
+  // and we dont' expect an arg reg save area
   __ ldp(rfp, r3, Address(__ post(sp, 2 * wordSize)));
 
   // r0: exception handler
