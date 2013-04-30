@@ -2625,12 +2625,14 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
 
   } else if (opr->is_single_fpu()) {
 #ifdef X86
+#ifndef TARGET_ARCH_aarch64
     // the exact location of fpu stack values is only known
     // during fpu stack allocation, so the stack allocator object
     // must be present
     assert(use_fpu_stack_allocation(), "should not have float stack values without fpu stack allocation (all floats must be SSE2)");
     assert(_fpu_stack_allocator != NULL, "must be present");
     opr = _fpu_stack_allocator->to_fpu_stack(opr);
+#endif
 #endif
 
     Location::Type loc_type = float_saved_as_double ? Location::float_in_dbl : Location::normal;
