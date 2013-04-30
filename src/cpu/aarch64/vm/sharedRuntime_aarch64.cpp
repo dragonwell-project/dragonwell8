@@ -1286,6 +1286,15 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                                 BasicType* in_sig_bt,
                                                 VMRegPair* in_regs,
                                                 BasicType ret_type) {
+  if (NotifySimulator) {
+    char name[400];
+    strcpy(name, method()->method_holder()->name()->as_utf8());
+    strcat(name, ".");
+    strcat(name, method()->name()->as_utf8());
+    strcat(name, method()->signature()->as_utf8());
+    AArch64Simulator::current()->notifyCompile(name, __ pc());
+  }
+
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t)__ pc();
