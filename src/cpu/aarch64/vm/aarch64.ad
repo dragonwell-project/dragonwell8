@@ -407,7 +407,41 @@ reg_class any_reg(
     R31, R31_H
 );
 
-// Class for all long integer registers except RSP
+// Class for all non-special integer registers
+reg_class no_special_reg32(
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R10,
+    R11,
+    R12,			// rmethod
+    R13,
+    R14,
+    R15,
+    R16,
+    R17,
+    R18,
+    R19,
+    R20,
+    R21,
+    R22,
+    R23,
+    R24,
+    R25,
+    R26
+ /* R27, */			// heapbase
+ /* R28, */			// thread
+ /* R29, */			// fp
+ /* R30, */			// lr
+ /* R31 */			// sp
+);
+
+// Class for all non-special long integer registers
 reg_class no_special_reg(
     R0, R0_H,
     R1, R1_H,
@@ -833,7 +867,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
     }
   }
 
-  st->print("# leave()\t\n");
+  st->print("# leave()\n\t");
   st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize)); 
 
   if (do_polling() && C->is_method_compilation()) {
@@ -2685,6 +2719,15 @@ operand immNKlass() %{
 operand iRegI() %{
   constraint(ALLOC_IN_RC(any_reg32));
   match(RegI);
+  match(iRegINoSp);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Integer 32 bit Register not Special
+operand iRegINoSp() %{
+  constraint(ALLOC_IN_RC(no_special_reg32));
+  match(RegI);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2694,12 +2737,13 @@ operand iRegI() %{
 operand iRegL() %{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegL);
+  match(iRegLNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
 
 // Integer 64 bit Register not Special
-operand iRegLNoSpecial() %{
+operand iRegLNoSp() %{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegL);
   format %{ %}
@@ -2711,12 +2755,13 @@ operand iRegLNoSpecial() %{
 operand iRegP() %{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegP);
+  match(iRegPNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
 
 // Pointer 64 bit Register not Special
-operand iRegPNoSpecial() %{
+operand iRegPNoSp() %{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegP);
   format %{ %}
@@ -2728,12 +2773,13 @@ operand iRegPNoSpecial() %{
 operand iRegN() %{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegN);
+  match(iRegNNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
 
 // Integer 64 bit Register not Special
-operand iRegNNoSpecial() %{
+operand iRegNNoSp() %{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegN);
   format %{ %}
@@ -3145,7 +3191,7 @@ define %{
 // Load Instructions
 
 // Load Byte (8 bit signed)
-instruct loadB(iRegI dst, memory mem)
+instruct loadB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadB mem));
 
@@ -3158,7 +3204,7 @@ instruct loadB(iRegI dst, memory mem)
 %}
 
 // Load Byte (8 bit signed) into long
-instruct loadB2L(iRegL dst, memory mem)
+instruct loadB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
 
@@ -3171,7 +3217,7 @@ instruct loadB2L(iRegL dst, memory mem)
 %}
 
 // Load Byte (8 bit unsigned)
-instruct loadUB(iRegI dst, memory mem)
+instruct loadUB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUB mem));
 
@@ -3184,7 +3230,7 @@ instruct loadUB(iRegI dst, memory mem)
 %}
 
 // Load Byte (8 bit unsigned) into long
-instruct loadUB2L(iRegL dst, memory mem)
+instruct loadUB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
 
@@ -3197,7 +3243,7 @@ instruct loadUB2L(iRegL dst, memory mem)
 %}
 
 // Load Short (16 bit signed)
-instruct loadS(iRegI dst, memory mem)
+instruct loadS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadS mem));
 
@@ -3210,7 +3256,7 @@ instruct loadS(iRegI dst, memory mem)
 %}
 
 // Load Short (16 bit signed) into long
-instruct loadS2L(iRegL dst, memory mem)
+instruct loadS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
 
@@ -3236,7 +3282,7 @@ instruct loadUS(iRegI dst, memory mem)
 %}
 
 // Load Short/Char (16 bit unsigned) into long
-instruct loadUS2L(iRegL dst, memory mem)
+instruct loadUS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
 
@@ -3249,7 +3295,7 @@ instruct loadUS2L(iRegL dst, memory mem)
 %}
 
 // Load Integer (32 bit signed)
-instruct loadI(iRegI dst, memory mem)
+instruct loadI(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadI mem));
 
@@ -3262,7 +3308,7 @@ instruct loadI(iRegI dst, memory mem)
 %}
 
 // Load Integer (32 bit signed) into long
-instruct loadI2L(iRegL dst, memory mem)
+instruct loadI2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadI mem)));
 
@@ -3275,7 +3321,7 @@ instruct loadI2L(iRegL dst, memory mem)
 %}
 
 // Load Integer (32 bit unsigned) into long
-instruct loadUI2L(iRegL dst, memory mem, immL_32bits mask)
+instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
 
@@ -3288,7 +3334,7 @@ instruct loadUI2L(iRegL dst, memory mem, immL_32bits mask)
 %}
 
 // Load Long (64 bit signed)
-instruct loadL(iRegL dst, memory mem)
+instruct loadL(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (LoadL mem));
 
@@ -3301,7 +3347,7 @@ instruct loadL(iRegL dst, memory mem)
 %}
 
 // Load Range
-instruct loadRange(iRegI dst, memory mem)
+instruct loadRange(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadRange mem));
 
@@ -3314,7 +3360,7 @@ instruct loadRange(iRegI dst, memory mem)
 %}
 
 // Load Pointer
-instruct loadP(iRegP dst, memory mem)
+instruct loadP(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
 
@@ -3327,7 +3373,7 @@ instruct loadP(iRegP dst, memory mem)
 %}
 
 // Load Compressed Pointer
-instruct loadN(iRegN dst, memory mem)
+instruct loadN(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadN mem));
 
@@ -3340,7 +3386,7 @@ instruct loadN(iRegN dst, memory mem)
 %}
 
 // Load Klass Pointer
-instruct loadKlass(iRegP dst, memory mem)
+instruct loadKlass(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadKlass mem));
 
@@ -3353,7 +3399,7 @@ instruct loadKlass(iRegP dst, memory mem)
 %}
 
 // Load Narow Klass Pointer
-instruct loadNKlass(iRegN dst, memory mem)
+instruct loadNKlass(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadNKlass mem));
 
@@ -3392,7 +3438,7 @@ instruct loadD(vRegD dst, memory mem)
 %}
 
 // Load Int Constant
-instruct loadConI(iRegI dst, immI src)
+instruct loadConI(iRegINoSp dst, immI src)
 %{
   match(Set dst src);
 
@@ -3405,7 +3451,7 @@ instruct loadConI(iRegI dst, immI src)
 %}
 
 // Load Long Constant
-instruct loadConL(iRegL dst, immL src)
+instruct loadConL(iRegLNoSp dst, immL src)
 %{
   match(Set dst src);
 
@@ -3419,7 +3465,7 @@ instruct loadConL(iRegL dst, immL src)
 
 // Load Pointer Constant
 
-instruct loadConP(iRegP dst, immP con) %{
+instruct loadConP(iRegPNoSp dst, immP con) %{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3432,7 +3478,7 @@ instruct loadConP(iRegP dst, immP con) %{
 
 // Load Null Pointer Constant
 
-instruct loadConP0(iRegP dst, immP0 con) %{
+instruct loadConP0(iRegPNoSp dst, immP0 con) %{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST_LOW);
@@ -3445,7 +3491,7 @@ instruct loadConP0(iRegP dst, immP0 con) %{
 
 // Load Narrow Pointer Constant
 
-instruct loadConN(iRegN dst, immN con) %{
+instruct loadConN(iRegNNoSp dst, immN con) %{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3458,7 +3504,7 @@ instruct loadConN(iRegN dst, immN con) %{
 
 // Load Narrow Null Pointer Constant
 
-instruct loadConN0(iRegN dst, immN0 con) %{
+instruct loadConN0(iRegNNoSp dst, immN0 con) %{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST_LOW);
@@ -3471,7 +3517,7 @@ instruct loadConN0(iRegN dst, immN0 con) %{
 
 // Load Narrow Klass Constant
 
-instruct loadConNKlass(iRegN dst, immNKlass con) %{
+instruct loadConNKlass(iRegNNoSp dst, immNKlass con) %{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3485,7 +3531,7 @@ instruct loadConNKlass(iRegN dst, immNKlass con) %{
 // Store Instructions
 
 // Store Byte
-instruct storeB(iRegI src, memory mem)
+instruct storeB(iRegINoSp src, memory mem)
 %{
   match(Set mem (StoreB mem src));
 
@@ -3498,7 +3544,7 @@ instruct storeB(iRegI src, memory mem)
 %}
 
 // Store Char/Short
-instruct storeC(iRegI src, memory mem)
+instruct storeC(iRegINoSp src, memory mem)
 %{
   match(Set mem (StoreC mem src));
 
@@ -3511,7 +3557,7 @@ instruct storeC(iRegI src, memory mem)
 %}
 
 // Store Integer
-instruct storeI(iRegI src, memory mem)
+instruct storeI(iRegINoSp src, memory mem)
 %{
   match(Set mem(StoreI mem src));
 
@@ -3524,7 +3570,7 @@ instruct storeI(iRegI src, memory mem)
 %}
 
 // ConvL2I + StoreI.
-instruct storeI_convL2I(iRegL src, memory mem) %{
+instruct storeI_convL2I(iRegLNoSp src, memory mem) %{
   match(Set mem (StoreI mem (ConvL2I src)));
 
   ins_cost(MEMORY_REF_COST);
@@ -3536,7 +3582,7 @@ instruct storeI_convL2I(iRegL src, memory mem) %{
 %}
 
 // Store Long (64 bit signed)
-instruct storeL(iRegL src, memory mem)
+instruct storeL(iRegLNoSp src, memory mem)
 %{
   match(Set mem (StoreL mem src));
 
@@ -3562,7 +3608,7 @@ instruct storeP(iRegP src, memory mem)
 %}
 
 // Store Compressed Pointer
-instruct storeN(iRegN src, memory mem)
+instruct storeN(iRegNNoSp src, memory mem)
 %{
   match(Set mem (StoreN mem src));
 
@@ -3603,7 +3649,7 @@ instruct storeD(vRegD src, memory mem)
 // ============================================================================
 // Compare Instructions
 
-instruct compI_iRegI(rFlagsReg cr, iRegI op1, iRegI op2)
+instruct compI_iRegI(rFlagsReg cr, iRegINoSp op1, iRegINoSp op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3617,7 +3663,7 @@ instruct compI_iRegI(rFlagsReg cr, iRegI op1, iRegI op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
+instruct compI_iRegI_immI0(rFlagsReg cr, iRegINoSp op1, immI0 zero)
 %{
   match(Set cr (CmpI op1 zero));
 
@@ -3631,7 +3677,7 @@ instruct compI_iRegI_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
+instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegINoSp op1, immIAddSub op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3645,7 +3691,7 @@ instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immI(rFlagsReg cr, iRegI op1, immI op2)
+instruct compI_iRegI_immI(rFlagsReg cr, iRegINoSp op1, immI op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3659,7 +3705,7 @@ instruct compI_iRegI_immI(rFlagsReg cr, iRegI op1, immI op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL(rFlagsReg cr, iRegL op1, iRegL op2)
+instruct compL_iRegL(rFlagsReg cr, iRegLNoSp op1, iRegLNoSp op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3673,7 +3719,7 @@ instruct compL_iRegL(rFlagsReg cr, iRegL op1, iRegL op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
+instruct compL_iRegL_immI0(rFlagsReg cr, iRegLNoSp op1, immI0 zero)
 %{
   match(Set cr (CmpL op1 zero));
 
@@ -3687,7 +3733,7 @@ instruct compL_iRegL_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegL op1, immLAddSub op2)
+instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegLNoSp op1, immLAddSub op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3701,7 +3747,7 @@ instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegL op1, immLAddSub op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immL(rFlagsReg cr, iRegL op1, immL op2)
+instruct compL_iRegL_immL(rFlagsReg cr, iRegLNoSp op1, immL op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3715,7 +3761,7 @@ instruct compL_iRegL_immL(rFlagsReg cr, iRegL op1, immL op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compP_iRegP(rFlagsReg cr, iRegP op1, iRegP op2)
+instruct compP_iRegP(rFlagsReg cr, iRegPNoSp op1, iRegPNoSp op2)
 %{
   match(Set cr (CmpP op1 op2));
 
@@ -3729,7 +3775,7 @@ instruct compP_iRegP(rFlagsReg cr, iRegP op1, iRegP op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compN_iRegN(rFlagsReg cr, iRegN op1, iRegN op2)
+instruct compN_iRegN(rFlagsReg cr, iRegNNoSp op1, iRegNNoSp op2)
 %{
   match(Set cr (CmpN op1 op2));
 
@@ -3825,7 +3871,7 @@ instruct CallRuntimeDirect(method meth) %{
 // Also known as an 'interprocedural jump'.
 // Target of jump will eventually return to caller.
 // TailJump below removes the return address.
-instruct TailCalljmpInd(iRegP jump_target, inline_cache_RegP method_oop)
+instruct TailCalljmpInd(iRegPNoSp jump_target, inline_cache_RegP method_oop)
 %{
   match(TailCall jump_target method_oop);
 
