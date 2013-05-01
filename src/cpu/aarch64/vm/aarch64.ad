@@ -646,31 +646,25 @@ source %{
 
 int MachCallStaticJavaNode::ret_addr_offset()
 {
-  Unimplemented();
-  // TODO: check this it should just be a bl
+  // TODO: check this it should just be a bl/blr
   return 4;
 }
 
 int MachCallDynamicJavaNode::ret_addr_offset()
 {
   Unimplemented();
-  // TODO: work out special cases
-  // Offset is 4 with late expanded calls (bl is one instruction). We
-  // use late expanded calls if we use inline caches and do not update
-  // method data.
+  // TODO: check this it should just be a bl/blr
   return 4;
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
-  Unimplemented();
-  // TODO: check this borrowed from ppc_aix port (10 instructions?)
+  // TODO: check this it should just be a bl/blr
   return 4;
 }
 
 // Indicate if the safepoint node needs the polling page as an input
 bool SafePointNode::needs_polling_address_input()
 {
-  Unimplemented();
   return true;
 }
 
@@ -706,7 +700,6 @@ uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
 #endif
 
   void MachNopNode::emit(CodeBuffer &cbuf, PhaseRegAlloc*) const {
-    Unimplemented();
     MacroAssembler _masm(&cbuf);
     for (int i = 0; i < _count; i++) { 
       __ nop();
@@ -714,7 +707,7 @@ uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
   }
 
   uint MachNopNode::size(PhaseRegAlloc*) const {
-    return _count;
+    return _count * NativeInstruction::instruction_size;
   }
 
 //=============================================================================
@@ -742,7 +735,39 @@ void MachConstantBaseNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
 
 #ifndef PRODUCT
 void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
-  Unimplemented();
+  Compile* C = ra_->C;
+
+  int framesize = C->frame_slots() << LogBytesPerInt;
+  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
+  if (C->need_stack_bang(framesize)) {
+    st->print("# stack bang size=%d\n\t", framesize);
+    st->print("# Unimplemented!!!\n\t");
+  }
+
+  if (framesize > 0) {
+    st->print("# create frame %d\n\t", framesize);
+  }
+
+  st->print("# enter()\n\t");
+  st->print("stp  lr, rfp, [sp, #%d]!\n\t", -(2 * wordSize)); 
+
+  // allow for enter pushing ret address and rfp
+
+  framesize -= (2 * wordSize);
+
+  if (framesize) {
+    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
+       st->print("sub  sp, sp, #%d", framesize); 
+    } else {
+       st->print("mov  rscratch1, #%d\n\t", framesize); 
+       st->print("sub  sp, sp, rscratch1"); 
+    }
+  }
+
+  if (VerifyStackAtCalls) {
+    st->print("\n\t# VerifyStackAtCalls Unimplemented!");
+  }
+  st->cr();
 }
 #endif
 
@@ -750,11 +775,9 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   MacroAssembler _masm(&cbuf);
 
-  const long framesize = ((long)C->frame_slots()) << LogBytesPerInt;
+  // n.b. frame size includes space for return pc and rfp
+  long framesize = ((long)C->frame_slots()) << LogBytesPerInt;
   assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
-
-  const Register return_pc            = r29; // Must match return_addr() in frame section.
-  const Register callers_sp           = r20;
 
   // push lr and rfp to create a frame
   __ enter();
@@ -762,11 +785,21 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   if (C->need_stack_bang(framesize) && UseStackBanging) {
     __ call_Unimplemented();
   }
-  if (__ operand_valid_for_add_sub_immediate(framesize)) {
-    __ sub(sp, sp, framesize);
-  } else {
-    __ mov(rscratch1, framesize);
-    __ sub(sp, sp, rscratch1);
+
+  // allow for already pushed values
+  framesize -= 2 * wordSize;
+
+  if (framesize) {
+    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
+      __ sub(sp, sp, framesize);
+    } else {
+      __ mov(rscratch1, framesize);
+      __ sub(sp, sp, rscratch1);
+    }
+  }
+
+  if (VerifyStackAtCalls) {
+    Unimplemented();
   }
 }
 
@@ -778,44 +811,71 @@ uint MachPrologNode::size(PhaseRegAlloc* ra_) const
 
 int MachPrologNode::reloc() const
 {
-  // Return number of relocatable values contained in this instruction.
-  return 1; // 1 for load_from_polling_page.
+  return 0;
 }
 
 //=============================================================================
 
 #ifndef PRODUCT
 void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
-  Unimplemented();
   Compile* C = ra_->C;
+  int framesize = C->frame_slots() << LogBytesPerInt;
 
-  st->print("EPILOG\n\t");
-  st->print("restore return pc\n\t");
-  st->print("pop frame\n\t");
+  st->print("# pop frame %d\n\t",framesize);
+  framesize -= 2 * wordSize;
+
+  if (framesize) {
+    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
+       st->print("add  sp, sp, #%d", framesize); 
+    } else {
+       st->print("mov  rscratch1, #%d\n\t", framesize); 
+       st->print("add  sp, sp, rscratch1"); 
+    }
+  }
+
+  st->print("# leave()\t\n");
+  st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize)); 
 
   if (do_polling() && C->is_method_compilation()) {
-    st->print("touch polling page\n\t");
+    st->print("# touch polling page\n\t");
+    st->print("mov  rscratch1, #0x%x\n\t", os::get_polling_page());
+    st->print("ldr zr, [rscratch1]\n\t");
   }
 }
 
 void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  Unimplemented();
+  Compile* C = ra_->C;
+  MacroAssembler _masm(&cbuf);
+  int framesize = C->frame_slots() << LogBytesPerInt;
+
+  framesize -= 2 * wordSize;
+  
+  if (framesize) {
+    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
+      __ add(sp, sp, framesize); 
+    } else {
+      __ mov(rscratch1, framesize);
+      __ add(sp, sp, rscratch1);
+    }
+  }
+
+  if (do_polling() && C->is_method_compilation()) {
+    __ mov(rscratch1, Address(os::get_polling_page(), relocInfo::poll_return_type));
+    __ ldr(zr, Address(rscratch1, 0));
+  }
 }
 
 uint MachEpilogNode::size(PhaseRegAlloc *ra_) const {
-  Unimplemented();
   // Variable size. Determine dynamically.
   return MachNode::size(ra_);
 }
 
 int MachEpilogNode::reloc() const {
-  Unimplemented();
   // Return number of relocatable values contained in this instruction.
-  return 1; // 1 for load_from_polling_page.
+  return 1; // 1 for polling page.
 }
 
 const Pipeline * MachEpilogNode::pipeline() const {
-  Unimplemented();
   return MachNode::pipeline_class();
 }
 
@@ -823,7 +883,6 @@ const Pipeline * MachEpilogNode::pipeline() const {
 // and defined in all *.ad files, but it is never called. Should we
 // get rid of it?
 int MachEpilogNode::safepoint_offset() const {
-  Unimplemented();
   assert(do_polling(), "no return for this epilog node");
   return 0;
 }
@@ -1199,50 +1258,99 @@ uint MachUEPNode::size(PhaseRegAlloc* ra_) const
 
 //=============================================================================
 
-// emit call stub, compiled java to interpreter
-void emit_java_to_interp(CodeBuffer& cbuf)
-{
-  Unimplemented();
-}
-
 // size of call stub, compiled java to interpretor
 uint size_java_to_interp()
 {
-  Unimplemented();
-  return 0;
+  // count a mov mem --> reg and a branch to label
+  return 2 * NativeInstruction::instruction_size;
+}
+
+// emit call stub, compiled java to interpreter
+void emit_java_to_interp(CodeBuffer& cbuf)
+{
+  // Stub is fixed up when the corresponding call is converted from
+  // calling compiled code to calling interpreted code.
+  // mov rmethod, zr
+  // here:
+  // b(here) # jump to self
+
+  address mark = cbuf.insts_mark();  // get mark within main instrs section
+
+  // Note that the code buffer's insts_mark is always relative to insts.
+  // That's why we must use the macroassembler to generate a stub.
+  MacroAssembler _masm(&cbuf);
+
+  address base = __ start_a_stub(Compile::MAX_stubs_size);
+
+  int offset = __ offset();
+  if (base == NULL)  return;  // CodeBuffer::expand failed
+  // static stub relocation stores the instruction address of the call
+  __ relocate(static_stub_Relocation::spec(mark));
+  // static stub relocation also tags the Method* in the code-stream.
+  __ mov_metadata(rmethod, (Metadata*)NULL);
+  __ b(__ pc());
+
+  assert((__ offset() - offset) <= (int)size_java_to_interp(), "stub too big");
+  __ end_a_stub();
 }
 
 // relocation entries for call stub, compiled java to interpretor
 uint reloc_java_to_interp()
 {
-  Unimplemented();
-  return 0;
+  // TODO fixme
+  // return a large number
+  return 5;
 }
 
 uint size_exception_handler()
 {
-  Unimplemented();
-  return 0;
+  // count up to 4 movz/n/k instructions and one branch instruction
+  return 5 * NativeInstruction::instruction_size;
 }
 
 // Emit exception handler code.
 int emit_exception_handler(CodeBuffer& cbuf)
 {
-  Unimplemented();
-  return 0;
+  // mov rscratch1 #exception_blob_entry_point
+  // br rscratch1
+  // Note that the code buffer's insts_mark is always relative to insts.
+  // That's why we must use the macroassembler to generate a handler.
+  MacroAssembler _masm(&cbuf);
+  address base =
+  __ start_a_stub(size_exception_handler());
+  if (base == NULL)  return 0;  // CodeBuffer::expand failed
+  int offset = __ offset();
+  __ lea(rscratch1, RuntimeAddress(OptoRuntime::exception_blob()->entry_point()));
+  __ br(rscratch1);
+  assert(__ offset() - offset <= (int) size_exception_handler(), "overflow");
+  __ end_a_stub();
+  return offset;
 }
 
 uint size_deopt_handler()
 {
-  Unimplemented();
-  return 0;
+  // count one adr and one branch instruction
+  return 2 * NativeInstruction::instruction_size;
 }
 
 // Emit deopt handler code.
 int emit_deopt_handler(CodeBuffer& cbuf)
 {
-  Unimplemented();
-  return 0;
+  // Note that the code buffer's insts_mark is always relative to insts.
+  // That's why we must use the macroassembler to generate a handler.
+  MacroAssembler _masm(&cbuf);
+  address base =
+  __ start_a_stub(size_deopt_handler());
+  if (base == NULL)  return 0;  // CodeBuffer::expand failed
+  int offset = __ offset();
+
+  __ adr(lr, __ pc());
+  // should we load this into rscratch1 and use a br?
+  __ b(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+
+  assert(__ offset() - offset <= (int) size_deopt_handler(), "overflow");
+  __ end_a_stub();
+  return offset;
 }
 
 // REQUIRED MATCHER CODE
@@ -2101,7 +2209,7 @@ encode %{
   enc_class aarch64_enc_tail_call(iRegP jump_target) %{
     MacroAssembler _masm(&cbuf);
     Register target_reg = as_Register($jump_target$$reg);
-    __ bl(target_reg);
+    __ blr(target_reg);
   %}
 
 
