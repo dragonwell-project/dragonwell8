@@ -837,8 +837,6 @@ enum RC { rc_bad, rc_int, rc_float, rc_stack };
 
 static enum RC rc_class(OptoReg::Name reg) {
 
-  Unimplemented();
-
   if (reg == OptoReg::Bad) {
     return rc_bad;
   }
@@ -854,18 +852,296 @@ static enum RC rc_class(OptoReg::Name reg) {
     return rc_float;
   }
 
-  // we have no flags registers
+  // Between float regs & stack is the flags regs.
+  assert(OptoReg::is_stack(reg), "blow up if spilling flags");
 
   return rc_stack;
 }
 
 uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, bool do_size, outputStream *st) const {
+  Compile* C = ra_->C;
+
+  // Get registers to move.
+  OptoReg::Name src_hi = ra_->get_reg_second(in(1));
+  OptoReg::Name src_lo = ra_->get_reg_first(in(1));
+  OptoReg::Name dst_hi = ra_->get_reg_second(this);
+  OptoReg::Name dst_lo = ra_->get_reg_first(this);
+
+  enum RC src_hi_rc = rc_class(src_hi);
+  enum RC src_lo_rc = rc_class(src_lo);
+  enum RC dst_hi_rc = rc_class(dst_hi);
+  enum RC dst_lo_rc = rc_class(dst_lo);
+
+  assert(src_lo != OptoReg::Bad && dst_lo != OptoReg::Bad, "must move at least 1 register");
+
+  if (src_hi != OptoReg::Bad) {
+    assert((src_lo&1)==0 && src_lo+1==src_hi &&
+           (dst_lo&1)==0 && dst_lo+1==dst_hi,
+           "expected aligned-adjacent pairs");
+  }
+
+  if (src_lo == dst_lo && src_hi == dst_hi) {
+    return 0;            // Self copy, no move.
+  }
+
+  switch (src_lo_rc) {
+  case rc_int:
+    if (dst_lo_rc == rc_int) {	// gpr --> gpr copy
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ mov(as_Register(Matcher::_regEncode[dst_lo]),
+                 as_Register(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("mov  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ movw(as_Register(Matcher::_regEncode[dst_lo]),
+                  as_Register(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("movw  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      }
+    } else if (dst_lo_rc == rc_float) { // gpr --> fpr copy
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                   as_Register(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovd  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                   as_Register(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovs  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      }
+    } else {			// gpr --> stack spill
+      assert(dst_lo_rc == rc_stack, "spill to bad register class");
+      int dst_offset = ra_->reg2offset(dst_lo);
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ str(as_Register(Matcher::_regEncode[src_lo]),
+	         Address(sp, dst_offset));
+        } else if (st) {
+          st->print("str  %s, [sp, #%d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    dst_offset);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ strw(as_Register(Matcher::_regEncode[src_lo]),
+	         Address(sp, dst_offset));
+        } else if (st) {
+          st->print("strw  %s, [sp, #%d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    dst_offset);
+        }
+      }
+    }
+    return 4;
+  case rc_float:
+    if (dst_lo_rc == rc_int) {	// fpr --> gpr copy
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovd(as_Register(Matcher::_regEncode[dst_lo]),
+                   as_FloatRegister(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovd  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovs(as_Register(Matcher::_regEncode[dst_lo]),
+                   as_FloatRegister(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovs  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      }
+    } else if (dst_lo_rc == rc_float) { // fpr --> fpr copy
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                   as_FloatRegister(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovd  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ fmovs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                   as_FloatRegister(Matcher::_regEncode[src_lo]));
+        } else if (st) {
+          st->print("fmovs  %s, %s\t# spill",
+                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo]);
+        }
+      }
+    } else {			// fpr --> stack spill
+      assert(dst_lo_rc == rc_stack, "spill to bad register class");
+      int dst_offset = ra_->reg2offset(dst_lo);
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ strd(as_FloatRegister(Matcher::_regEncode[src_lo]),
+	         Address(sp, dst_offset));
+        } else if (st) {
+          st->print("strd  %s, [sp, #%d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    dst_offset);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ strs(as_FloatRegister(Matcher::_regEncode[src_lo]),
+	         Address(sp, dst_offset));
+        } else if (st) {
+          st->print("strs  %s, [sp, #%d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    dst_offset);
+        }
+      }
+    }
+    return 4;
+  case rc_stack:
+    int src_offset = ra_->reg2offset(src_lo);
+    if (dst_lo_rc == rc_int) {	// stack --> gpr load
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldr(as_Register(Matcher::_regEncode[dst_lo]),
+                 Address(sp, src_offset));
+        } else if (st) {
+          st->print("ldr  %s, [sp, %d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    src_offset);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldrw(as_Register(Matcher::_regEncode[dst_lo]),
+                  Address(sp, src_offset));
+        } else if (st) {
+          st->print("ldr  %s, [sp, %d]\t# spill",
+                    Matcher::regName[dst_lo],
+                   src_offset);
+        }
+      }
+      return 4;
+    } else if (dst_lo_rc == rc_float) { // stack --> fpr load
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldrd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                 Address(sp, src_offset));
+        } else if (st) {
+          st->print("ldrd  %s, [sp, %d]\t# spill",
+                    Matcher::regName[dst_lo],
+		    src_offset);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldrs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
+                  Address(sp, src_offset));
+        } else if (st) {
+          st->print("ldrs  %s, [sp, %d]\t# spill",
+                    Matcher::regName[dst_lo],
+                   src_offset);
+        }
+      }
+      return 4;
+    } else {			// stack --> stack copy
+      assert(dst_lo_rc == rc_stack, "spill to bad register class");
+      int dst_offset = ra_->reg2offset(dst_lo);
+      if (((src_lo & 1) == 0 && src_lo + 1 == src_hi) &&
+          (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi) {
+          // 64 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldr(rscratch1, Address(sp, src_offset));
+          __ str(rscratch1, Address(sp, dst_offset));
+        } else if (st) {
+          st->print("ldr  rscratch1, [sp, %d]\t# mem-mem spill",
+		    src_offset);
+          st->print("\n\t");
+          st->print("str  rscratch1, [sp, %d]",
+		    dst_offset);
+        }
+      } else {
+        // 32 bit
+        if (cbuf) {
+          MacroAssembler _masm(cbuf);
+          __ ldrw(rscratch1, Address(sp, src_offset));
+          __ strw(rscratch1, Address(sp, dst_offset));
+        } else if (st) {
+          st->print("ldrw  rscratch1, [sp, %d]\t# mem-mem spill",
+		    src_offset);
+          st->print("\n\t");
+          st->print("strw  rscratch1, [sp, %d]",
+		    dst_offset);
+        }
+      }
+      return 8;
+    }
+  }
+
+  assert(false," bad rc_class for spill ");
   Unimplemented();
+  return 0;
+
 }
 
 #ifndef PRODUCT
 void MachSpillCopyNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
-  Unimplemented();
   if (!ra_)
     st->print("N%d = SpillCopy(N%d)", _idx, in(1)->_idx);
   else
@@ -874,12 +1150,10 @@ void MachSpillCopyNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
 #endif
 
 void MachSpillCopyNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  Unimplemented();
   implementation(&cbuf, ra_, false, NULL);
 }
 
 uint MachSpillCopyNode::size(PhaseRegAlloc *ra_) const {
-  Unimplemented();
   return implementation(NULL, ra_, true, NULL);
 }
 
@@ -1815,7 +2089,7 @@ encode %{
     int fpcnt;
     int rtype;
     getCallInfo(tf(), gpcnt, fpcnt, rtype);
-    __ ldr(rscratch1, RuntimeAddress((address)$meth$$method));
+    __ mov(rscratch1, RuntimeAddress((address)$meth$$method));
     __ brx86(rscratch1, gpcnt, fpcnt, rtype);
   %}
 
