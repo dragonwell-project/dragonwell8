@@ -993,7 +993,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ mov(as_Register(Matcher::_regEncode[dst_lo]),
                  as_Register(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("mov  %s, %s\t# spill",
+          st->print("mov  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1004,7 +1004,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ movw(as_Register(Matcher::_regEncode[dst_lo]),
                   as_Register(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("movw  %s, %s\t# spill",
+          st->print("movw  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1018,7 +1018,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                    as_Register(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovd  %s, %s\t# spill",
+          st->print("fmovd  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1029,7 +1029,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                    as_Register(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovs  %s, %s\t# spill",
+          st->print("fmovs  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1073,7 +1073,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovd(as_Register(Matcher::_regEncode[dst_lo]),
                    as_FloatRegister(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovd  %s, %s\t# spill",
+          st->print("fmovd  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1084,7 +1084,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovs(as_Register(Matcher::_regEncode[dst_lo]),
                    as_FloatRegister(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovs  %s, %s\t# spill",
+          st->print("fmovs  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1098,7 +1098,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                    as_FloatRegister(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovd  %s, %s\t# spill",
+          st->print("fmovd  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -1109,7 +1109,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ fmovs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                    as_FloatRegister(Matcher::_regEncode[src_lo]));
         } else if (st) {
-          st->print("fmovs  %s, %s\t# spill",
+          st->print("fmovs  %s, %s\t# shuffle",
                     Matcher::regName[dst_lo],
                     Matcher::regName[src_lo]);
         }
@@ -2230,6 +2230,90 @@ encode %{
     __ br ((Assembler::Condition)$cmp$$cmpcode, *L);
   %}
 
+  enc_class aarch64_enc_java_static_call(method meth) %{
+    MacroAssembler _masm(&cbuf);
+    relocInfo::relocType reloc;
+
+    // TODO fixme
+    // also fix  aarch64_enc_java_handle_call if you fix this
+
+    cbuf.set_insts_mark();
+
+    if (!_method) {
+      // TODO check this
+      // think we are calling generated Java here not x86
+      // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
+      reloc = relocInfo::runtime_call_type;
+    } else if (_optimized_virtual) {
+      reloc = relocInfo::opt_virtual_call_type;
+    } else {
+      reloc = relocInfo::static_call_type;
+    }
+    // TODO check this
+    // x86 plants a call with relative offset computed as
+    // (int) ($meth$$method - ((intptr_t) cbuf.insts_end()) - 4)
+    // we will try a branch and link with an Address calculated to
+    // achieve the same effect. n.b. ((...) - 4) is not needed as
+    // AArch64 offsets are relative to the address of the br, not the
+    // following instruction
+
+    int offset = (int)($meth$$method - (intptr_t) cbuf.insts_end());
+    address addr = (address)(__ pc()) + offset;
+    __ bl(Address(addr, reloc));
+
+    // TODO check this
+    // why do we generate this as well as the bl above?
+    if (_method) {
+      // Emit stub for static call
+      emit_java_to_interp(cbuf);
+    }
+  %}
+
+  enc_class aarch64_enc_java_handle_call(method meth) %{
+    MacroAssembler _masm(&cbuf);
+    relocInfo::relocType reloc;
+
+    // TODO fixme
+    // this is supposed to preserve and restore SP around the call by
+    // moving it to rfp_mh_SP_save and back but that will probably not
+    // work for us. otherwise it should be exactly the same as
+    // aarch64_enc_java_static_call so we need to make sure it is!
+
+    cbuf.set_insts_mark();
+
+    if (!_method) {
+      // TODO check this
+      // think we are calling generated Java here not x86
+      // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
+      reloc = relocInfo::runtime_call_type;
+    } else if (_optimized_virtual) {
+      reloc = relocInfo::opt_virtual_call_type;
+    } else {
+      reloc = relocInfo::static_call_type;
+    }
+
+    int offset = (int)($meth$$method - (intptr_t) cbuf.insts_end());
+    address addr = (address)(__ pc()) + offset;
+    __ bl(Address(addr, reloc));
+
+    if (_method) {
+      // Emit stub for static call
+      emit_java_to_interp(cbuf);
+    }
+  %}
+
+  enc_class aarch64_enc_java_dynamic_call(method meth) %{
+    MacroAssembler _masm(&cbuf);
+    __ ic_call((address)$meth$$method);
+  %}
+
+  enc_class aarch64_enc_call_epilog() %{
+    MacroAssembler _masm(&cbuf);
+    if (VerifyStackAtCalls) {
+      // Check that stack depth is unchanged: find majik cookie on stack
+      __ call_Unimplemented();
+    }
+  %}
   enc_class aarch64_enc_java_to_runtime(method meth) %{
     MacroAssembler _masm(&cbuf);
     int gpcnt;
@@ -2922,7 +3006,7 @@ operand indIndexScaledOffset(iRegP reg, iRegL lreg, immIU2 scale, immI off)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
   op_cost(100);
-  format %{ "[$reg]" %}
+  format %{ "$reg, $lreg lsl($scale), #$off" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($lreg);
@@ -2937,7 +3021,7 @@ operand indIndexScaled(iRegP reg, iRegL lreg, immIU2 scale)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg (LShiftL lreg scale));
   op_cost(100);
-  format %{ "[$reg]" %}
+  format %{ "$reg, $lreg lsl($scale)" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($lreg);
@@ -2951,7 +3035,7 @@ operand indIndex(iRegP reg, iRegL lreg)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg lreg);
   op_cost(100);
-  format %{ "[$reg]" %}
+  format %{ "$reg, $lreg" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($lreg);
@@ -2965,7 +3049,7 @@ operand indOffU12(iRegP reg, immIU12 off)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
   op_cost(100);
-  format %{ "[$reg]" %}
+  format %{ "[$reg, #$off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index(0xffffffff);
@@ -2979,7 +3063,7 @@ operand indOffI9(iRegP reg, immI9 off)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
   op_cost(100);
-  format %{ "[$reg]" %}
+  format %{ "[$reg, #$off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index(0xffffffff);
@@ -3878,6 +3962,60 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl) %{
 
 // ============================================================================
 // Procedure Call/Return Instructions
+
+// Call Java Static Instruction
+
+instruct CallStaticJavaDirect(method meth) %{
+  match(CallStaticJava);
+
+  effect(USE meth);
+
+  predicate(!((CallStaticJavaNode*)n)->is_method_handle_invoke());
+
+  ins_cost(CALL_COST);
+
+  format %{ "call,static $meth \t// ==> " %}
+
+  ins_encode( aarch64_enc_java_static_call(meth),
+              aarch64_enc_call_epilog );
+
+  ins_pipe(pipe_class_call);
+%}
+
+// Call Java Static Instruction (method handle version)
+
+instruct CallStaticJavaDirectHandle(method meth) %{
+  match(CallStaticJava);
+
+  effect(USE meth);
+
+  predicate(((CallStaticJavaNode*)n)->is_method_handle_invoke());
+
+  ins_cost(CALL_COST);
+
+  format %{ "call,static $meth \t// (methodhandle) ==> " %}
+
+  ins_encode( aarch64_enc_java_handle_call(meth),
+              aarch64_enc_call_epilog );
+
+  ins_pipe(pipe_class_call);
+%}
+
+// Call Java Dynamic Instruction
+instruct CallDynamicJavaDirect(method meth) %{
+  match(CallDynamicJava);
+
+  effect(USE meth);
+
+  ins_cost(CALL_COST);
+
+  format %{ "CALL,dynamic $meth \t// ==> " %}
+
+  ins_encode( aarch64_enc_java_dynamic_call(meth),
+               aarch64_enc_call_epilog );
+
+  ins_pipe(pipe_class_call);
+%}
 
 // Call Runtime Instruction
 
