@@ -475,6 +475,11 @@ reg_class no_special_reg(
  /* R31, R31_H */		// sp
 );
 
+// Class for 64 bit register r0
+reg_class r0_reg(
+    R0, R0_H
+);
+
 // Class for method register
 reg_class method_reg(
     R12, R12_H
@@ -1041,7 +1046,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
 	         Address(sp, dst_offset));
         } else if (st) {
           st->print("str  %s, [sp, #%d]\t# spill",
-                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo],
 		    dst_offset);
         }
       } else {
@@ -1052,7 +1057,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
 	         Address(sp, dst_offset));
         } else if (st) {
           st->print("strw  %s, [sp, #%d]\t# spill",
-                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo],
 		    dst_offset);
         }
       }
@@ -1121,7 +1126,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
 	         Address(sp, dst_offset));
         } else if (st) {
           st->print("strd  %s, [sp, #%d]\t# spill",
-                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo],
 		    dst_offset);
         }
       } else {
@@ -1132,7 +1137,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
 	         Address(sp, dst_offset));
         } else if (st) {
           st->print("strs  %s, [sp, #%d]\t# spill",
-                    Matcher::regName[dst_lo],
+                    Matcher::regName[src_lo],
 		    dst_offset);
         }
       }
@@ -2246,6 +2251,16 @@ encode %{
     __ blr(target_reg);
   %}
 
+  enc_class aarch64_enc_tail_jmp(iRegP jump_target) %{
+    MacroAssembler _masm(&cbuf);
+    Register target_reg = as_Register($jump_target$$reg);
+    // exception oop should be in r0
+    // TODO check this
+    // assume that ret addr has been popped into lr
+    __ ldr(r1, lr);
+    __ blr(target_reg);
+  %}
+
 
 %}
 
@@ -2756,6 +2771,7 @@ operand iRegP() %{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegP);
   match(iRegPNoSp);
+  match(iRegP_R0);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2764,6 +2780,18 @@ operand iRegP() %{
 operand iRegPNoSp() %{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegP);
+  match(iRegP);
+  match(iRegP_R0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register R0 only
+operand iRegP_R0() %{
+  constraint(ALLOC_IN_RC(r0_reg));
+  match(RegP);
+  match(iRegP);
+  match(iRegPNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2857,7 +2885,7 @@ operand interpreter_method_oop_RegP(iRegP reg) %{
 
 // Thread Register
 operand thread_RegP(iRegP reg) %{
-  constraint(ALLOC_IN_RC(lr_reg)); // link_reg
+  constraint(ALLOC_IN_RC(thread_reg)); // link_reg
   match(reg);
   format %{ %}
   interface(REG_INTER);
@@ -3880,6 +3908,19 @@ instruct TailCalljmpInd(iRegPNoSp jump_target, inline_cache_RegP method_oop)
   format %{ "br $jump_target\t# $method_oop holds method oop" %}
 
   ins_encode(aarch64_enc_tail_call(jump_target));
+
+  ins_pipe(pipe_class_call);
+%}
+
+instruct TailjmpInd(iRegPNoSp jump_target, iRegP_R0 ex_oop)
+%{
+  match(TailJump jump_target ex_oop);
+
+  ins_cost(CALL_COST);
+
+  format %{ "br $jump_target\t# $ex_oop holds exception oop" %}
+
+  ins_encode(aarch64_enc_tail_jmp(jump_target));
 
   ins_pipe(pipe_class_call);
 %}
