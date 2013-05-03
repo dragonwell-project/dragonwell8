@@ -780,17 +780,15 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (C->need_stack_bang(framesize)) {
     st->print("# stack bang size=%d\n\t", framesize);
-    st->print("# Unimplemented!!!\n\t");
   }
 
   if (framesize > 0) {
     st->print("# create frame %d\n\t", framesize);
   }
 
-  st->print("# enter()\n\t");
   st->print("stp  lr, rfp, [sp, #%d]!\n\t", -(2 * wordSize)); 
 
-  // allow for enter pushing ret address and rfp
+  // allow for pushing ret address and rfp
 
   framesize -= (2 * wordSize);
 
@@ -801,6 +799,10 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
        st->print("mov  rscratch1, #%d\n\t", framesize); 
        st->print("sub  sp, sp, rscratch1"); 
     }
+  }
+
+  if (NotifySimulator) {
+    st->print("\n\t# notify(Assembler::method_entry)");
   }
 
   if (VerifyStackAtCalls) {
@@ -819,10 +821,11 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
 
   // push lr and rfp to create a frame
-  __ enter();
+  __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
 
   if (C->need_stack_bang(framesize) && UseStackBanging) {
-    __ call_Unimplemented();
+    __ mov(rscratch2, framesize);
+    __ bang_stack_size(rscratch2, r19);
   }
 
   // allow for already pushed values
@@ -835,6 +838,10 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
       __ mov(rscratch1, framesize);
       __ sub(sp, sp, rscratch1);
     }
+  }
+
+  if (NotifySimulator) {
+    __ notify(Assembler::method_entry);
   }
 
   if (VerifyStackAtCalls) {
@@ -872,9 +879,12 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
     }
   }
 
-  st->print("# leave()\n\t");
+  st->print("# remove frame\n\t");
   st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize)); 
 
+  if (NotifySimulator) {
+    st->print("notify method_reentry\n\t");
+  }
   if (do_polling() && C->is_method_compilation()) {
     st->print("# touch polling page\n\t");
     st->print("mov  rscratch1, #0x%x\n\t", os::get_polling_page());
@@ -896,6 +906,12 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
       __ mov(rscratch1, framesize);
       __ add(sp, sp, rscratch1);
     }
+  }
+
+  __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
+
+  if (NotifySimulator) {
+    __ notify(Assembler::method_reentry);
   }
 
   if (do_polling() && C->is_method_compilation()) {
@@ -1278,18 +1294,38 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
 #ifndef PRODUCT
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
-  Unimplemented();
+  st->print_cr("# MachUEPNode");
+  if (UseCompressedKlassPointers) {
+    st->print_cr("\tldrw rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+    if (Universe::narrow_klass_shift() != 0) {
+      st->print_cr("\tdecode_klass_not_null rscratch1, rscratch1");
+    }
+  } else {
+   st->print_cr("ldr rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+  }
+  st->print_cr("\tcmp rax, rscratch1\t # Inline cache check");
+  st->print_cr("\tbne, SharedRuntime::_ic_miss_stub");
 }
 #endif
 
 void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
-  Unimplemented();
+  // This is the unverified entry point.
+  MacroAssembler _masm(&cbuf);
+
+  // no need to worry about 4-byte of br alignment on AArch64
+  __ load_klass(rscratch1, j_rarg0);
+  Label skip;
+  __ cmp(r0, rscratch1);
+  // TODO
+  // can we avoid this skip and still use a reloc?
+  __ br(Assembler::NE, skip);
+  __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ bind(skip);
 }
 
 uint MachUEPNode::size(PhaseRegAlloc* ra_) const
 {
-  Unimplemented();
   return MachNode::size(ra_);
 }
 
@@ -1300,12 +1336,12 @@ uint MachUEPNode::size(PhaseRegAlloc* ra_) const
 // size of call stub, compiled java to interpretor
 uint size_java_to_interp()
 {
-  // count a mov mem --> reg and a branch to label
-  return 2 * NativeInstruction::instruction_size;
+  // count a mov mem --> to 4 movz/k and a branch
+  return 6 * NativeInstruction::instruction_size;
 }
 
 // emit call stub, compiled java to interpreter
-void emit_java_to_interp(CodeBuffer& cbuf)
+void emit_java_to_interp(CodeBuffer& cbuf, address mark)
 {
   // Stub is fixed up when the corresponding call is converted from
   // calling compiled code to calling interpreted code.
@@ -1313,7 +1349,7 @@ void emit_java_to_interp(CodeBuffer& cbuf)
   // here:
   // b(here) # jump to self
 
-  address mark = cbuf.insts_mark();  // get mark within main instrs section
+  // mark is set by caller when planting the br to be relocated
 
   // Note that the code buffer's insts_mark is always relative to insts.
   // That's why we must use the macroassembler to generate a stub.
@@ -1359,8 +1395,7 @@ int emit_exception_handler(CodeBuffer& cbuf)
   __ start_a_stub(size_exception_handler());
   if (base == NULL)  return 0;  // CodeBuffer::expand failed
   int offset = __ offset();
-  __ lea(rscratch1, RuntimeAddress(OptoRuntime::exception_blob()->entry_point()));
-  __ br(rscratch1);
+  __ b(RuntimeAddress(OptoRuntime::exception_blob()->entry_point()));
   assert(__ offset() - offset <= (int) size_exception_handler(), "overflow");
   __ end_a_stub();
   return offset;
@@ -2232,40 +2267,23 @@ encode %{
 
   enc_class aarch64_enc_java_static_call(method meth) %{
     MacroAssembler _masm(&cbuf);
-    relocInfo::relocType reloc;
 
-    // TODO fixme
-    // also fix  aarch64_enc_java_handle_call if you fix this
-
-    cbuf.set_insts_mark();
-
+    address mark = __ pc();
+    address addr = (address)$meth$$method;
     if (!_method) {
       // TODO check this
       // think we are calling generated Java here not x86
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
-      reloc = relocInfo::runtime_call_type;
+      __ bl(Address(addr, relocInfo::runtime_call_type));
     } else if (_optimized_virtual) {
-      reloc = relocInfo::opt_virtual_call_type;
+      __ bl(Address(addr, relocInfo::opt_virtual_call_type));
     } else {
-      reloc = relocInfo::static_call_type;
+      __ bl(Address(addr, relocInfo::static_call_type));
     }
-    // TODO check this
-    // x86 plants a call with relative offset computed as
-    // (int) ($meth$$method - ((intptr_t) cbuf.insts_end()) - 4)
-    // we will try a branch and link with an Address calculated to
-    // achieve the same effect. n.b. ((...) - 4) is not needed as
-    // AArch64 offsets are relative to the address of the br, not the
-    // following instruction
 
-    int offset = (int)($meth$$method - (intptr_t) cbuf.insts_end());
-    address addr = (address)(__ pc()) + offset;
-    __ bl(Address(addr, reloc));
-
-    // TODO check this
-    // why do we generate this as well as the bl above?
     if (_method) {
       // Emit stub for static call
-      emit_java_to_interp(cbuf);
+      emit_java_to_interp(cbuf, mark);
     }
   %}
 
@@ -2274,32 +2292,30 @@ encode %{
     relocInfo::relocType reloc;
 
     // TODO fixme
-    // this is supposed to preserve and restore SP around the call by
-    // moving it to rfp_mh_SP_save and back but that will probably not
-    // work for us. otherwise it should be exactly the same as
-    // aarch64_enc_java_static_call so we need to make sure it is!
+    // this is supposed to preserve and restore SP around the call
+    // need to check it works
+    __ mov(rfp, sp);
 
-    cbuf.set_insts_mark();
-
+    address mark = __ pc();
+    address addr = (address)$meth$$method;
     if (!_method) {
       // TODO check this
       // think we are calling generated Java here not x86
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
-      reloc = relocInfo::runtime_call_type;
+      __ bl(Address(addr, relocInfo::runtime_call_type));
     } else if (_optimized_virtual) {
-      reloc = relocInfo::opt_virtual_call_type;
+      __ bl(Address(addr, relocInfo::opt_virtual_call_type));
     } else {
-      reloc = relocInfo::static_call_type;
+      __ bl(Address(addr, relocInfo::static_call_type));
     }
-
-    int offset = (int)($meth$$method - (intptr_t) cbuf.insts_end());
-    address addr = (address)(__ pc()) + offset;
-    __ bl(Address(addr, reloc));
 
     if (_method) {
       // Emit stub for static call
-      emit_java_to_interp(cbuf);
+      emit_java_to_interp(cbuf, mark);
     }
+
+    // now restore sp
+    __ mov(sp, rfp);
   %}
 
   enc_class aarch64_enc_java_dynamic_call(method meth) %{
@@ -2322,6 +2338,11 @@ encode %{
     getCallInfo(tf(), gpcnt, fpcnt, rtype);
     __ mov(rscratch1, RuntimeAddress((address)$meth$$method));
     __ brx86(rscratch1, gpcnt, fpcnt, rtype);
+  %}
+
+  enc_class aarch64_enc_rethrow() %{
+    MacroAssembler _masm(&cbuf);
+    __ b(RuntimeAddress(OptoRuntime::rethrow_stub()));
   %}
 
   enc_class aarch64_enc_ret() %{
@@ -2716,7 +2737,8 @@ operand immLULog()
 %}
 
 // Long Immediate: low 32-bit mask
-operand immL_32bits() %{
+operand immL_32bits()
+%{
   predicate(n->get_long() == 0xFFFFFFFFL);
   match(ConL);
   op_cost(0);
@@ -2750,7 +2772,8 @@ operand immP0()
 // Marow Pointer Immediate
 // Float and Double operands
 // Double Immediate
-operand immD() %{
+operand immD()
+%{
   match(ConD);
   op_cost(40);
   format %{ %}
@@ -2758,7 +2781,8 @@ operand immD() %{
 %}
 
 // constant 'double +0.0'.
-operand immD0() %{
+operand immD0()
+%{
   predicate((n->getd() == 0) &&
             (fpclassify(n->getd()) == FP_ZERO) && (signbit(n->getd()) == 0));
   match(ConD);
@@ -2768,7 +2792,8 @@ operand immD0() %{
 %}
 
 // Float Immediate
-operand immF() %{
+operand immF()
+%{
   match(ConF);
   op_cost(40);
   format %{ %}
@@ -2776,7 +2801,8 @@ operand immF() %{
 %}
 
 // constant 'float +0.0'.
-operand immF0() %{
+operand immF0()
+%{
   predicate((n->getf() == 0) &&
             (fpclassify(n->getf()) == FP_ZERO) && (signbit(n->getf()) == 0));
   match(ConF);
@@ -2787,7 +2813,8 @@ operand immF0() %{
 
 // Narrow pointer operands
 // Narrow Pointer Immediate
-operand immN() %{
+operand immN()
+%{
   match(ConN);
 
   op_cost(10);
@@ -2796,7 +2823,8 @@ operand immN() %{
 %}
 
 // Narrow NULL Pointer Immediate
-operand immN0() %{
+operand immN0()
+%{
   predicate(n->get_narrowcon() == 0);
   match(ConN);
 
@@ -2805,7 +2833,8 @@ operand immN0() %{
   interface(CONST_INTER);
 %}
 
-operand immNKlass() %{
+operand immNKlass()
+%{
   match(ConNKlass);
 
   op_cost(10);
@@ -2815,7 +2844,8 @@ operand immNKlass() %{
 
 // Integer 32 bit Register Operands
 // Integer 32 bitRegister (excludes SP)
-operand iRegI() %{
+operand iRegI()
+%{
   constraint(ALLOC_IN_RC(any_reg32));
   match(RegI);
   match(iRegINoSp);
@@ -2824,7 +2854,8 @@ operand iRegI() %{
 %}
 
 // Integer 32 bit Register not Special
-operand iRegINoSp() %{
+operand iRegINoSp()
+%{
   constraint(ALLOC_IN_RC(no_special_reg32));
   match(RegI);
   format %{ %}
@@ -2833,7 +2864,8 @@ operand iRegINoSp() %{
 
 // Integer 64 bit Register Operands
 // Integer 64 bit Register (includes SP)
-operand iRegL() %{
+operand iRegL()
+%{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegL);
   match(iRegLNoSp);
@@ -2842,7 +2874,8 @@ operand iRegL() %{
 %}
 
 // Integer 64 bit Register not Special
-operand iRegLNoSp() %{
+operand iRegLNoSp()
+%{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegL);
   format %{ %}
@@ -2851,17 +2884,20 @@ operand iRegLNoSp() %{
 
 // Pointer Register Operands
 // Pointer Register
-operand iRegP() %{
+operand iRegP()
+%{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegP);
   match(iRegPNoSp);
   match(iRegP_R0);
+  match(iRegP_FP);
   format %{ %}
   interface(REG_INTER);
 %}
 
 // Pointer 64 bit Register not Special
-operand iRegPNoSp() %{
+operand iRegPNoSp()
+%{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegP);
   match(iRegP);
@@ -2871,8 +2907,20 @@ operand iRegPNoSp() %{
 %}
 
 // Pointer 64 bit Register R0 only
-operand iRegP_R0() %{
+operand iRegP_R0()
+%{
   constraint(ALLOC_IN_RC(r0_reg));
+  match(RegP);
+  match(iRegP);
+  match(iRegPNoSp);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register FP only
+operand iRegP_FP()
+%{
+  constraint(ALLOC_IN_RC(fp_reg));
   match(RegP);
   match(iRegP);
   match(iRegPNoSp);
@@ -2882,7 +2930,8 @@ operand iRegP_R0() %{
 
 // Pointer Register Operands
 // Narrow Pointer Register
-operand iRegN() %{
+operand iRegN()
+%{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegN);
   match(iRegNNoSp);
@@ -2891,7 +2940,8 @@ operand iRegN() %{
 %}
 
 // Integer 64 bit Register not Special
-operand iRegNNoSp() %{
+operand iRegNNoSp()
+%{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegN);
   format %{ %}
@@ -2953,14 +3003,16 @@ operand rFlagsReg()
 // Special Registers
 
 // Method Register
-operand inline_cache_RegP(iRegP reg) %{
+operand inline_cache_RegP(iRegP reg)
+%{
   constraint(ALLOC_IN_RC(method_reg)); // inline_cache_reg
   match(reg);
   format %{ %}
   interface(REG_INTER);
 %}
 
-operand interpreter_method_oop_RegP(iRegP reg) %{
+operand interpreter_method_oop_RegP(iRegP reg)
+%{
   constraint(ALLOC_IN_RC(method_reg)); // interpreter_method_oop_reg
   match(reg);
   format %{ %}
@@ -2968,14 +3020,16 @@ operand interpreter_method_oop_RegP(iRegP reg) %{
 %}
 
 // Thread Register
-operand thread_RegP(iRegP reg) %{
+operand thread_RegP(iRegP reg)
+%{
   constraint(ALLOC_IN_RC(thread_reg)); // link_reg
   match(reg);
   format %{ %}
   interface(REG_INTER);
 %}
 
-operand lr_RegP(iRegP reg) %{
+operand lr_RegP(iRegP reg)
+%{
   constraint(ALLOC_IN_RC(lr_reg)); // link_reg
   match(reg);
   format %{ %}
@@ -3241,31 +3295,36 @@ pipe_class pipe_class_empty()
 %}
 
 // Default pipeline class.
-pipe_class pipe_class_default() %{
+pipe_class pipe_class_default()
+%{
   single_instruction;
   fixed_latency(2);
 %}
 
 // Pipeline class for compares.
-pipe_class pipe_class_compare() %{
+pipe_class pipe_class_compare()
+%{
   single_instruction;
   fixed_latency(16);
 %}
 
 // Pipeline class for traps.
-pipe_class pipe_class_trap() %{
+pipe_class pipe_class_trap()
+%{
   single_instruction;
   fixed_latency(100);
 %}
 
 // Pipeline class for memory operations.
-pipe_class pipe_class_memory() %{
+pipe_class pipe_class_memory()
+%{
   single_instruction;
   fixed_latency(16);
 %}
 
 // Pipeline class for call.
-pipe_class pipe_class_call() %{
+pipe_class pipe_class_call()
+%{
   single_instruction;
   fixed_latency(100);
 %}
@@ -3577,7 +3636,8 @@ instruct loadConL(iRegLNoSp dst, immL src)
 
 // Load Pointer Constant
 
-instruct loadConP(iRegPNoSp dst, immP con) %{
+instruct loadConP(iRegPNoSp dst, immP con)
+%{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3590,7 +3650,8 @@ instruct loadConP(iRegPNoSp dst, immP con) %{
 
 // Load Null Pointer Constant
 
-instruct loadConP0(iRegPNoSp dst, immP0 con) %{
+instruct loadConP0(iRegPNoSp dst, immP0 con)
+%{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST_LOW);
@@ -3603,7 +3664,8 @@ instruct loadConP0(iRegPNoSp dst, immP0 con) %{
 
 // Load Narrow Pointer Constant
 
-instruct loadConN(iRegNNoSp dst, immN con) %{
+instruct loadConN(iRegNNoSp dst, immN con)
+%{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3616,7 +3678,8 @@ instruct loadConN(iRegNNoSp dst, immN con) %{
 
 // Load Narrow Null Pointer Constant
 
-instruct loadConN0(iRegNNoSp dst, immN0 con) %{
+instruct loadConN0(iRegNNoSp dst, immN0 con)
+%{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST_LOW);
@@ -3629,7 +3692,8 @@ instruct loadConN0(iRegNNoSp dst, immN0 con) %{
 
 // Load Narrow Klass Constant
 
-instruct loadConNKlass(iRegNNoSp dst, immNKlass con) %{
+instruct loadConNKlass(iRegNNoSp dst, immNKlass con)
+%{
   match(Set dst con);
 
   ins_cost(DEFAULT_COST);
@@ -3682,7 +3746,8 @@ instruct storeI(iRegINoSp src, memory mem)
 %}
 
 // ConvL2I + StoreI.
-instruct storeI_convL2I(iRegLNoSp src, memory mem) %{
+instruct storeI_convL2I(iRegLNoSp src, memory mem)
+%{
   match(Set mem (StoreI mem (ConvL2I src)));
 
   ins_cost(MEMORY_REF_COST);
@@ -3905,7 +3970,8 @@ instruct compN_iRegN(rFlagsReg cr, iRegNNoSp op1, iRegNNoSp op2)
 // Branch Instructions
 
 // Direct Branch.
-instruct branch(label lbl) %{
+instruct branch(label lbl)
+%{
   match(Goto);
 
   effect(USE lbl);
@@ -3919,7 +3985,8 @@ instruct branch(label lbl) %{
 %}
 
 // Conditional Near Branch
-instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl) %{
+instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl)
+%{
   // Same match rule as `branchConFar'.
   match(If cmp cr);
 
@@ -3942,7 +4009,8 @@ instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl) %{
 // TODO: fixme
 
 // counted loop end branch near
-instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl) %{
+instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl)
+%{
   match(CountedLoopEnd cmp cr);
 
   effect(USE lbl);
@@ -3965,7 +4033,8 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl) %{
 
 // Call Java Static Instruction
 
-instruct CallStaticJavaDirect(method meth) %{
+instruct CallStaticJavaDirect(method meth)
+%{
   match(CallStaticJava);
 
   effect(USE meth);
@@ -3984,7 +4053,8 @@ instruct CallStaticJavaDirect(method meth) %{
 
 // Call Java Static Instruction (method handle version)
 
-instruct CallStaticJavaDirectHandle(method meth) %{
+instruct CallStaticJavaDirectHandle(method meth, iRegP_FP reg_mh_save)
+%{
   match(CallStaticJava);
 
   effect(USE meth);
@@ -4002,7 +4072,8 @@ instruct CallStaticJavaDirectHandle(method meth) %{
 %}
 
 // Call Java Dynamic Instruction
-instruct CallDynamicJavaDirect(method meth) %{
+instruct CallDynamicJavaDirect(method meth)
+%{
   match(CallDynamicJava);
 
   effect(USE meth);
@@ -4019,7 +4090,8 @@ instruct CallDynamicJavaDirect(method meth) %{
 
 // Call Runtime Instruction
 
-instruct CallRuntimeDirect(method meth) %{
+instruct CallRuntimeDirect(method meth)
+%{
   match(CallRuntime);
 
   effect(USE meth);
@@ -4063,14 +4135,50 @@ instruct TailjmpInd(iRegPNoSp jump_target, iRegP_R0 ex_oop)
   ins_pipe(pipe_class_call);
 %}
 
+// Create exception oop: created by stack-crawling runtime code.
+// Created exception is now available to this handler, and is setup
+// just prior to jumping to this handler. No code emitted.
+// TODO check
+// should ex_oop be in r0? intel uses rax, ppc cannot use r0 so uses rarg1
+instruct CreateException(iRegP_R0 ex_oop)
+%{
+  match(Set ex_oop (CreateEx));
+
+  ins_cost(0);
+
+  format %{ " -- \t// exception oop; no code emitted" %}
+
+  size(0);
+
+  ins_encode( /*empty*/ );
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Rethrow exception: The exception oop will come in the first
+// argument position. Then JUMP (not call) to the rethrow stub code.
+instruct RethrowException() %{
+  match(Rethrow);
+  ins_cost(CALL_COST);
+
+  format %{ "b rethrow_stub" %}
+
+  ins_encode( aarch64_enc_rethrow() );
+
+  ins_pipe(pipe_class_call);
+%}
+
+
 // Return Instruction
 // epilog node loads ret address into lr as part of frame pop
-instruct Ret() %{
+instruct Ret()
+%{
   match(Return);
 
   format %{ "ret\t// return register" %}
 
   ins_encode( aarch64_enc_ret() );
+
   ins_pipe(pipe_class_default);
 %}
 
@@ -4080,7 +4188,8 @@ instruct Ret() %{
 // for this guy.
 // Get a DEF on thread_RegP, no costs, no encoding, use
 // 'ins_should_rematerialize(true)' to avoid spilling.
-instruct tlsLoadP(thread_RegP dst) %{
+instruct tlsLoadP(thread_RegP dst)
+%{
   match(Set dst (ThreadLocal));
 
   ins_cost(0);
