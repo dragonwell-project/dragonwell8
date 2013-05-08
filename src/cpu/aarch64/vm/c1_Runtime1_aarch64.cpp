@@ -943,6 +943,49 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case slow_subtype_check_id:
+      {
+        // Typical calling sequence:
+        // __ push(klass_RInfo);  // object klass or other subclass
+        // __ push(sup_k_RInfo);  // array element klass or other superclass
+        // __ bl(slow_subtype_check);
+        // Note that the subclass is pushed first, and is therefore deepest.
+        enum layout {
+	  r0_off, r0_off_hi,
+          r2_off, r2_off_hi,
+          r4_off, r4_off_hi,
+          r5_off, r5_off_hi,
+          sup_k_off, sup_k_off_hi,
+          klass_off, klass_off_hi,
+          framesize,
+          result_off = sup_k_off
+        };
+
+        __ set_info("slow_subtype_check", dont_gc_arguments);
+	__ push((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+
+        // This is called by pushing args and not with C abi
+        // __ ldr(r4, Address(sp, (klass_off) * VMRegImpl::stack_slot_size)); // subclass
+        // __ ldr(r0, Address(sp, (sup_k_off) * VMRegImpl::stack_slot_size)); // superclass
+
+	__ ldp(r4, r0, Address(sp, (sup_k_off) * VMRegImpl::stack_slot_size));
+
+        Label miss;
+        __ check_klass_subtype_slow_path(r4, r0, r2, r5, NULL, &miss);
+
+        // fallthrough on success:
+	__ mov(rscratch1, 1);
+        __ str(rscratch1, Address(sp, (result_off) * VMRegImpl::stack_slot_size)); // result
+	__ pop((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+        __ ret(lr);
+
+        __ bind(miss);
+        __ str(zr, Address(sp, (result_off) * VMRegImpl::stack_slot_size)); // result
+	__ pop((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+        __ ret(lr);
+      }
+      break;
+
     case monitorenter_nofpu_id:
       save_fpu_registers = false;
       // fall through

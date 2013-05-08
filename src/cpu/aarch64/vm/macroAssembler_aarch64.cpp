@@ -791,6 +791,8 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   Address secondary_supers_addr(sub_klass, ss_offset);
   Address super_cache_addr(     sub_klass, sc_offset);
 
+  BLOCK_COMMENT("check_klass_subtype_slow_path");
+
   // Do a linear scan of the secondary super-klass chain.
   // This code is rarely used, so simplicity is a virtue here.
   // The repne_scan instruction uses fixed registers, which we must spill.

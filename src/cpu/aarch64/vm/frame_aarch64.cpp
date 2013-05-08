@@ -124,7 +124,6 @@ bool frame::safe_for_sender(JavaThread *thread) {
       // fp does not have to be safe (although it could be check for c1?)
 
       sender_sp = _unextended_sp + _cb->frame_size();
-      // On Intel the return_address is always the word on the stack
       sender_pc = (address) *(sender_sp-1);
     }
 
@@ -467,10 +466,14 @@ frame frame::zsender(RegisterMap* map) const {
   // update it accordingly
    map->set_include_argument_oops(false);
 
-  if (is_entry_frame())       return sender_for_entry_frame(map);
-  if (is_interpreted_frame()) return sender_for_interpreter_frame(map);
+  if (is_entry_frame())
+    return sender_for_entry_frame(map);
+  if (is_interpreted_frame())
+    return sender_for_interpreter_frame(map);
   assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
 
+  // This test looks odd: why is it not is_compiled_frame() ?  That's
+  // because stubs also have OOP maps.
   if (_cb != NULL) {
     return sender_for_compiled_frame(map);
   }
@@ -694,6 +697,9 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
   unsigned long *p = (unsigned long *)fp;
 
+  nextfp = p[frame::link_offset];
+  nextpc = p[frame::return_addr_offset];
+
   if (Interpreter::contains((address)pc)) {
     Method* m = (Method*)p[frame::interpreter_frame_method_offset];
     if(m && m->is_method()) {
@@ -709,9 +715,6 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
       printf("nmethod %s\n", nm->method()->name_and_sig_as_C_string());
     }
   }
-
-  nextfp = p[frame::link_offset];
-  nextpc = p[frame::return_addr_offset];
 }
 
 extern "C" void npf() {

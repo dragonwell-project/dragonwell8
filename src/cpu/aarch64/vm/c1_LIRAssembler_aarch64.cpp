@@ -560,7 +560,34 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
   }
 }
 
-void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) { Unimplemented(); }
+void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
+  LIR_Const* c = src->as_constant_ptr();
+  switch (c->type()) {
+  case T_OBJECT:
+    {
+      if (! c->as_jobject())
+	__ str(zr, frame_map()->address_for_slot(dest->single_stack_ix()));
+      else {
+	const2reg(src, FrameMap::r8_opr, lir_patch_none, NULL);
+	reg2stack(FrameMap::r8_opr, dest, c->type(), false);
+      }
+    }
+    break;
+  case T_INT:
+    {
+      Register reg = zr;
+      if (c->as_jint() == 0)
+	__ strw(zr, frame_map()->address_for_slot(dest->single_stack_ix()));
+      else {
+	__ movw(rscratch1, c->as_jint());
+	__ strw(rscratch1, frame_map()->address_for_slot(dest->single_stack_ix()));
+      }
+    }
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info, bool wide) {
   assert(src->is_constant(), "should not call otherwise");
@@ -572,6 +599,10 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
   switch (type) {
   case T_ADDRESS:
     assert(c->as_jint() == 0, "should be");
+    insn = &Assembler::str;
+    break;
+  case T_LONG:
+    assert(c->as_jlong() == 0, "should be");
     insn = &Assembler::str;
     break;
   case T_INT:
@@ -649,7 +680,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
 }
 
 void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool pop_fpu_stack) {
-    if (src->is_single_cpu()) {
+  if (src->is_single_cpu()) {
     if (type == T_ARRAY || type == T_OBJECT) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
       __ verify_oop(src->as_register());
@@ -800,7 +831,10 @@ void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
   patching_epilog(patch, lir_patch_normal, reg, info);
 }
 
-void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) { Unimplemented(); }
+void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
+  stack2reg(src, FrameMap::r8_opr, src->type());
+  reg2stack(FrameMap::r8_opr, dest, dest->type(), false);
+}
 
 
 void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool wide, bool /* unaligned */) {
@@ -824,7 +858,8 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     }
 
     case T_DOUBLE: {
-      __ ldrd(dest->as_float_reg(), as_Address(from_addr));
+      __ ldrd(dest->as_double_reg(), as_Address(from_addr));
+      break;
     }
 
     case T_ARRAY:   // fall through
@@ -1192,8 +1227,8 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   if (op->fast_check()) {
     // get object class
     // not a safepoint as obj null check happens earlier
-    __ load_klass(Rtmp1, obj);
-    __ cmp(k_RInfo, Rtmp1);
+    __ load_klass(rscratch1, obj);
+    __ cmp( rscratch1, k_RInfo);
 
     __ br(Assembler::NE, *failure_target);
     // successful cast, fall through to profile or jump
@@ -1298,7 +1333,7 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ b(done);
       __ bind(not_null);
     } else {
-      __ cbnz(value, done);
+      __ cbz(value, done);
     }
 
     add_debug_info_for_null_check_here(op->info_for_exception());
@@ -2230,7 +2265,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   bool aligned = (flags & LIR_OpArrayCopy::unaligned) == 0;
   const char *name;
   address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false);
-  __ call_VM_leaf(entry, 0);
+  __ call_VM_leaf(entry, 3);
 
   __ bind(*stub->continuation());
 }

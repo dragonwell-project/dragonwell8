@@ -119,7 +119,7 @@ NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKl
 void NewInstanceStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
-  __ add(r3, _klass_reg->as_register(), zr);   // FIXME: This is just mov(r3, _klass_reg->as_register())
+  __ mov(r3, _klass_reg->as_register());
   __ bl(RuntimeAddress(Runtime1::entry_for(_stub_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);

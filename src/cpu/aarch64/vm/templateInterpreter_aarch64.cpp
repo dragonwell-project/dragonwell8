@@ -1740,6 +1740,9 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                         rthread, lr);
   __ mov(r1, r0);                               // save exception handler
   __ ldp(r0, lr, Address(__ post(sp, 2 * wordSize)));  // restore exception & return address
+  // We might be returning to a deopt handler that expects r3 to
+  // contain the exception pc
+  __ mov(r3, lr);
   // Note that an "issuing PC" is actually the next PC after the call
   __ br(r1);                                    // jump to exception
                                                 // handler of caller
