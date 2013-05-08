@@ -875,7 +875,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
        st->print("add  sp, sp, #%d", framesize); 
     } else {
        st->print("mov  rscratch1, #%d\n\t", framesize); 
-       st->print("add  sp, sp, rscratch1"); 
+       st->print("add  sp, sp, rscratch1\n\t"); 
     }
   }
 
@@ -1170,7 +1170,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ ldr(as_Register(Matcher::_regEncode[dst_lo]),
                  Address(sp, src_offset));
         } else if (st) {
-          st->print("ldr  %s, [sp, %d]\t# spill",
+          st->print("ldr  %s, [sp, %d]\t# restore",
                     Matcher::regName[dst_lo],
 		    src_offset);
         }
@@ -1181,7 +1181,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ ldrw(as_Register(Matcher::_regEncode[dst_lo]),
                   Address(sp, src_offset));
         } else if (st) {
-          st->print("ldr  %s, [sp, %d]\t# spill",
+          st->print("ldr  %s, [sp, %d]\t# restore",
                     Matcher::regName[dst_lo],
                    src_offset);
         }
@@ -1196,7 +1196,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ ldrd(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                  Address(sp, src_offset));
         } else if (st) {
-          st->print("ldrd  %s, [sp, %d]\t# spill",
+          st->print("ldrd  %s, [sp, %d]\t# restore",
                     Matcher::regName[dst_lo],
 		    src_offset);
         }
@@ -1207,7 +1207,7 @@ uint MachSpillCopyNode::implementation(CodeBuffer *cbuf, PhaseRegAlloc *ra_, boo
           __ ldrs(as_FloatRegister(Matcher::_regEncode[dst_lo]),
                   Address(sp, src_offset));
         } else if (st) {
-          st->print("ldrs  %s, [sp, %d]\t# spill",
+          st->print("ldrs  %s, [sp, %d]\t# restore",
                     Matcher::regName[dst_lo],
                    src_offset);
         }
@@ -1301,9 +1301,9 @@ void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
       st->print_cr("\tdecode_klass_not_null rscratch1, rscratch1");
     }
   } else {
-   st->print_cr("ldr rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+   st->print_cr("\tldr rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
   }
-  st->print_cr("\tcmp rax, rscratch1\t # Inline cache check");
+  st->print_cr("\tcmp r0, rscratch1\t # Inline cache check");
   st->print_cr("\tbne, SharedRuntime::_ic_miss_stub");
 }
 #endif
@@ -2185,6 +2185,36 @@ encode %{
     }
   %}
 
+  // arithmetic encodings
+
+  enc_class aarch64_enc_addsubw_imm(iRegI dst, iRegI src1, immIAddSub src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register dst_reg = as_Register($dst$$reg);
+    Register src_reg = as_Register($src1$$reg);
+    int32_t con = (int32_t)$src2$$constant;
+    // add has primary == 0, subtract has primary == 1
+    if ($primary) { con = -con; }
+    if (con < 0) {
+      __ subw(dst_reg, src_reg, -con);
+    } else {
+      __ addw(dst_reg, src_reg, con);
+    }
+  %}
+
+  enc_class aarch64_enc_addsub_imm(iRegL dst, iRegL src1, immLAddSub src2) %{
+    MacroAssembler _masm(&cbuf);
+    Register dst_reg = as_Register($dst$$reg);
+    Register src_reg = as_Register($src1$$reg);
+    int32_t con = (int32_t)$src2$$constant;
+    // add has primary == 0, subtract has primary == 1
+    if ($primary) { con = -con; }
+    if (con < 0) {
+      __ sub(dst_reg, src_reg, -con);
+    } else {
+      __ add(dst_reg, src_reg, con);
+    }
+  %}
+
   // compare instruction encodings
 
   enc_class aarch64_enc_cmpw(iRegI src1, iRegI src2) %{
@@ -2194,7 +2224,7 @@ encode %{
     __ cmpw(reg1, reg2);
   %}
 
-  enc_class aarch64_enc_cmpw_imm_addsub(iRegI src1, immI12 src2) %{
+  enc_class aarch64_enc_cmpw_imm_addsub(iRegI src1, immIAddSub src2) %{
     MacroAssembler _masm(&cbuf);
     Register reg = as_Register($src1$$reg);
     int32_t val = $src2$$constant;
@@ -2601,8 +2631,8 @@ operand immI_M1()
   interface(CONST_INTER);
 %}
 
-// Scale values for scaled offset addressing modes
-operand immIU2()
+// Scale values for scaled offset addressing modes (up to long but not quad)
+operand immIScale()
 %{
   predicate(0 <= n->get_int() && (n->get_int() <= 3));
   match(ConI);
@@ -2889,8 +2919,8 @@ operand iRegP()
   constraint(ALLOC_IN_RC(any_reg));
   match(RegP);
   match(iRegPNoSp);
-  match(iRegP_R0);
-  match(iRegP_FP);
+  // match(thread_RegP);
+  // match(iRegP_FP);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2900,8 +2930,8 @@ operand iRegPNoSp()
 %{
   constraint(ALLOC_IN_RC(no_special_reg));
   match(RegP);
-  match(iRegP);
-  match(iRegP_R0);
+  // match(iRegP);
+  // match(iRegP_R0);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2922,8 +2952,7 @@ operand iRegP_FP()
 %{
   constraint(ALLOC_IN_RC(fp_reg));
   match(RegP);
-  match(iRegP);
-  match(iRegPNoSp);
+  // match(iRegP);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -2934,7 +2963,7 @@ operand iRegN()
 %{
   constraint(ALLOC_IN_RC(any_reg));
   match(RegN);
-  match(iRegNNoSp);
+  // match(iRegNNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -3041,7 +3070,7 @@ operand indirect(iRegP reg)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(reg);
-  op_cost(100);
+  op_cost(0);
   format %{ "[$reg]" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -3055,11 +3084,11 @@ operand indirect(iRegP reg)
 // reg we probably want to match (LShiftI ireg scale) need to see if
 // the ideal code will ever generate an LShiftI
 
-operand indIndexScaledOffset(iRegP reg, iRegL lreg, immIU2 scale, immI off)
+operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIAddSub off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
-  op_cost(100);
+  op_cost(DEFAULT_COST_LOW);
   format %{ "$reg, $lreg lsl($scale), #$off" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -3069,12 +3098,25 @@ operand indIndexScaledOffset(iRegP reg, iRegL lreg, immIU2 scale, immI off)
   %}
 %}
 
-// TODO as per indIndexScaledOffset
-operand indIndexScaled(iRegP reg, iRegL lreg, immIU2 scale)
+operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLAddSub off)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP (AddP reg (LShiftL lreg scale)) off);
+  op_cost(DEFAULT_COST_LOW);
+  format %{ "$reg, $lreg lsl($scale), #$off" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($lreg);
+    scale($scale);
+    disp($off);
+  %}
+%}
+
+operand indIndexScaled(iRegP reg, iRegL lreg, immIScale scale)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg (LShiftL lreg scale));
-  op_cost(100);
+  op_cost(0);
   format %{ "$reg, $lreg lsl($scale)" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -3088,7 +3130,7 @@ operand indIndex(iRegP reg, iRegL lreg)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg lreg);
-  op_cost(100);
+  op_cost(40);
   format %{ "$reg, $lreg" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -3098,11 +3140,11 @@ operand indIndex(iRegP reg, iRegL lreg)
   %}
 %}
 
-operand indOffU12(iRegP reg, immIU12 off)
+operand indOffI(iRegP reg, immIAddSub off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
-  op_cost(100);
+  op_cost(0);
   format %{ "[$reg, #$off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -3112,16 +3154,16 @@ operand indOffU12(iRegP reg, immIU12 off)
   %}
 %}
 
-operand indOffI9(iRegP reg, immI9 off)
+operand indOffL(iRegP reg, immLAddSub off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
-  op_cost(100);
+  op_cost(0);
   format %{ "[$reg, #$off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index(0xffffffff);
-    scale(0xffffffff);
+    scale(0x0);
     disp($off);
   %}
 %}
@@ -3242,7 +3284,7 @@ operand cmpOp()
 // multiple operand types with the same basic encoding and format.  The classic
 // case of this is memory operands.
 
-opclass memory(indirect, indIndexScaledOffset, indIndexScaled, indIndex,indOffU12, indOffI9);
+opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaled, indIndex, indOffI, indOffL);
 
 //----------PIPELINE-----------------------------------------------------------
 // Rules which define the behavior of the target architectures pipeline.
@@ -3440,7 +3482,7 @@ instruct loadS2L(iRegLNoSp dst, memory mem)
 %}
 
 // Load Char (16 bit unsigned)
-instruct loadUS(iRegI dst, memory mem)
+instruct loadUS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUS mem));
 
@@ -3544,7 +3586,7 @@ instruct loadP(iRegPNoSp dst, memory mem)
 %}
 
 // Load Compressed Pointer
-instruct loadN(iRegNNoSp dst, memory mem)
+instruct loadN(iRegN dst, memory mem)
 %{
   match(Set dst (LoadN mem));
 
@@ -3609,7 +3651,7 @@ instruct loadD(vRegD dst, memory mem)
 %}
 
 // Load Int Constant
-instruct loadConI(iRegINoSp dst, immI src)
+instruct loadConI(iRegI dst, immI src)
 %{
   match(Set dst src);
 
@@ -3622,7 +3664,7 @@ instruct loadConI(iRegINoSp dst, immI src)
 %}
 
 // Load Long Constant
-instruct loadConL(iRegLNoSp dst, immL src)
+instruct loadConL(iRegL dst, immL src)
 %{
   match(Set dst src);
 
@@ -3636,7 +3678,7 @@ instruct loadConL(iRegLNoSp dst, immL src)
 
 // Load Pointer Constant
 
-instruct loadConP(iRegPNoSp dst, immP con)
+instruct loadConP(iRegP dst, immP con)
 %{
   match(Set dst con);
 
@@ -3707,7 +3749,7 @@ instruct loadConNKlass(iRegNNoSp dst, immNKlass con)
 // Store Instructions
 
 // Store Byte
-instruct storeB(iRegINoSp src, memory mem)
+instruct storeB(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
 
@@ -3720,7 +3762,7 @@ instruct storeB(iRegINoSp src, memory mem)
 %}
 
 // Store Char/Short
-instruct storeC(iRegINoSp src, memory mem)
+instruct storeC(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
 
@@ -3733,7 +3775,7 @@ instruct storeC(iRegINoSp src, memory mem)
 %}
 
 // Store Integer
-instruct storeI(iRegINoSp src, memory mem)
+instruct storeI(iRegI src, memory mem)
 %{
   match(Set mem(StoreI mem src));
 
@@ -3746,7 +3788,7 @@ instruct storeI(iRegINoSp src, memory mem)
 %}
 
 // ConvL2I + StoreI.
-instruct storeI_convL2I(iRegLNoSp src, memory mem)
+instruct storeI_convL2I(iRegL src, memory mem)
 %{
   match(Set mem (StoreI mem (ConvL2I src)));
 
@@ -3759,7 +3801,7 @@ instruct storeI_convL2I(iRegLNoSp src, memory mem)
 %}
 
 // Store Long (64 bit signed)
-instruct storeL(iRegLNoSp src, memory mem)
+instruct storeL(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
 
@@ -3785,7 +3827,7 @@ instruct storeP(iRegP src, memory mem)
 %}
 
 // Store Compressed Pointer
-instruct storeN(iRegNNoSp src, memory mem)
+instruct storeN(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
 
@@ -3823,10 +3865,292 @@ instruct storeD(vRegD src, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
+//----------BSWAP Instructions-------------------------------------------------
+instruct bytes_reverse_int(iRegINoSp dst) %{
+  match(Set dst (ReverseBytesI dst));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "revw  $dst, $dst" %}
+
+  ins_encode %{
+    __ revw(as_Register($dst$$reg), as_Register($dst$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct bytes_reverse_long(iRegLNoSp dst) %{
+  match(Set dst (ReverseBytesL dst));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "rev  $dst, $dst" %}
+
+  ins_encode %{
+    __ rev(as_Register($dst$$reg), as_Register($dst$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct bytes_reverse_unsigned_short(iRegINoSp dst) %{
+  match(Set dst (ReverseBytesUS dst));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "rev16w  $dst, $dst" %}
+
+  ins_encode %{
+    __ rev16w(as_Register($dst$$reg), as_Register($dst$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct bytes_reverse_short(iRegINoSp dst) %{
+  match(Set dst (ReverseBytesS dst));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "rev16w  $dst, $dst\n\t"
+            "sbfmw $dst, $dst, #0, #15" %}
+
+  ins_encode %{
+    __ rev16w(as_Register($dst$$reg), as_Register($dst$$reg));
+    __ sbfmw(as_Register($dst$$reg), as_Register($dst$$reg), 0U, 15U);
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+// ============================================================================
+// MemBar Instruction
+// TODO
+
+// ============================================================================
+// Convert Instructions
+// TODO
+
+// ============================================================================
+// Conditional Move Instructions
+// TODO
+
+// ============================================================================
+// Arithmetic Instructions
+//
+// Addition Instructions
+
+// Register Addition
+instruct addI_reg_reg(iRegI dst, iRegI src1, iRegI src2) %{
+  match(Set dst (AddI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// can we condense these next 3 rules into one using a reg class to
+// merge an iRegI and a (ConvL2I iRegL)
+
+instruct addI_l2ireg_reg(iRegI dst, iRegL src1, iRegI src2) %{
+  match(Set dst (AddI src1 (ConvL2I src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addI_reg_l2ireg(iRegI dst, iRegL src1, iRegI src2) %{
+  match(Set dst (AddI (ConvL2I src1) (ConvL2I src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addI_l2ireg_l2ireg(iRegI dst, iRegL src1, iRegI src2) %{
+  match(Set dst (AddI (ConvL2I src1) src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Immediate Addition
+instruct addI_reg_imm(iRegI dst, iRegI src1, immIAddSub src2) %{
+  match(Set dst (AddI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw $dst, $src1, $src2" %}
+
+  // use opcode to indicate that this is an add not a sub
+  opcode(0x0);
+
+  ins_encode(aarch64_enc_addsubw_imm(dst, src1, src2));
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Pointer Register Addition
+instruct addP_reg_reg(iRegP dst, iRegP src1, iRegL src2) %{
+  match(Set dst (AddP src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2\t# ptr" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Pointer Immediate Addition
+// n.b. this needs to be more expensive than using an indirect memory
+// operand
+instruct addP_reg_imm(iRegP dst, iRegP src1, immLAddSub src2) %{
+  match(Set dst (AddP src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2\t# ptr" }
+
+  // use opcode to indicate that this is an add not a sub
+  opcode(0x0);
+
+  ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Long Addition
+instruct addL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+
+  match(Set dst (AddL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// No constant pool entries requiredLong Immediate Addition.
+instruct addL_reg_imm(iRegL dst, iRegL src1, immLAddSub src2) %{
+  match(Set dst (AddL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2" %}
+
+  // use opcode to indicate that this is an add not a sub
+  opcode(0x0);
+
+  ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Subtraction Instructions
+
+// Register Subtraction
+instruct subI_reg_reg(iRegI dst, iRegI src1, iRegI src2) %{
+  match(Set dst (SubI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "subw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ subw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Immediate Subtraction
+instruct subI_reg_imm(iRegI dst, iRegI src1, immIAddSub src2) %{
+  match(Set dst (SubI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "subw $dst, $src1, $src2" %}
+
+  // use opcode to indicate that this is a sub not an add
+  opcode(0x1);
+
+  ins_encode(aarch64_enc_addsubw_imm(dst, src1, src2));
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Long Subtraction
+instruct subL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+
+  match(Set dst (SubL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sub  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ sub(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// No constant pool entries requiredLong Immediate Subtraction.
+instruct subL_reg_imm(iRegL dst, iRegL src1, immLAddSub src2) %{
+  match(Set dst (SubL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sub$dst, $src1, $src2" %}
+
+  // use opcode to indicate that this is a sub not an add
+  opcode(0x1);
+
+  ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
+
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // Compare Instructions
 
-instruct compI_iRegI(rFlagsReg cr, iRegINoSp op1, iRegINoSp op2)
+instruct compI_iRegI(rFlagsReg cr, iRegI op1, iRegI op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3840,7 +4164,7 @@ instruct compI_iRegI(rFlagsReg cr, iRegINoSp op1, iRegINoSp op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immI0(rFlagsReg cr, iRegINoSp op1, immI0 zero)
+instruct compI_iRegI_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
 %{
   match(Set cr (CmpI op1 zero));
 
@@ -3854,7 +4178,7 @@ instruct compI_iRegI_immI0(rFlagsReg cr, iRegINoSp op1, immI0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegINoSp op1, immIAddSub op2)
+instruct compI_iRegI_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3868,7 +4192,7 @@ instruct compI_iRegI_immAddSub(rFlagsReg cr, iRegINoSp op1, immIAddSub op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compI_iRegI_immI(rFlagsReg cr, iRegINoSp op1, immI op2)
+instruct compI_iRegI_immI(rFlagsReg cr, iRegI op1, immI op2)
 %{
   match(Set cr (CmpI op1 op2));
 
@@ -3882,7 +4206,7 @@ instruct compI_iRegI_immI(rFlagsReg cr, iRegINoSp op1, immI op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL(rFlagsReg cr, iRegLNoSp op1, iRegLNoSp op2)
+instruct compL_iRegL(rFlagsReg cr, iRegL op1, iRegL op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3896,7 +4220,7 @@ instruct compL_iRegL(rFlagsReg cr, iRegLNoSp op1, iRegLNoSp op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immI0(rFlagsReg cr, iRegLNoSp op1, immI0 zero)
+instruct compL_iRegL_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
 %{
   match(Set cr (CmpL op1 zero));
 
@@ -3910,7 +4234,7 @@ instruct compL_iRegL_immI0(rFlagsReg cr, iRegLNoSp op1, immI0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegLNoSp op1, immLAddSub op2)
+instruct compL_iRegL_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3924,7 +4248,7 @@ instruct compL_iRegL_immAddSub(rFlagsReg cr, iRegLNoSp op1, immLAddSub op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compL_iRegL_immL(rFlagsReg cr, iRegLNoSp op1, immL op2)
+instruct compL_iRegL_immL(rFlagsReg cr, iRegL op1, immL op2)
 %{
   match(Set cr (CmpL op1 op2));
 
@@ -3938,7 +4262,7 @@ instruct compL_iRegL_immL(rFlagsReg cr, iRegLNoSp op1, immL op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compP_iRegP(rFlagsReg cr, iRegPNoSp op1, iRegPNoSp op2)
+instruct compP_iRegP(rFlagsReg cr, iRegP op1, iRegP op2)
 %{
   match(Set cr (CmpP op1 op2));
 
@@ -3952,7 +4276,7 @@ instruct compP_iRegP(rFlagsReg cr, iRegPNoSp op1, iRegPNoSp op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compN_iRegN(rFlagsReg cr, iRegNNoSp op1, iRegNNoSp op2)
+instruct compN_iRegN(rFlagsReg cr, iRegN op1, iRegN op2)
 %{
   match(Set cr (CmpN op1 op2));
 
@@ -4109,7 +4433,7 @@ instruct CallRuntimeDirect(method meth)
 // Also known as an 'interprocedural jump'.
 // Target of jump will eventually return to caller.
 // TailJump below removes the return address.
-instruct TailCalljmpInd(iRegPNoSp jump_target, inline_cache_RegP method_oop)
+instruct TailCalljmpInd(iRegP jump_target, inline_cache_RegP method_oop)
 %{
   match(TailCall jump_target method_oop);
 
@@ -4122,7 +4446,7 @@ instruct TailCalljmpInd(iRegPNoSp jump_target, inline_cache_RegP method_oop)
   ins_pipe(pipe_class_call);
 %}
 
-instruct TailjmpInd(iRegPNoSp jump_target, iRegP_R0 ex_oop)
+instruct TailjmpInd(iRegP jump_target, iRegP_R0 ex_oop)
 %{
   match(TailJump jump_target ex_oop);
 
