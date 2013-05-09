@@ -62,9 +62,19 @@ void Relocation::pd_swap_in_breakpoint(address x, short* instrs, int instrlen) {
 void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) { Unimplemented(); }
 
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
+  // fprintf(stderr, "Try to fix poll reloc at %p to %p\n", addr(), dest);
   if (NativeInstruction::is_adrp_at(addr())) {
     address old_addr = old_addr_for(addr(), src, dest);
+    if (! os::is_poll_address(pd_call_destination(old_addr))) {
+      fprintf(stderr, "  bollocks!\n");
+      old_addr = old_addr_for(addr(), src, dest);
+    }
     MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+    if (! os::is_poll_address(pd_call_destination(addr()))) {
+      fprintf(stderr, "  result at %p is %p\n", addr(), pd_call_destination(addr()));
+      MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+    }
+  } else {
   }
 }
 

@@ -1074,20 +1074,23 @@ void LIRGenerator::do_If(If* x) {
     xin->set_destroys_register();
   }
   xin->load_item();
-  if (tag == longTag && yin->is_constant()
-      &&  Assembler::operand_valid_for_add_sub_immediate(yin->get_jlong_constant())) {
-    yin->dont_load_item();
-  } else if (tag == longTag || tag == floatTag || tag == doubleTag || tag == objectTag) {
-    yin->load_item();
-  } else {
-    yin->dont_load_item();
-  }
 
-  if (tag == intTag) {
+  if (tag == longTag) {
     if (yin->is_constant()
-	&& ! Assembler::operand_valid_for_add_sub_immediate(yin->get_jint_constant())) {
+	&& Assembler::operand_valid_for_add_sub_immediate(yin->get_jlong_constant())) {
+      yin->dont_load_item();
+    } else {
       yin->load_item();
     }
+  } else if (tag == intTag) {
+    if (yin->is_constant()
+	&& Assembler::operand_valid_for_add_sub_immediate(yin->get_jint_constant()))  {
+      yin->dont_load_item();
+    } else {
+      yin->load_item();
+    }
+  } else {
+    yin->load_item();
   }
 
   // add safepoint before generating condition code so it can be recomputed

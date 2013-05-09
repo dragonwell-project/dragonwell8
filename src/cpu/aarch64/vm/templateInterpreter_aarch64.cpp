@@ -1123,9 +1123,9 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 		    wordSize)); // get sender sp
   // remove frame anchor
   __ leave();
-  // restore sp
-  __ ldr(rscratch1, Address(__ post(sp, 2 * wordSize)));
-  __ mov(sp, rscratch1);
+
+  // resture sender sp
+  __ mov(sp, esp);
 
   __ ret(lr);
 

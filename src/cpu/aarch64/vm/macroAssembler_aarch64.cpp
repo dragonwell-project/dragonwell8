@@ -1162,11 +1162,11 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
     if (imm_h[0] == 0) {
       movzw(dst, imm_h[1], 16);
     } else if (imm_h[0] == 0xffff) {
-      movnw(dst, imm_h[1], 16);
+      movnw(dst, imm_h[1] ^ 0xffff, 16);
     } else if (imm_h[1] == 0) {
       movzw(dst, imm_h[0], 0);
     } else if (imm_h[1] == 0xffff) {
-      movnw(dst, imm_h[0], 0);
+      movnw(dst, imm_h[0] ^ 0xffff, 0);
     } else {
       // use a MOVZ and MOVK (makes it easier to debug)
       movzw(dst, imm_h[0], 0);

@@ -319,10 +319,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
   __ cbz(rscratch1, L);
 
-  // Call into the VM to patch the caller, then jump to compiled callee
-  // c_rarg1 isn't live so capture return address while we easily can
-  __ mov(c_rarg1, lr);
-
+  __ enter();
   __ push_CPU_state();
 
   // VM needs caller's callsite
@@ -335,11 +332,13 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 #endif
 
   __ mov(c_rarg0, rmethod);
+  __ mov(c_rarg1, lr);
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::fixup_callers_callsite)));
   __ brx86(rscratch1, 2, 0, 0);
 
   __ pop_CPU_state();
   // restore sp
+  __ leave();
   __ bind(L);
 }
 
@@ -734,9 +733,13 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 =======
   Label ok;
 
-  Register holder = r0;
+  Register holder = rscratch2;
   Register receiver = j_rarg0;
+<<<<<<< HEAD
 >>>>>>> 61e9e86... Much new c1 code generation:
+=======
+  Register tmp = r10;  // A call-clobbered register not used for arg passing
+>>>>>>> 8a384ab... Misc C1 fixes
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rmethod holds the Method* during calls
@@ -750,8 +753,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   {
     __ block_comment("c2i_unverified_entry {");
     __ load_klass(rscratch1, receiver);
-    __ ldr(rscratch2, Address(holder, CompiledICHolder::holder_klass_offset()));
-    __ cmp(rscratch1, rscratch2);
+    __ ldr(tmp, Address(holder, CompiledICHolder::holder_klass_offset()));
+    __ cmp(rscratch1, tmp);
     __ ldr(rmethod, Address(holder, CompiledICHolder::holder_method_offset()));
     __ br(Assembler::EQ, ok);
     __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));

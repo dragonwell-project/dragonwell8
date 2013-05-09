@@ -1255,6 +1255,9 @@ extern "C" {
 #define __ as->
 
 void Address::lea(MacroAssembler *as, Register r) const {
+  Relocation* reloc = _rspec.reloc();
+  relocInfo::relocType rtype = (relocInfo::relocType) reloc->type();
+
   switch(_mode) {
   case base_plus_offset: {
     if (_offset == 0 && _base == r) // it's a nop
@@ -1270,7 +1273,10 @@ void Address::lea(MacroAssembler *as, Register r) const {
     break;
   }
   case literal: {
-    __ mov(r, target());
+    if (rtype == relocInfo::none)
+      __ mov(r, target());
+    else
+      __ mov64(r, (uint64_t)target());
     break;
   }
   default:

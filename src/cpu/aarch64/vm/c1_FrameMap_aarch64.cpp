@@ -136,6 +136,11 @@ LIR_Opr FrameMap::r28_oop_opr;
 LIR_Opr FrameMap::r29_oop_opr;
 LIR_Opr FrameMap::r30_oop_opr;
 
+LIR_Opr FrameMap::rscratch1_opr;
+LIR_Opr FrameMap::rscratch2_opr;
+LIR_Opr FrameMap::rscratch1_long_opr;
+LIR_Opr FrameMap::rscratch2_long_opr;
+
 LIR_Opr FrameMap::r0_metadata_opr;
 LIR_Opr FrameMap::r1_metadata_opr;
 LIR_Opr FrameMap::r2_metadata_opr;
@@ -192,6 +197,11 @@ void FrameMap::initialize() {
   map_register(i, r31_sp); sp_opr = LIR_OprFact::single_cpu(i); i++; // sp
   map_register(i, r8); r8_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch1
   map_register(i, r9); r9_opr = LIR_OprFact::single_cpu(i); i++;   // rscratch2
+
+  rscratch1_opr = r8_opr;
+  rscratch2_opr = r9_opr;
+  rscratch1_long_opr = LIR_OprFact::double_cpu(r8_opr->cpu_regnr(), r8_opr->cpu_regnr());
+  rscratch2_long_opr = LIR_OprFact::double_cpu(r9_opr->cpu_regnr(), r9_opr->cpu_regnr());
 
   long0_opr = LIR_OprFact::double_cpu(0, 0);
   long1_opr = LIR_OprFact::double_cpu(1, 1);

@@ -162,6 +162,11 @@ address NativeJump::jump_destination() const          {
 }
 
 void NativeJump::set_jump_destination(address dest) {
+  // We use jump to self as the unresolved address which the inline
+  // cache code (and relocs) know about
+  if (dest == (address) -1)
+    dest = instruction_address();
+
   MacroAssembler::pd_patch_instruction(instruction_address(), dest);
 };
 

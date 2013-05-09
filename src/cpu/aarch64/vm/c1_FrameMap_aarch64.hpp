@@ -112,6 +112,11 @@
   static LIR_Opr r29_oop_opr;
   static LIR_Opr r30_oop_opr;
 
+  static LIR_Opr rscratch1_opr;
+  static LIR_Opr rscratch2_opr;
+  static LIR_Opr rscratch1_long_opr;
+  static LIR_Opr rscratch2_long_opr;
+
   static LIR_Opr r0_metadata_opr;
   static LIR_Opr r1_metadata_opr;
   static LIR_Opr r2_metadata_opr;

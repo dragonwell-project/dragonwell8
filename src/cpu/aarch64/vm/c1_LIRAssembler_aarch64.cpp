@@ -474,8 +474,9 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   address polling_page(os::get_polling_page()
-		       + (SafepointPollOffset % os::vm_page_size() + __ offset()));
+		       + (SafepointPollOffset % os::vm_page_size()));
   guarantee(info != NULL, "Shouldn't be NULL");
+  assert(os::is_poll_address(polling_page), "should be");
   unsigned long off;
   __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
   add_debug_info_for_branch(info);  // This isn't just debug info:
@@ -501,7 +502,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
   switch (c->type()) {
     case T_INT: {
       assert(patch_code == lir_patch_none, "no patching handled here");
-      __ mov(dest->as_register(), c->as_jint());
+      __ movw(dest->as_register(), c->as_jint());
       break;
     }
 
@@ -568,8 +569,8 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
       if (! c->as_jobject())
 	__ str(zr, frame_map()->address_for_slot(dest->single_stack_ix()));
       else {
-	const2reg(src, FrameMap::r8_opr, lir_patch_none, NULL);
-	reg2stack(FrameMap::r8_opr, dest, c->type(), false);
+	const2reg(src, FrameMap::rscratch1_opr, lir_patch_none, NULL);
+	reg2stack(FrameMap::rscratch1_opr, dest, c->type(), false);
       }
     }
     break;
@@ -737,7 +738,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     }
 
     case T_DOUBLE: {
-      __ strd(src->as_float_reg(), as_Address(to_addr));
+      __ strd(src->as_double_reg(), as_Address(to_addr));
     }
 
     case T_ARRAY:   // fall through
@@ -832,8 +833,8 @@ void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
 }
 
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
-  stack2reg(src, FrameMap::r8_opr, src->type());
-  reg2stack(FrameMap::r8_opr, dest, dest->type(), false);
+  stack2reg(src, FrameMap::rscratch1_opr, src->type());
+  reg2stack(FrameMap::rscratch1_opr, dest, dest->type(), false);
 }
 
 
@@ -1462,7 +1463,8 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
   default:                    ShouldNotReachHere();
   }
 
-  assert(result->is_single_cpu(), "expect single register for result");
+  assert(result->is_single_cpu() || result->is_double_cpu(),
+	 "expect single register for result");
   if (opr1->is_constant() && opr2->is_constant()
       && opr1->type() == T_INT && opr2->type() == T_INT) {
     jint val1 = opr1->as_jint();
@@ -1476,23 +1478,43 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
     }
   }
 
+  if (opr1->is_constant() && opr2->is_constant()
+      && opr1->type() == T_LONG && opr2->type() == T_LONG) {
+    jlong val1 = opr1->as_jlong();
+    jlong val2 = opr2->as_jlong();
+    if (val1 == 0 && val2 == 1) {
+      __ cset(result->as_register(), ncond);
+      return;
+    } else if (val1 = 1 && val2 == 0) {
+      __ cset(result->as_register(), acond);
+      return;
+    }
+  }
+
   if (opr1->is_stack()) {
-    stack2reg(opr1, FrameMap::r8_opr, result->type());
-    opr1 = FrameMap::r8_opr;
+    stack2reg(opr1, FrameMap::rscratch1_opr, result->type());
+    opr1 = FrameMap::rscratch1_opr;
   } else if (opr1->is_constant()) {
-    const2reg(opr1, FrameMap::r8_opr, lir_patch_none, NULL);
-    opr1 = FrameMap::r8_opr;
+    LIR_Opr tmp
+      = opr1->type() == T_LONG ? FrameMap::rscratch1_long_opr : FrameMap::rscratch1_opr;
+    const2reg(opr1, tmp, lir_patch_none, NULL);
+    opr1 = tmp;
   }
 
   if (opr2->is_stack()) {
-    stack2reg(opr2, FrameMap::r9_opr, result->type());
-    opr2 = FrameMap::r9_opr;
+    stack2reg(opr2, FrameMap::rscratch2_opr, result->type());
+    opr2 = FrameMap::rscratch2_opr;
   } else if (opr2->is_constant()) {
-    const2reg(opr2, FrameMap::r9_opr, lir_patch_none, NULL);
-    opr2 = FrameMap::r9_opr;
+    LIR_Opr tmp
+      = opr2->type() == T_LONG ? FrameMap::rscratch2_long_opr : FrameMap::rscratch2_opr;
+    const2reg(opr2, tmp, lir_patch_none, NULL);
+    opr2 = tmp;
   }
 
-  __ csel(result->as_register(), opr1->as_register(), opr2->as_register(), acond);
+  if (result->type() == T_LONG)
+    __ csel(result->as_register_lo(), opr1->as_register_lo(), opr2->as_register_lo(), acond);
+  else
+    __ csel(result->as_register(), opr1->as_register(), opr2->as_register(), acond);
 }
 
 void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack) {
@@ -1549,7 +1571,6 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       // cpu register - cpu register
       Register rreg_lo = right->as_register_lo();
       Register rreg_hi = right->as_register_hi();
-      assert_different_registers(lreg_lo, rreg_lo);
       switch (code) {
       case lir_add: __ add (dest->as_register_lo(), lreg_lo, rreg_lo); break;
       case lir_sub: __ sub (dest->as_register_lo(), lreg_lo, rreg_lo); break;
@@ -1679,7 +1700,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
     if (opr2->is_double_cpu()) {
       // cpu register - cpu register
       Register reg2 = opr2->as_register_lo();
-      __ cmpw(reg1, reg2);
+      __ cmp(reg1, reg2);
       return;
     }
 
@@ -1703,11 +1724,21 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       }
 
       if (Assembler::operand_valid_for_add_sub_immediate(imm)) {
-	if (opr1->is_single_cpu())
+	if (type2aelembytes(opr1->type()) <= 4)
 	  __ cmpw(reg1, imm);
 	else
 	  __ cmp(reg1, imm);
 	return;
+<<<<<<< HEAD
+=======
+      } else {
+	__ mov(rscratch1, imm);
+	if (type2aelembytes(opr1->type()) <= 4)
+	  __ cmpw(reg1, rscratch1);
+	else
+	  __ cmp(reg1, rscratch1);
+	return;
+>>>>>>> 8a384ab... Misc C1 fixes
       }
     } else
       ShouldNotReachHere();
@@ -2392,7 +2423,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
   if (dest->is_address()) {
       LIR_Address* to_addr = dest->as_address_ptr();
-      Register compressed_src = src->as_register();
+      Register compressed_src = as_reg(src);
       if (type == T_ARRAY || type == T_OBJECT) {
 	__ verify_oop(src->as_register());
 	if (UseCompressedOops) {
