@@ -4040,7 +4040,7 @@ instruct addP_reg_imm(iRegP dst, iRegP src1, immLAddSub src2) %{
   match(Set dst (AddP src1 src2));
 
   ins_cost(DEFAULT_COST);
-  format %{ "add $dst, $src1, $src2\t# ptr" }
+  format %{ "add $dst, $src1, $src2\t# ptr" %}
 
   // use opcode to indicate that this is an add not a sub
   opcode(0x0);
