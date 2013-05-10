@@ -264,7 +264,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     // produce a copy of the load mirror instruction for use by the being
     // initialized case
     jobject o = NULL;
-    __ mov(_obj, Address((address)NULL, relocInfo::none));
+    __ movoop(_obj, o);
   } else {
     // make a copy the code which is going to be patched.
     for (int i = 0; i < _bytes_to_copy; i++) {

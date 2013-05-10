@@ -2161,14 +2161,15 @@ Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
 }
 
 void MacroAssembler::movoop(Register dst, jobject obj) {
+  int oop_index;
   if (obj == NULL) {
-    mov(dst, zr);
+    oop_index = oop_recorder()->allocate_oop_index(obj);
   } else {
-    int oop_index = oop_recorder()->find_index(obj);
+    oop_index = oop_recorder()->find_index(obj);
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "should be real oop");
-    RelocationHolder rspec = oop_Relocation::spec(oop_index);
-    mov(dst, Address((address)obj, rspec));
   }
+  RelocationHolder rspec = oop_Relocation::spec(oop_index);
+  mov(dst, Address((address)obj, rspec));
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {

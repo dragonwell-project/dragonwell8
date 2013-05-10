@@ -1152,6 +1152,30 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
                                                      relocInfo::none, rtype);
           }
 #endif
+#if defined(TARGET_ARCH_aarch64)
+            // Update the location in the nmethod with the proper
+            // metadata.
+            RelocIterator mds(nm, instr_pc, instr_pc + 1);
+            bool found = false;
+            while (mds.next() && !found) {
+              if (mds.type() == relocInfo::oop_type) {
+                assert(stub_id == Runtime1::load_mirror_patching_id, "wrong stub id");
+                oop_Relocation* r = mds.oop_reloc();
+                oop* oop_adr = r->oop_addr();
+                *oop_adr = mirror();
+                r->fix_oop_relocation();
+                found = true;
+              } else if (mds.type() == relocInfo::metadata_type) {
+                assert(stub_id == Runtime1::load_klass_patching_id, "wrong stub id");
+                metadata_Relocation* r = mds.metadata_reloc();
+                Metadata** metadata_adr = r->metadata_addr();
+                *metadata_adr = load_klass();
+                r->fix_metadata_relocation();
+                found = true;
+              }
+            }
+            assert(found, "the metadata must exist!");
+#endif
           }
 
         } else {
