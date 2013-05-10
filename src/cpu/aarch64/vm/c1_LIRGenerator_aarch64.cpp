@@ -546,9 +546,9 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
     info = state_for(x);
 
     if (x->op() == Bytecodes::_irem) {
-      __ irem(left_arg->result(), right_arg->result(), x->operand(), tmp, info);
+      __ irem(left_arg->result(), right_arg->result(), x->operand(), tmp, NULL);
     } else if (x->op() == Bytecodes::_idiv) {
-      __ idiv(left_arg->result(), right_arg->result(), x->operand(), tmp, info);
+      __ idiv(left_arg->result(), right_arg->result(), x->operand(), tmp, NULL);
     }
 
   } else if (x->op() == Bytecodes::_iadd || x->op() == Bytecodes::_isub) {
