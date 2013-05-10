@@ -267,7 +267,10 @@ bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result,
   }
 }
 
-void LIRGenerator::store_stack_parameter (LIR_Opr item, ByteSize offset_from_sp) { Unimplemented(); }
+void LIRGenerator::store_stack_parameter (LIR_Opr item, ByteSize offset_from_sp) {
+  BasicType type = item->type();
+  __ store(item, new LIR_Address(FrameMap::sp_opr, in_bytes(offset_from_sp), type));
+}
 
 //----------------------------------------------------------------------
 //             visitor functions
@@ -809,7 +812,73 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   }
 }
 
-void LIRGenerator::do_MathIntrinsic(Intrinsic* x) { Unimplemented(); }
+void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
+  switch (x->id()) {
+    case vmIntrinsics::_dabs:
+    case vmIntrinsics::_dsqrt: {
+      assert(x->number_of_arguments() == 1, "wrong type");
+      LIRItem value(x->argument_at(0), this);
+      value.load_item();
+      LIR_Opr dst = rlock_result(x);
+
+      switch (x->id()) {
+      case vmIntrinsics::_dsqrt: {
+        __ sqrt(value.result(), dst, LIR_OprFact::illegalOpr);
+        break;
+      }
+      case vmIntrinsics::_dabs: {
+        __ abs(value.result(), dst, LIR_OprFact::illegalOpr);
+        break;
+      }
+      }
+      break;
+    }
+    case vmIntrinsics::_dlog10: // fall through
+    case vmIntrinsics::_dlog: // fall through
+    case vmIntrinsics::_dsin: // fall through
+    case vmIntrinsics::_dtan: // fall through
+    case vmIntrinsics::_dcos: // fall through
+    case vmIntrinsics::_dexp: {
+      assert(x->number_of_arguments() == 1, "wrong type");
+
+      address runtime_entry = NULL;
+      switch (x->id()) {
+      case vmIntrinsics::_dsin:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dsin);
+        break;
+      case vmIntrinsics::_dcos:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dcos);
+        break;
+      case vmIntrinsics::_dtan:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dtan);
+        break;
+      case vmIntrinsics::_dlog:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dlog);
+        break;
+      case vmIntrinsics::_dlog10:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dlog10);
+        break;
+      case vmIntrinsics::_dexp:
+        runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dexp);
+        break;
+      default:
+        ShouldNotReachHere();
+      }
+
+      LIR_Opr result = call_runtime(x->argument_at(0), runtime_entry, x->type(), NULL);
+      set_result(x, result);
+      break;
+    }
+    case vmIntrinsics::_dpow: {
+      assert(x->number_of_arguments() == 2, "wrong type");
+      address runtime_entry = CAST_FROM_FN_PTR(address, SharedRuntime::dpow);
+      LIR_Opr result = call_runtime(x->argument_at(0), x->argument_at(1), runtime_entry, x->type(), NULL);
+      set_result(x, result);
+      break;
+    }
+  }
+}
+
 
 void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   assert(x->number_of_arguments() == 5, "wrong type");
@@ -993,7 +1062,55 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
 }
 
 
-void LIRGenerator::do_NewMultiArray(NewMultiArray* x) { Unimplemented(); }
+void LIRGenerator::do_NewMultiArray(NewMultiArray* x) {
+  Values* dims = x->dims();
+  int i = dims->length();
+  LIRItemList* items = new LIRItemList(dims->length(), NULL);
+  while (i-- > 0) {
+    LIRItem* size = new LIRItem(dims->at(i), this);
+    items->at_put(i, size);
+  }
+
+  // Evaluate state_for early since it may emit code.
+  CodeEmitInfo* patching_info = NULL;
+  if (!x->klass()->is_loaded() || PatchALot) {
+    patching_info = state_for(x, x->state_before());
+
+    // Cannot re-use same xhandlers for multiple CodeEmitInfos, so
+    // clone all handlers (NOTE: Usually this is handled transparently
+    // by the CodeEmitInfo cloning logic in CodeStub constructors but
+    // is done explicitly here because a stub isn't being used).
+    x->set_exception_handlers(new XHandlers(x->exception_handlers()));
+  }
+  CodeEmitInfo* info = state_for(x, x->state());
+
+  i = dims->length();
+  while (i-- > 0) {
+    LIRItem* size = items->at(i);
+    size->load_item();
+
+    store_stack_parameter(size->result(), in_ByteSize(i*4));
+  }
+
+  LIR_Opr klass_reg = FrameMap::r0_metadata_opr;
+  klass2reg_with_patching(klass_reg, x->klass(), patching_info);
+
+  LIR_Opr rank = FrameMap::r19_opr;
+  __ move(LIR_OprFact::intConst(x->rank()), rank);
+  LIR_Opr varargs = FrameMap::r2_opr;
+  __ move(FrameMap::sp_opr, varargs);
+  LIR_OprList* args = new LIR_OprList(3);
+  args->append(klass_reg);
+  args->append(rank);
+  args->append(varargs);
+  LIR_Opr reg = result_register_for(x->type());
+  __ call_runtime(Runtime1::entry_for(Runtime1::new_multi_array_id),
+                  LIR_OprFact::illegalOpr,
+                  reg, args, info);
+
+  LIR_Opr result = rlock_result(x);
+  __ move(reg, result);
+}
 
 void LIRGenerator::do_BlockBegin(BlockBegin* x) {
   // nothing to do for now

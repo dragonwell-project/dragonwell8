@@ -41,18 +41,40 @@
 float ConversionStub::float_zero = 0.0;
 double ConversionStub::double_zero = 0.0;
 
-void ConversionStub::emit_code(LIR_Assembler* ce) { 
+void ConversionStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
+
+  // FIXME: Agh, this is so painful
+
+  __ enter();
+  __ sub(sp, sp, 2 * wordSize);
+  __ push(0x3fffffff, sp);         // integer registers except lr & sp
+  for (int i = 30; i >= 0; i -= 2) // caller-saved fp registers
+    if (i < 8 || i > 15)
+      __ stpd(as_FloatRegister(i), as_FloatRegister(i+1),
+	      Address(__ pre(sp, -2 * wordSize)));
+
   if (bytecode() == Bytecodes::_f2i) {
     __ fmovs(v0, input()->as_float_reg());
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
+    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
 			  0, 1, MacroAssembler::ret_type_integral);
   } else {
     __ fmovd(v0, input()->as_double_reg());
     __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
 			  0, 1, MacroAssembler::ret_type_integral);
   }
-  __ mov(result()->as_register(), r0);
+
+  __ str(r0, Address(rfp, -wordSize));
+
+  for (int i = 0; i < 32; i += 2)
+    if (i < 8 || i > 15)
+      __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
+	      Address(__ post(sp, 2 * wordSize)));
+  __ pop(0x3fffffff, sp);
+
+  __ ldr(result()->as_register(), Address(rfp, -wordSize));
+  __ leave();
+
   __ b(_continuation);
 }
 
@@ -357,7 +379,12 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 }
 
 
-void DeoptimizeStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void DeoptimizeStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::deoptimize_id)));
+  ce->add_call_info_here(_info);
+  DEBUG_ONLY(__ should_not_reach_here());
+}
 
 
 void ImplicitNullCheckStub::emit_code(LIR_Assembler* ce) {
@@ -370,7 +397,17 @@ void ImplicitNullCheckStub::emit_code(LIR_Assembler* ce) {
 
 
 void SimpleExceptionStub::emit_code(LIR_Assembler* ce) {
-  __ should_not_reach_here();
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+
+  __ bind(_entry);
+  // pass the object in a scratch register because all other registers
+  // must be preserved
+  if (_obj->is_cpu_register()) {
+    __ mov(rscratch1, _obj->as_register());
+  }
+  __ call(RuntimeAddress(Runtime1::entry_for(_stub)));
+  ce->add_call_info_here(_info);
+  debug_only(__ should_not_reach_here());
 }
 
 

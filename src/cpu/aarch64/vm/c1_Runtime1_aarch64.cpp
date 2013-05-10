@@ -910,6 +910,26 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case new_multi_array_id:
+      { StubFrame f(sasm, "new_multi_array", dont_gc_arguments);
+        // r0,: klass
+        // r19,: rank
+        // r2: address of 1st dimension
+        OopMap* map = save_live_registers(sasm, 4);
+	__ mov(c_rarg1, r0);
+	__ mov(c_rarg3, r2);
+	__ mov(c_rarg2, r19);
+        int call_offset = __ call_RT(r0, noreg, CAST_FROM_FN_PTR(address, new_multi_array), r1, r2, r3);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+
+        // rax,: new multi array
+        __ verify_oop(r0);
+      }
+      break;
+
     case register_finalizer_id:
       {
         __ set_info("register_finalizer", dont_gc_arguments);
@@ -940,6 +960,18 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         __ leave();
         __ ret(lr);
+      }
+      break;
+
+    case throw_class_cast_exception_id:
+      { StubFrame f(sasm, "throw_class_cast_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_class_cast_exception), true);
+      }
+      break;
+
+    case throw_incompatible_class_change_error_id:
+      { StubFrame f(sasm, "throw_incompatible_class_cast_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_incompatible_class_change_error), false);
       }
       break;
 

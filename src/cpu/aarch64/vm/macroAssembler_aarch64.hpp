@@ -160,6 +160,7 @@ class MacroAssembler: public Assembler {
     }
   }
   inline void mov(Register Rd, Register Rn) {
+    assert(Rd != r31_sp && Rn != r31_sp, "should be");
     if (Rd == Rn) {
     } else if (Rd == sp || Rn == sp) {
       add(Rd, Rn, 0U);

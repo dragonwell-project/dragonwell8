@@ -488,6 +488,8 @@ int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
 
 
 void LIR_Assembler::move_regs(Register from_reg, Register to_reg) {
+  if (from_reg == r31_sp)
+    from_reg = sp;
   __ mov(to_reg, from_reg);
 }
 
@@ -1054,9 +1056,14 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ sxtw(dest->as_register_lo(), src->as_register());
 	break;
       }
+    case Bytecodes::_i2s:
+      {
+	__ sxth(dest->as_register(), src->as_register());
+	break;
+      }
     case Bytecodes::_i2b:
       {
-	__ uxtb(dest->as_register(), src->as_register());
+	__ sxtb(dest->as_register(), src->as_register());
 	break;
       }
     case Bytecodes::_l2i:
@@ -1630,7 +1637,13 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 void LIR_Assembler::arith_fpu_implementation(LIR_Code code, int left_index, int right_index, int dest_index, bool pop_fpu_stack) { Unimplemented(); }
 
 
-void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr unused, LIR_Opr dest, LIR_Op* op) { Unimplemented(); }
+void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr unused, LIR_Opr dest, LIR_Op* op) {
+  switch(code) {
+  case lir_abs : __ fabsd(dest->as_double_reg(), value->as_double_reg()); break;
+  case lir_sqrt: __ fsqrtd(dest->as_double_reg(), value->as_double_reg()); break;
+  default      : ShouldNotReachHere();
+  }
+}
 
 void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dst) {
   

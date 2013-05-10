@@ -1020,7 +1020,12 @@ static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
 
 // A double move
-static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
+static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { 
+  if (src.is_single_phys_reg() && dst.is_single_phys_reg())
+    __ fmovd(dst.first()->as_FloatRegister(), src.first()->as_FloatRegister());
+  else
+    ShouldNotReachHere();
+}
 
 
 void SharedRuntime::save_native_result(MacroAssembler *masm, BasicType ret_type, int frame_slots) {
@@ -1599,6 +1604,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // All inbound args are referenced based on rfp and all outbound args via sp.
 
 
+  int float_args = 0;
+  int int_args = 0;
+
 #ifdef ASSERT
   bool reg_destroyed[RegisterImpl::number_of_registers];
   bool freg_destroyed[FloatRegisterImpl::number_of_registers];
@@ -1672,6 +1680,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
             freg_destroyed[out_regs[c_arg].first()->as_FloatRegister()->encoding()] = true;
           }
 #endif
+	  int_args++;
           break;
         }
       case T_OBJECT:
@@ -1679,29 +1688,35 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
                     ((i == 0) && (!is_static)),
                     &receiver_offset);
+	int_args++;
         break;
       case T_VOID:
+	int_args++;
         break;
 
       case T_FLOAT:
         float_move(masm, in_regs[i], out_regs[c_arg]);
-          break;
+	float_args++;
+	break;
 
       case T_DOUBLE:
         assert( i + 1 < total_in_args &&
                 in_sig_bt[i + 1] == T_VOID &&
                 out_sig_bt[c_arg+1] == T_VOID, "bad arg list");
         double_move(masm, in_regs[i], out_regs[c_arg]);
+	float_args++;
         break;
 
       case T_LONG :
         long_move(masm, in_regs[i], out_regs[c_arg]);
+	int_args++;
         break;
 
       case T_ADDRESS: assert(false, "found T_ADDRESS in java args");
 
       default:
         move32_64(masm, in_regs[i], out_regs[c_arg]);
+	int_args++;
     }
   }
 
@@ -1867,7 +1882,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     default:
       ShouldNotReachHere();
     }
-    rt_call(masm, native_func, 8, 8, return_type);
+    rt_call(masm, native_func, int_args + 2, float_args, return_type);
   }
 
   // Unpack native results.
