@@ -2645,10 +2645,10 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   const Register sender_sp = r8;
 
   __ mov(sender_sp, sp);
-  __ ldrw(r2, Address(r4,
+  __ ldrw(r1, Address(r4,
 		      Deoptimization::UnrollBlock::
 		      caller_adjustment_offset_in_bytes())); // (int)
-  __ sub(sp, sp, r2);
+  __ sub(sp, sp, r1);
 
   // Push interpreter frames in a loop
   Label loop;
@@ -2658,28 +2658,23 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   __ ldr(lr, Address(r2, 0));	    // Save return address
   __ enter();			    // and old rfp & set new rfp
   __ sub(sp, sp, r1);		    // Prolog
-#ifdef CC_INTERP
-  __ movptr(Address(rbp,
-                  -(sizeof(BytecodeInterpreter)) + in_bytes(byte_offset_of(BytecodeInterpreter, _sender_sp))),
-            sender_sp); // Make it walkable
-#else // CC_INTERP
   __ str(sender_sp, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize)); // Make it walkable
   // This value is corrected by layout_activation_impl
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-#endif // CC_INTERP
   __ mov(sender_sp, sp);          // Pass sender_sp to next frame
   __ add(r5, r5, wordSize);	  // Bump array pointer (sizes)
   __ add(r2, r2, wordSize);	  // Bump array pointer (pcs)
   __ subsw(r3, r3, 1);		  // Decrement counter
   __ br(Assembler::GT, loop);
-  __ ldr(lr, Address(r3, 0));	  // save final return address
+  __ ldr(lr, Address(r2, 0));	  // save final return address
+  // Re-push self-frame
   __ enter();			  // & old rfp & set new rfp
 
   // Use rfp because the frames look interpreted now
   // Save "the_pc" since it cannot easily be retrieved using the last_java_SP after we aligned SP.
   // Don't need the precise return PC here, just precise enough to point into this code blob.
   address the_pc = __ pc();
-  __ set_last_Java_frame(noreg, rfp, the_pc, rscratch1);
+  __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
 
   // Call C code.  Need thread but NOT official VM entry
   // crud.  We cannot block on this call, no GC can happen.  Call should
