@@ -436,7 +436,18 @@ frame frame::sender_for_interpreter_frame(RegisterMap* map) const {
 //------------------------------------------------------------------------------
 // frame::sender_for_compiled_frame
 frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  intptr_t** saved_fp_addr = (intptr_t**)fp();
+  // we cannot rely upon the last fp having been saved to the thread
+  // in C2 code but it will have been pushed onto the stack. so we
+  // have to find it relative to the unextended sp
+
+  assert(_cb->frame_size() >= 0, "must have non-zero frame size");
+  intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
+  intptr_t* unextended_sp = sender_sp;
+
+  // the return_address is always the word on the stack
+  address sender_pc = (address) *(sender_sp-1);
+
+  intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -453,9 +464,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     update_map_with_saved_link(map, saved_fp_addr);
   }
 
-  // On aarch64, compiled methods have a full frame.  If we want to
-  // make frameless methods (C2?) we can fix this when we do so.
-  return frame(sender_sp(), link(), sender_pc());
+  return frame(sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
 }
 
 
