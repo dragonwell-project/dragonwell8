@@ -2537,7 +2537,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   // TODO check various assumptions here
   //
   // call unimplemented to make sure we actually check this later
-  __ call_Unimplemented();
+  // __ call_Unimplemented();
 
   assert(SimpleRuntimeFrame::framesize % 4 == 0, "sp not 16-byte aligned");
 
@@ -2553,12 +2553,15 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 #endif
   // compiler left unloaded_class_index in j_rarg0 move to where the
   // runtime expects it.
-  __ movw(c_rarg1, j_rarg0);
+  if (c_rarg1 != j_rarg0) {
+    __ movw(c_rarg1, j_rarg0);
+  }
 
-  // TODO: work out what to use as the last pc here (Intel supplied NULL)
-  // for now supply label into generated code as per handler blob below
+  // we need to set the past SP to the stack pointre of the stub frame
+  // and the pc to the address where this runtime call will return
+  // although actually any pc in this code blob will do).
   Label retaddr;
-  __ set_last_Java_frame(noreg, noreg, retaddr, rscratch1);
+  __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
 
   // Call C code.  Need thread but NOT official VM entry
   // crud.  We cannot block on this call, no GC can happen.  Call should
