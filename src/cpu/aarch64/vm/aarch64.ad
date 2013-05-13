@@ -4262,7 +4262,7 @@ instruct msubI(iRegI dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3) %{
   ins_pipe(pipe_class_default);
 %}
 
-// Combined LongMultiply & Add/Sub
+// Combined Long Multiply & Add/Sub
 
 instruct maddL(iRegL dst, iRegL src1, iRegL src2, iRegL src3) %{
   match(Set dst (AddL (MulL src1 src2) src3));
@@ -4296,7 +4296,7 @@ instruct msubL(iRegL dst, iRegL src1, iRegL src2, iRegL src3) %{
   ins_pipe(pipe_class_default);
 %}
 
-// Intgeer Divide
+// Integer Divide
 
 instruct divI(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
   match(Set dst (DivI src1 src2));
@@ -4333,6 +4333,208 @@ instruct divL(iRegL dst, iRegL src1, iRegL src2) %{
   ins_encode(aarch64_enc_div(dst, src1, src2));
   ins_pipe(pipe_class_default);
 %}
+
+// Integer Remainder
+// TODO
+
+// Long Remainder
+// TODO
+
+// Integer Shifts
+
+// Shift Left Register
+instruct lShiftI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (LShiftI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "lslvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ lslvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Left Immediate
+instruct lShiftI_reg_imm(iRegI dst, iRegIorL2I src1, immI src2) %{
+  match(Set dst (LShiftI src1 src2));
+
+  format %{ "lslw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ lslw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Logical Register
+instruct urShiftI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (URShiftI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "lsrvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ lsrvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Logical Immediate
+instruct urShiftI_reg_imm(iRegI dst, iRegIorL2I src1, immI src2) %{
+  match(Set dst (URShiftI src1 src2));
+
+  format %{ "lsrw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ lsrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Arithmetic Register
+instruct rShiftI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (RShiftI src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "asrvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ asrvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Arithmetic Immediate
+instruct rShiftI_reg_imm(iRegI dst, iRegIorL2I src1, immI src2) %{
+  match(Set dst (RShiftI src1 src2));
+
+  format %{ "asrw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ asrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// Combined Int Mask and Right Shift (using UBFM)
+
+// Long Shifts
+
+// Shift Left Register
+instruct lShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (LShiftL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "lslvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ lslvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Left Immediate
+instruct lShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
+  match(Set dst (LShiftL src1 src2));
+
+  format %{ "lslw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ lslw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Logical Register
+instruct urShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (URShiftL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "lsrvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ lsrvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Logical Immediate
+instruct urShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
+  match(Set dst (URShiftL src1 src2));
+
+  format %{ "lsrw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ lsrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Arithmetic Register
+instruct rShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (RShiftL src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "asrvw  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ asrvw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Right Arithmetic Immediate
+instruct rShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
+  match(Set dst (RShiftL src1 src2));
+
+  format %{ "asrw $dst, $src1, ($src2 & 0x1f)" %}
+
+  ins_encode %{
+    __ asrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            $src2$$constant & 0x1f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// Combined Long Mask and Right Shift (using UBFM)
 
 // ============================================================================
 // Compare Instructions
