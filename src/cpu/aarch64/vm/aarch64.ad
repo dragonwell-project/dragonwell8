@@ -2231,6 +2231,22 @@ encode %{
     __ corrected_idivq(dst_reg, src1_reg, src2_reg, false, rscratch1);
   %}
 
+  enc_class aarch64_enc_modw(iRegI dst, iRegI src1, iRegI src2) %{
+    MacroAssembler _masm(&cbuf);
+   Register dst_reg = as_Register($dst$$reg);
+   Register src1_reg = as_Register($src1$$reg);
+   Register src2_reg = as_Register($src2$$reg);
+    __ corrected_idivl(dst_reg, src1_reg, src2_reg, true, rscratch1);
+  %}
+
+  enc_class aarch64_enc_mod(iRegI dst, iRegI src1, iRegI src2) %{
+    MacroAssembler _masm(&cbuf);
+   Register dst_reg = as_Register($dst$$reg);
+   Register src1_reg = as_Register($src1$$reg);
+   Register src2_reg = as_Register($src2$$reg);
+    __ corrected_idivq(dst_reg, src1_reg, src2_reg, true, rscratch1);
+  %}
+
   // compare instruction encodings
 
   enc_class aarch64_enc_cmpw(iRegI src1, iRegI src2) %{
@@ -4321,7 +4337,7 @@ instruct divL(iRegL dst, iRegL src1, iRegL src2) %{
   match(Set dst (DivL src1 src2));
 
   ins_cost(10*DEFAULT_COST);
-  format %{ "cmp    $src1, #0x8000000000000000\t# idiv\n\t"
+  format %{ "cmp    $src1, #0x8000000000000000\t# ldiv\n\t"
             "bne    normal\n\t"
             "cmn    $src2, #1\n\t"
             "beq    normal\n\t"
@@ -4337,8 +4353,42 @@ instruct divL(iRegL dst, iRegL src1, iRegL src2) %{
 // Integer Remainder
 // TODO
 
+instruct modI(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (ModI src1 src2));
+
+  format %{ "cmpw   $src1, #0x80000000\t# imod\n\t"
+            "bne    normal\n\t"
+            "cmnw   $src2, #1\n\t"
+            "beq    normal\n\t"
+            "movw   $dst, zr\n\t"
+            "b      done\n"
+    "normal: sdivw  rscratch1, $src1, $src2\n\t"
+            "msubw($dst, rscratch1, $src2, $src1"
+    "done:" %}
+
+  ins_encode(aarch64_enc_modw(dst, src1, src2));
+  ins_pipe(pipe_class_default);
+%}
+
 // Long Remainder
-// TODO
+
+instruct modL(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (ModL src1 src2));
+
+  ins_cost(10*DEFAULT_COST);
+  format %{ "cmp    $src1, #0x8000000000000000\t# lmod\n\t"
+            "bne    normal\n\t"
+            "cmn    $src2, #1\n\t"
+            "beq    normal\n\t"
+            "mov    $dst, zr\n\t"
+            "b      done\n"
+    "normal: sdiv   rscratch1, $src1, $src2\n"
+            "msub($dst, rscratch1, $src2, $src1"
+    "done:" %}
+
+  ins_encode(aarch64_enc_mod(dst, src1, src2));
+  ins_pipe(pipe_class_default);
+%}
 
 // Integer Shifts
 
