@@ -4166,11 +4166,11 @@ instruct negI_reg(iRegI dst, iRegIorL2I src, immI0 zero, rFlagsReg cr) %{
   effect(KILL cr);
 
   ins_cost(DEFAULT_COST);
-  format %{ "negsw $dst, $dst\t# int" %}
+  format %{ "negsw $dst, $src\t# int" %}
 
   ins_encode %{
     __ negsw(as_Register($dst$$reg),
-             as_Register($dst$$reg));
+             as_Register($src$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -4184,11 +4184,11 @@ instruct negL_reg(iRegL dst, iRegIorL2I src, immL0 zero, rFlagsReg cr) %{
   effect(KILL cr);
 
   ins_cost(DEFAULT_COST);
-  format %{ "negs $dst, $dst\t# long" %}
+  format %{ "negs $dst, $src\t# long" %}
 
   ins_encode %{
     __ negs(as_Register($dst$$reg),
-            as_Register($dst$$reg));
+            as_Register($src$$reg));
   %}
 
   ins_pipe(pipe_class_default);
