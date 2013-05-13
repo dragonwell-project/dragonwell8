@@ -4491,16 +4491,16 @@ instruct rShiftI_reg_imm(iRegI dst, iRegIorL2I src1, immI src2) %{
 // Long Shifts
 
 // Shift Left Register
-instruct lShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+instruct lShiftL_reg_reg(iRegL dst, iRegL src1, iRegIorL2I src2) %{
   match(Set dst (LShiftL src1 src2));
 
   ins_cost(DEFAULT_COST);
-  format %{ "lslvw  $dst, $src1, $src2" %}
+  format %{ "lslv  $dst, $src1, $src2" %}
 
   ins_encode %{
-    __ lslvw(as_Register($dst$$reg),
-             as_Register($src1$$reg),
-             as_Register($src2$$reg));
+    __ lslv(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -4510,28 +4510,28 @@ instruct lShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
 instruct lShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
   match(Set dst (LShiftL src1 src2));
 
-  format %{ "lslw $dst, $src1, ($src2 & 0x1f)" %}
+  format %{ "lsl $dst, $src1, ($src2 & 0x3f)" %}
 
   ins_encode %{
-    __ lslw(as_Register($dst$$reg),
+    __ lsl(as_Register($dst$$reg),
             as_Register($src1$$reg),
-            $src2$$constant & 0x1f);
+            $src2$$constant & 0x3f);
   %}
 
   ins_pipe(pipe_class_default);
 %}
 
 // Shift Right Logical Register
-instruct urShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+instruct urShiftL_reg_reg(iRegL dst, iRegL src1, iRegIorL2I src2) %{
   match(Set dst (URShiftL src1 src2));
 
   ins_cost(DEFAULT_COST);
-  format %{ "lsrvw  $dst, $src1, $src2" %}
+  format %{ "lsrv  $dst, $src1, $src2" %}
 
   ins_encode %{
-    __ lsrvw(as_Register($dst$$reg),
-             as_Register($src1$$reg),
-             as_Register($src2$$reg));
+    __ lsrv(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -4541,28 +4541,28 @@ instruct urShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
 instruct urShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
   match(Set dst (URShiftL src1 src2));
 
-  format %{ "lsrw $dst, $src1, ($src2 & 0x1f)" %}
+  format %{ "lsr $dst, $src1, ($src2 & 0x3f)" %}
 
   ins_encode %{
-    __ lsrw(as_Register($dst$$reg),
-            as_Register($src1$$reg),
-            $src2$$constant & 0x1f);
+    __ lsr(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           $src2$$constant & 0x3f);
   %}
 
   ins_pipe(pipe_class_default);
 %}
 
 // Shift Right Arithmetic Register
-instruct rShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+instruct rShiftL_reg_reg(iRegL dst, iRegL src1, iRegIorL2I src2) %{
   match(Set dst (RShiftL src1 src2));
 
   ins_cost(DEFAULT_COST);
-  format %{ "asrvw  $dst, $src1, $src2" %}
+  format %{ "asrv  $dst, $src1, $src2" %}
 
   ins_encode %{
-    __ asrvw(as_Register($dst$$reg),
-             as_Register($src1$$reg),
-             as_Register($src2$$reg));
+    __ asrv(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -4572,12 +4572,12 @@ instruct rShiftL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
 instruct rShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
   match(Set dst (RShiftL src1 src2));
 
-  format %{ "asrw $dst, $src1, ($src2 & 0x1f)" %}
+  format %{ "asr $dst, $src1, ($src2 & 0x3f)" %}
 
   ins_encode %{
-    __ asrw(as_Register($dst$$reg),
-            as_Register($src1$$reg),
-            $src2$$constant & 0x1f);
+    __ asr(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           $src2$$constant & 0x3f);
   %}
 
   ins_pipe(pipe_class_default);
