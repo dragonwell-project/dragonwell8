@@ -2725,7 +2725,7 @@ operand immIAddSub()
 
 // 32 bit unsigned integer valid for logical immediate
 // TODO -- check this is right when e.g the mask is 0x80000000
-operand immIULog()
+operand immILog()
 %{
   predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_int()));
   match(ConI);
@@ -2789,7 +2789,7 @@ operand immLAddSub()
 %}
 
 // 64 bit integer valid for logical immediate
-operand immLULog()
+operand immLLog()
 %{
   predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_long()));
   match(ConL);
@@ -4000,6 +4000,11 @@ instruct convL2I_reg(iRegI dst, iRegL src) %{
 // ============================================================================
 // Arithmetic Instructions
 //
+// TODO
+// these currently employ operations which do not set CR and hence are
+// not flagged as killing CR but we would like to isolate the cases
+// where we want to set flags from those where we don't. need to work
+// out how to do that.
 
 // Integer Addition
 
@@ -4351,7 +4356,6 @@ instruct divL(iRegL dst, iRegL src1, iRegL src2) %{
 %}
 
 // Integer Remainder
-// TODO
 
 instruct modI(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
   match(Set dst (ModI src1 src2));
@@ -4485,8 +4489,8 @@ instruct rShiftI_reg_imm(iRegI dst, iRegIorL2I src1, immI src2) %{
   ins_pipe(pipe_class_default);
 %}
 
-// TODO
 // Combined Int Mask and Right Shift (using UBFM)
+// TODO
 
 // Long Shifts
 
@@ -4583,8 +4587,212 @@ instruct rShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
   ins_pipe(pipe_class_default);
 %}
 
-// TODO
 // Combined Long Mask and Right Shift (using UBFM)
+// TODO
+
+// Integer Rotate Instructions
+// TODO
+
+// Long Rotate Instructions
+// TODO
+
+// ============================================================================
+// Floating Point Arithmetic Instructions
+
+// ============================================================================
+// Logical Instructions
+
+// Integer Logical Instructions
+
+// And Instructions
+// TODO
+// these currently set CR and are flagged as killing CR but we would
+// like to isolate the cases where we want to set flags from those
+// where we don't. need to work out how to do that.
+
+
+instruct andI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2, rFlagsReg cr) %{
+  match(Set dst (AndI src1 src2));
+  effect(KILL cr);
+
+  format %{ "andsw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ andsw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct andI_reg_imm(iRegI dst, iRegIorL2I src1, immILog src2, rFlagsReg cr) %{
+  match(Set dst (AndI src1 src2));
+  effect(KILL cr);
+
+  format %{ "andsw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ andsw(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+             (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Or Instructions
+
+instruct orI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (OrI src1 src2));
+
+  format %{ "orrw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ orrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct orI_reg_imm(iRegI dst, iRegIorL2I src1, immILog src2) %{
+  match(Set dst (OrI src1 src2));
+
+  format %{ "orrw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ orrw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Xor Instructions
+
+instruct xorI_reg_reg(iRegI dst, iRegIorL2I src1, iRegIorL2I src2) %{
+  match(Set dst (XorI src1 src2));
+
+  format %{ "eorw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ eorw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct xorI_reg_imm(iRegI dst, iRegIorL2I src1, immILog src2) %{
+  match(Set dst (XorI src1 src2));
+
+  format %{ "eorw  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ eorw(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Long Logical Instructions
+// TODO
+
+instruct andL_reg_reg(iRegL dst, iRegL src1, iRegL src2, rFlagsReg cr) %{
+  match(Set dst (AndL src1 src2));
+  effect(KILL cr);
+
+  format %{ "ands  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ ands(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct andL_reg_imm(iRegL dst, iRegL src1, immLLog src2, rFlagsReg cr) %{
+  match(Set dst (AndL src1 src2));
+  effect(KILL cr);
+
+  format %{ "ands  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ ands(as_Register($dst$$reg),
+            as_Register($src1$$reg),
+            (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Or Instructions
+
+instruct orL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (OrL src1 src2));
+
+  format %{ "orr  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ orr(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct orL_reg_imm(iRegL dst, iRegL src1, immLLog src2) %{
+  match(Set dst (OrL src1 src2));
+
+  format %{ "orr  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ orr(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Xor Instructions
+
+instruct xorL_reg_reg(iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (XorL src1 src2));
+
+  format %{ "eor  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ eor(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct xorL_reg_imm(iRegL dst, iRegL src1, immLLog src2) %{
+  match(Set dst (XorL src1 src2));
+
+  format %{ "eor  $dst, $src1, $src2\t# int" %}
+
+  ins_encode %{
+    __ eor(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           (unsigned long)($src2$$constant));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
 
 // ============================================================================
 // Compare Instructions
