@@ -1905,24 +1905,30 @@ void MacroAssembler::store_klass_gap(Register dst, Register src) {
 }
 
 // Algorithm must match oop.inline.hpp encode_heap_oop.
-void MacroAssembler::encode_heap_oop(Register r) {
+void MacroAssembler::encode_heap_oop(Register d, Register s) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::encode_heap_oop: heap base corrupted?");
 #endif
-  verify_oop(r, "broken oop in encode_heap_oop");
+  verify_oop(s, "broken oop in encode_heap_oop");
   if (Universe::narrow_oop_base() == NULL) {
     if (Universe::narrow_oop_shift() != 0) {
       assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
-      lsr(r, r, LogMinObjAlignmentInBytes);
+      lsr(d, s, LogMinObjAlignmentInBytes);
+    } else {
+      mov(d, s);
     }
-    return;
-  }
-  {
+  } else {
+    subs(d, s, rheapbase);
+    csel(d, d, zr, Assembler::HS);
+    lsr(d, d, LogMinObjAlignmentInBytes);
+
+    /*  Old algorithm: is this any worse?
     Label nonnull;
     cbnz(r, nonnull);
     sub(r, r, rheapbase);
     bind(nonnull);
     lsr(r, r, LogMinObjAlignmentInBytes);
+    */
   }
 }
 

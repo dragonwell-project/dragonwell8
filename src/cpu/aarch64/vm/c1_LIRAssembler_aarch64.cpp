@@ -172,8 +172,9 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      __ mov64(rscratch1, addr_offset); // Make a full four-instruction mov
-      return Address(base, rscratch1, Address::lsl(addr->scale()));
+      // FIXME: This could be a two-instruction mov
+      __ mov64(tmp, addr_offset); // Make a full four-instruction mov
+      return Address(base, tmp, Address::lsl(addr->scale()));
     }
   }
 }
@@ -721,8 +722,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     __ verify_oop(src->as_register());
 
     if (UseCompressedOops && !wide) {
-      __ mov(compressed_src, src->as_register());
-      __ encode_heap_oop(compressed_src);
+      __ encode_heap_oop(compressed_src, src->as_register());
     } else {
       compressed_src = src->as_register();
     }
@@ -746,9 +746,9 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
-        __ strw(compressed_src, as_Address(to_addr));
+        __ strw(compressed_src, as_Address(to_addr, rscratch2));
       } else {
-         __ str(compressed_src, as_Address(to_addr));
+         __ str(compressed_src, as_Address(to_addr, noreg));
       }
       break;
     case T_METADATA:
