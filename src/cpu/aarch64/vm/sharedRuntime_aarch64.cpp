@@ -211,9 +211,19 @@ bool SharedRuntime::is_wide_vector(int size) {
 // a frame with no abi restrictions. Since we must observe abi restrictions
 // (like the placement of the register window) the slots must be biased by
 // the following value.
-static int reg2offset_in(VMReg r) { Unimplemented(); return 0; }
+static int reg2offset_in(VMReg r) {
+  // Account for saved rfp and lr
+  // This should really be in_preserve_stack_slots
+  return (r->reg2stack() + 4) * VMRegImpl::stack_slot_size;
+}
 
-static int reg2offset_out(VMReg r) { Unimplemented(); return 0; }
+static int reg2offset_out(VMReg r) {
+  return (r->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
+}
+
+template <class T> static const T& min (const T& a, const T& b) {
+  return (a > b) ? b : a;
+}
 
 // ---------------------------------------------------------------------------
 // Read the array of BasicTypes from a signature, and compute where the
@@ -926,7 +936,7 @@ static void object_move(MacroAssembler* masm,
 
   // must pass a handle. First figure out the location we use as a handle
 
-  Register rHandle = dst.first()->is_stack() ? r0 : dst.first()->as_Register();
+  Register rHandle = dst.first()->is_stack() ? rscratch2 : dst.first()->as_Register();
 
   // See if oop is NULL if it is we need no handle
 
@@ -1691,7 +1701,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 	int_args++;
         break;
       case T_VOID:
-	int_args++;
         break;
 
       case T_FLOAT:
@@ -1783,7 +1792,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // Register definitions used by locking and unlocking
 
-  const Register swap_reg = r0;  // Must use r0 for cmpxchg instruction
+  const Register swap_reg = r0;
   const Register obj_reg  = r19;  // Will contain the oop
   const Register lock_reg = r13;  // Address of compiler lock object (BasicLock)
   const Register old_hdr  = r13;  // value of old header at unlock time
@@ -1882,7 +1891,10 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     default:
       ShouldNotReachHere();
     }
-    rt_call(masm, native_func, int_args + 2, float_args, return_type);
+    rt_call(masm, native_func,
+	    int_args + 2, // AArch64 passes up to 8 args in int registers
+	    float_args,   // and up to 8 float args
+	    return_type);
   }
 
   // Unpack native results.
@@ -1955,19 +1967,15 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     //
     save_native_result(masm, ret_type, stack_slots);
     __ mov(c_rarg0, rthread);
-    __ mov(r19, sp); // remember sp
 #ifndef PRODUCT
   assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
 #endif
-    __ andr(sp, rscratch1, -16); // align stack as required by ABI
     if (!is_critical_native) {
       __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans)));
     } else {
       __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans_and_transition)));
     }
     __ brx86(rscratch1, 1, 0, 1);
-    __ mov(sp, r19); // restore sp
-    __ reinit_heapbase();
     // Restore any method result value
     restore_native_result(masm, ret_type, stack_slots);
 

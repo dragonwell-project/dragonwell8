@@ -1260,9 +1260,9 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
 
 	__ stp(klass_RInfo, k_RInfo, Address(__ pre(sp, -2 * wordSize)));
         __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::slow_subtype_check_id)));
-	__ ldp(klass_RInfo, zr, Address(__ post(sp, 2 * wordSize)));
+	__ ldr(klass_RInfo, Address(__ post(sp, 2 * wordSize)));
         // result is a boolean
-	__ cbzw(k_RInfo, *failure_target);
+	__ cbzw(klass_RInfo, *failure_target);
         // successful cast, fall through to profile or jump
       }
     } else {
