@@ -748,7 +748,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       if (UseCompressedOops && !wide) {
         __ strw(compressed_src, as_Address(to_addr, rscratch2));
       } else {
-         __ str(compressed_src, as_Address(to_addr, noreg));
+         __ str(compressed_src, as_Address(to_addr));
       }
       break;
     case T_METADATA:

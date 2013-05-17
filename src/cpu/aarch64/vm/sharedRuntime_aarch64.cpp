@@ -2494,8 +2494,9 @@ void SharedRuntime::generate_deopt_blob() {
   __ ldr(lr, Address(r2));
   __ enter();
 
-  // Allocate a full sized register save area.
-  __ sub(sp, sp, frame_size_in_words * wordSize);
+  // Allocate a full sized register save area.  We subtract 2 because
+  // enter() just pushed 2 words
+  __ sub(sp, sp, (frame_size_in_words - 2) * wordSize);
 
   // Restore frame locals after moving the frame
   __ strd(v0, Address(sp, RegisterSaver::v0_offset_in_bytes()));
