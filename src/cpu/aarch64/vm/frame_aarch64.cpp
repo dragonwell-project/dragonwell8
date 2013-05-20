@@ -691,7 +691,23 @@ intptr_t* frame::real_fp() const {
 static __thread long nextfp;
 static __thread long nextpc;
 
-extern "C" void pf(unsigned long fp, unsigned long pc) {
+static void printbc(Method *m, intptr_t bcx) {
+  const char *name;
+  char buf[16];
+  if (m->validate_bci_from_bcx(bcx) < 0
+      || !m->contains((address)bcx)) {
+    name = "???";
+    snprintf(buf, sizeof buf, "(bad)");
+  } else {
+    int bci = m->bci_from((address)bcx);
+    snprintf(buf, sizeof buf, "%d", bci);
+    name = Bytecodes::name(m->code_at(bci));
+  }
+  ResourceMark rm;
+  printf("%s : %s ==> %s\n", m->name_and_sig_as_C_string(), buf, name);
+}
+
+extern "C" void pf(unsigned long fp, unsigned long pc, unsigned long bcx) {
   if (! fp)
     return;
 
@@ -711,11 +727,13 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
   nextfp = p[frame::link_offset];
   nextpc = p[frame::return_addr_offset];
 
+  if (bcx == -1ul)
+    bcx = p[frame::interpreter_frame_bcx_offset];
+
   if (Interpreter::contains((address)pc)) {
     Method* m = (Method*)p[frame::interpreter_frame_method_offset];
     if(m && m->is_method()) {
-      ResourceMark rm;
-      printf("%s\n", m->name_and_sig_as_C_string());
+      printbc(m, bcx);
     } else
       printf("not a Method\n");
   } else {
@@ -729,7 +747,7 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
 }
 
 extern "C" void npf() {
-  pf (nextfp, nextpc);
+  pf (nextfp, nextpc, -1);
 }
 
 // support for printing out where we are in a Java method
@@ -739,16 +757,5 @@ extern "C" void pm(unsigned long fp, unsigned long bcx) {
   DESCRIBE_FP_OFFSET(interpreter_frame_method);
   unsigned long *p = (unsigned long *)fp;
   Method* m = (Method*)p[frame::interpreter_frame_method_offset];
-  int bci = 0;
-  const char *name;
-  if (m->validate_bci_from_bcx(bcx) < 0
-      || !m->contains((address)bcx)) {
-    bci = 0;
-    name = "???";
-  } else {
-    bci = m->bci_from((address)bcx);
-    name = Bytecodes::name(m->code_at(bci));
-  }
-  ResourceMark rm;
-  printf("%s : %d ==> %s\n", m->name_and_sig_as_C_string(), bci, name);
+  printbc(m, bcx);
 }
