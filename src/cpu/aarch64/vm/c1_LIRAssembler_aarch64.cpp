@@ -676,7 +676,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
     __ fmovs(dest->as_float_reg(), src->as_float_reg());
 
   } else if (dest->is_double_fpu()) {
-    __ fmovd(src->as_double_reg(), src->as_double_reg());
+    __ fmovd(dest->as_double_reg(), src->as_double_reg());
 
   } else {
     ShouldNotReachHere();

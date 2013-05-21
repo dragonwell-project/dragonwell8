@@ -55,11 +55,13 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
 	      Address(__ pre(sp, -2 * wordSize)));
 
   if (bytecode() == Bytecodes::_f2i) {
-    __ fmovs(v0, input()->as_float_reg());
+    if (v0 != input()->as_float_reg())
+      __ fmovs(v0, input()->as_float_reg());
     __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
 			  0, 1, MacroAssembler::ret_type_integral);
   } else {
-    __ fmovd(v0, input()->as_double_reg());
+    if (v0 != input()->as_double_reg())
+      __ fmovd(v0, input()->as_double_reg());
     __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
 			  0, 1, MacroAssembler::ret_type_integral);
   }
