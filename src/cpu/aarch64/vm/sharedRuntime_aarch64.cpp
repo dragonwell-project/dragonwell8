@@ -1030,11 +1030,13 @@ static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
 
 // A double move
-static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { 
-  if (src.is_single_phys_reg() && dst.is_single_phys_reg())
-    __ fmovd(dst.first()->as_FloatRegister(), src.first()->as_FloatRegister());
-  else
-    ShouldNotReachHere();
+static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
+  if (src.first() != dst.first()) {
+    if (src.is_single_phys_reg() && dst.is_single_phys_reg())
+      __ fmovd(dst.first()->as_FloatRegister(), src.first()->as_FloatRegister());
+    else
+      ShouldNotReachHere();
+  }
 }
 
 
