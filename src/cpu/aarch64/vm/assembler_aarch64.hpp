@@ -111,11 +111,7 @@ REGISTER_DECLARATION(FloatRegister, j_farg7, v7);
 REGISTER_DECLARATION(Register, rscratch1, r8);
 REGISTER_DECLARATION(Register, rscratch2, r9);
 
-<<<<<<< HEAD
-// current method -- must be in a call-clobbered register
-=======
 // current method
->>>>>>> adbadf4... switch to using r12 as rmethod
 REGISTER_DECLARATION(Register, rmethod,   r12);
 
 // non-volatile (callee-save) registers are r16-29
@@ -150,7 +146,7 @@ REGISTER_DECLARATION(Register, esp,      r20);
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
 namespace asm_util {
-  uint32_t encode_logical_immediate(bool is32, uint64_t imm);
+  uint32_t encode_logical_immediate(int is32, uint64_t imm);
 };
 
 using namespace asm_util;
@@ -329,6 +325,8 @@ class Address VALUE_OBJ_CLASS_SPEC {
   enum mode { no_mode, base_plus_offset, pre, post, pcrel,
 	      base_plus_offset_reg, literal };
 
+  enum ScaleFactor { times_4, times_8 };
+
   // Shift and extend for base reg + reg offset addressing
   class extend {
     int _option, _shift;
@@ -380,42 +378,41 @@ class Address VALUE_OBJ_CLASS_SPEC {
   Address()
     : _mode(no_mode) { }
   Address(Register r)
-    : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg), _target(0) { }
+    : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg) { }
   Address(Register r, int o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
   Address(Register r, long o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
   Address(Register r, unsigned long o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg) { }
 #ifdef ASSERT
   Address(Register r, ByteSize disp)
     : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)),
-      _index(noreg), _target(0) { }
+      _index(noreg) { }
 #endif
   Address(Register r, Register r1, extend ext = lsl())
     : _mode(base_plus_offset_reg), _base(r), _index(r1),
-    _ext(ext), _offset(0), _target(0) { }
+    _ext(ext), _offset(0) { }
   Address(Pre p)
     : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
   Address(Post p)
-    : _mode(post), _base(p.reg()), _offset(p.offset()), _target(0) { }
+    : _mode(post), _base(p.reg()), _offset(p.offset()) { }
   Address(address target, RelocationHolder const& rspec)
     : _mode(literal),
       _rspec(rspec),
       _is_lval(false),
       _target(target)  { }
   Address(address target, relocInfo::relocType rtype = relocInfo::external_word_type);
-  Address(Register base, RegisterOrConstant index, extend ext = lsl())
+  Address(Register base, RegisterOrConstant index, extend ext = lsl(), int o = 0)
     : _base (base),
-      _ext(ext), _offset(0), _target(0) {
+      _ext(ext), _offset(o) {
     if (index.is_register()) {
       _mode = base_plus_offset_reg;
       _index = index.as_register();
+      assert(o == 0, "inconsistent address");
     } else {
-      guarantee(ext.option() == ext::uxtx, "should be");
-      assert(index.is_constant(), "should be");
       _mode = base_plus_offset;
-      _offset = index.as_constant() << ext.shift();
+      _offset = o;
     }
   }
 
@@ -509,23 +506,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
       ShouldNotReachHere();
     }
 
-    unsigned size; // Operand shift in 32-bit words
-
-    if (i->get(26, 26)) { // float
-      switch(i->get(31, 30)) {
-      case 0b10:
-	size = 2; break;
-      case 0b01:
-	size = 1; break;
-      case 0b00:
-	size = 0; break;
-      default:
-	ShouldNotReachHere();
-      }
-    } else {
-      size = i->get(31, 31);
-    }
-
+    unsigned size = i->get(31, 31);
     size = 4 << size;
     guarantee(_offset % size == 0, "bad offset");
     i->sf(_offset / size, 21, 15);
@@ -545,15 +526,6 @@ class Address VALUE_OBJ_CLASS_SPEC {
   }
 
   void lea(MacroAssembler *, Register) const;
-
-  static bool offset_ok_for_immed(int offset, int shift = 0) {
-    unsigned mask = (1 << shift) - 1;
-    if (offset < 0 || offset & mask) {
-      return (abs(offset) < (1 << (20 - 12))); // Unscaled offset
-    } else {
-      return ((offset >> shift) < (1 << (21 - 10 + 1))); // Scaled, unsigned offset
-    }
-  }
 };
 
 // Convience classes
@@ -596,7 +568,7 @@ class InternalAddress: public Address {
   InternalAddress(address target) : Address(target, relocInfo::internal_word_type) {}
 };
 
-const int FPUStateSizeInWords = 32 * 2;
+const int FPUStateSizeInWords = 27; // FIXME   :-)
 
 class Assembler : public AbstractAssembler {
 
@@ -665,46 +637,43 @@ public:
   void wrap_label(Label &L, int prfop, prefetch_insn insn);
 
   // PC-rel. addressing
+#define INSN(NAME, op, shift)						\
+  void NAME(Register Rd, address adr) {					\
+    long offset = adr - pc();						\
+    offset >>= shift;							\
+    int offset_lo = offset & 3;						\
+    offset >>= 2;							\
+    starti;								\
+    f(op, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5); \
+    rf(Rd, 0);								\
+  }									\
+  void NAME(Register Rd, Label &L) {					\
+    wrap_label(Rd, L, &Assembler::NAME);				\
+  }									\
+  void NAME(Register Rd, const Address &dest);
 
-  void adr(Register Rd, address dest);
-  void _adrp(Register Rd, address dest);
+  INSN(adr, 0, 0);
+  INSN(adrp, 1, 12);
 
-  void adr(Register Rd, const Address &dest);
-  void _adrp(Register Rd, const Address &dest);
+#undef INSN
 
-  void adr(Register Rd, Label &L) {
-    wrap_label(Rd, L, &Assembler::Assembler::adr);
+  // Add/subtract (immediate)
+#define INSN(NAME, decode)						\
+  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift = 0) { \
+    starti;								\
+    f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
+    zrf(Rd, 0), srf(Rn, 5);						\
   }
-  void _adrp(Register Rd, Label &L) {
-    wrap_label(Rd, L, &Assembler::_adrp);
-  }
 
-  void adrp(Register Rd, const Address &dest, unsigned long &offset);
+  INSN(addsw, 0b001);
+  INSN(subsw, 0b011);
+  INSN(adds,  0b101);
+  INSN(subs,  0b111);
 
 #undef INSN
 
   void add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
 			 int negated_op);
-
-  // Add/subtract (immediate)
-#define INSN(NAME, decode, negated)					\
-  void NAME(Register Rd, Register Rn, unsigned imm, unsigned shift) {	\
-    starti;								\
-    f(decode, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10); \
-    zrf(Rd, 0), srf(Rn, 5);						\
-  }									\
-									\
-  void NAME(Register Rd, Register Rn, unsigned imm) {			\
-    starti;								\
-    add_sub_immediate(Rd, Rn, imm, decode, negated);			\
-  }
-
-  INSN(addsw, 0b001, 0b011);
-  INSN(subsw, 0b011, 0b001);
-  INSN(adds,  0b101, 0b111);
-  INSN(subs,  0b111, 0b101);
-
-#undef INSN
 
 #define INSN(NAME, decode, negated)			\
   void NAME(Register Rd, Register Rn, unsigned imm) {	\
@@ -995,8 +964,6 @@ public:
   INSN(blr, 0b0001);
   INSN(ret, 0b0010);
 
-  void ret(void *p); // This forces a compile-time error for ret(0)
-
 #undef INSN
 
 #define INSN(NAME, opc)				\
@@ -1167,18 +1134,6 @@ public:
 
 #undef INSN
 
-#define INSN(NAME, size, p1, V, L, no_allocate)				\
-  void NAME(FloatRegister Rt1, FloatRegister Rt2, Address adr) {	\
-    ld_st1(size, p1, V, L, (Register)Rt1, (Register)Rt2, adr, no_allocate); \
-   }
-
-  INSN(stps, 0b00, 0b101, 1, 0, false);
-  INSN(ldps, 0b00, 0b101, 1, 1, false);
-  INSN(stpd, 0b01, 0b101, 1, 0, false);
-  INSN(ldpd, 0b01, 0b101, 1, 1, false);
-
-#undef INSN
-
   // Load/store register (all modes)
   void ld_st2(Register Rt, const Address &adr, int size, int op, int V = 0) {
     starti;
@@ -1284,7 +1239,7 @@ public:
     starti;						\
     f(0, 21);						\
     assert_cond(kind != ROR);				\
-    zrf(Rd, 0), zrf(Rn, 5), zrf(Rm, 16);		\
+    zrf(Rd, 0), zrf(Rn, 5), rf(Rm, 16);			\
     op_shifted_reg(0b01011, kind, shift, size, op);	\
   }
 
@@ -1552,31 +1507,17 @@ public:
     data_processing(op31, type, opcode, Vd, Vn);	\
   }
 
-private:
-  INSN(i_fmovs, 0b000, 0b00, 0b000000);
-public:
+  INSN(fmovs, 0b000, 0b00, 0b000000);
   INSN(fabss, 0b000, 0b00, 0b000001);
   INSN(fnegs, 0b000, 0b00, 0b000010);
   INSN(fsqrts, 0b000, 0b00, 0b000011);
-  INSN(fcvts, 0b000, 0b00, 0b000101);   // Single-precision to double-precision
+  INSN(fcvts, 0b000, 0b00, 0b000101);
 
-private:
-  INSN(i_fmovd, 0b000, 0b01, 0b000000);
-public:
+  INSN(fmovd, 0b000, 0b01, 0b000000);
   INSN(fabsd, 0b000, 0b01, 0b000001);
   INSN(fnegd, 0b000, 0b01, 0b000010);
   INSN(fsqrtd, 0b000, 0b01, 0b000011);
-  INSN(fcvtd, 0b000, 0b01, 0b000100);   // Double-precision to single-precision
-
-  void fmovd(FloatRegister Vd, FloatRegister Vn) {
-    assert(Vd != Vn, "should be");
-    i_fmovd(Vd, Vn);
-  }
-
-  void fmovs(FloatRegister Vd, FloatRegister Vn) {
-    assert(Vd != Vn, "should be");
-    i_fmovs(Vd, Vn);
-  }
+  INSN(fcvtd, 0b000, 0b01, 0b000100);
 
 #undef INSN
 
@@ -1735,16 +1676,11 @@ private:
 public:
 
   void fmovs(FloatRegister Vn, double value) {
-    if (value)
-      fmov_imm(Vn, value, 0b00);
-    else
-      fmovs(Vn, zr);
+    fmov_imm(Vn, value, 0b00);
+
   }
   void fmovd(FloatRegister Vn, double value) {
-    if (value)
-      fmov_imm(Vn, value, 0b01);
-    else
-      fmovd(Vn, zr);
+    fmov_imm(Vn, value, 0b01);
   }
 
 /* Simulator extensions to the ISA
@@ -1879,12 +1815,7 @@ public:
   // Stack overflow checking
   virtual void bang_stack_with_offset(int offset);
 
-  static bool operand_valid_for_logical_immediate(bool is32, uint64_t imm);
-  static bool operand_valid_for_add_sub_immediate(long imm);
-  static bool operand_valid_for_float_immediate(double imm);
-
-  void emit_data64(jlong data, relocInfo::relocType rtype, int format = 0);
-  void emit_data64(jlong data, RelocationHolder const& rspec, int format = 0);
+  bool operand_valid_for_logical_immdiate(int is32, uint64_t imm);
 };
 
 Instruction_aarch64::~Instruction_aarch64() {

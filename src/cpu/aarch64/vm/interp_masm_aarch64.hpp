@@ -87,8 +87,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
     ldr(rcpool, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
   }
 
-  void get_dispatch();
-
   // Helpers for runtime call arguments/results
 
   // Helpers for runtime call arguments/results
@@ -276,7 +274,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   virtual void call_Unimplemented() {
     save_bcp();
-    set_last_Java_frame(esp, rfp, (address) pc(), rscratch1);
+    set_last_Java_frame(esp, rfp, (address) pc());
     haltsim();
   }
 };

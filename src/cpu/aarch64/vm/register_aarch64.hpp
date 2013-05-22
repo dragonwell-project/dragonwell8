@@ -59,8 +59,8 @@ class RegisterImpl: public AbstractRegisterImpl {
   bool  is_valid() const                         { return 0 <= (intptr_t)this && (intptr_t)this < number_of_registers; }
   bool  has_byte_register() const                { return 0 <= (intptr_t)this && (intptr_t)this < number_of_byte_registers; }
   const char* name() const;
-  int   encoding_nocheck() const                 { return (intptr_t)this; }
-  unsigned long bit(bool yes) const               { return yes << encoding(); }
+  int   encoding_nocheck() const                         { return (intptr_t)this; }
+  
 };
 
 // The integer registers of the aarch64 architecture
@@ -99,8 +99,6 @@ CONSTANT_REGISTER_DECLARATION(Register, r27,  (27));
 CONSTANT_REGISTER_DECLARATION(Register, r28,  (28));
 CONSTANT_REGISTER_DECLARATION(Register, r29,  (29));
 CONSTANT_REGISTER_DECLARATION(Register, r30,  (30));
-
-CONSTANT_REGISTER_DECLARATION(Register, r31_sp, (31));
 CONSTANT_REGISTER_DECLARATION(Register, zr,  (32));
 CONSTANT_REGISTER_DECLARATION(Register, sp,  (33));
 
@@ -220,9 +218,9 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
   // There is no requirement that any ordering here matches any ordering c2 gives
   // it's optoregs.
 
-    number_of_registers = (2 * RegisterImpl::number_of_registers +
-                           2 * FloatRegisterImpl::number_of_registers +
-                           1) // flags
+    number_of_registers =      RegisterImpl::number_of_registers +
+                               FloatRegisterImpl::number_of_registers +
+                               1 // flags
   };
 
   // added to make it compile
