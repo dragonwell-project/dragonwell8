@@ -753,7 +753,6 @@ uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
 const RegMask& MachConstantBaseNode::_out_RegMask = RegMask::Empty;
 
 int Compile::ConstantTable::calculate_table_base_offset() const {
-  Unimplemented();
   return 0;  // absolute addressing, no offset
 }
 
@@ -762,7 +761,6 @@ void MachConstantBaseNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const {
 }
 
 uint MachConstantBaseNode::size(PhaseRegAlloc* ra_) const {
-  Unimplemented();
   return 0;
 }
 
@@ -846,6 +844,15 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   if (VerifyStackAtCalls) {
     Unimplemented();
+  }
+
+  C->set_frame_complete(cbuf.insts_size());
+
+  if (C->has_mach_constant_base_node()) {
+    // NOTE: We set the table base offset here because users might be
+    // emitted before MachConstantBaseNode.
+    Compile::ConstantTable& constant_table = C->constant_table();
+    constant_table.set_table_base_offset(constant_table.calculate_table_base_offset());
   }
 }
 
@@ -2830,8 +2837,6 @@ operand immP0()
   interface(CONST_INTER);
 %}
 
-// Narrow Pointer operands
-// Marow Pointer Immediate
 // Float and Double operands
 // Double Immediate
 operand immD()
@@ -2853,6 +2858,16 @@ operand immD0()
   interface(CONST_INTER);
 %}
 
+// constant 'double +0.0'.
+operand immDPacked()
+%{
+  predicate(Assembler::operand_valid_for_float_immediate(n->getd()));
+  match(ConD);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 // Float Immediate
 operand immF()
 %{
@@ -2867,6 +2882,16 @@ operand immF0()
 %{
   predicate((n->getf() == 0) &&
             (fpclassify(n->getf()) == FP_ZERO) && (signbit(n->getf()) == 0));
+  match(ConF);
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// 
+operand immFPacked()
+%{
+  predicate(Assembler::operand_valid_for_float_immediate((double)n->getf()));
   match(ConF);
   op_cost(0);
   format %{ %}
@@ -3811,6 +3836,71 @@ instruct loadConNKlass(iRegNNoSp dst, immNKlass con)
   ins_pipe(pipe_class_default);
 %}
 
+// Load Packed Float Constant
+
+instruct loadConF_packed(vRegF dst, immFPacked con) %{
+  match(Set dst con);
+  ins_cost(DEFAULT_COST);
+  format %{ "fmovs  $dst, $con"%}
+  ins_encode %{
+    __ fmovs(as_FloatRegister($dst$$reg), (double)$con$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Load Float Constant
+
+instruct loadConF(vRegF dst, immF con) %{
+  match(Set dst con);
+
+  ins_cost(DEFAULT_COST * 2);
+
+  format %{
+    "lea rscratch1, [$constantaddress]\t# load from constant table: float=$con\n\t"
+    "ldrs $dst, rscratch1"
+  %}
+
+  ins_encode %{
+    __ lea(rscratch1, $constantaddress($con));
+    __ ldrs(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Load Packed Double Constant
+
+instruct loadConD_packed(vRegD dst, immDPacked con) %{
+  match(Set dst con);
+  ins_cost(DEFAULT_COST);
+  format %{ "fmovd  $dst, $con"%}
+  ins_encode %{
+    __ fmovd(as_FloatRegister($dst$$reg), $con$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Load Double Constant
+
+instruct loadConD(vRegD dst, immD con) %{
+  match(Set dst con);
+
+  ins_cost(DEFAULT_COST * 2);
+  format %{
+    "lea rscratch1, [$constantaddress]\t# load from constant table: float=$con\n\t"
+    "ldrd $dst, rscratch1"
+  %}
+
+  ins_encode %{
+    __ lea(rscratch1, $constantaddress($con));
+    __ ldrd(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // Store Instructions
 
 // Store Byte
@@ -3917,8 +4007,9 @@ instruct storeD(vRegD src, memory mem)
 
   ins_pipe(pipe_class_memory);
 %}
+// ============================================================================
+// BSWAP Instructions
 
-//----------BSWAP Instructions-------------------------------------------------
 instruct bytes_reverse_int(iRegINoSp dst) %{
   match(Set dst (ReverseBytesI dst));
 
@@ -3978,7 +4069,7 @@ instruct bytes_reverse_short(iRegINoSp dst) %{
 // TODO
 
 // ============================================================================
-// Convert Instructions
+// Cast/Convert Instructions
 // TODO
 
 instruct convL2I_reg(iRegI dst, iRegL src) %{
@@ -3990,6 +4081,33 @@ instruct convL2I_reg(iRegI dst, iRegL src) %{
   ins_encode %{
     __ movw(as_Register($dst$$reg), as_Register($src$$reg));
   %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convD2F_reg(vRegF dst, vRegD src) %{
+  match(Set dst (ConvD2F src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtd  $dst, $src \t// d2f" %}
+
+  ins_encode %{
+    __ fcvtd(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convF2D_reg(vRegD dst, vRegF src) %{
+  match(Set dst (ConvF2D src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvts  $dst, $src \t// f2d" %}
+
+  ins_encode %{
+    __ fcvts(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
   ins_pipe(pipe_class_default);
 %}
 
@@ -4599,6 +4717,186 @@ instruct rShiftL_reg_imm(iRegL dst, iRegL src1, immI src2) %{
 // ============================================================================
 // Floating Point Arithmetic Instructions
 
+instruct addF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (AddF src1 src2));
+
+  format %{ "fadds   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fadds(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
+  match(Set dst (AddD src1 src2));
+
+  format %{ "faddd   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ faddd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct subF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (SubF src1 src2));
+
+  format %{ "fsubs   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fsubs(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct subD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
+  match(Set dst (SubD src1 src2));
+
+  format %{ "fsubd   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fsubd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct mulF_reg_reg(vRegF dst, vRegF src1, vRegF src2) %{
+  match(Set dst (MulF src1 src2));
+
+  format %{ "fmuls   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fmuls(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct mulD_reg_reg(vRegD dst, vRegD src1, vRegD src2) %{
+  match(Set dst (MulD src1 src2));
+
+  format %{ "fmuld   $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ fmuld(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct maddF_reg_reg(vRegF dst, vRegF src1, vRegF src2, vRegF src3) %{
+  match(Set dst (AddF (MulF src1 src2) src3));
+
+  format %{ "fmadds   $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fmadds(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg),
+             as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct maddD_reg_reg(vRegD dst, vRegD src1, vRegD src2, vRegF src3) %{
+  match(Set dst (AddD (MulD src1 src2) src3));
+
+  format %{ "fmaddd   $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fmaddd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src1$$reg),
+             as_FloatRegister($src2$$reg),
+             as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// create a test to see if we can ever match these
+
+instruct msubF_reg_reg(vRegF dst, vRegF src1, vRegF src2, vRegF src3, immF0 zero) %{
+  match(Set dst (AddF (MulF (SubF zero src1) src2) src3));
+
+  format %{ "fmsubs   $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fmsubs(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+             as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct msubD_reg_reg(vRegD dst, vRegD src1, vRegD src2, vRegD src3, immD0 zero) %{
+  match(Set dst (AddD (MulD (SubD src1 zero) src2) src3));
+
+  format %{ "fmsubd   $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fmsubd(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+              as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// create a test to see if we can ever match these
+
+instruct mnaddF_reg_reg(vRegF dst, vRegF src1, vRegF src2, vRegF src3, immF0 zero) %{
+  match(Set dst (SubF (MulF (SubF zero src1) src2) src3));
+
+  format %{ "fnmadds  $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fnmadds(as_FloatRegister($dst$$reg),
+               as_FloatRegister($src1$$reg),
+               as_FloatRegister($src2$$reg),
+               as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct mnaddD_reg_reg(vRegD dst, vRegD src1, vRegD src2, vRegD src3, immD0 zero) %{
+  match(Set dst (SubD (MulD (SubD src1 zero) src2) src3));
+
+  format %{ "fnmaddd   $dst, $src1, $src2, $src3" %}
+
+  ins_encode %{
+    __ fnmaddd(as_FloatRegister($dst$$reg),
+               as_FloatRegister($src1$$reg),
+               as_FloatRegister($src2$$reg),
+               as_FloatRegister($src3$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // Logical Instructions
 
@@ -5169,13 +5467,18 @@ instruct ShouldNotReachHere() %{
   ins_pipe(pipe_class_default);
 %}
 
+// ============================================================================
+// Partial Subtype Check
+// TODO
 
-//----------OS and Locking Instructions----------------------------------------
+// ============================================================================
+// Locking Instructions
+// TODO
+
+// ============================================================================
 // This name is KNOWN by the ADLC and cannot be changed.
 // The ADLC forces a 'TypeRawPtr::BOTTOM' output type
 // for this guy.
-// Get a DEF on thread_RegP, no costs, no encoding, use
-// 'ins_should_rematerialize(true)' to avoid spilling.
 instruct tlsLoadP(thread_RegP dst)
 %{
   match(Set dst (ThreadLocal));
@@ -5187,6 +5490,7 @@ instruct tlsLoadP(thread_RegP dst)
   size(0);
 
   ins_encode( /*empty*/ );
+
   ins_pipe(pipe_class_empty);
 %}
 
