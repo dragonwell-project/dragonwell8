@@ -1003,7 +1003,14 @@ static void object_move(MacroAssembler* masm,
 }
 
 // A float arg may have to do float reg int reg conversion
-static void float_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
+static void float_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
+  if (src.first() != dst.first()) {
+    if (src.is_single_phys_reg() && dst.is_single_phys_reg())
+      __ fmovs(dst.first()->as_FloatRegister(), src.first()->as_FloatRegister());
+    else
+      ShouldNotReachHere();
+  }
+}
 
 // A long move
 static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
@@ -1188,8 +1195,12 @@ static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, 
   if (cb) {
     __ bl(RuntimeAddress(dest));
   } else {
+    assert((unsigned)gpargs < 256, "eek!");
+    assert((unsigned)fpargs < 32, "eek!");
     __ mov(rscratch1, RuntimeAddress(dest));
-    __ brx86(rscratch1, gpargs, fpargs, type);
+    __ mov(rscratch2, (gpargs << 6) | (fpargs << 2) | type);
+    __ brx86(rscratch1, rscratch2);
+    // __ brx86(rscratch1, gpargs, fpargs, type);
   }
 }
 
@@ -1846,7 +1857,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // least significant 2 bits clear.
     // NOTE: the oopMark is in swap_reg %r0 as the result of cmpxchg
 
-    __ sub(swap_reg, swap_reg, sp);
+    __ sub(swap_reg, sp, swap_reg);
+    __ neg(swap_reg, swap_reg);
     __ ands(swap_reg, swap_reg, 3 - os::vm_page_size());
 
     // Save the test result, for recursive case, the result is zero
