@@ -449,8 +449,8 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 
   intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
 
-  assert (sender_sp() == l_sender_sp, "should be");
-  assert (*saved_fp_addr == link(), "should be");
+  // assert (sender_sp() == l_sender_sp, "should be");
+  // assert (*saved_fp_addr == link(), "should be");
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -472,7 +472,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 
 //------------------------------------------------------------------------------
 // frame::sender
-frame frame::zsender(RegisterMap* map) const {
+frame frame::sender(RegisterMap* map) const {
   // Default is we done have to follow them. The sender_for_xxx will
   // update it accordingly
    map->set_include_argument_oops(false);
@@ -492,11 +492,6 @@ frame frame::zsender(RegisterMap* map) const {
   // Must be native-compiled frame, i.e. the marshaling code for native
   // methods that exists in the core system.
   return frame(sender_sp(), link(), sender_pc());
-}
-
-frame frame::sender(RegisterMap* map) const {
-  frame value = zsender(map);
-  return value;
 }
 
 bool frame::interpreter_frame_equals_unpacked_fp(intptr_t* fp) {
@@ -688,8 +683,10 @@ intptr_t* frame::real_fp() const {
 	   p[frame::name##_offset], #name);			\
   }
 
-static __thread long nextfp;
-static __thread long nextpc;
+static __thread unsigned long nextfp;
+static __thread unsigned long nextpc;
+static __thread unsigned long nextsp;
+static __thread RegisterMap *reg_map;
 
 static void printbc(Method *m, intptr_t bcx) {
   const char *name;
@@ -707,11 +704,10 @@ static void printbc(Method *m, intptr_t bcx) {
   printf("%s : %s ==> %s\n", m->name_and_sig_as_C_string(), buf, name);
 }
 
-extern "C" void pf(unsigned long fp, unsigned long pc, unsigned long bcx) {
+void internal_pf(unsigned long sp, unsigned long fp, unsigned long pc, unsigned long bcx) {
   if (! fp)
     return;
 
-  DESCRIBE_FP_OFFSET(sender_sp);
   DESCRIBE_FP_OFFSET(return_addr);
   DESCRIBE_FP_OFFSET(link);
   DESCRIBE_FP_OFFSET(interpreter_frame_sender_sp);
@@ -724,8 +720,22 @@ extern "C" void pf(unsigned long fp, unsigned long pc, unsigned long bcx) {
   DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);
   unsigned long *p = (unsigned long *)fp;
 
-  nextfp = p[frame::link_offset];
-  nextpc = p[frame::return_addr_offset];
+  // We want to see all frames, native and Java.  For compiled and
+  // interpreted frames we have special information that allows us to
+  // unwind them; for everything else we assume that the native frame
+  // pointer chain is intact.
+  frame this_frame((intptr_t*)sp, (intptr_t*)fp, (address)pc);
+  if (this_frame.is_compiled_frame() ||
+      this_frame.is_interpreted_frame()) {
+    frame sender = this_frame.sender(reg_map);
+    nextfp = (unsigned long)sender.fp();
+    nextpc = (unsigned long)sender.pc();
+    nextsp = (unsigned long)sender.unextended_sp();
+  } else {
+    nextfp = p[frame::link_offset];
+    nextpc = p[frame::return_addr_offset];
+    nextsp = (unsigned long)&p[frame::sender_sp_offset];
+  }
 
   if (bcx == -1ul)
     bcx = p[frame::interpreter_frame_bcx_offset];
@@ -747,7 +757,17 @@ extern "C" void pf(unsigned long fp, unsigned long pc, unsigned long bcx) {
 }
 
 extern "C" void npf() {
-  pf (nextfp, nextpc, -1);
+  internal_pf (nextsp, nextfp, nextpc, -1);
+}
+
+extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
+		   unsigned long bcx, unsigned long thread) {
+  RegisterMap map((JavaThread*)thread, false);
+  if (!reg_map) {
+    reg_map = (RegisterMap*)new char[sizeof map];
+  }
+  memcpy(reg_map, &map, sizeof map);
+  internal_pf(sp, fp, pc, bcx);
 }
 
 // support for printing out where we are in a Java method

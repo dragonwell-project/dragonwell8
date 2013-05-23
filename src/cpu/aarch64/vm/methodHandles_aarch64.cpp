@@ -73,8 +73,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   BLOCK_COMMENT("verify_klass {");
   __ verify_oop(obj);
   __ cbz(obj, L_bad);
-  __ push(temp);
-  __ push(temp2);
+  __ push(temp->bit() | temp2->bit(), sp);
   __ load_klass(temp, obj);
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ br(Assembler::EQ, L_ok);
@@ -82,13 +81,11 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   __ ldr(temp, Address(temp, super_check_offset));
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ br(Assembler::EQ, L_ok);
-  __ pop(temp2);
-  __ pop(temp); 
+  __ pop(temp->bit() | temp2->bit(), sp);
   __ bind(L_bad);
   __ stop(error_message);
   __ BIND(L_ok);
-  __ pop(temp2);
-  __ pop(temp); 
+  __ pop(temp->bit() | temp2->bit(), sp);
   BLOCK_COMMENT("} verify_klass");
 }
 
@@ -261,14 +258,14 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
                                                     bool for_compiler_entry) {
   assert(is_signature_polymorphic(iid), "expected invoke iid");
   // temps used in this code are not used in *either* compiled or interpreted calling sequences
-  Register temp1 = r4;
-  Register temp2 = r5;
-  Register temp3 = r3;
+  Register temp1 = r10;
+  Register temp2 = r11;
+  Register temp3 = r13;
   if (for_compiler_entry) {
     assert(receiver_reg == (iid == vmIntrinsics::_linkToStatic ? noreg : j_rarg0), "only valid assignment");
-    assert_different_registers(temp1,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5);
-    assert_different_registers(temp2,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5);
-    assert_different_registers(temp3,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5);
+    assert_different_registers(temp1,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5, j_rarg6, j_rarg7);
+    assert_different_registers(temp2,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5, j_rarg6, j_rarg7);
+    assert_different_registers(temp3,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5, j_rarg6, j_rarg7);
   }
 
   assert_different_registers(temp1, temp2, temp3, receiver_reg);
