@@ -1578,15 +1578,15 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
 
   if (is_jsr) {
     // Pre-load the next target bytecode into rscratch1
-    __ load_unsigned_byte(rscratch1, Address(rbcp, 0));
+    __ load_unsigned_byte(rscratch1, Address(rbcp, r2));
     // compute return address as bci
     __ ldr(rscratch2, Address(rmethod, Method::const_offset()));
     __ add(rscratch2, rscratch2,
 	   in_bytes(ConstMethod::codes_offset()) - (is_wide ? 5 : 3));
-    // Adjust the bcp by the 16-bit displacement in r2
-    __ add(rbcp, rbcp, r2);
     __ sub(r1, rbcp, rscratch2);
     __ push_i(r1);
+    // Adjust the bcp by the 16-bit displacement in r2
+    __ add(rbcp, rbcp, r2);
     __ dispatch_only(vtos);
     return;
   }

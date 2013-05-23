@@ -1548,17 +1548,31 @@ public:
     data_processing(op31, type, opcode, Vd, Vn);	\
   }
 
-  INSN(fmovs, 0b000, 0b00, 0b000000);
+private:
+  INSN(i_fmovs, 0b000, 0b00, 0b000000);
+public:
   INSN(fabss, 0b000, 0b00, 0b000001);
   INSN(fnegs, 0b000, 0b00, 0b000010);
   INSN(fsqrts, 0b000, 0b00, 0b000011);
-  INSN(fcvts, 0b000, 0b00, 0b000101);
+  INSN(fcvts, 0b000, 0b00, 0b000101);   // Single-precision to double-precision
 
-  INSN(fmovd, 0b000, 0b01, 0b000000);
+private:
+  INSN(i_fmovd, 0b000, 0b01, 0b000000);
+public:
   INSN(fabsd, 0b000, 0b01, 0b000001);
   INSN(fnegd, 0b000, 0b01, 0b000010);
   INSN(fsqrtd, 0b000, 0b01, 0b000011);
-  INSN(fcvtd, 0b000, 0b01, 0b000100);
+  INSN(fcvtd, 0b000, 0b01, 0b000100);   // Double-precision to single-precision
+
+  void fmovd(FloatRegister Vd, FloatRegister Vn) {
+    assert(Vd != Vn, "should be");
+    i_fmovd(Vd, Vn);
+  }
+
+  void fmovs(FloatRegister Vd, FloatRegister Vn) {
+    assert(Vd != Vn, "should be");
+    i_fmovs(Vd, Vn);
+  }
 
 #undef INSN
 
