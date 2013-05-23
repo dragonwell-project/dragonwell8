@@ -491,6 +491,8 @@ int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
 void LIR_Assembler::move_regs(Register from_reg, Register to_reg) {
   if (from_reg == r31_sp)
     from_reg = sp;
+  if (to_reg == r31_sp)
+    to_reg = sp;
   __ mov(to_reg, from_reg);
 }
 
