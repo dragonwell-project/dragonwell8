@@ -578,13 +578,28 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
     }
     break;
   case T_INT:
+  case T_FLOAT:
     {
       Register reg = zr;
-      if (c->as_jint() == 0)
+      if (c->as_jint_bits() == 0)
 	__ strw(zr, frame_map()->address_for_slot(dest->single_stack_ix()));
       else {
-	__ movw(rscratch1, c->as_jint());
+	__ movw(rscratch1, c->as_jint_bits());
 	__ strw(rscratch1, frame_map()->address_for_slot(dest->single_stack_ix()));
+      }
+    }
+    break;
+  case T_LONG:
+  case T_DOUBLE:
+    {
+      Register reg = zr;
+      if (c->as_jlong_bits() == 0)
+	__ str(zr, frame_map()->address_for_slot(dest->double_stack_ix(),
+						 lo_word_offset_in_bytes));
+      else {
+	__ mov(rscratch1, (intptr_t)c->as_jlong_bits());
+	__ str(rscratch1, frame_map()->address_for_slot(dest->double_stack_ix(),
+							lo_word_offset_in_bytes));
       }
     }
     break;
@@ -676,7 +691,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
     __ fmovs(dest->as_float_reg(), src->as_float_reg());
 
   } else if (dest->is_double_fpu()) {
-    __ fmovd(src->as_double_reg(), src->as_double_reg());
+    __ fmovd(dest->as_double_reg(), src->as_double_reg());
 
   } else {
     ShouldNotReachHere();
@@ -688,7 +703,7 @@ void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool po
     if (type == T_ARRAY || type == T_OBJECT) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
       __ verify_oop(src->as_register());
-    } else if (type == T_METADATA) {
+    } else if (type == T_METADATA || type == T_DOUBLE) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
     } else {
       __ strw(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
@@ -741,6 +756,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
     case T_DOUBLE: {
       __ strd(src->as_double_reg(), as_Address(to_addr));
+      break;
     }
 
     case T_ARRAY:   // fall through
@@ -748,7 +764,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       if (UseCompressedOops && !wide) {
         __ strw(compressed_src, as_Address(to_addr, rscratch2));
       } else {
-         __ str(compressed_src, as_Address(to_addr, noreg));
+         __ str(compressed_src, as_Address(to_addr));
       }
       break;
     case T_METADATA:
@@ -803,7 +819,7 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
     if (type == T_ARRAY || type == T_OBJECT) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
       __ verify_oop(dest->as_register());
-    } else if (type == T_METADATA) {
+    } else if (type == T_METADATA || type == T_DOUBLE) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
     } else {
       __ ldrw(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
@@ -835,8 +851,14 @@ void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
 }
 
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
-  stack2reg(src, FrameMap::rscratch1_opr, src->type());
-  reg2stack(FrameMap::rscratch1_opr, dest, dest->type(), false);
+  LIR_Opr temp;
+  if (type == T_LONG)
+    temp = FrameMap::rscratch1_long_opr;
+  else
+    temp = FrameMap::rscratch1_opr;
+
+  stack2reg(src, temp, src->type());
+  reg2stack(temp, dest, dest->type(), false);
 }
 
 
@@ -1044,6 +1066,11 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
     case Bytecodes::_f2d:
       {
 	__ fcvts(dest->as_double_reg(), src->as_float_reg());
+	break;
+      }
+    case Bytecodes::_d2f:
+      {
+	__ fcvtd(dest->as_float_reg(), src->as_double_reg());
 	break;
       }
     case Bytecodes::_i2c:

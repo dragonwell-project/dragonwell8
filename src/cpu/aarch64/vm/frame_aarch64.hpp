@@ -203,8 +203,6 @@
 
   frame zsender(RegisterMap* map) const;
 
-  frame sender_for_stub_frame(RegisterMap* map) const;
-
 #ifndef CC_INTERP
   // deoptimization support
   void interpreter_frame_set_last_sp(intptr_t* sp);

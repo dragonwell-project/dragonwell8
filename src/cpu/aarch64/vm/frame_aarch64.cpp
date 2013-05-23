@@ -440,14 +440,17 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // in C2 code but it will have been pushed onto the stack. so we
   // have to find it relative to the unextended sp
 
-  assert(_cb->frame_size() > 0, "must have non-zero frame size");
-  intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
-  intptr_t* unextended_sp = sender_sp;
+  assert(_cb->frame_size() >= 0, "must have non-zero frame size");
+  intptr_t* l_sender_sp = unextended_sp() + _cb->frame_size();
+  intptr_t* unextended_sp = l_sender_sp;
 
   // the return_address is always the word on the stack
-  address sender_pc = (address) *(sender_sp-1);
+  address sender_pc = (address) *(l_sender_sp-1);
 
-  intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
+
+  assert (sender_sp() == l_sender_sp, "should be");
+  assert (*saved_fp_addr == link(), "should be");
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -464,28 +467,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     update_map_with_saved_link(map, saved_fp_addr);
   }
 
-  return frame(sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
-}
-
-frame frame::sender_for_stub_frame(RegisterMap* map) const {
-  if (map->update_map()) {
-    // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    // For C1, the runtime stub might not have oop maps, so set this flag
-    // outside of update_register_map.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != NULL) {
-      OopMapSet::update_register_map(this, map);
-    }
-
-    // Since the prolog does the save and restore of EBP there is no oopmap
-    // for it so we must fill in its location as if there was an oopmap entry
-    // since if our caller was compiled code there could be live jvm state in it.
-
-    intptr_t** saved_fp_addr = (intptr_t**)fp();
-    update_map_with_saved_link(map, saved_fp_addr);
-  }
-
-  return frame(sender_sp(), link(), sender_pc());
+  return frame(l_sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
 }
 
 //------------------------------------------------------------------------------
@@ -504,10 +486,7 @@ frame frame::zsender(RegisterMap* map) const {
   // This test looks odd: why is it not is_compiled_frame() ?  That's
   // because stubs also have OOP maps.
   if (_cb != NULL) {
-    //if (_cb->is_nmethod())
-      return sender_for_compiled_frame(map);
-      //else
-      //return sender_for_stub_frame(map);
+    return sender_for_compiled_frame(map);
   }
 
   // Must be native-compiled frame, i.e. the marshaling code for native
@@ -712,7 +691,23 @@ intptr_t* frame::real_fp() const {
 static __thread long nextfp;
 static __thread long nextpc;
 
-extern "C" void pf(unsigned long fp, unsigned long pc) {
+static void printbc(Method *m, intptr_t bcx) {
+  const char *name;
+  char buf[16];
+  if (m->validate_bci_from_bcx(bcx) < 0
+      || !m->contains((address)bcx)) {
+    name = "???";
+    snprintf(buf, sizeof buf, "(bad)");
+  } else {
+    int bci = m->bci_from((address)bcx);
+    snprintf(buf, sizeof buf, "%d", bci);
+    name = Bytecodes::name(m->code_at(bci));
+  }
+  ResourceMark rm;
+  printf("%s : %s ==> %s\n", m->name_and_sig_as_C_string(), buf, name);
+}
+
+extern "C" void pf(unsigned long fp, unsigned long pc, unsigned long bcx) {
   if (! fp)
     return;
 
@@ -732,11 +727,13 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
   nextfp = p[frame::link_offset];
   nextpc = p[frame::return_addr_offset];
 
+  if (bcx == -1ul)
+    bcx = p[frame::interpreter_frame_bcx_offset];
+
   if (Interpreter::contains((address)pc)) {
     Method* m = (Method*)p[frame::interpreter_frame_method_offset];
     if(m && m->is_method()) {
-      ResourceMark rm;
-      printf("%s\n", m->name_and_sig_as_C_string());
+      printbc(m, bcx);
     } else
       printf("not a Method\n");
   } else {
@@ -750,7 +747,7 @@ extern "C" void pf(unsigned long fp, unsigned long pc) {
 }
 
 extern "C" void npf() {
-  pf (nextfp, nextpc);
+  pf (nextfp, nextpc, -1);
 }
 
 // support for printing out where we are in a Java method
@@ -760,16 +757,5 @@ extern "C" void pm(unsigned long fp, unsigned long bcx) {
   DESCRIBE_FP_OFFSET(interpreter_frame_method);
   unsigned long *p = (unsigned long *)fp;
   Method* m = (Method*)p[frame::interpreter_frame_method_offset];
-  int bci = 0;
-  const char *name;
-  if (m->validate_bci_from_bcx(bcx) < 0
-      || !m->contains((address)bcx)) {
-    bci = 0;
-    name = "???";
-  } else {
-    bci = m->bci_from((address)bcx);
-    name = Bytecodes::name(m->code_at(bci));
-  }
-  ResourceMark rm;
-  printf("%s : %d ==> %s\n", m->name_and_sig_as_C_string(), bci, name);
+  printbc(m, bcx);
 }

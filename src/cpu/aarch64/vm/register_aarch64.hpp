@@ -59,8 +59,8 @@ class RegisterImpl: public AbstractRegisterImpl {
   bool  is_valid() const                         { return 0 <= (intptr_t)this && (intptr_t)this < number_of_registers; }
   bool  has_byte_register() const                { return 0 <= (intptr_t)this && (intptr_t)this < number_of_byte_registers; }
   const char* name() const;
-  int   encoding_nocheck() const                         { return (intptr_t)this; }
-  
+  int   encoding_nocheck() const                 { return (intptr_t)this; }
+  unsigned long bit(bool yes) const               { return yes << encoding(); }
 };
 
 // The integer registers of the aarch64 architecture
