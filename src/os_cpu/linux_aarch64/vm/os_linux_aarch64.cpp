@@ -51,7 +51,7 @@
 #include "runtime/timer.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-#include "../../../../../../simulator/simulator.hpp"
+#include "../../../../../../../simulator/simulator.hpp"
 
 // put OS-includes here
 # include <sys/types.h>
