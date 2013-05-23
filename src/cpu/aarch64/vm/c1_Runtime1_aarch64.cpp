@@ -228,8 +228,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   int frame_size_in_slots = frame_size_in_bytes / sizeof(jint);
   OopMap* oop_map = new OopMap(frame_size_in_slots, 0);
 
-  int i;
-  for (i = 0; i < FrameMap::nof_cpu_regs; i++) {
+  for (int i = 0; i < FrameMap::nof_cpu_regs; i++) {
     Register r = as_Register(i);
     if (i <= 18 && i != rscratch1->encoding() && i != rscratch2->encoding()) {
       int sp_offset = cpu_reg_save_offsets[i];
@@ -239,7 +238,7 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   }
 
   if (save_fpu_registers) {
-    for (i = 0; i < FrameMap::nof_fpu_regs; i++) {
+    for (int i = 0; i < FrameMap::nof_fpu_regs; i++) {
       FloatRegister r = as_FloatRegister(i);
       {
 	int sp_offset = fpu_reg_save_offsets[i];
@@ -736,8 +735,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           // if we got here then the TLAB allocation failed, so try
           // refilling the TLAB or allocating directly from eden.
           Label retry_tlab, try_eden;
-          const Register thread =
-            __ tlab_refill(retry_tlab, try_eden, slow_path); // does not destroy r3 (klass), returns r5
+	  __ tlab_refill(retry_tlab, try_eden, slow_path); // does not destroy r3 (klass), returns r5
 
           __ bind(retry_tlab);
 
@@ -756,7 +754,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
 
           __ eden_allocate(obj, obj_size, 0, t1, slow_path);
-          __ incr_allocated_bytes(thread, obj_size, 0, rscratch1);
+          __ incr_allocated_bytes(rthread, obj_size, 0, rscratch1);
 
           __ initialize_object(obj, klass, obj_size, 0, t1, t2);
           __ verify_oop(obj);

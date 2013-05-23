@@ -51,8 +51,16 @@ class MacroAssembler: public Assembler {
 
   VIRTUAL void call_VM_leaf_base(
     address entry_point,               // the entry point
-    int     number_of_arguments        // the number of arguments to pop after the call
+    int     number_of_arguments,        // the number of arguments to pop after the call
+    Label *retaddr = NULL
   );
+
+  VIRTUAL void call_VM_leaf_base(
+    address entry_point,               // the entry point
+    int     number_of_arguments,        // the number of arguments to pop after the call
+    Label &retaddr) {
+    call_VM_leaf_base(entry_point, number_of_arguments, &retaddr);
+  }
 
   // This is the base routine called by the different versions of call_VM. The interpreter
   // may customize this version by overriding it for its purposes (e.g., to save/restore
@@ -82,18 +90,62 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {}
 
-  // Load Effective Address
-  void lea(Register r, const Address &a) { a.lea(this, r); }
+  // Biased locking support
+  // lock_reg and obj_reg must be loaded up with the appropriate values.
+  // swap_reg must be rax, and is killed.
+  // tmp_reg is optional. If it is supplied (i.e., != noreg) it will
+  // be killed; if not supplied, push/pop will be used internally to
+  // allocate a temporary (inefficient, avoid if possible).
+  // Optional slow case is for implementations (interpreter and C1) which branch to
+  // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
+  // Returns offset of first potentially-faulting instruction for null
+  // check info (currently consumed only by C1). If
+  // swap_reg_contains_mark is true then returns -1 as it is assumed
+  // the calling code has already passed any potential faults.
+  int biased_locking_enter(Register lock_reg, Register obj_reg,
+                           Register swap_reg, Register tmp_reg,
+                           bool swap_reg_contains_mark,
+                           Label& done, Label* slow_case = NULL,
+                           BiasedLockingCounters* counters = NULL);
+  void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
 
-  virtual void call_Unimplemented() {
+  // Load Effective Address
+  void lea(Register r, const Address &a) {
+    InstructionMark im(this);
+    code_section()->relocate(inst_mark(), a.rspec());
+    a.lea(this, r);
+  }
+
+  void addmw(Address a, Register incr, Register scratch) {
+    ldrw(scratch, a);
+    addw(scratch, scratch, incr);
+    strw(scratch, a);
+  }
+
+  // Add constant to memory word
+  void addmw(Address a, int imm, Register scratch) {
+    ldrw(scratch, a);
+    if (imm > 0)
+      addw(scratch, scratch, (unsigned)imm);
+    else
+      subw(scratch, scratch, (unsigned)-imm);
+    strw(scratch, a);
+  }
+
+  virtual void _call_Unimplemented(address call_site) {
+    mov(rscratch2, call_site);
     haltsim();
   }
+
+#define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
 
   virtual void notify(int type);
 
   // aliases defined in AARCH64 spec
 
-  inline void cmpw(Register Rd, unsigned imm)  { subsw(zr, Rd, imm); }
+
+  template<class T>
+  inline void  cmpw(Register Rd, T imm)  { subsw(zr, Rd, imm); }
   inline void cmp(Register Rd, unsigned imm)  { subs(zr, Rd, imm); }
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
@@ -111,7 +163,9 @@ class MacroAssembler: public Assembler {
     }
   }
   inline void mov(Register Rd, Register Rn) {
-    if (Rd == sp || Rn == sp) {
+    assert(Rd != r31_sp && Rn != r31_sp, "should be");
+    if (Rd == Rn) {
+    } else if (Rd == sp || Rn == sp) {
       add(Rd, Rn, 0U);
     } else {
       orr(Rd, zr, Rn);
@@ -355,6 +409,9 @@ public:
     mov(dst, (long)i);
   }
 
+  void mov(Register dst, Address a);
+  void mov64(Register r, uintptr_t imm64);
+
   // macro instructions for accessing and updating floating point
   // status register
   //
@@ -380,9 +437,9 @@ public:
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
   int corrected_idivl(Register result, Register ra, Register rb,
-		      bool want_remainder);
+		      bool want_remainder, Register tmp = rscratch1);
   int corrected_idivq(Register result, Register ra, Register rb,
-		      bool want_remainder);
+		      bool want_remainder, Register tmp = rscratch1);
 
   // Support for NULL-checks
   //
@@ -556,11 +613,18 @@ public:
   // last Java Frame (fills frame anchor)
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
-                           address last_java_pc);
+                           address last_java_pc,
+			   Register scratch);
 
   void set_last_Java_frame(Register last_java_sp,
                            Register last_java_fp,
-                           Register last_java_pc);
+                           Label &last_java_pc,
+			   Register scratch);
+
+  void set_last_Java_frame(Register last_java_sp,
+                           Register last_java_fp,
+                           Register last_java_pc,
+			   Register scratch);
 
   void reset_last_Java_frame(Register thread, bool clearfp, bool clear_pc);
 
@@ -632,7 +696,8 @@ public:
 
   void store_heap_oop(Address dst, void* dummy);
 
-  void encode_heap_oop(Register r);
+  void encode_heap_oop(Register d, Register s);
+  void encode_heap_oop(Register r) { encode_heap_oop(r, r); }
   void decode_heap_oop(Register r);
   void encode_heap_oop_not_null(Register r);
   void decode_heap_oop_not_null(Register r);
@@ -753,10 +818,7 @@ public:
 #endif
 
   void push_CPU_state();
-  // unimplemented
-#if 0
-  void pop_CPU_state();
-#endif
+  void pop_CPU_state() ;
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -769,7 +831,7 @@ public:
 #endif
 
   // unimplemented
-#if 0
+
   // allocation
   void eden_allocate(
     Register obj,                      // result: pointer to object after successful allocation
@@ -787,7 +849,8 @@ public:
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   Register tlab_refill(Label& retry_tlab, Label& try_eden, Label& slow_case); // returns TLS address
-#endif
+  void verify_tlab();
+
   void incr_allocated_bytes(Register thread,
                             Register var_size_in_bytes, int con_size_in_bytes,
                             Register t1 = noreg);
@@ -803,7 +866,7 @@ public:
   // virtual method calling
   // n.b. x86 allows RegisterOrConstant for vtable_index
   void lookup_virtual_method(Register recv_klass,
-                             Register vtable_index,
+                             RegisterOrConstant vtable_index,
                              Register method_result);
 
   // Test sub_klass against super_klass, with fast and slow paths.
@@ -910,12 +973,9 @@ public:
     ldr(zr, Address(sp, rscratch2));
   }
 
-  // unimplemented
-#if 0
   // Writes to stack successive pages until offset reached to check for
   // stack overflow + shadow pages.  Also, clobbers tmp
   void bang_stack_size(Register size, Register tmp);
-#endif
 
   virtual RegisterOrConstant delayed_value_impl(intptr_t* delayed_value_addr,
                                                 Register tmp,
@@ -991,6 +1051,9 @@ public:
   void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
 		  Label &suceed, Label &fail);
 
+  void cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
+		  Label &suceed, Label &fail);
+
   void imulptr(Register dst, Register src) { Unimplemented(); }
 
 
@@ -1058,6 +1121,14 @@ public:
 
   // void call(Label& L, relocInfo::relocType rtype);
 
+  // NOTE: this call tranfers to the effective address of entry NOT
+  // the address contained by entry. This is because this is more natural
+  // for jumps/calls.
+  void call(Address entry);
+
+  // Emit the CompiledIC call idiom
+  void ic_call(address entry);
+
   // Jumps
 
   // unimplemented
@@ -1102,10 +1173,15 @@ public:
 
   // Data
 
+  void mov_metadata(Register dst, Metadata* obj);
+  Address allocate_metadata_address(Metadata* obj);
+  Address constant_oop_address(jobject obj);
   // unimplemented
 #if 0
   void pushoop(jobject obj);
 #endif
+
+  void movoop(Register dst, jobject obj);
 
   // sign extend as need a l to ptr sized element
   void movl2ptr(Register dst, Address src) { Unimplemented(); }
@@ -1127,8 +1203,8 @@ public:
   void pusha();
   void popa();
 
-  void push(unsigned int bitset, Register stack);
-  void pop(unsigned int bitset, Register stack);
+  int push(unsigned int bitset, Register stack);
+  int pop(unsigned int bitset, Register stack);
 
   void repne_scan(Register addr, Register value, Register count,
 		  Register scratch);
@@ -1159,12 +1235,13 @@ public:
     address  entry_point,             // the entry point
     int      number_of_gp_arguments,  // the number of gp reg arguments to pass
     int      number_of_fp_arguments,  // the number of fp reg arguments to pass
-    ret_type type		      // the return type for the call
+    ret_type type,		      // the return type for the call
+    Label*   retaddr = NULL
   );
 };
 
 #ifdef ASSERT
-inline bool AbstractAssembler::pd_check_instruction_mark() { Unimplemented(); return false; }
+inline bool AbstractAssembler::pd_check_instruction_mark() { return false; }
 #endif
 
 /**

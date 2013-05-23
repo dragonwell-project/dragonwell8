@@ -99,6 +99,8 @@ CONSTANT_REGISTER_DECLARATION(Register, r27,  (27));
 CONSTANT_REGISTER_DECLARATION(Register, r28,  (28));
 CONSTANT_REGISTER_DECLARATION(Register, r29,  (29));
 CONSTANT_REGISTER_DECLARATION(Register, r30,  (30));
+
+CONSTANT_REGISTER_DECLARATION(Register, r31_sp, (31));
 CONSTANT_REGISTER_DECLARATION(Register, zr,  (32));
 CONSTANT_REGISTER_DECLARATION(Register, sp,  (33));
 
@@ -218,9 +220,9 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
   // There is no requirement that any ordering here matches any ordering c2 gives
   // it's optoregs.
 
-    number_of_registers =      RegisterImpl::number_of_registers +
-                               FloatRegisterImpl::number_of_registers +
-                               1 // flags
+    number_of_registers = (2 * RegisterImpl::number_of_registers +
+                           2 * FloatRegisterImpl::number_of_registers +
+                           1) // flags
   };
 
   // added to make it compile

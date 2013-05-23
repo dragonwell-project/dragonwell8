@@ -32,7 +32,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee089300;
+const unsigned long Assembler::asm_bp = 0x00007fffee097c64;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -87,7 +87,7 @@ void entry(CodeBuffer *cb) {
   //   printf("\n");
   // }
 
-  MacroAssembler _masm(cb);
+  Assembler _masm(cb);
   address entry = __ pc();
 
   // Smoke test for assembler
@@ -168,7 +168,7 @@ void entry(CodeBuffer *cb) {
     __ adr(r6, __ pc());                               //	adr	x6, .
     __ adr(r6, back);                                  //	adr	x6, back
     __ adr(r6, forth);                                 //	adr	x6, forth
-    __ adrp(r21, __ pc());                             //	adrp	x21, .
+    __ _adrp(r21, __ pc());                             //	adrp	x21, .
 
 // RegImmAbsOp
     __ tbz(r1, 1, __ pc());                            //	tbz	x1, #1, .
@@ -1194,7 +1194,6 @@ Disassembly of section .text:
     Label l, loop, empty;
     address a = __ pc();
     __ adr(r3, l);
-    __ adrp(r4, l);
     __ bl(empty);
     __ movz(r0, 0);
     __ BIND(loop);
@@ -1208,20 +1207,6 @@ Disassembly of section .text:
     __ ret(lr);
   }
 
-  // Test LEA
-  __ lea(r0, Address(sp, 120));
-  __ lea(r0, Address(sp, -120));
-  __ lea(r1, Address(sp, r1, Address::lsl(3)));
-  __ lea(r1, Address(sp, r2, Address::sxtw(3)));
-
-  __ add(r1, r0, 0xff000);
-  __ add(r1, r0, -0xff000);
-
-  __ push(1, sp);
-  __ pop(1, sp);
-
-  __ push(3, sp);
-  __ pop(3, sp);
 
 #endif // PRODUCT
 #endif // ASSERT
@@ -1229,8 +1214,30 @@ Disassembly of section .text:
 
 #undef __
 
+void Assembler::emit_data64(jlong data,
+                            relocInfo::relocType rtype,
+                            int format) {
+  if (rtype == relocInfo::none) {
+    emit_int64(data);
+  } else {
+    emit_data64(data, Relocation::spec_simple(rtype), format);
+  }
+}
+
+void Assembler::emit_data64(jlong data,
+                            RelocationHolder const& rspec,
+                            int format) {
+
+  assert(inst_mark() != NULL, "must be inside InstructionMark");
+  // Do not use AbstractAssembler::relocate, which is not intended for
+  // embedded words.  Instead, relocate to the enclosing instruction.
+  code_section()->relocate(inst_mark(), rspec, format);
+  emit_int64(data);
+}
+
 extern "C" {
   void das(uint64_t start, int len) {
+    ResourceMark rm;
     len <<= 2;
     if (len < 0)
       Disassembler::decode((address)start + len, (address)start);
@@ -1245,10 +1252,16 @@ extern "C" {
 
 #define gas_assert(ARG1) assert(ARG1, #ARG1)
 
-void Address::lea(MacroAssembler *as, Register r) const {
 #define __ as->
+
+void Address::lea(MacroAssembler *as, Register r) const {
+  Relocation* reloc = _rspec.reloc();
+  relocInfo::relocType rtype = (relocInfo::relocType) reloc->type();
+
   switch(_mode) {
   case base_plus_offset: {
+    if (_offset == 0 && _base == r) // it's a nop
+      break;
     if (_offset > 0)
       __ add(r, _base, _offset);
     else
@@ -1260,14 +1273,49 @@ void Address::lea(MacroAssembler *as, Register r) const {
     break;
   }
   case literal: {
-    __ mov(r, target());
+    if (rtype == relocInfo::none)
+      __ mov(r, target());
+    else
+      __ mov64(r, (uint64_t)target());
     break;
   }
   default:
     ShouldNotReachHere();
   }
-#undef __
 }
+
+void Assembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), dest.rspec());
+  byte_offset = (uint64_t)dest.target() & 0xfff;
+  _adrp(reg1, dest.target());
+}
+
+#undef __
+
+#define starti Instruction_aarch64 do_not_use(this); set_current(&do_not_use)
+
+  void Assembler::adr(Register Rd, address adr) {
+    long offset = adr - pc();
+    int offset_lo = offset & 3;
+    offset >>= 2;
+    starti;
+    f(0, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5);
+    rf(Rd, 0);
+  }
+
+  void Assembler::_adrp(Register Rd, address adr) {
+    uint64_t pc_page = (uint64_t)pc() >> 12;
+    uint64_t adr_page = (uint64_t)adr >> 12;
+    long offset = adr_page - pc_page;
+    int offset_lo = offset & 3;
+    offset >>= 2;
+    starti;
+    f(1, 31), f(offset_lo, 30, 29), f(0b10000, 28, 24), sf(offset, 23, 5);
+    rf(Rd, 0);
+  }
+
+#undef starti
 
 Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
   _is_lval = false;
@@ -1300,6 +1348,7 @@ Address::Address(address target, relocInfo::relocType rtype) : _mode(literal){
     _rspec = Relocation::spec_simple(rtype);
     break;
   case relocInfo::none:
+    _rspec = RelocationHolder::none;
     break;
   default:
     ShouldNotReachHere();
@@ -1385,6 +1434,9 @@ void Assembler::wrap_label(Label &L, int prfop, prefetch_insn insn) {
   // the absolute value of the immediate as for uimm24.
 void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
 				  int negated_op) {
+  bool sets_flags = op & 1;   // this op sets flags
+  assert(sets_flags || uimm || Rd != Rn, "insn is a NOP");
+
   union {
     unsigned u;
     int imm;
@@ -1396,17 +1448,48 @@ void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int o
     imm = -imm;
     op = negated_op;
   }
+  assert(Rd != sp || imm % 16 == 0, "misaligned stack");
   if (imm >= (1 << 11)
       && ((imm >> 12) << 12 == imm)) {
     imm >>= 12;
     shift = true;
   }
   f(op, 31, 29), f(0b10001, 28, 24), f(shift, 23, 22), f(imm, 21, 10);
-  srf(Rd, 0), srf(Rn, 5);
+
+  // add/subtract immediate ops with the S bit set treat r31 as zr;
+  // with S unset they use sp.
+  if (sets_flags)
+    zrf(Rd, 0);
+  else
+    srf(Rd, 0);
+
+  srf(Rn, 5);
 }
 
-bool Assembler::operand_valid_for_logical_immdiate(int is32, uint64_t imm) {
+bool Assembler::operand_valid_for_add_sub_immediate(long imm) {
+  bool shift = false;
+  imm = labs(imm);
+  if (imm < (1 << 12))
+    return true;
+  if (imm < (1 << 24)
+      && ((imm >> 12) << 12 == imm)) {
+    return true;
+  }
+  return false;
+}
+
+bool Assembler::operand_valid_for_logical_immediate(bool is32, uint64_t imm) {
   return encode_logical_immediate(is32, imm) != 0xffffffff;
+}
+
+bool Assembler::operand_valid_for_float_immediate(double imm) {
+  union {
+    unsigned ival;
+    float val;
+  };
+  val = (float)imm;
+  unsigned result = fp_immediate_for_encoding(ival, true);
+  return encoding_for_fp_immediate(result) == imm;
 }
 
 int AbstractAssembler::code_fill_byte() {
@@ -1436,7 +1519,7 @@ void Assembler::bang_stack_with_offset(int offset) { Unimplemented(); }
 // above encode and decode functions
 
 uint32_t
-asm_util::encode_logical_immediate(int is32, uint64_t imm)
+asm_util::encode_logical_immediate(bool is32, uint64_t imm)
 {
   if (is32) {
     /* Allow all zeros or all ones in top 32-bits, so that

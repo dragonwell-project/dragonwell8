@@ -40,7 +40,15 @@ inline frame::frame() {
   _deopt_state = unknown;
 }
 
+static int spin;
+
 inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (fp)
+    if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = sp;
   _fp = fp;
@@ -59,6 +67,11 @@ inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
 }
 
 inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = unextended_sp;
   _fp = fp;
@@ -78,6 +91,11 @@ inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address
 }
 
 inline frame::frame(intptr_t* sp, intptr_t* fp) {
+  intptr_t a = intptr_t(sp);
+  intptr_t b = intptr_t(fp);
+  if (sp > fp || (fp - sp > 0x100000))
+      for(;;)
+	asm("nop");
   _sp = sp;
   _unextended_sp = sp;
   _fp = fp;

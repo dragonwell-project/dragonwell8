@@ -30,11 +30,16 @@
 #include "runtime/safepoint.hpp"
 
 
-void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) { Unimplemented(); }
+void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
+  MacroAssembler::pd_patch_instruction(addr(), x);
+}
 
 
 address Relocation::pd_call_destination(address orig_addr) {
-  return MacroAssembler::pd_call_destination(orig_addr);
+  if (orig_addr != NULL) {
+    return MacroAssembler::pd_call_destination(orig_addr);
+  }
+  return MacroAssembler::pd_call_destination(addr());
 }
 
 
@@ -42,7 +47,9 @@ void Relocation::pd_set_call_destination(address x) {
   MacroAssembler::pd_patch_instruction(addr(), x);
 }
 
-address* Relocation::pd_address_in_code() { Unimplemented(); return 0; }
+address* Relocation::pd_address_in_code() {
+  return (address*)(addr() + 8);
+}
 
 
 address Relocation::pd_get_address_from_code() { Unimplemented(); return 0; }
@@ -54,9 +61,29 @@ void Relocation::pd_swap_in_breakpoint(address x, short* instrs, int instrlen) {
 
 void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) { Unimplemented(); }
 
-void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
+void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
+  // fprintf(stderr, "Try to fix poll reloc at %p to %p\n", addr(), dest);
+  if (NativeInstruction::is_adrp_at(addr())) {
+    address old_addr = old_addr_for(addr(), src, dest);
+    if (! os::is_poll_address(pd_call_destination(old_addr))) {
+      fprintf(stderr, "  bollocks!\n");
+      old_addr = old_addr_for(addr(), src, dest);
+    }
+    MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+    if (! os::is_poll_address(pd_call_destination(addr()))) {
+      fprintf(stderr, "  result at %p is %p\n", addr(), pd_call_destination(addr()));
+      MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+    }
+  } else {
+  }
+}
 
-void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) { Unimplemented(); }
+void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest)  {
+  if (NativeInstruction::is_adrp_at(addr())) {
+    address old_addr = old_addr_for(addr(), src, dest);
+    MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
+  }
+}
 
 void metadata_Relocation::pd_fix_value(address x) {
 }

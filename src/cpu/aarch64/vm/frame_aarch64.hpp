@@ -134,6 +134,7 @@
     entry_frame_after_call_words                     = 19,
     entry_frame_call_wrapper_offset                  = -8,
 
+    // we don't need a save area
     arg_reg_save_area_bytes                          =  0,
 
     // TODO - check that this is still correct
@@ -199,6 +200,10 @@
 
   // helper to update a map with callee-saved RBP
   static void update_map_with_saved_link(RegisterMap* map, intptr_t** link_addr);
+
+  frame zsender(RegisterMap* map) const;
+
+  frame sender_for_stub_frame(RegisterMap* map) const;
 
 #ifndef CC_INTERP
   // deoptimization support

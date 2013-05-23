@@ -208,6 +208,9 @@ class StubGenerator: public StubCodeGenerator {
 
     address aarch64_entry = __ pc();
 
+    // Save sender's SP for stack traces.
+    __ mov(rscratch1, sp);
+    __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);
@@ -275,8 +278,9 @@ class StubGenerator: public StubCodeGenerator {
 
     // call Java entry -- passing methdoOop, and current sp
     //      rmethod: Method*
-    //      esp: sender sp
+    //      r13: sender sp
     BLOCK_COMMENT("call Java function");
+    __ mov(r13, sp);
     __ blr(c_rarg4);
 
 #ifndef PRODUCT
@@ -452,10 +456,10 @@ class StubGenerator: public StubCodeGenerator {
   // converted into a Java-level exception.
   //
   // Contract with Java-level exception handlers:
-  // rax: exception
-  // rdx: throwing pc
+  // r0: exception
+  // r3: throwing pc
   //
-  // NOTE: At entry of this stub, exception-pc must be on stack !!
+  // NOTE: At entry of this stub, exception-pc must be in LR !!
 
   // NOTE: this is always used as a jump target within generated code
   // so it just needs to be generated code wiht no x86 prolog
@@ -486,14 +490,15 @@ class StubGenerator: public StubCodeGenerator {
 
     // compute exception handler into r19
     __ mov(c_rarg1, lr);
+    __ mov(r19, lr); // LR is still live: it will become the throwing
+		     // PC.  Save it (callee-saved) R19
     BLOCK_COMMENT("call exception_handler_for_return_address");
     __ call_VM_leaf(CAST_FROM_FN_PTR(address,
                          SharedRuntime::exception_handler_for_return_address),
                     rthread, c_rarg1);
+    // setup r0 & r3 & clear pending exception
+    __ mov(r3, r19);
     __ mov(r19, r0);
-
-    // setup r0 & r3, remove return address & clear pending exception
-    __ mov(r3, lr);
     __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
     __ str(zr, Address(rthread, Thread::pending_exception_offset()));
 
@@ -507,7 +512,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
 
-    // continue at exception handler (return address removed)
+    // continue at exception handler
     // r0: exception
     // r19: exception handler
     // r3: throwing pc
@@ -755,7 +760,9 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(c_rarg1, Address(sp, return_addr));  // pass return address
     __ mov(c_rarg2, sp);                          // pass address of regs on stack
     __ mov(r19, sp);                               // remember rsp
-    __ sub(sp, sp, frame::arg_reg_save_area_bytes); // windows  ????
+#ifndef PRODUCT
+    assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
+#endif
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
     __ brx86(rscratch1, 3, 0, 1);
@@ -787,9 +794,9 @@ class StubGenerator: public StubCodeGenerator {
   //  Output:
   //     rax   - &from[element count - 1]
   //
-  void array_overlap_test(address no_overlap_target, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(Label& L_no_overlap, Address::ScaleFactor sf) { Unimplemented(); }
-  void array_overlap_test(address no_overlap_target, Label* NOLp, Address::ScaleFactor sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
+  void array_overlap_test(Label& L_no_overlap, int sf) { Unimplemented(); }
+  void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
 
   // Shuffle first three arg regs on Windows into Linux/Solaris locations.
   //
@@ -1154,8 +1161,9 @@ class StubGenerator: public StubCodeGenerator {
     // Note that we only have to preserve callee-saved registers since
     // the compilers are responsible for supplying a continuation point
     // if they expect all registers to be preserved.
+    // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
     enum layout {
-      rfp_off = frame::arg_reg_save_area_bytes/BytesPerInt,
+      rfp_off = 0,
       rfp_off2,
       return_off,
       return_off2,
@@ -1187,9 +1195,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
-    __ adr(rscratch1, the_pc);
-    __ mov(rscratch2, sp);
-    __ set_last_Java_frame(rscratch2, rfp, rscratch1);
+    __ set_last_Java_frame(sp, rfp, (address)NULL, rscratch1);
 
     // Call runtime
     if (arg1 != noreg) {

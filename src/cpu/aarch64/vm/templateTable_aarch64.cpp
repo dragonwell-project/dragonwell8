@@ -465,7 +465,7 @@ void TemplateTable::ldc2_w()
   // get type
   __ lea(r2, Address(r2, r0, Address::lsl(0)));
   __ load_unsigned_byte(r2, Address(r2, tags_offset));
-  __ cmpw(r2, JVM_CONSTANT_Double);
+  __ cmpw(r2, (int)JVM_CONSTANT_Double);
   __ br(Assembler::NE, Long);
   // dtos
   __ lea (r2, Address(r1, r0, Address::lsl(3)));
@@ -1559,33 +1559,126 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
                               InvocationCounter::counter_offset();
   const int method_offset = frame::interpreter_frame_method_offset * wordSize;
 
+  // load branch displacement
+  if (!is_wide) {
+    __ ldrh(r2, at_bcp(1));
+    __ rev16(r2, r2);
+    // sign extend the 16 bit value in r2
+    __ sbfm(r2, r2, 0, 15);
+  } else {
+    __ ldrw(r2, at_bcp(1));
+    __ revw(r2, r2);
+    // sign extend the 32 bit value in r2
+    __ sbfm(r2, r2, 0, 31);
+  }
+
+  // Handle all the JSR stuff here, then exit.
+  // It's much shorter and cleaner than intermingling with the non-JSR
+  // normal-branch stuff occurring below.
+
   if (is_jsr) {
+    // Pre-load the next target bytecode into rscratch1
+    __ load_unsigned_byte(rscratch1, Address(rbcp, 0));
     // compute return address as bci
     __ ldr(rscratch2, Address(rmethod, Method::const_offset()));
     __ add(rscratch2, rscratch2,
 	   in_bytes(ConstMethod::codes_offset()) - (is_wide ? 5 : 3));
+    // Adjust the bcp by the 16-bit displacement in r2
+    __ add(rbcp, rbcp, r2);
     __ sub(r1, rbcp, rscratch2);
     __ push_i(r1);
+    __ dispatch_only(vtos);
+    return;
   }
 
-  // load branch displacement
-  if (!is_wide) {
-    __ ldrh(r1, at_bcp(1));
-    __ rev16(r1, r1);
-    // Adjust the bcp by the 16-bit displacement in r1
-    __ add(rbcp, rbcp, r1, ext::sxth, 0);
-  } else {
-    __ ldrw(r1, at_bcp(1));
-    __ revw(r1, r1);
-    // Adjust the bcp by the 32-bit displacement in r1
-    __ add(rbcp, rbcp, r1, ext::sxtw, 0);
-  }
+  // Normal (non-jsr) branch handling
+  
+  // Adjust the bcp by the displacement in r2
+  __ add(rbcp, rbcp, r2);
 
   assert(UseLoopCounter || !UseOnStackReplacement,
          "on-stack-replacement requires loop counters");
-  if (UseLoopCounter && !is_jsr) {
-    // TODO : add this
+  Label backedge_counter_overflow;
+  Label profile_method;
+  Label dispatch;
+  if (UseLoopCounter) {
+    // increment backedge counter for backward branches
+    // r0: MDO
+    // w1: MDO bumped taken-count
+    // r2: target offset
+    __ cmp(r2, zr);
+    __ br(Assembler::GT, dispatch); // count only if backward branch
+    if (TieredCompilation) {
+      Label no_mdo;
+      int increment = InvocationCounter::count_increment;
+      int mask = ((1 << Tier0BackedgeNotifyFreqLog) - 1) << InvocationCounter::count_shift;
+      if (ProfileInterpreter) {
+        // Are we profiling?
+        __ ldr(r1, Address(rmethod, in_bytes(Method::method_data_offset())));
+	__ cbz(r1, no_mdo);
+        // Increment the MDO backedge counter
+        const Address mdo_backedge_counter(r1, in_bytes(MethodData::backedge_counter_offset()) +
+                                           in_bytes(InvocationCounter::counter_offset()));
+        __ increment_mask_and_jump(mdo_backedge_counter, increment, mask,
+                                   r0, false, Assembler::EQ, &backedge_counter_overflow);
+        __ b(dispatch);
+      }
+      __ bind(no_mdo);
+      // Increment backedge counter in Method*
+      __ increment_mask_and_jump(Address(rmethod, be_offset), increment, mask,
+                                 r0, false, Assembler::EQ, &backedge_counter_overflow);
+    } else {
+      // increment counter
+      __ ldrw(r0, Address(rmethod, be_offset));        // load backedge counter
+      __ addw(rscratch1, r0, InvocationCounter::count_increment); // increment counter
+      __ strw(rscratch1, Address(rmethod, be_offset));        // store counter
+
+      __ ldrw(r0, Address(rmethod, inv_offset));    // load invocation counter
+      __ andw(r0, r0, (unsigned)InvocationCounter::count_mask_value); // and the status bits
+      __ addw(r0, r0, rscratch1);        // add both counters
+
+      if (ProfileInterpreter) {
+        // Test to see if we should create a method data oop
+	__ lea(rscratch1, ExternalAddress((address) &InvocationCounter::InterpreterProfileLimit));
+	__ ldrw(rscratch1, rscratch1);
+        __ cmpw(r0, rscratch1);
+        __ br(Assembler::LT, dispatch);
+
+        // if no method data exists, go to profile method
+        __ test_method_data_pointer(r0, profile_method);
+
+        if (UseOnStackReplacement) {
+          // check for overflow against w1 which is the MDO taken count
+	  __ lea(rscratch1, ExternalAddress((address) &InvocationCounter::InterpreterBackwardBranchLimit));
+	  __ ldrw(rscratch1, rscratch1);
+          __ cmpw(r1, rscratch1);
+          __ br(Assembler::LO, dispatch); // Intel == Assembler::below
+
+          // When ProfileInterpreter is on, the backedge_count comes
+          // from the MethodData*, which value does not get reset on
+          // the call to frequency_counter_overflow().  To avoid
+          // excessive calls to the overflow routine while the method is
+          // being compiled, add a second test to make sure the overflow
+          // function is called only once every overflow_frequency.
+          const int overflow_frequency = 1024;
+          __ andsw(r1, r1, overflow_frequency - 1);
+          __ br(Assembler::EQ, backedge_counter_overflow);
+
+        }
+      } else {
+        if (UseOnStackReplacement) {
+          // check for overflow against w0, which is the sum of the
+          // counters
+	  __ lea(rscratch1, ExternalAddress((address) &InvocationCounter::InterpreterBackwardBranchLimit));
+	  __ ldrw(rscratch1, rscratch1);
+          __ cmpw(r0, rscratch1);
+          __ br(Assembler::HS, backedge_counter_overflow); // Intel == Assembler::aboveEqual
+        }
+      }
+    }
+    __ bind(dispatch);
   }
+
   // Pre-load the next target bytecode into rscratch1
   __ load_unsigned_byte(rscratch1, Address(rbcp, 0));
 
@@ -1593,6 +1686,67 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
   // rscratch1: target bytecode
   // rbcp: target bcp
   __ dispatch_only(vtos);
+
+  if (UseLoopCounter) {
+    if (ProfileInterpreter) {
+      // Out-of-line code to allocate method data oop.
+      __ bind(profile_method);
+      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method));
+      __ load_unsigned_byte(r1, Address(rbcp, 0));  // restore target bytecode
+      __ set_method_data_pointer_for_bcp();
+      __ b(dispatch);
+    }
+
+    if (UseOnStackReplacement) {
+      // invocation counter overflow
+      __ bind(backedge_counter_overflow);
+      __ neg(r2, r2);
+      __ add(r2, r2, rbcp);	// branch bcp
+      // IcoResult frequency_counter_overflow([JavaThread*], address branch_bcp)
+      __ call_VM(noreg,
+                 CAST_FROM_FN_PTR(address,
+                                  InterpreterRuntime::frequency_counter_overflow),
+                 r2);
+      __ load_unsigned_byte(r1, Address(rbcp, 0));  // restore target bytecode
+
+      // r0: osr nmethod (osr ok) or NULL (osr not possible)
+      // w1: target bytecode
+      // r2: scratch
+      __ cbz(r0, dispatch);	// test result -- no osr if null
+      // nmethod may have been invalidated (VM may block upon call_VM return)
+      __ ldr(r2, Address(r0, nmethod::entry_bci_offset()));
+      // InvalidOSREntryBci == -2 which overflows cmpw as unsigned
+      // use cmnw against -InvalidOSREntryBci which does the same thing
+      __ cmn(r2, -InvalidOSREntryBci);
+      __ br(Assembler::EQ, dispatch);
+
+      // We have the address of an on stack replacement routine in r0
+      // We need to prepare to execute the OSR method. First we must
+      // migrate the locals and monitors off of the stack.
+
+      __ mov(rmethod, r0);                             // save the nmethod
+
+      call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
+
+      // r0 is OSR buffer, move it to expected parameter location
+      __ mov(j_rarg0, r0);
+
+      // We use j_rarg definitions here so that registers don't conflict as parameter
+      // registers change across platforms as we are in the midst of a calling
+      // sequence to the OSR nmethod and we don't want collision. These are NOT parameters.
+
+      // const Register retaddr = j_rarg2;
+      const Register sender_sp = j_rarg1;
+
+      // pop the interpreter frame
+      __ ldr(sender_sp, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize)); // get sender sp
+      __ leave(); // remove frame anchor (leaves return address in lr)
+      __ mov(sp, sender_sp);                   // set sp to sender sp
+      // and begin the OSR nmethod
+      __ ldr(rscratch1, Address(rmethod, nmethod::osr_entry_point_offset()));
+      __ br(rscratch1);
+    }
+  }
 }
 
 

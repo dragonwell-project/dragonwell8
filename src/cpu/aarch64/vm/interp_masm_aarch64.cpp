@@ -73,6 +73,12 @@ void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
   rev16(reg, reg);
 }
 
+void InterpreterMacroAssembler::get_dispatch() {
+  unsigned long offset;
+  adrp(rdispatch, ExternalAddress((address)Interpreter::dispatch_table()), offset);
+  lea(rdispatch, Address(rdispatch, offset));
+}
+
 void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
                                                        int bcp_offset,
                                                        size_t index_size) {
@@ -262,6 +268,8 @@ void InterpreterMacroAssembler::store_ptr(int n, Register val) {
 
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
+  // set sender sp
+  mov(r13, sp);
   // record last_sp
   str(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 }
@@ -491,12 +499,13 @@ void InterpreterMacroAssembler::remove_activation(
   // get sender esp
   ldr(esp,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
-  // sender sp
-  ldr(rscratch1, Address(rfp, frame::sender_sp_offset * wordSize));
-
   // remove frame anchor
   leave();
-  mov(sp, rscratch1);
+  // If we're returning to interpreted code we will shortly be
+  // adjusting SP to allow some space for ESP.  If we're returning to
+  // compiled code the saved sender SP was saved in sender_sp, so this
+  // restores it.
+  andr(sp, esp, -16);
 }
 
 #endif // C_INTERP
@@ -672,86 +681,271 @@ void InterpreterMacroAssembler::test_method_data_pointer(Register mdp,
                                                          Label& zero_continue) {
   assert(ProfileInterpreter, "must be profiling interpreter");
   ldr(mdp, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
-  cbnz(mdp, zero_continue);
+  cbz(mdp, zero_continue);
 }
 
 // Set the method data pointer for the current bcp.
-void InterpreterMacroAssembler::set_method_data_pointer_for_bcp() { Unimplemented(); }
+void InterpreterMacroAssembler::set_method_data_pointer_for_bcp() {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  Label set_mdp;
+  stp(r0, r1, Address(pre(sp, -2 * wordSize)));
 
-void InterpreterMacroAssembler::verify_method_data_pointer() { Unimplemented(); }
+  // Test MDO to avoid the call if it is NULL.
+  ldr(r0, Address(rmethod, in_bytes(Method::method_data_offset())));
+  cbz(r0, set_mdp);
+  call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::bcp_to_di), rmethod, rbcp);
+  // r0: mdi
+  // mdo is guaranteed to be non-zero here, we checked for it before the call.
+  ldr(r1, Address(rmethod, in_bytes(Method::method_data_offset())));
+  lea(r1, Address(r1, in_bytes(MethodData::data_offset())));
+  add(r0, r1, r0);
+  str(r0, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
+  bind(set_mdp);
+  ldp(r0, r1, Address(post(sp, 2 * wordSize)));
+}
+
+void InterpreterMacroAssembler::verify_method_data_pointer() {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+#ifdef ASSERT
+  Label verify_continue;
+  stp(r0, r1, Address(pre(sp, -2 * wordSize)));
+  stp(r2, r3, Address(pre(sp, -2 * wordSize)));
+  test_method_data_pointer(r3, verify_continue); // If mdp is zero, continue
+  get_method(r1);
+
+  // If the mdp is valid, it will point to a DataLayout header which is
+  // consistent with the bcp.  The converse is highly probable also.
+  ldrsh(r2, Address(r3, in_bytes(DataLayout::bci_offset())));
+  ldr(rscratch1, Address(r1, Method::const_offset()));
+  add(r2, r2, rscratch1, Assembler::LSL);
+  lea(r2, Address(r2, ConstMethod::codes_offset()));
+  cmp(r2, rbcp);
+  br(Assembler::EQ, verify_continue);
+  // r1: method
+  // r13: bcp
+  // r3: mdp
+  call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::verify_mdp),
+               r1, r13, r3);
+  bind(verify_continue);
+  ldp(r2, r3, Address(post(sp, 2 * wordSize)));
+  ldp(r0, r1, Address(post(sp, 2 * wordSize)));
+#endif // ASSERT
+}
 
 
 void InterpreterMacroAssembler::set_mdp_data_at(Register mdp_in,
                                                 int constant,
-                                                Register value) { Unimplemented(); }
+                                                Register value) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  Address data(mdp_in, constant);
+  str(value, data);
+}
 
 
 void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
                                                       int constant,
-                                                      bool decrement) { Unimplemented(); }
-
-void InterpreterMacroAssembler::increment_mdp_data_at(Address data,
-                                                      bool decrement) { Unimplemented(); }
-
+                                                      bool decrement) {
+  increment_mdp_data_at(mdp_in, noreg, constant, decrement);
+}
 
 void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
                                                       Register reg,
                                                       int constant,
-                                                      bool decrement) { Unimplemented(); }
+                                                      bool decrement) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  // %%% this does 64bit counters at best it is wasting space
+  // at worst it is a rare bug when counters overflow
+
+  Address addr1(mdp_in, constant);
+  Address addr2(rscratch2, reg, Address::lsl(0));
+  Address &addr = addr1;
+  if (reg != noreg) {
+    lea(rscratch2, addr1);
+    addr = addr2;
+  }
+
+  if (decrement) {
+    // Decrement the register.  Set condition codes.
+    // Intel does this
+    // addptr(data, (int32_t) -DataLayout::counter_increment);
+    // If the decrement causes the counter to overflow, stay negative
+    // Label L;
+    // jcc(Assembler::negative, L);
+    // addptr(data, (int32_t) DataLayout::counter_increment);
+    // so we do this
+    subs(rscratch1, rscratch1, (unsigned)DataLayout::counter_increment);
+    Label L;
+    br(Assembler::CS, L); 	// skip store if counter overflow
+    str(rscratch1, addr);
+    bind(L);
+  } else {
+    assert(DataLayout::counter_increment == 1,
+           "flow-free idiom only works with 1");
+    // Intel does this
+    // Increment the register.  Set carry flag.
+    // addptr(data, DataLayout::counter_increment);
+    // If the increment causes the counter to overflow, pull back by 1.
+    // sbbptr(data, (int32_t)0);
+    // so we do this
+    ldr(rscratch1, addr);
+    adds(rscratch1, rscratch1, DataLayout::counter_increment);
+    Label L;
+    br(Assembler::CS, L); 	// skip store if counter overflow
+    str(rscratch1, addr);
+    bind(L);
+  }
+}
 
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
-                                                int flag_byte_constant) { Unimplemented(); }
-
+                                                int flag_byte_constant) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  int header_offset = in_bytes(DataLayout::header_offset());
+  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  // Set the flag
+  ldr(rscratch1, Address(mdp_in, header_offset));
+  orr(rscratch1, rscratch1, header_bits);
+  str(rscratch1, Address(mdp_in, header_offset));
+}
 
 
 void InterpreterMacroAssembler::test_mdp_data_at(Register mdp_in,
                                                  int offset,
                                                  Register value,
                                                  Register test_value_out,
-                                                 Label& not_equal_continue) { Unimplemented(); }
+                                                 Label& not_equal_continue) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  if (test_value_out == noreg) {
+    ldr(rscratch1, Address(mdp_in, offset));
+    cmp(value, rscratch1);
+  } else {
+    // Put the test value into a register, so caller can use it:
+    ldr(test_value_out, Address(mdp_in, offset));
+    cmp(value, test_value_out);
+  }
+  br(Assembler::NE, not_equal_continue);
+}
 
 
 void InterpreterMacroAssembler::update_mdp_by_offset(Register mdp_in,
-                                                     int offset_of_disp) { Unimplemented(); }
+                                                     int offset_of_disp) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  ldr(rscratch1, Address(mdp_in, offset_of_disp));
+  add(mdp_in, mdp_in, rscratch1, LSL);
+  str(mdp_in, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
+}
 
 
 void InterpreterMacroAssembler::update_mdp_by_offset(Register mdp_in,
                                                      Register reg,
-                                                     int offset_of_disp) { Unimplemented(); }
+                                                     int offset_of_disp) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  lea(rscratch1, Address(mdp_in, offset_of_disp));
+  ldr(rscratch1, Address(rscratch1, reg, Address::lsl(0)));
+  add(mdp_in, mdp_in, rscratch1, LSL);
+  str(mdp_in, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
+}
 
 
 void InterpreterMacroAssembler::update_mdp_by_constant(Register mdp_in,
-                                                       int constant) { Unimplemented(); }
+                                                       int constant) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  add(mdp_in, mdp_in, (unsigned)constant);
+  str(mdp_in, Address(rfp, frame::interpreter_frame_mdx_offset * wordSize));
+}
 
 
-
-void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) { Unimplemented(); }
+void InterpreterMacroAssembler::update_mdp_for_ret(Register return_bci) {
+  assert(ProfileInterpreter, "must be profiling interpreter");
+  // save/restore across call_VM
+  stp(zr, return_bci, Address(pre(sp, -2 * wordSize)));
+  call_VM(noreg,
+          CAST_FROM_FN_PTR(address, InterpreterRuntime::update_mdp_for_ret),
+          return_bci);
+  ldp(zr, return_bci, Address(post(sp, 2 * wordSize)));
+}
 
 
 void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
                                                      Register bumped_count) {
   if (ProfileInterpreter) {
-    Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    // Otherwise, assign to mdp
+    test_method_data_pointer(mdp, profile_continue);
+
+    // We are taking a branch.  Increment the taken count.
+    // We inline increment_mdp_data_at to return bumped_count in a register
+    //increment_mdp_data_at(mdp, in_bytes(JumpData::taken_offset()));
+    Address data(mdp, in_bytes(JumpData::taken_offset()));
+    ldr(bumped_count, data);
+    assert(DataLayout::counter_increment == 1,
+            "flow-free idiom only works with 1");
+    // Intel does this to catch overflow
+    // addptr(bumped_count, DataLayout::counter_increment);
+    // sbbptr(bumped_count, 0);
+    // so we do this
+    adds(bumped_count, bumped_count, DataLayout::counter_increment);
+    Label L;
+    br(Assembler::CS, L);	// skip store if counter overflow
+    str(bumped_count, data);
+    bind(L);
+    // The method data pointer needs to be updated to reflect the new target.
+    update_mdp_by_offset(mdp, in_bytes(JumpData::displacement_offset()));
+    bind(profile_continue);
   }
 }
 
 
 void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
   if (ProfileInterpreter) {
-    Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // We are taking a branch.  Increment the not taken count.
+    increment_mdp_data_at(mdp, in_bytes(BranchData::not_taken_offset()));
+
+    // The method data pointer needs to be updated to correspond to
+    // the next bytecode
+    update_mdp_by_constant(mdp, in_bytes(BranchData::branch_data_size()));
+    bind(profile_continue);
   }
 }
 
 
 void InterpreterMacroAssembler::profile_call(Register mdp) { 
   if (ProfileInterpreter) {
-    Unimplemented(); 
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // We are making a call.  Increment the count.
+    increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+
+    // The method data pointer needs to be updated to reflect the new target.
+    update_mdp_by_constant(mdp, in_bytes(CounterData::counter_data_size()));
+    bind(profile_continue);
   }
 }
 
 void InterpreterMacroAssembler::profile_final_call(Register mdp) {
   if (ProfileInterpreter) {
-    Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // We are making a call.  Increment the count.
+    increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+
+    // The method data pointer needs to be updated to reflect the new target.
+    update_mdp_by_constant(mdp,
+                           in_bytes(VirtualCallData::
+                                    virtual_call_data_size()));
+    bind(profile_continue);
   }
 }
 
@@ -761,7 +955,29 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
                                                      Register reg2,
                                                      bool receiver_can_be_null) {
   if (ProfileInterpreter) {
-    Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    Label skip_receiver_profile;
+    if (receiver_can_be_null) {
+      Label not_null;
+      // We are making a call.  Increment the count for null receiver.
+      increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+      b(skip_receiver_profile);
+      bind(not_null);
+    }
+
+    // Record the receiver type.
+    record_klass_in_profile(receiver, mdp, reg2, true);
+    bind(skip_receiver_profile);
+
+    // The method data pointer needs to be updated to reflect the new target.
+    update_mdp_by_constant(mdp,
+                           in_bytes(VirtualCallData::
+                                    virtual_call_data_size()));
+    bind(profile_continue);
   }
 }
 
@@ -779,7 +995,81 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
 void InterpreterMacroAssembler::record_klass_in_profile_helper(
                                         Register receiver, Register mdp,
                                         Register reg2, int start_row,
-                                        Label& done, bool is_virtual_call) { Unimplemented(); }
+                                        Label& done, bool is_virtual_call) {
+  if (TypeProfileWidth == 0) {
+    if (is_virtual_call) {
+      increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+    }
+    return;
+  }
+
+  int last_row = VirtualCallData::row_limit() - 1;
+  assert(start_row <= last_row, "must be work left to do");
+  // Test this row for both the receiver and for null.
+  // Take any of three different outcomes:
+  //   1. found receiver => increment count and goto done
+  //   2. found null => keep looking for case 1, maybe allocate this cell
+  //   3. found something else => keep looking for cases 1 and 2
+  // Case 3 is handled by a recursive call.
+  for (int row = start_row; row <= last_row; row++) {
+    Label next_test;
+    bool test_for_null_also = (row == start_row);
+
+    // See if the receiver is receiver[n].
+    int recvr_offset = in_bytes(VirtualCallData::receiver_offset(row));
+    test_mdp_data_at(mdp, recvr_offset, receiver,
+                     (test_for_null_also ? reg2 : noreg),
+                     next_test);
+    // (Reg2 now contains the receiver from the CallData.)
+
+    // The receiver is receiver[n].  Increment count[n].
+    int count_offset = in_bytes(VirtualCallData::receiver_count_offset(row));
+    increment_mdp_data_at(mdp, count_offset);
+    b(done);
+    bind(next_test);
+
+    if (test_for_null_also) {
+      Label found_null;
+      // Failed the equality check on receiver[n]...  Test for null.
+      if (start_row == last_row) {
+        // The only thing left to do is handle the null case.
+        if (is_virtual_call) {
+	  cbz(reg2, found_null);
+          // Receiver did not match any saved receiver and there is no empty row for it.
+          // Increment total counter to indicate polymorphic case.
+          increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+          b(done);
+          bind(found_null);
+        } else {
+	  cbz(reg2, done);
+        }
+        break;
+      }
+      // Since null is rare, make it be the branch-taken case.
+      cbz(reg2,found_null);
+
+      // Put all the "Case 3" tests here.
+      record_klass_in_profile_helper(receiver, mdp, reg2, start_row + 1, done, is_virtual_call);
+
+      // Found a null.  Keep searching for a matching receiver,
+      // but remember that this is an empty (unused) slot.
+      bind(found_null);
+    }
+  }
+
+  // In the fall-through case, we found no matching receiver, but we
+  // observed the receiver[start_row] is NULL.
+
+  // Fill in the receiver field and increment the count.
+  int recvr_offset = in_bytes(VirtualCallData::receiver_offset(start_row));
+  set_mdp_data_at(mdp, recvr_offset, receiver);
+  int count_offset = in_bytes(VirtualCallData::receiver_count_offset(start_row));
+  mov(reg2, DataLayout::counter_increment);
+  set_mdp_data_at(mdp, count_offset, reg2);
+  if (start_row > 0) {
+    b(done);
+  }
+}
 
 // Example state machine code for three profile rows:
 //   // main copy of decision tree, rooted at row[1]
@@ -808,39 +1098,127 @@ void InterpreterMacroAssembler::record_klass_in_profile_helper(
 void InterpreterMacroAssembler::record_klass_in_profile(Register receiver,
                                                         Register mdp, Register reg2,
                                                         bool is_virtual_call) {
-  if (ProfileInterpreter) {
-    call_Unimplemented();
-  }
+  assert(ProfileInterpreter, "must be profiling");
+  Label done;
+
+  record_klass_in_profile_helper(receiver, mdp, reg2, 0, done, is_virtual_call);
+
+  bind (done);
 }
 
 void InterpreterMacroAssembler::profile_ret(Register return_bci,
                                             Register mdp) {
   if (ProfileInterpreter) {
-    call_Unimplemented();
+    Label profile_continue;
+    uint row;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // Update the total ret count.
+    increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
+
+    for (row = 0; row < RetData::row_limit(); row++) {
+      Label next_test;
+
+      // See if return_bci is equal to bci[n]:
+      test_mdp_data_at(mdp,
+                       in_bytes(RetData::bci_offset(row)),
+                       return_bci, noreg,
+                       next_test);
+
+      // return_bci is equal to bci[n].  Increment the count.
+      increment_mdp_data_at(mdp, in_bytes(RetData::bci_count_offset(row)));
+
+      // The method data pointer needs to be updated to reflect the new target.
+      update_mdp_by_offset(mdp,
+                           in_bytes(RetData::bci_displacement_offset(row)));
+      b(profile_continue);
+      bind(next_test);
+    }
+
+    update_mdp_for_ret(return_bci);
+
+    bind(profile_continue);
   }
 }
 
 void InterpreterMacroAssembler::profile_null_seen(Register mdp) {
   if (ProfileInterpreter) {
-    call_Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    set_mdp_flag_at(mdp, BitData::null_seen_byte_constant());
+
+    // The method data pointer needs to be updated.
+    int mdp_delta = in_bytes(BitData::bit_data_size());
+    if (TypeProfileCasts) {
+      mdp_delta = in_bytes(VirtualCallData::virtual_call_data_size());
+    }
+    update_mdp_by_constant(mdp, mdp_delta);
+
+    bind(profile_continue);
   }
 }
 
 void InterpreterMacroAssembler::profile_typecheck_failed(Register mdp) {
-  if (ProfileInterpreter) {
-    call_Unimplemented();
+  if (ProfileInterpreter && TypeProfileCasts) {
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    int count_offset = in_bytes(CounterData::count_offset());
+    // Back up the address, since we have already bumped the mdp.
+    count_offset -= in_bytes(VirtualCallData::virtual_call_data_size());
+
+    // *Decrement* the counter.  We expect to see zero or small negatives.
+    increment_mdp_data_at(mdp, count_offset, true);
+
+    bind (profile_continue);
   }
 }
 
 void InterpreterMacroAssembler::profile_typecheck(Register mdp, Register klass, Register reg2) {
   if (ProfileInterpreter) {
-    call_Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // The method data pointer needs to be updated.
+    int mdp_delta = in_bytes(BitData::bit_data_size());
+    if (TypeProfileCasts) {
+      mdp_delta = in_bytes(VirtualCallData::virtual_call_data_size());
+
+      // Record the object type.
+      record_klass_in_profile(klass, mdp, reg2, false);
+    }
+    update_mdp_by_constant(mdp, mdp_delta);
+
+    bind(profile_continue);
   }
 }
 
 void InterpreterMacroAssembler::profile_switch_default(Register mdp) {
   if (ProfileInterpreter) {
-    call_Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // Update the default case count
+    increment_mdp_data_at(mdp,
+                          in_bytes(MultiBranchData::default_count_offset()));
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_offset(mdp,
+                         in_bytes(MultiBranchData::
+                                  default_displacement_offset()));
+
+    bind(profile_continue);
   }
 }
 
@@ -848,7 +1226,29 @@ void InterpreterMacroAssembler::profile_switch_case(Register index,
                                                     Register mdp,
                                                     Register reg2) {
   if (ProfileInterpreter) {
-    call_Unimplemented();
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    // Build the base (index * per_case_size_in_bytes()) +
+    // case_array_offset_in_bytes()
+    movw(reg2, in_bytes(MultiBranchData::per_case_size()));
+    movw(rscratch1, in_bytes(MultiBranchData::case_array_offset()));
+    maddw(index, index, reg2, rscratch1);
+
+    // Update the case count
+    increment_mdp_data_at(mdp,
+                          index,
+                          in_bytes(MultiBranchData::relative_count_offset()));
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_offset(mdp,
+                         index,
+                         in_bytes(MultiBranchData::
+                                  relative_displacement_offset()));
+
+    bind(profile_continue);
   }
 }
 
