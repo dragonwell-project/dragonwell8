@@ -260,7 +260,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
   // temps used in this code are not used in *either* compiled or interpreted calling sequences
   Register temp1 = r10;
   Register temp2 = r11;
-  Register temp3 = r13;
+  Register temp3 = r14;  // r13 is live ty this point: it contains the sender SP
   if (for_compiler_entry) {
     assert(receiver_reg == (iid == vmIntrinsics::_linkToStatic ? noreg : j_rarg0), "only valid assignment");
     assert_different_registers(temp1,        j_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4, j_rarg5, j_rarg6, j_rarg7);
