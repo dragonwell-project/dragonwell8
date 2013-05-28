@@ -230,8 +230,11 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   // last_java_fp is optional
   if (last_java_fp->is_valid()) {
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
+    // C2 uncommon_trap_blob does not want to reset rfp
+#ifndef COMPILER2
   } else {
     ShouldNotReachHere();
+#endif
   }
 }
 
@@ -240,7 +243,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          address  last_java_pc,
 					 Register scratch) {
   if (last_java_pc != NULL) {
-    adr(scratch, last_java_pc);
+    mov(scratch, last_java_pc);
   } else {
     // FIXME: This is almost never correct.  We should delete all
     // cases of set_last_Java_frame with last_java_pc=NULL and use the
@@ -793,14 +796,13 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   assert(sub_klass != r2, "killed reg"); // killed by lea(r2, &pst_counter)
 
   // Get super_klass value into r0 (even if it was in r5 or r2).
-  bool pushed_r0 = false, pushed_r2 = IS_A_TEMP(r2), pushed_r5 = IS_A_TEMP(r5);
-
+  bool pushed_r0 = false, pushed_r2 = false, pushed_r5 = false;
   if (super_klass != r0 || UseCompressedOops) {
-    if (!IS_A_TEMP(r0))
-      pushed_r0 = true;
+    if (!IS_A_TEMP(r0)) { push(r0); pushed_r0 = true; }
+    mov(r0, super_klass);
   }
-
-  push(r0->bit(pushed_r0) | r2->bit(pushed_r2) | r2->bit(pushed_r5), sp);
+  if (!IS_A_TEMP(r2)) { push(r2); pushed_r2 = true; }
+  if (!IS_A_TEMP(r5)) { push(r5); pushed_r5 = true; }
 
 #ifndef PRODUCT
   mov(rscratch2, (address)&SharedRuntime::_partial_subtype_ctr);
@@ -817,15 +819,25 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   // Skip to start of data.
   add(r5, r5, Array<Klass*>::base_offset_in_bytes());
 
-  cmp(sp, zr); // Clear Z flag; SP is never zero
   // Scan R2 words at [R5] for an occurrence of R0.
   // Set NZ/Z based on last compare.
+  // Z flag value will not be set by 'repne' if R2 == 0 since 'repne' does
+  // not change flags (only scas instruction which is repeated sets flags).
+
   repne_scan(r5, r0, r2, rscratch1);
 
   // Unspill the temp. registers:
-  pop(r0->bit(pushed_r0) | r2->bit(pushed_r2) | r2->bit(pushed_r5), sp);
+  if (pushed_r5)  pop(r5);
+  if (pushed_r2)  pop(r2);
+  if (pushed_r0)  pop(r0);
 
-  br(Assembler::NE, *L_failure);
+  if (set_cond_codes) {
+    // Special hack for the AD files:  r5 is guaranteed non-zero.
+    assert(!pushed_r5, "r5 must be left non-NULL");
+    // Also, the condition codes are properly set Z/NZ on succeed/failure.
+  }
+
+  cbz(r2, *L_failure);
 
   // Success.  Cache the super we found and proceed in triumph.
   str(super_klass, super_cache_addr);
@@ -1054,7 +1066,7 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
       // one MOVN will do
       for (int i = 0; i < 4; i++) {
 	if (imm_h[i] != 0xffffL) {
-	  movn(dst, (u_int32_t)imm_h[i] ^ 0xffffL, (i << 4));
+	  movn(dst, (u_int32_t)imm_h[i], (i << 4));
 	  break;
 	}
       }
@@ -1883,30 +1895,24 @@ void MacroAssembler::store_klass_gap(Register dst, Register src) {
 }
 
 // Algorithm must match oop.inline.hpp encode_heap_oop.
-void MacroAssembler::encode_heap_oop(Register d, Register s) {
+void MacroAssembler::encode_heap_oop(Register r) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::encode_heap_oop: heap base corrupted?");
 #endif
-  verify_oop(s, "broken oop in encode_heap_oop");
+  verify_oop(r, "broken oop in encode_heap_oop");
   if (Universe::narrow_oop_base() == NULL) {
     if (Universe::narrow_oop_shift() != 0) {
       assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
-      lsr(d, s, LogMinObjAlignmentInBytes);
-    } else {
-      mov(d, s);
+      lsr(r, r, LogMinObjAlignmentInBytes);
     }
-  } else {
-    subs(d, s, rheapbase);
-    csel(d, d, zr, Assembler::HS);
-    lsr(d, d, LogMinObjAlignmentInBytes);
-
-    /*  Old algorithm: is this any worse?
+    return;
+  }
+  {
     Label nonnull;
     cbnz(r, nonnull);
     sub(r, r, rheapbase);
     bind(nonnull);
     lsr(r, r, LogMinObjAlignmentInBytes);
-    */
   }
 }
 
