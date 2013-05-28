@@ -2014,31 +2014,19 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   // if we don't know anything, just go through the generic arraycopy
   if (default_type == NULL) {
     Label done;
-    // save outgoing arguments on stack in case call to System.arraycopy is needed
-    // HACK ALERT. This code used to push the parameters in a hardwired fashion
-    // for interpreter calling conventions. Now we have to do it in new style conventions.
-    // For the moment until C1 gets the new register allocator I just force all the
-    // args to the right place (except the register args) and then on the back side
-    // reload the register args properly if we go slow path. Yuck
+    assert(src == r1 && src_pos == r2, "mismatch in calling convention");
 
-    // These are proper for the calling convention
-    store_parameter(length, 2);
-    store_parameter(dst_pos, 1);
-    store_parameter(dst, 0);
-
-    // these are just temporary placements until we need to reload
-    store_parameter(src_pos, 3);
-    store_parameter(src, 4);
-    NOT_LP64(assert(src == r2 && src_pos == r3, "mismatch in calling convention");)
+    // Save the arguments in case the generic arraycopy fails and we
+    // have to fall back to the JNI stub
+    __ stp(dst,     dst_pos, Address(sp, 0*BytesPerWord));
+    __ stp(length,  src_pos, Address(sp, 2*BytesPerWord));
+    __ str(src,              Address(sp, 4*BytesPerWord));
 
     address C_entry = CAST_FROM_FN_PTR(address, Runtime1::arraycopy);
-
     address copyfunc_addr = StubRoutines::generic_arraycopy();
 
-    // pass arguments: may push as this is not a safepoint; SP must be fix at each safepoint
-
-    // The arguments are in java calling convention so we can trivially shift them to C
-    // convention
+    // The arguments are in java calling convention so we shift them
+    // to C convention
     assert_different_registers(c_rarg0, j_rarg1, j_rarg2, j_rarg3, j_rarg4);
     __ mov(c_rarg0, j_rarg0);
     assert_different_registers(c_rarg1, j_rarg2, j_rarg3, j_rarg4);
@@ -2049,8 +2037,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov(c_rarg3, j_rarg3);
     __ mov(c_rarg4, j_rarg4);
     if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ ldr(rscratch1, RuntimeAddress(C_entry));
-      __ brx86(rscratch1, 5, 0, 0);
+      __ mov(rscratch1, RuntimeAddress(C_entry));
+      __ brx86(rscratch1, 5, 0, 1);
     } else {
 #ifndef PRODUCT
       if (PrintC1Statistics) {
@@ -2063,17 +2051,14 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ cbz(r0, *stub->continuation());
 
     if (copyfunc_addr != NULL) {
-      __ mov(tmp, r0);
-      __ eor(tmp, tmp, -1);
+      __ eor(tmp, r0, -1);
     }
 
     // Reload values from the stack so they are where the stub
     // expects them.
-    __ str(dst,     Address(sp, 0*BytesPerWord));
-    __ str(dst_pos, Address(sp, 1*BytesPerWord));
-    __ str(length,  Address(sp, 2*BytesPerWord));
-    __ str(src_pos, Address(sp, 3*BytesPerWord));
-    __ str(src,     Address(sp, 4*BytesPerWord));
+    __ ldp(dst,     dst_pos, Address(sp, 0*BytesPerWord));
+    __ ldp(length,  src_pos, Address(sp, 2*BytesPerWord));
+    __ ldr(src,              Address(sp, 4*BytesPerWord));
 
     if (copyfunc_addr != NULL) {
       __ subw(length, length, tmp);
@@ -2202,11 +2187,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
        // Spill because stubs can use any register they like and it's
        // easier to restore just those that we care about.
-       store_parameter(dst, 0);
-       store_parameter(dst_pos, 1);
-       store_parameter(length, 2);
-       store_parameter(src_pos, 3);
-       store_parameter(src, 4);
+	__ stp(dst,     dst_pos, Address(sp, 0*BytesPerWord));
+	__ stp(length,  src_pos, Address(sp, 2*BytesPerWord));
+	__ str(src,              Address(sp, 4*BytesPerWord));
 
         __ uxtw(length, length); // FIXME ??  higher 32bits must be null
 
@@ -2244,11 +2227,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
         __ eor(tmp, r0, -1);
 
         // Restore previously spilled arguments
-        __ ldr   (dst,     Address(sp, 0*BytesPerWord));
-        __ ldr   (dst_pos, Address(sp, 1*BytesPerWord));
-        __ ldr   (length,  Address(sp, 2*BytesPerWord));
-        __ ldr   (src_pos, Address(sp, 3*BytesPerWord));
-        __ ldr   (src,     Address(sp, 4*BytesPerWord));
+	__ ldp(dst,     dst_pos, Address(sp, 0*BytesPerWord));
+	__ ldp(length,  src_pos, Address(sp, 2*BytesPerWord));
+	__ ldr(src,              Address(sp, 4*BytesPerWord));
 
 
         __ subw(length, length, tmp);
