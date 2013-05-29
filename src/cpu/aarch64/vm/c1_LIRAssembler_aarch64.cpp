@@ -1490,10 +1490,10 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
     jlong val1 = opr1->as_jlong();
     jlong val2 = opr2->as_jlong();
     if (val1 == 0 && val2 == 1) {
-      __ cset(result->as_register(), ncond);
+      __ cset(result->as_register_lo(), ncond);
       return;
     } else if (val1 = 1 && val2 == 0) {
-      __ cset(result->as_register(), acond);
+      __ cset(result->as_register_lo(), acond);
       return;
     }
   }
