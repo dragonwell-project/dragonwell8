@@ -1522,9 +1522,8 @@ const int Matcher::long_cmove_cost() {
 }
 
 const int Matcher::float_cmove_cost() {
-  Unimplemented();
-  // hmm, x86 and ppc use this???
-  return ConditionalMoveLimit;
+  // float cmoves are no more expensive than int cmoves
+  return 0;
 }
 
 // Should the Matcher clone shifts on addressing modes, expecting them
@@ -2137,14 +2136,24 @@ encode %{
 
   enc_class aarch64_enc_movw_imm(iRegI dst, immI src) %{
     MacroAssembler _masm(&cbuf);
+    u_int32_t con = (u_int32_t)$src$$constant;
     Register dst_reg = as_Register($dst$$reg);
-    __ movw(dst_reg, (u_int32_t)$src$$constant);
+    if (con == 0) {
+      __ movw(dst_reg, zr);
+    } else {
+      __ movw(dst_reg, con);
+    }
   %}
 
   enc_class aarch64_enc_mov_imm(iRegL dst, immL src) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    __ mov(dst_reg, (u_int64_t)$src$$constant);
+    u_int64_t con = (u_int64_t)$src$$constant;
+    if (con == 0) {
+      __ mov(dst_reg, zr);
+    } else {
+      __ mov(dst_reg, con);
+    }
   %}
 
   enc_class aarch64_enc_mov_p(iRegP dst, immP src) %{
@@ -4113,7 +4122,237 @@ instruct convF2D_reg(vRegD dst, vRegF src) %{
 
 // ============================================================================
 // Conditional Move Instructions
+
+instruct cmovI_reg_reg(cmpOp cmp, rFlagsReg cr, iRegI dst, iRegI src1, iRegI src2) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, $src2, $src1 $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// special cases where one arg is zero
+
+// n.b. this is selected in preference to the rule above because it
+// avoids loading constant 0 into a source register
+
 // TODO
+// we ought only to be able to cull one of these variants as the ideal
+// transforms ought always to order the zero consistently (to left/right?)
+
+instruct cmovI_zero_reg(cmpOp cmp, rFlagsReg cr, iRegI dst, immI0 zero, iRegI src2) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, $src2, zr $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             zr,
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovI_reg_zero(cmpOp cmp, rFlagsReg cr, iRegI dst, iRegI src1, immI0 zero) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, zr, $src1 $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             zr,
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// special case for creating a boolean 0 or 1
+
+// n.b. this is selected in preference to the rule above because it
+// avoids loading constants 0 and 1 into a source register
+
+instruct cmovI_reg_zero_one(cmpOp cmp, rFlagsReg cr, iRegI dst, immI0 zero, immI_1 one) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary one zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csincw $dst, zr, zr $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    // equivalently
+    // cset(as_Register($dst$$reg),
+    //      negate_condition((Assembler::Condition)$cmp$$cmpcode));
+    __ csincw(as_Register($dst$$reg),
+	     zr,
+	     zr,
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovL_reg_reg(cmpOp cmp, rFlagsReg cr, iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// special cases where one arg is zero
+
+instruct cmovL_reg_zero(cmpOp cmp, rFlagsReg cr, iRegL dst, iRegL src1, immL0 zero) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegL dst, immL0 zero, iRegL src2) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegP dst, iRegP src1, iRegP src2) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// special cases where one arg is zero
+
+instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegP dst, iRegP src1, immP0 zero) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegP dst, immP0 zero, iRegP src2) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src2) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// special cases where one arg is zero
+
+instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 zero) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN src2) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
 
 // ============================================================================
 // Arithmetic Instructions
