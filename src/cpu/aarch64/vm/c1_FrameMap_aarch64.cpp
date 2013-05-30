@@ -312,7 +312,7 @@ Address FrameMap::make_new_address(ByteSize sp_offset) const {
 //   | .........|  <- TOS
 //   | locals   |
 //   +----------+
-//   | old rbp,  |  <- EBP
+//   |  old fp, |  <- RFP
 //   +----------+
 //   | ret addr |
 //   +----------+

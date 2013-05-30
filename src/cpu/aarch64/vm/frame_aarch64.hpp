@@ -201,10 +201,6 @@
   // helper to update a map with callee-saved RBP
   static void update_map_with_saved_link(RegisterMap* map, intptr_t** link_addr);
 
-  frame zsender(RegisterMap* map) const;
-
-  frame sender_for_stub_frame(RegisterMap* map) const;
-
 #ifndef CC_INTERP
   // deoptimization support
   void interpreter_frame_set_last_sp(intptr_t* sp);

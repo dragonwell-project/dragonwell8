@@ -25,14 +25,11 @@
 #ifndef CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
 #define CPU_AARCH64_VM_C1_FRAMEMAP_AARCH64_HPP
 
-//  On i486 the frame looks as follows:
+//  On AArch64 the frame looks as follows:
 //
 //  +-----------------------------+---------+----------------------------------------+----------------+-----------
 //  | size_arguments-nof_reg_args | 2 words | size_locals-size_arguments+numreg_args | _size_monitors | spilling .
 //  +-----------------------------+---------+----------------------------------------+----------------+-----------
-//
-//  The FPU registers are mapped with their offset from TOS; therefore the
-//  status of FPU stack must be updated during code emission.
 
  public:
   static const int pd_c_runtime_reserved_arg_size;
@@ -40,7 +37,7 @@
   enum {
     first_available_sp_in_frame = 0,
     frame_pad_in_bytes = 16,
-    nof_reg_args = 6
+    nof_reg_args = 8
   };
 
  public:

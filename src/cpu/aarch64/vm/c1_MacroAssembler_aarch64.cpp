@@ -444,7 +444,8 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
 
 
 void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
-  leave();
+  add(sp, sp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
+  ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   if (NotifySimulator) {
     notify(Assembler::method_reentry);
   }

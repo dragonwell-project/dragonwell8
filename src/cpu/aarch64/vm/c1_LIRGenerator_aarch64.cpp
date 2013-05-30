@@ -924,28 +924,27 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
 
 // _i2l, _i2f, _i2d, _l2i, _l2f, _l2d, _f2i, _f2l, _f2d, _d2i, _d2l, _d2f
 // _i2b, _i2c, _i2s
-LIR_Opr fixed_register_for(BasicType type) { Unimplemented(); }
-
 void LIRGenerator::do_Convert(Convert* x) {
-  bool fixed_input, fixed_result, round_result, needs_stub;
+  bool needs_stub;
 
   switch (x->op()) {
-    case Bytecodes::_i2l: // fall through
-    case Bytecodes::_l2i: // fall through
-    case Bytecodes::_i2b: // fall through
-    case Bytecodes::_i2c: // fall through
-    case Bytecodes::_i2s: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
-
-    case Bytecodes::_f2d: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
-    case Bytecodes::_d2f: fixed_input = false;       fixed_result = UseSSE == 1; round_result = UseSSE < 1; needs_stub = false; break;
-    case Bytecodes::_i2f: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 1; needs_stub = false; break;
-    case Bytecodes::_i2d: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = false; break;
-    case Bytecodes::_f2i: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = true;  break;
-    case Bytecodes::_d2i: fixed_input = false;       fixed_result = false;       round_result = false;      needs_stub = true;  break;
-    case Bytecodes::_l2f: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 1; needs_stub = false; break;
-    case Bytecodes::_l2d: fixed_input = false;       fixed_result = false;       round_result = UseSSE < 2; needs_stub = false; break;
-    case Bytecodes::_f2l: fixed_input = false;        fixed_result = false;        round_result = false;      needs_stub = false; break;
-    case Bytecodes::_d2l: fixed_input = false;        fixed_result = false;        round_result = false;      needs_stub = false; break;
+    case Bytecodes::_i2l:
+    case Bytecodes::_l2i:
+    case Bytecodes::_i2b:
+    case Bytecodes::_i2c:
+    case Bytecodes::_i2s:
+    case Bytecodes::_f2d:
+    case Bytecodes::_d2f:
+    case Bytecodes::_i2f:
+    case Bytecodes::_i2d:
+    case Bytecodes::_l2f:
+    case Bytecodes::_l2d: needs_stub = false;
+      break;
+    case Bytecodes::_f2l:
+    case Bytecodes::_d2l:
+    case Bytecodes::_f2i:
+    case Bytecodes::_d2i: needs_stub = true;
+      break;
     default: ShouldNotReachHere();
   }
 
@@ -959,28 +958,11 @@ void LIRGenerator::do_Convert(Convert* x) {
   LIR_Opr conv_result = result;
   ConversionStub* stub = NULL;
 
-  if (fixed_input) {
-    conv_input = fixed_register_for(input->type());
-    __ move(input, conv_input);
-  }
-
-  assert(fixed_result == false || round_result == false, "cannot set both");
-  if (fixed_result) {
-    conv_result = fixed_register_for(result->type());
-  } else if (round_result) {
-    result = new_register(result->type());
-    set_vreg_flag(result, must_start_in_memory);
-  }
-
   if (needs_stub) {
     stub = new ConversionStub(x->op(), conv_input, conv_result);
   }
 
   __ convert(x->op(), conv_input, conv_result, stub, new_register(T_INT));
-
-  if (result != conv_result) {
-    __ move(conv_result, result);
-  }
 
   assert(result->is_virtual(), "result must be virtual register");
   set_result(x, result);
