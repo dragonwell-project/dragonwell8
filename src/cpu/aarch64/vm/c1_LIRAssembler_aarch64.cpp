@@ -1586,7 +1586,7 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       switch (code) {
       case lir_add: __ addw (dest->as_register(), lreg, rreg); break;
       case lir_sub: __ subw (dest->as_register(), lreg, rreg); break;
-      case lir_mul: __ mul (dest->as_register(), lreg, rreg); break;
+      case lir_mul: __ mulw (dest->as_register(), lreg, rreg); break;
       default:      ShouldNotReachHere();
       }
 
@@ -2135,8 +2135,15 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   if (flags & LIR_OpArrayCopy::length_positive_check) {
     __ cmpw(length, 0);
     __ br(Assembler::LT, *stub->entry());
-    __ br(Assembler::EQ, *stub->continuation());
   }
+
+  // FIXME: The logic in LIRGenerator::arraycopy_helper clears
+  // length_positive_check if the source of our length operand is an
+  // arraylength.  However, that arraylength might be zero, and the
+  // stub that we're about to call contains an assertion that count !=
+  // 0 .  So we make this check purely in order not to trigger an
+  // assertion failure.
+  __ cbz(length, *stub->continuation());
 
   if (flags & LIR_OpArrayCopy::type_check) {
     // We don't know the array types are compatible
