@@ -2344,6 +2344,12 @@ encode %{
     __ br ((Assembler::Condition)$cmp$$cmpcode, *L);
   %}
 
+  enc_class aarch64_enc_br_conU(cmpOpU cmp, label lbl) %{
+    MacroAssembler _masm(&cbuf);
+    Label *L = $lbl$$label;
+    __ br ((Assembler::Condition)$cmp$$cmpcode, *L);
+  %}
+
   enc_class aarch64_enc_java_static_call(method meth) %{
     MacroAssembler _masm(&cbuf);
 
@@ -3344,6 +3350,21 @@ operand cmpOp()
   %}
 %}
 
+operand cmpOpU()
+%{
+  match(Bool);
+
+  format %{ "" %}
+  interface(COND_INTER) %{
+    equal(0x0, "eq");
+    not_equal(0x1, "ne");
+    less(0x3, "lo");
+    greater_equal(0x8, "hi");
+    less_equal(0x9, "ls");
+    greater(0x2, "hs");
+  %}
+%}
+
 // Special operand allowing long args to int ops to be truncated for free
 
 operand iRegL2I(iRegL reg) %{
@@ -4124,11 +4145,37 @@ instruct convF2D_reg(vRegD dst, vRegF src) %{
 // ============================================================================
 // Conditional Move Instructions
 
+// n.b. we have identical rules for both a signed compare op (cmpOp)
+// and an unsigned compare op (cmpOpU). it would be nice if we could
+// define an op class which merged both inputs and use it to type the
+// argumewnt to a single rule. unfortunatelyt his fails because the
+// opclass does not live up to the COND_INTER interface of its
+// component operands. When the generic code tries to negate the
+// operand it ends up running the generci Machoper::negate method
+// which throws a ShouldNotHappen. So, we have to provide two flavours
+// of each rule, one for a cmpOp and a second for a cmpOpU (sigh).
+
 instruct cmovI_reg_reg(cmpOp cmp, rFlagsReg cr, iRegI dst, iRegI src1, iRegI src2) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "cselw $dst, $src2, $src1 $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegI dst, iRegI src1, iRegI src2) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, $src2, $src1 $cmp\t# unsigned, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
@@ -4165,11 +4212,43 @@ instruct cmovI_zero_reg(cmpOp cmp, rFlagsReg cr, iRegI dst, immI0 zero, iRegI sr
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUI_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegI dst, immI0 zero, iRegI src2) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, $src2, zr $cmp\t# unsigned, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             zr,
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovI_reg_zero(cmpOp cmp, rFlagsReg cr, iRegI dst, iRegI src1, immI0 zero) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
   format %{ "cselw $dst, zr, $src1 $cmp\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             zr,
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUI_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegI dst, iRegI src1, immI0 zero) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, zr, $src1 $cmp\t# unsigned, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
@@ -4205,11 +4284,46 @@ instruct cmovI_reg_zero_one(cmpOp cmp, rFlagsReg cr, iRegI dst, immI0 zero, immI
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUI_reg_zero_one(cmpOpU cmp, rFlagsReg cr, iRegI dst, immI0 zero, immI_1 one) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary one zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csincw $dst, zr, zr $cmp\t# unsigned, int"  %}
+
+  ins_encode %{
+    // equivalently
+    // cset(as_Register($dst$$reg),
+    //      negate_condition((Assembler::Condition)$cmp$$cmpcode));
+    __ csincw(as_Register($dst$$reg),
+	     zr,
+	     zr,
+             (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovL_reg_reg(cmpOp cmp, rFlagsReg cr, iRegL dst, iRegL src1, iRegL src2) %{
   match(Set dst (CMoveL (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUL_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegL dst, iRegL src1, iRegL src2) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# unsigned, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -4239,6 +4353,22 @@ instruct cmovL_reg_zero(cmpOp cmp, rFlagsReg cr, iRegL dst, iRegL src1, immL0 ze
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUL_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegL dst, iRegL src1, immL0 zero) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegL dst, immL0 zero, iRegL src2) %{
   match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
 
@@ -4255,11 +4385,43 @@ instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegL dst, immL0 zero, iRegL sr
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUL_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegL dst, immL0 zero, iRegL src2) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegP dst, iRegP src1, iRegP src2) %{
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegP dst, iRegP src1, iRegP src2) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# unsigned, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -4289,6 +4451,22 @@ instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegP dst, iRegP src1, immP0 ze
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegP dst, iRegP src1, immP0 zero) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegP dst, immP0 zero, iRegP src2) %{
   match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
 
@@ -4305,7 +4483,39 @@ instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegP dst, immP0 zero, iRegP sr
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegP dst, immP0 zero, iRegP src2) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src2) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src2) %{
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
@@ -4339,11 +4549,43 @@ instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 ze
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 zero) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            zr,
+            as_Register($src1$$reg),
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN src2) %{
   match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+
+  ins_encode %{
+    __ csel(as_Register($dst$$reg),
+            as_Register($src2$$reg),
+            zr,
+            (Assembler::Condition)$cmp$$cmpcode);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN src2) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -5483,6 +5725,66 @@ instruct compI_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
   ins_pipe(pipe_class_compare);
 %}
 
+// Unsigned compare Instructions; really, same as signed compare
+// except it should only be used to feed an If or a CMovI which takes a
+// cmpOpU.
+
+instruct compU_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  match(Set cr (CmpU op1 op2));
+
+  effect(DEF cr, USE op1, USE op2);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmpw  $op1, $op2\t# unsigned" %}
+
+  ins_encode(aarch64_enc_cmpw(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compU_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
+%{
+  match(Set cr (CmpU op1 zero));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "tstw  $op1\t# unsigned" %}
+
+  ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compU_reg_immIAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
+%{
+  match(Set cr (CmpU op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST + 1);
+  format %{ "cmpw  $op1, $op2\t# unsigned" %}
+
+  ins_encode(aarch64_enc_cmpw_imm_addsub(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compU_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
+%{
+  match(Set cr (CmpU op1 op2));
+
+  effect(DEF cr, USE op1);
+
+  ins_cost(DEFAULT_COST + 2);
+  format %{ "cmpw  $op1, $op2\t# unsigned" %}
+
+  ins_encode(aarch64_enc_cmpw_imm(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
 instruct compL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
 %{
   match(Set cr (CmpL op1 op2));
@@ -5606,7 +5908,29 @@ instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl)
   ins_pipe(pipe_class_default);
 %}
 
+// Conditional Near Branch Unsigned
+instruct branchConU(cmpOpU cmp, rFlagsReg cr, label lbl)
+%{
+  // Same match rule as `branchConFar'.
+  match(If cmp cr);
+
+  effect(USE lbl);
+
+  ins_cost(BRANCH_COST);
+  // If set to 1 this indicates that the current instruction is a
+  // short variant of a long branch. This avoids using this
+  // instruction in first-pass matching. It will then only be used in
+  // the `Shorten_branches' pass.
+  // ins_short_branch(1);
+  format %{ "b$cmp  $lbl\t# unsigned" %}
+
+  ins_encode(aarch64_enc_br_conU(cmp, lbl));
+
+  ins_pipe(pipe_class_default);
+%}
+
 // Conditional Far Branch
+// Conditional Far Branch Unsigned
 // TODO: fixme
 
 // counted loop end branch near
@@ -5626,7 +5950,25 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl)
   ins_pipe(pipe_class_default);
 %}
 
+// counted loop end branch near Unsigned
+instruct branchLoopEndU(cmpOpU cmp, rFlagsReg cr, label lbl)
+%{
+  match(CountedLoopEnd cmp cr);
+
+  effect(USE lbl);
+
+  ins_cost(BRANCH_COST);
+  // short variant.
+  // ins_short_branch(1);
+  format %{ "b$cmp $lbl \t// counted loop end unsigned" %}
+
+  ins_encode(aarch64_enc_br_conU(cmp, lbl));
+
+  ins_pipe(pipe_class_default);
+%}
+
 // counted loop end branch far
+// counted loop end branch far unsigned
 // TODO: fixme
 
 // ============================================================================
