@@ -4097,7 +4097,101 @@ instruct bytes_reverse_short(iRegINoSp dst) %{
 
 // ============================================================================
 // MemBar Instruction
+
 // TODO
+
+// check that we are using the right type of barrier instruction and
+// the correct
+
+instruct membar_acquire()
+%{
+  match(MemBarAcquire);
+  ins_cost(4*MEMORY_REF_COST);
+
+  format %{ "MEMBAR-acquire\t# ???" %}
+
+  ins_encode %{
+    __ dsb(Assembler::LD);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_release()
+%{
+  match(MemBarRelease);
+  ins_cost(4*MEMORY_REF_COST);
+
+  format %{ "MEMBAR-release\t# ???" %}
+  ins_encode %{
+    __ dsb(Assembler::SY);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_volatile() %{
+  match(MemBarVolatile);
+  ins_cost(4*MEMORY_REF_COST);
+
+  format %{ "MEMBAR-volatile\t# ???" %}
+
+  ins_encode %{
+    __ dsb(Assembler::SY);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct unnecessary_membar_volatile() %{
+  match(MemBarVolatile);
+  predicate(Matcher::post_store_load_barrier(n));
+  ins_cost(0);
+
+  size(0);
+  format %{ "!MEMBAR-volatile (unnecessary so empty encoding)" %}
+  ins_encode( );
+  ins_pipe(pipe_class_empty);
+%}
+
+instruct membar_storestore() %{
+  match(MemBarStoreStore);
+  ins_cost(4*MEMORY_REF_COST);
+
+  format %{ "MEMBAR-storestore\t# ???" %}
+
+  ins_encode %{
+    __ dsb(Assembler::ST);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// TODO
+// check we are using the correct instruction and barrier type
+
+instruct membar_acquire_lock() %{
+  match(MemBarAcquireLock);
+
+  format %{ "MEMBAR-acquire-lock\t# ???" %}
+
+  ins_encode %{
+    __ dsb(Assembler::SY);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_release_lock() %{
+  match(MemBarReleaseLock);
+
+  format %{ "MEMBAR-release-lock\t# ???" %}
+
+  ins_encode %{
+    __ dsb(Assembler::SY);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
 
 // ============================================================================
 // Cast/Convert Instructions
