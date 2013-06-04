@@ -1876,7 +1876,7 @@ extern "C" {
     return false;
   }
 
-  void bccheck1(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, char *decode)
+  void bccheck1(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, int *framesize, char *decode)
   {
     if (method != 0) {
       method[0] = '\0';
@@ -1886,6 +1886,10 @@ extern "C" {
     }
     if (decode != 0) {
       decode[0] = 0;
+    }
+
+    if (framesize != 0) {
+      *framesize = -1;
     }
 
     if (Interpreter::contains((address)pc)) {
@@ -1929,25 +1933,30 @@ extern "C" {
     } else {
       if (method) {
 	CodeBlob *cb = CodeCache::find_blob((address)pc);
-	if (cb != NULL && cb->is_nmethod()) {
-	  ResourceMark rm;
-	  nmethod* nm = (nmethod*)cb;
-	  method[0] = 'C';
-	  method[1] = ' ';
-	  nm->method()->name_and_sig_as_C_string(method + 2, 398);
-	} else if (cb != NULL && cb->is_adapter_blob()) {
-	  strcpy(method, "B adapter blob");
-	} else if (cb != NULL && cb->is_runtime_stub()) {
-	  strcpy(method, "B runtime stub");
+	if (cb != NULL) {
+	  if (cb->is_nmethod()) {
+	    ResourceMark rm;
+	    nmethod* nm = (nmethod*)cb;
+	    method[0] = 'C';
+	    method[1] = ' ';
+	    nm->method()->name_and_sig_as_C_string(method + 2, 398);
+	  } else if (cb->is_adapter_blob()) {
+	    strcpy(method, "B adapter blob");
+	  } else if (cb->is_runtime_stub()) {
+	    strcpy(method, "B runtime stub");
+	  }
+	  if (framesize != NULL) {
+	    *framesize = cb->frame_size();
+	  }
 	}
       }
     }
   }
 
 
-  JNIEXPORT void bccheck(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, char *decode)
+  JNIEXPORT void bccheck(u_int64_t pc, u_int64_t fp, char *method, int *bcidx, int *framesize, char *decode)
   {
-    bccheck1(pc, fp, method, bcidx, decode);
+    bccheck1(pc, fp, method, bcidx, framesize, decode);
   }
 }
 
