@@ -1015,18 +1015,23 @@ void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
     if (op->info() != NULL) add_debug_info_for_branch(op->info());
     __ b(*(op->label()));
   } else {
-    Assembler::Condition acond = Assembler::EQ;
+    Assembler::Condition acond;
     if (op->code() == lir_cond_float_branch) {
-      if (op->ublock()->label() != op->label() || op->cond() == lir_cond_equal)
+      bool is_unordered = (op->ublock() == op->block());
+      // Assembler::EQ does not permit unordered branches, so we add
+      // another branch here.  Likewise, Assembler::NE does not permit
+      // ordered branches.
+      if (is_unordered && op->cond() == lir_cond_equal 
+	  || !is_unordered && op->cond() == lir_cond_notEqual)
 	__ br(Assembler::VS, *(op->ublock()->label()));
       switch(op->cond()) {
-        case lir_cond_equal:        acond = Assembler::EQ; break;
-        case lir_cond_notEqual:     acond = Assembler::NE; break;
-        case lir_cond_less:         acond = Assembler::LT; break;
-        case lir_cond_lessEqual:    acond = Assembler::LE; break;
-        case lir_cond_greaterEqual: acond = Assembler::HS; break;
-        case lir_cond_greater:      acond = Assembler::HI; break;
-        default:                         ShouldNotReachHere();
+      case lir_cond_equal:        acond = Assembler::EQ; break;
+      case lir_cond_notEqual:     acond = Assembler::NE; break;
+      case lir_cond_less:         acond = (is_unordered ? Assembler::LT : Assembler::LO); break;
+      case lir_cond_lessEqual:    acond = (is_unordered ? Assembler::LE : Assembler::LS); break;
+      case lir_cond_greaterEqual: acond = (is_unordered ? Assembler::HS : Assembler::GE); break;
+      case lir_cond_greater:      acond = (is_unordered ? Assembler::HI : Assembler::GT); break;
+      default:                    ShouldNotReachHere();
       }
     } else {
       switch (op->cond()) {
