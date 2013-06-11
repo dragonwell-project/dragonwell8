@@ -1017,11 +1017,13 @@ void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
   } else {
     Assembler::Condition acond = Assembler::EQ;
     if (op->code() == lir_cond_float_branch) {
+      if (op->ublock()->label() != op->label() || op->cond() == lir_cond_equal)
+	__ br(Assembler::VS, *(op->ublock()->label()));
       switch(op->cond()) {
         case lir_cond_equal:        acond = Assembler::EQ; break;
         case lir_cond_notEqual:     acond = Assembler::NE; break;
-        case lir_cond_less:         acond = Assembler::LO; break;
-        case lir_cond_lessEqual:    acond = Assembler::LS; break;
+        case lir_cond_less:         acond = Assembler::LT; break;
+        case lir_cond_lessEqual:    acond = Assembler::LE; break;
         case lir_cond_greaterEqual: acond = Assembler::HS; break;
         case lir_cond_greater:      acond = Assembler::HI; break;
         default:                         ShouldNotReachHere();
