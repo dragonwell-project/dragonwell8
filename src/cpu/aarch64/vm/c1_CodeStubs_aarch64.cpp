@@ -41,6 +41,10 @@
 float ConversionStub::float_zero = 0.0;
 double ConversionStub::double_zero = 0.0;
 
+static Register as_reg(LIR_Opr op) {
+  return op->is_double_cpu() ? op->as_register_lo() : op->as_register();
+}
+
 void ConversionStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
 
@@ -54,16 +58,41 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
       __ stpd(as_FloatRegister(i), as_FloatRegister(i+1),
 	      Address(__ pre(sp, -2 * wordSize)));
 
-  if (bytecode() == Bytecodes::_f2i) {
-    if (v0 != input()->as_float_reg())
-      __ fmovs(v0, input()->as_float_reg());
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
-			  0, 1, MacroAssembler::ret_type_integral);
-  } else {
-    if (v0 != input()->as_double_reg())
-      __ fmovd(v0, input()->as_double_reg());
-    __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
-			  0, 1, MacroAssembler::ret_type_integral);
+  switch(bytecode()) {
+  case Bytecodes::_f2i:
+    {
+      if (v0 != input()->as_float_reg())
+	__ fmovs(v0, input()->as_float_reg());
+      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2i),
+			    0, 1, MacroAssembler::ret_type_integral);
+    }
+    break;
+  case Bytecodes::_d2i:
+    {
+      if (v0 != input()->as_double_reg())
+	__ fmovd(v0, input()->as_double_reg());
+      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2i),
+			    0, 1, MacroAssembler::ret_type_integral);
+    }
+    break;
+  case Bytecodes::_f2l:
+    {
+      if (v0 != input()->as_float_reg())
+	__ fmovs(v0, input()->as_float_reg());
+      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::f2l),
+			    0, 1, MacroAssembler::ret_type_integral);
+    }
+    break;
+  case Bytecodes::_d2l:
+    {
+      if (v0 != input()->as_double_reg())
+	__ fmovd(v0, input()->as_double_reg());
+      __ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2l),
+			    0, 1, MacroAssembler::ret_type_integral);
+    }
+    break;
+  default:
+    ShouldNotReachHere();
   }
 
   __ str(r0, Address(rfp, -wordSize));
@@ -74,7 +103,7 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
 	      Address(__ post(sp, 2 * wordSize)));
   __ pop(0x3fffffff, sp);
 
-  __ ldr(result()->as_register(), Address(rfp, -wordSize));
+  __ ldr(as_reg(result()), Address(rfp, -wordSize));
   __ leave();
 
   __ b(_continuation);
@@ -326,7 +355,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     bytes_to_skip += __ offset() - offset;
   }
   if (CommentedAssembly) {
-    __ block_comment("patch data encoded as movl");
+    __ block_comment("patch data");
   }
   // Now emit the patch record telling the runtime how to find the
   // pieces of the patch.
