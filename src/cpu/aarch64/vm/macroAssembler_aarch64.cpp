@@ -230,8 +230,11 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   // last_java_fp is optional
   if (last_java_fp->is_valid()) {
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
+    // C2 uncommon_trap_blob does not want to reset rfp
+#ifndef COMPILER2
   } else {
     ShouldNotReachHere();
+#endif
   }
 }
 
