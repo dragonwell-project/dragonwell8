@@ -2582,8 +2582,8 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
 #endif
 
 void LIR_Assembler::membar() {
-  __ dmb(__ SY);
   COMMENT("membar");
+  __ dmb(__ SY);
 }
 
 void LIR_Assembler::membar_acquire() { 

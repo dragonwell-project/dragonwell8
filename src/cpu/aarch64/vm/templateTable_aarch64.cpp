@@ -2040,6 +2040,12 @@ void TemplateTable::_return(TosState state)
     __ bind(skip_register_finalizer);
   }
 
+  // Issue a StoreStore barrier after all stores but before return
+  // from any constructor for any class with a final field.  We don't
+  // know if this is a finalizer, so we always do so.
+  if (_desc->bytecode() == Bytecodes::_return)
+    __ membar(MacroAssembler::StoreStore);
+
   __ remove_activation(state);
   __ ret(lr);
 }
@@ -2072,13 +2078,6 @@ void TemplateTable::_return(TosState state)
 // volatile-store-volatile-load case.  This final case is placed after
 // volatile-stores although it could just as well go before
 // volatile-loads.
-
-// void TemplateTable::volatile_barrier(Assembler::Membar_mask_bits
-//                                      order_constraint)
-// {
-//   __ call_Unimplemented();
-// }
-
 
 void TemplateTable::resolve_cache_and_index(int byte_no,
                                             Register Rcache,
@@ -2343,9 +2342,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static)
 #endif
 
   __ bind(Done);
-  // [jk] not needed currently
-  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadLoad |
-  //                                              Assembler::LoadStore));
+  // It's really not worth bothering to check whether this field
+  // really is volatile in the slow case.
+  __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::LoadLoad |
+						    MacroAssembler::LoadStore));
 }
 
 
@@ -2382,12 +2382,15 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   jvmti_post_field_mod(rcpool, index, is_static);
   load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
 
-  // [jk] not needed currently
-  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
-  //                                              Assembler::StoreStore));
-
-  Label notVolatile, Done;
+  Label Done;
   __ mov(r5, flags);
+
+  {
+    Label notVolatile;
+    __ tbz(r5, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore));
+    __ bind(notVolatile);
+  }
 
   // field address
   const Address field(obj, off);
@@ -2529,10 +2532,12 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
 
   __ bind(Done);
 
-  // Check for volatile store
-  __ tbz(r5, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-  __ dmb(Assembler::SY);
-  __ bind(notVolatile);
+  {
+    Label notVolatile;
+    __ tbz(r5, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad));
+    __ bind(notVolatile);
+  }
 }
 
 void TemplateTable::putfield(int byte_no)
@@ -2569,13 +2574,14 @@ void TemplateTable::fast_storefield(TosState state)
   // replace index with field offset from cache entry
   __ ldr(r1, Address(r2, in_bytes(base + ConstantPoolCacheEntry::f2_offset())));
 
-  // [jk] not needed currently
-  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
-  //                                              Assembler::StoreStore));
+  {
+    Label notVolatile;
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore));
+    __ bind(notVolatile);
+  }
 
   Label notVolatile;
-  __ lsl(r3, r3, ConstantPoolCacheEntry::is_volatile_shift);
-  __ andw(r3, r3, 0x1);
 
   // Get object from stack
   pop_and_check_object(r2);
@@ -2612,14 +2618,12 @@ void TemplateTable::fast_storefield(TosState state)
     ShouldNotReachHere();
   }
 
-  // TODO : restore this volatile barrier call
-  //
-  // Check for volatile store
-  // __ andw(r3, r3, r3);
-  // __ br(Assembler::EQ, notVolatile);
-  // volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
-  //                                             Assembler::StoreStore));
-  // __ bind(notVolatile);
+  {
+    Label notVolatile;
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad));
+    __ bind(notVolatile);
+  }
 }
 
 
@@ -2632,17 +2636,11 @@ void TemplateTable::fast_accessfield(TosState state)
   }
   // access constant pool cache
   __ get_cache_and_index_at_bcp(r2, r1, 1);
-  // replace index with field offset from cache entry
-  // [jk] not needed currently
-  // if (os::is_MP()) {
-  //   __ movl(rdx, Address(rcx, rbx, Address::times_8,
-  //                        in_bytes(ConstantPoolCache::base_offset() +
-  //                                 ConstantPoolCacheEntry::flags_offset())));
-  //   __ shrl(rdx, ConstantPoolCacheEntry::volatileField);
-  //   __ andl(rdx, 0x1);
-  // }
   __ ldr(r1, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                   ConstantPoolCacheEntry::f2_offset())));
+  __ ldrw(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
+				   ConstantPoolCacheEntry::flags_offset())));
+
   // r0: object
   __ verify_oop(r0);
   __ null_check(r0);
@@ -2678,14 +2676,13 @@ void TemplateTable::fast_accessfield(TosState state)
   default:
     ShouldNotReachHere();
   }
-  // [jk] not needed currently
-  // if (os::is_MP()) {
-  //   Label notVolatile;
-  //   __ testl(rdx, rdx);
-  //   __ jcc(Assembler::zero, notVolatile);
-  //   __ membar(Assembler::LoadLoad);
-  //   __ bind(notVolatile);
-  //};
+  {
+    Label notVolatile;
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::LoadLoad |
+						      MacroAssembler::LoadStore));
+    __ bind(notVolatile);
+  }
 }
 
 void TemplateTable::fast_xaccess(TosState state)
@@ -2717,18 +2714,14 @@ void TemplateTable::fast_xaccess(TosState state)
     ShouldNotReachHere();
   }
 
-  // [jk] not needed currently
-  // if (os::is_MP()) {
-  //   Label notVolatile;
-  //   __ movl(rdx, Address(rcx, rdx, Address::times_8,
-  //                        in_bytes(ConstantPoolCache::base_offset() +
-  //                                 ConstantPoolCacheEntry::flags_offset())));
-  //   __ shrl(rdx, ConstantPoolCacheEntry::volatileField);
-  //   __ testl(rdx, 0x1);
-  //   __ jcc(Assembler::zero, notVolatile);
-  //   __ membar(Assembler::LoadLoad);
-  //   __ bind(notVolatile);
-  // }
+  {
+    Label notVolatile;
+    __ ldrw(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
+				     ConstantPoolCacheEntry::flags_offset())));
+    __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
+    __ membar(MacroAssembler::LoadLoad);
+    __ bind(notVolatile);
+  }
 
   __ decrement(rbcp);
 }
