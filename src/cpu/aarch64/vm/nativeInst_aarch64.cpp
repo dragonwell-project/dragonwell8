@@ -85,13 +85,26 @@ address NativeMovRegMem::instruction_address() const      { return addr_at(instr
 address NativeMovRegMem::next_instruction_address() const { Unimplemented(); return 0; }
 
 int NativeMovRegMem::offset() const  {
-  return (int)(intptr_t)MacroAssembler::pd_call_destination(instruction_address());
+  address pc = instruction_address();
+  unsigned insn = *(unsigned*)pc;
+  if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
+    address addr = MacroAssembler::pd_call_destination(pc);
+    return *addr;
+  } else {
+    return (int)(intptr_t)MacroAssembler::pd_call_destination(instruction_address());
+  }
 }
 
 void NativeMovRegMem::set_offset(int x) {
-  // FIXME: This assumes that the offset is moved into rscratch1 with
-  // a sequence of four MOV instructions.
-  MacroAssembler::pd_patch_instruction(instruction_address(), (address)intptr_t(x));
+  address pc = instruction_address();
+  unsigned insn = *(unsigned*)pc;
+  if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
+    address addr = MacroAssembler::pd_call_destination(pc);
+    *addr = x;
+    return;
+  } else {
+    MacroAssembler::pd_patch_instruction(pc, (address)intptr_t(x));
+  }
 }
 
 void NativeMovRegMem::verify() {

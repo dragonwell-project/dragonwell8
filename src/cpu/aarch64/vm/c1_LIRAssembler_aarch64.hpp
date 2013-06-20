@@ -37,6 +37,8 @@
   address float_constant(float f);
   address double_constant(double d);
 
+  address int_constant(jlong n);
+
   bool is_literal_address(LIR_Address* addr);
 
   // When we need to use something other than rscratch1 use this

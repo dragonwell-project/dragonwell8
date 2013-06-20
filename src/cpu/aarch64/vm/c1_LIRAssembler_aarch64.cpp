@@ -124,6 +124,16 @@ address LIR_Assembler::double_constant(double d) {
   }
 }
 
+address LIR_Assembler::int_constant(jlong n) {
+  address const_addr = __ long_constant(n);
+  if (const_addr == NULL) {
+    bailout("const section overflow");
+    return __ code()->consts()->start();
+  } else {
+    return const_addr;
+  }
+}
+
 void LIR_Assembler::set_24bit_FPU() { Unimplemented(); }
 
 void LIR_Assembler::reset_FPU() { Unimplemented(); }
@@ -172,8 +182,10 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      // FIXME: This could be a two-instruction mov
-      __ mov64(tmp, addr_offset); // Make a full four-instruction mov
+      unsigned long offset;
+      __ adrp(rscratch1, InternalAddress(int_constant(addr_offset)),
+	      offset);
+      __ ldr(tmp, Address(rscratch1, offset));
       return Address(base, tmp, Address::lsl(addr->scale()));
     }
   }
