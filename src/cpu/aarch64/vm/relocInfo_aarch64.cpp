@@ -52,7 +52,9 @@ address* Relocation::pd_address_in_code() {
 }
 
 
-address Relocation::pd_get_address_from_code() { Unimplemented(); return 0; }
+address Relocation::pd_get_address_from_code() {
+  return MacroAssembler::pd_call_destination(addr());
+}
 
 int Relocation::pd_breakpoint_size() { Unimplemented(); return 0; }
 

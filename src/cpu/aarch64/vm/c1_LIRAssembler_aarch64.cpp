@@ -301,9 +301,21 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     int oop_index = __ oop_recorder()->find_index(o);
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
-    __ mov(reg, Address(NULL_WORD, rspec)); // Will be set when the nmethod is created
+    address const_ptr = int_constant(jlong(o));
+    __ code()->consts()->relocate(const_ptr, rspec);
+    unsigned long offset;
+    __ adrp(reg, InternalAddress(const_ptr), offset);
+    __ ldr(reg, Address(reg, offset));
+
+    if (PrintRelocations && Verbose) {
+	puts("jobject2reg:\n");
+	printf("oop %p  at %p offset %d\n", o, const_ptr, offset);
+	fflush(stdout);
+	das((uint64_t)__ pc(), -2);
+    }
   }
 }
+
 
 void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) {
   // Allocate a new index in table to hold the object once it's been patched

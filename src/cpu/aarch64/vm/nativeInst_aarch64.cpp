@@ -100,7 +100,7 @@ void NativeMovRegMem::set_offset(int x) {
   unsigned insn = *(unsigned*)pc;
   if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
     address addr = MacroAssembler::pd_call_destination(pc);
-    *addr = x;
+    *(long*)addr = x;
     return;
   } else {
     MacroAssembler::pd_patch_instruction(pc, (address)intptr_t(x));

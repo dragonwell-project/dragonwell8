@@ -1898,4 +1898,7 @@ inline const Assembler::Condition operator~(const Assembler::Condition cond) {
 // not sure which of these methods are really necessary
 class BiasedLockingCounters;
 
+extern "C" void das(uint64_t start, int len);
+
+
 #endif // CPU_AARCH64_VM_ASSEMBLER_AARCH64_HPP

@@ -451,10 +451,15 @@ public:
   virtual void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
 
+  static address target_addr_for_insn(address insn_addr, unsigned insn);
+
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   static void pd_patch_instruction(address branch, address target);
-  static address pd_call_destination(address branch);
+  static address pd_call_destination(address branch) {
+    unsigned insn = *(unsigned*)branch;
+    return target_addr_for_insn(branch, insn);
+  }
 #ifndef PRODUCT
   static void pd_print_patched_instruction(address branch);
 #endif
