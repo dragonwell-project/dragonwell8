@@ -89,3 +89,72 @@ void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, Co
 
 void metadata_Relocation::pd_fix_value(address x) {
 }
+
+// We have a relocation that points to a pair of instructions that
+// load a constant from the constant pool.  These are
+// ARDP; LDR reg [reg, #ofs].  However, until the constant is resolved
+// the first instruction may be a branch to a resolver stub, and the
+// resolver stub contains a copy of the ADRP that will replace the
+// branch instruction.
+//
+// So, when we relocate this code we have to adjust the offset in the
+// LDR instruction and the page offset in the copy of the ADRP
+// instruction that will overwrite the branch instruction.  This is
+// done by Runtime1::patch_code_aarch64.
+
+void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
+  unsigned insn1 = *(unsigned*)addr();
+  if (Instruction_aarch64::extract(insn1, 30, 26) == 0b00101) {
+    // Unconditional branch (immediate)
+    unsigned insn2 = ((unsigned*)addr())[1];
+    if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+      // Load/store register (unsigned immediate)
+      unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
+
+#ifdef ASSERT
+      // Make sure this really is a cpool address
+      address old_cpool_start = const_cast<CodeBuffer*>(src)->consts()->start();
+      address old_cpool_end = const_cast<CodeBuffer*>(src)->consts()->end();
+      address new_cpool_start =  const_cast<CodeBuffer*>(dest)->consts()->start();
+      address new_cpool_end =  const_cast<CodeBuffer*>(dest)->consts()->end();
+      address old_address = old_addr_for(target(), src, dest);
+      address new_address = target();
+      assert(new_address >= new_cpool_start
+	     && new_address < new_cpool_end,
+	     "should be");
+      assert(old_address >= old_cpool_start
+	     && old_address < old_cpool_end,
+	     "should be");
+#endif
+
+      // Offset of address in a 4k page
+      uint64_t new_offset = (uint64_t)target() & ((1<<12) - 1);
+      // Fix the LDR instruction's offset
+      Instruction_aarch64::patch(addr() + sizeof (unsigned),
+				 21, 10, new_offset >> size);
+
+      // Now find the copy of the original ADRP instruction
+      address stub_location = pd_call_destination(addr());
+      unsigned char* byte_count = (unsigned char*) (stub_location - 1);
+      unsigned char* byte_skip = (unsigned char*) (stub_location - 2);
+      address copy_buff = stub_location - *byte_skip - *byte_count;
+      unsigned insn3 = *(unsigned*)copy_buff;
+      assert(Instruction_aarch64::extract(insn3, 28, 24) == 0b10000
+	     && Instruction_aarch64::extract(insn3, 31, 31),
+	     "instruction should be an ADRP");
+
+      uint64_t insn_page = (uint64_t)addr() >> 12;
+      uint64_t target_page = (uint64_t)target() >> 12;
+      int page_offset = target_page - insn_page;
+      int page_offset_lo = page_offset & 3;
+      page_offset >>= 2;
+      Instruction_aarch64::spatch(copy_buff, 23, 5, page_offset);
+      Instruction_aarch64::patch(copy_buff, 30, 29, page_offset_lo);
+
+      // Phew.
+      return;
+    }
+  }
+
+  internal_word_Relocation::fix_relocation_after_move(src, dest);
+}

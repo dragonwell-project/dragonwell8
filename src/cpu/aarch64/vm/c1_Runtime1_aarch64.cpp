@@ -1253,13 +1253,18 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
       unsigned insn = *(unsigned*)copy_buff;
       unsigned long *cpool_addr
 	= (unsigned long *)MacroAssembler::target_addr_for_insn(instr_pc, insn);
+
+      nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
+      assert(address(cpool_addr) >= nm->consts_begin()
+	     && address(cpool_addr) < nm->consts_end(),
+	     "constant address should be inside constant pool");
+
       *cpool_addr = patch_field_offset;
 
       // And we overwrite the jump
       NativeGeneralJump::replace_mt_safe(instr_pc, copy_buff);
 
-      if (load_klass_or_mirror_patch_id
-	  || stub_id == Runtime1::access_field_patching_id) {
+      if (load_klass_or_mirror_patch_id) {
 	relocInfo::relocType rtype;
 	switch(stub_id) {
 	case Runtime1::load_klass_patching_id:

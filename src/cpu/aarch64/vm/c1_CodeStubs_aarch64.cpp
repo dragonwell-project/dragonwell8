@@ -393,7 +393,8 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
   // and not destroy the world.
   // FIXME: AArch64 doesn't really need this
   __ nop(); __ nop();
-  if (_id == load_klass_id || _id == load_mirror_id || _id == access_field_id) {
+  if (_id == load_klass_id || _id == load_mirror_id // || _id == access_field_id
+      ) {
     CodeSection* cs = __ code_section();
     RelocIterator iter(cs, (address)_pc_start, (address)(_pc_start + 1));
     relocInfo::change_reloc_info_for_address(&iter, (address) _pc_start, reloc_type, relocInfo::none);

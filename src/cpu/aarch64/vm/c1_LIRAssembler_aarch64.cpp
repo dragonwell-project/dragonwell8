@@ -301,6 +301,7 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     int oop_index = __ oop_recorder()->find_index(o);
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
+#if 0
     address const_ptr = int_constant(jlong(o));
     __ code()->consts()->relocate(const_ptr, rspec);
     unsigned long offset;
@@ -313,6 +314,9 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
 	fflush(stdout);
 	das((uint64_t)__ pc(), -2);
     }
+#else
+    __ mov(reg, Address(NULL_WORD, rspec)); // Will be set when the nmethod is created
+#endif
   }
 }
 
