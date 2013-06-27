@@ -301,7 +301,6 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     int oop_index = __ oop_recorder()->find_index(o);
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
-#if 0
     address const_ptr = int_constant(jlong(o));
     __ code()->consts()->relocate(const_ptr, rspec);
     unsigned long offset;
@@ -314,9 +313,6 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
 	fflush(stdout);
 	das((uint64_t)__ pc(), -2);
     }
-#else
-    __ mov(reg, Address(NULL_WORD, rspec)); // Will be set when the nmethod is created
-#endif
   }
 }
 
@@ -326,13 +322,12 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
   int oop_index = __ oop_recorder()->allocate_oop_index(NULL);
   PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_mirror_id, oop_index);
 
-  Address addrlit(NULL, oop_Relocation::spec(oop_index));
-  assert(addrlit.rspec().type() == relocInfo::oop_type, "must be an oop reloc");
-  // It may not seem necessary to use a movz/movk quad to load a NULL
-  // into dest, but the NULL will be dynamically patched later and the
-  // patched value may be large.  We must therefore generate the
-  // sethi/add as a placeholders
-  __ mov(reg, addrlit);
+  RelocationHolder rspec = oop_Relocation::spec(oop_index);
+  address const_ptr = int_constant(-1);
+  __ code()->consts()->relocate(const_ptr, rspec);
+  unsigned long offset;
+  __ adrp(reg, InternalAddress(const_ptr), offset);
+  __ ldr(reg, Address(reg, offset));
 
   patching_epilog(patch, lir_patch_normal, reg, info);
 }

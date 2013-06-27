@@ -2159,8 +2159,23 @@ void MacroAssembler::movoop(Register dst, jobject obj) {
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
+  int oop_index;
+  if (obj == NULL) {
+    oop_index = oop_recorder()->allocate_metadata_index(obj);
+  } else {
+    oop_index = oop_recorder()->find_index(obj);
+  }
+  RelocationHolder rspec = metadata_Relocation::spec(oop_index);
+  address const_ptr = long_constant((jlong)obj);
+  if (! const_ptr) {
+    code()->initialize_consts_size(20);
+    const_ptr = long_constant((jlong)obj);
+  }
+
+  code()->consts()->relocate(const_ptr, rspec);
   unsigned long offset;
-  mov(dst, allocate_metadata_address(obj));
+  adrp(dst, InternalAddress(const_ptr), offset);
+  ldr(dst, Address(dst, offset));
 }
 
 Address MacroAssembler::constant_oop_address(jobject obj) {

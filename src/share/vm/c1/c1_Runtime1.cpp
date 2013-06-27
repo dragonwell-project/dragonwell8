@@ -1230,6 +1230,7 @@ JRT_END
 // completes we can check for deoptimization. This simplifies the
 // assembly code in the cpu directories.
 //
+#ifndef TARGET_ARCH_aarch64
 int Runtime1::move_klass_patching(JavaThread* thread) {
 //
 // NOTE: we are still in Java
@@ -1296,7 +1297,6 @@ int Runtime1::move_appendix_patching(JavaThread* thread) {
 // assembly code in the cpu directories.
 //
 
-#ifndef TARGET_ARCH_aarch64
 int Runtime1::access_field_patching(JavaThread* thread) {
 //
 // NOTE: we are still in Java

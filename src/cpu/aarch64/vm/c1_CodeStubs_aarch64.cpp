@@ -270,32 +270,12 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
   if (CommentedAssembly) {
     __ block_comment(" patch template");
   }
-  if (_id == load_klass_id) {
-    // produce a copy of the load klass instruction for use by the being initialized case
-#ifdef ASSERT
-    address start = __ pc();
-#endif
-    Metadata* o = NULL;
-    __ mov_metadata(_obj, o);
-#ifdef ASSERT
-    for (int i = 0; i < _bytes_to_copy; i++) {
-      address ptr = (address)(_pc_start + i);
-      int a_byte = (*ptr) & 0xFF;
-      assert(a_byte == *start++, "should be the same code");
-    }
-#endif
-  } else if (_id == load_mirror_id) {
-    // produce a copy of the load mirror instruction for use by the being
-    // initialized case
-    jobject o = NULL;
-    __ movoop(_obj, o);
-  } else {
-    // make a copy the code which is going to be patched.
-    for (int i = 0; i < _bytes_to_copy; i++) {
-      address ptr = (address)(_pc_start + i);
-      int a_byte = (*ptr) & 0xFF;
-      __ emit_int8(a_byte);
-    }
+
+  // make a copy the code which is going to be patched.
+  for (int i = 0; i < _bytes_to_copy; i++) {
+    address ptr = (address)(_pc_start + i);
+    int a_byte = (*ptr) & 0xFF;
+    __ emit_int8(a_byte);
   }
 
   address end_of_patch = __ pc();
@@ -392,13 +372,15 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
   // Add enough nops so deoptimization can overwrite the jmp above with a call
   // and not destroy the world.
   // FIXME: AArch64 doesn't really need this
-  __ nop(); __ nop();
-  if (_id == load_klass_id || _id == load_mirror_id // || _id == access_field_id
-      ) {
-    CodeSection* cs = __ code_section();
-    RelocIterator iter(cs, (address)_pc_start, (address)(_pc_start + 1));
-    relocInfo::change_reloc_info_for_address(&iter, (address) _pc_start, reloc_type, relocInfo::none);
-  }
+  // __ nop(); __ nop();
+  // if (_id == load_klass_id 
+  //     || _id == load_mirror_id
+  //     || _id == access_field_id
+  //     ) {
+  //   CodeSection* cs = __ code_section();
+  //   RelocIterator iter(cs, (address)_pc_start, (address)(_pc_start + 1));
+  //   relocInfo::change_reloc_info_for_address(&iter, (address) _pc_start, reloc_type, relocInfo::none);
+  // }
 }
 
 
