@@ -395,7 +395,10 @@ void MacroAssembler::call(Address entry) {
 
 void MacroAssembler::ic_call(address entry) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc());
-  mov(rscratch2, ExternalAddress((address)Universe::non_oop_word()));
+  address const_ptr = long_constant((jlong)Universe::non_oop_word());
+  unsigned long offset;
+  adrp(rscratch2, InternalAddress(const_ptr), offset);
+  ldr(rscratch2, Address(rscratch2, offset));
   call(Address(entry, rh));
 }
 
