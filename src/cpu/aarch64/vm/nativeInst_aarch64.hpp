@@ -201,7 +201,13 @@ class NativeMovConstReg: public NativeInstruction {
   };
 
   address instruction_address() const       { return addr_at(instruction_offset); }
-  address next_instruction_address() const  { return addr_at(instruction_size); }
+  address next_instruction_address() const  {
+    if (is_adrp_at(instruction_address()))
+      return addr_at(2*4);
+    else
+      return addr_at(instruction_size);
+  }
+
   intptr_t data() const;
   void  set_data(intptr_t x);
 

@@ -63,11 +63,21 @@ void NativeMovConstReg::verify() {
 }
 
 intptr_t NativeMovConstReg::data() const {
-  return (intptr_t)MacroAssembler::pd_call_destination(instruction_address());
+  address addr = MacroAssembler::pd_call_destination(instruction_address());
+  if (is_adrp_at(instruction_address())) {
+    return *(intptr_t*)addr;
+  } else {
+    return (intptr_t)addr;
+  }
 }
 
 void NativeMovConstReg::set_data(intptr_t x) {
-  MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
+  if (is_adrp_at(instruction_address())) {
+    address addr = MacroAssembler::pd_call_destination(instruction_address());
+    *(intptr_t*)addr = x;
+  } else {
+    MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
+  }
 };
 
 
