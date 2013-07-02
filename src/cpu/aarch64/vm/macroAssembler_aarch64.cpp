@@ -129,9 +129,10 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
 
 address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
   long offset = 0;
-  if ((Instruction_aarch64::extract(insn, 29, 24) & 0b111011) == 0b011000) {
+  if ((Instruction_aarch64::extract(insn, 29, 24) & 0b011011) == 0b00011000) {
     // Load register (literal)
-    offset = Instruction_aarch64::sextract(insn, 29, 24);
+    offset = Instruction_aarch64::sextract(insn, 23, 5);
+    return address(((uint64_t)insn_addr + (offset << 2)));
   } else if (Instruction_aarch64::extract(insn, 30, 26) == 0b00101) {
     // Unconditional branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 25, 0);
@@ -392,7 +393,9 @@ void MacroAssembler::call(Address entry) {
 
 void MacroAssembler::ic_call(address entry) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc());
-  mov(rscratch2, ExternalAddress((address)Universe::non_oop_word()));
+  address const_ptr = long_constant((jlong)Universe::non_oop_word());
+  unsigned long offset;
+  ldr_constant(rscratch2, const_ptr);
   call(Address(entry, rh));
 }
 
@@ -2157,7 +2160,13 @@ void MacroAssembler::movoop(Register dst, jobject obj) {
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "should be real oop");
   }
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
-  mov(dst, Address((address)obj, rspec));
+  address const_ptr = long_constant((jlong)obj);
+  if (! const_ptr) {
+    mov(dst, Address((address)obj, rspec));
+  } else {
+    code()->consts()->relocate(const_ptr, rspec);
+    ldr_constant(dst, const_ptr);
+  }
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
@@ -2170,14 +2179,11 @@ void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
   RelocationHolder rspec = metadata_Relocation::spec(oop_index);
   address const_ptr = long_constant((jlong)obj);
   if (! const_ptr) {
-    code()->initialize_consts_size(20);
-    const_ptr = long_constant((jlong)obj);
+    mov(dst, Address((address)obj, rspec));
+  } else {
+    code()->consts()->relocate(const_ptr, rspec);
+    ldr_constant(dst, const_ptr);
   }
-
-  code()->consts()->relocate(const_ptr, rspec);
-  unsigned long offset;
-  adrp(dst, InternalAddress(const_ptr), offset);
-  ldr(dst, Address(dst, offset));
 }
 
 Address MacroAssembler::constant_oop_address(jobject obj) {

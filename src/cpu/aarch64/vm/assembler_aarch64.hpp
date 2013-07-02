@@ -1094,6 +1094,13 @@ public:
       sf(offset, 23, 5);						\
     rf(Rt, 0);								\
   }									\
+  void NAME(Register Rt, address dest, relocInfo::relocType rtype) {	\
+    InstructionMark im(this);						\
+    guarantee(rtype == relocInfo::internal_word_type,			\
+              "only internal_word_type relocs make sense here");	\
+    code_section()->relocate(inst_mark(), InternalAddress(dest).rspec()); \
+    NAME(Rt, dest);							\
+  }									\
   void NAME(Register Rt, Label &L) {					\
     wrap_label(Rt, L, &Assembler::NAME);				\
   }

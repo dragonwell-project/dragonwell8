@@ -114,7 +114,7 @@ void zero_memory(Register addr, Register len, Register t1);
 
   void dec_stack_after_call (int nof_words) { Unimplemented(); }
 
-  void invalidate_registers(bool inv_rax, bool inv_rbx, bool inv_rcx, bool inv_rdx, bool inv_rsi, bool inv_rdi) PRODUCT_RETURN;
+  void invalidate_registers(bool inv_r0, bool inv_r19, bool inv_r2, bool inv_r3, bool inv_r4, bool inv_r5) PRODUCT_RETURN;
 
   address read_polling_page(Register r, address page, relocInfo::relocType rtype);
 

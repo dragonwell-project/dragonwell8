@@ -1168,10 +1168,6 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
   int bci = vfst.bci();
   Bytecodes::Code code = caller_method()->java_code_at(bci);
 
-#ifndef PRODUCT
-  // this is used by assertions in the access_field_patching_id
-  BasicType patch_field_type = T_ILLEGAL;
-#endif // PRODUCT
   bool deoptimize_for_volatile = false;
   int patch_field_offset = -1;
   KlassHandle init_klass(THREAD, NULL); // klass needed by load_klass_patching code
@@ -1200,10 +1196,6 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
     // used for patching references to oops which don't need special
     // handling in the volatile case.
     deoptimize_for_volatile = result.access_flags().is_volatile();
-
-#ifndef PRODUCT
-    patch_field_type = result.field_type();
-#endif
   } else if (load_klass_or_mirror_patch_id) {
     Klass* k = NULL;
     switch (code) {
@@ -1327,6 +1319,8 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
 	= (unsigned long *)MacroAssembler::target_addr_for_insn(instr_pc, insn);
 
       nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
+      CodeBlob *cb = CodeCache::find_blob(caller_frame.pc());
+      assert(nm != NULL, "invalid nmethod_pc");
       assert(address(cpool_addr) >= nm->consts_begin()
 	     && address(cpool_addr) < nm->consts_end(),
 	     "constant address should be inside constant pool");
@@ -1340,6 +1334,39 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
 	*cpool_addr = (uint64_t)load_klass(); break;
       default:
 	ShouldNotReachHere();
+      }
+
+      // Update the location in the nmethod with the proper
+      // metadata.  When the code was generated, a NULL was stuffed
+      // in the metadata table and that table needs to be update to
+      // have the right value.  On intel the value is kept
+      // directly in the instruction instead of in the metadata
+      // table, so set_data above effectively updated the value.
+      //
+      // FIXME: It's tempting to think that rather them putting OOPs
+      // in the cpool we could refer directly to the locations in the
+      // nmethod.  However, we can't guarantee that an ADRP would be
+      // able to reach them: an ADRP can only reach within +- 4GiB of
+      // the PC using two instructions.  While it's pretty unlikely
+      // that we will exceed this limit, it's not impossible.
+      RelocIterator mds(nm, (address)cpool_addr, (address)cpool_addr + 1);
+      bool found = false;
+      while (mds.next() && !found) {
+	if (mds.type() == relocInfo::oop_type) {
+	  assert(stub_id == Runtime1::load_mirror_patching_id, "wrong stub id");
+	  oop_Relocation* r = mds.oop_reloc();
+	  oop* oop_adr = r->oop_addr();
+	  *oop_adr = mirror();
+	  r->fix_oop_relocation();
+	  found = true;
+	} else if (mds.type() == relocInfo::metadata_type) {
+	  assert(stub_id == Runtime1::load_klass_patching_id, "wrong stub id");
+	  metadata_Relocation* r = mds.metadata_reloc();
+	  Metadata** metadata_adr = r->metadata_addr();
+	  *metadata_adr = load_klass();
+	  r->fix_metadata_relocation();
+	  found = true;
+	}
       }
 
       // And we overwrite the jump

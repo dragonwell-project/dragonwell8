@@ -182,10 +182,8 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      unsigned long offset;
-      __ adrp(rscratch1, InternalAddress(int_constant(addr_offset)),
-	      offset);
-      __ ldr(tmp, Address(rscratch1, offset));
+      address const_addr = int_constant(addr_offset);
+      __ ldr_constant(tmp, const_addr);
       return Address(base, tmp, Address::lsl(addr->scale()));
     }
   }
@@ -303,13 +301,11 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
     address const_ptr = int_constant(jlong(o));
     __ code()->consts()->relocate(const_ptr, rspec);
-    unsigned long offset;
-    __ adrp(reg, InternalAddress(const_ptr), offset);
-    __ ldr(reg, Address(reg, offset));
+    __ ldr_constant(reg, const_ptr);
 
     if (PrintRelocations && Verbose) {
 	puts("jobject2reg:\n");
-	printf("oop %p  at %p offset %d\n", o, const_ptr, offset);
+	printf("oop %p  at %p\n", o, const_ptr);
 	fflush(stdout);
 	das((uint64_t)__ pc(), -2);
     }
@@ -325,10 +321,7 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
   address const_ptr = int_constant(-1);
   __ code()->consts()->relocate(const_ptr, rspec);
-  unsigned long offset;
-  __ adrp(reg, InternalAddress(const_ptr), offset);
-  __ ldr(reg, Address(reg, offset));
-
+  __ ldr_constant(reg, const_ptr);
   patching_epilog(patch, lir_patch_normal, reg, info);
 }
 
