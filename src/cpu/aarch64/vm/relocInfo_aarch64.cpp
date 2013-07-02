@@ -65,7 +65,7 @@ void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) 
 
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
   // fprintf(stderr, "Try to fix poll reloc at %p to %p\n", addr(), dest);
-  if (NativeInstruction::is_adrp_at(addr())) {
+  if (NativeInstruction::maybe_cpool_ref(addr())) {
     address old_addr = old_addr_for(addr(), src, dest);
     if (! os::is_poll_address(pd_call_destination(old_addr))) {
       fprintf(stderr, "  bollocks!\n");
@@ -81,7 +81,7 @@ void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffe
 }
 
 void poll_return_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest)  {
-  if (NativeInstruction::is_adrp_at(addr())) {
+  if (NativeInstruction::maybe_cpool_ref(addr())) {
     address old_addr = old_addr_for(addr(), src, dest);
     MacroAssembler::pd_patch_instruction(addr(), pd_call_destination(old_addr));
   }
@@ -104,28 +104,43 @@ void metadata_Relocation::pd_fix_value(address x) {
 
 void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
   unsigned insn1 = *(unsigned*)addr();
-  if (Instruction_aarch64::extract(insn1, 30, 26) == 0b00101) {
+  if (! (Instruction_aarch64::extract(insn1, 30, 26) == 0b00101)) {
+    // Unconditional branch (immediate)
+    internal_word_Relocation::fix_relocation_after_move(src, dest);
+    return;
+  }
+
+#ifdef ASSERT
+  // Make sure this really is a cpool address
+  address old_cpool_start = const_cast<CodeBuffer*>(src)->consts()->start();
+  address old_cpool_end = const_cast<CodeBuffer*>(src)->consts()->end();
+  address new_cpool_start =  const_cast<CodeBuffer*>(dest)->consts()->start();
+  address new_cpool_end =  const_cast<CodeBuffer*>(dest)->consts()->end();
+  address old_address = old_addr_for(target(), src, dest);
+  address new_address = target();
+  assert(new_address >= new_cpool_start
+	 && new_address < new_cpool_end,
+	 "should be");
+  assert(old_address >= old_cpool_start
+	 && old_address < old_cpool_end,
+	 "should be");
+#endif
+
+  address stub_location = pd_call_destination(addr());
+  unsigned char* byte_count = (unsigned char*) (stub_location - 1);
+  unsigned char* byte_skip = (unsigned char*) (stub_location - 2);
+  address copy_buff = stub_location - *byte_skip - *byte_count;
+  unsigned insn3 = *(unsigned*)copy_buff;
+
+  if (NearCpool) {
+    int offset = new_address - addr();
+    Instruction_aarch64::spatch(copy_buff, 23, 5, offset >> 2);
+  } else {
     // Unconditional branch (immediate)
     unsigned insn2 = ((unsigned*)addr())[1];
     if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
       // Load/store register (unsigned immediate)
       unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
-
-#ifdef ASSERT
-      // Make sure this really is a cpool address
-      address old_cpool_start = const_cast<CodeBuffer*>(src)->consts()->start();
-      address old_cpool_end = const_cast<CodeBuffer*>(src)->consts()->end();
-      address new_cpool_start =  const_cast<CodeBuffer*>(dest)->consts()->start();
-      address new_cpool_end =  const_cast<CodeBuffer*>(dest)->consts()->end();
-      address old_address = old_addr_for(target(), src, dest);
-      address new_address = target();
-      assert(new_address >= new_cpool_start
-	     && new_address < new_cpool_end,
-	     "should be");
-      assert(old_address >= old_cpool_start
-	     && old_address < old_cpool_end,
-	     "should be");
-#endif
 
       // Offset of address in a 4k page
       uint64_t new_offset = (uint64_t)target() & ((1<<12) - 1);
@@ -133,12 +148,6 @@ void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, C
       Instruction_aarch64::patch(addr() + sizeof (unsigned),
 				 21, 10, new_offset >> size);
 
-      // Now find the copy of the original ADRP instruction
-      address stub_location = pd_call_destination(addr());
-      unsigned char* byte_count = (unsigned char*) (stub_location - 1);
-      unsigned char* byte_skip = (unsigned char*) (stub_location - 2);
-      address copy_buff = stub_location - *byte_skip - *byte_count;
-      unsigned insn3 = *(unsigned*)copy_buff;
       assert(Instruction_aarch64::extract(insn3, 28, 24) == 0b10000
 	     && Instruction_aarch64::extract(insn3, 31, 31),
 	     "instruction should be an ADRP");
@@ -152,9 +161,6 @@ void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, C
       Instruction_aarch64::patch(copy_buff, 30, 29, page_offset_lo);
 
       // Phew.
-      return;
     }
   }
-
-  internal_word_Relocation::fix_relocation_after_move(src, dest);
 }

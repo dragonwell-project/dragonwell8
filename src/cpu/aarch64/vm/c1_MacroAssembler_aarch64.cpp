@@ -480,15 +480,15 @@ void C1_MacroAssembler::verify_not_null_oop(Register r) {
   verify_oop(r);
 }
 
-void C1_MacroAssembler::invalidate_registers(bool inv_rax, bool inv_rbx, bool inv_rcx, bool inv_rdx, bool inv_rsi, bool inv_rdi) {
+void C1_MacroAssembler::invalidate_registers(bool inv_r0, bool inv_r19, bool inv_r2, bool inv_r3, bool inv_r4, bool inv_r5) {
 #ifdef ASSERT
   static int nn;
-  if (inv_rax) mov(r0, 0xDEAD);
-  if (inv_rbx) mov(r19, 0xDEAD);
-  if (inv_rcx) mov(r2, nn++);
-  if (inv_rdx) mov(r3, 0xDEAD);
-  if (inv_rsi) mov(r4, 0xDEAD);
-  if (inv_rdi) mov(r5, 0xDEAD);
+  if (inv_r0) mov(r0, 0xDEAD);
+  if (inv_r19) mov(r19, 0xDEAD);
+  if (inv_r2) mov(r2, nn++);
+  if (inv_r3) mov(r3, 0xDEAD);
+  if (inv_r4) mov(r4, 0xDEAD);
+  if (inv_r5) mov(r5, 0xDEAD);
 #endif
 }
 #endif // ifndef PRODUCT

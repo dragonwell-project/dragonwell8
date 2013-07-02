@@ -1267,6 +1267,17 @@ public:
       dmb(SY);
     }
   }
+
+  void ldr_constant(Register dest, address const_addr) {
+    guarantee(const_addr, "constant pool overflow");
+    if (NearCpool) {
+      ldr(dest, const_addr, relocInfo::internal_word_type);
+    } else {
+      unsigned long offset;
+      adrp(dest, InternalAddress(const_addr), offset);
+      ldr(dest, Address(dest, offset));
+    }
+  }
 };
 
 #ifdef ASSERT

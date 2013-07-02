@@ -63,8 +63,9 @@ void NativeMovConstReg::verify() {
 }
 
 intptr_t NativeMovConstReg::data() const {
+  // das(uint64_t(instruction_address()),2);
   address addr = MacroAssembler::pd_call_destination(instruction_address());
-  if (is_adrp_at(instruction_address())) {
+  if (maybe_cpool_ref(instruction_address())) {
     return *(intptr_t*)addr;
   } else {
     return (intptr_t)addr;
@@ -72,7 +73,7 @@ intptr_t NativeMovConstReg::data() const {
 }
 
 void NativeMovConstReg::set_data(intptr_t x) {
-  if (is_adrp_at(instruction_address())) {
+  if (maybe_cpool_ref(instruction_address())) {
     address addr = MacroAssembler::pd_call_destination(instruction_address());
     *(intptr_t*)addr = x;
   } else {
@@ -108,10 +109,9 @@ int NativeMovRegMem::offset() const  {
 void NativeMovRegMem::set_offset(int x) {
   address pc = instruction_address();
   unsigned insn = *(unsigned*)pc;
-  if (Instruction_aarch64::extract(insn, 28, 24) == 0b10000) {
+  if (maybe_cpool_ref(pc)) {
     address addr = MacroAssembler::pd_call_destination(pc);
     *(long*)addr = x;
-    return;
   } else {
     MacroAssembler::pd_patch_instruction(pc, (address)intptr_t(x));
   }
@@ -185,6 +185,11 @@ bool NativeInstruction::is_safepoint_poll() {
 bool NativeInstruction::is_adrp_at(address instr) {
   unsigned insn = *(unsigned*)instr;
   return (Instruction_aarch64::extract(insn, 31, 24) & 0b10011111) == 0b10010000;
+}
+
+bool NativeInstruction::is_ldr_literal_at(address instr) {
+  unsigned insn = *(unsigned*)instr;
+  return (Instruction_aarch64::extract(insn, 29, 24) & 0b011011) == 0b00011000;
 }
 
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
