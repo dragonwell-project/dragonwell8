@@ -970,7 +970,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     {
       unsigned long offset;
       __ adrp(rscratch2, SafepointSynchronize::address_of_state(), offset);
-      __ ldr(rscratch2, Address(rscratch2, offset));
+      __ ldrw(rscratch2, Address(rscratch2, offset));
     }
     assert(SafepointSynchronize::_not_synchronized == 0,
 	   "SafepointSynchronize::_not_synchronized");

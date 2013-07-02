@@ -29,15 +29,9 @@
 
 
 inline void Prefetch::read (void *loc, intx interval) {
-  __asm__ ("prefetcht0 (%0,%1,1)" : : "r" (loc), "r" (interval));
 }
 
 inline void Prefetch::write(void *loc, intx interval) {
-
-  // Do not use the 3dnow prefetchw instruction.  It isn't supported on em64t.
-  //  __asm__ ("prefetchw (%0,%1,1)" : : "r" (loc), "r" (interval));
-  __asm__ ("prefetcht0 (%0,%1,1)" : : "r" (loc), "r" (interval));
-
 }
 
 #endif // OS_CPU_LINUX_AARCH64_VM_PREFETCH_LINUX_AARCH64_INLINE_HPP

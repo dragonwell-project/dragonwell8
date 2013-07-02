@@ -7,11 +7,8 @@
 #include "precompiled.hpp"
 #include "code/codeBlob.hpp"
 #include "asm/macroAssembler.hpp"
-#include "../../../../../../simulator/simulator.hpp"
 
 // hook routine called during JVM bootstrap to test AArch64 assembler
-
-AArch64Simulator sim;
 
 extern "C" void entry(CodeBuffer*);
 

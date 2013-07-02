@@ -182,8 +182,10 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      address const_addr = int_constant(addr_offset);
-      __ ldr_constant(tmp, const_addr);
+      unsigned long offset;
+      __ adrp(rscratch1, InternalAddress(int_constant(addr_offset)),
+	      offset);
+      __ ldr(tmp, Address(rscratch1, offset));
       return Address(base, tmp, Address::lsl(addr->scale()));
     }
   }
@@ -301,11 +303,13 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
     address const_ptr = int_constant(jlong(o));
     __ code()->consts()->relocate(const_ptr, rspec);
-    __ ldr_constant(reg, const_ptr);
+    unsigned long offset;
+    __ adrp(reg, InternalAddress(const_ptr), offset);
+    __ ldr(reg, Address(reg, offset));
 
     if (PrintRelocations && Verbose) {
 	puts("jobject2reg:\n");
-	printf("oop %p  at %p\n", o, const_ptr);
+	printf("oop %p  at %p offset %d\n", o, const_ptr, offset);
 	fflush(stdout);
 	das((uint64_t)__ pc(), -2);
     }
@@ -321,7 +325,10 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
   address const_ptr = int_constant(-1);
   __ code()->consts()->relocate(const_ptr, rspec);
-  __ ldr_constant(reg, const_ptr);
+  unsigned long offset;
+  __ adrp(reg, InternalAddress(const_ptr), offset);
+  __ ldr(reg, Address(reg, offset));
+
   patching_epilog(patch, lir_patch_normal, reg, info);
 }
 
@@ -1031,16 +1038,23 @@ void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
     if (op->info() != NULL) add_debug_info_for_branch(op->info());
     __ b(*(op->label()));
   } else {
-    Assembler::Condition acond = Assembler::EQ;
+    Assembler::Condition acond;
     if (op->code() == lir_cond_float_branch) {
+      bool is_unordered = (op->ublock() == op->block());
+      // Assembler::EQ does not permit unordered branches, so we add
+      // another branch here.  Likewise, Assembler::NE does not permit
+      // ordered branches.
+      if (is_unordered && op->cond() == lir_cond_equal 
+	  || !is_unordered && op->cond() == lir_cond_notEqual)
+	__ br(Assembler::VS, *(op->ublock()->label()));
       switch(op->cond()) {
-        case lir_cond_equal:        acond = Assembler::EQ; break;
-        case lir_cond_notEqual:     acond = Assembler::NE; break;
-        case lir_cond_less:         acond = Assembler::LO; break;
-        case lir_cond_lessEqual:    acond = Assembler::LS; break;
-        case lir_cond_greaterEqual: acond = Assembler::HS; break;
-        case lir_cond_greater:      acond = Assembler::HI; break;
-        default:                         ShouldNotReachHere();
+      case lir_cond_equal:        acond = Assembler::EQ; break;
+      case lir_cond_notEqual:     acond = Assembler::NE; break;
+      case lir_cond_less:         acond = (is_unordered ? Assembler::LT : Assembler::LO); break;
+      case lir_cond_lessEqual:    acond = (is_unordered ? Assembler::LE : Assembler::LS); break;
+      case lir_cond_greaterEqual: acond = (is_unordered ? Assembler::HS : Assembler::GE); break;
+      case lir_cond_greater:      acond = (is_unordered ? Assembler::HI : Assembler::GT); break;
+      default:                    ShouldNotReachHere();
       }
     } else {
       switch (op->cond()) {
@@ -1081,6 +1095,11 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ scvtfd(dest->as_double_reg(), src->as_register_lo());
 	break;
       }
+    case Bytecodes::_l2f:
+      {
+	__ scvtfs(dest->as_float_reg(), src->as_register_lo());
+	break;
+      }
     case Bytecodes::_f2d:
       {
 	__ fcvts(dest->as_double_reg(), src->as_float_reg());
@@ -1119,23 +1138,34 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
       }
     case Bytecodes::_d2l:
       {
-	Label L_Okay;
+	Register tmp = op->tmp1()->as_register();
 	__ clear_fpsr();
 	__ fcvtzd(dest->as_register_lo(), src->as_double_reg());
-	__ get_fpsr(rscratch1);
-	__ cbzw(rscratch1, L_Okay);
-	__ call_VM_leaf_base1(CAST_FROM_FN_PTR(address, SharedRuntime::d2l),
-			      0, 1, MacroAssembler::ret_type_integral);
-	__ bind(L_Okay);
+	__ get_fpsr(tmp);
+	__ tst(tmp, 1); // FPSCR.IOC
+	__ br(Assembler::NE, *(op->stub()->entry()));
+	__ bind(*op->stub()->continuation());
 	break;
       }
     case Bytecodes::_f2i:
       {
 	Register tmp = op->tmp1()->as_register();
 	__ clear_fpsr();
-	__ fcvtzs(dest->as_register(), src->as_float_reg());
+	__ fcvtzsw(dest->as_register(), src->as_float_reg());
 	__ get_fpsr(tmp);
-	__ cbnzw(tmp, *(op->stub()->entry()));
+	__ tst(tmp, 1); // FPSCR.IOC
+	__ br(Assembler::NE, *(op->stub()->entry()));
+	__ bind(*op->stub()->continuation());
+	break;
+      }
+    case Bytecodes::_f2l:
+      {
+	Register tmp = op->tmp1()->as_register();
+	__ clear_fpsr();
+	__ fcvtzs(dest->as_register_lo(), src->as_float_reg());
+	__ get_fpsr(tmp);
+	__ tst(tmp, 1); // FPSCR.IOC
+	__ br(Assembler::NE, *(op->stub()->entry()));
 	__ bind(*op->stub()->continuation());
 	break;
       }
@@ -1145,7 +1175,8 @@ void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
 	__ clear_fpsr();
 	__ fcvtzdw(dest->as_register(), src->as_double_reg());
 	__ get_fpsr(tmp);
-	__ cbnzw(tmp, *(op->stub()->entry()));
+	__ tst(tmp, 1); // FPSCR.IOC
+	__ br(Assembler::NE, *(op->stub()->entry()));
 	__ bind(*op->stub()->continuation());
 	break;
       }
@@ -1524,7 +1555,7 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
     if (val1 == 0 && val2 == 1) {
       __ cset(result->as_register(), ncond);
       return;
-    } else if (val1 = 1 && val2 == 0) {
+    } else if (val1 == 1 && val2 == 0) {
       __ cset(result->as_register(), acond);
       return;
     }
@@ -1535,10 +1566,10 @@ void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, L
     jlong val1 = opr1->as_jlong();
     jlong val2 = opr2->as_jlong();
     if (val1 == 0 && val2 == 1) {
-      __ cset(result->as_register(), ncond);
+      __ cset(result->as_register_lo(), ncond);
       return;
-    } else if (val1 = 1 && val2 == 0) {
-      __ cset(result->as_register(), acond);
+    } else if (val1 == 1 && val2 == 0) {
+      __ cset(result->as_register_lo(), acond);
       return;
     }
   }
@@ -1585,7 +1616,7 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       switch (code) {
       case lir_add: __ addw (dest->as_register(), lreg, rreg); break;
       case lir_sub: __ subw (dest->as_register(), lreg, rreg); break;
-      case lir_mul: __ mul (dest->as_register(), lreg, rreg); break;
+      case lir_mul: __ mulw (dest->as_register(), lreg, rreg); break;
       default:      ShouldNotReachHere();
       }
 
@@ -2134,8 +2165,15 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   if (flags & LIR_OpArrayCopy::length_positive_check) {
     __ cmpw(length, 0);
     __ br(Assembler::LT, *stub->entry());
-    __ br(Assembler::EQ, *stub->continuation());
   }
+
+  // FIXME: The logic in LIRGenerator::arraycopy_helper clears
+  // length_positive_check if the source of our length operand is an
+  // arraylength.  However, that arraylength might be zero, and the
+  // stub that we're about to call contains an assertion that count !=
+  // 0 .  So we make this check purely in order not to trigger an
+  // assertion failure.
+  __ cbz(length, *stub->continuation());
 
   if (flags & LIR_OpArrayCopy::type_check) {
     // We don't know the array types are compatible

@@ -508,16 +508,6 @@ class CommandLineFlags {
 // Note that when there is a need to support develop flags to be writeable,
 // it can be done in the same way as product_rw.
 
-// for the moment aarch64 needs to be able to disable UseBiasedLocking
-
-#ifdef TARGET_ARCH_aarch64
-#define AARCH64_ONLY(_x) _x
-#define NOT_AARCH64(_x)
-#else
-#define AARCH64_ONLY(_x)
-#define NOT_AARCH64(_x) _x
-#endif
-
 #define RUNTIME_FLAGS(develop, develop_pd, product, product_pd, diagnostic, experimental, notproduct, manageable, product_rw, lp64_product) \
                                                                             \
   lp64_product(bool, UseCompressedOops, false,                              \

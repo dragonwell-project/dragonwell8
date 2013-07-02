@@ -51,7 +51,9 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   // which follows, loading the 3 general registers passed by the
   // caller into the first 3 ARM registers
 
+#ifdef BUILTIN_SIM
   __ c_stub_prolog(3, 0, MacroAssembler::ret_type_integral);
+#endif
 
   address entry = __ pc();
 

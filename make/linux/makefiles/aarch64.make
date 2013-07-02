@@ -29,6 +29,10 @@ OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/NOOPT)
 # Must also specify if CPU is little endian
 CFLAGS += -DVM_LITTLE_ENDIAN
 
+ifeq ($(BUILTIN_SIM), true)
+CFLAGS  += -DBUILTIN_SIM
+endif
+
 # CFLAGS += -D_LP64=1
 
 OPT_CFLAGS/compactingPermGenGen.o = -O1

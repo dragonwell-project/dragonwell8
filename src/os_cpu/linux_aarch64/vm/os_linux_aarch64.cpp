@@ -51,7 +51,9 @@
 #include "runtime/timer.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
-#include "../../../../../../../simulator/simulator.hpp"
+#ifdef BUILTIN_SIM
+#include "../../../../../../simulator/simulator.hpp"
+#endif
 
 // put OS-includes here
 # include <sys/types.h>
@@ -75,11 +77,18 @@
 # include <ucontext.h>
 # include <fpu_control.h>
 
+#ifdef BUILTIN_SIM
 #define REG_SP REG_RSP
 #define REG_PC REG_RIP
 #define REG_FP REG_RBP
 #define SPELL_REG_SP "rsp"
 #define SPELL_REG_FP "rbp"
+#else
+#define REG_FP 29
+
+#define SPELL_REG_SP "sp"
+#define SPELL_REG_FP "x29"
+#endif
 
 address os::current_stack_pointer() {
   register void *esp __asm__ (SPELL_REG_SP);
@@ -113,15 +122,27 @@ void os::initialize_thread(Thread *thr) {
 }
 
 address os::Linux::ucontext_get_pc(ucontext_t * uc) {
+#ifdef BUILTIN_SIM
   return (address)uc->uc_mcontext.gregs[REG_PC];
+#else
+  return (address)uc->uc_mcontext.pc;
+#endif
 }
 
 intptr_t* os::Linux::ucontext_get_sp(ucontext_t * uc) {
+#ifdef BUILTIN_SIM
   return (intptr_t*)uc->uc_mcontext.gregs[REG_SP];
+#else
+  return (intptr_t*)uc->uc_mcontext.sp;
+#endif
 }
 
 intptr_t* os::Linux::ucontext_get_fp(ucontext_t * uc) {
+#ifdef BUILTIN_SIM
   return (intptr_t*)uc->uc_mcontext.gregs[REG_FP];
+#else
+  return (intptr_t*)uc->uc_mcontext.regs[REG_FP];
+#endif
 }
 
 // For Forte Analyzer AsyncGetCallTrace profiling support - thread
@@ -185,7 +206,7 @@ frame os::current_frame() {
                 CAST_FROM_FN_PTR(address, os::current_frame));
   if (os::is_first_C_frame(&myframe)) {
     // stack is not walkable
-    return frame(NULL, NULL, NULL);
+    return frame();
   } else {
     return os::get_sender_for_C_frame(&myframe);
   }
@@ -266,11 +287,19 @@ JVM_handle_linux_signal(int sig,
     pc = (address) os::Linux::ucontext_get_pc(uc);
 
     if (pc == (address) Fetch32PFI) {
+#ifdef BUILTIN_SIM
        uc->uc_mcontext.gregs[REG_PC] = intptr_t(Fetch32Resume) ;
+#else
+       uc->uc_mcontext.pc = intptr_t(Fetch32Resume) ;
+#endif
        return 1 ;
     }
     if (pc == (address) FetchNPFI) {
+#ifdef BUILTIN_SIM
        uc->uc_mcontext.gregs[REG_PC] = intptr_t (FetchNResume) ;
+#else
+       uc->uc_mcontext.pc = intptr_t (FetchNResume) ;
+#endif
        return 1 ;
     }
 
@@ -592,6 +621,7 @@ void os::print_register_info(outputStream *st, void *context) {
 
   // this is only for the "general purpose" registers
 
+#ifdef BUILTIN_SIM
   st->print("RAX="); print_location(st, uc->uc_mcontext.gregs[REG_RAX]);
   st->print("RBX="); print_location(st, uc->uc_mcontext.gregs[REG_RBX]);
   st->print("RCX="); print_location(st, uc->uc_mcontext.gregs[REG_RCX]);
@@ -608,7 +638,10 @@ void os::print_register_info(outputStream *st, void *context) {
   st->print("R13="); print_location(st, uc->uc_mcontext.gregs[REG_R13]);
   st->print("R14="); print_location(st, uc->uc_mcontext.gregs[REG_R14]);
   st->print("R15="); print_location(st, uc->uc_mcontext.gregs[REG_R15]);
-
+#else
+  for (int r = 0; r < 31; r++)
+	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, uc->uc_mcontext.regs[r]);
+#endif
   st->cr();
 }
 
@@ -620,3 +653,72 @@ void os::verify_stack_alignment() {
   assert(((intptr_t)os::current_stack_pointer() & (StackAlignmentInBytes-1)) == 0, "incorrect stack alignment");
 }
 #endif
+
+extern "C" {
+  int SpinPause() {
+  }
+
+  void _Copy_conjoint_jshorts_atomic(jshort* from, jshort* to, size_t count) {
+    if (from > to) {
+      jshort *end = from + count;
+      while (from < end)
+        *(to++) = *(from++);
+    }
+    else if (from < to) {
+      jshort *end = from;
+      from += count - 1;
+      to   += count - 1;
+      while (from >= end)
+        *(to--) = *(from--);
+    }
+  }
+  void _Copy_conjoint_jints_atomic(jint* from, jint* to, size_t count) {
+    if (from > to) {
+      jint *end = from + count;
+      while (from < end)
+        *(to++) = *(from++);
+    }
+    else if (from < to) {
+      jint *end = from;
+      from += count - 1;
+      to   += count - 1;
+      while (from >= end)
+        *(to--) = *(from--);
+    }
+  }
+  void _Copy_conjoint_jlongs_atomic(jlong* from, jlong* to, size_t count) {
+    if (from > to) {
+      jlong *end = from + count;
+      while (from < end)
+        os::atomic_copy64(from++, to++);
+    }
+    else if (from < to) {
+      jlong *end = from;
+      from += count - 1;
+      to   += count - 1;
+      while (from >= end)
+        os::atomic_copy64(from--, to--);
+    }
+  }
+
+  void _Copy_arrayof_conjoint_bytes(HeapWord* from,
+                                    HeapWord* to,
+                                    size_t    count) {
+    memmove(to, from, count);
+  }
+  void _Copy_arrayof_conjoint_jshorts(HeapWord* from,
+                                      HeapWord* to,
+                                      size_t    count) {
+    memmove(to, from, count * 2);
+  }
+  void _Copy_arrayof_conjoint_jints(HeapWord* from,
+                                    HeapWord* to,
+                                    size_t    count) {
+    memmove(to, from, count * 4);
+  }
+  void _Copy_arrayof_conjoint_jlongs(HeapWord* from,
+                                     HeapWord* to,
+                                     size_t    count) {
+    memmove(to, from, count * 8);
+  }
+};

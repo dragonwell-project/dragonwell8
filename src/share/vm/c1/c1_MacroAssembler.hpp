@@ -27,9 +27,6 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
-#ifdef TARGET_ARCH_aarch64
-# include "assembler_aarch64.inline.hpp"
-#endif
 
 class CodeEmitInfo;
 

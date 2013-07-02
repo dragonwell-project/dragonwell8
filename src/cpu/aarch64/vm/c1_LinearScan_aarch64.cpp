@@ -102,10 +102,12 @@ void LinearScan::allocate_fpu_stack() {
     }
   }
 
+#ifndef TARGET_ARCH_aarch64
   FpuStackAllocator alloc(ir()->compilation(), this);
   _fpu_stack_allocator = &alloc;
   alloc.allocate();
   _fpu_stack_allocator = NULL;
+#endif
 }
 
 

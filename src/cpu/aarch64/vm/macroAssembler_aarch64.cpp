@@ -44,7 +44,7 @@
 // #include "runtime/os.hpp"
 // #include "runtime/sharedRuntime.hpp"
 // #include "runtime/stubRoutines.hpp"
-// #ifndef SERIALGC
+// #if INCLUDE_ALL_GCS
 // #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 // #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 // #include "gc_implementation/g1/heapRegion.hpp"
@@ -129,10 +129,9 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
 
 address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
   long offset = 0;
-  if ((Instruction_aarch64::extract(insn, 29, 24) & 0b011011) == 0b00011000) {
+  if ((Instruction_aarch64::extract(insn, 29, 24) & 0b111011) == 0b011000) {
     // Load register (literal)
-    offset = Instruction_aarch64::sextract(insn, 23, 5);
-    return address(((uint64_t)insn_addr + (offset << 2)));
+    offset = Instruction_aarch64::sextract(insn, 29, 24);
   } else if (Instruction_aarch64::extract(insn, 30, 26) == 0b00101) {
     // Unconditional branch (immediate)
     offset = Instruction_aarch64::sextract(insn, 25, 0);
@@ -230,11 +229,8 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   // last_java_fp is optional
   if (last_java_fp->is_valid()) {
     str(last_java_fp, Address(rthread, JavaThread::last_Java_fp_offset()));
-    // C2 uncommon_trap_blob does not want to reset rfp
-#ifndef COMPILER2
   } else {
     ShouldNotReachHere();
-#endif
   }
 }
 
@@ -396,9 +392,7 @@ void MacroAssembler::call(Address entry) {
 
 void MacroAssembler::ic_call(address entry) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc());
-  address const_ptr = long_constant((jlong)Universe::non_oop_word());
-  unsigned long offset;
-  ldr_constant(rscratch2, const_ptr);
+  mov(rscratch2, ExternalAddress((address)Universe::non_oop_word()));
   call(Address(entry, rh));
 }
 
@@ -1749,6 +1743,7 @@ void MacroAssembler::debug64(char* msg, int64_t pc, int64_t regs[])
   }
 }
 
+#ifdef BUILTIN_SIM
 // routine to generate an x86 prolog for a stub function which
 // bootstraps into the generated ARM code which directly follows the
 // stub
@@ -1788,6 +1783,7 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
   patch_end[-2] = (u_int64_t)setup_arm_sim;
   patch_end[-1] = calltype;
 }
+#endif
 
 void MacroAssembler::push_CPU_state() {
     push(0x3fffffff, sp);         // integer registers except lr & sp
@@ -2129,6 +2125,7 @@ void MacroAssembler::store_heap_oop_null(Address dst) {
     str(zr, dst);
 }
 
+#if INCLUDE_ALL_GCS
 void MacroAssembler::g1_write_barrier_pre(Register obj,
                                           Register pre_val,
                                           Register thread,
@@ -2141,6 +2138,8 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
                                            Register thread,
                                            Register tmp,
                                            Register tmp2) { Unimplemented(); }
+
+#endif // INCLUDE_ALL_GCS
 
 Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
   assert(oop_recorder() != NULL, "this assembler needs a Recorder");
@@ -2158,13 +2157,7 @@ void MacroAssembler::movoop(Register dst, jobject obj) {
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "should be real oop");
   }
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
-  address const_ptr = long_constant((jlong)obj);
-  if (! const_ptr) {
-    mov(dst, Address((address)obj, rspec));
-  } else {
-    code()->consts()->relocate(const_ptr, rspec);
-    ldr_constant(dst, const_ptr);
-  }
+  mov(dst, Address((address)obj, rspec));
 }
 
 void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
@@ -2177,11 +2170,14 @@ void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
   RelocationHolder rspec = metadata_Relocation::spec(oop_index);
   address const_ptr = long_constant((jlong)obj);
   if (! const_ptr) {
-    mov(dst, Address((address)obj, rspec));
-  } else {
-    code()->consts()->relocate(const_ptr, rspec);
-    ldr_constant(dst, const_ptr);
+    code()->initialize_consts_size(20);
+    const_ptr = long_constant((jlong)obj);
   }
+
+  code()->consts()->relocate(const_ptr, rspec);
+  unsigned long offset;
+  adrp(dst, InternalAddress(const_ptr), offset);
+  ldr(dst, Address(dst, offset));
 }
 
 Address MacroAssembler::constant_oop_address(jobject obj) {

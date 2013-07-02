@@ -640,7 +640,7 @@ public:
   void store_check(Register obj);                // store check for obj - register is destroyed afterwards
   void store_check(Register obj, Address dst);   // same as above, dst is exact store location (reg. is destroyed)
 
-#ifndef SERIALGC
+#if INCLUDE_ALL_GCS
 
   void g1_write_barrier_pre(Register obj,
                             Register pre_val,
@@ -655,7 +655,7 @@ public:
                              Register tmp,
                              Register tmp2);
 
-#endif // SERIALGC
+#endif // INCLUDE_ALL_GCS
 
   // split store_check(Register obj) to enhance instruction interleaving
   void store_check_part_1(Register obj);
@@ -1228,7 +1228,9 @@ public:
   // enum used for aarch64--x86 linkage to define return type of x86 function
   enum ret_type { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
 
+#ifdef BUILTIN_SIM
   void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type);
+#endif
 
   // special version of call_VM_leaf_base needed for aarch64 simulator
   // where we need to specify both the gp and fp arg counts and the
@@ -1265,17 +1267,6 @@ public:
       dmb(LD);
     } else {
       dmb(SY);
-    }
-  }
-
-  void ldr_constant(Register dest, address const_addr) {
-    guarantee(const_addr, "constant pool overflow");
-    if (NearCpool) {
-      ldr(dest, const_addr, relocInfo::internal_word_type);
-    } else {
-      unsigned long offset;
-      adrp(dest, InternalAddress(const_addr), offset);
-      ldr(dest, Address(dest, offset));
     }
   }
 };

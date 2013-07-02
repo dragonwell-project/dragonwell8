@@ -97,14 +97,12 @@ public:
   }
 
 #if defined(IA32) || defined(AMD64)
-#ifndef TARGET_ARCH_aarch64
   XMMRegister  as_XMMRegister(PhaseRegAlloc *ra_, const Node *node)   const {
     return ::as_XMMRegister(reg(ra_, node));
   }
   XMMRegister  as_XMMRegister(PhaseRegAlloc *ra_, const Node *node, int idx)   const {
     return ::as_XMMRegister(reg(ra_, node, idx));
   }
-#endif // TARGET_ARCH_aarch64
 #endif
   // CondRegister reg converter
 #if defined(PPC64)

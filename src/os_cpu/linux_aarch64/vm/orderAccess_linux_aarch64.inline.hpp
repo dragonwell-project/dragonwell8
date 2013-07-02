@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2007, 2008, 2009 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +26,47 @@
 #ifndef OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP
 #define OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP
 
-#include "runtime/atomic.hpp"
+#include "runtime/atomic.inline.hpp"
 #include "runtime/orderAccess.hpp"
+#include "runtime/os.hpp"
 #include "vm_version_aarch64.hpp"
+
+#ifdef ARM
+
+/*
+ * ARM Kernel helper for memory barrier.
+ * Using __asm __volatile ("":::"memory") does not work reliable on ARM
+ * and gcc __sync_synchronize(); implementation does not use the kernel
+ * helper for all gcc versions so it is unreliable to use as well.
+ */
+typedef void (__kernel_dmb_t) (void);
+#define __kernel_dmb (*(__kernel_dmb_t *) 0xffff0fa0)
+
+#define FULL_MEM_BARRIER __kernel_dmb()
+#define READ_MEM_BARRIER __kernel_dmb()
+#define WRITE_MEM_BARRIER __kernel_dmb()
+
+#else // ARM
+
+#define FULL_MEM_BARRIER __sync_synchronize()
+
+#ifdef PPC
+
+#define READ_MEM_BARRIER __asm __volatile ("isync":::"memory")
+#ifdef __NO_LWSYNC__
+#define WRITE_MEM_BARRIER __asm __volatile ("sync":::"memory")
+#else
+#define WRITE_MEM_BARRIER __asm __volatile ("lwsync":::"memory")
+#endif
+
+#else // PPC
+
+#define READ_MEM_BARRIER __asm __volatile ("":::"memory")
+#define WRITE_MEM_BARRIER __asm __volatile ("":::"memory")
+
+#endif // PPC
+
+#endif // ARM
 
 // Implementation of class OrderAccess.
 
@@ -37,145 +76,103 @@ inline void OrderAccess::loadstore()  { acquire(); }
 inline void OrderAccess::storeload()  { fence(); }
 
 inline void OrderAccess::acquire() {
-  volatile intptr_t local_dummy;
-  __asm__ volatile ("movq 0(%%rsp), %0" : "=r" (local_dummy) : : "memory");
+  READ_MEM_BARRIER;
 }
 
 inline void OrderAccess::release() {
-  // Avoid hitting the same cache-line from
-  // different threads.
-  volatile jint local_dummy = 0;
+  WRITE_MEM_BARRIER;
 }
 
 inline void OrderAccess::fence() {
-  // if (os::is_MP()) 
-  {
-    // always use locked addl since mfence is sometimes expensive
-    __asm__ volatile ("lock; addl $0,0(%%rsp)" : : : "cc", "memory");
-  }
+  FULL_MEM_BARRIER;
 }
 
-inline jbyte    OrderAccess::load_acquire(volatile jbyte*   p) { return *p; }
-inline jshort   OrderAccess::load_acquire(volatile jshort*  p) { return *p; }
-inline jint     OrderAccess::load_acquire(volatile jint*    p) { return *p; }
-inline jlong    OrderAccess::load_acquire(volatile jlong*   p) { return Atomic::load(p); }
-inline jubyte   OrderAccess::load_acquire(volatile jubyte*  p) { return *p; }
-inline jushort  OrderAccess::load_acquire(volatile jushort* p) { return *p; }
-inline juint    OrderAccess::load_acquire(volatile juint*   p) { return *p; }
-inline julong   OrderAccess::load_acquire(volatile julong*  p) { return Atomic::load((volatile jlong*)p); }
-inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p) { return *p; }
-inline jdouble  OrderAccess::load_acquire(volatile jdouble* p) { return *p; }
-
-inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p) { return *p; }
-inline void*    OrderAccess::load_ptr_acquire(volatile void*       p) { return *(void* volatile *)p; }
-inline void*    OrderAccess::load_ptr_acquire(const volatile void* p) { return *(void* const volatile *)p; }
-
-inline void     OrderAccess::release_store(volatile jbyte*   p, jbyte   v) { *p = v; }
-inline void     OrderAccess::release_store(volatile jshort*  p, jshort  v) { *p = v; }
-inline void     OrderAccess::release_store(volatile jint*    p, jint    v) { *p = v; }
-inline void     OrderAccess::release_store(volatile jlong*   p, jlong   v) { Atomic::store(v, p); }
-inline void     OrderAccess::release_store(volatile jubyte*  p, jubyte  v) { *p = v; }
-inline void     OrderAccess::release_store(volatile jushort* p, jushort v) { *p = v; }
-inline void     OrderAccess::release_store(volatile juint*   p, juint   v) { *p = v; }
-inline void     OrderAccess::release_store(volatile julong*  p, julong  v) { Atomic::store((jlong)v, (volatile jlong*)p); }
-inline void     OrderAccess::release_store(volatile jfloat*  p, jfloat  v) { *p = v; }
-inline void     OrderAccess::release_store(volatile jdouble* p, jdouble v) { *p = v; }
-
-inline void     OrderAccess::release_store_ptr(volatile intptr_t* p, intptr_t v) { *p = v; }
-inline void     OrderAccess::release_store_ptr(volatile void*     p, void*    v) { *(void* volatile *)p = v; }
-
-inline void     OrderAccess::store_fence(jbyte*  p, jbyte  v) {
-  __asm__ volatile (  "xchgb (%2),%0"
-                    : "=q" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
+inline jbyte    OrderAccess::load_acquire(volatile jbyte*   p) { jbyte data = *p; acquire(); return data; }
+inline jshort   OrderAccess::load_acquire(volatile jshort*  p) { jshort data = *p; acquire(); return data; }
+inline jint     OrderAccess::load_acquire(volatile jint*    p) { jint data = *p; acquire(); return data; }
+inline jlong    OrderAccess::load_acquire(volatile jlong*   p) {
+  jlong tmp;
+  os::atomic_copy64(p, &tmp);
+  acquire();
+  return tmp;
 }
-inline void     OrderAccess::store_fence(jshort* p, jshort v) {
-  __asm__ volatile (  "xchgw (%2),%0"
-                    : "=r" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
+inline jubyte    OrderAccess::load_acquire(volatile jubyte*   p) { jubyte data = *p; acquire(); return data; }
+inline jushort   OrderAccess::load_acquire(volatile jushort*  p) { jushort data = *p; acquire(); return data; }
+inline juint     OrderAccess::load_acquire(volatile juint*    p) { juint data = *p; acquire(); return data; }
+inline julong   OrderAccess::load_acquire(volatile julong*  p) {
+  julong tmp;
+  os::atomic_copy64(p, &tmp);
+  acquire();
+  return tmp;
 }
-inline void     OrderAccess::store_fence(jint*   p, jint   v) {
-  __asm__ volatile (  "xchgl (%2),%0"
-                    : "=r" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
+inline jfloat   OrderAccess::load_acquire(volatile jfloat*  p) { jfloat data = *p; acquire(); return data; }
+inline jdouble  OrderAccess::load_acquire(volatile jdouble* p) {
+  jdouble tmp;
+  os::atomic_copy64(p, &tmp);
+  acquire();
+  return tmp;
 }
 
-inline void     OrderAccess::store_fence(jlong*   p, jlong   v) {
-  *p = v; fence();
+inline intptr_t OrderAccess::load_ptr_acquire(volatile intptr_t*   p) {
+  intptr_t data = *p;
+  acquire();
+  return data;
+}
+inline void*    OrderAccess::load_ptr_acquire(volatile void*       p) {
+  void *data = *(void* volatile *)p;
+  acquire();
+  return data;
+}
+inline void*    OrderAccess::load_ptr_acquire(const volatile void* p) {
+  void *data = *(void* const volatile *)p;
+  acquire();
+  return data;
 }
 
-// AMD64 copied the bodies for the the signed version. 32bit did this. As long as the
-// compiler does the inlining this is simpler.
-inline void     OrderAccess::store_fence(jubyte*  p, jubyte  v) { store_fence((jbyte*)p,  (jbyte)v);  }
-inline void     OrderAccess::store_fence(jushort* p, jushort v) { store_fence((jshort*)p, (jshort)v); }
-inline void     OrderAccess::store_fence(juint*   p, juint   v) { store_fence((jint*)p,   (jint)v);   }
-inline void     OrderAccess::store_fence(julong*  p, julong  v) { store_fence((jlong*)p,  (jlong)v);  }
+inline void     OrderAccess::release_store(volatile jbyte*   p, jbyte   v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile jshort*  p, jshort  v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile jint*    p, jint    v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile jlong*   p, jlong   v)
+{ release(); os::atomic_copy64(&v, p); }
+inline void     OrderAccess::release_store(volatile jubyte*  p, jubyte  v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile jushort* p, jushort v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile juint*   p, juint   v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile julong*  p, julong  v)
+{ release(); os::atomic_copy64(&v, p); }
+inline void     OrderAccess::release_store(volatile jfloat*  p, jfloat  v) { release(); *p = v; }
+inline void     OrderAccess::release_store(volatile jdouble* p, jdouble v)
+{ release(); os::atomic_copy64(&v, p); }
+
+inline void     OrderAccess::release_store_ptr(volatile intptr_t* p, intptr_t v) { release(); *p = v; }
+inline void     OrderAccess::release_store_ptr(volatile void*     p, void*    v)
+{ release(); *(void* volatile *)p = v; }
+
+inline void     OrderAccess::store_fence(jbyte*   p, jbyte   v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(jshort*  p, jshort  v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(jint*    p, jint    v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(jlong*   p, jlong   v) { os::atomic_copy64(&v, p); fence(); }
+inline void     OrderAccess::store_fence(jubyte*  p, jubyte  v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(jushort* p, jushort v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(juint*   p, juint   v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(julong*  p, julong  v) { os::atomic_copy64(&v, p); fence(); }
 inline void     OrderAccess::store_fence(jfloat*  p, jfloat  v) { *p = v; fence(); }
-inline void     OrderAccess::store_fence(jdouble* p, jdouble v) { *p = v; fence(); }
+inline void     OrderAccess::store_fence(jdouble* p, jdouble v) { os::atomic_copy64(&v, p); fence(); }
 
-inline void     OrderAccess::store_ptr_fence(intptr_t* p, intptr_t v) {
-  __asm__ __volatile__ ("xchgq (%2), %0"
-                        : "=r" (v)
-                        : "0" (v), "r" (p)
-                        : "memory");
-}
+inline void     OrderAccess::store_ptr_fence(intptr_t* p, intptr_t v) { *p = v; fence(); }
+inline void     OrderAccess::store_ptr_fence(void**    p, void*    v) { *p = v; fence(); }
 
-inline void     OrderAccess::store_ptr_fence(void**    p, void*    v) {
-  __asm__ __volatile__ ("xchgq (%2), %0"
-                        : "=r" (v)
-                        : "0" (v), "r" (p)
-                        : "memory");
-}
+inline void     OrderAccess::release_store_fence(volatile jbyte*   p, jbyte   v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jshort*  p, jshort  v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jint*    p, jint    v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jlong*   p, jlong   v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jubyte*  p, jubyte  v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jushort* p, jushort v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile juint*   p, juint   v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile julong*  p, julong  v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jfloat*  p, jfloat  v) { release_store(p, v); fence(); }
+inline void     OrderAccess::release_store_fence(volatile jdouble* p, jdouble v) { release_store(p, v); fence(); }
 
-// Must duplicate definitions instead of calling store_fence because we don't want to cast away volatile.
-inline void     OrderAccess::release_store_fence(volatile jbyte*  p, jbyte  v) {
-  __asm__ volatile (  "xchgb (%2),%0"
-                    : "=q" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
-}
-inline void     OrderAccess::release_store_fence(volatile jshort* p, jshort v) {
-  __asm__ volatile (  "xchgw (%2),%0"
-                    : "=r" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
-}
-inline void     OrderAccess::release_store_fence(volatile jint*   p, jint   v) {
-  __asm__ volatile (  "xchgl (%2),%0"
-                    : "=r" (v)
-                    : "0" (v), "r" (p)
-                    : "memory");
-}
-
-inline void     OrderAccess::release_store_fence(volatile jlong*   p, jlong   v) {
-  __asm__ __volatile__ (  "xchgq (%2), %0"
-                          : "=r" (v)
-                          : "0" (v), "r" (p)
-                          : "memory");
-}
-
-inline void     OrderAccess::release_store_fence(volatile jubyte*  p, jubyte  v) { release_store_fence((volatile jbyte*)p,  (jbyte)v);  }
-inline void     OrderAccess::release_store_fence(volatile jushort* p, jushort v) { release_store_fence((volatile jshort*)p, (jshort)v); }
-inline void     OrderAccess::release_store_fence(volatile juint*   p, juint   v) { release_store_fence((volatile jint*)p,   (jint)v);   }
-inline void     OrderAccess::release_store_fence(volatile julong*  p, julong  v) { release_store_fence((volatile jlong*)p,  (jlong)v);  }
-
-inline void     OrderAccess::release_store_fence(volatile jfloat*  p, jfloat  v) { *p = v; fence(); }
-inline void     OrderAccess::release_store_fence(volatile jdouble* p, jdouble v) { *p = v; fence(); }
-
-inline void     OrderAccess::release_store_ptr_fence(volatile intptr_t* p, intptr_t v) {
-  __asm__ __volatile__ (  "xchgq (%2), %0"
-                          : "=r" (v)
-                          : "0" (v), "r" (p)
-                          : "memory");
-}
-inline void     OrderAccess::release_store_ptr_fence(volatile void*     p, void*    v) {
-  __asm__ __volatile__ (  "xchgq (%2), %0"
-                          : "=r" (v)
-                          : "0" (v), "r" (p)
-                          : "memory");
-}
+inline void     OrderAccess::release_store_ptr_fence(volatile intptr_t* p, intptr_t v) { release_store_ptr(p, v); fence(); }
+inline void     OrderAccess::release_store_ptr_fence(volatile void*     p, void*    v) { release_store_ptr(p, v); fence(); }
 
 #endif // OS_CPU_LINUX_AARCH64_VM_ORDERACCESS_LINUX_AARCH64_INLINE_HPP

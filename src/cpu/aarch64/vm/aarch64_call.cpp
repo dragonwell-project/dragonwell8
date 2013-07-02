@@ -1,3 +1,5 @@
+#ifdef BUILTIN_SIM
+
 #include <stdio.h>
 #include <sys/types.h>
 #include "asm/macroAssembler.hpp"
@@ -169,3 +171,5 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
     break;
   }
 }
+
+#endif

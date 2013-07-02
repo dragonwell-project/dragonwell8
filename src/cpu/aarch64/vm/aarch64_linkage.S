@@ -25,6 +25,8 @@
 # C++ routine which starts execution on the simulator. the ARM
 # code can be generated immediately following the copied code.
 
+#ifdef BUILTIN_SIM
+
 	.data
         .globl setup_arm_sim, 
 	.type  setup_arm_sim,@function
@@ -156,3 +158,5 @@ get_pc:
 aarch64_stub_prolog_size:
 	leaq  aarch64_stub_prolog_end - aarch64_stub_prolog, %rax
 	ret
+
+#endif

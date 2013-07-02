@@ -42,7 +42,7 @@
 #include "runtime/vframeArray.hpp"
 #endif
 
-#ifdef ASSERT
+#if ASSERT
 void RegisterMap::check_location_valid() {
 }
 #endif
@@ -91,6 +91,12 @@ bool frame::safe_for_sender(JavaThread *thread) {
         return false;
       }
     }
+
+    // Could just be some random pointer within the codeBlob
+    if (!_cb->code_contains(_pc)) {
+      return false;
+    }
+
     // Entry frame checks
     if (is_entry_frame()) {
       // an entry frame must have a valid fp.

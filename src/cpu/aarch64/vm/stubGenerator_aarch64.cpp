@@ -61,7 +61,9 @@
 
 // Stub Code definitions
 
+#if 0
 static address handle_unsafe_access() { Unimplemented(); return 0; }
+#endif
 
 class StubGenerator: public StubCodeGenerator {
  private:
@@ -202,15 +204,22 @@ class StubGenerator: public StubCodeGenerator {
 
     // stub code
 
+#ifdef BUILTIN_SIM
     // we need a C prolog to bootstrap the x86 caller into the sim
 
     __ c_stub_prolog(8, 0, MacroAssembler::ret_type_void);
+#endif
 
     address aarch64_entry = __ pc();
 
+// AED: this should fix Ed's problem -- we only save the sender's SP for our sim
+#ifdef BUILTIN_SIM
     // Save sender's SP for stack traces.
+// ECN: FIXME
+// #if 0
     __ mov(rscratch1, sp);
     __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
+#endif
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);
@@ -1098,7 +1107,69 @@ class StubGenerator: public StubCodeGenerator {
                                 address int_copy_entry, address oop_copy_entry,
                                 address long_copy_entry, address checkcast_copy_entry) { Unimplemented(); return 0; }
 
-  void generate_arraycopy_stubs() { Unimplemented(); }
+  // These stubs get called from some dumb test routine.
+  // I'll write them properly when they're called from
+  // something that's actually doing something.
+  static void fake_arraycopy_stub(address src, address dst, int count) {
+    assert(count == 0, "huh?");
+  }
+
+  void generate_arraycopy_stubs() {
+    // Call the conjoint generation methods immediately after
+    // the disjoint ones so that short branches from the former
+    // to the latter can be generated.
+#if 0
+    StubRoutines::_jbyte_disjoint_arraycopy  = (address) fake_arraycopy_stub;
+    StubRoutines::_jbyte_arraycopy           = (address) fake_arraycopy_stub;
+
+    StubRoutines::_jshort_disjoint_arraycopy = (address) fake_arraycopy_stub;
+    StubRoutines::_jshort_arraycopy          = (address) fake_arraycopy_stub;
+
+    StubRoutines::_jint_disjoint_arraycopy   = (address) fake_arraycopy_stub;
+    StubRoutines::_jint_arraycopy            = (address) fake_arraycopy_stub;
+
+    StubRoutines::_jlong_disjoint_arraycopy  = (address) fake_arraycopy_stub;
+    StubRoutines::_jlong_arraycopy           = (address) fake_arraycopy_stub;
+#endif
+
+#if 0
+    StubRoutines::_oop_disjoint_arraycopy    = ShouldNotCallThisStub();
+    StubRoutines::_oop_arraycopy             = ShouldNotCallThisStub();
+
+    StubRoutines::_checkcast_arraycopy       = ShouldNotCallThisStub();
+    StubRoutines::_unsafe_arraycopy          = ShouldNotCallThisStub();
+    StubRoutines::_generic_arraycopy         = ShouldNotCallThisStub();
+#endif
+
+#if 0
+    // We don't generate specialized code for HeapWord-aligned source
+    // arrays, so just use the code we've already generated
+    StubRoutines::_arrayof_jbyte_disjoint_arraycopy =
+      StubRoutines::_jbyte_disjoint_arraycopy;
+    StubRoutines::_arrayof_jbyte_arraycopy =
+      StubRoutines::_jbyte_arraycopy;
+
+    StubRoutines::_arrayof_jshort_disjoint_arraycopy =
+      StubRoutines::_jshort_disjoint_arraycopy;
+    StubRoutines::_arrayof_jshort_arraycopy =
+      StubRoutines::_jshort_arraycopy;
+
+    StubRoutines::_arrayof_jint_disjoint_arraycopy =
+      StubRoutines::_jint_disjoint_arraycopy;
+    StubRoutines::_arrayof_jint_arraycopy =
+      StubRoutines::_jint_arraycopy;
+
+    StubRoutines::_arrayof_jlong_disjoint_arraycopy =
+      StubRoutines::_jlong_disjoint_arraycopy;
+    StubRoutines::_arrayof_jlong_arraycopy =
+      StubRoutines::_jlong_arraycopy;
+
+    StubRoutines::_arrayof_oop_disjoint_arraycopy =
+      StubRoutines::_oop_disjoint_arraycopy;
+    StubRoutines::_arrayof_oop_arraycopy =
+      StubRoutines::_oop_arraycopy;
+#endif
+  }
 
   void generate_math_stubs() { Unimplemented(); }
 
@@ -1286,6 +1357,8 @@ class StubGenerator: public StubCodeGenerator {
     // support for verify_oop (must happen after universe_init)
     StubRoutines::_verify_oop_subroutine_entry     = generate_verify_oop();
     StubRoutines::_throw_IncompatibleClassChangeError_entry = generate_throw_exception("IncompatibleClassChangeError throw_exception", CAST_FROM_FN_PTR(address, SharedRuntime::throw_IncompatibleClassChangeError));
+    // arraycopy stubs used by compilers
+    generate_arraycopy_stubs();
   }
 
  public:
