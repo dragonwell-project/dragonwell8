@@ -234,10 +234,12 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
                                                  sasm->must_gc_arguments());
 #ifdef BUILTIN_SIM
   if (NotifySimulator) {
+    size_t len = 65536;
+    char *name = new char[len];
+
     // tell the sim about the new stub code
     AArch64Simulator *simulator = AArch64Simulator::current();
-    char name[400];
-    strcpy(name, name_for(id));
+    strncpy(name, name_for(id), len);
     // replace spaces with underscore so we can write to file and reparse
     for (char *p = strpbrk(name, " "); p; p = strpbrk(p, " ")) {
       *p = '_';
@@ -246,6 +248,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
     simulator->notifyCompile(name, base);
     // code does not get relocated so just pass offset 0 and the code is live
     simulator->notifyRelocate(base, 0);
+    delete[] name;
   }
 #endif
   // install blob

@@ -339,13 +339,20 @@ int Compilation::emit_code_body() {
 
 #ifdef BUILTIN_SIM
   if (NotifySimulator) {
-    char name[400];
-    strcpy(name, _method->holder()->name()->as_utf8());
-    strcat(name, ".");
-    strcat(name, _method->name()->as_utf8());
-    strcat(name, _method->signature()->as_symbol()->as_utf8());
+    // Names are up to 65536 chars long.  UTF8-coded strings are up to
+    // 3 bytes per character.  We concatenate three such strings.
+    // Yes, I know this is ridiculous, but it's debug code and glibc
+    // allocates large arrays very efficiently.
+    size_t len = (65536 * 3) * 3;
+    char *name = new char[len];
+
+    strncpy(name, _method->holder()->name()->as_utf8(), len);
+    strncat(name, ".", len);
+    strncat(name, _method->name()->as_utf8(), len);
+    strncat(name, _method->signature()->as_symbol()->as_utf8(), len);
     unsigned char *base = code()->insts()->start();
     AArch64Simulator::current()->notifyCompile(name, base);
+    delete[] name;
   }
 #endif
 
