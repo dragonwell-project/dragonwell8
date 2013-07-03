@@ -1577,13 +1577,15 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                           InterpreterRuntime::exception_handler_for_exception),
              c_rarg1);
 
-  // For what we are about to push, make room.
-  __ sub(rscratch1, esp, wordSize);
-  __ cmp(sp, rscratch1);
-  Label enough_room;
-  __ br(Assembler::HS, enough_room);
+  // Calculate stack limit
+  __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
+  __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
+  __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
+         + (EnableInvokeDynamic ? 2 : 0) + 2);
+  __ ldr(rscratch2,
+         Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
+  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtx, 3);
   __ andr(sp, rscratch1, -16);
-  __ bind(enough_room);
 
   // r0: exception handler entry point
   // r3: preserved exception oop
