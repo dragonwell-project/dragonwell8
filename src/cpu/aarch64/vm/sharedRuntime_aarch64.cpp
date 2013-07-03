@@ -753,6 +753,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     name[0] = 'c';
     name[2] = 'i';
     sim->notifyCompile(name, c2i_entry);
+    delete[] name;
   }
 #endif
 
