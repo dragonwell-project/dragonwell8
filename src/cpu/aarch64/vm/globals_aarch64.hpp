@@ -80,19 +80,23 @@ define_pd_global(intx, InlineSmallCode,          1000);
 #define UseBuiltinSim		true
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
 									\
-  product(bool, NotifySimulator, UseBuiltinSim,				\
+  product(bool, NotifySimulator, UseBuiltinSim,                         \
          "tell the AArch64 sim where we are in method code")		\
 									\
   product(bool, UseSimulatorCache, false,				\
          "tell sim to cache memory updates until exclusive op occurs")	\
+									\
   product(bool, NearCpool, true,					\
-	  "constant pool is close to instructions")
+         "constant pool is close to instructions")
 
 #else
 #define UseBuiltinSim		false
 #define NotifySimulator		false
 #define UseSimulatorCache	false
-#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct)
+#define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
+									\
+  product(bool, NearCpool, true,					\
+         "constant pool is close to instructions")
 #endif
 
 #endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP

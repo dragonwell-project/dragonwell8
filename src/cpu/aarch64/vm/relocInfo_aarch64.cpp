@@ -110,6 +110,7 @@ void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, C
     return;
   }
 
+  address new_address = target();
 #ifdef ASSERT
   // Make sure this really is a cpool address
   address old_cpool_start = const_cast<CodeBuffer*>(src)->consts()->start();
@@ -117,7 +118,6 @@ void section_word_Relocation::fix_relocation_after_move(const CodeBuffer* src, C
   address new_cpool_start =  const_cast<CodeBuffer*>(dest)->consts()->start();
   address new_cpool_end =  const_cast<CodeBuffer*>(dest)->consts()->end();
   address old_address = old_addr_for(target(), src, dest);
-  address new_address = target();
   assert(new_address >= new_cpool_start
 	 && new_address < new_cpool_end,
 	 "should be");

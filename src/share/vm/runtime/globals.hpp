@@ -1229,7 +1229,7 @@ class CommandLineFlags {
   product(bool, CheckEndorsedAndExtDirs, false,                             \
           "Verify the endorsed and extension directories are not used")     \
                                                                             \
-  product(bool, UseFastJNIAccessors, true,                                  \
+  product(bool, UseFastJNIAccessors, false,                                 \
           "Use optimized versions of Get<Primitive>Field")                  \
                                                                             \
   product(intx, MaxJNILocalCapacity, 65536,                                 \

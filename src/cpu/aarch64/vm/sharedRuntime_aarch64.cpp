@@ -693,15 +693,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             const VMRegPair *regs,
                                                             AdapterFingerPrint* fingerprint) {
   address i2c_entry = __ pc();
+  char name[400];
 #ifdef BUILTIN_SIM
-  char *name = NULL;
   AArch64Simulator *sim = NULL;
-  size_t len = 65536;
   if (NotifySimulator) {
-    name = new char[len];
-  }
-
-  if (name) {
     generate_i2c_adapter_name(name, total_args_passed, sig_bt);
     sim = AArch64Simulator::current();
     sim->notifyCompile(name, i2c_entry);
@@ -749,11 +744,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   address c2i_entry = __ pc();
 
 #ifdef BUILTIN_SIM
-  if (name) {
+  if (NotifySimulator) {
     name[0] = 'c';
     name[2] = 'i';
     sim->notifyCompile(name, c2i_entry);
-    delete[] name;
   }
 #endif
 
@@ -1292,19 +1286,12 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                                 BasicType ret_type) {
 #ifdef BUILTIN_SIM
   if (NotifySimulator) {
-    // Names are up to 65536 chars long.  UTF8-coded strings are up to
-    // 3 bytes per character.  We concatenate three such strings.
-    // Yes, I know this is ridiculous, but it's debug code and glibc
-    // allocates large arrays very efficiently.
-    size_t len = (65536 * 3) * 3;
-    char *name = new char[len];
-
-    strncpy(name, method()->method_holder()->name()->as_utf8(), len);
-    strncat(name, ".", len);
-    strncat(name, method()->name()->as_utf8(), len);
-    strncat(name, method()->signature()->as_utf8(), len);
+    char name[400];
+    strcpy(name, method()->method_holder()->name()->as_utf8());
+    strcat(name, ".");
+    strcat(name, method()->name()->as_utf8());
+    strcat(name, method()->signature()->as_utf8());
     AArch64Simulator::current()->notifyCompile(name, __ pc());
-    delete[] name;
   }
 #endif
 

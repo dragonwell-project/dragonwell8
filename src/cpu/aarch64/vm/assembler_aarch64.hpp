@@ -1856,6 +1856,8 @@ public:
       f(fpargs, 10, 7);
       f(type, 6, 5);
       rf(Rn, 0);
+    } else {
+      blr(Rn);
     }
   }
 
@@ -1870,6 +1872,8 @@ public:
       f(0b00000, 14, 10);
       rf(Rm, 5);
       rf(Rn, 0);
+    } else {
+      blr(Rn);
     }
   }
 

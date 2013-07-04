@@ -407,7 +407,11 @@ JVM_handle_linux_signal(int sig,
     // save all thread context in case we need to restore it
     if (thread != NULL) thread->set_saved_exception_pc(pc);
 
+#ifdef BUILTIN_SIM
     uc->uc_mcontext.gregs[REG_PC] = (greg_t)stub;
+#else
+    uc->uc_mcontext.pc = (__u64)stub;
+#endif
     return true;
   }
 
@@ -565,6 +569,7 @@ void os::print_context(outputStream *st, void *context) {
 
   ucontext_t *uc = (ucontext_t*)context;
   st->print_cr("Registers:");
+#ifdef BUILTIN_SIM
   st->print(  "RAX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RAX]);
   st->print(", RBX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RBX]);
   st->print(", RCX=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_RCX]);
@@ -592,6 +597,10 @@ void os::print_context(outputStream *st, void *context) {
   st->cr();
   st->print("  TRAPNO=" INTPTR_FORMAT, uc->uc_mcontext.gregs[REG_TRAPNO]);
   st->cr();
+#else
+  for (int r = 0; r < 31; r++)
+	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, uc->uc_mcontext.regs[r]);
+#endif
   st->cr();
 
   intptr_t *sp = (intptr_t *)os::Linux::ucontext_get_sp(uc);
