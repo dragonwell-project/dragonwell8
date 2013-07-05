@@ -384,32 +384,32 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       continue;
     }
     if (r_1->is_stack()) {
-      // memory to memory use r0
+      // memory to memory use rscratch1
       int ld_off = (r_1->reg2stack() * VMRegImpl::stack_slot_size
 		    + extraspace
 		    + words_pushed * wordSize);
       if (!r_2->is_valid()) {
         // sign extend??
-        __ ldrw(r0, Address(sp, ld_off));
-        __ str(r0, Address(sp, st_off));
+        __ ldrw(rscratch1, Address(sp, ld_off));
+        __ str(rscratch1, Address(sp, st_off));
 
       } else {
 
-        __ ldr(r0, Address(sp, ld_off));
+        __ ldr(rscratch1, Address(sp, ld_off));
 
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
         if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
           // ld_off == LSW, ld_off+wordSize == MSW
           // st_off == MSW, next_off == LSW
+          __ str(rscratch1, Address(sp, next_off));
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
-          __ mov(r0, 0xdeadffffdeadaaaaul);
-          __ str(r0, Address(sp, st_off));
+          __ mov(rscratch1, 0xdeadffffdeadaaaaul);
+          __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
-          __ str(r0, Address(sp, next_off));
         } else {
-          __ str(r0, Address(sp, st_off));
+          __ str(rscratch1, Address(sp, st_off));
         }
       }
     } else if (r_1->is_Register()) {
@@ -425,8 +425,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           // long/double in gpr
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
-          __ mov(r0, 0xdeadffffdeadaaabul);
-          __ str(r0, Address(sp, st_off));
+          __ mov(rscratch1, 0xdeadffffdeadaaabul);
+          __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
           __ str(r, Address(sp, next_off));
         } else {
@@ -441,8 +441,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } else {
 #ifdef ASSERT
         // Overwrite the unused slot with known junk
-        __ mov(r0, 0xdeadffffdeadaaacul);
-        __ str(r0, Address(sp, st_off));
+        __ mov(rscratch1, 0xdeadffffdeadaaacul);
+        __ str(rscratch1, Address(sp, st_off));
 #endif /* ASSERT */
         __ strd(r_1->as_FloatRegister(), Address(sp, next_off));
       }
