@@ -2729,13 +2729,8 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs* args) {
   Arguments::_ClipInlining             = ClipInlining;
   Arguments::_BackgroundCompilation    = BackgroundCompilation;
 
-#ifdef TARGET_ARCH_aarch64
-  // AArch64 needs to default to -Xint
-  set_mode_flags(_int);
-#else
   // Setup flags for mixed which is the default
   set_mode_flags(_mixed);
-#endif
 
   // Parse JAVA_TOOL_OPTIONS environment variable (if present)
   jint result = parse_java_tool_options_environment_variable(&scp, &scp_assembly_required);
