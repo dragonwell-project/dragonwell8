@@ -161,6 +161,10 @@ static Register as_reg(LIR_Opr op) {
   return op->is_double_cpu() ? op->as_register_lo() : op->as_register();
 }
 
+static bool is_reg(LIR_Opr op) {
+  return op->is_double_cpu() | op->is_single_cpu();
+}
+
 Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
   Register base = addr->base()->as_pointer_register();
   LIR_Opr opr = addr->index();
@@ -2492,14 +2496,23 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
   if (dest->is_address()) {
       LIR_Address* to_addr = dest->as_address_ptr();
-      Register compressed_src = as_reg(src);
-      if (type == T_ARRAY || type == T_OBJECT) {
-	__ verify_oop(src->as_register());
-	if (UseCompressedOops) {
-	  compressed_src = rscratch2;
-	  __ mov(compressed_src, src->as_register());
-	  __ encode_heap_oop(compressed_src);
-	}
+      Register compressed_src = noreg;
+      if (is_reg(src)) {
+	  compressed_src = as_reg(src);
+	  if (type == T_ARRAY || type == T_OBJECT) {
+	    __ verify_oop(src->as_register());
+	    if (UseCompressedOops) {
+	      compressed_src = rscratch2;
+	      __ mov(compressed_src, src->as_register());
+	      __ encode_heap_oop(compressed_src);
+	    }
+	  }
+      } else if (src->is_single_fpu()) {
+	__ fmovs(rscratch2, src->as_float_reg());
+	src = FrameMap::rscratch2_opr,	type = T_INT;
+      } else if (src->is_double_fpu()) {
+	__ fmovd(rscratch2, src->as_double_reg());
+	src = FrameMap::rscratch2_long_opr, type = T_LONG;
       }
 
       if (dest->is_double_cpu())
@@ -2556,13 +2569,16 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
       }
   } else if (src->is_address()) {
     LIR_Address* from_addr = src->as_address_ptr();
-    Register compressed_dest = as_reg(dest);
-    if (type == T_ARRAY || type == T_OBJECT) {
-      __ verify_oop(dest->as_register());
-      if (UseCompressedOops) {
-	compressed_dest = rscratch2;
-	__ mov(compressed_dest, as_reg(dest));
-	__ encode_heap_oop(compressed_dest);
+    Register compressed_dest = noreg;
+    if (is_reg(dest)) {
+      compressed_dest = as_reg(dest);
+      if (type == T_ARRAY || type == T_OBJECT) {
+	__ verify_oop(dest->as_register());
+	if (UseCompressedOops) {
+	  compressed_dest = rscratch2;
+	  __ mov(compressed_dest, as_reg(dest));
+	  __ encode_heap_oop(compressed_dest);
+	}
       }
     }
 
@@ -2601,6 +2617,16 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
     case T_CHAR:    // fall through
     case T_SHORT:
       __ ldarw(dest->as_register(), rscratch1);
+      break;
+
+    case T_FLOAT:
+      __ ldarw(rscratch2, rscratch1);
+      __ fmovs(dest->as_float_reg(), rscratch2);
+      break;
+
+    case T_DOUBLE:
+      __ ldar(rscratch2, rscratch1);
+      __ fmovd(dest->as_double_reg(), rscratch2);
       break;
 
     default:
