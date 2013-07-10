@@ -224,7 +224,32 @@ LIR_Address* LIRGenerator::emit_array_address(LIR_Opr array_opr, LIR_Opr index_o
   }
 }
 
-LIR_Opr LIRGenerator::load_immediate(int x, BasicType type) { Unimplemented(); return LIR_OprFact::illegalOpr; }
+LIR_Opr LIRGenerator::load_immediate(int x, BasicType type) {
+  LIR_Opr r;
+  if (type == T_LONG) {
+    r = LIR_OprFact::longConst(x);
+    if (!Assembler::operand_valid_for_logical_immediate(false, x)) {
+      LIR_Opr tmp = new_register(type);
+      __ move(r, tmp);
+      return tmp;
+    }
+  } else if (type == T_INT) {
+    r = LIR_OprFact::intConst(x);
+    if (!Assembler::operand_valid_for_logical_immediate(true, x)) {
+      // This is all rather nasty.  We don't know whether our constant
+      // is required for a logical or an arithmetic operation, wo we
+      // don't know what the range of valid values is!!
+      LIR_Opr tmp = new_register(type);
+      __ move(r, tmp);
+      return tmp;
+    }
+  } else {
+    ShouldNotReachHere();
+  }
+  return r;
+}
+
+
 
 void LIRGenerator::increment_counter(address counter, BasicType type, int step) {
   LIR_Opr pointer = new_pointer_register();

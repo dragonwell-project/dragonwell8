@@ -783,6 +783,24 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
       break;
 
+    case counter_overflow_id:
+      {
+        Register bci = r0, method = r1;
+        __ enter();
+        OopMap* map = save_live_registers(sasm, 3);
+        // Retrieve bci
+        __ ldr(bci, Address(rfp, 2*BytesPerWord));
+        // And a pointer to the Method*
+        __ ldr(method, Address(rfp, 3*BytesPerWord));
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, counter_overflow), bci, method);
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm);
+        __ leave();
+        __ ret(lr);
+      }
+      break;
+
     case new_type_array_id:
     case new_object_array_id:
       {

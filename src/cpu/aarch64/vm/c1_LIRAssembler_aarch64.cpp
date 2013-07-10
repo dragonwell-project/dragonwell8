@@ -2021,7 +2021,6 @@ void LIR_Assembler::store_parameter(Register r, int offset_from_rsp_in_words) {
 
 
 void LIR_Assembler::store_parameter(jint c,     int offset_from_rsp_in_words) {
-  ShouldNotReachHere();
   assert(offset_from_rsp_in_words >= 0, "invalid offset from rsp");
   int offset_from_rsp_in_bytes = offset_from_rsp_in_words * BytesPerWord;
   assert(offset_from_rsp_in_bytes < frame_map()->reserved_argument_area_size(), "invalid offset");
@@ -2405,7 +2404,86 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
 }
 
 
-void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) { Unimplemented(); }
+void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
+  ciMethod* method = op->profiled_method();
+  int bci          = op->profiled_bci();
+  ciMethod* callee = op->profiled_callee();
+
+  // Update counter for all call types
+  ciMethodData* md = method->method_data_or_null();
+  assert(md != NULL, "Sanity");
+  ciProfileData* data = md->bci_to_data(bci);
+  assert(data->is_CounterData(), "need CounterData for calls");
+  assert(op->mdo()->is_single_cpu(),  "mdo must be allocated");
+  Register mdo  = op->mdo()->as_register();
+  __ mov_metadata(mdo, md->constant_encoding());
+  Address counter_addr(mdo, md->byte_offset_of_slot(data, CounterData::count_offset()));
+  Bytecodes::Code bc = method->java_code_at_bci(bci);
+  const bool callee_is_static = callee->is_loaded() && callee->is_static();
+  // Perform additional virtual call profiling for invokevirtual and
+  // invokeinterface bytecodes
+  if ((bc == Bytecodes::_invokevirtual || bc == Bytecodes::_invokeinterface) &&
+      !callee_is_static &&  // required for optimized MH invokes
+      C1ProfileVirtualCalls) {
+    assert(op->recv()->is_single_cpu(), "recv must be allocated");
+    Register recv = op->recv()->as_register();
+    assert_different_registers(mdo, recv);
+    assert(data->is_VirtualCallData(), "need VirtualCallData for virtual calls");
+    ciKlass* known_klass = op->known_holder();
+    if (C1OptimizeVirtualCallProfiling && known_klass != NULL) {
+      // We know the type that will be seen at this call site; we can
+      // statically update the MethodData* rather than needing to do
+      // dynamic tests on the receiver type
+
+      // NOTE: we should probably put a lock around this search to
+      // avoid collisions by concurrent compilations
+      ciVirtualCallData* vc_data = (ciVirtualCallData*) data;
+      uint i;
+      for (i = 0; i < VirtualCallData::row_limit(); i++) {
+        ciKlass* receiver = vc_data->receiver(i);
+        if (known_klass->equals(receiver)) {
+          Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
+          __ addptr(data_addr, DataLayout::counter_increment);
+          return;
+        }
+      }
+
+      // Receiver type not found in profile data; select an empty slot
+
+      // Note that this is less efficient than it should be because it
+      // always does a write to the receiver part of the
+      // VirtualCallData rather than just the first time
+      for (i = 0; i < VirtualCallData::row_limit(); i++) {
+        ciKlass* receiver = vc_data->receiver(i);
+        if (receiver == NULL) {
+          Address recv_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_offset(i)));
+	  __ mov_metadata(rscratch1, known_klass->constant_encoding());
+          __ str(rscratch1, recv_addr);
+          Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
+	  __ ldr(rscratch1, data_addr);
+	  __ add(rscratch1, rscratch1, DataLayout::counter_increment);
+	  __ str(rscratch1, data_addr);
+          return;
+        }
+      }
+    } else {
+      __ load_klass(recv, recv);
+      Label update_done;
+      type_profile_helper(mdo, md, data, recv, &update_done);
+      // Receiver did not match any saved receiver and there is no empty row for it.
+      // Increment total counter to indicate polymorphic case.
+      __ addptr(counter_addr, DataLayout::counter_increment);
+
+      __ bind(update_done);
+    }
+  } else {
+    // Static call
+    __ ldr(rscratch1, counter_addr);
+    __ add(rscratch1, rscratch1, DataLayout::counter_increment);
+    __ str(rscratch1, counter_addr);
+  }
+}
+
 
 void LIR_Assembler::emit_delay(LIR_OpDelay*) {
   Unimplemented();
