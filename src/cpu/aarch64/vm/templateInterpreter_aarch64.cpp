@@ -1585,12 +1585,11 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
   __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
   __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
-	 + (EnableInvokeDynamic ? 2 : 0));
+         + (EnableInvokeDynamic ? 2 : 0) + 2);
   __ ldr(rscratch2,
 	 Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
   __ sub(rscratch1, rscratch2, rscratch1, ext::uxtx, 3);
   __ andr(sp, rscratch1, -16);
-
 
   // r0: exception handler entry point
   // r3: preserved exception oop
