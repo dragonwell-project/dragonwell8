@@ -1451,8 +1451,9 @@ int emit_deopt_handler(CodeBuffer& cbuf)
 
 const bool Matcher::match_rule_supported(int opcode) {
 
-  Unimplemented();
-
+  // TODO 
+  // identify extra cases that we might want to provide match rules for
+  // e.g. Op_StrEquals and other intrinsics
   if (!has_match_rule(opcode)) {
     return false;
   }
@@ -6107,6 +6108,77 @@ instruct compN_reg_reg(rFlagsReg cr, iRegN op1, iRegN op2)
   ins_encode(aarch64_enc_cmpn(op1, op2));
 
   ins_pipe(pipe_class_compare);
+%}
+
+// ============================================================================
+// Max and Min
+
+// auxiliary rule for expanding MinI
+
+instruct cmovI_reg_reg_gt(rFlagsReg cr, iRegI dst, iRegI src1, iRegI src2)
+%{
+  // no-match rule, false predicate
+  effect(DEF dst, USE src1, USE src2, USE cr);
+  predicate(false);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst, $src1, src2 gt\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::GT));
+  %}
+
+  ins_pipe(pipe_class_default);
+    
+%}
+
+instruct minI_rReg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  match(Set dst (MinI src1 src2));
+
+  ins_cost(DEFAULT_COST_LOW);
+  expand %{
+    rFlagsReg cr;
+    compI_reg_reg(cr, src1, src2);
+    cmovI_reg_reg_gt(cr, dst, src1, src2);
+  %}
+%}
+
+// auxiliary rule for expanding MaxI
+
+instruct cmovI_reg_reg_le(rFlagsReg cr, iRegI dst, iRegI src1, iRegI src2)
+%{
+  // no-match rule, false predicate
+  effect(DEF dst, USE src1, USE src2, USE cr);
+  predicate(false);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cselw $dst $src1, src2 le\t# signed, int"  %}
+
+  ins_encode %{
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::LE));
+  %}
+
+  ins_pipe(pipe_class_default);
+    
+%}
+
+instruct maxI_rReg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  match(Set dst (MaxI src1 src2));
+
+  ins_cost(DEFAULT_COST_LOW);
+  expand %{
+    rFlagsReg cr;
+    compI_reg_reg(cr, src1, src2);
+    cmovI_reg_reg_le(cr, dst, src1, src2);
+  %}
 %}
 
 // ============================================================================
