@@ -4311,6 +4311,33 @@ instruct membar_release_lock() %{
 // ============================================================================
 // Cast/Convert Instructions
 
+instruct castX2P(iRegP dst, iRegL src) %{
+  match(Set dst (CastX2P src));
+
+  format %{ "mov $dst, $src\t# long -> ptr" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ mov(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct castP2X(iRegP dst, iRegL src) %{
+  match(Set dst (CastP2X src));
+
+  format %{ "mov $dst, $src\t# ptr -> long" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ mov(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
 
 instruct convL2I_reg(iRegI dst, iRegL src) %{
   match(Set dst (ConvL2I src));
