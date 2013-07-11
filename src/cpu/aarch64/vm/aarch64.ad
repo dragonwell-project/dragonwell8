@@ -1558,12 +1558,14 @@ const bool Matcher::need_masked_shift_count = false;
 // Implicit_null_check optimization moves the Decode along with the 
 // memory operation back up before the NullCheck.
 bool Matcher::narrow_oop_use_complex_address() {
-  Unimplemented();
+// TODO
+// decide whether we need to set this to true
   return false;
 }
 
 bool Matcher::narrow_klass_use_complex_address() {
-  Unimplemented();
+// TODO
+// decide whether we need to set this to true
   return false;
 }
 
