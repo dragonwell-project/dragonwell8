@@ -4117,6 +4117,9 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
+// TODO
+// encode StoreImmN directly omitting LoadImmN
+
 // Store Compressed Klass Pointer
 instruct storeNKlass(iRegN src, memory mem)
 %{
@@ -4129,6 +4132,9 @@ instruct storeNKlass(iRegN src, memory mem)
 
   ins_pipe(pipe_class_memory);
 %}
+
+// TODO
+// encode StoreImmNKlass directly omitting LoadImmN
 
 // Store Float
 instruct storeF(vRegF src, memory mem)
@@ -4143,6 +4149,9 @@ instruct storeF(vRegF src, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
+// TODO
+// implement storeImmF0 and storeFImmPacked
+
 // Store Double
 instruct storeD(vRegD src, memory mem)
 %{
@@ -4155,6 +4164,9 @@ instruct storeD(vRegD src, memory mem)
 
   ins_pipe(pipe_class_memory);
 %}
+
+// TODO
+// implement storeImmD0 and storeDImmPacked
 
 // prefetch instructions
 // Must be safe to execute with invalid address (cannot fault).
@@ -4361,7 +4373,7 @@ instruct castX2P(iRegP dst, iRegL src) %{
   ins_pipe(pipe_class_default);
 %}
 
-instruct castP2X(iRegP dst, iRegL src) %{
+instruct castP2X(iRegL dst, iRegP src) %{
   match(Set dst (CastP2X src));
 
   format %{ "mov $dst, $src\t# ptr -> long" %}
