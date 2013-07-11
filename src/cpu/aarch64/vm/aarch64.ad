@@ -3131,6 +3131,16 @@ operand iRegNNoSp()
   interface(REG_INTER);
 %}
 
+// heap base register -- used for encoding immN0
+
+operand iRegIHeapbase()
+%{
+  constraint(ALLOC_IN_RC(heapbase_reg));
+  match(RegI);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 // Float Register
 // Float register operands
 operand vRegF()
@@ -4088,6 +4098,32 @@ instruct storeN(iRegN src, memory mem)
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# compressed ptr" %}
+
+  ins_encode(aarch64_enc_strw(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
+%{
+  predicate(Universe::narrow_oop_base() == NULL && Universe::narrow_klass_base() == NULL);
+  match(Set mem (StoreN mem zero));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strw  rheapbase, $mem\t# compressed ptr (rheapbase==0)" %}
+
+  ins_encode(aarch64_enc_strw(heapbase, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Compressed Klass Pointer
+instruct storeNKlass(iRegN src, memory mem)
+%{
+  match(Set mem (StoreNKlass mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strw  $src, $mem\t# compressed klass ptr" %}
 
   ins_encode(aarch64_enc_strw(src, mem));
 
@@ -6251,6 +6287,8 @@ instruct minI_rReg(iRegI dst, iRegI src1, iRegI src2)
              as_Register($src2$$reg),
              Assembler::LT);
   %}
+
+  ins_pipe(pipe_class_compare);
 %}
 
 instruct maxI_rReg(iRegI dst, iRegI src1, iRegI src2)
@@ -6273,6 +6311,8 @@ instruct maxI_rReg(iRegI dst, iRegI src1, iRegI src2)
              as_Register($src2$$reg),
              Assembler::GT);
   %}
+
+  ins_pipe(pipe_class_compare);
 %}
 
 // ============================================================================
