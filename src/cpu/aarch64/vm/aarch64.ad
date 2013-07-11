@@ -6073,6 +6073,27 @@ instruct xorL_reg_imm(iRegL dst, iRegL src1, immLLog src2) %{
   ins_pipe(pipe_class_default);
 %}
 
+// Arithmetic Conversion Instructions
+
+// TODO
+// ConvD2F ConvF2D
+// ConvF2I ConvI2F
+// ConvF2L ConvL2F
+// ConvD2I ConvI2D
+// ConvD2L ConvL2D
+
+instruct convI2L_reg_reg(iRegL dst, iRegI src)
+%{
+  match(Set dst (ConvI2L src));
+
+  format %{ "sxtw  $dst, $src\t# i2l" %}
+  ins_encode %{
+    __ sbfm($dst$$Register, $src$$Register, 0, 31);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+
 // ============================================================================
 // Compare Instructions
 
