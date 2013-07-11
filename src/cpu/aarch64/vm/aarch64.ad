@@ -4339,6 +4339,34 @@ instruct castP2X(iRegP dst, iRegL src) %{
   ins_pipe(pipe_class_default);
 %}
 
+// Convert oop into int for vectors alignment masking
+instruct convP2I(iRegI dst, iRegP src) %{
+  match(Set dst (ConvL2I (CastP2X src)));
+
+  format %{ "movw $dst, $src\t# ptr -> int" %}
+  ins_encode %{
+    __ movw($dst$$Register, $src$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Convert compressed oop into int for vectors alignment masking
+// in case of 32bit oops (heap < 4Gb).
+instruct convN2I(iRegI dst, iRegN src)
+%{
+  predicate(Universe::narrow_oop_shift() == 0);
+  match(Set dst (ConvL2I (CastP2X (DecodeN src))));
+
+  format %{ "mov dst, $src\t# compressed ptr -> int" %}
+  ins_encode %{
+    __ movw($dst$$Register, $src$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+
 instruct convL2I_reg(iRegI dst, iRegL src) %{
   match(Set dst (ConvL2I src));
 
