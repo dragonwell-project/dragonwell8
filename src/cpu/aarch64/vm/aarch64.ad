@@ -4367,6 +4367,69 @@ instruct convN2I(iRegI dst, iRegN src)
 %}
 
 
+// Convert oop pointer into compressed form
+instruct encodeHeapOop(iRegN dst, iRegP src, rFlagsReg cr) %{
+  predicate(n->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
+  match(Set dst (EncodeP src));
+  effect(KILL cr);
+  format %{ "encode_heap_oop $dst, $src" %}
+  ins_encode %{
+    Register s = $src$$Register;
+    Register d = $dst$$Register;
+    if (s != d) {
+      __ mov(d, s);
+    }
+    __ encode_heap_oop(d);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct encodeHeapOop_not_null(iRegN dst, iRegP src, rFlagsReg cr) %{
+  predicate(n->bottom_type()->make_ptr()->ptr() == TypePtr::NotNull);
+  match(Set dst (EncodeP src));
+  effect(KILL cr);
+  format %{ "encode_heap_oop_not_null $dst, $src" %}
+  ins_encode %{
+    __ encode_heap_oop_not_null($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct decodeHeapOop(iRegP dst, iRegN src, rFlagsReg cr) %{
+  predicate(n->bottom_type()->is_ptr()->ptr() != TypePtr::NotNull &&
+            n->bottom_type()->is_ptr()->ptr() != TypePtr::Constant);
+  match(Set dst (DecodeN src));
+  effect(KILL cr);
+  format %{ "decode_heap_oop $dst, $src" %}
+  ins_encode %{
+    Register s = $src$$Register;
+    Register d = $dst$$Register;
+    if (s != d) {
+      __ mov(d, s);
+    }
+    __ decode_heap_oop(d);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct decodeHeapOop_not_null(iRegP dst, iRegN src, rFlagsReg cr) %{
+  predicate(n->bottom_type()->is_ptr()->ptr() == TypePtr::NotNull ||
+            n->bottom_type()->is_ptr()->ptr() == TypePtr::Constant);
+  match(Set dst (DecodeN src));
+  effect(KILL cr);
+  format %{ "decode_heap_oop_not_null $dst, $src" %}
+  ins_encode %{
+    Register s = $src$$Register;
+    Register d = $dst$$Register;
+    if (s != d) {
+      __ decode_heap_oop_not_null(d, s);
+    } else {
+      __ decode_heap_oop_not_null(d);
+    }
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
 instruct convL2I_reg(iRegI dst, iRegL src) %{
   match(Set dst (ConvL2I src));
 
