@@ -37,7 +37,8 @@
 // latter address is sued by the stack unwind code when doign an
 // exception return.
 static bool    returns_to_call_stub(address return_pc)   {
-  return return_pc == _call_stub_return_address + (NotifySimulator ? -4 : 0);
+  return return_pc == _call_stub_return_address +
+        (NotifySimulator ? PRODUCT_ONLY(0) NOT_PRODUCT(-4) : 0);
 }
 
 enum platform_dependent_constants {
