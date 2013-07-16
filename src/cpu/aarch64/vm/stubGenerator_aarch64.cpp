@@ -294,7 +294,6 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(r13, sp);
     __ blr(c_rarg4);
 
-#ifndef PRODUCT
     // tell the simulator we have returned to the stub
 
     // we do this here because the notify will already have been done
@@ -309,7 +308,6 @@ class StubGenerator: public StubCodeGenerator {
     if (NotifySimulator) {
       __ notify(Assembler::method_reentry);
     }
-#endif
     // save current address for use by exception handling code
 
     return_address = __ pc();
