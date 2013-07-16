@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,16 @@
  *
  */
 
-#include "precompiled.hpp"
-#include "asm/macroAssembler.hpp"
-#include "runtime/os.hpp"
-#include "runtime/threadLocalStorage.hpp"
+#ifndef SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP
+#define SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP
 
-#include <asm-sparc/traps.h>
+#include "memory/allocation.hpp"
+#include "runtime/handles.hpp"
 
-void MacroAssembler::read_ccr_trap(Register ccr_save) {
-  // No implementation
-  breakpoint_trap();
-}
+class AllocTracer : AllStatic {
+  public:
+    static void send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
+    static void send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size);
+};
 
-void MacroAssembler::write_ccr_trap(Register ccr_save, Register scratch1, Register scratch2) {
-  // No implementation
-  breakpoint_trap();
-}
-
-void MacroAssembler::flush_windows_trap() { trap(SP_TRAP_FWIN); }
-void MacroAssembler::clean_windows_trap() { trap(SP_TRAP_CWIN); }
-
-// Use software breakpoint trap until we figure out how to do this on Linux
-void MacroAssembler::get_psr_trap()       { trap(SP_TRAP_SBPT); }
-void MacroAssembler::set_psr_trap()       { trap(SP_TRAP_SBPT); }
+#endif /* SHARE_VM_GC_INTERFACE_ALLOCTRACER_HPP */
