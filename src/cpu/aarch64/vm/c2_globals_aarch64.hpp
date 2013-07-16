@@ -52,9 +52,9 @@ define_pd_global(intx, BackEdgeThreshold,            100000);
 
 define_pd_global(intx, OnStackReplacePercentage,     140);
 define_pd_global(intx, ConditionalMoveLimit,         3);
-define_pd_global(intx, FLOATPRESSURE,                6);
+define_pd_global(intx, FLOATPRESSURE,                30);
 define_pd_global(intx, FreqInlineSize,               325);
-define_pd_global(intx, INTPRESSURE,                  13);
+define_pd_global(intx, INTPRESSURE,                  23);
 define_pd_global(intx, InteriorEntryAlignment,       16);
 define_pd_global(intx, NewSizeThreadIncrease, ScaleForWordSize(4*K));
 define_pd_global(intx, LoopUnrollLimit,              60);
