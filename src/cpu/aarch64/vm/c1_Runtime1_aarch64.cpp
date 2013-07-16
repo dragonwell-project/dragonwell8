@@ -450,9 +450,9 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
     // Restore SP from FP if the exception PC is a method handle call site.
     {
       Label nope;
-      __ ldr(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
-      __ cbnz(rscratch1, nope);
-      __ call_Unimplemented();
+      __ ldrw(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
+      __ cbzw(rscratch1, nope);
+      __ mov(sp, rfp);
       __ bind(nope);
     }
 
@@ -517,7 +517,7 @@ void Runtime1::generate_unwind_exception(StubAssembler *sasm) {
   {
     Label foo;
     __ ldrw(rscratch1, Address(rthread, JavaThread::is_method_handle_return_offset()));
-    __ cbz(rscratch1, foo);
+    __ cbzw(rscratch1, foo);
     __ mov(sp, rfp);
     __ bind(foo);
   }
