@@ -67,7 +67,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
 
   // get receiver klass
   address npe_addr = __ pc();
-  __ load_klass(r0, j_rarg0);
+  __ load_klass(r19, j_rarg0);
 
 #ifndef PRODUCT
   if (DebugVtables) {
@@ -83,7 +83,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   }
 #endif // PRODUCT
 
-  __ lookup_virtual_method(r0, vtable_index, rmethod);
+  __ lookup_virtual_method(r19, vtable_index, rmethod);
 
   if (DebugVtables) {
     Label L;
