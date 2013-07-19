@@ -481,30 +481,68 @@ void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
   }
 }
 
+// Rather than take a segfault when the polling page is protected,
+// explicitly check for a safepoint in progress and if there is one,
+// fake a call to the handler as if a segfault had been caught.
+void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo* info) {
+  __ mov(rscratch1, SafepointSynchronize::address_of_state());
+  __ ldrb(rscratch1, Address(rscratch1));
+  Label nope, poll;
+  __ cbz(rscratch1, nope);
+  __ block_comment("safepoint");
+  __ enter();
+  __ push(0x3, sp);                // r0 & r1
+  __ push(0x3ffffffc, sp);         // integer registers except lr & sp & r0 & r1
+  __ adr(r0, poll);
+  __ str(r0, Address(rthread, JavaThread::saved_exception_pc_offset()));
+  __ mov(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::get_poll_stub));
+  __ brx86(rscratch1, 1, 0, 1);
+  __ pop(0x3ffffffc, sp);          // integer registers except lr & sp & r0 & r1
+  __ mov(rscratch1, r0);
+  __ pop(0x3, sp);                 // r0 & r1
+  __ leave();
+  __ br(rscratch1);
+  address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+  assert(os::is_poll_address(polling_page), "should be");
+  unsigned long off;
+  __ adrp(rscratch1, Address(polling_page, rtype), off);
+  __ bind(poll);
+  if (info)
+    add_debug_info_for_branch(info);  // This isn't just debug info:
+                                      // it's the oop map
+  else
+    __ code_section()->relocate(pc(), rtype);
+  __ ldrw(zr, Address(rscratch1, off));
+  __ bind(nope);
+}
 
 void LIR_Assembler::return_op(LIR_Opr result) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
   // Pop the stack before the safepoint code
   __ remove_frame(initial_frame_size_in_bytes());
-
-  bool result_is_oop = result->is_valid() ? result->is_oop() : false;
-
-  address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
-  __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+  if (UseCompilerSafepoints) {
+    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+  } else {
+    poll_for_safepoint(relocInfo::poll_return_type);
+  }
   __ ret(lr);
 }
-
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   address polling_page(os::get_polling_page()
 		       + (SafepointPollOffset % os::vm_page_size()));
-  guarantee(info != NULL, "Shouldn't be NULL");
-  assert(os::is_poll_address(polling_page), "should be");
-  unsigned long off;
-  __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
-  add_debug_info_for_branch(info);  // This isn't just debug info:
-				    // it's the oop map
-  __ ldrw(zr, Address(rscratch1, off));
+  if (UseCompilerSafepoints) {
+    guarantee(info != NULL, "Shouldn't be NULL");
+    assert(os::is_poll_address(polling_page), "should be");
+    unsigned long off;
+    __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
+    add_debug_info_for_branch(info);  // This isn't just debug info:
+                                      // it's the oop map
+    __ ldrw(zr, Address(rscratch1, off));
+  } else {
+    poll_for_safepoint(relocInfo::poll_type, info);
+  }
 
   return __ offset();
 }
@@ -2736,7 +2774,7 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
 
 void LIR_Assembler::membar() {
   COMMENT("membar");
-  __ dmb(__ SY);
+  __ dsb(__ SY);
 }
 
 void LIR_Assembler::membar_acquire() { 
@@ -2751,7 +2789,7 @@ void LIR_Assembler::membar_loadload() { Unimplemented(); }
 
 void LIR_Assembler::membar_storestore() {
   COMMENT("membar_storestore");
-  __ dmb(__ ST);
+  __ dsb(__ ST);
 }
 
 void LIR_Assembler::membar_loadstore() { Unimplemented(); }

@@ -56,6 +56,8 @@
   void casw(Register addr, Register newval, Register cmpval);
   void casl(Register addr, Register newval, Register cmpval);
 
+  void poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo* info = NULL);
+
 public:
 
   void store_parameter(Register r, int offset_from_esp_in_words);
