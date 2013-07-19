@@ -705,7 +705,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   if (name) {
     generate_i2c_adapter_name(name, total_args_passed, sig_bt);
-    sim = AArch64Simulator::current();
+    sim = AArch64Simulator::get_current(UseSimulatorCache);
     sim->notifyCompile(name, i2c_entry);
   }
 #endif
@@ -1924,7 +1924,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   if(os::is_MP()) {
     if (UseMembar) {
       // Force this write out before the read below
-      __ dmb(Assembler::SY);
+      __ dsb(Assembler::SY);
     } else {
       // Write serialization page so VM thread can do a pseudo remote membar.
       // We use the current thread pointer to calculate a thread specific

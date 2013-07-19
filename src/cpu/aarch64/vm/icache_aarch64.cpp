@@ -67,7 +67,6 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
 
   address loop = __ pc();
   __ dsb(Assembler::SY);
-  __ dmb(Assembler::SY);
   __ isb();
   // args 1 and 2 identify the start address and size of the flush
   // region but we cannot use them on ARM. the stub is supposed to

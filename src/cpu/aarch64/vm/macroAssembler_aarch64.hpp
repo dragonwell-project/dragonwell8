@@ -1262,13 +1262,13 @@ public:
 
     // Handle simple cases first
     if (order_constraint == StoreStore) {
-      dmb(ST);
+      dsb(ST);
     } else if (order_constraint == LoadLoad
 	|| order_constraint == LoadStore
 	|| order_constraint == (LoadLoad | LoadStore)) {
-      dmb(LD);
+      dsb(LD);
     } else {
-      dmb(SY);
+      dsb(SY);
     }
   }
 

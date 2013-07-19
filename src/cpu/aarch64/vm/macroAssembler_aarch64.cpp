@@ -184,7 +184,7 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
 }
 
 void MacroAssembler::serialize_memory(Register thread, Register tmp) {
-  dmb(Assembler::SY);
+  dsb(Assembler::SY);
 }
 
 
