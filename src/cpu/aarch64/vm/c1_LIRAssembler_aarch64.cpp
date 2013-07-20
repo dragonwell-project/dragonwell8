@@ -1810,7 +1810,12 @@ void LIR_Assembler::arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, 
 
 
 void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Op2* op) {
-  if (opr1->is_single_cpu() || opr1->is_double_cpu()) {
+  if (opr1->is_constant() && opr2->is_single_cpu()) {
+    // tableswitch
+    Register reg = as_reg(opr2);
+    struct tableswitch &table = switches[opr1->as_constant_ptr()->as_jint()];
+    __ tableswitch(reg, table._first_key, table._last_key, table._branches, table._after);
+  } else if (opr1->is_single_cpu() || opr1->is_double_cpu()) {
     Register reg1 = as_reg(opr1);
     if (opr2->is_single_cpu()) {
       // cpu register - cpu register
@@ -2799,7 +2804,131 @@ void LIR_Assembler::membar_storeload() { Unimplemented(); }
 void LIR_Assembler::get_thread(LIR_Opr result_reg) { Unimplemented(); }
 
 
-void LIR_Assembler::peephole(LIR_List*) {
+void LIR_Assembler::peephole(LIR_List *lir) {
+  if (tableswitch_count >= max_tableswitches)
+    return;
+
+  /*
+    This finite-state automaton recognizes sequences of compare-and-
+    branch instructions.  We will turn them into a tableswitch.  You
+    could argue that C1 really shouldn't be doing this sort of
+    optimization, but without it the code is really horrible.
+  */
+
+  enum { start_s, cmp1_s, beq_s, cmp_s } state;
+  int first_key, last_key = -2147483648;
+  int next_key = 0;
+  int start_insn = -1;
+  int last_insn = -1;
+  Register reg = noreg;
+  LIR_Opr reg_opr;
+  state = start_s;
+
+  LIR_OpList* inst = lir->instructions_list();
+  for (int i = 0; i < inst->length(); i++) {
+    LIR_Op* op = inst->at(i);
+    switch (state) {
+    case start_s:
+      first_key = -1;
+      start_insn = i;
+      switch (op->code()) {
+      case lir_cmp:
+	LIR_Opr opr1 = op->as_Op2()->in_opr1();
+	LIR_Opr opr2 = op->as_Op2()->in_opr2();
+	if (opr1->is_cpu_register() && opr1->is_single_cpu()
+	    && opr2->is_constant()
+	    && opr2->type() == T_INT) {
+	  reg_opr = opr1;
+	  reg = opr1->as_register();
+	  first_key = opr2->as_constant_ptr()->as_jint();
+	  next_key = first_key + 1;
+	  state = cmp_s;
+	  goto next_state;
+	}
+	break;
+      }
+      break;
+    case cmp_s:
+      switch (op->code()) {
+      case lir_branch:
+	if (op->as_OpBranch()->cond() == lir_cond_equal) {
+	  state = beq_s;
+	  last_insn = i;
+	  goto next_state;
+	}
+      }
+      state = start_s;
+      break;
+    case beq_s:
+      switch (op->code()) {
+      case lir_cmp: {
+	LIR_Opr opr1 = op->as_Op2()->in_opr1();
+	LIR_Opr opr2 = op->as_Op2()->in_opr2();
+	if (opr1->is_cpu_register() && opr1->is_single_cpu()
+	    && opr1->as_register() == reg
+	    && opr2->is_constant()
+	    && opr2->type() == T_INT
+	    && opr2->as_constant_ptr()->as_jint() == next_key) {
+	  last_key = next_key;
+	  next_key++;
+	  state = cmp_s;
+	  goto next_state;
+	}
+      }
+      }
+      last_key = next_key;
+      state = start_s;
+      break;
+    default:
+      assert(false, "impossible state");
+    }
+    if (state == start_s) {
+      if (first_key < last_key - 5L && reg != noreg) {
+	{
+	  // printf("found run register %d starting at insn %d low value %d high value %d\n",
+	  //        reg->encoding(),
+	  //        start_insn, first_key, last_key);
+	  //   for (int i = 0; i < inst->length(); i++) {
+	  //     inst->at(i)->print();
+	  //     tty->print("\n");
+	  //   }
+	  //   tty->print("\n");
+	}
+
+	struct tableswitch *sw = &switches[tableswitch_count];
+	sw->_insn_index = start_insn, sw->_first_key = first_key,
+	  sw->_last_key = last_key, sw->_reg = reg;
+	inst->insert_before(last_insn + 1, new LIR_OpLabel(&sw->_after));
+	{
+	  // Insert the new table of branches
+	  int offset = last_insn;
+	  for (int n = first_key; n < last_key; n++) {
+	    inst->insert_before
+	      (last_insn + 1,
+	       new LIR_OpBranch(lir_cond_always, T_ILLEGAL,
+				inst->at(offset)->as_OpBranch()->label()));
+	    offset -= 2, i++;
+	  }
+	}
+	// Delete all the old compare-and-branch instructions
+	for (int n = first_key; n < last_key; n++) {
+	  inst->remove_at(start_insn);
+	  inst->remove_at(start_insn);
+	}
+	// Insert the tableswitch instruction
+	inst->insert_before(start_insn,
+			    new LIR_Op2(lir_cmp, lir_cond_always,
+					LIR_OprFact::intConst(tableswitch_count),
+					reg_opr));
+	inst->insert_before(start_insn + 1, new LIR_OpLabel(&sw->_branches));
+	tableswitch_count++;
+      }
+      reg = noreg;
+      last_key = -2147483648;
+    }
+  next_state:
+    ;
+  }
 }
 
 void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp) { Unimplemented(); }

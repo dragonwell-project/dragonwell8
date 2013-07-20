@@ -1218,6 +1218,16 @@ public:
   void repne_scanw(Register addr, Register value, Register count,
 		   Register scratch);
 
+  void tableswitch(Register index, jint lowbound, jint highbound,
+		   Label &jumptable, Label &jumptable_end) {
+    adr(rscratch1, jumptable);
+    subw(rscratch2, index, lowbound);
+    cmpw(rscratch2, highbound - lowbound);
+    br(Assembler::HS, jumptable_end);
+    add(rscratch1, rscratch1, rscratch2, ext::sxtw, 2);
+    br(rscratch1);
+  }
+
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
 
@@ -1304,6 +1314,13 @@ class SkipIfEqual {
  public:
    SkipIfEqual(MacroAssembler*, const bool* flag_addr, bool value);
    ~SkipIfEqual();
+};
+
+struct tableswitch {
+  Register _reg;
+  int _insn_index; jint _first_key; jint _last_key;
+  Label _after;
+  Label _branches;
 };
 
 #endif // CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP

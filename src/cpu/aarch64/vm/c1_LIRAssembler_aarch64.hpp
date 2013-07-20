@@ -58,6 +58,12 @@
 
   void poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo* info = NULL);
 
+  static const int max_tableswitches = 20;
+  struct tableswitch switches[max_tableswitches];
+  int tableswitch_count;
+
+  void init() { tableswitch_count = 0; }
+
 public:
 
   void store_parameter(Register r, int offset_from_esp_in_words);
