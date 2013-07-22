@@ -418,7 +418,7 @@ void TemplateTable::ldc(bool wide)
 #endif
   // itos JVM_CONSTANT_Integer only
   __ adds(r1, r2, r1, Assembler::LSL, 3);
-  __ ldr(r0, Address(r1, base_offset));
+  __ ldrw(r0, Address(r1, base_offset));
   __ push_i(r0);
   __ bind(Done);
 }
@@ -1716,7 +1716,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
       // r2: scratch
       __ cbz(r0, dispatch);	// test result -- no osr if null
       // nmethod may have been invalidated (VM may block upon call_VM return)
-      __ ldr(r2, Address(r0, nmethod::entry_bci_offset()));
+      __ ldrw(r2, Address(r0, nmethod::entry_bci_offset()));
       // InvalidOSREntryBci == -2 which overflows cmpw as unsigned
       // use cmnw against -InvalidOSREntryBci which does the same thing
       __ cmn(r2, -InvalidOSREntryBci);
@@ -3218,7 +3218,7 @@ void TemplateTable::anewarray() {
 void TemplateTable::arraylength() {
   transition(atos, itos);
   __ null_check(r0, arrayOopDesc::length_offset_in_bytes());
-  __ ldr(r0, Address(r0, arrayOopDesc::length_offset_in_bytes()));
+  __ ldrw(r0, Address(r0, arrayOopDesc::length_offset_in_bytes()));
 }
 
 void TemplateTable::checkcast()
