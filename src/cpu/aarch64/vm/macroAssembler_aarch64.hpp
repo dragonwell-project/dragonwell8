@@ -1218,11 +1218,22 @@ public:
   void repne_scanw(Register addr, Register value, Register count,
 		   Register scratch);
 
+  // SUBSW with an arbitrary integer operand
+  void adjsw(Register Rd, Register Rn, jint imm) {
+    if (operand_valid_for_add_sub_immediate(imm)) {
+      subsw(Rd, Rn, imm);
+    } else {
+      assert_different_registers(Rd, Rn);
+      movw(Rd, imm);
+      subsw(Rd, Rn, Rd);
+    }
+  }
+
   void tableswitch(Register index, jint lowbound, jint highbound,
 		   Label &jumptable, Label &jumptable_end) {
     adr(rscratch1, jumptable);
-    subw(rscratch2, index, lowbound);
-    cmpw(rscratch2, highbound - lowbound);
+    adjsw(rscratch2, index, lowbound);
+    adjsw(zr, rscratch2, highbound - lowbound);
     br(Assembler::HS, jumptable_end);
     add(rscratch1, rscratch1, rscratch2, ext::sxtw, 2);
     br(rscratch1);
