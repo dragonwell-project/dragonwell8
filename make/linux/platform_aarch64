@@ -12,4 +12,4 @@ lib_arch = aarch64
 
 compiler = gcc
 
-sysdefs = -DLINUX -D_GNU_SOURCE -DAARCH64 -DAMD64
+sysdefs = -DLINUX -D_GNU_SOURCE -DAARCH64

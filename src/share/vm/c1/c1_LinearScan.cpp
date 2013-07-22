@@ -140,12 +140,10 @@ int LinearScan::reg_num(LIR_Opr opr) {
   } else if (opr->is_double_cpu()) {
     return opr->cpu_regnrLo();
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
   } else if (opr->is_single_xmm()) {
     return opr->fpu_regnr() + pd_first_xmm_reg;
   } else if (opr->is_double_xmm()) {
     return opr->fpu_regnrLo() + pd_first_xmm_reg;
-#endif
 #endif
   } else if (opr->is_single_fpu()) {
     return opr->fpu_regnr() + pd_first_fpu_reg;
@@ -1098,7 +1096,7 @@ IntervalUseKind LinearScan::use_kind_of_input_operand(LIR_Op* op, LIR_Opr opr) {
   }
 
 
-#if defined(X86) && !defined(TARGET_ARCH_aarch64)
+#if defined(X86)
   if (op->code() == lir_cmove) {
     // conditional moves can handle stack operands
     assert(op->result_opr()->is_register(), "result must always be in a register");
@@ -1299,9 +1297,7 @@ void LinearScan::build_intervals() {
   // perfomed and so the temp ranges would be useless
   if (has_fpu_registers()) {
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
     if (UseSSE < 2) {
-#endif
 #endif
       for (i = 0; i < FrameMap::nof_caller_save_fpu_regs; i++) {
         LIR_Opr opr = FrameMap::caller_save_fpu_reg_at(i);
@@ -1310,7 +1306,6 @@ void LinearScan::build_intervals() {
         caller_save_registers[num_caller_save_registers++] = reg_num(opr);
       }
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
     }
     if (UseSSE > 0) {
       for (i = 0; i < FrameMap::nof_caller_save_xmm_regs; i++) {
@@ -1320,7 +1315,6 @@ void LinearScan::build_intervals() {
         caller_save_registers[num_caller_save_registers++] = reg_num(opr);
       }
     }
-#endif
 #endif
   }
   assert(num_caller_save_registers <= LinearScan::nof_regs, "out of bounds");
@@ -2121,13 +2115,11 @@ LIR_Opr LinearScan::calc_operand_for_interval(const Interval* interval) {
 #ifndef __SOFTFP__
       case T_FLOAT: {
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
         if (UseSSE >= 1) {
           assert(assigned_reg >= pd_first_xmm_reg && assigned_reg <= pd_last_xmm_reg, "no xmm register");
           assert(interval->assigned_regHi() == any_reg, "must not have hi register");
           return LIR_OprFact::single_xmm(assigned_reg - pd_first_xmm_reg);
         }
-#endif
 #endif
 
         assert(assigned_reg >= pd_first_fpu_reg && assigned_reg <= pd_last_fpu_reg, "no fpu register");
@@ -2137,13 +2129,11 @@ LIR_Opr LinearScan::calc_operand_for_interval(const Interval* interval) {
 
       case T_DOUBLE: {
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
         if (UseSSE >= 2) {
           assert(assigned_reg >= pd_first_xmm_reg && assigned_reg <= pd_last_xmm_reg, "no xmm register");
           assert(interval->assigned_regHi() == any_reg, "must not have hi register (double xmm values are stored in one register)");
           return LIR_OprFact::double_xmm(assigned_reg - pd_first_xmm_reg);
         }
-#endif
 #endif
 
 #ifdef SPARC
@@ -2208,7 +2198,7 @@ LIR_Opr LinearScan::color_lir_opr(LIR_Opr opr, int op_id, LIR_OpVisitState::OprM
 
   LIR_Opr res = operand_for_interval(interval);
 
-#ifdef X86
+#if defined(X86) || defined(AARCH64)
   // new semantic for is_last_use: not only set on definite end of interval,
   // but also before hole
   // This may still miss some cases (e.g. for dead values), but it is not necessary that the
@@ -2613,7 +2603,6 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
     return 1;
 
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
   } else if (opr->is_single_xmm()) {
     VMReg rname = opr->as_xmm_float_reg()->as_VMReg();
     LocationValue* sv = new LocationValue(Location::new_reg_loc(Location::normal, rname));
@@ -2621,18 +2610,15 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
     scope_values->append(sv);
     return 1;
 #endif
-#endif
 
   } else if (opr->is_single_fpu()) {
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
     // the exact location of fpu stack values is only known
     // during fpu stack allocation, so the stack allocator object
     // must be present
     assert(use_fpu_stack_allocation(), "should not have float stack values without fpu stack allocation (all floats must be SSE2)");
     assert(_fpu_stack_allocator != NULL, "must be present");
     opr = _fpu_stack_allocator->to_fpu_stack(opr);
-#endif
 #endif
 
     Location::Type loc_type = float_saved_as_double ? Location::float_in_dbl : Location::normal;
@@ -2707,7 +2693,6 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
 
 
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
     } else if (opr->is_double_xmm()) {
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi(), "assumed in calculation");
       VMReg rname_first  = opr->as_xmm_double_reg()->as_VMReg();
@@ -2723,7 +2708,6 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
       }
 #  endif
 #endif
-#endif
 
     } else if (opr->is_double_fpu()) {
       // On SPARC, fpu_regnrLo/fpu_regnrHi represents the two halves of
@@ -2734,7 +2718,6 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
       // least and most significant words, respectively.
 
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
       // the exact location of fpu stack values is only known
       // during fpu stack allocation, so the stack allocator object
       // must be present
@@ -2743,7 +2726,6 @@ int LinearScan::append_scope_value_for_operand(LIR_Opr opr, GrowableArray<ScopeV
       opr = _fpu_stack_allocator->to_fpu_stack(opr);
 
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi(), "assumed in calculation (only fpu_regnrLo is used)");
-#endif
 #endif
 #ifdef SPARC
       assert(opr->fpu_regnrLo() == opr->fpu_regnrHi() + 1, "assumed in calculation (only fpu_regnrHi is used)");
@@ -3636,11 +3618,9 @@ void RegisterVerifier::process_operations(LIR_List* ops, IntervalList* input_sta
       }
 
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
       for (j = 0; j < FrameMap::nof_caller_save_xmm_regs; j++) {
         state_put(input_state, reg_num(FrameMap::caller_save_xmm_reg_at(j)), NULL);
       }
-#endif
 #endif
     }
 
@@ -4557,10 +4537,8 @@ void Interval::print(outputStream* out) const {
     } else if (assigned_reg() >= pd_first_fpu_reg && assigned_reg() <= pd_last_fpu_reg) {
       opr = LIR_OprFact::single_fpu(assigned_reg() - pd_first_fpu_reg);
 #ifdef X86
-#ifndef TARGET_ARCH_aarch64
     } else if (assigned_reg() >= pd_first_xmm_reg && assigned_reg() <= pd_last_xmm_reg) {
       opr = LIR_OprFact::single_xmm(assigned_reg() - pd_first_xmm_reg);
-#endif
 #endif
     } else {
       // ShouldNotReachHere();
@@ -5639,7 +5617,7 @@ void LinearScanWalker::alloc_locked_reg(Interval* cur) {
 }
 
 bool LinearScanWalker::no_allocation_possible(Interval* cur) {
-#if defined(X86) && !defined(TARGET_ARCH_aarch64)
+#if defined(X86)
   // fast calculation of intervals that can never get a register because the
   // the next instruction is a call that blocks all registers
   // Note: this does not work if callee-saved registers are available (e.g. on Sparc)

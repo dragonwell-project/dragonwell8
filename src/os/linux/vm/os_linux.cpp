@@ -1422,8 +1422,12 @@ void os::Linux::clock_init() {
 
 #ifndef SYS_clock_getres
 
-#if defined(IA32) || defined(AMD64)
-#define SYS_clock_getres IA32_ONLY(266)  AMD64_ONLY(229)
+#if defined(IA32) || defined(AMD64) || defined(AARCH64)
+#ifdef BUILTIN_SIM
+#define SYS_clock_getres 229
+#else
+#define SYS_clock_getres IA32_ONLY(266)  AMD64_ONLY(229) AARCH64_ONLY(114)
+#endif
 #define sys_clock_getres(x,y)  ::syscall(SYS_clock_getres, x, y)
 #else
 #warning "SYS_clock_getres not defined for this platform, disabling fast_thread_cpu_time"
@@ -2013,7 +2017,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
     static  Elf32_Half running_arch_code=EM_MIPS;
   #elif  (defined M68K)
     static  Elf32_Half running_arch_code=EM_68K;
-  #elif  (defined TARGET_ARCH_aarch64)
+  #elif  (defined AARCH64)
     static  Elf32_Half running_arch_code=EM_AARCH64;
   #else
     #error Method os::dll_load requires that one of following is defined:\
@@ -2921,12 +2925,7 @@ int os::Linux::sched_getcpu_syscall(void) {
   unsigned int cpu = 0;
   int retval = -1;
 
-#if defined(IA32)
-# ifndef SYS_getcpu
-# define SYS_getcpu 318
-# endif
-  retval = syscall(SYS_getcpu, &cpu, NULL, NULL);
-#elif defined(AMD64)
+#if defined(AMD64) || defined(BUILTIN_SIM)
 // Unfortunately we have to bring all these macros here from vsyscall.h
 // to be able to compile on old linuxes.
 # define __NR_vgetcpu 2
@@ -2936,6 +2935,11 @@ int os::Linux::sched_getcpu_syscall(void) {
   typedef long (*vgetcpu_t)(unsigned int *cpu, unsigned int *node, unsigned long *tcache);
   vgetcpu_t vgetcpu = (vgetcpu_t)VSYSCALL_ADDR(__NR_vgetcpu);
   retval = vgetcpu(&cpu, NULL, NULL);
+#elif defined(IA32) || defined(AARCH64)
+# ifndef SYS_getcpu
+#  define SYS_getcpu AARCH64_ONLY(168) NOT_AARCH64(318)
+# endif
+  retval = syscall(SYS_getcpu, &cpu, NULL, NULL);
 #endif
 
   return (retval == -1) ? retval : cpu;

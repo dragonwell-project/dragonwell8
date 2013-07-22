@@ -156,7 +156,7 @@ class InterpreterRuntime: AllStatic {
                                         Method* method,
                                         intptr_t* from, intptr_t* to);
 
-#if defined(IA32) || defined(AMD64) || defined(ARM)
+#if defined(IA32) || defined(AMD64) || defined(ARM) || defined(AARCH64)
   // Popframe support (only needed on x86, AMD64 and ARM)
   static void popframe_move_outgoing_args(JavaThread* thread, void* src_address, void* dest_address);
 #endif

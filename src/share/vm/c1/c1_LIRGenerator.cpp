@@ -2105,7 +2105,7 @@ void LIRGenerator::do_UnsafeGetRaw(UnsafeGetRaw* x) {
     assert(index_op->type() == T_INT, "only int constants supported");
     addr = new LIR_Address(base_op, index_op->as_jint(), dst_type);
   } else {
-#ifdef X86
+#if defined(X86) || defined(AARCH64)
     addr = new LIR_Address(base_op, index_op, LIR_Address::Scale(log2_scale), 0, dst_type);
 #elif defined(GENERATE_ADDRESS_IS_PREFERRED)
     addr = generate_address(base_op, index_op, log2_scale, 0, dst_type);
