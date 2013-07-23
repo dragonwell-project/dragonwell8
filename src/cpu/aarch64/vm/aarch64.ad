@@ -1327,16 +1327,27 @@ uint MachSpillCopyNode::size(PhaseRegAlloc *ra_) const {
 
 #ifndef PRODUCT
 void BoxLockNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
-  Unimplemented();
+  int offset = ra_->reg2offset(in_RegMask(0).find_first_elem());
+  int reg = ra_->get_reg_first(this);
+  st->print("add %s, rsp, #%d]\t# box lock",
+            Matcher::regName[reg], offset);
 }
 #endif
 
 void BoxLockNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  Unimplemented();
+  MacroAssembler _masm(&cbuf);
+
+  int offset = ra_->reg2offset(in_RegMask(0).find_first_elem());
+  int reg    = ra_->get_encode(this);
+
+  if (Assembler::operand_valid_for_add_sub_immediate(offset)) {
+    __ add(as_Register(reg), sp, offset);
+  } else {
+    ShouldNotReachHere();
+  }
 }
 
 uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
-  Unimplemented();
   // BoxLockNode is not a MachNode, so we can't just call MachNode::size(ra_).
   return 4;
 }
@@ -2584,6 +2595,205 @@ encode %{
     // assume that ret addr has been popped into lr
     __ ldr(r1, lr);
     __ blr(target_reg);
+  %}
+
+  enc_class aarch64_enc_fast_lock(iRegP object, iRegP box, iRegP tmp, iRegP tmp2) %{
+    MacroAssembler _masm(&cbuf);
+    Register oop = as_Register($object$$reg);
+    Register box = as_Register($box$$reg);
+    Register disp_hdr = as_Register($tmp$$reg);
+    Register tmp = as_Register($tmp2$$reg);
+    Label cont;
+    Label object_has_monitor;
+    Label cas_failed;
+
+    assert_different_registers(oop, box, tmp, disp_hdr);
+
+    // Load markOop from object into displaced_header.
+    __ ldr(disp_hdr, Address(oop, oopDesc::mark_offset_in_bytes()));
+
+    // Always do locking in runtime.
+    if (EmitSync & 0x01) {
+      __ cmp(oop, zr);
+      return;
+    }
+    
+    if (UseBiasedLocking) {
+      __ biased_locking_enter(disp_hdr, oop, box, tmp, true, cont);
+    }
+
+    // Handle existing monitor
+    if (EmitSync & 0x02) {
+      // we can use AArch64's bit test and branch here but
+      // markoopDesc does not define a bit index just the bit value
+      // so assert in case the bit pos changes
+#     define __monitor_value_log2 1
+      assert(markOopDesc::monitor_value == (1 << __monitor_value_log2), "incorrect bit position");
+      __ tbnz(disp_hdr, __monitor_value_log2, object_has_monitor);
+#     undef __monitor_value_log2
+    }
+
+    // Set displaced_header to be (markOop of object | UNLOCK_VALUE).
+    __ orrw(disp_hdr, disp_hdr, markOopDesc::unlocked_value);
+
+    // Load Compare Value application register.
+
+    // Initialize the box. (Must happen before we update the object mark!)
+    __ str(disp_hdr, Address(box, BasicLock::displaced_header_offset_in_bytes()));
+
+    // Compare object markOop with mark and if equal exchange scratch1 with object markOop.
+    __ cmpxchgptr(/*compare_value=*/disp_hdr,
+                  /*exchange_value=*/box,
+                  /*where=*/oop,
+                  /*result=*/tmp,
+                  cont,
+                  cas_failed);
+    assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
+
+    // If the compare-and-exchange succeeded, then we found an unlocked
+    // object, will have now locked it will continue at label cont
+
+    __ bind(cas_failed);
+    // We did not see an unlocked object so try the fast recursive case.
+
+    // Check if the owner is self by comparing the value in the
+    // markOop of object (disp_hdr) with the stack pointer.
+    __ mov(rscratch1, sp);
+    __ sub(disp_hdr, disp_hdr, rscratch1);
+    __ mov(tmp, (address) (~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place));
+    // If condition is true we are cont and hence we can store 0 as the
+    // displaced header in the box, which indicates that it is a recursive lock.
+    __ ands(tmp/*==0?*/, disp_hdr, tmp);
+    __ str(tmp/*==0, perhaps*/, Address(box, BasicLock::displaced_header_offset_in_bytes()));
+
+    // Handle existing monitor.
+    if ((EmitSync & 0x02) == 0) {
+      __ b(cont);
+
+      __ bind(object_has_monitor);
+      // The object's monitor m is unlocked iff m->owner == NULL,
+      // otherwise m->owner may contain a thread or a stack address.
+      //
+      // Try to CAS m->owner from NULL to current thread.
+      __ addw(tmp, disp_hdr, (ObjectMonitor::owner_offset_in_bytes()-markOopDesc::monitor_value));
+      __ mov(disp_hdr, zr);
+      Label next;
+      __ cmpxchgptr(/*compare_value=*/disp_hdr,
+                    /*exchange_value=*/rthread,
+                    /*where=*/tmp,
+                    /*result=*/rscratch1,
+                    next,
+                    next);
+      __ bind(next);
+
+      // store a non-null value into the box.
+      __ str(box, Address(box, BasicLock::displaced_header_offset_in_bytes()));
+
+      // PPC port checks the following invariants
+      // #ifdef ASSERT
+      // bne(flag, cont);
+      // We have acquired the monitor, check some invariants.
+      // addw(/*monitor=*/tmp, tmp, -ObjectMonitor::owner_offset_in_bytes());
+      // Invariant 1: _recursions should be 0.
+      // assert(ObjectMonitor::recursions_size_in_bytes() == 8, "unexpected size");
+      // assert_mem8_is_zero(ObjectMonitor::recursions_offset_in_bytes(), tmp,
+      //                        "monitor->_recursions should be 0", -1);
+      // Invariant 2: OwnerIsThread shouldn't be 0.
+      // assert(ObjectMonitor::OwnerIsThread_size_in_bytes() == 4, "unexpected size");
+      //assert_mem4_isnot_zero(ObjectMonitor::OwnerIsThread_offset_in_bytes(), tmp,
+      //                           "monitor->OwnerIsThread shouldn't be 0", -1);
+      // #endif
+    }
+
+    __ bind(cont);
+    // flag == EQ indicates success
+    // flag == NE indicates failure
+
+  %}
+
+  enc_class aarch64_enc_fast_unlock(iRegP object, iRegP box, iRegP tmp, iRegP tmp2) %{
+    MacroAssembler _masm(&cbuf);
+    Register oop = as_Register($object$$reg);
+    Register box = as_Register($box$$reg);
+    Register disp_hdr = as_Register($tmp$$reg);
+    Register tmp = as_Register($tmp2$$reg);
+    Label cont;
+    Label object_has_monitor;
+    Label cas_failed;
+
+    assert_different_registers(oop, box, tmp, disp_hdr);
+
+    // Always do locking in runtime.
+    if (EmitSync & 0x01) {
+      __ cmp(oop, zr); // Oop can't be 0 here => always false.
+      return;
+    }
+
+    if (UseBiasedLocking) {
+      __ biased_locking_exit(oop, tmp, cont);
+    }
+
+    // Find the lock address and load the displaced header from the stack.
+    __ ldr(disp_hdr, Address(box, BasicLock::displaced_header_offset_in_bytes()));
+
+    // If the displaced header is 0, we have a recursive unlock.
+    __ cmp(disp_hdr, zr);
+    __ br(Assembler::EQ, cont);
+
+
+    // Handle existing monitor.
+    if ((EmitSync & 0x02) == 0) {
+      __ ldr(tmp, Address(oop, oopDesc::mark_offset_in_bytes()));
+      // we can use AArch64's bit test and branch here but
+      // markoopDesc does not define a bit index just the bit value
+      // so assert in case the bit pos changes
+#     define __monitor_value_log2 1
+      assert(markOopDesc::monitor_value == (1 << __monitor_value_log2), "incorrect bit position");
+      __ tbnz(disp_hdr, __monitor_value_log2, object_has_monitor);
+#     undef __monitor_value_log2
+    }
+
+    // Check if it is still a light weight lock, this is is true if we
+    // see the stack address of the basicLock in the markOop of the
+    // object.
+
+    __ cmpxchgptr(/*compare_value=*/box,
+                  /*exchange_value=*/disp_hdr,
+                  /*where=*/oop,
+                  /*result=*/tmp,
+                  cont,
+                  cas_failed);
+    assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
+
+    __ bind(cas_failed);
+
+    // Handle existing monitor.
+    if ((EmitSync & 0x02) == 0) {
+      __ b(cont);
+
+      __ bind(object_has_monitor);
+      __ add(tmp, tmp, -markOopDesc::monitor_value); // monitor
+      __ ldr(rscratch1, Address(tmp, ObjectMonitor::owner_offset_in_bytes()));
+      __ ldr(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset_in_bytes()));
+      __ eor(rscratch1, rscratch1, rthread); // Will be 0 if we are the owner.
+      __ orr(rscratch1, rscratch1, disp_hdr); // Will be 0 if there are 0 recursions
+      __ cmp(rscratch1, zr);
+      __ br(Assembler::NE, cont);
+
+      __ ldr(rscratch1, Address(tmp, ObjectMonitor::EntryList_offset_in_bytes()));
+      __ ldr(disp_hdr, Address(tmp, ObjectMonitor::cxq_offset_in_bytes()));
+      __ orr(rscratch1, rscratch1, disp_hdr); // Will be 0 if both are 0.
+      __ cmp(rscratch1, zr);
+      __ br(Assembler::NE, cont);
+      // need a release store here
+      __ lea(tmp, Address(tmp, ObjectMonitor::owner_offset_in_bytes()));
+      __ mov(zr, rscratch1);
+      __ stlr(rscratch1, tmp);
+    }
+
+    __ bind(cont);
+    // flag == EQ indicates success
+    // flag == NE indicates failure
   %}
 
 %}
@@ -6529,6 +6739,38 @@ instruct branchLoopEndU(cmpOpU cmp, rFlagsReg cr, label lbl)
 // counted loop end branch far
 // counted loop end branch far unsigned
 // TODO: fixme
+
+// ============================================================================
+// inlined locking and unlocking
+
+instruct cmpFastLock(rFlagsReg cr, iRegPNoSp object, iRegPNoSp box, iRegPNoSp tmp, iRegPNoSp tmp2)
+%{
+  match(Set cr (FastLock object box));
+  effect(TEMP tmp, TEMP tmp2);
+
+  // TODO
+  // identify correct cost
+  ins_cost(DEFAULT_COST);
+  format %{ "fastlock $object,$box\t! kills $tmp,$tmp2" %}
+
+  ins_encode(aarch64_enc_fast_lock(object, box, tmp, tmp2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct cmpFastUnlock(rFlagsReg cr, iRegPNoSp object, iRegPNoSp box, iRegPNoSp tmp, iRegPNoSp tmp2)
+%{
+  match(Set cr (FastUnlock object box));
+  effect(TEMP tmp, TEMP tmp2);
+
+  ins_cost(300);
+  format %{ "fastunlock $object,$box\t! kills $tmp, $tmp2" %}
+
+  ins_encode(aarch64_enc_fast_unlock(object, box, tmp, tmp2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
 
 // ============================================================================
 // Procedure Call/Return Instructions
