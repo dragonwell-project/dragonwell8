@@ -143,6 +143,17 @@ class MacroAssembler: public Assembler {
 
   virtual void notify(int type);
 
+  // Overrides
+
+  void subsw(Register Rd, Register Rn, Register Rm,
+	     enum shift_kind kind, unsigned shift = 0) {
+    Assembler::subsw(Rd, Rn, Rm, kind, shift);
+  }
+
+  void subsw(Register Rd, Register Rn, Register Rm) {
+    Assembler::subsw(Rd, Rn, Rm);
+  }
+
   // aliases defined in AARCH64 spec
 
 
@@ -1219,9 +1230,9 @@ public:
 		   Register scratch);
 
   // SUBSW with an arbitrary integer operand
-  void adjsw(Register Rd, Register Rn, jint imm) {
-    if (operand_valid_for_add_sub_immediate(imm)) {
-      subsw(Rd, Rn, imm);
+  virtual void subsw(Register Rd, Register Rn, unsigned imm) {
+    if (operand_valid_for_add_sub_immediate((int)imm)) {
+      Assembler::subsw(Rd, Rn, imm);
     } else {
       assert_different_registers(Rd, Rn);
       movw(Rd, imm);
@@ -1232,8 +1243,8 @@ public:
   void tableswitch(Register index, jint lowbound, jint highbound,
 		   Label &jumptable, Label &jumptable_end) {
     adr(rscratch1, jumptable);
-    adjsw(rscratch2, index, lowbound);
-    adjsw(zr, rscratch2, highbound - lowbound);
+    subsw(rscratch2, index, lowbound);
+    subsw(zr, rscratch2, highbound - lowbound);
     br(Assembler::HS, jumptable_end);
     add(rscratch1, rscratch1, rscratch2, ext::sxtw, 2);
     br(rscratch1);
