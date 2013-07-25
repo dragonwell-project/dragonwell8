@@ -6778,6 +6778,40 @@ instruct compN_reg_reg(rFlagsReg cr, iRegN op1, iRegN op2)
   ins_pipe(pipe_class_compare);
 %}
 
+instruct compF_reg_reg(rFlagsReg cr, vRegF src1, vRegF src2)
+%{
+  match(Set cr (CmpF src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  // TODO
+  // don't think we care about NaNs here as we compare using LT or HI
+  // which do the right thing for unordered but check this
+  format %{ "fcmps $src1, $src2" %}
+
+  ins_encode %{
+    __ fcmps(as_FloatRegister($src1$$reg), as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
+%{
+  match(Set cr (CmpD src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  // TODO
+  // don't think we care about NaNs here as we compare using LT or HI
+  // which do the right thing for unordered but check this
+  format %{ "fcmpd $src1, $src2" %}
+
+  ins_encode %{
+    __ fcmpd(as_FloatRegister($src1$$reg), as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_compare);
+%}
+
 // ============================================================================
 // Max and Min
 
