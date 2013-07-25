@@ -143,17 +143,6 @@ class MacroAssembler: public Assembler {
 
   virtual void notify(int type);
 
-  // Overrides
-
-  void subsw(Register Rd, Register Rn, Register Rm,
-	     enum shift_kind kind, unsigned shift = 0) {
-    Assembler::subsw(Rd, Rn, Rm, kind, shift);
-  }
-
-  void subsw(Register Rd, Register Rn, Register Rm) {
-    Assembler::subsw(Rd, Rn, Rm);
-  }
-
   // aliases defined in AARCH64 spec
 
 
@@ -1229,16 +1218,36 @@ public:
   void repne_scanw(Register addr, Register value, Register count,
 		   Register scratch);
 
-  // SUBSW with an arbitrary integer operand
-  virtual void subsw(Register Rd, Register Rn, unsigned imm) {
-    if (operand_valid_for_add_sub_immediate((int)imm)) {
-      Assembler::subsw(Rd, Rn, imm);
-    } else {
-      assert_different_registers(Rd, Rn);
-      movw(Rd, imm);
-      subsw(Rd, Rn, Rd);
-    }
+  typedef void (MacroAssembler::* add_sub_imm_insn)(Register Rd, Register Rn, unsigned imm);
+  typedef void (MacroAssembler::* add_sub_reg_insn)(Register Rd, Register Rn, Register Rm, enum shift_kind kind, unsigned shift);
+
+  // If a constant does not fit in an immediate field, generate some
+  // number of MOV instructions and then perform the operation
+  void wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
+			     add_sub_imm_insn insn1,
+			     add_sub_reg_insn insn2);
+
+#define WRAP(INSN)							\
+  void INSN(Register Rd, Register Rn, unsigned imm) {			\
+    wrap_add_sub_imm_insn(Rd, Rn, imm, &Assembler::INSN, &Assembler::INSN); \
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm,			\
+	     enum shift_kind kind, unsigned shift = 0) {		\
+    Assembler::INSN(Rd, Rn, Rm, kind, shift);				\
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm) {			\
+    Assembler::INSN(Rd, Rn, Rm);					\
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm,			\
+           ext::operation option, int amount = 0) {			\
+    Assembler::INSN(Rd, Rn, Rm, option, amount);			\
   }
+
+  WRAP(add) WRAP(addw) WRAP(sub) WRAP(subw)
+  WRAP(adds) WRAP(addsw) WRAP(subs) WRAP(subsw)
 
   void tableswitch(Register index, jint lowbound, jint highbound,
 		   Label &jumptable, Label &jumptable_end) {

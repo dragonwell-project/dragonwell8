@@ -1516,6 +1516,21 @@ void MacroAssembler::leave()
   ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
 }
 
+// If a constant does not fit in an immediate field, generate some
+// number of MOV instructions and then perform the operation
+void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
+					   add_sub_imm_insn insn1,
+					   add_sub_reg_insn insn2) {
+  if (operand_valid_for_add_sub_immediate((int)imm)) {
+    (this->*insn1)(Rd, Rn, imm);
+  } else {
+    assert_different_registers(Rd, Rn);
+    mov(Rd, (uint64_t)imm);
+    (this->*insn2)(Rd, Rn, Rd, LSL, 0);
+  }
+}
+
+
 #ifdef ASSERT
 static Register spill_registers[] = {
   rheapbase,
