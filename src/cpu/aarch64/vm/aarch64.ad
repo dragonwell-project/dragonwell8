@@ -735,7 +735,6 @@ int MachCallStaticJavaNode::ret_addr_offset()
 
 int MachCallDynamicJavaNode::ret_addr_offset()
 {
-  Unimplemented();
   // TODO: check this it should just be a bl/blr
   return 4;
 }
