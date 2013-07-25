@@ -2256,8 +2256,41 @@ encode %{
         __ lea(rscratch1, Address(base, disp));
 	//__ prfm(Address(rscratch1, index_reg, Address::lsl(scale)), PSTL1STRM);
         __ nop();
+      }
     }
-    }
+  %}
+
+  enc_class aarch64_enc_clear_array_reg_reg(iRegL cnt, iRegP base) %{
+    MacroAssembler _masm(&cbuf);
+    Register cnt_orig = as_Register($cnt$$reg);
+    Register base_orig = as_Register($base$$reg);
+    Register cnt_reg = rscratch1;
+    Register base_reg = rscratch2;
+    // base is doubleword aligned
+    // cnt is count of doublewords
+
+    // TODO
+    // look for more efficient ways of doing this
+    // e.g. use stp?
+
+    // copy the input registers so we can modify them. we really want
+    // the input registers to be USE_KILL but that requires them to be
+    // defined registers. copying is always worse than maybe being
+    // able to allocate a specific register
+
+    __ mov(cnt_reg, cnt_orig);
+    __ mov(base_reg, base_orig);
+
+    // for now we just write cnt zeros
+    Label loop;
+    Label done;
+    __ bind(loop);
+    __ cmp(cnt_reg, zr);
+    __ br(Assembler::LT, done);
+    __ str(zr, __ post(base_reg, wordSize));
+    __ b(loop);
+    __ bind(done);
+
   %}
 
   /// mov envcodings
@@ -6515,6 +6548,27 @@ instruct convL2D_reg_reg(vRegD dst, iRegL src) %{
   %}
 
   ins_pipe(pipe_class_default);
+%}
+
+// ============================================================================
+// clearing of an array
+
+instruct clearArray_reg_reg(iRegLNoSp cnt, iRegPNoSp base, Universe dummy, rFlagsReg cr)
+%{
+  match(Set dummy (ClearArray cnt base));
+  // TODO
+  // we really want to allocate cnt and base in defined registers.
+  // that would allow us to mark them as USE_KILL and modify them in
+  // place. we cannot do that if we use a register class (why?).  so
+  // for now we acceot the hit of a copy into rscratch1 and rscratch2
+  effect(USE cnt, USE base, KILL cr);
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ClearArray $cnt, $base" %}
+
+  ins_encode(aarch64_enc_clear_array_reg_reg(cnt, base));
+
+  ins_pipe(pipe_class_memory);
 %}
 
 // ============================================================================
