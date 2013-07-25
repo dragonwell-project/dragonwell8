@@ -6998,6 +6998,29 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegPNoSp object, iRegPNoSp box, iRegPNoSp 
 
 
 // ============================================================================
+// Safepoint Instructions
+
+// TODO
+// provide a near and far version of this code
+
+instruct safePoint_poll(rFlagsReg cr, iRegP poll)
+%{
+  match(SafePoint poll);
+  effect(KILL cr, USE poll);
+
+  format %{
+    "ldr rscratch1, [$poll]\t# Safepoint: poll for GC"
+    "cmp rscratch1, zr"
+  %}
+  ins_encode %{
+    __ ldr(rscratch1, as_Register($poll$$reg));
+    __ cmp(rscratch1, zr);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+
+// ============================================================================
 // Procedure Call/Return Instructions
 
 // Call Java Static Instruction
