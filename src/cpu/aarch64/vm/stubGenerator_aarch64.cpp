@@ -276,8 +276,7 @@ class StubGenerator: public StubCodeGenerator {
     Label parameters_done;
     // parameter count is still in c_rarg6
     // and parameter pointer identifying param 1 is in c_rarg5
-    __ cmpw(c_rarg6, 0U);
-    __ br(Assembler::EQ, parameters_done);
+    __ cbz(c_rarg6, parameters_done);
 
     address loop = __ pc();
     __ ldr(rscratch1, Address(__ post(c_rarg5, wordSize)));
