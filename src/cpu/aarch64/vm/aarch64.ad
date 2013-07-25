@@ -6402,6 +6402,8 @@ instruct convI2B(iRegI dst, iRegI src, rFlagsReg cr)
     __ cmpw(as_Register($src$$reg), zr);
     __ cset(as_Register($dst$$reg), Assembler::NE);
   %}
+
+  ins_pipe(pipe_class_default);
 %}
 
 instruct convP2B(iRegI dst, iRegP src, rFlagsReg cr)
@@ -6418,6 +6420,8 @@ instruct convP2B(iRegI dst, iRegP src, rFlagsReg cr)
     __ cmp(as_Register($src$$reg), zr);
     __ cset(as_Register($dst$$reg), Assembler::NE);
   %}
+
+  ins_pipe(pipe_class_default);
 %}
 
 instruct convD2F_reg(vRegF dst, vRegD src) %{
