@@ -4767,45 +4767,6 @@ instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
   ins_pipe(pipe_class_default);
 %}
 
-instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
-  match(Set dst (ConvL2I src));
-
-  ins_cost(DEFAULT_COST);
-  format %{ "movw  $dst, $src \t// l2i" %}
-
-  ins_encode %{
-    __ movw(as_Register($dst$$reg), as_Register($src$$reg));
-  %}
-
-  ins_pipe(pipe_class_default);
-%}
-
-instruct convD2F_reg(vRegF dst, vRegD src) %{
-  match(Set dst (ConvD2F src));
-
-  ins_cost(DEFAULT_COST);
-  format %{ "fcvtd  $dst, $src \t// d2f" %}
-
-  ins_encode %{
-    __ fcvtd(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
-  %}
-
-  ins_pipe(pipe_class_default);
-%}
-
-instruct convF2D_reg(vRegD dst, vRegF src) %{
-  match(Set dst (ConvF2D src));
-
-  ins_cost(DEFAULT_COST);
-  format %{ "fcvts  $dst, $src \t// f2d" %}
-
-  ins_encode %{
-    __ fcvts(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
-  %}
-
-  ins_pipe(pipe_class_default);
-%}
-
 instruct checkCastPP(iRegPNoSp dst)
 %{
   match(Set dst (CheckCastPP dst));
@@ -6364,13 +6325,6 @@ instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
 
 // Arithmetic Conversion Instructions
 
-// TODO
-// ConvD2F ConvF2D
-// ConvF2I ConvI2F
-// ConvF2L ConvL2F
-// ConvD2I ConvI2D
-// ConvD2L ConvL2D
-
 instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
 %{
   match(Set dst (ConvI2L src));
@@ -6382,6 +6336,186 @@ instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
   ins_pipe(pipe_class_default);
 %}
 
+instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
+  match(Set dst (ConvL2I src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "movw  $dst, $src \t// l2i" %}
+
+  ins_encode %{
+    __ movw(as_Register($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// TODO
+// ConvF2I ConvI2F
+// ConvF2L ConvL2F
+// ConvD2I ConvI2D
+// ConvD2L ConvL2D
+
+instruct convI2B(iRegI dst, iRegI src, rFlagsReg cr)
+%{
+  match(Set dst (Conv2B src));
+  effect(KILL cr);
+
+  format %{
+    "cmpw $src, zr\n\t"
+    "cset $dst, ne"
+  %}
+
+  ins_encode %{
+    __ cmpw(as_Register($src$$reg), zr);
+    __ cset(as_Register($dst$$reg), Assembler::NE);
+  %}
+%}
+
+instruct convP2B(iRegI dst, iRegP src, rFlagsReg cr)
+%{
+  match(Set dst (Conv2B src));
+  effect(KILL cr);
+
+  format %{
+    "cmp  $src, zr\n\t"
+    "cset $dst, ne"
+  %}
+
+  ins_encode %{
+    __ cmp(as_Register($src$$reg), zr);
+    __ cset(as_Register($dst$$reg), Assembler::NE);
+  %}
+%}
+
+instruct convD2F_reg(vRegF dst, vRegD src) %{
+  match(Set dst (ConvD2F src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtd  $dst, $src \t// d2f" %}
+
+  ins_encode %{
+    __ fcvtd(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convF2D_reg(vRegD dst, vRegF src) %{
+  match(Set dst (ConvF2D src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvts  $dst, $src \t// f2d" %}
+
+  ins_encode %{
+    __ fcvts(as_FloatRegister($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convF2I_reg_reg(iRegI dst, vRegF src) %{
+  match(Set dst (ConvF2I src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtzsw  $dst, $src \t// f2i" %}
+
+  ins_encode %{
+    __ fcvtzsw(as_Register($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convF2L_reg_reg(iRegL dst, vRegF src) %{
+  match(Set dst (ConvF2L src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtzs  $dst, $src \t// f2l" %}
+
+  ins_encode %{
+    __ fcvtzs(as_Register($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convI2F_reg_reg(vRegF dst, iRegI src) %{
+  match(Set dst (ConvI2F src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "scvtfws  $dst, $src \t// i2f" %}
+
+  ins_encode %{
+    __ scvtfws(as_FloatRegister($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convL2F_reg_reg(vRegF dst, iRegL src) %{
+  match(Set dst (ConvL2F src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "scvtfs  $dst, $src \t// l2f" %}
+
+  ins_encode %{
+    __ scvtfs(as_FloatRegister($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convD2I_reg_reg(iRegI dst, vRegD src) %{
+  match(Set dst (ConvD2I src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtzdw  $dst, $src \t// d2i" %}
+
+  ins_encode %{
+    __ fcvtzdw(as_Register($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convD2L_reg_reg(iRegL dst, vRegD src) %{
+  match(Set dst (ConvD2L src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcvtzd  $dst, $src \t// d2l" %}
+
+  ins_encode %{
+    __ fcvtzd(as_Register($dst$$reg), as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convI2D_reg_reg(vRegD dst, iRegI src) %{
+  match(Set dst (ConvI2D src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "scvtfwd  $dst, $src \t// i2d" %}
+
+  ins_encode %{
+    __ scvtfwd(as_FloatRegister($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct convL2D_reg_reg(vRegD dst, iRegL src) %{
+  match(Set dst (ConvL2D src));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "scvtfd  $dst, $src \t// l2d" %}
+
+  ins_encode %{
+    __ scvtfd(as_FloatRegister($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
 
 // ============================================================================
 // Compare Instructions
