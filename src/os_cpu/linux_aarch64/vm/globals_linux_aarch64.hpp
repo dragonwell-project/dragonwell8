@@ -29,8 +29,8 @@
 // (see globals.hpp)
 
 define_pd_global(bool, DontYieldALot,            false);
-define_pd_global(intx, ThreadStackSize,          1024); // 0 => use system default
-define_pd_global(intx, VMThreadStackSize,        1024);
+define_pd_global(intx, ThreadStackSize,          2048); // 0 => use system default
+define_pd_global(intx, VMThreadStackSize,        2048);
 
 define_pd_global(intx, CompilerThreadStackSize,  0);
 
