@@ -6785,7 +6785,7 @@ instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
 %{
   match(Set dst (MinI src1 src2));
 
-  size(2);
+  size(8);
 
   ins_cost(DEFAULT_COST * 2);
   format %{
@@ -6809,7 +6809,7 @@ instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
 %{
   match(Set dst (MaxI src1 src2));
 
-  size(2);
+  size(8);
 
   ins_cost(DEFAULT_COST * 2);
   format %{
