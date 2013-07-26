@@ -1517,7 +1517,7 @@ void MacroAssembler::leave()
 }
 
 // If a constant does not fit in an immediate field, generate some
-// number of MOV instructions and then perform the operation
+// number of MOV instructions and then perform the operation.
 void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
 					   add_sub_imm_insn insn1,
 					   add_sub_reg_insn insn2) {
@@ -1525,6 +1525,7 @@ void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned im
     (this->*insn1)(Rd, Rn, imm);
   } else {
     assert_different_registers(Rd, Rn);
+    assert(Rd != zr, "overflow in immediate operand");
     mov(Rd, (uint64_t)imm);
     (this->*insn2)(Rd, Rn, Rd, LSL, 0);
   }

@@ -474,7 +474,12 @@ void InterpreterGenerator::generate_stack_overflow_check(void) {
   // see if the frame is greater than one page in size. If so,
   // then we need to verify there is enough stack space remaining
   // for the additional locals.
-  __ cmp(r3, (page_size - overhead_size) / Interpreter::stackElementSize);
+  //
+  // Note that we use SUBS rather than CMP here because the immediate
+  // field of this instruction may overflow.  SUBS can cope with this
+  // because it is a macro that will expand to some number of MOV
+  // instructions and a register operation.
+  __ subs(rscratch1, r3, (page_size - overhead_size) / Interpreter::stackElementSize);
   __ br(Assembler::LS, after_frame_check);
 
   // compute rsp as if this were going to be the last frame on
