@@ -2580,7 +2580,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   // and the pc to the address where this runtime call will return
   // although actually any pc in this code blob will do).
   Label retaddr;
-  __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
+  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
 
   // Call C code.  Need thread but NOT official VM entry
   // crud.  We cannot block on this call, no GC can happen.  Call should
