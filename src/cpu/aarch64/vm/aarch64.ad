@@ -3558,7 +3558,7 @@ operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIAddSub
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
   op_cost(DEFAULT_COST_LOW);
-  format %{ "$reg, $lreg lsl($scale), #$off" %}
+  format %{ "$reg, $lreg lsl($scale), $off" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($lreg);
@@ -3572,7 +3572,7 @@ operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLAddSub
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
   op_cost(DEFAULT_COST_LOW);
-  format %{ "$reg, $lreg lsl($scale), #$off" %}
+  format %{ "$reg, $lreg lsl($scale), $off" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($lreg);
@@ -3614,7 +3614,7 @@ operand indOffI(iRegP reg, immIAddSub off)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
   op_cost(0);
-  format %{ "[$reg, #$off]" %}
+  format %{ "[$reg, $off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index(0xffffffff);
@@ -3628,7 +3628,7 @@ operand indOffL(iRegP reg, immLAddSub off)
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
   op_cost(0);
-  format %{ "[$reg, #$off]" %}
+  format %{ "[$reg, $off]" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index(0xffffffff);
