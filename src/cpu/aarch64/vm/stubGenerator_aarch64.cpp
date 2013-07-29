@@ -1355,7 +1355,24 @@ class StubGenerator: public StubCodeGenerator {
   void generate_all() {
     // support for verify_oop (must happen after universe_init)
     StubRoutines::_verify_oop_subroutine_entry     = generate_verify_oop();
-    StubRoutines::_throw_IncompatibleClassChangeError_entry = generate_throw_exception("IncompatibleClassChangeError throw_exception", CAST_FROM_FN_PTR(address, SharedRuntime::throw_IncompatibleClassChangeError));
+    StubRoutines::_throw_AbstractMethodError_entry =
+      generate_throw_exception("AbstractMethodError throw_exception",
+                               CAST_FROM_FN_PTR(address,
+                                                SharedRuntime::
+                                                throw_AbstractMethodError));
+
+    StubRoutines::_throw_IncompatibleClassChangeError_entry =
+      generate_throw_exception("IncompatibleClassChangeError throw_exception",
+                               CAST_FROM_FN_PTR(address,
+                                                SharedRuntime::
+                                                throw_IncompatibleClassChangeError));
+
+    StubRoutines::_throw_NullPointerException_at_call_entry =
+      generate_throw_exception("NullPointerException at call throw_exception",
+                               CAST_FROM_FN_PTR(address,
+                                                SharedRuntime::
+                                                throw_NullPointerException_at_call));
+
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
   }
