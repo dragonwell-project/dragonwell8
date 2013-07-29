@@ -3755,9 +3755,9 @@ operand cmpOpU()
     equal(0x0, "eq");
     not_equal(0x1, "ne");
     less(0x3, "lo");
-    greater_equal(0x8, "hi");
+    greater_equal(0x2, "hs");
     less_equal(0x9, "ls");
-    greater(0x2, "hs");
+    greater(0x8, "hi");
   %}
 %}
 
