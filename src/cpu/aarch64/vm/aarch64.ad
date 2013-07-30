@@ -2287,6 +2287,7 @@ encode %{
     __ cmp(cnt_reg, zr);
     __ br(Assembler::LT, done);
     __ str(zr, __ post(base_reg, wordSize));
+    __ sub(cnt_reg, cnt_reg, 1);
     __ b(loop);
     __ bind(done);
 
