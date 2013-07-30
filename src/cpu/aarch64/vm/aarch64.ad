@@ -2454,7 +2454,7 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register reg = as_Register($src1$$reg);
     int32_t val = $src2$$constant;
-    if (val > 0) {
+    if (val >= 0) {
       __ subsw(zr, reg, val);
     } else {
       __ addsw(zr, reg, -val);
@@ -6658,7 +6658,7 @@ instruct compU_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
   effect(DEF cr, USE op1);
 
   ins_cost(DEFAULT_COST);
-  format %{ "tstw  $op1\t# unsigned" %}
+  format %{ "cmpw $op1, #0\t# unsigned" %}
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
 
