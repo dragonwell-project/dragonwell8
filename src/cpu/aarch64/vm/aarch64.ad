@@ -729,19 +729,42 @@ source %{
 
 int MachCallStaticJavaNode::ret_addr_offset()
 {
-  // TODO: check this it should just be a bl/blr
-  return 4;
+  // call should be a simple bl
+  // unless this is a method handle invoke in which case it is
+  // mov(rfp, sp), bl, mov(sp, rfp)
+  int off = 4;
+  if (_method_handle_invoke) {
+    off += 4;
+  }
+  return off;
 }
 
 int MachCallDynamicJavaNode::ret_addr_offset()
 {
-  // TODO: check this it should just be a bl/blr
-  return 4;
+  // call should be
+  //   ldr_constant
+  //   bl
+  // where ldr_constant is either
+  //   ldr // if NearCpool
+  // or
+  //   adrp // if !NearCPool
+  //   ldr
+  int off = 8;
+  if (!NearCpool) {
+    off += 4;
+  }
+  return off;
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
-  // TODO: check this it should just be a bl/blr
-  return 4;
+  // call should be
+  //   mov(rscratch1, RuntimeAddress(addr) // ifdef BUILTIN_SIM
+  //   brx86 rscratch1
+  // or
+  //   br RuntimeAddress(addr) // ifndef BUILTIN_SIM
+  // TODO
+  // allow for AArch64 version
+  return 8;
 }
 
 // Indicate if the safepoint node needs the polling page as an input
@@ -2593,6 +2616,10 @@ encode %{
       __ call_Unimplemented();
     }
   %}
+  // TODO
+  // this only works ifdef BUILTIN_SIM
+  // provide version for native AArch64 build
+
   enc_class aarch64_enc_java_to_runtime(method meth) %{
     MacroAssembler _masm(&cbuf);
     int gpcnt;
