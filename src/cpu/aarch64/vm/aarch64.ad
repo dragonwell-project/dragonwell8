@@ -2002,14 +2002,14 @@ encode %{
     int scale = $mem$$scale;
     int disp = $mem$$disp;
     if (index == -1) {
-      __ ldr(dst_reg, Address(base, disp));
+      __ ldrw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldr(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldr(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
       } 
     }
   %}
