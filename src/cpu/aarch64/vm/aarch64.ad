@@ -2214,6 +2214,160 @@ encode %{
     }
   %}
 
+  // synchronized read/update encodings
+
+  enc_class aarch64_enc_ldaxr(iRegL dst, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register dst_reg = as_Register($dst$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+       if (disp != 0) {      
+        __ lea(rscratch1, Address(base, disp));
+        __ ldaxr(dst_reg, rscratch1);
+      } else {
+        // TODO
+        // should we ever get anything other than this case?
+        __ ldaxr(dst_reg, base);
+      }
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ lea(rscratch1, Address(base, index_reg, Address::lsl(scale)));
+        __ ldaxr(dst_reg, rscratch1);
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+        __ lea(rscratch1, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldaxr(dst_reg, rscratch1);
+      }
+    }
+  %}
+
+  enc_class aarch64_enc_stlxr(iRegLNoSp src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    Register src_reg = as_Register($src$$reg);
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+       if (disp != 0) {      
+        __ lea(rscratch2, Address(base, disp));
+        __ stlxr(rscratch1, src_reg, rscratch2);
+      } else {
+        // TODO
+        // should we ever get anything other than this case?
+        __ stlxr(rscratch1, src_reg, base);
+      }
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ lea(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+        __ stlxr(rscratch1, src_reg, rscratch2);
+      } else {
+        __ lea(rscratch2, Address(base, disp));
+        __ lea(rscratch2, Address(rscratch2, index_reg, Address::lsl(scale)));
+	__ stlxr(rscratch1, src_reg, rscratch2);
+      }
+    }
+    __ cmpw(rscratch1, zr);
+  %}
+
+  enc_class aarch64_enc_cmpxchg(memory mem, iRegLNoSp oldval, iRegLNoSp newval) %{
+    MacroAssembler _masm(&cbuf);
+    Register old_reg = as_Register($oldval$$reg);
+    Register new_reg = as_Register($newval$$reg);
+    Register base = as_Register($mem$$base);
+    Register addr_reg;
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+       if (disp != 0) {      
+        __ lea(rscratch2, Address(base, disp));
+        addr_reg = rscratch2;
+      } else {
+        // TODO
+        // should we ever get anything other than this case?
+        addr_reg = base;
+      }
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ lea(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+        addr_reg = rscratch2;
+      } else {
+        __ lea(rscratch2, Address(base, disp));
+        __ lea(rscratch2, Address(rscratch2, index_reg, Address::lsl(scale)));
+        addr_reg = rscratch2;
+      }
+    }
+    Label retry_load, done;
+    __ bind(retry_load);
+    __ ldaxr(rscratch1, addr_reg);
+    __ cmp(rscratch1, old_reg);
+    __ br(Assembler::NE, done);
+    // if we store+flush with no intervening write tmp will be zero
+    __ stlxr(rscratch1, new_reg, addr_reg);
+    __ cbzw(rscratch1, done);
+    // retry so we only ever return after a load fails to compare
+    // ensures we don't return a stale value after a failed write.
+    __ b(retry_load);
+    __ bind(done);
+  %}
+
+  enc_class aarch64_enc_cmpxchgw(memory mem, iRegINoSp oldval, iRegINoSp newval) %{
+    MacroAssembler _masm(&cbuf);
+    Register old_reg = as_Register($oldval$$reg);
+    Register new_reg = as_Register($newval$$reg);
+    Register base = as_Register($mem$$base);
+    Register addr_reg;
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    if (index == -1) {
+       if (disp != 0) {      
+        __ lea(rscratch2, Address(base, disp));
+        addr_reg = rscratch2;
+      } else {
+        // TODO
+        // should we ever get anything other than this case?
+        addr_reg = base;
+      }
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ lea(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+        addr_reg = rscratch2;
+      } else {
+        __ lea(rscratch2, Address(base, disp));
+        __ lea(rscratch2, Address(rscratch2, index_reg, Address::lsl(scale)));
+        addr_reg = rscratch2;
+      }
+    }
+    Label retry_load, done;
+    __ bind(retry_load);
+    __ ldaxrw(rscratch1, addr_reg);
+    __ cmpw(rscratch1, old_reg);
+    __ br(Assembler::NE, done);
+    // if we store+flush with no intervening write tmp wil be zero
+    __ stlxrw(rscratch1, new_reg, addr_reg);
+    __ cbzw(rscratch1, done);
+    // retry so we only ever return after a load fails to compare
+    // ensures we don't return a stale value after a failed write.
+    __ b(retry_load);
+    __ bind(done);
+  %}
+
+  // auxiliary used for CompareAndSwapX to set result register
+  enc_class aarch64_enc_cset_eq(iRegINoSp res) %{
+    MacroAssembler _masm(&cbuf);
+    Register res_reg = as_Register($res$$reg);
+    __ cset(res_reg, Assembler::EQ);
+  %}
+
   // prefetch encodings
 
   enc_class aarch64_enc_prefetchr(memory mem) %{
@@ -2656,6 +2810,9 @@ encode %{
     __ blr(target_reg);
   %}
 
+  // TODO
+  // reimplement this with custom cmpxchgptr code
+  // which avoids some of the unnecessary branching
   enc_class aarch64_enc_fast_lock(iRegP object, iRegP box, iRegP tmp, iRegP tmp2) %{
     MacroAssembler _masm(&cbuf);
     Register oop = as_Register($object$$reg);
@@ -2770,6 +2927,9 @@ encode %{
 
   %}
 
+  // TODO
+  // reimplement this with custom cmpxchgptr code
+  // which avoids some of the unnecessary branching
   enc_class aarch64_enc_fast_unlock(iRegP object, iRegP box, iRegP tmp, iRegP tmp2) %{
     MacroAssembler _masm(&cbuf);
     Register oop = as_Register($object$$reg);
@@ -4858,6 +5018,189 @@ instruct castII(iRegI dst)
   ins_pipe(pipe_class_empty);
 %}
 
+// ============================================================================
+// Atomic operation instructions
+//
+// Intel and SPARC both implement Ideal Node LoadPLocked and
+// Store{PIL}Conditional instructions using a normal load for the
+// LoadPLocked and a CAS for the Store{PIL}Conditional.
+//
+// The ideal code appears only to use LoadPLocked/StorePLocked as a
+// pair to lock object allocations from Eden space when not using
+// TLABs.
+//
+// There does not appear to be a Load{IL}Locked Ideal Node and the
+// Ideal code appears to use Store{IL}Conditional as an alias for CAS
+// and to use StoreIConditional only for 32-bit and StoreLConditional
+// only for 64-bit.
+//
+// So, it looks like we could implement LoadPLocked and StorePLocked
+// instructions using, respectively the AArch64 hw load-exclusive and
+// store-conditional instructions. Whereas we must implement each of
+// Store{IL}Conditional using a CAS which employs a pair of
+// instructions comprising a load-exclusive followed by a
+// store-conditional.
+//
+// We also need CompareAndSwapI, CompareAndSwapL, CompareAndSwapP and
+// CompareAndSwapN, GetAndAddI, GetAndAddL, GetAndSeI, GetAndSetL,
+// GetAndSetP and GetAndSetN. These are used to implement various
+// atomic intrinsics and also to inline various Unsafe operations.
+
+
+// Locked-load (linked load) of the current heap-top
+// used when updating the eden heap top
+// implemented using ldaxr on AArch64
+
+instruct loadPLocked(iRegPNoSp dst, memory mem)
+%{
+  match(Set dst (LoadPLocked mem));
+
+  ins_cost(MEMORY_REF_COST);
+
+  format %{ "ldaxr $dst, $mem\t# ptr linked acquire" %}
+
+  ins_encode(aarch64_enc_ldaxr(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Conditional-store of the updated heap-top.
+// Used during allocation of the shared heap.
+// Sets flag (EQ) on success.
+// implemented using stlxr on AArch64.
+
+instruct storePConditional(memory heap_top_ptr, iRegPNoSp oldval, iRegPNoSp newval, rFlagsReg cr) 
+%{
+  match(Set cr (StorePConditional heap_top_ptr (Binary oldval newval)));
+
+  ins_cost(MEMORY_REF_COST);
+
+ // TODO
+ // do we need to do a store-conditional release or can we just use a
+ // plain store-conditional?
+
+  format %{
+    "stlxr rscratch1, $newval, $heap_top_ptr\t# ptr cond release"
+    "cmpw rscratch1, zr\t# EQ on successful write"
+  %}
+
+  ins_encode(aarch64_enc_stlxr(newval, heap_top_ptr));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// this has to be implemented as a CAS
+instruct storeLConditional(memory mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) 
+%{
+  match(Set cr (StoreLConditional mem (Binary oldval newval)));
+
+  ins_cost(MEMORY_REF_COST);
+
+  format %{
+    "cmpxchg rscratch1, $mem, $oldval, $newval, $mem\t# if $mem == $oldval then $mem <-- $newval"
+    "cmpw rscratch1, zr\t# EQ on successful write"
+  %}
+
+  ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// this has to be implemented as a CAS
+instruct storeIConditional(memory mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) 
+%{
+  match(Set cr (StoreIConditional mem (Binary oldval newval)));
+
+  ins_cost(MEMORY_REF_COST);
+
+  format %{
+    "cmpxchgw rscratch1, $mem, $oldval, $newval, $mem\t# if $mem == $oldval then $mem <-- $newval"
+    "cmpw rscratch1, zr\t# EQ on successful write"
+  %}
+
+  ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// XXX No flag versions for CompareAndSwap{I,L,P,N} because matcher
+// can't match them
+
+instruct compareAndSwapI(iRegINoSp res, memory mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) %{
+
+  match(Set res (CompareAndSwapI mem (Binary oldval newval)));
+
+  effect(KILL cr);
+
+ format %{
+    "cmpxchgw $mem, $oldval, $newval\t# (int) if $mem == $oldval then $mem <-- $newval"
+    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
+ %}
+
+ ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval),
+            aarch64_enc_cset_eq(res));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct compareAndSwapL(iRegINoSp res, memory mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) %{
+
+  match(Set res (CompareAndSwapL mem (Binary oldval newval)));
+
+  effect(KILL cr);
+
+ format %{
+    "cmpxchg $mem, $oldval, $newval\t# (long) if $mem == $oldval then $mem <-- $newval"
+    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
+ %}
+
+ ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
+            aarch64_enc_cset_eq(res));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct compareAndSwapP(iRegINoSp res, memory mem, iRegPNoSp oldval, iRegPNoSp newval, rFlagsReg cr) %{
+
+  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
+
+  effect(KILL cr);
+
+ format %{
+    "cmpxchg $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
+ %}
+
+ ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
+            aarch64_enc_cset_eq(res));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
+
+  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
+
+  effect(KILL cr);
+
+ format %{
+    "cmpxchg $mem, $oldval, $newval\t# (narrow oop) if $mem == $oldval then $mem <-- $newval"
+    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
+ %}
+
+ ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
+            aarch64_enc_cset_eq(res));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// TODO
+// GetAndAddI
+// GetAndAddL
+// GetAndSetI
+// GetAndSetL
+// GetAndSetP
+// GetAndSetN
 
 // ============================================================================
 // Conditional Move Instructions
