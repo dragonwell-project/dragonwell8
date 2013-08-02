@@ -1524,7 +1524,14 @@ void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned im
   if (operand_valid_for_add_sub_immediate((int)imm)) {
     (this->*insn1)(Rd, Rn, imm);
   } else {
-    assert_different_registers(Rd, Rn);
+    if (Rd == Rn) {
+       assert(Rd == sp, "only allowed for sp");
+       // We know S flag not set so can do this as sequence of add/sub
+       assert(labs(imm) < (1 << 24), "sp adjust too big");
+       (this->*insn1)(Rd, Rn, imm & -(1 << 12));
+       (this->*insn1)(Rd, Rd, imm & ((1 << 12)-1));
+       return;
+    }
     assert(Rd != zr, "overflow in immediate operand");
     mov(Rd, (uint64_t)imm);
     (this->*insn2)(Rd, Rn, Rd, LSL, 0);
