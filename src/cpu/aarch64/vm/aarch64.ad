@@ -3667,14 +3667,14 @@ operand rFlagsReg()
 %}
 
 // Flags register, used as output of unsigned compare instructions
-// operand rFlagsRegU()
-// %{
-//   constraint(ALLOC_IN_RC(int_flags));
-//   match(RegFlags);
+operand rFlagsRegU()
+%{
+  constraint(ALLOC_IN_RC(int_flags));
+  match(RegFlags);
 
-//   format %{ "RFLAGS" %}
-//   interface(REG_INTER);
-// %}
+  format %{ "RFLAGS" %}
+  interface(REG_INTER);
+%}
 
 // Flags register, used as output of FLOATING POINT compare instructions
 // operand rFlagsRegF)
@@ -5231,7 +5231,7 @@ instruct cmovI_reg_reg(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, iRegI
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, iRegI src2) %{
+instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, iRegI src2) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5272,7 +5272,7 @@ instruct cmovI_zero_reg(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, iReg
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUI_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, iRegI src2) %{
+instruct cmovUI_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zero, iRegI src2) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5344,7 +5344,7 @@ instruct cmovI_reg_zero_one(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, 
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUI_reg_zero_one(cmpOpU cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, immI_1 one) %{
+instruct cmovUI_reg_zero_one(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zero, immI_1 one) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary one zero)));
 
   ins_cost(DEFAULT_COST);
@@ -5379,7 +5379,7 @@ instruct cmovL_reg_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, iRegL
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUL_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, iRegL src2) %{
+instruct cmovUL_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src1, iRegL src2) %{
   match(Set dst (CMoveL (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5413,7 +5413,7 @@ instruct cmovL_reg_zero(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, immL
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUL_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, immL0 zero) %{
+instruct cmovUL_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src1, immL0 zero) %{
   match(Set dst (CMoveL (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
@@ -5445,7 +5445,7 @@ instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, immL0 zero, iReg
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUL_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegLNoSp dst, immL0 zero, iRegL src2) %{
+instruct cmovUL_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, immL0 zero, iRegL src2) %{
   match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5477,7 +5477,7 @@ instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, iRegP
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, iRegP src2) %{
+instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, iRegP src2) %{
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5511,7 +5511,7 @@ instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, immP
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, immP0 zero) %{
+instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, immP0 zero) %{
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
@@ -5543,7 +5543,7 @@ instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, immP0 zero, iReg
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegPNoSp dst, immP0 zero, iRegP src2) %{
+instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, immP0 zero, iRegP src2) %{
   match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5575,7 +5575,7 @@ instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src2) %{
+instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegN dst, iRegN src1, iRegN src2) %{
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
@@ -5609,7 +5609,7 @@ instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 ze
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 zero) %{
+instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegN dst, iRegN src1, immN0 zero) %{
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
@@ -5641,7 +5641,7 @@ instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN sr
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN src2) %{
+instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegN dst, immN0 zero, iRegN src2) %{
   match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
@@ -6969,7 +6969,7 @@ instruct compI_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
   effect(DEF cr, USE op1);
 
   ins_cost(DEFAULT_COST);
-  format %{ "tstw  $op1" %}
+  format %{ "cmpw $op1, 0" %}
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
 
@@ -7008,7 +7008,7 @@ instruct compI_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
 // except it should only be used to feed an If or a CMovI which takes a
 // cmpOpU.
 
-instruct compU_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+instruct compU_reg_reg(rFlagsRegU cr, iRegI op1, iRegI op2)
 %{
   match(Set cr (CmpU op1 op2));
 
@@ -7022,7 +7022,7 @@ instruct compU_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compU_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
+instruct compU_reg_immI0(rFlagsRegU cr, iRegI op1, immI0 zero)
 %{
   match(Set cr (CmpU op1 zero));
 
@@ -7036,7 +7036,7 @@ instruct compU_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compU_reg_immIAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
+instruct compU_reg_immIAddSub(rFlagsRegU cr, iRegI op1, immIAddSub op2)
 %{
   match(Set cr (CmpU op1 op2));
 
@@ -7050,7 +7050,7 @@ instruct compU_reg_immIAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compU_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
+instruct compU_reg_immI(rFlagsRegU cr, iRegI op1, immI op2)
 %{
   match(Set cr (CmpU op1 op2));
 
@@ -7120,7 +7120,7 @@ instruct compL_reg_immL(rFlagsReg cr, iRegL op1, immL op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compP_reg_reg(rFlagsReg cr, iRegP op1, iRegP op2)
+instruct compP_reg_reg(rFlagsRegU cr, iRegP op1, iRegP op2)
 %{
   match(Set cr (CmpP op1 op2));
 
@@ -7134,7 +7134,7 @@ instruct compP_reg_reg(rFlagsReg cr, iRegP op1, iRegP op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compN_reg_reg(rFlagsReg cr, iRegN op1, iRegN op2)
+instruct compN_reg_reg(rFlagsRegU cr, iRegN op1, iRegN op2)
 %{
   match(Set cr (CmpN op1 op2));
 
@@ -7148,7 +7148,7 @@ instruct compN_reg_reg(rFlagsReg cr, iRegN op1, iRegN op2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compF_reg_reg(rFlagsReg cr, vRegF src1, vRegF src2)
+instruct compF_reg_reg(rFlagsRegU cr, vRegF src1, vRegF src2)
 %{
   match(Set cr (CmpF src1 src2));
 
@@ -7165,7 +7165,7 @@ instruct compF_reg_reg(rFlagsReg cr, vRegF src1, vRegF src2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
+instruct compD_reg_reg(rFlagsRegU cr, vRegD src1, vRegD src2)
 %{
   match(Set cr (CmpD src1 src2));
 
@@ -7273,7 +7273,7 @@ instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl)
 %}
 
 // Conditional Near Branch Unsigned
-instruct branchConU(cmpOpU cmp, rFlagsReg cr, label lbl)
+instruct branchConU(cmpOpU cmp, rFlagsRegU cr, label lbl)
 %{
   // Same match rule as `branchConFar'.
   match(If cmp cr);
@@ -7315,7 +7315,7 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl)
 %}
 
 // counted loop end branch near Unsigned
-instruct branchLoopEndU(cmpOpU cmp, rFlagsReg cr, label lbl)
+instruct branchLoopEndU(cmpOpU cmp, rFlagsRegU cr, label lbl)
 %{
   match(CountedLoopEnd cmp cr);
 
