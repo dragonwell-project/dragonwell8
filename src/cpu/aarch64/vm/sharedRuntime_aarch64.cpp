@@ -2946,7 +2946,6 @@ void OptoRuntime::generate_exception_blob() {
   // TODO check various assumptions made here
   //
   // make sure we do so before running this
-  __ call_Unimplemented();
 
   address start = __ pc();
 
@@ -2977,7 +2976,7 @@ void OptoRuntime::generate_exception_blob() {
 
   // the stack should always be aligned
   address the_pc = __ pc();
-  __ set_last_Java_frame(noreg, noreg, the_pc, rscratch1);
+  __ set_last_Java_frame(noreg, rfp, the_pc, rscratch1);
   __ mov(c_rarg0, rthread);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, OptoRuntime::handle_exception_C)));
   __ brx86(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
