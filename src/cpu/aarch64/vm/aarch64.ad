@@ -7380,11 +7380,9 @@ instruct safePoint_poll(rFlagsReg cr, iRegP poll)
 
   format %{
     "ldr rscratch1, [$poll]\t# Safepoint: poll for GC"
-    "cmp rscratch1, zr"
   %}
   ins_encode %{
     __ ldr(rscratch1, as_Register($poll$$reg));
-    __ cmp(rscratch1, zr);
   %}
   ins_pipe(pipe_class_memory);
 %}
