@@ -912,7 +912,7 @@ void MacroAssembler::call_VM_leaf_base1(address entry_point,
   // We add 1 to number_of_arguments because the thread in arg0 is
   // not counted
   mov(rscratch1, entry_point);
-  brx86(rscratch1, number_of_gp_arguments + 1, number_of_fp_arguments, type);
+  blrt(rscratch1, number_of_gp_arguments + 1, number_of_fp_arguments, type);
   if (retaddr)
     bind(*retaddr);
 
@@ -1500,7 +1500,7 @@ void MacroAssembler::stop(const char* msg) {
   mov(c_rarg2, sp);
   mov(c_rarg3, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
   // call(c_rarg3);
-  brx86(c_rarg3, 3, 0, 1);
+  blrt(c_rarg3, 3, 0, 1);
   hlt(0);
 }
 

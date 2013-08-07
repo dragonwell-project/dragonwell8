@@ -51,7 +51,7 @@ void MacroAssembler::get_thread(Register dst) {
   push(saved_regs, sp);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
   mov(r19, CAST_FROM_FN_PTR(address, pthread_getspecific));
-  brx86(r19, 1, 0, 1);
+  blrt(r19, 1, 0, 1);
   if (dst != c_rarg0) {
     mov(dst, c_rarg0);
   }

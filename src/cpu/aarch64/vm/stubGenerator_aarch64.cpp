@@ -773,7 +773,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
-    __ brx86(rscratch1, 3, 0, 1);
+    __ blrt(rscratch1, 3, 0, 1);
     __ mov(sp, r19);                               // restore rsp
     __ pop(0x7fffffff, sp);
     __ ldr(lr, Address(sp, 0));
@@ -1278,7 +1278,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(c_rarg0, rthread);
     BLOCK_COMMENT("call runtime_entry");
     __ mov(rscratch1, runtime_entry);
-    __ brx86(rscratch1, 3 /* number_of_arguments */, 0, 1);
+    __ blrt(rscratch1, 3 /* number_of_arguments */, 0, 1);
 
     // Generate oop map
     OopMap* map = new OopMap(framesize, 0);

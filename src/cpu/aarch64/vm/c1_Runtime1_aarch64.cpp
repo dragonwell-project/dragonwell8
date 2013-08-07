@@ -61,7 +61,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
 
   // do the call
   mov(rscratch1, RuntimeAddress(entry));
-  brx86(rscratch1, args_size + 1, 8, 1);
+  blrt(rscratch1, args_size + 1, 8, 1);
   bind(retaddr);
   int call_offset = offset();
   // verify callee-saved register
@@ -555,7 +555,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
   // do the call
   __ mov(rscratch1, RuntimeAddress(target));
-  __ brx86(rscratch1, 1, 0, 1);
+  __ blrt(rscratch1, 1, 0, 1);
   __ bind(retaddr);
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(__ offset(), oop_map);

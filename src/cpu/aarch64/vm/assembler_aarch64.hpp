@@ -1764,8 +1764,8 @@ public:
    return from the simulator run() call with STATUS_HALT? The linking
    code will call fatal() when it sees STATUS_HALT.
 
-   brx86 Xn, Wm
-   brx86 Xn, #gpargs, #fpargs, #type
+   blrt Xn, Wm
+   blrt Xn, #gpargs, #fpargs, #type
    Xn holds the 64 bit x86 branch_address
    call format is encoded either as immediate data in the call
    or in register Wm. In the latter case
@@ -1819,16 +1819,16 @@ public:
 
                      10987654321098765432109876543210
    PSEUDO_HALT   = 0x11100000000000000000000000000000
-   PSEUDO_BRX86  = 0x11000000000000000_______________
-   PSEUDO_BRX86R = 0x1100000000000000100000__________
+   PSEUDO_BLRT  = 0x11000000000000000_______________
+   PSEUDO_BLRTR = 0x1100000000000000100000__________
    PSEUDO_NOTIFY = 0x10100000000000000_______________
 
-   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BRX86/BRX86R, 101 ==> NOTIFY
+   instr[31,29] = op1 : 111 ==> HALT, 110 ==> BLRT/BLRTR, 101 ==> NOTIFY
 
-   for BRX86
+   for BLRT
      instr[14,11] = #gpargs, instr[10,7] = #fpargs
      instr[6,5] = #type, instr[4,0] = Rn
-   for BRX86R
+   for BLRTR
      instr[9,5] = Rm, instr[4,0] = Rn
    for NOTIFY
      instr[14:0] = type : 0 ==> entry, 1 ==> reentry, 2 ==> exit, 3 ==> bcstart
@@ -1847,7 +1847,7 @@ public:
     }
   }
 
-  void brx86(Register Rn, int gpargs, int fpargs, int type) {
+  void blrt(Register Rn, int gpargs, int fpargs, int type) {
     if (UseBuiltinSim) {
       starti;
       f(0b110, 31 ,29);
@@ -1863,7 +1863,7 @@ public:
     }
   }
 
-  void brx86(Register Rn, Register Rm) {
+  void blrt(Register Rn, Register Rm) {
     if (UseBuiltinSim) {
       starti;
       f(0b110, 31 ,29);

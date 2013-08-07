@@ -317,7 +317,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ mov(c_rarg0, rmethod);
   __ mov(c_rarg1, lr);
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::fixup_callers_callsite)));
-  __ brx86(rscratch1, 2, 0, 0);
+  __ blrt(rscratch1, 2, 0, 0);
 
   __ pop_CPU_state();
   // restore sp
@@ -1171,8 +1171,8 @@ static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, 
     assert((unsigned)fpargs < 32, "eek!");
     __ mov(rscratch1, RuntimeAddress(dest));
     __ mov(rscratch2, (gpargs << 6) | (fpargs << 2) | type);
-    __ brx86(rscratch1, rscratch2);
-    // __ brx86(rscratch1, gpargs, fpargs, type);
+    __ blrt(rscratch1, rscratch2);
+    // __ blrt(rscratch1, gpargs, fpargs, type);
   }
 }
 
@@ -1970,7 +1970,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     } else {
       __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans_and_transition)));
     }
-    __ brx86(rscratch1, 1, 0, 1);
+    __ blrt(rscratch1, 1, 0, 1);
     // Restore any method result value
     restore_native_result(masm, ret_type, stack_slots);
 
@@ -2379,7 +2379,7 @@ void SharedRuntime::generate_deopt_blob() {
 #endif // ASSERT
   __ mov(c_rarg0, rthread);
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::fetch_unroll_info)));
-  __ brx86(rscratch1, 1, 0, 1);
+  __ blrt(rscratch1, 1, 0, 1);
   __ bind(retaddr);
 
   // Need to have an oopmap that tells fetch_unroll_info where to
@@ -2511,7 +2511,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ mov(c_rarg0, rthread);
   __ movw(c_rarg1, rcpool); // second arg: exec_mode
   __ mov(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::unpack_frames)));
-  __ brx86(rscratch1, 2, 0, 0);
+  __ blrt(rscratch1, 2, 0, 0);
 
   // Set an oopmap for the call site
   // Use the same PC we used for the last java frame
@@ -2595,7 +2595,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   __ lea(rscratch1,
 	 RuntimeAddress(CAST_FROM_FN_PTR(address,
 					 Deoptimization::uncommon_trap)));
-  __ brx86(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
+  __ blrt(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
   __ bind(retaddr);
 
   // Set an oopmap for the call site
@@ -2708,7 +2708,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   __ mov(c_rarg0, rthread);
   __ movw(c_rarg1, (unsigned)Deoptimization::Unpack_uncommon_trap);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, Deoptimization::unpack_frames)));
-  __ brx86(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
+  __ blrt(rscratch1, 2, 0, MacroAssembler::ret_type_integral);
 
   // Set an oopmap for the call site
   // Use the same PC we used for the last java frame
@@ -2774,7 +2774,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // Do the call
   __ mov(c_rarg0, rthread);
   __ lea(rscratch1, RuntimeAddress(call_ptr));
-  __ brx86(rscratch1, 1, 0, 1);
+  __ blrt(rscratch1, 1, 0, 1);
   __ bind(retaddr);
 
   // Set an oopmap for the call site.  This oopmap will map all
@@ -2847,7 +2847,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
     __ mov(c_rarg0, rthread);
     __ mov(rscratch1, RuntimeAddress(destination));
 
-    __ brx86(rscratch1, 1, 0, 1);
+    __ blrt(rscratch1, 1, 0, 1);
     __ bind(retaddr);
   }
 
@@ -2979,7 +2979,7 @@ void OptoRuntime::generate_exception_blob() {
   __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
   __ mov(c_rarg0, rthread);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, OptoRuntime::handle_exception_C)));
-  __ brx86(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
+  __ blrt(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
 
   // Set an oopmap for the call site.  This oopmap will only be used if we
   // are unwinding the stack.  Hence, all locations will be dead.

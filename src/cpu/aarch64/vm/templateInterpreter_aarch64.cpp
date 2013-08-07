@@ -941,7 +941,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ ldrw(rscratch1, Address(rmethod, Method::call_format_offset()));
 
   // Call the native method.
-  __ brx86(r10, rscratch1);
+  __ blrt(r10, rscratch1);
   __ get_method(rmethod);
   // result potentially in r0 or v0
 
@@ -998,7 +998,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     //
     __ mov(c_rarg0, rthread);
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans));
-    __ brx86(rscratch2, 1, 0, 0);
+    __ blrt(rscratch2, 1, 0, 0);
     __ get_method(rmethod);
     __ reinit_heapbase();
     __ bind(Continue);
@@ -1045,7 +1045,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ pusha(); // XXX only save smashed registers
     __ mov(c_rarg0, rthread);
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
-    __ brx86(rscratch2, 0, 0, 0);
+    __ blrt(rscratch2, 0, 0, 0);
     __ popa(); // XXX only restore smashed registers
     __ reinit_heapbase();
     __ bind(no_reguard);

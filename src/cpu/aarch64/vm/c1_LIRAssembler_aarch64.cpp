@@ -496,7 +496,7 @@ void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo*
   __ adr(r0, poll);
   __ str(r0, Address(rthread, JavaThread::saved_exception_pc_offset()));
   __ mov(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::get_poll_stub));
-  __ brx86(rscratch1, 1, 0, 1);
+  __ blrt(rscratch1, 1, 0, 1);
   __ pop(0x3ffffffc, sp);          // integer registers except lr & sp & r0 & r1
   __ mov(rscratch1, r0);
   __ pop(0x3, sp);                 // r0 & r1
@@ -2126,7 +2126,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov(c_rarg4, j_rarg4);
     if (copyfunc_addr == NULL) { // Use C version if stub was not generated
       __ mov(rscratch1, RuntimeAddress(C_entry));
-      __ brx86(rscratch1, 5, 0, 1);
+      __ blrt(rscratch1, 5, 0, 1);
     } else {
 #ifndef PRODUCT
       if (PrintC1Statistics) {
@@ -2606,7 +2606,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 	num_gpargs++;
       }
     }
-    __ brx86(rscratch1, num_gpargs, num_fpargs, type);
+    __ blrt(rscratch1, num_gpargs, num_fpargs, type);
   }
 
   if (info != NULL) {
