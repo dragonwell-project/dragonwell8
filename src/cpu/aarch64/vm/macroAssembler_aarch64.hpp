@@ -1226,6 +1226,10 @@ public:
   void wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
 			     add_sub_imm_insn insn1,
 			     add_sub_reg_insn insn2);
+  // Seperate vsn which sets the flags
+  void wrap_adds_subs_imm_insn(Register Rd, Register Rn, unsigned imm,
+			     add_sub_imm_insn insn1,
+			     add_sub_reg_insn insn2);
 
 #define WRAP(INSN)							\
   void INSN(Register Rd, Register Rn, unsigned imm) {			\
@@ -1247,6 +1251,27 @@ public:
   }
 
   WRAP(add) WRAP(addw) WRAP(sub) WRAP(subw)
+
+#undef WRAP
+#define WRAP(INSN)							\
+  void INSN(Register Rd, Register Rn, unsigned imm) {			\
+    wrap_adds_subs_imm_insn(Rd, Rn, imm, &Assembler::INSN, &Assembler::INSN); \
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm,			\
+	     enum shift_kind kind, unsigned shift = 0) {		\
+    Assembler::INSN(Rd, Rn, Rm, kind, shift);				\
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm) {			\
+    Assembler::INSN(Rd, Rn, Rm);					\
+  }									\
+									\
+  void INSN(Register Rd, Register Rn, Register Rm,			\
+           ext::operation option, int amount = 0) {			\
+    Assembler::INSN(Rd, Rn, Rm, option, amount);			\
+  }
+
   WRAP(adds) WRAP(addsw) WRAP(subs) WRAP(subsw)
 
   void tableswitch(Register index, jint lowbound, jint highbound,
