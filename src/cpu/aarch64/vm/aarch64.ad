@@ -769,7 +769,7 @@ int MachCallDynamicJavaNode::ret_addr_offset()
 int MachCallRuntimeNode::ret_addr_offset() {
   // call should be
   //   mov(rscratch1, RuntimeAddress(addr) // ifdef BUILTIN_SIM
-  //   brx86 rscratch1
+  //   blrt rscratch1
   // or
   //   br RuntimeAddress(addr) // ifndef BUILTIN_SIM
   // TODO
@@ -1742,7 +1742,7 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
 // helper for encoding java_to_runtime calls on sim
 //
 // this is needed to compute the extra arguments required when
-// planting a call to the simulator brx86 instruction. the TypeFunc
+// planting a call to the simulator blrt instruction. the TypeFunc
 // can be queried to identify the counts for integral, and floating
 // arguments and the return type
 
@@ -2809,7 +2809,7 @@ encode %{
     int rtype;
     getCallInfo(tf(), gpcnt, fpcnt, rtype);
     __ mov(rscratch1, RuntimeAddress((address)$meth$$method));
-    __ brx86(rscratch1, gpcnt, fpcnt, rtype);
+    __ blrt(rscratch1, gpcnt, fpcnt, rtype);
   %}
 
   enc_class aarch64_enc_rethrow() %{
