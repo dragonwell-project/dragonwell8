@@ -88,6 +88,9 @@ define_pd_global(intx, InlineSmallCode,          1000);
   product(bool, UseSimulatorCache, false,				\
          "tell sim to cache memory updates until exclusive op occurs")	\
 									\
+  product(bool, DisableBCCheck, true,                                  \
+          "tell sim not to invoke bccheck callback")                    \
+									\
   product(bool, NearCpool, true,					\
          "constant pool is close to instructions")
 
@@ -95,6 +98,7 @@ define_pd_global(intx, InlineSmallCode,          1000);
 #define UseBuiltinSim		false
 #define NotifySimulator		false
 #define UseSimulatorCache	false
+#define DisableBCCheck  	true
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct) \
 									\
   product(bool, NearCpool, true,					\

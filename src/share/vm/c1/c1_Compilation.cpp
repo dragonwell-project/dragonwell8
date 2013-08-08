@@ -351,7 +351,7 @@ int Compilation::emit_code_body() {
     strncat(name, _method->name()->as_utf8(), len);
     strncat(name, _method->signature()->as_symbol()->as_utf8(), len);
     unsigned char *base = code()->insts()->start();
-    AArch64Simulator::current()->notifyCompile(name, base);
+    AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck)->notifyCompile(name, base);
     delete[] name;
   }
 #endif

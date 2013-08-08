@@ -705,7 +705,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   if (name) {
     generate_i2c_adapter_name(name, total_args_passed, sig_bt);
-    sim = AArch64Simulator::get_current(UseSimulatorCache);
+    sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
     sim->notifyCompile(name, i2c_entry);
   }
 #endif
@@ -1305,7 +1305,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     strncat(name, ".", len);
     strncat(name, method()->name()->as_utf8(), len);
     strncat(name, method()->signature()->as_utf8(), len);
-    AArch64Simulator::current()->notifyCompile(name, __ pc());
+    AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck)->notifyCompile(name, __ pc());
     delete[] name;
   }
 #endif

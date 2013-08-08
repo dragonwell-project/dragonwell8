@@ -238,7 +238,7 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
     char *name = new char[len];
 
     // tell the sim about the new stub code
-    AArch64Simulator *simulator = AArch64Simulator::get_current(UseSimulatorCache);
+    AArch64Simulator *simulator = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
     strncpy(name, name_for(id), len);
     // replace spaces with underscore so we can write to file and reparse
     for (char *p = strpbrk(name, " "); p; p = strpbrk(p, " ")) {

@@ -1906,7 +1906,7 @@ extern "C" {
     }
 
     if (Interpreter::contains((address)pc)) {
-      AArch64Simulator *sim = AArch64Simulator::current();
+      AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
       Method* meth;
       address bcp;
       if (fp) {

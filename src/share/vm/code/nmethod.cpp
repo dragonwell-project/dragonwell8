@@ -920,7 +920,7 @@ nmethod::nmethod(
     if (NotifySimulator) {
       unsigned char *base = code_buffer->insts()->start();
       long delta = entry_point() - base;
-      AArch64Simulator::current()->notifyRelocate(base, delta);
+      AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck)->notifyRelocate(base, delta);
     }
 #endif
 

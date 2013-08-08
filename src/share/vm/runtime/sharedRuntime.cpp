@@ -2514,7 +2514,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
 #ifdef BUILTIN_SIM
     address old_i2c = entry->get_i2c_entry();
     address old_c2i = entry->get_c2i_entry();
-    AArch64Simulator *sim =  (NotifySimulator ? AArch64Simulator::current() : NULL);
+    AArch64Simulator *sim =  (NotifySimulator ? AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck) : NULL);
 #endif
 
     entry->relocate(B->content_begin());

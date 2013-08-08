@@ -925,21 +925,6 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
     }
 
-#ifdef TARGET_ARCH_aarch64
-    char method_name[400];
-    unsigned char *entry = code_buffer()->insts_begin();
-    stringStream st(method_name, 400);
-    if (_entry_bci != InvocationEntryBci) {
-      st.print("osr:");
-    }
-    _method->holder()->name()->print_symbol_on(&st);
-    st.print(".");
-    _method->name()->print_symbol_on(&st);
-    _method->signature()->as_symbol()->print_symbol_on(&st);
-    AArch64Simulator::current()->notifyCompile(method_name, entry);
-    AArch64Simulator::current()->notifyRelocate(entry, 0);
-#endif
-
     env()->register_method(_method, _entry_bci,
                            &_code_offsets,
                            _orig_pc_slot_offset_in_bytes,
