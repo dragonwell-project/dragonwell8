@@ -1661,6 +1661,11 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       // cpu register - constant
       jint c = right->as_constant_ptr()->as_jint();
 
+      assert(code == lir_add || code == lir_sub, "mismatched arithmetic op");
+      if (c == 0 && dreg == lreg) {
+	COMMENT("effective nop elided");
+	return;
+      }
       switch(left->type()) {
       case T_INT:
 	switch (code) {
@@ -1685,12 +1690,10 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 
   } else if (left->is_double_cpu()) {
     Register lreg_lo = left->as_register_lo();
-    Register lreg_hi = left->as_register_hi();
 
     if (right->is_double_cpu()) {
       // cpu register - cpu register
       Register rreg_lo = right->as_register_lo();
-      Register rreg_hi = right->as_register_hi();
       switch (code) {
       case lir_add: __ add (dest->as_register_lo(), lreg_lo, rreg_lo); break;
       case lir_sub: __ sub (dest->as_register_lo(), lreg_lo, rreg_lo); break;
@@ -1703,9 +1706,15 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 
     } else if (right->is_constant()) {
       jlong c = right->as_constant_ptr()->as_jlong_bits();
+      Register dreg = as_reg(dest);
+      assert(code == lir_add || code == lir_sub, "mismatched arithmetic op");
+      if (c == 0 && dreg == lreg_lo) {
+	COMMENT("effective nop elided");
+	return;
+      }
       switch (code) {
-        case lir_add: __ add(dest->as_register_lo(), lreg_lo, c); break;
-        case lir_sub: __ sub(dest->as_register_lo(), lreg_lo, c); break;
+        case lir_add: __ add(dreg, lreg_lo, c); break;
+        case lir_sub: __ sub(dreg, lreg_lo, c); break;
         default:
           ShouldNotReachHere();
       }
