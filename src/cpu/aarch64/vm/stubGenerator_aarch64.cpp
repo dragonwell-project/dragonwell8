@@ -497,13 +497,27 @@ class StubGenerator: public StubCodeGenerator {
 #endif
 
     // compute exception handler into r19
+
+    // call the VM to find the handler address associated with the
+    // caller address. pass thread in r0 and caller pc (ret address)
+    // in r1. n.b. the caller pc is in lr, unlike x86 where it is on
+    // the stack.
     __ mov(c_rarg1, lr);
-    __ mov(r19, lr); // LR is still live: it will become the throwing
-		     // PC.  Save it (callee-saved) R19
+    // lr will be trashed by the VM call so we move it to R19
+    // (callee-saved) because we also need to pass it to the handler
+    // returned by this call.
+    __ mov(r19, lr);
     BLOCK_COMMENT("call exception_handler_for_return_address");
     __ call_VM_leaf(CAST_FROM_FN_PTR(address,
                          SharedRuntime::exception_handler_for_return_address),
                     rthread, c_rarg1);
+    // we should not really care that lr is no longer the callee
+    // address. we saved the value the handler needs in r19 so we can
+    // just copy it to r3. however, the C2 handler will push its own
+    // frame and then calls into the VM and the VM code asserts that
+    // the PC for the frame above the handler belongs to a compiled
+    // Java method. So, we restore lr here to satisfy that assert.
+    __ mov(lr, r19);
     // setup r0 & r3 & clear pending exception
     __ mov(r3, r19);
     __ mov(r19, r0);
@@ -522,8 +536,8 @@ class StubGenerator: public StubCodeGenerator {
 
     // continue at exception handler
     // r0: exception
-    // r19: exception handler
     // r3: throwing pc
+    // r19: exception handler
     __ verify_oop(r0);
     __ br(r19);
 
