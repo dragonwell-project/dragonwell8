@@ -2132,10 +2132,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     }
 
     __ lea(c_rarg1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
-
     __ mov(c_rarg0, obj_reg);
-    __ mov(r20, sp); // remember sp
-    __ andr(sp, rscratch1, -16); // align stack as required by ABI
 
     // Save pending exception around call to VM (which contains an EXCEPTION_MARK)
     // NOTE that obj_reg == r19 currently
@@ -2143,7 +2140,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ str(zr, Address(rthread, in_bytes(Thread::pending_exception_offset())));
 
     rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), 2, 0, 1);
-    __ mov(sp, r20); // restore sp
+
 #ifdef ASSERT
     {
       Label L;
