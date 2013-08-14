@@ -974,6 +974,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
     st->print("ldr zr, [rscratch1]\n\t");
   }
 }
+#endif
 
 void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
@@ -1025,7 +1026,6 @@ int MachEpilogNode::safepoint_offset() const {
   assert(do_polling(), "no return for this epilog node");
   return 0;
 }
-#endif
 
 //=============================================================================
 
