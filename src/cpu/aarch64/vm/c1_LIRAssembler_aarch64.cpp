@@ -713,6 +713,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     ShouldNotReachHere();
   }
 
+  if (info) add_debug_info_for_null_check_here(info);
   (_masm->*insn)(zr, as_Address(to_addr, rscratch1));
 }
 
