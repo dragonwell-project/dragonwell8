@@ -1563,6 +1563,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // Frame is now completed as far as size and linkage.
   int frame_complete = ((intptr_t)__ pc()) - start;
 
+  // record entry into native wrapper code
+  if (NotifySimulator) {
+    __ notify(Assembler::method_entry);
+  }
+
   // We use r20 as the oop handle for the receiver/klass
   // It is callee save so it survives the call to native
 
@@ -2074,6 +2079,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Any exception pending?
     __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ cbnz(rscratch1, exception_pending);
+  }
+
+  // record exit from native wrapper code
+  if (NotifySimulator) {
+    __ notify(Assembler::method_reentry);
   }
 
   // We're done
