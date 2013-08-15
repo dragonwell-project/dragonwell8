@@ -1961,7 +1961,9 @@ extern "C" {
 	  if (framesize != NULL) {
 	    *framesize = cb->frame_size();
 	  }
-	}
+	} else if (StubRoutines::returns_to_call_stub((address)pc)) {
+          strcpy(method, "call stub");
+        }
       }
     }
   }
