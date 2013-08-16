@@ -6802,12 +6802,6 @@ instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
   ins_pipe(pipe_class_default);
 %}
 
-// TODO
-// ConvF2I ConvI2F
-// ConvF2L ConvL2F
-// ConvD2I ConvI2D
-// ConvD2L ConvL2D
-
 instruct convI2B(iRegI dst, iRegI src, rFlagsReg cr)
 %{
   match(Set dst (Conv2B src));
@@ -6972,6 +6966,224 @@ instruct convL2D_reg_reg(vRegD dst, iRegL src) %{
   %}
 
   ins_pipe(pipe_class_default);
+%}
+
+// stack <-> reg and reg <-> reg shuffles with no conversion
+
+instruct MoveF2I_stack_reg(iRegI dst, stackSlotF src) %{
+
+  match(Set dst (MoveF2I src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "ldrw $dst, $src\t# MoveF2I_stack_reg" %}
+
+  ins_encode %{
+    __ ldrw($dst$$Register, Address(sp, $src$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveI2F_stack_reg(vRegF dst, stackSlotI src) %{
+
+  match(Set dst (MoveI2F src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "ldrs $dst, $src\t# MoveI2F_stack_reg" %}
+
+  ins_encode %{
+    __ ldrs(as_FloatRegister($dst$$reg), Address(sp, $src$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveD2L_stack_reg(iRegL dst, stackSlotD src) %{
+
+  match(Set dst (MoveD2L src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "ldr $dst, $src\t# MoveD2L_stack_reg" %}
+
+  ins_encode %{
+    __ ldr($dst$$Register, Address(sp, $src$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveL2D_stack_reg(vRegD dst, stackSlotL src) %{
+
+  match(Set dst (MoveL2D src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "ldrd $dst, $src\t# MoveL2D_stack_reg" %}
+
+  ins_encode %{
+    __ ldrd(as_FloatRegister($dst$$reg), Address(sp, $src$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveF2I_reg_stack(stackSlotI dst, vRegF src) %{
+
+  match(Set dst (MoveF2I src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "strs $src, $dst\t# MoveF2I_reg_stack" %}
+
+  ins_encode %{
+    __ strs(as_FloatRegister($src$$reg), Address(sp, $dst$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveI2F_reg_stack(stackSlotF dst, iRegI src) %{
+
+  match(Set dst (MoveI2F src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "strw $src, $dst\t# MoveI2F_reg_stack" %}
+
+  ins_encode %{
+    __ strw($src$$Register, Address(sp, $dst$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveD2L_reg_stack(stackSlotL dst, vRegD src) %{
+
+  match(Set dst (MoveD2L src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "strd $dst, $src\t# MoveD2L_reg_stack" %}
+
+  ins_encode %{
+    __ strd(as_FloatRegister($src$$reg), Address(sp, $dst$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveL2D_reg_stack(stackSlotD dst, iRegL src) %{
+
+  match(Set dst (MoveL2D src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "str $src, $dst\t# MoveL2D_reg_stack" %}
+
+  ins_encode %{
+    __ str($src$$Register, Address(sp, $dst$$disp));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveF2I_reg_reg(iRegI dst, vRegF src) %{
+
+  match(Set dst (MoveF2I src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "fmovs $dst, $src\t# MoveF2I_reg_reg" %}
+
+  ins_encode %{
+    __ fmovs($dst$$Register, as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveI2F_reg_reg(vRegF dst, iRegI src) %{
+
+  match(Set dst (MoveI2F src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "fmovs $dst, $src\t# MoveI2F_reg_reg" %}
+
+  ins_encode %{
+    __ fmovs(as_FloatRegister($dst$$reg), $src$$Register);
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveD2L_reg_reg(iRegL dst, vRegD src) %{
+
+  match(Set dst (MoveD2L src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "fmovd $dst, $src\t# MoveD2L_reg_reg" %}
+
+  ins_encode %{
+    __ fmovd($dst$$Register, as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_memory);
+
+%}
+
+instruct MoveL2D_reg_reg(vRegD dst, iRegL src) %{
+
+  match(Set dst (MoveL2D src));
+
+  effect(DEF dst, USE src);
+
+  ins_cost(MEMORY_REF_COST_LOW);
+
+  format %{ "fmovd $dst, $src\t# MoveL2D_reg_reg" %}
+
+  ins_encode %{
+    __ fmovd(as_FloatRegister($dst$$reg), $src$$Register);
+  %}
+
+  ins_pipe(pipe_class_memory);
+
 %}
 
 // ============================================================================
