@@ -1020,7 +1020,11 @@ public:
 
   // Arithmetics
 
-  void addptr(Address dst, int32_t src) { Unimplemented(); }
+  void addptr(Address dst, int32_t src) {
+    ldr(rscratch1, dst);
+    add(rscratch1, rscratch1, src);
+    str(rscratch1, dst);
+}
   // unimplemented
 #if 0
   void addptr(Address dst, Register src);
