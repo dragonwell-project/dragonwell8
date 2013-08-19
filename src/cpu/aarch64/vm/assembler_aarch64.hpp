@@ -1647,6 +1647,32 @@ public:
 
 #undef INSN
 
+   // Floating-point conditional select
+  void fp_conditional_select(unsigned op31, unsigned type,
+                             unsigned op1, unsigned op2,
+                             Condition cond, FloatRegister Vd,
+                             FloatRegister Vn, FloatRegister Vm) {
+    starti;
+    f(op31, 31, 29);
+    f(0b11110, 28, 24);
+    f(type, 23, 22);
+    f(op1, 21, 21);
+    f(op2, 11, 10);
+    f(cond, 15, 12);
+    rf(Vm, 16), rf(Vn, 5), rf(Vd, 0);
+  }
+
+#define INSN(NAME, op31, type, op1, op2)                                \
+  void NAME(FloatRegister Vd, FloatRegister Vn,                         \
+            FloatRegister Vm, Condition cond) {                         \
+    fp_conditional_select(op31, type, op1, op2, cond, Vd, Vn, Vm);      \
+  }
+
+  INSN(fcsels, 0b000, 0b00, 0b1, 0b11);
+  INSN(fcseld, 0b000, 0b01, 0b1, 0b11);
+
+#undef INSN
+
    // Floating-point<->integer conversions
   void float_int_convert(unsigned op31, unsigned type,
 			 unsigned rmode, unsigned opcode,
