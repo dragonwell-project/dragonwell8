@@ -1472,7 +1472,10 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       // Object is null; update MDO and exit
       Register mdo  = klass_RInfo;
       __ mov_metadata(mdo, md->constant_encoding());
-      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
+      Address data_addr
+	= __ form_address(rscratch2, mdo,
+			  md->byte_offset_of_slot(data, DataLayout::header_offset()),
+			  LogBytesPerInt);
       int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
       __ ldrw(rscratch1, data_addr);
       __ orrw(rscratch1, rscratch1, header_bits);

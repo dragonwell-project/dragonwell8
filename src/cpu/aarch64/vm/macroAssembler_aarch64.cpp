@@ -1164,6 +1164,41 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
   }
 }
 
+// Form an address from base + (offset << shift) in Rd.  Rd may or may
+// not actually be used: you must use the Address that is returned.
+// It is up to you to ensure that the shift provided matches the size
+// of your data.
+Address MacroAssembler::form_address(Register Rd, Register base, long byte_offset, int shift) {
+  if (Address::offset_ok_for_immed(byte_offset, shift))
+    // It fits; no need for any heroics
+    return Address(base, byte_offset);
+
+  // Don't do anything clever with negative or misaligned offsets
+  unsigned mask = (1 << shift) - 1;
+  if (byte_offset < 0 || byte_offset & mask) {
+    mov(Rd, byte_offset);
+    add(Rd, base, Rd);
+    return Address(Rd);
+  }
+
+  // See if we can do this with two 12-bit offsets
+  {
+    unsigned long word_offset = byte_offset >> shift;
+    unsigned long masked_offset = word_offset & 0xfff000;
+    if (Address::offset_ok_for_immed(word_offset - masked_offset)
+	&& Assembler::operand_valid_for_add_sub_immediate(masked_offset << shift)) {
+      add(Rd, base, masked_offset << shift);
+      word_offset -= masked_offset;
+      return Address(Rd, word_offset << shift);
+    }
+  }
+
+  // Do it the hard way
+  mov(Rd, byte_offset << shift);
+  add(Rd, base, Rd);
+  return Address(Rd);
+}
+
 int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
 				    bool want_remainder, Register scratch)
 {

@@ -1288,6 +1288,12 @@ public:
     br(rscratch1);
   }
 
+  // Form an address from base + (offset << shift) in Rd.  Rd may or
+  // may not actually be used: you must use the Address that is
+  // returned.  It is up to you to ensure that the shift provided
+  // matches the size of your data.
+  Address form_address(Register Rd, Register base, long byte_offset, int shift);
+
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
 
