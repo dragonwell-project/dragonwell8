@@ -1279,13 +1279,11 @@ void LIR_Assembler::type_profile_helper(Register mdo,
   for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
     Label next_test;
     // See if the receiver is receiver[n].
-    __ lea(rscratch1, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i))));
+    __ ldr(rscratch1, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i))));
     __ cmp(recv, rscratch1);
     __ br(Assembler::NE, next_test);
     Address data_addr(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_count_offset(i)));
-    __ ldr(rscratch1, data_addr);
-    __ add(rscratch1, rscratch1, DataLayout::counter_increment);
-    __ str(rscratch1, data_addr);
+    __ addptr(data_addr, DataLayout::counter_increment);
     __ b(*update_done);
     __ bind(next_test);
   }
