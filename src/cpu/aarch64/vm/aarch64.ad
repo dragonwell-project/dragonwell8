@@ -5707,6 +5707,78 @@ instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegN dst, immN0 zero, iRegN
   ins_pipe(pipe_class_default);
 %}
 
+instruct cmovF_reg(cmpOp cmp, rFlagsReg cr, vRegF dst, vRegF src1,  vRegF src2)
+%{
+  match(Set dst (CMoveF (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+
+  format %{ "fcsels $dst, $src1, $src2, $cmp\t# signed cmove float\n\t" %}
+  ins_encode %{
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ fcsels(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+              cond);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovF_regU(cmpOpU cmp, rFlagsRegU cr, vRegF dst, vRegF src1,  vRegF src2)
+%{
+  match(Set dst (CMoveF (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+
+  format %{ "fcsels $dst, $src1, $src2, $cmp\t# unsigned cmove float\n\t" %}
+  ins_encode %{
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ fcsels(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+              cond);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovD_reg(cmpOp cmp, rFlagsReg cr, vRegD dst, vRegD src1,  vRegD src2)
+%{
+  match(Set dst (CMoveD (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+
+  format %{ "fcseld $dst, $src1, $src2, $cmp\t# signed cmove float\n\t" %}
+  ins_encode %{
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ fcseld(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+              cond);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmovD_regU(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src2)
+%{
+  match(Set dst (CMoveD (Binary cmp cr) (Binary src1 src2)));
+
+  ins_cost(DEFAULT_COST);
+
+  format %{ "fcseld $dst, $src1, $src2, $cmp\t# unsigned cmove float\n\t" %}
+  ins_encode %{
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ fcseld(as_FloatRegister($dst$$reg),
+              as_FloatRegister($src1$$reg),
+              as_FloatRegister($src2$$reg),
+              cond);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // Arithmetic Instructions
 //
