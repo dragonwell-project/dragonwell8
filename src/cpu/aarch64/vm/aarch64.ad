@@ -792,17 +792,16 @@ void emit_break(CodeBuffer &cbuf) {
 
 #ifndef PRODUCT
 void MachBreakpointNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
-  Unimplemented();
   st->print("BREAKPOINT");
 }
 #endif
 
 void MachBreakpointNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
-  Unimplemented();
+  MacroAssembler _masm(&cbuf);
+  __ brk(0);
 }
 
 uint MachBreakpointNode::size(PhaseRegAlloc *ra_) const {
-  Unimplemented();
   return MachNode::size(ra_);
 }
 
