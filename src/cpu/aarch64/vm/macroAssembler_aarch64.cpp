@@ -2167,6 +2167,31 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   }
 }
 
+// TODO
+//
+// these next two methods load a narrow oop or klass constant into a
+// register. they currently do the dumb thing of installing 64 bits of
+// unencoded constant into the register and then encoding it.
+// installing the encoded 32 bit constant directly requires updating
+// the relocation code so it can recognize that this is a 32 bit load
+// rather than a 64 bit load.
+
+void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
+  assert (UseCompressedOops, "should only be used for compressed headers");
+  assert (Universe::heap() != NULL, "java heap should be initialized");
+  assert (oop_recorder() != NULL, "this assembler needs an OopRecorder");
+  movoop(dst, obj);
+  encode_heap_oop_not_null(dst);
+}
+
+
+void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
+  assert (UseCompressedKlassPointers, "should only be used for compressed headers");
+  assert (oop_recorder() != NULL, "this assembler needs an OopRecorder");
+  mov_metadata(dst, k);
+  encode_klass_not_null(dst);
+}
+
 void MacroAssembler::load_heap_oop(Register dst, Address src)
 {
   if (UseCompressedOops) {

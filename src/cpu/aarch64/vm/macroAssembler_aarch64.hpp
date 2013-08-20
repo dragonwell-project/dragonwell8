@@ -711,9 +711,9 @@ public:
   void encode_heap_oop_not_null(Register dst, Register src);
   void decode_heap_oop_not_null(Register dst, Register src);
 
+  void set_narrow_oop(Register dst, jobject obj);
   // currently unimplemented
 #if 0
-  void set_narrow_oop(Register dst, jobject obj);
   void set_narrow_oop(Address dst, jobject obj);
   void cmp_narrow_oop(Register dst, jobject obj);
   void cmp_narrow_oop(Address dst, jobject obj);
@@ -724,9 +724,9 @@ public:
   void encode_klass_not_null(Register dst, Register src);
   void decode_klass_not_null(Register dst, Register src);
 
+  void set_narrow_klass(Register dst, Klass* k);
   // currently unimplemented
 #if 0
-  void set_narrow_klass(Register dst, Klass* k);
   void set_narrow_klass(Address dst, Klass* k);
   void cmp_narrow_klass(Register dst, Klass* k);
   void cmp_narrow_klass(Address dst, Klass* k);

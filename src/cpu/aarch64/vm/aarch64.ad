@@ -2223,6 +2223,54 @@ encode %{
     }
   %}
 
+  enc_class aarch64_enc_strw_immn(immN src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    address con = (address)$src$$constant;
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    // need to do this the hard way until we can manage relocs
+    // for 32 bit constants
+    __ movoop(rscratch2, (jobject)con);
+    __ encode_heap_oop_not_null(rscratch2);
+    if (index == -1) {
+      __ strw(rscratch2, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strw(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
+      } 
+    }
+  %}
+
+  enc_class aarch64_enc_strw_immnk(immN src, memory mem) %{
+    MacroAssembler _masm(&cbuf);
+    address con = (address)$src$$constant;
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int scale = $mem$$scale;
+    int disp = $mem$$disp;
+    // need to do this the hard way until we can manage relocs
+    // for 32 bit constants
+    __ movoop(rscratch2, (jobject)con);
+    __ encode_klass_not_null(rscratch2);
+    if (index == -1) {
+      __ strw(rscratch2, Address(base, disp));
+    } else {
+      Register index_reg = as_Register(index);
+      if (disp == 0) {
+        __ strw(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
+      } 
+    }
+  %}
+
   // synchronized read/update encodings
 
   enc_class aarch64_enc_ldaxr(iRegL dst, memory mem) %{
@@ -2543,7 +2591,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::oop_type, "unexpected reloc type");
-      // __ set_narrow_oop(dst_reg, (jobject)con);
+      __ set_narrow_oop(dst_reg, (jobject)con);
     }
   %}
 
@@ -2562,7 +2610,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::metadata_type, "unexpected reloc type");
-      // __ set_narrow_klass(dst_reg, (Klass *)con);      
+      __ set_narrow_klass(dst_reg, (Klass *)con);      
     }
   %}
 
@@ -3657,7 +3705,7 @@ operand iRegP_FP()
 // Narrow Pointer Register
 operand iRegN()
 %{
-  constraint(ALLOC_IN_RC(any_reg));
+  constraint(ALLOC_IN_RC(any_reg32));
   match(RegN);
   match(iRegNNoSp);
   format %{ %}
@@ -3667,7 +3715,7 @@ operand iRegN()
 // Integer 64 bit Register not Special
 operand iRegNNoSp()
 %{
-  constraint(ALLOC_IN_RC(no_special_reg));
+  constraint(ALLOC_IN_RC(no_special_reg32));
   match(RegN);
   format %{ %}
   interface(REG_INTER);
@@ -4365,7 +4413,7 @@ instruct loadKlass(iRegPNoSp dst, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
-// Load Narow Klass Pointer
+// Load Narrow Klass Pointer
 instruct loadNKlass(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadNKlass mem));
@@ -4373,7 +4421,7 @@ instruct loadNKlass(iRegNNoSp dst, memory mem)
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# compressed class ptr" %}
 
-  ins_encode(aarch64_enc_ldr(dst, mem));
+  ins_encode(aarch64_enc_ldrw(dst, mem));
 
   ins_pipe(pipe_class_memory);
 %}
@@ -4667,7 +4715,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
   predicate(Universe::narrow_oop_base() == NULL && Universe::narrow_klass_base() == NULL);
   match(Set mem (StoreN mem zero));
 
-  ins_cost(MEMORY_REF_COST);
+  ins_cost(MEMORY_REF_COST_LOW);
   format %{ "strw  rheapbase, $mem\t# compressed ptr (rheapbase==0)" %}
 
   ins_encode(aarch64_enc_strw(heapbase, mem));
@@ -4675,8 +4723,17 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
-// TODO
-// encode StoreImmN directly omitting LoadImmN
+instruct storeImmN(immN src, memory mem)
+%{
+  match(Set mem (StoreN mem src));
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strw  $src, $mem\t# compressed ptr " %}
+
+  ins_encode(aarch64_enc_strw_immn(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
 
 // Store Compressed Klass Pointer
 instruct storeNKlass(iRegN src, memory mem)
@@ -4691,8 +4748,19 @@ instruct storeNKlass(iRegN src, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
-// TODO
-// encode StoreImmNKlass directly omitting LoadImmN
+// Store Compressed Klass Pointer Constant
+instruct storeImmNKlass(immN src, memory mem)
+%{
+  match(Set mem (StoreNKlass mem src));
+
+  ins_cost(MEMORY_REF_COST_LOW);
+  format %{ "strw  $src, $mem\t# compressed klass ptr" %}
+
+  ins_encode(aarch64_enc_strw_immnk(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
 
 // Store Float
 instruct storeF(vRegF src, memory mem)
@@ -4974,7 +5042,7 @@ instruct convN2I(iRegINoSp dst, iRegN src)
 
 
 // Convert oop pointer into compressed form
-instruct encodeHeapOop(iRegN dst, iRegP src, rFlagsReg cr) %{
+instruct encodeHeapOop(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   predicate(n->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
   match(Set dst (EncodeP src));
   effect(KILL cr);
@@ -4990,7 +5058,7 @@ instruct encodeHeapOop(iRegN dst, iRegP src, rFlagsReg cr) %{
   ins_pipe(pipe_class_default);
 %}
 
-instruct encodeHeapOop_not_null(iRegN dst, iRegP src, rFlagsReg cr) %{
+instruct encodeHeapOop_not_null(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   predicate(n->bottom_type()->make_ptr()->ptr() == TypePtr::NotNull);
   match(Set dst (EncodeP src));
   effect(KILL cr);
@@ -5034,6 +5102,42 @@ instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
     }
   %}
   ins_pipe(pipe_class_default);
+%}
+
+// n.b. AArch64 implementations of encode_klass_not_null and
+// decode_klass_not_null do not modify the flags register so, unlike
+// Intel, we don't kill CR as a side effect here
+
+instruct encodeKlass_not_null(iRegNNoSp dst, iRegP src) %{
+  match(Set dst (EncodePKlass src));
+
+  format %{ "encode_klass_not_null $dst,$src" %}
+
+  ins_encode %{
+    Register src_reg = as_Register($src$$reg);
+    Register dst_reg = as_Register($dst$$reg);
+    __ encode_klass_not_null(dst_reg, src_reg);
+  %}
+
+   ins_pipe(pipe_class_default);
+%}
+
+instruct decodeKlass_not_null(iRegPNoSp dst, iRegN src) %{
+  match(Set dst (DecodeNKlass src));
+
+  format %{ "decode_klass_not_null $dst,$src" %}
+
+  ins_encode %{
+    Register src_reg = as_Register($src$$reg);
+    Register dst_reg = as_Register($dst$$reg);
+    if (dst_reg != src_reg) {
+      __ decode_klass_not_null(dst_reg, src_reg);
+    } else {
+      __ decode_klass_not_null(dst_reg);
+    }
+  %}
+
+   ins_pipe(pipe_class_default);
 %}
 
 instruct checkCastPP(iRegPNoSp dst)
@@ -5228,7 +5332,7 @@ instruct compareAndSwapP(iRegINoSp res, memory mem, iRegPNoSp oldval, iRegPNoSp 
 
 instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
 
-  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
+  match(Set res (CompareAndSwapN mem (Binary oldval newval)));
 
   effect(KILL cr);
 
