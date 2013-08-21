@@ -1278,6 +1278,9 @@ public:
 
   WRAP(adds) WRAP(addsw) WRAP(subs) WRAP(subsw)
 
+  void add(Register Rd, Register Rn, RegisterOrConstant increment);
+  void addw(Register Rd, Register Rn, RegisterOrConstant increment);
+
   void tableswitch(Register index, jint lowbound, jint highbound,
 		   Label &jumptable, Label &jumptable_end) {
     adr(rscratch1, jumptable);

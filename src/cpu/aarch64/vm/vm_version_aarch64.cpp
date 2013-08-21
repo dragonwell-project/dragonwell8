@@ -71,7 +71,7 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     // TODO : redefine fields in CpuidInfo and generate
     // code to fill them in
 
-    __ ret(r30);
+    __ ret(lr);
 
 #   undef __
 
@@ -81,7 +81,11 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 
 
 void VM_Version::get_processor_features() {
-  // TODO : define relevant processor features and initialise them
+  _supports_cx8 = true;
+  _supports_atomic_getset4 = true;
+  _supports_atomic_getadd4 = true;
+  _supports_atomic_getset8 = true;
+  _supports_atomic_getadd8 = true;
 }
 
 void VM_Version::initialize() {

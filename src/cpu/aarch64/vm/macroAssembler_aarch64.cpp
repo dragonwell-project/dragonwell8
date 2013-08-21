@@ -1587,6 +1587,22 @@ void MacroAssembler::wrap_adds_subs_imm_insn(Register Rd, Register Rn, unsigned 
 }
 
 
+void MacroAssembler::add(Register Rd, Register Rn, RegisterOrConstant increment) {
+  if (increment.is_register()) {
+    add(Rd, Rn, increment.as_register());
+  } else {
+    add(Rd, Rn, increment.as_constant());
+  }
+}
+
+void MacroAssembler::addw(Register Rd, Register Rn, RegisterOrConstant increment) {
+  if (increment.is_register()) {
+    add(Rd, Rn, increment.as_register());
+  } else {
+    add(Rd, Rn, increment.as_constant());
+  }
+}
+
 #ifdef ASSERT
 static Register spill_registers[] = {
   rheapbase,
