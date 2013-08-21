@@ -1303,7 +1303,10 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
   src.load_item();
   off.load_nonconstant();
 
-  if (! (value.is_constant() && can_inline_as_constant(x->value()))) {
+  // We can cope with a constant increment in an xadd
+  if (! (x->is_add()
+	 && value.is_constant()
+	 && can_inline_as_constant(x->value()))) {
     value.load_item();
   }
 
