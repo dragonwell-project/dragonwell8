@@ -161,6 +161,21 @@ static Register as_reg(LIR_Opr op) {
   return op->is_double_cpu() ? op->as_register_lo() : op->as_register();
 }
 
+static jlong as_long(LIR_Opr data) {
+  jlong result;
+  switch (data->type()) {
+  case T_INT:
+    result = (data->as_jint());
+    break;
+  case T_LONG:
+    result = (data->as_jlong());
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+  return result;
+}
+
 static bool is_reg(LIR_Opr op) {
   return op->is_double_cpu() | op->is_single_cpu();
 }
@@ -1574,6 +1589,7 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
 
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
+  assert(VM_Version::supports_cx8(), "wrong machine");
   Register addr = as_reg(op->addr());
   Register newval = as_reg(op->new_value());
   Register cmpval = as_reg(op->cmp_value());
@@ -2965,6 +2981,90 @@ void LIR_Assembler::peephole(LIR_List *lir) {
   }
 }
 
-void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp) { Unimplemented(); }
+void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp_op) {
+  Address addr = as_Address(src->as_address_ptr(), noreg);
+  BasicType type = src->type();
+  bool is_oop = type == T_OBJECT || type == T_ARRAY;
+
+  void (MacroAssembler::* lda)(Register Rd, Register Ra);
+  void (MacroAssembler::* add)(Register Rd, Register Rn, RegisterOrConstant increment);
+  void (MacroAssembler::* stl)(Register Rs, Register Rt, Register Rn);
+
+  switch(type) {
+  case T_INT:
+    lda = &MacroAssembler::ldaxrw;
+    add = &MacroAssembler::addw;
+    stl = &MacroAssembler::stlxrw;
+    break;
+  case T_LONG:
+    lda = &MacroAssembler::ldaxr;
+    add = &MacroAssembler::add;
+    stl = &MacroAssembler::stlxr;
+    break;
+  case T_OBJECT:
+  case T_ARRAY:
+    if (UseCompressedOops) {
+      lda = &MacroAssembler::ldaxrw;
+      add = &MacroAssembler::addw;
+      stl = &MacroAssembler::stlxrw;
+    } else {
+      lda = &MacroAssembler::ldaxr;
+      add = &MacroAssembler::add;
+      stl = &MacroAssembler::stlxr;
+    }
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+
+  switch (code) {
+  case lir_xadd:
+    {
+      RegisterOrConstant inc;
+      Register tmp = as_reg(tmp_op);
+      Register dst = as_reg(dest);
+      if (data->is_constant()) {
+	inc = RegisterOrConstant(as_long(data));
+	assert_different_registers(dst, addr.base(), tmp,
+				   rscratch1, rscratch2);
+      } else {
+	inc = RegisterOrConstant(as_reg(data));
+	assert_different_registers(inc.as_register(), dst, addr.base(), tmp,
+				   rscratch1, rscratch2);
+      }
+      Label again;
+      __ lea(tmp, addr);
+      __ bind(again);
+      (_masm->*lda)(dst, tmp);
+      (_masm->*add)(rscratch1, dst, inc);
+      (_masm->*stl)(rscratch2, rscratch1, tmp);
+      __ cbnzw(rscratch2, again);
+      break;
+    }
+  case lir_xchg:
+    {
+      Register tmp = tmp_op->as_register();
+      Register obj = as_reg(data);
+      Register dst = as_reg(dest);
+      if (is_oop && UseCompressedOops) {
+	__ encode_heap_oop(obj);
+      }
+      assert_different_registers(obj, addr.base(), tmp, rscratch2, dst);
+      Label again;
+      __ lea(tmp, addr);
+      __ bind(again);
+      (_masm->*lda)(dst, tmp);
+      (_masm->*stl)(rscratch2, obj, tmp);
+      __ cbnzw(rscratch2, again);
+      if (is_oop && UseCompressedOops) {
+	__ decode_heap_oop(dst);
+      }
+    }
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+  asm("nop");
+}
 
 #undef __

@@ -1294,4 +1294,56 @@ void LIRGenerator::put_Object_unsafe(LIR_Opr src, LIR_Opr offset, LIR_Opr data,
   }
 }
 
-void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) { Unimplemented(); }
+void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
+  BasicType type = x->basic_type();
+  LIRItem src(x->object(), this);
+  LIRItem off(x->offset(), this);
+  LIRItem value(x->value(), this);
+
+  src.load_item();
+  off.load_nonconstant();
+
+  if (! (value.is_constant() && can_inline_as_constant(x->value()))) {
+    value.load_item();
+  }
+
+  LIR_Opr dst = rlock_result(x, type);
+  LIR_Opr data = value.result();
+  bool is_obj = (type == T_ARRAY || type == T_OBJECT);
+  LIR_Opr offset = off.result();
+
+  if (data == dst) {
+    LIR_Opr tmp = new_register(data->type());
+    __ move(data, tmp);
+    data = tmp;
+  }
+
+  LIR_Address* addr;
+  if (offset->is_constant()) {
+    jlong l = offset->as_jlong();
+    assert((jlong)((jint)l) == l, "offset too large for constant");
+    jint c = (jint)l;
+    addr = new LIR_Address(src.result(), c, type);
+  } else {
+    addr = new LIR_Address(src.result(), offset, type);
+  }
+
+  LIR_Opr tmp = new_register(T_INT);
+  LIR_Opr ptr = LIR_OprFact::illegalOpr;
+
+  if (x->is_add()) {
+    __ xadd(LIR_OprFact::address(addr), data, dst, tmp);
+  } else {
+    if (is_obj) {
+      // Do the pre-write barrier, if any.
+      ptr = new_pointer_register();
+      __ add(src.result(), off.result(), ptr);
+      pre_barrier(ptr, LIR_OprFact::illegalOpr /* pre_val */,
+		  true /* do_load */, false /* patch */, NULL);
+    }
+    __ xchg(LIR_OprFact::address(addr), data, dst, tmp);
+    if (is_obj) {
+      post_barrier(ptr, data);
+    }
+  }
+}
