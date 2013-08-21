@@ -63,35 +63,6 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   // and a memory and data synchronization barrier but we will find
   // out when we get real hardware :-)
 
-#ifndef BUILTIN_SIM
-  Label l99, l1, l2;
-
-  __ cmp(r1, zr);
-  __ br(Assembler::EQ, l99);
-
-  __ mov(r4, r0);
-  __ mov(r3, r1);
-
-__ bind(l1);
-  __ dc(r4);
-  __ add(r4, r4, ICache::line_size);
-  __ subs(r3, r3, 1);
-  __ br(Assembler::NE, l1);
-
-  __ dsb(Assembler::SY);
-
-  __ mov(r4, r0);
-  __ mov(r3, r1);
-
-__ bind(l2);
-  __ ic(r4);
-  __ add(r4, r4, ICache::line_size);
-  __ subs(r3, r3, 1);
-  __ br(Assembler::NE, l2);
-
-__ bind(l99);
-#endif
-
   // n.b. SY means a system wide barrier which is the overkill option
 
   address loop = __ pc();
