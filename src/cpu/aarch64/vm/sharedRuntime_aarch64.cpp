@@ -1024,14 +1024,14 @@ void SharedRuntime::save_native_result(MacroAssembler *masm, BasicType ret_type,
   // which by this time is free to use
   switch (ret_type) {
   case T_FLOAT:
-    __ ldrs(v0, Address(rfp, -wordSize));
+    __ strs(v0, Address(rfp, -wordSize));
     break;
   case T_DOUBLE:
-    __ ldrd(v0, Address(rfp, -wordSize));
+    __ strd(v0, Address(rfp, -wordSize));
     break;
   case T_VOID:  break;
   default: {
-    __ ldr(r0, Address(rfp, -wordSize));
+    __ str(r0, Address(rfp, -wordSize));
     }
   }
 }
@@ -1041,14 +1041,14 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm, BasicType ret_ty
   // which by this time is free to use
   switch (ret_type) {
   case T_FLOAT:
-    __ strs(v0, Address(rfp, -wordSize));
+    __ ldrs(v0, Address(rfp, -wordSize));
     break;
   case T_DOUBLE:
-    __ strd(v0, Address(rfp, -wordSize));
+    __ ldrd(v0, Address(rfp, -wordSize));
     break;
   case T_VOID:  break;
   default: {
-    __ str(r0, Address(rfp, -wordSize));
+    __ ldr(r0, Address(rfp, -wordSize));
     }
   }
 }
