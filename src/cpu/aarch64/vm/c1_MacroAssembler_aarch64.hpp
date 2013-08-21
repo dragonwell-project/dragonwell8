@@ -118,6 +118,4 @@ void zero_memory(Register addr, Register len, Register t1);
 
   void invalidate_registers(bool inv_r0, bool inv_r19, bool inv_r2, bool inv_r3, bool inv_r4, bool inv_r5) PRODUCT_RETURN;
 
-  address read_polling_page(Register r, address page, relocInfo::relocType rtype);
-
 #endif // CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP

@@ -1361,6 +1361,8 @@ public:
       ldr(dest, Address(dest, offset));
     }
   }
+
+  address read_polling_page(Register r, address page, relocInfo::relocType rtype);
 };
 
 #ifdef ASSERT

@@ -780,7 +780,7 @@ int MachCallRuntimeNode::ret_addr_offset() {
 // Indicate if the safepoint node needs the polling page as an input
 bool SafePointNode::needs_polling_address_input()
 {
-  return true;
+  return false;
 }
 
 //=============================================================================
@@ -999,8 +999,7 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   if (do_polling() && C->is_method_compilation()) {
     address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
-    __ mov(rscratch1, Address(polling_page, relocInfo::poll_return_type));
-    __ ldr(zr, Address(rscratch1, 0));
+    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
   }
 }
 
@@ -1023,7 +1022,7 @@ const Pipeline * MachEpilogNode::pipeline() const {
 // get rid of it?
 int MachEpilogNode::safepoint_offset() const {
   assert(do_polling(), "no return for this epilog node");
-  return 0;
+  return 4;
 }
 
 //=============================================================================
@@ -7810,16 +7809,18 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
 // TODO
 // provide a near and far version of this code
 
-instruct safePoint_poll(rFlagsReg cr, iRegP poll)
+instruct safePoint_poll()
 %{
-  match(SafePoint poll);
-  effect(KILL cr, USE poll);
+  match(SafePoint);
 
   format %{
-    "ldr rscratch1, [$poll]\t# Safepoint: poll for GC"
+    "adrp, rscratch1, #safepoint_poll_page\n\t"
+    "ldrw zr, [rscratch1, #safepoint_poll_off]\t# Safepoint: poll for GC"
   %}
   ins_encode %{
-    __ ldr(rscratch1, as_Register($poll$$reg));
+    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+    assert(os::is_poll_address(polling_page), "should be");
+    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_type);
   %}
   ins_pipe(pipe_class_memory);
 %}

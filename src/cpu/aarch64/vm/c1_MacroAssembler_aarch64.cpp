@@ -460,15 +460,6 @@ void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) {
 void C1_MacroAssembler::verified_entry() {
 }
 
-address C1_MacroAssembler::read_polling_page(Register r, address page, relocInfo::relocType rtype) {
-  unsigned long off;
-  adrp(r, Address(page, rtype), off);
-  InstructionMark im(this);
-  code_section()->relocate(inst_mark(), rtype);
-  ldrw(zr, Address(r, off));
-  return inst_mark();
-}
-
 #ifndef PRODUCT
 
 void C1_MacroAssembler::verify_stack_oop(int stack_offset) { Unimplemented(); }

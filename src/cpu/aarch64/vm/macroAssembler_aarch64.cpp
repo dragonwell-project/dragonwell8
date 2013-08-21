@@ -2567,3 +2567,11 @@ void MacroAssembler::bang_stack_size(Register size, Register tmp) {
 }
 
 
+address MacroAssembler::read_polling_page(Register r, address page, relocInfo::relocType rtype) {
+  unsigned long off;
+  adrp(r, Address(page, rtype), off);
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), rtype);
+  ldrw(zr, Address(r, off));
+  return inst_mark();
+}
