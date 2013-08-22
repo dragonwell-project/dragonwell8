@@ -1286,10 +1286,7 @@ void Address::lea(MacroAssembler *as, Register r) const {
 }
 
 void Assembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
-  InstructionMark im(this);
-  code_section()->relocate(inst_mark(), dest.rspec());
-  byte_offset = (uint64_t)dest.target() & 0xfff;
-  _adrp(reg1, dest.target());
+  ShouldNotReachHere();
 }
 
 #undef __

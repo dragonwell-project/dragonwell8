@@ -180,8 +180,23 @@ void NativeJump::set_jump_destination(address dest) {
 };
 
 bool NativeInstruction::is_safepoint_poll() {
-  address addr = addr_at(-4);
-  return os::is_poll_address(MacroAssembler::pd_call_destination(addr));
+  /* We expect a safepoint poll to be either
+
+     adrp(reg, polling_page);
+     ldr(reg, offset);
+
+     or
+
+     mov(reg, polling_page);
+     ldr(reg, Address(reg, 0));
+  */
+
+  if (is_adrp_at(addr_at(-4))) {
+    address addr = addr_at(-4);
+    return os::is_poll_address(MacroAssembler::pd_call_destination(addr));
+  } else {
+    return os::is_poll_address(MacroAssembler::pd_call_destination(addr_at(-16)));
+  }
 }
 
 bool NativeInstruction::is_adrp_at(address instr) {

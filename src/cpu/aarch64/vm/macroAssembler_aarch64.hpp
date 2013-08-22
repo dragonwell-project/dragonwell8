@@ -1281,6 +1281,8 @@ public:
   void add(Register Rd, Register Rn, RegisterOrConstant increment);
   void addw(Register Rd, Register Rn, RegisterOrConstant increment);
 
+  void adrp(Register reg1, const Address &dest, unsigned long &byte_offset);
+
   void tableswitch(Register index, jint lowbound, jint highbound,
 		   Label &jumptable, Label &jumptable_end) {
     adr(rscratch1, jumptable);

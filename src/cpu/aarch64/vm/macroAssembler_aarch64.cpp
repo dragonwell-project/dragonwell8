@@ -2575,3 +2575,18 @@ address MacroAssembler::read_polling_page(Register r, address page, relocInfo::r
   ldrw(zr, Address(r, off));
   return inst_mark();
 }
+
+void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
+  if (labs(pc() - dest.target()) >= (1LL << 32)) {
+    // Out of range.  This doesn't happen very often, but we have to
+    // handle it
+    mov(reg1, dest);
+    byte_offset = 0;
+  } else {
+    InstructionMark im(this);
+    code_section()->relocate(inst_mark(), dest.rspec());
+    byte_offset = (uint64_t)dest.target() & 0xfff;
+    _adrp(reg1, dest.target());
+  }
+}
+
