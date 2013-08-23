@@ -2169,6 +2169,15 @@ encode %{
     int index = $mem$$index;
     int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    // we sometimes get asked to store the stack pointer into the
+    // current thread -- we cannot do that directly on AArch64
+
+    if (src_reg == r31_sp) {
+      assert(base == rthread, "unexpected store for sp");
+      __ mov(rscratch2, sp);
+      src_reg = rscratch2;
+    }
     if (index == -1) {
       __ str(src_reg, Address(base, disp));
     } else {
