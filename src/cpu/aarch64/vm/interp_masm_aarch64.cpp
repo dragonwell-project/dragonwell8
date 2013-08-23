@@ -51,7 +51,23 @@ void InterpreterMacroAssembler::get_method(Register reg) { Unimplemented(); }
 
 void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {
   if (JvmtiExport::can_pop_frame()) {
-    Unimplemented();
+    Label L;
+    // Initiate popframe handling only if it is not already being
+    // processed.  If the flag has the popframe_processing bit set, it
+    // means that this code is called *during* popframe handling - we
+    // don't want to reenter.
+    // This method is only called just after the call into the vm in
+    // call_VM_base, so the arg registers are available.
+    ldr(rscratch1, Address(rthread, JavaThread::popframe_condition_offset()));
+    tst(rscratch1, JavaThread::popframe_pending_bit);
+    br(Assembler::EQ, L);
+    tst(rscratch1, JavaThread::popframe_processing_bit);
+    br(Assembler::NE, L);
+    // Call Interpreter::remove_activation_preserving_args_entry() to get the
+    // address of the same-named entrypoint in the generated interpreter code.
+    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_preserving_args_entry));
+    br(r0);
+    bind(L);
   }
 }
 
@@ -62,9 +78,26 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
 }
 
 void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) {
-    if (JvmtiExport::can_force_early_return()) {
-      Unimplemented();
-    }
+  if (JvmtiExport::can_force_early_return()) {
+    Label L;
+    ldr(rscratch1, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    cbz(rscratch1, L); // if (thread->jvmti_thread_state() == NULL) exit;
+
+    // Initiate earlyret handling only if it is not already being processed.
+    // If the flag has the earlyret_processing bit set, it means that this code
+    // is called *during* earlyret handling - we don't want to reenter.
+    ldrw(rscratch1, Address(rscratch1, JvmtiThreadState::earlyret_state_offset()));
+    cmpw(rscratch1, JvmtiThreadState::earlyret_pending);
+    br(Assembler::NE, L);
+
+    // Call Interpreter::remove_activation_early_entry() to get the address of the
+    // same-named entrypoint in the generated interpreter code.
+    ldr(rscratch1, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    ldrw(rscratch1, Address(rscratch1, JvmtiThreadState::earlyret_tos_offset()));
+    call_VM_leaf(CAST_FROM_FN_PTR(address, Interpreter::remove_activation_early_entry), rscratch1);
+    br(r0);
+    bind(L);
+  }
 }
 
 void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
@@ -102,6 +135,13 @@ void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
   }
 }
 
+// Return
+// Rindex: index into constant pool
+// Rcache: address of cache entry - ConstantPoolCache::base_offset()
+//
+// A caller must add ConstantPoolCache::base_offset() to Rcache to get
+// the true address of the cache entry.
+//
 void InterpreterMacroAssembler::get_cache_and_index_at_bcp(Register cache,
                                                            Register index,
                                                            int bcp_offset,
@@ -1298,10 +1338,37 @@ void InterpreterMacroAssembler::notify_method_entry() {
 
 void InterpreterMacroAssembler::notify_method_exit(
     TosState state, NotifyMethodExitMode mode) {
+  // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
+  // track stack depth.  If it is possible to enter interp_only_mode we add
+  // the code to check if the event should be sent.
   if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
-    call_Unimplemented();
+    Label L;
+    // Note: frame::interpreter_frame_result has a dependency on how the
+    // method result is saved across the call to post_method_exit. If this
+    // is changed then the interpreter_frame_result implementation will
+    // need to be updated too.
+
+    // For c++ interpreter the result is always stored at a known location in the frame
+    // template interpreter will leave it on the top of the stack.
+    NOT_CC_INTERP(push(state);)
+    ldrw(r3, Address(rthread, JavaThread::interp_only_mode_offset()));
+    cbz(r3, L);
+    call_VM(noreg,
+            CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
+    bind(L);
+    NOT_CC_INTERP(pop(state));
+  }
+
+  {
+    SkipIfEqual skip(this, &DTraceMethodProbes, false);
+    NOT_CC_INTERP(push(state));
+    get_method(c_rarg1);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit),
+                 rthread, c_rarg1);
+    NOT_CC_INTERP(pop(state));
   }
 }
+
 
 // Jump if ((*counter_addr += increment) & mask) satisfies the condition.
 void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,

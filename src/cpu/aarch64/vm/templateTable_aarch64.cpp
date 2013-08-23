@@ -2197,13 +2197,36 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
 // The registers cache and index expected to be set before call.
 // Correct values of the cache and index registers are preserved.
 void TemplateTable::jvmti_post_field_access(Register cache, Register index,
-                                            bool is_static, bool has_tos)
-{
+                                            bool is_static, bool has_tos) {
   // do the JVMTI work here to avoid disturbing the register state below
   // We use c_rarg registers here because we want to use the register used in
   // the call to the VM
   if (JvmtiExport::can_post_field_access()) {
-    __ call_Unimplemented();
+    // Check to see if a field access watch has been set before we
+    // take the time to call into the VM.
+    Label L1;
+    assert_different_registers(cache, index, r0);
+    __ lea(rscratch1, ExternalAddress((address) JvmtiExport::get_field_access_count_addr()));
+    __ ldrw(r0, Address(rscratch1));
+    __ cbzw(r0, L1);
+
+    __ get_cache_and_index_at_bcp(c_rarg2, c_rarg3, 1);
+    __ lea(c_rarg2, Address(c_rarg2, in_bytes(ConstantPoolCache::base_offset())));
+
+    if (is_static) {
+      __ mov(c_rarg1, zr); // NULL object reference
+    } else {
+      __ ldr(c_rarg1, at_tos()); // get object pointer without popping it
+      __ verify_oop(c_rarg1);
+    }
+    // c_rarg1: object pointer or NULL
+    // c_rarg2: cache entry pointer
+    // c_rarg3: jvalue object on the stack
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                                       InterpreterRuntime::post_field_access),
+               c_rarg1, c_rarg2, c_rarg3);
+    __ get_cache_and_index_at_bcp(cache, index, 1);
+    __ bind(L1);
   }
 }
 
@@ -2363,10 +2386,59 @@ void TemplateTable::getstatic(int byte_no)
 
 // The registers cache and index expected to be set before call.
 // The function may destroy various registers, just not the cache and index registers.
-void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is_static)
-{
+void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is_static) {
+  transition(vtos, vtos);
+
+  ByteSize cp_base_offset = ConstantPoolCache::base_offset();
+
   if (JvmtiExport::can_post_field_modification()) {
-    __ call_Unimplemented();
+    // Check to see if a field modification watch has been set before
+    // we take the time to call into the VM.
+    Label L1;
+    assert_different_registers(cache, index, r0);
+    __ mov(rscratch1, ExternalAddress((address)JvmtiExport::get_field_modification_count_addr()));
+    __ ldrw(r0, Address(rscratch1));
+    __ cbz(r0, L1);
+
+    __ get_cache_and_index_at_bcp(c_rarg2, rscratch1, 1);
+
+    if (is_static) {
+      // Life is simple.  Null out the object pointer.
+      __ mov(c_rarg1, zr);
+    } else {
+      // Life is harder. The stack holds the value on top, followed by
+      // the object.  We don't know the size of the value, though; it
+      // could be one or two words depending on its type. As a result,
+      // we must find the type to determine where the object is.
+      __ ldrw(c_rarg3, Address(c_rarg2,
+			       in_bytes(cp_base_offset +
+					ConstantPoolCacheEntry::flags_offset())));
+      __ lsr(c_rarg3, c_rarg3,
+	     ConstantPoolCacheEntry::tos_state_shift);
+      ConstantPoolCacheEntry::verify_tos_state_shift();
+      Label nope2, done, ok;
+      __ ldr(c_rarg1, at_tos_p1());  // initially assume a one word jvalue
+      __ cmpw(c_rarg3, ltos);
+      __ br(Assembler::EQ, ok);
+      __ cmpw(c_rarg3, dtos);
+      __ br(Assembler::NE, nope2);
+      __ bind(ok);
+      __ ldr(c_rarg1, at_tos_p2()); // ltos (two word jvalue)
+      __ bind(nope2);
+    }
+    // cache entry pointer
+    __ add(c_rarg2, c_rarg2, in_bytes(cp_base_offset));
+    // object (tos)
+    __ mov(c_rarg3, esp);
+    // c_rarg1: object pointer set up above (NULL if static)
+    // c_rarg2: cache entry pointer
+    // c_rarg3: jvalue object on the stack
+    __ call_VM(noreg,
+               CAST_FROM_FN_PTR(address,
+                                InterpreterRuntime::post_field_modification),
+               c_rarg1, c_rarg2, c_rarg3);
+    __ get_cache_and_index_at_bcp(cache, index, 1);
+    __ bind(L1);
   }
 }
 
@@ -2381,7 +2453,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   const Register bc    = r4;
 
   resolve_cache_and_index(byte_no, cache, index, sizeof(u2));
-  jvmti_post_field_mod(rcpool, index, is_static);
+  jvmti_post_field_mod(cache, index, is_static);
   load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
 
   Label Done;
@@ -3333,9 +3405,29 @@ void TemplateTable::instanceof() {
 
 //-----------------------------------------------------------------------------
 // Breakpoints
-void TemplateTable::_breakpoint()
-{
-  __ call_Unimplemented();
+void TemplateTable::_breakpoint() {
+  // Note: We get here even if we are single stepping..
+  // jbug inists on setting breakpoints at every bytecode
+  // even if we are in single step mode.
+
+  transition(vtos, vtos);
+
+  // get the unpatched byte code
+  __ get_method(c_rarg1);
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address,
+                              InterpreterRuntime::get_original_bytecode_at),
+             c_rarg1, rbcp);
+  __ mov(r19, r0);
+
+  // post the breakpoint event
+  __ call_VM(noreg,
+             CAST_FROM_FN_PTR(address, InterpreterRuntime::_breakpoint),
+             rmethod, rbcp);
+
+  // complete the execution of original bytecode
+  __ mov(rscratch1, r19);
+  __ dispatch_only_normal(vtos);
 }
 
 //-----------------------------------------------------------------------------
