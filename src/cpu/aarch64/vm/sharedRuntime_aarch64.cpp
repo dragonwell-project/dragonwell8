@@ -2393,7 +2393,7 @@ void SharedRuntime::generate_deopt_blob() {
   // find any register it might need.
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(true, false);
+  __ reset_last_Java_frame(false, false);
 
   // Load UnrollBlock* into rdi
   __ mov(r5, r0);
