@@ -1702,6 +1702,15 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       default:      ShouldNotReachHere();
       }
 
+    } else if (right->is_double_cpu()) {
+      Register rreg = right->as_register_lo();
+      // single_cpu + double_cpu: can happen with obj+long
+      assert(code == lir_add || code == lir_sub, "mismatched arithmetic op");
+      switch (code) {
+      case lir_add: __ add(dreg, lreg, rreg); break;
+      case lir_sub: __ sub(dreg, lreg, rreg); break;
+      default: ShouldNotReachHere();
+      }
     } else if (right->is_constant()) {
       // cpu register - constant
       jint c = right->as_constant_ptr()->as_jint();
