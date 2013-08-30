@@ -38,6 +38,7 @@ import com.sun.org.apache.xerces.internal.util.FeatureState;
 import com.sun.org.apache.xerces.internal.util.PropertyState;
 import com.sun.org.apache.xerces.internal.util.Status;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
+import com.sun.org.apache.xerces.internal.utils.XMLSecurityPropertyManager;
 import com.sun.org.apache.xerces.internal.xni.XMLLocator;
 import com.sun.org.apache.xerces.internal.xni.XNIException;
 import com.sun.org.apache.xerces.internal.xni.grammars.XMLGrammarPool;
@@ -415,6 +416,7 @@ public class DTDConfiguration
             // REVISIT: What is the right thing to do? -Ac
         }
 
+        setProperty(XML_SECURITY_PROPERTY_MANAGER, new XMLSecurityPropertyManager());
     } // <init>(SymbolTable,XMLGrammarPool)
 
     //
