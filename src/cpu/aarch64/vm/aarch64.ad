@@ -774,7 +774,7 @@ int MachCallRuntimeNode::ret_addr_offset() {
   //   br RuntimeAddress(addr) // ifndef BUILTIN_SIM
   // TODO
   // allow for AArch64 version
-  return 8;
+  return 20;
 }
 
 // Indicate if the safepoint node needs the polling page as an input
