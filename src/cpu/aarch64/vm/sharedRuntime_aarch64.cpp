@@ -1226,7 +1226,7 @@ static void gen_special_dispatch(MacroAssembler* masm,
     SharedRuntime::check_member_name_argument_is_last_argument(method, sig_bt, regs);
     VMReg r = regs[member_arg_pos].first();
     if (r->is_stack()) {
-      __ ldr(member_reg, Address(sp, r->reg2stack() * VMRegImpl::stack_slot_size + wordSize));
+      __ ldr(member_reg, Address(sp, r->reg2stack() * VMRegImpl::stack_slot_size));
     } else {
       // no data motion is needed
       member_reg = r->as_Register();
@@ -1245,7 +1245,7 @@ static void gen_special_dispatch(MacroAssembler* masm,
       // platform, pick a temp and load the receiver from stack.
       fatal("receiver always in a register");
       receiver_reg = r2;  // known to be free at this point
-      __ ldr(receiver_reg, Address(sp, r->reg2stack() * VMRegImpl::stack_slot_size + wordSize));
+      __ ldr(receiver_reg, Address(sp, r->reg2stack() * VMRegImpl::stack_slot_size));
     } else {
       // no data motion is needed
       receiver_reg = r->as_Register();

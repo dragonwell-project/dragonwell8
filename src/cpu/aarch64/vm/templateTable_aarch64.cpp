@@ -3075,10 +3075,11 @@ void TemplateTable::invokehandle(int byte_no) {
   __ verify_oop(r2);
   __ null_check(r2);
 
-  // Note:  rax_mtype is already pushed (if necessary) by prepare_invoke
-
   // FIXME: profile the LambdaForm also
-  __ profile_final_call(rscratch1);
+
+  // r13 is safe to use here as a scratch reg because it is about to
+  // be clobbered by jump_from_interpreted().
+  __ profile_final_call(r13);
 
   __ jump_from_interpreted(rmethod, r0);
 }

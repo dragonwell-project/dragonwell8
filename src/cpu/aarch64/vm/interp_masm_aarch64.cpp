@@ -127,7 +127,7 @@ void InterpreterMacroAssembler::get_cache_index_at_bcp(Register index,
     // we have to change the following assembler code to calculate the
     // plain index.
     assert(ConstantPool::decode_invokedynamic_index(~123) == 123, "else change next line");
-    eonw(index, index, 0);  // convert to plain index
+    eonw(index, index, zr);  // convert to plain index
   } else if (index_size == sizeof(u1)) {
     load_unsigned_byte(index, Address(rbcp, bcp_offset));
   } else {
@@ -797,6 +797,8 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
   assert(ProfileInterpreter, "must be profiling interpreter");
   // %%% this does 64bit counters at best it is wasting space
   // at worst it is a rare bug when counters overflow
+
+  assert_different_registers(rscratch2, rscratch1, mdp_in, reg);
 
   Address addr1(mdp_in, constant);
   Address addr2(rscratch2, reg, Address::lsl(0));
