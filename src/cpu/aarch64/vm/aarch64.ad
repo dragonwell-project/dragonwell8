@@ -5355,11 +5355,11 @@ instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp 
   effect(KILL cr);
 
  format %{
-    "cmpxchg $mem, $oldval, $newval\t# (narrow oop) if $mem == $oldval then $mem <-- $newval"
+    "cmpxchgw $mem, $oldval, $newval\t# (narrow oop) if $mem == $oldval then $mem <-- $newval"
     "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
  %}
 
- ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
+ ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
   ins_pipe(pipe_class_memory);
