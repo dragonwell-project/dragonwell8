@@ -117,7 +117,8 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
 
     __ ldrb(rscratch1, Address(rthread, JavaThread::interp_only_mode_offset()));
     __ cbnz(rscratch1, run_compiled_code);
-    __ b(Address(method, Method::interpreter_entry_offset()));
+    __ ldr(rscratch1, Address(method, Method::interpreter_entry_offset()));
+    __ br(rscratch1);
     __ BIND(run_compiled_code);
   }
 
