@@ -1713,7 +1713,21 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       }
     } else if (right->is_constant()) {
       // cpu register - constant
-      jint c = right->as_constant_ptr()->as_jint();
+      jlong c;
+
+      // FIXME.  This is fugly: we really need to factor all this logic.
+      switch(right->type()) {
+      case T_LONG:
+	c = right->as_constant_ptr()->as_jlong();
+	break;
+      case T_INT:
+      case T_ADDRESS:
+	c = right->as_constant_ptr()->as_jint();
+	break;
+      default:
+	ShouldNotReachHere();
+	break;
+      }
 
       assert(code == lir_add || code == lir_sub, "mismatched arithmetic op");
       if (c == 0 && dreg == lreg) {
