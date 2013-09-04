@@ -124,10 +124,6 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16));
-  } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
-             Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
-    // nothing to do
-    assert(target == 0, "did not expect to relocate target for polling page load");
   } else {
     ShouldNotReachHere();
   }
@@ -181,9 +177,6 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
 		   + (u_int64_t(Instruction_aarch64::extract(insns[1], 20, 5)) << 16)
 		   + (u_int64_t(Instruction_aarch64::extract(insns[2], 20, 5)) << 32)
 		   + (u_int64_t(Instruction_aarch64::extract(insns[3], 20, 5)) << 48));
-  } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
-             Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
-    return 0;
   } else {
     ShouldNotReachHere();
   }
@@ -2581,13 +2574,6 @@ address MacroAssembler::read_polling_page(Register r, address page, relocInfo::r
   return inst_mark();
 }
 
-address MacroAssembler::read_polling_page(Register r, relocInfo::relocType rtype) {
-  InstructionMark im(this);
-  code_section()->relocate(inst_mark(), rtype);
-  ldrw(zr, Address(r, 0));
-  return inst_mark();
-}
-
 void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
   if (labs(pc() - dest.target()) >= (1LL << 32)) {
     // Out of range.  This doesn't happen very often, but we have to
@@ -2602,3 +2588,19 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   }
 }
 
+void MacroAssembler::generate_flush_loop(flush_insn flush, Register start, Register lines) {
+  Label again, exit;
+
+  assert_different_registers(start, lines, rscratch1, rscratch2);
+
+  cmp(lines, zr);
+  br(Assembler::LE, exit);
+  mov(rscratch1, start);
+  mov(rscratch2, lines);
+  bind(again);
+  (this->*flush)(rscratch1);
+  sub(rscratch2, rscratch2, 1);
+  add(rscratch1, rscratch1, ICache::line_size);
+  cbnz(rscratch2, again);
+  bind(exit);
+}

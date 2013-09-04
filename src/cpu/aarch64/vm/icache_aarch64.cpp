@@ -33,21 +33,13 @@ extern "C" void setup_arm_sim();
 
 #define __ _masm->
 
-int _flush_icache_stub_dummy(address addr, int lines, int magic)
-{
-  // no need to do any cache flushing on x86 so just obey the implicit
-  // contract to return the magic arg
-
-  return magic;
-}
-
 void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flush_icache_stub) {
 
   aarch64TestHook();
 
   StubCodeMark mark(this, "ICache", "flush_icache_stub");
 
-  address start = __ pc();
+  address entry = __ pc();
 
   // generate a c stub prolog which will bootstrap into the ARM code
   // which follows, loading the 3 general registers passed by the
@@ -57,24 +49,21 @@ void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flu
   __ c_stub_prolog(3, 0, MacroAssembler::ret_type_integral);
 #endif
 
-  address entry = __ pc();
+  Register start = r0, lines = r1, auto_magic = r2;
 
-  // hmm, think we probably need an instruction synchronizaton barrier
-  // and a memory and data synchronization barrier but we will find
-  // out when we get real hardware :-)
+  // First flush the dcache
+  __ generate_flush_loop(&Assembler::dc, start, lines);
 
-  // n.b. SY means a system wide barrier which is the overkill option
-
-  address loop = __ pc();
   __ dsb(Assembler::SY);
-  __ isb();
-  // args 1 and 2 identify the start address and size of the flush
-  // region but we cannot use them on ARM. the stub is supposed to
-  // return the 3rd argument
-  __ mov(r0, r2);
+
+  // And then the icache
+  __ generate_flush_loop(&Assembler::ic, start, lines);
+
+  // the stub is supposed to return the 3rd argument
+  __ mov(r0, auto_magic);
   __ ret(r30);
 
-  *flush_icache_stub =  (ICache::flush_icache_stub_t)start;
+  *flush_icache_stub =  (ICache::flush_icache_stub_t)entry;
 }
 
 #undef __

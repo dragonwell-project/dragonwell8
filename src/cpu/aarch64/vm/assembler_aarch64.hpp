@@ -978,6 +978,14 @@ public:
     system(0b00, 0b011, 0b00011, SY, 0b110);
   }
 
+  void dc(Register Rt) {
+    system(0b01, 0b011, 0b0111, 0b1011, 0b001, Rt);
+  }
+
+  void ic(Register Rt) {
+    system(0b01, 0b011, 0b0111, 0b0101, 0b001, Rt);
+  }
+
   // Unconditional branch (register)
   void branch_reg(Register R, int opc) {
     starti;
