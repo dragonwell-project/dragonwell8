@@ -778,9 +778,17 @@ int MachCallRuntimeNode::ret_addr_offset() {
 }
 
 // Indicate if the safepoint node needs the polling page as an input
+
+// the shared code plants the oop data at the start of the generated
+// code for the safepoint node and that needs ot be at the load
+// instruction itself. so we cannot plant a mov of the safepoint poll
+// address followed by a load. setting this to true means the mov is
+// scheduled as a prior instruction. that's better for scheduling
+// anyway.
+
 bool SafePointNode::needs_polling_address_input()
 {
-  return false;
+  return true;
 }
 
 //=============================================================================
@@ -7820,18 +7828,15 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
 // TODO
 // provide a near and far version of this code
 
-instruct safePoint_poll()
+instruct safePoint(iRegPNoSp poll)
 %{
-  match(SafePoint);
+  match(SafePoint poll);
 
   format %{
-    "adrp, rscratch1, #safepoint_poll_page\n\t"
-    "ldrw zr, [rscratch1, #safepoint_poll_off]\t# Safepoint: poll for GC"
+    "ldrw zr, [rscratch1, $poll]\t# Safepoint: poll for GC"
   %}
   ins_encode %{
-    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
-    assert(os::is_poll_address(polling_page), "should be");
-    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_type);
+    __ read_polling_page(as_Register($poll$$reg), relocInfo::poll_type);
   %}
   ins_pipe(pipe_class_memory);
 %}

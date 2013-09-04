@@ -124,6 +124,10 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16));
+  } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
+             Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
+    // nothing to do
+    assert(target == 0, "did not expect to relocate target for polling page load");
   } else {
     ShouldNotReachHere();
   }
@@ -177,6 +181,9 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
 		   + (u_int64_t(Instruction_aarch64::extract(insns[1], 20, 5)) << 16)
 		   + (u_int64_t(Instruction_aarch64::extract(insns[2], 20, 5)) << 32)
 		   + (u_int64_t(Instruction_aarch64::extract(insns[3], 20, 5)) << 48));
+  } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
+             Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
+    return 0;
   } else {
     ShouldNotReachHere();
   }
@@ -2571,6 +2578,13 @@ address MacroAssembler::read_polling_page(Register r, address page, relocInfo::r
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), rtype);
   ldrw(zr, Address(r, off));
+  return inst_mark();
+}
+
+address MacroAssembler::read_polling_page(Register r, relocInfo::relocType rtype) {
+  InstructionMark im(this);
+  code_section()->relocate(inst_mark(), rtype);
+  ldrw(zr, Address(r, 0));
   return inst_mark();
 }
 

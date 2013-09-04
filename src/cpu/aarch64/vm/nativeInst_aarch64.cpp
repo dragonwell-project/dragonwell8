@@ -180,23 +180,28 @@ void NativeJump::set_jump_destination(address dest) {
 };
 
 bool NativeInstruction::is_safepoint_poll() {
-  /* We expect a safepoint poll to be either
-
-     adrp(reg, polling_page);
-     ldr(reg, offset);
-
-     or
-
-     mov(reg, polling_page);
-     ldr(reg, Address(reg, 0));
-  */
-
-  if (is_adrp_at(addr_at(-4))) {
-    address addr = addr_at(-4);
-    return os::is_poll_address(MacroAssembler::pd_call_destination(addr));
-  } else {
-    return os::is_poll_address(MacroAssembler::pd_call_destination(addr_at(-16)));
-  }
+  // a safepoint_poll is implemented in two steps as either
+  //
+  // adrp(reg, polling_page);
+  // ldr(zr, [reg, #offset]);
+  //
+  // or
+  //
+  // mov(reg, polling_page);
+  // ldr(zr, [reg, #offset]);
+  //
+  // however, we cannot rely on the polling page address load always
+  // directly preceding the read from the page. C1 does that but C2
+  // has to do the load and read as two independent instruction
+  // generation steps. that's because with a single macro sequence the
+  // generic C2 code can only add the oop map before the mov/adrp and
+  // the trap handler expects an oop map to be associated with the
+  // load. with the load scheuled as a prior step the oop map goes
+  // where it is needed.
+  //
+  // so all we can do here is check that marked instruction is a load
+  // word to zr
+  return is_ldrw_to_zr(address(this));
 }
 
 bool NativeInstruction::is_adrp_at(address instr) {
@@ -207,6 +212,12 @@ bool NativeInstruction::is_adrp_at(address instr) {
 bool NativeInstruction::is_ldr_literal_at(address instr) {
   unsigned insn = *(unsigned*)instr;
   return (Instruction_aarch64::extract(insn, 29, 24) & 0b011011) == 0b00011000;
+}
+
+bool NativeInstruction::is_ldrw_to_zr(address instr) {
+  unsigned insn = *(unsigned*)instr;
+  return (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
+          Instruction_aarch64::extract(insn, 4, 0) == 0b11111);
 }
 
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)

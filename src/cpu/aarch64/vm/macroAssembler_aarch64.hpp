@@ -1365,6 +1365,7 @@ public:
   }
 
   address read_polling_page(Register r, address page, relocInfo::relocType rtype);
+  address read_polling_page(Register r, relocInfo::relocType rtype);
 };
 
 #ifdef ASSERT
