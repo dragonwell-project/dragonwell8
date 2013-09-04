@@ -666,7 +666,7 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
 
 intptr_t *frame::initial_deoptimization_info() {
   // used to reset the saved FP
-  return fp();
+  return real_fp();
 }
 
 intptr_t* frame::real_fp() const {

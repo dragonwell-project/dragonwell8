@@ -1759,7 +1759,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   intptr_t the_pc = (intptr_t) __ pc();
   oop_maps->add_gc_map(the_pc - start, map);
 
-  __ set_last_Java_frame(sp, rfp, (address)the_pc, rscratch1);
+  __ set_last_Java_frame(sp, noreg, (address)the_pc, rscratch1);
 
 
   // We have all of the arguments setup at this point. We must not touch any register
@@ -2374,7 +2374,7 @@ void SharedRuntime::generate_deopt_blob() {
   // fetch_unroll_info needs to call last_java_frame().
 
   Label retaddr;
-  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+  __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
 #ifdef ASSERT0
   { Label L;
     __ ldr(rscratch1, Address(rthread,
@@ -2513,7 +2513,7 @@ void SharedRuntime::generate_deopt_blob() {
   // Use rfp because the frames look interpreted now
   // Don't need the precise return PC here, just precise enough to point into this code blob.
   address the_pc = __ pc();
-  __ set_last_Java_frame(sp, rfp, address(NULL), rscratch1);
+  __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
 
   __ mov(c_rarg0, rthread);
   __ movw(c_rarg1, rcpool); // second arg: exec_mode
@@ -2583,11 +2583,11 @@ void SharedRuntime::generate_uncommon_trap_blob() {
     __ movw(c_rarg1, j_rarg0);
   }
 
-  // we need to set the past SP to the stack pointre of the stub frame
+  // we need to set the past SP to the stack pointer of the stub frame
   // and the pc to the address where this runtime call will return
   // although actually any pc in this code blob will do).
   Label retaddr;
-  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+  __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
 
   // Call C code.  Need thread but NOT official VM entry
   // crud.  We cannot block on this call, no GC can happen.  Call should
@@ -2767,7 +2767,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   // work outselves.
 
   Label retaddr;
-  __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+  __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
 
   // The return address must always be correct so that frame constructor never
   // sees an invalid pc.
@@ -2849,7 +2849,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
 
   {
     Label retaddr;
-    __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
+    __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
 
     __ mov(c_rarg0, rthread);
     __ mov(rscratch1, RuntimeAddress(destination));
@@ -2983,7 +2983,7 @@ void OptoRuntime::generate_exception_blob() {
 
   // the stack should always be aligned
   address the_pc = __ pc();
-  __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
+  __ set_last_Java_frame(sp, noreg, the_pc, rscratch1);
   __ mov(c_rarg0, rthread);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, OptoRuntime::handle_exception_C)));
   __ blrt(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
