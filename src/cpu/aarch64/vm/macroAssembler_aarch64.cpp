@@ -356,11 +356,11 @@ void MacroAssembler::call_VM_base(Register oop_result,
   set_last_Java_frame(last_java_sp, rfp, l, rscratch1);
 
   // do the call, remove parameters
-  MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, l);
+  MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, &l);
 
   // reset last Java frame
   // Only interpreter should have to clear fp
-  reset_last_Java_frame(true, false);
+  reset_last_Java_frame(true, true);
 
    // C++ interp handles this in the interpreter
   check_and_handle_popframe(java_thread);
