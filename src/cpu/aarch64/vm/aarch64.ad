@@ -7637,6 +7637,43 @@ instruct compD_reg_reg(rFlagsRegU cr, vRegD src1, vRegD src2)
   ins_pipe(pipe_class_compare);
 %}
 
+instruct cmpLTMask_reg_reg(iRegI dst, iRegI p, iRegI q, rFlagsReg cr)
+%{
+  match(Set dst (CmpLTMask p q));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST);
+
+  format %{ "cmpw $p, $q\t# cmpLTMask\n\t"
+            "csetw $dst, lt\n\t"
+            "subw $dst, zr, $dst"
+  %}
+
+  ins_encode %{
+    __ cmpw(as_Register($p$$reg), $q$$reg);
+    __ csetw(as_Register($dst$$reg), Assembler::LT);
+    __ subw(as_Register($dst$$reg), zr, as_Register($dst$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmpLTMask_reg_zero(iRegI dst, iRegI src, immI0 zero, rFlagsReg cr)
+%{
+  match(Set dst (CmpLTMask src zero));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST_LOW);
+
+  format %{ "asrw $dst, $src, #31\t# cmpLTMask0" %}
+
+  ins_encode %{
+    __ asrw(as_Register($dst$$reg), as_Register($src$$reg), 31);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // Max and Min
 
