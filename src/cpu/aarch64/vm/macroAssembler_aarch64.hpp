@@ -157,6 +157,10 @@ class MacroAssembler: public Assembler {
     csinc(Rd, zr, zr, ~cond);
   }
 
+  void csetw(Register Rd, Assembler::Condition cond) {
+    csincw(Rd, zr, zr, ~cond);
+  }
+
   inline void movw(Register Rd, Register Rn) {
     if (Rd == sp || Rn == sp) {
       addw(Rd, Rn, 0U);
