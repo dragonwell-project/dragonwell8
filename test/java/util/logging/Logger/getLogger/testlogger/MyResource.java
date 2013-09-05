@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,11 +20,33 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package testlogger;
 
-public class Main {
-    private Main() { }
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ResourceBundle;
 
-    public static void main(String[] args) {
-        Logging.log("main running");
+/**
+ * A dummy resource bundle for testing purposes.
+ * @author danielfuchs
+ */
+public class MyResource extends ResourceBundle {
+    Map<String, Object> bundle = new HashMap<>();
+
+    @Override
+    protected Object handleGetObject(String key) {
+         bundle.put(key,"Localized: " + key);
+         return bundle.get(key);
     }
+
+    @Override
+    public Enumeration<String> getKeys() {
+        final Hashtable<String, Object> h = new Hashtable<>(bundle);
+        return h.keys();
+    }
+
 }

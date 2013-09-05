@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,36 @@
  * questions.
  */
 
-package lib;
+/*
+ * @test
+ * @bug 8022343
+ * @summary make sure Class.getAnnotatedSuperclass() returns null when specified to do so
+ */
 
-public class Lib {
-    private Lib() { }
+public class GetAnnotatedSuperclass {
+    private static final Class<?>[] testData = {
+        Object.class,
+        If.class,
+        Object[].class,
+        void.class,
+        int.class,
+    };
 
-    public static void doSomething() { }
+    public static void main(String[] args) throws Exception {
+        int failed = 0;
+        for (Class<?> toTest : testData) {
+            Object res = toTest.getAnnotatedSuperclass();
+
+            if (res != null) {
+                failed++;
+                System.out.println(toTest + ".getAnnotatedSuperclass() returns: "
+                        + res + ", should be null");
+            }
+        }
+
+        if (failed != 0)
+            throw new RuntimeException("Test failed, check log for details");
+    }
+
+    interface If {}
 }
