@@ -774,13 +774,21 @@ int MachCallRuntimeNode::ret_addr_offset() {
   //   br RuntimeAddress(addr) // ifndef BUILTIN_SIM
   // TODO
   // allow for AArch64 version
-  return 8;
+  return 20;
 }
 
 // Indicate if the safepoint node needs the polling page as an input
+
+// the shared code plants the oop data at the start of the generated
+// code for the safepoint node and that needs ot be at the load
+// instruction itself. so we cannot plant a mov of the safepoint poll
+// address followed by a load. setting this to true means the mov is
+// scheduled as a prior instruction. that's better for scheduling
+// anyway.
+
 bool SafePointNode::needs_polling_address_input()
 {
-  return false;
+  return true;
 }
 
 //=============================================================================
@@ -2169,6 +2177,15 @@ encode %{
     int index = $mem$$index;
     int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    // we sometimes get asked to store the stack pointer into the
+    // current thread -- we cannot do that directly on AArch64
+
+    if (src_reg == r31_sp) {
+      assert(base == rthread, "unexpected store for sp");
+      __ mov(rscratch2, sp);
+      src_reg = rscratch2;
+    }
     if (index == -1) {
       __ str(src_reg, Address(base, disp));
     } else {
@@ -2367,7 +2384,8 @@ encode %{
     __ br(Assembler::NE, done);
     // if we store+flush with no intervening write tmp will be zero
     __ stlxr(rscratch1, new_reg, addr_reg);
-    __ cbzw(rscratch1, done);
+    __ cmpw(rscratch1, zr);       // cannot use cbzw as must set flag
+    __ br(Assembler::EQ, done);
     // retry so we only ever return after a load fails to compare
     // ensures we don't return a stale value after a failed write.
     __ b(retry_load);
@@ -2410,7 +2428,8 @@ encode %{
     __ br(Assembler::NE, done);
     // if we store+flush with no intervening write tmp wil be zero
     __ stlxrw(rscratch1, new_reg, addr_reg);
-    __ cbzw(rscratch1, done);
+    __ cmpw(rscratch1, zr);       // cannot use cbzw as must set flag
+    __ br(Assembler::EQ, done);
     // retry so we only ever return after a load fails to compare
     // ensures we don't return a stale value after a failed write.
     __ b(retry_load);
@@ -5336,11 +5355,11 @@ instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp 
   effect(KILL cr);
 
  format %{
-    "cmpxchg $mem, $oldval, $newval\t# (narrow oop) if $mem == $oldval then $mem <-- $newval"
+    "cmpxchgw $mem, $oldval, $newval\t# (narrow oop) if $mem == $oldval then $mem <-- $newval"
     "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
  %}
 
- ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
+ ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
   ins_pipe(pipe_class_memory);
@@ -7809,18 +7828,15 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
 // TODO
 // provide a near and far version of this code
 
-instruct safePoint_poll()
+instruct safePoint(iRegPNoSp poll)
 %{
-  match(SafePoint);
+  match(SafePoint poll);
 
   format %{
-    "adrp, rscratch1, #safepoint_poll_page\n\t"
-    "ldrw zr, [rscratch1, #safepoint_poll_off]\t# Safepoint: poll for GC"
+    "ldrw zr, [rscratch1, $poll]\t# Safepoint: poll for GC"
   %}
   ins_encode %{
-    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
-    assert(os::is_poll_address(polling_page), "should be");
-    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_type);
+    __ read_polling_page(as_Register($poll$$reg), relocInfo::poll_type);
   %}
   ins_pipe(pipe_class_memory);
 %}

@@ -96,6 +96,7 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
 
   static bool is_adrp_at(address instr);
   static bool is_ldr_literal_at(address instr);
+  static bool is_ldrw_to_zr(address instr);
 
   static bool maybe_cpool_ref(address instr) {
     return is_adrp_at(instr) || is_ldr_literal_at(instr);

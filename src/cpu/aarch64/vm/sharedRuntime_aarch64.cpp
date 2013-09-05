@@ -2393,7 +2393,7 @@ void SharedRuntime::generate_deopt_blob() {
   // find any register it might need.
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(true, false);
+  __ reset_last_Java_frame(false, true);
 
   // Load UnrollBlock* into rdi
   __ mov(r5, r0);
@@ -2613,7 +2613,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(false, false);
+  __ reset_last_Java_frame(false, true);
 
   // move UnrollBlock* into r4
   __ mov(r4, r0);
@@ -2793,7 +2793,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   Label noException;
 
-  __ reset_last_Java_frame(false, false);
+  __ reset_last_Java_frame(false, true);
 
   __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
   __ cbz(rscratch1, noException);
@@ -2867,7 +2867,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   // rax contains the address we are going to jump to assuming no exception got installed
 
   // clear last_Java_sp
-  __ reset_last_Java_frame(false, false);
+  __ reset_last_Java_frame(false, true);
   // check for pending exceptions
   Label pending;
   __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
