@@ -55,6 +55,8 @@ void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached
   masm->b(ExternalAddress(entry_point));
   masm->bind(l);
   masm->emit_int64((int64_t)cached_value);
+  // Only need to invalidate the 1st two instructions - not the whole ic stub
+  ICache::invalidate_range(code_begin, NativeInstruction::instruction_size * 2);
   0;
 }
 
