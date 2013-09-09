@@ -160,7 +160,7 @@ reg_def R31_H   (  NS,  NS, Op_RegI, 31, r31_sp->as_VMReg()->next());
 
 // for Java use float registers v0-v15 are always save on call whereas
 // the platform ABI treats v8-v15 as callee save). float registers
-// v16-v31 are NS as per the platofrm spec
+// v16-v31 are SOC as per the platform spec
 
   reg_def V0   ( SOC, SOC, Op_RegF,  0, v0->as_VMReg()         );
   reg_def V0_H ( SOC, SOC, Op_RegF,  0, v0->as_VMReg()->next() );
@@ -194,38 +194,38 @@ reg_def R31_H   (  NS,  NS, Op_RegI, 31, r31_sp->as_VMReg()->next());
   reg_def V14_H( SOC, SOE, Op_RegF, 14, v14->as_VMReg()->next());
   reg_def V15  ( SOC, SOE, Op_RegF, 15, v15->as_VMReg()        );
   reg_def V15_H( SOC, SOE, Op_RegF, 15, v15->as_VMReg()->next());
-  reg_def V16  (  NS,  NS, Op_RegF, 16, v16->as_VMReg()        );
-  reg_def V16_H(  NS,  NS, Op_RegF, 16, v16->as_VMReg()->next());
-  reg_def V17  (  NS,  NS, Op_RegF, 17, v17->as_VMReg()        );
-  reg_def V17_H(  NS,  NS, Op_RegF, 17, v17->as_VMReg()->next());
-  reg_def V18  (  NS,  NS, Op_RegF, 18, v18->as_VMReg()        );
-  reg_def V18_H(  NS,  NS, Op_RegF, 18, v18->as_VMReg()->next());
-  reg_def V19  (  NS,  NS, Op_RegF, 19, v19->as_VMReg()        );
-  reg_def V19_H(  NS,  NS, Op_RegF, 19, v19->as_VMReg()->next());
-  reg_def V20  (  NS,  NS, Op_RegF, 20, v20->as_VMReg()        );
-  reg_def V20_H(  NS,  NS, Op_RegF, 20, v20->as_VMReg()->next());
-  reg_def V21  (  NS,  NS, Op_RegF, 21, v21->as_VMReg()        );
-  reg_def V21_H(  NS,  NS, Op_RegF, 21, v21->as_VMReg()->next());
-  reg_def V22  (  NS,  NS, Op_RegF, 22, v22->as_VMReg()        );
-  reg_def V22_H(  NS,  NS, Op_RegF, 22, v22->as_VMReg()->next());
-  reg_def V23  (  NS,  NS, Op_RegF, 23, v23->as_VMReg()        );
-  reg_def V23_H(  NS,  NS, Op_RegF, 23, v23->as_VMReg()->next());
-  reg_def V24  (  NS,  NS, Op_RegF, 24, v24->as_VMReg()        );
-  reg_def V24_H(  NS,  NS, Op_RegF, 24, v24->as_VMReg()->next());
-  reg_def V25  (  NS,  NS, Op_RegF, 25, v25->as_VMReg()        );
-  reg_def V25_H(  NS,  NS, Op_RegF, 25, v25->as_VMReg()->next());
-  reg_def V26  (  NS,  NS, Op_RegF, 26, v26->as_VMReg()        );
-  reg_def V26_H(  NS,  NS, Op_RegF, 26, v26->as_VMReg()->next());
-  reg_def V27  (  NS,  NS, Op_RegF, 27, v27->as_VMReg()        );
-  reg_def V27_H(  NS,  NS, Op_RegF, 27, v27->as_VMReg()->next());
-  reg_def V28  (  NS,  NS, Op_RegF, 28, v28->as_VMReg()        );
-  reg_def V28_H(  NS,  NS, Op_RegF, 28, v28->as_VMReg()->next());
-  reg_def V29  (  NS,  NS, Op_RegF, 29, v29->as_VMReg()        );
-  reg_def V29_H(  NS,  NS, Op_RegF, 29, v29->as_VMReg()->next());
-  reg_def V30  (  NS,  NS, Op_RegF, 30, v30->as_VMReg()        );
-  reg_def V30_H(  NS,  NS, Op_RegF, 30, v30->as_VMReg()->next());
-  reg_def V31  (  NS,  NS, Op_RegF, 31, v31->as_VMReg()        );
-  reg_def V31_H(  NS,  NS, Op_RegF, 31, v31->as_VMReg()->next());
+  reg_def V16  ( SOC, SOC, Op_RegF, 16, v16->as_VMReg()        );
+  reg_def V16_H( SOC, SOC, Op_RegF, 16, v16->as_VMReg()->next());
+  reg_def V17  ( SOC, SOC, Op_RegF, 17, v17->as_VMReg()        );
+  reg_def V17_H( SOC, SOC, Op_RegF, 17, v17->as_VMReg()->next());
+  reg_def V18  ( SOC, SOC, Op_RegF, 18, v18->as_VMReg()        );
+  reg_def V18_H( SOC, SOC, Op_RegF, 18, v18->as_VMReg()->next());
+  reg_def V19  ( SOC, SOC, Op_RegF, 19, v19->as_VMReg()        );
+  reg_def V19_H( SOC, SOC, Op_RegF, 19, v19->as_VMReg()->next());
+  reg_def V20  ( SOC, SOC, Op_RegF, 20, v20->as_VMReg()        );
+  reg_def V20_H( SOC, SOC, Op_RegF, 20, v20->as_VMReg()->next());
+  reg_def V21  ( SOC, SOC, Op_RegF, 21, v21->as_VMReg()        );
+  reg_def V21_H( SOC, SOC, Op_RegF, 21, v21->as_VMReg()->next());
+  reg_def V22  ( SOC, SOC, Op_RegF, 22, v22->as_VMReg()        );
+  reg_def V22_H( SOC, SOC, Op_RegF, 22, v22->as_VMReg()->next());
+  reg_def V23  ( SOC, SOC, Op_RegF, 23, v23->as_VMReg()        );
+  reg_def V23_H( SOC, SOC, Op_RegF, 23, v23->as_VMReg()->next());
+  reg_def V24  ( SOC, SOC, Op_RegF, 24, v24->as_VMReg()        );
+  reg_def V24_H( SOC, SOC, Op_RegF, 24, v24->as_VMReg()->next());
+  reg_def V25  ( SOC, SOC, Op_RegF, 25, v25->as_VMReg()        );
+  reg_def V25_H( SOC, SOC, Op_RegF, 25, v25->as_VMReg()->next());
+  reg_def V26  ( SOC, SOC, Op_RegF, 26, v26->as_VMReg()        );
+  reg_def V26_H( SOC, SOC, Op_RegF, 26, v26->as_VMReg()->next());
+  reg_def V27  ( SOC, SOC, Op_RegF, 27, v27->as_VMReg()        );
+  reg_def V27_H( SOC, SOC, Op_RegF, 27, v27->as_VMReg()->next());
+  reg_def V28  ( SOC, SOC, Op_RegF, 28, v28->as_VMReg()        );
+  reg_def V28_H( SOC, SOC, Op_RegF, 28, v28->as_VMReg()->next());
+  reg_def V29  ( SOC, SOC, Op_RegF, 29, v29->as_VMReg()        );
+  reg_def V29_H( SOC, SOC, Op_RegF, 29, v29->as_VMReg()->next());
+  reg_def V30  ( SOC, SOC, Op_RegF, 30, v30->as_VMReg()        );
+  reg_def V30_H( SOC, SOC, Op_RegF, 30, v30->as_VMReg()->next());
+  reg_def V31  ( SOC, SOC, Op_RegF, 31, v31->as_VMReg()        );
+  reg_def V31_H( SOC, SOC, Op_RegF, 31, v31->as_VMReg()->next());
 
 // ----------------------------
 // Special Registers
