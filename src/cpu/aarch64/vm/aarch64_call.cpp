@@ -129,6 +129,8 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   int fp_arg_count = (calltype >> 4) & 0xf;
   int return_type = (calltype >> 8) & 0x3;
   AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
+  // save previous cpu state in case this is a recursive entry
+  CPUState saveState = sim->getCPUState();
   // set up initial sim pc, sp and fp registers
   sim->init(*cursor++, (u_int64_t)sp, (u_int64_t)fp);
   u_int64_t *return_slot = cursor++;
@@ -188,6 +190,8 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
     *(double *)return_slot = sim->getCPUState().dreg(V0);
     break;
   }
+  // restore incoimng cpu state
+  sim->getCPUState() = saveState;
 }
 
 #endif
