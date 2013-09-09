@@ -1045,14 +1045,15 @@ static enum RC rc_class(OptoReg::Name reg) {
     return rc_bad;
   }
 
-  // we have 32 int registers * 2 halves
+  // we have 30 int registers * 2 halves
+  // (rscratch1 and rscratch2 are omitted)
 
-  if (reg < 64) {
+  if (reg < 60) {
     return rc_int;
   }
 
   // we have 32 float register * 2 halves
-  if (reg < 64 + 64) {
+  if (reg < 60 + 64) {
     return rc_float;
   }
 
