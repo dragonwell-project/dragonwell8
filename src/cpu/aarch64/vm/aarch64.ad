@@ -7678,10 +7678,11 @@ instruct cmpLTMask_reg_zero(iRegI dst, iRegI src, immI0 zero, rFlagsReg cr)
 // ============================================================================
 // Max and Min
 
-instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
+instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
   match(Set dst (MinI src1 src2));
 
+  effect(DEF dst, USE src1, USE src2, KILL cr);
   size(8);
 
   ins_cost(DEFAULT_COST * 2);
@@ -7702,10 +7703,11 @@ instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
+instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
   match(Set dst (MaxI src1 src2));
 
+  effect(DEF dst, USE src1, USE src2, KILL cr);
   size(8);
 
   ins_cost(DEFAULT_COST * 2);
