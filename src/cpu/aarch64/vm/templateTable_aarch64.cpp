@@ -3101,8 +3101,8 @@ void TemplateTable::invokedynamic(int byte_no) {
 
   prepare_invoke(byte_no, rmethod, r0);
 
-  // rax: CallSite object (from cpool->resolved_references[])
-  // rbx: MH.linkToCallSite method (from f2)
+  // r0: CallSite object (from cpool->resolved_references[])
+  // rmethod: MH.linkToCallSite method (from f2)
 
   // Note:  rax_callsite is already pushed by prepare_invoke
 

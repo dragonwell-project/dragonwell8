@@ -1434,8 +1434,8 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
   // super call
   MacroAssembler::call_VM_base(oop_result, noreg, last_java_sp,
                                entry_point, number_of_arguments,
-                               check_exceptions);
-  // interpreter specific
+                     check_exceptions);
+// interpreter specific
   restore_bcp();
   restore_locals();
 }
