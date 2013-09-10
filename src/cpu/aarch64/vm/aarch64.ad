@@ -1421,7 +1421,7 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   __ cmp(rscratch2, rscratch1);
   // TODO
   // can we avoid this skip and still use a reloc?
-  __ br(Assembler::NE, skip);
+  __ br(Assembler::EQ, skip);
   __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   __ bind(skip);
 }
