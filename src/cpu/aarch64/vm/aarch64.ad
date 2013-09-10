@@ -5476,7 +5476,7 @@ instruct cmovI_reg_zero(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, immI
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovUI_reg_zero(cmpOpU cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, immI0 zero) %{
+instruct cmovUI_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, immI0 zero) %{
   match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
