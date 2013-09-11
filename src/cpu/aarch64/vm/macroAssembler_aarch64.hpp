@@ -937,10 +937,7 @@ public:
 
   // only if +VerifyOops
   void verify_oop(Register reg, const char* s = "broken oop");
-  // unimplemented
-#if 0
   void verify_oop_addr(Address addr, const char * s = "broken oop addr");
-#endif
 
 // TODO: verify method and klass metadata (compare against vptr?)
   void _verify_method_ptr(Register reg, const char * msg, const char * file, int line) {}
@@ -1373,6 +1370,7 @@ public:
 
   typedef void (Assembler::* flush_insn)(Register Rt);
   void generate_flush_loop(flush_insn flush, Register start, Register lines);
+
 };
 
 #ifdef ASSERT

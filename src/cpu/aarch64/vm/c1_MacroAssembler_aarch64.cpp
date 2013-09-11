@@ -190,7 +190,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
 
   if (UseCompressedKlassPointers) { // Take care not to kill klass
-    encode_heap_oop_not_null(t1, klass);
+    encode_klass_not_null(t1, klass);
     strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
   } else {
     str(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
@@ -466,7 +466,10 @@ void C1_MacroAssembler::verified_entry() {
 
 #ifndef PRODUCT
 
-void C1_MacroAssembler::verify_stack_oop(int stack_offset) { Unimplemented(); }
+void C1_MacroAssembler::verify_stack_oop(int stack_offset) {
+  if (!VerifyOops) return;
+  verify_oop_addr(Address(sp, stack_offset), "oop");
+}
 
 void C1_MacroAssembler::verify_not_null_oop(Register r) {
   if (!VerifyOops) return;

@@ -713,18 +713,23 @@ class StubGenerator: public StubCodeGenerator {
   //  * [tos + 7]: saved rscratch1 - saved by caller
   //  * = popped on exit
   address generate_verify_oop() {
+
     StubCodeMark mark(this, "StubRoutines", "verify_oop");
     address start = __ pc();
 
     Label exit, error;
 
     // __ pushf();
-    // __ incrementl(ExternalAddress((address) StubRoutines::verify_oop_count_addr()));
-
     // __ push(r12);
 
     // save c_rarg2 and c_rarg3
     __ stp(c_rarg3, c_rarg2, Address(__ pre(sp, -16)));
+
+    // __ incrementl(ExternalAddress((address) StubRoutines::verify_oop_count_addr()));
+    __ lea(c_rarg2, ExternalAddress((address) StubRoutines::verify_oop_count_addr()));
+    __ ldr(c_rarg3, Address(c_rarg2));
+    __ add(c_rarg3, c_rarg3, 1);
+    __ str(c_rarg3, Address(c_rarg2));
 
     enum {
            // After previous pushes.
@@ -743,12 +748,14 @@ class StubGenerator: public StubCodeGenerator {
     __ cbz(r0, exit); // if obj is NULL it is OK
 
     // Check if the oop is in the right area of memory
-    __ mov(c_rarg2, r0);
     __ mov(c_rarg3, (intptr_t) Universe::verify_oop_mask());
-    __ andr(c_rarg2, c_rarg2, c_rarg3);
+    __ andr(c_rarg2, r0, c_rarg3);
     __ mov(c_rarg3, (intptr_t) Universe::verify_oop_bits());
-    __ cmp(c_rarg2, c_rarg3);
-    __ br(Assembler::NE, error);
+
+    // Compare c_rarg2 and c_rarg3.  We don't use a compare
+    // instruction here because the flags register is live.
+    __ eor(c_rarg2, c_rarg2, c_rarg3);
+    __ cbnz(c_rarg2, error);
 
     // make sure klass is 'reasonable', which is not zero.
     __ load_klass(r0, r0);  // get klass
@@ -757,6 +764,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // return if everything seems ok
     __ bind(exit);
+
     __ ldp(c_rarg3, c_rarg2, Address(__ post(sp, 16)));
     __ ret(lr);
 
@@ -791,6 +799,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(sp, r19);                               // restore rsp
     __ pop(0x7fffffff, sp);
     __ ldr(lr, Address(sp, 0));
+
     __ ret(lr);
 
     return start;

@@ -102,13 +102,6 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
   assert(method == rmethod, "interpreter calling convention");
   __ verify_method_ptr(method);
 
-#ifndef PRODUCT
-  // tell the simulator that the method has been entered
-  if (NotifySimulator) {
-    __ notify(Assembler::method_entry);
-  }
-#endif
-
   if (!for_compiler_entry && JvmtiExport::can_post_interpreter_events()) {
     Label run_compiled_code;
     // JVMTI events, such as single-stepping, are implemented partly by avoiding running

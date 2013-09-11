@@ -2749,18 +2749,6 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
       }
   } else if (src->is_address()) {
     LIR_Address* from_addr = src->as_address_ptr();
-    Register compressed_dest = noreg;
-    if (is_reg(dest)) {
-      compressed_dest = as_reg(dest);
-      if (type == T_ARRAY || type == T_OBJECT) {
-	__ verify_oop(dest->as_register());
-	if (UseCompressedOops) {
-	  compressed_dest = rscratch2;
-	  __ mov(compressed_dest, as_reg(dest));
-	  __ encode_heap_oop(compressed_dest);
-	}
-      }
-    }
 
     if (src->is_double_cpu())
       __ lea(rscratch1, as_Address(from_addr));
