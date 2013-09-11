@@ -487,6 +487,11 @@ reg_class r2_reg(
     R2, R2_H
 );
 
+// Class for 64 bit register r4
+reg_class r4_reg(
+    R4, R4_H
+);
+
 // Class for 64 bit register r5
 reg_class r5_reg(
     R5, R5_H
@@ -3692,6 +3697,17 @@ operand iRegP_R0()
 operand iRegP_R2()
 %{
   constraint(ALLOC_IN_RC(r2_reg));
+  match(RegP);
+  match(iRegP);
+  match(iRegPNoSp);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register R4 only
+operand iRegP_R4()
+%{
+  constraint(ALLOC_IN_RC(r4_reg));
   match(RegP);
   match(iRegP);
   match(iRegPNoSp);
@@ -8094,7 +8110,7 @@ instruct ShouldNotReachHere() %{
 // gen_subtype_check()).  Return NZ for a miss or zero for a hit.  The
 // encoding ALSO sets flags.
 
-instruct partialSubtypeCheck(iRegP sub, iRegP_R0 super, iRegP_R2 temp, iRegP_R5 result, rFlagsReg cr)
+instruct partialSubtypeCheck(iRegP_R4 sub, iRegP_R0 super, iRegP_R2 temp, iRegP_R5 result, rFlagsReg cr)
 %{
   match(Set result (PartialSubtypeCheck sub super));
   effect(KILL cr, KILL temp);
@@ -8109,7 +8125,7 @@ instruct partialSubtypeCheck(iRegP sub, iRegP_R0 super, iRegP_R2 temp, iRegP_R5 
   ins_pipe(pipe_class_memory);
 %}
 
-instruct partialSubtypeCheckVsZero(iRegP sub, iRegP_R0 super, iRegP_R2 temp, iRegP_R5 result, immP0 zero, rFlagsReg cr)
+instruct partialSubtypeCheckVsZero(iRegP_R4 sub, iRegP_R0 super, iRegP_R2 temp, iRegP_R5 result, immP0 zero, rFlagsReg cr)
 %{
   match(Set cr (CmpP (PartialSubtypeCheck sub super) zero));
   effect(KILL temp, KILL result);
