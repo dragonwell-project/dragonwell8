@@ -157,8 +157,12 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   // the displaced header, get the object header instead
   // if the object header was not pointing to the displaced header,
   // we do unlocking via runtime call
-  lea(rscratch1, Address(obj, hdr_offset));
-  cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, slow_case);
+  if (hdr_offset) {
+    lea(rscratch1, Address(obj, hdr_offset));
+    cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, slow_case);
+  } else {
+    cmpxchgptr(disp_hdr, hdr, obj, rscratch2, done, slow_case);
+  }
   // done
   bind(done);
 }
