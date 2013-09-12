@@ -854,59 +854,50 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
   char* b = new char[strlen(s) + 50];
   sprintf(b, "verify_oop: %s: %s", reg->name(), s);
   BLOCK_COMMENT("verify_oop {");
-  stp(r0, rscratch1, Address(pre(sp, -2 * wordSize)));
 
-  ExternalAddress buffer((address) b);
-  // our contract is not to modify anything
-  mov(rscratch1, buffer.target());
-  stp(rscratch1, reg, Address(pre(sp, -2 * wordSize)));
+  stp(r0, rscratch1, Address(pre(sp, -2 * wordSize)));
+  stp(rscratch2, lr, Address(pre(sp, -2 * wordSize)));
+
+  mov(r0, reg);
+  mov(rscratch1, (address)b);
 
   // call indirectly to solve generation ordering problem
-  stp(reg, lr, Address(pre(sp, -2 * wordSize)));
-  lea(rscratch1, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
-  ldr(rscratch1, Address(rscratch1));
-  blr(rscratch1);
-  ldp(reg, lr, Address(post(sp, 2 * wordSize)));
-  add(sp, sp, 2 * wordSize);
+  lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
+  ldr(rscratch2, Address(rscratch2));
+  blr(rscratch2);
+
+  ldp(rscratch2, lr, Address(post(sp, 2 * wordSize)));
   ldp(r0, rscratch1, Address(post(sp, 2 * wordSize)));
 
   BLOCK_COMMENT("} verify_oop");
 }
 
 void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
-  return;
   if (!VerifyOops) return;
 
-  // Pass register number to verify_oop_subroutine
   char* b = new char[strlen(s) + 50];
   sprintf(b, "verify_oop_addr: %s", s);
-
   BLOCK_COMMENT("verify_oop_addr {");
 
   stp(r0, rscratch1, Address(pre(sp, -2 * wordSize)));
-  // addr may contain rsp so we will have to adjust it based on the push
-  // we just did (and on 64 bit we do two pushes)
-  // NOTE: 64bit seemed to have had a bug in that it did movq(addr, r0); which
-  // stores r0 into addr which is backwards of what was intended.
+  stp(rscratch2, lr, Address(pre(sp, -2 * wordSize)));
+
+  // addr may contain sp so we will have to adjust it based on the
+  // pushes that we just did.
   if (addr.uses(sp)) {
     lea(r0, addr);
-    ldr(r0, Address(r0, 2 * wordSize));
+    ldr(r0, Address(r0, 4 * wordSize));
   } else {
     ldr(r0, addr);
   }
-
-  ExternalAddress buffer((address) b);
-  // our contract is not to modify anything
-  mov(rscratch1, buffer.target());
-  stp(rscratch1, r0, Address(pre(sp, -2 * wordSize)));
+  mov(rscratch1, (address)b);
 
   // call indirectly to solve generation ordering problem
-  stp(zr, lr, Address(pre(sp, -2 * wordSize)));
-  lea(rscratch1, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
-  ldr(rscratch1, Address(rscratch1));
-  blr(rscratch1);
-  ldp(zr, lr, Address(post(sp, 2 * wordSize)));
-  add(sp, sp, 2 * wordSize);
+  lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
+  ldr(rscratch2, Address(rscratch2));
+  blr(rscratch2);
+
+  ldp(rscratch2, lr, Address(post(sp, 2 * wordSize)));
   ldp(r0, rscratch1, Address(post(sp, 2 * wordSize)));
 
   BLOCK_COMMENT("} verify_oop_addr");

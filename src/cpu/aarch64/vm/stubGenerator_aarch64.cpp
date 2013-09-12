@@ -700,18 +700,16 @@ class StubGenerator: public StubCodeGenerator {
   // Non-destructive plausibility checks for oops
   //
   // Arguments:
-  //    all args on stack!
+  //    r0: oop to verify
+  //    rscratch1: error message
   //
   // Stack after saving c_rarg3:
   //    [tos + 0]: saved c_rarg3
   //    [tos + 1]: saved c_rarg2
-  //    [tos + 2]: scratch -- saves LR around call to debug64
+  //    [tos + 2]: saved rscratch2
   //    [tos + 3]: saved lr
-  //  * [tos + 4]: error message (char*)
-  //  * [tos + 5]: object to verify (oop)
-  //  * [tos + 6]: saved r0 - saved by caller and bashed
-  //  * [tos + 7]: saved rscratch1 - saved by caller
-  //  * = popped on exit
+  //    [tos + 4]: saved rscratch1
+  //    [tos + 5]: saved r0
   address generate_verify_oop() {
 
     StubCodeMark mark(this, "StubRoutines", "verify_oop");
@@ -731,19 +729,7 @@ class StubGenerator: public StubCodeGenerator {
     __ add(c_rarg3, c_rarg3, 1);
     __ str(c_rarg3, Address(c_rarg2));
 
-    enum {
-           // After previous pushes.
-           oop_to_verify = 5 * wordSize,
-           saved_r0      = 6 * wordSize,
-
-           // Before the call to MacroAssembler::debug(), see below.
-           return_addr   = (32+2) * wordSize,
-           error_msg     = (32+3) * wordSize
-    };
-
-    // get object
-    __ ldr(r0, Address(sp, oop_to_verify));
-
+    // object is in r0
     // make sure object is 'reasonable'
     __ cbz(r0, exit); // if obj is NULL it is OK
 
@@ -771,34 +757,22 @@ class StubGenerator: public StubCodeGenerator {
     // handle errors
     __ bind(error);
     __ ldp(c_rarg3, c_rarg2, Address(__ post(sp, 16)));
-    __ str(lr, Address(sp, 0));
-    __ ldp(zr, lr, Address(sp, 0));
-    __ ldp(r0, rscratch1, Address(sp, 2 * wordSize));
+
     __ push(0x7fffffff, sp);
     // debug(char* msg, int64_t pc, int64_t regs[])
-    // We've popped the registers we'd saved (c_rarg3, c_rarg2), and
-    // pushed all the registers, so now the stack looks like:
-    //    [tos +  0] 32 saved registers
-    //    [ + 0]: garbage
-    //    [ + 1]: saved lr
-    //  * [ + 2]: error message (char*)
-    //  * [ + 3]: object to verify (oop)
-    //  * [ + 4]: saved r0 - saved by caller and bashed
-    //  * [ + 5]: saved rscratch1 - saved by caller
-
-    __ ldr(c_rarg0, Address(sp, error_msg));    // pass address of error message
-    __ ldr(c_rarg1, Address(sp, return_addr));  // pass return address
+    __ ldr(c_rarg0, Address(sp, rscratch1->encoding()));    // pass address of error message
+    __ mov(c_rarg1, Address(sp, lr));             // pass return address
     __ mov(c_rarg2, sp);                          // pass address of regs on stack
-    __ mov(r19, sp);                               // remember rsp
 #ifndef PRODUCT
     assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
 #endif
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
     __ blrt(rscratch1, 3, 0, 1);
-    __ mov(sp, r19);                               // restore rsp
     __ pop(0x7fffffff, sp);
-    __ ldr(lr, Address(sp, 0));
+
+    __ ldp(rscratch2, lr, Address(__ post(sp, 2 * wordSize)));
+    __ ldp(r0, rscratch1, Address(__ post(sp, 2 * wordSize)));
 
     __ ret(lr);
 
