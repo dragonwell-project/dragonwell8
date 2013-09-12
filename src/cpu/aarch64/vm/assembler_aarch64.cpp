@@ -1480,14 +1480,33 @@ bool Assembler::operand_valid_for_logical_immediate(bool is32, uint64_t imm) {
   return encode_logical_immediate(is32, imm) != 0xffffffff;
 }
 
-bool Assembler::operand_valid_for_float_immediate(double imm) {
+static jlong doubleToLongBits(jdouble d) {
   union {
-    unsigned ival;
-    float val;
+    jdouble double_value;
+    jlong double_bits;
   };
-  val = (float)imm;
-  unsigned result = fp_immediate_for_encoding(ival, true);
-  return encoding_for_fp_immediate(result) == imm;
+
+  double_value = d;
+  return double_bits;
+}
+
+static jint floatToIntBits(jfloat f) {
+  union {
+    jfloat float_value;
+    jint float_bits;
+  };
+
+  float_value = f;
+  return float_bits;
+}
+
+bool Assembler::operand_valid_for_float_immediate(double imm) {
+  // We try to encode the immediate value then we convert the encoded
+  // back and make sure it's the exact same bit pattern
+
+  unsigned result = fp_immediate_for_encoding(floatToIntBits(imm), true);
+  return doubleToLongBits(imm)
+    == doubleToLongBits(encoding_for_fp_immediate(result));
 }
 
 int AbstractAssembler::code_fill_byte() {
