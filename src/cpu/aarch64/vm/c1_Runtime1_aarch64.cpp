@@ -1193,6 +1193,35 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
 
+  if (DeoptimizeWhenPatching) {
+    // According to the ARMv8 ARM, "Concurrent modification and
+    // execution of instructions can lead to the resulting instruction
+    // performing any behavior that can be achieved by executing any
+    // sequence of instructions that can be executed from the same
+    // Exception level, except where the instruction before
+    // modification and the instruction after modification is a B, BL,
+    // NOP, BKPT, SVC, HVC, or SMC instruction."
+    //
+    // This effectively makes the games we play when patching
+    // impossible, so when we come across an access that needs
+    // patching we must deoptimize.
+
+    if (TracePatching) {
+      tty->print_cr("Deoptimizing because patch is needed");
+    }
+    // It's possible the nmethod was invalidated in the last
+    // safepoint, but if it's still alive then make it not_entrant.
+    nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
+    if (nm != NULL) {
+      nm->make_not_entrant();
+    }
+
+    Deoptimization::deoptimize_frame(thread, caller_frame.id());
+
+    // Return to the now deoptimized frame.
+    return;
+  }
+
   // last java frame on stack
   vframeStream vfst(thread, true);
   assert(!vfst.at_end(), "Java frame must exist");

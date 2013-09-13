@@ -228,6 +228,8 @@ void NativeJump::patch_verified_entry(address entry, address verified_entry, add
 
   unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3ffffff);
 
+  assert(nativeInstruction_at(verified_entry)->is_jump_or_nop(),
+	 "Aarch64 cannot replace non-jump with jump");
   *(unsigned int*)verified_entry = insn;
   ICache::invalidate_range(verified_entry, instruction_size);
 }
@@ -252,21 +254,14 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
 }
 
 // MT-safe patching of a long jump instruction.
-// First patches first word of instruction to two jmp's that jmps to them
-// selfs (spinlock). Then patches the last byte, and then atomicly replaces
-// the jmp's with the first 4 byte of the new instruction.
-//
-// FIXME: I don't think that this can be done on AArch64.  The memory
-// is not coherent, so it does no matter what order we patch things
-// in.  The only way to do it AFAIK is to have:
-//
-//    ldr rscratch, 0f
-//    b rscratch
-// 0: absolute address
-//
 void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) {
+  assert((! DeoptimizeWhenPatching)
+	 || nativeInstruction_at(instr_addr)->is_jump_or_nop(),
+	 "Aarch64 cannot replace non-jump with jump");
   uint32_t instr = *(uint32_t*)code_buffer;
   *(uint32_t*)instr_addr = instr;
+  ICache::invalidate_range(instr_addr, instruction_size);
 }
 
 bool NativeInstruction::is_dtrace_trap() { return false; }
+

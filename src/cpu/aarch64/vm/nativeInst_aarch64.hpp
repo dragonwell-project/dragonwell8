@@ -55,12 +55,13 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   friend class Relocation;
  public:
   enum { instruction_size = BytesPerWord };
-  bool is_nop();
+  inline bool is_nop();
   bool is_dtrace_trap();
   inline bool is_call();
   inline bool is_illegal();
   inline bool is_return();
-  inline bool is_jump();
+  bool is_jump();
+  inline bool is_jump_or_nop();
   inline bool is_cond_jump();
   bool is_safepoint_poll();
   inline bool is_mov_literal64();
@@ -426,6 +427,11 @@ inline bool NativeInstruction::is_illegal()      { Unimplemented(); return false
 inline bool NativeInstruction::is_call()         { Unimplemented(); return false; }
 inline bool NativeInstruction::is_return()       { Unimplemented(); return false; }
 
+inline bool NativeInstruction::is_nop()         {
+  uint32_t insn = *(uint32_t*)addr_at(0);
+  return insn == 0xd503201f;
+}
+
 inline bool NativeInstruction::is_jump() {
   uint32_t insn = *(uint32_t*)addr_at(0);
 
@@ -443,6 +449,10 @@ inline bool NativeInstruction::is_jump() {
     return true;
   } else
     return false;
+}
+
+inline bool NativeInstruction::is_jump_or_nop() {
+  return is_nop() || is_jump();
 }
 
 inline bool NativeInstruction::is_cond_jump()    { Unimplemented(); return false; }

@@ -438,6 +438,11 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 
 
 void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
+  // If we have to make this method not-entrant we'll overwrite its
+  // first instruction with a jump.  For this action to be legal we
+  // must ensure that this first instruction is a B, BL, NOP, BKPT,
+  // SVC, HVC, or SMC.  Make it a NOP.
+  nop();
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter().
   generate_stack_overflow_check(frame_size_in_bytes);
