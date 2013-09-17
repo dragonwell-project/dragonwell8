@@ -906,6 +906,9 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   long framesize = ((long)C->frame_slots()) << LogBytesPerInt;
   assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
 
+  // insert a nop at the start of the prolog so we can patch in a
+  // branch if we need to invalidate the method later
+  __ nop();
   // push lr and rfp to create a frame
   __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
 
