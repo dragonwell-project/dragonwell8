@@ -49,9 +49,156 @@
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp
 
+#define __ masm->
+
+typedef enum {
+  copy_forwards = 1,
+  copy_backwards = -1
+} copy_direction;
+
+static void copy_longs_small(MacroAssembler *masm, Register s, Register d, Register count, copy_direction direction) {
+  Label again, around;
+  __ cbz(count, around);
+  __ bind(again);
+  __ ldr(r16, Address(__ adjust(s, wordSize * direction, direction == copy_backwards)));
+  __ str(r16, Address(__ adjust(d, wordSize * direction, direction == copy_backwards)));
+  __ sub(count, count, 1);
+  __ cbnz(count, again);
+  __ bind(around);
+}
+
+static void copy_longs(MacroAssembler *masm, Register s, Register d, Register count, Register tmp, copy_direction direction) {
+  __ andr(tmp, count, 3);
+  copy_longs_small(masm, s, d, tmp, direction);
+  __ andr(count, count, -4);
+
+  Label again, around;
+  __ cbz(count, around);
+  __ push(r18->bit() | r19->bit(), sp);
+  __ bind(again);
+  __ ldp(r16, r17, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
+  __ ldp(r18, r19, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
+  if (direction != copy_backwards) {
+    __ prfm(Address(s, direction == copy_forwards ? 0 : -4 * wordSize));
+    __ prfm(Address(s, direction == copy_forwards ? 2 * wordSize : -4 * wordSize));
+  }
+  __ stp(r16, r17, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
+  __ stp(r18, r19, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
+  __ subs(count, count, 4);
+  __ cbnz(count, again);
+  __ pop(r18->bit() | r19->bit(), sp);
+  __ bind(around);
+}
+
+static void copy_memory_small(MacroAssembler *masm, Register s, Register d, Register count, Register tmp, int step, Label &done) {
+  // Small copy: less than one word.
+  bool is_backwards = step < 0;
+  int granularity = abs(step);
+
+  __ cbz(count, done);
+  {
+    Label loop;
+    __ bind(loop);
+    switch (granularity) {
+    case 1:
+      __ ldrb(tmp, Address(__ adjust(s, step, is_backwards)));
+      __ strb(tmp, Address(__ adjust(d, step, is_backwards)));
+      break;
+    case 2:
+      __ ldrh(tmp, Address(__ adjust(s, step, is_backwards)));
+      __ strh(tmp, Address(__ adjust(d, step, is_backwards)));
+      break;
+    case 4:
+      __ ldrw(tmp, Address(__ adjust(s, step, is_backwards)));
+      __ strw(tmp, Address(__ adjust(d, step, is_backwards)));
+      break;
+    default:
+      assert(false, "copy_memory called with impossible step");
+    }
+    __ sub(count, count, 1);
+    __ cbnz(count, loop);
+    __ b(done);
+  }
+}
+
+
+// All-singing all-dancing memory copy.
+//
+// Copy count units of memory from s to d.  The size of a unit is
+// step, which can be positive or negative depending on the direction
+// of copy.  Make a best effort to align the copy.
+
+static void copy_memory(MacroAssembler *masm, Register s, Register d,
+			Register count, Register tmp, int step) {
+  copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
+  bool is_backwards = step < 0;
+  int granularity = abs(step);
+
+  Label done, large;
+
+  if (is_backwards) {
+    __ lea(s, Address(s, count, Address::uxtw(exact_log2(-step))));
+    __ lea(d, Address(d, count, Address::uxtw(exact_log2(-step))));
+  }
+
+  __ cmp(count, 8/granularity);
+  __ br(Assembler::HS, large);
+
+  copy_memory_small(masm, s, d, count, tmp, step, done);
+
+  __ bind(large);
+
+  // Now we've got the small case out of the way we can align the
+  // source address.
+  {
+    Label skip1, skip2, skip4;
+
+    switch (granularity) {
+    case 1:
+      __ tst(s, 1);
+      __ br(Assembler::EQ, skip1);
+      __ ldrb(tmp, Address(__ adjust(s, direction, is_backwards)));
+      __ strb(tmp, Address(__ adjust(d, direction, is_backwards)));
+      __ sub(count, count, 1);
+      __ bind(skip1);
+      // fall through
+    case 2:
+      __ tst(s, 2/granularity);
+      __ br(Assembler::EQ, skip2);
+      __ ldrh(tmp, Address(__ adjust(s, 2 * direction, is_backwards)));
+      __ strh(tmp, Address(__ adjust(d, 2 * direction, is_backwards)));
+      __ sub(count, count, 2/granularity);
+      __ bind(skip2);
+       // fall through
+   case 4:
+      __ tst(s, 4/granularity);
+      __ br(Assembler::EQ, skip4);
+      __ ldrw(tmp, Address(__ adjust(s, 4 * direction, is_backwards)));
+      __ strw(tmp, Address(__ adjust(d, 4 * direction, is_backwards)));
+      __ sub(count, count, 4/granularity);
+      __ bind(skip4);
+    }
+  }
+
+  // s is now word-aligned.
+
+  // We have a count of units and some trailing bytes.  Adjust the
+  // count and do a bulk copy of words.
+  __ lsr(rscratch2, count, exact_log2(wordSize/granularity));
+  __ sub(count, count, rscratch2, Assembler::LSL, exact_log2(wordSize/granularity));
+
+  copy_longs(masm, s, d, rscratch2, rscratch1, direction);
+
+  // And the tail.
+
+  copy_memory_small(masm, s, d, count, tmp, step, done);
+
+  __ bind(done);
+}
+
+
+#undef __
 #define __ _masm->
-#define TIMES_OOP (UseCompressedOops ? Address::times_4 : Address::times_8)
-#define a__ ((Assembler*)_masm)->
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -826,7 +973,40 @@ class StubGenerator: public StubCodeGenerator {
   //
   //     Destroy no registers!
   //
-  void  gen_write_ref_array_pre_barrier(Register addr, Register count, bool dest_uninitialized) { Unimplemented(); }
+  void  gen_write_ref_array_pre_barrier(Register addr, Register count, bool dest_uninitialized) {
+    BarrierSet* bs = Universe::heap()->barrier_set();
+    switch (bs->kind()) {
+    case BarrierSet::G1SATBCT:
+    case BarrierSet::G1SATBCTLogging:
+      // With G1, don't generate the call if we statically know that the target in uninitialized
+      if (!dest_uninitialized) {
+	__ push(0x3fffffff, sp);         // integer registers except lr & sp
+	if (count == c_rarg0) {
+	  if (addr == c_rarg1) {
+	    // exactly backwards!!
+	    __ stp(c_rarg0, c_rarg1, __ pre(sp, -2 * wordSize));
+	    __ ldp(c_rarg1, c_rarg0, __ post(sp, -2 * wordSize));
+	  } else {
+	    __ mov(c_rarg1, count);
+	    __ mov(c_rarg0, addr);
+	  }
+	} else {
+	  __ mov(c_rarg0, addr);
+	  __ mov(c_rarg1, count);
+	}
+	__ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_pre), 2);
+	__ pop(0x3fffffff, sp);         // integer registers except lr & sp        }
+	break;
+      case BarrierSet::CardTableModRef:
+      case BarrierSet::CardTableExtension:
+      case BarrierSet::ModRef:
+        break;
+      default:
+        ShouldNotReachHere();
+
+      }
+    }
+  }
 
   //
   // Generate code for an array write post barrier
@@ -838,8 +1018,53 @@ class StubGenerator: public StubCodeGenerator {
   //
   //  The input registers are overwritten.
   //  The ending address is inclusive.
-  void  gen_write_ref_array_post_barrier(Register start, Register end, Register scratch) { Unimplemented(); }
+  void  gen_write_ref_array_post_barrier(Register start, Register end, Register scratch) {
+    assert_different_registers(start, end, scratch);
+    BarrierSet* bs = Universe::heap()->barrier_set();
+    switch (bs->kind()) {
+      case BarrierSet::G1SATBCT:
+      case BarrierSet::G1SATBCTLogging:
 
+        {
+	  __ push(0x3fffffff, sp);         // integer registers except lr & sp
+          // must compute element count unless barrier set interface is changed (other platforms supply count)
+          assert_different_registers(start, end, scratch);
+          __ lea(scratch, Address(end, BytesPerHeapOop));
+          __ sub(scratch, scratch, start);               // subtract start to get #bytes
+          __ lsr(scratch, scratch, LogBytesPerHeapOop);  // convert to element count
+          __ mov(c_rarg0, start);
+          __ mov(c_rarg1, scratch);
+          __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_post), 2);
+	  __ pop(0x3fffffff, sp);         // integer registers except lr & sp        }
+        }
+        break;
+      case BarrierSet::CardTableModRef:
+      case BarrierSet::CardTableExtension:
+        {
+          CardTableModRefBS* ct = (CardTableModRefBS*)bs;
+          assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+
+          Label L_loop;
+
+           __ lsr(start, start, CardTableModRefBS::card_shift);
+           __ add(end, end, BytesPerHeapOop);
+           __ lsr(end, end, CardTableModRefBS::card_shift);
+           __ sub(end, end, start); // number of bytes to copy
+
+          const Register count = end; // 'end' register contains bytes count now
+	  __ mov(scratch, (address)ct->byte_map_base);
+          __ add(start, start, scratch);
+	  __ BIND(L_loop);
+	  __ strb(zr, Address(start, count));
+          __ subs(count, count, 1);
+          __ br(Assembler::HI, L_loop);
+        }
+        break;
+      default:
+        ShouldNotReachHere();
+
+    }
+  }
 
   // Copy big chunks forward
   //
@@ -890,7 +1115,23 @@ class StubGenerator: public StubCodeGenerator {
   //   disjoint_byte_copy_entry is set to the no-overlap entry point
   //   used by generate_conjoint_byte_copy().
   //
-  address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) { Unimplemented(); return 0; }
+  address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+    if (entry != NULL) {
+      *entry = __ pc();
+      // caller can pass a 64-bit byte count here (from Unsafe.copyMemory)
+      BLOCK_COMMENT("Entry:");
+    }
+    __ enter();
+    __ push(r16->bit() | r17->bit(), sp);
+    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, 1);
+    __ pop(r16->bit() | r17->bit(), sp);
+    __ leave();
+    __ ret(lr);
+    return start;
+  }
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
@@ -970,8 +1211,34 @@ class StubGenerator: public StubCodeGenerator {
   //   disjoint_int_copy_entry is set to the no-overlap entry point
   //   used by generate_conjoint_int_oop_copy().
   //
-  address generate_disjoint_int_oop_copy(bool aligned, bool is_oop, address* entry,
-                                         const char *name, bool dest_uninitialized = false) { Unimplemented(); return 0; }
+  address generate_disjoint_int_oop_copy(bool aligned, bool is_oop, address *entry,
+					 const char *name, bool dest_uninitialized = false) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+    if (entry != NULL) {
+      *entry = __ pc();
+      // caller can pass a 64-bit byte count here (from Unsafe.copyMemory)
+      BLOCK_COMMENT("Entry:");
+    }
+    __ enter();
+    __ push(r16->bit() | r17->bit(), sp);
+    if (is_oop) {
+      __ push(c_rarg1->bit() | c_rarg2->bit(), sp);
+      // no registers are destroyed by this call
+      gen_write_ref_array_pre_barrier(c_rarg1, c_rarg2, dest_uninitialized);
+    }
+    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, sizeof (jint));
+    if (is_oop) {
+      __ pop(c_rarg1->bit() | c_rarg2->bit(), sp);
+      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(LogBytesPerWord)));
+      gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
+    }
+    __ pop(r16->bit() | r17->bit(), sp);
+    __ leave();
+    __ ret(lr);
+    return start;
+  }
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
@@ -990,7 +1257,37 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_conjoint_int_oop_copy(bool aligned, bool is_oop, address nooverlap_target,
                                          address *entry, const char *name,
-                                         bool dest_uninitialized = false) { Unimplemented(); return 0; }
+                                         bool dest_uninitialized = false) {
+    Register s = c_rarg0, d = c_rarg1, count = c_rarg2;
+
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    __ cmp(d, s);
+    __ br(Assembler::LS, nooverlap_target);
+
+    __ enter();
+    __ push(r16->bit() | r17->bit(), sp);
+    if (is_oop) {
+      __ push(d->bit() | count->bit(), sp);
+      // no registers are destroyed by this call
+      gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
+    }
+
+    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, -(int)sizeof (jint));
+
+    if (is_oop) {
+      __ pop(d->bit() | count->bit(), sp);
+      __ lea(count, Address(d, count, Address::uxtw(LogBytesPerWord)));
+      gen_write_ref_array_post_barrier(d, count, rscratch1);
+    }
+    __ pop(r16->bit() | r17->bit(), sp);
+    __ leave();
+    __ ret(lr);
+
+    return start;
+}
+
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
@@ -1001,14 +1298,40 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source array address
   //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //   c_rarg2   - element count, treated as size_t, can be zero
   //
  // Side Effects:
   //   disjoint_oop_copy_entry or disjoint_long_copy_entry is set to the
   //   no-overlap entry point used by generate_conjoint_long_oop_copy().
   //
   address generate_disjoint_long_oop_copy(bool aligned, bool is_oop, address *entry,
-                                          const char *name, bool dest_uninitialized = false) { Unimplemented(); return 0; }
+                                          const char *name, bool dest_uninitialized = false) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+    if (entry != NULL) {
+      *entry = __ pc();
+      // caller can pass a 64-bit byte count here (from Unsafe.copyMemory)
+      BLOCK_COMMENT("Entry:");
+    }
+    __ enter();
+    __ push(r16->bit() | r17->bit(), sp);
+    if (is_oop) {
+      __ push(c_rarg1->bit() | c_rarg2->bit(), sp);
+      // no registers are destroyed by this call
+      gen_write_ref_array_pre_barrier(c_rarg1, c_rarg2, dest_uninitialized);
+    }
+    copy_longs(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, copy_forwards);
+    if (is_oop) {
+      __ pop(c_rarg1->bit() | c_rarg2->bit(), sp);
+      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(LogBytesPerWord)));
+      gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
+    }
+    __ pop(r16->bit() | r17->bit(), sp);
+    __ leave();
+    __ ret(lr);
+    return start;
+  }
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
@@ -1019,11 +1342,42 @@ class StubGenerator: public StubCodeGenerator {
   // Inputs:
   //   c_rarg0   - source array address
   //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //   c_rarg2   - element count, treated as size_t, can be zero
   //
   address generate_conjoint_long_oop_copy(bool aligned, bool is_oop,
                                           address nooverlap_target, address *entry,
-                                          const char *name, bool dest_uninitialized = false) { Unimplemented(); return 0; }
+                                          const char *name, bool dest_uninitialized = false) {
+    Register s = c_rarg0, d = c_rarg1, count = c_rarg2;
+
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    __ cmp(d, s);
+    __ br(Assembler::LS, nooverlap_target);
+
+    __ enter();
+    __ push(r16->bit() | r17->bit(), sp);
+    if (is_oop) {
+      __ push(d->bit() | count->bit(), sp);
+      // no registers are destroyed by this call
+      gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
+    }
+
+    __ lea(s, Address(s, count, Address::uxtw(LogBytesPerWord)));
+    __ lea(d, Address(d, count, Address::uxtw(LogBytesPerWord)));
+
+    copy_longs(_masm, s, d, count, rscratch1, copy_backwards);
+    if (is_oop) {
+      __ pop(d->bit() | count->bit(), sp);
+      __ lea(count, Address(d, count, Address::uxtw(LogBytesPerWord)));
+      gen_write_ref_array_post_barrier(d, count, rscratch1);
+    }
+    __ pop(r16->bit() | r17->bit(), sp);
+    __ leave();
+    __ ret(lr);
+
+    return start;
+}
 
 
   // Helper for generating a dynamic type check.
@@ -1110,7 +1464,15 @@ class StubGenerator: public StubCodeGenerator {
     assert(count == 0, "huh?");
   }
 
+
   void generate_arraycopy_stubs() {
+    address entry;
+    address entry_jbyte_arraycopy;
+    address entry_jshort_arraycopy;
+    address entry_jint_arraycopy;
+    address entry_oop_arraycopy;
+    address entry_jlong_arraycopy;
+    address entry_checkcast_arraycopy;
     // Call the conjoint generation methods immediately after
     // the disjoint ones so that short branches from the former
     // to the latter can be generated.
@@ -1121,12 +1483,23 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_jshort_disjoint_arraycopy = (address) fake_arraycopy_stub;
     StubRoutines::_jshort_arraycopy          = (address) fake_arraycopy_stub;
 
-    StubRoutines::_jint_disjoint_arraycopy   = (address) fake_arraycopy_stub;
     StubRoutines::_jint_arraycopy            = (address) fake_arraycopy_stub;
 
-    StubRoutines::_jlong_disjoint_arraycopy  = (address) fake_arraycopy_stub;
     StubRoutines::_jlong_arraycopy           = (address) fake_arraycopy_stub;
 #endif
+    StubRoutines::_jlong_disjoint_arraycopy
+      = generate_disjoint_long_oop_copy(true, false,  &entry,
+					"jlong_disjoint_arraycopy");
+    StubRoutines::_jlong_arraycopy           = generate_conjoint_long_oop_copy(false, false, entry,
+                                                                               &entry_jlong_arraycopy, "jlong_arraycopy");
+
+
+    StubRoutines::_jint_disjoint_arraycopy
+      = generate_disjoint_int_oop_copy(true, false, &entry,
+				       "jint_disjoint_arraycopy");
+    StubRoutines::_jint_arraycopy            = generate_conjoint_int_oop_copy(false, false, entry,
+                                                                              &entry_jint_arraycopy, "jint_arraycopy");
+
 
 #if 0
     StubRoutines::_oop_disjoint_arraycopy    = ShouldNotCallThisStub();
@@ -1137,11 +1510,12 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_generic_arraycopy         = ShouldNotCallThisStub();
 #endif
 
+    StubRoutines::_jbyte_disjoint_arraycopy  = generate_disjoint_byte_copy(false, &entry,
+                                                                           "jbyte_disjoint_arraycopy");
+
 #if 0
     // We don't generate specialized code for HeapWord-aligned source
     // arrays, so just use the code we've already generated
-    StubRoutines::_arrayof_jbyte_disjoint_arraycopy =
-      StubRoutines::_jbyte_disjoint_arraycopy;
     StubRoutines::_arrayof_jbyte_arraycopy =
       StubRoutines::_jbyte_arraycopy;
 
@@ -1165,6 +1539,15 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_arrayof_oop_arraycopy =
       StubRoutines::_oop_arraycopy;
 #endif
+    StubRoutines::_arrayof_jlong_disjoint_arraycopy  = StubRoutines::_jlong_disjoint_arraycopy;
+
+    if (!UseCompressedOops) {
+      StubRoutines::_oop_disjoint_arraycopy
+	= generate_disjoint_long_oop_copy(false, true, &entry,
+					  "oop_disjoint_arraycopy");
+      StubRoutines::_oop_arraycopy           = generate_conjoint_long_oop_copy(false, true, entry,
+                                                                               &entry_oop_arraycopy, "oop_arraycopy");
+    }
   }
 
   void generate_math_stubs() { Unimplemented(); }
@@ -1386,4 +1769,5 @@ class StubGenerator: public StubCodeGenerator {
 
 void StubGenerator_generate(CodeBuffer* code, bool all) {
   StubGenerator g(code, all);
+
 }

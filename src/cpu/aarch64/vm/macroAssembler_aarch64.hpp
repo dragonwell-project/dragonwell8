@@ -1285,12 +1285,13 @@ public:
   void adrp(Register reg1, const Address &dest, unsigned long &byte_offset);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
-		   Label &jumptable, Label &jumptable_end) {
+		   Label &jumptable, Label &jumptable_end, int stride = 1) {
     adr(rscratch1, jumptable);
     subsw(rscratch2, index, lowbound);
     subsw(zr, rscratch2, highbound - lowbound);
     br(Assembler::HS, jumptable_end);
-    add(rscratch1, rscratch1, rscratch2, ext::sxtw, 2);
+    add(rscratch1, rscratch1, rscratch2,
+	ext::sxtw, exact_log2(stride * Assembler::instruction_size));
     br(rscratch1);
   }
 

@@ -613,16 +613,25 @@ class Assembler : public AbstractAssembler {
 #endif
 
 public:
+  enum { instruction_size = 4 };
+
+  Address adjust(Register base, int offset, bool preIncrement) {
+    if (preIncrement)
+      return Address(Pre(base, offset));
+    else
+      return Address(Post(base, offset));
+  }
+
   Address pre(Register base, int offset) {
-    return Address(Pre(base, offset));
+    return adjust(base, offset, true);
   }
 
   Address post (Register base, int offset) {
-    return Address(Post(base, offset));
+    return adjust(base, offset, false);
   }
 
   Instruction_aarch64* current;
-public:
+
   void set_current(Instruction_aarch64* i) { current = i; }
 
   void f(unsigned val, int msb, int lsb) {

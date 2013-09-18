@@ -2474,7 +2474,13 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   bool aligned = (flags & LIR_OpArrayCopy::unaligned) == 0;
   const char *name;
   address entry = StubRoutines::select_arraycopy_function(basic_type, aligned, disjoint, name, false);
-  __ call_VM_leaf(entry, 3);
+
+ CodeBlob *cb = CodeCache::find_blob(entry);
+ if (cb) {
+   __ bl(RuntimeAddress(entry));
+ } else {
+   __ call_VM_leaf(entry, 3);
+ }
 
   __ bind(*stub->continuation());
 }
