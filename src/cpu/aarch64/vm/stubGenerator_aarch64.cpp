@@ -51,6 +51,7 @@
 
 #undef __
 #define __ _masm->
+#define TIMES_OOP Address::sxtw(exact_log2(UseCompressedOops ? 4 : 8))
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -72,7 +73,12 @@ class StubGenerator: public StubCodeGenerator {
 #ifdef PRODUCT
 #define inc_counter_np(counter) (0)
 #else
-  void inc_counter_np_(int& counter) { Unimplemented(); }
+  void inc_counter_np_(int& counter) {
+    __ lea(rscratch2, ExternalAddress((address)&counter));
+    __ ldrw(rscratch1, Address(rscratch2));
+    __ addw(rscratch1, rscratch1, 1);
+    __ strw(rscratch1, Address(rscratch2));
+  }
 #define inc_counter_np(counter) \
   BLOCK_COMMENT("inc_counter " #counter); \
   inc_counter_np_(counter);
@@ -796,10 +802,10 @@ class StubGenerator: public StubCodeGenerator {
   //     c_rarg2 - element count
   //
   //  Output:
-  //     rax   - &from[element count - 1]
+  //     r0   - &from[element count - 1]
   //
   void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
-  void array_overlap_test(Label& L_no_overlap, int sf) { Unimplemented(); }
+  void array_overlap_test(Label& L_no_overlap, Address::sxtw sf) { __ b(L_no_overlap); }
   void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
 
   // Shuffle first three arg regs on Windows into Linux/Solaris locations.
@@ -1068,20 +1074,20 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(done);
   }
 
-  // Scan over array at d for count oops, verifying each one.
-  // Preserves d and count, clobbers rscratch1 and rscratch2.
-  void verify_oop_array (size_t size, Register d, Register count, Register temp) {
+  // Scan over array at a for count oops, verifying each one.
+  // Preserves a and count, clobbers rscratch1 and rscratch2.
+  void verify_oop_array (size_t size, Register a, Register count, Register temp) {
     Label loop, end;
-    __ mov(rscratch1, d);
+    __ mov(rscratch1, a);
     __ mov(rscratch2, zr);
     __ bind(loop);
     __ cmp(rscratch2, count);
     __ br(Assembler::HS, end);
     if (size == (size_t)wordSize) {
-      __ ldr(temp, Address(d, rscratch2, Address::uxtw(exact_log2(size))));
+      __ ldr(temp, Address(a, rscratch2, Address::uxtw(exact_log2(size))));
       __ verify_oop(temp);
     } else {
-      __ ldrw(r16, Address(d, rscratch2, Address::uxtw(exact_log2(size))));
+      __ ldrw(r16, Address(a, rscratch2, Address::uxtw(exact_log2(size))));
       __ decode_heap_oop(temp); // calls verify_oop
     }
     __ add(rscratch2, rscratch2, size);
@@ -1130,7 +1136,7 @@ class StubGenerator: public StubCodeGenerator {
     if (is_oop) {
       __ pop(d->bit() | count->bit(), sp);
       if (VerifyOops)
-	verify_oop_array(size, s, d, count, r16);
+	verify_oop_array(size, d, count, r16);
       __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
@@ -1177,7 +1183,7 @@ class StubGenerator: public StubCodeGenerator {
     if (is_oop) {
       __ pop(d->bit() | count->bit(), sp);
       if (VerifyOops)
-	verify_oop_array(size, s, d, count, r16);
+	verify_oop_array(size, d, count, r16);
       __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
     }
@@ -1410,11 +1416,24 @@ class StubGenerator: public StubCodeGenerator {
 
 
   // Helper for generating a dynamic type check.
-  // Smashes no registers.
+  // Smashes rscratch1.
   void generate_type_check(Register sub_klass,
                            Register super_check_offset,
                            Register super_klass,
-                           Label& L_success) { Unimplemented(); }
+                           Label& L_success) {
+    assert_different_registers(sub_klass, super_check_offset, super_klass);
+
+    BLOCK_COMMENT("type_check:");
+
+    Label L_miss;
+
+    __ check_klass_subtype_fast_path(sub_klass, super_klass, noreg,        &L_success, &L_miss, NULL,
+                                     super_check_offset);
+    __ check_klass_subtype_slow_path(sub_klass, super_klass, noreg, noreg, &L_success, NULL);
+
+    // Fall through on failure!
+    __ BIND(L_miss);
+  }
 
   //
   //  Generate checkcasting array copy stub
@@ -1424,17 +1443,148 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg1   - destination array address
   //    c_rarg2   - element count, treated as ssize_t, can be zero
   //    c_rarg3   - size_t ckoff (super_check_offset)
-  // not Win64
   //    c_rarg4   - oop ckval (super_klass)
-  // Win64
-  //    rsp+40    - oop ckval (super_klass)
   //
   //  Output:
-  //    rax ==  0  -  success
-  //    rax == -1^K - failure, where K is partial transfer count
+  //    r0 ==  0  -  success
+  //    r0 == -1^K - failure, where K is partial transfer count
   //
   address generate_checkcast_copy(const char *name, address *entry,
-                                  bool dest_uninitialized = false) { Unimplemented(); return 0; }
+                                  bool dest_uninitialized = false) {
+
+    Label L_load_element, L_store_element, L_do_card_marks, L_done;
+
+    // Input registers (after setup_arg_regs)
+    const Register from        = c_rarg0;   // source array address
+    const Register to          = c_rarg1;   // destination array address
+    const Register length      = c_rarg2;   // elements count
+    const Register ckoff       = c_rarg3;   // super_check_offset
+    const Register ckval       = c_rarg4;   // super_klass
+
+    // Registers used as temps (r16, r17, r18, r19, r20 are save-on-entry)
+    const Register end_from    = from;  // source array end address
+    const Register end_to      = r16;   // destination array end address
+    const Register count       = r20;   // -(count_remaining)
+    const Register r17_length  = r17;   // saved copy of length
+    // End pointers are inclusive, and if length is not zero they point
+    // to the last unit copied:  end_to[0] := end_from[0]
+
+    const Register copied_oop  = r18;    // actual oop copied
+    const Register r19_klass   = r19;    // oop._klass
+
+    //---------------------------------------------------------------
+    // Assembler stub will be used for this call to arraycopy
+    // if the two arrays are subtypes of Object[] but the
+    // destination array type is not equal to or a supertype
+    // of the source type.  Each element must be separately
+    // checked.
+
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    __ enter(); // required for proper stackwalking of RuntimeStub frame
+
+#ifdef ASSERT
+    // caller guarantees that the arrays really are different
+    // otherwise, we would have to make conjoint checks
+    { Label L;
+      array_overlap_test(L, TIMES_OOP);
+      __ stop("checkcast_copy within a single array");
+      __ bind(L);
+    }
+#endif //ASSERT
+
+    // Caller of this entry point must set up the argument registers.
+    if (entry != NULL) {
+      *entry = __ pc();
+      BLOCK_COMMENT("Entry:");
+    }
+
+    __ push(r16->bit() | r17->bit() | r18->bit() | r19->bit() | r20->bit(), sp);
+
+#ifdef ASSERT
+    BLOCK_COMMENT("assert consistent ckoff/ckval");
+    // The ckoff and ckval must be mutually consistent,
+    // even though caller generates both.
+    { Label L;
+      int sco_offset = in_bytes(Klass::super_check_offset_offset());
+      __ ldrw(count, Address(ckval, sco_offset));
+      __ cmpw(ckoff, count);
+      __ br(Assembler::EQ, L);
+      __ stop("super_check_offset inconsistent");
+      __ bind(L);
+    }
+#endif //ASSERT
+
+    // Loop-invariant addresses.  They are exclusive end pointers.
+    Address end_from_addr(from, length, TIMES_OOP);
+    Address   end_to_addr(to,   length, TIMES_OOP);
+    // Loop-variant addresses.  They assume post-incremented count < 0.
+    Address from_element_addr(end_from, count, TIMES_OOP);
+    Address   to_element_addr(end_to,   count, TIMES_OOP);
+
+    gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
+
+    // Copy from low to high addresses, indexed from the end of each array.
+    __ lea(end_from, end_from_addr);
+    __ lea(end_to, end_to_addr);
+    __ mov(r17_length, length);        // save a copy of the length
+    __ neg(count, length);    // negate and test the length
+    __ cbnz(count, L_load_element);
+
+    // Empty array:  Nothing to do.
+    __ mov(r0, zr);                  // return 0 on (trivial) success
+    __ b(L_done);
+
+    // ======== begin loop ========
+    // (Loop is rotated; its entry is L_load_element.)
+    // Loop control:
+    //   for (count = -count; count != 0; count++)
+    // Base pointers src, dst are biased by 8*(count-1),to last element.
+    __ align(OptoLoopAlignment);
+
+    __ BIND(L_store_element);
+    __ store_heap_oop(to_element_addr, copied_oop);  // store the oop
+    __ add(count, count, 1);               // increment the count toward zero
+    __ cbz(count, L_do_card_marks);
+
+    // ======== loop entry is here ========
+    __ BIND(L_load_element);
+    __ load_heap_oop(copied_oop, from_element_addr); // load the oop
+    __ cbz(copied_oop, L_store_element);
+
+    __ load_klass(r19_klass, copied_oop);// query the object klass
+    generate_type_check(r19_klass, ckoff, ckval, L_store_element);
+    // ======== end loop ========
+
+    // It was a real error; we must depend on the caller to finish the job.
+    // Register r0 = -1 * number of *remaining* oops, r14 = *total* oops.
+    // Emit GC store barriers for the oops we have copied and report
+    // their number to the caller.
+    assert_different_registers(r0, r17_length, count, to, end_to, ckoff);
+    __ lea(end_to, to_element_addr);
+    __ add(end_to, end_to, -heapOopSize);      // make an inclusive end pointer
+    gen_write_ref_array_post_barrier(to, end_to, rscratch1);
+    __ add(r0, r17_length, count);                // K = (original - remaining) oops
+    __ eon(r0, r0, zr);                       // report (-1^K) to caller
+    __ b(L_done);
+
+    // Come here on success only.
+    __ BIND(L_do_card_marks);
+    __ add(end_to, end_to, -heapOopSize);         // make an inclusive end pointer
+    gen_write_ref_array_post_barrier(to, end_to, rscratch1);
+    __ mov(r0, zr);                  // return 0 on success
+
+    // Common exit point (success or failure).
+    __ BIND(L_done);
+    __ pop(r16->bit() | r17->bit() | r18->bit() | r19->bit() | r20->bit(), sp);
+    inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr);
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(lr);
+
+    return start;
+  }
 
   //
   //  Generate 'unsafe' array copy stub
@@ -1574,11 +1724,9 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_oop_disjoint_arraycopy_uninit     = StubRoutines::_arrayof_oop_disjoint_arraycopy_uninit;
     StubRoutines::_oop_arraycopy_uninit              = StubRoutines::_arrayof_oop_arraycopy_uninit;
 
-#if 0
     StubRoutines::_checkcast_arraycopy        = generate_checkcast_copy("checkcast_arraycopy", &entry_checkcast_arraycopy);
     StubRoutines::_checkcast_arraycopy_uninit = generate_checkcast_copy("checkcast_arraycopy_uninit", NULL,
                                                                         /*dest_uninitialized*/true);
-#endif
   }
 
   void generate_math_stubs() { Unimplemented(); }
