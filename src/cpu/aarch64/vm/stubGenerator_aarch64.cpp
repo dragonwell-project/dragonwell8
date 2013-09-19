@@ -49,154 +49,6 @@
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp
 
-#define __ masm->
-
-typedef enum {
-  copy_forwards = 1,
-  copy_backwards = -1
-} copy_direction;
-
-static void copy_longs_small(MacroAssembler *masm, Register s, Register d, Register count, copy_direction direction) {
-  Label again, around;
-  __ cbz(count, around);
-  __ bind(again);
-  __ ldr(r16, Address(__ adjust(s, wordSize * direction, direction == copy_backwards)));
-  __ str(r16, Address(__ adjust(d, wordSize * direction, direction == copy_backwards)));
-  __ sub(count, count, 1);
-  __ cbnz(count, again);
-  __ bind(around);
-}
-
-static void copy_longs(MacroAssembler *masm, Register s, Register d, Register count, Register tmp, copy_direction direction) {
-  __ andr(tmp, count, 3);
-  copy_longs_small(masm, s, d, tmp, direction);
-  __ andr(count, count, -4);
-
-  Label again, around;
-  __ cbz(count, around);
-  __ push(r18->bit() | r19->bit(), sp);
-  __ bind(again);
-  __ ldp(r16, r17, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
-  __ ldp(r18, r19, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
-  if (direction != copy_backwards) {
-    __ prfm(Address(s, direction == copy_forwards ? 0 : -4 * wordSize));
-    __ prfm(Address(s, direction == copy_forwards ? 2 * wordSize : -4 * wordSize));
-  }
-  __ stp(r16, r17, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
-  __ stp(r18, r19, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
-  __ subs(count, count, 4);
-  __ cbnz(count, again);
-  __ pop(r18->bit() | r19->bit(), sp);
-  __ bind(around);
-}
-
-static void copy_memory_small(MacroAssembler *masm, Register s, Register d, Register count, Register tmp, int step, Label &done) {
-  // Small copy: less than one word.
-  bool is_backwards = step < 0;
-  int granularity = abs(step);
-
-  __ cbz(count, done);
-  {
-    Label loop;
-    __ bind(loop);
-    switch (granularity) {
-    case 1:
-      __ ldrb(tmp, Address(__ adjust(s, step, is_backwards)));
-      __ strb(tmp, Address(__ adjust(d, step, is_backwards)));
-      break;
-    case 2:
-      __ ldrh(tmp, Address(__ adjust(s, step, is_backwards)));
-      __ strh(tmp, Address(__ adjust(d, step, is_backwards)));
-      break;
-    case 4:
-      __ ldrw(tmp, Address(__ adjust(s, step, is_backwards)));
-      __ strw(tmp, Address(__ adjust(d, step, is_backwards)));
-      break;
-    default:
-      assert(false, "copy_memory called with impossible step");
-    }
-    __ sub(count, count, 1);
-    __ cbnz(count, loop);
-    __ b(done);
-  }
-}
-
-
-// All-singing all-dancing memory copy.
-//
-// Copy count units of memory from s to d.  The size of a unit is
-// step, which can be positive or negative depending on the direction
-// of copy.  Make a best effort to align the copy.
-
-static void copy_memory(MacroAssembler *masm, Register s, Register d,
-			Register count, Register tmp, int step) {
-  copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
-  bool is_backwards = step < 0;
-  int granularity = abs(step);
-
-  Label done, large;
-
-  if (is_backwards) {
-    __ lea(s, Address(s, count, Address::uxtw(exact_log2(-step))));
-    __ lea(d, Address(d, count, Address::uxtw(exact_log2(-step))));
-  }
-
-  __ cmp(count, 8/granularity);
-  __ br(Assembler::HS, large);
-
-  copy_memory_small(masm, s, d, count, tmp, step, done);
-
-  __ bind(large);
-
-  // Now we've got the small case out of the way we can align the
-  // source address.
-  {
-    Label skip1, skip2, skip4;
-
-    switch (granularity) {
-    case 1:
-      __ tst(s, 1);
-      __ br(Assembler::EQ, skip1);
-      __ ldrb(tmp, Address(__ adjust(s, direction, is_backwards)));
-      __ strb(tmp, Address(__ adjust(d, direction, is_backwards)));
-      __ sub(count, count, 1);
-      __ bind(skip1);
-      // fall through
-    case 2:
-      __ tst(s, 2/granularity);
-      __ br(Assembler::EQ, skip2);
-      __ ldrh(tmp, Address(__ adjust(s, 2 * direction, is_backwards)));
-      __ strh(tmp, Address(__ adjust(d, 2 * direction, is_backwards)));
-      __ sub(count, count, 2/granularity);
-      __ bind(skip2);
-       // fall through
-   case 4:
-      __ tst(s, 4/granularity);
-      __ br(Assembler::EQ, skip4);
-      __ ldrw(tmp, Address(__ adjust(s, 4 * direction, is_backwards)));
-      __ strw(tmp, Address(__ adjust(d, 4 * direction, is_backwards)));
-      __ sub(count, count, 4/granularity);
-      __ bind(skip4);
-    }
-  }
-
-  // s is now word-aligned.
-
-  // We have a count of units and some trailing bytes.  Adjust the
-  // count and do a bulk copy of words.
-  __ lsr(rscratch2, count, exact_log2(wordSize/granularity));
-  __ sub(count, count, rscratch2, Assembler::LSL, exact_log2(wordSize/granularity));
-
-  copy_longs(masm, s, d, rscratch2, rscratch1, direction);
-
-  // And the tail.
-
-  copy_memory_small(masm, s, d, count, tmp, step, done);
-
-  __ bind(done);
-}
-
-
 #undef __
 #define __ _masm->
 
@@ -1018,7 +870,7 @@ class StubGenerator: public StubCodeGenerator {
   //
   //  The input registers are overwritten.
   //  The ending address is inclusive.
-  void  gen_write_ref_array_post_barrier(Register start, Register end, Register scratch) {
+  void gen_write_ref_array_post_barrier(Register start, Register end, Register scratch) {
     assert_different_registers(start, end, scratch);
     BarrierSet* bs = Universe::heap()->barrier_set();
     switch (bs->kind()) {
@@ -1066,131 +918,176 @@ class StubGenerator: public StubCodeGenerator {
     }
   }
 
-  // Copy big chunks forward
-  //
-  // Inputs:
-  //   end_from     - source arrays end address
-  //   end_to       - destination array end address
-  //   qword_count  - 64-bits element count, negative
-  //   to           - scratch
-  //   L_copy_32_bytes - entry label
-  //   L_copy_8_bytes  - exit  label
-  //
-  void copy_32_bytes_forward(Register end_from, Register end_to,
-                             Register qword_count, Register to,
-                             Label& L_copy_32_bytes, Label& L_copy_8_bytes) { Unimplemented(); }
+  typedef enum {
+    copy_forwards = 1,
+    copy_backwards = -1
+  } copy_direction;
 
-
-  // Copy big chunks backward
-  //
-  // Inputs:
-  //   from         - source arrays address
-  //   dest         - destination array address
-  //   qword_count  - 64-bits element count
-  //   to           - scratch
-  //   L_copy_32_bytes - entry label
-  //   L_copy_8_bytes  - exit  label
-  //
-  void copy_32_bytes_backward(Register from, Register dest,
-                              Register qword_count, Register to,
-                              Label& L_copy_32_bytes, Label& L_copy_8_bytes) { Unimplemented(); }
-
-
-  // Arguments:
-  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
-  //             ignored
-  //   name    - stub name string
-  //
-  // Inputs:
-  //   c_rarg0   - source array address
-  //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
-  //
-  // If 'from' and/or 'to' are aligned on 4-, 2-, or 1-byte boundaries,
-  // we let the hardware handle it.  The one to eight bytes within words,
-  // dwords or qwords that span cache line boundaries will still be loaded
-  // and stored atomically.
-  //
-  // Side Effects:
-  //   disjoint_byte_copy_entry is set to the no-overlap entry point
-  //   used by generate_conjoint_byte_copy().
-  //
-  address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
-    __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", name);
-    address start = __ pc();
-    if (entry != NULL) {
-      *entry = __ pc();
-      // caller can pass a 64-bit byte count here (from Unsafe.copyMemory)
-      BLOCK_COMMENT("Entry:");
-    }
-    __ enter();
-    __ push(r16->bit() | r17->bit(), sp);
-    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, 1);
-    __ pop(r16->bit() | r17->bit(), sp);
-    __ leave();
-    __ ret(lr);
-    return start;
+  void copy_longs_small(Register s, Register d, Register count, copy_direction direction) {
+    Label again, around;
+    __ cbz(count, around);
+    __ bind(again);
+    __ ldr(r16, Address(__ adjust(s, wordSize * direction, direction == copy_backwards)));
+    __ str(r16, Address(__ adjust(d, wordSize * direction, direction == copy_backwards)));
+    __ sub(count, count, 1);
+    __ cbnz(count, again);
+    __ bind(around);
   }
 
-  // Arguments:
-  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
-  //             ignored
-  //   name    - stub name string
-  //
-  // Inputs:
-  //   c_rarg0   - source array address
-  //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
-  //
-  // If 'from' and/or 'to' are aligned on 4-, 2-, or 1-byte boundaries,
-  // we let the hardware handle it.  The one to eight bytes within words,
-  // dwords or qwords that span cache line boundaries will still be loaded
-  // and stored atomically.
-  //
-  address generate_conjoint_byte_copy(bool aligned, address nooverlap_target,
-                                      address* entry, const char *name) { Unimplemented(); return 0; }
+  void copy_longs(Register s, Register d, Register count, Register tmp, copy_direction direction) {
+    __ andr(tmp, count, 3);
+    copy_longs_small(s, d, tmp, direction);
+    __ andr(count, count, -4);
 
-  // Arguments:
-  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
-  //             ignored
-  //   name    - stub name string
-  //
-  // Inputs:
-  //   c_rarg0   - source array address
-  //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
-  //
-  // If 'from' and/or 'to' are aligned on 4- or 2-byte boundaries, we
-  // let the hardware handle it.  The two or four words within dwords
-  // or qwords that span cache line boundaries will still be loaded
-  // and stored atomically.
-  //
-  // Side Effects:
-  //   disjoint_short_copy_entry is set to the no-overlap entry point
-  //   used by generate_conjoint_short_copy().
-  //
-  address generate_disjoint_short_copy(bool aligned, address *entry, const char *name) { Unimplemented(); return 0; }
+    Label again, around;
+    __ cbz(count, around);
+    __ push(r18->bit() | r19->bit(), sp);
+    __ bind(again);
+    if (direction != copy_backwards) {
+      __ prfm(Address(s, direction == copy_forwards ? 4 * wordSize : -6 * wordSize));
+      __ prfm(Address(s, direction == copy_forwards ? 6 * wordSize : -8 * wordSize));
+    }
+    __ ldp(r16, r17, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
+    __ ldp(r18, r19, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
+    __ stp(r16, r17, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
+    __ stp(r18, r19, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
+    __ subs(count, count, 4);
+    __ cbnz(count, again);
+    __ pop(r18->bit() | r19->bit(), sp);
+    __ bind(around);
+  }
 
-  address generate_fill(BasicType t, bool aligned, const char *name) { Unimplemented(); return 0; }
+  void copy_memory_small(Register s, Register d, Register count, Register tmp, int step, Label &done) {
+    // Small copy: less than one word.
+    bool is_backwards = step < 0;
+    int granularity = abs(step);
 
-  // Arguments:
-  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
-  //             ignored
-  //   name    - stub name string
+    __ cbz(count, done);
+    {
+      Label loop;
+      __ bind(loop);
+      switch (granularity) {
+      case 1:
+	__ ldrb(tmp, Address(__ adjust(s, step, is_backwards)));
+	__ strb(tmp, Address(__ adjust(d, step, is_backwards)));
+	break;
+      case 2:
+	__ ldrh(tmp, Address(__ adjust(s, step, is_backwards)));
+	__ strh(tmp, Address(__ adjust(d, step, is_backwards)));
+	break;
+      case 4:
+	__ ldrw(tmp, Address(__ adjust(s, step, is_backwards)));
+	__ strw(tmp, Address(__ adjust(d, step, is_backwards)));
+	break;
+      default:
+	assert(false, "copy_memory called with impossible step");
+      }
+      __ sub(count, count, 1);
+      __ cbnz(count, loop);
+      __ b(done);
+    }
+  }
+
+  // All-singing all-dancing memory copy.
   //
-  // Inputs:
-  //   c_rarg0   - source array address
-  //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  // Copy count units of memory from s to d.  The size of a unit is
+  // step, which can be positive or negative depending on the direction
+  // of copy.  If is_aligned is false, we align the source address.
   //
-  // If 'from' and/or 'to' are aligned on 4- or 2-byte boundaries, we
-  // let the hardware handle it.  The two or four words within dwords
-  // or qwords that span cache line boundaries will still be loaded
-  // and stored atomically.
-  //
-  address generate_conjoint_short_copy(bool aligned, address nooverlap_target,
-                                       address *entry, const char *name) { Unimplemented(); return 0; }
+
+  void copy_memory(bool is_aligned, Register s, Register d,
+		   Register count, Register tmp, int step) {
+    copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
+    bool is_backwards = step < 0;
+    int granularity = abs(step);
+
+    if (is_backwards) {
+      __ lea(s, Address(s, count, Address::uxtw(exact_log2(-step))));
+      __ lea(d, Address(d, count, Address::uxtw(exact_log2(-step))));
+    }
+
+    if (granularity == wordSize) {
+      copy_longs(c_rarg0, c_rarg1, c_rarg2, rscratch1, direction);
+      return;
+    }
+
+    Label done, large;
+
+    if (! is_aligned) {
+      __ cmp(count, wordSize/granularity);
+      __ br(Assembler::HS, large);
+      copy_memory_small(s, d, count, tmp, step, done);
+      __ bind(large);
+
+      // Now we've got the small case out of the way we can align the
+      // source address.
+      {
+	Label skip1, skip2, skip4;
+
+	switch (granularity) {
+	case 1:
+	  __ tst(s, 1);
+	  __ br(Assembler::EQ, skip1);
+	  __ ldrb(tmp, Address(__ adjust(s, direction, is_backwards)));
+	  __ strb(tmp, Address(__ adjust(d, direction, is_backwards)));
+	  __ sub(count, count, 1);
+	  __ bind(skip1);
+	  // fall through
+	case 2:
+	  __ tst(s, 2/granularity);
+	  __ br(Assembler::EQ, skip2);
+	  __ ldrh(tmp, Address(__ adjust(s, 2 * direction, is_backwards)));
+	  __ strh(tmp, Address(__ adjust(d, 2 * direction, is_backwards)));
+	  __ sub(count, count, 2/granularity);
+	  __ bind(skip2);
+	  // fall through
+	case 4:
+	  __ tst(s, 4/granularity);
+	  __ br(Assembler::EQ, skip4);
+	  __ ldrw(tmp, Address(__ adjust(s, 4 * direction, is_backwards)));
+	  __ strw(tmp, Address(__ adjust(d, 4 * direction, is_backwards)));
+	  __ sub(count, count, 4/granularity);
+	  __ bind(skip4);
+	}
+      }
+    }
+
+    // s is now word-aligned.
+
+    // We have a count of units and some trailing bytes.  Adjust the
+    // count and do a bulk copy of words.
+    __ lsr(rscratch2, count, exact_log2(wordSize/granularity));
+    __ sub(count, count, rscratch2, Assembler::LSL, exact_log2(wordSize/granularity));
+
+    copy_longs(s, d, rscratch2, rscratch1, direction);
+
+    // And the tail.
+
+    copy_memory_small(s, d, count, tmp, step, done);
+
+    __ bind(done);
+  }
+
+  // Scan over array at d for count oops, verifying each one.
+  // Preserves d and count, clobbers rscratch1 and rscratch2.
+  void verify_oop_array (size_t size, Register d, Register count, Register temp) {
+    Label loop, end;
+    __ mov(rscratch1, d);
+    __ mov(rscratch2, zr);
+    __ bind(loop);
+    __ cmp(rscratch2, count);
+    __ br(Assembler::HS, end);
+    if (size == (size_t)wordSize) {
+      __ ldr(temp, Address(d, rscratch2, Address::uxtw(exact_log2(size))));
+      __ verify_oop(temp);
+    } else {
+      __ ldrw(r16, Address(d, rscratch2, Address::uxtw(exact_log2(size))));
+      __ decode_heap_oop(temp); // calls verify_oop
+    }
+    __ add(rscratch2, rscratch2, size);
+    __ b(loop);
+    __ bind(end);
+  }
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
@@ -1211,8 +1108,9 @@ class StubGenerator: public StubCodeGenerator {
   //   disjoint_int_copy_entry is set to the no-overlap entry point
   //   used by generate_conjoint_int_oop_copy().
   //
-  address generate_disjoint_int_oop_copy(bool aligned, bool is_oop, address *entry,
-					 const char *name, bool dest_uninitialized = false) {
+  address generate_disjoint_copy(size_t size, bool aligned, bool is_oop, address *entry,
+				  const char *name, bool dest_uninitialized = false) {
+    Register s = c_rarg0, d = c_rarg1, count = c_rarg2;
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", name);
     address start = __ pc();
@@ -1224,15 +1122,17 @@ class StubGenerator: public StubCodeGenerator {
     __ enter();
     __ push(r16->bit() | r17->bit(), sp);
     if (is_oop) {
-      __ push(c_rarg1->bit() | c_rarg2->bit(), sp);
+      __ push(d->bit() | count->bit(), sp);
       // no registers are destroyed by this call
-      gen_write_ref_array_pre_barrier(c_rarg1, c_rarg2, dest_uninitialized);
+      gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
     }
-    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, sizeof (jint));
+    copy_memory(aligned, s, d, count, rscratch1, size);
     if (is_oop) {
-      __ pop(c_rarg1->bit() | c_rarg2->bit(), sp);
-      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(LogBytesPerWord)));
-      gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
+      __ pop(d->bit() | count->bit(), sp);
+      if (VerifyOops)
+	verify_oop_array(size, s, d, count, r16);
+      __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
+      gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
     __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
@@ -1255,9 +1155,9 @@ class StubGenerator: public StubCodeGenerator {
   // the hardware handle it.  The two dwords within qwords that span
   // cache line boundaries will still be loaded and stored atomicly.
   //
-  address generate_conjoint_int_oop_copy(bool aligned, bool is_oop, address nooverlap_target,
-                                         address *entry, const char *name,
-                                         bool dest_uninitialized = false) {
+  address generate_conjoint_copy(size_t size, bool aligned, bool is_oop, address nooverlap_target,
+				 address *entry, const char *name,
+				 bool dest_uninitialized = false) {
     Register s = c_rarg0, d = c_rarg1, count = c_rarg2;
 
     StubCodeMark mark(this, "StubRoutines", name);
@@ -1273,70 +1173,164 @@ class StubGenerator: public StubCodeGenerator {
       // no registers are destroyed by this call
       gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
     }
-
-    copy_memory(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, -(int)sizeof (jint));
-
+    copy_memory(aligned, s, d, count, rscratch1, -size);
     if (is_oop) {
       __ pop(d->bit() | count->bit(), sp);
-      __ lea(count, Address(d, count, Address::uxtw(LogBytesPerWord)));
-      gen_write_ref_array_post_barrier(d, count, rscratch1);
-    }
-    __ pop(r16->bit() | r17->bit(), sp);
-    __ leave();
-    __ ret(lr);
-
-    return start;
-}
-
-
-  // Arguments:
-  //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
-  //             ignored
-  //   is_oop  - true => oop array, so generate store check code
-  //   name    - stub name string
-  //
-  // Inputs:
-  //   c_rarg0   - source array address
-  //   c_rarg1   - destination array address
-  //   c_rarg2   - element count, treated as size_t, can be zero
-  //
- // Side Effects:
-  //   disjoint_oop_copy_entry or disjoint_long_copy_entry is set to the
-  //   no-overlap entry point used by generate_conjoint_long_oop_copy().
-  //
-  address generate_disjoint_long_oop_copy(bool aligned, bool is_oop, address *entry,
-                                          const char *name, bool dest_uninitialized = false) {
-    __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", name);
-    address start = __ pc();
-    if (entry != NULL) {
-      *entry = __ pc();
-      // caller can pass a 64-bit byte count here (from Unsafe.copyMemory)
-      BLOCK_COMMENT("Entry:");
-    }
-    __ enter();
-    __ push(r16->bit() | r17->bit(), sp);
-    if (is_oop) {
-      __ push(c_rarg1->bit() | c_rarg2->bit(), sp);
-      // no registers are destroyed by this call
-      gen_write_ref_array_pre_barrier(c_rarg1, c_rarg2, dest_uninitialized);
-    }
-    copy_longs(_masm, c_rarg0, c_rarg1, c_rarg2, rscratch1, copy_forwards);
-    if (is_oop) {
-      __ pop(c_rarg1->bit() | c_rarg2->bit(), sp);
-      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(LogBytesPerWord)));
+      if (VerifyOops)
+	verify_oop_array(size, s, d, count, r16);
+      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
     }
     __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
     __ ret(lr);
+
     return start;
+}
+
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4-, 2-, or 1-byte boundaries,
+  // we let the hardware handle it.  The one to eight bytes within words,
+  // dwords or qwords that span cache line boundaries will still be loaded
+  // and stored atomically.
+  //
+  // Side Effects:
+  //   disjoint_byte_copy_entry is set to the no-overlap entry point  //
+  // If 'from' and/or 'to' are aligned on 4-, 2-, or 1-byte boundaries,
+  // we let the hardware handle it.  The one to eight bytes within words,
+  // dwords or qwords that span cache line boundaries will still be loaded
+  // and stored atomically.
+  //
+  // Side Effects:
+  //   disjoint_byte_copy_entry is set to the no-overlap entry point
+  //   used by generate_conjoint_byte_copy().
+  //
+  address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
+    return generate_disjoint_copy(sizeof (jbyte), aligned, /*is_oop*/false, entry, name);
   }
+
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4-, 2-, or 1-byte boundaries,
+  // we let the hardware handle it.  The one to eight bytes within words,
+  // dwords or qwords that span cache line boundaries will still be loaded
+  // and stored atomically.
+  //
+  address generate_conjoint_byte_copy(bool aligned, address nooverlap_target,
+                                      address* entry, const char *name) {
+    return generate_conjoint_copy(sizeof (jbyte), aligned, /*is_oop*/false, nooverlap_target, entry, name);
+  }
+
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4- or 2-byte boundaries, we
+  // let the hardware handle it.  The two or four words within dwords
+  // or qwords that span cache line boundaries will still be loaded
+  // and stored atomically.
+  //
+  // Side Effects:
+  //   disjoint_short_copy_entry is set to the no-overlap entry point
+  //   used by generate_conjoint_short_copy().
+  //
+  address generate_disjoint_short_copy(bool aligned,
+				       address* entry, const char *name) {
+    return generate_disjoint_copy(sizeof (jshort), aligned, /*is_oop*/false, entry, name);
+  }
+
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4- or 2-byte boundaries, we
+  // let the hardware handle it.  The two or four words within dwords
+  // or qwords that span cache line boundaries will still be loaded
+  // and stored atomically.
+  //
+  address generate_conjoint_short_copy(bool aligned, address nooverlap_target,
+                                       address *entry, const char *name) {
+    return generate_conjoint_copy(sizeof (jshort), aligned, /*is_oop*/false, nooverlap_target, entry, name);
+
+  }
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4-byte boundaries, we let
+  // the hardware handle it.  The two dwords within qwords that span
+  // cache line boundaries will still be loaded and stored atomicly.
+  //
+  // Side Effects:
+  //   disjoint_int_copy_entry is set to the no-overlap entry point
+  //   used by generate_conjoint_int_oop_copy().
+  //
+  address generate_disjoint_int_copy(bool aligned, address *entry,
+					 const char *name, bool dest_uninitialized = false) {
+    const bool not_oop = false;
+    return generate_disjoint_copy(sizeof (jint), aligned, not_oop, entry, name);
+  }
+
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as ssize_t, can be zero
+  //
+  // If 'from' and/or 'to' are aligned on 4-byte boundaries, we let
+  // the hardware handle it.  The two dwords within qwords that span
+  // cache line boundaries will still be loaded and stored atomicly.
+  //
+  address generate_conjoint_int_copy(bool aligned, address nooverlap_target,
+				     address *entry, const char *name,
+				     bool dest_uninitialized = false) {
+    const bool not_oop = false;
+    return generate_conjoint_copy(sizeof (jint), aligned, not_oop, nooverlap_target, entry, name);
+  }
+
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
   //             ignored
-  //   is_oop  - true => oop array, so generate store check code
   //   name    - stub name string
   //
   // Inputs:
@@ -1344,40 +1338,75 @@ class StubGenerator: public StubCodeGenerator {
   //   c_rarg1   - destination array address
   //   c_rarg2   - element count, treated as size_t, can be zero
   //
-  address generate_conjoint_long_oop_copy(bool aligned, bool is_oop,
-                                          address nooverlap_target, address *entry,
+  // Side Effects:
+  //   disjoint_oop_copy_entry or disjoint_long_copy_entry is set to the
+  //   no-overlap entry point used by generate_conjoint_long_oop_copy().
+  //
+  address generate_disjoint_long_copy(bool aligned, address *entry,
                                           const char *name, bool dest_uninitialized = false) {
-    Register s = c_rarg0, d = c_rarg1, count = c_rarg2;
+    const bool not_oop = false;
+    return generate_disjoint_copy(sizeof (jlong), aligned, not_oop, entry, name);
+  }
 
-    StubCodeMark mark(this, "StubRoutines", name);
-    address start = __ pc();
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as size_t, can be zero
+  //
+  address generate_conjoint_long_copy(bool aligned,
+				      address nooverlap_target, address *entry,
+				      const char *name, bool dest_uninitialized = false) {
+    const bool not_oop = false;
+    return generate_conjoint_copy(sizeof (jlong), aligned, not_oop, nooverlap_target, entry, name);
+  }
 
-    __ cmp(d, s);
-    __ br(Assembler::LS, nooverlap_target);
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as size_t, can be zero
+  //
+  // Side Effects:
+  //   disjoint_oop_copy_entry or disjoint_long_copy_entry is set to the
+  //   no-overlap entry point used by generate_conjoint_long_oop_copy().
+  //
+  address generate_disjoint_oop_copy(bool aligned, address *entry,
+				     const char *name, bool dest_uninitialized = false) {
+    const bool is_oop = true;
+    if (UseCompressedOops)
+      return generate_disjoint_copy(sizeof (jint), aligned, is_oop, entry, name);
+    else
+      return generate_disjoint_copy(sizeof (jlong), aligned, is_oop, entry, name);
+  }
 
-    __ enter();
-    __ push(r16->bit() | r17->bit(), sp);
-    if (is_oop) {
-      __ push(d->bit() | count->bit(), sp);
-      // no registers are destroyed by this call
-      gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
-    }
-
-    __ lea(s, Address(s, count, Address::uxtw(LogBytesPerWord)));
-    __ lea(d, Address(d, count, Address::uxtw(LogBytesPerWord)));
-
-    copy_longs(_masm, s, d, count, rscratch1, copy_backwards);
-    if (is_oop) {
-      __ pop(d->bit() | count->bit(), sp);
-      __ lea(count, Address(d, count, Address::uxtw(LogBytesPerWord)));
-      gen_write_ref_array_post_barrier(d, count, rscratch1);
-    }
-    __ pop(r16->bit() | r17->bit(), sp);
-    __ leave();
-    __ ret(lr);
-
-    return start;
-}
+  // Arguments:
+  //   aligned - true => Input and output aligned on a HeapWord boundary == 8 bytes
+  //             ignored
+  //   name    - stub name string
+  //
+  // Inputs:
+  //   c_rarg0   - source array address
+  //   c_rarg1   - destination array address
+  //   c_rarg2   - element count, treated as size_t, can be zero
+  //
+  address generate_conjoint_oop_copy(bool aligned,
+				     address nooverlap_target, address *entry,
+				     const char *name, bool dest_uninitialized = false) {
+    const bool is_oop = true;
+    if (UseCompressedOops)
+      return generate_conjoint_copy(sizeof (jint), aligned, is_oop, nooverlap_target, entry, name);
+    else
+      return generate_conjoint_copy(sizeof (jlong), aligned, is_oop, nooverlap_target, entry, name);
+  }
 
 
   // Helper for generating a dynamic type check.
@@ -1473,81 +1502,83 @@ class StubGenerator: public StubCodeGenerator {
     address entry_oop_arraycopy;
     address entry_jlong_arraycopy;
     address entry_checkcast_arraycopy;
-    // Call the conjoint generation methods immediately after
-    // the disjoint ones so that short branches from the former
-    // to the latter can be generated.
-#if 0
-    StubRoutines::_jbyte_disjoint_arraycopy  = (address) fake_arraycopy_stub;
-    StubRoutines::_jbyte_arraycopy           = (address) fake_arraycopy_stub;
 
-    StubRoutines::_jshort_disjoint_arraycopy = (address) fake_arraycopy_stub;
-    StubRoutines::_jshort_arraycopy          = (address) fake_arraycopy_stub;
+    //*** jbyte
+    // Always need aligned and unaligned versions
+    StubRoutines::_jbyte_disjoint_arraycopy         = generate_disjoint_byte_copy(false, &entry,
+                                                                                  "jbyte_disjoint_arraycopy");
+    StubRoutines::_jbyte_arraycopy                  = generate_conjoint_byte_copy(false, entry,
+                                                                                  &entry_jbyte_arraycopy,
+                                                                                  "jbyte_arraycopy");
+    StubRoutines::_arrayof_jbyte_disjoint_arraycopy = generate_disjoint_byte_copy(true, &entry,
+                                                                                  "arrayof_jbyte_disjoint_arraycopy");
+    StubRoutines::_arrayof_jbyte_arraycopy          = generate_conjoint_byte_copy(true, entry, NULL,
+                                                                                  "arrayof_jbyte_arraycopy");
 
-    StubRoutines::_jint_arraycopy            = (address) fake_arraycopy_stub;
+    //*** jshort
+    // Always need aligned and unaligned versions
+    StubRoutines::_jshort_disjoint_arraycopy         = generate_disjoint_short_copy(false, &entry,
+                                                                                    "jshort_disjoint_arraycopy");
+    StubRoutines::_jshort_arraycopy                  = generate_conjoint_short_copy(false, entry,
+                                                                                    &entry_jshort_arraycopy,
+                                                                                    "jshort_arraycopy");
+    StubRoutines::_arrayof_jshort_disjoint_arraycopy = generate_disjoint_short_copy(true, &entry,
+                                                                                    "arrayof_jshort_disjoint_arraycopy");
+    StubRoutines::_arrayof_jshort_arraycopy          = generate_conjoint_short_copy(true, entry, NULL,
+                                                                                    "arrayof_jshort_arraycopy");
 
-    StubRoutines::_jlong_arraycopy           = (address) fake_arraycopy_stub;
-#endif
-    StubRoutines::_jlong_disjoint_arraycopy
-      = generate_disjoint_long_oop_copy(true, false,  &entry,
-					"jlong_disjoint_arraycopy");
-    StubRoutines::_jlong_arraycopy           = generate_conjoint_long_oop_copy(false, false, entry,
-                                                                               &entry_jlong_arraycopy, "jlong_arraycopy");
+    //*** jint
+    // Aligned versions
+    StubRoutines::_arrayof_jint_disjoint_arraycopy = generate_disjoint_int_copy(true, &entry,
+										"arrayof_jint_disjoint_arraycopy");
+    StubRoutines::_arrayof_jint_arraycopy          = generate_conjoint_int_copy(true, entry, &entry_jint_arraycopy,
+										"arrayof_jint_arraycopy");
+    // In 64 bit we need both aligned and unaligned versions of jint arraycopy.
+    // entry_jint_arraycopy always points to the unaligned version
+    StubRoutines::_jint_disjoint_arraycopy         = generate_disjoint_int_copy(false, &entry,
+										"jint_disjoint_arraycopy");
+    StubRoutines::_jint_arraycopy                  = generate_conjoint_int_copy(false, entry,
+										&entry_jint_arraycopy,
+										"jint_arraycopy");
 
+    //*** jlong
+    // It is always aligned
+    StubRoutines::_arrayof_jlong_disjoint_arraycopy = generate_disjoint_long_copy(true, &entry,
+										  "arrayof_jlong_disjoint_arraycopy");
+    StubRoutines::_arrayof_jlong_arraycopy          = generate_conjoint_long_copy(true, entry, &entry_jlong_arraycopy,
+										  "arrayof_jlong_arraycopy");
+    StubRoutines::_jlong_disjoint_arraycopy         = StubRoutines::_arrayof_jlong_disjoint_arraycopy;
+    StubRoutines::_jlong_arraycopy                  = StubRoutines::_arrayof_jlong_arraycopy;
 
-    StubRoutines::_jint_disjoint_arraycopy
-      = generate_disjoint_int_oop_copy(true, false, &entry,
-				       "jint_disjoint_arraycopy");
-    StubRoutines::_jint_arraycopy            = generate_conjoint_int_oop_copy(false, false, entry,
-                                                                              &entry_jint_arraycopy, "jint_arraycopy");
+    //*** oops
+    {
+      // With compressed oops we need unaligned versions; notice that
+      // we overwrite entry_oop_arraycopy.
+      bool aligned = !UseCompressedOops;
 
-
-#if 0
-    StubRoutines::_oop_disjoint_arraycopy    = ShouldNotCallThisStub();
-    StubRoutines::_oop_arraycopy             = ShouldNotCallThisStub();
-
-    StubRoutines::_checkcast_arraycopy       = ShouldNotCallThisStub();
-    StubRoutines::_unsafe_arraycopy          = ShouldNotCallThisStub();
-    StubRoutines::_generic_arraycopy         = ShouldNotCallThisStub();
-#endif
-
-    StubRoutines::_jbyte_disjoint_arraycopy  = generate_disjoint_byte_copy(false, &entry,
-                                                                           "jbyte_disjoint_arraycopy");
-
-#if 0
-    // We don't generate specialized code for HeapWord-aligned source
-    // arrays, so just use the code we've already generated
-    StubRoutines::_arrayof_jbyte_arraycopy =
-      StubRoutines::_jbyte_arraycopy;
-
-    StubRoutines::_arrayof_jshort_disjoint_arraycopy =
-      StubRoutines::_jshort_disjoint_arraycopy;
-    StubRoutines::_arrayof_jshort_arraycopy =
-      StubRoutines::_jshort_arraycopy;
-
-    StubRoutines::_arrayof_jint_disjoint_arraycopy =
-      StubRoutines::_jint_disjoint_arraycopy;
-    StubRoutines::_arrayof_jint_arraycopy =
-      StubRoutines::_jint_arraycopy;
-
-    StubRoutines::_arrayof_jlong_disjoint_arraycopy =
-      StubRoutines::_jlong_disjoint_arraycopy;
-    StubRoutines::_arrayof_jlong_arraycopy =
-      StubRoutines::_jlong_arraycopy;
-
-    StubRoutines::_arrayof_oop_disjoint_arraycopy =
-      StubRoutines::_oop_disjoint_arraycopy;
-    StubRoutines::_arrayof_oop_arraycopy =
-      StubRoutines::_oop_arraycopy;
-#endif
-    StubRoutines::_arrayof_jlong_disjoint_arraycopy  = StubRoutines::_jlong_disjoint_arraycopy;
-
-    if (!UseCompressedOops) {
-      StubRoutines::_oop_disjoint_arraycopy
-	= generate_disjoint_long_oop_copy(false, true, &entry,
-					  "oop_disjoint_arraycopy");
-      StubRoutines::_oop_arraycopy           = generate_conjoint_long_oop_copy(false, true, entry,
-                                                                               &entry_oop_arraycopy, "oop_arraycopy");
+      StubRoutines::_arrayof_oop_disjoint_arraycopy
+	= generate_disjoint_oop_copy(aligned, &entry, "arrayof_oop_disjoint_arraycopy");
+      StubRoutines::_arrayof_oop_arraycopy
+	= generate_conjoint_oop_copy(aligned, entry, &entry_oop_arraycopy, "arrayof_oop_arraycopy");
+      // Aligned versions without pre-barriers
+      StubRoutines::_arrayof_oop_disjoint_arraycopy_uninit
+	= generate_disjoint_oop_copy(aligned, &entry, "arrayof_oop_disjoint_arraycopy_uninit",
+				     /*dest_uninitialized*/true);
+      StubRoutines::_arrayof_oop_arraycopy_uninit
+	= generate_conjoint_oop_copy(aligned, entry, NULL, "arrayof_oop_arraycopy_uninit",
+				     /*dest_uninitialized*/true);
     }
+
+    StubRoutines::_oop_disjoint_arraycopy            = StubRoutines::_arrayof_oop_disjoint_arraycopy;
+    StubRoutines::_oop_arraycopy                     = StubRoutines::_arrayof_oop_arraycopy;
+    StubRoutines::_oop_disjoint_arraycopy_uninit     = StubRoutines::_arrayof_oop_disjoint_arraycopy_uninit;
+    StubRoutines::_oop_arraycopy_uninit              = StubRoutines::_arrayof_oop_arraycopy_uninit;
+
+#if 0
+    StubRoutines::_checkcast_arraycopy        = generate_checkcast_copy("checkcast_arraycopy", &entry_checkcast_arraycopy);
+    StubRoutines::_checkcast_arraycopy_uninit = generate_checkcast_copy("checkcast_arraycopy_uninit", NULL,
+                                                                        /*dest_uninitialized*/true);
+#endif
   }
 
   void generate_math_stubs() { Unimplemented(); }
@@ -1769,5 +1800,4 @@ class StubGenerator: public StubCodeGenerator {
 
 void StubGenerator_generate(CodeBuffer* code, bool all) {
   StubGenerator g(code, all);
-
 }
