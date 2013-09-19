@@ -1137,6 +1137,7 @@ class StubGenerator: public StubCodeGenerator {
       __ pop(d->bit() | count->bit(), sp);
       if (VerifyOops)
 	verify_oop_array(size, d, count, r16);
+      __ sub(count, count, 1); // make an inclusive end pointer
       __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
@@ -1184,8 +1185,9 @@ class StubGenerator: public StubCodeGenerator {
       __ pop(d->bit() | count->bit(), sp);
       if (VerifyOops)
 	verify_oop_array(size, d, count, r16);
-      __ lea(c_rarg2, Address(c_rarg1, c_rarg2, Address::uxtw(exact_log2(size))));
-      gen_write_ref_array_post_barrier(c_rarg1, c_rarg2, rscratch1);
+      __ sub(count, count, 1); // make an inclusive end pointer
+      __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
+      gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
     __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
@@ -1559,7 +1561,7 @@ class StubGenerator: public StubCodeGenerator {
     // ======== end loop ========
 
     // It was a real error; we must depend on the caller to finish the job.
-    // Register r0 = -1 * number of *remaining* oops, r14 = *total* oops.
+    // Register r0 = -1 * number of *remaining* oops, r17 = *total* oops.
     // Emit GC store barriers for the oops we have copied and report
     // their number to the caller.
     assert_different_registers(r0, r17_length, count, to, end_to, ckoff);
