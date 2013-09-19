@@ -94,6 +94,7 @@ static void pd_conjoint_jlongs_atomic(jlong* from, jlong* to, size_t count) {
 }
 
 static void pd_conjoint_oops_atomic(oop* from, oop* to, size_t count) {
+  assert(!UseCompressedOops, "foo!");
   assert(BytesPerLong == BytesPerOop, "jlongs and oops must be the same size");
   _Copy_conjoint_jlongs_atomic((jlong*)from, (jlong*)to, count);
 }
@@ -115,6 +116,7 @@ static void pd_arrayof_conjoint_jlongs(HeapWord* from, HeapWord* to, size_t coun
 }
 
 static void pd_arrayof_conjoint_oops(HeapWord* from, HeapWord* to, size_t count) {
+  assert(!UseCompressedOops, "foo!");
   assert(BytesPerLong == BytesPerOop, "jlongs and oops must be the same size");
   _Copy_arrayof_conjoint_jlongs(from, to, count);
 }
