@@ -543,12 +543,10 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   // distinguish each RT-Call.
   // Note: This number affects also the RT-Call in generate_handle_exception because
   //       the oop-map is shared for all calls.
-  const int num_rt_args = 2;  // thread + dummy
-
   DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
   assert(deopt_blob != NULL, "deoptimization blob must have been created");
 
-  OopMap* oop_map = save_live_registers(sasm, num_rt_args);
+  OopMap* oop_map = save_live_registers(sasm);
 
   __ mov(c_rarg0, rthread);
   Label retaddr;
@@ -771,7 +769,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 
         __ enter();
-        OopMap* map = save_live_registers(sasm, 2);
+        OopMap* map = save_live_registers(sasm);
         int call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
@@ -789,7 +787,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       {
         Register bci = r0, method = r1;
         __ enter();
-        OopMap* map = save_live_registers(sasm, 3);
+        OopMap* map = save_live_registers(sasm);
         // Retrieve bci
         __ ldrw(bci, Address(rfp, 2*BytesPerWord));
         // And a pointer to the Method*
@@ -911,7 +909,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 
         __ enter();
-        OopMap* map = save_live_registers(sasm, 3);
+        OopMap* map = save_live_registers(sasm);
         int call_offset;
 	if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
@@ -936,7 +934,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // r0,: klass
         // r19,: rank
         // r2: address of 1st dimension
-        OopMap* map = save_live_registers(sasm, 4);
+        OopMap* map = save_live_registers(sasm);
 	__ mov(c_rarg1, r0);
 	__ mov(c_rarg3, r2);
 	__ mov(c_rarg2, r19);
@@ -1142,6 +1140,24 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // tos + 0: link
         //     + 1: return address
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_array_store_exception), true);
+      }
+      break;
+
+    case predicate_failed_trap_id:
+      {
+        StubFrame f(sasm, "predicate_failed_trap", dont_gc_arguments);
+
+        OopMap* map = save_live_registers(sasm);
+
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, predicate_failed_trap));
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers(sasm);
+        __ leave();
+        DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
+        assert(deopt_blob != NULL, "deoptimization blob must have been created");
+
+        __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
       }
       break;
 

@@ -2826,6 +2826,45 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
     ShouldNotReachHere();
 }
 
+#ifdef ASSERT
+// emit run-time assertion
+void LIR_Assembler::emit_assert(LIR_OpAssert* op) {
+  assert(op->code() == lir_assert, "must be");
+
+  if (op->in_opr1()->is_valid()) {
+    assert(op->in_opr2()->is_valid(), "both operands must be valid");
+    comp_op(op->condition(), op->in_opr1(), op->in_opr2(), op);
+  } else {
+    assert(op->in_opr2()->is_illegal(), "both operands must be illegal");
+    assert(op->condition() == lir_cond_always, "no other conditions allowed");
+  }
+
+  Label ok;
+  if (op->condition() != lir_cond_always) {
+    Assembler::Condition acond = Assembler::AL;
+    switch (op->condition()) {
+      case lir_cond_equal:        acond = Assembler::EQ;  break;
+      case lir_cond_notEqual:     acond = Assembler::NE;  break;
+      case lir_cond_less:         acond = Assembler::LT;  break;
+      case lir_cond_lessEqual:    acond = Assembler::LE;  break;
+      case lir_cond_greaterEqual: acond = Assembler::GE;  break;
+      case lir_cond_greater:      acond = Assembler::GT;  break;
+      case lir_cond_belowEqual:   acond = Assembler::LS;  break;
+      case lir_cond_aboveEqual:   acond = Assembler::HS;  break;
+      default:                    ShouldNotReachHere();
+    }
+    __ br(acond, ok);
+  }
+  if (op->halt()) {
+    const char* str = __ code_string(op->msg());
+    __ stop(str);
+  } else {
+    breakpoint();
+  }
+  __ bind(ok);
+}
+#endif
+
 #ifndef PRODUCT
 #define COMMENT(x)   do { __ block_comment(x); } while (0)
 #else

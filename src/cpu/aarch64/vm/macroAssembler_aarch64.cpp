@@ -851,8 +851,13 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
   if (!VerifyOops) return;
 
   // Pass register number to verify_oop_subroutine
-  char* b = new char[strlen(s) + 50];
-  sprintf(b, "verify_oop: %s: %s", reg->name(), s);
+  const char* b = NULL;
+  {
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("verify_oop: %s: %s", reg->name(), s);
+    b = code_string(ss.as_string());
+  }
   BLOCK_COMMENT("verify_oop {");
 
   stp(r0, rscratch1, Address(pre(sp, -2 * wordSize)));
@@ -875,8 +880,13 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
 void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
   if (!VerifyOops) return;
 
-  char* b = new char[strlen(s) + 50];
-  sprintf(b, "verify_oop_addr: %s", s);
+  const char* b = NULL;
+  {
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("verify_oop_addr: %s", s);
+    b = code_string(ss.as_string());
+  }
   BLOCK_COMMENT("verify_oop_addr {");
 
   stp(r0, rscratch1, Address(pre(sp, -2 * wordSize)));
