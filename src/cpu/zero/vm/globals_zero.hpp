@@ -63,6 +63,12 @@ define_pd_global(uintx, TypeProfileLevel, 0);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
+#ifdef AARCH64
+// This is declared as _pd for AARCH64 only in globals.hpp
+// so must match with definition here.
+define_pd_global(bool, UseBiasedLocking, false);
+#endif
+
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct)
 
 #endif // CPU_ZERO_VM_GLOBALS_ZERO_HPP
