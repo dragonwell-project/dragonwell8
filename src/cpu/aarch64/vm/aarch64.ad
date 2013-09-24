@@ -772,14 +772,17 @@ int MachCallDynamicJavaNode::ret_addr_offset()
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
-  // call should be
-  //   mov(rscratch1, RuntimeAddress(addr) // ifdef BUILTIN_SIM
+  // for generated stubs the call will be
+  //   bl(addr)
+  // for real runtime callouts it iwll be
+  //   mov(rscratch1, RuntimeAddress(addr)
   //   blrt rscratch1
-  // or
-  //   br RuntimeAddress(addr) // ifndef BUILTIN_SIM
-  // TODO
-  // allow for AArch64 version
-  return 20;
+  CodeBlob *cb = CodeCache::find_blob(_entry_point);
+  if (cb) {
+    return 4;
+  } else {
+    return 20;
+  }
 }
 
 // Indicate if the safepoint node needs the polling page as an input
@@ -2878,12 +2881,23 @@ encode %{
 
   enc_class aarch64_enc_java_to_runtime(method meth) %{
     MacroAssembler _masm(&cbuf);
-    int gpcnt;
-    int fpcnt;
-    int rtype;
-    getCallInfo(tf(), gpcnt, fpcnt, rtype);
-    __ mov(rscratch1, RuntimeAddress((address)$meth$$method));
-    __ blrt(rscratch1, gpcnt, fpcnt, rtype);
+
+    // some calls to generated routines (arraycopy code) are scheduled
+    // by C2 as runtime calls. if so we can call them using a br (they
+    // will be in a reachable segment) otherwise we have to use a blrt
+    // which loads the absolute address into a register.
+    address entry = (address)$meth$$method;
+    CodeBlob *cb = CodeCache::find_blob(entry);
+    if (cb) {
+      __ bl(Address(entry));
+    } else {
+      int gpcnt;
+      int fpcnt;
+      int rtype;
+      getCallInfo(tf(), gpcnt, fpcnt, rtype);
+      __ mov(rscratch1, RuntimeAddress(entry));
+      __ blrt(rscratch1, gpcnt, fpcnt, rtype);
+    }
   %}
 
   enc_class aarch64_enc_rethrow() %{
