@@ -2774,6 +2774,18 @@ encode %{
     __ cmp(reg1, reg2);
   %}
 
+  enc_class aarch64_enc_testp(iRegP src) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg = as_Register($src$$reg);
+    __ cmp(reg, zr);
+  %}
+
+  enc_class aarch64_enc_testn(iRegN src) %{
+    MacroAssembler _masm(&cbuf);
+    Register reg = as_Register($src$$reg);
+    __ cmp(reg, zr);
+  %}
+
   enc_class aarch64_enc_b(label lbl) %{
     MacroAssembler _masm(&cbuf);
     Label *L = $lbl$$label;
@@ -7633,6 +7645,34 @@ instruct compN_reg_reg(rFlagsRegU cr, iRegN op1, iRegN op2)
   format %{ "cmp  $op1, $op2\t // compressed ptr" %}
 
   ins_encode(aarch64_enc_cmpn(op1, op2));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct testP_reg(rFlagsRegU cr, iRegP op1, immP0 zero)
+%{
+  match(Set cr (CmpP op1 zero));
+
+  effect(DEF cr, USE op1, USE zero);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, 0\t // ptr" %}
+
+  ins_encode(aarch64_enc_testp(op1));
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct testN_reg(rFlagsRegU cr, iRegN op1, immN0 zero)
+%{
+  match(Set cr (CmpN op1 zero));
+
+  effect(DEF cr, USE op1, USE zero);
+
+  ins_cost(DEFAULT_COST);
+  format %{ "cmp  $op1, 0\t // compressed ptr" %}
+
+  ins_encode(aarch64_enc_testn(op1));
 
   ins_pipe(pipe_class_compare);
 %}
