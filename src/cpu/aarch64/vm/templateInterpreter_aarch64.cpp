@@ -339,19 +339,17 @@ address TemplateInterpreterGenerator::generate_safept_entry_for(
 //       so we have a 'sticky' overflow test
 //
 // rmethod: method
-// r19: invocation counter
 //
 void InterpreterGenerator::generate_counter_incr(
         Label* overflow,
         Label* profile_method,
         Label* profile_method_continue) {
-  const Address invocation_counter(rmethod, in_bytes(Method::invocation_counter_offset()) +
-				            in_bytes(InvocationCounter::counter_offset()));
+  Label done;
   // Note: In tiered we increment either counters in Method* or in MDO depending if we're profiling or not.
   if (TieredCompilation) {
     int increment = InvocationCounter::count_increment;
     int mask = ((1 << Tier0InvokeNotifyFreqLog)  - 1) << InvocationCounter::count_shift;
-    Label no_mdo, done;
+    Label no_mdo;
     if (ProfileInterpreter) {
       // Are we profiling?
       __ ldr(r0, Address(rmethod, Method::method_data_offset()));
@@ -363,29 +361,37 @@ void InterpreterGenerator::generate_counter_incr(
       __ b(done);
     }
     __ bind(no_mdo);
-    // Increment counter in Method* (we don't need to load it, it's in ecx).
-    __ increment_mask_and_jump(invocation_counter, increment, mask, rscratch1, true, Assembler::EQ, overflow);
+    // Increment counter in MethodCounters
+    const Address invocation_counter(rscratch2,
+                  MethodCounters::invocation_counter_offset() +
+                  InvocationCounter::counter_offset());
+    __ get_method_counters(rmethod, rscratch2, done);
+    __ increment_mask_and_jump(invocation_counter, increment, mask, rscratch1, false, Assembler::EQ, overflow);
     __ bind(done);
   } else {
-    const Address backedge_counter(rmethod,
-                                   Method::backedge_counter_offset() +
-                                   InvocationCounter::counter_offset());
+    const Address backedge_counter(rscratch2,
+                  MethodCounters::backedge_counter_offset() +
+                  InvocationCounter::counter_offset());
+    const Address invocation_counter(rscratch2,
+                  MethodCounters::invocation_counter_offset() +
+                  InvocationCounter::counter_offset());
+
+    __ get_method_counters(rmethod, rscratch2, done);
 
     if (ProfileInterpreter) { // %%% Merge this into MethodData*
-      const Address invocation_counter
-	= Address(rmethod, Method::interpreter_invocation_counter_offset());
-      __ ldrw(r1, invocation_counter);
+      __ ldrw(r1, Address(rscratch2, MethodCounters::interpreter_invocation_counter_offset()));
       __ addw(r1, r1, 1);
-      __ strw(r1, invocation_counter);
+      __ strw(r1, Address(rscratch2, MethodCounters::interpreter_invocation_counter_offset()));
     }
     // Update standard invocation counters
-    __ ldrw(r0, backedge_counter);   // load backedge counter
+    __ ldrw(r1, invocation_counter);
+    __ ldrw(r0, backedge_counter);
 
-    __ addw(r19, r19, InvocationCounter::count_increment);
-    __ andw(r0, r0, InvocationCounter::count_mask_value); // mask out the status bits
+    __ addw(r1, r1, InvocationCounter::count_increment);
+    __ andw(r0, r0, InvocationCounter::count_mask_value);
 
-    __ strw(r19, invocation_counter); // save invocation count
-    __ addw(r0, r0, r19);                // add both counters
+    __ strw(r1, invocation_counter);
+    __ addw(r0, r0, r1);                // add both counters
 
     // profile_method is non-null only for interpreted method so
     // profile_method != NULL == !native_call
@@ -412,6 +418,7 @@ void InterpreterGenerator::generate_counter_incr(
       __ cmpw(r0, rscratch2);
       __ br(Assembler::HS, *overflow);
     }
+    __ bind(done);
   }
 }
 
@@ -420,10 +427,6 @@ void InterpreterGenerator::generate_counter_overflow(Label* do_continue) {
   // Asm interpreter on entry
   // On return (i.e. jump to entry_point) [ back to invocation of interpreter ]
   // Everything as it was on entry
-
-  const Address invocation_counter(rmethod,
-                                   Method::invocation_counter_offset() +
-                                   InvocationCounter::counter_offset());
 
   // InterpreterRuntime::frequency_counter_overflow takes two
   // arguments, the first (thread) is passed by call_VM, the second
@@ -711,9 +714,6 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   address entry_point = __ pc();
 
   const Address constMethod       (rmethod, Method::const_offset());
-  const Address invocation_counter(rmethod, Method::
-                                        invocation_counter_offset() +
-                                        InvocationCounter::counter_offset());
   const Address access_flags      (rmethod, Method::access_flags_offset());
   const Address size_of_parameters(r2, ConstMethod::
 				       size_of_parameters_offset());
@@ -739,10 +739,6 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   // save sp
   __ mov(rscratch1, sp);
   __ andr(sp, esp, -16);
-
-  if (inc_counter) {
-    __ ldrw(r19, invocation_counter);  // (pre-)fetch invocation count
-  }
 
   // initialize fixed part of activation frame
   generate_fixed_frame(true, rscratch1);
@@ -1158,9 +1154,6 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   address entry_point = __ pc();
 
   const Address constMethod(rmethod, Method::const_offset());
-  const Address invocation_counter(rmethod,
-                                   Method::invocation_counter_offset() +
-                                   InvocationCounter::counter_offset());
   const Address access_flags(rmethod, Method::access_flags_offset());
   const Address size_of_parameters(r3,
                                    ConstMethod::size_of_parameters_offset());
@@ -1202,11 +1195,6 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
     __ sub(r3, r3, 1); // until everything initialized
     __ cbnz(r3, loop);
     __ bind(exit);
-  }
-
-  // (pre-)fetch invocation count
-  if (inc_counter) {
-    __ ldrw(r19, invocation_counter);
   }
 
   // And the base dispatch table

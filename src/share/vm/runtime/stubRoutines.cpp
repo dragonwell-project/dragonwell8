@@ -181,7 +181,7 @@ void StubRoutines::initialize1() {
 }
 
 
-#ifdef ASSERT
+#ifdef ASSERTdisabled
 typedef void (*arraycopy_fn)(address src, address dst, int count);
 
 // simple tests of generated arraycopy functions

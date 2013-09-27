@@ -170,9 +170,15 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         if (val == noreg) {
           __ store_heap_oop_null(Address(r3, 0));
         } else {
+          // G1 barrier needs uncompressed oop for region cross check.
+          Register new_val = val;
+          if (UseCompressedOops) {
+            new_val = rscratch1;
+            __ mov(new_val, val);
+          }
           __ store_heap_oop(Address(r3, 0), val);
           __ g1_write_barrier_post(r3 /* store_adr */,
-                                   val /* new_val */,
+                                   new_val /* new_val */,
                                    rthread /* thread */,
                                    r10 /* tmp */,
                                    r1 /* tmp2 */);
@@ -1555,11 +1561,10 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
 void TemplateTable::branch(bool is_jsr, bool is_wide)
 {
   __ profile_taken_branch(r0, r1);
-  const ByteSize be_offset = Method::backedge_counter_offset() +
+  const ByteSize be_offset = MethodCounters::backedge_counter_offset() +
                              InvocationCounter::counter_offset();
-  const ByteSize inv_offset = Method::invocation_counter_offset() +
+  const ByteSize inv_offset = MethodCounters::invocation_counter_offset() +
                               InvocationCounter::counter_offset();
-  const int method_offset = frame::interpreter_frame_method_offset * wordSize;
 
   // load branch displacement
   if (!is_wide) {
@@ -1610,6 +1615,24 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
     // r2: target offset
     __ cmp(r2, zr);
     __ br(Assembler::GT, dispatch); // count only if backward branch
+
+    // ECN: FIXME: This code smells
+    // check if MethodCounters exists
+    Label has_counters;
+    __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
+    __ cbnz(rscratch1, has_counters);
+    __ push(r0);
+    __ push(r1);
+    __ push(r2);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+	    InterpreterRuntime::build_method_counters), rmethod);
+    __ pop(r2);
+    __ pop(r1);
+    __ pop(r0);
+    __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
+    __ cbz(rscratch1, dispatch); // No MethodCounters allocated, OutOfMemory
+    __ bind(has_counters);
+
     if (TieredCompilation) {
       Label no_mdo;
       int increment = InvocationCounter::count_increment;
@@ -1626,16 +1649,18 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
         __ b(dispatch);
       }
       __ bind(no_mdo);
-      // Increment backedge counter in Method*
-      __ increment_mask_and_jump(Address(rmethod, be_offset), increment, mask,
+      // Increment backedge counter in MethodCounters*
+      __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
+      __ increment_mask_and_jump(Address(rscratch1, be_offset), increment, mask,
                                  r0, false, Assembler::EQ, &backedge_counter_overflow);
     } else {
       // increment counter
-      __ ldrw(r0, Address(rmethod, be_offset));        // load backedge counter
+      __ ldr(rscratch2, Address(rmethod, Method::method_counters_offset()));
+      __ ldrw(r0, Address(rscratch2, be_offset));        // load backedge counter
       __ addw(rscratch1, r0, InvocationCounter::count_increment); // increment counter
-      __ strw(rscratch1, Address(rmethod, be_offset));        // store counter
+      __ strw(rscratch1, Address(rscratch2, be_offset));        // store counter
 
-      __ ldrw(r0, Address(rmethod, inv_offset));    // load invocation counter
+      __ ldrw(r0, Address(rscratch2, inv_offset));    // load invocation counter
       __ andw(r0, r0, (unsigned)InvocationCounter::count_mask_value); // and the status bits
       __ addw(r0, r0, rscratch1);        // add both counters
 

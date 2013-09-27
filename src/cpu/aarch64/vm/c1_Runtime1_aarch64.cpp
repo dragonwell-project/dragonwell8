@@ -272,9 +272,6 @@ static OopMap* save_live_registers(StubAssembler* sasm,
   return generate_oop_map(sasm, save_fpu_registers);
 }
 
-static void restore_fpu(StubAssembler* sasm, bool restore_fpu_registers = true) { Unimplemented(); }
-
-
 static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registers = true) {
   if (restore_fpu_registers) {
     for (int i = 0; i < 32; i += 2)

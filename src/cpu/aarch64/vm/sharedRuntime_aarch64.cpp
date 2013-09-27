@@ -624,6 +624,7 @@ static void gen_i2c_adapter(MacroAssembler *masm,
   __ br(rscratch1);
 }
 
+#ifdef BUILTIN_SIM
 static void generate_i2c_adapter_name(char *result, int total_args_passed, const BasicType *sig_bt)
 {
   strcpy(result, "i2c(");
@@ -686,6 +687,7 @@ static void generate_i2c_adapter_name(char *result, int total_args_passed, const
   result[idx++] = ')';
   result[idx] = '\0';
 }
+#endif
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
@@ -892,9 +894,6 @@ static void move32_64(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
     }
   }
 }
-
-
-static void move_ptr(MacroAssembler* masm, VMRegPair src, VMRegPair dst) { Unimplemented(); }
 
 // An oop arg. Must pass a handle not the oop itself
 static void object_move(MacroAssembler* masm,

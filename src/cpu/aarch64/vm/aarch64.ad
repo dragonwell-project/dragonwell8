@@ -1446,50 +1446,6 @@ uint MachUEPNode::size(PhaseRegAlloc* ra_) const
 
 //=============================================================================
 
-// size of call stub, compiled java to interpretor
-uint size_java_to_interp()
-{
-  // count a mov mem --> to 4 movz/k and a branch
-  return 6 * NativeInstruction::instruction_size;
-}
-
-// emit call stub, compiled java to interpreter
-void emit_java_to_interp(CodeBuffer& cbuf, address mark)
-{
-  // Stub is fixed up when the corresponding call is converted from
-  // calling compiled code to calling interpreted code.
-  // mov rmethod, zr
-  // here:
-  // b(here) # jump to self
-
-  // mark is set by caller when planting the br to be relocated
-
-  // Note that the code buffer's insts_mark is always relative to insts.
-  // That's why we must use the macroassembler to generate a stub.
-  MacroAssembler _masm(&cbuf);
-
-  address base = __ start_a_stub(Compile::MAX_stubs_size);
-
-  int offset = __ offset();
-  if (base == NULL)  return;  // CodeBuffer::expand failed
-  // static stub relocation stores the instruction address of the call
-  __ relocate(static_stub_Relocation::spec(mark));
-  // static stub relocation also tags the Method* in the code-stream.
-  __ mov_metadata(rmethod, (Metadata*)NULL);
-  __ b(__ pc());
-
-  assert((__ offset() - offset) <= (int)size_java_to_interp(), "stub too big");
-  __ end_a_stub();
-}
-
-// relocation entries for call stub, compiled java to interpretor
-uint reloc_java_to_interp()
-{
-  // TODO fixme
-  // return a large number
-  return 5;
-}
-
 uint size_exception_handler()
 {
   // count up to 4 movz/n/k instructions and one branch instruction
@@ -2840,7 +2796,7 @@ encode %{
 
     if (_method) {
       // Emit stub for static call
-      emit_java_to_interp(cbuf, mark);
+      CompiledStaticCall::emit_to_interp_stub(cbuf, mark);
     }
   %}
 
@@ -2868,7 +2824,7 @@ encode %{
 
     if (_method) {
       // Emit stub for static call
-      emit_java_to_interp(cbuf, mark);
+      CompiledStaticCall::emit_to_interp_stub(cbuf, mark);
     }
 
     // now restore sp
