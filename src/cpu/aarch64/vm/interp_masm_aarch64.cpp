@@ -181,14 +181,9 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
                                                                int bcp_offset,
                                                                size_t index_size) { Unimplemented(); }
 
-void method_counter_break(void)
-{
-}
-
 void InterpreterMacroAssembler::get_method_counters(Register method,
                                                     Register mcs, Label& skip) {
   Label has_counters;
-  call_VM(noreg, CAST_FROM_FN_PTR(address, method_counter_break));
   ldr(mcs, Address(method, Method::method_counters_offset()));
   cbnz(mcs, has_counters);
   call_VM(noreg, CAST_FROM_FN_PTR(address,
