@@ -1223,7 +1223,8 @@ class StubGenerator: public StubCodeGenerator {
   //   used by generate_conjoint_byte_copy().
   //
   address generate_disjoint_byte_copy(bool aligned, address* entry, const char *name) {
-    return generate_disjoint_copy(sizeof (jbyte), aligned, /*is_oop*/false, entry, name);
+    const bool not_oop = false;
+    return generate_disjoint_copy(sizeof (jbyte), aligned, not_oop, entry, name);
   }
 
   // Arguments:
@@ -1243,7 +1244,8 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_conjoint_byte_copy(bool aligned, address nooverlap_target,
                                       address* entry, const char *name) {
-    return generate_conjoint_copy(sizeof (jbyte), aligned, /*is_oop*/false, nooverlap_target, entry, name);
+    const bool not_oop = false;
+    return generate_conjoint_copy(sizeof (jbyte), aligned, not_oop, nooverlap_target, entry, name);
   }
 
   // Arguments:
@@ -1267,7 +1269,8 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_disjoint_short_copy(bool aligned,
 				       address* entry, const char *name) {
-    return generate_disjoint_copy(sizeof (jshort), aligned, /*is_oop*/false, entry, name);
+    const bool not_oop = false;
+    return generate_disjoint_copy(sizeof (jshort), aligned, not_oop, entry, name);
   }
 
   // Arguments:
@@ -1287,7 +1290,8 @@ class StubGenerator: public StubCodeGenerator {
   //
   address generate_conjoint_short_copy(bool aligned, address nooverlap_target,
                                        address *entry, const char *name) {
-    return generate_conjoint_copy(sizeof (jshort), aligned, /*is_oop*/false, nooverlap_target, entry, name);
+    const bool not_oop = false;
+    return generate_conjoint_copy(sizeof (jshort), aligned, not_oop, nooverlap_target, entry, name);
 
   }
   // Arguments:
@@ -1390,10 +1394,8 @@ class StubGenerator: public StubCodeGenerator {
   address generate_disjoint_oop_copy(bool aligned, address *entry,
 				     const char *name, bool dest_uninitialized = false) {
     const bool is_oop = true;
-    if (UseCompressedOops)
-      return generate_disjoint_copy(sizeof (jint), aligned, is_oop, entry, name);
-    else
-      return generate_disjoint_copy(sizeof (jlong), aligned, is_oop, entry, name);
+    const size_t size = UseCompressedOops ? sizeof (jint) : sizeof (jlong);
+    return generate_disjoint_copy(size, aligned, is_oop, entry, name);
   }
 
   // Arguments:
@@ -1410,10 +1412,8 @@ class StubGenerator: public StubCodeGenerator {
 				     address nooverlap_target, address *entry,
 				     const char *name, bool dest_uninitialized = false) {
     const bool is_oop = true;
-    if (UseCompressedOops)
-      return generate_conjoint_copy(sizeof (jint), aligned, is_oop, nooverlap_target, entry, name);
-    else
-      return generate_conjoint_copy(sizeof (jlong), aligned, is_oop, nooverlap_target, entry, name);
+    const size_t size = UseCompressedOops ? sizeof (jint) : sizeof (jlong);
+    return generate_conjoint_copy(size, aligned, is_oop, nooverlap_target, entry, name);
   }
 
 
@@ -1448,8 +1448,7 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg4   - oop ckval (super_klass)
   //
   //  Output:
-  //    r0 ==  0  -  success
-  //    r0 == -1^K - failure, where K is partial transfer count
+  //    r0        -  count of oops remaining to copy
   //
   address generate_checkcast_copy(const char *name, address *entry,
                                   bool dest_uninitialized = false) {
@@ -1459,20 +1458,14 @@ class StubGenerator: public StubCodeGenerator {
     // Input registers (after setup_arg_regs)
     const Register from        = c_rarg0;   // source array address
     const Register to          = c_rarg1;   // destination array address
-    const Register length      = c_rarg2;   // elements count
+    const Register count       = c_rarg2;   // elementscount
     const Register ckoff       = c_rarg3;   // super_check_offset
     const Register ckval       = c_rarg4;   // super_klass
 
-    // Registers used as temps (r16, r17, r18, r19, r20 are save-on-entry)
-    const Register end_from    = from;  // source array end address
-    const Register end_to      = r16;   // destination array end address
-    const Register count       = r20;   // -(count_remaining)
-    const Register r17_length  = r17;   // saved copy of length
-    // End pointers are inclusive, and if length is not zero they point
-    // to the last unit copied:  end_to[0] := end_from[0]
-
-    const Register copied_oop  = r18;    // actual oop copied
-    const Register r19_klass   = r19;    // oop._klass
+    // Registers used as temps (r18, r19, r20 are save-on-entry)
+    const Register start_to    = r20;       // destination array start address
+    const Register copied_oop  = r18;       // actual oop copied
+    const Register r19_klass   = r19;       // oop._klass
 
     //---------------------------------------------------------------
     // Assembler stub will be used for this call to arraycopy
@@ -1480,6 +1473,9 @@ class StubGenerator: public StubCodeGenerator {
     // destination array type is not equal to or a supertype
     // of the source type.  Each element must be separately
     // checked.
+
+    assert_different_registers(from, to, count, ckoff, ckval, start_to,
+			       copied_oop, r19_klass);
 
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", name);
@@ -1503,7 +1499,10 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
 
-    __ push(r16->bit() | r17->bit() | r18->bit() | r19->bit() | r20->bit(), sp);
+    // Empty array:  Nothing to do.
+    __ cbz(count, L_done);
+
+    __ push(r18->bit() | r19->bit() | r20->bit(), sp);
 
 #ifdef ASSERT
     BLOCK_COMMENT("assert consistent ckoff/ckval");
@@ -1511,49 +1510,36 @@ class StubGenerator: public StubCodeGenerator {
     // even though caller generates both.
     { Label L;
       int sco_offset = in_bytes(Klass::super_check_offset_offset());
-      __ ldrw(count, Address(ckval, sco_offset));
-      __ cmpw(ckoff, count);
+      __ ldrw(start_to, Address(ckval, sco_offset));
+      __ cmpw(ckoff, start_to);
       __ br(Assembler::EQ, L);
       __ stop("super_check_offset inconsistent");
       __ bind(L);
     }
 #endif //ASSERT
 
-    // Loop-invariant addresses.  They are exclusive end pointers.
-    Address end_from_addr(from, length, TIMES_OOP);
-    Address   end_to_addr(to,   length, TIMES_OOP);
-    // Loop-variant addresses.  They assume post-incremented count < 0.
-    Address from_element_addr(end_from, count, TIMES_OOP);
-    Address   to_element_addr(end_to,   count, TIMES_OOP);
-
-    gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
-
-    // Copy from low to high addresses, indexed from the end of each array.
-    __ lea(end_from, end_from_addr);
-    __ lea(end_to, end_to_addr);
-    __ mov(r17_length, length);        // save a copy of the length
-    __ neg(count, length);    // negate and test the length
-    __ cbnz(count, L_load_element);
-
-    // Empty array:  Nothing to do.
-    __ mov(r0, zr);                  // return 0 on (trivial) success
-    __ b(L_done);
+    // Copy from low to high addresses
+    __ mov(start_to, to);              // Save destination array start address
+    __ b(L_load_element);
 
     // ======== begin loop ========
     // (Loop is rotated; its entry is L_load_element.)
     // Loop control:
-    //   for (count = -count; count != 0; count++)
-    // Base pointers src, dst are biased by 8*(count-1),to last element.
+    //   for (; count != 0; count--) {
+    //     copied_oop = load_heap_oop(from++);
+    //     ... generate_type_check ...;
+    //     store_heap_oop(to++, copied_oop);
+    //   }
     __ align(OptoLoopAlignment);
 
     __ BIND(L_store_element);
-    __ store_heap_oop(to_element_addr, copied_oop);  // store the oop
-    __ add(count, count, 1);               // increment the count toward zero
+    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop);  // store the oop
+    __ sub(count, count, 1);
     __ cbz(count, L_do_card_marks);
 
     // ======== loop entry is here ========
     __ BIND(L_load_element);
-    __ load_heap_oop(copied_oop, from_element_addr); // load the oop
+    __ load_heap_oop(copied_oop, __ post(from, UseCompressedOops ? 4 : 8)); // load the oop
     __ cbz(copied_oop, L_store_element);
 
     __ load_klass(r19_klass, copied_oop);// query the object klass
@@ -1561,28 +1547,23 @@ class StubGenerator: public StubCodeGenerator {
     // ======== end loop ========
 
     // It was a real error; we must depend on the caller to finish the job.
-    // Register r0 = -1 * number of *remaining* oops, r17 = *total* oops.
+    // Register r0 = number of *remaining* oops
     // Emit GC store barriers for the oops we have copied and report
     // their number to the caller.
-    assert_different_registers(r0, r17_length, count, to, end_to, ckoff);
-    __ lea(end_to, to_element_addr);
-    __ add(end_to, end_to, -heapOopSize);      // make an inclusive end pointer
-    gen_write_ref_array_post_barrier(to, end_to, rscratch1);
-    __ add(r0, r17_length, count);                // K = (original - remaining) oops
-    __ eon(r0, r0, zr);                       // report (-1^K) to caller
-    __ b(L_done);
 
-    // Come here on success only.
-    __ BIND(L_do_card_marks);
-    __ add(end_to, end_to, -heapOopSize);         // make an inclusive end pointer
-    gen_write_ref_array_post_barrier(to, end_to, rscratch1);
-    __ mov(r0, zr);                  // return 0 on success
+    DEBUG_ONLY(__ nop());
 
     // Common exit point (success or failure).
-    __ BIND(L_done);
-    __ pop(r16->bit() | r17->bit() | r18->bit() | r19->bit() | r20->bit(), sp);
+    __ BIND(L_do_card_marks);
+    __ add(to, to, -heapOopSize);         // make an inclusive end pointer
+    gen_write_ref_array_post_barrier(start_to, to, rscratch1);
+
+    __ pop(r18->bit() | r19->bit() | r20->bit(), sp);
     inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr);
-    __ leave(); // required for proper stackwalking of RuntimeStub frame
+
+    __ bind(L_done);
+    __ mov(r0, count);                    // report count remaining to caller
+    __ leave();
     __ ret(lr);
 
     return start;
