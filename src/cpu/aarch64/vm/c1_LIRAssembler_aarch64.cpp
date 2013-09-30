@@ -2394,6 +2394,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
           __ incrementw(ExternalAddress((address)&Runtime1::_arraycopy_checkcast_attempt_cnt));
         }
 #endif
+	assert_different_registers(dst, dst_pos, length, src_pos, src, r0, rscratch1);
 
         // Restore previously spilled arguments
 	__ ldp(dst,     dst_pos, Address(sp, 0*BytesPerWord));
