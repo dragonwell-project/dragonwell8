@@ -71,11 +71,32 @@ void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) 
   }
 }
 
+
 void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
-  if (JvmtiExport::can_force_early_return()) {
-    Unimplemented();
+  ldr(r2, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+  const Address tos_addr(r2, JvmtiThreadState::earlyret_tos_offset());
+  const Address oop_addr(r2, JvmtiThreadState::earlyret_oop_offset());
+  const Address val_addr(r2, JvmtiThreadState::earlyret_value_offset());
+  switch (state) {
+    case atos: ldr(r0, oop_addr);
+               str(zr, oop_addr);
+               verify_oop(r0, state);               break;
+    case ltos: ldr(r0, val_addr);                   break;
+    case btos:                                   // fall through
+    case ctos:                                   // fall through
+    case stos:                                   // fall through
+    case itos: ldrw(r0, val_addr);                  break;
+    case ftos: ldrs(v0, val_addr);                  break;
+    case dtos: ldrd(v0, val_addr);                  break;
+    case vtos: /* nothing to do */                  break;
+    default  : ShouldNotReachHere();
   }
+  // Clean up tos value in the thread object
+  movw(rscratch1, (int) ilgl);
+  strw(rscratch1, tos_addr);
+  strw(zr, val_addr);
 }
+
 
 void InterpreterMacroAssembler::check_and_handle_earlyret(Register java_thread) {
   if (JvmtiExport::can_force_early_return()) {

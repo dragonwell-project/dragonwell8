@@ -1752,8 +1752,30 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 //
 // JVMTI ForceEarlyReturn support
 //
-address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) { __ call_Unimplemented(); return 0; }
-// end of ForceEarlyReturn support
+address TemplateInterpreterGenerator::generate_earlyret_entry_for(TosState state) {
+  address entry = __ pc();
+
+  __ restore_bcp();
+  __ restore_locals();
+  __ empty_expression_stack();
+  __ load_earlyret_value(state);
+
+  __ ldr(rscratch1, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+  Address cond_addr(rscratch1, JvmtiThreadState::earlyret_state_offset());
+
+  // Clear the earlyret state
+  assert(JvmtiThreadState::earlyret_inactive == 0, "should be");
+  __ str(zr, cond_addr);
+
+  __ remove_activation(state,
+                       false, /* throw_monitor_exception */
+                       false, /* install_monitor_exception */
+                       true); /* notify_jvmdi */
+  __ ret(lr);
+
+  return entry;
+} // end of ForceEarlyReturn support
+
 
 
 //-----------------------------------------------------------------------------
