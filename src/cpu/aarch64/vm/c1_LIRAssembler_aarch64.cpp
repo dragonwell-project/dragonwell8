@@ -2883,10 +2883,10 @@ void LIR_Assembler::emit_assert(LIR_OpAssert* op) {
 
 void LIR_Assembler::membar() {
   COMMENT("membar");
-  __ dsb(__ SY);
+  __ membar(MacroAssembler::AnyAny);
 }
 
-void LIR_Assembler::membar_acquire() { 
+void LIR_Assembler::membar_acquire() {
   __ block_comment("membar_acquire");
 }
 
@@ -2898,7 +2898,7 @@ void LIR_Assembler::membar_loadload() { Unimplemented(); }
 
 void LIR_Assembler::membar_storestore() {
   COMMENT("membar_storestore");
-  __ dsb(__ ST);
+  __ membar(MacroAssembler::StoreStore);
 }
 
 void LIR_Assembler::membar_loadstore() { Unimplemented(); }

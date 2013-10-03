@@ -995,6 +995,19 @@ public:
     system(0b01, 0b011, 0b0111, 0b0101, 0b001, Rt);
   }
 
+  // A more convenient access to dmb for our purposes
+  enum Membar_mask_bits {
+    StoreStore = ST,
+    LoadStore  = LD,
+    LoadLoad   = LD,
+    StoreLoad  = SY,
+    AnyAny     = SY
+  };
+
+  void membar(Membar_mask_bits order_constraint) {
+    dmb(Assembler::barrier(order_constraint));
+  }
+
   // Unconditional branch (register)
   void branch_reg(Register R, int opc) {
     starti;
