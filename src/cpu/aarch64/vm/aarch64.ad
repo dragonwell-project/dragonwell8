@@ -2701,7 +2701,7 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register reg = as_Register($src1$$reg);
     int64_t val = $src2$$constant;
-    if (val > 0) {
+    if (val >= 0) {
       __ subs(zr, reg, val);
     } else {
       __ adds(zr, reg, -val);
