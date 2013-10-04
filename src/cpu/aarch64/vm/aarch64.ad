@@ -2712,8 +2712,8 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register reg1 = as_Register($src1$$reg);
     u_int64_t val = (u_int64_t)$src2$$constant;
-    __ movw(rscratch1, val);
-    __ cmpw(reg1, rscratch1);
+    __ mov(rscratch1, val);
+    __ cmp(reg1, rscratch1);
   %}
 
   enc_class aarch64_enc_cmpp(iRegP src1, iRegP src2) %{
