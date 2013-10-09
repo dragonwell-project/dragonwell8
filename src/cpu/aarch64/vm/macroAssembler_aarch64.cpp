@@ -1759,6 +1759,8 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   // if the memory word differs we return it in oldv and signal a fail
   bind(nope);
   mov(oldv, tmp);
+  // if (fail)
+  //   b(*fail);
   b(fail);
 }
 
@@ -1785,6 +1787,8 @@ void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Regis
   // if the memory word differs we return it in oldv and signal a fail
   bind(nope);
   mov(oldv, tmp);
+  // if (fail)
+  //   b(*fail);
   b(fail);
 }
 

@@ -1755,6 +1755,23 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
   }
 }
 
+#define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN)	\
+  MacroAssembler _masm(&cbuf);						\
+  {									\
+    Register base = as_Register(BASE);					\
+    if (INDEX == -1) {							\
+	__ lea(SCRATCH, Address(base, DISP));				\
+    } else {								\
+	Register index_reg = as_Register(INDEX);			\
+	if (DISP == 0) {						\
+	  __ lea(SCRATCH, Address(base, index_reg, Address::lsl(SCALE))); \
+	} else {							\
+	  __ lea(SCRATCH, Address(base, DISP));				\
+	  __ lea(SCRATCH, Address(SCRATCH, index_reg, Address::lsl(SCALE))); \
+	}								\
+    }									\
+    __ INSN(REG, SCRATCH);						\
+  }
 %}
 
 //----------ENCODING BLOCK-----------------------------------------------------
@@ -2253,6 +2270,234 @@ encode %{
 	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
       } 
     }
+  %}
+
+  // volatile loads and stores
+
+  enc_class aarch64_enc_ldarsbw(iRegI dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+    __ sxtbw(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarsb(iRegL dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+    __ sxtb(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarbw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+  %}
+
+  enc_class aarch64_enc_ldarb(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+  %}
+
+  enc_class aarch64_enc_ldarshw(iRegI dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+    __ sxthw(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarsh(iRegL dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+    __ sxth(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarhw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+  %}
+
+  enc_class aarch64_enc_ldarh(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+  %}
+
+  enc_class aarch64_enc_ldarw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+  %}
+
+  enc_class aarch64_enc_ldarw(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+  %}
+
+  enc_class aarch64_enc_ldar(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldar);
+  %}
+
+  enc_class aarch64_enc_fldars(vRegF dst, memory mem) %{
+    MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+    __ fmovs(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+
+  enc_class aarch64_enc_fldard(vRegD dst, memory mem) %{
+    MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldar);
+    __ fmovd(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+  enc_class aarch64_enc_stlrb(iRegI src, memory mem) %{
+    MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrb);
+  %}
+
+  enc_class aarch64_enc_stlrh(iRegI src, memory mem) %{
+    MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrh);
+  %}
+
+  enc_class aarch64_enc_stlrw(iRegI src, memory mem) %{
+    MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrw);
+  %}
+
+
+  enc_class aarch64_enc_ldarsbw(iRegI dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+    __ sxtbw(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarsb(iRegL dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+    __ sxtb(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarbw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+  %}
+
+  enc_class aarch64_enc_ldarb(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarb);
+  %}
+
+  enc_class aarch64_enc_ldarshw(iRegI dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+    __ sxthw(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarsh(iRegL dst, memory mem) %{
+    Register dst_reg = as_Register($dst$$reg);
+    MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+    __ sxth(dst_reg, dst_reg);
+  %}
+
+  enc_class aarch64_enc_ldarhw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+  %}
+
+  enc_class aarch64_enc_ldarh(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarh);
+  %}
+
+  enc_class aarch64_enc_ldarw(iRegI dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+  %}
+
+  enc_class aarch64_enc_ldarw(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+  %}
+
+  enc_class aarch64_enc_ldar(iRegL dst, memory mem) %{
+    MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldar);
+  %}
+
+  enc_class aarch64_enc_fldars(vRegF dst, memory mem) %{
+    MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldarw);
+    __ fmovs(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+
+  enc_class aarch64_enc_fldard(vRegD dst, memory mem) %{
+    MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+	     rscratch1, ldar);
+    __ fmovd(as_FloatRegister($dst$$reg), rscratch1);
+  %}
+
+  enc_class aarch64_enc_stlr(iRegL src, memory mem) %{
+    Register src_reg = as_Register($src$$reg);
+    // we sometimes get asked to store the stack pointer into the
+    // current thread -- we cannot do that directly on AArch64
+    if (src_reg == r31_sp) {
+ 	MacroAssembler _masm(&cbuf);
+      assert(as_Register($mem$$base) == rthread, "unexpected store for sp");
+      __ mov(rscratch2, sp);
+      src_reg = rscratch2;
+    }
+    MOV_VOLATILE(src_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlr);
+  %}
+
+  enc_class aarch64_enc_fstlrs(vRegF src, memory mem) %{
+    {
+      MacroAssembler _masm(&cbuf);
+      FloatRegister src_reg = as_FloatRegister($src$$reg);
+      __ fmovs(rscratch2, src_reg);
+    }
+    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrw);
+  %}
+
+  enc_class aarch64_enc_fstlrd(vRegD src, memory mem) %{
+    {
+      MacroAssembler _masm(&cbuf);
+      FloatRegister src_reg = as_FloatRegister($src$$reg);
+      __ fmovd(rscratch2, src_reg);
+    }
+    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlr);
+  %}
+
+  enc_class aarch64_enc_stlrw_immn(immN src, memory mem) %{
+    {
+      MacroAssembler _masm(&cbuf);
+      address con = (address)$src$$constant;
+      // need to do this the hard way until we can manage relocs
+      // for 32 bit constants
+      __ movoop(rscratch2, (jobject)con);
+      __ encode_heap_oop_not_null(rscratch2);
+    }
+    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrw);
+  %}
+
+  enc_class aarch64_enc_stlrw_immnk(immN src, memory mem) %{
+    {
+      MacroAssembler _masm(&cbuf);
+      address con = (address)$src$$constant;
+      // need to do this the hard way until we can manage relocs
+      // for 32 bit constants
+      __ movoop(rscratch2, (jobject)con);
+      __ encode_heap_oop_not_null(rscratch2);
+      __ encode_klass_not_null(rscratch2);
+    }
+    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
+		 rscratch1, stlrw);
   %}
 
   // synchronized read/update encodings
@@ -2934,7 +3179,7 @@ encode %{
     }
 
     // Set displaced_header to be (markOop of object | UNLOCK_VALUE).
-    __ orrw(disp_hdr, disp_hdr, markOopDesc::unlocked_value);
+    __ orr(disp_hdr, disp_hdr, markOopDesc::unlocked_value);
 
     // Load Compare Value application register.
 
@@ -4229,6 +4474,7 @@ define %{
 instruct loadB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadB mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsbw  $dst, $mem\t# byte" %}
@@ -4242,6 +4488,7 @@ instruct loadB(iRegINoSp dst, memory mem)
 instruct loadB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsb  $dst, $mem\t# byte" %}
@@ -4255,6 +4502,7 @@ instruct loadB2L(iRegLNoSp dst, memory mem)
 instruct loadUB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUB mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrbw  $dst, $mem\t# byte" %}
@@ -4268,6 +4516,7 @@ instruct loadUB(iRegINoSp dst, memory mem)
 instruct loadUB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrb  $dst, $mem\t# byte" %}
@@ -4281,6 +4530,7 @@ instruct loadUB2L(iRegLNoSp dst, memory mem)
 instruct loadS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadS mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrshw  $dst, $mem\t# short" %}
@@ -4294,6 +4544,7 @@ instruct loadS(iRegINoSp dst, memory mem)
 instruct loadS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsh  $dst, $mem\t# short" %}
@@ -4307,6 +4558,7 @@ instruct loadS2L(iRegLNoSp dst, memory mem)
 instruct loadUS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUS mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrhw  $dst, $mem\t# short" %}
@@ -4320,6 +4572,7 @@ instruct loadUS(iRegINoSp dst, memory mem)
 instruct loadUS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrh  $dst, $mem\t# short" %}
@@ -4333,6 +4586,7 @@ instruct loadUS2L(iRegLNoSp dst, memory mem)
 instruct loadI(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadI mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4346,6 +4600,7 @@ instruct loadI(iRegINoSp dst, memory mem)
 instruct loadI2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadI mem)));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsw  $dst, $mem\t# int" %}
@@ -4359,6 +4614,7 @@ instruct loadI2L(iRegLNoSp dst, memory mem)
 instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4372,6 +4628,7 @@ instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 instruct loadL(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (LoadL mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# int" %}
@@ -4398,6 +4655,7 @@ instruct loadRange(iRegINoSp dst, memory mem)
 instruct loadP(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
@@ -4411,6 +4669,7 @@ instruct loadP(iRegPNoSp dst, memory mem)
 instruct loadN(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadN mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# compressed ptr" %}
@@ -4424,6 +4683,7 @@ instruct loadN(iRegNNoSp dst, memory mem)
 instruct loadKlass(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadKlass mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# class" %}
@@ -4437,6 +4697,7 @@ instruct loadKlass(iRegPNoSp dst, memory mem)
 instruct loadNKlass(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadNKlass mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# compressed class ptr" %}
@@ -4450,6 +4711,7 @@ instruct loadNKlass(iRegNNoSp dst, memory mem)
 instruct loadF(vRegF dst, memory mem)
 %{
   match(Set dst (LoadF mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrs  $dst, $mem\t# float" %}
@@ -4463,6 +4725,7 @@ instruct loadF(vRegF dst, memory mem)
 instruct loadD(vRegD dst, memory mem)
 %{
   match(Set dst (LoadD mem));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrd  $dst, $mem\t# double" %}
@@ -4471,6 +4734,7 @@ instruct loadD(vRegD dst, memory mem)
 
   ins_pipe(pipe_class_memory);
 %}
+
 
 // Load Int Constant
 instruct loadConI(iRegINoSp dst, immI src)
@@ -4655,6 +4919,7 @@ instruct loadConD(vRegD dst, immD con) %{
 instruct storeB(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strb  $src, $mem\t# byte" %}
@@ -4668,6 +4933,7 @@ instruct storeB(iRegI src, memory mem)
 instruct storeC(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strh  $src, $mem\t# short" %}
@@ -4682,6 +4948,7 @@ instruct storeC(iRegI src, memory mem)
 instruct storeI(iRegIorL2I src, memory mem)
 %{
   match(Set mem(StoreI mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# int" %}
@@ -4695,6 +4962,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 instruct storeL(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  $src, $mem\t# int" %}
@@ -4708,6 +4976,7 @@ instruct storeL(iRegL src, memory mem)
 instruct storeP(iRegP src, memory mem)
 %{
   match(Set mem (StoreP mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  $src, $mem\t# ptr" %}
@@ -4721,6 +4990,7 @@ instruct storeP(iRegP src, memory mem)
 instruct storeN(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# compressed ptr" %}
@@ -4755,6 +5025,38 @@ instruct storeImmN(immN src, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
+
+// Store Float
+instruct storeF(vRegF src, memory mem)
+%{
+  match(Set mem (StoreF mem src));
+  predicate(!((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strs  $src, $mem\t# float" %}
+
+  ins_encode( aarch64_enc_strs(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// TODO
+// implement storeImmF0 and storeFImmPacked
+
+// Store Double
+instruct storeD(vRegD src, memory mem)
+%{
+  match(Set mem (StoreD mem src));
+  predicate(!((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "strd  $src, $mem\t# double" %}
+
+  ins_encode( aarch64_enc_strd(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
 // Store Compressed Klass Pointer
 instruct storeNKlass(iRegN src, memory mem)
 %{
@@ -4777,36 +5079,6 @@ instruct storeImmNKlass(immN src, memory mem)
   format %{ "strw  $src, $mem\t# compressed klass ptr" %}
 
   ins_encode(aarch64_enc_strw_immnk(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-
-// Store Float
-instruct storeF(vRegF src, memory mem)
-%{
-  match(Set mem (StoreF mem src));
-
-  ins_cost(MEMORY_REF_COST);
-  format %{ "strs  $src, $mem\t# float" %}
-
-  ins_encode( aarch64_enc_strs(src, mem) );
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// TODO
-// implement storeImmF0 and storeFImmPacked
-
-// Store Double
-instruct storeD(vRegD src, memory mem)
-%{
-  match(Set mem (StoreD mem src));
-
-  ins_cost(MEMORY_REF_COST);
-  format %{ "strd  $src, $mem\t# double" %}
-
-  ins_encode( aarch64_enc_strd(src, mem) );
 
   ins_pipe(pipe_class_memory);
 %}
@@ -4846,6 +5118,335 @@ instruct prefetchnta( memory mem ) %{
 
   ins_pipe(pipe_class_memory);
 %}
+
+//  ---------------- volatile loads and stores ----------------
+
+// Load Byte (8 bit signed)
+instruct loadB_volatile(iRegINoSp dst, memory mem)
+%{
+  match(Set dst (LoadB mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarsb  $dst, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_ldarsb(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Byte (8 bit signed) into long
+instruct loadB2L_volatile(iRegLNoSp dst, memory mem)
+%{
+  match(Set dst (ConvI2L (LoadB mem)));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarsb  $dst, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_ldarsb(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Byte (8 bit unsigned)
+instruct loadUB_volatile(iRegINoSp dst, memory mem)
+%{
+  match(Set dst (LoadUB mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarb  $dst, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_ldarb(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Byte (8 bit unsigned) into long
+instruct loadUB2L_volatile(iRegLNoSp dst, memory mem)
+%{
+  match(Set dst (ConvI2L (LoadUB mem)));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarb  $dst, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_ldarb(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Short (16 bit signed)
+instruct loadS_volatile(iRegINoSp dst, memory mem)
+%{
+  match(Set dst (LoadS mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarshw  $dst, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_ldarshw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct loadUS_volatile(iRegINoSp dst, memory mem)
+%{
+  match(Set dst (LoadUS mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarhw  $dst, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_ldarhw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Short/Char (16 bit unsigned) into long
+instruct loadUS2L_volatile(iRegLNoSp dst, memory mem)
+%{
+  match(Set dst (ConvI2L (LoadUS mem)));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarh  $dst, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_ldarh(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Short/Char (16 bit signed) into long
+instruct loadS2L_volatile(iRegLNoSp dst, memory mem)
+%{
+  match(Set dst (ConvI2L (LoadS mem)));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarh  $dst, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_ldarsh(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Integer (32 bit signed)
+instruct loadI_volatile(iRegINoSp dst, memory mem)
+%{
+  match(Set dst (LoadI mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarw  $dst, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_ldarw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Integer (32 bit unsigned) into long
+instruct loadUI2L_volatile(iRegLNoSp dst, memory mem, immL_32bits mask)
+%{
+  match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarw  $dst, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_ldarw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Long (64 bit signed)
+instruct loadL_volatile(iRegLNoSp dst, memory mem)
+%{
+  match(Set dst (LoadL mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldar  $dst, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_ldar(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Pointer
+instruct load_volatileP(iRegPNoSp dst, memory mem)
+%{
+  match(Set dst (LoadP mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldar  $dst, $mem\t# ptr" %}
+
+  ins_encode(aarch64_enc_ldar(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Compressed Pointer
+instruct loadN_volatile(iRegNNoSp dst, memory mem)
+%{
+  match(Set dst (LoadN mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldarw  $dst, $mem\t# compressed ptr" %}
+
+  ins_encode(aarch64_enc_ldarw(dst, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Float
+instruct loadF_volatile(vRegF dst, memory mem)
+%{
+  match(Set dst (LoadF mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldars  $dst, $mem\t# float" %}
+
+  ins_encode( aarch64_enc_fldars(dst, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Load Double
+instruct loadD_volatile(vRegD dst, memory mem)
+%{
+  match(Set dst (LoadD mem));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "ldard  $dst, $mem\t# double" %}
+
+  ins_encode( aarch64_enc_fldard(dst, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Byte
+instruct storeB_volatile(iRegI src, memory mem)
+%{
+  match(Set mem (StoreB mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrb  $src, $mem\t# byte" %}
+
+  ins_encode(aarch64_enc_stlrb(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Char/Short
+instruct storeC_volatile(iRegI src, memory mem)
+%{
+  match(Set mem (StoreC mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrh  $src, $mem\t# short" %}
+
+  ins_encode(aarch64_enc_stlrh(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Integer
+
+instruct storeI_volatile(iRegIorL2I src, memory mem)
+%{
+  match(Set mem(StoreI mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrw  $src, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_stlrw(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Long (64 bit signed)
+instruct storeL_volatile(iRegL src, memory mem)
+%{
+  match(Set mem (StoreL mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlr  $src, $mem\t# int" %}
+
+  ins_encode(aarch64_enc_stlr(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Pointer
+instruct storeP_volatile(iRegP src, memory mem)
+%{
+  match(Set mem (StoreP mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlr  $src, $mem\t# ptr" %}
+
+  ins_encode(aarch64_enc_stlr(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Compressed Pointer
+instruct storeN_volatile(iRegN src, memory mem)
+%{
+  match(Set mem (StoreN mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrw  $src, $mem\t# compressed ptr" %}
+
+  ins_encode(aarch64_enc_stlrw(src, mem));
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// Store Float
+instruct storeF_volatile(vRegF src, memory mem)
+%{
+  match(Set mem (StoreF mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrs  $src, $mem\t# float" %}
+
+  ins_encode( aarch64_enc_fstlrs(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+// TODO
+// implement storeImmF0 and storeFImmPacked
+
+// Store Double
+instruct storeD_volatile(vRegD src, memory mem)
+%{
+  match(Set mem (StoreD mem src));
+  predicate(((MemNode*)n)->is_volatile());
+
+  ins_cost(MEMORY_REF_COST);
+  format %{ "stlrd  $src, $mem\t# double" %}
+
+  ins_encode( aarch64_enc_fstlrd(src, mem) );
+
+  ins_pipe(pipe_class_memory);
+%}
+
+//  ---------------- end of volatile loads and stores ----------------
 
 // ============================================================================
 // BSWAP Instructions
@@ -4920,7 +5521,7 @@ instruct membar_acquire()
   format %{ "MEMBAR-acquire\t# ???" %}
 
   ins_encode %{
-    __ dsb(Assembler::LD);
+    __ block_comment("membar_acquire (elided)");
   %}
 
   ins_pipe(pipe_class_memory);
@@ -4931,9 +5532,9 @@ instruct membar_release()
   match(MemBarRelease);
   ins_cost(4*MEMORY_REF_COST);
 
-  format %{ "MEMBAR-release\t# ???" %}
+  format %{ "MEMBAR-release" %}
   ins_encode %{
-    __ dsb(Assembler::SY);
+    __ block_comment("membar-release (elided)");
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -4942,10 +5543,10 @@ instruct membar_volatile() %{
   match(MemBarVolatile);
   ins_cost(4*MEMORY_REF_COST);
 
-  format %{ "MEMBAR-volatile\t# ???" %}
+  format %{ "MEMBAR-volatile?" %}
 
   ins_encode %{
-    __ dsb(Assembler::SY);
+    __ membar(Assembler::AnyAny);
   %}
 
   ins_pipe(pipe_class_memory);
@@ -4966,17 +5567,12 @@ instruct membar_storestore() %{
   match(MemBarStoreStore);
   ins_cost(4*MEMORY_REF_COST);
 
-  format %{ "MEMBAR-storestore\t# ???" %}
-
   ins_encode %{
-    __ dsb(Assembler::ST);
+    __ membar(Assembler::StoreStore);
   %}
 
   ins_pipe(pipe_class_memory);
 %}
-
-// TODO
-// check we are using the correct instruction and barrier type
 
 instruct membar_acquire_lock() %{
   match(MemBarAcquireLock);
@@ -4984,7 +5580,8 @@ instruct membar_acquire_lock() %{
   format %{ "MEMBAR-acquire-lock\t# ???" %}
 
   ins_encode %{
-    __ dsb(Assembler::SY);
+    __ block_comment("membar-acquire-lock");
+    __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
   %}
 
   ins_pipe(pipe_class_memory);
@@ -4996,7 +5593,8 @@ instruct membar_release_lock() %{
   format %{ "MEMBAR-release-lock\t# ???" %}
 
   ins_encode %{
-    __ dsb(Assembler::SY);
+    __ block_comment("MEMBAR-release-lock");
+    __ membar(Assembler::Membar_mask_bits(Assembler::StoreStore|Assembler::LoadStore));
   %}
 
   ins_pipe(pipe_class_memory);
