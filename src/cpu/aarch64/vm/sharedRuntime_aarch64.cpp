@@ -2235,7 +2235,8 @@ int Deoptimization::last_frame_adjust(int callee_parameters, int callee_locals) 
   if (callee_locals < callee_parameters)
     return 0;                   // No adjustment for negative locals
   int diff = (callee_locals - callee_parameters) * Interpreter::stackElementWords;
-  return round_to(diff, 2 * wordSize);
+  // diff is counted in stack words
+  return round_to(diff, 2);
 }
 
 
