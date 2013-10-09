@@ -2756,7 +2756,7 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
 
       case T_CHAR:    // fall through
       case T_SHORT:
-	__ stlrw(src->as_register(), rscratch1);
+	__ stlrh(src->as_register(), rscratch1);
 	break;
 
       default:
@@ -2802,7 +2802,7 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
 
     case T_CHAR:    // fall through
     case T_SHORT:
-      __ ldarw(dest->as_register(), rscratch1);
+      __ ldarh(dest->as_register(), rscratch1);
       break;
 
     case T_FLOAT:
