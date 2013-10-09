@@ -3192,7 +3192,7 @@ encode %{
                   /*where=*/oop,
                   /*result=*/tmp,
                   cont,
-                  cas_failed);
+                  /*fail*/NULL);
     assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
 
     // If the compare-and-exchange succeeded, then we found an unlocked
@@ -3227,8 +3227,8 @@ encode %{
                     /*exchange_value=*/rthread,
                     /*where=*/tmp,
                     /*result=*/rscratch1,
-                    next,
-                    next);
+                    /*succeed*/next,
+                    /*fail*/NULL);
       __ bind(next);
 
       // store a non-null value into the box.
@@ -3310,7 +3310,7 @@ encode %{
                   /*where=*/oop,
                   /*result=*/tmp,
                   cont,
-                  cas_failed);
+                  /*cas_failed*/NULL);
     assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
 
     __ bind(cas_failed);

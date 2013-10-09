@@ -96,9 +96,8 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // displaced header address in the object header - if it is not the same, get the
   // object header instead
   lea(rscratch2, Address(obj, hdr_offset));
-  cmpxchgptr(hdr, disp_hdr, rscratch2, rscratch1, done, fail);
+  cmpxchgptr(hdr, disp_hdr, rscratch2, rscratch1, done, /*fallthough*/NULL);
   // if the object header was the same, we're done
-  bind(fail);
   // if the object header was not the same, it is now in the hdr register
   // => test if it is a stack pointer into the same stack (recursive locking), i.e.:
   //
@@ -159,9 +158,9 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   // we do unlocking via runtime call
   if (hdr_offset) {
     lea(rscratch1, Address(obj, hdr_offset));
-    cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, slow_case);
+    cmpxchgptr(disp_hdr, hdr, rscratch1, rscratch2, done, &slow_case);
   } else {
-    cmpxchgptr(disp_hdr, hdr, obj, rscratch2, done, slow_case);
+    cmpxchgptr(disp_hdr, hdr, obj, rscratch2, done, &slow_case);
   }
   // done
   bind(done);

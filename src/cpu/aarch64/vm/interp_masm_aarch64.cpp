@@ -635,16 +635,16 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     Label fail;
     if (PrintBiasedLockingStatistics) {
       Label fast;
-      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, fast, fail);
+      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, fast, &fail);
       bind(fast);
       // cond_inc32(Assembler::zero,
       //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
       call_Unimplemented();
       b(done);
+      bind(fail);
     } else {
-      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, done, fail);
+      cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, done, /*fallthrough*/NULL);
     }
-    bind(fail);
 
     // Test if the oopMark is an obvious stack pointer, i.e.,
     //  1) (mark & 7) == 0, and
@@ -734,9 +734,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     cbz(header_reg, done);
 
     // Atomic swap back the old header
-    Label fail;
-    cmpxchgptr(swap_reg, header_reg, obj_reg, rscratch1, done, fail);
-    bind(fail);
+    cmpxchgptr(swap_reg, header_reg, obj_reg, rscratch1, done, /*fallthrough*/NULL);
 
     // Call the runtime routine for slow case.
     str(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes())); // restore obj

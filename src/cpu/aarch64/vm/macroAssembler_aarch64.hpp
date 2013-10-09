@@ -1061,10 +1061,10 @@ public:
   void cmpptr(Address src1, int32_t src2) { Unimplemented(); }
 
   void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
-		  Label &suceed, Label &fail);
+		  Label &suceed, Label *fail);
 
   void cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
-		  Label &suceed, Label &fail);
+		  Label &suceed, Label *fail);
 
   void imulptr(Register dst, Register src) { Unimplemented(); }
 

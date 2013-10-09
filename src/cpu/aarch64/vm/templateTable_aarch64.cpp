@@ -3240,7 +3240,7 @@ void TemplateTable::_new() {
 
     Label succeed;
     // if someone beat us on the allocation, try again, otherwise continue
-    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1, succeed, retry);
+    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1, succeed, &retry);
     __ bind(succeed);
     __ incr_allocated_bytes(rthread, r3, 0, rscratch1);
   }
