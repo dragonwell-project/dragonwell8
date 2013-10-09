@@ -5997,6 +5997,8 @@ instruct decodeHeapOop(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
     Register s = $src$$Register;
     Register d = $dst$$Register;
     if (s != d) {
+    // TODO
+    // think this should be a movw but Intel uses movq. why?
       __ mov(d, s);
     }
     __ decode_heap_oop(d);
@@ -6536,7 +6538,7 @@ instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, iRegP
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6552,7 +6554,7 @@ instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, iR
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, $src1 $cmp\t# unsigned, long"  %}
+  format %{ "csel $dst, $src2, $src1 $cmp\t# unsigned, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6570,7 +6572,7 @@ instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, immP
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+  format %{ "csel $dst, zr, $src1 $cmp\t# signed, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6586,7 +6588,7 @@ instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, i
   match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6602,7 +6604,7 @@ instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, immP0 zero, iReg
   match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+  format %{ "csel $dst, $src2, zr $cmp\t# signed, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6618,7 +6620,7 @@ instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, immP0 zero, i
   match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
+  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
@@ -6634,13 +6636,13 @@ instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, iRegN src
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+  format %{ "cselw $dst, $src2, $src1 $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
-            as_Register($src1$$reg),
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
@@ -6650,13 +6652,13 @@ instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegN dst, iRegN src1, iRegN 
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, $src1 $cmp\t# signed, long"  %}
+  format %{ "cselw $dst, $src2, $src1 $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
-            as_Register($src1$$reg),
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
@@ -6668,13 +6670,13 @@ instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegN dst, iRegN src1, immN0 ze
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+  format %{ "cselw $dst, zr, $src1 $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            zr,
-            as_Register($src1$$reg),
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             zr,
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
@@ -6684,13 +6686,13 @@ instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegN dst, iRegN src1, immN0
   match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+  format %{ "cselw $dst, zr, $src1 $cmp\t# unsigned, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            zr,
-            as_Register($src1$$reg),
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             zr,
+             as_Register($src1$$reg),
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
@@ -6700,13 +6702,13 @@ instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegN dst, immN0 zero, iRegN sr
   match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+  format %{ "cselw $dst, $src2, zr $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
-            zr,
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             zr,
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
@@ -6716,13 +6718,13 @@ instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegN dst, immN0 zero, iRegN
   match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
 
   ins_cost(DEFAULT_COST);
-  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
+  format %{ "cselw $dst, $src2, zr $cmp\t# unsigned, compressed ptr"  %}
 
   ins_encode %{
-    __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
-            zr,
-            (Assembler::Condition)$cmp$$cmpcode);
+    __ cselw(as_Register($dst$$reg),
+             as_Register($src2$$reg),
+             zr,
+             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
   ins_pipe(pipe_class_default);
