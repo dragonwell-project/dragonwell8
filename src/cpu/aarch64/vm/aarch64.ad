@@ -6438,8 +6438,8 @@ instruct cmovF_reg(cmpOp cmp, rFlagsReg cr, vRegF dst, vRegF src1,  vRegF src2)
   ins_encode %{
     Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
     __ fcsels(as_FloatRegister($dst$$reg),
-              as_FloatRegister($src1$$reg),
               as_FloatRegister($src2$$reg),
+              as_FloatRegister($src1$$reg),
               cond);
   %}
 
@@ -6456,8 +6456,8 @@ instruct cmovF_regU(cmpOpU cmp, rFlagsRegU cr, vRegF dst, vRegF src1,  vRegF src
   ins_encode %{
     Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
     __ fcsels(as_FloatRegister($dst$$reg),
-              as_FloatRegister($src1$$reg),
               as_FloatRegister($src2$$reg),
+              as_FloatRegister($src1$$reg),
               cond);
   %}
 
@@ -6474,8 +6474,8 @@ instruct cmovD_reg(cmpOp cmp, rFlagsReg cr, vRegD dst, vRegD src1,  vRegD src2)
   ins_encode %{
     Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
     __ fcseld(as_FloatRegister($dst$$reg),
-              as_FloatRegister($src1$$reg),
               as_FloatRegister($src2$$reg),
+              as_FloatRegister($src1$$reg),
               cond);
   %}
 
@@ -6492,8 +6492,8 @@ instruct cmovD_regU(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src
   ins_encode %{
     Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
     __ fcseld(as_FloatRegister($dst$$reg),
-              as_FloatRegister($src1$$reg),
               as_FloatRegister($src2$$reg),
+              as_FloatRegister($src1$$reg),
               cond);
   %}
 
