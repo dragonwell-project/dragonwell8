@@ -3049,13 +3049,13 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register reg1 = as_Register($src1$$reg);
     Register reg2 = as_Register($src2$$reg);
-    __ cmp(reg1, reg2);
+    __ cmpw(reg1, reg2);
   %}
 
   enc_class aarch64_enc_testp(iRegP src) %{
     MacroAssembler _masm(&cbuf);
     Register reg = as_Register($src$$reg);
-    __ cmpw(reg, zr);
+    __ cmp(reg, zr);
   %}
 
   enc_class aarch64_enc_testn(iRegN src) %{
