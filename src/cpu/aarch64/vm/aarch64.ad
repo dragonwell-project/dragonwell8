@@ -5125,6 +5125,7 @@ instruct storeB(iRegI src, memory mem)
 instruct storeimmB0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreB mem zero));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strb zr, $mem\t# byte" %}
@@ -5151,6 +5152,7 @@ instruct storeC(iRegI src, memory mem)
 instruct storeimmC0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreC mem zero));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strh  zr, $mem\t# short" %}
@@ -5178,6 +5180,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 instruct storeimmI0(immI0 zero, memory mem)
 %{
   match(Set mem(StoreI mem zero));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  zr, $mem\t# int" %}
@@ -5205,6 +5208,7 @@ instruct storeL(iRegL src, memory mem)
 instruct storeimmL0(immL0 zero, memory mem)
 %{
   match(Set mem (StoreL mem zero));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  zr, $mem\t# int" %}
@@ -5232,6 +5236,7 @@ instruct storeP(iRegP src, memory mem)
 instruct storeimmP0(immP0 zero, memory mem)
 %{
   match(Set mem (StoreP mem zero));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str zr, $mem\t# ptr" %}
@@ -5302,8 +5307,10 @@ instruct storeN(iRegN src, memory mem)
 
 instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 %{
-  predicate(Universe::narrow_oop_base() == NULL && Universe::narrow_klass_base() == NULL);
   match(Set mem (StoreN mem zero));
+  predicate(Universe::narrow_oop_base() == NULL &&
+            Universe::narrow_klass_base() == NULL &&
+            !((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST_LOW);
   format %{ "strw  rheapbase, $mem\t# compressed ptr (rheapbase==0)" %}
@@ -5316,6 +5323,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 instruct storeImmN(immN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
+  predicate(!((MemNode*)n)->is_volatile());
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# compressed ptr " %}
@@ -5575,7 +5583,7 @@ instruct loadL_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Pointer
-instruct load_volatileP(iRegPNoSp dst, memory mem)
+instruct loadP_volatile(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
   predicate(((MemNode*)n)->is_volatile());
