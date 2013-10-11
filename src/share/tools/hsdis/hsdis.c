@@ -56,7 +56,6 @@
 
 #ifdef TARGET_ARCH_aarch64
 #include <config.h>
-#endif
 #include <libiberty.h>
 #include <bfd.h>
 #include <bfdver.h>

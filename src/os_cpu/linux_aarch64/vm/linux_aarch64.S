@@ -1,28 +1,4 @@
-        .text
-
-#ifndef BUILTIN_SIM
-
-        .globl SafeFetch32, Fetch32PFI, Fetch32Resume
-        .align  16
-        .type   SafeFetch32,@function
-        // Prototype: int SafeFetch32 (int * Adr, int ErrValue)
-SafeFetch32:
-Fetch32PFI:
-	ldr	w0, [x0]
-Fetch32Resume:
-        ret
-
-        .globl SafeFetchN, FetchNPFI, FetchNResume
-        .align  16
-        .type   SafeFetchN,@function
-        // Prototype: intptr_t SafeFetchN (intptr_t * Adr, intptr_t ErrValue)
-SafeFetchN:
-FetchNPFI:
-	ldr	x0, [x0]
-FetchNResume:
-        ret
-
-#else
+#ifdef BUILTIN_SIM
 
         .globl SafeFetch32, Fetch32PFI, Fetch32Resume
         .align  16

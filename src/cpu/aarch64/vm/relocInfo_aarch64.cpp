@@ -58,13 +58,6 @@ address Relocation::pd_get_address_from_code() {
   return MacroAssembler::pd_call_destination(addr());
 }
 
-int Relocation::pd_breakpoint_size() { Unimplemented(); return 0; }
-
-void Relocation::pd_swap_in_breakpoint(address x, short* instrs, int instrlen) { Unimplemented(); }
-
-
-void Relocation::pd_swap_out_breakpoint(address x, short* instrs, int instrlen) { Unimplemented(); }
-
 void poll_Relocation::fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest) {
   // fprintf(stderr, "Try to fix poll reloc at %p to %p\n", addr(), dest);
   if (NativeInstruction::maybe_cpool_ref(addr())) {

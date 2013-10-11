@@ -46,10 +46,12 @@
 
   void generate_more_monitors();
   void generate_deopt_handling();
+#if 0
   address generate_interpreter_frame_manager(bool synchronized); // C++ interpreter only
   void generate_compute_interpreter_state(const Register state,
                                           const Register prev_state,
                                           const Register sender_sp,
                                           bool native); // C++ interpreter only
+#endif
 
 #endif // CPU_AARCH64_VM_CPPINTERPRETERGENERATOR_AARCH64_HPP

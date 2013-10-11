@@ -188,7 +188,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
   str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
 
-  if (UseCompressedKlassPointers) { // Take care not to kill klass
+  if (UseCompressedClassPointers) { // Take care not to kill klass
     encode_klass_not_null(t1, klass);
     strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
   } else {
@@ -197,7 +197,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
 
   if (len->is_valid()) {
     strw(len, Address(obj, arrayOopDesc::length_offset_in_bytes()));
-  } else if (UseCompressedKlassPointers) {
+  } else if (UseCompressedClassPointers) {
     store_klass_gap(obj, zr);
   }
 }
@@ -432,7 +432,7 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   bind(dont);
   const int ic_cmp_size = 4 * 4;
-  assert(UseCompressedKlassPointers || offset() - start_offset == ic_cmp_size, "check alignment in emit_method_entry");
+  assert(UseCompressedClassPointers || offset() - start_offset == ic_cmp_size, "check alignment in emit_method_entry");
 }
 
 

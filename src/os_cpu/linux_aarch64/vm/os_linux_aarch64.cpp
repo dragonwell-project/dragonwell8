@@ -104,21 +104,6 @@ char* os::non_memory_address_word() {
 }
 
 void os::initialize_thread(Thread *thr) {
-#ifdef ASSERT
-  if (!thr->is_Java_thread()) {
-    // Nothing to do!
-    return;
-  }
-
-  JavaThread *java_thread = (JavaThread *)thr;
-  // spill frames are a fixed size of N (== 6?) saved registers at 8
-  // bytes per register a 64K byte stack allows a call depth of 8K / N
-#define SPILL_STACK_SIZE (1 << 16)
-  // initalise the spill stack so we cna check callee-save registers
-  address spill_stack = new unsigned char[SPILL_STACK_SIZE];
-  java_thread->set_spill_stack(spill_stack + SPILL_STACK_SIZE);
-  java_thread->set_spill_stack_limit(spill_stack);
-#endif // ASSERT
 }
 
 address os::Linux::ucontext_get_pc(ucontext_t * uc) {
@@ -219,10 +204,12 @@ enum {
   trap_page_fault = 0xE
 };
 
+#ifdef BUILTIN_SIM
 extern "C" void Fetch32PFI () ;
 extern "C" void Fetch32Resume () ;
 extern "C" void FetchNPFI () ;
 extern "C" void FetchNResume () ;
+#endif
 
 extern "C" JNIEXPORT int
 JVM_handle_linux_signal(int sig,
@@ -232,6 +219,10 @@ JVM_handle_linux_signal(int sig,
   ucontext_t* uc = (ucontext_t*) ucVoid;
 
   Thread* t = ThreadLocalStorage::get_thread_slow();
+
+  // Must do this before SignalHandlerMark, if crash protection installed we will longjmp away
+  // (no destructors can be run)
+  os::WatcherThreadCrashProtection::check_crash_protection(sig, t);
 
   SignalHandlerMark shm(t);
 
@@ -286,22 +277,31 @@ JVM_handle_linux_signal(int sig,
   if (info != NULL && uc != NULL && thread != NULL) {
     pc = (address) os::Linux::ucontext_get_pc(uc);
 
-    if (pc == (address) Fetch32PFI) {
 #ifdef BUILTIN_SIM
+    if (pc == (address) Fetch32PFI) {
        uc->uc_mcontext.gregs[REG_PC] = intptr_t(Fetch32Resume) ;
-#else
-       uc->uc_mcontext.pc = intptr_t(Fetch32Resume) ;
-#endif
        return 1 ;
     }
     if (pc == (address) FetchNPFI) {
-#ifdef BUILTIN_SIM
        uc->uc_mcontext.gregs[REG_PC] = intptr_t (FetchNResume) ;
-#else
-       uc->uc_mcontext.pc = intptr_t (FetchNResume) ;
-#endif
        return 1 ;
     }
+#else
+    if (StubRoutines::is_safefetch_fault(pc)) {
+      uc->uc_mcontext.pc = intptr_t(StubRoutines::continuation_for_safefetch_fault(pc));
+      return 1;
+    }
+#endif
+
+#ifndef AMD64
+    // Halt if SI_KERNEL before more crashes get misdiagnosed as Java bugs
+    // This can happen in any running code (currently more frequently in
+    // interpreter code but has been seen in compiled code)
+    if (sig == SIGSEGV && info->si_addr == 0 && info->si_code == SI_KERNEL) {
+      fatal("An irrecoverable SI_KERNEL SIGSEGV has occurred due "
+            "to unstable signal handling in this distribution.");
+    }
+#endif // AMD64
 
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {

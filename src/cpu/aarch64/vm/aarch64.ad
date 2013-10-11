@@ -1408,7 +1408,7 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
   st->print_cr("# MachUEPNode");
-  if (UseCompressedKlassPointers) {
+  if (UseCompressedClassPointers) {
     st->print_cr("\tldrw rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
     if (Universe::narrow_klass_shift() != 0) {
       st->print_cr("\tdecode_klass_not_null rscratch1, rscratch1");

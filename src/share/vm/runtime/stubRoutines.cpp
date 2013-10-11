@@ -149,12 +149,14 @@ double (* StubRoutines::_intrinsic_sin   )(double) = NULL;
 double (* StubRoutines::_intrinsic_cos   )(double) = NULL;
 double (* StubRoutines::_intrinsic_tan   )(double) = NULL;
 
+#ifndef BUILTIN_SIM
 address StubRoutines::_safefetch32_entry                 = NULL;
 address StubRoutines::_safefetch32_fault_pc              = NULL;
 address StubRoutines::_safefetch32_continuation_pc       = NULL;
 address StubRoutines::_safefetchN_entry                  = NULL;
 address StubRoutines::_safefetchN_fault_pc               = NULL;
 address StubRoutines::_safefetchN_continuation_pc        = NULL;
+#endif
 
 // Initialization
 //

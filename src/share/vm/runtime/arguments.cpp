@@ -1519,7 +1519,6 @@ void Arguments::set_use_compressed_oops() {
 #endif // ZERO
 }
 
-
 // NOTE: set_use_compressed_klass_ptrs() must be called after calling
 // set_use_compressed_oops().
 void Arguments::set_use_compressed_klass_ptrs() {
@@ -1532,10 +1531,13 @@ void Arguments::set_use_compressed_klass_ptrs() {
     }
     FLAG_SET_DEFAULT(UseCompressedClassPointers, false);
   } else {
+// ECN: FIXME - UseCompressedClassPointers is temporarily broken
+#ifndef AARCH64
     // Turn on UseCompressedClassPointers too
     if (FLAG_IS_DEFAULT(UseCompressedClassPointers)) {
       FLAG_SET_ERGO(bool, UseCompressedClassPointers, true);
     }
+#endif
     // Check the CompressedClassSpaceSize to make sure we use compressed klass ptrs.
     if (UseCompressedClassPointers) {
       if (CompressedClassSpaceSize > KlassEncodingMetaspaceMax) {

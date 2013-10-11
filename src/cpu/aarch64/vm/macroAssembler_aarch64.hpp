@@ -535,14 +535,6 @@ public:
   void enter();
   void leave();
 
-  // debug only support for spilling and restoring/checking callee
-  // save registers around a Java method call
-
-#ifdef ASSERT
-  void spill(Register rscratcha, Register rscratchb);
-  void spillcheck(Register rscratcha, Register rscratchb);
-#endif // ASSERT
-
   // Support for getting the JavaThread pointer (i.e.; a reference to thread-local information)
   // The pointer will be loaded into the thread register.
   void get_thread(Register thread);

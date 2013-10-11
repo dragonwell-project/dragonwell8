@@ -343,8 +343,10 @@ int Compilation::emit_code_body() {
     // 3 bytes per character.  We concatenate three such strings.
     // Yes, I know this is ridiculous, but it's debug code and glibc
     // allocates large arrays very efficiently.
-    size_t len = (65536 * 3) * 3;
-    char *name = new char[len];
+//    size_t len = (65536 * 3) * 3;
+//    char *name = new char[len];
+    size_t len = 1024;
+    char name[1024];
 
     strncpy(name, _method->holder()->name()->as_utf8(), len);
     strncat(name, ".", len);
@@ -352,7 +354,7 @@ int Compilation::emit_code_body() {
     strncat(name, _method->signature()->as_symbol()->as_utf8(), len);
     unsigned char *base = code()->insts()->start();
     AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck)->notifyCompile(name, base);
-    delete[] name;
+//    delete[] name;
   }
 #endif
 

@@ -208,9 +208,6 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ sub(rscratch1, rscratch2, rscratch1, ext::uxtw, 3);
   __ andr(sp, rscratch1, -16);
 
-#ifdef ASSERT
-  __ spillcheck(rscratch1, rscratch2);
-#endif // ASSERT
 #ifndef PRODUCT
   // tell the simulator that the method has been reentered
   if (NotifySimulator) {
@@ -1435,8 +1432,7 @@ int AbstractInterpreter::size_top_interpreter_activation(Method* method) {
     -(frame::interpreter_frame_initial_sp_offset) + entry_size;
 
   const int stub_code = frame::entry_frame_after_call_words;
-  const int extra_stack = Method::extra_stack_entries();
-  const int method_stack = (method->max_locals() + method->max_stack() + extra_stack) *
+  const int method_stack = (method->max_locals() + method->max_stack()) *
                            Interpreter::stackElementWords;
   return (overhead_size + method_stack + stub_code);
 }
@@ -1710,6 +1706,27 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // Clear the popframe condition flag
   __ str(zr, Address(rthread, JavaThread::popframe_condition_offset()));
   assert(JavaThread::popframe_inactive == 0, "fix popframe_inactive");
+
+#if INCLUDE_JVMTI
+  if (EnableInvokeDynamic) {
+    Label L_done;
+
+    __ ldrb(rscratch1, Address(r13, 0));
+    __ cmpw(r1, Bytecodes::_invokestatic);
+    __ br(Assembler::EQ, L_done);
+
+    // The member name argument must be restored if _invokestatic is re-executed after a PopFrame call.
+    // Detect such a case in the InterpreterRuntime function and return the member name argument, or NULL.
+
+    __ ldr(c_rarg0, Address(rlocals, 0));
+    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::member_name_arg_or_null), c_rarg0, rmethod, rscratch1);
+
+    __ cbz(r0, L_done);
+
+    __ str(r0, Address(esp, 0));
+    __ bind(L_done);
+  }
+#endif // INCLUDE_JVMTI
 
   __ dispatch_next(vtos);
   // end of PopFrame support

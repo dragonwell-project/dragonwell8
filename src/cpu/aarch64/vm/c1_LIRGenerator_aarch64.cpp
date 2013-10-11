@@ -957,6 +957,9 @@ void LIRGenerator::do_ArrayCopy(Intrinsic* x) {
   __ arraycopy(src.result(), src_pos.result(), dst.result(), dst_pos.result(), length.result(), tmp, expected_type, flags, info); // does add_safepoint
 }
 
+void LIRGenerator::do_update_CRC32(Intrinsic* x) {
+  fatal("CRC32 intrinsic is not implemented on this platform");
+}
 
 // _i2l, _i2f, _i2d, _l2i, _l2f, _l2d, _f2i, _f2l, _f2d, _d2i, _d2l, _d2f
 // _i2b, _i2c, _i2s
@@ -1157,7 +1160,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   }
   LIR_Opr reg = rlock_result(x);
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedKlassPointers) {
+  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
     tmp3 = new_register(objectType);
   }
   __ checkcast(reg, obj.result(), x->klass(),
@@ -1178,7 +1181,7 @@ void LIRGenerator::do_InstanceOf(InstanceOf* x) {
   }
   obj.load_item();
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedKlassPointers) {
+  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
     tmp3 = new_register(objectType);
   }
   __ instanceof(reg, obj.result(), x->klass(),

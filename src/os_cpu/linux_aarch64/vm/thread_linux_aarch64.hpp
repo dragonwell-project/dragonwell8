@@ -71,21 +71,15 @@
   bool pd_get_top_frame_for_signal_handler(frame* fr_addr, void* ucontext,
     bool isInJava);
 
+  bool pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava);
+private:
+  bool pd_get_top_frame(frame* fr_addr, void* ucontext, bool isInJava);
+public:
+
   // These routines are only used on cpu architectures that
   // have separate register stacks (Itanium).
   static bool register_stack_overflow() { return false; }
   static void enable_register_stack_guard() {}
   static void disable_register_stack_guard() {}
-
-#ifdef ASSERT
-  void    set_spill_stack(address base) { _spill_stack = _spill_stack_base = base; }
-  void    set_spill_stack_limit(address limit)  { _spill_stack_limit = limit; }
-  static ByteSize spill_stack_offset() {
-    return byte_offset_of(JavaThread, _spill_stack) ;
-  };
-  static ByteSize spill_stack_limit_offset() {
-    return byte_offset_of(JavaThread, _spill_stack_limit) ;
-  };
-#endif
 
 #endif // OS_CPU_LINUX_AARCH64_VM_THREAD_LINUX_AARCH64_HPP

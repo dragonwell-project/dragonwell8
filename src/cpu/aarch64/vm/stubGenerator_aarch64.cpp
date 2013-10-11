@@ -71,7 +71,7 @@ class StubGenerator: public StubCodeGenerator {
  private:
 
 #ifdef PRODUCT
-#define inc_counter_np(counter) (0)
+#define inc_counter_np(counter) ((void)0)
 #else
   void inc_counter_np_(int& counter) {
     __ lea(rscratch2, ExternalAddress((address)&counter));
@@ -751,7 +751,6 @@ class StubGenerator: public StubCodeGenerator {
     // make sure klass is 'reasonable', which is not zero.
     __ load_klass(r0, r0);  // get klass
     __ cbz(r0, error);      // if klass is NULL it is broken
-    // TODO: Future assert that klass is lower 4g memory for UseCompressedKlassPointers
 
     // return if everything seems ok
     __ bind(exit);
@@ -1714,6 +1713,47 @@ class StubGenerator: public StubCodeGenerator {
 
   void generate_math_stubs() { Unimplemented(); }
 
+#ifndef BUILTIN_SIM
+  // Safefetch stubs.
+  void generate_safefetch(const char* name, int size, address* entry,
+                          address* fault_pc, address* continuation_pc) {
+    // safefetch signatures:
+    //   int      SafeFetch32(int*      adr, int      errValue);
+    //   intptr_t SafeFetchN (intptr_t* adr, intptr_t errValue);
+    //
+    // arguments:
+    //   c_rarg0 = adr
+    //   c_rarg1 = errValue
+    //
+    // result:
+    //   PPC_RET  = *adr or errValue
+
+    StubCodeMark mark(this, "StubRoutines", name);
+
+    // Entry point, pc or function descriptor.
+    *entry = __ pc();
+
+    // Load *adr into c_rarg1, may fault.
+    *fault_pc = __ pc();
+    switch (size) {
+      case 4:
+        // int32_t
+	__ ldrw(c_rarg0, Address(c_rarg0, 0));
+        break;
+      case 8:
+        // int64_t
+	__ ldr(c_rarg0, Address(c_rarg0, 0));
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+
+    // return errValue or *adr
+    *continuation_pc = __ pc();
+    __ ret(lr);
+  }
+#endif
+
 #undef __
 #define __ masm->
 
@@ -1917,6 +1957,16 @@ class StubGenerator: public StubCodeGenerator {
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
+
+#ifndef BUILTIN_SIM
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
+#endif
   }
 
  public:

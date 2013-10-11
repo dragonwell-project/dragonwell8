@@ -294,7 +294,7 @@ int LIR_Assembler::check_icache() {
   Register receiver = FrameMap::receiver_opr->as_register();
   Register ic_klass = IC_Klass;
   const int ic_cmp_size = 4 * 4;
-  const bool do_post_padding = VerifyOops || UseCompressedKlassPointers;
+  const bool do_post_padding = VerifyOops || UseCompressedClassPointers;
   if (!do_post_padding) {
     // insert some nops so that the verified entry point is aligned on CodeEntryAlignment
     while ((__ offset() + ic_cmp_size) % CodeEntryAlignment != 0) {
@@ -337,7 +337,8 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
 void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) {
   // Allocate a new index in table to hold the object once it's been patched
   int oop_index = __ oop_recorder()->allocate_oop_index(NULL);
-  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_mirror_id, oop_index);
+//  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_mirror_id, oop_index);
+  PatchingStub* patch = new PatchingStub(_masm, patching_id(info), oop_index);
 
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
   address const_ptr = int_constant(-1);
@@ -985,7 +986,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       // FIXME: OMG this is a horrible kludge.  Any offset from an
       // address that matches klass_offset_in_bytes() will be loaded
       // as a word, not a long.
-      if (UseCompressedKlassPointers && addr->disp() == oopDesc::klass_offset_in_bytes()) {
+      if (UseCompressedClassPointers && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 	__ ldrw(dest->as_register(), as_Address(from_addr));
       } else {
 	__ ldr(dest->as_register(), as_Address(from_addr));
@@ -1032,7 +1033,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     __ verify_oop(dest->as_register());
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
-    if (UseCompressedKlassPointers) {
+    if (UseCompressedClassPointers) {
       __ decode_klass_not_null(dest->as_register());
     }
 #endif
@@ -1350,7 +1351,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   } else if (obj == klass_RInfo) {
     klass_RInfo = dst;
   }
-  if (k->is_loaded() && !UseCompressedKlassPointers) {
+  if (k->is_loaded() && !UseCompressedClassPointers) {
     select_different_registers(obj, dst, k_RInfo, klass_RInfo);
   } else {
     Rtmp1 = op->tmp3()->as_register();
@@ -1358,14 +1359,6 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   }
 
   assert_different_registers(obj, k_RInfo, klass_RInfo);
-  if (!k->is_loaded()) {
-    klass2reg_with_patching(k_RInfo, op->info_for_patch());
-  } else {
-#ifdef _LP64
-    __ mov_metadata(k_RInfo, k->constant_encoding());
-#endif // _LP64
-  }
-  assert(obj != k_RInfo, "must be different");
 
     if (op->should_profile()) {
       Label not_null;
@@ -1384,6 +1377,13 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       __ cbz(obj, *obj_is_null);
     }
 
+  if (!k->is_loaded()) {
+    klass2reg_with_patching(k_RInfo, op->info_for_patch());
+  } else {
+#ifdef _LP64
+    __ mov_metadata(k_RInfo, k->constant_encoding());
+#endif // _LP64
+  }
   __ verify_oop(obj);
 
   if (op->fast_check()) {
@@ -2295,7 +2295,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     // We don't know the array types are compatible
     if (basic_type != T_OBJECT) {
       // Simple test for basic type arrays
-      if (UseCompressedKlassPointers) {
+      if (UseCompressedClassPointers) {
         __ ldrw(tmp, src_klass_addr);
         __ ldrw(rscratch1, dst_klass_addr);
         __ cmpw(tmp, rscratch1);
@@ -2426,14 +2426,14 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     Label known_ok, halt;
     __ mov_metadata(tmp, default_type->constant_encoding());
 #ifdef _LP64
-    if (UseCompressedKlassPointers) {
+    if (UseCompressedClassPointers) {
       __ encode_klass_not_null(tmp);
     }
 #endif
 
     if (basic_type != T_OBJECT) {
 
-      if (UseCompressedKlassPointers) {
+      if (UseCompressedClassPointers) {
 	__ ldrw(rscratch1, dst_klass_addr);
 	__ cmpw(tmp, rscratch1);
       } else {
@@ -2441,7 +2441,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 	__ cmp(tmp, rscratch1);
       }
       __ br(Assembler::NE, halt);
-      if (UseCompressedKlassPointers) {
+      if (UseCompressedClassPointers) {
 	__ ldrw(rscratch1, src_klass_addr);
 	__ cmpw(tmp, rscratch1);
       } else {
@@ -2450,7 +2450,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
       }
       __ br(Assembler::EQ, known_ok);
     } else {
-      if (UseCompressedKlassPointers) {
+      if (UseCompressedClassPointers) {
 	__ ldrw(rscratch1, dst_klass_addr);
 	__ cmpw(tmp, rscratch1);
       } else {
@@ -2614,6 +2614,9 @@ void LIR_Assembler::monitor_address(int monitor_no, LIR_Opr dst) {
   __ lea(dst->as_register(), frame_map()->address_for_monitor_lock(monitor_no));
 }
 
+void LIR_Assembler::emit_updatecrc32(LIR_OpUpdateCRC32* op) {
+  fatal("CRC32 intrinsic is not implemented on this platform");
+}
 
 void LIR_Assembler::align_backward_branch_target() {
 }
@@ -2828,7 +2831,7 @@ void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, 
       }
       __ verify_oop(dest->as_register());
     } else if (type == T_ADDRESS && from_addr->disp() == oopDesc::klass_offset_in_bytes()) {
-      if (UseCompressedKlassPointers) {
+      if (UseCompressedClassPointers) {
 	__ decode_klass_not_null(dest->as_register());
       }
     }

@@ -2955,10 +2955,6 @@ void TemplateTable::invokevirtual(int byte_no)
   transition(vtos, vtos);
   assert(byte_no == f2_byte, "use this argument");
 
-#ifdef ASSERT
-  __ spill(rscratch1, rscratch2);
-#endif // ASSERT
-
   prepare_invoke(byte_no, rmethod, noreg, r2, r3);
 
   // rmethod: index (actually a Method*)
@@ -2972,10 +2968,6 @@ void TemplateTable::invokespecial(int byte_no)
 {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-
-#ifdef ASSERT
-  __ spill(rscratch1, rscratch2);
-#endif // ASSERT
 
   prepare_invoke(byte_no, rmethod, noreg,  // get f1 Method*
 		 r2);  // get receiver also for null check
@@ -2991,10 +2983,6 @@ void TemplateTable::invokestatic(int byte_no)
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
 
-#ifdef ASSERT
-  __ spill(rscratch1, rscratch2);
-#endif // ASSERT
-
   prepare_invoke(byte_no, rmethod);  // get f1 Method*
   // do the call
   __ profile_call(r0);
@@ -3009,10 +2997,6 @@ void TemplateTable::fast_invokevfinal(int byte_no)
 void TemplateTable::invokeinterface(int byte_no) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-
-#ifdef ASSERT
-  __ spill(rscratch1, rscratch2);
-#endif // ASSERT
 
   prepare_invoke(byte_no, r0, rmethod,  // get f1 Klass*, f2 itable index
 		 r2, r3); // recv, flags

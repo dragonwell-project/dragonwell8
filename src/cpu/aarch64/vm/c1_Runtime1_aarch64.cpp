@@ -1113,6 +1113,13 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case load_appendix_patching_id:
+      { StubFrame f(sasm, "load_appendix_patching", dont_gc_arguments);
+        // we should set up register map
+        oop_maps = generate_patching(sasm, CAST_FROM_FN_PTR(address, move_appendix_patching));
+      }
+      break;
+
     case handle_exception_nofpu_id:
     case handle_exception_id:
       { StubFrame f(sasm, "handle_exception", dont_gc_arguments);
@@ -1179,10 +1186,10 @@ static Klass* resolve_field_return_klass(methodHandle caller, int bci, TRAPS) {
   Bytecodes::Code code       = field_access.code();
 
   // We must load class, initialize class and resolvethe field
-  FieldAccessInfo result; // initialize class if needed
+  fieldDescriptor result; // initialize class if needed
   constantPoolHandle constants(THREAD, caller->constants());
-  LinkResolver::resolve_field(result, constants, field_access.index(), Bytecodes::java_code(code), false, CHECK_NULL);
-  return result.klass()();
+  LinkResolver::resolve_field_access(result, constants, field_access.index(), Bytecodes::java_code(code), CHECK_NULL);
+  return result.field_holder();
 }
 
 
@@ -1252,7 +1259,7 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
   KlassHandle init_klass(THREAD, NULL); // klass needed by load_klass_patching code
   KlassHandle load_klass(THREAD, NULL); // klass needed by load_klass_patching code
   Handle mirror(THREAD, NULL);                    // oop needed by load_mirror_patching code
-  FieldAccessInfo result; // initialize class if needed
+  fieldDescriptor result; // initialize class if needed
 
   bool load_klass_or_mirror_patch_id =
     (stub_id == Runtime1::load_klass_patching_id || stub_id == Runtime1::load_mirror_patching_id);
@@ -1260,11 +1267,11 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
   if (stub_id == Runtime1::access_field_patching_id) {
 
     Bytecode_field field_access(caller_method, bci);
-    FieldAccessInfo result; // initialize class if needed
+    fieldDescriptor result; // initialize class if needed
     Bytecodes::Code code = field_access.code();
     constantPoolHandle constants(THREAD, caller_method->constants());
-    LinkResolver::resolve_field(result, constants, field_access.index(), Bytecodes::java_code(code), false, CHECK);
-    patch_field_offset = result.field_offset();
+    LinkResolver::resolve_field_access(result, constants, field_access.index(), Bytecodes::java_code(code), CHECK);
+    patch_field_offset = result.offset();
 
     // If we're patching a field which is volatile then at compile it
     // must not have been known to be volatile, so the generated code
@@ -1487,6 +1494,25 @@ int Runtime1::move_mirror_patching(JavaThread* thread) {
 
     ResetNoHandleMark rnhm;
     patch_code_aarch64(thread, load_mirror_patching_id);
+  }
+  // Back in JAVA, use no oops DON'T safepoint
+
+  // Return true if calling code is deoptimized
+
+  return caller_is_deopted();
+}
+
+int Runtime1::move_appendix_patching(JavaThread* thread) {
+//
+// NOTE: we are still in Java
+//
+  Thread* THREAD = thread;
+  debug_only(NoHandleMark nhm;)
+  {
+    // Enter VM mode
+
+    ResetNoHandleMark rnhm;
+    patch_code(thread, load_appendix_patching_id);
   }
   // Back in JAVA, use no oops DON'T safepoint
 

@@ -418,6 +418,10 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     target = Runtime1::entry_for(Runtime1::load_mirror_patching_id);
     reloc_type = relocInfo::oop_type;
     break;
+  case load_appendix_id:
+    target = Runtime1::entry_for(Runtime1::load_appendix_patching_id);
+    reloc_type = relocInfo::oop_type;
+    break;
   default: ShouldNotReachHere();
   }
 
