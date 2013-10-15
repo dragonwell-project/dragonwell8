@@ -2223,10 +2223,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ ldr(src,              Address(sp, 4*BytesPerWord));
 
     if (copyfunc_addr != NULL) {
-      __ subw(rscratch1, length, r0); // Number of oops actually copied
+      // r0 is -1^K where K == partial copied count
+      __ eonw(rscratch1, r0, 0);
+      // adjust length down and src/end pos up by partial copied count
+      __ subw(length, length, rscratch1);
       __ addw(src_pos, src_pos, rscratch1);
       __ addw(dst_pos, dst_pos, rscratch1);
-      __ mov(length, r0); // Number of oops left to copy
     }
     __ b(*stub->entry());
 
@@ -2401,10 +2403,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 	__ ldp(length,  src_pos, Address(sp, 2*BytesPerWord));
 	__ ldr(src,              Address(sp, 4*BytesPerWord));
 
-	__ subw(rscratch1, length, r0); // Number of oops actually copied
+        // return value is -1^K where K is partial copied count
+        __ eonw(rscratch1, r0, zr);
+        // adjust length down and src/end pos up by partial copied count
+	__ subw(length, length, rscratch1);
 	__ addw(src_pos, src_pos, rscratch1);
 	__ addw(dst_pos, dst_pos, rscratch1);
-	__ mov(length, r0); // Number of oops left to copy
       }
 
       __ b(*stub->entry());

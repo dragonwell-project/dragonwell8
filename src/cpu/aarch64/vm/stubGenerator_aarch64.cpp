@@ -1447,7 +1447,8 @@ class StubGenerator: public StubCodeGenerator {
   //    c_rarg4   - oop ckval (super_klass)
   //
   //  Output:
-  //    r0        -  count of oops remaining to copy
+  //    r0 ==  0  -  success
+  //    r0 == -1^K - failure, where K is partial transfer count
   //
   address generate_checkcast_copy(const char *name, address *entry,
                                   bool dest_uninitialized = false) {
@@ -1462,6 +1463,7 @@ class StubGenerator: public StubCodeGenerator {
     const Register ckval       = c_rarg4;   // super_klass
 
     // Registers used as temps (r18, r19, r20 are save-on-entry)
+    const Register count_save  = r21;       // orig elementscount
     const Register start_to    = r20;       // destination array start address
     const Register copied_oop  = r18;       // actual oop copied
     const Register r19_klass   = r19;       // oop._klass
@@ -1474,7 +1476,7 @@ class StubGenerator: public StubCodeGenerator {
     // checked.
 
     assert_different_registers(from, to, count, ckoff, ckval, start_to,
-			       copied_oop, r19_klass);
+			       copied_oop, r19_klass, count_save);
 
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", name);
@@ -1498,10 +1500,10 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
 
-    // Empty array:  Nothing to do.
+     // Empty array:  Nothing to do.
     __ cbz(count, L_done);
 
-    __ push(r18->bit() | r19->bit() | r20->bit(), sp);
+    __ push(r18->bit() | r19->bit() | r20->bit() | r21->bit(), sp);
 
 #ifdef ASSERT
     BLOCK_COMMENT("assert consistent ckoff/ckval");
@@ -1516,6 +1518,9 @@ class StubGenerator: public StubCodeGenerator {
       __ bind(L);
     }
 #endif //ASSERT
+
+    // save the original count
+    __ mov(count_save, count);
 
     // Copy from low to high addresses
     __ mov(start_to, to);              // Save destination array start address
@@ -1546,22 +1551,22 @@ class StubGenerator: public StubCodeGenerator {
     // ======== end loop ========
 
     // It was a real error; we must depend on the caller to finish the job.
-    // Register r0 = number of *remaining* oops
+    // Register count = remaining oops, count_orig = total oops.
     // Emit GC store barriers for the oops we have copied and report
     // their number to the caller.
 
-    DEBUG_ONLY(__ nop());
+    __ sub(count, count_save, count);     // K = partially copied oop count
+    __ eon(count, count, zr);                   // report (-1^K) to caller
 
-    // Common exit point (success or failure).
     __ BIND(L_do_card_marks);
     __ add(to, to, -heapOopSize);         // make an inclusive end pointer
     gen_write_ref_array_post_barrier(start_to, to, rscratch1);
 
-    __ pop(r18->bit() | r19->bit() | r20->bit(), sp);
+    __ pop(r18->bit() | r19->bit() | r20->bit()| r21->bit(), sp);
     inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr);
 
     __ bind(L_done);
-    __ mov(r0, count);                    // report count remaining to caller
+    __ mov(r0, count);
     __ leave();
     __ ret(lr);
 
