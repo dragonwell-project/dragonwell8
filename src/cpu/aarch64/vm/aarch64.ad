@@ -8576,6 +8576,114 @@ instruct compD_reg_reg(rFlagsRegU cr, vRegD src1, vRegD src2)
   ins_pipe(pipe_class_compare);
 %}
 
+instruct compF3_reg_reg(iRegI dst, vRegF src1, vRegF src2, rFlagsReg cr)
+%{
+  match(Set dst (CmpF3 src1 src2));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST * 3);
+  format %{ "fcmps $src1, $src2\n\t"
+            "csinvw($dst, zr, zr, eq\n\t"
+            "csnegw($dst, $dst, $dst, lt)"
+  %}
+
+  ins_encode %{
+    Label done;
+    FloatRegister s1 = as_FloatRegister($src1$$reg);
+    FloatRegister s2 = as_FloatRegister($src2$$reg);
+    Register d = as_Register($dst$$reg);
+    __ fcmps(s1, s2);
+    // installs 0 if EQ else -1
+    __ csinvw(d, zr, zr, Assembler::EQ);
+    // keeps -1 if less or unordered else installs 1
+    __ csnegw(d, d, d, Assembler::LT);
+    __ bind(done);
+  %}
+
+  ins_pipe(pipe_class_default);
+
+%}
+
+instruct compD3_reg_reg(iRegI dst, vRegD src1, vRegD src2, rFlagsReg cr)
+%{
+  match(Set dst (CmpD3 src1 src2));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST * 3);
+  format %{ "fcmpd $src1, $src2\n\t"
+            "csinvw($dst, zr, zr, eq\n\t"
+            "csnegw($dst, $dst, $dst, lt)"
+  %}
+
+  ins_encode %{
+    Label done;
+    FloatRegister s1 = as_FloatRegister($src1$$reg);
+    FloatRegister s2 = as_FloatRegister($src2$$reg);
+    Register d = as_Register($dst$$reg);
+    __ fcmpd(s1, s2);
+    // installs 0 if EQ else -1
+    __ csinvw(d, zr, zr, Assembler::EQ);
+    // keeps -1 if less or unordered else installs 1
+    __ csnegw(d, d, d, Assembler::LT);
+    __ bind(done);
+  %}
+  ins_pipe(pipe_class_default);
+
+%}
+
+instruct compF3_reg_immF0(iRegI dst, vRegF src1, immF0 zero, rFlagsReg cr)
+%{
+  match(Set dst (CmpF3 src1 zero));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST * 3);
+  format %{ "fcmps $src1, 0.0\n\t"
+            "csinvw($dst, zr, zr, eq\n\t"
+            "csnegw($dst, $dst, $dst, lt)"
+  %}
+
+  ins_encode %{
+    Label done;
+    FloatRegister s1 = as_FloatRegister($src1$$reg);
+    Register d = as_Register($dst$$reg);
+    __ fcmps(s1, 0.0D);
+    // installs 0 if EQ else -1
+    __ csinvw(d, zr, zr, Assembler::EQ);
+    // keeps -1 if less or unordered else installs 1
+    __ csnegw(d, d, d, Assembler::LT);
+    __ bind(done);
+  %}
+
+  ins_pipe(pipe_class_default);
+
+%}
+
+instruct compD3_reg_immD0(iRegI dst, vRegD src1, immD0 zero, rFlagsReg cr)
+%{
+  match(Set dst (CmpD3 src1 zero));
+  effect(KILL cr);
+
+  ins_cost(DEFAULT_COST * 3);
+  format %{ "fcmpd $src1, 0.0\n\t"
+            "csinvw($dst, zr, zr, eq\n\t"
+            "csnegw($dst, $dst, $dst, lt)"
+  %}
+
+  ins_encode %{
+    Label done;
+    FloatRegister s1 = as_FloatRegister($src1$$reg);
+    Register d = as_Register($dst$$reg);
+    __ fcmpd(s1, 0.0D);
+    // installs 0 if EQ else -1
+    __ csinvw(d, zr, zr, Assembler::EQ);
+    // keeps -1 if less or unordered else installs 1
+    __ csnegw(d, d, d, Assembler::LT);
+    __ bind(done);
+  %}
+  ins_pipe(pipe_class_default);
+
+%}
+
 instruct cmpLTMask_reg_reg(iRegI dst, iRegI p, iRegI q, rFlagsReg cr)
 %{
   match(Set dst (CmpLTMask p q));
