@@ -4074,7 +4074,8 @@ operand iRegP()
   match(RegP);
   match(iRegPNoSp);
   match(thread_RegP);
-  // match(iRegP_FP);
+  match(iRegP_R0);
+  match(iRegP_FP);
   format %{ %}
   interface(REG_INTER);
 %}
