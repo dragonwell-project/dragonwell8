@@ -3826,7 +3826,7 @@ operand immL_1()
 // 64 bit unit decrement
 operand immL_M1()
 %{
-  predicate(n->get_long() == 1);
+  predicate(n->get_long() == -1);
   match(ConL);
 
   op_cost(0);
@@ -7402,6 +7402,1044 @@ instruct rShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
   ins_pipe(pipe_class_default);
 %}
 
+
+
+
+
+
+
+
+
+// --------- BEGIN This section of the file is generated automatically --------------
+instruct regL_not_reg(iRegLNoSp dst,
+                         iRegL src1, immL_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (XorL src1 m1));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, zr" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              zr,
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+instruct regI_not_reg(iRegINoSp dst,
+                         iRegI src1, immI_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (XorI src1 m1));
+  ins_cost(DEFAULT_COST);
+  format %{ "eonw  $dst, $src1, zr" %}
+
+  ins_encode %{
+    __ eonw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              zr,
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2, immI_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (AndI src1 (XorI src2 m1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bic  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ bic(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2, immL_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (AndL src1 (XorL src2 m1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bic  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ bic(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2, immI_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (OrI src1 (XorI src2 m1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "orn  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ orn(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2, immL_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (OrL src1 (XorL src2 m1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "orn  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ orn(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2, immI_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (XorI m1 (XorI src2 src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2, immL_M1 m1,
+                         rFlagsReg cr) %{
+  match(Set dst (XorL m1 (XorL src2 src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL, 0);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_URShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (XorI(URShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bicw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ bicw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_URShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (XorL(URShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bic  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ bic(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_RShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (XorI(RShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bicw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ bicw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_RShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (XorL(RShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bic  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ bic(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_LShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (XorI(LShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bicw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ bicw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_LShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (XorL(LShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "bic  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ bic(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_URShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorI src4 (XorI(URShiftI src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eonw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ eonw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_URShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorL src4 (XorL(URShiftL src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_RShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorI src4 (XorI(RShiftI src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eonw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ eonw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_RShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorL src4 (XorL(RShiftL src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_LShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorI src4 (XorI(LShiftI src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eonw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ eonw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_LShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (XorL src4 (XorL(LShiftL src2 src3) src1)));
+  ins_cost(DEFAULT_COST);
+  format %{ "eon  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ eon(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_URShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (XorI(URShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "ornw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ ornw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_URShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (XorL(URShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "orn  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ orn(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_RShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (XorI(RShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "ornw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ ornw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_RShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (XorL(RShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "orn  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ orn(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_LShift_not_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, immI_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (XorI(LShiftI src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "ornw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ ornw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_LShift_not_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, immL_M1 src4, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (XorL(LShiftL src2 src3) src4)));
+  ins_cost(DEFAULT_COST);
+  format %{ "orn  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ orn(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_URShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (URShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ andw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_URShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (URShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andr  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ andr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_RShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (RShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ andw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_RShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (RShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andr  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ andr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndI_reg_LShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndI src1 (LShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ andw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AndL_reg_LShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AndL src1 (LShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "andr  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ andr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_URShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorI src1 (URShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eorw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ eorw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_URShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorL src1 (URShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eor  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ eor(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_RShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorI src1 (RShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eorw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ eorw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_RShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorL src1 (RShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eor  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ eor(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorI_reg_LShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorI src1 (LShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eorw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ eorw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct XorL_reg_LShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (XorL src1 (LShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "eor  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ eor(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_URShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (URShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orrw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ orrw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_URShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (URShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orr  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ orr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_RShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (RShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orrw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ orrw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_RShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (RShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orr  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ orr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrI_reg_LShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrI src1 (LShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orrw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ orrw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct OrL_reg_LShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (OrL src1 (LShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "orr  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ orr(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddI_reg_URShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddI src1 (URShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddL_reg_URShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddL src1 (URShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddI_reg_RShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddI src1 (RShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddL_reg_RShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddL src1 (RShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddI_reg_LShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddI src1 (LShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "addw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddL_reg_LShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (AddL src1 (LShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubI_reg_URShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubI src1 (URShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "subw  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ subw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubL_reg_URShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubL src1 (URShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sub  $dst, $src1, $src2, LSR $src3" %}
+
+  ins_encode %{
+    __ sub(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubI_reg_RShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubI src1 (RShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "subw  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ subw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubL_reg_RShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubL src1 (RShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sub  $dst, $src1, $src2, ASR $src3" %}
+
+  ins_encode %{
+    __ sub(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::ASR,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubI_reg_LShift_reg(iRegINoSp dst,
+                         iRegI src1, iRegI src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubI src1 (LShiftI src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "subw  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ subw(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubL_reg_LShift_reg(iRegLNoSp dst,
+                         iRegL src1, iRegL src2,
+                         immI src3, rFlagsReg cr) %{
+  match(Set dst (SubL src1 (LShiftL src2 src3)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sub  $dst, $src1, $src2, LSL $src3" %}
+
+  ins_encode %{
+    __ sub(as_Register($dst$$reg),
+              as_Register($src1$$reg),
+              as_Register($src2$$reg),
+              Assembler::LSL,
+              $src3$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+// --------- END This section of the file is generated automatically --------------
 // Combined Long Mask and Right Shift (using UBFM)
 // TODO
 
@@ -7880,8 +8918,6 @@ instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
 
   ins_pipe(pipe_class_default);
 %}
-
-// Arithmetic Conversion Instructions
 
 instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
 %{

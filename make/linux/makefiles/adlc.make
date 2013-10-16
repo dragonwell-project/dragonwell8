@@ -184,7 +184,7 @@ refresh_adfiles: $(EXEC) $(SOURCE.AD) $(ADLC_UPDATER)
 	@rm -rf $(TEMPDIR); mkdir $(TEMPDIR)
 	$(QUIETLY) $(EXEC) $(ADLCFLAGS) $(SOURCE.AD) \
  -c$(TEMPDIR)/ad_$(Platform_arch_model).cpp -h$(TEMPDIR)/ad_$(Platform_arch_model).hpp -a$(TEMPDIR)/dfa_$(Platform_arch_model).cpp -v$(TEMPDIR)/adGlobals_$(Platform_arch_model).hpp \
-	    || { rm -rf $(TEMPDIR); exit 1; }
+	    || { exit 1; }
 	$(QUIETLY) ./$(ADLC_UPDATER) ad_$(Platform_arch_model).cpp $(TEMPDIR) $(OUTDIR)
 	$(QUIETLY) ./$(ADLC_UPDATER) ad_$(Platform_arch_model).hpp $(TEMPDIR) $(OUTDIR)
 	$(QUIETLY) ./$(ADLC_UPDATER) ad_$(Platform_arch_model)_clone.cpp $(TEMPDIR) $(OUTDIR)
