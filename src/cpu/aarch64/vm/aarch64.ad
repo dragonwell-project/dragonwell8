@@ -2375,7 +2375,7 @@ encode %{
     // need to do this the hard way until we can manage relocs
     // for 32 bit constants
     __ movoop(rscratch2, (jobject)con);
-    __ encode_heap_oop_not_null(rscratch2);
+    if (con) __ encode_heap_oop_not_null(rscratch2);
     if (index == -1) {
       __ strw(rscratch2, Address(base, disp));
     } else {
@@ -2621,7 +2621,7 @@ encode %{
       // need to do this the hard way until we can manage relocs
       // for 32 bit constants
       __ movoop(rscratch2, (jobject)con);
-      __ encode_heap_oop_not_null(rscratch2);
+      if (con) __ encode_heap_oop_not_null(rscratch2);
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrw);
@@ -2634,8 +2634,9 @@ encode %{
       // need to do this the hard way until we can manage relocs
       // for 32 bit constants
       __ movoop(rscratch2, (jobject)con);
-      __ encode_heap_oop_not_null(rscratch2);
-      __ encode_klass_not_null(rscratch2);
+      // Either it is a heap oop or a klass pointer? It can't be both?
+      // __ encode_heap_oop_not_null(rscratch2);
+      if (con) __ encode_klass_not_null(rscratch2);
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrw);

@@ -143,19 +143,6 @@ void NativeJump::verify() { ; }
 void NativeJump::insert(address code_pos, address entry) { Unimplemented(); }
 
 void NativeJump::check_verified_entry_alignment(address entry, address verified_entry) {
-  // Patching to not_entrant can happen while activations of the method are
-  // in use. The patching in that instance must happen only when certain
-  // alignment restrictions are true. These guarantees check those
-  // conditions.
-  const int linesize = 64;
-
-  // Must be wordSize aligned
-  guarantee(((uintptr_t) verified_entry & (wordSize -1)) == 0,
-            "illegal address for code patching 2");
-  // First 5 bytes must be within the same cache line - 4827828
-  guarantee((uintptr_t) verified_entry / linesize ==
-            ((uintptr_t) verified_entry + 4) / linesize,
-            "illegal address for code patching 3");
 }
 
 
