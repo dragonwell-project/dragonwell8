@@ -89,8 +89,16 @@ class MacroAssembler: public Assembler {
 
   void call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions = true);
 
+  uint64_t use_XOR_for_compressed_class_base;
+
  public:
-  MacroAssembler(CodeBuffer* code) : Assembler(code) {}
+  MacroAssembler(CodeBuffer* code) : Assembler(code) {
+    use_XOR_for_compressed_class_base
+      = (operand_valid_for_logical_immediate(false /*is32*/,
+                                            (uint64_t)Universe::narrow_klass_base())
+        && ((uint64_t)Universe::narrow_klass_base()
+            > (1u << log2_intptr(CompressedClassSpaceSize))));
+  }
 
   // Biased locking support
   // lock_reg and obj_reg must be loaded up with the appropriate values.
