@@ -509,7 +509,8 @@ void Runtime1::generate_unwind_exception(StubAssembler *sasm) {
 
   // get throwing pc (= return address).
   // lr has been destroyed by the call
-  __ ldp(r3, exception_oop, Address(__ post(sp, 2 * wordSize)));
+  __ ldp(lr, exception_oop, Address(__ post(sp, 2 * wordSize)));
+  __ mov(r3, lr);
 
   __ verify_not_null_oop(exception_oop);
 
