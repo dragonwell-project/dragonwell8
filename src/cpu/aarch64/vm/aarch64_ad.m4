@@ -1,3 +1,4 @@
+// --------- BEGIN This section of the file is generated automatically --------------
 define(`BASE_SHIFT_INSN',
 `
 instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
@@ -103,7 +104,6 @@ define(`ALL_INVERTED_SHIFT_KINDS',
 BOTH_INVERTED_SHIFT_INSNS($1, $2, RShift, ASR)
 BOTH_INVERTED_SHIFT_INSNS($1, $2, LShift, LSL)')
 dnl
-// --------- BEGIN This section of the file is generated automatically --------------
 NOT_INSN(L, eon)
 NOT_INSN(I, eonw)
 BOTH_INVERTED_INSNS(And, bic)
@@ -117,4 +117,52 @@ ALL_SHIFT_KINDS(Xor, eor)
 ALL_SHIFT_KINDS(Or, orr)
 ALL_SHIFT_KINDS(Add, add)
 ALL_SHIFT_KINDS(Sub, sub)
+dnl
+define(`BFM_INSN',`
+// Shift Left followed by Shift Right.
+// This idiom is used by the compiler for the i2b bytecode etc.
+instruct $4$1(iReg$1 dst, iReg$1 src, immI lshift_count, immI rshift_count)
+%{
+  match(Set dst ($3$1 (LShift$1 src lshift_count) rshift_count));
+  // Make sure we are not going to exceed what $4 can do.
+  predicate((unsigned int)n->in(2)->get_int() <= $2
+            && (unsigned int)n->in(1)->in(2)->get_int() <= $2);
+
+  format %{ "$4  $dst, $src, $rshift_count - $lshift_count, #$2 - $lshift_count" %}
+  ins_encode %{
+    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int s = $2 - lshift;
+    int r = (rshift - lshift) & $2;
+    __ $4(as_Register($dst$$reg),
+	    as_Register($src$$reg),
+	    r, s);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}')
+BFM_INSN(L, 63, RShift, sbfm)
+BFM_INSN(I, 31, RShift, sbfmw)
+BFM_INSN(L, 63, URShift, ubfm)
+BFM_INSN(I, 31, URShift, ubfmw)
+
+// Rotations
+define(`EXTRACT_INSN',
+`instruct extr$3$1(iReg$1 dst, iReg$1 src1, iReg$1 src2, immI lshift, immI rshift, rFlagsReg cr)
+%{
+  match(Set dst ($3$1 (LShift$1 src1 lshift) (URShift$1 src2 rshift)));
+  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & $2));
+
+  format %{ "extr $dst, $src1, $src2, #$rshift" %}
+
+  ins_encode %{
+    __ $4(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
+            $rshift$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+')
+EXTRACT_INSN(L, 63, Or, extr)
+EXTRACT_INSN(I, 31, Or, extrw)
+EXTRACT_INSN(L, 63, Add, extr)
+EXTRACT_INSN(I, 31, Add, extrw)
 // --------- END This section of the file is generated automatically --------------

@@ -7401,16 +7401,16 @@ instruct rShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
 
   ins_pipe(pipe_class_default);
 %}
-
-
-
-
-
-
-
-
-
 // --------- BEGIN This section of the file is generated automatically --------------
+
+
+
+
+
+
+
+
+
 instruct regL_not_reg(iRegLNoSp dst,
                          iRegL src1, immL_M1 m1,
                          rFlagsReg cr) %{
@@ -8439,6 +8439,154 @@ instruct SubL_reg_LShift_reg(iRegLNoSp dst,
 
   ins_pipe(pipe_class_default);
 %}
+
+
+// Shift Left followed by Shift Right.
+// This idiom is used by the compiler for the i2b bytecode etc.
+instruct sbfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
+%{
+  match(Set dst (RShiftL (LShiftL src lshift_count) rshift_count));
+  // Make sure we are not going to exceed what sbfm can do.
+  predicate((unsigned int)n->in(2)->get_int() <= 63
+            && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
+
+  format %{ "sbfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
+  ins_encode %{
+    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int s = 63 - lshift;
+    int r = (rshift - lshift) & 63;
+    __ sbfm(as_Register($dst$$reg),
+	    as_Register($src$$reg),
+	    r, s);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Left followed by Shift Right.
+// This idiom is used by the compiler for the i2b bytecode etc.
+instruct sbfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
+%{
+  match(Set dst (RShiftI (LShiftI src lshift_count) rshift_count));
+  // Make sure we are not going to exceed what sbfmw can do.
+  predicate((unsigned int)n->in(2)->get_int() <= 31
+            && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
+
+  format %{ "sbfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
+  ins_encode %{
+    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int s = 31 - lshift;
+    int r = (rshift - lshift) & 31;
+    __ sbfmw(as_Register($dst$$reg),
+	    as_Register($src$$reg),
+	    r, s);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Left followed by Shift Right.
+// This idiom is used by the compiler for the i2b bytecode etc.
+instruct ubfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
+%{
+  match(Set dst (URShiftL (LShiftL src lshift_count) rshift_count));
+  // Make sure we are not going to exceed what ubfm can do.
+  predicate((unsigned int)n->in(2)->get_int() <= 63
+            && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
+
+  format %{ "ubfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
+  ins_encode %{
+    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int s = 63 - lshift;
+    int r = (rshift - lshift) & 63;
+    __ ubfm(as_Register($dst$$reg),
+	    as_Register($src$$reg),
+	    r, s);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Shift Left followed by Shift Right.
+// This idiom is used by the compiler for the i2b bytecode etc.
+instruct ubfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
+%{
+  match(Set dst (URShiftI (LShiftI src lshift_count) rshift_count));
+  // Make sure we are not going to exceed what ubfmw can do.
+  predicate((unsigned int)n->in(2)->get_int() <= 31
+            && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
+
+  format %{ "ubfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
+  ins_encode %{
+    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int s = 31 - lshift;
+    int r = (rshift - lshift) & 31;
+    __ ubfmw(as_Register($dst$$reg),
+	    as_Register($src$$reg),
+	    r, s);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Rotations
+
+instruct extrOrL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
+%{
+  match(Set dst (OrL (LShiftL src1 lshift) (URShiftL src2 rshift)));
+  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
+
+  format %{ "extr $dst, $src1, $src2, #$rshift" %}
+
+  ins_encode %{
+    __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
+            $rshift$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct extrOrI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
+%{
+  match(Set dst (OrI (LShiftI src1 lshift) (URShiftI src2 rshift)));
+  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
+
+  format %{ "extr $dst, $src1, $src2, #$rshift" %}
+
+  ins_encode %{
+    __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
+            $rshift$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct extrAddL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddL (LShiftL src1 lshift) (URShiftL src2 rshift)));
+  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
+
+  format %{ "extr $dst, $src1, $src2, #$rshift" %}
+
+  ins_encode %{
+    __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
+            $rshift$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct extrAddI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddI (LShiftI src1 lshift) (URShiftI src2 rshift)));
+  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
+
+  format %{ "extr $dst, $src1, $src2, #$rshift" %}
+
+  ins_encode %{
+    __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
+            $rshift$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
 // --------- END This section of the file is generated automatically --------------
 // Combined Long Mask and Right Shift (using UBFM)
 // TODO
