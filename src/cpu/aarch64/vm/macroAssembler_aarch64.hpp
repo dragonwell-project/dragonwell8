@@ -1023,10 +1023,12 @@ public:
   // Arithmetics
 
   void addptr(Address dst, int32_t src) {
-    ldr(rscratch1, dst);
+    lea(rscratch2, dst);
+    ldr(rscratch1, Address(rscratch2));
     add(rscratch1, rscratch1, src);
-    str(rscratch1, dst);
-}
+    str(rscratch1, Address(rscratch2));
+  }
+
   // unimplemented
 #if 0
   void addptr(Address dst, Register src);
