@@ -2261,70 +2261,6 @@ encode %{
     }
   %}
 
-  // this encoding writes the address of the first instruction in the
-  // call sequence for the runtime call into the anchor pc slot. this
-  // address allows the runtime to i) locate the code buffer for the
-  // caller (any address in the buffer would do) and ii) find the oop
-  // map associated with the call (has to address the instruction
-  // following the call). note that we have to store the address which
-  // follows the actual call.
-  // 
-  // the offset from the current pc can be computed by considering
-  // what gets generated between this point up to and including the
-  // call. it looks like this
-  //
-  //   movz xscratch1 0xnnnn        <-- current pc is here
-  //   movk xscratch1 0xnnnn
-  //   movk xscratch1 0xnnnn
-  //   movk xscratch1 0xnnnn
-  //   str xscratch1, [xthread,#anchor_pc_off]
-  //   mov xscratch2, sp
-  //   str xscratch2, [xthread,#anchor_sp_off
-  //   mov x0, x1
-  //   . . .
-  //   mov xn-1, xn
-  //   mov xn, thread            <-- always passed
-  //   mov xn+1, rfp             <-- optional iff primary == 1
-  //   movz xscratch1 0xnnnn
-  //   movk xscratch1 0xnnnn
-  //   movk xscratch1 0xnnnn
-  //   movk xscratch1 0xnnnn
-  //   blrt xscratch1
-  //   . . .
-  //
-  // where the called routine has n args (including the thread and,
-  // possibly the stub's caller return address currently in rfp).  we
-  // can compute n by looking at the number of args passed into the
-  // stub. we assert that nargs is < 7.
-  //
-  // so the offset we need to add to the pc (in 32-bit words) is
-  //   4 +        <-- load 64 bit constant return pc
-  //   1 +        <-- write anchor pc
-  //   1 +        <-- copy sp
-  //   1 +        <-- write anchor sp
-  //   nargs +    <-- java stub arg count
-  //   1 +        <-- extra thread arg
-  // [ 1 + ]      <-- optional ret address of stub caller
-  //   4 +        <-- load 64 bit call target address
-  //   1          <-- blrt instruction
-  //
-  // i.e we need to add (nargs + 13) * 4 bytes or (nargs + 14) * 4 bytes
-  // 
-
-  enc_class aarch64_enc_save_pc() %{
-    Compile* C = ra_->C;
-    int nargs = C->tf()->domain()->cnt() - TypeFunc::Parms;
-    if ($primary) { nargs++; }
-    assert(nargs <= 8, "opto runtime stub has more than 8 args!");
-    MacroAssembler _masm(&cbuf);
-    address pc = __ pc();
-    int call_offset = (nargs + 13) * 4;
-    int field_offset = in_bytes(JavaThread::frame_anchor_offset()) +
-                       in_bytes(JavaFrameAnchor::last_Java_pc_offset());
-    __ mov(rscratch1, InternalAddress(pc + call_offset));
-    __ str(rscratch1, Address(rthread, field_offset));
-  %}
-
   enc_class aarch64_enc_strs(vRegF src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     FloatRegister src_reg = as_FloatRegister($src$$reg);
@@ -2411,6 +2347,70 @@ encode %{
 	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
       } 
     }
+  %}
+
+  // this encoding writes the address of the first instruction in the
+  // call sequence for the runtime call into the anchor pc slot. this
+  // address allows the runtime to i) locate the code buffer for the
+  // caller (any address in the buffer would do) and ii) find the oop
+  // map associated with the call (has to address the instruction
+  // following the call). note that we have to store the address which
+  // follows the actual call.
+  // 
+  // the offset from the current pc can be computed by considering
+  // what gets generated between this point up to and including the
+  // call. it looks like this
+  //
+  //   movz xscratch1 0xnnnn        <-- current pc is here
+  //   movk xscratch1 0xnnnn
+  //   movk xscratch1 0xnnnn
+  //   movk xscratch1 0xnnnn
+  //   str xscratch1, [xthread,#anchor_pc_off]
+  //   mov xscratch2, sp
+  //   str xscratch2, [xthread,#anchor_sp_off
+  //   mov x0, x1
+  //   . . .
+  //   mov xn-1, xn
+  //   mov xn, thread            <-- always passed
+  //   mov xn+1, rfp             <-- optional iff primary == 1
+  //   movz xscratch1 0xnnnn
+  //   movk xscratch1 0xnnnn
+  //   movk xscratch1 0xnnnn
+  //   movk xscratch1 0xnnnn
+  //   blrt xscratch1
+  //   . . .
+  //
+  // where the called routine has n args (including the thread and,
+  // possibly the stub's caller return address currently in rfp).  we
+  // can compute n by looking at the number of args passed into the
+  // stub. we assert that nargs is < 7.
+  //
+  // so the offset we need to add to the pc (in 32-bit words) is
+  //   4 +        <-- load 64 bit constant return pc
+  //   1 +        <-- write anchor pc
+  //   1 +        <-- copy sp
+  //   1 +        <-- write anchor sp
+  //   nargs +    <-- java stub arg count
+  //   1 +        <-- extra thread arg
+  // [ 1 + ]      <-- optional ret address of stub caller
+  //   4 +        <-- load 64 bit call target address
+  //   1          <-- blrt instruction
+  //
+  // i.e we need to add (nargs + 13) * 4 bytes or (nargs + 14) * 4 bytes
+  // 
+
+  enc_class aarch64_enc_save_pc() %{
+    Compile* C = ra_->C;
+    int nargs = C->tf()->domain()->cnt() - TypeFunc::Parms;
+    if ($primary) { nargs++; }
+    assert(nargs <= 8, "opto runtime stub has more than 8 args!");
+    MacroAssembler _masm(&cbuf);
+    address pc = __ pc();
+    int call_offset = (nargs + 13) * 4;
+    int field_offset = in_bytes(JavaThread::frame_anchor_offset()) +
+                       in_bytes(JavaFrameAnchor::last_Java_pc_offset());
+    __ mov(rscratch1, InternalAddress(pc + call_offset));
+    __ str(rscratch1, Address(rthread, field_offset));
   %}
 
   // volatile loads and stores
