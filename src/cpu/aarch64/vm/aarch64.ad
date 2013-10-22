@@ -3719,6 +3719,138 @@ operand immI_M1()
   interface(CONST_INTER);
 %}
 
+operand immI_8()
+%{
+  predicate(n->get_int() == 8);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_16()
+%{
+  predicate(n->get_int() == 16);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_24()
+%{
+  predicate(n->get_int() == 24);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_32()
+%{
+  predicate(n->get_int() == 32);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_48()
+%{
+  predicate(n->get_int() == 48);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_56()
+%{
+  predicate(n->get_int() == 56);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_255()
+%{
+  predicate(n->get_int() == 255);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_65535()
+%{
+  predicate(n->get_int() == 65535);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immL_255()
+%{
+  predicate(n->get_int() == 255);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immL_65535()
+%{
+  predicate(n->get_long() == 65535L);
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immL_4294967295()
+%{
+  predicate(n->get_long() == 4294967295L);
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immL_bitmask()
+%{
+  predicate(((n->get_long() & 0xc000000000000000l) == 0)
+	    && is_power_of_2(n->get_long() + 1));
+  match(ConL);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immI_bitmask()
+%{
+  predicate(((n->get_int() & 0xc0000000) == 0)
+	    && is_power_of_2(n->get_int() + 1));
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 // Scale values for scaled offset addressing modes (up to long but not quad)
 operand immIScale()
 %{
@@ -7401,7 +7533,7 @@ instruct rShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
 
   ins_pipe(pipe_class_default);
 %}
-// --------- BEGIN This section of the file is generated automatically --------------
+// BEGIN This section of the file is automatically generated. Do not edit --------------
 
 
 
@@ -8441,9 +8573,10 @@ instruct SubL_reg_LShift_reg(iRegLNoSp dst,
 %}
 
 
+
 // Shift Left followed by Shift Right.
 // This idiom is used by the compiler for the i2b bytecode etc.
-instruct sbfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
+instruct sbfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (RShiftL (LShiftL src lshift_count) rshift_count));
   // Make sure we are not going to exceed what sbfm can do.
@@ -8465,7 +8598,7 @@ instruct sbfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
 
 // Shift Left followed by Shift Right.
 // This idiom is used by the compiler for the i2b bytecode etc.
-instruct sbfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
+instruct sbfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (RShiftI (LShiftI src lshift_count) rshift_count));
   // Make sure we are not going to exceed what sbfmw can do.
@@ -8487,7 +8620,7 @@ instruct sbfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
 
 // Shift Left followed by Shift Right.
 // This idiom is used by the compiler for the i2b bytecode etc.
-instruct ubfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
+instruct ubfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (URShiftL (LShiftL src lshift_count) rshift_count));
   // Make sure we are not going to exceed what ubfm can do.
@@ -8509,7 +8642,7 @@ instruct ubfmL(iRegL dst, iRegL src, immI lshift_count, immI rshift_count)
 
 // Shift Left followed by Shift Right.
 // This idiom is used by the compiler for the i2b bytecode etc.
-instruct ubfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
+instruct ubfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (URShiftI (LShiftI src lshift_count) rshift_count));
   // Make sure we are not going to exceed what ubfmw can do.
@@ -8528,10 +8661,56 @@ instruct ubfmwI(iRegI dst, iRegI src, immI lshift_count, immI rshift_count)
 
   ins_pipe(pipe_class_default);
 %}
+// Bitfield extract with shift & mask
 
+instruct ubfxI(iRegINoSp dst, iRegI src, immI rshift, immI_bitmask mask)
+%{
+  match(Set dst (AndI (URShiftI src rshift) mask));
+
+  format %{ "ubfx $dst, $src, $mask" %}
+  ins_encode %{
+    int rshift = $rshift$$constant;
+    long mask = $mask$$constant;
+    int width = exact_log2(mask+1);
+    __ ubfx(as_Register($dst$$reg),
+	    as_Register($src$$reg), rshift, width);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+instruct ubfxL(iRegLNoSp dst, iRegL src, immI rshift, immL_bitmask mask)
+%{
+  match(Set dst (AndL (URShiftL src rshift) mask));
+
+  format %{ "ubfx $dst, $src, $mask" %}
+  ins_encode %{
+    int rshift = $rshift$$constant;
+    long mask = $mask$$constant;
+    int width = exact_log2(mask+1);
+    __ ubfx(as_Register($dst$$reg),
+	    as_Register($src$$reg), rshift, width);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// We can use ubfx when extending an And with a mask when we know mask
+// is positive.  We know that because immI_bitmask guarantees it.
+instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
+%{
+  match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
+
+  format %{ "ubfx $dst, $src, $mask" %}
+  ins_encode %{
+    int rshift = $rshift$$constant;
+    long mask = $mask$$constant;
+    int width = exact_log2(mask+1);
+    __ ubfx(as_Register($dst$$reg),
+	    as_Register($src$$reg), rshift, width);
+  %}
+  ins_pipe(pipe_class_default);
+%}
 // Rotations
 
-instruct extrOrL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
+instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (OrL (LShiftL src1 lshift) (URShiftL src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
@@ -8540,12 +8719,12 @@ instruct extrOrL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rF
 
   ins_encode %{
     __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
-            $rshift$$constant);
+            $rshift$$constant & 63);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct extrOrI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
+instruct extrOrI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (OrI (LShiftI src1 lshift) (URShiftI src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
@@ -8554,12 +8733,12 @@ instruct extrOrI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rF
 
   ins_encode %{
     __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
-            $rshift$$constant);
+            $rshift$$constant & 31);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct extrAddL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
+instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL (LShiftL src1 lshift) (URShiftL src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
@@ -8568,12 +8747,12 @@ instruct extrAddL(iRegL dst, iRegL src1, iRegL src2, immI lshift, immI rshift, r
 
   ins_encode %{
     __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
-            $rshift$$constant);
+            $rshift$$constant & 63);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct extrAddI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
+instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (AddI (LShiftI src1 lshift) (URShiftI src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
@@ -8582,12 +8761,244 @@ instruct extrAddI(iRegI dst, iRegI src1, iRegI src2, immI lshift, immI rshift, r
 
   ins_encode %{
     __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
-            $rshift$$constant);
+            $rshift$$constant & 31);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-// --------- END This section of the file is generated automatically --------------
+// Add/subtract (extended)
+
+
+instruct AddExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (ConvI2L src2)));
+  format %{ "add  $dst, $src1,  $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxtw);
+   %}
+  ins_pipe(pipe_class_default);
+%};
+
+instruct SubExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
+%{
+  match(Set dst (SubI src1 (ConvI2L src2)));
+  format %{ "sub  $dst, $src1,  $src2" %}
+
+   ins_encode %{
+     __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxtw);
+   %}
+  ins_pipe(pipe_class_default);
+%};
+
+
+instruct AddExtI_sxth(iRegINoSp dst, iRegI src1, iRegI src2, immI_16 lshift, immI_16 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (RShiftI (LShiftI src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, sxth $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtI_sxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (RShiftI (LShiftI src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, sxtb $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtI_uxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (URShiftI (LShiftI src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, uxtb $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_sxth(iRegLNoSp dst, iRegL src1, iRegL src2, immI_48 lshift, immI_48 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, sxth $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_sxtw(iRegLNoSp dst, iRegL src1, iRegL src2, immI_32 lshift, immI_32 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, sxtw $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxtw);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_sxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, sxtb $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::sxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_uxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (URShiftL (LShiftL src2 lshift) rshift)));
+  format %{ "add  $dst, $src1, uxtb $src2" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+
+instruct AddExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (AndI src2 mask)));
+  format %{ "addw  $dst, $src1, $src2, uxtb" %}
+
+   ins_encode %{
+     __ addw(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
+%{
+  match(Set dst (AddI src1 (AndI src2 mask)));
+  format %{ "addw  $dst, $src1, $src2, uxth" %}
+
+   ins_encode %{
+     __ addw(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (AndL src2 mask)));
+  format %{ "add  $dst, $src1, $src2, uxtb" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (AndL src2 mask)));
+  format %{ "add  $dst, $src1, $src2, uxth" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct AddExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
+%{
+  match(Set dst (AddL src1 (AndL src2 mask)));
+  format %{ "add  $dst, $src1, $src2, uxtw" %}
+
+   ins_encode %{
+     __ add(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtw);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, rFlagsReg cr)
+%{
+  match(Set dst (SubI src1 (AndI src2 mask)));
+  format %{ "subw  $dst, $src1, $src2, uxtb" %}
+
+   ins_encode %{
+     __ subw(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
+%{
+  match(Set dst (SubI src1 (AndI src2 mask)));
+  format %{ "subw  $dst, $src1, $src2, uxth" %}
+
+   ins_encode %{
+     __ subw(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
+%{
+  match(Set dst (SubL src1 (AndL src2 mask)));
+  format %{ "sub  $dst, $src1, $src2, uxtb" %}
+
+   ins_encode %{
+     __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtb);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
+%{
+  match(Set dst (SubL src1 (AndL src2 mask)));
+  format %{ "sub  $dst, $src1, $src2, uxth" %}
+
+   ins_encode %{
+     __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxth);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct SubExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
+%{
+  match(Set dst (SubL src1 (AndL src2 mask)));
+  format %{ "sub  $dst, $src1, $src2, uxtw" %}
+
+   ins_encode %{
+     __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
+            as_Register($src2$$reg), ext::uxtw);
+   %}
+  ins_pipe(pipe_class_default);
+%}
+// END This section of the file is automatically generated. Do not edit --------------
 // Combined Long Mask and Right Shift (using UBFM)
 // TODO
 
