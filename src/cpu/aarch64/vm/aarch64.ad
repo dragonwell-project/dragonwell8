@@ -1815,27 +1815,28 @@ encode %{
     __ unimplemented("C2 catch all");    
   %}
 
-
-
-
-
   enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{   
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrsbw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrsbw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrsbw(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrsbw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrsbw(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1845,18 +1846,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrsb(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrsb(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrsb(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrsb(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrsb(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1866,18 +1872,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrb(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrb(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrb(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrb(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrb(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1887,18 +1898,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrb(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrb(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrb(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrb(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrb(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1908,18 +1924,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrshw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrshw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrshw(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrshw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrshw(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1929,18 +1950,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrsh(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrsh(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrsh(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrsh(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrsh(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1950,18 +1976,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrh(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrh(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrh(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrh(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrh(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1971,18 +2002,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrh(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrh(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrh(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrh(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrh(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -1992,18 +2028,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrw(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrw(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2013,18 +2054,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrw(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrw(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2034,18 +2080,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrsw(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrsw(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrsw(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrsw(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrsw(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2055,18 +2106,23 @@ encode %{
     Register dst_reg = as_Register($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldr(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldr(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldr(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldr(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldr(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2076,18 +2132,23 @@ encode %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrs(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrs(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrs(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrs(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrs(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2097,18 +2158,23 @@ encode %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ ldrd(dst_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ ldrd(dst_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ ldrd(dst_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ ldrd(dst_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ ldrd(dst_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2120,18 +2186,23 @@ encode %{
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strb(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strb(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ strb(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strb(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strb(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2140,17 +2211,23 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strb(zr, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strb(zr, Address(base, index_reg, Address::lsl(scale)));
+        __ strb(zr, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strb(zr, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strb(zr, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2160,18 +2237,23 @@ encode %{
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strh(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strh(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ strh(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strh(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strh(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2180,17 +2262,23 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strh(zr, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strh(zr, Address(base, index_reg, Address::lsl(scale)));
+        __ strh(zr, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strh(zr, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strh(zr, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2200,18 +2288,23 @@ encode %{
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strw(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strw(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ strw(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strw(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strw(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2220,17 +2313,23 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strw(zr, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strw(zr, Address(base, index_reg, Address::lsl(scale)));
+        __ strw(zr, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strw(zr, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strw(zr, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2240,9 +2339,7 @@ encode %{
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    // we sometimes get asked to store the stack pointer into the
+    int disp = $mem$$disp;    // we sometimes get asked to store the stack pointer into the
     // current thread -- we cannot do that directly on AArch64
 
     if (src_reg == r31_sp) {
@@ -2251,15 +2348,22 @@ encode %{
       src_reg = rscratch2;
     }
 
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ str(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ str(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ str(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ str(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ str(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2268,17 +2372,23 @@ encode %{
     MacroAssembler _masm(&cbuf);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ str(zr, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ str(zr, Address(base, index_reg, Address::lsl(scale)));
+        __ str(zr, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ str(zr, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ str(zr, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2288,18 +2398,23 @@ encode %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strs(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strs(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ strs(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strs(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strs(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2309,18 +2424,23 @@ encode %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
-    int disp = $mem$$disp;
-    
+    int disp = $mem$$disp;    
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strd(src_reg, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strd(src_reg, Address(base, index_reg, Address::lsl(scale)));
+        __ strd(src_reg, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strd(src_reg, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strd(src_reg, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2330,21 +2450,27 @@ encode %{
     address con = (address)$src$$constant;
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
     // need to do this the hard way until we can manage relocs
     // for 32 bit constants
     __ movoop(rscratch2, (jobject)con);
     if (con) __ encode_heap_oop_not_null(rscratch2);
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strw(rscratch2, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strw(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+        __ strw(rscratch2, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strw(rscratch2, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
@@ -2354,24 +2480,31 @@ encode %{
     address con = (address)$src$$constant;
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
-    int scale = $mem$$scale;
     int disp = $mem$$disp;
     // need to do this the hard way until we can manage relocs
     // for 32 bit constants
     __ movoop(rscratch2, (jobject)con);
     __ encode_klass_not_null(rscratch2);
+
+    Address::extend scale;
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+      scale = Address::sxtw($mem$$scale);
+    else
+      scale = Address::lsl($mem$$scale);
+
     if (index == -1) {
       __ strw(rscratch2, Address(base, disp));
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        __ strw(rscratch2, Address(base, index_reg, Address::lsl(scale)));
+        __ strw(rscratch2, Address(base, index_reg, scale));
       } else {
         __ lea(rscratch1, Address(base, disp));
-	__ strw(rscratch2, Address(rscratch1, index_reg, Address::lsl(scale)));
+	__ strw(rscratch2, Address(rscratch1, index_reg, scale));
       } 
     }
   %}
+
   // this encoding writes the address of the first instruction in the
   // call sequence for the runtime call into the anchor pc slot. this
   // address allows the runtime to i) locate the code buffer for the
@@ -4699,7 +4832,7 @@ operand iRegL2I(iRegL reg) %{
 // memory is used to define read/write location for load/store
 // instruction defs. we can turn a memory op into an Address
 
-opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaled, indIndex, indOffI, indOffL);
+opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaledOffsetI2L, indIndexScaled, indIndex, indOffI, indOffL);
 
 // iRegIorL2I is used for src inputs in rules for 32 bit int (I)
 // operations. it allows the src to be either an iRegI or a (ConvL2I
