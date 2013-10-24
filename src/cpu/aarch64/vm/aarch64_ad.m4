@@ -130,6 +130,7 @@ instruct $4$1(iReg$1NoSp dst, iReg$1 src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= $2
             && (unsigned int)n->in(1)->in(2)->get_int() <= $2);
 
+  ins_cost(DEFAULT_COST);
   format %{ "$4  $dst, $src, $rshift_count - $lshift_count, #$2 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -153,6 +154,7 @@ define(`BFX_INSN',
 %{
   match(Set dst (And$1 ($2$1 src rshift) mask));
 
+  ins_cost(DEFAULT_COST);
   format %{ "$3 $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -172,6 +174,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
 %{
   match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
 
+  ins_cost(DEFAULT_COST);
   format %{ "ubfx $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -190,6 +193,7 @@ define(`EXTRACT_INSN',
   match(Set dst ($3$1 (LShift$1 src1 lshift) (URShift$1 src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & $2));
 
+  ins_cost(DEFAULT_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -210,6 +214,7 @@ define(`ADD_SUB_CONV', `
 instruct $3Ext$1(iReg$1NoSp dst, iReg$1 src1, iRegI src2, rFlagsReg cr)
 %{
   match(Set dst ($3$1 src1 (ConvI2L src2)));
+  ins_cost(DEFAULT_COST);
   format %{ "$4  $dst, $src1, $6 $src2" %}
 
    ins_encode %{
@@ -225,6 +230,7 @@ define(`ADD_SUB_EXTENDED', `
 instruct $3Ext$1_$6(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, immI_`'eval($7-$2) lshift, immI_`'eval($7-$2) rshift, rFlagsReg cr)
 %{
   match(Set dst ($3$1 src1 EXTEND($1, $4, src2, lshift, rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "$5  $dst, $src1, $6 $src2" %}
 
    ins_encode %{
@@ -246,6 +252,7 @@ define(`ADD_SUB_ZERO_EXTEND', `
 instruct $3Ext$1_$5_and(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, imm$1_$2 mask, rFlagsReg cr)
 %{
   match(Set dst ($3$1 src1 (And$1 src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "$4  $dst, $src1, $src2, $5" %}
 
    ins_encode %{

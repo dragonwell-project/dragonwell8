@@ -1815,6 +1815,7 @@ encode %{
     __ unimplemented("C2 catch all");    
   %}
 
+  // START BOGOSITY
   enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{   
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
@@ -1823,7 +1824,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1837,7 +1839,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrsbw(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1849,7 +1851,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1863,7 +1866,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrsb(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1875,7 +1878,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1889,7 +1893,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrb(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1901,7 +1905,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1915,7 +1920,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrb(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1927,7 +1932,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1941,7 +1947,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrshw(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1953,7 +1959,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1967,7 +1974,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrsh(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -1979,7 +1986,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -1993,7 +2001,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrh(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2005,7 +2013,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2019,7 +2028,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrh(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2031,7 +2040,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2045,7 +2055,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrw(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2057,7 +2067,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2071,7 +2082,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrw(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2083,7 +2094,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2097,7 +2109,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrsw(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2109,7 +2121,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2123,7 +2136,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldr(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2135,7 +2148,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2149,7 +2163,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrs(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2161,7 +2175,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2175,13 +2190,13 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ ldrd(dst_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
 
 
-  enc_class aarch64_enc_strb(iRegI src, memory mem) %{   
+  enc_class aarch64_enc_strb(iRegI src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2189,7 +2204,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2203,7 +2219,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strb(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2212,9 +2228,9 @@ encode %{
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
     int disp = $mem$$disp;
-
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2228,11 +2244,11 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strb(zr, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
-  enc_class aarch64_enc_strh(iRegI src, memory mem) %{   
+  enc_class aarch64_enc_strh(iRegI src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2240,7 +2256,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2254,7 +2271,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strh(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2263,9 +2280,9 @@ encode %{
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
     int disp = $mem$$disp;
-
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2279,11 +2296,11 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strh(zr, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
-  enc_class aarch64_enc_strw(iRegI src, memory mem) %{   
+  enc_class aarch64_enc_strw(iRegI src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2291,7 +2308,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2305,7 +2323,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strw(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2314,9 +2332,9 @@ encode %{
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
     int disp = $mem$$disp;
-
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2330,11 +2348,11 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strw(zr, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
-  enc_class aarch64_enc_str(iRegL src, memory mem) %{   
+  enc_class aarch64_enc_str(iRegL src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2350,7 +2368,8 @@ encode %{
 
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2364,7 +2383,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ str(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2373,9 +2392,9 @@ encode %{
     Register base = as_Register($mem$$base);
     int index = $mem$$index;
     int disp = $mem$$disp;
-
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2389,11 +2408,11 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ str(zr, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
-  enc_class aarch64_enc_strs(vRegF src, memory mem) %{   
+  enc_class aarch64_enc_strs(vRegF src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2401,7 +2420,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2415,11 +2435,11 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strs(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
-  enc_class aarch64_enc_strd(vRegD src, memory mem) %{   
+  enc_class aarch64_enc_strd(vRegD src, memory mem) %{  
     MacroAssembler _masm(&cbuf);
     FloatRegister src_reg = as_FloatRegister($src$$reg);
     Register base = as_Register($mem$$base);
@@ -2427,7 +2447,8 @@ encode %{
     int disp = $mem$$disp;    
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2441,7 +2462,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strd(src_reg, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2457,7 +2478,8 @@ encode %{
     if (con) __ encode_heap_oop_not_null(rscratch2);
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2471,7 +2493,7 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strw(rscratch2, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
 
@@ -2487,7 +2509,8 @@ encode %{
     __ encode_klass_not_null(rscratch2);
 
     Address::extend scale;
-    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L)
+    if ($mem->opcode() == INDINDEXSCALEDOFFSETI2L
+       || $mem->opcode() == INDINDEXSCALEDI2L)
       scale = Address::sxtw($mem$$scale);
     else
       scale = Address::lsl($mem$$scale);
@@ -2501,9 +2524,10 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ strw(rscratch2, Address(rscratch1, index_reg, scale));
-      } 
+      }
     }
   %}
+  // END BOGOSITY
 
   // this encoding writes the address of the first instruction in the
   // call sequence for the runtime call into the anchor pc slot. this
@@ -4567,15 +4591,11 @@ operand indirect(iRegP reg)
   %}
 %}
 
-// TODO this is the pattern used by x86/ppc but for aarch64 extended
-// reg we probably want to match (LShiftI ireg scale) need to see if
-// the ideal code will ever generate an LShiftI
-
 operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIAddSub off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
-  op_cost(DEFAULT_COST_LOW);
+  op_cost(DEFAULT_COST);
   format %{ "$reg, $lreg lsl($scale), $off" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -4589,7 +4609,7 @@ operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLAddSub
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
-  op_cost(DEFAULT_COST_LOW);
+  op_cost(DEFAULT_COST);
   format %{ "$reg, $lreg lsl($scale), $off" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -4604,12 +4624,26 @@ operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLAddS
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL (ConvI2L ireg) scale)) off);
   op_cost(DEFAULT_COST);
-  format %{ "$reg, $ireg lsl($scale), $off I2L" %}
+  format %{ "$reg, $ireg sxtw($scale), $off I2L" %}
   interface(MEMORY_INTER) %{
     base($reg);
     index($ireg);
     scale($scale);
     disp($off);
+  %}
+%}
+
+operand indIndexScaledI2L(iRegP reg, iRegI ireg, immIScale scale)
+%{
+  constraint(ALLOC_IN_RC(ptr_reg));
+  match(AddP reg (LShiftL (ConvI2L ireg) scale));
+  op_cost(0);
+  format %{ "$reg, $ireg sxtw($scale), 0, I2L" %}
+  interface(MEMORY_INTER) %{
+    base($reg);
+    index($ireg);
+    scale($scale);
+    disp(0x0);
   %}
 %}
 
@@ -4631,7 +4665,7 @@ operand indIndex(iRegP reg, iRegL lreg)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg lreg);
-  op_cost(40);
+  op_cost(0);
   format %{ "$reg, $lreg" %}
   interface(MEMORY_INTER) %{
     base($reg);
@@ -4832,7 +4866,7 @@ operand iRegL2I(iRegL reg) %{
 // memory is used to define read/write location for load/store
 // instruction defs. we can turn a memory op into an Address
 
-opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaledOffsetI2L, indIndexScaled, indIndex, indOffI, indOffL);
+opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaledOffsetI2L, indIndexScaled, indIndexScaledI2L, indIndex, indOffI, indOffL);
 
 // iRegIorL2I is used for src inputs in rules for 32 bit int (I)
 // operations. it allows the src to be either an iRegI or a (ConvL2I
@@ -6218,6 +6252,7 @@ instruct membar_release_lock() %{
 instruct castX2P(iRegPNoSp dst, iRegL src) %{
   match(Set dst (CastX2P src));
 
+  ins_cost(DEFAULT_COST);
   format %{ "mov $dst, $src\t# long -> ptr" %}
 
   ins_encode %{
@@ -6232,6 +6267,7 @@ instruct castX2P(iRegPNoSp dst, iRegL src) %{
 instruct castP2X(iRegLNoSp dst, iRegP src) %{
   match(Set dst (CastP2X src));
 
+  ins_cost(DEFAULT_COST);
   format %{ "mov $dst, $src\t# ptr -> long" %}
 
   ins_encode %{
@@ -6247,6 +6283,7 @@ instruct castP2X(iRegLNoSp dst, iRegP src) %{
 instruct convP2I(iRegINoSp dst, iRegP src) %{
   match(Set dst (ConvL2I (CastP2X src)));
 
+  ins_cost(DEFAULT_COST);
   format %{ "movw $dst, $src\t# ptr -> int" %}
   ins_encode %{
     __ movw($dst$$Register, $src$$Register);
@@ -6262,6 +6299,7 @@ instruct convN2I(iRegINoSp dst, iRegN src)
   predicate(Universe::narrow_oop_shift() == 0);
   match(Set dst (ConvL2I (CastP2X (DecodeN src))));
 
+  ins_cost(DEFAULT_COST);
   format %{ "mov dst, $src\t# compressed ptr -> int" %}
   ins_encode %{
     __ movw($dst$$Register, $src$$Register);
@@ -6275,6 +6313,7 @@ instruct convN2I(iRegINoSp dst, iRegN src)
 instruct encodeHeapOop(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   predicate(n->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
   match(Set dst (EncodeP src));
+  ins_cost(DEFAULT_COST * 3);
   effect(KILL cr);
   format %{ "encode_heap_oop $dst, $src" %}
   ins_encode %{
@@ -6292,6 +6331,7 @@ instruct encodeHeapOop_not_null(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   predicate(n->bottom_type()->make_ptr()->ptr() == TypePtr::NotNull);
   match(Set dst (EncodeP src));
   effect(KILL cr);
+  ins_cost(DEFAULT_COST * 3);
   format %{ "encode_heap_oop_not_null $dst, $src" %}
   ins_encode %{
     __ encode_heap_oop_not_null($dst$$Register, $src$$Register);
@@ -6304,6 +6344,7 @@ instruct decodeHeapOop(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
             n->bottom_type()->is_ptr()->ptr() != TypePtr::Constant);
   match(Set dst (DecodeN src));
   effect(KILL cr);
+  ins_cost(DEFAULT_COST * 3);
   format %{ "decode_heap_oop $dst, $src" %}
   ins_encode %{
     Register s = $src$$Register;
@@ -6323,6 +6364,7 @@ instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
             n->bottom_type()->is_ptr()->ptr() == TypePtr::Constant);
   match(Set dst (DecodeN src));
   effect(KILL cr);
+  ins_cost(DEFAULT_COST * 3);
   format %{ "decode_heap_oop_not_null $dst, $src" %}
   ins_encode %{
     Register s = $src$$Register;
@@ -6343,6 +6385,7 @@ instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
 instruct encodeKlass_not_null(iRegNNoSp dst, iRegP src) %{
   match(Set dst (EncodePKlass src));
 
+  ins_cost(DEFAULT_COST * 3);
   format %{ "encode_klass_not_null $dst,$src" %}
 
   ins_encode %{
@@ -6357,6 +6400,7 @@ instruct encodeKlass_not_null(iRegNNoSp dst, iRegP src) %{
 instruct decodeKlass_not_null(iRegPNoSp dst, iRegN src) %{
   match(Set dst (DecodeNKlass src));
 
+  ins_cost(DEFAULT_COST * 3);
   format %{ "decode_klass_not_null $dst,$src" %}
 
   ins_encode %{
@@ -7179,6 +7223,51 @@ instruct addP_reg_reg(iRegPNoSp dst, iRegP src1, iRegL src2) %{
     __ add(as_Register($dst$$reg),
            as_Register($src1$$reg),
            as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addP_reg_reg_ext(iRegPNoSp dst, iRegP src1, iRegI src2) %{
+  match(Set dst (AddP src1 (ConvI2L src2)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2\t# ptr" %}
+
+  ins_encode %{
+    __ add(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           as_Register($src2$$reg), ext::sxtw);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addP_reg_reg_lsl(iRegPNoSp dst, iRegP src1, iRegL src2, immIScale scale) %{
+  match(Set dst (AddP src1 (LShiftL src2 scale)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2, LShiftL $scale\t# ptr" %}
+
+  ins_encode %{
+    __ lea(as_Register($dst$$reg),
+	   Address(as_Register($src1$$reg), as_Register($src2$$reg),
+		   Address::lsl($scale$$constant)));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegI src2, immIScale scale) %{
+  match(Set dst (AddP src1 (LShiftL (ConvI2L src2) scale)));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "add $dst, $src1, $src2, I2L $scale\t# ptr" %}
+
+  ins_encode %{
+    __ lea(as_Register($dst$$reg),
+	   Address(as_Register($src1$$reg), as_Register($src2$$reg),
+		   Address::sxtw($scale$$constant)));
   %}
 
   ins_pipe(pipe_class_default);
@@ -8753,6 +8842,7 @@ instruct sbfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= 63
             && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
 
+  ins_cost(DEFAULT_COST);
   format %{ "sbfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -8775,6 +8865,7 @@ instruct sbfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= 31
             && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
 
+  ins_cost(DEFAULT_COST);
   format %{ "sbfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -8797,6 +8888,7 @@ instruct ubfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= 63
             && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
 
+  ins_cost(DEFAULT_COST);
   format %{ "ubfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -8819,6 +8911,7 @@ instruct ubfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= 31
             && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
 
+  ins_cost(DEFAULT_COST);
   format %{ "ubfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -8833,16 +8926,17 @@ instruct ubfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
 %}
 // Bitfield extract with shift & mask
 
-instruct ubfxI(iRegINoSp dst, iRegI src, immI rshift, immI_bitmask mask)
+instruct ubfxwI(iRegINoSp dst, iRegI src, immI rshift, immI_bitmask mask)
 %{
   match(Set dst (AndI (URShiftI src rshift) mask));
 
-  format %{ "ubfx $dst, $src, $mask" %}
+  ins_cost(DEFAULT_COST);
+  format %{ "ubfxw $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
     long mask = $mask$$constant;
     int width = exact_log2(mask+1);
-    __ ubfx(as_Register($dst$$reg),
+    __ ubfxw(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
   ins_pipe(pipe_class_default);
@@ -8851,6 +8945,7 @@ instruct ubfxL(iRegLNoSp dst, iRegL src, immI rshift, immL_bitmask mask)
 %{
   match(Set dst (AndL (URShiftL src rshift) mask));
 
+  ins_cost(DEFAULT_COST);
   format %{ "ubfx $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -8868,6 +8963,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
 %{
   match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
 
+  ins_cost(DEFAULT_COST);
   format %{ "ubfx $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -8885,6 +8981,7 @@ instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift
   match(Set dst (OrL (LShiftL src1 lshift) (URShiftL src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
 
+  ins_cost(DEFAULT_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -8899,6 +8996,7 @@ instruct extrOrI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift
   match(Set dst (OrI (LShiftI src1 lshift) (URShiftI src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
 
+  ins_cost(DEFAULT_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -8913,6 +9011,7 @@ instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshif
   match(Set dst (AddL (LShiftL src1 lshift) (URShiftL src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
 
+  ins_cost(DEFAULT_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -8927,6 +9026,7 @@ instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshif
   match(Set dst (AddI (LShiftI src1 lshift) (URShiftI src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
 
+  ins_cost(DEFAULT_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -8942,6 +9042,7 @@ instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshif
 instruct AddExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (ConvI2L src2)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1,  $src2" %}
 
    ins_encode %{
@@ -8954,6 +9055,7 @@ instruct AddExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 instruct SubExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
   match(Set dst (SubI src1 (ConvI2L src2)));
+  ins_cost(DEFAULT_COST);
   format %{ "sub  $dst, $src1,  $src2" %}
 
    ins_encode %{
@@ -8967,6 +9069,7 @@ instruct SubExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 instruct AddExtI_sxth(iRegINoSp dst, iRegI src1, iRegI src2, immI_16 lshift, immI_16 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (RShiftI (LShiftI src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, sxth $src2" %}
 
    ins_encode %{
@@ -8979,6 +9082,7 @@ instruct AddExtI_sxth(iRegINoSp dst, iRegI src1, iRegI src2, immI_16 lshift, imm
 instruct AddExtI_sxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (RShiftI (LShiftI src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, sxtb $src2" %}
 
    ins_encode %{
@@ -8991,6 +9095,7 @@ instruct AddExtI_sxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, imm
 instruct AddExtI_uxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (URShiftI (LShiftI src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, uxtb $src2" %}
 
    ins_encode %{
@@ -9003,6 +9108,7 @@ instruct AddExtI_uxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, imm
 instruct AddExtL_sxth(iRegLNoSp dst, iRegL src1, iRegL src2, immI_48 lshift, immI_48 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, sxth $src2" %}
 
    ins_encode %{
@@ -9015,6 +9121,7 @@ instruct AddExtL_sxth(iRegLNoSp dst, iRegL src1, iRegL src2, immI_48 lshift, imm
 instruct AddExtL_sxtw(iRegLNoSp dst, iRegL src1, iRegL src2, immI_32 lshift, immI_32 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, sxtw $src2" %}
 
    ins_encode %{
@@ -9027,6 +9134,7 @@ instruct AddExtL_sxtw(iRegLNoSp dst, iRegL src1, iRegL src2, immI_32 lshift, imm
 instruct AddExtL_sxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (RShiftL (LShiftL src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, sxtb $src2" %}
 
    ins_encode %{
@@ -9039,6 +9147,7 @@ instruct AddExtL_sxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, imm
 instruct AddExtL_uxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (URShiftL (LShiftL src2 lshift) rshift)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, uxtb $src2" %}
 
    ins_encode %{
@@ -9052,6 +9161,7 @@ instruct AddExtL_uxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, imm
 instruct AddExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (AndI src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "addw  $dst, $src1, $src2, uxtb" %}
 
    ins_encode %{
@@ -9064,6 +9174,7 @@ instruct AddExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, 
 instruct AddExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
 %{
   match(Set dst (AddI src1 (AndI src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "addw  $dst, $src1, $src2, uxth" %}
 
    ins_encode %{
@@ -9076,6 +9187,7 @@ instruct AddExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask
 instruct AddExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, $src2, uxtb" %}
 
    ins_encode %{
@@ -9088,6 +9200,7 @@ instruct AddExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, 
 instruct AddExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, $src2, uxth" %}
 
    ins_encode %{
@@ -9100,6 +9213,7 @@ instruct AddExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask
 instruct AddExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "add  $dst, $src1, $src2, uxtw" %}
 
    ins_encode %{
@@ -9112,6 +9226,7 @@ instruct AddExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295
 instruct SubExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, rFlagsReg cr)
 %{
   match(Set dst (SubI src1 (AndI src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "subw  $dst, $src1, $src2, uxtb" %}
 
    ins_encode %{
@@ -9124,6 +9239,7 @@ instruct SubExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, 
 instruct SubExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
 %{
   match(Set dst (SubI src1 (AndI src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "subw  $dst, $src1, $src2, uxth" %}
 
    ins_encode %{
@@ -9136,6 +9252,7 @@ instruct SubExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask
 instruct SubExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
 %{
   match(Set dst (SubL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "sub  $dst, $src1, $src2, uxtb" %}
 
    ins_encode %{
@@ -9148,6 +9265,7 @@ instruct SubExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, 
 instruct SubExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
 %{
   match(Set dst (SubL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "sub  $dst, $src1, $src2, uxth" %}
 
    ins_encode %{
@@ -9160,6 +9278,7 @@ instruct SubExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask
 instruct SubExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
 %{
   match(Set dst (SubL src1 (AndL src2 mask)));
+  ins_cost(DEFAULT_COST);
   format %{ "sub  $dst, $src1, $src2, uxtw" %}
 
    ins_encode %{
@@ -9637,6 +9756,7 @@ instruct xorL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2) %{
 instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
   match(Set dst (XorL src1 src2));
 
+  ins_cost(DEFAULT_COST);
   format %{ "eor  $dst, $src1, $src2\t# int" %}
 
   ins_encode %{
@@ -9652,6 +9772,7 @@ instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
 %{
   match(Set dst (ConvI2L src));
 
+  ins_cost(DEFAULT_COST);
   format %{ "sxtw  $dst, $src\t# i2l" %}
   ins_encode %{
     __ sbfm($dst$$Register, $src$$Register, 0, 31);
