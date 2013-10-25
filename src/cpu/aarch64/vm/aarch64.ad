@@ -1776,7 +1776,7 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
 // Used for all non-volatile memory accesses.  The use of
 // $mem->opcode() to discover whether this pattern uses sign-extended
 // offsets is something of a kludge.
-#define LOAD_STORE(INSN, REG, OPCODE, BASE, INDEX, SCALE, DISP)	\
+#define LOAD_STORE(MASM, INSN, REG, OPCODE, BASE, INDEX, SCALE, DISP)	\
   {								\
     Address::extend scale;					\
     if (OPCODE == INDINDEXSCALEDOFFSETI2L			\
@@ -1789,7 +1789,7 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
       __ INSN(REG, Address(BASE, DISP));			\
     } else {							\
       Register index_reg = as_Register(INDEX);			\
-      if (disp == 0) {						\
+      if (DISP == 0) {						\
         __ INSN(REG, Address(BASE, index_reg, scale));		\
       } else {							\
         __ lea(rscratch1, Address(BASE, DISP));			\
@@ -1848,220 +1848,148 @@ encode %{
   enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrsbw,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrsbw,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrsb(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrsb,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrsb,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrb(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrb,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrb,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrb(iRegL dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrb,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrb,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrshw(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrshw,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrshw,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrsh(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrsh,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrsh,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrh(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrh,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrh,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrh(iRegL dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrh,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrh,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrw(iRegI dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrw,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrw,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrw(iRegL dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrw,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrw,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrsw(iRegL dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrsw,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrsw,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldr(iRegL dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldr,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldr,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrs(vRegF dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrs,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrs,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_ldrd(vRegD dst, memory mem) %{
     MacroAssembler _masm(&cbuf);
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(ldrd,dst_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,ldrd,dst_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strb(iRegI src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strb,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strb,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strb0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strb,zr,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strb,zr,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strh(iRegI src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strh,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strh,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strh0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strh,zr,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strh,zr,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strw(iRegI src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strw,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strw,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strw0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strw,zr,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strw,zr,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_str(iRegL src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     Register src_reg = as_Register($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
     // we sometimes get asked to store the stack pointer into the
     // current thread -- we cannot do that directly on AArch64
     if (src_reg == r31_sp) {
-      assert(base == rthread, "unexpected store for sp");
+      assert(as_Register($mem$$base) == rthread, "unexpected store for sp");
       __ mov(rscratch2, sp);
       src_reg = rscratch2;
     }
-    LOAD_STORE(str,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,str,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_str0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(str,zr,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,str,zr,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strs(vRegF src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strs,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strs,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strd(vRegD src, memory mem) %{
     MacroAssembler _masm(&cbuf);
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int disp = $mem$$disp;
-    LOAD_STORE(strd,src_reg,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strd,src_reg,$mem->opcode(),as_Register($mem$$base),$mem$$index,$mem$$scale,$mem$$disp)
   %}
 
   enc_class aarch64_enc_strw_immn(immN src, memory mem) %{
@@ -2074,7 +2002,7 @@ encode %{
     // for 32 bit constants
     __ movoop(rscratch2, (jobject)con);
     if (con) __ encode_heap_oop_not_null(rscratch2);
-    LOAD_STORE(strw,rscratch2,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strw,rscratch2,$mem->opcode(),base,index,$mem$$scale,disp)
   %}
 
   enc_class aarch64_enc_strw_immnk(immN src, memory mem) %{
@@ -2087,7 +2015,7 @@ encode %{
     // for 32 bit constants
     __ movoop(rscratch2, (jobject)con);
     __ encode_klass_not_null(rscratch2);
-    LOAD_STORE(strw,rscratch2,$mem->opcode(),base,index,$mem$$scale,disp)
+    LOAD_STORE(_masm,strw,rscratch2,$mem->opcode(),base,index,$mem$$scale,disp)
   %}
 
   // END Non-volatile memory access
