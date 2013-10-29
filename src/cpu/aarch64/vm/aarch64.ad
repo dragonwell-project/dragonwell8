@@ -3478,6 +3478,16 @@ operand immI_56()
   interface(CONST_INTER);
 %}
 
+operand immI_64()
+%{
+  predicate(n->get_int() == 64);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 operand immI_255()
 %{
   predicate(n->get_int() == 255);
@@ -6974,10 +6984,26 @@ instruct mulL(iRegLNoSp dst, iRegL src1, iRegL src2) %{
   ins_pipe(pipe_class_default);
 %}
 
+instruct mulHiL_rReg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr)
+%{
+  match(Set dst (MulHiL src1 src2));
+
+  ins_cost(2 * DEFAULT_COST);
+  format %{ "smulh   $dst, $src1, $src2, \t# mulhi" %}
+
+  ins_encode %{
+    __ smulh(as_Register($dst$$reg),
+             as_Register($src1$$reg),
+	     as_Register($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // Combined Integer Multiply & Add/Sub
 
 instruct maddI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3) %{
-  match(Set dst (AddI (MulI src1 src2) src3));
+  match(Set dst (AddI src3 (MulI src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "madd  $dst, $src1, $src2, $src3" %}
@@ -6993,7 +7019,7 @@ instruct maddI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3)
 %}
 
 instruct msubI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3) %{
-  match(Set dst (SubI (MulI src1 src2) src3));
+  match(Set dst (SubI src3 (MulI src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "msub  $dst, $src1, $src2, $src3" %}
@@ -7011,7 +7037,7 @@ instruct msubI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3)
 // Combined Long Multiply & Add/Sub
 
 instruct maddL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
-  match(Set dst (AddL (MulL src1 src2) src3));
+  match(Set dst (AddL src3 (MulL src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "madd  $dst, $src1, $src2, $src3" %}
@@ -7027,7 +7053,7 @@ instruct maddL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
 %}
 
 instruct msubL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
-  match(Set dst (SubL (MulL src1 src2) src3));
+  match(Set dst (SubL src3 (MulL src1 src2)));
 
   ins_cost(DEFAULT_COST);
   format %{ "msub  $dst, $src1, $src2, $src3" %}
@@ -7312,14 +7338,6 @@ instruct rShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
   ins_pipe(pipe_class_default);
 %}
 // BEGIN This section of the file is automatically generated. Do not edit --------------
-
-
-
-
-
-
-
-
 
 instruct regL_not_reg(iRegLNoSp dst,
                          iRegL src1, immL_M1 m1,
@@ -8493,6 +8511,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
   %}
   ins_pipe(pipe_class_default);
 %}
+
 // Rotations
 
 instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
@@ -8555,8 +8574,142 @@ instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshif
   ins_pipe(pipe_class_default);
 %}
 
-// Add/subtract (extended)
 
+// rol expander
+
+instruct rolL_rReg(iRegL dst, iRegL src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "rol    $dst, $src, $shift" %}
+  ins_cost(2*DEFAULT_COST);
+  ins_encode %{
+    __ subw(rscratch1, zr, as_Register($shift$$reg));
+    __ rorv(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}
+
+// rol expander
+
+instruct rolI_rReg(iRegI dst, iRegI src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "rol    $dst, $src, $shift" %}
+  ins_cost(2*DEFAULT_COST);
+  ins_encode %{
+    __ subw(rscratch1, zr, as_Register($shift$$reg));
+    __ rorvw(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct rolL_rReg_Var_C_64(iRegL dst, iRegL src, iRegI shift, immI_64 c_64, rFlagsReg cr)
+%{
+  match(Set dst (OrL (LShiftL src shift) (URShiftL src (SubI c_64 shift))));
+
+  expand %{
+    rolL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rolL_rReg_Var_C0(iRegL dst, iRegL src, iRegI shift, immI0 c0, rFlagsReg cr)
+%{
+  match(Set dst (OrL (LShiftL src shift) (URShiftL src (SubI c0 shift))));
+
+  expand %{
+    rolL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rolI_rReg_Var_C_32(iRegL dst, iRegL src, iRegI shift, immI_32 c_32, rFlagsReg cr)
+%{
+  match(Set dst (OrI (LShiftI src shift) (URShiftI src (SubI c_32 shift))));
+
+  expand %{
+    rolL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rolI_rReg_Var_C0(iRegL dst, iRegL src, iRegI shift, immI0 c0, rFlagsReg cr)
+%{
+  match(Set dst (OrI (LShiftI src shift) (URShiftI src (SubI c0 shift))));
+
+  expand %{
+    rolL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+// ror expander
+
+instruct rorL_rReg(iRegL dst, iRegL src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "ror    $dst, $src, $shift" %}
+  ins_cost(DEFAULT_COST);
+  ins_encode %{
+    __ rorv(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}
+
+// ror expander
+
+instruct rorI_rReg(iRegI dst, iRegI src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "ror    $dst, $src, $shift" %}
+  ins_cost(DEFAULT_COST);
+  ins_encode %{
+    __ rorvw(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct rorL_rReg_Var_C_64(iRegL dst, iRegL src, iRegI shift, immI_64 c_64, rFlagsReg cr)
+%{
+  match(Set dst (OrL (URShiftL src shift) (LShiftL src (SubI c_64 shift))));
+
+  expand %{
+    rorL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rorL_rReg_Var_C0(iRegL dst, iRegL src, iRegI shift, immI0 c0, rFlagsReg cr)
+%{
+  match(Set dst (OrL (URShiftL src shift) (LShiftL src (SubI c0 shift))));
+
+  expand %{
+    rorL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rorI_rReg_Var_C_32(iRegL dst, iRegL src, iRegI shift, immI_32 c_32, rFlagsReg cr)
+%{
+  match(Set dst (OrI (URShiftI src shift) (LShiftI src (SubI c_32 shift))));
+
+  expand %{
+    rorL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+instruct rorI_rReg_Var_C0(iRegL dst, iRegL src, iRegI shift, immI0 c0, rFlagsReg cr)
+%{
+  match(Set dst (OrI (URShiftI src shift) (LShiftI src (SubI c0 shift))));
+
+  expand %{
+    rorL_rReg(dst, src, shift, cr);
+  %}
+%}
+
+// Add/subtract (extended)
 
 instruct AddExtI(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
@@ -8806,15 +8959,11 @@ instruct SubExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295
    %}
   ins_pipe(pipe_class_default);
 %}
+
 // END This section of the file is automatically generated. Do not edit --------------
 // Combined Long Mask and Right Shift (using UBFM)
 // TODO
 
-// Integer Rotate Instructions
-// TODO
-
-// Long Rotate Instructions
-// TODO
 
 // ============================================================================
 // Floating Point Arithmetic Instructions

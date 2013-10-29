@@ -1,4 +1,5 @@
 // BEGIN This section of the file is automatically generated. Do not edit --------------
+
 define(`BASE_SHIFT_INSN',
 `
 instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
@@ -18,7 +19,7 @@ instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
   %}
 
   ins_pipe(pipe_class_default);
-%}')
+%}')dnl
 define(`BASE_INVERTED_INSN',
 `
 instruct $2$1_reg_not_reg(iReg$1NoSp dst,
@@ -40,7 +41,7 @@ dnl into this canonical form.
   %}
 
   ins_pipe(pipe_class_default);
-%}')
+%}')dnl
 define(`INVERTED_SHIFT_INSN',
 `
 instruct $2$1_reg_$4_not_reg(iReg$1NoSp dst,
@@ -63,7 +64,7 @@ dnl into this canonical form.
   %}
 
   ins_pipe(pipe_class_default);
-%}')
+%}')dnl
 define(`NOT_INSN',
 `instruct reg$1_not_reg(iReg$1NoSp dst,
                          iReg$1 src1, imm$1_M1 m1,
@@ -80,29 +81,29 @@ define(`NOT_INSN',
   %}
 
   ins_pipe(pipe_class_default);
-%}')
+%}')dnl
 dnl
 define(`BOTH_SHIFT_INSNS',
 `BASE_SHIFT_INSN(I, $1, ifelse($2,andr,andw,$2w), $3, $4)
-BASE_SHIFT_INSN(L, $1, $2, $3, $4)')
+BASE_SHIFT_INSN(L, $1, $2, $3, $4)')dnl
 dnl
 define(`BOTH_INVERTED_INSNS',
 `BASE_INVERTED_INSN(I, $1, $2, $3, $4)
-BASE_INVERTED_INSN(L, $1, $2, $3, $4)')
+BASE_INVERTED_INSN(L, $1, $2, $3, $4)')dnl
 dnl
 define(`BOTH_INVERTED_SHIFT_INSNS',
 `INVERTED_SHIFT_INSN(I, $1, $2w, $3, $4, ~0, int)
-INVERTED_SHIFT_INSN(L, $1, $2, $3, $4, ~0l, long)')
+INVERTED_SHIFT_INSN(L, $1, $2, $3, $4, ~0l, long)')dnl
 dnl
 define(`ALL_SHIFT_KINDS',
 `BOTH_SHIFT_INSNS($1, $2, URShift, LSR)
 BOTH_SHIFT_INSNS($1, $2, RShift, ASR)
-BOTH_SHIFT_INSNS($1, $2, LShift, LSL)')
+BOTH_SHIFT_INSNS($1, $2, LShift, LSL)')dnl
 dnl
 define(`ALL_INVERTED_SHIFT_KINDS',
 `BOTH_INVERTED_SHIFT_INSNS($1, $2, URShift, LSR)
 BOTH_INVERTED_SHIFT_INSNS($1, $2, RShift, ASR)
-BOTH_INVERTED_SHIFT_INSNS($1, $2, LShift, LSL)')
+BOTH_INVERTED_SHIFT_INSNS($1, $2, LShift, LSL)')dnl
 dnl
 NOT_INSN(L, eon)
 NOT_INSN(I, eonw)
@@ -185,8 +186,9 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
   %}
   ins_pipe(pipe_class_default);
 %}
-dnl
+
 // Rotations
+
 define(`EXTRACT_INSN',
 `instruct extr$3$1(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
@@ -202,12 +204,73 @@ define(`EXTRACT_INSN',
   %}
   ins_pipe(pipe_class_default);
 %}
-')
+')dnl
 EXTRACT_INSN(L, 63, Or, extr)
 EXTRACT_INSN(I, 31, Or, extrw)
 EXTRACT_INSN(L, 63, Add, extr)
 EXTRACT_INSN(I, 31, Add, extrw)
-dnl
+define(`ROL_EXPAND', `
+// $2 expander
+
+instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "$2    $dst, $src, $shift" %}
+  ins_cost(2*DEFAULT_COST);
+  ins_encode %{
+    __ subw(rscratch1, zr, as_Register($shift$$reg));
+    __ $3(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}')dnl
+define(`ROR_EXPAND', `
+// $2 expander
+
+instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
+%{
+  effect(DEF dst, USE src, USE shift);
+
+  format %{ "$2    $dst, $src, $shift" %}
+  ins_cost(DEFAULT_COST);
+  ins_encode %{
+    __ $3(as_Register($dst$$reg), as_Register($src$$reg),
+	    rscratch1);
+    %}
+  ins_pipe(pipe_class_default);
+%}')dnl
+define(ROL_INSN, `
+instruct $3$1_rReg_Var_C$2(iRegL dst, iRegL src, iRegI shift, immI$2 c$2, rFlagsReg cr)
+%{
+  match(Set dst (Or$1 (LShift$1 src shift) (URShift$1 src (SubI c$2 shift))));
+
+  expand %{
+    $3L_rReg(dst, src, shift, cr);
+  %}
+%}')dnl
+define(ROR_INSN, `
+instruct $3$1_rReg_Var_C$2(iRegL dst, iRegL src, iRegI shift, immI$2 c$2, rFlagsReg cr)
+%{
+  match(Set dst (Or$1 (URShift$1 src shift) (LShift$1 src (SubI c$2 shift))));
+
+  expand %{
+    $3L_rReg(dst, src, shift, cr);
+  %}
+%}')dnl
+ROL_EXPAND(L, rol, rorv)
+ROL_EXPAND(I, rol, rorvw)
+ROL_INSN(L, _64, rol)
+ROL_INSN(L, 0, rol)
+ROL_INSN(I, _32, rol)
+ROL_INSN(I, 0, rol)
+ROR_EXPAND(L, ror, rorv)
+ROR_EXPAND(I, ror, rorvw)
+ROR_INSN(L, _64, ror)
+ROR_INSN(L, 0, ror)
+ROR_INSN(I, _32, ror)
+ROR_INSN(I, 0, ror)
+
 // Add/subtract (extended)
 dnl ADD_SUB_EXTENDED(mode, size, add node, shift node, insn, shift type, wordsize
 define(`ADD_SUB_CONV', `
@@ -222,7 +285,7 @@ instruct $3Ext$1(iReg$1NoSp dst, iReg$1 src1, iRegI src2, rFlagsReg cr)
             as_Register($src2$$reg), ext::$5);
    %}
   ins_pipe(pipe_class_default);
-%}')
+%}')dnl
 ADD_SUB_CONV(I,L,Add,add,sxtw);
 ADD_SUB_CONV(I,L,Sub,sub,sxtw);
 dnl
@@ -273,4 +336,5 @@ ADD_SUB_ZERO_EXTEND(I,65535,Sub,subw,uxth)
 ADD_SUB_ZERO_EXTEND(L,255,Sub,sub,uxtb)
 ADD_SUB_ZERO_EXTEND(L,65535,Sub,sub,uxth)
 ADD_SUB_ZERO_EXTEND(L,4294967295,Sub,sub,uxtw)
+
 // END This section of the file is automatically generated. Do not edit --------------
