@@ -89,16 +89,15 @@ class MacroAssembler: public Assembler {
 
   void call_VM_helper(Register oop_result, address entry_point, int number_of_arguments, bool check_exceptions = true);
 
-  // Maximum size of class area in Metaspace when compressed
   uint64_t use_XOR_for_compressed_class_base;
 
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {
     use_XOR_for_compressed_class_base
       = (operand_valid_for_logical_immediate(false /*is32*/,
-					     (uint64_t)Universe::narrow_klass_base())
-	 && ((uint64_t)Universe::narrow_klass_base()
-	     > (1u << log2_intptr(CompressedClassSpaceSize))));
+                                            (uint64_t)Universe::narrow_klass_base())
+        && ((uint64_t)Universe::narrow_klass_base()
+            > (1u << log2_intptr(CompressedClassSpaceSize))));
   }
 
   // Biased locking support
@@ -1023,12 +1022,10 @@ public:
   // Arithmetics
 
   void addptr(Address dst, int32_t src) {
-    lea(rscratch2, dst);
-    ldr(rscratch1, Address(rscratch2));
+    ldr(rscratch1, dst);
     add(rscratch1, rscratch1, src);
-    str(rscratch1, Address(rscratch2));
-  }
-
+    str(rscratch1, dst);
+}
   // unimplemented
 #if 0
   void addptr(Address dst, Register src);

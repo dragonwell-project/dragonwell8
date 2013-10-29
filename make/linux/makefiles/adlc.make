@@ -181,7 +181,7 @@ $(ADLC_UPDATER): $(ADLC_UPDATER_DIRECTORY)/$(ADLC_UPDATER)
 # 5) If we actually updated any files, echo a notice.
 #
 refresh_adfiles: $(EXEC) $(SOURCE.AD) $(ADLC_UPDATER)
-	mkdir -p  $(TEMPDIR)
+	@rm -rf $(TEMPDIR); mkdir $(TEMPDIR)
 	$(QUIETLY) $(EXEC) $(ADLCFLAGS) $(SOURCE.AD) \
  -c$(TEMPDIR)/ad_$(Platform_arch_model).cpp -h$(TEMPDIR)/ad_$(Platform_arch_model).hpp -a$(TEMPDIR)/dfa_$(Platform_arch_model).cpp -v$(TEMPDIR)/adGlobals_$(Platform_arch_model).hpp \
 	    || { rm -rf $(TEMPDIR); exit 1; }
@@ -198,6 +198,8 @@ refresh_adfiles: $(EXEC) $(SOURCE.AD) $(ADLC_UPDATER)
 	$(QUIETLY) ./$(ADLC_UPDATER) dfa_$(Platform_arch_model).cpp $(TEMPDIR) $(OUTDIR)
 	$(QUIETLY) [ -f $(TEMPDIR)/made-change ] \
 		|| echo "Rescanned $(SOURCE.AD) but encountered no changes."
+	$(QUIETLY) rm -rf $(TEMPDIR)
+
 
 # #########################################################################
 
