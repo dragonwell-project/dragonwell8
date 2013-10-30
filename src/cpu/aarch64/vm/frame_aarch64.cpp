@@ -710,11 +710,11 @@ intptr_t* frame::real_fp() const {
 
 #undef DESCRIBE_FP_OFFSET
 
-#define DESCRIBE_FP_OFFSET(name)				\
-  {								\
-    unsigned long *p = (unsigned long *)fp;			\
-    printf("0x%016lx 0x%016lx %s\n", p + frame::name##_offset,	\
-	   p[frame::name##_offset], #name);			\
+#define DESCRIBE_FP_OFFSET(name)					\
+  {									\
+    unsigned long *p = (unsigned long *)fp;				\
+    printf("0x%016lx 0x%016lx %s\n", (unsigned long)(p + frame::name##_offset), \
+	   p[frame::name##_offset], #name);				\
   }
 
 static __thread unsigned long nextfp;
