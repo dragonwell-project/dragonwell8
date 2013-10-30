@@ -274,9 +274,9 @@ ROR_INSN(I, 0, ror)
 // Add/subtract (extended)
 dnl ADD_SUB_EXTENDED(mode, size, add node, shift node, insn, shift type, wordsize
 define(`ADD_SUB_CONV', `
-instruct $3Ext$1(iReg$1NoSp dst, iReg$1 src1, iRegI src2, rFlagsReg cr)
+instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1 src2, rFlagsReg cr)
 %{
-  match(Set dst ($3$1 src1 (ConvI2L src2)));
+  match(Set dst ($3$2 src1 (ConvI2L src2)));
   ins_cost(DEFAULT_COST);
   format %{ "$4  $dst, $src1, $6 $src2" %}
 

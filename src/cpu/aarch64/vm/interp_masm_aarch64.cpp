@@ -200,7 +200,18 @@ void InterpreterMacroAssembler::get_cache_and_index_and_bytecode_at_bcp(Register
 void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
                                                                Register tmp,
                                                                int bcp_offset,
-                                                               size_t index_size) { Unimplemented(); }
+                                                               size_t index_size) {
+  assert(cache != tmp, "must use different register");
+  get_cache_index_at_bcp(tmp, bcp_offset, index_size);
+  assert(sizeof(ConstantPoolCacheEntry) == 4 * wordSize, "adjust code below");
+  // convert from field index to ConstantPoolCacheEntry index
+  // and from word offset to byte offset
+  assert(exact_log2(in_bytes(ConstantPoolCacheEntry::size_in_bytes())) == 2 + LogBytesPerWord, "else change next line");
+  ldr(cache, Address(rfp, frame::interpreter_frame_cache_offset * wordSize));
+  // skip past the header
+  add(cache, cache, in_bytes(ConstantPoolCache::base_offset()));
+  add(cache, cache, tmp, Assembler::LSL, 2 + LogBytesPerWord);  // construct pointer to cache entry
+}
 
 void InterpreterMacroAssembler::get_method_counters(Register method,
                                                     Register mcs, Label& skip) {

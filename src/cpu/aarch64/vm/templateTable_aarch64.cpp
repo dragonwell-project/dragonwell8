@@ -262,7 +262,15 @@ void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
   }
 
   if (JvmtiExport::can_post_breakpoint()) {
-    __ call_Unimplemented();
+    Label L_fast_patch;
+    // if a breakpoint is present we can't rewrite the stream directly
+    __ load_unsigned_byte(temp_reg, at_bcp(0));
+    __ cmpw(temp_reg, Bytecodes::_breakpoint);
+    __ br(Assembler::NE, L_fast_patch);
+    // Let breakpoint table handling rewrite to quicker bytecode
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::set_original_bytecode_at), rmethod, rbcp, bc_reg);
+    __ b(L_patch_done);
+    __ bind(L_fast_patch);
   }
 
 #ifdef ASSERT
@@ -2651,7 +2659,54 @@ void TemplateTable::putstatic(int byte_no) {
 void TemplateTable::jvmti_post_fast_field_mod()
 {
   if (JvmtiExport::can_post_field_modification()) {
-    __ call_Unimplemented();
+    // Check to see if a field modification watch has been set before
+    // we take the time to call into the VM.
+    Label L2;
+    __ lea(rscratch1, ExternalAddress((address)JvmtiExport::get_field_modification_count_addr()));
+    __ ldrw(c_rarg3, Address(rscratch1));
+    __ cbzw(c_rarg3, L2);
+    __ pop_ptr(r19);                  // copy the object pointer from tos
+    __ verify_oop(r19);
+    __ push_ptr(r19);                 // put the object pointer back on tos
+    // Save tos values before call_VM() clobbers them. Since we have
+    // to do it for every data type, we use the saved values as the
+    // jvalue object.
+    switch (bytecode()) {          // load values into the jvalue object
+    case Bytecodes::_fast_aputfield: __ push_ptr(r0); break;
+    case Bytecodes::_fast_bputfield: // fall through
+    case Bytecodes::_fast_sputfield: // fall through
+    case Bytecodes::_fast_cputfield: // fall through
+    case Bytecodes::_fast_iputfield: __ push_i(r0); break;
+    case Bytecodes::_fast_dputfield: __ push_d(); break;
+    case Bytecodes::_fast_fputfield: __ push_f(); break;
+    case Bytecodes::_fast_lputfield: __ push_l(r0); break;
+
+    default:
+      ShouldNotReachHere();
+    }
+    __ mov(c_rarg3, esp);             // points to jvalue on the stack
+    // access constant pool cache entry
+    __ get_cache_entry_pointer_at_bcp(c_rarg2, r0, 1);
+    __ verify_oop(r19);
+    // r19: object pointer copied above
+    // c_rarg2: cache entry pointer
+    // c_rarg3: jvalue object on the stack
+    __ call_VM(noreg,
+               CAST_FROM_FN_PTR(address,
+                                InterpreterRuntime::post_field_modification),
+               r19, c_rarg2, c_rarg3);
+
+    switch (bytecode()) {             // restore tos values
+    case Bytecodes::_fast_aputfield: __ pop_ptr(r0); break;
+    case Bytecodes::_fast_bputfield: // fall through
+    case Bytecodes::_fast_sputfield: // fall through
+    case Bytecodes::_fast_cputfield: // fall through
+    case Bytecodes::_fast_iputfield: __ pop_i(r0); break;
+    case Bytecodes::_fast_dputfield: __ pop_d(); break;
+    case Bytecodes::_fast_fputfield: __ pop_f(); break;
+    case Bytecodes::_fast_lputfield: __ pop_l(r0); break;
+    }
+    __ bind(L2);
   }
 }
 
@@ -2731,8 +2786,27 @@ void TemplateTable::fast_accessfield(TosState state)
   transition(atos, state);
   // Do the JVMTI work here to avoid disturbing the register state below
   if (JvmtiExport::can_post_field_access()) {
-    __ call_Unimplemented();
+    // Check to see if a field access watch has been set before we
+    // take the time to call into the VM.
+    Label L1;
+    __ lea(rscratch1, ExternalAddress((address) JvmtiExport::get_field_access_count_addr()));
+    __ ldrw(r2, Address(rscratch1));
+    __ cbzw(r2, L1);
+    // access constant pool cache entry
+    __ get_cache_entry_pointer_at_bcp(c_rarg2, rscratch2, 1);
+    __ verify_oop(r0);
+    __ push_ptr(r0);  // save object pointer before call_VM() clobbers it
+    __ mov(c_rarg1, r0);
+    // c_rarg1: object pointer copied above
+    // c_rarg2: cache entry pointer
+    __ call_VM(noreg,
+               CAST_FROM_FN_PTR(address,
+                                InterpreterRuntime::post_field_access),
+               c_rarg1, c_rarg2);
+    __ pop_ptr(r0); // restore object pointer
+    __ bind(L1);
   }
+
   // access constant pool cache
   __ get_cache_and_index_at_bcp(r2, r1, 1);
   __ ldr(r1, Address(r2, in_bytes(ConstantPoolCache::base_offset() +

@@ -1286,7 +1286,7 @@ public:
     f(kind, 23, 22);
   }
 
-  // Logical (shifted regsiter)
+  // Logical (shifted register)
 #define INSN(NAME, size, op, N)					\
   void NAME(Register Rd, Register Rn, Register Rm,		\
 	    enum shift_kind kind = LSL, unsigned shift = 0) {	\
@@ -1316,7 +1316,7 @@ public:
 
 #undef INSN
 
-  // Add/subtract (shifted regsiter)
+  // Add/subtract (shifted register)
 #define INSN(NAME, size, op)				\
   void NAME(Register Rd, Register Rn, Register Rm,	\
 	    enum shift_kind kind, unsigned shift = 0) {	\

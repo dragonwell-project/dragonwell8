@@ -1295,7 +1295,8 @@ void LIR_Assembler::type_profile_helper(Register mdo,
   for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
     Label next_test;
     // See if the receiver is receiver[n].
-    __ ldr(rscratch1, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i))));
+    __ lea(rscratch2, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i))));
+    __ ldr(rscratch1, Address(rscratch2));
     __ cmp(recv, rscratch1);
     __ br(Assembler::NE, next_test);
     Address data_addr(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_count_offset(i)));
@@ -1307,12 +1308,15 @@ void LIR_Assembler::type_profile_helper(Register mdo,
   // Didn't find receiver; find next empty slot and fill it in
   for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
     Label next_test;
-    Address recv_addr(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i)));
+    __ lea(rscratch2,
+	   Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i))));
+    Address recv_addr(rscratch2);
     __ ldr(rscratch1, recv_addr);
     __ cbnz(rscratch1, next_test);
     __ str(recv, recv_addr);
     __ mov(rscratch1, DataLayout::counter_increment);
-    __ str(rscratch1, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_count_offset(i))));
+    __ lea(rscratch2, Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_count_offset(i))));
+    __ str(rscratch1, Address(rscratch2));
     __ b(*update_done);
     __ bind(next_test);
   }
@@ -2586,7 +2590,8 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
         if (receiver == NULL) {
           Address recv_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_offset(i)));
 	  __ mov_metadata(rscratch1, known_klass->constant_encoding());
-          __ str(rscratch1, recv_addr);
+	  __ lea(rscratch2, recv_addr);
+          __ str(rscratch1, Address(rscratch2));
           Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
 	  __ addptr(counter_addr, DataLayout::counter_increment);
           return;

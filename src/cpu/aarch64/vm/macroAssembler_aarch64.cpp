@@ -2078,7 +2078,7 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   }
 }
 
-void MacroAssembler::encode_klass_not_null(Register dst, Register src) { 
+void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
   if (use_XOR_for_compressed_class_base) {
     if (Universe::narrow_klass_shift() != 0) {
       eor(dst, src, (uint64_t)Universe::narrow_klass_base());
@@ -2089,29 +2089,29 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
     return;
   }
 
-#ifdef ASSERT 
-  verify_heapbase("MacroAssembler::encode_klass_not_null2: heap base corrupted?"); 
-#endif 
+#ifdef ASSERT
+  verify_heapbase("MacroAssembler::encode_klass_not_null2: heap base corrupted?");
+#endif
 
   Register rbase = dst;
-  if (dst == src) rbase = rheapbase; 
-  mov(rbase, (uint64_t)Universe::narrow_klass_base()); 
-  sub(dst, src, rbase); 
-  if (Universe::narrow_klass_shift() != 0) { 
-    assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong"); 
-    lsr(dst, dst, LogKlassAlignmentInBytes); 
-  } 
-  if (dst == src) reinit_heapbase(); 
-} 
- 
-void MacroAssembler::encode_klass_not_null(Register r) { 
-  encode_klass_not_null(r, r); 
-} 
- 
-void  MacroAssembler::decode_klass_not_null(Register dst, Register src) { 
-  Register rbase = dst; 
-  assert(Universe::narrow_klass_base() != NULL, "Base should be initialized"); 
-  assert (UseCompressedClassPointers, "should only be used for compressed headers"); 
+  if (dst == src) rbase = rheapbase;
+  mov(rbase, (uint64_t)Universe::narrow_klass_base());
+  sub(dst, src, rbase);
+  if (Universe::narrow_klass_shift() != 0) {
+    assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
+    lsr(dst, dst, LogKlassAlignmentInBytes);
+  }
+  if (dst == src) reinit_heapbase();
+}
+
+void MacroAssembler::encode_klass_not_null(Register r) {
+  encode_klass_not_null(r, r);
+}
+
+void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
+  Register rbase = dst;
+  assert(Universe::narrow_klass_base() != NULL, "Base should be initialized");
+  assert (UseCompressedClassPointers, "should only be used for compressed headers");
 
   if (use_XOR_for_compressed_class_base) {
     if (Universe::narrow_klass_shift() != 0) {
@@ -2123,23 +2123,23 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
     return;
   }
 
-  // Cannot assert, unverified entry point counts instructions (see .ad file) 
-  // vtableStubs also counts instructions in pd_code_size_limit. 
-  // Also do not verify_oop as this is called by verify_oop. 
-  if (dst == src) rbase = rheapbase; 
-  mov(rbase, (uint64_t)Universe::narrow_klass_base()); 
-  if (Universe::narrow_klass_shift() != 0) { 
-    assert(LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong"); 
-    add(dst, rbase, src, Assembler::LSL, LogKlassAlignmentInBytes); 
-  } else { 
-    add(dst, rbase, src); 
-  } 
-  if (dst == src) reinit_heapbase(); 
-} 
- 
-void  MacroAssembler::decode_klass_not_null(Register r) { 
-  decode_klass_not_null(r, r); 
-} 
+  // Cannot assert, unverified entry point counts instructions (see .ad file)
+  // vtableStubs also counts instructions in pd_code_size_limit.
+  // Also do not verify_oop as this is called by verify_oop.
+  if (dst == src) rbase = rheapbase;
+  mov(rbase, (uint64_t)Universe::narrow_klass_base());
+  if (Universe::narrow_klass_shift() != 0) {
+    assert(LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
+    add(dst, rbase, src, Assembler::LSL, LogKlassAlignmentInBytes);
+  } else {
+    add(dst, rbase, src);
+  }
+  if (dst == src) reinit_heapbase();
+}
+
+void  MacroAssembler::decode_klass_not_null(Register r) {
+  decode_klass_not_null(r, r);
+}
 
 // TODO
 //
