@@ -9250,6 +9250,29 @@ instruct negD_reg_reg(vRegD dst, vRegD src) %{
   ins_pipe(pipe_class_default);
 %}
 
+instruct absF_reg(vRegF dst, vRegF src) %{
+  match(Set dst (AbsF src));
+
+  format %{ "fabss   $dst, $src" %}
+  ins_encode %{
+    __ fabss(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct absD_reg(vRegD dst, vRegD src) %{
+  match(Set dst (AbsD src));
+
+  format %{ "fabsd   $dst, $src" %}
+  ins_encode %{
+    __ fabsd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
 
 // ============================================================================
 // Logical Instructions
