@@ -25,31 +25,14 @@
  * @test
  * @bug 8024924
  * @summary Test non constant addExact
- * @compile LoadTest.java Verify.java
- * @run main LoadTest
+ * @compile AddExactILoadTest.java Verify.java
+ * @run main AddExactILoadTest
  *
  */
 
-import java.lang.ArithmeticException;
-
-public class LoadTest {
-  public static java.util.Random rnd = new java.util.Random();
-  public static int[] values = new int[256];
-
+public class AddExactILoadTest {
   public static void main(String[] args) {
-    for (int i = 0; i < values.length; ++i) {
-        values[i] = rnd.nextInt();
-    }
-
-    for (int i = 0; i < 50000; ++i) {
-      Verify.verify(values[i & 255], values[i & 255] - i);
-      Verify.verify(values[i & 255] + i, values[i & 255] - i);
-      Verify.verify(values[i & 255], values[i & 255]);
-      if ((i & 1) == 1 && i > 5) {
-          Verify.verify(values[i & 255] + i, values[i & 255] - i);
-      } else {
-          Verify.verify(values[i & 255] - i, values[i & 255] + i);
-      }
-    }
+      Verify.LoadTest.init();
+      Verify.LoadTest.verify(new Verify.AddExactI());
   }
 }

@@ -19,30 +19,22 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-
-/*
- * @test
- * @bug 8024924
- * @summary Test non constant addExact
- * @compile LoopDependentTest.java Verify.java
- * @run main LoopDependentTest
  *
  */
 
-import java.lang.ArithmeticException;
+/**
+ * @test
+ * @bug 8026124
+ * @summary Javascript file provoked assertion failure in linkResolver.cpp
+ *
+ * @run main/othervm CreatesInterfaceDotEqualsCallInfo
+ */
 
-public class LoopDependentTest {
-  public static java.util.Random rnd = new java.util.Random();
-
-  public static void main(String[] args) {
-    int rnd1 = rnd.nextInt(), rnd2 = rnd.nextInt();
-    for (int i = 0; i < 50000; ++i) {
-      Verify.verify(rnd1 + i, rnd2 + i);
-      Verify.verify(rnd1 + i, rnd2 + (i & 0xff));
-      Verify.verify(rnd1 - i, rnd2 - (i & 0xff));
-      Verify.verify(rnd1 + i + 1, rnd2 + i + 2);
-      Verify.verify(rnd1 + i * 2, rnd2 + i);
-    }
+public class CreatesInterfaceDotEqualsCallInfo {
+  public static void main(String[] args) throws java.io.IOException {
+    String[] jsargs = { System.getProperty("test.src", ".") +
+                        "/createsInterfaceDotEqualsCallInfo.js" };
+    jdk.nashorn.tools.Shell.main(System.in, System.out, System.err, jsargs);
+    System.out.println("PASS, did not crash running Javascript");
   }
 }

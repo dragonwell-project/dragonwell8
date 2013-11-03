@@ -23,25 +23,15 @@
 
 /*
  * @test
- * @bug 8024924
- * @summary Test constant addExact
- * @compile ConstantTest.java Verify.java
- * @run main ConstantTest
+ * @bug 8026844
+ * @summary Test non constant subtractExact
+ * @compile SubExactLNonConstantTest.java Verify.java
+ * @run main SubExactLNonConstantTest
  *
  */
 
-import java.lang.ArithmeticException;
-
-public class ConstantTest {
-  public static void main(String[] args) {
-    for (int i = 0; i < 50000; ++i) {
-      Verify.verify(5, 7);
-      Verify.verify(Integer.MAX_VALUE, 1);
-      Verify.verify(Integer.MIN_VALUE, -1);
-      Verify.verify(Integer.MAX_VALUE, -1);
-      Verify.verify(Integer.MIN_VALUE, 1);
-      Verify.verify(Integer.MAX_VALUE / 2, Integer.MAX_VALUE / 2);
-      Verify.verify(Integer.MAX_VALUE / 2, (Integer.MAX_VALUE / 2) + 3);
+public class SubExactLNonConstantTest {
+    public static void main(String[] args) {
+        Verify.NonConstantLongTest.verify(new Verify.SubExactL());
     }
-  }
 }
