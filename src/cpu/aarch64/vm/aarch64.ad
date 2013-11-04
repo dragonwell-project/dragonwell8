@@ -9486,6 +9486,20 @@ instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
   ins_pipe(pipe_class_default);
 %}
 
+// this pattern occurs in bigmath arithmetic
+instruct convUI2L_reg_reg(iRegLNoSp dst, iRegI src, immL_32bits mask)
+%{
+  match(Set dst (AndL (ConvI2L src) mask));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "ubfm  $dst, $src, 0, 31\t# ui2l" %}
+  ins_encode %{
+    __ ubfm($dst$$Register, $src$$Register, 0, 31);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
   match(Set dst (ConvL2I src));
 
