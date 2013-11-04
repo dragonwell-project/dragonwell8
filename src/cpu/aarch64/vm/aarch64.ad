@@ -2789,8 +2789,12 @@ encode %{
     int64_t val = $src2$$constant;
     if (val >= 0) {
       __ subs(zr, reg, val);
-    } else {
+    } else if (val != -val) {
       __ adds(zr, reg, -val);
+    } else {
+    // aargh, Long.MIN_VALUE is a special case
+      __ orr(rscratch1, zr, (u_int64_t)val);
+      __ subs(zr, reg, rscratch1);
     }
   %}
 
