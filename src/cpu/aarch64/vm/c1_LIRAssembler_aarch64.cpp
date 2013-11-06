@@ -1533,9 +1533,10 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ bind(profile_cast_failure);
       __ mov_metadata(mdo, md->constant_encoding());
       Address counter_addr(mdo, md->byte_offset_of_slot(data, CounterData::count_offset()));
-      __ ldr(rscratch1, counter_addr);
+      __ lea(rscratch2, counter_addr);
+      __ ldr(rscratch1, Address(rscratch2));
       __ sub(rscratch1, rscratch1, DataLayout::counter_increment);
-      __ str(rscratch1, counter_addr);
+      __ str(rscratch1, Address(rscratch2));
       __ b(*stub->entry());
     }
 
