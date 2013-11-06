@@ -171,7 +171,7 @@ BFX_INSN(L,URShift,ubfx)
 
 // We can use ubfx when extending an And with a mask when we know mask
 // is positive.  We know that because immI_bitmask guarantees it.
-instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
+instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask mask)
 %{
   match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
 
@@ -274,7 +274,7 @@ ROR_INSN(I, 0, ror)
 // Add/subtract (extended)
 dnl ADD_SUB_EXTENDED(mode, size, add node, shift node, insn, shift type, wordsize
 define(`ADD_SUB_CONV', `
-instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1 src2, rFlagsReg cr)
+instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1orL2I src2, rFlagsReg cr)
 %{
   match(Set dst ($3$2 src1 (ConvI2L src2)));
   ins_cost(DEFAULT_COST);

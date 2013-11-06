@@ -1591,7 +1591,7 @@ const int Matcher::float_cmove_cost() {
 // Should the Matcher clone shifts on addressing modes, expecting them
 // to be subsumed into complex addressing expressions or compute them
 // into registers?  True for Intel but false for most RISCs
-const bool Matcher::clone_shift_expressions = true;
+const bool Matcher::clone_shift_expressions = false;
 
 // Do we need to mask the count passed to shift instructions or does
 // the cpu only look at the lower 5/6 bits anyway?
@@ -6769,7 +6769,7 @@ instruct addP_reg_reg(iRegPNoSp dst, iRegP src1, iRegL src2) %{
   ins_pipe(pipe_class_default);
 %}
 
-instruct addP_reg_reg_ext(iRegPNoSp dst, iRegP src1, iRegI src2) %{
+instruct addP_reg_reg_ext(iRegPNoSp dst, iRegP src1, iRegIorL2I src2) %{
   match(Set dst (AddP src1 (ConvI2L src2)));
 
   ins_cost(DEFAULT_COST);
@@ -6799,7 +6799,7 @@ instruct addP_reg_reg_lsl(iRegPNoSp dst, iRegP src1, iRegL src2, immIScale scale
   ins_pipe(pipe_class_default);
 %}
 
-instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegI src2, immIScale scale) %{
+instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegIorL2I src2, immIScale scale) %{
   match(Set dst (AddP src1 (LShiftL (ConvI2L src2) scale)));
 
   ins_cost(DEFAULT_COST);
@@ -6809,6 +6809,20 @@ instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegI src2, immIScale
     __ lea(as_Register($dst$$reg),
 	   Address(as_Register($src1$$reg), as_Register($src2$$reg),
 		   Address::sxtw($scale$$constant)));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct lshift_ext(iRegLNoSp dst, iRegIorL2I src, immI scale, rFlagsReg cr) %{
+  match(Set dst (LShiftL (ConvI2L src) scale));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "sbfm $dst, $src, 64-$scale, 31\t" %}
+
+  ins_encode %{
+    __ sbfm(as_Register($dst$$reg),
+            as_Register($src$$reg), (64u - $scale$$constant) & 63, 31);
   %}
 
   ins_pipe(pipe_class_default);
@@ -8509,7 +8523,7 @@ instruct ubfxL(iRegLNoSp dst, iRegL src, immI rshift, immL_bitmask mask)
 
 // We can use ubfx when extending an And with a mask when we know mask
 // is positive.  We know that because immI_bitmask guarantees it.
-instruct ubfxIConvI2L(iRegLNoSp dst, iRegI src, immI rshift, immI_bitmask mask)
+instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask mask)
 %{
   match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
 
@@ -8724,7 +8738,7 @@ instruct rorI_rReg_Var_C0(iRegL dst, iRegL src, iRegI shift, immI0 c0, rFlagsReg
 
 // Add/subtract (extended)
 
-instruct AddExtI(iRegLNoSp dst, iRegL src1, iRegI src2, rFlagsReg cr)
+instruct AddExtI(iRegLNoSp dst, iRegL src1, iRegIorL2I src2, rFlagsReg cr)
 %{
   match(Set dst (AddL src1 (ConvI2L src2)));
   ins_cost(DEFAULT_COST);
@@ -8737,7 +8751,7 @@ instruct AddExtI(iRegLNoSp dst, iRegL src1, iRegI src2, rFlagsReg cr)
   ins_pipe(pipe_class_default);
 %};
 
-instruct SubExtI(iRegLNoSp dst, iRegL src1, iRegI src2, rFlagsReg cr)
+instruct SubExtI(iRegLNoSp dst, iRegL src1, iRegIorL2I src2, rFlagsReg cr)
 %{
   match(Set dst (SubL src1 (ConvI2L src2)));
   ins_cost(DEFAULT_COST);
@@ -9474,7 +9488,7 @@ instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
   ins_pipe(pipe_class_default);
 %}
 
-instruct convI2L_reg_reg(iRegLNoSp dst, iRegI src)
+instruct convI2L_reg_reg(iRegLNoSp dst, iRegIorL2I src)
 %{
   match(Set dst (ConvI2L src));
 
@@ -10438,6 +10452,67 @@ instruct branchConU(cmpOpU cmp, rFlagsRegU cr, label lbl)
 
   ins_encode(aarch64_enc_br_conU(cmp, lbl));
 
+  ins_pipe(pipe_class_default);
+%}
+
+// Make use of CBZ and CBNZ.  These instructions, as well as being
+// shorter than (cmp; branch), have the additional benefit of not
+// killing the flags.
+
+instruct cmpI_imm0_branch(cmpOp cmp, iRegI op1, immI0 op2, label labl, rFlagsReg cr) %{
+  match(If cmp (CmpI op1 op2));
+  predicate(n->in(1)->as_Bool()->_test._test == BoolTest::ne
+	    || n->in(1)->as_Bool()->_test._test == BoolTest::eq);
+  effect(USE labl);
+
+  ins_cost(BRANCH_COST);
+  format %{ "cbw$cmp   $op1, $labl" %}
+  ins_encode %{
+    Label* L = $labl$$label;
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    if (cond == Assembler::EQ)
+      __ cbzw($op1$$Register, *L);
+    else
+      __ cbnzw($op1$$Register, *L);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmpL_imm0_branch(cmpOp cmp, iRegL op1, immL0 op2, label labl, rFlagsReg cr) %{
+  match(If cmp (CmpL op1 op2));
+  predicate(n->in(1)->as_Bool()->_test._test == BoolTest::ne
+	    || n->in(1)->as_Bool()->_test._test == BoolTest::eq);
+  effect(USE labl);
+
+  ins_cost(BRANCH_COST);
+  format %{ "cb$cmp   $op1, $labl" %}
+  ins_encode %{
+    Label* L = $labl$$label;
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    if (cond == Assembler::EQ)
+      __ cbz($op1$$Register, *L);
+    else
+      __ cbnz($op1$$Register, *L);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct cmpP_imm0_branch(cmpOp cmp, iRegP op1, immP0 op2, label labl, rFlagsReg cr) %{
+  match(If cmp (CmpP op1 op2));
+  predicate(n->in(1)->as_Bool()->_test._test == BoolTest::ne
+	    || n->in(1)->as_Bool()->_test._test == BoolTest::eq);
+  effect(USE labl);
+
+  ins_cost(BRANCH_COST);
+  format %{ "cb$cmp   $op1, $labl" %}
+  ins_encode %{
+    Label* L = $labl$$label;
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    if (cond == Assembler::EQ)
+      __ cbz($op1$$Register, *L);
+    else
+      __ cbnz($op1$$Register, *L);
+  %}
   ins_pipe(pipe_class_default);
 %}
 
