@@ -2019,26 +2019,26 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
     mov(dst, src);
 }
 
-void  MacroAssembler::decode_heap_oop(Register r) {
+void  MacroAssembler::decode_heap_oop(Register d, Register s) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
   if (Universe::narrow_oop_base() == NULL) {
-    if (Universe::narrow_oop_shift() != 0) {
-      assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
-      lsl(r, r, LogMinObjAlignmentInBytes);
+    if (Universe::narrow_oop_shift() != 0 || d != s) {
+      lsl(d, s, Universe::narrow_oop_shift());
     }
   } else {
     Label done;
-    cbz(r, done);
-    add(r, rheapbase, r, Assembler::LSL, LogMinObjAlignmentInBytes);
+    if (d != s)
+      mov(d, s);
+    cbz(s, done);
+    add(d, rheapbase, s, Assembler::LSL, LogMinObjAlignmentInBytes);
     bind(done);
   }
-  verify_oop(r, "broken oop in decode_heap_oop");
+  verify_oop(d, "broken oop in decode_heap_oop");
 }
 
 void  MacroAssembler::decode_heap_oop_not_null(Register r) {
-  // Note: it will change flags
   assert (UseCompressedOops, "should only be used for compressed headers");
   assert (Universe::heap() != NULL, "java heap should be initialized");
   // Cannot assert, unverified entry point counts instructions (see .ad file)
@@ -2057,7 +2057,6 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
 }
 
 void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
-  // Note: it will change flags
   assert (UseCompressedOops, "should only be used for compressed headers");
   assert (Universe::heap() != NULL, "java heap should be initialized");
   // Cannot assert, unverified entry point counts instructions (see .ad file)

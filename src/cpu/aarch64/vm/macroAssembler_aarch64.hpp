@@ -710,7 +710,8 @@ public:
 
   void encode_heap_oop(Register d, Register s);
   void encode_heap_oop(Register r) { encode_heap_oop(r, r); }
-  void decode_heap_oop(Register r);
+  void decode_heap_oop(Register d, Register s);
+  void decode_heap_oop(Register r) { decode_heap_oop(r, r); }
   void encode_heap_oop_not_null(Register r);
   void decode_heap_oop_not_null(Register r);
   void encode_heap_oop_not_null(Register dst, Register src);
