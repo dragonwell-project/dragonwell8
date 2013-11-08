@@ -10193,6 +10193,20 @@ instruct compF_reg_reg(rFlagsReg cr, vRegF src1, vRegF src2)
   ins_pipe(pipe_class_compare);
 %}
 
+instruct compF_reg_zero(rFlagsReg cr, vRegF src1, immF0 src2)
+%{
+  match(Set cr (CmpF src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcmps $src1, 0.0" %}
+
+  ins_encode %{
+    __ fcmps(as_FloatRegister($src1$$reg), 0.0D);
+  %}
+
+  ins_pipe(pipe_class_compare);
+%}
+
 instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
 %{
   match(Set cr (CmpD src1 src2));
@@ -10202,6 +10216,20 @@ instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
 
   ins_encode %{
     __ fcmpd(as_FloatRegister($src1$$reg), as_FloatRegister($src2$$reg));
+  %}
+
+  ins_pipe(pipe_class_compare);
+%}
+
+instruct compD_reg_zero(rFlagsReg cr, vRegD src1, immD0 src2)
+%{
+  match(Set cr (CmpD src1 src2));
+
+  ins_cost(DEFAULT_COST);
+  format %{ "fcmpd $src1, 0.0" %}
+
+  ins_encode %{
+    __ fcmpd(as_FloatRegister($src1$$reg), 0.0D);
   %}
 
   ins_pipe(pipe_class_compare);
