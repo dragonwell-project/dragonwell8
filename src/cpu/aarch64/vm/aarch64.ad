@@ -4049,7 +4049,25 @@ operand vRegD()
   interface(REG_INTER);
 %}
 
-// Flags register, used as output of compare instructions
+// Flags register, used as output of signed compare instructions
+
+// note that on AArch64 we also use this register as the output for
+// for floating point compare instructions (CmpF CmpD). this ensures
+// that ordered inequality tests use GT, GE, LT or LE none of which
+// pass through cases where the result is unordered i.e. one or both
+// inputs to the compare is a NaN. this means that the ideal code can
+// replace e.g. a GT with an LE and not end up capturing the NaN case
+// (where the comparison should always fail). EQ and NE tests are
+// always generated in ideal code so that unordered folds into the NE
+// case, matching the behaviour of AArch64 NE.
+//
+// This differs from x86 where the outputs of FP compares use a
+// special FP flags registers and where compares based on this
+// register are distinguished into ordered inequalities (cmpOpUCF) and
+// EQ/NEQ tests (cmpOpUCF2). x86 has to special case the latter tests
+// to explicitly handle the unordered case in branches. x86 also has
+// to include extra CMoveX rules to accept a cmpOpUCF input.
+
 operand rFlagsReg()
 %{
   constraint(ALLOC_IN_RC(int_flags));
@@ -4065,19 +4083,9 @@ operand rFlagsRegU()
   constraint(ALLOC_IN_RC(int_flags));
   match(RegFlags);
 
-  format %{ "RFLAGS" %}
+  format %{ "RFLAGSU" %}
   interface(REG_INTER);
 %}
-
-// Flags register, used as output of FLOATING POINT compare instructions
-// operand rFlagsRegF)
-// %{
-//   constraint(ALLOC_IN_RC(int_flags));
-//   match(RegFlags);
-
-//   format %{ "RFLAGS" %}
-//   interface(REG_INTER);
-// %}
 
 // Special Registers
 
@@ -4352,7 +4360,8 @@ operand stackSlotL(sRegL reg)
 // the flags (produced by the Cmp) specifies the coding of the comparison op
 // by matching a specific subtype of Bool operand below, such as cmpOpU.
 
-// TODO do we also need cmpOpU, cmpOpUCF and cmpOpUCF2
+// used for signed integral comparisons and fp comparisons
+
 operand cmpOp()
 %{
   match(Bool);
@@ -4367,6 +4376,8 @@ operand cmpOp()
     greater(0xc, "gt");
   %}
 %}
+
+// used for unsigned integral comparisons
 
 operand cmpOpU()
 %{
@@ -6645,7 +6656,7 @@ instruct cmovF_reg(cmpOp cmp, rFlagsReg cr, vRegF dst, vRegF src1,  vRegF src2)
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovF_regU(cmpOpU cmp, rFlagsRegU cr, vRegF dst, vRegF src1,  vRegF src2)
+instruct cmovUF_reg(cmpOpU cmp, rFlagsRegU cr, vRegF dst, vRegF src1,  vRegF src2)
 %{
   match(Set dst (CMoveF (Binary cmp cr) (Binary src1 src2)));
 
@@ -6681,7 +6692,7 @@ instruct cmovD_reg(cmpOp cmp, rFlagsReg cr, vRegD dst, vRegD src1,  vRegD src2)
   ins_pipe(pipe_class_default);
 %}
 
-instruct cmovD_regU(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src2)
+instruct cmovUD_reg(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src2)
 %{
   match(Set dst (CMoveD (Binary cmp cr) (Binary src1 src2)));
 
@@ -10163,14 +10174,16 @@ instruct testN_reg(rFlagsRegU cr, iRegN op1, immN0 zero)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compF_reg_reg(rFlagsRegU cr, vRegF src1, vRegF src2)
+// FP comparisons
+//
+// n.b. CmpF/CmpD set a normal flags reg which then gets compared
+// using normal cmpOp. See declaration of rFlagsReg for details.
+
+instruct compF_reg_reg(rFlagsReg cr, vRegF src1, vRegF src2)
 %{
   match(Set cr (CmpF src1 src2));
 
   ins_cost(DEFAULT_COST);
-  // TODO
-  // don't think we care about NaNs here as we compare using LT or HI
-  // which do the right thing for unordered but check this
   format %{ "fcmps $src1, $src2" %}
 
   ins_encode %{
@@ -10180,14 +10193,11 @@ instruct compF_reg_reg(rFlagsRegU cr, vRegF src1, vRegF src2)
   ins_pipe(pipe_class_compare);
 %}
 
-instruct compD_reg_reg(rFlagsRegU cr, vRegD src1, vRegD src2)
+instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
 %{
   match(Set cr (CmpD src1 src2));
 
   ins_cost(DEFAULT_COST);
-  // TODO
-  // don't think we care about NaNs here as we compare using LT or HI
-  // which do the right thing for unordered but check this
   format %{ "fcmpd $src1, $src2" %}
 
   ins_encode %{
