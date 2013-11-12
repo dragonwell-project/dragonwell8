@@ -2037,28 +2037,6 @@ encode %{
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
-  enc_class aarch64_enc_strw_immn(immN src, memory mem) %{
-    MacroAssembler _masm(&cbuf);
-    address con = (address)$src$$constant;
-    // need to do this the hard way until we can manage relocs
-    // for 32 bit constants
-    __ movoop(rscratch2, (jobject)con);
-    if (con) __ encode_heap_oop_not_null(rscratch2);
-    loadStore(_masm, &MacroAssembler::strw, rscratch2, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
-  %}
-
-  enc_class aarch64_enc_strw_immnk(immN src, memory mem) %{
-    MacroAssembler _masm(&cbuf);
-    address con = (address)$src$$constant;
-    // need to do this the hard way until we can manage relocs
-    // for 32 bit constants
-    __ movoop(rscratch2, (jobject)con);
-    __ encode_klass_not_null(rscratch2);
-    loadStore(_masm, &MacroAssembler::strw, rscratch2, $mem->opcode(),
-               as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
-  %}
-
   // END Non-volatile memory access
 
   // this encoding writes the address of the first instruction in the
@@ -2324,34 +2302,6 @@ encode %{
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlr);
-  %}
-
-  enc_class aarch64_enc_stlrw_immn(immN src, memory mem) %{
-    {
-      MacroAssembler _masm(&cbuf);
-      address con = (address)$src$$constant;
-      // need to do this the hard way until we can manage relocs
-      // for 32 bit constants
-      __ movoop(rscratch2, (jobject)con);
-      if (con) __ encode_heap_oop_not_null(rscratch2);
-    }
-    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrw);
-  %}
-
-  enc_class aarch64_enc_stlrw_immnk(immN src, memory mem) %{
-    {
-      MacroAssembler _masm(&cbuf);
-      address con = (address)$src$$constant;
-      // need to do this the hard way until we can manage relocs
-      // for 32 bit constants
-      __ movoop(rscratch2, (jobject)con);
-      // Either it is a heap oop or a klass pointer? It can't be both?
-      // __ encode_heap_oop_not_null(rscratch2);
-      if (con) __ encode_klass_not_null(rscratch2);
-    }
-    MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrw);
   %}
 
   // synchronized read/update encodings
@@ -5363,20 +5313,6 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
-instruct storeImmN(immN src, memory mem)
-%{
-  match(Set mem (StoreN mem src));
-  predicate(!((MemNode*)n)->is_volatile());
-
-  ins_cost(MEMORY_REF_COST);
-  format %{ "strw  $src, $mem\t# compressed ptr " %}
-
-  ins_encode(aarch64_enc_strw_immn(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-
 // Store Float
 instruct storeF(vRegF src, memory mem)
 %{
@@ -5417,19 +5353,6 @@ instruct storeNKlass(iRegN src, memory mem)
   format %{ "strw  $src, $mem\t# compressed klass ptr" %}
 
   ins_encode(aarch64_enc_strw(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Compressed Klass Pointer Constant
-instruct storeImmNKlass(immN src, memory mem)
-%{
-  match(Set mem (StoreNKlass mem src));
-
-  ins_cost(MEMORY_REF_COST_LOW);
-  format %{ "strw  $src, $mem\t# compressed klass ptr" %}
-
-  ins_encode(aarch64_enc_strw_immnk(src, mem));
 
   ins_pipe(pipe_class_memory);
 %}
