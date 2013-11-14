@@ -915,10 +915,8 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   // push lr and rfp to create a frame
   __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
 
-  if (C->need_stack_bang(framesize) && UseStackBanging) {
-    __ mov(rscratch2, framesize);
-    __ bang_stack_size(rscratch2, r19);
-  }
+  if (C->need_stack_bang(framesize))
+    __ generate_stack_overflow_check(framesize);
 
   // allow for already pushed values
   framesize -= 2 * wordSize;
