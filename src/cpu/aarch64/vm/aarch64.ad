@@ -2550,12 +2550,11 @@ encode %{
     // for now we just write cnt zeros
     Label loop;
     Label done;
+    __ cbz(cnt_reg, done);
     __ bind(loop);
-    __ cmp(cnt_reg, zr);
-    __ br(Assembler::LT, done);
-    __ str(zr, __ post(base_reg, wordSize));
     __ sub(cnt_reg, cnt_reg, 1);
-    __ b(loop);
+    __ str(zr, __ post(base_reg, wordSize));
+    __ cbnz(cnt_reg, loop);
     __ bind(done);
 
   %}
