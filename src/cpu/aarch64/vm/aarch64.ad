@@ -3588,7 +3588,7 @@ operand immIAddSub()
 // TODO -- check this is right when e.g the mask is 0x80000000
 operand immILog()
 %{
-  predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_int()));
+  predicate(Assembler::operand_valid_for_logical_immediate(/*is32*/true, (unsigned long)n->get_int()));
   match(ConI);
   op_cost(0);
   format %{ %}
@@ -3665,7 +3665,7 @@ operand immLAddSub()
 // 64 bit integer valid for logical immediate
 operand immLLog()
 %{
-  predicate(Assembler::operand_valid_for_logical_immediate(true, (unsigned long)n->get_long()));
+  predicate(Assembler::operand_valid_for_logical_immediate(/*is32*/false, (unsigned long)n->get_long()));
   match(ConL);
   op_cost(0);
   format %{ %}
