@@ -88,6 +88,8 @@ void VM_Version::get_processor_features() {
   _supports_atomic_getadd8 = true;
 
   FLAG_SET_DEFAULT(AllocatePrefetchDistance, 256);
+  FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 256);
+  FLAG_SET_DEFAULT(PrefetchFieldsAhead, 256);
 }
 
 void VM_Version::initialize() {
