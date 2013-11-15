@@ -1415,13 +1415,13 @@ void Assembler::wrap_label(Register r, int bitpos, Label &L,
   }
 }
 
-void Assembler::wrap_label(Label &L, int prfop, prefetch_insn insn) {
+void Assembler::wrap_label(Label &L, prfop op, prefetch_insn insn) {
   if (L.is_bound()) {
-    (this->*insn)(target(L), prfop);
+    (this->*insn)(target(L), op);
   } else {
     InstructionMark im(this);
     L.add_patch_at(code(), locator());
-    (this->*insn)(pc(), prfop);
+    (this->*insn)(pc(), op);
   }
 }
 

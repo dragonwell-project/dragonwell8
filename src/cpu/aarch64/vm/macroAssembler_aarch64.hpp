@@ -1319,6 +1319,8 @@ public:
 
 #ifdef BUILTIN_SIM
   void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type);
+#else
+  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type) { }
 #endif
 
   // special version of call_VM_leaf_base needed for aarch64 simulator

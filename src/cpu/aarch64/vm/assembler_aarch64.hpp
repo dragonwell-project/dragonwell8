@@ -595,6 +595,11 @@ class InternalAddress: public Address {
 };
 
 const int FPUStateSizeInWords = 32 * 2;
+typedef enum {
+  PLDL1KEEP = 0b00000, PLDL1STRM, PLDL2KEEP, PLDL2STRM, PLDL3KEEP, PLDL3STRM,
+  PSTL1KEEP = 0b10000, PSTL1STRM, PSTL2KEEP, PSTL2STRM, PSTL3KEEP, PSTL3STRM,
+  PLIL1KEEP = 0b01000, PLIL1STRM, PLIL2KEEP, PLIL2STRM, PLIL3KEEP, PLIL3STRM
+} prfop;
 
 class Assembler : public AbstractAssembler {
 
@@ -668,12 +673,12 @@ public:
   typedef void (Assembler::* uncond_branch_insn)(address dest);
   typedef void (Assembler::* compare_and_branch_insn)(Register Rt, address dest);
   typedef void (Assembler::* test_and_branch_insn)(Register Rt, int bitpos, address dest);
-  typedef void (Assembler::* prefetch_insn)(address target, int prfop);
+  typedef void (Assembler::* prefetch_insn)(address target, prfop);
 
   void wrap_label(Label &L, uncond_branch_insn insn);
   void wrap_label(Register r, Label &L, compare_and_branch_insn insn);
   void wrap_label(Register r, int bitpos, Label &L, test_and_branch_insn insn);
-  void wrap_label(Label &L, int prfop, prefetch_insn insn);
+  void wrap_label(Label &L, prfop, prefetch_insn insn);
 
   // PC-rel. addressing
 
@@ -1158,15 +1163,15 @@ public:
 #undef INSN
 
 #define INSN(NAME, opc, V)						\
-  void NAME(address dest, int prfop = 0) {				\
+  void NAME(address dest, prfop op = PLDL1KEEP) {			\
     long offset = (dest - pc()) >> 2;					\
     starti;								\
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),	\
       sf(offset, 23, 5);						\
-    f(prfop, 4, 0);							\
+    f(op, 4, 0);							\
   }									\
-  void NAME(Label &L, int prfop = 0) {					\
-    wrap_label(L, prfop, &Assembler::NAME);				\
+  void NAME(Label &L, prfop op = PLDL1KEEP) {				\
+    wrap_label(L, op, &Assembler::NAME);				\
   }
 
   INSN(prfm, 0b11, 0);
@@ -1251,9 +1256,9 @@ public:
 
 #undef INSN
 
-#define INSN(NAME, size, op)			\
-  void NAME(const Address &adr) {			\
-    ld_st2((Register)0, adr, size, op);		\
+#define INSN(NAME, size, op)					\
+  void NAME(const Address &adr, prfop pfop = PLDL1KEEP) {	\
+    ld_st2((Register)pfop, adr, size, op);			\
   }
 
   INSN(prfm, 0b11, 0b10); // FIXME: PRFM should not be used with
