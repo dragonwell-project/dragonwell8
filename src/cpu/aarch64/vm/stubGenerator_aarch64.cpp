@@ -45,6 +45,10 @@
 #include "opto/runtime.hpp"
 #endif
 
+#ifdef BUILTIN_SIM
+#include "../../../../../../simulator/simulator.hpp"
+#endif
+
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
 // see the comment in stubRoutines.hpp
@@ -946,8 +950,8 @@ class StubGenerator: public StubCodeGenerator {
     __ push(r18->bit() | r19->bit(), sp);
     __ bind(again);
     if (direction != copy_backwards) {
-      __ prfm(Address(s, direction == copy_forwards ? 4 * wordSize : -6 * wordSize));
-      __ prfm(Address(s, direction == copy_forwards ? 6 * wordSize : -8 * wordSize));
+      if (PrefetchCopyIntervalInBytes > 0)
+	__ prfm(Address(s, PrefetchCopyIntervalInBytes));
     }
     __ ldp(r16, r17, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
     __ ldp(r18, r19, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
@@ -960,34 +964,43 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   void copy_memory_small(Register s, Register d, Register count, Register tmp, int step, Label &done) {
-    // Small copy: less than one word.
+    // Small copy: less than two words.
     bool is_backwards = step < 0;
-    int granularity = abs(step);
+    size_t granularity = abs(step);
+    int direction = is_backwards ? -1 : 1;
 
-    __ cbz(count, done);
-    {
-      Label loop;
-      __ bind(loop);
-      switch (granularity) {
-      case 1:
-	__ ldrb(tmp, Address(__ adjust(s, step, is_backwards)));
-	__ strb(tmp, Address(__ adjust(d, step, is_backwards)));
-	break;
-      case 2:
-	__ ldrh(tmp, Address(__ adjust(s, step, is_backwards)));
-	__ strh(tmp, Address(__ adjust(d, step, is_backwards)));
-	break;
-      case 4:
-	__ ldrw(tmp, Address(__ adjust(s, step, is_backwards)));
-	__ strw(tmp, Address(__ adjust(d, step, is_backwards)));
-	break;
-      default:
-	assert(false, "copy_memory called with impossible step");
-      }
-      __ sub(count, count, 1);
-      __ cbnz(count, loop);
-      __ b(done);
+    Label Lword, Lint, Lshort, Lbyte;
+
+    assert(granularity
+	   && granularity <= sizeof (jlong), "Impossible granularity in copy_memory_small");
+
+    __ tbz(count, 3 - exact_log2(granularity), Lword);
+    __ ldr(tmp, Address(__ adjust(s, wordSize * direction, is_backwards)));
+    __ str(tmp, Address(__ adjust(d, wordSize * direction, is_backwards)));
+    __ bind(Lword);
+
+    if (granularity <= sizeof (jint)) {
+      __ tbz(count, 2 - exact_log2(granularity), Lint);
+      __ ldrw(tmp, Address(__ adjust(s, sizeof (jint) * direction, is_backwards)));
+      __ strw(tmp, Address(__ adjust(d, sizeof (jint) * direction, is_backwards)));
+      __ bind(Lint);
     }
+
+    if (granularity <= sizeof (jshort)) {
+      __ tbz(count, 1 - exact_log2(granularity), Lshort);
+      __ ldrh(tmp, Address(__ adjust(s, sizeof (jshort) * direction, is_backwards)));
+      __ strh(tmp, Address(__ adjust(d, sizeof (jshort) * direction, is_backwards)));
+      __ bind(Lshort);
+    }
+
+    if (granularity <= sizeof (jbyte)) {
+      __ tbz(count, 0, Lbyte);
+      __ ldrb(tmp, Address(__ adjust(s, sizeof (jbyte) * direction, is_backwards)));
+      __ strb(tmp, Address(__ adjust(d, sizeof (jbyte) * direction, is_backwards)));
+      __ bind(Lbyte);
+    }
+
+    __ b(done);
   }
 
   // All-singing all-dancing memory copy.
@@ -1016,42 +1029,39 @@ class StubGenerator: public StubCodeGenerator {
     Label done, large;
 
     if (! is_aligned) {
-      __ cmp(count, wordSize/granularity);
+      __ cmp(count, (wordSize * 2)/granularity);
       __ br(Assembler::HS, large);
       copy_memory_small(s, d, count, tmp, step, done);
       __ bind(large);
 
       // Now we've got the small case out of the way we can align the
       // source address.
-      {
-	Label skip1, skip2, skip4;
 
-	switch (granularity) {
-	case 1:
-	  __ tst(s, 1);
-	  __ br(Assembler::EQ, skip1);
-	  __ ldrb(tmp, Address(__ adjust(s, direction, is_backwards)));
-	  __ strb(tmp, Address(__ adjust(d, direction, is_backwards)));
-	  __ sub(count, count, 1);
-	  __ bind(skip1);
-	  // fall through
-	case 2:
-	  __ tst(s, 2/granularity);
-	  __ br(Assembler::EQ, skip2);
-	  __ ldrh(tmp, Address(__ adjust(s, 2 * direction, is_backwards)));
-	  __ strh(tmp, Address(__ adjust(d, 2 * direction, is_backwards)));
-	  __ sub(count, count, 2/granularity);
-	  __ bind(skip2);
-	  // fall through
-	case 4:
-	  __ tst(s, 4/granularity);
-	  __ br(Assembler::EQ, skip4);
-	  __ ldrw(tmp, Address(__ adjust(s, 4 * direction, is_backwards)));
-	  __ strw(tmp, Address(__ adjust(d, 4 * direction, is_backwards)));
-	  __ sub(count, count, 4/granularity);
-	  __ bind(skip4);
-	}
+      Label aligned;
+
+      if (is_backwards) {
+	__ andr(rscratch2, s, wordSize - 1);
+      } else {
+	__ neg(rscratch2, s);
+	__ andr(rscratch2, rscratch2, wordSize - 1);
       }
+      // rscratch2 is the byte adjustment needed to align s.
+      __ cbz(rscratch2, aligned);
+
+      // Copy the first word; s and d may not be aligned.
+      __ ldr(tmp, Address(s, is_backwards ? -wordSize : 0));
+      __ str(tmp, Address(d, is_backwards ? -wordSize : 0));
+
+      // Align s and d, adjust count
+      if (is_backwards) {
+	__ sub(s, s, rscratch2);
+	__ sub(d, d, rscratch2);
+      } else {
+	__ add(s, s, rscratch2);
+	__ add(d, d, rscratch2);
+      }
+      __ sub(count, count, rscratch2, Assembler::LSR, exact_log2(granularity));
+      __ bind(aligned);
     }
 
     // s is now word-aligned.
@@ -1140,6 +1150,12 @@ class StubGenerator: public StubCodeGenerator {
     __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
     __ ret(lr);
+#ifdef BUILTIN_SIM
+    {
+      AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
+      sim->notifyCompile(const_cast<char*>(name), start);
+    }
+#endif
     return start;
   }
 
@@ -1188,7 +1204,12 @@ class StubGenerator: public StubCodeGenerator {
     __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
     __ ret(lr);
-
+#ifdef BUILTIN_SIM
+    {
+      AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
+      sim->notifyCompile(const_cast<char*>(name), start);
+    }
+#endif
     return start;
 }
 
