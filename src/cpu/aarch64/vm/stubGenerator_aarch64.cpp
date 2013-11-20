@@ -929,54 +929,149 @@ class StubGenerator: public StubCodeGenerator {
     copy_backwards = -1
   } copy_direction;
 
-  void copy_longs_small(Register s, Register d, Register count, copy_direction direction) {
-    Label again, around;
-    __ cbz(count, around);
-    __ bind(again);
-    __ ldr(r16, Address(__ adjust(s, wordSize * direction, direction == copy_backwards)));
-    __ str(r16, Address(__ adjust(d, wordSize * direction, direction == copy_backwards)));
-    __ sub(count, count, 1);
-    __ cbnz(count, again);
-    __ bind(around);
-  }
+  // Bulk copy of blocks of 8 words.
+  //
+  // count is a count of words.
+  //
+  // Precondition: count >= 2
+  //
+  // Postconditions:
+  //
+  // The least significant bit of count contains the remaining count
+  // of words to copy.  The rest of count is trash.
+  //
+  // s and d are adjusted to point to the remaining words to copy
+  //
+  void generate_copy_longs(Label &start, Register s, Register d, Register count,
+			   copy_direction direction) {
+    int unit = wordSize * direction;
 
-  void copy_longs(Register s, Register d, Register count, Register tmp, copy_direction direction) {
-    __ andr(tmp, count, 3);
-    copy_longs_small(s, d, tmp, direction);
-    __ andr(count, count, -4);
+    int offset;
+    if (direction < 0)
+      offset = -2 * wordSize;
+    else
+      offset = 0;
 
-    Label again, around;
-    __ cbz(count, around);
-    __ push(r18->bit() | r19->bit(), sp);
-    __ bind(again);
-    if (direction != copy_backwards) {
-      if (PrefetchCopyIntervalInBytes > 0)
-	__ prfm(Address(s, PrefetchCopyIntervalInBytes));
+    const Register t0 = r3, t1 = r4, t2 = r5, t3 = r6,
+      t4 = r7, t5 = r10, t6 = r11, t7 = r12;
+
+    assert_different_registers(rscratch1, t0, t1, t2, t3, t4, t5, t6, t7);
+    assert_different_registers(s, d, count, rscratch1);
+
+    Label again, large, small;
+    __ align(6);
+    __ bind(start);
+    __ cmp(count, 8);
+    __ br(Assembler::LO, small);
+    __ subs(count, count, 16);
+    __ br(Assembler::GE, large);
+
+    // 8 <= count < 16 words.  Copy 8.
+    __ ldp(t0, t1, Address(s, offset));
+    __ ldp(t2, t3, Address(s, 2 * unit + offset));
+    __ ldp(t4, t5, Address(s, 4 * unit + offset));
+    __ ldp(t6, t7, Address(s, 6 * unit + offset));
+    __ stp(t0, t1, Address(d, offset));
+    __ stp(t2, t3, Address(d, 2 * unit + offset));
+    __ stp(t4, t5, Address(d, 4 * unit + offset));
+    __ stp(t6, t7, Address(d, 6 * unit + offset));
+
+    __ add(s, s, 8 * unit);
+    __ add(d, d, 8 * unit);
+
+    {
+      Label L1, L2;
+      __ bind(small);
+      __ tbz(count, exact_log2(4), L1);
+      __ ldp(t0, t1, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ ldp(t2, t3, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ stp(t0, t1, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ stp(t2, t3, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ bind(L1);
+
+      __ tbz(count, 1, L2);
+      __ ldp(t0, t1, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ stp(t0, t1, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ bind(L2);
     }
-    __ ldp(r16, r17, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
-    __ ldp(r18, r19, Address(__ adjust(s, 2 * wordSize * direction, direction == copy_backwards)));
-    __ stp(r16, r17, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
-    __ stp(r18, r19, Address(__ adjust(d, 2 * wordSize * direction, direction == copy_backwards)));
-    __ subs(count, count, 4);
-    __ cbnz(count, again);
-    __ pop(r18->bit() | r19->bit(), sp);
-    __ bind(around);
+
+    __ ret(lr);
+
+    __ align(6);
+    __ bind(large);
+
+    // Fill 8 registers
+    __ ldp(t0, t1, Address(s, offset));
+    __ ldp(t2, t3, Address(s, 2 * unit + offset));
+    __ ldp(t4, t5, Address(s, 4 * unit + offset));
+    __ ldp(t6, t7, Address(s, 6 * unit + offset));
+
+    __ bind(again);
+
+    __ add(s, s, 8 * unit);
+
+    __ stp(t0, t1, Address(d, offset));
+    __ ldp(t0, t1, Address(s, offset));
+    __ stp(t2, t3, Address(d, 2 * unit + offset));
+    __ ldp(t2, t3, Address(s, 2 * unit + offset));
+    __ stp(t4, t5, Address(d, 4 * unit + offset));
+    __ ldp(t4, t5, Address(s, 4 * unit + offset));
+    __ stp(t6, t7, Address(d, 6 * unit + offset));
+    __ ldp(t6, t7, Address(s, 6 * unit + offset));
+
+    __ add(d, d, 8 * unit);
+
+    __ subs(count, count, 8);
+    __ br(Assembler::HS, again);
+
+    // Drain
+    __ stp(t0, t1, Address(d, offset));
+    __ stp(t2, t3, Address(d, 2 * unit + offset));
+    __ stp(t4, t5, Address(d, 4 * unit + offset));
+    __ stp(t6, t7, Address(d, 6 * unit + offset));
+
+    __ add(s, s, 8 * unit);
+    __ add(d, d, 8 * unit);
+
+    {
+      Label L1, L2;
+      __ tbz(count, exact_log2(4), L1);
+      __ ldp(t0, t1, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ ldp(t2, t3, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ stp(t0, t1, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ stp(t2, t3, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ bind(L1);
+
+      __ tbz(count, 1, L2);
+      __ ldp(t0, t1, Address(__ adjust(s, 2 * unit, direction == copy_backwards)));
+      __ stp(t0, t1, Address(__ adjust(d, 2 * unit, direction == copy_backwards)));
+      __ bind(L2);
+    }
+
+    __ ret(lr);
   }
 
-  void copy_memory_small(Register s, Register d, Register count, Register tmp, int step, Label &done) {
-    // Small copy: less than two words.
+  // Small copy: less than 16 bytes.
+  //
+  // NB: Ignores all of the bits of count which represent more than 15
+  // bytes, so a caller doesn't have to mask them.
+
+  void copy_memory_small(Register s, Register d, Register count, Register tmp, int step) {
     bool is_backwards = step < 0;
     size_t granularity = abs(step);
     int direction = is_backwards ? -1 : 1;
+    int unit = wordSize * direction;
 
-    Label Lword, Lint, Lshort, Lbyte;
+    Label Lpair, Lword, Lint, Lshort, Lbyte;
 
     assert(granularity
 	   && granularity <= sizeof (jlong), "Impossible granularity in copy_memory_small");
 
+    const Register t0 = r3, t1 = r4, t2 = r5, t3 = r6;
+
     __ tbz(count, 3 - exact_log2(granularity), Lword);
-    __ ldr(tmp, Address(__ adjust(s, wordSize * direction, is_backwards)));
-    __ str(tmp, Address(__ adjust(d, wordSize * direction, is_backwards)));
+    __ ldr(tmp, Address(__ adjust(s, unit, is_backwards)));
+    __ str(tmp, Address(__ adjust(d, unit, is_backwards)));
     __ bind(Lword);
 
     if (granularity <= sizeof (jint)) {
@@ -999,9 +1094,9 @@ class StubGenerator: public StubCodeGenerator {
       __ strb(tmp, Address(__ adjust(d, sizeof (jbyte) * direction, is_backwards)));
       __ bind(Lbyte);
     }
-
-    __ b(done);
   }
+
+  Label copy_f, copy_b;
 
   // All-singing all-dancing memory copy.
   //
@@ -1015,42 +1110,47 @@ class StubGenerator: public StubCodeGenerator {
     copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
     bool is_backwards = step < 0;
     int granularity = abs(step);
+    const Register t0 = r3, t1 = r4;
 
     if (is_backwards) {
       __ lea(s, Address(s, count, Address::uxtw(exact_log2(-step))));
       __ lea(d, Address(d, count, Address::uxtw(exact_log2(-step))));
     }
 
-    if (granularity == wordSize) {
-      copy_longs(c_rarg0, c_rarg1, c_rarg2, rscratch1, direction);
-      return;
-    }
+    Label done, tail;
 
-    Label done, large;
+    __ cmp(count, 16/granularity);
+    __ br(Assembler::LO, tail);
 
-    if (! is_aligned) {
-      __ cmp(count, (wordSize * 2)/granularity);
-      __ br(Assembler::HS, large);
-      copy_memory_small(s, d, count, tmp, step, done);
-      __ bind(large);
+    // Now we've got the small case out of the way we can align the
+    // source address on a 2-word boundary.
 
-      // Now we've got the small case out of the way we can align the
-      // source address.
+    Label aligned;
 
-      Label aligned;
-
+    if (is_aligned) {
+      // We may have to adjust by 1 word to get s 2-word-aligned.
+      __ tbz(s, exact_log2(wordSize), aligned);
+      __ ldr(tmp, Address(__ adjust(s, direction * wordSize, is_backwards)));
+      __ str(tmp, Address(__ adjust(d, direction * wordSize, is_backwards)));
+      __ sub(count, count, wordSize/granularity);
+    } else {
       if (is_backwards) {
-	__ andr(rscratch2, s, wordSize - 1);
+	__ andr(rscratch2, s, 2 * wordSize - 1);
       } else {
 	__ neg(rscratch2, s);
-	__ andr(rscratch2, rscratch2, wordSize - 1);
+	__ andr(rscratch2, rscratch2, 2 * wordSize - 1);
       }
       // rscratch2 is the byte adjustment needed to align s.
       __ cbz(rscratch2, aligned);
+      __ sub(count, count, rscratch2, Assembler::LSR, exact_log2(granularity));
 
-      // Copy the first word; s and d may not be aligned.
-      __ ldr(tmp, Address(s, is_backwards ? -wordSize : 0));
-      __ str(tmp, Address(d, is_backwards ? -wordSize : 0));
+#if 0
+      // ?? This code is only correct for a disjoint copy.  It may or
+      // may not make sense to use it in that case.
+
+      // Copy the first pair; s and d may not be aligned.
+      __ ldp(t0, t1, Address(s, is_backwards ? -2 * wordSize : 0));
+      __ stp(t0, t1, Address(d, is_backwards ? -2 * wordSize : 0));
 
       // Align s and d, adjust count
       if (is_backwards) {
@@ -1060,24 +1160,39 @@ class StubGenerator: public StubCodeGenerator {
 	__ add(s, s, rscratch2);
 	__ add(d, d, rscratch2);
       }
-      __ sub(count, count, rscratch2, Assembler::LSR, exact_log2(granularity));
-      __ bind(aligned);
+#else
+      copy_memory_small(s, d, rscratch2, rscratch1, step);
+#endif
     }
 
-    // s is now word-aligned.
+    __ cmp(count, 16/granularity);
+    __ br(Assembler::LT, tail);
+    __ bind(aligned);
+
+    // s is now 2-word-aligned.
 
     // We have a count of units and some trailing bytes.  Adjust the
     // count and do a bulk copy of words.
     __ lsr(rscratch2, count, exact_log2(wordSize/granularity));
-    __ sub(count, count, rscratch2, Assembler::LSL, exact_log2(wordSize/granularity));
-
-    copy_longs(s, d, rscratch2, rscratch1, direction);
+    if (direction == copy_forwards)
+      __ bl(copy_f);
+    else
+      __ bl(copy_b);
 
     // And the tail.
 
-    copy_memory_small(s, d, count, tmp, step, done);
+    __ bind(tail);
+    copy_memory_small(s, d, count, tmp, step);
+  }
 
-    __ bind(done);
+
+  void clobber_registers() {
+#ifdef ASSERT
+    __ mov(rscratch1, (uint64_t)0xdeadbeef);
+    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSL, 32);
+    for (Register r = r3; r <= r18; r++)
+      if (r != rscratch1) __ mov(r, rscratch1);
+#endif
   }
 
   // Scan over array at a for count oops, verifying each one.
@@ -1132,7 +1247,6 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
     __ enter();
-    __ push(r16->bit() | r17->bit(), sp);
     if (is_oop) {
       __ push(d->bit() | count->bit(), sp);
       // no registers are destroyed by this call
@@ -1147,7 +1261,6 @@ class StubGenerator: public StubCodeGenerator {
       __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
-    __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
     __ ret(lr);
 #ifdef BUILTIN_SIM
@@ -1186,7 +1299,6 @@ class StubGenerator: public StubCodeGenerator {
     __ br(Assembler::LS, nooverlap_target);
 
     __ enter();
-    __ push(r16->bit() | r17->bit(), sp);
     if (is_oop) {
       __ push(d->bit() | count->bit(), sp);
       // no registers are destroyed by this call
@@ -1201,7 +1313,6 @@ class StubGenerator: public StubCodeGenerator {
       __ lea(count, Address(d, count, Address::uxtw(exact_log2(size))));
       gen_write_ref_array_post_barrier(d, count, rscratch1);
     }
-    __ pop(r16->bit() | r17->bit(), sp);
     __ leave();
     __ ret(lr);
 #ifdef BUILTIN_SIM
@@ -1657,6 +1768,9 @@ class StubGenerator: public StubCodeGenerator {
     address entry_oop_arraycopy;
     address entry_jlong_arraycopy;
     address entry_checkcast_arraycopy;
+
+    generate_copy_longs(copy_f, r0, r1, rscratch2, copy_forwards);
+    generate_copy_longs(copy_b, r0, r1, rscratch2, copy_backwards);
 
     //*** jbyte
     // Always need aligned and unaligned versions
