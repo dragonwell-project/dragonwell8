@@ -1011,7 +1011,7 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(again);
 
     if (direction == copy_forwards && PrefetchCopyIntervalInBytes > 0)
-      __ prfm(PLDL1KEEP, Address(s, PrefetchCopyIntervalInBytes));
+      __ prfm(Address(s, PrefetchCopyIntervalInBytes), PLDL1KEEP);
 
     __ stp(t0, t1, Address(d, 2 * unit));
     __ ldp(t0, t1, Address(s, 2 * unit));
