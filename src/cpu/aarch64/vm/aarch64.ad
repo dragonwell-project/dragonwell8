@@ -8742,7 +8742,7 @@ instruct rorL_rReg(iRegL dst, iRegL src, iRegI shift, rFlagsReg cr)
   ins_cost(DEFAULT_COST);
   ins_encode %{
     __ rorv(as_Register($dst$$reg), as_Register($src$$reg),
-	    rscratch1);
+	    as_Register($shift$$reg));
     %}
   ins_pipe(pipe_class_default);
 %}
@@ -8757,7 +8757,7 @@ instruct rorI_rReg(iRegI dst, iRegI src, iRegI shift, rFlagsReg cr)
   ins_cost(DEFAULT_COST);
   ins_encode %{
     __ rorvw(as_Register($dst$$reg), as_Register($src$$reg),
-	    rscratch1);
+	    as_Register($shift$$reg));
     %}
   ins_pipe(pipe_class_default);
 %}

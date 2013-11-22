@@ -236,7 +236,7 @@ instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
   ins_cost(DEFAULT_COST);
   ins_encode %{
     __ $3(as_Register($dst$$reg), as_Register($src$$reg),
-	    rscratch1);
+	    as_Register($shift$$reg));
     %}
   ins_pipe(pipe_class_default);
 %}')dnl
