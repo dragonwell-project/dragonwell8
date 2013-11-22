@@ -947,11 +947,6 @@ class StubGenerator: public StubCodeGenerator {
     int unit = wordSize * direction;
 
     int offset;
-    if (direction < 0)
-      offset = -2 * wordSize;
-    else
-      offset = 0;
-
     const Register t0 = r3, t1 = r4, t2 = r5, t3 = r6,
       t4 = r7, t5 = r10, t6 = r11, t7 = r12;
 
@@ -963,21 +958,28 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(start);
     __ cmp(count, 8);
     __ br(Assembler::LO, small);
+    if (direction == copy_forwards) {
+      __ sub(s, s, 2 * wordSize);
+      __ sub(d, d, 2 * wordSize);
+    }
     __ subs(count, count, 16);
     __ br(Assembler::GE, large);
 
     // 8 <= count < 16 words.  Copy 8.
-    __ ldp(t0, t1, Address(s, offset));
-    __ ldp(t2, t3, Address(s, 2 * unit + offset));
-    __ ldp(t4, t5, Address(s, 4 * unit + offset));
-    __ ldp(t6, t7, Address(s, 6 * unit + offset));
-    __ stp(t0, t1, Address(d, offset));
-    __ stp(t2, t3, Address(d, 2 * unit + offset));
-    __ stp(t4, t5, Address(d, 4 * unit + offset));
-    __ stp(t6, t7, Address(d, 6 * unit + offset));
+    __ ldp(t0, t1, Address(s, 2 * unit));
+    __ ldp(t2, t3, Address(s, 4 * unit));
+    __ ldp(t4, t5, Address(s, 6 * unit));
+    __ ldp(t6, t7, Address(__ pre(s, 8 * unit)));
 
-    __ add(s, s, 8 * unit);
-    __ add(d, d, 8 * unit);
+    __ stp(t0, t1, Address(d, 2 * unit));
+    __ stp(t2, t3, Address(d, 4 * unit));
+    __ stp(t4, t5, Address(d, 6 * unit));
+    __ stp(t6, t7, Address(__ pre(d, 8 * unit)));
+
+    if (direction == copy_forwards) {
+      __ add(s, s, 2 * wordSize);
+      __ add(d, d, 2 * wordSize);
+    }
 
     {
       Label L1, L2;
@@ -1001,37 +1003,38 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(large);
 
     // Fill 8 registers
-    __ ldp(t0, t1, Address(s, offset));
-    __ ldp(t2, t3, Address(s, 2 * unit + offset));
-    __ ldp(t4, t5, Address(s, 4 * unit + offset));
-    __ ldp(t6, t7, Address(s, 6 * unit + offset));
+    __ ldp(t0, t1, Address(s, 2 * unit));
+    __ ldp(t2, t3, Address(s, 4 * unit));
+    __ ldp(t4, t5, Address(s, 6 * unit));
+    __ ldp(t6, t7, Address(__ pre(s, 8 * unit)));
 
     __ bind(again);
 
-    __ add(s, s, 8 * unit);
+    if (direction == copy_forwards && PrefetchCopyIntervalInBytes > 0)
+      __ prfm(PLDL1KEEP, Address(s, PrefetchCopyIntervalInBytes));
 
-    __ stp(t0, t1, Address(d, offset));
-    __ ldp(t0, t1, Address(s, offset));
-    __ stp(t2, t3, Address(d, 2 * unit + offset));
-    __ ldp(t2, t3, Address(s, 2 * unit + offset));
-    __ stp(t4, t5, Address(d, 4 * unit + offset));
-    __ ldp(t4, t5, Address(s, 4 * unit + offset));
-    __ stp(t6, t7, Address(d, 6 * unit + offset));
-    __ ldp(t6, t7, Address(s, 6 * unit + offset));
-
-    __ add(d, d, 8 * unit);
+    __ stp(t0, t1, Address(d, 2 * unit));
+    __ ldp(t0, t1, Address(s, 2 * unit));
+    __ stp(t2, t3, Address(d, 4 * unit));
+    __ ldp(t2, t3, Address(s, 4 * unit));
+    __ stp(t4, t5, Address(d, 6 * unit));
+    __ ldp(t4, t5, Address(s, 6 * unit));
+    __ stp(t6, t7, Address(__ pre(d, 8 * unit)));
+    __ ldp(t6, t7, Address(__ pre(s, 8 * unit)));
 
     __ subs(count, count, 8);
     __ br(Assembler::HS, again);
 
     // Drain
-    __ stp(t0, t1, Address(d, offset));
-    __ stp(t2, t3, Address(d, 2 * unit + offset));
-    __ stp(t4, t5, Address(d, 4 * unit + offset));
-    __ stp(t6, t7, Address(d, 6 * unit + offset));
+    __ stp(t0, t1, Address(d, 2 * unit));
+    __ stp(t2, t3, Address(d, 4 * unit));
+    __ stp(t4, t5, Address(d, 6 * unit));
+    __ stp(t6, t7, Address(__ pre(d, 8 * unit)));
 
-    __ add(s, s, 8 * unit);
-    __ add(d, d, 8 * unit);
+    if (direction == copy_forwards) {
+      __ add(s, s, 2 * wordSize);
+      __ add(d, d, 2 * wordSize);
+    }
 
     {
       Label L1, L2;
@@ -1068,6 +1071,11 @@ class StubGenerator: public StubCodeGenerator {
 	   && granularity <= sizeof (jlong), "Impossible granularity in copy_memory_small");
 
     const Register t0 = r3, t1 = r4, t2 = r5, t3 = r6;
+
+    // ??? I don't know if this bit-test-and-branch is the right thing
+    // to do.  It does a lot of jumping, resulting in several
+    // mispredicted branches.  It might make more sense to do this
+    // with something like Duff's device with a single computed branch.
 
     __ tbz(count, 3 - exact_log2(granularity), Lword);
     __ ldr(tmp, Address(__ adjust(s, unit, is_backwards)));
@@ -1142,7 +1150,8 @@ class StubGenerator: public StubCodeGenerator {
       }
       // rscratch2 is the byte adjustment needed to align s.
       __ cbz(rscratch2, aligned);
-      __ sub(count, count, rscratch2, Assembler::LSR, exact_log2(granularity));
+      __ lsr(rscratch2, rscratch2, exact_log2(granularity));
+      __ sub(count, count, rscratch2);
 
 #if 0
       // ?? This code is only correct for a disjoint copy.  It may or
