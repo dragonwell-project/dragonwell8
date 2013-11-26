@@ -497,6 +497,16 @@ reg_class r5_reg(
     R5, R5_H
 );
 
+// Class for 64 bit register r10
+reg_class r10_reg(
+    R10, R10_H
+);
+
+// Class for 64 bit register r11
+reg_class r11_reg(
+    R11, R11_H
+);
+
 // Class for method register
 reg_class method_reg(
     R12, R12_H
@@ -1566,7 +1576,7 @@ const bool Matcher::misaligned_vectors_ok() {
 const bool Matcher::init_array_count_is_in_bytes = false;
 
 // Threshold size for cleararray.
-const int Matcher::init_array_short_size = 8 * BytesPerLong;
+const int Matcher::init_array_short_size = 18 * BytesPerLong;
 
 // Use conditional move (CMOVL)
 const int Matcher::long_cmove_cost() {
@@ -2519,37 +2529,53 @@ encode %{
     }
   %}
 
-  enc_class aarch64_enc_clear_array_reg_reg(iRegL cnt, iRegP base) %{
+  enc_class aarch64_enc_clear_array_reg_reg(iRegL_R11 cnt, iRegP_R10 base) %{
     MacroAssembler _masm(&cbuf);
-    Register cnt_orig = as_Register($cnt$$reg);
-    Register base_orig = as_Register($base$$reg);
-    Register cnt_reg = rscratch1;
-    Register base_reg = rscratch2;
-    // base is doubleword aligned
-    // cnt is count of doublewords
+    Register cnt_reg = as_Register($cnt$$reg);
+    Register base_reg = as_Register($base$$reg);
+    // base is word aligned
+    // cnt is count of words
 
-    // TODO
-    // look for more efficient ways of doing this
-    // e.g. use stp?
-
-    // copy the input registers so we can modify them. we really want
-    // the input registers to be USE_KILL but that requires them to be
-    // defined registers. copying is always worse than maybe being
-    // able to allocate a specific register
-
-    __ mov(cnt_reg, cnt_orig);
-    __ mov(base_reg, base_orig);
-
-    // for now we just write cnt zeros
     Label loop;
     Label done;
-    __ cbz(cnt_reg, done);
-    __ bind(loop);
-    __ sub(cnt_reg, cnt_reg, 1);
-    __ str(zr, __ post(base_reg, wordSize));
-    __ cbnz(cnt_reg, loop);
-    __ bind(done);
+    Label entry;
 
+//  Algorithm:
+//
+//    scratch1 = cnt & 7;
+//    cnt -= scratch1;
+//    p += scratch1;
+//    switch (scratch1) {
+//      do {
+//        cnt -= 8;
+//        case 7:
+//          p[-7] = 0;
+//        case 6:
+//          p[-6] = 0;
+//          // ...
+//        case 1:
+//          p[-1] = 0;
+//        case 0:
+//          p += 8;
+//      } while (cnt);
+//    }
+
+    const int unroll = 8; // Number of str(zr) instructions we'll unroll
+
+    __ andr(rscratch1, cnt_reg, unroll - 1);  // tmp1 = cnt % unroll
+    __ sub(cnt_reg, cnt_reg, rscratch1);      // cnt -= unroll
+    // base_reg always points to the end of the region we're about to zero
+    __ add(base_reg, base_reg, rscratch1, Assembler::LSL, exact_log2(wordSize));
+    __ adr(rscratch2, entry);
+    __ sub(rscratch2, rscratch2, rscratch1, Assembler::LSL, 2);
+    __ br(rscratch2);
+    __ bind(loop);
+    __ sub(cnt_reg, cnt_reg, unroll);
+    for (int i = -unroll; i < 0; i++)
+      __ str(zr, Address(base_reg, i * wordSize));
+    __ bind(entry);
+    __ add(base_reg, base_reg, unroll * wordSize);
+    __ cbnz(cnt_reg, loop);
   %}
 
   /// mov envcodings
@@ -3936,6 +3962,27 @@ operand iRegP_R5()
   match(RegP);
   // match(iRegP);
   match(iRegPNoSp);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register R10 only
+operand iRegP_R10()
+%{
+  constraint(ALLOC_IN_RC(r10_reg));
+  match(RegP);
+  // match(iRegP);
+  match(iRegPNoSp);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Long 64 bit Register R11 only
+operand iRegL_R11()
+%{
+  constraint(ALLOC_IN_RC(r11_reg));
+  match(RegL);
+  match(iRegLNoSp);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -9976,15 +10023,10 @@ instruct MoveL2D_reg_reg(vRegD dst, iRegL src) %{
 // ============================================================================
 // clearing of an array
 
-instruct clearArray_reg_reg(iRegLNoSp cnt, iRegP base, Universe dummy, rFlagsReg cr)
+instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, Universe dummy, rFlagsReg cr)
 %{
   match(Set dummy (ClearArray cnt base));
-  // TODO
-  // we really want to allocate cnt and base in defined registers.
-  // that would allow us to mark them as USE_KILL and modify them in
-  // place. we cannot do that if we use a register class (why?).  so
-  // for now we acceot the hit of a copy into rscratch1 and rscratch2
-  effect(USE cnt, USE base, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base);
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ClearArray $cnt, $base" %}
