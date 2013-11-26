@@ -520,7 +520,7 @@ void InterpreterGenerator::generate_stack_overflow_check(void) {
 
   // check against the current stack bottom
   __ cmp(sp, r0);
-  __ br(Assembler::LO, after_frame_check);
+  __ br(Assembler::HI, after_frame_check);
 
   // Note: the restored frame is not necessarily interpreted.
   // Use the shared runtime version of the StackOverflowError.
