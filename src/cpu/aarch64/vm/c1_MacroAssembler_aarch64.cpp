@@ -221,57 +221,46 @@ void C1_MacroAssembler::zero_memory(Register addr, Register len, Register t1) {
   block_comment("zero memory");
 #endif
 
-  Label finished;
+  Label loop;
+  Label entry;
+
+//  Algorithm:
+//
+//    scratch1 = cnt & 7;
+//    cnt -= scratch1;
+//    p += scratch1;
+//    switch (scratch1) {
+//      do {
+//        cnt -= 8;
+//        case 7:
+//          p[-7] = 0;
+//        case 6:
+//          p[-6] = 0;
+//          // ...
+//        case 1:
+//          p[-1] = 0;
+//        case 0:
+//          p += 8;
+//      } while (cnt);
+//    }
+
+  const int unroll = 8; // Number of str(zr) instructions we'll unroll
 
   lsr(len, len, LogBytesPerWord);
-  mov(rscratch1, addr);
-
-  // The algorithm first zeroes words until the number of words
-  // remaining is a multiple of 8, then enters a loop that writes 8
-  // words at a time.  The idea is to get small arrays done quickly
-  // because these are the common case.  Also, we don't want to bloat
-  // the VM with a lot of code: it's a compromise between speed and
-  // size.  We should really emit the large block out of line.
-
-  Label is_even;
-  tst(len, 1);
-  br(Assembler::EQ, is_even);
-  str(zr, Address(post(rscratch1, wordSize)));
-  sub(len, len, 1);
-  bind(is_even);
-
-  // len is now a multiple of 2
-
-  {
-    // Initialize the first few words.  This loop iterates at most 3
-    // times.
-
-    Label bottom, loop;
-    mov(t1, zr);
-    b(bottom);
-
-    bind(loop);
-    stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
-    sub(len, len, 2);
-    bind(bottom);
-    tst(len, 7);
-    br(NE, loop);
-  }
-
-  // len is now a multiple of 8
-
-  cbz(len, finished);
-
-  Label top;
-  bind(top);
-  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
-  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
-  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
-  stp(zr, t1, Address(post(rscratch1, 2 * wordSize)));
-  sub(len, len, 8);
-  cbnz(len, top);
-
-  bind(finished);
+  andr(rscratch1, len, unroll - 1);  // tmp1 = cnt % unroll
+  sub(len, len, rscratch1);      // cnt -= unroll
+  // t1 always points to the end of the region we're about to zero
+  add(t1, addr, rscratch1, Assembler::LSL, LogBytesPerWord);
+  adr(rscratch2, entry);
+  sub(rscratch2, rscratch2, rscratch1, Assembler::LSL, 2);
+  br(rscratch2);
+  bind(loop);
+  sub(len, len, unroll);
+  for (int i = -unroll; i < 0; i++)
+    str(zr, Address(t1, i * wordSize));
+  bind(entry);
+  add(t1, t1, unroll * wordSize);
+  cbnz(len, loop);
 }
 
 // preserves obj, destroys len_in_bytes
@@ -323,7 +312,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   // clear rest of allocated space
   const Register index = t2;
-  const int threshold = 8 * BytesPerWord;   // approximate break even point for code size (see comments below)
+  const int threshold = 16 * BytesPerWord;   // approximate break even point for code size (see comments below)
   if (var_size_in_bytes != noreg) {
     mov(index, var_size_in_bytes);
     initialize_body(obj, index, hdr_size_in_bytes, t1);
@@ -334,44 +323,34 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
       str(zr, Address(obj, i));
       i += BytesPerWord;
     }
-    if (i < con_size_in_bytes) {
-      mov(t1, zr);
-    }
     for (; i < con_size_in_bytes; i += 2 * BytesPerWord)
-      stp(zr, t1, Address(obj, i));
+      stp(zr, zr, Address(obj, i));
   } else if (con_size_in_bytes > hdr_size_in_bytes) {
     block_comment("zero memory");
     // use loop to null out the fields
-    // initialize last object field first if odd number of fields
+
     int words = (con_size_in_bytes - hdr_size_in_bytes) / BytesPerWord;
     mov(index,  words / 8);
-    lea(rscratch1, Address(obj, (con_size_in_bytes & - ((2 * BytesPerWord)-1))));
-    // initialize last object field if constant size is odd
-    if ((words % 2) != 0) {
-      str(zr, Address(obj, con_size_in_bytes - (1*BytesPerWord)));
-      words--;
+
+    const int unroll = 8; // Number of str(zr) instructions we'll unroll
+    int remainder = words % unroll;
+    lea(rscratch1, Address(obj, hdr_size_in_bytes + remainder * BytesPerWord));
+
+    Label entry_point, loop;
+    b(entry_point);
+
+    bind(loop);
+    sub(index, index, 1);
+    for (int i = -unroll; i < 0; i++) {
+      if (-i == remainder)
+	bind(entry_point);
+      str(zr, Address(rscratch1, i * wordSize));
     }
-    // initialize remaining object fields
-    mov(t1, zr);
-    {
-      Label top, entry_point;
+    if (remainder == 0)
+      bind(entry_point);
+    add(rscratch1, rscratch1, unroll * wordSize);
+    cbnz(index, loop);
 
-      int remainder = words % 8;
-      if (remainder != 0)
-	b(entry_point);
-
-      bind(top);
-      sub(index, index, 1);
-      stp(zr, t1, pre(rscratch1, -2 * BytesPerWord));
-      if (remainder == 6) bind(entry_point);
-      stp(zr, t1, pre(rscratch1, -2 * BytesPerWord));
-      if (remainder == 4) bind(entry_point);
-      stp(zr, t1, pre(rscratch1, -2 * BytesPerWord));
-      if (remainder == 2) bind(entry_point);
-      stp(zr, t1, pre(rscratch1, -2 * BytesPerWord));
-
-      cbnz(index, top);
-    }
   }
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
