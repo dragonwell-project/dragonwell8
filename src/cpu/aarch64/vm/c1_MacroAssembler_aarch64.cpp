@@ -232,6 +232,7 @@ void C1_MacroAssembler::zero_memory(Register addr, Register len, Register t1) {
 //    switch (scratch1) {
 //      do {
 //        cnt -= 8;
+//          p[-8] = 0;
 //        case 7:
 //          p[-7] = 0;
 //        case 6:

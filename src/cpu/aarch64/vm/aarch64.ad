@@ -2537,7 +2537,6 @@ encode %{
     // cnt is count of words
 
     Label loop;
-    Label done;
     Label entry;
 
 //  Algorithm:
@@ -2548,6 +2547,7 @@ encode %{
 //    switch (scratch1) {
 //      do {
 //        cnt -= 8;
+//          p[-8] = 0;
 //        case 7:
 //          p[-7] = 0;
 //        case 6:
