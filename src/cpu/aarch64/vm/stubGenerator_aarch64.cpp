@@ -1884,11 +1884,11 @@ class StubGenerator: public StubCodeGenerator {
     switch (size) {
       case 4:
         // int32_t
-	__ ldrw(c_rarg0, Address(c_rarg0, 0));
+	__ ldrw(c_rarg1, Address(c_rarg0, 0));
         break;
       case 8:
         // int64_t
-	__ ldr(c_rarg0, Address(c_rarg0, 0));
+	__ ldr(c_rarg1, Address(c_rarg0, 0));
         break;
       default:
         ShouldNotReachHere();
@@ -1896,6 +1896,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // return errValue or *adr
     *continuation_pc = __ pc();
+    __ mov(r0, c_rarg1);
     __ ret(lr);
   }
 #endif
