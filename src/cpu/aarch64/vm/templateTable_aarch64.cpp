@@ -3217,9 +3217,8 @@ void TemplateTable::_new() {
   // This is done before loading InstanceKlass to be consistent with the order
   // how Constant Pool is updated (see ConstantPool::klass_at_put)
   const int tags_offset = Array<u1>::base_offset_in_bytes();
-  // FIXME -- this was lsl(3) but it looks like it ought to be lsl(0)
   __ lea(rscratch1, Address(r0, r3, Address::lsl(0)));
-  __ ldr(rscratch1, Address(rscratch1, tags_offset));
+  __ ldrb(rscratch1, Address(rscratch1, tags_offset));
   __ cmp(rscratch1, JVM_CONSTANT_Class);
   __ br(Assembler::NE, slow_case);
 
@@ -3271,20 +3270,24 @@ void TemplateTable::_new() {
   if (allow_shared_alloc) {
     __ bind(allocate_shared);
 
+    unsigned long top_offset, end_offset;
+
     ExternalAddress top((address)Universe::heap()->top_addr());
-    ExternalAddress end((address)Universe::heap()->end_addr());
 
     const Register RtopAddr = r10;
     const Register RendAddr = r11;
 
-    __ lea(RtopAddr, top);
-    __ lea(RendAddr, end);
+    __ adrp(RtopAddr, ExternalAddress((address)Universe::heap()->top_addr()), top_offset);
+    __ lea(RtopAddr, Address(RtopAddr, top_offset));
+    __ adrp(RendAddr, ExternalAddress((address) Universe::heap()->end_addr()), end_offset);
+    Address end_addr(RendAddr, end_offset);
     __ ldr(r0, Address(RtopAddr, 0));
 
+    // For retries r0 gets set by cmpxchgptr
     Label retry;
     __ bind(retry);
     __ lea(r1, Address(r0, r3));
-    __ ldr(rscratch1, Address(RendAddr, 0));
+    __ ldr(rscratch1, end_addr);
     __ cmp(r1, rscratch1);
     __ br(Assembler::GT, slow_case);
 
@@ -3308,16 +3311,16 @@ void TemplateTable::_new() {
     // zero, go directly to the header initialization.
     __ bind(initialize_object);
     __ sub(r3, r3, sizeof(oopDesc));
-    __ br(Assembler::EQ, initialize_header);
+    __ cbz(r3, initialize_header);
 
     // Initialize object fields
     {
-      __ mov(r2, r0);
+      __ add(r2, r0, sizeof(oopDesc));
       Label loop;
       __ bind(loop);
       __ str(zr, Address(__ post(r2, BytesPerLong)));
-      __ subs(r3, r3, BytesPerLong);
-      __ br(Assembler::NE, loop);
+      __ sub(r3, r3, BytesPerLong);
+      __ cbnz(r3, loop);
     }
 
     // initialize object header only.
