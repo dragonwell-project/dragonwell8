@@ -320,7 +320,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
   } else if (con_size_in_bytes <= threshold) {
     // use explicit null stores
     int i = hdr_size_in_bytes;
-    if (i < con_size_in_bytes && i % (2 * BytesPerWord)) {
+    if (i < con_size_in_bytes && (con_size_in_bytes % (2 * BytesPerWord))) {
       str(zr, Address(obj, i));
       i += BytesPerWord;
     }

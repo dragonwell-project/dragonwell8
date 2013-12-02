@@ -1941,7 +1941,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
 void MacroAssembler::store_klass_gap(Register dst, Register src) {
   if (UseCompressedClassPointers) {
     // Store to klass gap in destination
-    str(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
+    strw(src, Address(dst, oopDesc::klass_gap_offset_in_bytes()));
   }
 }
 
