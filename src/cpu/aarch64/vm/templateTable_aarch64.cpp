@@ -3266,43 +3266,11 @@ void TemplateTable::_new() {
 
   // Allocation in the shared Eden, if allowed.
   //
-  // rdx: instance size in bytes
+  // r3: instance size in bytes
   if (allow_shared_alloc) {
     __ bind(allocate_shared);
 
-    unsigned long top_offset, end_offset;
-
-    ExternalAddress top((address)Universe::heap()->top_addr());
-
-    const Register RtopAddr = r10;
-    const Register RendAddr = r11;
-
-    __ adrp(RtopAddr, ExternalAddress((address)Universe::heap()->top_addr()), top_offset);
-    __ lea(RtopAddr, Address(RtopAddr, top_offset));
-    __ adrp(RendAddr, ExternalAddress((address) Universe::heap()->end_addr()), end_offset);
-    Address end_addr(RendAddr, end_offset);
-    __ ldr(r0, Address(RtopAddr, 0));
-
-    // For retries r0 gets set by cmpxchgptr
-    Label retry;
-    __ bind(retry);
-    __ lea(r1, Address(r0, r3));
-    __ ldr(rscratch1, end_addr);
-    __ cmp(r1, rscratch1);
-    __ br(Assembler::GT, slow_case);
-
-    // Compare r0 with the top addr, and if still equal, store the new
-    // top addr in r1 at the address of the top addr pointer. Sets ZF if was
-    // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
-    //
-    // r0: object begin
-    // r1: object end
-    // r3: instance size in bytes
-
-    Label succeed;
-    // if someone beat us on the allocation, try again, otherwise continue
-    __ cmpxchgptr(r0, r1, RtopAddr, rscratch1, succeed, &retry);
-    __ bind(succeed);
+    __ eden_allocate(r0, r3, 0, r10, slow_case);
     __ incr_allocated_bytes(rthread, r3, 0, rscratch1);
   }
 
