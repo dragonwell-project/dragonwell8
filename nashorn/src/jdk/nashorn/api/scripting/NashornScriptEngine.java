@@ -478,16 +478,19 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
     private Object invokeImpl(final Object selfObject, final String name, final Object... args) throws ScriptException, NoSuchMethodException {
         name.getClass(); // null check
 
+        ScriptObject invokeGlobal = null;
         ScriptObjectMirror selfMirror = null;
         if (selfObject instanceof ScriptObjectMirror) {
             selfMirror = (ScriptObjectMirror)selfObject;
             if (! isOfContext(selfMirror.getHomeGlobal(), nashornContext)) {
                 throw new IllegalArgumentException(getMessage("script.object.from.another.engine"));
             }
+            invokeGlobal = selfMirror.getHomeGlobal();
         } else if (selfObject instanceof ScriptObject) {
             // invokeMethod called from script code - in which case we may get 'naked' ScriptObject
             // Wrap it with oldGlobal to make a ScriptObjectMirror for the same.
             final ScriptObject oldGlobal = Context.getGlobal();
+            invokeGlobal = oldGlobal;
             if (oldGlobal == null) {
                 throw new IllegalArgumentException(getMessage("no.current.nashorn.global"));
             }
@@ -500,6 +503,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
         } else if (selfObject == null) {
             // selfObject is null => global function call
             final ScriptObject ctxtGlobal = getNashornGlobalFrom(context);
+            invokeGlobal = ctxtGlobal;
             selfMirror = (ScriptObjectMirror)ScriptObjectMirror.wrap(ctxtGlobal, ctxtGlobal);
         }
 
@@ -511,7 +515,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
                 if (cause instanceof NoSuchMethodException) {
                     throw (NoSuchMethodException)cause;
                 }
-                throwAsScriptException(e);
+                throwAsScriptException(e, invokeGlobal);
                 throw new AssertionError("should not reach here");
             }
         }
@@ -545,7 +549,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
             }
             return ScriptObjectMirror.translateUndefined(ScriptObjectMirror.wrap(ScriptRuntime.apply(script, ctxtGlobal), ctxtGlobal));
         } catch (final Exception e) {
-            throwAsScriptException(e);
+            throwAsScriptException(e, ctxtGlobal);
             throw new AssertionError("should not reach here");
         } finally {
             if (globalChanged) {
@@ -554,7 +558,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
         }
     }
 
-    private static void throwAsScriptException(final Exception e) throws ScriptException {
+    private static void throwAsScriptException(final Exception e, final ScriptObject global) throws ScriptException {
         if (e instanceof ScriptException) {
             throw (ScriptException)e;
         } else if (e instanceof NashornException) {
@@ -562,6 +566,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
             final ScriptException se = new ScriptException(
                 ne.getMessage(), ne.getFileName(),
                 ne.getLineNumber(), ne.getColumnNumber());
+            ne.initEcmaError(global);
             se.initCause(e);
             throw se;
         } else if (e instanceof RuntimeException) {
@@ -607,7 +612,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
 
             return nashornContext.compileScript(source, newGlobal);
         } catch (final Exception e) {
-            throwAsScriptException(e);
+            throwAsScriptException(e, newGlobal);
             throw new AssertionError("should not reach here");
         } finally {
             if (globalChanged) {
