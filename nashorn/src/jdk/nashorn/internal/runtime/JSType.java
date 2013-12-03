@@ -88,6 +88,9 @@ public enum JSType {
     /** JavaScript compliant conversion function from Object to number */
     public static final Call TO_NUMBER = staticCall(myLookup, JSType.class, "toNumber", double.class, Object.class);
 
+    /** JavaScript compliant conversion function from Object to String */
+    public static final Call TO_STRING = staticCall(myLookup, JSType.class, "toString", String.class, Object.class);
+
     /** JavaScript compliant conversion function from Object to int32 */
     public static final Call TO_INT32 = staticCall(myLookup, JSType.class, "toInt32", int.class, Object.class);
 
@@ -210,26 +213,6 @@ public enum JSType {
     }
 
     /**
-     * Get the smallest integer representation of a number. Returns an Integer
-     * for something that is int representable, and Long for something that
-     * is long representable. If the number needs to be a double, this is an
-     * identity function
-     *
-     * @param number number to check
-     *
-     * @return Number instanceof the narrowest possible integer representation for number
-     */
-    public static Number narrowestIntegerRepresentation(final double number) {
-        if (isRepresentableAsInt(number)) {
-            return (int)number;
-        } else if (isRepresentableAsLong(number)) {
-            return (long)number;
-        } else {
-            return number;
-        }
-    }
-
-    /**
      * Check whether an object is primitive
      *
      * @param obj an object
@@ -266,12 +249,11 @@ public enum JSType {
      * @return the primitive form of the object
      */
     public static Object toPrimitive(final Object obj, final Class<?> hint) {
-        if (!(obj instanceof ScriptObject)) {
-            return obj;
-        }
+        return obj instanceof ScriptObject ? toPrimitive((ScriptObject)obj, hint) : obj;
+    }
 
-        final ScriptObject sobj   = (ScriptObject)obj;
-        final Object       result = sobj.getDefaultValue(hint);
+    private static Object toPrimitive(final ScriptObject sobj, final Class<?> hint) {
+        final Object result = sobj.getDefaultValue(hint);
 
         if (!isPrimitive(result)) {
             throw typeError("bad.default.value", result.toString());
@@ -493,6 +475,19 @@ public enum JSType {
             return ((Number)obj).doubleValue();
         }
         return toNumberGeneric(obj);
+    }
+
+
+    /**
+     * JavaScript compliant conversion of Object to number
+     * See ECMA 9.3 ToNumber
+     *
+     * @param obj  an object
+     *
+     * @return a number
+     */
+    public static double toNumber(final ScriptObject obj) {
+        return toNumber(toPrimitive(obj, Number.class));
     }
 
     /**
@@ -891,7 +886,7 @@ public enum JSType {
      */
     public static Object toJavaArray(final Object obj, final Class<?> componentType) {
         if (obj instanceof ScriptObject) {
-            return convertArray(((ScriptObject)obj).getArray().asObjectArray(), componentType);
+            return ((ScriptObject)obj).getArray().asArrayOfType(componentType);
         } else if (obj instanceof JSObject) {
             final ArrayLikeIterator<?> itr = ArrayLikeIterator.arrayLikeIterator(obj);
             final int len = (int) itr.getLength();
@@ -916,6 +911,15 @@ public enum JSType {
      * @return converted Java array
      */
     public static Object convertArray(final Object[] src, final Class<?> componentType) {
+        if(componentType == Object.class) {
+            for(int i = 0; i < src.length; ++i) {
+                final Object e = src[i];
+                if(e instanceof ConsString) {
+                    src[i] = e.toString();
+                }
+            }
+        }
+
         final int l = src.length;
         final Object dst = Array.newInstance(componentType, l);
         final MethodHandle converter = Bootstrap.getLinkerServices().getTypeConverter(Object.class, componentType);
@@ -1048,7 +1052,11 @@ public enum JSType {
         }
 
         if (obj instanceof ScriptObject) {
-            return toNumber(toPrimitive(obj, Number.class));
+            return toNumber((ScriptObject)obj);
+        }
+
+        if (obj instanceof JSObject) {
+            return ((JSObject)obj).toNumber();
         }
 
         return Double.NaN;
