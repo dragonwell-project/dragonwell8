@@ -1712,6 +1712,16 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
   return RegMask();
 }
 
+const RegMask Matcher::mathExactI_result_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
+const RegMask Matcher::mathExactI_flags_proj_mask() {
+  ShouldNotReachHere();
+  return RegMask();
+}
+
 // helper for encoding java_to_runtime calls on sim
 //
 // this is needed to compute the extra arguments required when
@@ -4513,6 +4523,8 @@ operand cmpOp()
     greater_equal(0xa, "ge");
     less_equal(0xd, "le");
     greater(0xc, "gt");
+    overflow(0x6, "vs");
+    no_overflow(0x7, "vc");
   %}
 %}
 
@@ -4530,6 +4542,8 @@ operand cmpOpU()
     greater_equal(0x2, "hs");
     less_equal(0x9, "ls");
     greater(0x8, "hi");
+    overflow(0x6, "vs");
+    no_overflow(0x7, "vc");
   %}
 %}
 

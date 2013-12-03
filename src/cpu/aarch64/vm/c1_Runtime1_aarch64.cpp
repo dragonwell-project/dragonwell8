@@ -1415,7 +1415,7 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
 	case access_field_patching_id:
 	  *cpool_addr = patch_field_offset; break;
 	case load_mirror_patching_id:
-	  *cpool_addr = (uint64_t)mirror(); break;
+	  *cpool_addr = cast_from_oop<uint64_t>(mirror()); break;
 	case load_klass_patching_id:
 	  *cpool_addr = (uint64_t)load_klass(); break;
 	default:
