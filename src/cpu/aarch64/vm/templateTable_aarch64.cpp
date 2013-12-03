@@ -3249,12 +3249,9 @@ void TemplateTable::_new() {
     Universe::heap()->supports_inline_contig_alloc() && !CMSIncrementalMode;
 
   if (UseTLAB) {
-    __ ldr(r0, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-    __ lea(r1, Address(r0, r3));
-    __ ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-    __ cmp(r1, rscratch1);
-    __ br(Assembler::GT, allow_shared_alloc ? allocate_shared : slow_case);
-    __ str(r1, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+    __ tlab_allocate(r0, r3, 0, noreg, r1,
+		     allow_shared_alloc ? allocate_shared : slow_case);
+
     if (ZeroTLAB) {
       // the fields have been already cleared
       __ b(initialize_header);

@@ -2274,8 +2274,8 @@ void MacroAssembler::tlab_allocate(Register obj,
                                    Register t1,
                                    Register t2,
                                    Label& slow_case) {
-  assert_different_registers(obj, t1, t2);
-  assert_different_registers(obj, var_size_in_bytes, t1);
+  assert_different_registers(obj, t2);
+  assert_different_registers(obj, var_size_in_bytes);
   Register end = t2;
 
   // verify_tlab();
