@@ -1305,16 +1305,16 @@ public final class SystemFlavorMap implements FlavorMap, FlavorTable {
     }
 
     private List<String> getAllNativesForType(String type) {
-        List<String> retval = null;
+        Set<String> retval = null;
         for (DataFlavor dataFlavor : convertMimeTypeToDataFlavors(type)) {
             List<String> natives = getFlavorToNative().get(dataFlavor);
-            if (!natives.isEmpty()) {
+            if (natives != null && !natives.isEmpty()) {
                 if (retval == null) {
-                    retval = new ArrayList<>();
+                    retval = new LinkedHashSet<>();
                 }
                 retval.addAll(natives);
             }
         }
-        return retval;
+        return retval == null ? null : new ArrayList<>(retval);
     }
 }

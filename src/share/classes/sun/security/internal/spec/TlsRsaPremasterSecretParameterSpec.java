@@ -63,6 +63,7 @@ public class TlsRsaPremasterSecretParameterSpec
      */
     public TlsRsaPremasterSecretParameterSpec(int majorVersion,
             int minorVersion) {
+        System.err.println("Using old constructor");
         this.majorVersion =
             TlsMasterSecretParameterSpec.checkVersion(majorVersion);
         this.minorVersion =
