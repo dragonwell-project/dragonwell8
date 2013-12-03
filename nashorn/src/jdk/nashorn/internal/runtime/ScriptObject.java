@@ -226,13 +226,22 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
 
         for (final Property property : properties) {
             final String key = property.getKey();
-
-            if (newMap.findProperty(key) == null) {
+            final Property oldProp = newMap.findProperty(key);
+            if (oldProp == null) {
                 if (property instanceof UserAccessorProperty) {
                     final UserAccessorProperty prop = this.newUserAccessors(key, property.getFlags(), property.getGetterFunction(source), property.getSetterFunction(source));
                     newMap = newMap.addProperty(prop);
                 } else {
                     newMap = newMap.addPropertyBind((AccessorProperty)property, source);
+                }
+            } else {
+                // See ECMA section 10.5 Declaration Binding Instantiation
+                // step 5 processing each function declaration.
+                if (property.isFunctionDeclaration() && !oldProp.isConfigurable()) {
+                     if (oldProp instanceof UserAccessorProperty ||
+                         !(oldProp.isWritable() && oldProp.isEnumerable())) {
+                         throw typeError("cant.redefine.property", key, ScriptRuntime.safeToString(this));
+                     }
                 }
             }
         }
@@ -508,7 +517,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             if (property == null) {
                 // promoting an arrayData value to actual property
                 addOwnProperty(key, propFlags, value);
-                removeArraySlot(key);
+                checkIntegerKey(key);
             } else {
                 // Now set the new flags
                 modifyOwnProperty(property, propFlags);
@@ -594,7 +603,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * @param index key for property
      * @param value value to define
      */
-    protected final void defineOwnProperty(final int index, final Object value) {
+    public final void defineOwnProperty(final int index, final Object value) {
         assert isValidArrayIndex(index) : "invalid array index";
         final long longIndex = ArrayIndex.toLongIndex(index);
         if (longIndex >= getArray().length()) {
@@ -613,15 +622,6 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
             if (data.has(index)) {
                 setArray(data.delete(index));
             }
-        }
-    }
-
-    private void removeArraySlot(final String key) {
-        final int index = getArrayIndex(key);
-        final ArrayData array = getArray();
-
-        if (array.has(index)) {
-            setArray(array.delete(index));
         }
     }
 
@@ -1203,21 +1203,10 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
      * Check if this ScriptObject has array entries. This means that someone has
      * set values with numeric keys in the object.
      *
-     * Note: this can be O(n) up to the array length
-     *
      * @return true if array entries exists.
      */
     public boolean hasArrayEntries() {
-        final ArrayData array = getArray();
-        final long length = array.length();
-
-        for (long i = 0; i < length; i++) {
-            if (array.has((int)i)) {
-                return true;
-            }
-        }
-
-        return false;
+        return getArray().length() > 0 || getMap().containsArrayKeys();
     }
 
     /**
@@ -2356,8 +2345,29 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
        }
 
        if (newLength < arrayLength) {
-           setArray(getArray().shrink(newLength));
-           getArray().setLength(newLength);
+           long actualLength = newLength;
+
+           // Check for numeric keys in property map and delete them or adjust length, depending on whether
+           // they're defined as configurable. See ES5 #15.4.5.2
+           if (getMap().containsArrayKeys()) {
+
+               for (long l = arrayLength - 1; l >= newLength; l--) {
+                   final FindProperty find = findProperty(JSType.toString(l), false);
+
+                   if (find != null) {
+
+                       if (find.getProperty().isConfigurable()) {
+                           deleteOwnProperty(find.getProperty());
+                       } else {
+                           actualLength = l + 1;
+                           break;
+                       }
+                   }
+               }
+           }
+
+           setArray(getArray().shrink(actualLength));
+           getArray().setLength(actualLength);
        }
     }
 
@@ -2680,7 +2690,7 @@ public abstract class ScriptObject extends PropertyListenerManager implements Pr
         final long oldLength = getArray().length();
         final long longIndex = index & JSType.MAX_UINT;
 
-        if (!getArray().has(index)) {
+        if (getMap().containsArrayKeys()) {
             final String key = JSType.toString(longIndex);
             final FindProperty find = findProperty(key, true);
 
