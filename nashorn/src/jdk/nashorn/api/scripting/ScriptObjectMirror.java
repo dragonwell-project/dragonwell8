@@ -41,8 +41,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import javax.script.Bindings;
+import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.GlobalObject;
+import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
@@ -50,7 +52,7 @@ import jdk.nashorn.internal.runtime.ScriptRuntime;
 /**
  * Mirror object that wraps a given Nashorn Script object.
  */
-public final class ScriptObjectMirror extends JSObject implements Bindings {
+public final class ScriptObjectMirror extends AbstractJSObject implements Bindings {
     private static AccessControlContext getContextAccCtxt() {
         final Permissions perms = new Permissions();
         perms.add(new RuntimePermission(Context.NASHORN_GET_CONTEXT));
@@ -161,7 +163,6 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
         });
     }
 
-    @Override
     public Object callMember(final String functionName, final Object... args) {
         functionName.getClass(); // null check
         final ScriptObject oldGlobal = Context.getGlobal();
@@ -594,14 +595,35 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
     }
 
     /**
-     * Make a script object mirror on given object if needed.
+     * Utilitity to convert this script object to the given type.
      *
-     * @param obj object to be wrapped
-     * @param homeGlobal global to which this object belongs
-     * @return wrapped object
+     * @param type destination type to convert to
+     * @return converted object
      */
-    public static Object wrap(final Object obj, final ScriptObject homeGlobal) {
-        return (obj instanceof ScriptObject && homeGlobal != null) ? new ScriptObjectMirror((ScriptObject)obj, homeGlobal) : obj;
+    public <T> T to(final Class<T> type) {
+        return inGlobal(new Callable<T>() {
+            @Override
+            public T call() {
+                return type.cast(ScriptUtils.convert(sobj, type));
+            }
+        });
+    }
+
+    /**
+     * Make a script object mirror on given object if needed. Also converts ConsString instances to Strings.
+     *
+     * @param obj object to be wrapped/converted
+     * @param homeGlobal global to which this object belongs. Not used for ConsStrings.
+     * @return wrapped/converted object
+     */
+    public static Object wrap(final Object obj, final Object homeGlobal) {
+        if(obj instanceof ScriptObject) {
+            return homeGlobal instanceof ScriptObject ? new ScriptObjectMirror((ScriptObject)obj, (ScriptObject)homeGlobal) : obj;
+        }
+        if(obj instanceof ConsString) {
+            return obj.toString();
+        }
+        return obj;
     }
 
     /**
@@ -611,7 +633,7 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
      * @param homeGlobal global to which this object belongs
      * @return unwrapped object
      */
-    public static Object unwrap(final Object obj, final ScriptObject homeGlobal) {
+    public static Object unwrap(final Object obj, final Object homeGlobal) {
         if (obj instanceof ScriptObjectMirror) {
             final ScriptObjectMirror mirror = (ScriptObjectMirror)obj;
             return (mirror.global == homeGlobal)? mirror.sobj : obj;
@@ -627,7 +649,7 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
      * @param homeGlobal global to which this object belongs
      * @return wrapped array
      */
-    public static Object[] wrapArray(final Object[] args, final ScriptObject homeGlobal) {
+    public static Object[] wrapArray(final Object[] args, final Object homeGlobal) {
         if (args == null || args.length == 0) {
             return args;
         }
@@ -648,7 +670,7 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
      * @param homeGlobal global to which this object belongs
      * @return unwrapped array
      */
-    public static Object[] unwrapArray(final Object[] args, final ScriptObject homeGlobal) {
+    public static Object[] unwrapArray(final Object[] args, final Object homeGlobal) {
         if (args == null || args.length == 0) {
             return args;
         }
@@ -704,5 +726,14 @@ public final class ScriptObjectMirror extends JSObject implements Bindings {
                 Context.setGlobal(oldGlobal);
             }
         }
+    }
+
+    @Override
+    public double toNumber() {
+        return inGlobal(new Callable<Double>() {
+            @Override public Double call() {
+                return JSType.toNumber(sobj);
+            }
+        });
     }
 }

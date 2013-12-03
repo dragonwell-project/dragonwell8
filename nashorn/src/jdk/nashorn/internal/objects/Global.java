@@ -53,19 +53,19 @@ import jdk.nashorn.internal.runtime.GlobalFunctions;
 import jdk.nashorn.internal.runtime.GlobalObject;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.NativeJavaPackage;
-import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
-import jdk.nashorn.internal.runtime.arrays.ArrayData;
-import jdk.nashorn.internal.runtime.regexp.RegExpResult;
+import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.Scope;
+import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.ScriptingFunctions;
 import jdk.nashorn.internal.runtime.Source;
+import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.linker.InvokeByName;
+import jdk.nashorn.internal.runtime.regexp.RegExpResult;
 import jdk.nashorn.internal.scripts.JO;
 
 /**
@@ -1665,9 +1665,9 @@ public final class Global extends ScriptObject implements GlobalObject, Scope {
         final ScriptObject stringPrototype = getStringPrototype();
         stringPrototype.addOwnProperty("length", Attribute.NON_ENUMERABLE_CONSTANT, 0.0);
 
-        // add Array.prototype.length
+        // set isArray flag on Array.prototype
         final ScriptObject arrayPrototype = getArrayPrototype();
-        arrayPrototype.addOwnProperty("length", Attribute.NOT_ENUMERABLE|Attribute.NOT_CONFIGURABLE, 0.0);
+        arrayPrototype.setIsArray();
 
         this.DEFAULT_DATE = new NativeDate(Double.NaN, this);
 
