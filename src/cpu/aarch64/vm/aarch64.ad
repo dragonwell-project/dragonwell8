@@ -6927,11 +6927,12 @@ instruct lshift_ext(iRegLNoSp dst, iRegIorL2I src, immI scale, rFlagsReg cr) %{
   match(Set dst (LShiftL (ConvI2L src) scale));
 
   ins_cost(DEFAULT_COST);
-  format %{ "sbfm $dst, $src, 64-$scale, 31\t" %}
+  format %{ "sbfiz $dst, $src, $scale & 63, -$scale & 63\t" %}
 
   ins_encode %{
-    __ sbfm(as_Register($dst$$reg),
-            as_Register($src$$reg), (64u - $scale$$constant) & 63, 31);
+    __ sbfiz(as_Register($dst$$reg),
+          as_Register($src$$reg),
+          $scale$$constant & 63, (-$scale$$constant) & 63);
   %}
 
   ins_pipe(pipe_class_default);
