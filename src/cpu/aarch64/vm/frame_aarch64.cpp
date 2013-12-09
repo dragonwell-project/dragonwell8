@@ -800,7 +800,7 @@ extern "C" void npf() {
   // preferring to use fixed offsets from SP, so a simple leave() does
   // not work.  Instead, it adds the frame size to SP then pops FP and
   // LR.  We have to do the same thing to get a good call chain.
-  if (cb)
+  if (cb && cb->frame_size())
     nextfp = nextsp + wordSize * (cb->frame_size() - 2);
   internal_pf (nextsp, nextfp, nextpc, -1);
 }
