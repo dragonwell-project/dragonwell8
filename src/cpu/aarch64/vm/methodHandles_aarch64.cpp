@@ -181,11 +181,11 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     return NULL;
   }
 
-  // rsi/r13: sender SP (must preserve; see prepare_to_jump_from_interpreted)
-  // rbx: Method*
-  // rdx: argument locator (parameter slot count, added to rsp)
-  // rcx: used as temp to hold mh or receiver
-  // rax, rdi: garbage temps, blown away
+  // r13: sender SP (must preserve; see prepare_to_jump_from_interpreted)
+  // rmethod: Method*
+  // r3: argument locator (parameter slot count, added to rsp)
+  // r1: used as temp to hold mh or receiver
+  // r0, r11: garbage temps, blown away
   Register argp   = r3;   // argument list ptr, live on error paths
   Register temp   = r0;
   Register mh     = r1;   // MH receiver; dies quickly and is recycled
@@ -331,8 +331,8 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
     // Live registers at this point:
     //  member_reg - MemberName that was the trailing argument
     //  temp1_recv_klass - klass of stacked receiver, if needed
-    //  rsi/r13 - interpreter linkage (if interpreted)
-    //  r2, rdx, rsi, rdi, r8, r8 - compiler arguments (if compiled)
+    //  rsi/r13 - interpreter linkage (if interpreted)  ??? FIXME
+    //  r1 ... r0 - compiler arguments (if compiled)
 
     Label L_incompatible_class_change_error;
     switch (iid) {
