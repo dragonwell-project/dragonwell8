@@ -782,15 +782,26 @@ void internal_pf(unsigned long sp, unsigned long fp, unsigned long pc, unsigned 
       printf("not a Method\n");
   } else {
     CodeBlob *cb = CodeCache::find_blob((address)pc);
-    if (cb != NULL && cb->is_nmethod()) {
-      ResourceMark rm;
-      nmethod* nm = (nmethod*)cb;
-      printf("nmethod %s\n", nm->method()->name_and_sig_as_C_string());
+    if (cb != NULL) {
+      if (cb->is_nmethod()) {
+	ResourceMark rm;
+	nmethod* nm = (nmethod*)cb;
+	printf("nmethod %s\n", nm->method()->name_and_sig_as_C_string());
+      } else if (cb->name()) {
+	printf("CodeBlob %s\n", cb->name());
+      }
     }
   }
 }
 
 extern "C" void npf() {
+  CodeBlob *cb = CodeCache::find_blob((address)nextpc);
+  // C2 does not always chain the frame pointers when it can, instead
+  // preferring to use fixed offsets from SP, so a simple leave() does
+  // not work.  Instead, it adds the frame size to SP then pops FP and
+  // LR.  We have to do the same thing to get a good call chain.
+  if (cb)
+    nextfp = nextsp + wordSize * (cb->frame_size() - 2);
   internal_pf (nextsp, nextfp, nextpc, -1);
 }
 
@@ -801,6 +812,11 @@ extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
     reg_map = (RegisterMap*)new char[sizeof map];
   }
   memcpy(reg_map, &map, sizeof map);
+  {
+    CodeBlob *cb = CodeCache::find_blob((address)pc);
+    if (cb)
+      fp = sp + wordSize * (cb->frame_size() - 2);
+  }
   internal_pf(sp, fp, pc, bcx);
 }
 
