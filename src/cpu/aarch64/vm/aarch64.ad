@@ -6836,62 +6836,33 @@ instruct cmovUD_reg(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src
 
 // Integer Addition
 
-instruct addExactI_rReg(iRegI_R0 dst, iRegI src, rFlagsReg cr)
+instruct addExactI_reg(iRegIorL2I src1, iRegIorL2I src2, rFlagsReg cr)
 %{
-  match(AddExactI dst src);
+  match(AddExactI src1 src2);
   effect(DEF cr);
 
-  format %{ "addsw    $dst, $dst, $src\t# addExact int" %}
+  format %{ "addsw    r0, $src1, $src2\t# addExact int" %}
   ins_encode %{
-    __ addsw(as_Register($dst$$reg),
-            as_Register($dst$$reg),
-            as_Register($src$$reg));
+    __ addsw(r0,
+            as_Register($src1$$reg),
+            as_Register($src2$$reg));
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct addExactI_rReg_imm(iRegI_R0 dst, immI src, rFlagsReg cr)
+instruct addExactI_reg_imm(iRegIorL2I src1, immI src2, rFlagsReg cr)
 %{
-  match(AddExactI dst src);
+  match(AddExactI src1 src2);
   effect(DEF cr);
 
-  format %{ "addsw    $dst, $dst, $src\t# addExact int" %}
+  format %{ "addsw    r0, $src1, $src2\t# addExact int" %}
   ins_encode %{
-    __ addsw(as_Register($dst$$reg),
-            as_Register($dst$$reg),
-            $src$$constant);
+    __ addsw(r0,
+            as_Register($src1$$reg),
+            as_Register($src2$$constant));
   %}
   ins_pipe(pipe_class_default);
 %}
-
-// instruct addExactI_rReg(iRegI_R0 dst, iRegI_R0 src1, iRegI src2, rFlagsReg cr)
-// %{
-//   match(Set dst (AddExactI src1 src2));
-//   effect(DEF cr);
-
-//   format %{ "addsw    $dst, $src1, $src2\t# addExact int" %}
-//   ins_encode %{
-//     __ addsw(as_Register($dst$$reg),
-//             as_Register($src1$$reg),
-//             as_Register($src2$$reg));
-//   %}
-//   ins_pipe(pipe_class_default);
-// %}
-
-// instruct addExactI_rReg_imm(iRegI_R0 dst, iRegI src1, immI src2, rFlagsReg cr)
-// %{
-//   match(Set dst (AddExactI src1 src2));
-//   effect(DEF cr);
-
-//   format %{ "addsw    $dst, $src1, $src2\t# addExact int" %}
-
-//   ins_encode %{
-//   __ addsw(as_Register($dst$$reg),
-// 	   as_Register($src1$$reg),
-// 	   as_Register($src2$$constant));
-//   %}
-//   ins_pipe(pipe_class_default);
-// %}
 
 // TODO
 // these currently employ operations which do not set CR and hence are
