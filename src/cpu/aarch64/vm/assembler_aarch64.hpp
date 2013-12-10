@@ -428,6 +428,9 @@ class Address VALUE_OBJ_CLASS_SPEC {
   Register index() {
     return _index;
   }
+  mode getMode() const {
+    return _mode;
+  }
   bool uses(Register reg) const { return _base == reg || _index == reg; }
   address target() const { return _target; }
   const RelocationHolder& rspec() const { return _rspec; }
@@ -481,10 +484,6 @@ class Address VALUE_OBJ_CLASS_SPEC {
       i->f(0b00, 25, 24);
       i->f(0, 21), i->f(0b01, 11, 10);
       i->sf(_offset, 20, 12);
-      break;
-
-    case literal:
-      ShouldNotReachHere();
       break;
 
     default:
@@ -1226,10 +1225,32 @@ public:
   // Load/store register (all modes)
   void ld_st2(Register Rt, const Address &adr, int size, int op, int V = 0) {
     starti;
-    f(size, 31, 30);
-    f(op, 23, 22); // str
+
     f(V, 26); // general reg?
     zrf(Rt, 0);
+
+    // Encoding for literal loads is done here (rather than pushed
+    // down into Address::encode) because the encoding of this
+    // instruction is too different from all of the other forms to
+    // make it worth sharing.
+    if (adr.getMode() == Address::literal) {
+      assert(size == 0b10 || size == 0b11, "bad operand size in ldr");
+      assert(op == 0b01, "literal form can only be used with loads");
+      f(size & 0b01, 31, 30), f(0b011, 29, 27), f(0b00, 25, 24);
+      long offset = (adr.target() - pc()) >> 2;
+      sf(offset, 23, 5);
+#ifdef ASSERT
+      Relocation* reloc = adr.rspec().reloc();
+      relocInfo::relocType rtype = (relocInfo::relocType) reloc->type();
+      assert(rtype == relocInfo::internal_word_type,
+	     "only internal_word_type relocs make sense here");
+#endif
+      code_section()->relocate(pc(), adr.rspec());
+      return;
+    }
+
+    f(size, 31, 30);
+    f(op, 23, 22); // str
     adr.encode(current);
   }
 

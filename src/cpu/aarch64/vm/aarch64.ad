@@ -5114,13 +5114,11 @@ instruct loadConF(vRegF dst, immF con) %{
   ins_cost(DEFAULT_COST * 2);
 
   format %{
-    "lea rscratch1, [$constantaddress]\t# load from constant table: float=$con\n\t"
-    "ldrs $dst, rscratch1"
+    "ldrs $dst, [$constantaddress]\t# load from constant table: float=$con\n\t"
   %}
 
   ins_encode %{
-    __ lea(rscratch1, $constantaddress($con));
-    __ ldrs(as_FloatRegister($dst$$reg), rscratch1);
+    __ ldrs(as_FloatRegister($dst$$reg), $constantaddress($con));
   %}
 
   ins_pipe(pipe_class_default);
@@ -5146,13 +5144,11 @@ instruct loadConD(vRegD dst, immD con) %{
 
   ins_cost(DEFAULT_COST * 2);
   format %{
-    "lea rscratch1, [$constantaddress]\t# load from constant table: float=$con\n\t"
-    "ldrd $dst, rscratch1"
+    "ldrd $dst, [$constantaddress]\t# load from constant table: float=$con\n\t"
   %}
 
   ins_encode %{
-    __ lea(rscratch1, $constantaddress($con));
-    __ ldrd(as_FloatRegister($dst$$reg), rscratch1);
+    __ ldrd(as_FloatRegister($dst$$reg), $constantaddress($con));
   %}
 
   ins_pipe(pipe_class_default);
