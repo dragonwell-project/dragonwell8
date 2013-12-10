@@ -1713,13 +1713,11 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
 }
 
 const RegMask Matcher::mathExactI_result_proj_mask() {
-  ShouldNotReachHere();
-  return RegMask();
+  return R0_REG_mask();
 }
 
 const RegMask Matcher::mathExactI_flags_proj_mask() {
-  ShouldNotReachHere();
-  return RegMask();
+  return INT_FLAGS_mask();
 }
 
 // helper for encoding java_to_runtime calls on sim
@@ -4003,6 +4001,16 @@ operand iRegP_FP()
   constraint(ALLOC_IN_RC(fp_reg));
   match(RegP);
   // match(iRegP);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Register R0 only
+operand iRegI_R0()
+%{
+  constraint(ALLOC_IN_RC(r0_reg));
+  match(RegI);
+  match(iRegINoSp);
   format %{ %}
   interface(REG_INTER);
 %}
@@ -6825,13 +6833,71 @@ instruct cmovUD_reg(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src
 // ============================================================================
 // Arithmetic Instructions
 //
+
+// Integer Addition
+
+instruct addExactI_rReg(iRegI_R0 dst, iRegI src, rFlagsReg cr)
+%{
+  match(AddExactI dst src);
+  effect(DEF cr);
+
+  format %{ "addsw    $dst, $dst, $src\t# addExact int" %}
+  ins_encode %{
+    __ addsw(as_Register($dst$$reg),
+            as_Register($dst$$reg),
+            as_Register($src$$reg));
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct addExactI_rReg_imm(iRegI_R0 dst, immI src, rFlagsReg cr)
+%{
+  match(AddExactI dst src);
+  effect(DEF cr);
+
+  format %{ "addsw    $dst, $dst, $src\t# addExact int" %}
+  ins_encode %{
+    __ addsw(as_Register($dst$$reg),
+            as_Register($dst$$reg),
+            $src$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// instruct addExactI_rReg(iRegI_R0 dst, iRegI_R0 src1, iRegI src2, rFlagsReg cr)
+// %{
+//   match(Set dst (AddExactI src1 src2));
+//   effect(DEF cr);
+
+//   format %{ "addsw    $dst, $src1, $src2\t# addExact int" %}
+//   ins_encode %{
+//     __ addsw(as_Register($dst$$reg),
+//             as_Register($src1$$reg),
+//             as_Register($src2$$reg));
+//   %}
+//   ins_pipe(pipe_class_default);
+// %}
+
+// instruct addExactI_rReg_imm(iRegI_R0 dst, iRegI src1, immI src2, rFlagsReg cr)
+// %{
+//   match(Set dst (AddExactI src1 src2));
+//   effect(DEF cr);
+
+//   format %{ "addsw    $dst, $src1, $src2\t# addExact int" %}
+
+//   ins_encode %{
+//   __ addsw(as_Register($dst$$reg),
+// 	   as_Register($src1$$reg),
+// 	   as_Register($src2$$constant));
+//   %}
+//   ins_pipe(pipe_class_default);
+// %}
+
 // TODO
 // these currently employ operations which do not set CR and hence are
 // not flagged as killing CR but we would like to isolate the cases
 // where we want to set flags from those where we don't. need to work
 // out how to do that.
-
-// Integer Addition
 
 instruct addI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
   match(Set dst (AddI src1 src2));
