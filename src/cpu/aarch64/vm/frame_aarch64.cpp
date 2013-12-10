@@ -814,7 +814,7 @@ extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
   memcpy(reg_map, &map, sizeof map);
   {
     CodeBlob *cb = CodeCache::find_blob((address)pc);
-    if (cb)
+    if (cb && cb->frame_size())
       fp = sp + wordSize * (cb->frame_size() - 2);
   }
   internal_pf(sp, fp, pc, bcx);
