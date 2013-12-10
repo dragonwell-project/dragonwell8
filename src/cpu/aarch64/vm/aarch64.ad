@@ -7106,10 +7106,8 @@ instruct subL_reg_imm(iRegLNoSp dst, iRegL src1, immLAddSub src2) %{
 instruct negI_reg(iRegINoSp dst, iRegIorL2I src, immI0 zero, rFlagsReg cr) %{
   match(Set dst (SubI zero src));
 
-  effect(KILL cr);
-
   ins_cost(DEFAULT_COST);
-  format %{ "negsw $dst, $src\t# int" %}
+  format %{ "negw $dst, $src\t# int" %}
 
   ins_encode %{
     __ negsw(as_Register($dst$$reg),
@@ -7124,14 +7122,12 @@ instruct negI_reg(iRegINoSp dst, iRegIorL2I src, immI0 zero, rFlagsReg cr) %{
 instruct negL_reg(iRegLNoSp dst, iRegIorL2I src, immL0 zero, rFlagsReg cr) %{
   match(Set dst (SubL zero src));
 
-  effect(KILL cr);
-
   ins_cost(DEFAULT_COST);
-  format %{ "negs $dst, $src\t# long" %}
+  format %{ "neg $dst, $src\t# long" %}
 
   ins_encode %{
-    __ negs(as_Register($dst$$reg),
-            as_Register($src$$reg));
+    __ neg(as_Register($dst$$reg),
+	   as_Register($src$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -9467,14 +9463,13 @@ instruct absD_reg(vRegD dst, vRegD src) %{
 
 instruct andI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, rFlagsReg cr) %{
   match(Set dst (AndI src1 src2));
-  effect(KILL cr);
 
-  format %{ "andsw  $dst, $src1, $src2\t# int" %}
+  format %{ "andw  $dst, $src1, $src2\t# int" %}
 
   ins_encode %{
-    __ andsw(as_Register($dst$$reg),
-             as_Register($src1$$reg),
-             as_Register($src2$$reg));
+    __ andw(as_Register($dst$$reg),
+	    as_Register($src1$$reg),
+	    as_Register($src2$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -9482,14 +9477,13 @@ instruct andI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, rFlagsReg
 
 instruct andI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2, rFlagsReg cr) %{
   match(Set dst (AndI src1 src2));
-  effect(KILL cr);
 
   format %{ "andsw  $dst, $src1, $src2\t# int" %}
 
   ins_encode %{
-    __ andsw(as_Register($dst$$reg),
-             as_Register($src1$$reg),
-             (unsigned long)($src2$$constant));
+    __ andw(as_Register($dst$$reg),
+	    as_Register($src1$$reg),
+	    (unsigned long)($src2$$constant));
   %}
 
   ins_pipe(pipe_class_default);
@@ -9560,14 +9554,13 @@ instruct xorI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2) %{
 
 instruct andL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr) %{
   match(Set dst (AndL src1 src2));
-  effect(KILL cr);
 
-  format %{ "ands  $dst, $src1, $src2\t# int" %}
+  format %{ "and  $dst, $src1, $src2\t# int" %}
 
   ins_encode %{
-    __ ands(as_Register($dst$$reg),
-            as_Register($src1$$reg),
-            as_Register($src2$$reg));
+    __ andr(as_Register($dst$$reg),
+	    as_Register($src1$$reg),
+	    as_Register($src2$$reg));
   %}
 
   ins_pipe(pipe_class_default);
@@ -9575,12 +9568,11 @@ instruct andL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr) %{
 
 instruct andL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2, rFlagsReg cr) %{
   match(Set dst (AndL src1 src2));
-  effect(KILL cr);
 
-  format %{ "ands  $dst, $src1, $src2\t# int" %}
+  format %{ "and  $dst, $src1, $src2\t# int" %}
 
   ins_encode %{
-    __ ands(as_Register($dst$$reg),
+    __ andr(as_Register($dst$$reg),
             as_Register($src1$$reg),
             (unsigned long)($src2$$constant));
   %}
