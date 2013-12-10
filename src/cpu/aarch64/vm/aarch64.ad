@@ -6855,7 +6855,7 @@ instruct addExactI_reg_imm(iRegIorL2I src1, immI src2, rFlagsReg cr)
   ins_encode %{
     __ addsw(r0,
             as_Register($src1$$reg),
-            as_Register($src2$$constant));
+            $src2$$constant);
   %}
   ins_pipe(pipe_class_default);
 %}
