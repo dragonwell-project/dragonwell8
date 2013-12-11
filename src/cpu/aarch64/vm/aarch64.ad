@@ -6979,7 +6979,7 @@ instruct lshift_ext(iRegLNoSp dst, iRegIorL2I src, immI scale, rFlagsReg cr) %{
   ins_encode %{
     __ sbfiz(as_Register($dst$$reg),
           as_Register($src$$reg),
-          $scale$$constant & 63, (-$scale$$constant) & 63);
+          $scale$$constant & 63, MIN(32, (-$scale$$constant) & 63));
   %}
 
   ins_pipe(pipe_class_default);
