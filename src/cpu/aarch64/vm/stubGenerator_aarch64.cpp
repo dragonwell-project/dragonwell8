@@ -905,7 +905,6 @@ class StubGenerator: public StubCodeGenerator {
           Label L_loop;
 
            __ lsr(start, start, CardTableModRefBS::card_shift);
-           __ add(end, end, BytesPerHeapOop);
            __ lsr(end, end, CardTableModRefBS::card_shift);
            __ sub(end, end, start); // number of bytes to copy
 
@@ -915,7 +914,7 @@ class StubGenerator: public StubCodeGenerator {
 	  __ BIND(L_loop);
 	  __ strb(zr, Address(start, count));
           __ subs(count, count, 1);
-          __ br(Assembler::HI, L_loop);
+          __ br(Assembler::HS, L_loop);
         }
         break;
       default:
