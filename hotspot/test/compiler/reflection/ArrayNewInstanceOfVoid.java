@@ -23,24 +23,22 @@
 
 /*
  * @test
- * @bug 8027751
- * @summary C1 crashes generating G1 post-barrier in Unsafe.getAndSetObject() intrinsic because of the new value spill
- * @run main/othervm -XX:+UseG1GC C1ObjectSpillInLogicOp
- *
- * G1 barriers use logical operators (xor) on T_OBJECT mixed with T_LONG or T_INT.
- * The current implementation of logical operations on x86 in C1 doesn't allow for long operands to be on stack.
- * There is a special code in the register allocator that forces long arguments in registers on x86. However T_OBJECT
- * can be spilled just fine, and in that case the xor emission will fail.
+ * @bug 8029366
+ * @summary ShouldNotReachHere error when creating an array with component type of void
  */
 
-import java.util.concurrent.atomic.*;
-
-public class C1ObjectSpillInLogicOp {
-  public static void main(String[] args) {
-    AtomicReferenceArray<Integer> x = new AtomicReferenceArray(128);
-    Integer y = new Integer(0);
-    for (int i = 0; i < 50000; i++) {
-      x.getAndSet(i % x.length(), y);
+public class ArrayNewInstanceOfVoid {
+    public static void main(String[] args) {
+        for (int i = 0; i < 100_000; i++) {
+            test();
+        }
     }
-  }
+
+    private static void test() {
+        try {
+            java.lang.reflect.Array.newInstance(void.class, 2);
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
 }
