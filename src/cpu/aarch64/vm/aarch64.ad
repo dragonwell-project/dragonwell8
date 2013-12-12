@@ -10489,7 +10489,7 @@ instruct cmpLTMask_reg_reg(iRegINoSp dst, iRegI p, iRegI q, rFlagsReg cr)
   %}
 
   ins_encode %{
-    __ cmpw(as_Register($p$$reg), $q$$reg);
+    __ cmpw(as_Register($p$$reg), as_Register($q$$reg));
     __ csetw(as_Register($dst$$reg), Assembler::LT);
     __ subw(as_Register($dst$$reg), zr, as_Register($dst$$reg));
   %}
