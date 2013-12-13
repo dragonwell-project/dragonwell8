@@ -1590,7 +1590,7 @@ class StubGenerator: public StubCodeGenerator {
   address generate_checkcast_copy(const char *name, address *entry,
                                   bool dest_uninitialized = false) {
 
-    Label L_load_element, L_store_element, L_do_card_marks, L_done;
+    Label L_load_element, L_store_element, L_do_card_marks, L_done, L_done_pop;
 
     // Input registers (after setup_arg_regs)
     const Register from        = c_rarg0;   // source array address
@@ -1692,13 +1692,15 @@ class StubGenerator: public StubCodeGenerator {
     // Emit GC store barriers for the oops we have copied and report
     // their number to the caller.
 
-    __ sub(count, count_save, count);     // K = partially copied oop count
+    __ subs(count, count_save, count);     // K = partially copied oop count
     __ eon(count, count, zr);                   // report (-1^K) to caller
+    __ br(Assembler::EQ, L_done_pop);
 
     __ BIND(L_do_card_marks);
     __ add(to, to, -heapOopSize);         // make an inclusive end pointer
     gen_write_ref_array_post_barrier(start_to, to, rscratch1);
 
+    __ bind(L_done_pop);
     __ pop(r18->bit() | r19->bit() | r20->bit()| r21->bit(), sp);
     inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr);
 
