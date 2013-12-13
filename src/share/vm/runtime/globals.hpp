@@ -3874,7 +3874,7 @@ class CommandLineFlags {
   product(uintx, SharedMiscDataSize,    NOT_LP64(2*M) LP64_ONLY(4*M),       \
           "Size of the shared miscellaneous data area (in bytes)")          \
                                                                             \
-  product(uintx, SharedMiscCodeSize,    120*K,                              \
+  product(uintx, SharedMiscCodeSize,    192*K,                              \
           "Size of the shared miscellaneous code area (in bytes)")          \
                                                                             \
   product(uintx, SharedBaseAddress, LP64_ONLY(32*G)                         \

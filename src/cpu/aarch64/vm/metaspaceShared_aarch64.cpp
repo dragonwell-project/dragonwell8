@@ -76,6 +76,9 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
     for (int j = 0; j < num_virtuals; ++j) {
       dummy_vtable[num_virtuals * i + j] = (void*)masm->pc();
 
+      // We're called directly from C code.
+      __ c_stub_prolog(8, 0, MacroAssembler::ret_type_integral);
+
       // Load rscratch1 with a value indicating vtable/offset pair.
       // -- bits[ 7..0]  (8 bits) which virtual method in table?
       // -- bits[12..8]  (5 bits) which virtual method table?
@@ -87,29 +90,17 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
 
   __ bind(common_code);
 
-  // Expecting to be called with "thiscall" convections -- the arguments
-  // are on the stack and the "this" pointer is in c_rarg0. In addition, rscratch1
-  // was set (above) to the offset of the method in the table.
-
-  __ push(c_rarg1);                     // save & free register
-  __ push(c_rarg0);                     // save "this"
-  __ mov(c_rarg0, rscratch1);
-  __ lsr(c_rarg0, c_rarg0, 8);          // isolate vtable identifier.
-  __ lsl(c_rarg0, c_rarg0, LogBytesPerWord);
-  __ lea(c_rarg1, (address)vtbl_list);  // ptr to correct vtable list.
-  __ add(c_rarg1, c_rarg1, c_rarg0);    // ptr to list entry.
-  __ ldr(c_rarg1, Address(c_rarg1, 0)); // get correct vtable address.
-  __ pop(c_rarg0);                      // restore "this"
-  __ str(c_rarg1, Address(c_rarg0, 0)); // update vtable pointer.
-
-  __ andr(rscratch1, rscratch1, 0x00ff); // isolate vtable method index
-  __ lsl(rscratch1, rscratch1, LogBytesPerWord);
-  __ add(rscratch1, rscratch1, c_rarg1); // address of real method pointer.
-  __ pop(c_rarg1);                       // restore register.
-  __ ldr(rscratch1, Address(rscratch1, 0)); // get real method pointer.
-  __ br(rscratch1);                         // jump to the real method.
-
-  __ flush();
+  Register tmp0 = r10, tmp1 = r11;       // AAPCS64 temporary registers
+  __ enter();
+  __ lsr(tmp0, rscratch1, 8);            // isolate vtable identifier.
+  __ lea(tmp1, (address)vtbl_list);      // address of list of vtable pointers.
+  __ ldr(tmp1, Address(tmp1, tmp0, Address::lsl(LogBytesPerWord))); // get correct vtable pointer.
+  __ str(tmp1, Address(c_rarg0));        // update vtable pointer in obj.
+  __ add(rscratch1, tmp1, rscratch1, ext::uxtb, LogBytesPerWord); // address of real method pointer.
+  __ ldr(rscratch1, Address(rscratch1)); // get real method pointer.
+  __ blrt(rscratch1, 8, 0, 1);           // jump to the real method.
+  __ leave();
+  __ ret(lr);
 
   *mc_top = (char*)__ pc();
 }
