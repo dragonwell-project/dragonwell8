@@ -58,10 +58,10 @@ void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) 
     // don't want to reenter.
     // This method is only called just after the call into the vm in
     // call_VM_base, so the arg registers are available.
-    ldr(rscratch1, Address(rthread, JavaThread::popframe_condition_offset()));
-    tst(rscratch1, JavaThread::popframe_pending_bit);
+    ldrw(rscratch1, Address(rthread, JavaThread::popframe_condition_offset()));
+    tstw(rscratch1, JavaThread::popframe_pending_bit);
     br(Assembler::EQ, L);
-    tst(rscratch1, JavaThread::popframe_processing_bit);
+    tstw(rscratch1, JavaThread::popframe_processing_bit);
     br(Assembler::NE, L);
     // Call Interpreter::remove_activation_preserving_args_entry() to get the
     // address of the same-named entrypoint in the generated interpreter code.

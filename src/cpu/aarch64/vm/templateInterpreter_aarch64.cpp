@@ -1618,9 +1618,9 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // indicating that we are currently handling popframe, so that
   // call_VMs that may happen later do not trigger new popframe
   // handling cycles.
-  __ ldr(r3, Address(rthread, JavaThread::popframe_condition_offset()));
+  __ ldrw(r3, Address(rthread, JavaThread::popframe_condition_offset()));
   __ orr(r3, r3, JavaThread::popframe_processing_bit);
-  __ str(r3, Address(rthread, JavaThread::popframe_condition_offset()));
+  __ strw(r3, Address(rthread, JavaThread::popframe_condition_offset()));
 
   {
     // Check to see whether we are returning to a deoptimized frame.
@@ -1712,7 +1712,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   }
 
   // Clear the popframe condition flag
-  __ str(zr, Address(rthread, JavaThread::popframe_condition_offset()));
+  __ strw(zr, Address(rthread, JavaThread::popframe_condition_offset()));
   assert(JavaThread::popframe_inactive == 0, "fix popframe_inactive");
 
 #if INCLUDE_JVMTI
