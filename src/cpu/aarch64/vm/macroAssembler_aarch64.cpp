@@ -1817,10 +1817,11 @@ void MacroAssembler::debug64(char* msg, int64_t pc, int64_t regs[])
 extern "C" {
 int aarch64_stub_prolog_size();
 void aarch64_stub_prolog();
-void setup_arm_sim(void *sp, int calltype);
+void aarch64_prolog();
 }
 
-void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type)
+void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type,
+				   address *prolog_ptr)
 {
   int calltype = (((ret_type & 0x3) << 8) |
 		  ((fp_arg_count & 0xf) << 4) |
@@ -1842,7 +1843,8 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
   // write the address of the setup routine and the call format at the
   // end of into the copied code
   u_int64_t *patch_end = (u_int64_t *)(start + byteCount);
-  patch_end[-2] = (u_int64_t)setup_arm_sim;
+  if (prolog_ptr)
+    patch_end[-2] = (u_int64_t)prolog_ptr;
   patch_end[-1] = calltype;
 }
 #endif

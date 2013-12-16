@@ -52,12 +52,25 @@
 
 #define __ masm->
 
+extern "C" {
+  void aarch64_prolog(void);
+}
+
 void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
                                                    void** vtable,
                                                    char** md_top,
                                                    char* md_end,
                                                    char** mc_top,
                                                    char* mc_end) {
+
+#ifdef BUILTIN_SIM
+  // Write a dummy word to the writable shared metaspace.
+  // MetaspaceShared::initialize_shared_spaces will fill it with the
+  // address of aarch64_prolog().
+  address *prolog_ptr = (address*)*md_top;
+  *(intptr_t *)(*md_top) = (intptr_t)0;
+  (*md_top) += sizeof(intptr_t);
+#endif
 
   intptr_t vtable_bytes = (num_virtuals * vtbl_list_size) * sizeof(void*);
   *(intptr_t *)(*md_top) = vtable_bytes;
@@ -77,8 +90,9 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
       dummy_vtable[num_virtuals * i + j] = (void*)masm->pc();
 
       // We're called directly from C code.
-      __ c_stub_prolog(8, 0, MacroAssembler::ret_type_integral);
-
+#ifdef BUILTIN_SIM
+      __ c_stub_prolog(8, 0, MacroAssembler::ret_type_integral, prolog_ptr);
+#endif
       // Load rscratch1 with a value indicating vtable/offset pair.
       // -- bits[ 7..0]  (8 bits) which virtual method in table?
       // -- bits[12..8]  (5 bits) which virtual method table?
@@ -103,4 +117,12 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
   __ ret(lr);
 
   *mc_top = (char*)__ pc();
+}
+
+void MetaspaceShared::relocate_vtbl_list(char **buffer) {
+#ifdef BUILTIN_SIM
+  void **sim_entry = (void**)*buffer;
+  *sim_entry = (void*)aarch64_prolog;
+  *buffer += sizeof(intptr_t);
+#endif
 }

@@ -1318,7 +1318,7 @@ public:
   enum ret_type { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
 
 #ifdef BUILTIN_SIM
-  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type);
+  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type, address *prolog_ptr = NULL);
 #else
   void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type) { }
 #endif

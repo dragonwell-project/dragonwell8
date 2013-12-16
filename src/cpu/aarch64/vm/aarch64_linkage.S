@@ -37,14 +37,13 @@
 aarch64_stub_prolog:
 	// entry point
 4:	lea 1f(%rip), %r11
-	mov 2f(%rip), %r10
+	mov (%r11), %r10
+	mov (%r10), %r10
 	jmp *%r10
-2:	.quad aarch64_prolog
 	.p2align 4
 1:
-	// 64 bit word used to hold the sim setup routine
 	.set entry_offset, . - 1b
-	.quad 0
+	.quad aarch64_prolog_ptr
 	// 64 bit int used to idenitfy called fn arg/return types
 	.set calltype_offset, . - 1b
 	.quad 0
@@ -52,8 +51,12 @@ aarch64_stub_prolog:
 	.set arm_code_offset, . - 1b
 	.size aarch64_stub_prolog, .-aarch64_stub_prolog
 aarch64_stub_prolog_end:
-	
+
 	.text
+aarch64_prolog_ptr:
+	.quad aarch64_prolog
+
+        .globl aarch64_prolog
 aarch64_prolog:
 	.cfi_startproc
 	pushq	%rbp
@@ -95,8 +98,6 @@ aarch64_prolog:
 	// push start of arm code
 	lea (arm_code_offset)(%r11), %rsi
 	push %rsi
-	// load address of sim setup routine
-	lea (entry_offset)(%r11), %rdx
 	// load call type code in arg reg 1
 	mov (calltype_offset)(%r11), %rsi
 	// load current stack pointer in arg reg 0
@@ -108,7 +109,7 @@ aarch64_prolog:
 	// 16-align the new stack pointer
 	push %rdi
 	// call sim setup routine
-	call *(%rdx)
+	call setup_arm_sim@PLT
 	// switch back to old stack
 	pop %rsp
 	// pop start of arm code
