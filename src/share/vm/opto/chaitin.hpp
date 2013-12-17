@@ -321,7 +321,10 @@ public:
   }
 
   uint live_range_id(const Node *node) const {
-    return _names.at(node->_idx);
+    if (node->_idx >= size())
+      return 0;
+    else
+      return _names.at(node->_idx);
   }
 
   uint uf_live_range_id(uint lrg_id) const {

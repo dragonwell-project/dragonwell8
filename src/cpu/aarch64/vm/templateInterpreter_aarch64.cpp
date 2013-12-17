@@ -172,7 +172,7 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
 address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { __ call_Unimplemented(); return 0; }
 
 
-address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step) {
+address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size) {
   address entry = __ pc();
 
   // Restore stack bottom in case i2c adjusted stack
@@ -184,18 +184,11 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ restore_constant_pool_cache();
   __ get_method(rmethod);
 
-  Label L_got_cache, L_giant_index;
-  if (EnableInvokeDynamic) {
-    __ ldrb(r1, Address(rbcp, 0));
-    __ cmpw(r1, Bytecodes::_invokedynamic);
-    __ br(Assembler::EQ, L_giant_index);
-  }
   // Pop N words from the stack
-  __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u2));
-  __ bind(L_got_cache);
-  __ ldrb(r1, Address(r1,
-		     in_bytes(ConstantPoolCache::base_offset()) +
-		     3 * wordSize));
+  __ get_cache_and_index_at_bcp(r1, r2, 1, index_size);
+  __ ldr(r1, Address(r1, ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()));
+  __ andr(r1, r1, ConstantPoolCacheEntry::parameter_size_mask);
+
   __ add(esp, esp, r1, Assembler::LSL, 3);
 
   // Restore machine SP in case i2c adjusted it
@@ -216,13 +209,6 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 #endif
   __ get_dispatch();
   __ dispatch_next(state, step);
-
-  // out of the main line of code...
-  if (EnableInvokeDynamic) {
-    __ bind(L_giant_index);
-    __ get_cache_and_index_at_bcp(r1, r2, 1, sizeof(u4));
-    __ b(L_got_cache);
-  }
 
   return entry;
 }

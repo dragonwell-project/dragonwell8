@@ -2974,9 +2974,7 @@ void TemplateTable::prepare_invoke(int byte_no,
   __ ubfxw(rscratch2, flags, ConstantPoolCacheEntry::tos_state_shift,  ConstantPoolCacheEntry::tos_state_bits);
   // load return address
   {
-    const address table_addr = (is_invokeinterface || is_invokedynamic) ?
-      (address)Interpreter::return_5_addrs_by_index_table() :
-      (address)Interpreter::return_3_addrs_by_index_table();
+    const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code);
     __ mov(rscratch1, table_addr);
     __ ldr(lr, Address(rscratch1, rscratch2, Address::lsl(3)));
   }
