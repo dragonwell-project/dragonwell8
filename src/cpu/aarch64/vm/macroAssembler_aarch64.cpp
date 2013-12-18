@@ -33,6 +33,7 @@
 
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/biasedLocking.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -283,12 +284,178 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
                                          Label& done,
                                          Label* slow_case,
                                          BiasedLockingCounters* counters) {
-  Unimplemented();
+  assert(UseBiasedLocking, "why call this otherwise?");
+  assert_different_registers(lock_reg, obj_reg, swap_reg);
+
+  if (PrintBiasedLockingStatistics && counters == NULL)
+    counters = BiasedLocking::counters();
+
+  bool need_tmp_reg = false;
+  if (tmp_reg == noreg) {
+    tmp_reg = rscratch2;
+  }
+  assert_different_registers(lock_reg, obj_reg, swap_reg, tmp_reg, rscratch1);
+  assert(markOopDesc::age_shift == markOopDesc::lock_bits + markOopDesc::biased_lock_bits, "biased locking makes assumptions about bit layout");
+  Address mark_addr      (obj_reg, oopDesc::mark_offset_in_bytes());
+  Address klass_addr     (obj_reg, oopDesc::klass_offset_in_bytes());
+  Address saved_mark_addr(lock_reg, 0);
+
+  // Biased locking
+  // See whether the lock is currently biased toward our thread and
+  // whether the epoch is still valid
+  // Note that the runtime guarantees sufficient alignment of JavaThread
+  // pointers to allow age to be placed into low bits
+  // First check to see whether biasing is even enabled for this object
+  Label cas_label;
+  int null_check_offset = -1;
+  if (!swap_reg_contains_mark) {
+    null_check_offset = offset();
+    ldr(swap_reg, mark_addr);
+  }
+  andr(tmp_reg, swap_reg, markOopDesc::biased_lock_mask_in_place);
+  cmp(tmp_reg, markOopDesc::biased_lock_pattern);
+  br(Assembler::NE, cas_label);
+  // The bias pattern is present in the object's header. Need to check
+  // whether the bias owner and the epoch are both still current.
+  load_prototype_header(tmp_reg, obj_reg);
+  orr(tmp_reg, tmp_reg, rthread);
+  eor(tmp_reg, swap_reg, tmp_reg);
+  andr(tmp_reg, tmp_reg, ~((int) markOopDesc::age_mask_in_place));
+  if (counters != NULL) {
+    Label around;
+    cbnz(tmp_reg, around);
+    atomic_incw(Address((address)counters->biased_lock_entry_count_addr()), tmp_reg, rscratch1);
+    b(done);
+    bind(around);
+  } else {
+    cbz(tmp_reg, done);
+  }
+
+  Label try_revoke_bias;
+  Label try_rebias;
+
+  // At this point we know that the header has the bias pattern and
+  // that we are not the bias owner in the current epoch. We need to
+  // figure out more details about the state of the header in order to
+  // know what operations can be legally performed on the object's
+  // header.
+
+  // If the low three bits in the xor result aren't clear, that means
+  // the prototype header is no longer biased and we have to revoke
+  // the bias on this object.
+  andr(rscratch1, tmp_reg, markOopDesc::biased_lock_mask_in_place);
+  cbnz(rscratch1, try_revoke_bias);
+
+  // Biasing is still enabled for this data type. See whether the
+  // epoch of the current bias is still valid, meaning that the epoch
+  // bits of the mark word are equal to the epoch bits of the
+  // prototype header. (Note that the prototype header's epoch bits
+  // only change at a safepoint.) If not, attempt to rebias the object
+  // toward the current thread. Note that we must be absolutely sure
+  // that the current epoch is invalid in order to do this because
+  // otherwise the manipulations it performs on the mark word are
+  // illegal.
+  andr(rscratch1, tmp_reg, markOopDesc::epoch_mask_in_place);
+  cbnz(rscratch1, try_rebias);
+
+  // The epoch of the current bias is still valid but we know nothing
+  // about the owner; it might be set or it might be clear. Try to
+  // acquire the bias of the object using an atomic operation. If this
+  // fails we will go in to the runtime to revoke the object's bias.
+  // Note that we first construct the presumed unbiased header so we
+  // don't accidentally blow away another thread's valid bias.
+  {
+    Label here;
+    mov(rscratch1, markOopDesc::biased_lock_mask_in_place | markOopDesc::age_mask_in_place | markOopDesc::epoch_mask_in_place);
+    andr(swap_reg, swap_reg, rscratch1);
+    orr(tmp_reg, swap_reg, rthread);
+    cmpxchgptr(swap_reg, tmp_reg, obj_reg, rscratch1, here, slow_case);
+    // If the biasing toward our thread failed, this means that
+    // another thread succeeded in biasing it toward itself and we
+    // need to revoke that bias. The revocation will occur in the
+    // interpreter runtime in the slow case.
+    bind(here);
+    if (counters != NULL) {
+      atomic_incw(Address((address)counters->anonymously_biased_lock_entry_count_addr()),
+		  tmp_reg, rscratch1);
+    }
+  }
+  b(done);
+
+  bind(try_rebias);
+  // At this point we know the epoch has expired, meaning that the
+  // current "bias owner", if any, is actually invalid. Under these
+  // circumstances _only_, we are allowed to use the current header's
+  // value as the comparison value when doing the cas to acquire the
+  // bias in the current epoch. In other words, we allow transfer of
+  // the bias from one thread to another directly in this situation.
+  //
+  // FIXME: due to a lack of registers we currently blow away the age
+  // bits in this situation. Should attempt to preserve them.
+  {
+    Label here;
+    load_prototype_header(tmp_reg, obj_reg);
+    orr(tmp_reg, rthread, tmp_reg);
+    cmpxchgptr(tmp_reg, swap_reg, obj_reg, rscratch1, here, slow_case);
+    // If the biasing toward our thread failed, then another thread
+    // succeeded in biasing it toward itself and we need to revoke that
+    // bias. The revocation will occur in the runtime in the slow case.
+    bind(here);
+    if (counters != NULL) {
+      atomic_incw(Address((address)counters->rebiased_lock_entry_count_addr()),
+		  tmp_reg, rscratch1);
+    }
+  }
+  b(done);
+
+  bind(try_revoke_bias);
+  // The prototype mark in the klass doesn't have the bias bit set any
+  // more, indicating that objects of this data type are not supposed
+  // to be biased any more. We are going to try to reset the mark of
+  // this object to the prototype value and fall through to the
+  // CAS-based locking scheme. Note that if our CAS fails, it means
+  // that another thread raced us for the privilege of revoking the
+  // bias of this particular object, so it's okay to continue in the
+  // normal locking code.
+  //
+  // FIXME: due to a lack of registers we currently blow away the age
+  // bits in this situation. Should attempt to preserve them.
+  {
+    Label here, nope;
+    load_prototype_header(tmp_reg, obj_reg);
+    cmpxchgptr(tmp_reg, swap_reg, obj_reg, rscratch1, here, &nope);
+    bind(here);
+
+    // Fall through to the normal CAS-based lock, because no matter what
+    // the result of the above CAS, some thread must have succeeded in
+    // removing the bias bit from the object's header.
+    if (counters != NULL) {
+      atomic_incw(Address((address)counters->revoked_lock_entry_count_addr()), tmp_reg,
+		  rscratch1);
+    }
+    bind(nope);
+  }
+
+  bind(cas_label);
+
+  return null_check_offset;
 }
 
 void MacroAssembler::biased_locking_exit(Register obj_reg, Register temp_reg, Label& done) {
-  Unimplemented();
+  assert(UseBiasedLocking, "why call this otherwise?");
+
+  // Check for biased locking unlock case, which is a no-op
+  // Note: we do not have to check the thread ID for two reasons.
+  // First, the interpreter checks for IllegalMonitorStateException at
+  // a higher level. Second, if the bias was revoked while we held the
+  // lock, the object could not be rebiased toward another thread, so
+  // the bias bit would be clear.
+  ldr(temp_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
+  andr(temp_reg, temp_reg, markOopDesc::biased_lock_mask_in_place);
+  cmp(temp_reg, markOopDesc::biased_lock_pattern);
+  br(Assembler::EQ, done);
 }
+
 
 // added to make this compile
 
@@ -1237,6 +1404,18 @@ Address MacroAssembler::form_address(Register Rd, Register base, long byte_offse
   return Address(Rd);
 }
 
+void MacroAssembler::atomic_incw(Register counter_addr, Register tmp) {
+  Label retry_load;
+  bind(retry_load);
+  // flush and load exclusive from the memory location
+  ldaxrw(tmp, counter_addr);
+  addw(tmp, tmp, 1);
+  // if we store+flush with no intervening write tmp wil be zero
+  stlxrw(tmp, tmp, counter_addr);
+  cbnzw(tmp, retry_load);
+}
+
+
 int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
 				    bool want_remainder, Register scratch)
 {
@@ -1929,6 +2108,11 @@ void MacroAssembler::load_klass(Register dst, Register src) {
   } else {
     ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   }
+}
+
+void MacroAssembler::load_prototype_header(Register dst, Register src) {
+  load_klass(dst, src);
+  ldr(dst, Address(dst, Klass::prototype_header_offset()));
 }
 
 void MacroAssembler::store_klass(Register dst, Register src) {

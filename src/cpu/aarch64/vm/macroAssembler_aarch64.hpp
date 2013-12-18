@@ -120,6 +120,14 @@ class MacroAssembler: public Assembler {
                            BiasedLockingCounters* counters = NULL);
   void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
 
+
+  // Helper functions for statistics gathering.
+  // Unconditional atomic increment.
+  void atomic_incw(Register counter_addr, Register tmp);
+  void atomic_incw(Address counter_addr, Register tmp1, Register tmp2) {
+    lea(tmp1, counter_addr);
+    atomic_incw(tmp1, tmp2);
+  }
   // Load Effective Address
   void lea(Register r, const Address &a) {
     InstructionMark im(this);
@@ -135,12 +143,14 @@ class MacroAssembler: public Assembler {
 
   // Add constant to memory word
   void addmw(Address a, int imm, Register scratch) {
-    ldrw(scratch, a);
+    lea(scratch, a);
+    ldrw(scratch, Address(scratch));
     if (imm > 0)
       addw(scratch, scratch, (unsigned)imm);
     else
       subw(scratch, scratch, (unsigned)-imm);
-    strw(scratch, a);
+    lea(scratch, a);
+    strw(scratch, Address(scratch));
   }
 
   virtual void _call_Unimplemented(address call_site) {
@@ -695,10 +705,7 @@ public:
   // stored using routines that take a jobject.
   void store_heap_oop_null(Address dst);
 
-  // currently unimplemented
-#if 0
   void load_prototype_header(Register dst, Register src);
-#endif
 
   void store_klass_gap(Register dst, Register src);
 

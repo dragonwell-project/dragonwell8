@@ -629,11 +629,10 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     ldr(obj_reg, Address(lock_reg, obj_offset));
 
     if (UseBiasedLocking) {
-      // biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, done, &slow_case);
-      call_Unimplemented();
+      biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch2, false, done, &slow_case);
     }
 
-    // Load (object->mark() | 1) into swap_reg %rax
+    // Load (object->mark() | 1) into swap_reg
     ldr(rscratch1, Address(obj_reg, 0));
     orr(swap_reg, rscratch1, 1);
 
@@ -648,9 +647,8 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
       Label fast;
       cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, fast, &fail);
       bind(fast);
-      // cond_inc32(Assembler::zero,
-      //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
-      call_Unimplemented();
+      atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
+		  rscratch2, rscratch1);
       b(done);
       bind(fail);
     } else {
@@ -676,9 +674,9 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     str(swap_reg, Address(lock_reg, mark_offset));
 
     if (PrintBiasedLockingStatistics) {
-      // cond_inc32(Assembler::zero,
-      //            ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
-      call_Unimplemented();
+      br(Assembler::NE, slow_case);
+      atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
+		  rscratch2, rscratch1);
     }
     br(Assembler::EQ, done);
 
@@ -733,8 +731,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     str(zr, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));
 
     if (UseBiasedLocking) {
-      // biased_locking_exit(obj_reg, header_reg, done);
-      call_Unimplemented();
+      biased_locking_exit(obj_reg, header_reg, done);
     }
 
     // Load the old header from BasicLock structure
