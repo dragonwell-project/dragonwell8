@@ -1433,8 +1433,6 @@ void Assembler::wrap_label(Label &L, prfop op, prefetch_insn insn) {
 void Assembler::add_sub_immediate(Register Rd, Register Rn, unsigned uimm, int op,
 				  int negated_op) {
   bool sets_flags = op & 1;   // this op sets flags
-  assert(sets_flags || uimm || Rd != Rn, "insn is a NOP");
-
   union {
     unsigned u;
     int imm;
