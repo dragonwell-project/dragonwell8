@@ -1513,7 +1513,7 @@ int Runtime1::move_appendix_patching(JavaThread* thread) {
     // Enter VM mode
 
     ResetNoHandleMark rnhm;
-    patch_code(thread, load_appendix_patching_id);
+    patch_code_aarch64(thread, load_appendix_patching_id);
   }
   // Back in JAVA, use no oops DON'T safepoint
 
