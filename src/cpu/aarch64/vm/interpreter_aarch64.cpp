@@ -154,11 +154,13 @@ address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKin
     entry_point = __ pc();
     __ ldrd(v0, Address(esp));
     __ fabsd(v0, v0);
+    __ mov(sp, r13); // Restore caller's SP
     break;
   case Interpreter::java_lang_math_sqrt:
     entry_point = __ pc();
     __ ldrd(v0, Address(esp));
     __ fsqrtd(v0, v0);
+    __ mov(sp, r13);
     break;
   case Interpreter::java_lang_math_sin :
   case Interpreter::java_lang_math_cos :
@@ -168,6 +170,7 @@ address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKin
   case Interpreter::java_lang_math_exp :
     entry_point = __ pc();
     __ ldrd(v0, Address(esp));
+    __ mov(sp, r13);
     __ mov(r19, lr);
     continuation = r19;  // The first callee-saved register
     generate_transcendental_entry(kind, 1);
@@ -178,6 +181,7 @@ address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKin
     continuation = r19;
     __ ldrd(v0, Address(esp, 2 * Interpreter::stackElementSize));
     __ ldrd(v1, Address(esp));
+    __ mov(sp, r13);
     generate_transcendental_entry(kind, 2);
     break;
   default:
@@ -284,6 +288,7 @@ address InterpreterGenerator::generate_empty_entry(void) {
   // Code: _return
   // _return
   // return w/o popping parameters
+  __ mov(sp, r13); // Restore caller's SP
   __ br(lr);
 
   __ bind(slow_path);
