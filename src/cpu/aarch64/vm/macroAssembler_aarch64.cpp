@@ -2617,7 +2617,12 @@ void MacroAssembler::eden_allocate(Register obj,
     {
       unsigned long offset;
       adrp(rscratch1, heap_top, offset);
-      lea(rscratch1, Address(rscratch1, offset));
+      // Use add() here after ARDP, rather than lea().
+      // lea() does not generate anything if its offset is zero.
+      // However, relocs expect to find either an ADD or a load/store
+      // insn after an ADRP.  add() always generates an ADD insn, even
+      // for add(Rn, Rn, 0).
+      add(rscratch1, rscratch1, offset);
       ldaxr(obj, rscratch1);
     }
 
