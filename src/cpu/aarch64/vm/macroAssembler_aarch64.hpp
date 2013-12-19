@@ -547,12 +547,17 @@ public:
   // Alignment
   void align(int modulus);
 
-  // A 5 byte nop that is safe for patching (see patch_verified_entry)
-  void fat_nop();
-
   // Stack frame creation/removal
-  void enter();
-  void leave();
+  void enter()
+  {
+    stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+    mov(rfp, sp);
+  }
+  void leave()
+  {
+    mov(sp, rfp);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+  }
 
   // Support for getting the JavaThread pointer (i.e.; a reference to thread-local information)
   // The pointer will be loaded into the thread register.

@@ -125,34 +125,171 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
 //
 
 address InterpreterGenerator::generate_math_entry(AbstractInterpreter::MethodKind kind) {
-  return NULL;
+  // rmethod: Method*
+  // r13: sender sp
+  // esp: args
+
+  if (!InlineIntrinsics) return NULL; // Generate a vanilla entry
+
+  // These don't need a safepoint check because they aren't virtually
+  // callable. We won't enter these intrinsics from compiled code.
+  // If in the future we added an intrinsic which was virtually callable
+  // we'd have to worry about how to safepoint so that this code is used.
+
+  // mathematical functions inlined by compiler
+  // (interpreter must provide identical implementation
+  // in order to avoid monotonicity bugs when switching
+  // from interpreter to compiler in the middle of some
+  // computation)
+  //
+  // stack:
+  //        [ arg ] <-- esp
+  //        [ arg ]
+  // retaddr in lr
+
+  address entry_point = NULL;
+  Register continuation = lr;
+  switch (kind) {
+  case Interpreter::java_lang_math_abs:
+    entry_point = __ pc();
+    __ ldrd(v0, Address(esp));
+    __ fabsd(v0, v0);
+    break;
+  case Interpreter::java_lang_math_sqrt:
+    entry_point = __ pc();
+    __ ldrd(v0, Address(esp));
+    __ fsqrtd(v0, v0);
+    break;
+  case Interpreter::java_lang_math_sin :
+  case Interpreter::java_lang_math_cos :
+  case Interpreter::java_lang_math_tan :
+  case Interpreter::java_lang_math_log :
+  case Interpreter::java_lang_math_log10 :
+  case Interpreter::java_lang_math_exp :
+    entry_point = __ pc();
+    __ ldrd(v0, Address(esp));
+    __ mov(r19, lr);
+    continuation = r19;  // The first callee-saved register
+    generate_transcendental_entry(kind, 1);
+    break;
+  case Interpreter::java_lang_math_pow :
+    entry_point = __ pc();
+    __ mov(r19, lr);
+    continuation = r19;
+    __ ldrd(v0, Address(esp, 2 * Interpreter::stackElementSize));
+    __ ldrd(v1, Address(esp));
+    generate_transcendental_entry(kind, 2);
+    break;
+  default:
+    ;
+  }
+  if (entry_point) {
+    __ br(continuation);
+  }
+
+  return entry_point;
 }
 
+  // double trigonometrics and transcendentals
+  // static jdouble dsin(jdouble x);
+  // static jdouble dcos(jdouble x);
+  // static jdouble dtan(jdouble x);
+  // static jdouble dlog(jdouble x);
+  // static jdouble dlog10(jdouble x);
+  // static jdouble dexp(jdouble x);
+  // static jdouble dpow(jdouble x, jdouble y);
+
+void InterpreterGenerator::generate_transcendental_entry(AbstractInterpreter::MethodKind kind, int fpargs) {
+  address fn;
+  switch (kind) {
+  case Interpreter::java_lang_math_sin :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dsin);
+    break;
+  case Interpreter::java_lang_math_cos :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dcos);
+    break;
+  case Interpreter::java_lang_math_tan :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dtan);
+    break;
+  case Interpreter::java_lang_math_log :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog);
+    break;
+  case Interpreter::java_lang_math_log10 :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog10);
+    break;
+  case Interpreter::java_lang_math_exp :
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dexp);
+    break;
+  case Interpreter::java_lang_math_pow :
+    fpargs = 2;
+    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dpow);
+    break;
+  default:
+    ShouldNotReachHere();
+  }
+  const int gpargs = 0, rtype = 3;
+  __ mov(rscratch1, fn);
+  __ blrt(rscratch1, gpargs, fpargs, rtype);
+}
 
 // Abstract method entry
 // Attempt to execute abstract method. Throw exception
 address InterpreterGenerator::generate_abstract_entry(void) {
+  // rmethod: Method*
+  // r13: sender SP
+
   address entry_point = __ pc();
 
-  __ call_Unimplemented();
+  // abstract method entry
+
+  //  pop return address, reset last_sp to NULL
+  __ empty_expression_stack();
+  __ restore_bcp();      // bcp must be correct for exception handler   (was destroyed)
+  __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
+
+  // throw exception
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                             InterpreterRuntime::throw_AbstractMethodError));
+  // the call_VM checks for exception, so we should never return here.
+  __ should_not_reach_here();
 
   return entry_point;
 }
 
-// Method handle invoker
-// Dispatch a method of the form java.lang.invoke.MethodHandles::invoke(...)
-address InterpreterGenerator::generate_method_handle_entry(void) {
-  address entry_point = __ pc();
-
-  __ call_Unimplemented();
-
-  return entry_point;
-}
 
 // Empty method, generate a very fast return.
 
 address InterpreterGenerator::generate_empty_entry(void) {
-  return NULL;
+  // rmethod: Method*
+  // r13: sender sp must set sp to this value on return
+
+  if (!UseFastEmptyMethods) {
+    return NULL;
+  }
+
+  address entry_point = __ pc();
+
+  // If we need a safepoint check, generate full interpreter entry.
+  Label slow_path;
+  {
+    unsigned long offset;
+    assert(SafepointSynchronize::_not_synchronized == 0,
+	   "SafepointSynchronize::_not_synchronized");
+    __ adrp(rscratch2, SafepointSynchronize::address_of_state(), offset);
+    __ ldrw(rscratch2, Address(rscratch2, offset));
+    __ cbnz(rscratch2, slow_path);
+  }
+
+  // do nothing for empty methods (do not even increment invocation counter)
+  // Code: _return
+  // _return
+  // return w/o popping parameters
+  __ br(lr);
+
+  __ bind(slow_path);
+  (void) generate_normal_entry(false);
+  return entry_point;
+
 }
 
 void Deoptimization::unwind_callee_save_values(frame* f, vframeArray* vframe_array) {

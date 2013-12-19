@@ -1756,18 +1756,6 @@ void MacroAssembler::stop(const char* msg) {
   hlt(0);
 }
 
-void MacroAssembler::enter()
-{
-  stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
-  mov(rfp, sp);
-}
-
-void MacroAssembler::leave()
-{
-  mov(sp, rfp);
-  ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
-}
-
 // If a constant does not fit in an immediate field, generate some
 // number of MOV instructions and then perform the operation.
 void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
