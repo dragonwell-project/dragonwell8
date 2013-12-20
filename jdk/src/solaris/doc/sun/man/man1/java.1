@@ -373,7 +373,7 @@ Performs additional checks for Java Native Interface (JNI) functions\&. Specific
 .TP
 -Xcomp
 .br
-Disables interpretation of Java code and compile methods on first invocation\&. By default, the JIT compiler performs 10,000 interpreted method invocations to gather information for efficient compilation\&. To increase compilation performance at the expense of efficiency, use the \f3-Xcomp\fR flag to disable interpreted method invocations\&.
+Forces compilation of methods on first invocation\&. By default, the Client VM (\f3-client\fR) performs 1,000 interpreted method invocations and the Server VM (\f3-server\fR) performs 10,000 interpreted method invocations to gather information for efficient compilation\&. Specifying the \f3-Xcomp\fR option disables interpreted method invocations to increase compilation performance at the expense of efficiency\&.
 
 You can also change the number of interpreted method invocations before compilation using the \f3-XX:CompileThreshold\fR option\&.
 .TP
@@ -937,11 +937,9 @@ Sets the minimum free space (in bytes) required for compilation\&. Append the le
 .sp     
 
 .TP
-.nf
--XX:CompileCommand=\fIcommand\fR,\fIclass\fR\&.\fImethod\fR[,\fIoption\fR]
+-XX:CompileCommand=\fIcommand\fR,\fImethod\fR[,\fIoption\fR]
 .br
-.fi
-Attaches a line to the \f3\&.hotspot_compiler\fR file with the command for the specific method of the class\&. For example, to exclude the \f3indexOf()\fR method of the \f3String\fR class from being compiled, use the following:
+Specifies a command to perform on a method\&. For example, to exclude the \f3indexOf()\fR method of the \f3String\fR class from being compiled, use the following:
 .sp     
 .nf     
 \f3\-XX:CompileCommand=exclude,java/lang/String\&.indexOf\fP
@@ -952,9 +950,40 @@ Attaches a line to the \f3\&.hotspot_compiler\fR file with the command for the s
 .sp     
 
 
-Note that you must specify the full class name, including all packages and subpackages separated by a slash (\f3/\fR)\&.
+Note that the full class name is specified, including all packages and subpackages separated by a slash (\f3/\fR)\&. For easier cut and paste operations, it is also possible to use the method name format produced by the \f3-XX:+PrintCompilation\fR and \f3-XX:+LogCompilation\fR options:
+.sp     
+.nf     
+\f3\-XX:CompileCommand=exclude,java\&.lang\&.String::indexOf\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
 
-To add several commands, either specify this option multiple times, or separate each argument with the newline separator (\f3\en\fR)\&. To better understand the syntax of the JVM compiler commands, refer to the description of the \f3-XX:CompileCommandFile\fR option, which enables you to specify the file from which to read compiler commands\&. Notice how the syntax of the command file differs rom the syntax of the argument for the \f3-XX:CompileCommand\fR option\&. The commas and periods in the argument are aliases for spaces in the command file, making it easier to pass compiler commands through a shell\&. To pass arguments to \f3-XX:CompileCommand\fR with the same syntax as that used in the command file, you can enclose the argument in quotation marks:
+
+If the method is specified without the signature, the command will be applied to all methods with the specified name\&. However, you can also specify the signature of the method in the class file format\&. In this case, you should enclose the arguments in quotation marks, because otherwise the shell treats the semicolon as command end\&. For example, if you want to exclude only the \f3indexOf(String)\fR method of the \f3String\fR class from being compiled, use the following:
+.sp     
+.nf     
+\f3\-XX:CompileCommand="exclude,java/lang/String\&.indexOf,(Ljava/lang/String;)I"\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
+
+
+You can also use the asterisk (*) as a wildcard for class and method names\&. For example, to exclude all \f3indexOf()\fR methods in all classes from being compiled, use the following:
+.sp     
+.nf     
+\f3\-XX:CompileCommand=exclude,*\&.indexOf\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
+
+
+The commas and periods are aliases for spaces, making it easier to pass compiler commands through a shell\&. You can pass arguments to \f3-XX:CompileCommand\fR using spaces as separators by enclosing the argument in quotation marks:
 .sp     
 .nf     
 \f3\-XX:CompileCommand="exclude java/lang/String indexOf"\fP
@@ -965,25 +994,16 @@ To add several commands, either specify this option multiple times, or separate 
 .sp     
 
 
-For easier cut and paste operations, it is also possible to use the method name format produced by the \f3-XX:+PrintCompilation\fR and \f3-XX:+LogCompilation\fR options:
-.sp     
-.nf     
-\f3\-XX:CompileCommand="exclude java\&.lang\&.String::indexOf"\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
+Note that after parsing the commands passed on the command line using the \f3-XX:CompileCommand\fR options, the JIT compiler then reads commands from the \f3\&.hotspot_compiler\fR file\&. You can add commands to this file or specify a different file using the \f3-XX:CompileCommandFile\fR option\&.
 
-
-The following commands are available:
+To add several commands, either specify the \f3-XX:CompileCommand\fR option multiple times, or separate each argument with the newline separator (\f3\en\fR)\&. The following commands are available:
 .RS     
 .TP     
 break
 Set a breakpoint when debugging the JVM to stop at the beginning of compilation of the specified method\&.
 .TP     
 compileonly
-Exclude all methods from compilation except for the specified method\&.
+Exclude all methods from compilation except for the specified method\&. As an alternative, you can use the \f3-XX:CompileOnly\fR option, which allows to specify several methods\&.
 .TP     
 dontinline
 Prevent inlining of the specified method\&.
@@ -999,6 +1019,20 @@ Attempt to inline the specified method\&.
 .TP     
 log
 Exclude compilation logging (with the \f3-XX:+LogCompilation\fR option) for all methods except for the specified method\&. By default, logging is performed for all compiled methods\&.
+.TP     
+option
+This command can be used to pass a JIT compilation option to the specified method in place of the last argument (\fIoption\fR)\&. The compilation option is set at the end, after the method name\&. For example, to enable the \f3BlockLayoutByFrequency\fR option for the \f3append()\fR method of the \f3StringBuffer\fR class, use the following:
+.sp     
+.nf     
+\f3\-XX:CompileCommand=option,java/lang/StringBuffer\&.append,BlockLayoutByFrequency\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
+
+
+You can specify multiple compilation options, separated by commas or spaces\&.
 .TP     
 print
 Print generated assembler code after compilation of the specified method\&.
@@ -1018,26 +1052,12 @@ Do not print the compile commands\&. By default, the commands that you specify w
 You can suppress this by specifying the \f3-XX:CompileCommand=quiet\fR option before other \f3-XX:CompileCommand\fR options\&.
 .RE     
 
-
-.RS
-The optional last argument (\fIoption\fR) can be used to pass a JIT compilation option to the specified method\&. The compilation option is set at the end, after the method name\&. For example, to enable the \f3BlockLayoutByFrequency\fR option for the \f3append()\fR method of the \f3StringBuffer\fR class, use the following:
-.sp     
-.nf     
-\f3\-XX:CompileCommand=option,java/lang/StringBuffer\&.append,BlockLayoutByFrequency\fP
-.fi     
-.nf     
-\f3\fP
-.fi     
-.sp     
-
-
-.RE
 .TP
 -XX:CompileCommandFile=\fIfilename\fR
 .br
-Sets the file from which compiler commands are read\&. By default, the \f3\&.hotspot_compiler\fR file is used to store commands performed by the JVM compiler\&.
+Sets the file from which JIT compiler commands are read\&. By default, the \f3\&.hotspot_compiler\fR file is used to store commands performed by the JIT compiler\&.
 
-Each line in the command file represents a command, a class name, and a method name for which the command is used (all three parts are separated by spaces)\&. For example, this line prints assembly code for the \f3toString()\fR method of the \f3String\fR class:
+Each line in the command file represents a command, a class name, and a method name for which the command is used\&. For example, this line prints assembly code for the \f3toString()\fR method of the \f3String\fR class:
 .sp     
 .nf     
 \f3print java/lang/String toString\fP
@@ -1048,7 +1068,7 @@ Each line in the command file represents a command, a class name, and a method n
 .sp     
 
 
-To add commands to the beginning of the \f3\&.hotspot_compiler\fR file, use the \f3-XX:CompileCommand\fR option\&. Note how the syntax of the command file is different from the syntax of the argument for the \f3-XX:CompileCommand\fR option\&. The commas and periods in the argument are aliases for spaces in the command file, making it easier to pass compiler commands through a shell\&. Although it is possible to pass arguments to \f3-XX:CompileCommand\fR with the same syntax as that used in the command file, you would have to enclose the string argument in quotation marks\&.
+For more information about specifying the commands for the JIT compiler to perform on methods, see the \f3-XX:CompileCommand\fR option\&.
 .TP
 -XX:CompileOnly=\fImethods\fR
 .br
@@ -1056,6 +1076,34 @@ Sets the list of methods (separated by commas) to which compilation should be re
 .sp     
 .nf     
 \f3\-XX:CompileOnly=java/lang/String\&.length,java/util/List\&.size\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
+
+
+Note that the full class name is specified, including all packages and subpackages separated by a slash (\f3/\fR)\&. For easier cut and paste operations, it is also possible to use the method name format produced by the \f3-XX:+PrintCompilation\fR and \f3-XX:+LogCompilation\fR options:
+.sp     
+.nf     
+\f3\-XX:CompileOnly=java\&.lang\&.String::length,java\&.util\&.List::size\fP
+.fi     
+.nf     
+\f3\fP
+.fi     
+.sp     
+
+
+Although wildcards are not supported, you can specify only the class or package name to compile all methods in that class or package, as well as specify just the method to compile methods with this name in any class:
+.sp     
+.nf     
+\f3\-XX:CompileOnly=java/lang/String\fP
+.fi     
+.nf     
+\f3\-XX:CompileOnly=java/lang\fP
+.fi     
+.nf     
+\f3\-XX:CompileOnly=\&.length\fP
 .fi     
 .nf     
 \f3\fP
