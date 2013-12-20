@@ -37,6 +37,7 @@ import java.awt.TrayIcon;
 import java.awt.SystemTray;
 import java.awt.event.InputEvent;
 import java.net.URL;
+import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
@@ -1115,6 +1116,17 @@ public abstract class SunToolkit extends Toolkit
         return startupLocale;
     }
 
+    protected static ThreadGroup getRootThreadGroup() {
+        return AccessController.doPrivileged((PrivilegedAction<ThreadGroup>) () -> {
+            ThreadGroup currentTG = Thread.currentThread().getThreadGroup();
+            ThreadGroup parentTG = currentTG.getParent();
+            while (parentTG != null) {
+                currentTG = parentTG;
+                parentTG = currentTG.getParent();
+            }
+            return currentTG;
+        });
+    }
     /**
      * Returns the default keyboard locale of the underlying operating system
      */
