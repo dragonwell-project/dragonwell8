@@ -2252,16 +2252,6 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
 }
 
 void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
-  if (Universe::narrow_klass_base() == NULL) {
-    if (Universe::narrow_klass_shift() != 0) {
-      assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
-      lsr(dst, src, LogKlassAlignmentInBytes);
-    } else {
-      if (dst != src) mov(dst, src);
-    }
-    return;
-  }
-
   if (use_XOR_for_compressed_class_base) {
     if (Universe::narrow_klass_shift() != 0) {
       eor(dst, src, (uint64_t)Universe::narrow_klass_base());
@@ -2293,17 +2283,8 @@ void MacroAssembler::encode_klass_not_null(Register r) {
 
 void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   Register rbase = dst;
+  assert(Universe::narrow_klass_base() != NULL, "Base should be initialized");
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
-
-  if (Universe::narrow_klass_base() == NULL) {
-    if (Universe::narrow_klass_shift() != 0) {
-      assert(LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
-      lsl(dst, src, LogKlassAlignmentInBytes);
-    } else {
-      if (dst != src) mov(dst, src);
-    }
-    return;
-  }
 
   if (use_XOR_for_compressed_class_base) {
     if (Universe::narrow_klass_shift() != 0) {

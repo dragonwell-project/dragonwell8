@@ -114,7 +114,6 @@ void relocInfo::change_reloc_info_for_address(RelocIterator *itr, address pc, re
       found=true;
     }
   }
-  assert(found, "no relocInfo found for pc");
 }
 
 

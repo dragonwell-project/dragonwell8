@@ -1716,11 +1716,6 @@ const RegMask Matcher::mathExactI_result_proj_mask() {
   return R0_REG_mask();
 }
 
-const RegMask Matcher::mathExactL_result_proj_mask() {
-  ShouldNotReachHere();
-  return R0_REG_mask();
-}
-
 const RegMask Matcher::mathExactI_flags_proj_mask() {
   return INT_FLAGS_mask();
 }

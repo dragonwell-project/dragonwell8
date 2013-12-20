@@ -943,12 +943,8 @@ void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
 
 void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_PatchCode patch_code, CodeEmitInfo* info, bool wide, bool /* unaligned */) {
   LIR_Address* addr = src->as_address_ptr();
+
   LIR_Address* from_addr = src->as_address_ptr();
-
-  if (addr->base()->type() == T_OBJECT) {
-    __ verify_oop(addr->base()->as_pointer_register());
-  }
-
   PatchingStub* patch = NULL;
 
   if (patch_code != lir_patch_none) {
@@ -2638,10 +2634,6 @@ void LIR_Assembler::monitor_address(int monitor_no, LIR_Opr dst) {
 
 void LIR_Assembler::emit_updatecrc32(LIR_OpUpdateCRC32* op) {
   fatal("CRC32 intrinsic is not implemented on this platform");
-}
-
-void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
-  fatal("Type profiling not implemented on this platform");
 }
 
 void LIR_Assembler::align_backward_branch_target() {
