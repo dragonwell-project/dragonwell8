@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -456,6 +456,7 @@ public class XWindow extends XBaseWindow implements X11ComponentPeer {
             ColorModel cm = getColorModel();
             int pixel = PixelConverter.instance.rgbToPixel(c.getRGB(), cm);
             XlibWrapper.XSetWindowBackground(XToolkit.getDisplay(), getContentWindow(), pixel);
+            XlibWrapper.XClearWindow(XToolkit.getDisplay(), getContentWindow());
         }
         finally {
             XToolkit.awtUnlock();

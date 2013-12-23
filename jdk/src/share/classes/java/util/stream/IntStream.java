@@ -322,7 +322,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * <pre>{@code
      *     int result = identity;
      *     for (int element : this stream)
-     *         result = accumulator.apply(result, element)
+     *         result = accumulator.applyAsInt(result, element)
      *     return result;
      * }</pre>
      *
@@ -383,7 +383,7 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      *             result = element;
      *         }
      *         else
-     *             result = accumulator.apply(result, element);
+     *             result = accumulator.applyAsInt(result, element);
      *     }
      *     return foundAny ? OptionalInt.of(result) : OptionalInt.empty();
      * }</pre>
