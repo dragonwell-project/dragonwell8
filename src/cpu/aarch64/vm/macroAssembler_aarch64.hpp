@@ -143,14 +143,12 @@ class MacroAssembler: public Assembler {
 
   // Add constant to memory word
   void addmw(Address a, int imm, Register scratch) {
-    lea(scratch, a);
-    ldrw(scratch, Address(scratch));
+    ldrw(scratch, a);
     if (imm > 0)
       addw(scratch, scratch, (unsigned)imm);
     else
       subw(scratch, scratch, (unsigned)-imm);
-    lea(scratch, a);
-    strw(scratch, Address(scratch));
+    strw(scratch, a);
   }
 
   virtual void _call_Unimplemented(address call_site) {

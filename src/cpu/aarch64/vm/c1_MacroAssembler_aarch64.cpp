@@ -122,8 +122,8 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // done
   bind(done);
   if (PrintBiasedLockingStatistics) {
-    addmw(ExternalAddress((address)BiasedLocking::fast_path_entry_count_addr()),
-	  1, rscratch1);
+    lea(rscratch2, ExternalAddress((address)BiasedLocking::fast_path_entry_count_addr()));
+    addmw(Address(rscratch2, 0), 1, rscratch1);
   }
   return null_check_offset;
 }
