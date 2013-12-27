@@ -65,6 +65,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.time.Clock;
 import java.time.DateTimeException;
@@ -439,6 +440,18 @@ public final class ThaiBuddhistDate
     }
 
     //-------------------------------------------------------------------------
+    /**
+     * Compares this date to another date, including the chronology.
+     * <p>
+     * Compares this {@code ThaiBuddhistDate} with another ensuring that the date is the same.
+     * <p>
+     * Only objects of type {@code ThaiBuddhistDate} are compared, other types return false.
+     * To compare the dates of two {@code TemporalAccessor} instances, including dates
+     * in two different chronologies, use {@link ChronoField#EPOCH_DAY} as a comparator.
+     *
+     * @param obj  the object to check, null returns false
+     * @return true if this is equal to the other date
+     */
     @Override  // override for performance
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -451,6 +464,11 @@ public final class ThaiBuddhistDate
         return false;
     }
 
+    /**
+     * A hash code for this date.
+     *
+     * @return a suitable hash code based only on the Chronology and the date
+     */
     @Override  // override for performance
     public int hashCode() {
         return getChronology().getId().hashCode() ^ isoDate.hashCode();
@@ -459,10 +477,10 @@ public final class ThaiBuddhistDate
     //-----------------------------------------------------------------------
     /**
      * Defend against malicious streams.
-     * @return never
+     *
      * @throws InvalidObjectException always
      */
-    private Object readResolve() throws InvalidObjectException {
+    private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }
 
