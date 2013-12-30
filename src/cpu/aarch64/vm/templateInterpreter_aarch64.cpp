@@ -169,8 +169,13 @@ address TemplateInterpreterGenerator::generate_exception_handler_common(
   return entry;
 }
 
-address TemplateInterpreterGenerator::generate_continuation_for(TosState state) { __ call_Unimplemented(); return 0; }
-
+address TemplateInterpreterGenerator::generate_continuation_for(TosState state) {
+  address entry = __ pc();
+  // NULL last_sp until next java call
+  __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+  __ dispatch_next(state);
+  return entry;
+}
 
 address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step) {
   address entry = __ pc();
@@ -198,7 +203,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 		     3 * wordSize));
   __ add(esp, esp, r1, Assembler::LSL, 3);
 
-  // Restore machine SP in case i2c adjusted it
+  // Restore machine SP
   __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
   __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
   __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
@@ -615,50 +620,43 @@ void InterpreterGenerator::lock_method(void) {
 //      rlocals: pointer to locals
 //      rcpool: cp cache
 //      stack_pointer: previous sp
-void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Register stack_pointer) {
+void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   // initialize fixed part of activation frame
-  // return address does not need pushing as it was never popped
-  // from the stack. instead enter() will save lr and leave will
-  // restore it later
+  if (native_call) {
+    __ sub(esp, sp, 12 *  wordSize);
+    __ mov(rbcp, zr);
+    __ stp(esp, zr, Address(__ pre(sp, -12 * wordSize)));
+    // add 2 zero-initialized slots for native calls
+    __ stp(zr, zr, Address(sp, 10 * wordSize));
+  } else {
+    __ sub(esp, sp, 10 *  wordSize);
+    __ ldr(rscratch1, Address(rmethod, Method::const_offset()));      // get ConstMethod
+    __ add(rbcp, rscratch1, in_bytes(ConstMethod::codes_offset())); // get codebase
+    __ stp(esp, rbcp, Address(__ pre(sp, -10 * wordSize)));
+  }
 
-  // Save previous sp.  If this is a native call, the higher word of
-  // this pair will be used for oop_temp so it must be zeroed.
-  // FIXME: Should we not always push zr?
-  if (native_call)
-    __ stp(stack_pointer, zr, Address(__ pre(sp, -2 * wordSize)));
-  else
-    __ str(stack_pointer, Address(__ pre(sp, -2 * wordSize)));
-
-  __ enter();          // save old & set new rfp
-
-  // set sender sp
-  // leave last_sp as null
-  __ stp(zr, r13, Address(__ pre(sp, -2 * wordSize)));
-  __ ldr(rscratch1, Address(rmethod, Method::const_offset()));      // get ConstMethod
-  __ add(rbcp, rscratch1, in_bytes(ConstMethod::codes_offset())); // get codebase
   if (ProfileInterpreter) {
     Label method_data_continue;
     __ ldr(rscratch1, Address(rmethod, Method::method_data_offset()));
     __ cbz(rscratch1, method_data_continue);
     __ lea(rscratch1, Address(rscratch1, in_bytes(MethodData::data_offset())));
     __ bind(method_data_continue);
-    __ stp(rscratch1, rmethod, Address(__ pre(sp, -2 * wordSize)));  // save Method* and mdp (method data pointer)
+    __ stp(rscratch1, rmethod, Address(sp, 4 * wordSize));  // save Method* and mdp (method data pointer)
   } else {
-    __ stp(zr, rmethod, Address(__ pre(sp, -2 * wordSize)));        // save Method* (no mdp)
+    __ stp(zr, rmethod, Address(sp, 4 * wordSize));        // save Method* (no mdp)
   }
 
   __ ldr(rcpool, Address(rmethod, Method::const_offset()));
   __ ldr(rcpool, Address(rcpool, ConstMethod::constants_offset()));
   __ ldr(rcpool, Address(rcpool, ConstantPool::cache_offset_in_bytes()));
-  __ stp(rlocals, rcpool, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(rlocals, rcpool, Address(sp, 2 * wordSize));
 
-  if (native_call) {
-    __ stp(zr, zr, Address(__ pre(sp, -2 * wordSize))); // no bcp
-  } else {
-    __ stp(zr, rbcp, Address(__ pre(sp, -2 * wordSize))); // set bcp
-  }
+  __ stp(rfp, lr, Address(sp, 8 * wordSize));
+  __ lea(rfp, Address(sp, 8 * wordSize));
 
-  __ mov(esp, sp); // Initialize expression stack pointer
+  // set sender sp
+  // leave last_sp as null
+  __ stp(zr, r13, Address(sp, 6 * wordSize));
 
   // Move SP out of the way
   if (! native_call) {
@@ -669,8 +667,6 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
     __ sub(rscratch1, sp, rscratch1, ext::uxtw, 3);
     __ andr(sp, rscratch1, -16);
   }
-
-  __ str(esp, Address(esp)); // Initial ESP
 }
 
 // End of helpers
@@ -741,12 +737,11 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ add(rlocals, rlocals, -wordSize);
 
-  // save sp
-  __ mov(rscratch1, sp);
+  // Pull SP back to minimum size: this avoids holes in the stack
   __ andr(sp, esp, -16);
 
   // initialize fixed part of activation frame
-  generate_fixed_frame(true, rscratch1);
+  generate_fixed_frame(true);
 #ifndef PRODUCT
   // tell the simulator that a method has been entered
   if (NotifySimulator) {
@@ -1181,9 +1176,6 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ add(rlocals, esp, r2, ext::uxtx, 3);
   __ sub(rlocals, rlocals, wordSize);
 
-  // Pass previous SP to save in generate_fixed_frame()
-  __ mov(r10, sp);
-
   // Make room for locals
   __ sub(rscratch1, esp, r3, ext::uxtx, 3);
   __ andr(sp, rscratch1, -16);
@@ -1206,7 +1198,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ get_dispatch();
 
   // initialize fixed part of activation frame
-  generate_fixed_frame(false, r10);
+  generate_fixed_frame(false);
 #ifndef PRODUCT
   // tell the simulator that a method has been entered
   if (NotifySimulator) {

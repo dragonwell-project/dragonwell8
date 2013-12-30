@@ -29,7 +29,7 @@
 
  protected:
 
-void generate_fixed_frame(bool native_call, Register stack_pointer);
+void generate_fixed_frame(bool native_call);
 
  // address generate_asm_interpreter_entry(bool synchronized);
 
