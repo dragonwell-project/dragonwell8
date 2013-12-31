@@ -1192,20 +1192,16 @@ Disassembly of section .text:
 
 #ifndef PRODUCT
   {
-    Label l, loop, empty;
-    address a = __ pc();
-    __ adr(r3, l);
-    __ bl(empty);
-    __ movz(r0, 0);
-    __ BIND(loop);
-    __ subs(r0, r0, 10);
-    __ br(Assembler::NE, l);
-    __ add(r0, r0, 1u);
-    __ adr(r3, loop);
-    __ br(Assembler::AL, loop);
-    __ BIND(l);
-    __ BIND(empty);
-    __ ret(lr);
+    address PC = __ pc();
+    __ bl(__ pc()+(1<<27)-4);
+    NativeCall* call = nativeCall_at(PC);
+    ptrdiff_t offset = call->destination()-PC;
+    assert(offset == (1<<27)-4, "broken branch coding");
+    PC = __ pc();
+    __ bl(__ pc()-(1<<27));
+    call = nativeCall_at(PC);
+    offset = call->destination()-PC;
+    assert(offset == -(1<<27), "broken branch coding");
   }
 
 

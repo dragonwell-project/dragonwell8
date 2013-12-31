@@ -128,7 +128,7 @@ class NativeCall: public NativeInstruction {
   enum { cache_line_size = BytesPerWord };  // conservative estimate!
   address instruction_address() const       { return addr_at(instruction_offset); }
   address next_instruction_address() const  { return addr_at(return_address_offset); }
-  int   displacement() const                { return (int_at(displacement_offset) << 7) >> 5; }
+  int   displacement() const                { return (int_at(displacement_offset) << 6) >> 4; }
   address displacement_address() const      { return addr_at(displacement_offset); }
   address return_address() const            { return addr_at(return_address_offset); }
   address destination() const;
