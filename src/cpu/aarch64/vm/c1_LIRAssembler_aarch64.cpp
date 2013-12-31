@@ -1372,9 +1372,10 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       __ mov_metadata(mdo, md->constant_encoding());
       Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
       int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ ldrw(rscratch1, data_addr);
+      __ lea(rscratch2, data_addr);
+      __ ldrw(rscratch1, Address(rscratch2));
       __ orrw(rscratch1, rscratch1, header_bits);
-      __ strw(rscratch1, data_addr);
+      __ strw(rscratch1, Address(rscratch2));
       __ b(*obj_is_null);
       __ bind(not_null);
     } else {
