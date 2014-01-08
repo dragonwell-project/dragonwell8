@@ -275,9 +275,6 @@ tools/launcher/FXLauncherTest.java                              linux-all
 
 # jdk_util
 
-# Filed 6772009
-java/util/concurrent/locks/ReentrantLock/CancelledLockLoops.java generic-all
-
 ############################################################################
 
 # svc_tools
