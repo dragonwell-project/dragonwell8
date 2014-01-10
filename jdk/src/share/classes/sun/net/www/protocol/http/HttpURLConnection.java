@@ -543,8 +543,8 @@ public class HttpURLConnection extends java.net.HttpURLConnection {
              */
             if (!failedOnce) {
                 checkURLFile();
-                requests.prepend(method + " " + getRequestURI() + " " +
-                    httpVersion, null);
+                requests.prepend(method + " " + getRequestURI()+" "  +
+                                 httpVersion, null);
             }
             if (!getUseCaches()) {
                 requests.setIfNotSet ("Cache-Control", "no-cache");
