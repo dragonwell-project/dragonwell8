@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,18 +33,18 @@
 // The following must be named "jvm", as there are extern references to it in AWT
 JavaVM *jvm = NULL;
 static JNIEnv *appKitEnv = NULL;
-jobject appkitThreadGroup = NULL;
+static jobject appkitThreadGroup = NULL;
 
 inline void attachCurrentThread(void** env) {
-    JavaVMAttachArgs args;
-    args.version = JNI_VERSION_1_2;
-    args.name = NULL; // Set from LWCToolkit
     if ([NSThread isMainThread]) {
+        JavaVMAttachArgs args;
+        args.version = JNI_VERSION_1_4;
+        args.name = "AppKit Thread";
         args.group = appkitThreadGroup;
+        (*jvm)->AttachCurrentThreadAsDaemon(jvm, env, &args);
     } else {
-        args.group = NULL;
+        (*jvm)->AttachCurrentThreadAsDaemon(jvm, env, NULL);
     }
-    (*jvm)->AttachCurrentThreadAsDaemon(jvm, env, &args);
 }
 
 @implementation ThreadUtilities
@@ -65,6 +65,10 @@ AWT_ASSERT_APPKIT_THREAD;
 
 + (void)detachCurrentThread {
     (*jvm)->DetachCurrentThread(jvm);
+}
+
++ (void)setAppkitThreadGroup:(jobject)group {
+    appkitThreadGroup = group;
 }
 
 + (void)performOnMainThreadWaiting:(BOOL)wait block:(void (^)())block {
