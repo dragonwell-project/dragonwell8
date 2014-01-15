@@ -100,6 +100,8 @@ void MethodHandles::verify_ref_kind(MacroAssembler* _masm, int ref_kind, Registe
 void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register method, Register temp,
                                             bool for_compiler_entry) {
   assert(method == rmethod, "interpreter calling convention");
+  Label L_no_such_method;
+  __ cbz(rmethod, L_no_such_method);
   __ verify_method_ptr(method);
 
   if (!for_compiler_entry && JvmtiExport::can_post_interpreter_events()) {
@@ -119,6 +121,8 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
                                                      Method::from_interpreted_offset();
   __ ldr(rscratch1,Address(method, entry_offset));
   __ br(rscratch1);
+  __ bind(L_no_such_method);
+  __ b(RuntimeAddress(StubRoutines::throw_AbstractMethodError_entry()));
 }
 
 void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,

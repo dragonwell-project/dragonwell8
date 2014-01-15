@@ -1542,13 +1542,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   int vep_offset = ((intptr_t)__ pc()) - start;
 
-  // Generate stack overflow check
+  // The instruction at the verified entry point must be 5 bytes or longer
+  // because it can be patched on the fly by make_non_entrant. The stack bang
+  // instruction fits that requirement.
 
-  // If we have to make this method not-entrant we'll overwrite its
-  // first instruction with a jump.  For this action to be legal we
-  // must ensure that this first instruction is a B, BL, NOP, BKPT,
-  // SVC, HVC, or SMC.  Make it a NOP.
-  __ nop();
+  // Generate stack overflow check
 
   if (UseStackBanging) {
     __ bang_stack_with_offset(StackShadowPages*os::vm_page_size());
@@ -1995,7 +1993,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label reguard;
   Label reguard_done;
-  __ ldrb(rscratch1, Address(rthread, JavaThread::stack_guard_state_offset()));
+  __ ldrw(rscratch1, Address(rthread, JavaThread::stack_guard_state_offset()));
   __ cmpw(rscratch1, JavaThread::stack_guard_yellow_disabled);
   __ br(Assembler::EQ, reguard);
   __ bind(reguard_done);
@@ -2253,14 +2251,6 @@ void SharedRuntime::generate_deopt_blob() {
   OopMap* map = NULL;
   OopMapSet *oop_maps = new OopMapSet();
 
-#ifdef BUILTIN_SIM
-  AArch64Simulator *simulator;
-  if (NotifySimulator) {
-    simulator = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
-    simulator->notifyCompile(const_cast<char*>("SharedRuntime::deopt_blob"), __ pc());
-  }
-#endif
-
   // -------------
   // This code enters when returning to a de-optimized nmethod.  A return
   // address has been pushed on the the stack, and return values are in
@@ -2446,10 +2436,9 @@ void SharedRuntime::generate_deopt_blob() {
 
   // Pop deoptimized frame
   __ ldrw(r2, Address(r5, Deoptimization::UnrollBlock::size_of_deoptimized_frame_offset_in_bytes()));
-  __ sub(r2, r2, 2 * wordSize);
   __ add(sp, sp, r2);
-  __ ldp(rfp, lr, __ post(sp, 2 * wordSize));
-  // LR should now be the return address to the caller (3)
+
+  // sp should be pointing at the return address to the caller (3)
 
   // Stack bang to make sure there's enough room for these interpreter frames.
   if (UseStackBanging) {
@@ -2555,13 +2544,6 @@ void SharedRuntime::generate_deopt_blob() {
 
   _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, frame_size_in_words);
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
-
-#ifdef BUILTIN_SIM
-  if (NotifySimulator) {
-    unsigned char *base = _deopt_blob->code_begin();
-    simulator->notifyRelocate(start, base - start);
-  }
-#endif
 }
 
 uint SharedRuntime::out_preserve_stack_slots() {
@@ -2576,14 +2558,6 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   // Setup code generation tools
   CodeBuffer buffer("uncommon_trap_blob", 2048, 1024);
   MacroAssembler* masm = new MacroAssembler(&buffer);
-
-#ifdef BUILTIN_SIM
-  AArch64Simulator *simulator;
-  if (NotifySimulator) {
-    simulator = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
-    simulator->notifyCompile(const_cast<char*>("SharedRuntime:uncommon_trap_blob"), __ pc());
-  }
-#endif
 
   // TODO check various assumptions here
   //
@@ -2657,10 +2631,9 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   __ ldrw(r2, Address(r4,
 		      Deoptimization::UnrollBlock::
 		      size_of_deoptimized_frame_offset_in_bytes()));
-  __ sub(r2, r2, 2 * wordSize);
   __ add(sp, sp, r2);
-  __ ldp(rfp, lr, __ post(sp, 2 * wordSize));
-  // LR should now be the return address to the caller (3) frame
+
+  // sp should now be pointing at the top of the caller (3) frame
 
   // Stack bang to make sure there's enough room for these interpreter frames.
   if (UseStackBanging) {
@@ -2761,13 +2734,6 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 
   _uncommon_trap_blob =  UncommonTrapBlob::create(&buffer, oop_maps,
                                                  SimpleRuntimeFrame::framesize >> 1);
-
-#ifdef BUILTIN_SIM
-  if (NotifySimulator) {
-    unsigned char *base = _deopt_blob->code_begin();
-    simulator->notifyRelocate(start, base - start);
-  }
-#endif
 }
 #endif // COMPILER2
 
@@ -2778,7 +2744,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 // and setup oopmap.
 //
 SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_type) {
-  ResourceMark rm;
+    ResourceMark rm;
   OopMapSet *oop_maps = new OopMapSet();
   OopMap* map;
 
