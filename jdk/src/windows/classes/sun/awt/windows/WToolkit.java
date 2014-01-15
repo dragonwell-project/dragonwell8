@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.security.PrivilegedAction;
 import sun.awt.AWTAutoShutdown;
 import sun.awt.LightweightFrame;
 import sun.awt.SunToolkit;
+import sun.misc.ThreadGroupUtils;
 import sun.awt.Win32GraphicsDevice;
 import sun.awt.Win32GraphicsEnvironment;
 import sun.java2d.d3d.D3DRenderQueue;
@@ -240,7 +241,8 @@ public class WToolkit extends SunToolkit implements Runnable {
         AWTAutoShutdown.notifyToolkitThreadBusy();
 
         // Find a root TG and attach Appkit thread to it
-        ThreadGroup rootTG = getRootThreadGroup();
+        ThreadGroup rootTG = AccessController.doPrivileged(
+                (PrivilegedAction<ThreadGroup>) ThreadGroupUtils::getRootThreadGroup);
         if (!startToolkitThread(this, rootTG)) {
             Thread toolkitThread = new Thread(rootTG, this, "AWT-Windows");
             toolkitThread.setDaemon(true);
@@ -270,17 +272,11 @@ public class WToolkit extends SunToolkit implements Runnable {
     }
 
     private final void registerShutdownHook() {
-        AccessController.doPrivileged(new PrivilegedAction<Void>() {
-            public Void run() {
-                Thread shutdown = new Thread(getRootThreadGroup(), new Runnable() {
-                    public void run() {
-                        shutdown();
-                    }
-                });
-                shutdown.setContextClassLoader(null);
-                Runtime.getRuntime().addShutdownHook(shutdown);
-                return null;
-            }
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            Thread shutdown = new Thread(ThreadGroupUtils.getRootThreadGroup(), this::shutdown);
+            shutdown.setContextClassLoader(null);
+            Runtime.getRuntime().addShutdownHook(shutdown);
+            return null;
         });
      }
 
