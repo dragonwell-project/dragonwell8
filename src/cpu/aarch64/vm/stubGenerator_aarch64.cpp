@@ -67,9 +67,20 @@
 
 // Stub Code definitions
 
-#if 0
-static address handle_unsafe_access() { Unimplemented(); return 0; }
-#endif
+static address handle_unsafe_access() {
+  JavaThread* thread = JavaThread::current();
+  address pc = thread->saved_exception_pc();
+  // pc is the instruction which we must emulate
+  // doing a no-op is fine:  return garbage from the load
+  // therefore, compute npc
+  address npc = pc + NativeCall::instruction_size;
+
+  // request an async exception
+  thread->set_pending_unsafe_access_error();
+
+  // return address of next instruction to execute
+  return npc;
+}
 
 class StubGenerator: public StubCodeGenerator {
  private:
@@ -693,15 +704,19 @@ class StubGenerator: public StubCodeGenerator {
   // asynchronous UnknownError when an unsafe access gets a fault that
   // could not be reasonably prevented by the programmer.  (Example:
   // SIGBUS/OBJERR.)
+  address generate_handler_for_unsafe_access() {
+    StubCodeMark mark(this, "StubRoutines", "handler_for_unsafe_access");
+    address start = __ pc();
 
-  // NOTE: this is used by the signal handler code as a return address
-  // to re-enter Java execution so it needs an x86 prolog which will
-  // reenter the simulator executing the generated handler code. so
-  // the prolog needs to adjust the sim's restart pc to enter the
-  // generated code at the start position then return from native to
-  // simulated execution.
+    __ push(0x3fffffff, sp);         // integer registers except lr & sp
+    BLOCK_COMMENT("call handle_unsafe_access");
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, handle_unsafe_access));
+    __ mov(lr, r0);
+    __ pop (0x3fffffff, sp);         // integer registers except lr & sp
+    __ br(lr);
 
-  address generate_handler_for_unsafe_access() { return 0; }
+    return start;
+  }
 
   // Non-destructive plausibility checks for oops
   //
@@ -893,7 +908,7 @@ class StubGenerator: public StubCodeGenerator {
           __ mov(c_rarg0, start);
           __ mov(c_rarg1, scratch);
           __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_post), 2);
-	  __ pop(0x3fffffff, sp);         // integer registers except lr & sp        }
+	  __ pop(0x3fffffff, sp);         // integer registers except lr & sp
         }
         break;
       case BarrierSet::CardTableModRef:
