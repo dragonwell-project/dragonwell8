@@ -780,29 +780,21 @@ public class DerValue {
     }
 
     /**
-     * Returns true iff the other object is a DER value which
-     * is bitwise equal to this one.
-     *
-     * @param other the object being compared with this one
-     */
-    public boolean equals(Object other) {
-        if (other instanceof DerValue)
-            return equals((DerValue)other);
-        else
-            return false;
-    }
-
-    /**
      * Bitwise equality comparison.  DER encoded values have a single
      * encoding, so that bitwise equality of the encoded values is an
      * efficient way to establish equivalence of the unencoded values.
      *
      * @param other the object being compared with this one
      */
-    public boolean equals(DerValue other) {
-        if (this == other) {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
             return true;
         }
+        if (!(o instanceof DerValue)) {
+            return false;
+        }
+        DerValue other = (DerValue) o;
         if (tag != other.tag) {
             return false;
         }
@@ -835,6 +827,7 @@ public class DerValue {
      *
      * @return printable representation of the value
      */
+    @Override
     public String toString() {
         try {
 
@@ -962,6 +955,7 @@ public class DerValue {
      *
      * @return a hashcode for this DerValue.
      */
+    @Override
     public int hashCode() {
         return toString().hashCode();
     }
