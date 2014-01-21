@@ -347,6 +347,9 @@ public class LogManager {
                         // Create and retain Logger for the root of the namespace.
                         owner.rootLogger = owner.new RootLogger();
                         owner.addLogger(owner.rootLogger);
+                        if (!owner.rootLogger.isLevelInitialized()) {
+                            owner.rootLogger.setLevel(defaultLevel);
+                        }
 
                         // Adding the global Logger.
                         // Do not call Logger.getGlobal() here as this might trigger
@@ -1638,7 +1641,6 @@ public class LogManager {
             // to avoid calling LogManager.getLogManager() from within the
             // RootLogger constructor.
             super("", null, null, LogManager.this, true);
-            setLevel(defaultLevel);
         }
 
         @Override
