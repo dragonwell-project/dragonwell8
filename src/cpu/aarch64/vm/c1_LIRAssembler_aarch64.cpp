@@ -1584,7 +1584,7 @@ void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   __ stlxrw(rscratch1, newval, addr);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
-  __ cbnz(rscratch1, retry_load);
+  __ cbnzw(rscratch1, retry_load);
   __ bind(nope);
 }
 
@@ -1615,10 +1615,12 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
 
   if (op->code() == lir_cas_obj) {
     if (UseCompressedOops) {
-      __ encode_heap_oop(cmpval);
-      __ mov(rscratch2, newval);
+      Register t1 = op->tmp1()->as_register();
+      assert(op->tmp1()->is_valid(), "must be");
+      __ encode_heap_oop(t1, cmpval);
+      cmpval = t1;
+      __ encode_heap_oop(rscratch2, newval);
       newval = rscratch2;
-      __ encode_heap_oop(newval);
       casw(addr, newval, cmpval);
     } else {
       casl(addr, newval, cmpval);
