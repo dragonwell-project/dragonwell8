@@ -220,6 +220,7 @@ public class XMLNSDocumentScannerImpl
         fCurrentElement = fElementQName;
 
         String rawname = fElementQName.rawname;
+        checkDepth(rawname);
         if (fBindNamespaces) {
             fNamespaceContext.pushContext();
             if (fScannerState == SCANNER_STATE_ROOT_ELEMENT) {
