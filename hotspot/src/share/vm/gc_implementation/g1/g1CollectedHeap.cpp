@@ -50,8 +50,8 @@
 #include "gc_implementation/shared/gcTraceTime.hpp"
 #include "gc_implementation/shared/isGCActiveMark.hpp"
 #include "memory/gcLocker.inline.hpp"
-#include "memory/genOopClosures.inline.hpp"
 #include "memory/generationSpec.hpp"
+#include "memory/iterator.hpp"
 #include "memory/referenceProcessor.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oop.pcgc.inline.hpp"
@@ -3096,11 +3096,7 @@ const char* G1CollectedHeap::top_at_mark_start_str(VerifyOption vo) {
   return NULL; // keep some compilers happy
 }
 
-// TODO: VerifyRootsClosure extends OopsInGenClosure so that we can
-//       pass it as the perm_blk to SharedHeap::process_strong_roots.
-//       When process_strong_roots stop calling perm_blk->younger_refs_iterate
-//       we can change this closure to extend the simpler OopClosure.
-class VerifyRootsClosure: public OopsInGenClosure {
+class VerifyRootsClosure: public OopClosure {
 private:
   G1CollectedHeap* _g1h;
   VerifyOption     _vo;
@@ -3136,7 +3132,7 @@ public:
   void do_oop(narrowOop* p) { do_oop_nv(p); }
 };
 
-class G1VerifyCodeRootOopClosure: public OopsInGenClosure {
+class G1VerifyCodeRootOopClosure: public OopClosure {
   G1CollectedHeap* _g1h;
   OopClosure* _root_cl;
   nmethod* _nm;
@@ -4670,8 +4666,8 @@ G1ParClosureSuper::G1ParClosureSuper(G1CollectedHeap* g1,
   _during_initial_mark(_g1->g1_policy()->during_initial_mark_pause()),
   _mark_in_progress(_g1->mark_in_progress()) { }
 
-template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
-void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>::mark_object(oop obj) {
+template <G1Barrier barrier, bool do_mark_object>
+void G1ParCopyClosure<barrier, do_mark_object>::mark_object(oop obj) {
 #ifdef ASSERT
   HeapRegion* hr = _g1->heap_region_containing(obj);
   assert(hr != NULL, "sanity");
@@ -4682,8 +4678,8 @@ void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>::mark_object(oop 
   _cm->grayRoot(obj, (size_t) obj->size(), _worker_id);
 }
 
-template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
-void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
+template <G1Barrier barrier, bool do_mark_object>
+void G1ParCopyClosure<barrier, do_mark_object>
   ::mark_forwarded_object(oop from_obj, oop to_obj) {
 #ifdef ASSERT
   assert(from_obj->is_forwarded(), "from obj should be forwarded");
@@ -4706,8 +4702,8 @@ void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
   _cm->grayRoot(to_obj, (size_t) from_obj->size(), _worker_id);
 }
 
-template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
-oop G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
+template <G1Barrier barrier, bool do_mark_object>
+oop G1ParCopyClosure<barrier, do_mark_object>
   ::copy_to_survivor_space(oop old) {
   size_t word_sz = old->size();
   HeapRegion* from_region = _g1->heap_region_containing_raw(old);
@@ -4803,13 +4799,11 @@ void G1ParCopyHelper::do_klass_barrier(T* p, oop new_obj) {
   }
 }
 
-template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
+template <G1Barrier barrier, bool do_mark_object>
 template <class T>
-void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
+void G1ParCopyClosure<barrier, do_mark_object>
 ::do_oop_work(T* p) {
   oop obj = oopDesc::load_decode_heap_oop(p);
-  assert(barrier != G1BarrierRS || obj != NULL,
-         "Precondition: G1BarrierRS implies obj is non-NULL");
 
   assert(_worker_id == _par_scan_state->queue_num(), "sanity");
 
@@ -4829,10 +4823,7 @@ void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
       mark_forwarded_object(obj, forwardee);
     }
 
-    // When scanning the RS, we only care about objs in CS.
-    if (barrier == G1BarrierRS) {
-      _par_scan_state->update_rs(_from, p, _worker_id);
-    } else if (barrier == G1BarrierKlass) {
+    if (barrier == G1BarrierKlass) {
       do_klass_barrier(p, forwardee);
     }
   } else {
@@ -4847,14 +4838,10 @@ void G1ParCopyClosure<do_gen_barrier, barrier, do_mark_object>
   if (barrier == G1BarrierEvac && obj != NULL) {
     _par_scan_state->update_rs(_from, p, _worker_id);
   }
-
-  if (do_gen_barrier && obj != NULL) {
-    par_do_barrier(p);
-  }
 }
 
-template void G1ParCopyClosure<false, G1BarrierEvac, false>::do_oop_work(oop* p);
-template void G1ParCopyClosure<false, G1BarrierEvac, false>::do_oop_work(narrowOop* p);
+template void G1ParCopyClosure<G1BarrierEvac, false>::do_oop_work(oop* p);
+template void G1ParCopyClosure<G1BarrierEvac, false>::do_oop_work(narrowOop* p);
 
 template <class T> void G1ParScanPartialArrayClosure::do_oop_nv(T* p) {
   assert(has_partial_array_mask(p), "invariant");
@@ -5210,6 +5197,99 @@ void
 G1CollectedHeap::g1_process_weak_roots(OopClosure* root_closure) {
   CodeBlobToOopClosure roots_in_blobs(root_closure, /*do_marking=*/ false);
   SharedHeap::process_weak_roots(root_closure, &roots_in_blobs);
+}
+
+class G1StringSymbolTableUnlinkTask : public AbstractGangTask {
+private:
+  BoolObjectClosure* _is_alive;
+  int _initial_string_table_size;
+  int _initial_symbol_table_size;
+
+  bool  _process_strings;
+  int _strings_processed;
+  int _strings_removed;
+
+  bool  _process_symbols;
+  int _symbols_processed;
+  int _symbols_removed;
+public:
+  G1StringSymbolTableUnlinkTask(BoolObjectClosure* is_alive, bool process_strings, bool process_symbols) :
+    AbstractGangTask("Par String/Symbol table unlink"), _is_alive(is_alive),
+    _process_strings(process_strings), _strings_processed(0), _strings_removed(0),
+    _process_symbols(process_symbols), _symbols_processed(0), _symbols_removed(0) {
+
+    _initial_string_table_size = StringTable::the_table()->table_size();
+    _initial_symbol_table_size = SymbolTable::the_table()->table_size();
+    if (process_strings) {
+      StringTable::clear_parallel_claimed_index();
+    }
+    if (process_symbols) {
+      SymbolTable::clear_parallel_claimed_index();
+    }
+  }
+
+  ~G1StringSymbolTableUnlinkTask() {
+    guarantee(!_process_strings || StringTable::parallel_claimed_index() >= _initial_string_table_size,
+              err_msg("claim value "INT32_FORMAT" after unlink less than initial string table size "INT32_FORMAT,
+                      StringTable::parallel_claimed_index(), _initial_string_table_size));
+    guarantee(!_process_strings || SymbolTable::parallel_claimed_index() >= _initial_symbol_table_size,
+              err_msg("claim value "INT32_FORMAT" after unlink less than initial symbol table size "INT32_FORMAT,
+                      SymbolTable::parallel_claimed_index(), _initial_symbol_table_size));
+  }
+
+  void work(uint worker_id) {
+    if (G1CollectedHeap::use_parallel_gc_threads()) {
+      int strings_processed = 0;
+      int strings_removed = 0;
+      int symbols_processed = 0;
+      int symbols_removed = 0;
+      if (_process_strings) {
+        StringTable::possibly_parallel_unlink(_is_alive, &strings_processed, &strings_removed);
+        Atomic::add(strings_processed, &_strings_processed);
+        Atomic::add(strings_removed, &_strings_removed);
+      }
+      if (_process_symbols) {
+        SymbolTable::possibly_parallel_unlink(&symbols_processed, &symbols_removed);
+        Atomic::add(symbols_processed, &_symbols_processed);
+        Atomic::add(symbols_removed, &_symbols_removed);
+      }
+    } else {
+      if (_process_strings) {
+        StringTable::unlink(_is_alive, &_strings_processed, &_strings_removed);
+      }
+      if (_process_symbols) {
+        SymbolTable::unlink(&_symbols_processed, &_symbols_removed);
+      }
+    }
+  }
+
+  size_t strings_processed() const { return (size_t)_strings_processed; }
+  size_t strings_removed()   const { return (size_t)_strings_removed; }
+
+  size_t symbols_processed() const { return (size_t)_symbols_processed; }
+  size_t symbols_removed()   const { return (size_t)_symbols_removed; }
+};
+
+void G1CollectedHeap::unlink_string_and_symbol_table(BoolObjectClosure* is_alive,
+                                                     bool process_strings, bool process_symbols) {
+  uint n_workers = (G1CollectedHeap::use_parallel_gc_threads() ?
+                   _g1h->workers()->active_workers() : 1);
+
+  G1StringSymbolTableUnlinkTask g1_unlink_task(is_alive, process_strings, process_symbols);
+  if (G1CollectedHeap::use_parallel_gc_threads()) {
+    set_par_threads(n_workers);
+    workers()->run_task(&g1_unlink_task);
+    set_par_threads(0);
+  } else {
+    g1_unlink_task.work(0);
+  }
+  if (G1TraceStringSymbolTableScrubbing) {
+    gclog_or_tty->print_cr("Cleaned string and symbol table, "
+                           "strings: "SIZE_FORMAT" processed, "SIZE_FORMAT" removed, "
+                           "symbols: "SIZE_FORMAT" processed, "SIZE_FORMAT" removed",
+                           g1_unlink_task.strings_processed(), g1_unlink_task.strings_removed(),
+                           g1_unlink_task.symbols_processed(), g1_unlink_task.symbols_removed());
+  }
 }
 
 // Weak Reference Processing support
