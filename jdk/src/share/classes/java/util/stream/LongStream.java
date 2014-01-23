@@ -327,7 +327,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * <pre>{@code
      *     long result = identity;
      *     for (long element : this stream)
-     *         result = accumulator.apply(result, element)
+     *         result = accumulator.applyAsLong(result, element)
      *     return result;
      * }</pre>
      *
@@ -388,7 +388,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *             result = element;
      *         }
      *         else
-     *             result = accumulator.apply(result, element);
+     *             result = accumulator.applyAsLong(result, element);
      *     }
      *     return foundAny ? OptionalLong.of(result) : OptionalLong.empty();
      * }</pre>

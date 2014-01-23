@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,14 @@ public final class ResourceManager {
      * Name of properties file in <java.home>/lib.
      */
     private static final String JRELIB_PROPERTY_FILE_NAME = "jndi.properties";
+
+    /*
+     * Internal environment property, that when set to "true", disables
+     * application resource files lookup to prevent recursion issues
+     * when validating signed JARs.
+     */
+    private static final String DISABLE_APP_RESOURCE_FILES =
+        "com.sun.naming.disable.app.resource.files";
 
     /*
      * The standard JNDI properties that specify colon-separated lists.
@@ -222,6 +230,13 @@ public final class ResourceManager {
                     ((Hashtable<String, Object>)env).put(props[i], val);
                 }
             }
+        }
+
+        // Return without merging if application resource files lookup
+        // is disabled.
+        String disableAppRes = (String)env.get(DISABLE_APP_RESOURCE_FILES);
+        if (disableAppRes != null && disableAppRes.equalsIgnoreCase("true")) {
+            return env;
         }
 
         // Merge the above with the values read from all application
