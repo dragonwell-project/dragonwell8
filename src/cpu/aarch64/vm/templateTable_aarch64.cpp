@@ -1759,26 +1759,24 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
       // We need to prepare to execute the OSR method. First we must
       // migrate the locals and monitors off of the stack.
 
-      __ mov(rmethod, r0);                             // save the nmethod
+      __ mov(r19, r0);                             // save the nmethod
 
       call_VM(noreg, CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_begin));
 
       // r0 is OSR buffer, move it to expected parameter location
       __ mov(j_rarg0, r0);
 
-      // We use j_rarg definitions here so that registers don't conflict as parameter
-      // registers change across platforms as we are in the midst of a calling
-      // sequence to the OSR nmethod and we don't want collision. These are NOT parameters.
+      // remove activation
+      // get sender esp
+      __ ldr(esp,
+	  Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+      // remove frame anchor
+      __ leave();
+      // Ensure compiled code always sees stack at proper alignment
+      __ andr(sp, esp, -16);
 
-      // const Register retaddr = j_rarg2;
-      const Register sender_sp = j_rarg1;
-
-      // pop the interpreter frame
-      __ ldr(sender_sp, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize)); // get sender sp
-      __ leave(); // remove frame anchor (leaves return address in lr)
-      __ mov(sp, sender_sp);                   // set sp to sender sp
       // and begin the OSR nmethod
-      __ ldr(rscratch1, Address(rmethod, nmethod::osr_entry_point_offset()));
+      __ ldr(rscratch1, Address(r19, nmethod::osr_entry_point_offset()));
       __ br(rscratch1);
     }
   }
