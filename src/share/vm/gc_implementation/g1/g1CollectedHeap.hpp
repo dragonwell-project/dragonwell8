@@ -209,7 +209,7 @@ class G1CollectedHeap : public SharedHeap {
   friend class OldGCAllocRegion;
 
   // Closures used in implementation.
-  template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
+  template <G1Barrier barrier, bool do_mark_object>
   friend class G1ParCopyClosure;
   friend class G1IsAliveClosure;
   friend class G1EvacuateFollowersClosure;
@@ -1676,6 +1676,10 @@ public:
   // Rebuild the stong code root lists for each region
   // after a full GC
   void rebuild_strong_code_roots();
+
+  // Delete entries for dead interned string and clean up unreferenced symbols
+  // in symbol table, possibly in parallel.
+  void unlink_string_and_symbol_table(BoolObjectClosure* is_alive, bool unlink_strings = true, bool unlink_symbols = true);
 
   // Verification
 
