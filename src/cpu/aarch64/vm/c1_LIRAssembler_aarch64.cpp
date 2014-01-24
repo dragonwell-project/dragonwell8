@@ -2267,8 +2267,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Address src_klass_addr = Address(src, oopDesc::klass_offset_in_bytes());
   Address dst_klass_addr = Address(dst, oopDesc::klass_offset_in_bytes());
 
-  // length and pos's are all sign extended at this point on 64bit
-
   // test for NULL
   if (flags & LIR_OpArrayCopy::src_null_check) {
     __ cbz(src, *stub->entry());
@@ -2287,22 +2285,22 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ br(Assembler::LT, *stub->entry());
   }
 
+  if (flags & LIR_OpArrayCopy::length_positive_check) {
+    __ cmpw(length, 0);
+    __ br(Assembler::LT, *stub->entry());
+  }
+
   if (flags & LIR_OpArrayCopy::src_range_check) {
-    __ lea(tmp, Address(src_pos, length));
+    __ addw(tmp, src_pos, length);
     __ ldrw(rscratch1, src_length_addr);
     __ cmpw(tmp, rscratch1);
     __ br(Assembler::HI, *stub->entry());
   }
   if (flags & LIR_OpArrayCopy::dst_range_check) {
-    __ lea(tmp, Address(dst_pos, length));
+    __ addw(tmp, dst_pos, length);
     __ ldrw(rscratch1, dst_length_addr);
     __ cmpw(tmp, rscratch1);
     __ br(Assembler::HI, *stub->entry());
-  }
-
-  if (flags & LIR_OpArrayCopy::length_positive_check) {
-    __ cmpw(length, 0);
-    __ br(Assembler::LT, *stub->entry());
   }
 
   // FIXME: The logic in LIRGenerator::arraycopy_helper clears
@@ -2311,7 +2309,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   // stub that we're about to call contains an assertion that count !=
   // 0 .  So we make this check purely in order not to trigger an
   // assertion failure.
-  __ cbz(length, *stub->continuation());
+  __ cbzw(length, *stub->continuation());
 
   if (flags & LIR_OpArrayCopy::type_check) {
     // We don't know the array types are compatible
@@ -2384,15 +2382,13 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 	__ stp(length,  src_pos, Address(sp, 2*BytesPerWord));
 	__ str(src,              Address(sp, 4*BytesPerWord));
 
-        __ uxtw(length, length); // FIXME ??  higher 32bits must be null
-
         __ lea(c_rarg0, Address(src, src_pos, Address::uxtw(scale)));
 	__ add(c_rarg0, c_rarg0, arrayOopDesc::base_offset_in_bytes(basic_type));
         assert_different_registers(c_rarg0, dst, dst_pos, length);
         __ lea(c_rarg1, Address(dst, dst_pos, Address::uxtw(scale)));
 	__ add(c_rarg1, c_rarg1, arrayOopDesc::base_offset_in_bytes(basic_type));
         assert_different_registers(c_rarg1, dst, length);
-        __ mov(c_rarg2, length);
+        __ uxtw(c_rarg2, length);
         assert_different_registers(c_rarg2, dst);
 
         __ load_klass(c_rarg4, dst);
@@ -2503,7 +2499,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   __ lea(c_rarg1, Address(dst, dst_pos, Address::uxtw(scale)));
   __ add(c_rarg1, c_rarg1, arrayOopDesc::base_offset_in_bytes(basic_type));
   assert_different_registers(c_rarg1, dst, length);
-  __ mov(c_rarg2, length);
+  __ uxtw(c_rarg2, length);
   assert_different_registers(c_rarg2, dst);
 
   bool disjoint = (flags & LIR_OpArrayCopy::overlapping) == 0;
