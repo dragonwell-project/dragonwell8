@@ -72,9 +72,11 @@ enum {
 };
 
 
-// encoding of float value in debug info:
+// Encoding of float value in debug info.  This is true on x86 where
+// floats are extended to doubles when stored in the stack, false for
+// AArch64 where floats and doubles are stored in their native form.
 enum {
-  pd_float_saved_as_double = true
+  pd_float_saved_as_double = false
 };
 
 #endif // CPU_AARCH64_VM_C1_DEFS_AARCH64_HPP
