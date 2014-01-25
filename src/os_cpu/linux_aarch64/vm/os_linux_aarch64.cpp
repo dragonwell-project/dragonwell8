@@ -228,19 +228,6 @@ static address handle_unsafe_access(JavaThread* thread, address pc) {
   return npc;
 }
 
-extern "C" void xxx(long pc) {
-    CodeBlob *cb = CodeCache::find_blob((address)pc);
-    if (cb != NULL) {
-      if (cb->is_nmethod()) {
-	ResourceMark rm;
-	nmethod* nm = (nmethod*)cb;
-	printf("nmethod %s\n", nm->method()->name_and_sig_as_C_string());
-      } else if (cb->name()) {
-	printf("CodeBlob %s\n", cb->name());
-      }
-    }
-}
-
 extern "C" JNIEXPORT int
 JVM_handle_linux_signal(int sig,
                         siginfo_t* info,
@@ -436,12 +423,6 @@ JVM_handle_linux_signal(int sig,
       os::block_on_serialize_page_trap();
       return true;
     }
-  }
-
-  if (stub == NULL) {
-
-    fprintf(stderr, "Bang!\n");
-    stub = pc;
   }
 
   if (stub != NULL) {
