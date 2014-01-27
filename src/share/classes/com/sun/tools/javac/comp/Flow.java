@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1461,9 +1461,19 @@ public class Flow {
             this.names = names;
         }
 
+        private boolean isInitialConstructor = false;
+
         @Override
         protected void markDead(JCTree tree) {
-            inits.inclRange(returnadr, nextadr);
+            if (!isInitialConstructor) {
+                inits.inclRange(returnadr, nextadr);
+            } else {
+                for (int address = returnadr; address < nextadr; address++) {
+                    if (!(isFinalUninitializedStaticField(vardecls[address].sym))) {
+                        inits.incl(address);
+                    }
+                }
+            }
             uninits.inclRange(returnadr, nextadr);
         }
 
@@ -1476,8 +1486,17 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH ||
-                 ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
-                  classDef.sym.isEnclosedBy((ClassSymbol)sym.owner))));
+                isFinalUninitializedField(sym)));
+        }
+
+        boolean isFinalUninitializedField(VarSymbol sym) {
+            return sym.owner.kind == TYP &&
+                   ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
+                   classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
+        }
+
+        boolean isFinalUninitializedStaticField(VarSymbol sym) {
+            return isFinalUninitializedField(sym) && sym.isStatic();
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -1731,10 +1750,9 @@ public class Flow {
             int returnadrPrev = returnadr;
 
             Assert.check(pendingExits.isEmpty());
-
+            boolean lastInitialConstructor = isInitialConstructor;
             try {
-                boolean isInitialConstructor =
-                    TreeInfo.isInitialConstructor(tree);
+                isInitialConstructor = TreeInfo.isInitialConstructor(tree);
 
                 if (!isInitialConstructor) {
                     firstadr = nextadr;
@@ -1789,6 +1807,7 @@ public class Flow {
                 nextadr = nextadrPrev;
                 firstadr = firstadrPrev;
                 returnadr = returnadrPrev;
+                isInitialConstructor = lastInitialConstructor;
             }
         }
 
