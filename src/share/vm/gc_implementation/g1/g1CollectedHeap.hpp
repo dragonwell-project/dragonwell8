@@ -1481,9 +1481,11 @@ public:
   // Section on thread-local allocation buffers (TLABs)
   // See CollectedHeap for semantics.
 
-  virtual bool supports_tlab_allocation() const;
-  virtual size_t tlab_capacity(Thread* thr) const;
-  virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
+  bool supports_tlab_allocation() const;
+  size_t tlab_capacity(Thread* ignored) const;
+  size_t tlab_used(Thread* ignored) const;
+  size_t max_tlab_size() const;
+  size_t unsafe_max_tlab_alloc(Thread* ignored) const;
 
   // Can a compiler initialize a new object without store barriers?
   // This permission only extends from the creation of a new object
@@ -1568,7 +1570,7 @@ public:
   void set_region_short_lived_locked(HeapRegion* hr);
   // add appropriate methods for any other surv rate groups
 
-  YoungList* young_list() { return _young_list; }
+  YoungList* young_list() const { return _young_list; }
 
   // debugging
   bool check_young_list_well_formed() {
