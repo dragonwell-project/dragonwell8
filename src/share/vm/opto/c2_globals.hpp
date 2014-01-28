@@ -445,7 +445,7 @@
   notproduct(bool, PrintEliminateLocks, false,                              \
           "Print out when locks are eliminated")                            \
                                                                             \
-  product(bool, EliminateAutoBox, true,                                     \
+  product(bool, EliminateAutoBox, false,                                    \
           "Control optimizations for autobox elimination")                  \
                                                                             \
   experimental(bool, UseImplicitStableValues, false,                        \
