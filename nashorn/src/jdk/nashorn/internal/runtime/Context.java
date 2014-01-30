@@ -647,6 +647,19 @@ public final class Context {
     }
 
     /**
+     * Checks that the given package name can be accessed from no permissions context.
+     *
+     * @param pkgName package name
+     * @throw SecurityException if not accessible
+     */
+    public static void checkPackageAccess(final String pkgName) {
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            checkPackageAccess(sm, pkgName.endsWith(".")? pkgName : pkgName + ".");
+        }
+    }
+
+    /**
      * Checks that the given package can be accessed from no permissions context.
      *
      * @param sm current security manager instance
