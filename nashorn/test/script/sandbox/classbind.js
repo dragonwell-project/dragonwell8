@@ -25,7 +25,7 @@
  * Try to bind properties of StaticClass representing Class.
  *
  * @test
- * @security
+ * @bug JDK-8032943: Improve reflection in Nashorn
  */
 
 
