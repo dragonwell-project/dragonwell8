@@ -40,6 +40,7 @@ import sun.misc.IOUtils;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.ManifestEntryVerifier;
 import sun.misc.SharedSecrets;
+import sun.security.util.SignatureFileVerifier;
 
 /**
  * The <code>JarFile</code> class is used to read the contents of a jar file
@@ -364,11 +365,13 @@ class JarFile extends ZipFile {
             String[] names = getMetaInfEntryNames();
             if (names != null) {
                 for (int i = 0; i < names.length; i++) {
-                    JarEntry e = getJarEntry(names[i]);
-                    if (e == null) {
-                        throw new JarException("corrupted jar file");
-                    }
-                    if (!e.isDirectory()) {
+                    String uname = names[i].toUpperCase(Locale.ENGLISH);
+                    if (MANIFEST_NAME.equals(uname)
+                            || SignatureFileVerifier.isBlockOrSF(uname)) {
+                        JarEntry e = getJarEntry(names[i]);
+                        if (e == null) {
+                            throw new JarException("corrupted jar file");
+                        }
                         if (mev == null) {
                             mev = new ManifestEntryVerifier
                                 (getManifestFromReference());
