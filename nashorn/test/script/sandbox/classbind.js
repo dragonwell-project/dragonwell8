@@ -22,20 +22,20 @@
  */
 
 /**
- * JDK-8014647: Allow class-based overrides to be initialized with a ScriptFunction
+ * Try to bind properties of StaticClass representing Class.
  *
  * @test
- * @run
+ * @bug JDK-8032943: Improve reflection in Nashorn
  */
 
-var RunnableImpl1 = Java.extend(java.lang.Runnable, function() { print("I'm runnable 1!") })
-var RunnableImpl2 = Java.extend(java.lang.Runnable, function() { print("I'm runnable 2!") })
-var r1 = new RunnableImpl1()
-var r2 = new RunnableImpl2()
-var RunnableImpl3 = Java.extend(RunnableImpl2);
-var r3 = new RunnableImpl3({ run: function() { print("I'm runnable 3!") }})
-r1.run()
-r2.run()
-r3.run()
-print("r1.class !== r2.class: " + (r1.class !== r2.class))
-print("r2.class !== r3.class: " + (r2.class !== r3.class))
+
+var obj = {}
+
+try {
+    Object.bindProperties(obj, Java.type("java.lang.Class"));
+    fail("SecurityException should have been thrown");
+} catch (e) {
+    if (! (e instanceof java.lang.SecurityException)) {
+        fail("SecurityException expected, got " + e);
+    }
+}
