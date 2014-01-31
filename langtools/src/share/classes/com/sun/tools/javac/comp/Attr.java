@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4653,8 +4653,17 @@ public class Attr extends JCTree.Visitor {
 
         private void initTypeIfNeeded(JCTree that) {
             if (that.type == null) {
-                that.type = syms.unknownType;
+                if (that.hasTag(METHODDEF)) {
+                    that.type = dummyMethodType();
+                } else {
+                    that.type = syms.unknownType;
+                }
             }
+        }
+
+        private Type dummyMethodType() {
+            return new MethodType(List.<Type>nil(), syms.unknownType,
+                            List.<Type>nil(), syms.methodClass);
         }
 
         @Override
@@ -4712,7 +4721,8 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitNewClass(JCNewClass that) {
             if (that.constructor == null) {
-                that.constructor = new MethodSymbol(0, names.init, syms.unknownType, syms.noSymbol);
+                that.constructor = new MethodSymbol(0, names.init,
+                        dummyMethodType(), syms.noSymbol);
             }
             if (that.constructorType == null) {
                 that.constructorType = syms.unknownType;
@@ -4722,22 +4732,28 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitAssignop(JCAssignOp that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitAssignop(that);
         }
 
         @Override
         public void visitBinary(JCBinary that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitBinary(that);
         }
 
         @Override
         public void visitUnary(JCUnary that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitUnary(that);
         }
 
@@ -4753,7 +4769,8 @@ public class Attr extends JCTree.Visitor {
         public void visitReference(JCMemberReference that) {
             super.visitReference(that);
             if (that.sym == null) {
-                that.sym = new MethodSymbol(0, names.empty, syms.unknownType, syms.noSymbol);
+                that.sym = new MethodSymbol(0, names.empty, dummyMethodType(),
+                        syms.noSymbol);
             }
             if (that.targets == null) {
                 that.targets = List.nil();
