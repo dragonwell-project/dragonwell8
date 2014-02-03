@@ -24,7 +24,7 @@
 
 /**
  * @test
- * @bug 8032585
+ * @bug 8032585 8033278
  * @summary JSR292: IllegalAccessError when attempting to invoke protected method from different package
  *
  * @compile p1/T2.java p2/T3.java
