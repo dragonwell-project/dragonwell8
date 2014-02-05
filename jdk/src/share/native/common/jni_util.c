@@ -683,9 +683,13 @@ initializeEncoding(JNIEnv *env)
 {
     jstring propname = 0;
     jstring enc = 0;
+    jclass strClazz = NULL;
 
     if ((*env)->EnsureLocalCapacity(env, 3) < 0)
         return;
+
+    strClazz = JNU_ClassString(env);
+    CHECK_NULL(strClazz);
 
     propname = (*env)->NewStringUTF(env, "sun.jnu.encoding");
     if (propname) {
@@ -740,9 +744,10 @@ initializeEncoding(JNIEnv *env)
     (*env)->DeleteLocalRef(env, enc);
 
     /* Initialize method-id cache */
-    String_getBytes_ID = (*env)->GetMethodID(env, JNU_ClassString(env),
+    String_getBytes_ID = (*env)->GetMethodID(env, strClazz,
                                              "getBytes", "(Ljava/lang/String;)[B");
-    String_init_ID = (*env)->GetMethodID(env, JNU_ClassString(env),
+    CHECK_NULL(String_getBytes_ID);
+    String_init_ID = (*env)->GetMethodID(env, strClazz,
                                          "<init>", "([BLjava/lang/String;)V");
 }
 
@@ -777,8 +782,10 @@ JNU_NewStringPlatform(JNIEnv *env, const char *str)
         jbyteArray hab = 0;
         int len;
 
-        if (fastEncoding == NO_ENCODING_YET)
+        if (fastEncoding == NO_ENCODING_YET) {
             initializeEncoding(env);
+            JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+        }
 
         if ((fastEncoding == FAST_8859_1) || (fastEncoding == NO_ENCODING_YET))
             return newString8859_1(env, str);
@@ -793,9 +800,11 @@ JNU_NewStringPlatform(JNIEnv *env, const char *str)
         len = (int)strlen(str);
         hab = (*env)->NewByteArray(env, len);
         if (hab != 0) {
+            jclass strClazz = JNU_ClassString(env);
+            CHECK_NULL_RETURN(strClazz, 0);
             (*env)->SetByteArrayRegion(env, hab, 0, len, (jbyte *)str);
             if (jnuEncodingSupported(env)) {
-                result = (*env)->NewObject(env, JNU_ClassString(env),
+                result = (*env)->NewObject(env, strClazz,
                                            String_init_ID, hab, jnuEncoding);
             } else {
                 /*If the encoding specified in sun.jnu.encoding is not endorsed
@@ -804,9 +813,11 @@ JNU_NewStringPlatform(JNIEnv *env, const char *str)
                   StringCoding class will pickup the iso-8859-1 as the fallback
                   converter for us.
                  */
-                jmethodID mid = (*env)->GetMethodID(env, JNU_ClassString(env),
+                jmethodID mid = (*env)->GetMethodID(env, strClazz,
                                                     "<init>", "([B)V");
-                result = (*env)->NewObject(env, JNU_ClassString(env), mid, hab);
+                if (mid != NULL) {
+                    result = (*env)->NewObject(env, strClazz, mid, hab);
+                }
             }
             (*env)->DeleteLocalRef(env, hab);
             return result;
@@ -832,8 +843,10 @@ JNU_GetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy)
         if (isCopy)
             *isCopy = JNI_TRUE;
 
-        if (fastEncoding == NO_ENCODING_YET)
+        if (fastEncoding == NO_ENCODING_YET) {
             initializeEncoding(env);
+            JNU_CHECK_EXCEPTION_RETURN(env, 0);
+        }
 
         if ((fastEncoding == FAST_8859_1) || (fastEncoding == NO_ENCODING_YET))
             return getString8859_1Chars(env, jstr);
@@ -848,9 +861,14 @@ JNU_GetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy)
         if (jnuEncodingSupported(env)) {
             hab = (*env)->CallObjectMethod(env, jstr, String_getBytes_ID, jnuEncoding);
         } else {
-            jmethodID mid = (*env)->GetMethodID(env, JNU_ClassString(env),
-                                                "getBytes", "()[B");
-            hab = (*env)->CallObjectMethod(env, jstr, mid);
+            jmethodID mid;
+            jclass strClazz = JNU_ClassString(env);
+            CHECK_NULL_RETURN(strClazz, 0);
+            mid = (*env)->GetMethodID(env, strClazz,
+                                           "getBytes", "()[B");
+            if (mid != NULL) {
+                hab = (*env)->CallObjectMethod(env, jstr, mid);
+            }
         }
 
         if (!(*env)->ExceptionCheck(env)) {
@@ -899,6 +917,7 @@ JNU_ClassString(JNIEnv *env)
         if ((*env)->EnsureLocalCapacity(env, 1) < 0)
             return 0;
         c = (*env)->FindClass(env, "java/lang/String");
+        CHECK_NULL_RETURN(c, NULL);
         cls = (*env)->NewGlobalRef(env, c);
         (*env)->DeleteLocalRef(env, c);
     }
@@ -914,6 +933,7 @@ JNU_ClassClass(JNIEnv *env)
         if ((*env)->EnsureLocalCapacity(env, 1) < 0)
             return 0;
         c = (*env)->FindClass(env, "java/lang/Class");
+        CHECK_NULL_RETURN(c, NULL);
         cls = (*env)->NewGlobalRef(env, c);
         (*env)->DeleteLocalRef(env, c);
     }
@@ -929,6 +949,7 @@ JNU_ClassObject(JNIEnv *env)
         if ((*env)->EnsureLocalCapacity(env, 1) < 0)
             return 0;
         c = (*env)->FindClass(env, "java/lang/Object");
+        CHECK_NULL_RETURN(c, NULL);
         cls = (*env)->NewGlobalRef(env, c);
         (*env)->DeleteLocalRef(env, c);
     }
@@ -944,6 +965,7 @@ JNU_ClassThrowable(JNIEnv *env)
         if ((*env)->EnsureLocalCapacity(env, 1) < 0)
             return 0;
         c = (*env)->FindClass(env, "java/lang/Throwable");
+        CHECK_NULL_RETURN(c, NULL);
         cls = (*env)->NewGlobalRef(env, c);
         (*env)->DeleteLocalRef(env, c);
     }
@@ -993,8 +1015,11 @@ JNU_Equals(JNIEnv *env, jobject object1, jobject object2)
 {
     static jmethodID mid = NULL;
     if (mid == NULL) {
-        mid = (*env)->GetMethodID(env, JNU_ClassObject(env), "equals",
+        jclass objClazz = JNU_ClassObject(env);
+        CHECK_NULL_RETURN(objClazz, JNI_FALSE);
+        mid = (*env)->GetMethodID(env, objClazz, "equals",
                                   "(Ljava/lang/Object;)Z");
+        CHECK_NULL_RETURN(mid, JNI_FALSE);
     }
     return (*env)->CallBooleanMethod(env, object1, mid, object2);
 }
@@ -1096,7 +1121,9 @@ JNU_PrintClass(JNIEnv *env, char* hdr, jobject object)
     } else {
         jclass cls = (*env)->GetObjectClass(env, object);
         jstring clsName = JNU_ToString(env, cls);
-        JNU_PrintString(env, hdr, clsName);
+        if (clsName == NULL) {
+            JNU_PrintString(env, hdr, clsName);
+        }
         (*env)->DeleteLocalRef(env, cls);
         (*env)->DeleteLocalRef(env, clsName);
     }
