@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,6 +202,9 @@ public enum Source {
     }
     public boolean allowDefaultMethods() {
         return compareTo(JDK1_8) >= 0;
+    }
+    public boolean allowDefaultMethodsResolution() {
+        return compareTo(JDK1_7) >= 0;
     }
     public boolean allowStaticInterfaceMethods() {
         return compareTo(JDK1_8) >= 0;
