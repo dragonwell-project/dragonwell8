@@ -497,7 +497,9 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   // On some platforms, we need a way to pass some platform dependent
   // information to the unpacking code so the skeletal frames come out
   // correct (initial fp value, unextended sp, ...)
+#ifndef AARCH64
   info->set_initial_info((intptr_t) array->sender().initial_deoptimization_info());
+#endif
 
   if (array->frames() > 1) {
     if (VerifyStack && TraceDeoptimization) {

@@ -688,11 +688,6 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
 }
 #endif
 
-intptr_t *frame::initial_deoptimization_info() {
-  // used to reset the saved FP
-  return fp();
-}
-
 intptr_t* frame::real_fp() const {
   if (_cb != NULL) {
     // use the frame size if valid
