@@ -39,6 +39,7 @@
 #include "nativeInst_aarch64.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "vmreg_aarch64.inline.hpp"
 
 
 
@@ -817,6 +818,9 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
     if (UseCompressedOops && !wide) {
       __ encode_heap_oop(compressed_src, src->as_register());
+      if (patch_code != lir_patch_none) {
+        info->oop_map()->set_narrowoop(compressed_src->as_VMReg());
+      }
     } else {
       compressed_src = src->as_register();
     }

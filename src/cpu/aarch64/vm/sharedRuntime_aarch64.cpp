@@ -2458,9 +2458,6 @@ void SharedRuntime::generate_deopt_blob() {
   // Load counter into r3
   __ ldrw(r3, Address(r5, Deoptimization::UnrollBlock::number_of_frames_offset_in_bytes()));
 
-  // Pick up the initial fp we should save
-  __ ldr(rfp, Address(r5, Deoptimization::UnrollBlock::initial_info_offset_in_bytes()));
-
   // Now adjust the caller's stack to make up for the extra locals
   // but record the original sp so that we can save it in the skeletal interpreter
   // frame and the stack walking of interpreter_sender will get the unextended sp
