@@ -688,6 +688,11 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
 }
 #endif
 
+intptr_t *frame::initial_deoptimization_info() {
+  // Not used on aarch64, but we must return something.
+  return NULL;
+}
+
 intptr_t* frame::real_fp() const {
   if (_cb != NULL) {
     // use the frame size if valid
