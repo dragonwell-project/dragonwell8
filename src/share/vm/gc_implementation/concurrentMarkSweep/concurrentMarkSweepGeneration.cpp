@@ -3040,7 +3040,6 @@ void CMSCollector::verify_after_remark_work_1() {
                                 true,   // activate StrongRootsScope
                                 SharedHeap::ScanningOption(roots_scanning_options()),
                                 &notOlder,
-                                true,   // walk code active on stacks
                                 NULL,
                                 NULL); // SSS: Provide correct closure
 
@@ -3107,7 +3106,6 @@ void CMSCollector::verify_after_remark_work_2() {
                                 true,   // activate StrongRootsScope
                                 SharedHeap::ScanningOption(roots_scanning_options()),
                                 &notOlder,
-                                true,   // walk code active on stacks
                                 NULL,
                                 &klass_closure);
 
@@ -3686,12 +3684,6 @@ void CMSCollector::checkpointRootsInitialWork(bool asynch) {
   ResourceMark rm;
   HandleMark  hm;
 
-  FalseClosure falseClosure;
-  // In the case of a synchronous collection, we will elide the
-  // remark step, so it's important to catch all the nmethod oops
-  // in this step.
-  // The final 'true' flag to gen_process_strong_roots will ensure this.
-  // If 'async' is true, we can relax the nmethod tracing.
   MarkRefsIntoClosure notOlder(_span, &_markBitMap);
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
@@ -3744,7 +3736,6 @@ void CMSCollector::checkpointRootsInitialWork(bool asynch) {
                                     true,   // activate StrongRootsScope
                                     SharedHeap::ScanningOption(roots_scanning_options()),
                                     &notOlder,
-                                    true,   // walk all of code cache if (so & SO_AllCodeCache)
                                     NULL,
                                     &klass_closure);
     }
@@ -5243,7 +5234,6 @@ void CMSParInitialMarkTask::work(uint worker_id) {
                                 false,     // this is parallel code
                                 SharedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                                 &par_mri_cl,
-                                true,   // walk all of code cache if (so & SO_AllCodeCache)
                                 NULL,
                                 &klass_closure);
   assert(_collector->should_unload_classes()
@@ -5379,7 +5369,6 @@ void CMSParRemarkTask::work(uint worker_id) {
                                 false,     // this is parallel code
                                 SharedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                                 &par_mrias_cl,
-                                true,   // walk all of code cache if (so & SO_AllCodeCache)
                                 NULL,
                                 NULL);     // The dirty klasses will be handled below
   assert(_collector->should_unload_classes()
@@ -5969,7 +5958,6 @@ void CMSCollector::do_remark_non_parallel() {
                                   false, // use the local StrongRootsScope
                                   SharedHeap::ScanningOption(roots_scanning_options()),
                                   &mrias_cl,
-                                  true,   // walk code active on stacks
                                   NULL,
                                   NULL);  // The dirty klasses will be handled below
 
