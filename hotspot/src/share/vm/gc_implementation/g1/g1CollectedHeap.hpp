@@ -834,11 +834,6 @@ protected:
                                G1KlassScanClosure* scan_klasses,
                                uint worker_i);
 
-  // Apply "blk" to all the weak roots of the system.  These include
-  // JNI weak roots, the code cache, system dictionary, symbol table,
-  // string table, and referents of reachable weak refs.
-  void g1_process_weak_roots(OopClosure* root_closure);
-
   // Notifies all the necessary spaces that the committed space has
   // been updated (either expanded or shrunk). It should be called
   // after _g1_storage is updated.
