@@ -1580,33 +1580,37 @@ void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
   __ bind(retry_load);
-  __ ldaxrw(rscratch1, addr);
+  __ membar(__ AnyAny);
+  __ ldxrw(rscratch1, addr);
   __ cmpw(rscratch1, cmpval);
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
   // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stlxrw(rscratch1, newval, addr);
+  __ stxrw(rscratch1, newval, addr);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   __ cbnzw(rscratch1, retry_load);
   __ bind(nope);
+  __ membar(__ AnyAny);
 }
 
 void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
   Label retry_load, nope;
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
+  __ membar(__ AnyAny);
   __ bind(retry_load);
-  __ ldaxr(rscratch1, addr);
+  __ ldxr(rscratch1, addr);
   __ cmp(rscratch1, cmpval);
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
   // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stlxr(rscratch1, newval, addr);
+  __ stxr(rscratch1, newval, addr);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   __ cbnz(rscratch1, retry_load);
   __ bind(nope);
+  __ membar(__ AnyAny);
 }
 
 
@@ -3080,23 +3084,23 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   case T_INT:
     lda = &MacroAssembler::ldaxrw;
     add = &MacroAssembler::addw;
-    stl = &MacroAssembler::stlxrw;
+    stl = &MacroAssembler::stxrw;
     break;
   case T_LONG:
     lda = &MacroAssembler::ldaxr;
     add = &MacroAssembler::add;
-    stl = &MacroAssembler::stlxr;
+    stl = &MacroAssembler::stxr;
     break;
   case T_OBJECT:
   case T_ARRAY:
     if (UseCompressedOops) {
       lda = &MacroAssembler::ldaxrw;
       add = &MacroAssembler::addw;
-      stl = &MacroAssembler::stlxrw;
+      stl = &MacroAssembler::stxrw;
     } else {
       lda = &MacroAssembler::ldaxr;
       add = &MacroAssembler::add;
-      stl = &MacroAssembler::stlxr;
+      stl = &MacroAssembler::stxr;
     }
     break;
   default:
@@ -3150,7 +3154,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   default:
     ShouldNotReachHere();
   }
-  asm("nop");
+  __ membar(__ AnyAny);
 }
 
 #undef __

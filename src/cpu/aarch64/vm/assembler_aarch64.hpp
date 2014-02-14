@@ -1004,8 +1004,12 @@ public:
     StoreStore = ST,
     LoadStore  = LD,
     LoadLoad   = LD,
-    StoreLoad  = SY,
-    AnyAny     = SY
+    // We can use ISH for a full barrier because the ARM ARM says
+    // "This architecture assumes that all Processing Elements that
+    // use the same operating system or hypervisor are in the same
+    // Inner Shareable shareability domain."
+    StoreLoad  = ISH,
+    AnyAny     = ISH
   };
 
   void membar(Membar_mask_bits order_constraint) {

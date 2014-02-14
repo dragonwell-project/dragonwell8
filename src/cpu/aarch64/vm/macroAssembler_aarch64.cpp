@@ -1408,10 +1408,10 @@ void MacroAssembler::atomic_incw(Register counter_addr, Register tmp) {
   Label retry_load;
   bind(retry_load);
   // flush and load exclusive from the memory location
-  ldaxrw(tmp, counter_addr);
+  ldxrw(tmp, counter_addr);
   addw(tmp, tmp, 1);
   // if we store+flush with no intervening write tmp wil be zero
-  stlxrw(tmp, tmp, counter_addr);
+  stxrw(tmp, tmp, counter_addr);
   cbnzw(tmp, retry_load);
 }
 
@@ -1841,17 +1841,20 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   bind(retry_load);
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  ldaxr(tmp, addr);
+  membar(AnyAny);
+  ldxr(tmp, addr);
   cmp(tmp, oldv);
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
-  stlxr(tmp, newv, addr);
+  stxr(tmp, newv, addr);
+  membar(AnyAny);
   cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   b(retry_load);
   // if the memory word differs we return it in oldv and signal a fail
   bind(nope);
+  membar(AnyAny);
   mov(oldv, tmp);
   if (fail)
     b(*fail);
@@ -1868,17 +1871,20 @@ void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Regis
   bind(retry_load);
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  ldaxrw(tmp, addr);
+  membar(AnyAny);
+  ldxrw(tmp, addr);
   cmp(tmp, oldv);
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
-  stlxrw(tmp, newv, addr);
+  stxrw(tmp, newv, addr);
+  membar(AnyAny);
   cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   b(retry_load);
   // if the memory word differs we return it in oldv and signal a fail
   bind(nope);
+  membar(AnyAny);
   mov(oldv, tmp);
   if (fail)
     b(*fail);
