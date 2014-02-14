@@ -50,6 +50,7 @@ import sun.misc.SoftCache;
 import sun.font.FontDesignMetrics;
 import sun.awt.im.InputContext;
 import sun.awt.image.*;
+import sun.net.util.URLUtil;
 import sun.security.action.GetPropertyAction;
 import sun.security.action.GetBooleanAction;
 import java.lang.reflect.InvocationTargetException;
@@ -720,7 +721,7 @@ public abstract class SunToolkit extends Toolkit
         if (sm != null) {
             try {
                 java.security.Permission perm =
-                    url.openConnection().getPermission();
+                    URLUtil.getConnectPermission(url);
                 if (perm != null) {
                     try {
                         sm.checkPermission(perm);
@@ -796,7 +797,7 @@ public abstract class SunToolkit extends Toolkit
         if (sm != null) {
             try {
                 java.security.Permission perm =
-                    url.openConnection().getPermission();
+                        URLUtil.getConnectPermission(url);
                 if (perm != null) {
                     try {
                         sm.checkPermission(perm);
