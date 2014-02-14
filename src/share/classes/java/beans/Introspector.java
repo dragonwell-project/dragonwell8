@@ -763,9 +763,19 @@ public class Introspector {
                     }
                 }
             } else if (gpd != null && spd != null) {
+                if (igpd != null) {
+                    gpd = mergePropertyWithIndexedProperty(gpd, igpd);
+                }
+                if (ispd != null) {
+                    spd = mergePropertyWithIndexedProperty(spd, ispd);
+                }
                 // Complete simple properties set
                 if (gpd == spd) {
                     pd = gpd;
+                } else if (spd instanceof IndexedPropertyDescriptor) {
+                    pd = mergePropertyWithIndexedProperty(gpd, (IndexedPropertyDescriptor) spd);
+                } else if (gpd instanceof IndexedPropertyDescriptor) {
+                    pd = mergePropertyWithIndexedProperty(spd, (IndexedPropertyDescriptor) gpd);
                 } else {
                     pd = mergePropertyDescriptor(gpd, spd);
                 }
@@ -823,6 +833,16 @@ public class Introspector {
 
     private static boolean isAssignable(Class<?> current, Class<?> candidate) {
         return ((current == null) || (candidate == null)) ? current == candidate : current.isAssignableFrom(candidate);
+    }
+
+    private PropertyDescriptor mergePropertyWithIndexedProperty(PropertyDescriptor pd, IndexedPropertyDescriptor ipd) {
+        Class<?> type = pd.getPropertyType();
+        if (type.isArray() && (type.getComponentType() == ipd.getIndexedPropertyType())) {
+            return pd.getClass0().isAssignableFrom(ipd.getClass0())
+                    ? new IndexedPropertyDescriptor(pd, ipd)
+                    : new IndexedPropertyDescriptor(ipd, pd);
+        }
+        return pd;
     }
 
     /**
