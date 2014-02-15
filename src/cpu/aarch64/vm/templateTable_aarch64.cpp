@@ -1711,8 +1711,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
         }
       }
     }
-    __ bind(dispatch);
   }
+  __ bind(dispatch);
 
   // Pre-load the next target bytecode into rscratch1
   __ load_unsigned_byte(rscratch1, Address(rbcp, 0));
@@ -1732,7 +1732,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
       __ b(dispatch);
     }
 
-    if (UseOnStackReplacement) {
+    if (TieredCompilation || UseOnStackReplacement) {
       // invocation counter overflow
       __ bind(backedge_counter_overflow);
       __ neg(r2, r2);
@@ -1742,6 +1742,11 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
                  CAST_FROM_FN_PTR(address,
                                   InterpreterRuntime::frequency_counter_overflow),
                  r2);
+      if (!UseOnStackReplacement)
+        __ b(dispatch);
+    }
+
+    if (UseOnStackReplacement) {
       __ load_unsigned_byte(r1, Address(rbcp, 0));  // restore target bytecode
 
       // r0: osr nmethod (osr ok) or NULL (osr not possible)
