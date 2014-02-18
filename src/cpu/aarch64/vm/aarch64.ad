@@ -2414,13 +2414,8 @@ encode %{
     __ ldxr(rscratch1, addr_reg);
     __ cmp(rscratch1, old_reg);
     __ br(Assembler::NE, done);
-    // if we store+flush with no intervening write tmp will be zero
     __ stxr(rscratch1, new_reg, addr_reg);
-    __ cmpw(rscratch1, zr);       // cannot use cbzw as must set flag
-    __ br(Assembler::EQ, done);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    __ b(retry_load);
+    __ cbnzw(rscratch1, retry_load);
     __ bind(done);
     __ membar(__ AnyAny);
   %}
@@ -2460,13 +2455,8 @@ encode %{
     __ ldxrw(rscratch1, addr_reg);
     __ cmpw(rscratch1, old_reg);
     __ br(Assembler::NE, done);
-    // if we store+flush with no intervening write tmp wil be zero
     __ stxrw(rscratch1, new_reg, addr_reg);
-    __ cmpw(rscratch1, zr);       // cannot use cbzw as must set flag
-    __ br(Assembler::EQ, done);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    __ b(retry_load);
+    __ cbnzw(rscratch1, retry_load);
     __ bind(done);
     __ membar(__ AnyAny);
   %}
