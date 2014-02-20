@@ -177,7 +177,7 @@ KernTable::KernTable(const LETableReference& base, LEErrorCode &success)
           "  searchRange(pairs): %d entrySelector: %d rangeShift(pairs): %d\n",
           searchRange, entrySelector, rangeShift);
 
-        {
+        if (LE_SUCCESS(success)) {
           // dump part of the pair list
           char ids[256];
           for (int i = 256; --i >= 0;) {

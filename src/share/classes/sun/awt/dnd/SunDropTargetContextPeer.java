@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -627,14 +627,14 @@ public abstract class SunDropTargetContextPeer implements DropTargetContextPeer,
         if (dropOperation == DnDConstants.ACTION_NONE)
             throw new IllegalArgumentException("invalid acceptDrop() action");
 
-        if (dropStatus != STATUS_WAIT) {
+        if (dropStatus == STATUS_WAIT || dropStatus == STATUS_ACCEPT) {
+            currentDA = currentA = mapOperation(dropOperation & currentSA);
+
+            dropStatus   = STATUS_ACCEPT;
+            dropComplete = false;
+        } else {
             throw new InvalidDnDOperationException("invalid acceptDrop()");
         }
-
-        currentDA = currentA = mapOperation(dropOperation & currentSA);
-
-        dropStatus   = STATUS_ACCEPT;
-        dropComplete = false;
     }
 
     /**
