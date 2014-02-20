@@ -25,13 +25,8 @@ package p2;
 
 import p1.T2;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 
 public class T3 extends T2 {
-    public static void main(String[] args) throws Throwable {
-        MethodHandles.lookup().findVirtual(T3.class, "m", MethodType.methodType(void.class));
-        System.out.println("TEST PASSED");
-    }
+    public static MethodHandles.Lookup lookup() { return MethodHandles.lookup(); }
 }
