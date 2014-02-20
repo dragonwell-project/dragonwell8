@@ -40,6 +40,7 @@ import sun.misc.IOUtils;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.ManifestEntryVerifier;
 import sun.misc.SharedSecrets;
+import sun.security.util.SignatureFileVerifier;
 
 /**
  * The <code>JarFile</code> class is used to read the contents of a jar file
@@ -52,6 +53,13 @@ import sun.misc.SharedSecrets;
  * <p> Unless otherwise noted, passing a <tt>null</tt> argument to a constructor
  * or method in this class will cause a {@link NullPointerException} to be
  * thrown.
+ *
+ * If the verify flag is on when opening a signed jar file, the content of the
+ * file is verified against its signature embedded inside the file. Please note
+ * that the verification process does not include validating the signer's
+ * certificate. A caller should inspect the return value of
+ * {@link JarEntry#getCodeSigners()} to further determine if the signature
+ * can be trusted.
  *
  * @author  David Connelly
  * @see     Manifest
@@ -357,11 +365,13 @@ class JarFile extends ZipFile {
             String[] names = getMetaInfEntryNames();
             if (names != null) {
                 for (int i = 0; i < names.length; i++) {
-                    JarEntry e = getJarEntry(names[i]);
-                    if (e == null) {
-                        throw new JarException("corrupted jar file");
-                    }
-                    if (!e.isDirectory()) {
+                    String uname = names[i].toUpperCase(Locale.ENGLISH);
+                    if (MANIFEST_NAME.equals(uname)
+                            || SignatureFileVerifier.isBlockOrSF(uname)) {
+                        JarEntry e = getJarEntry(names[i]);
+                        if (e == null) {
+                            throw new JarException("corrupted jar file");
+                        }
                         if (mev == null) {
                             mev = new ManifestEntryVerifier
                                 (getManifestFromReference());
