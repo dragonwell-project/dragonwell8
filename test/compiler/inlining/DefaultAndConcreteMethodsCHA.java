@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,38 @@
  * questions.
  */
 
- /*
+/**
  * @test
- * @key nmt
- * @summary Running with NMT detail should not result in an error
- * @library /testlibrary
+ * @bug 8031695
+ * @summary CHA ignores default methods during analysis leading to incorrect code generation
+ *
+ * @run main/othervm -Xbatch DefaultAndConcreteMethodsCHA
  */
+interface I {
+    default int m() { return 0; }
+}
 
-import com.oracle.java.testlibrary.*;
+class A implements I {}
 
-public class CommandLineDetail {
+class C extends A { }
+class D extends A { public int m() { return 1; } }
 
-  public static void main(String args[]) throws Exception {
+public class DefaultAndConcreteMethodsCHA {
+    public static int test(A obj) {
+        return obj.m();
+    }
+    public static void main(String[] args) {
+        for (int i = 0; i < 10000; i++) {
+            int idC = test(new C());
+            if (idC != 0) {
+                throw new Error("C.m didn't invoke I.m: id "+idC);
+            }
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-      "-XX:NativeMemoryTracking=detail",
-      "-version");
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldNotContain("error");
-    output.shouldHaveExitValue(0);
-  }
+            int idD = test(new D());
+            if (idD != 1) {
+                throw new Error("D.m didn't invoke D.m: id "+idD);
+            }
+        }
+
+    }
 }

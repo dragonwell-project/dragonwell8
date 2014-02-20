@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,37 @@
  * questions.
  */
 
- /*
- * @test
- * @key nmt
- * @summary Running with NMT detail should not result in an error
+/*
+ * @test TestStringSymbolTableStats.java
+ * @bug 8027476 8027455
+ * @summary Ensure that the G1TraceStringSymbolTableScrubbing prints the expected message.
+ * @key gc
  * @library /testlibrary
  */
 
-import com.oracle.java.testlibrary.*;
+import com.oracle.java.testlibrary.ProcessTools;
+import com.oracle.java.testlibrary.OutputAnalyzer;
 
-public class CommandLineDetail {
+public class TestStringSymbolTableStats {
+  public static void main(String[] args) throws Exception {
 
-  public static void main(String args[]) throws Exception {
+    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
+                                                              "-XX:+UnlockExperimentalVMOptions",
+                                                              "-XX:+G1TraceStringSymbolTableScrubbing",
+                                                              SystemGCTest.class.getName());
 
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-      "-XX:NativeMemoryTracking=detail",
-      "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldNotContain("error");
+
+    System.out.println("Output:\n" + output.getOutput());
+
+    output.shouldContain("Cleaned string and symbol table");
     output.shouldHaveExitValue(0);
+  }
+
+  static class SystemGCTest {
+    public static void main(String [] args) {
+      System.out.println("Calling System.gc()");
+      System.gc();
+    }
   }
 }
