@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,41 @@
 
 /*
  * @test
- * @bug 7167142
- * @summary Warn if unused .hotspot_rc file is present
- * @library /testlibrary
+ * @bug 8027422
+ * @summary type methods shouldn't always operate on speculative part
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:TypeProfileLevel=222 -XX:+UnlockExperimentalVMOptions -XX:+UseTypeSpeculation -XX:-BackgroundCompilation TestSpeculationFailedHigherEqual
+ *
  */
 
-import java.io.PrintWriter;
-import com.oracle.java.testlibrary.*;
+public class TestSpeculationFailedHigherEqual {
 
-public class ConfigFileWarning {
-    public static void main(String[] args) throws Exception {
-        if (Platform.isDebugBuild()) {
-            System.out.println("Skip on debug builds since we'll always read the file there");
-            return;
+    static class A {
+        void m() {}
+        int i;
+    }
+
+    static class C extends A {
+    }
+
+    static C c;
+
+    static A m1(A a, boolean cond) {
+        // speculative type for a is C not null
+        if (cond ) {
+            a = c;
+        }
+        // speculative type for a is C (may be null)
+        int i = a.i;
+        return a;
+    }
+
+    static public void main(String[] args) {
+        C c = new C();
+        TestSpeculationFailedHigherEqual.c = c;
+        for (int i = 0; i < 20000; i++) {
+            m1(c, i%2 == 0);
         }
 
-        PrintWriter pw = new PrintWriter(".hotspotrc");
-        pw.println("aa");
-        pw.close();
-
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-version");
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("warning: .hotspotrc file is present but has been ignored.  Run with -XX:Flags=.hotspotrc to load the file.");
+        System.out.println("TEST PASSED");
     }
 }
