@@ -2774,3 +2774,11 @@ void MacroAssembler::generate_flush_loop(flush_insn flush, Register start, Regis
   cbnz(rscratch2, again);
   bind(exit);
 }
+
+  bool MacroAssembler::use_acq_rel_for_volatile_fields() {
+#ifdef PRODUCT
+    return false;
+#else
+    return UseAcqRelForVolatileFields;
+#endif
+  }

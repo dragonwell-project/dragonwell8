@@ -4749,7 +4749,7 @@ define %{
 instruct loadB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadB mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsbw  $dst, $mem\t# byte" %}
@@ -4763,7 +4763,7 @@ instruct loadB(iRegINoSp dst, memory mem)
 instruct loadB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
-  predicate(!((MemNode*)(n->in(1)))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsb  $dst, $mem\t# byte" %}
@@ -4777,7 +4777,7 @@ instruct loadB2L(iRegLNoSp dst, memory mem)
 instruct loadUB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUB mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrbw  $dst, $mem\t# byte" %}
@@ -4791,7 +4791,7 @@ instruct loadUB(iRegINoSp dst, memory mem)
 instruct loadUB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
-  predicate(!((MemNode*)(n->in(1)))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrb  $dst, $mem\t# byte" %}
@@ -4805,7 +4805,7 @@ instruct loadUB2L(iRegLNoSp dst, memory mem)
 instruct loadS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadS mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrshw  $dst, $mem\t# short" %}
@@ -4819,7 +4819,7 @@ instruct loadS(iRegINoSp dst, memory mem)
 instruct loadS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
-  predicate(!((MemNode*)(n->in(1)))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsh  $dst, $mem\t# short" %}
@@ -4833,7 +4833,7 @@ instruct loadS2L(iRegLNoSp dst, memory mem)
 instruct loadUS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUS mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrh  $dst, $mem\t# short" %}
@@ -4847,7 +4847,7 @@ instruct loadUS(iRegINoSp dst, memory mem)
 instruct loadUS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
-  predicate(!((MemNode*)(n->in(1)))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrh  $dst, $mem\t# short" %}
@@ -4861,7 +4861,7 @@ instruct loadUS2L(iRegLNoSp dst, memory mem)
 instruct loadI(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadI mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4875,7 +4875,7 @@ instruct loadI(iRegINoSp dst, memory mem)
 instruct loadI2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadI mem)));
-  predicate(!((MemNode*)(n->in(1)))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrsw  $dst, $mem\t# int" %}
@@ -4889,7 +4889,7 @@ instruct loadI2L(iRegLNoSp dst, memory mem)
 instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
-  predicate(!((MemNode*)(n->in(1))->in(1))->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)(n->in(1))->in(1))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4903,7 +4903,7 @@ instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 instruct loadL(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (LoadL mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# int" %}
@@ -4930,7 +4930,7 @@ instruct loadRange(iRegINoSp dst, memory mem)
 instruct loadP(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
@@ -4944,7 +4944,7 @@ instruct loadP(iRegPNoSp dst, memory mem)
 instruct loadN(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadN mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# compressed ptr" %}
@@ -4958,7 +4958,7 @@ instruct loadN(iRegNNoSp dst, memory mem)
 instruct loadKlass(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadKlass mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldr  $dst, $mem\t# class" %}
@@ -4972,7 +4972,7 @@ instruct loadKlass(iRegPNoSp dst, memory mem)
 instruct loadNKlass(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadNKlass mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrw  $dst, $mem\t# compressed class ptr" %}
@@ -4986,7 +4986,7 @@ instruct loadNKlass(iRegNNoSp dst, memory mem)
 instruct loadF(vRegF dst, memory mem)
 %{
   match(Set dst (LoadF mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrs  $dst, $mem\t# float" %}
@@ -5000,7 +5000,7 @@ instruct loadF(vRegF dst, memory mem)
 instruct loadD(vRegD dst, memory mem)
 %{
   match(Set dst (LoadD mem));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldrd  $dst, $mem\t# double" %}
@@ -5190,7 +5190,7 @@ instruct loadConD(vRegD dst, immD con) %{
 instruct storeB(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strb  $src, $mem\t# byte" %}
@@ -5203,7 +5203,7 @@ instruct storeB(iRegI src, memory mem)
 instruct storeimmB0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreB mem zero));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strb zr, $mem\t# byte" %}
@@ -5217,7 +5217,7 @@ instruct storeimmB0(immI0 zero, memory mem)
 instruct storeC(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strh  $src, $mem\t# short" %}
@@ -5230,7 +5230,7 @@ instruct storeC(iRegI src, memory mem)
 instruct storeimmC0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreC mem zero));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strh  zr, $mem\t# short" %}
@@ -5245,7 +5245,7 @@ instruct storeimmC0(immI0 zero, memory mem)
 instruct storeI(iRegIorL2I src, memory mem)
 %{
   match(Set mem(StoreI mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# int" %}
@@ -5258,7 +5258,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 instruct storeimmI0(immI0 zero, memory mem)
 %{
   match(Set mem(StoreI mem zero));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  zr, $mem\t# int" %}
@@ -5272,7 +5272,7 @@ instruct storeimmI0(immI0 zero, memory mem)
 instruct storeL(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  $src, $mem\t# int" %}
@@ -5286,7 +5286,7 @@ instruct storeL(iRegL src, memory mem)
 instruct storeimmL0(immL0 zero, memory mem)
 %{
   match(Set mem (StoreL mem zero));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  zr, $mem\t# int" %}
@@ -5300,7 +5300,7 @@ instruct storeimmL0(immL0 zero, memory mem)
 instruct storeP(iRegP src, memory mem)
 %{
   match(Set mem (StoreP mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str  $src, $mem\t# ptr" %}
@@ -5314,7 +5314,7 @@ instruct storeP(iRegP src, memory mem)
 instruct storeimmP0(immP0 zero, memory mem)
 %{
   match(Set mem (StoreP mem zero));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "str zr, $mem\t# ptr" %}
@@ -5373,7 +5373,7 @@ instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
 instruct storeN(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strw  $src, $mem\t# compressed ptr" %}
@@ -5402,7 +5402,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 instruct storeF(vRegF src, memory mem)
 %{
   match(Set mem (StoreF mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strs  $src, $mem\t# float" %}
@@ -5419,7 +5419,7 @@ instruct storeF(vRegF src, memory mem)
 instruct storeD(vRegD src, memory mem)
 %{
   match(Set mem (StoreD mem src));
-  predicate(!((MemNode*)n)->is_volatile());
+  predicate(!treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "strd  $src, $mem\t# double" %}
@@ -5484,7 +5484,7 @@ instruct prefetchnta( memory mem ) %{
 instruct loadB_volatile(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadB mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarsb  $dst, $mem\t# byte" %}
@@ -5498,7 +5498,7 @@ instruct loadB_volatile(iRegINoSp dst, memory mem)
 instruct loadB2L_volatile(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
-  predicate(((MemNode*)(n->in(1)))->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarsb  $dst, $mem\t# byte" %}
@@ -5512,7 +5512,7 @@ instruct loadB2L_volatile(iRegLNoSp dst, memory mem)
 instruct loadUB_volatile(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUB mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarb  $dst, $mem\t# byte" %}
@@ -5526,7 +5526,7 @@ instruct loadUB_volatile(iRegINoSp dst, memory mem)
 instruct loadUB2L_volatile(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
-  predicate(((MemNode*)(n->in(1)))->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarb  $dst, $mem\t# byte" %}
@@ -5540,7 +5540,7 @@ instruct loadUB2L_volatile(iRegLNoSp dst, memory mem)
 instruct loadS_volatile(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadS mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarshw  $dst, $mem\t# short" %}
@@ -5553,7 +5553,7 @@ instruct loadS_volatile(iRegINoSp dst, memory mem)
 instruct loadUS_volatile(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUS mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarhw  $dst, $mem\t# short" %}
@@ -5567,7 +5567,7 @@ instruct loadUS_volatile(iRegINoSp dst, memory mem)
 instruct loadUS2L_volatile(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
-  predicate(((MemNode*)(n->in(1)))->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarh  $dst, $mem\t# short" %}
@@ -5581,7 +5581,7 @@ instruct loadUS2L_volatile(iRegLNoSp dst, memory mem)
 instruct loadS2L_volatile(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
-  predicate(((MemNode*)(n->in(1)))->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarh  $dst, $mem\t# short" %}
@@ -5595,7 +5595,7 @@ instruct loadS2L_volatile(iRegLNoSp dst, memory mem)
 instruct loadI_volatile(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadI mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarw  $dst, $mem\t# int" %}
@@ -5609,7 +5609,7 @@ instruct loadI_volatile(iRegINoSp dst, memory mem)
 instruct loadUI2L_volatile(iRegLNoSp dst, memory mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
-  predicate(((MemNode*)(n->in(1))->in(1))->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)(n->in(1))->in(1))));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarw  $dst, $mem\t# int" %}
@@ -5623,7 +5623,7 @@ instruct loadUI2L_volatile(iRegLNoSp dst, memory mem, immL_32bits mask)
 instruct loadL_volatile(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (LoadL mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldar  $dst, $mem\t# int" %}
@@ -5637,7 +5637,7 @@ instruct loadL_volatile(iRegLNoSp dst, memory mem)
 instruct loadP_volatile(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldar  $dst, $mem\t# ptr" %}
@@ -5651,7 +5651,7 @@ instruct loadP_volatile(iRegPNoSp dst, memory mem)
 instruct loadN_volatile(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadN mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldarw  $dst, $mem\t# compressed ptr" %}
@@ -5665,7 +5665,7 @@ instruct loadN_volatile(iRegNNoSp dst, memory mem)
 instruct loadF_volatile(vRegF dst, memory mem)
 %{
   match(Set dst (LoadF mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldars  $dst, $mem\t# float" %}
@@ -5679,7 +5679,7 @@ instruct loadF_volatile(vRegF dst, memory mem)
 instruct loadD_volatile(vRegD dst, memory mem)
 %{
   match(Set dst (LoadD mem));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "ldard  $dst, $mem\t# double" %}
@@ -5693,7 +5693,7 @@ instruct loadD_volatile(vRegD dst, memory mem)
 instruct storeB_volatile(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrb  $src, $mem\t# byte" %}
@@ -5707,7 +5707,7 @@ instruct storeB_volatile(iRegI src, memory mem)
 instruct storeC_volatile(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrh  $src, $mem\t# short" %}
@@ -5722,7 +5722,7 @@ instruct storeC_volatile(iRegI src, memory mem)
 instruct storeI_volatile(iRegIorL2I src, memory mem)
 %{
   match(Set mem(StoreI mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrw  $src, $mem\t# int" %}
@@ -5736,7 +5736,7 @@ instruct storeI_volatile(iRegIorL2I src, memory mem)
 instruct storeL_volatile(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlr  $src, $mem\t# int" %}
@@ -5750,7 +5750,7 @@ instruct storeL_volatile(iRegL src, memory mem)
 instruct storeP_volatile(iRegP src, memory mem)
 %{
   match(Set mem (StoreP mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlr  $src, $mem\t# ptr" %}
@@ -5764,7 +5764,7 @@ instruct storeP_volatile(iRegP src, memory mem)
 instruct storeN_volatile(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrw  $src, $mem\t# compressed ptr" %}
@@ -5778,7 +5778,7 @@ instruct storeN_volatile(iRegN src, memory mem)
 instruct storeF_volatile(vRegF src, memory mem)
 %{
   match(Set mem (StoreF mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrs  $src, $mem\t# float" %}
@@ -5795,7 +5795,7 @@ instruct storeF_volatile(vRegF src, memory mem)
 instruct storeD_volatile(vRegD src, memory mem)
 %{
   match(Set mem (StoreD mem src));
-  predicate(((MemNode*)n)->is_volatile());
+  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(MEMORY_REF_COST);
   format %{ "stlrd  $src, $mem\t# double" %}
@@ -5875,7 +5875,10 @@ instruct membar_acquire()
   format %{ "MEMBAR-acquire\t# ???" %}
 
   ins_encode %{
-    __ block_comment("membar_acquire (elided)");
+    if (MacroAssembler::use_acq_rel_for_volatile_fields())
+      __ block_comment("membar_acquire (elided)");
+    else
+      __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
   %}
 
   ins_pipe(pipe_class_memory);
@@ -5888,7 +5891,10 @@ instruct membar_release()
 
   format %{ "MEMBAR-release" %}
   ins_encode %{
-    __ block_comment("membar-release (elided)");
+    if (MacroAssembler::use_acq_rel_for_volatile_fields())
+      __ block_comment("membar_release (elided)");
+    else
+      __ membar(Assembler::AnyAny);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -11194,3 +11200,7 @@ instruct tlsLoadP(thread_RegP dst)
 //----------SMARTSPILL RULES---------------------------------------------------
 // These must follow all instruction definitions as they use the names
 // defined in the instructions definitions.
+
+// Local Variables:
+// mode: c++
+// End:

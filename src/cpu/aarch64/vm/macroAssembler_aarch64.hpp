@@ -1364,7 +1364,13 @@ public:
   typedef void (Assembler::* flush_insn)(Register Rt);
   void generate_flush_loop(flush_insn flush, Register start, Register lines);
 
+  // Used by aarch64.ad to control code generation
+  static bool use_acq_rel_for_volatile_fields();
 };
+
+// Used by aarch64.ad to control code generation
+#define treat_as_volatile(MEM_NODE)					\
+  (MacroAssembler::use_acq_rel_for_volatile_fields() ? (MEM_NODE)->is_volatile() : false)
 
 #ifdef ASSERT
 inline bool AbstractAssembler::pd_check_instruction_mark() { return false; }

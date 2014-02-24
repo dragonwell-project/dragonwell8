@@ -98,6 +98,9 @@ define_pd_global(intx, InlineSmallCode,          1000);
                                                                         \
   product(bool, DeoptimizeWhenPatching, true,                           \
           "doptimize instead of patching instructions")                 \
+									\
+  notproduct(bool, UseAcqRelForVolatileFields, false,			\
+	     "Use acquire and release insns for volatile fields")
 
 
 #else
@@ -111,7 +114,11 @@ define_pd_global(intx, InlineSmallCode,          1000);
          "constant pool is close to instructions")			\
                                                                         \
   product(bool, DeoptimizeWhenPatching, true,                           \
-          "doptimize instead of patching instructions")
+          "doptimize instead of patching instructions")			\
+									\
+  notproduct(bool, UseAcqRelForVolatileFields, false,			\
+	     "Use acquire and release insns for volatile fields")
+
 #endif
 
 #endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
