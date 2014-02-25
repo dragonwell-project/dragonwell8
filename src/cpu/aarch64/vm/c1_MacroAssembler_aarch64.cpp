@@ -354,6 +354,8 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   }
 
+  membar(StoreStore);
+
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
     call(RuntimeAddress(Runtime1::entry_for(Runtime1::dtrace_object_alloc_id)));
@@ -385,6 +387,8 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
   // clear rest of allocated space
   const Register len_zero = len;
   initialize_body(obj, arr_size, header_size * BytesPerWord, len_zero);
+
+  membar(StoreStore);
 
   if (CURRENT_ENV->dtrace_alloc_probes()) {
     assert(obj == r0, "must be");
