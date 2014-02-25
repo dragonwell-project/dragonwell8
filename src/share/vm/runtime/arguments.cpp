@@ -293,6 +293,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UsePermISM",                    JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseMPSS",                       JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
+  { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
@@ -881,7 +882,7 @@ bool Arguments::process_argument(const char* arg,
     arg_len = equal_sign - argname;
   }
 
-  Flag* found_flag = Flag::find_flag((const char*)argname, arg_len, true);
+  Flag* found_flag = Flag::find_flag((const char*)argname, arg_len, true, true);
   if (found_flag != NULL) {
     char locked_message_buf[BUFLEN];
     found_flag->get_locked_message(locked_message_buf, BUFLEN);
