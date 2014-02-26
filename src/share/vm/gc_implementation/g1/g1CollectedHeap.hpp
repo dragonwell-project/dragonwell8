@@ -1887,6 +1887,8 @@ protected:
   G1ParGCAllocBufferContainer* _alloc_buffers[GCAllocPurposeCount];
   ageTable            _age_table;
 
+  G1ParScanClosure    _scanner;
+
   size_t           _alloc_buffer_waste;
   size_t           _undo_waste;
 
@@ -1939,7 +1941,7 @@ protected:
   }
 
 public:
-  G1ParScanThreadState(G1CollectedHeap* g1h, uint queue_num);
+  G1ParScanThreadState(G1CollectedHeap* g1h, uint queue_num, ReferenceProcessor* rp);
 
   ~G1ParScanThreadState() {
     FREE_C_HEAP_ARRAY(size_t, _surviving_young_words_base, mtGC);
@@ -2073,6 +2075,8 @@ public:
                                                  false /* retain */);
     }
   }
+
+  oop copy_to_survivor_space(oop const obj);
 
   template <class T> void deal_with_reference(T* ref_to_scan) {
     if (has_partial_array_mask(ref_to_scan)) {
