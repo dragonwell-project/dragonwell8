@@ -350,6 +350,9 @@
           "File to dump ideal graph to.  If set overrides the "             \
           "use of the network")                                             \
                                                                             \
+  product(bool, UseOldInlining, true,                                       \
+          "Enable the 1.3 inlining strategy")                               \
+                                                                            \
   product(bool, UseBimorphicInlining, true,                                 \
           "Profiling based inlining for two receivers")                     \
                                                                             \
