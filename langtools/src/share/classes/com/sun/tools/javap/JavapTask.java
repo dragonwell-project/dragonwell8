@@ -195,45 +195,9 @@ public class JavapTask implements DisassemblerTool.DisassemblerTask, Messages {
             }
         },
 
-//        new Option(false, "-all") {
-//            void process(JavapTask task, String opt, String arg) {
-//                task.options.showAllAttrs = true;
-//            }
-//        },
-
-        new Option(false, "-h") {
-            void process(JavapTask task, String opt, String arg) throws BadArgs {
-                throw task.new BadArgs("err.h.not.supported");
-            }
-        },
-
-        new Option(false, "-verify", "-verify-verbose") {
-            void process(JavapTask task, String opt, String arg) throws BadArgs {
-                throw task.new BadArgs("err.verify.not.supported");
-            }
-        },
-
         new Option(false, "-sysinfo") {
             void process(JavapTask task, String opt, String arg) {
                 task.options.sysInfo = true;
-            }
-        },
-
-        new Option(false, "-Xold") {
-            void process(JavapTask task, String opt, String arg) throws BadArgs {
-                task.log.println(task.getMessage("warn.Xold.not.supported"));
-            }
-        },
-
-        new Option(false, "-Xnew") {
-            void process(JavapTask task, String opt, String arg) throws BadArgs {
-                // ignore: this _is_ the new version
-            }
-        },
-
-        new Option(false, "-XDcompat") {
-            void process(JavapTask task, String opt, String arg) {
-                task.options.compat = true;
             }
         },
 
@@ -524,7 +488,7 @@ public class JavapTask implements DisassemblerTool.DisassemblerTask, Messages {
                 throw new BadArgs("err.unknown.option", arg).showUsage(true);
         }
 
-        if (!options.compat && options.accessOptions.size() > 1) {
+        if (options.accessOptions.size() > 1) {
             StringBuilder sb = new StringBuilder();
             for (String opt: options.accessOptions) {
                 if (sb.length() > 0)
@@ -588,8 +552,6 @@ public class JavapTask implements DisassemblerTool.DisassemblerTask, Messages {
         ClassWriter classWriter = ClassWriter.instance(context);
         SourceWriter sourceWriter = SourceWriter.instance(context);
         sourceWriter.setFileManager(fileManager);
-
-        attributeFactory.setCompat(options.compat);
 
         int result = EXIT_OK;
 
