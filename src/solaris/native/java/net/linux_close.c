@@ -36,8 +36,6 @@
 #include <errno.h>
 #include <sys/poll.h>
 
-#include "jni.h"
-
 /*
  * Stack allocated by thread when doing blocking operation
  */
@@ -326,7 +324,7 @@ int NET_Select(int s, fd_set *readfds, fd_set *writefds,
  * Auto restarts with adjusted timeout if interrupted by
  * signal other than our wakeup signal.
  */
-int NET_Timeout(JNIEnv *unused, int s, long timeout) {
+int NET_Timeout(int s, long timeout) {
     long prevtime = 0, newtime;
     struct timeval t;
     fdEntry_t *fdEntry = getFdEntry(s);
