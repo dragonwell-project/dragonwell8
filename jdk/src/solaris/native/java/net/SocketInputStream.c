@@ -108,6 +108,8 @@ Java_java_net_SocketInputStream_socketRead0(JNIEnv *env, jobject this,
             } else if (nread == JVM_IO_ERR) {
                 if (errno == EBADF) {
                      JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
+                 } else if (errno == ENOMEM) {
+                     JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
                  } else {
                      NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException",
                                                   "select/poll failed");

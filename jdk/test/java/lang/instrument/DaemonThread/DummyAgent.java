@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2014 Goldman Sachs.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +22,25 @@
  * questions.
  */
 
-/* @test
- * @bug 4629307
- * @summary Socket with OP_READ would get selected on connect
- * @author kladko
- */
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.IllegalClassFormatException;
+import java.lang.instrument.Instrumentation;
+import java.security.ProtectionDomain;
 
-import java.nio.channels.Selector;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
+public class DummyAgent implements ClassFileTransformer {
+    @Override
+    public byte[] transform(ClassLoader loader, String className,
+                            Class<?> classBeingRedefined, ProtectionDomain protectionDomain,
+                            byte[] classfileBuffer) throws IllegalClassFormatException {
 
-public class ReadAfterConnect {
-    public static void main(String[] argv) throws Exception {
-        try (ByteServer server = new ByteServer();
-             SocketChannel sc = SocketChannel.open(server.address())) {
+        /* The Daemon Thread bug is timing dependent and you want the transform method
+         * to return ASAP - so just return the buffer will be fine
+         */
+        return classfileBuffer;
+    }
 
-            server.acceptConnection();
-
-            try (Selector sel = Selector.open()) {
-                sc.configureBlocking(false);
-                sc.register(sel, SelectionKey.OP_READ);
-                // Previously channel would get selected here, although there is nothing to read
-                if (sel.selectNow() != 0)
-                    throw new Exception("Select returned nonzero value");
-            }
-        }
+    public static void premain(String agentArgs, Instrumentation inst) {
+        inst.addTransformer(new DummyAgent(), false);
     }
 
 }
