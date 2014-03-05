@@ -1582,10 +1582,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // empty. Thus, for any VM calls at this point, GC will find a legal
   // oop map (with empty expression stack).
 
-  // In current activation
-  // tos: exception
-  // esi: exception bcp
-
   //
   // JVMTI PopFrame support
   //
@@ -1616,8 +1612,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
                                InterpreterRuntime::interpreter_contains), c_rarg1);
     __ cbnz(r0, caller_not_deoptimized);
-
-    __ call_Unimplemented();
 
     // Compute size of arguments for saving when returning to
     // deoptimized caller
@@ -1656,30 +1650,12 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
                        /* install_monitor_exception */ false,
                        /* notify_jvmdi */ false);
 
-  // Finish with popframe handling
-  // A previous I2C followed by a deoptimization might have moved the
-  // outgoing arguments further up the stack. PopFrame expects the
-  // mutations to those outgoing arguments to be preserved and other
-  // constraints basically require this frame to look exactly as
-  // though it had previously invoked an interpreted activation with
-  // no space between the top of the expression stack (current
-  // last_sp) and the top of stack. Rather than force deopt to
-  // maintain this kind of invariant all the time we call a small
-  // fixup routine to move the mutated arguments onto the top of our
-  // expression stack if necessary.
-  __ mov(c_rarg1, sp);
-  __ ldr(c_rarg2, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-  // PC must point into interpreter here
-  __ set_last_Java_frame(noreg, rfp, (address)NULL, rscratch1);
-  __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::popframe_move_outgoing_args), rthread, c_rarg1, c_rarg2);
-  __ reset_last_Java_frame(true, true);
   // Restore the last_sp and null it out
-  __ ldr(rscratch1, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ mov(esp, rscratch1);
+  __ ldr(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
-  __ restore_bcp();  // XXX do we need this?
-  __ restore_locals(); // XXX do we need this?
+  __ restore_bcp();
+  __ restore_locals();
   __ restore_constant_pool_cache();
   __ get_method(rmethod);
 
@@ -1697,7 +1673,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   if (EnableInvokeDynamic) {
     Label L_done;
 
-    __ ldrb(rscratch1, Address(r13, 0));
+    __ ldrb(rscratch1, Address(rbcp, 0));
     __ cmpw(r1, Bytecodes::_invokestatic);
     __ br(Assembler::EQ, L_done);
 
@@ -1705,7 +1681,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     // Detect such a case in the InterpreterRuntime function and return the member name argument, or NULL.
 
     __ ldr(c_rarg0, Address(rlocals, 0));
-    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::member_name_arg_or_null), c_rarg0, rmethod, rscratch1);
+    __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::member_name_arg_or_null), c_rarg0, rmethod, rbcp);
 
     __ cbz(r0, L_done);
 
@@ -1713,6 +1689,16 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     __ bind(L_done);
   }
 #endif // INCLUDE_JVMTI
+
+  // Restore machine SP
+  __ ldr(rscratch1, Address(rmethod, Method::const_offset()));
+  __ ldrh(rscratch1, Address(rscratch1, ConstMethod::max_stack_offset()));
+  __ add(rscratch1, rscratch1, frame::interpreter_frame_monitor_size()
+	 + (EnableInvokeDynamic ? 2 : 0));
+  __ ldr(rscratch2,
+	 Address(rfp, frame::interpreter_frame_initial_sp_offset * wordSize));
+  __ sub(rscratch1, rscratch2, rscratch1, ext::uxtw, 3);
+  __ andr(sp, rscratch1, -16);
 
   __ dispatch_next(vtos);
   // end of PopFrame support
