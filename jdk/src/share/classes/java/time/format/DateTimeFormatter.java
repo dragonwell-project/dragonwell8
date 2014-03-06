@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ import java.util.Set;
  * {@code parse(CharSequence text, DateTimeFormatter formatter)}.
  * <p>For example:
  * <blockquote><pre>
- *  String text = date.toString(formatter);
+ *  String text = date.format(formatter);
  *  LocalDate date = LocalDate.parse(text, formatter);
  * </pre></blockquote>
  * <p>
@@ -266,7 +266,7 @@ import java.util.Set;
  * For example:
  * <blockquote><pre>
  *  DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy MM dd");
- *  String text = date.toString(formatter);
+ *  String text = date.format(formatter);
  *  LocalDate date = LocalDate.parse(text, formatter);
  * </pre></blockquote>
  * <p>
@@ -1976,7 +1976,7 @@ public final class DateTimeFormatter {
      * Errors are returned using the error index field of the {@code ParsePosition}
      * instead of {@code DateTimeParseException}.
      * The returned error index will be set to an index indicative of the error.
-     * Callers must check for errors before using the context.
+     * Callers must check for errors before using the result.
      * <p>
      * If the formatter parses the same field more than once with different values,
      * the result will be an error.
