@@ -376,11 +376,8 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // terminate the iteration and return the address of the start of the
   // subregion that isn't done.  Return of "NULL" indicates that the
   // interation completed.
-  virtual HeapWord*
-       object_iterate_careful_m(MemRegion mr,
-                                ObjectClosureCareful* cl);
-  virtual HeapWord*
-       object_iterate_careful(ObjectClosureCareful* cl);
+ HeapWord* object_iterate_careful_m(MemRegion mr,
+                                    ObjectClosureCareful* cl);
 
   // Override: provides a DCTO_CL specific to this kind of space.
   DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
