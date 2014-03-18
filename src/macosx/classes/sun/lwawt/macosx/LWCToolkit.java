@@ -447,8 +447,12 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     // Intended to be called from the LWCToolkit.m only.
-    private static void installToolkitThreadNameInJava() {
+    private static void installToolkitThreadInJava() {
         Thread.currentThread().setName(CThreading.APPKIT_THREAD_NAME);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            Thread.currentThread().setContextClassLoader(null);
+            return null;
+        });
     }
 
     @Override
