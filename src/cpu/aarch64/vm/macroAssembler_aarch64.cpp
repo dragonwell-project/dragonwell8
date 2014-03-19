@@ -1399,7 +1399,7 @@ Address MacroAssembler::form_address(Register Rd, Register base, long byte_offse
   }
 
   // Do it the hard way
-  mov(Rd, byte_offset << shift);
+  mov(Rd, byte_offset);
   add(Rd, base, Rd);
   return Address(Rd);
 }
