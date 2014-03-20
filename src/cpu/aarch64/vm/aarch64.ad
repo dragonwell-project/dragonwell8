@@ -3547,11 +3547,29 @@ operand immIU12()
   interface(CONST_INTER);
 %}
 
-// Valid 9 bit unsigned offset
-operand immI9()
+operand immLU12()
 %{
-  predicate(((-(1 << 8)) <= n->get_int()) && (n->get_int() < (1 << 8)));
+  predicate((0 <= n->get_long()) && (n->get_long() < (1 << 12)));
+  match(ConL);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Offset for scaled or unscaled immediate loads and stores
+operand immIOffset()
+%{
+  predicate(Address::offset_ok_for_immed(n->get_int()));
   match(ConI);
+
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immLoffset()
+%{
+  predicate(Address::offset_ok_for_immed(n->get_long()));
+  match(ConL);
 
   format %{ %}
   interface(CONST_INTER);
@@ -4115,7 +4133,7 @@ operand indirect(iRegP reg)
   %}
 %}
 
-operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIAddSub off)
+operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIU12 off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
@@ -4129,7 +4147,7 @@ operand indIndexScaledOffsetI(iRegP reg, iRegL lreg, immIScale scale, immIAddSub
   %}
 %}
 
-operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLAddSub off)
+operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLU12 off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL lreg scale)) off);
@@ -4143,7 +4161,7 @@ operand indIndexScaledOffsetL(iRegP reg, iRegL lreg, immIScale scale, immLAddSub
   %}
 %}
 
-operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLAddSub off)
+operand indIndexScaledOffsetI2L(iRegP reg, iRegI ireg, immIScale scale, immLU12 off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (AddP reg (LShiftL (ConvI2L ireg) scale)) off);
@@ -4199,7 +4217,7 @@ operand indIndex(iRegP reg, iRegL lreg)
   %}
 %}
 
-operand indOffI(iRegP reg, immIAddSub off)
+operand indOffI(iRegP reg, immIOffset off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
@@ -4213,7 +4231,7 @@ operand indOffI(iRegP reg, immIAddSub off)
   %}
 %}
 
-operand indOffL(iRegP reg, immLAddSub off)
+operand indOffL(iRegP reg, immLoffset off)
 %{
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP reg off);
@@ -4243,7 +4261,7 @@ operand indirectN(iRegN reg)
   %}
 %}
 
-operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIAddSub off)
+operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIU12 off)
 %{
   predicate(Universe::narrow_oop_shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
@@ -4258,7 +4276,7 @@ operand indIndexScaledOffsetIN(iRegN reg, iRegL lreg, immIScale scale, immIAddSu
   %}
 %}
 
-operand indIndexScaledOffsetLN(iRegN reg, iRegL lreg, immIScale scale, immLAddSub off)
+operand indIndexScaledOffsetLN(iRegN reg, iRegL lreg, immIScale scale, immLU12 off)
 %{
   predicate(Universe::narrow_oop_shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
@@ -4273,7 +4291,7 @@ operand indIndexScaledOffsetLN(iRegN reg, iRegL lreg, immIScale scale, immLAddSu
   %}
 %}
 
-operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLAddSub off)
+operand indIndexScaledOffsetI2LN(iRegN reg, iRegI ireg, immIScale scale, immLU12 off)
 %{
   predicate(Universe::narrow_oop_shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
@@ -4333,7 +4351,7 @@ operand indIndexN(iRegN reg, iRegL lreg)
   %}
 %}
 
-operand indOffIN(iRegN reg, immIAddSub off)
+operand indOffIN(iRegN reg, immIOffset off)
 %{
   predicate(Universe::narrow_oop_shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
@@ -4348,7 +4366,7 @@ operand indOffIN(iRegN reg, immIAddSub off)
   %}
 %}
 
-operand indOffLN(iRegN reg, immLAddSub off)
+operand indOffLN(iRegN reg, immLoffset off)
 %{
   predicate(Universe::narrow_oop_shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
