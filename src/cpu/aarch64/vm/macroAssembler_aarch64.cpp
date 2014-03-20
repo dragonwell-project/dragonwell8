@@ -1369,7 +1369,7 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
   }
 }
 
-// Form an address from base + (offset << shift) in Rd.  Rd may or may
+// Form an address from base + offset in Rd.  Rd may or may
 // not actually be used: you must use the Address that is returned.
 // It is up to you to ensure that the shift provided matches the size
 // of your data.
