@@ -1812,7 +1812,7 @@ typedef void (MacroAssembler::* mem_float_insn)(FloatRegister Rt, const Address 
     }
 
     if (index == -1) {
-      (masm.*insn)(reg, masm.form_address(rscratch1, base, disp, 0));
+      (masm.*insn)(reg, Address(base, disp));
     } else {
       if (disp == 0) {
 	(masm.*insn)(reg, Address(base, as_Register(index), scale));
@@ -1841,7 +1841,7 @@ typedef void (MacroAssembler::* mem_float_insn)(FloatRegister Rt, const Address 
     }
 
      if (index == -1) {
-      (masm.*insn)(reg, masm.form_address(rscratch1, base, disp, 0));
+      (masm.*insn)(reg, Address(base, disp));
     } else {
       if (disp == 0) {
 	(masm.*insn)(reg, Address(base, as_Register(index), scale));
