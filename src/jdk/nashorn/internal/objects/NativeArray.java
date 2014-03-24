@@ -31,6 +31,7 @@ import static jdk.nashorn.internal.runtime.PropertyDescriptor.VALUE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.WRITABLE;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.arrayLikeIterator;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.reverseArrayLikeIterator;
+import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
@@ -156,10 +157,6 @@ public final class NativeArray extends ScriptObject {
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     /*
      * Constructors.
      */
@@ -208,7 +205,7 @@ public final class NativeArray extends ScriptObject {
     }
 
     NativeArray(final ArrayData arrayData, final Global global) {
-        super(global.getArrayPrototype(), global.getArrayMap());
+        super(global.getArrayPrototype(), $nasgenmap$);
         this.setArray(arrayData);
         this.setIsArray();
     }
@@ -351,6 +348,27 @@ public final class NativeArray extends ScriptObject {
 
         // not an index property
         return super.defineOwnProperty(key, desc, reject);
+    }
+
+    /**
+     * Spec. mentions use of [[DefineOwnProperty]] for indexed properties in
+     * certain places (eg. Array.prototype.map, filter). We can not use ScriptObject.set
+     * method in such cases. This is because set method uses inherited setters (if any)
+     * from any object in proto chain such as Array.prototype, Object.prototype.
+     * This method directly sets a particular element value in the current object.
+     *
+     * @param index key for property
+     * @param value value to define
+     */
+    @Override
+    public final void defineOwnProperty(final int index, final Object value) {
+        assert isValidArrayIndex(index) : "invalid array index";
+        final long longIndex = ArrayIndex.toLongIndex(index);
+        if (longIndex >= getArray().length()) {
+            // make array big enough to hold..
+            setArray(getArray().ensure(longIndex));
+        }
+        setArray(getArray().set(index, value, false));
     }
 
     /**

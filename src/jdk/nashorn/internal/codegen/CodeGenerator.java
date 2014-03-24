@@ -685,7 +685,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             private void scopeCall(final IdentNode node, final int flags) {
                 load(node, Type.OBJECT); // Type.OBJECT as foo() makes no sense if foo == 3
                 // ScriptFunction will see CALLSITE_SCOPE and will bind scope accordingly.
-                method.loadNull(); //the 'this'
+                method.loadUndefined(Type.OBJECT); //the 'this' object
                 method.dynamicCall(callNodeType, 2 + loadArgs(args), flags);
             }
 
@@ -818,7 +818,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             protected boolean enterDefault(final Node node) {
                 // Load up function.
                 load(function, Type.OBJECT); //TODO, e.g. booleans can be used as functions
-                method.loadNull(); // ScriptFunction will figure out the correct this when it sees CALLSITE_SCOPE
+                method.loadUndefined(Type.OBJECT); // ScriptFunction will figure out the correct this when it sees CALLSITE_SCOPE
                 method.dynamicCall(callNodeType, 2 + loadArgs(args), getCallSiteFlags() | CALLSITE_SCOPE);
 
                 return false;
@@ -2023,8 +2023,6 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             return false;
         }
 
-        method._new(ECMAException.class).dup();
-
         final Source source     = lc.getCurrentFunction().getSource();
 
         final Expression expression = throwNode.getExpression();
@@ -2037,7 +2035,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         method.load(source.getName());
         method.load(line);
         method.load(column);
-        method.invoke(ECMAException.THROW_INIT);
+        method.invoke(ECMAException.CREATE);
 
         method.athrow();
 
