@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,36 +20,33 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 /*
  * @test
- * @bug 6843127
- * @run main/othervm/timeout=300 BadKdc2
- * @summary krb5 should not try to access unavailable kdc too often
+ * @bug 8036971
+ * @compile -XDignore.symbol.file ExtraLines.java
+ * @run main/othervm ExtraLines
+ * @summary krb5.conf does not accept directive lines before the first section
  */
 
-import java.io.*;
-import java.security.Security;
+import sun.security.krb5.Config;
+import java.nio.file.*;
+import java.util.Objects;
 
-public class BadKdc2 {
+public class ExtraLines {
+    public static void main(String[] args) throws Exception {
+        Path base = Paths.get("krb5.conf");
+        Path include = Paths.get("included.conf");
+        String baseConf = "include " + include.toAbsolutePath().toString()
+                + "\n[x]\na = b\n";
+        String includeConf = "[y]\nc = d\n";
+        Files.write(include, includeConf.getBytes());
+        Files.write(base, baseConf.getBytes());
 
-    public static void main(String[] args)
-            throws Exception {
+        System.setProperty("java.security.krb5.conf", base.toString());
+        Config.refresh();
 
-        // 1 sec is too short.
-        BadKdc.setRatio(3.0f);
-
-        Security.setProperty(
-                "krb5.kdc.bad.policy", "tryLess:2," + BadKdc.toReal(1000));
-        BadKdc.go(
-                "121212222222(32){1,2}11112121(32){1,2}", // 1 2
-                "11112121(32){1,2}11112121(32){1,2}", // 1 2
-                // refresh
-                "121212222222(32){1,2}11112121(32){1,2}", // 1 2
-                // k3 off k2 on
-                "1111(21){1,2}1111(22){1,2}", // 1
-                // k1 on
-                "(11){1,2}(12){1,2}"  // empty
-        );
+        if (!Objects.equals(Config.getInstance().get("x", "a"), "b")) {
+            throw new Exception("Failed");
+        }
     }
 }
