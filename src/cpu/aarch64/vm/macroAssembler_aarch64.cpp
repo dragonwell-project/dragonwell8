@@ -47,11 +47,12 @@
 // #include "runtime/os.hpp"
 // #include "runtime/sharedRuntime.hpp"
 // #include "runtime/stubRoutines.hpp"
-// #if INCLUDE_ALL_GCS
-// #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
-// #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
-// #include "gc_implementation/g1/heapRegion.hpp"
-// #endif
+
+#if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#include "gc_implementation/g1/heapRegion.hpp"
+#endif
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -102,14 +103,31 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
 	guarantee(Instruction_aarch64::extract(insn, 4, 0)
 		  == Instruction_aarch64::extract(insn2, 9, 5),
 		  "Registers should be the same");
-      } else if (Instruction_aarch64::extract(insn2, 31, 29) == 0b100
-		 && Instruction_aarch64::extract(insn2, 23, 22) == 0b00) {
+      } else if (Instruction_aarch64::extract(insn2, 31, 22) == 0b1001000100) {
 	// add (immediate)
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				   21, 10, offset_lo);
 	guarantee(Instruction_aarch64::extract(insn, 4, 0)
 		  == Instruction_aarch64::extract(insn2, 4, 0),
 		  "Registers should be the same");
+      } else if (Instruction_aarch64::extract(insn2, 31, 21) == 0b10001011000
+		 && Instruction_aarch64::extract(insn2, 15, 10) == 0) {
+	// Handle the cardtable relocation in g1_post_barrier
+	//	__ adrp(Rx, cardtable, offset);
+	//	__ add(Ry, Ry, Rx);
+	//	__ ldrb(Rz, Address(Ry, offset));
+        unsigned insn3 = ((unsigned*)branch)[2];
+	unsigned size = Instruction_aarch64::extract(insn3, 31, 30);
+	// The offset must not change becase it is used later in the
+	// g1_post_barrier code. So we don't patch anything here.
+	guarantee(Instruction_aarch64::extract(insn3, 21, 10) == (offset_lo >> size), "offset changed");
+	guarantee(Instruction_aarch64::extract(insn3, 29, 24) == 0b111001, "must be ldr imm");
+	guarantee(Instruction_aarch64::extract(insn, 4, 0)
+		  == Instruction_aarch64::extract(insn2, 20, 16), "Registers must match");
+	guarantee(Instruction_aarch64::extract(insn2, 4, 0)
+		  == Instruction_aarch64::extract(insn2, 9, 5), "Registers must match");
+	guarantee(Instruction_aarch64::extract(insn2, 4, 0)
+		  == Instruction_aarch64::extract(insn3, 9, 5), "Registers must match");
       } else {
 	ShouldNotReachHere();
       }
@@ -2409,13 +2427,172 @@ void MacroAssembler::g1_write_barrier_pre(Register obj,
                                           Register thread,
                                           Register tmp,
                                           bool tosca_live,
-                                          bool expand_call) { Unimplemented(); }
+                                          bool expand_call) {
+  // If expand_call is true then we expand the call_VM_leaf macro
+  // directly to skip generating the check by
+  // InterpreterMacroAssembler::call_VM_leaf_base that checks _last_sp.
+
+#ifdef _LP64
+  assert(thread == rthread, "must be");
+#endif // _LP64
+
+  Label done;
+  Label runtime;
+
+  assert(pre_val != noreg, "check this code");
+
+  if (obj != noreg)
+    assert_different_registers(obj, pre_val, tmp);
+
+  Address in_progress(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                       PtrQueue::byte_offset_of_active()));
+  Address index(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                       PtrQueue::byte_offset_of_index()));
+  Address buffer(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                       PtrQueue::byte_offset_of_buf()));
+
+
+  // Is marking active?
+  if (in_bytes(PtrQueue::byte_width_of_active()) == 4) {
+    ldrw(tmp, in_progress);
+  } else {
+    assert(in_bytes(PtrQueue::byte_width_of_active()) == 1, "Assumption");
+    ldrb(tmp, in_progress);
+  }
+  cbzw(tmp, done);
+
+  // Do we need to load the previous value?
+  if (obj != noreg) {
+    load_heap_oop(pre_val, Address(obj, 0));
+  }
+
+  // Is the previous value null?
+  cbz(pre_val, done);
+
+  // Can we store original value in the thread's buffer?
+  // Is index == 0?
+  // (The index field is typed as size_t.)
+
+  ldr(tmp, index);                      // tmp := *index_adr
+  cbz(tmp, runtime);                    // tmp == 0?
+                                        // If yes, goto runtime
+
+  sub(tmp, tmp, wordSize);              // tmp := tmp - wordSize
+  str(tmp, index);                      // *index_adr := tmp
+  ldr(rscratch1, buffer);
+  add(tmp, tmp, rscratch1);             // tmp := tmp + *buffer_adr
+
+  // Record the previous value
+  str(pre_val, Address(tmp, 0));
+  b(done);
+
+  bind(runtime);
+  // save the live input values
+  push(r0->bit(tosca_live) | obj->bit(obj != noreg) | pre_val->bit(true), sp);
+
+  // Calling the runtime using the regular call_VM_leaf mechanism generates
+  // code (generated by InterpreterMacroAssember::call_VM_leaf_base)
+  // that checks that the *(rfp+frame::interpreter_frame_last_sp) == NULL.
+  //
+  // If we care generating the pre-barrier without a frame (e.g. in the
+  // intrinsified Reference.get() routine) then ebp might be pointing to
+  // the caller frame and so this check will most likely fail at runtime.
+  //
+  // Expanding the call directly bypasses the generation of the check.
+  // So when we do not have have a full interpreter frame on the stack
+  // expand_call should be passed true.
+
+  if (expand_call) {
+    LP64_ONLY( assert(pre_val != c_rarg1, "smashed arg"); )
+    pass_arg1(this, thread);
+    pass_arg0(this, pre_val);
+    MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), 2);
+  } else {
+    call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), pre_val, thread);
+  }
+
+  pop(r0->bit(tosca_live) | obj->bit(obj != noreg) | pre_val->bit(true), sp);
+
+  bind(done);
+}
 
 void MacroAssembler::g1_write_barrier_post(Register store_addr,
                                            Register new_val,
                                            Register thread,
                                            Register tmp,
-                                           Register tmp2) { Unimplemented(); }
+                                           Register tmp2) {
+#ifdef _LP64
+  assert(thread == rthread, "must be");
+#endif // _LP64
+
+  Address queue_index(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
+                                       PtrQueue::byte_offset_of_index()));
+  Address buffer(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
+                                       PtrQueue::byte_offset_of_buf()));
+
+  BarrierSet* bs = Universe::heap()->barrier_set();
+  CardTableModRefBS* ct = (CardTableModRefBS*)bs;
+  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+
+  Label done;
+  Label runtime;
+
+  // Does store cross heap regions?
+
+  eor(tmp, store_addr, new_val);
+  lsr(tmp, tmp, HeapRegion::LogOfHRGrainBytes);
+  cbz(tmp, done);
+
+  // crosses regions, storing NULL?
+
+  cbz(new_val, done);
+
+  // storing region crossing non-NULL, is card already dirty?
+
+  ExternalAddress cardtable((address) ct->byte_map_base);
+  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+  const Register card_addr = tmp;
+
+  lsr(card_addr, store_addr, CardTableModRefBS::card_shift);
+
+  unsigned long offset;
+  adrp(tmp2, cardtable, offset);
+
+  // get the address of the card
+  add(card_addr, card_addr, tmp2);
+  ldrb(tmp2, Address(card_addr, offset));
+  cmpw(tmp2, (int)G1SATBCardTableModRefBS::g1_young_card_val());
+  br(Assembler::EQ, done);
+
+  assert((int)CardTableModRefBS::dirty_card_val() == 0, "must be 0");
+
+  membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
+
+  ldrb(tmp2, Address(card_addr, offset));
+  cbzw(tmp2, done);
+
+  // storing a region crossing, non-NULL oop, card is clean.
+  // dirty card and log.
+
+  strb(zr, Address(card_addr, offset));
+
+  ldr(rscratch1, queue_index);
+  cbz(rscratch1, runtime);
+  sub(rscratch1, rscratch1, wordSize);
+  str(rscratch1, queue_index);
+
+  ldr(tmp2, buffer);
+  str(card_addr, Address(tmp2, rscratch1));
+  b(done);
+
+  bind(runtime);
+  // save the live input values
+  push(store_addr->bit(true) | new_val->bit(true), sp);
+  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), card_addr, thread);
+  pop(store_addr->bit(true) | new_val->bit(true), sp);
+
+  bind(done);
+}
 
 #endif // INCLUDE_ALL_GCS
 

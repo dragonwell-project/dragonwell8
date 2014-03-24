@@ -1866,47 +1866,47 @@ void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr unused, L
 void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dst) {
   
   assert(left->is_single_cpu() || left->is_double_cpu(), "expect single or double register");
-  if (left->is_single_cpu()) {
-    assert (right->is_single_cpu() || right->is_constant(), "single register or constant expected");
-    if (right->is_constant()
-	&& Assembler::operand_valid_for_logical_immediate(true, right->as_jint())) {
-
-      switch (code) {
-      case lir_logic_and: __ andw (dst->as_register(), left->as_register(), right->as_jint()); break;
-      case lir_logic_or:  __ orrw (dst->as_register(), left->as_register(), right->as_jint()); break;
-      case lir_logic_xor: __ eorw (dst->as_register(), left->as_register(), right->as_jint()); break;
-      default: ShouldNotReachHere(); break;
-      }
-    } else {
-      switch (code) {
-      case lir_logic_and: __ andw (dst->as_register(), left->as_register(), right->as_register()); break;
-      case lir_logic_or:  __ orrw (dst->as_register(), left->as_register(), right->as_register()); break;
-      case lir_logic_xor: __ eorw (dst->as_register(), left->as_register(), right->as_register()); break;
-      default: ShouldNotReachHere(); break;
-      }
-    }
-  } else {
-    assert (right->is_double_cpu() || right->is_constant(), "single register or constant expected");
-    if (right->is_double_cpu()) {
-      switch (code) {
-      case lir_logic_and: __ andr(dst->as_register_lo(), left->as_register_lo(), right->as_register_lo()); break;
-      case lir_logic_or:  __ orr (dst->as_register_lo(), left->as_register_lo(), right->as_register_lo()); break;
-      case lir_logic_xor: __ eor (dst->as_register_lo(), left->as_register_lo(), right->as_register_lo()); break;
-      default:
-	ShouldNotReachHere();
-	break;
-      }
-    } else {
-      switch (code) {
-      case lir_logic_and: __ andr(dst->as_register_lo(), left->as_register_lo(), right->as_jlong()); break;
-      case lir_logic_or:  __ orr (dst->as_register_lo(), left->as_register_lo(), right->as_jlong()); break;
-      case lir_logic_xor: __ eor (dst->as_register_lo(), left->as_register_lo(), right->as_jlong()); break;
-      default:
-	ShouldNotReachHere();
-	break;
-      }
-    }
-  }
+  Register Rleft = left->is_single_cpu() ? left->as_register() :
+                                           left->as_register_lo();
+   if (dst->is_single_cpu()) {
+     Register Rdst = dst->as_register();
+     if (right->is_constant()) {
+       switch (code) {
+         case lir_logic_and: __ andw (Rdst, Rleft, right->as_jint()); break;
+         case lir_logic_or:  __ orrw (Rdst, Rleft, right->as_jint()); break;
+         case lir_logic_xor: __ eorw (Rdst, Rleft, right->as_jint()); break;
+         default: ShouldNotReachHere(); break;
+       }
+     } else {
+       Register Rright = right->is_single_cpu() ? right->as_register() :
+                                                  right->as_register_lo();
+       switch (code) {
+         case lir_logic_and: __ andw (Rdst, Rleft, Rright); break;
+         case lir_logic_or:  __ orrw (Rdst, Rleft, Rright); break;
+         case lir_logic_xor: __ eorw (Rdst, Rleft, Rright); break;
+         default: ShouldNotReachHere(); break;
+       }
+     }
+   } else {
+     Register Rdst = dst->as_register_lo();
+     if (right->is_constant()) {
+       switch (code) {
+         case lir_logic_and: __ andr (Rdst, Rleft, right->as_jlong()); break;
+         case lir_logic_or:  __ orr (Rdst, Rleft, right->as_jlong()); break;
+         case lir_logic_xor: __ eor (Rdst, Rleft, right->as_jlong()); break;
+         default: ShouldNotReachHere(); break;
+       }
+     } else {
+       Register Rright = right->is_single_cpu() ? right->as_register() :
+                                                  right->as_register_lo();
+       switch (code) {
+         case lir_logic_and: __ andr (Rdst, Rleft, Rright); break;
+         case lir_logic_or:  __ orr (Rdst, Rleft, Rright); break;
+         case lir_logic_xor: __ eor (Rdst, Rleft, Rright); break;
+         default: ShouldNotReachHere(); break;
+       }
+     }
+   }
 }
 
 

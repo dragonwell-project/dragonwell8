@@ -42,6 +42,9 @@
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
 #include "vmreg_aarch64.inline.hpp"
+#if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#endif
 
 
 // Implementation of StubAssembler
@@ -1147,6 +1150,133 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_array_store_exception), true);
       }
       break;
+
+#if INCLUDE_ALL_GCS
+
+// Registers to be saved around calls to g1_wb_pre or g1_wb_post
+#define G1_SAVE_REGS  ((r0->bit(1)|r1->bit(1)| \
+			r2->bit(1)|r3->bit(1)|r4->bit(1)|r5->bit(1)| \
+			r6->bit(1)|r7->bit(1)|r8->bit(1)|r9->bit(1)| \
+			r10->bit(1)|r11->bit(1)|r12->bit(1)|r13->bit(1)| \
+			r14->bit(1)|r15->bit(1)|r16->bit(1)|r17->bit(1)| \
+			r18->bit(1))&~(rscratch1->bit(1)|rscratch2->bit(1)))
+
+    case g1_pre_barrier_slow_id:
+      {
+        StubFrame f(sasm, "g1_pre_barrier", dont_gc_arguments);
+        // arg0 : previous value of memory
+
+        BarrierSet* bs = Universe::heap()->barrier_set();
+        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
+	  __ mov(r0, (int)id);
+	  __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), r0);
+	  __ should_not_reach_here();
+          break;
+        }
+
+        const Register pre_val = r0;
+        const Register thread = rthread;
+        const Register tmp = rscratch1;
+
+        Address in_progress(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                             PtrQueue::byte_offset_of_active()));
+
+        Address queue_index(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                             PtrQueue::byte_offset_of_index()));
+        Address buffer(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                        PtrQueue::byte_offset_of_buf()));
+
+        Label done;
+        Label runtime;
+
+        // Can we store original value in the thread's buffer?
+        __ ldr(tmp, queue_index);
+        __ cbz(tmp, runtime);
+
+        __ sub(tmp, tmp, wordSize);
+        __ str(tmp, queue_index);
+        __ ldr(rscratch2, buffer);
+	__ add(tmp, tmp, rscratch2);
+	f.load_argument(0, rscratch2);
+        __ str(rscratch2, Address(tmp, 0));
+        __ b(done);
+
+        __ bind(runtime);
+        __ push(G1_SAVE_REGS, sp);
+        f.load_argument(0, pre_val);
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), pre_val, thread);
+	__ pop(G1_SAVE_REGS, sp);
+        __ bind(done);
+      }
+      break;
+    case g1_post_barrier_slow_id:
+      {
+        StubFrame f(sasm, "g1_post_barrier", dont_gc_arguments);
+
+        // arg0: store_address
+        Address store_addr(rfp, 2*BytesPerWord);
+
+        BarrierSet* bs = Universe::heap()->barrier_set();
+        CardTableModRefBS* ct = (CardTableModRefBS*)bs;
+        assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+
+        Label done;
+        Label runtime;
+
+        // At this point we know new_value is non-NULL and the new_value crosses regions.
+        // Must check to see if card is already dirty
+
+        const Register thread = rthread;
+
+        Address queue_index(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
+                                             PtrQueue::byte_offset_of_index()));
+        Address buffer(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
+                                        PtrQueue::byte_offset_of_buf()));
+
+        const Register card_addr = rscratch2;
+	ExternalAddress cardtable((address) ct->byte_map_base);
+
+        f.load_argument(0, card_addr);
+        __ lsr(card_addr, card_addr, CardTableModRefBS::card_shift);
+	unsigned long offset;
+	__ adrp(rscratch1, cardtable, offset);
+        __ add(card_addr, card_addr, rscratch1);
+        __ ldrb(rscratch1, Address(card_addr, offset));
+        __ cmpw(rscratch1, (int)G1SATBCardTableModRefBS::g1_young_card_val());
+	__ br(Assembler::EQ, done);
+
+	assert((int)CardTableModRefBS::dirty_card_val() == 0, "must be 0");
+
+        __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
+        __ ldrb(rscratch1, Address(card_addr, offset));
+	__ cbzw(rscratch1, done);
+
+        // storing region crossing non-NULL, card is clean.
+        // dirty card and log.
+        __ strb(zr, Address(card_addr, offset));
+
+        __ ldr(rscratch1, queue_index);
+        __ cbz(rscratch1, runtime);
+        __ sub(rscratch1, rscratch1, wordSize);
+        __ str(rscratch1, queue_index);
+
+        const Register buffer_addr = r0;
+
+	__ push(r0->bit(1) | r1->bit(1), sp);
+	__ ldr(buffer_addr, buffer);
+	__ str(card_addr, Address(buffer_addr, rscratch1));
+	__ pop(r0->bit(1) | r1->bit(1), sp);
+	__ b(done);
+
+        __ bind(runtime);
+	__ push(G1_SAVE_REGS, sp);
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), card_addr, thread);
+	__ pop(G1_SAVE_REGS, sp);
+        __ bind(done);
+
+      }
+      break;
+#endif
 
     case predicate_failed_trap_id:
       {

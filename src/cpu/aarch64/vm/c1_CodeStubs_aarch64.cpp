@@ -542,14 +542,46 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
 /////////////////////////////////////////////////////////////////////////////
 #if INCLUDE_ALL_GCS
 
-void G1PreBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void G1PreBarrierStub::emit_code(LIR_Assembler* ce) {
+  // At this point we know that marking is in progress.
+  // If do_load() is true then we have to emit the
+  // load of the previous value; otherwise it has already
+  // been loaded into _pre_val.
+
+  __ bind(_entry);
+  assert(pre_val()->is_register(), "Precondition.");
+
+  Register pre_val_reg = pre_val()->as_register();
+
+  if (do_load()) {
+    ce->mem2reg(addr(), pre_val(), T_OBJECT, patch_code(), info(), false /*wide*/, false /*unaligned*/);
+  }
+  __ cbz(pre_val_reg, _continuation);
+  ce->store_parameter(pre_val()->as_register(), 0);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_pre_barrier_slow_id)));
+  __ b(_continuation);
+}
 
 jbyte* G1PostBarrierStub::_byte_map_base = NULL;
 
-jbyte* G1PostBarrierStub::byte_map_base_slow() { Unimplemented(); return 0; }
+jbyte* G1PostBarrierStub::byte_map_base_slow() {
+  BarrierSet* bs = Universe::heap()->barrier_set();
+  assert(bs->is_a(BarrierSet::G1SATBCTLogging),
+         "Must be if we're using this.");
+  return ((G1SATBCardTableModRefBS*)bs)->byte_map_base;
+}
 
 
-void G1PostBarrierStub::emit_code(LIR_Assembler* ce) { Unimplemented(); }
+void G1PostBarrierStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+  assert(addr()->is_register(), "Precondition.");
+  assert(new_val()->is_register(), "Precondition.");
+  Register new_val_reg = new_val()->as_register();
+  __ cbz(new_val_reg, _continuation);
+  ce->store_parameter(addr()->as_pointer_register(), 0);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_post_barrier_slow_id)));
+  __ b(_continuation);
+}
 
 #endif // INCLUDE_ALL_GCS
 /////////////////////////////////////////////////////////////////////////////
