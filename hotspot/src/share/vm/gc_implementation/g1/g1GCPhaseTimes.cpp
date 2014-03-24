@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -250,6 +250,9 @@ double G1GCPhaseTimes::accounted_time_ms() {
     // Strong code root migration time
     misc_time_ms += _cur_strong_code_root_migration_time_ms;
 
+    // Strong code root purge time
+    misc_time_ms += _cur_strong_code_root_purge_time_ms;
+
     // Subtract the time taken to clean the card table from the
     // current value of "other time"
     misc_time_ms += _cur_clear_ct_time_ms;
@@ -299,20 +302,38 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
   }
   print_stats(1, "Code Root Fixup", _cur_collection_code_root_fixup_time_ms);
   print_stats(1, "Code Root Migration", _cur_strong_code_root_migration_time_ms);
+  print_stats(1, "Code Root Purge", _cur_strong_code_root_purge_time_ms);
   print_stats(1, "Clear CT", _cur_clear_ct_time_ms);
   double misc_time_ms = pause_time_sec * MILLIUNITS - accounted_time_ms();
   print_stats(1, "Other", misc_time_ms);
   if (_cur_verify_before_time_ms > 0.0) {
     print_stats(2, "Verify Before", _cur_verify_before_time_ms);
   }
+  if (G1CollectedHeap::heap()->evacuation_failed()) {
+    double evac_fail_handling = _cur_evac_fail_recalc_used + _cur_evac_fail_remove_self_forwards +
+      _cur_evac_fail_restore_remsets;
+    print_stats(2, "Evacuation Failure", evac_fail_handling);
+    if (G1Log::finest()) {
+      print_stats(3, "Recalculate Used", _cur_evac_fail_recalc_used);
+      print_stats(3, "Remove Self Forwards", _cur_evac_fail_remove_self_forwards);
+      print_stats(3, "Restore RemSet", _cur_evac_fail_restore_remsets);
+    }
+  }
   print_stats(2, "Choose CSet",
     (_recorded_young_cset_choice_time_ms +
     _recorded_non_young_cset_choice_time_ms));
   print_stats(2, "Ref Proc", _cur_ref_proc_time_ms);
   print_stats(2, "Ref Enq", _cur_ref_enq_time_ms);
+  if (G1DeferredRSUpdate) {
+    print_stats(2, "Redirty Cards", _recorded_redirty_logged_cards_time_ms);
+  }
   print_stats(2, "Free CSet",
     (_recorded_young_free_cset_time_ms +
     _recorded_non_young_free_cset_time_ms));
+  if (G1Log::finest()) {
+    print_stats(3, "Young Free CSet", _recorded_young_free_cset_time_ms);
+    print_stats(3, "Non-Young Free CSet", _recorded_non_young_free_cset_time_ms);
+  }
   if (_cur_verify_after_time_ms > 0.0) {
     print_stats(2, "Verify After", _cur_verify_after_time_ms);
   }
