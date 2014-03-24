@@ -5934,6 +5934,8 @@ void G1CollectedHeap::evacuate_collection_set(EvacuationInfo& evacuation_info) {
   // strong code roots for a particular heap region.
   migrate_strong_code_roots();
 
+  purge_code_root_memory();
+
   if (g1_policy()->during_initial_mark_pause()) {
     // Reset the claim values set during marking the strong code roots
     reset_heap_region_claim_values();
@@ -6810,6 +6812,13 @@ void G1CollectedHeap::migrate_strong_code_roots() {
   g1_policy()->phase_times()->record_strong_code_root_migration_time(migration_time_ms);
 }
 
+void G1CollectedHeap::purge_code_root_memory() {
+  double purge_start = os::elapsedTime();
+  G1CodeRootSet::purge_chunks(G1CodeRootsChunkCacheKeepPercent);
+  double purge_time_ms = (os::elapsedTime() - purge_start) * 1000.0;
+  g1_policy()->phase_times()->record_strong_code_root_purge_time(purge_time_ms);
+}
+
 // Mark all the code roots that point into regions *not* in the
 // collection set.
 //
@@ -6880,7 +6889,7 @@ public:
       // Code roots should never be attached to a continuation of a humongous region
       assert(hrrs->strong_code_roots_list_length() == 0,
              err_msg("code roots should never be attached to continuations of humongous region "HR_FORMAT
-                     " starting at "HR_FORMAT", but has "INT32_FORMAT,
+                     " starting at "HR_FORMAT", but has "SIZE_FORMAT,
                      HR_FORMAT_PARAMS(hr), HR_FORMAT_PARAMS(hr->humongous_start_region()),
                      hrrs->strong_code_roots_list_length()));
       return false;
