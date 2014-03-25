@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
  /*
  * @test
  * @key nmt
- * @summary Turning off NMT should not result in an error or warning
+ * @summary Turning off NMT should not result in an error
  * @library /testlibrary
  */
 
@@ -38,7 +38,6 @@ public class CommandLineTurnOffNMT {
               "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
     output.shouldNotContain("error");
-    output.shouldNotContain("warning");
     output.shouldHaveExitValue(0);
   }
 }
