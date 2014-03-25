@@ -1299,6 +1299,14 @@ void OptoRuntime::print_named_counters() {
         tty->print_cr("%s", c->name());
         blc->print_on(tty);
       }
+#if INCLUDE_RTM_OPT
+    } else if (c->tag() == NamedCounter::RTMLockingCounter) {
+      RTMLockingCounters* rlc = ((RTMLockingNamedCounter*)c)->counters();
+      if (rlc->nonzero()) {
+        tty->print_cr("%s", c->name());
+        rlc->print_on(tty);
+      }
+#endif
     }
     c = c->next();
   }
@@ -1338,6 +1346,8 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
   NamedCounter* c;
   if (tag == NamedCounter::BiasedLockingCounter) {
     c = new BiasedLockingNamedCounter(strdup(st.as_string()));
+  } else if (tag == NamedCounter::RTMLockingCounter) {
+    c = new RTMLockingNamedCounter(strdup(st.as_string()));
   } else {
     c = new NamedCounter(strdup(st.as_string()), tag);
   }
@@ -1346,6 +1356,7 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
   // add counters so this is safe.
   NamedCounter* head;
   do {
+    c->set_next(NULL);
     head = _named_counters;
     c->set_next(head);
   } while (Atomic::cmpxchg_ptr(c, &_named_counters, head) != head);

@@ -4374,7 +4374,7 @@ const Type *TypeMetadataPtr::xmeet( const Type *t ) const {
       // else fall through:
     case TopPTR:
     case AnyNull: {
-      return make(ptr, NULL, offset);
+      return make(ptr, _metadata, offset);
     }
     case BotPTR:
     case NotNull:
