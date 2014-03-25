@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8027411
- * @summary test invalid options -h and -b
+ * @summary test an invalid option
  */
 
 import java.io.*;
@@ -39,7 +39,6 @@ public class InvalidOptions {
     }
 
     void run() throws Exception {
-        test(2, "-h", "Error: -h is no longer available - use the javah program");
         test(2, "-b", "Error: unknown option: -b",
                       "Usage: javap <options> <classes>",
                       "use -help for a list of possible options");

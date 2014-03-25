@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,7 +84,6 @@ public class Types {
     final boolean allowBoxing;
     final boolean allowCovariantReturns;
     final boolean allowObjectToPrimitiveCast;
-    final boolean allowDefaultMethods;
     final ClassReader reader;
     final Check chk;
     final Enter enter;
@@ -111,7 +110,6 @@ public class Types {
         allowBoxing = source.allowBoxing();
         allowCovariantReturns = source.allowCovariantReturns();
         allowObjectToPrimitiveCast = source.allowObjectToPrimitiveCast();
-        allowDefaultMethods = source.allowDefaultMethods();
         reader = ClassReader.instance(context);
         chk = Check.instance(context);
         enter = Enter.instance(context);

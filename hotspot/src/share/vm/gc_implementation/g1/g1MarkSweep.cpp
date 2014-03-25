@@ -163,11 +163,8 @@ void G1MarkSweep::mark_sweep_phase1(bool& marked_for_unloading,
   // Prune dead klasses from subklass/sibling/implementor lists.
   Klass::clean_weak_klass_links(&GenMarkSweep::is_alive);
 
-  // Delete entries for dead interned strings.
-  StringTable::unlink(&GenMarkSweep::is_alive);
-
-  // Clean up unreferenced symbols in symbol table.
-  SymbolTable::unlink();
+  // Delete entries for dead interned string and clean up unreferenced symbols in symbol table.
+  G1CollectedHeap::heap()->unlink_string_and_symbol_table(&GenMarkSweep::is_alive);
 
   if (VerifyDuringGC) {
     HandleMark hm;  // handle scope
@@ -199,17 +196,19 @@ class G1PrepareCompactClosure: public HeapRegionClosure {
   G1CollectedHeap* _g1h;
   ModRefBarrierSet* _mrbs;
   CompactPoint _cp;
-  HumongousRegionSet _humongous_proxy_set;
+  HeapRegionSetCount _humongous_regions_removed;
 
   void free_humongous_region(HeapRegion* hr) {
     HeapWord* end = hr->end();
-    size_t dummy_pre_used;
     FreeRegionList dummy_free_list("Dummy Free List for G1MarkSweep");
 
     assert(hr->startsHumongous(),
            "Only the start of a humongous region should be freed.");
-    _g1h->free_humongous_region(hr, &dummy_pre_used, &dummy_free_list,
-                                &_humongous_proxy_set, false /* par */);
+
+    hr->set_containing_set(NULL);
+    _humongous_regions_removed.increment(1u, hr->capacity());
+
+    _g1h->free_humongous_region(hr, &dummy_free_list, false /* par */);
     hr->prepare_for_compaction(&_cp);
     // Also clear the part of the card table that will be unused after
     // compaction.
@@ -222,16 +221,13 @@ public:
   : _g1h(G1CollectedHeap::heap()),
     _mrbs(_g1h->g1_barrier_set()),
     _cp(NULL, cs, cs->initialize_threshold()),
-    _humongous_proxy_set("G1MarkSweep Humongous Proxy Set") { }
+    _humongous_regions_removed() { }
 
   void update_sets() {
     // We'll recalculate total used bytes and recreate the free list
     // at the end of the GC, so no point in updating those values here.
-    _g1h->update_sets_after_freeing_regions(0, /* pre_used */
-                                            NULL, /* free_list */
-                                            NULL, /* old_proxy_set */
-                                            &_humongous_proxy_set,
-                                            false /* par */);
+    HeapRegionSetCount empty_set;
+    _g1h->remove_from_old_sets(empty_set, _humongous_regions_removed);
   }
 
   bool doHeapRegion(HeapRegion* hr) {
