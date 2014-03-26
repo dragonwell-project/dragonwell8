@@ -4450,8 +4450,23 @@ static bool initializeDirectBufferSupport(JNIEnv* env, JavaThread* thread) {
 
     // Get needed field and method IDs
     directByteBufferConstructor = env->GetMethodID(directByteBufferClass, "<init>", "(JI)V");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
     directBufferAddressField    = env->GetFieldID(bufferClass, "address", "J");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
     bufferCapacityField         = env->GetFieldID(bufferClass, "capacity", "I");
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
 
     if ((directByteBufferConstructor == NULL) ||
         (directBufferAddressField    == NULL) ||
@@ -5068,6 +5083,7 @@ void TestVirtualSpaceNode_test();
 #if INCLUDE_ALL_GCS
 void TestOldFreeSpaceCalculation_test();
 void TestG1BiasedArray_test();
+void TestCodeCacheRemSet_test();
 #endif
 
 void execute_internal_vm_tests() {
@@ -5093,6 +5109,7 @@ void execute_internal_vm_tests() {
     run_unit_test(TestOldFreeSpaceCalculation_test());
     run_unit_test(TestG1BiasedArray_test());
     run_unit_test(HeapRegionRemSet::test_prt());
+    run_unit_test(TestCodeCacheRemSet_test());
 #endif
     tty->print_cr("All internal VM tests passed");
   }

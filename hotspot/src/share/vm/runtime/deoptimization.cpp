@@ -1288,7 +1288,8 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
     gather_statistics(reason, action, trap_bc);
 
     // Ensure that we can record deopt. history:
-    bool create_if_missing = ProfileTraps;
+    // Need MDO to record RTM code generation state.
+    bool create_if_missing = ProfileTraps RTM_OPT_ONLY( || UseRTMLocking );
 
     MethodData* trap_mdo =
       get_method_data(thread, trap_method, create_if_missing);
@@ -1489,6 +1490,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
       bool maybe_prior_trap = false;
       bool maybe_prior_recompile = false;
       pdata = query_update_method_data(trap_mdo, trap_bci, reason,
+                                   nm->method(),
                                    //outputs:
                                    this_trap_count,
                                    maybe_prior_trap,
@@ -1534,7 +1536,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
       }
 
       // Go back to the compiler if there are too many traps in this method.
-      if (this_trap_count >= (uint)PerMethodTrapLimit) {
+      if (this_trap_count >= per_method_trap_limit(reason)) {
         // If there are too many traps in this method, force a recompile.
         // This will allow the compiler to see the limit overflow, and
         // take corrective action, if possible.
@@ -1568,6 +1570,17 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
         if (tstate1 != tstate0)
           pdata->set_trap_state(tstate1);
       }
+
+#if INCLUDE_RTM_OPT
+      // Restart collecting RTM locking abort statistic if the method
+      // is recompiled for a reason other than RTM state change.
+      // Assume that in new recompiled code the statistic could be different,
+      // for example, due to different inlining.
+      if ((reason != Reason_rtm_state_change) && (trap_mdo != NULL) &&
+          UseRTMDeopt && (nm->rtm_state() != ProfileRTM)) {
+        trap_mdo->atomic_set_rtm_state(ProfileRTM);
+      }
+#endif
     }
 
     if (inc_recompile_count) {
@@ -1622,6 +1635,7 @@ ProfileData*
 Deoptimization::query_update_method_data(MethodData* trap_mdo,
                                          int trap_bci,
                                          Deoptimization::DeoptReason reason,
+                                         Method* compiled_method,
                                          //outputs:
                                          uint& ret_this_trap_count,
                                          bool& ret_maybe_prior_trap,
@@ -1645,9 +1659,16 @@ Deoptimization::query_update_method_data(MethodData* trap_mdo,
     // Find the profile data for this BCI.  If there isn't one,
     // try to allocate one from the MDO's set of spares.
     // This will let us detect a repeated trap at this point.
-    pdata = trap_mdo->allocate_bci_to_data(trap_bci);
+    pdata = trap_mdo->allocate_bci_to_data(trap_bci, reason_is_speculate(reason) ? compiled_method : NULL);
 
     if (pdata != NULL) {
+      if (reason_is_speculate(reason) && !pdata->is_SpeculativeTrapData()) {
+        if (LogCompilation && xtty != NULL) {
+          ttyLocker ttyl;
+          // no more room for speculative traps in this MDO
+          xtty->elem("speculative_traps_oom");
+        }
+      }
       // Query the trap state of this profile datum.
       int tstate0 = pdata->trap_state();
       if (!trap_state_has_reason(tstate0, per_bc_reason))
@@ -1685,8 +1706,10 @@ Deoptimization::update_method_data_from_interpreter(MethodData* trap_mdo, int tr
   uint ignore_this_trap_count;
   bool ignore_maybe_prior_trap;
   bool ignore_maybe_prior_recompile;
+  assert(!reason_is_speculate(reason), "reason speculate only used by compiler");
   query_update_method_data(trap_mdo, trap_bci,
                            (DeoptReason)reason,
+                           NULL,
                            ignore_this_trap_count,
                            ignore_maybe_prior_trap,
                            ignore_maybe_prior_recompile);
@@ -1814,7 +1837,9 @@ const char* Deoptimization::_trap_reason_name[Reason_LIMIT] = {
   "div0_check",
   "age",
   "predicate",
-  "loop_limit_check"
+  "loop_limit_check",
+  "speculate_class_check",
+  "rtm_state_change"
 };
 const char* Deoptimization::_trap_action_name[Action_LIMIT] = {
   // Note:  Keep this in sync. with enum DeoptAction.

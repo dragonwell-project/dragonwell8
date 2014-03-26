@@ -338,6 +338,7 @@ class GraphKit : public Phase {
   // Convert between int and long, and size_t.
   // (See macros ConvI2X, etc., in type.hpp for ConvI2X, etc.)
   Node* ConvI2L(Node* offset);
+  Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
   Node* load_object_klass(Node* object);
@@ -406,7 +407,7 @@ class GraphKit : public Phase {
   // Use the type profile to narrow an object type.
   Node* maybe_cast_profiled_receiver(Node* not_null_obj,
                                      ciKlass* require_klass,
-                                    ciKlass* spec,
+                                     ciKlass* spec,
                                      bool safe_for_replace);
 
   // Cast obj to type and emit guard unless we had too many traps here already

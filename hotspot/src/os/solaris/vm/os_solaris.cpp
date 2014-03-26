@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2232,8 +2232,8 @@ static bool check_addr0(outputStream* st) {
         st->cr();
         status = true;
       }
-      ::close(fd);
     }
+    ::close(fd);
   }
   return status;
 }
@@ -2967,7 +2967,7 @@ bool os::get_page_info(char *start, page_info* info) {
 char *os::scan_pages(char *start, char* end, page_info* page_expected, page_info* page_found) {
   const uint_t info_types[] = { MEMINFO_VLGRP, MEMINFO_VPAGESIZE };
   const size_t types = sizeof(info_types) / sizeof(info_types[0]);
-  uint64_t addrs[MAX_MEMINFO_CNT], outdata[types * MAX_MEMINFO_CNT];
+  uint64_t addrs[MAX_MEMINFO_CNT], outdata[types * MAX_MEMINFO_CNT + 1];
   uint_t validity[MAX_MEMINFO_CNT];
 
   size_t page_size = MAX2((size_t)os::vm_page_size(), page_expected->size);
@@ -3006,7 +3006,7 @@ char *os::scan_pages(char *start, char* end, page_info* page_expected, page_info
       }
     }
 
-    if (i != addrs_count) {
+    if (i < addrs_count) {
       if ((validity[i] & 2) != 0) {
         page_found->lgrp_id = outdata[types * i];
       } else {
@@ -3496,9 +3496,14 @@ int os::sleep(Thread* thread, jlong millis, bool interruptible) {
   return os_sleep(millis, interruptible);
 }
 
-int os::naked_sleep() {
-  // %% make the sleep time an integer flag. for now use 1 millisec.
-  return os_sleep(1, false);
+void os::naked_short_sleep(jlong ms) {
+  assert(ms < 1000, "Un-interruptable sleep, short time use only");
+
+  // usleep is deprecated and removed from POSIX, in favour of nanosleep, but
+  // Solaris requires -lrt for this.
+  usleep((ms * 1000));
+
+  return;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION

@@ -449,6 +449,9 @@
   diagnostic(bool, PrintPreciseBiasedLockingStatistics, false,              \
           "Print per-lock-site statistics of biased locking in JVM")        \
                                                                             \
+  diagnostic(bool, PrintPreciseRTMLockingStatistics, false,                 \
+          "Print per-lock-site statistics of rtm locking in JVM")           \
+                                                                            \
   notproduct(bool, PrintEliminateLocks, false,                              \
           "Print out when locks are eliminated")                            \
                                                                             \
@@ -647,14 +650,18 @@
   diagnostic(bool, OptimizeExpensiveOps, true,                              \
           "Find best control for expensive operations")                     \
                                                                             \
-  experimental(bool, UseMathExactIntrinsics, false,                         \
+  product(bool, UseMathExactIntrinsics, true,                               \
           "Enables intrinsification of various java.lang.Math functions")   \
                                                                             \
   experimental(bool, ReplaceInParentMaps, false,                            \
           "Propagate type improvements in callers of inlinee if possible")  \
                                                                             \
-  experimental(bool, UseTypeSpeculation, false,                             \
+  product(bool, UseTypeSpeculation, true,                                   \
           "Speculatively propagate types from profiles")                    \
+                                                                            \
+  diagnostic(bool, UseInlineDepthForSpeculativeTypes, true,                 \
+          "Carry inline depth of profile point with speculative type "      \
+          "and give priority to profiling from lower inline depth")         \
                                                                             \
   product_pd(bool, TrapBasedRangeChecks,                                    \
           "Generate code for range checks that uses a cmp and trap "        \
