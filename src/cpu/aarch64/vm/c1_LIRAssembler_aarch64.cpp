@@ -1378,12 +1378,14 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       // Object is null; update MDO and exit
       Register mdo  = klass_RInfo;
       __ mov_metadata(mdo, md->constant_encoding());
-      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
+      Address data_addr
+	= __ form_address(rscratch2, mdo,
+			  md->byte_offset_of_slot(data, DataLayout::DataLayout::header_offset()),
+			  LogBytesPerWord);
       int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ lea(rscratch2, data_addr);
-      __ ldrw(rscratch1, Address(rscratch2));
-      __ orrw(rscratch1, rscratch1, header_bits);
-      __ strw(rscratch1, Address(rscratch2));
+      __ ldr(rscratch1, data_addr);
+      __ orr(rscratch1, rscratch1, header_bits);
+      __ str(rscratch1, data_addr);
       __ b(*obj_is_null);
       __ bind(not_null);
     } else {
@@ -1455,7 +1457,10 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
 
     __ bind(profile_cast_failure);
     __ mov_metadata(mdo, md->constant_encoding());
-    Address counter_addr(mdo, md->byte_offset_of_slot(data, CounterData::count_offset()));
+    Address counter_addr
+      = __ form_address(rscratch2, mdo,
+			md->byte_offset_of_slot(data, CounterData::count_offset()),
+			LogBytesPerWord);
     __ ldr(rscratch1, counter_addr);
     __ sub(rscratch1, rscratch1, DataLayout::counter_increment);
     __ str(rscratch1, counter_addr);
@@ -2613,7 +2618,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
 	  __ lea(rscratch2, recv_addr);
           __ str(rscratch1, Address(rscratch2));
           Address data_addr(mdo, md->byte_offset_of_slot(data, VirtualCallData::receiver_count_offset(i)));
-	  __ addptr(counter_addr, DataLayout::counter_increment);
+	  __ addptr(data_addr, DataLayout::counter_increment);
           return;
         }
       }
