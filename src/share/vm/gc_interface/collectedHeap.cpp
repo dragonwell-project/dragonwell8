@@ -97,7 +97,13 @@ MetaspaceSummary CollectedHeap::create_metaspace_summary() {
       MetaspaceAux::allocated_used_bytes(Metaspace::ClassType),
       MetaspaceAux::reserved_bytes(Metaspace::ClassType));
 
-  return MetaspaceSummary(meta_space, data_space, class_space);
+  const MetaspaceChunkFreeListSummary& ms_chunk_free_list_summary =
+    MetaspaceAux::chunk_free_list_summary(Metaspace::NonClassType);
+  const MetaspaceChunkFreeListSummary& class_chunk_free_list_summary =
+    MetaspaceAux::chunk_free_list_summary(Metaspace::ClassType);
+
+  return MetaspaceSummary(MetaspaceGC::capacity_until_GC(), meta_space, data_space, class_space,
+                          ms_chunk_free_list_summary, class_chunk_free_list_summary);
 }
 
 void CollectedHeap::print_heap_before_gc() {
@@ -128,8 +134,10 @@ void CollectedHeap::unregister_nmethod(nmethod* nm) {
 
 void CollectedHeap::trace_heap(GCWhen::Type when, GCTracer* gc_tracer) {
   const GCHeapSummary& heap_summary = create_heap_summary();
+  gc_tracer->report_gc_heap_summary(when, heap_summary);
+
   const MetaspaceSummary& metaspace_summary = create_metaspace_summary();
-  gc_tracer->report_gc_heap_summary(when, heap_summary, metaspace_summary);
+  gc_tracer->report_metaspace_summary(when, metaspace_summary);
 }
 
 void CollectedHeap::trace_heap_before_gc(GCTracer* gc_tracer) {
@@ -318,6 +326,21 @@ void CollectedHeap::flush_deferred_store_barrier(JavaThread* thread) {
     thread->set_deferred_card_mark(MemRegion());
   }
   assert(thread->deferred_card_mark().is_empty(), "invariant");
+}
+
+size_t CollectedHeap::max_tlab_size() const {
+  // TLABs can't be bigger than we can fill with a int[Integer.MAX_VALUE].
+  // This restriction could be removed by enabling filling with multiple arrays.
+  // If we compute that the reasonable way as
+  //    header_size + ((sizeof(jint) * max_jint) / HeapWordSize)
+  // we'll overflow on the multiply, so we do the divide first.
+  // We actually lose a little by dividing first,
+  // but that just makes the TLAB  somewhat smaller than the biggest array,
+  // which is fine, since we'll be able to fill that.
+  size_t max_int_size = typeArrayOopDesc::header_size(T_INT) +
+              sizeof(jint) *
+              ((juint) max_jint / (size_t) HeapWordSize);
+  return align_size_down(max_int_size, MinObjAlignment);
 }
 
 // Helper for ReduceInitialCardMarks. For performance,

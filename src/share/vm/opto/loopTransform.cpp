@@ -617,6 +617,15 @@ bool IdealLoopTree::policy_maximally_unroll( PhaseIdealLoop *phase ) const {
       case Op_AryEq: {
         return false;
       }
+#if INCLUDE_RTM_OPT
+      case Op_FastLock:
+      case Op_FastUnlock: {
+        // Don't unroll RTM locking code because it is large.
+        if (UseRTMLocking) {
+          return false;
+        }
+      }
+#endif
     } // switch
   }
 
@@ -713,10 +722,6 @@ bool IdealLoopTree::policy_unroll( PhaseIdealLoop *phase ) const {
       case Op_ModL: body_size += 30; break;
       case Op_DivL: body_size += 30; break;
       case Op_MulL: body_size += 10; break;
-      case Op_FlagsProj:
-        // Can't handle unrolling of loops containing
-        // nodes that generate a FlagsProj at the moment
-        return false;
       case Op_StrComp:
       case Op_StrEquals:
       case Op_StrIndexOf:
@@ -726,6 +731,15 @@ bool IdealLoopTree::policy_unroll( PhaseIdealLoop *phase ) const {
         // String intrinsics are large and have loops.
         return false;
       }
+#if INCLUDE_RTM_OPT
+      case Op_FastLock:
+      case Op_FastUnlock: {
+        // Don't unroll RTM locking code because it is large.
+        if (UseRTMLocking) {
+          return false;
+        }
+      }
+#endif
     } // switch
   }
 
@@ -780,10 +794,6 @@ bool IdealLoopTree::policy_range_check( PhaseIdealLoop *phase ) const {
         continue; // not RC
 
       Node *cmp = bol->in(1);
-      if (cmp->is_FlagsProj()) {
-        continue;
-      }
-
       Node *rc_exp = cmp->in(1);
       Node *limit = cmp->in(2);
 

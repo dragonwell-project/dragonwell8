@@ -492,6 +492,10 @@ size_t ParallelScavengeHeap::tlab_capacity(Thread* thr) const {
   return young_gen()->eden_space()->tlab_capacity(thr);
 }
 
+size_t ParallelScavengeHeap::tlab_used(Thread* thr) const {
+  return young_gen()->eden_space()->tlab_used(thr);
+}
+
 size_t ParallelScavengeHeap::unsafe_max_tlab_alloc(Thread* thr) const {
   return young_gen()->eden_space()->unsafe_max_tlab_alloc(thr);
 }
@@ -665,8 +669,10 @@ void ParallelScavengeHeap::print_heap_change(size_t prev_used) {
 
 void ParallelScavengeHeap::trace_heap(GCWhen::Type when, GCTracer* gc_tracer) {
   const PSHeapSummary& heap_summary = create_ps_heap_summary();
+  gc_tracer->report_gc_heap_summary(when, heap_summary);
+
   const MetaspaceSummary& metaspace_summary = create_metaspace_summary();
-  gc_tracer->report_gc_heap_summary(when, heap_summary, metaspace_summary);
+  gc_tracer->report_metaspace_summary(when, metaspace_summary);
 }
 
 ParallelScavengeHeap* ParallelScavengeHeap::heap() {
