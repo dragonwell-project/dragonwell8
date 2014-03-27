@@ -2042,8 +2042,8 @@ void TemplateTable::fast_binaryswitch() {
   __ ldrw(j, Address(j, BytesPerInt));
   __ profile_switch_case(i, key, array);
   __ rev32(j, j);
-  __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::uxtw(0)));
-  __ lea(rbcp, Address(rbcp, j, Address::uxtw(0)));
+  __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::sxtw(0)));
+  __ lea(rbcp, Address(rbcp, j, Address::sxtw(0)));
   __ dispatch_only(vtos);
 
   // default case -> j = default offset
