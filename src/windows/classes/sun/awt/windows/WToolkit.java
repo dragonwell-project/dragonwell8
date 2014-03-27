@@ -42,6 +42,7 @@ import sun.awt.SunToolkit;
 import sun.misc.ThreadGroupUtils;
 import sun.awt.Win32GraphicsDevice;
 import sun.awt.Win32GraphicsEnvironment;
+import sun.awt.datatransfer.DataTransferer;
 import sun.java2d.d3d.D3DRenderQueue;
 import sun.java2d.opengl.OGLRenderQueue;
 
@@ -211,8 +212,6 @@ public class WToolkit extends SunToolkit implements Runnable {
      */
     public native void embeddedEventLoopIdleProcessing();
 
-    public static final String DATA_TRANSFERER_CLASS_NAME = "sun.awt.windows.WDataTransferer";
-
     static class ToolkitDisposer implements sun.java2d.DisposerRecord {
         public void dispose() {
             WToolkit.postDispose();
@@ -258,8 +257,6 @@ public class WToolkit extends SunToolkit implements Runnable {
         } catch (InterruptedException x) {
             // swallow the exception
         }
-
-        SunToolkit.setDataTransfererClassName(DATA_TRANSFERER_CLASS_NAME);
 
         // Enabled "live resizing" by default.  It remains controlled
         // by the native system though.
@@ -507,6 +504,11 @@ public class WToolkit extends SunToolkit implements Runnable {
 
     public boolean isTraySupported() {
         return true;
+    }
+
+    @Override
+    public DataTransferer getDataTransferer() {
+        return WDataTransferer.getInstanceImpl();
     }
 
     public KeyboardFocusManagerPeer getKeyboardFocusManagerPeer()

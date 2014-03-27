@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ import java.util.concurrent.Callable;
 import java.net.MalformedURLException;
 
 import sun.awt.*;
+import sun.awt.datatransfer.DataTransferer;
 import sun.lwawt.*;
 import sun.lwawt.LWWindowPeer.PeerType;
 import sun.security.action.GetBooleanAction;
@@ -112,8 +113,6 @@ public final class LWCToolkit extends LWToolkit {
     private static final boolean inAWT;
 
     public LWCToolkit() {
-        SunToolkit.setDataTransfererClassName("sun.lwawt.macosx.CDataTransferer");
-
         areExtraMouseButtonsEnabled = Boolean.parseBoolean(System.getProperty("sun.awt.enableExtraMouseButtons", "true"));
         //set system property if not yet assigned
         System.setProperty("sun.awt.enableExtraMouseButtons", ""+areExtraMouseButtonsEnabled);
@@ -159,25 +158,14 @@ public final class LWCToolkit extends LWToolkit {
         return new AppleSpecificColor(color);
     }
 
+    // This is only called from native code.
     static void systemColorsChanged() {
-        // This is only called from native code.
-        EventQueue.invokeLater(new Runnable() {
-            public void run() {
-                AccessController.doPrivileged (new PrivilegedAction<Object>() {
-                    public Object run() {
-                        try {
-                            final Method updateColorsMethod = SystemColor.class.getDeclaredMethod("updateSystemColors", new Class[0]);
-                            updateColorsMethod.setAccessible(true);
-                            updateColorsMethod.invoke(null, new Object[0]);
-                        } catch (final Throwable e) {
-                            e.printStackTrace();
-                            // swallow this if something goes horribly wrong
-                        }
-                        return null;
-                    }
-                });
-            }
-           });
+        EventQueue.invokeLater(() -> {
+            AccessController.doPrivileged ((PrivilegedAction<Object>) () -> {
+                AWTAccessor.getSystemColorAccessor().updateSystemColors();
+                return null;
+            });
+        });
     }
 
     public static LWCToolkit getLWCToolkit() {
@@ -439,6 +427,11 @@ public final class LWCToolkit extends LWToolkit {
     @Override
     public boolean isTraySupported() {
         return true;
+    }
+
+    @Override
+    public DataTransferer getDataTransferer() {
+        return CDataTransferer.getInstanceImpl();
     }
 
     @Override
@@ -736,7 +729,7 @@ public final class LWCToolkit extends LWToolkit {
     /*
      * Returns true if the application (one of its windows) owns keyboard focus.
      */
-    public native boolean isApplicationActive();
+    native boolean isApplicationActive();
 
     /************************
      * Native methods section
