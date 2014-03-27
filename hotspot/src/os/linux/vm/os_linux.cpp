@@ -109,6 +109,8 @@
 
 #define MAX_PATH    (2 * K)
 
+#define MAX_SECS 100000000
+
 // for timer info max values which include all bits
 #define ALL_64_BITS CONST64(0xFFFFFFFFFFFFFFFF)
 
@@ -2104,6 +2106,9 @@ void* os::dll_lookup(void* handle, const char* name) {
   return res;
 }
 
+void* os::get_default_process_handle() {
+  return (void*)::dlopen(NULL, RTLD_LAZY);
+}
 
 static bool _print_ascii_file(const char* filename, outputStream* st) {
   int fd = ::open(filename, O_RDONLY);
@@ -2468,7 +2473,6 @@ class Semaphore : public StackObj {
     sem_t _semaphore;
 };
 
-
 Semaphore::Semaphore() {
   sem_init(&_semaphore, 0, 0);
 }
@@ -2490,8 +2494,22 @@ bool Semaphore::trywait() {
 }
 
 bool Semaphore::timedwait(unsigned int sec, int nsec) {
+
   struct timespec ts;
-  unpackTime(&ts, false, (sec * NANOSECS_PER_SEC) + nsec);
+  // Semaphore's are always associated with CLOCK_REALTIME
+  os::Linux::clock_gettime(CLOCK_REALTIME, &ts);
+  // see unpackTime for discussion on overflow checking
+  if (sec >= MAX_SECS) {
+    ts.tv_sec += MAX_SECS;
+    ts.tv_nsec = 0;
+  } else {
+    ts.tv_sec += sec;
+    ts.tv_nsec += nsec;
+    if (ts.tv_nsec >= NANOSECS_PER_SEC) {
+      ts.tv_nsec -= NANOSECS_PER_SEC;
+      ++ts.tv_sec; // note: this must be <= max_secs
+    }
+  }
 
   while (1) {
     int result = sem_timedwait(&_semaphore, &ts);
@@ -3868,9 +3886,33 @@ int os::sleep(Thread* thread, jlong millis, bool interruptible) {
   }
 }
 
-int os::naked_sleep() {
-  // %% make the sleep time an integer flag. for now use 1 millisec.
-  return os::sleep(Thread::current(), 1, false);
+//
+// Short sleep, direct OS call.
+//
+// Note: certain versions of Linux CFS scheduler (since 2.6.23) do not guarantee
+// sched_yield(2) will actually give up the CPU:
+//
+//   * Alone on this pariticular CPU, keeps running.
+//   * Before the introduction of "skip_buddy" with "compat_yield" disabled
+//     (pre 2.6.39).
+//
+// So calling this with 0 is an alternative.
+//
+void os::naked_short_sleep(jlong ms) {
+  struct timespec req;
+
+  assert(ms < 1000, "Un-interruptable sleep, short time use only");
+  req.tv_sec = 0;
+  if (ms > 0) {
+    req.tv_nsec = (ms % 1000) * 1000000;
+  }
+  else {
+    req.tv_nsec = 1;
+  }
+
+  nanosleep(&req, NULL);
+
+  return;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
@@ -5781,7 +5823,6 @@ void os::PlatformEvent::unpark() {
  * is no need to track notifications.
  */
 
-#define MAX_SECS 100000000
 /*
  * This code is common to linux and solaris and will be moved to a
  * common place in dolphin.

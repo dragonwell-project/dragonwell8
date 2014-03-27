@@ -414,9 +414,10 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00:04
 # US Pacific time, represented by Los Angeles
 #
 # California, northern Idaho (Benewah, Bonner, Boundary, Clearwater,
-# Idaho, Kootenai, Latah, Lewis, Nez Perce, and Shoshone counties,
-# and the northern three-quarters of Idaho county),
-# most of Nevada, most of Oregon, and Washington
+# Kootenai, Latah, Lewis, Nez Perce, and Shoshone counties, Idaho county
+# north of the Salmon River, and the towns of Burgdorf and Warren),
+# Nevada (except West Wendover), Oregon (except the northern 3/4 of
+# Malheur county), and Washington
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	CA	1948	only	-	Mar	14	2:00	1:00	D
@@ -2688,6 +2689,11 @@ Zone America/Costa_Rica	-5:36:13 -	LMT	1890		# San Jose
 # to DST--and one more hour on 1999-04-04--when the announcers will have
 # returned to Baltimore, which switches on that date.)
 
+# From Steffen Thorsen (2013-11-11):
+# DST start in Cuba in 2004 ... does not follow the same rules as the
+# years before.  The correct date should be Sunday 2004-03-28 00:00 ...
+# https://web.archive.org/web/20040402060750/http://www.granma.cu/espanol/2004/marzo/sab27/reloj.html
+
 # From Evert van der Veer via Steffen Thorsen (2004-10-28):
 # Cuba is not going back to standard time this year.
 # From Paul Eggert (2006-03-22):
@@ -2877,7 +2883,8 @@ Rule	Cuba	1996	only	-	Oct	 6	0:00s	0	S
 Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
 Rule	Cuba	1998	1999	-	Mar	lastSun	0:00s	1:00	D
 Rule	Cuba	1998	2003	-	Oct	lastSun	0:00s	0	S
-Rule	Cuba	2000	2004	-	Apr	Sun>=1	0:00s	1:00	D
+Rule	Cuba	2000	2003	-	Apr	Sun>=1	0:00s	1:00	D
+Rule	Cuba	2004	only	-	Mar	lastSun	0:00s	1:00	D
 Rule	Cuba	2006	2010	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2007	only	-	Mar	Sun>=8	0:00s	1:00	D
 Rule	Cuba	2008	only	-	Mar	Sun>=15	0:00s	1:00	D
