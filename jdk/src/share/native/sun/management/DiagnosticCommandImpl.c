@@ -23,18 +23,19 @@
  * questions.
  */
 
+#include <stdlib.h>
 #include <jni.h>
 #include "management.h"
 #include "sun_management_DiagnosticCommandImpl.h"
 
 JNIEXPORT void JNICALL Java_sun_management_DiagnosticCommandImpl_setNotificationEnabled
 (JNIEnv *env, jobject dummy, jboolean enabled) {
-    if(jmm_version > JMM_VERSION_1_2_2) {
-        jmm_interface->SetDiagnosticFrameworkNotificationEnabled(env, enabled);
-    } else {
+    if (jmm_version <= JMM_VERSION_1_2_2) {
         JNU_ThrowByName(env, "java/lang/UnsupportedOperationException",
                         "JMX interface to diagnostic framework notifications is not supported by this VM");
+        return;
     }
+    jmm_interface->SetDiagnosticFrameworkNotificationEnabled(env, enabled);
 }
 
 JNIEXPORT jobjectArray JNICALL
@@ -121,6 +122,7 @@ Java_sun_management_DiagnosticCommandImpl_getDiagnosticCommandInfo
                                        sizeof(dcmdInfo));
   if (dcmd_info_array == NULL) {
       JNU_ThrowOutOfMemoryError(env, NULL);
+      return NULL;
   }
   jmm_interface->GetDiagnosticCommandInfo(env, commands, dcmd_info_array);
   dcmdInfoCls = (*env)->FindClass(env,
@@ -129,6 +131,7 @@ Java_sun_management_DiagnosticCommandImpl_getDiagnosticCommandInfo
   if (result == NULL) {
       free(dcmd_info_array);
       JNU_ThrowOutOfMemoryError(env, 0);
+      return NULL;
   }
   for (i=0; i<num_commands; i++) {
       args = getDiagnosticCommandArgumentInfoArray(env,
@@ -137,6 +140,7 @@ Java_sun_management_DiagnosticCommandImpl_getDiagnosticCommandInfo
       if (args == NULL) {
           free(dcmd_info_array);
           JNU_ThrowOutOfMemoryError(env, 0);
+          return NULL;
       }
       obj = JNU_NewObjectByName(env,
                                 "sun/management/DiagnosticCommandInfo",
@@ -152,6 +156,7 @@ Java_sun_management_DiagnosticCommandImpl_getDiagnosticCommandInfo
       if (obj == NULL) {
           free(dcmd_info_array);
           JNU_ThrowOutOfMemoryError(env, 0);
+          return NULL;
       }
       (*env)->SetObjectArrayElement(env, result, i, obj);
   }
