@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,10 +115,6 @@ public class ClassReader {
    /** Lint option: warn about classfile issues
      */
     boolean lintClassfile;
-
-    /** Switch: allow default methods
-     */
-    boolean allowDefaultMethods;
 
     /** Switch: preserve parameter names from the variable table.
      */
@@ -307,7 +303,6 @@ public class ClassReader {
         allowVarargs     = source.allowVarargs();
         allowAnnotations = source.allowAnnotations();
         allowSimplifiedVarargs = source.allowSimplifiedVarargs();
-        allowDefaultMethods = source.allowDefaultMethods();
 
         saveParameterNames = options.isSet("save-parameter-names");
         cacheCompletionFailure = options.isUnset("dev");

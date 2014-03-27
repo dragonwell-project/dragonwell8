@@ -2437,6 +2437,12 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
     }
   }
 
+  if ((exception_code == EXCEPTION_ACCESS_VIOLATION) &&
+      VM_Version::is_cpuinfo_segv_addr(pc)) {
+    // Verify that OS save/restore AVX registers.
+    return Handle_Exception(exceptionInfo, VM_Version::cpuinfo_cont_addr());
+  }
+
   if (t != NULL && t->is_Java_thread()) {
     JavaThread* thread = (JavaThread*) t;
     bool in_java = thread->thread_state() == _thread_in_Java;
@@ -3496,6 +3502,16 @@ int os::sleep(Thread* thread, jlong ms, bool interruptable) {
   return result;
 }
 
+//
+// Short sleep, direct OS call.
+//
+// ms = 0, means allow others (if any) to run.
+//
+void os::naked_short_sleep(jlong ms) {
+  assert(ms < 1000, "Un-interruptable sleep, short time use only");
+  Sleep(ms);
+}
+
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
 void os::infinite_sleep() {
   while (true) {    // sleep forever ...
@@ -3623,13 +3639,14 @@ bool os::is_interrupted(Thread* thread, bool clear_interrupted) {
          "possibility of dangling Thread pointer");
 
   OSThread* osthread = thread->osthread();
-  bool interrupted = osthread->interrupted();
   // There is no synchronization between the setting of the interrupt
   // and it being cleared here. It is critical - see 6535709 - that
   // we only clear the interrupt state, and reset the interrupt event,
   // if we are going to report that we were indeed interrupted - else
   // an interrupt can be "lost", leading to spurious wakeups or lost wakeups
-  // depending on the timing
+  // depending on the timing. By checking thread interrupt event to see
+  // if the thread gets real interrupt thus prevent spurious wakeup.
+  bool interrupted = osthread->interrupted() && (WaitForSingleObject(osthread->interrupt_event(), 0) == WAIT_OBJECT_0);
   if (interrupted && clear_interrupted) {
     osthread->set_interrupted(false);
     ResetEvent(osthread->interrupt_event());

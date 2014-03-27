@@ -951,7 +951,7 @@ const Type *PhiNode::Value( PhaseTransform *phase ) const {
         if (is_intf != ti_is_intf)
           { t = _type; break; }
       }
-      t = t->meet(ti);
+      t = t->meet_speculative(ti);
     }
   }
 
@@ -968,11 +968,11 @@ const Type *PhiNode::Value( PhaseTransform *phase ) const {
   //
   // It is not possible to see Type::BOTTOM values as phi inputs,
   // because the ciTypeFlow pre-pass produces verifier-quality types.
-  const Type* ft = t->filter(_type);  // Worst case type
+  const Type* ft = t->filter_speculative(_type);  // Worst case type
 
 #ifdef ASSERT
   // The following logic has been moved into TypeOopPtr::filter.
-  const Type* jt = t->join(_type);
+  const Type* jt = t->join_speculative(_type);
   if( jt->empty() ) {           // Emptied out???
 
     // Check for evil case of 't' being a class and '_type' expecting an
@@ -1018,7 +1018,7 @@ const Type *PhiNode::Value( PhaseTransform *phase ) const {
           !jtkp->klass_is_exact() && // Keep exact interface klass (6894807)
           ttkp->is_loaded() && !ttkp->klass()->is_interface() ) {
         assert(ft == ttkp->cast_to_ptr_type(jtkp->ptr()) ||
-               ft->isa_narrowoop() && ft->make_ptr() == ttkp->cast_to_ptr_type(jtkp->ptr()), "");
+               ft->isa_narrowklass() && ft->make_ptr() == ttkp->cast_to_ptr_type(jtkp->ptr()), "");
         jt = ft;
       }
     }
@@ -1757,7 +1757,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           break;
         }
         // Accumulate type for resulting Phi
-        type = type->meet(in(i)->in(AddPNode::Base)->bottom_type());
+        type = type->meet_speculative(in(i)->in(AddPNode::Base)->bottom_type());
       }
       Node* base = NULL;
       if (doit) {
