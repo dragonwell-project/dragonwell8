@@ -28,7 +28,6 @@ package sun.lwawt.macosx;
 import sun.lwawt.LWToolkit;
 import sun.lwawt.LWWindowPeer;
 import sun.lwawt.macosx.CocoaConstants;
-import sun.lwawt.macosx.event.NSEvent;
 
 import sun.awt.EmbeddedFrame;
 
