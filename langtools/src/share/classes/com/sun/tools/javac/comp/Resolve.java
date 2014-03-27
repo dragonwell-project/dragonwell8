@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,10 +92,9 @@ public class Resolve {
     TreeInfo treeinfo;
     Types types;
     JCDiagnostic.Factory diags;
-    public final boolean boxingEnabled; // = source.allowBoxing();
-    public final boolean varargsEnabled; // = source.allowVarargs();
+    public final boolean boxingEnabled;
+    public final boolean varargsEnabled;
     public final boolean allowMethodHandles;
-    public final boolean allowDefaultMethods;
     public final boolean allowStructuralMostSpecific;
     private final boolean debugResolve;
     private final boolean compactMethodDiags;
@@ -137,7 +136,6 @@ public class Resolve {
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
         Target target = Target.instance(context);
         allowMethodHandles = target.hasMethodHandles();
-        allowDefaultMethods = source.allowDefaultMethods();
         allowStructuralMostSpecific = source.allowStructuralMostSpecific();
         polymorphicSignatureScope = new Scope(syms.noSymbol);
 
@@ -1681,7 +1679,6 @@ public class Resolve {
                 bestSoFar : methodNotFound;
 
         for (InterfaceLookupPhase iphase2 : InterfaceLookupPhase.values()) {
-            if (iphase2 == InterfaceLookupPhase.DEFAULT_OK && !allowDefaultMethods) break;
             //keep searching for abstract methods
             for (Type itype : itypes[iphase2.ordinal()]) {
                 if (!itype.isInterface()) continue; //skip j.l.Object (included by Types.closure())
@@ -1714,10 +1711,8 @@ public class Resolve {
                 //from superinterfaces)
                 if ((s.flags() & (ABSTRACT | INTERFACE | ENUM)) != 0) {
                     return this;
-                } else if (rs.allowDefaultMethods) {
-                    return DEFAULT_OK;
                 } else {
-                    return null;
+                    return DEFAULT_OK;
                 }
             }
         },
@@ -3341,9 +3336,9 @@ public class Resolve {
             if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
             env1 = env1.outer;
         }
-        if (allowDefaultMethods && c.isInterface() &&
-                name == names._super && !isStatic(env) &&
-                types.isDirectSuperInterface(c, env.enclClass.sym)) {
+        if (c.isInterface() &&
+            name == names._super && !isStatic(env) &&
+            types.isDirectSuperInterface(c, env.enclClass.sym)) {
             //this might be a default super call if one of the superinterfaces is 'c'
             for (Type t : pruneInterfaces(env.enclClass.type)) {
                 if (t.tsym == c) {

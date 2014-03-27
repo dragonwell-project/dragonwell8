@@ -158,7 +158,7 @@ public:
   // Fills in the unallocated portion of the buffer with a garbage object.
   // If "end_of_gc" is TRUE, is after the last use in the GC.  IF "retain"
   // is true, attempt to re-use the unused portion in the next GC.
-  virtual void retire(bool end_of_gc, bool retain);
+  void retire(bool end_of_gc, bool retain);
 
   void print() PRODUCT_RETURN;
 };
@@ -181,16 +181,7 @@ class PLABStats VALUE_OBJ_CLASS_SPEC {
     _used(0),
     _desired_plab_sz(desired_plab_sz_),
     _filter(wt)
-  {
-    size_t min_sz = min_size();
-    size_t max_sz = max_size();
-    size_t aligned_min_sz = align_object_size(min_sz);
-    size_t aligned_max_sz = align_object_size(max_sz);
-    assert(min_sz <= aligned_min_sz && max_sz >= aligned_max_sz &&
-           min_sz <= max_sz,
-           "PLAB clipping computation in adjust_desired_plab_sz()"
-           " may be incorrect");
-  }
+  { }
 
   static const size_t min_size() {
     return ParGCAllocBuffer::min_size();
