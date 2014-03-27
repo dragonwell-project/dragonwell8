@@ -120,7 +120,8 @@ public:
     arg_info_data_tag,
     call_type_data_tag,
     virtual_call_type_data_tag,
-    parameters_type_data_tag
+    parameters_type_data_tag,
+    speculative_trap_data_tag
   };
 
   enum {
@@ -188,9 +189,6 @@ public:
 
   void set_header(intptr_t value) {
     _header._bits = value;
-  }
-  void release_set_header(intptr_t value) {
-    OrderAccess::release_store_ptr(&_header._bits, value);
   }
   intptr_t header() {
     return _header._bits;
@@ -266,6 +264,7 @@ class   ArrayData;
 class     MultiBranchData;
 class     ArgInfoData;
 class     ParametersTypeData;
+class   SpeculativeTrapData;
 
 // ProfileData
 //
@@ -285,6 +284,8 @@ private:
 
   // This is a pointer to a section of profiling data.
   DataLayout* _data;
+
+  char* print_data_on_helper(const MethodData* md) const;
 
 protected:
   DataLayout* data() { return _data; }
@@ -400,6 +401,7 @@ public:
   virtual bool is_CallTypeData()    const { return false; }
   virtual bool is_VirtualCallTypeData()const { return false; }
   virtual bool is_ParametersTypeData() const { return false; }
+  virtual bool is_SpeculativeTrapData()const { return false; }
 
 
   BitData* as_BitData() const {
@@ -454,6 +456,10 @@ public:
     assert(is_ParametersTypeData(), "wrong type");
     return is_ParametersTypeData() ? (ParametersTypeData*)this : NULL;
   }
+  SpeculativeTrapData* as_SpeculativeTrapData() const {
+    assert(is_SpeculativeTrapData(), "wrong type");
+    return is_SpeculativeTrapData() ? (SpeculativeTrapData*)this : NULL;
+  }
 
 
   // Subclass specific initialization
@@ -469,12 +475,14 @@ public:
   // translation here, and the required translators are in the ci subclasses.
   virtual void translate_from(const ProfileData* data) {}
 
-  virtual void print_data_on(outputStream* st) const {
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const {
     ShouldNotReachHere();
   }
 
+  void print_data_on(outputStream* st, const MethodData* md) const;
+
 #ifndef PRODUCT
-  void print_shared(outputStream* st, const char* name) const;
+  void print_shared(outputStream* st, const char* name, const char* extra) const;
   void tab(outputStream* st, bool first = false) const;
 #endif
 };
@@ -522,7 +530,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -566,7 +574,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -639,7 +647,7 @@ public:
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1050,7 +1058,7 @@ public:
   }
 
 #ifndef PRODUCT
-  virtual void print_data_on(outputStream* st) const;
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1158,7 +1166,7 @@ public:
 
 #ifndef PRODUCT
   void print_receiver_data_on(outputStream* st) const;
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1191,7 +1199,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1317,7 +1325,7 @@ public:
   }
 
 #ifndef PRODUCT
-  virtual void print_data_on(outputStream* st) const;
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1416,7 +1424,7 @@ public:
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1480,7 +1488,7 @@ public:
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1637,7 +1645,7 @@ public:
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1664,7 +1672,7 @@ public:
   }
 
 #ifndef PRODUCT
-  void print_data_on(outputStream* st) const;
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 };
 
@@ -1725,7 +1733,7 @@ public:
   }
 
 #ifndef PRODUCT
-  virtual void print_data_on(outputStream* st) const;
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
 
   static ByteSize stack_slot_offset(int i) {
@@ -1735,6 +1743,54 @@ public:
   static ByteSize type_offset(int i) {
     return cell_offset(type_local_offset(i));
   }
+};
+
+// SpeculativeTrapData
+//
+// A SpeculativeTrapData is used to record traps due to type
+// speculation. It records the root of the compilation: that type
+// speculation is wrong in the context of one compilation (for
+// method1) doesn't mean it's wrong in the context of another one (for
+// method2). Type speculation could have more/different data in the
+// context of the compilation of method2 and it's worthwhile to try an
+// optimization that failed for compilation of method1 in the context
+// of compilation of method2.
+// Space for SpeculativeTrapData entries is allocated from the extra
+// data space in the MDO. If we run out of space, the trap data for
+// the ProfileData at that bci is updated.
+class SpeculativeTrapData : public ProfileData {
+protected:
+  enum {
+    method_offset,
+    speculative_trap_cell_count
+  };
+public:
+  SpeculativeTrapData(DataLayout* layout) : ProfileData(layout) {
+    assert(layout->tag() == DataLayout::speculative_trap_data_tag, "wrong type");
+  }
+
+  virtual bool is_SpeculativeTrapData() const { return true; }
+
+  static int static_cell_count() {
+    return speculative_trap_cell_count;
+  }
+
+  virtual int cell_count() const {
+    return static_cell_count();
+  }
+
+  // Direct accessor
+  Method* method() const {
+    return (Method*)intptr_at(method_offset);
+  }
+
+  void set_method(Method* m) {
+    set_intptr_at(method_offset, (intptr_t)m);
+  }
+
+#ifndef PRODUCT
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
+#endif
 };
 
 // MethodData*
@@ -1794,16 +1850,18 @@ private:
   // Cached hint for bci_to_dp and bci_to_data
   int _hint_di;
 
+  Mutex _extra_data_lock;
+
   MethodData(methodHandle method, int size, TRAPS);
 public:
   static MethodData* allocate(ClassLoaderData* loader_data, methodHandle method, TRAPS);
-  MethodData() {}; // For ciMethodData
+  MethodData() : _extra_data_lock(Monitor::leaf, "MDO extra data lock") {}; // For ciMethodData
 
   bool is_methodData() const volatile { return true; }
 
   // Whole-method sticky bits and flags
   enum {
-    _trap_hist_limit    = 17,   // decoupled from Deoptimization::Reason_LIMIT
+    _trap_hist_limit    = 18,   // decoupled from Deoptimization::Reason_LIMIT
     _trap_hist_mask     = max_jubyte,
     _extra_data_count   = 4     // extra DataLayout headers, for trap history
   }; // Public flag values
@@ -1858,6 +1916,7 @@ private:
   // Helper for size computation
   static int compute_data_size(BytecodeStream* stream);
   static int bytecode_cell_count(Bytecodes::Code code);
+  static bool is_speculative_trap_bytecode(Bytecodes::Code code);
   enum { no_profile_data = -1, variable_cell_count = -2 };
 
   // Helper for initialization
@@ -1901,8 +1960,9 @@ private:
   // What is the index of the first data entry?
   int first_di() const { return 0; }
 
+  ProfileData* bci_to_extra_data_helper(int bci, Method* m, DataLayout*& dp, bool concurrent);
   // Find or create an extra ProfileData:
-  ProfileData* bci_to_extra_data(int bci, bool create_if_missing);
+  ProfileData* bci_to_extra_data(int bci, Method* m, bool create_if_missing);
 
   // return the argument info cell
   ArgInfoData *arg_info();
@@ -1925,6 +1985,10 @@ private:
   static bool profile_parameters_jsr292_only();
   static bool profile_all_parameters();
 
+  void clean_extra_data(BoolObjectClosure* is_alive);
+  void clean_extra_data_helper(DataLayout* dp, int shift, bool reset = false);
+  void verify_extra_data_clean(BoolObjectClosure* is_alive);
+
 public:
   static int header_size() {
     return sizeof(MethodData)/wordSize;
@@ -1933,7 +1997,7 @@ public:
   // Compute the size of a MethodData* before it is created.
   static int compute_allocation_size_in_bytes(methodHandle method);
   static int compute_allocation_size_in_words(methodHandle method);
-  static int compute_extra_data_count(int data_size, int empty_bc_count);
+  static int compute_extra_data_count(int data_size, int empty_bc_count, bool needs_speculative_traps);
 
   // Determine if a given bytecode can have profile information.
   static bool bytecode_has_profile(Bytecodes::Code code) {
@@ -2074,9 +2138,26 @@ public:
   ProfileData* bci_to_data(int bci);
 
   // Same, but try to create an extra_data record if one is needed:
-  ProfileData* allocate_bci_to_data(int bci) {
-    ProfileData* data = bci_to_data(bci);
-    return (data != NULL) ? data : bci_to_extra_data(bci, true);
+  ProfileData* allocate_bci_to_data(int bci, Method* m) {
+    ProfileData* data = NULL;
+    // If m not NULL, try to allocate a SpeculativeTrapData entry
+    if (m == NULL) {
+      data = bci_to_data(bci);
+    }
+    if (data != NULL) {
+      return data;
+    }
+    data = bci_to_extra_data(bci, m, true);
+    if (data != NULL) {
+      return data;
+    }
+    // If SpeculativeTrapData allocation fails try to allocate a
+    // regular entry
+    data = bci_to_data(bci);
+    if (data != NULL) {
+      return data;
+    }
+    return bci_to_extra_data(bci, NULL, true);
   }
 
   // Add a handful of extra data records, for trap tracking.
@@ -2084,7 +2165,7 @@ public:
   DataLayout* extra_data_limit() const { return (DataLayout*)((address)this + size_in_bytes()); }
   int extra_data_size() const { return (address)extra_data_limit()
                                - (address)extra_data_base(); }
-  static DataLayout* next_extra(DataLayout* dp) { return (DataLayout*)((address)dp + in_bytes(DataLayout::cell_offset(0))); }
+  static DataLayout* next_extra(DataLayout* dp);
 
   // Return (uint)-1 for overflow.
   uint trap_count(int reason) const {
@@ -2184,6 +2265,8 @@ public:
   static bool profile_return();
   static bool profile_parameters();
   static bool profile_return_jsr292_only();
+
+  void clean_method_data(BoolObjectClosure* is_alive);
 };
 
 #endif // SHARE_VM_OOPS_METHODDATAOOP_HPP

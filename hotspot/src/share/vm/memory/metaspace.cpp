@@ -46,8 +46,8 @@
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
 
-typedef BinaryTreeDictionary<Metablock, FreeList> BlockTreeDictionary;
-typedef BinaryTreeDictionary<Metachunk, FreeList> ChunkTreeDictionary;
+typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > BlockTreeDictionary;
+typedef BinaryTreeDictionary<Metachunk, FreeList<Metachunk> > ChunkTreeDictionary;
 
 // Set this constant to enable slow integrity checking of the free chunk lists
 const bool metaspace_slow_verify = false;
@@ -513,8 +513,6 @@ class VirtualSpaceList : public CHeapObj<mtClass> {
   // Unlink empty VirtualSpaceNodes and free it.
   void purge(ChunkManager* chunk_manager);
 
-  bool contains(const void *ptr);
-
   void print_on(outputStream* st) const;
 
   class VirtualSpaceListIterator : public StackObj {
@@ -558,7 +556,7 @@ class SpaceManager : public CHeapObj<mtClass> {
 
  private:
 
-  // protects allocations and contains.
+  // protects allocations
   Mutex* const _lock;
 
   // Type of metadata allocated.
@@ -595,7 +593,11 @@ class SpaceManager : public CHeapObj<mtClass> {
  private:
   // Accessors
   Metachunk* chunks_in_use(ChunkIndex index) const { return _chunks_in_use[index]; }
-  void set_chunks_in_use(ChunkIndex index, Metachunk* v) { _chunks_in_use[index] = v; }
+  void set_chunks_in_use(ChunkIndex index, Metachunk* v) {
+    // ensure lock-free iteration sees fully initialized node
+    OrderAccess::storestore();
+    _chunks_in_use[index] = v;
+  }
 
   BlockFreelist* block_freelists() const {
     return (BlockFreelist*) &_block_freelists;
@@ -708,6 +710,8 @@ class SpaceManager : public CHeapObj<mtClass> {
   void print_on(outputStream* st) const;
   void locked_print_chunks_in_use_on(outputStream* st) const;
 
+  bool contains(const void *ptr);
+
   void verify();
   void verify_chunk_size(Metachunk* chunk);
   NOT_PRODUCT(void mangle_freed_chunks();)
@@ -786,7 +790,7 @@ MetaWord* BlockFreelist::get_block(size_t word_size) {
     return NULL;
   }
 
-  if (word_size < TreeChunk<Metablock, FreeList>::min_size()) {
+  if (word_size < TreeChunk<Metablock, FreeList<Metablock> >::min_size()) {
     // Dark matter.  Too small for dictionary.
     return NULL;
   }
@@ -806,7 +810,7 @@ MetaWord* BlockFreelist::get_block(size_t word_size) {
   MetaWord* new_block = (MetaWord*)free_block;
   assert(block_size >= word_size, "Incorrect size of block from freelist");
   const size_t unused = block_size - word_size;
-  if (unused >= TreeChunk<Metablock, FreeList>::min_size()) {
+  if (unused >= TreeChunk<Metablock, FreeList<Metablock> >::min_size()) {
     return_block(new_block + word_size, unused);
   }
 
@@ -1159,8 +1163,6 @@ bool VirtualSpaceList::create_new_virtual_space(size_t vs_word_size) {
   } else {
     assert(new_entry->reserved_words() == vs_word_size,
         "Reserved memory size differs from requested memory size");
-    // ensure lock-free iteration sees fully initialized node
-    OrderAccess::storestore();
     link_vs(new_entry);
     return true;
   }
@@ -1286,19 +1288,6 @@ void VirtualSpaceList::print_on(outputStream* st) const {
     }
   }
 }
-
-bool VirtualSpaceList::contains(const void *ptr) {
-  VirtualSpaceNode* list = virtual_space_list();
-  VirtualSpaceListIterator iter(list);
-  while (iter.repeat()) {
-    VirtualSpaceNode* node = iter.get_next();
-    if (node->reserved()->contains(ptr)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 
 // MetaspaceGC methods
 
@@ -2250,7 +2239,7 @@ ChunkIndex ChunkManager::list_index(size_t size) {
 void SpaceManager::deallocate(MetaWord* p, size_t word_size) {
   assert_lock_strong(_lock);
   size_t raw_word_size = get_raw_word_size(word_size);
-  size_t min_size = TreeChunk<Metablock, FreeList>::min_size();
+  size_t min_size = TreeChunk<Metablock, FreeList<Metablock> >::min_size();
   assert(raw_word_size >= min_size,
          err_msg("Should not deallocate dark matter " SIZE_FORMAT "<" SIZE_FORMAT, word_size, min_size));
   block_freelists()->return_block(p, raw_word_size);
@@ -2306,7 +2295,7 @@ void SpaceManager::add_chunk(Metachunk* new_chunk, bool make_current) {
 void SpaceManager::retire_current_chunk() {
   if (current_chunk() != NULL) {
     size_t remaining_words = current_chunk()->free_word_size();
-    if (remaining_words >= TreeChunk<Metablock, FreeList>::min_size()) {
+    if (remaining_words >= TreeChunk<Metablock, FreeList<Metablock> >::min_size()) {
       block_freelists()->return_block(current_chunk()->allocate(remaining_words), remaining_words);
       inc_used_metrics(remaining_words);
     }
@@ -2390,6 +2379,21 @@ MetaWord* SpaceManager::allocate_work(size_t word_size) {
   }
 
   return result;
+}
+
+// This function looks at the chunks in the metaspace without locking.
+// The chunks are added with store ordering and not deleted except for at
+// unloading time.
+bool SpaceManager::contains(const void *ptr) {
+  for (ChunkIndex i = ZeroIndex; i < NumberOfInUseLists; i = next_chunk_index(i))
+  {
+    Metachunk* curr = chunks_in_use(i);
+    while (curr != NULL) {
+      if (curr->contains(ptr)) return true;
+      curr = curr->next();
+    }
+  }
+  return false;
 }
 
 void SpaceManager::verify() {
@@ -3274,7 +3278,7 @@ void Metaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_class) {
     assert(Thread::current()->is_VM_thread(), "should be the VM thread");
     // Don't take Heap_lock
     MutexLockerEx ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
-    if (word_size < TreeChunk<Metablock, FreeList>::min_size()) {
+    if (word_size < TreeChunk<Metablock, FreeList<Metablock> >::min_size()) {
       // Dark matter.  Too small for dictionary.
 #ifdef ASSERT
       Copy::fill_to_words((HeapWord*)ptr, word_size, 0xf5f5f5f5);
@@ -3289,7 +3293,7 @@ void Metaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_class) {
   } else {
     MutexLockerEx ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
 
-    if (word_size < TreeChunk<Metablock, FreeList>::min_size()) {
+    if (word_size < TreeChunk<Metablock, FreeList<Metablock> >::min_size()) {
       // Dark matter.  Too small for dictionary.
 #ifdef ASSERT
       Copy::fill_to_words((HeapWord*)ptr, word_size, 0xf5f5f5f5);
@@ -3463,17 +3467,12 @@ void Metaspace::print_on(outputStream* out) const {
   }
 }
 
-bool Metaspace::contains(const void * ptr) {
-  if (MetaspaceShared::is_in_shared_space(ptr)) {
-    return true;
+bool Metaspace::contains(const void* ptr) {
+  if (vsm()->contains(ptr)) return true;
+  if (using_class_space()) {
+    return class_vsm()->contains(ptr);
   }
-  // This is checked while unlocked.  As long as the virtualspaces are added
-  // at the end, the pointer will be in one of them.  The virtual spaces
-  // aren't deleted presently.  When they are, some sort of locking might
-  // be needed.  Note, locking this can cause inversion problems with the
-  // caller in MetaspaceObj::is_metadata() function.
-  return space_list()->contains(ptr) ||
-         (using_class_space() && class_space_list()->contains(ptr));
+  return false;
 }
 
 void Metaspace::verify() {
