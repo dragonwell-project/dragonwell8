@@ -1534,19 +1534,6 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
   return EBP_REG_mask();
 }
 
-const RegMask Matcher::mathExactI_result_proj_mask() {
-  return EAX_REG_mask();
-}
-
-const RegMask Matcher::mathExactL_result_proj_mask() {
-  ShouldNotReachHere();
-  return RegMask();
-}
-
-const RegMask Matcher::mathExactI_flags_proj_mask() {
-  return INT_FLAGS_mask();
-}
-
 // Returns true if the high 32 bits of the value is known to be zero.
 bool is_operand_hi32_zero(Node* n) {
   int opc = n->Opcode();
@@ -5168,6 +5155,19 @@ instruct countLeadingZerosL_bsr(rRegI dst, eRegL src, eFlagsReg cr) %{
 %}
 
 instruct countTrailingZerosI(rRegI dst, rRegI src, eFlagsReg cr) %{
+  predicate(UseCountTrailingZerosInstruction);
+  match(Set dst (CountTrailingZerosI src));
+  effect(KILL cr);
+
+  format %{ "TZCNT    $dst, $src\t# count trailing zeros (int)" %}
+  ins_encode %{
+    __ tzcntl($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(ialu_reg);
+%}
+
+instruct countTrailingZerosI_bsf(rRegI dst, rRegI src, eFlagsReg cr) %{
+  predicate(!UseCountTrailingZerosInstruction);
   match(Set dst (CountTrailingZerosI src));
   effect(KILL cr);
 
@@ -5187,6 +5187,30 @@ instruct countTrailingZerosI(rRegI dst, rRegI src, eFlagsReg cr) %{
 %}
 
 instruct countTrailingZerosL(rRegI dst, eRegL src, eFlagsReg cr) %{
+  predicate(UseCountTrailingZerosInstruction);
+  match(Set dst (CountTrailingZerosL src));
+  effect(TEMP dst, KILL cr);
+
+  format %{ "TZCNT  $dst, $src.lo\t# count trailing zeros (long) \n\t"
+            "JNC    done\n\t"
+            "TZCNT  $dst, $src.hi\n\t"
+            "ADD    $dst, 32\n"
+            "done:" %}
+  ins_encode %{
+    Register Rdst = $dst$$Register;
+    Register Rsrc = $src$$Register;
+    Label done;
+    __ tzcntl(Rdst, Rsrc);
+    __ jccb(Assembler::carryClear, done);
+    __ tzcntl(Rdst, HIGH_FROM_LOW(Rsrc));
+    __ addl(Rdst, BitsPerInt);
+    __ bind(done);
+  %}
+  ins_pipe(ialu_reg);
+%}
+
+instruct countTrailingZerosL_bsf(rRegI dst, eRegL src, eFlagsReg cr) %{
+  predicate(!UseCountTrailingZerosInstruction);
   match(Set dst (CountTrailingZerosL src));
   effect(TEMP dst, KILL cr);
 
@@ -6999,44 +7023,6 @@ instruct cmovL_regUCF(cmpOpUCF cop, eFlagsRegUCF cr, eRegL dst, eRegL src) %{
 //----------Arithmetic Instructions--------------------------------------------
 //----------Addition Instructions----------------------------------------------
 
-instruct addExactI_eReg(eAXRegI dst, rRegI src, eFlagsReg cr)
-%{
-  match(AddExactI dst src);
-  effect(DEF cr);
-
-  format %{ "ADD    $dst, $src\t# addExact int" %}
-  ins_encode %{
-    __ addl($dst$$Register, $src$$Register);
-  %}
-  ins_pipe(ialu_reg_reg);
-%}
-
-instruct addExactI_eReg_imm(eAXRegI dst, immI src, eFlagsReg cr)
-%{
-  match(AddExactI dst src);
-  effect(DEF cr);
-
-  format %{ "ADD    $dst, $src\t# addExact int" %}
-  ins_encode %{
-    __ addl($dst$$Register, $src$$constant);
-  %}
-  ins_pipe(ialu_reg_reg);
-%}
-
-instruct addExactI_eReg_mem(eAXRegI dst, memory src, eFlagsReg cr)
-%{
-  match(AddExactI dst (LoadI src));
-  effect(DEF cr);
-
-  ins_cost(125);
-  format %{ "ADD    $dst,$src\t# addExact int" %}
-  ins_encode %{
-    __ addl($dst$$Register, $src$$Address);
-  %}
-  ins_pipe( ialu_reg_mem );
-%}
-
-
 // Integer Addition Instructions
 instruct addI_eReg(rRegI dst, rRegI src, eFlagsReg cr) %{
   match(Set dst (AddI dst src));
@@ -7346,43 +7332,6 @@ instruct xchgP( memory mem, pRegP newval) %{
 
 //----------Subtraction Instructions-------------------------------------------
 
-instruct subExactI_eReg(eAXRegI dst, rRegI src, eFlagsReg cr)
-%{
-  match(SubExactI dst src);
-  effect(DEF cr);
-
-  format %{ "SUB    $dst, $src\t# subExact int" %}
-  ins_encode %{
-    __ subl($dst$$Register, $src$$Register);
-  %}
-  ins_pipe(ialu_reg_reg);
-%}
-
-instruct subExactI_eReg_imm(eAXRegI dst, immI src, eFlagsReg cr)
-%{
-  match(SubExactI dst src);
-  effect(DEF cr);
-
-  format %{ "SUB    $dst, $src\t# subExact int" %}
-  ins_encode %{
-    __ subl($dst$$Register, $src$$constant);
-  %}
-  ins_pipe(ialu_reg_reg);
-%}
-
-instruct subExactI_eReg_mem(eAXRegI dst, memory src, eFlagsReg cr)
-%{
-  match(SubExactI dst (LoadI src));
-  effect(DEF cr);
-
-  ins_cost(125);
-  format %{ "SUB    $dst,$src\t# subExact int" %}
-  ins_encode %{
-    __ subl($dst$$Register, $src$$Address);
-  %}
-  ins_pipe( ialu_reg_mem );
-%}
-
 // Integer Subtraction Instructions
 instruct subI_eReg(rRegI dst, rRegI src, eFlagsReg cr) %{
   match(Set dst (SubI dst src));
@@ -7449,17 +7398,6 @@ instruct negI_eReg(rRegI dst, immI0 zero, eFlagsReg cr) %{
   opcode(0xF7,0x03);  // Opcode F7 /3
   ins_encode( OpcP, RegOpc( dst ) );
   ins_pipe( ialu_reg );
-%}
-
-instruct negExactI_eReg(eAXRegI dst, eFlagsReg cr) %{
-  match(NegExactI dst);
-  effect(DEF cr);
-
-  format %{ "NEG    $dst\t# negExact int"%}
-  ins_encode %{
-    __ negl($dst$$Register);
-  %}
-  ins_pipe(ialu_reg);
 %}
 
 //----------Multiplication/Division Instructions-------------------------------
@@ -7672,46 +7610,6 @@ instruct mulL_eReg_con(eADXRegL dst, immL_127 src, rRegI tmp, eFlagsReg cr) %{
   ins_encode( long_multiply_con( dst, src, tmp ) );
   ins_pipe( pipe_slow );
 %}
-
-instruct mulExactI_eReg(eAXRegI dst, rRegI src, eFlagsReg cr)
-%{
-  match(MulExactI dst src);
-  effect(DEF cr);
-
-  ins_cost(300);
-  format %{ "IMUL   $dst, $src\t# mulExact int" %}
-  ins_encode %{
-    __ imull($dst$$Register, $src$$Register);
-  %}
-  ins_pipe(ialu_reg_reg_alu0);
-%}
-
-instruct mulExactI_eReg_imm(eAXRegI dst, rRegI src, immI imm, eFlagsReg cr)
-%{
-  match(MulExactI src imm);
-  effect(DEF cr);
-
-  ins_cost(300);
-  format %{ "IMUL   $dst, $src, $imm\t# mulExact int" %}
-  ins_encode %{
-    __ imull($dst$$Register, $src$$Register, $imm$$constant);
-  %}
-  ins_pipe(ialu_reg_reg_alu0);
-%}
-
-instruct mulExactI_eReg_mem(eAXRegI dst, memory src, eFlagsReg cr)
-%{
-  match(MulExactI dst (LoadI src));
-  effect(DEF cr);
-
-  ins_cost(350);
-  format %{ "IMUL   $dst, $src\t# mulExact int" %}
-  ins_encode %{
-    __ imull($dst$$Register, $src$$Address);
-  %}
-  ins_pipe(ialu_reg_mem_alu0);
-%}
-
 
 // Integer DIV with Register
 instruct divI_eReg(eAXRegI rax, eDXRegI rdx, eCXRegI div, eFlagsReg cr) %{
@@ -8156,6 +8054,123 @@ instruct andI_mem_imm(memory dst, immI src, eFlagsReg cr) %{
   ins_pipe( ialu_mem_imm );
 %}
 
+// BMI1 instructions
+instruct andnI_rReg_rReg_rReg(rRegI dst, rRegI src1, rRegI src2, immI_M1 minus_1, eFlagsReg cr) %{
+  match(Set dst (AndI (XorI src1 minus_1) src2));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  format %{ "ANDNL  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ andnl($dst$$Register, $src1$$Register, $src2$$Register);
+  %}
+  ins_pipe(ialu_reg);
+%}
+
+instruct andnI_rReg_rReg_mem(rRegI dst, rRegI src1, memory src2, immI_M1 minus_1, eFlagsReg cr) %{
+  match(Set dst (AndI (XorI src1 minus_1) (LoadI src2) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  ins_cost(125);
+  format %{ "ANDNL  $dst, $src1, $src2" %}
+
+  ins_encode %{
+    __ andnl($dst$$Register, $src1$$Register, $src2$$Address);
+  %}
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsiI_rReg_rReg(rRegI dst, rRegI src, immI0 imm_zero, eFlagsReg cr) %{
+  match(Set dst (AndI (SubI imm_zero src) src));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  format %{ "BLSIL  $dst, $src" %}
+
+  ins_encode %{
+    __ blsil($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsiI_rReg_mem(rRegI dst, memory src, immI0 imm_zero, eFlagsReg cr) %{
+  match(Set dst (AndI (SubI imm_zero (LoadI src) ) (LoadI src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  ins_cost(125);
+  format %{ "BLSIL  $dst, $src" %}
+
+  ins_encode %{
+    __ blsil($dst$$Register, $src$$Address);
+  %}
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsmskI_rReg_rReg(rRegI dst, rRegI src, immI_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (XorI (AddI src minus_1) src));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  format %{ "BLSMSKL $dst, $src" %}
+
+  ins_encode %{
+    __ blsmskl($dst$$Register, $src$$Register);
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsmskI_rReg_mem(rRegI dst, memory src, immI_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (XorI (AddI (LoadI src) minus_1) (LoadI src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  ins_cost(125);
+  format %{ "BLSMSKL $dst, $src" %}
+
+  ins_encode %{
+    __ blsmskl($dst$$Register, $src$$Address);
+  %}
+
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsrI_rReg_rReg(rRegI dst, rRegI src, immI_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (AndI (AddI src minus_1) src) );
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  format %{ "BLSRL  $dst, $src" %}
+
+  ins_encode %{
+    __ blsrl($dst$$Register, $src$$Register);
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsrI_rReg_mem(rRegI dst, memory src, immI_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (AndI (AddI (LoadI src) minus_1) (LoadI src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr);
+
+  ins_cost(125);
+  format %{ "BLSRL  $dst, $src" %}
+
+  ins_encode %{
+    __ blsrl($dst$$Register, $src$$Address);
+  %}
+
+  ins_pipe(ialu_reg_mem);
+%}
+
 // Or Instructions
 // Or Register with Register
 instruct orI_eReg(rRegI dst, rRegI src, eFlagsReg cr) %{
@@ -8578,6 +8593,91 @@ instruct and_cmpLTMask(rRegI p, rRegI q, rRegI y, eFlagsReg cr) %{
 instruct cadd_cmpLTMask_mem(ncxRegI p, ncxRegI q, memory y, eCXRegI tmp, eFlagsReg cr) %{
   match(Set p (AddI (AndI (CmpLTMask p q) (LoadI y)) (SubI p q)));
 */
+//----------Overflow Math Instructions-----------------------------------------
+
+instruct overflowAddI_eReg(eFlagsReg cr, eAXRegI op1, rRegI op2)
+%{
+  match(Set cr (OverflowAddI op1 op2));
+  effect(DEF cr, USE_KILL op1, USE op2);
+
+  format %{ "ADD    $op1, $op2\t# overflow check int" %}
+
+  ins_encode %{
+    __ addl($op1$$Register, $op2$$Register);
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct overflowAddI_rReg_imm(eFlagsReg cr, eAXRegI op1, immI op2)
+%{
+  match(Set cr (OverflowAddI op1 op2));
+  effect(DEF cr, USE_KILL op1, USE op2);
+
+  format %{ "ADD    $op1, $op2\t# overflow check int" %}
+
+  ins_encode %{
+    __ addl($op1$$Register, $op2$$constant);
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct overflowSubI_rReg(eFlagsReg cr, rRegI op1, rRegI op2)
+%{
+  match(Set cr (OverflowSubI op1 op2));
+
+  format %{ "CMP    $op1, $op2\t# overflow check int" %}
+  ins_encode %{
+    __ cmpl($op1$$Register, $op2$$Register);
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct overflowSubI_rReg_imm(eFlagsReg cr, rRegI op1, immI op2)
+%{
+  match(Set cr (OverflowSubI op1 op2));
+
+  format %{ "CMP    $op1, $op2\t# overflow check int" %}
+  ins_encode %{
+    __ cmpl($op1$$Register, $op2$$constant);
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct overflowNegI_rReg(eFlagsReg cr, immI0 zero, eAXRegI op2)
+%{
+  match(Set cr (OverflowSubI zero op2));
+  effect(DEF cr, USE_KILL op2);
+
+  format %{ "NEG    $op2\t# overflow check int" %}
+  ins_encode %{
+    __ negl($op2$$Register);
+  %}
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct overflowMulI_rReg(eFlagsReg cr, eAXRegI op1, rRegI op2)
+%{
+  match(Set cr (OverflowMulI op1 op2));
+  effect(DEF cr, USE_KILL op1, USE op2);
+
+  format %{ "IMUL    $op1, $op2\t# overflow check int" %}
+  ins_encode %{
+    __ imull($op1$$Register, $op2$$Register);
+  %}
+  ins_pipe(ialu_reg_reg_alu0);
+%}
+
+instruct overflowMulI_rReg_imm(eFlagsReg cr, rRegI op1, immI op2, rRegI tmp)
+%{
+  match(Set cr (OverflowMulI op1 op2));
+  effect(DEF cr, TEMP tmp, USE op1, USE op2);
+
+  format %{ "IMUL    $tmp, $op1, $op2\t# overflow check int" %}
+  ins_encode %{
+    __ imull($tmp$$Register, $op1$$Register, $op2$$constant);
+  %}
+  ins_pipe(ialu_reg_reg_alu0);
+%}
 
 //----------Long Instructions------------------------------------------------
 // Add Long Register with Register
@@ -8691,6 +8791,210 @@ instruct andL_eReg_mem(eRegL dst, load_long_memory mem, eFlagsReg cr) %{
   opcode(0x23, 0x23);
   ins_encode( OpcP, RegMem( dst, mem), OpcS, RegMem_Hi(dst,mem) );
   ins_pipe( ialu_reg_long_mem );
+%}
+
+// BMI1 instructions
+instruct andnL_eReg_eReg_eReg(eRegL dst, eRegL src1, eRegL src2, immL_M1 minus_1, eFlagsReg cr) %{
+  match(Set dst (AndL (XorL src1 minus_1) src2));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  format %{ "ANDNL  $dst.lo, $src1.lo, $src2.lo\n\t"
+            "ANDNL  $dst.hi, $src1.hi, $src2.hi"
+         %}
+
+  ins_encode %{
+    Register Rdst = $dst$$Register;
+    Register Rsrc1 = $src1$$Register;
+    Register Rsrc2 = $src2$$Register;
+    __ andnl(Rdst, Rsrc1, Rsrc2);
+    __ andnl(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc1), HIGH_FROM_LOW(Rsrc2));
+  %}
+  ins_pipe(ialu_reg_reg_long);
+%}
+
+instruct andnL_eReg_eReg_mem(eRegL dst, eRegL src1, memory src2, immL_M1 minus_1, eFlagsReg cr) %{
+  match(Set dst (AndL (XorL src1 minus_1) (LoadL src2) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  ins_cost(125);
+  format %{ "ANDNL  $dst.lo, $src1.lo, $src2\n\t"
+            "ANDNL  $dst.hi, $src1.hi, $src2+4"
+         %}
+
+  ins_encode %{
+    Register Rdst = $dst$$Register;
+    Register Rsrc1 = $src1$$Register;
+    Address src2_hi = Address::make_raw($src2$$base, $src2$$index, $src2$$scale, $src2$$disp + 4, relocInfo::none);
+
+    __ andnl(Rdst, Rsrc1, $src2$$Address);
+    __ andnl(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc1), src2_hi);
+  %}
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsiL_eReg_eReg(eRegL dst, eRegL src, immL0 imm_zero, eFlagsReg cr) %{
+  match(Set dst (AndL (SubL imm_zero src) src));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  format %{ "MOVL   $dst.hi, 0\n\t"
+            "BLSIL  $dst.lo, $src.lo\n\t"
+            "JNZ    done\n\t"
+            "BLSIL  $dst.hi, $src.hi\n"
+            "done:"
+         %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Register Rsrc = $src$$Register;
+    __ movl(HIGH_FROM_LOW(Rdst), 0);
+    __ blsil(Rdst, Rsrc);
+    __ jccb(Assembler::notZero, done);
+    __ blsil(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc));
+    __ bind(done);
+  %}
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsiL_eReg_mem(eRegL dst, memory src, immL0 imm_zero, eFlagsReg cr) %{
+  match(Set dst (AndL (SubL imm_zero (LoadL src) ) (LoadL src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  ins_cost(125);
+  format %{ "MOVL   $dst.hi, 0\n\t"
+            "BLSIL  $dst.lo, $src\n\t"
+            "JNZ    done\n\t"
+            "BLSIL  $dst.hi, $src+4\n"
+            "done:"
+         %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Address src_hi = Address::make_raw($src$$base, $src$$index, $src$$scale, $src$$disp + 4, relocInfo::none);
+
+    __ movl(HIGH_FROM_LOW(Rdst), 0);
+    __ blsil(Rdst, $src$$Address);
+    __ jccb(Assembler::notZero, done);
+    __ blsil(HIGH_FROM_LOW(Rdst), src_hi);
+    __ bind(done);
+  %}
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsmskL_eReg_eReg(eRegL dst, eRegL src, immL_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (XorL (AddL src minus_1) src));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  format %{ "MOVL    $dst.hi, 0\n\t"
+            "BLSMSKL $dst.lo, $src.lo\n\t"
+            "JNC     done\n\t"
+            "BLSMSKL $dst.hi, $src.hi\n"
+            "done:"
+         %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Register Rsrc = $src$$Register;
+    __ movl(HIGH_FROM_LOW(Rdst), 0);
+    __ blsmskl(Rdst, Rsrc);
+    __ jccb(Assembler::carryClear, done);
+    __ blsmskl(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc));
+    __ bind(done);
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsmskL_eReg_mem(eRegL dst, memory src, immL_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (XorL (AddL (LoadL src) minus_1) (LoadL src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  ins_cost(125);
+  format %{ "MOVL    $dst.hi, 0\n\t"
+            "BLSMSKL $dst.lo, $src\n\t"
+            "JNC     done\n\t"
+            "BLSMSKL $dst.hi, $src+4\n"
+            "done:"
+         %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Address src_hi = Address::make_raw($src$$base, $src$$index, $src$$scale, $src$$disp + 4, relocInfo::none);
+
+    __ movl(HIGH_FROM_LOW(Rdst), 0);
+    __ blsmskl(Rdst, $src$$Address);
+    __ jccb(Assembler::carryClear, done);
+    __ blsmskl(HIGH_FROM_LOW(Rdst), src_hi);
+    __ bind(done);
+  %}
+
+  ins_pipe(ialu_reg_mem);
+%}
+
+instruct blsrL_eReg_eReg(eRegL dst, eRegL src, immL_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (AndL (AddL src minus_1) src) );
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  format %{ "MOVL   $dst.hi, $src.hi\n\t"
+            "BLSRL  $dst.lo, $src.lo\n\t"
+            "JNC    done\n\t"
+            "BLSRL  $dst.hi, $src.hi\n"
+            "done:"
+  %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Register Rsrc = $src$$Register;
+    __ movl(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc));
+    __ blsrl(Rdst, Rsrc);
+    __ jccb(Assembler::carryClear, done);
+    __ blsrl(HIGH_FROM_LOW(Rdst), HIGH_FROM_LOW(Rsrc));
+    __ bind(done);
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
+instruct blsrL_eReg_mem(eRegL dst, memory src, immL_M1 minus_1, eFlagsReg cr)
+%{
+  match(Set dst (AndL (AddL (LoadL src) minus_1) (LoadL src) ));
+  predicate(UseBMI1Instructions);
+  effect(KILL cr, TEMP dst);
+
+  ins_cost(125);
+  format %{ "MOVL   $dst.hi, $src+4\n\t"
+            "BLSRL  $dst.lo, $src\n\t"
+            "JNC    done\n\t"
+            "BLSRL  $dst.hi, $src+4\n"
+            "done:"
+  %}
+
+  ins_encode %{
+    Label done;
+    Register Rdst = $dst$$Register;
+    Address src_hi = Address::make_raw($src$$base, $src$$index, $src$$scale, $src$$disp + 4, relocInfo::none);
+    __ movl(HIGH_FROM_LOW(Rdst), src_hi);
+    __ blsrl(Rdst, $src$$Address);
+    __ jccb(Assembler::carryClear, done);
+    __ blsrl(HIGH_FROM_LOW(Rdst), src_hi);
+    __ bind(done);
+  %}
+
+  ins_pipe(ialu_reg_mem);
 %}
 
 // Or Long Register with Register
