@@ -2986,7 +2986,8 @@ class CommandLineFlags {
           "maximum number of nested recursive calls that are inlined")      \
                                                                             \
   develop(intx, MaxForceInlineLevel, 100,                                   \
-          "maximum number of nested @ForceInline calls that are inlined")   \
+          "maximum number of nested calls that are forced for inlining "    \
+          "(using CompilerOracle or marked w/ @ForceInline)")               \
                                                                             \
   product_pd(intx, InlineSmallCode,                                         \
           "Only inline already compiled methods if their code size is "     \
@@ -3797,8 +3798,8 @@ class CommandLineFlags {
   experimental(bool, TrustFinalNonStaticFields, false,                      \
           "trust final non-static declarations for constant folding")       \
                                                                             \
-  experimental(bool, FoldStableValues, false,                               \
-          "Private flag to control optimizations for stable variables")     \
+  diagnostic(bool, FoldStableValues, true,                                  \
+          "Optimize loads from stable fields (marked w/ @Stable)")          \
                                                                             \
   develop(bool, TraceInvokeDynamic, false,                                  \
           "trace internal invoke dynamic operations")                       \
