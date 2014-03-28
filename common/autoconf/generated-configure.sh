@@ -3865,7 +3865,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1390334534
+DATE_WHEN_GENERATED=1396039024
 
 ###############################################################################
 #
@@ -34377,7 +34377,7 @@ $as_echo "$as_me: WARNING: alsa not used, so --with-alsa is ignored" >&2;}
     fi
 
     if test "x${with_alsa}" != x; then
-      ALSA_LIBS="-L${with_alsa}/lib -lalsa"
+      ALSA_LIBS="-L${with_alsa}/lib -lasound"
       ALSA_CFLAGS="-I${with_alsa}/include"
       ALSA_FOUND=yes
     fi
@@ -34386,7 +34386,7 @@ $as_echo "$as_me: WARNING: alsa not used, so --with-alsa is ignored" >&2;}
       ALSA_FOUND=yes
     fi
     if test "x${with_alsa_lib}" != x; then
-      ALSA_LIBS="-L${with_alsa_lib} -lalsa"
+      ALSA_LIBS="-L${with_alsa_lib} -lasound"
       ALSA_FOUND=yes
     fi
     if test "x$ALSA_FOUND" = xno; then
