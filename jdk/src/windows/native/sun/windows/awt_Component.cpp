@@ -6114,7 +6114,7 @@ jboolean AwtComponent::_NativeHandlesWheelScrolling(void *param)
     c = (AwtComponent *)pData;
     if (::IsWindow(c->GetHWnd()))
     {
-        result = (jboolean)c->InheritsNativeMouseWheelBehavior();
+        result = JNI_IS_TRUE(c->InheritsNativeMouseWheelBehavior());
     }
 ret:
     env->DeleteGlobalRef(self);
@@ -6930,9 +6930,9 @@ Java_sun_awt_windows_WComponentPeer_nativeHandlesWheelScrolling (JNIEnv* env,
 {
     TRY;
 
-    return (jboolean)AwtToolkit::GetInstance().SyncCall(
+    return JNI_IS_TRUE(AwtToolkit::GetInstance().SyncCall(
         (void *(*)(void *))AwtComponent::_NativeHandlesWheelScrolling,
-        env->NewGlobalRef(self));
+        env->NewGlobalRef(self)));
     // global ref is deleted in _NativeHandlesWheelScrolling
 
     CATCH_BAD_ALLOC_RET(NULL);
@@ -6951,9 +6951,9 @@ Java_sun_awt_windows_WComponentPeer_isObscured(JNIEnv* env,
 
     jobject selfGlobalRef = env->NewGlobalRef(self);
 
-    return (jboolean)AwtToolkit::GetInstance().SyncCall(
+    return JNI_IS_TRUE(AwtToolkit::GetInstance().SyncCall(
         (void*(*)(void*))AwtComponent::_IsObscured,
-        (void *)selfGlobalRef);
+        (void *)selfGlobalRef));
     // selfGlobalRef is deleted in _IsObscured
 
     CATCH_BAD_ALLOC_RET(NULL);
