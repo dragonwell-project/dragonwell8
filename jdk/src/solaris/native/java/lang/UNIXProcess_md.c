@@ -44,7 +44,7 @@
 #include <signal.h>
 #include <string.h>
 
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE)
+#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
 #include <spawn.h>
 #endif
 
@@ -455,7 +455,7 @@ forkChild(ChildStuff *c) {
     return resultPid;
 }
 
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE)
+#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
 static pid_t
 spawnChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) {
     pid_t resultPid;
@@ -551,7 +551,7 @@ startChild(JNIEnv *env, jobject process, ChildStuff *c, const char *helperpath) 
         return vforkChild(c);
       case MODE_FORK:
         return forkChild(c);
-#if defined(__solaris__) || defined(_ALLBSD_SOURCE)
+#if defined(__solaris__) || defined(_ALLBSD_SOURCE) || defined(_AIX)
       case MODE_POSIX_SPAWN:
         return spawnChild(env, process, c, helperpath);
 #endif
