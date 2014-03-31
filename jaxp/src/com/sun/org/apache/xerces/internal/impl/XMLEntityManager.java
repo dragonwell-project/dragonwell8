@@ -51,6 +51,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 import javax.xml.stream.XMLInputFactory;
+import java.util.StringTokenizer;
 
 
 /**
@@ -1845,7 +1846,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
         userDir = userDir.replace(separator, '/');
 
         int len = userDir.length(), ch;
-        StringBuffer buffer = new StringBuffer(len*3);
+        StringBuilder buffer = new StringBuilder(len*3);
         // change C:/blah to /C:/blah
         if (len >= 2 && userDir.charAt(1) == ':') {
             ch = Character.toUpperCase(userDir.charAt(0));
@@ -1913,6 +1914,61 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
         gUserDirURI = new URI("file", "", buffer.toString(), null, null);
 
         return gUserDirURI;
+    }
+
+    public static OutputStream createOutputStream(String uri) throws IOException {
+        // URI was specified. Handle relative URIs.
+        final String expanded = XMLEntityManager.expandSystemId(uri, null, true);
+        final URL url = new URL(expanded != null ? expanded : uri);
+        OutputStream out = null;
+        String protocol = url.getProtocol();
+        String host = url.getHost();
+        // Use FileOutputStream if this URI is for a local file.
+        if (protocol.equals("file")
+                && (host == null || host.length() == 0 || host.equals("localhost"))) {
+            File file = new File(getPathWithoutEscapes(url.getPath()));
+            if (!file.exists()) {
+                File parent = file.getParentFile();
+                if (parent != null && !parent.exists()) {
+                    parent.mkdirs();
+                }
+            }
+            out = new FileOutputStream(file);
+        }
+        // Try to write to some other kind of URI. Some protocols
+        // won't support this, though HTTP should work.
+        else {
+            URLConnection urlCon = url.openConnection();
+            urlCon.setDoInput(false);
+            urlCon.setDoOutput(true);
+            urlCon.setUseCaches(false); // Enable tunneling.
+            if (urlCon instanceof HttpURLConnection) {
+                // The DOM L3 REC says if we are writing to an HTTP URI
+                // it is to be done with an HTTP PUT.
+                HttpURLConnection httpCon = (HttpURLConnection) urlCon;
+                httpCon.setRequestMethod("PUT");
+            }
+            out = urlCon.getOutputStream();
+        }
+        return out;
+    }
+
+    private static String getPathWithoutEscapes(String origPath) {
+        if (origPath != null && origPath.length() != 0 && origPath.indexOf('%') != -1) {
+            // Locate the escape characters
+            StringTokenizer tokenizer = new StringTokenizer(origPath, "%");
+            StringBuilder result = new StringBuilder(origPath.length());
+            int size = tokenizer.countTokens();
+            result.append(tokenizer.nextToken());
+            for(int i = 1; i < size; ++i) {
+                String token = tokenizer.nextToken();
+                // Decode the 2 digit hexadecimal number following % in '%nn'
+                result.append((char)Integer.valueOf(token.substring(0, 2), 16).intValue());
+                result.append(token.substring(2));
+            }
+            return result.toString();
+        }
+        return origPath;
     }
 
     /**
