@@ -23,6 +23,8 @@
 
 package jdk.testlibrary;
 
+import java.util.Objects;
+
 /**
  * Asserts that can be used for verifying assumptions in tests.
  *
@@ -194,7 +196,7 @@ public class Asserts {
             msg = Objects.toString(msg, "assertSame")
                     + ": expected " + Objects.toString(lhs)
                     + " to equal " + Objects.toString(rhs);
-            fail(msg);
+            throw new RuntimeException(msg);
         }
     }
 
