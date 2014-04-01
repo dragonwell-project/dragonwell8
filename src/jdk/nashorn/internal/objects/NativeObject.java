@@ -31,6 +31,7 @@ import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -58,6 +59,7 @@ import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.linker.InvokeByName;
 import jdk.nashorn.internal.runtime.linker.NashornBeansLinker;
@@ -99,6 +101,27 @@ public final class NativeObject {
     private static ECMAException notAnObject(final Object obj) {
         return typeError("not.an.object", ScriptRuntime.safeToString(obj));
     }
+
+    /**
+     * Nashorn extension: setIndexedPropertiesToExternalArrayData
+     *
+     * @param self self reference
+     * @param obj object whose index properties are backed by buffer
+     * @param buf external buffer - should be a nio ByteBuffer
+     * @return the 'obj' object
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
+    public static ScriptObject setIndexedPropertiesToExternalArrayData(final Object self, final Object obj, final Object buf) {
+        Global.checkObject(obj);
+        final ScriptObject sobj = (ScriptObject)obj;
+        if (buf instanceof ByteBuffer) {
+            sobj.setArray(ArrayData.allocate((ByteBuffer)buf));
+        } else {
+            throw typeError("not.a.bytebuffer", "setIndexedPropertiesToExternalArrayData's buf argument");
+        }
+        return sobj;
+    }
+
 
     /**
      * ECMA 15.2.3.2 Object.getPrototypeOf ( O )
@@ -180,7 +203,7 @@ public final class NativeObject {
      * @return array of property names
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object getOwnPropertyNames(final Object self, final Object obj) {
+    public static ScriptObject getOwnPropertyNames(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             return new NativeArray(((ScriptObject)obj).getOwnKeys(true));
         } else if (obj instanceof ScriptObjectMirror) {
@@ -199,7 +222,7 @@ public final class NativeObject {
      * @return object created
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object create(final Object self, final Object proto, final Object props) {
+    public static ScriptObject create(final Object self, final Object proto, final Object props) {
         if (proto != null) {
             Global.checkObject(proto);
         }
@@ -225,10 +248,11 @@ public final class NativeObject {
      * @return object
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object defineProperty(final Object self, final Object obj, final Object prop, final Object attr) {
+    public static ScriptObject defineProperty(final Object self, final Object obj, final Object prop, final Object attr) {
         Global.checkObject(obj);
-        ((ScriptObject)obj).defineOwnProperty(JSType.toString(prop), attr, true);
-        return obj;
+        final ScriptObject sobj = (ScriptObject)obj;
+        sobj.defineOwnProperty(JSType.toString(prop), attr, true);
+        return sobj;
     }
 
     /**
@@ -240,7 +264,7 @@ public final class NativeObject {
      * @return object
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object defineProperties(final Object self, final Object obj, final Object props) {
+    public static ScriptObject defineProperties(final Object self, final Object obj, final Object props) {
         Global.checkObject(obj);
 
         final ScriptObject sobj     = (ScriptObject)obj;
@@ -319,7 +343,7 @@ public final class NativeObject {
      * @return true if sealed, false otherwise
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object isSealed(final Object self, final Object obj) {
+    public static boolean isSealed(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).isSealed();
         } else if (obj instanceof ScriptObjectMirror) {
@@ -337,7 +361,7 @@ public final class NativeObject {
      * @return true if object is frozen, false otherwise
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object isFrozen(final Object self, final Object obj) {
+    public static boolean isFrozen(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).isFrozen();
         } else if (obj instanceof ScriptObjectMirror) {
@@ -355,7 +379,7 @@ public final class NativeObject {
      * @return true if object is extensible, false otherwise
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object isExtensible(final Object self, final Object obj) {
+    public static boolean isExtensible(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             return ((ScriptObject)obj).isExtensible();
         } else if (obj instanceof ScriptObjectMirror) {
@@ -373,7 +397,7 @@ public final class NativeObject {
      * @return array of keys in object
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
-    public static Object keys(final Object self, final Object obj) {
+    public static ScriptObject keys(final Object self, final Object obj) {
         if (obj instanceof ScriptObject) {
             final ScriptObject sobj = (ScriptObject)obj;
             return new NativeArray(sobj.getOwnKeys(false));
@@ -430,7 +454,7 @@ public final class NativeObject {
      * @return ToString of object
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toString(final Object self) {
+    public static String toString(final Object self) {
         return ScriptRuntime.builtinObjectToString(self);
     }
 
@@ -483,7 +507,7 @@ public final class NativeObject {
      * @return true if property exists in object
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object hasOwnProperty(final Object self, final Object v) {
+    public static boolean hasOwnProperty(final Object self, final Object v) {
         // Convert ScriptObjects to primitive with String.class hint
         // but no need to convert other primitives to string.
         final Object key = JSType.toPrimitive(v, String.class);
@@ -500,7 +524,7 @@ public final class NativeObject {
      * @return true if object is prototype of v
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object isPrototypeOf(final Object self, final Object v) {
+    public static boolean isPrototypeOf(final Object self, final Object v) {
         if (!(v instanceof ScriptObject)) {
             return false;
         }
@@ -526,7 +550,7 @@ public final class NativeObject {
      * @return true if property is enumerable
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object propertyIsEnumerable(final Object self, final Object v) {
+    public static boolean propertyIsEnumerable(final Object self, final Object v) {
         final String str = JSType.toString(v);
         final Object obj = Global.toObject(self);
 

@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.Compiler;
@@ -138,6 +139,9 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** Function flags. */
     private final int flags;
 
+    /** //@ sourceURL or //# sourceURL for program function nodes */
+    private final String sourceURL;
+
     private final int lineNumber;
 
     /** Is anonymous function flag. */
@@ -160,11 +164,11 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     public static final int HAS_EVAL                    = 1 << 5;
 
     /** Does a nested function contain eval? If it does, then all variables in this function might be get/set by it. */
-    public static final int HAS_NESTED_EVAL = 1 << 6;
+    public static final int HAS_NESTED_EVAL             = 1 << 6;
 
     /** Does this function have any blocks that create a scope? This is used to determine if the function needs to
      * have a local variable slot for the scope symbol. */
-    public static final int HAS_SCOPE_BLOCK = 1 << 7;
+    public static final int HAS_SCOPE_BLOCK             = 1 << 7;
 
     /**
      * Flag this function as one that defines the identifier "arguments" as a function parameter or nested function
@@ -192,6 +196,9 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
 
     /** Can this function be specialized? */
     public static final int CAN_SPECIALIZE              = 1 << 14;
+
+    /** Does this function use the "this" keyword? */
+    public static final int USES_THIS                   = 1 << 15;
 
     /** Does this function or any nested functions contain an eval? */
     private static final int HAS_DEEP_EVAL = HAS_EVAL | HAS_NESTED_EVAL;
@@ -223,6 +230,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * @param parameters parameter list
      * @param kind       kind of function as in {@link FunctionNode.Kind}
      * @param flags      initial flags
+     * @param sourceURL  sourceURL specified in script (optional)
      */
     public FunctionNode(
         final Source source,
@@ -235,7 +243,8 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final String name,
         final List<IdentNode> parameters,
         final FunctionNode.Kind kind,
-        final int flags) {
+        final int flags,
+        final String sourceURL) {
         super(token, finish);
 
         this.source           = source;
@@ -250,6 +259,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         this.compilationState = EnumSet.of(CompilationState.INITIALIZED);
         this.declaredSymbols  = new HashSet<>();
         this.flags            = flags;
+        this.sourceURL        = sourceURL;
         this.compileUnit      = null;
         this.body             = null;
         this.snapshot         = null;
@@ -260,6 +270,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final FunctionNode functionNode,
         final long lastToken,
         final int flags,
+        final String sourceURL,
         final String name,
         final Type returnType,
         final CompileUnit compileUnit,
@@ -271,6 +282,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         super(functionNode);
         this.lineNumber       = functionNode.lineNumber;
         this.flags            = flags;
+        this.sourceURL        = sourceURL;
         this.name             = name;
         this.returnType       = returnType;
         this.compileUnit      = compileUnit;
@@ -308,6 +320,38 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
+     * get source name - sourceURL or name derived from Source.
+     *
+     * @return name for the script source
+     */
+    public String getSourceName() {
+        return (sourceURL != null)? sourceURL : source.getName();
+    }
+
+    /**
+     * get the sourceURL
+     * @return the sourceURL
+     */
+    public String getSourceURL() {
+        return sourceURL;
+    }
+
+    /**
+     * Set the sourceURL
+     *
+     * @param lc lexical context
+     * @param newSourceURL source url string to set
+     * @return function node or a new one if state was changed
+     */
+    public FunctionNode setSourceURL(final LexicalContext lc, final String newSourceURL) {
+        if (Objects.equals(sourceURL, newSourceURL)) {
+            return this;
+        }
+
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, newSourceURL, name, returnType, compileUnit, compilationState, body, parameters, null, hints));
+    }
+
+    /**
      * Returns the line number.
      * @return the line number.
      */
@@ -335,7 +379,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.snapshot == null) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, null, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, null, hints));
     }
 
     /**
@@ -351,7 +395,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (isProgram() || parameters.isEmpty()) {
             return this; //never specialize anything that won't be recompiled
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, this, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, this, hints));
     }
 
     /**
@@ -409,7 +453,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         }
         final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
         newState.add(state);
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, newState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, newState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -430,7 +474,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.hints == hints) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -483,7 +527,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.flags == flags) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     @Override
@@ -550,6 +594,15 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
+     * Return {@code true} if this function makes use of the {@code this} object.
+     *
+     * @return true if function uses {@code this} object
+     */
+    public boolean usesThis() {
+        return getFlag(USES_THIS);
+    }
+
+    /**
      * Get the identifier for this function, this is its symbol.
      * @return the identifier as an IdentityNode
      */
@@ -593,7 +646,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if(this.body == body) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags | (body.needsScope() ? FunctionNode.HAS_SCOPE_BLOCK : 0), name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags | (body.needsScope() ? FunctionNode.HAS_SCOPE_BLOCK : 0), sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -688,7 +741,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.lastToken == lastToken) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -710,7 +763,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.name.equals(name)) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -760,7 +813,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.parameters == parameters) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
@@ -825,6 +878,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 this,
                 lastToken,
                 flags,
+                sourceURL,
                 name,
                 type,
                 compileUnit,
@@ -863,7 +917,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         if (this.compileUnit == compileUnit) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
+        return Node.replaceInLexicalContext(lc, this, new FunctionNode(this, lastToken, flags, sourceURL, name, returnType, compileUnit, compilationState, body, parameters, snapshot, hints));
     }
 
     /**
