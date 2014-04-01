@@ -1817,13 +1817,11 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   bind(retry_load);
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  membar(AnyAny);
-  ldxr(tmp, addr);
+  ldaxr(tmp, addr);
   cmp(tmp, oldv);
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
-  stxr(tmp, newv, addr);
-  membar(AnyAny);
+  stlxr(tmp, newv, addr);
   cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
@@ -1847,13 +1845,11 @@ void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Regis
   bind(retry_load);
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  membar(AnyAny);
-  ldxrw(tmp, addr);
+  ldaxrw(tmp, addr);
   cmp(tmp, oldv);
   br(Assembler::NE, nope);
   // if we store+flush with no intervening write tmp wil be zero
-  stxrw(tmp, newv, addr);
-  membar(AnyAny);
+  stlxrw(tmp, newv, addr);
   cbzw(tmp, succeed);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.

@@ -1584,9 +1584,8 @@ void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   Label retry_load, nope;
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  __ membar(__ AnyAny);
   __ bind(retry_load);
-  __ ldxrw(rscratch1, addr);
+  __ ldaxrw(rscratch1, addr);
   __ cmpw(rscratch1, cmpval);
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
@@ -1603,9 +1602,8 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
   Label retry_load, nope;
   // flush and load exclusive from the memory location
   // and fail if it is not what we expect
-  __ membar(__ AnyAny);
   __ bind(retry_load);
-  __ ldxr(rscratch1, addr);
+  __ ldaxr(rscratch1, addr);
   __ cmp(rscratch1, cmpval);
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
