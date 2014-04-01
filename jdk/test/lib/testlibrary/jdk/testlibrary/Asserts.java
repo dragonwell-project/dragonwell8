@@ -23,6 +23,8 @@
 
 package jdk.testlibrary;
 
+import java.util.Objects;
+
 /**
  * Asserts that can be used for verifying assumptions in tests.
  *
@@ -167,6 +169,34 @@ public class Asserts {
             }
         } else {
             assertTrue(lhs.equals(rhs), msg);
+        }
+    }
+
+    /**
+     * Calls {@link #assertSame(java.lang.Object, java.lang.Object, java.lang.String)} with a default message.
+     *
+     * @param lhs The left hand side of the comparison.
+     * @param rhs The right hand side of the comparison.
+     * @see #assertSame(Object, Object, String)
+     */
+    public static void assertSame(Object lhs, Object rhs) {
+        assertSame(lhs, rhs, null);
+    }
+
+    /**
+     * Asserts that {@code lhs} is the same as {@code rhs}.
+     *
+     * @param lhs The left hand side of the comparison.
+     * @param rhs The right hand side of the comparison.
+     * @param msg A description of the assumption; {@code null} for a default message.
+     * @throws RuntimeException if the assertion is not true.
+     */
+    public static void assertSame(Object lhs, Object rhs, String msg) {
+        if (lhs != rhs) {
+            msg = Objects.toString(msg, "assertSame")
+                    + ": expected " + Objects.toString(lhs)
+                    + " to equal " + Objects.toString(rhs);
+            throw new RuntimeException(msg);
         }
     }
 
