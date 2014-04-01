@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,38 @@
  * questions.
  */
 
-interface InterprocessMessages {
-    final static int EXECUTION_IS_SUCCESSFULL = 0;
-    final static int DATA_IS_CORRUPTED = 212;
-    final static int NO_DROP_HAPPENED = 112;
+/*
+ * @test
+ * @bug 8036100
+ * @summary Default method returns true for a while, and then returns false
+ * @run main/othervm -Xcomp -XX:CompileOnly=InlineDefaultMethod1::test
+ *                   -XX:CompileOnly=I1::m -XX:CompileOnly=I2::m
+ *                   InlineDefaultMethod1
+ */
+interface I1 {
+    default public int m() { return 0; }
 }
 
+interface I2 extends I1 {
+    default public int m() { return 1; }
+}
+
+abstract class A implements I1 {
+}
+
+class B extends A implements I2 {
+}
+
+public class InlineDefaultMethod1 {
+    public static void test(A obj) {
+        int id = obj.m();
+        if (id != 1) {
+            throw new AssertionError("Called wrong method: 1 != "+id);
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        test(new B());
+        System.out.println("TEST PASSED");
+    }
+}
