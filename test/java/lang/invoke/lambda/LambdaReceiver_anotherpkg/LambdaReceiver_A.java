@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,8 @@
  * questions.
  */
 
-interface InterprocessMessages {
-    final static int EXECUTION_IS_SUCCESSFULL = 0;
-    final static int DATA_IS_CORRUPTED = 212;
-    final static int NO_DROP_HAPPENED = 112;
-}
+package LambdaReceiver_anotherpkg;
 
+public class LambdaReceiver_A {
+  protected final int f() { return 2; }
+}
