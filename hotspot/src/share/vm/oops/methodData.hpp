@@ -228,6 +228,11 @@ public:
   static ByteSize cell_offset(int index) {
     return byte_offset_of(DataLayout, _cells) + in_ByteSize(index * cell_size);
   }
+#ifdef CC_INTERP
+  static int cell_offset_in_bytes(int index) {
+    return (int)offset_of(DataLayout, _cells[index]);
+  }
+#endif // CC_INTERP
   // Return a value which, when or-ed as a byte into _flags, sets the flag.
   static int flag_number_to_byte_constant(int flag_number) {
     assert(0 <= flag_number && flag_number < flag_limit, "oob");
@@ -367,6 +372,41 @@ protected:
   ProfileData(DataLayout* data) {
     _data = data;
   }
+
+#ifdef CC_INTERP
+  // Static low level accessors for DataLayout with ProfileData's semantics.
+
+  static int cell_offset_in_bytes(int index) {
+    return DataLayout::cell_offset_in_bytes(index);
+  }
+
+  static void increment_uint_at_no_overflow(DataLayout* layout, int index,
+                                            int inc = DataLayout::counter_increment) {
+    uint count = ((uint)layout->cell_at(index)) + inc;
+    if (count == 0) return;
+    layout->set_cell_at(index, (intptr_t) count);
+  }
+
+  static int int_at(DataLayout* layout, int index) {
+    return (int)layout->cell_at(index);
+  }
+
+  static int uint_at(DataLayout* layout, int index) {
+    return (uint)layout->cell_at(index);
+  }
+
+  static oop oop_at(DataLayout* layout, int index) {
+    return cast_to_oop(layout->cell_at(index));
+  }
+
+  static void set_intptr_at(DataLayout* layout, int index, intptr_t value) {
+    layout->set_cell_at(index, (intptr_t) value);
+  }
+
+  static void set_flag_at(DataLayout* layout, int flag_number) {
+    layout->set_flag_at(flag_number);
+  }
+#endif // CC_INTERP
 
 public:
   // Constructor for invalid ProfileData.
@@ -529,6 +569,20 @@ public:
     return cell_offset(bit_cell_count);
   }
 
+#ifdef CC_INTERP
+  static int bit_data_size_in_bytes() {
+    return cell_offset_in_bytes(bit_cell_count);
+  }
+
+  static void set_null_seen(DataLayout* layout) {
+    set_flag_at(layout, null_seen_flag);
+  }
+
+  static DataLayout* advance(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)BitData::bit_data_size_in_bytes());
+  }
+#endif // CC_INTERP
+
 #ifndef PRODUCT
   void print_data_on(outputStream* st, const char* extra = NULL) const;
 #endif
@@ -572,6 +626,25 @@ public:
   void set_count(uint count) {
     set_uint_at(count_off, count);
   }
+
+#ifdef CC_INTERP
+  static int counter_data_size_in_bytes() {
+    return cell_offset_in_bytes(counter_cell_count);
+  }
+
+  static void increment_count_no_overflow(DataLayout* layout) {
+    increment_uint_at_no_overflow(layout, count_off);
+  }
+
+  // Support counter decrementation at checkcast / subtype check failed.
+  static void decrement_count(DataLayout* layout) {
+    increment_uint_at_no_overflow(layout, count_off, -1);
+  }
+
+  static DataLayout* advance(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)CounterData::counter_data_size_in_bytes());
+  }
+#endif // CC_INTERP
 
 #ifndef PRODUCT
   void print_data_on(outputStream* st, const char* extra = NULL) const;
@@ -642,6 +715,20 @@ public:
   static ByteSize displacement_offset() {
     return cell_offset(displacement_off_set);
   }
+
+#ifdef CC_INTERP
+  static void increment_taken_count_no_overflow(DataLayout* layout) {
+    increment_uint_at_no_overflow(layout, taken_off_set);
+  }
+
+  static DataLayout* advance_taken(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)int_at(layout, displacement_off_set));
+  }
+
+  static uint taken_count(DataLayout* layout) {
+    return (uint) uint_at(layout, taken_off_set);
+  }
+#endif // CC_INTERP
 
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
@@ -1164,6 +1251,43 @@ public:
   // GC support
   virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure);
 
+#ifdef CC_INTERP
+  static int receiver_type_data_size_in_bytes() {
+    return cell_offset_in_bytes(static_cell_count());
+  }
+
+  static Klass *receiver_unchecked(DataLayout* layout, uint row) {
+    Klass* recv = (Klass*)layout->cell_at(receiver_cell_index(row));
+    return recv;
+  }
+
+  static void increment_receiver_count_no_overflow(DataLayout* layout, Klass *rcvr) {
+    const int num_rows = row_limit();
+    // Receiver already exists?
+    for (int row = 0; row < num_rows; row++) {
+      if (receiver_unchecked(layout, row) == rcvr) {
+        increment_uint_at_no_overflow(layout, receiver_count_cell_index(row));
+        return;
+      }
+    }
+    // New receiver, find a free slot.
+    for (int row = 0; row < num_rows; row++) {
+      if (receiver_unchecked(layout, row) == NULL) {
+        set_intptr_at(layout, receiver_cell_index(row), (intptr_t)rcvr);
+        increment_uint_at_no_overflow(layout, receiver_count_cell_index(row));
+        return;
+      }
+    }
+    // Receiver did not match any saved receiver and there is no empty row for it.
+    // Increment total counter to indicate polymorphic case.
+    increment_count_no_overflow(layout);
+  }
+
+  static DataLayout* advance(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)ReceiverTypeData::receiver_type_data_size_in_bytes());
+  }
+#endif // CC_INTERP
+
 #ifndef PRODUCT
   void print_receiver_data_on(outputStream* st) const;
   void print_data_on(outputStream* st, const char* extra = NULL) const;
@@ -1197,6 +1321,16 @@ public:
   static ByteSize virtual_call_data_size() {
     return cell_offset(static_cell_count());
   }
+
+#ifdef CC_INTERP
+  static int virtual_call_data_size_in_bytes() {
+    return cell_offset_in_bytes(static_cell_count());
+  }
+
+  static DataLayout* advance(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)VirtualCallData::virtual_call_data_size_in_bytes());
+  }
+#endif // CC_INTERP
 
 #ifndef PRODUCT
   void print_data_on(outputStream* st, const char* extra = NULL) const;
@@ -1420,6 +1554,10 @@ public:
     return cell_offset(bci_displacement_cell_index(row));
   }
 
+#ifdef CC_INTERP
+  static DataLayout* advance(MethodData *md, int bci);
+#endif // CC_INTERP
+
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
@@ -1484,6 +1622,20 @@ public:
     return cell_offset(branch_cell_count);
   }
 
+#ifdef CC_INTERP
+  static int branch_data_size_in_bytes() {
+    return cell_offset_in_bytes(branch_cell_count);
+  }
+
+  static void increment_not_taken_count_no_overflow(DataLayout* layout) {
+    increment_uint_at_no_overflow(layout, not_taken_off_set);
+  }
+
+  static DataLayout* advance_not_taken(DataLayout* layout) {
+    return (DataLayout*) (((address)layout) + (ssize_t)BranchData::branch_data_size_in_bytes());
+  }
+#endif // CC_INTERP
+
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
@@ -1522,6 +1674,20 @@ protected:
     int aindex = index + array_start_off_set;
     set_int_at(aindex, value);
   }
+
+#ifdef CC_INTERP
+  // Static low level accessors for DataLayout with ArrayData's semantics.
+
+  static void increment_array_uint_at_no_overflow(DataLayout* layout, int index) {
+    int aindex = index + array_start_off_set;
+    increment_uint_at_no_overflow(layout, aindex);
+  }
+
+  static int array_int_at(DataLayout* layout, int index) {
+    int aindex = index + array_start_off_set;
+    return int_at(layout, aindex);
+  }
+#endif // CC_INTERP
 
   // Code generation support for subclasses.
   static ByteSize array_element_offset(int index) {
@@ -1640,6 +1806,28 @@ public:
   static ByteSize relative_displacement_offset() {
     return in_ByteSize(relative_displacement_off_set) * cell_size;
   }
+
+#ifdef CC_INTERP
+  static void increment_count_no_overflow(DataLayout* layout, int index) {
+    if (index == -1) {
+      increment_array_uint_at_no_overflow(layout, default_count_off_set);
+    } else {
+      increment_array_uint_at_no_overflow(layout, case_array_start +
+                                                  index * per_case_cell_count +
+                                                  relative_count_off_set);
+    }
+  }
+
+  static DataLayout* advance(DataLayout* layout, int index) {
+    if (index == -1) {
+      return (DataLayout*) (((address)layout) + (ssize_t)array_int_at(layout, default_disaplacement_off_set));
+    } else {
+      return (DataLayout*) (((address)layout) + (ssize_t)array_int_at(layout, case_array_start +
+                                                                              index * per_case_cell_count +
+                                                                              relative_displacement_off_set));
+    }
+  }
+#endif // CC_INTERP
 
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
@@ -1836,8 +2024,11 @@ public:
 // adjusted in the event of a change in control flow.
 //
 
+CC_INTERP_ONLY(class BytecodeInterpreter;)
+
 class MethodData : public Metadata {
   friend class VMStructs;
+  CC_INTERP_ONLY(friend class BytecodeInterpreter;)
 private:
   friend class ProfileData;
 
@@ -1861,7 +2052,7 @@ public:
 
   // Whole-method sticky bits and flags
   enum {
-    _trap_hist_limit    = 18,   // decoupled from Deoptimization::Reason_LIMIT
+    _trap_hist_limit    = 19,   // decoupled from Deoptimization::Reason_LIMIT
     _trap_hist_mask     = max_jubyte,
     _extra_data_count   = 4     // extra DataLayout headers, for trap history
   }; // Public flag values
@@ -1892,6 +2083,12 @@ private:
   // Counter values at the time profiling started.
   int               _invocation_counter_start;
   int               _backedge_counter_start;
+
+#if INCLUDE_RTM_OPT
+  // State of RTM code generation during compilation of the method
+  int               _rtm_state;
+#endif
+
   // Number of loops and blocks is computed when compiling the first
   // time with C1. It is used to determine if method is trivial.
   short             _num_loops;
@@ -2054,6 +2251,22 @@ public:
 
   InvocationCounter* invocation_counter()     { return &_invocation_counter; }
   InvocationCounter* backedge_counter()       { return &_backedge_counter;   }
+
+#if INCLUDE_RTM_OPT
+  int rtm_state() const {
+    return _rtm_state;
+  }
+  void set_rtm_state(RTMState rstate) {
+    _rtm_state = (int)rstate;
+  }
+  void atomic_set_rtm_state(RTMState rstate) {
+    Atomic::store((int)rstate, &_rtm_state);
+  }
+
+  static int rtm_state_offset_in_bytes() {
+    return offset_of(MethodData, _rtm_state);
+  }
+#endif
 
   void set_would_profile(bool p)              { _would_profile = p;    }
   bool would_profile() const                  { return _would_profile; }
