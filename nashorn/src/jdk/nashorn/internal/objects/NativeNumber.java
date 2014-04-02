@@ -34,6 +34,7 @@ import static jdk.nashorn.internal.lookup.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.text.NumberFormat;
 import java.util.Locale;
 import jdk.internal.dynalink.linker.GuardedInvocation;
@@ -57,7 +58,10 @@ import jdk.nashorn.internal.runtime.linker.PrimitiveLookup;
 @ScriptClass("Number")
 public final class NativeNumber extends ScriptObject {
 
-    static final MethodHandle WRAPFILTER = findWrapFilter();
+    // Method handle to create an object wrapper for a primitive number
+    private static final MethodHandle WRAPFILTER = findOwnMH("wrapFilter", MH.type(NativeNumber.class, Object.class));
+    // Method handle to retrieve the Number prototype object
+    private static final MethodHandle PROTOFILTER = findOwnMH("protoFilter", MH.type(Object.class, Object.class));
 
     /** ECMA 15.7.3.2 largest positive finite value */
     @Property(attributes = Attribute.NON_ENUMERABLE_CONSTANT, where = Where.CONSTRUCTOR)
@@ -86,10 +90,6 @@ public final class NativeNumber extends ScriptObject {
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     private NativeNumber(final double value, final ScriptObject proto, final PropertyMap map) {
         super(proto, map);
         this.value = value;
@@ -98,7 +98,7 @@ public final class NativeNumber extends ScriptObject {
     }
 
     NativeNumber(final double value, final Global global) {
-        this(value, global.getNumberPrototype(), global.getNumberMap());
+        this(value, global.getNumberPrototype(), $nasgenmap$);
     }
 
     private NativeNumber(final double value) {
@@ -185,7 +185,7 @@ public final class NativeNumber extends ScriptObject {
      * @return number in decimal fixed point notation
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toFixed(final Object self, final Object fractionDigits) {
+    public static String toFixed(final Object self, final Object fractionDigits) {
         final int f = JSType.toInteger(fractionDigits);
         if (f < 0 || f > 20) {
             throw rangeError("invalid.fraction.digits", "toFixed");
@@ -217,7 +217,7 @@ public final class NativeNumber extends ScriptObject {
      * @return number in decimal exponential notation
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toExponential(final Object self, final Object fractionDigits) {
+    public static String toExponential(final Object self, final Object fractionDigits) {
         final double  x         = getNumberValue(self);
         final boolean trimZeros = fractionDigits == UNDEFINED;
         final int     f         = trimZeros ? 16 : JSType.toInteger(fractionDigits);
@@ -245,7 +245,7 @@ public final class NativeNumber extends ScriptObject {
      * @return number in decimal exponentiation notation or decimal fixed notation depending on {@code precision}
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toPrecision(final Object self, final Object precision) {
+    public static String toPrecision(final Object self, final Object precision) {
         final double x = getNumberValue(self);
         if (precision == UNDEFINED) {
             return JSType.toString(x);
@@ -278,7 +278,7 @@ public final class NativeNumber extends ScriptObject {
      * @return string representation of this Number in the given radix
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toString(final Object self, final Object radix) {
+    public static String toString(final Object self, final Object radix) {
         if (radix != UNDEFINED) {
             final int intRadix = JSType.toInteger(radix);
             if (intRadix != 10) {
@@ -299,7 +299,7 @@ public final class NativeNumber extends ScriptObject {
      * @return localized string for this Number
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toLocaleString(final Object self) {
+    public static String toLocaleString(final Object self) {
         return JSType.toString(getNumberValue(self));
     }
 
@@ -308,10 +308,10 @@ public final class NativeNumber extends ScriptObject {
      * ECMA 15.7.4.4 Number.prototype.valueOf ( )
      *
      * @param self self reference
-     * @return boxed number value for this Number
+     * @return number value for this Number
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object valueOf(final Object self) {
+    public static double valueOf(final Object self) {
         return getNumberValue(self);
     }
 
@@ -322,12 +322,17 @@ public final class NativeNumber extends ScriptObject {
      * @return Link to be invoked at call site.
      */
     public static GuardedInvocation lookupPrimitive(final LinkRequest request, final Object receiver) {
-        return PrimitiveLookup.lookupPrimitive(request, Number.class, new NativeNumber(((Number)receiver).doubleValue()), WRAPFILTER);
+        return PrimitiveLookup.lookupPrimitive(request, Number.class, new NativeNumber(((Number)receiver).doubleValue()), WRAPFILTER, PROTOFILTER);
     }
 
     @SuppressWarnings("unused")
     private static NativeNumber wrapFilter(final Object receiver) {
         return new NativeNumber(((Number)receiver).doubleValue());
+    }
+
+    @SuppressWarnings("unused")
+    private static Object protoFilter(final Object object) {
+        return Global.instance().getNumberPrototype();
     }
 
     private static double getNumberValue(final Object self) {
@@ -378,7 +383,7 @@ public final class NativeNumber extends ScriptObject {
         return str;
     }
 
-    private static MethodHandle findWrapFilter() {
-        return MH.findStatic(MethodHandles.lookup(), NativeNumber.class, "wrapFilter", MH.type(NativeNumber.class, Object.class));
+    private static MethodHandle findOwnMH(final String name, final MethodType type) {
+        return MH.findStatic(MethodHandles.lookup(), NativeNumber.class, name, type);
     }
 }

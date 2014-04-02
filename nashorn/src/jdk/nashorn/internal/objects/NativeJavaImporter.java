@@ -60,17 +60,13 @@ public final class NativeJavaImporter extends ScriptObject {
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     private NativeJavaImporter(final Object[] args, final ScriptObject proto, final PropertyMap map) {
         super(proto, map);
         this.args = args;
     }
 
     private NativeJavaImporter(final Object[] args, final Global global) {
-        this(args, global.getJavaImporterPrototype(), global.getJavaImporterMap());
+        this(args, global.getJavaImporterPrototype(), $nasgenmap$);
     }
 
     private NativeJavaImporter(final Object[] args) {
@@ -90,7 +86,7 @@ public final class NativeJavaImporter extends ScriptObject {
      * @return NativeJavaImporter instance
      */
     @Constructor(arity = 1)
-    public static Object constructor(final boolean isNew, final Object self, final Object... args) {
+    public static NativeJavaImporter constructor(final boolean isNew, final Object self, final Object... args) {
         return new NativeJavaImporter(args);
     }
 
@@ -132,6 +128,11 @@ public final class NativeJavaImporter extends ScriptObject {
     @Override
     public GuardedInvocation noSuchMethod(final CallSiteDescriptor desc, final LinkRequest request) {
         return createAndSetProperty(desc) ? super.lookup(desc, request) : super.noSuchMethod(desc, request);
+    }
+
+    @Override
+    protected Object invokeNoSuchProperty(final String name) {
+        return createProperty(name);
     }
 
     private boolean createAndSetProperty(final CallSiteDescriptor desc) {
