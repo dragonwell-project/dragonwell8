@@ -64,12 +64,8 @@ public final class DataPropertyDescriptor extends ScriptObject implements Proper
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     DataPropertyDescriptor(final boolean configurable, final boolean enumerable, final boolean writable, final Object value, final Global global) {
-        super(global.getObjectPrototype(), global.getDataPropertyDescriptorMap());
+        super(global.getObjectPrototype(), $nasgenmap$);
         this.configurable = configurable;
         this.enumerable   = enumerable;
         this.writable     = writable;
@@ -169,6 +165,19 @@ public final class DataPropertyDescriptor extends ScriptObject implements Proper
     @Override
     public int type() {
         return DATA;
+    }
+
+    @Override
+    public boolean hasAndEquals(final PropertyDescriptor otherDesc) {
+        if (! (otherDesc instanceof DataPropertyDescriptor)) {
+            return false;
+        }
+
+        final DataPropertyDescriptor other = (DataPropertyDescriptor)otherDesc;
+        return (!has(CONFIGURABLE) || sameValue(configurable, other.configurable)) &&
+               (!has(ENUMERABLE) || sameValue(enumerable, other.enumerable)) &&
+               (!has(WRITABLE) || sameValue(writable, other.writable)) &&
+               (!has(VALUE) || sameValue(value, other.value));
     }
 
     @Override
