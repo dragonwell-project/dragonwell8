@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -497,13 +497,14 @@ protected:
   // check whether there's anything available on the
   // secondary_free_list and/or wait for more regions to appear on
   // that list, if _free_regions_coming is set.
-  HeapRegion* new_region_try_secondary_free_list();
+  HeapRegion* new_region_try_secondary_free_list(bool is_old);
 
   // Try to allocate a single non-humongous HeapRegion sufficient for
   // an allocation of the given word_size. If do_expand is true,
   // attempt to expand the heap if necessary to satisfy the allocation
-  // request.
-  HeapRegion* new_region(size_t word_size, bool do_expand);
+  // request. If the region is to be used as an old region or for a
+  // humongous object, set is_old to true. If not, to false.
+  HeapRegion* new_region(size_t word_size, bool is_old, bool do_expand);
 
   // Attempt to satisfy a humongous allocation request of the given
   // size by finding a contiguous set of free regions of num_regions
@@ -763,9 +764,12 @@ public:
   // list later). The used bytes of freed regions are accumulated in
   // pre_used. If par is true, the region's RSet will not be freed
   // up. The assumption is that this will be done later.
+  // The locked parameter indicates if the caller has already taken
+  // care of proper synchronization. This may allow some optimizations.
   void free_region(HeapRegion* hr,
                    FreeRegionList* free_list,
-                   bool par);
+                   bool par,
+                   bool locked = false);
 
   // Frees a humongous region by collapsing it into individual regions
   // and calling free_region() for each of them. The freed regions
@@ -1243,12 +1247,12 @@ public:
   // Wrapper for the region list operations that can be called from
   // methods outside this class.
 
-  void secondary_free_list_add_as_tail(FreeRegionList* list) {
-    _secondary_free_list.add_as_tail(list);
+  void secondary_free_list_add(FreeRegionList* list) {
+    _secondary_free_list.add_ordered(list);
   }
 
   void append_secondary_free_list() {
-    _free_list.add_as_head(&_secondary_free_list);
+    _free_list.add_ordered(&_secondary_free_list);
   }
 
   void append_secondary_free_list_if_not_empty_with_lock() {
@@ -1647,6 +1651,9 @@ public:
   // that were not successfullly evacuated are not migrated.
   void migrate_strong_code_roots();
 
+  // Free up superfluous code root memory.
+  void purge_code_root_memory();
+
   // During an initial mark pause, mark all the code roots that
   // point into regions *not* in the collection set.
   void mark_strong_code_roots(uint worker_id);
@@ -1659,6 +1666,8 @@ public:
   // in symbol table, possibly in parallel.
   void unlink_string_and_symbol_table(BoolObjectClosure* is_alive, bool unlink_strings = true, bool unlink_symbols = true);
 
+  // Redirty logged cards in the refinement queue.
+  void redirty_logged_cards();
   // Verification
 
   // The following is just to alert the verification code
@@ -1785,8 +1794,6 @@ protected:
   size_t           _undo_waste;
 
   OopsInHeapRegionClosure*      _evac_failure_cl;
-  G1ParScanHeapEvacClosure*     _evac_cl;
-  G1ParScanPartialArrayClosure* _partial_scan_cl;
 
   int  _hash_seed;
   uint _queue_num;
@@ -1914,14 +1921,6 @@ public:
     return _evac_failure_cl;
   }
 
-  void set_evac_closure(G1ParScanHeapEvacClosure* evac_cl) {
-    _evac_cl = evac_cl;
-  }
-
-  void set_partial_scan_closure(G1ParScanPartialArrayClosure* partial_scan_cl) {
-    _partial_scan_cl = partial_scan_cl;
-  }
-
   int* hash_seed() { return &_hash_seed; }
   uint queue_num() { return _queue_num; }
 
@@ -1969,19 +1968,121 @@ public:
                                                  false /* retain */);
     }
   }
+private:
+  #define G1_PARTIAL_ARRAY_MASK 0x2
+
+  inline bool has_partial_array_mask(oop* ref) const {
+    return ((uintptr_t)ref & G1_PARTIAL_ARRAY_MASK) == G1_PARTIAL_ARRAY_MASK;
+  }
+
+  // We never encode partial array oops as narrowOop*, so return false immediately.
+  // This allows the compiler to create optimized code when popping references from
+  // the work queue.
+  inline bool has_partial_array_mask(narrowOop* ref) const {
+    assert(((uintptr_t)ref & G1_PARTIAL_ARRAY_MASK) != G1_PARTIAL_ARRAY_MASK, "Partial array oop reference encoded as narrowOop*");
+    return false;
+  }
+
+  // Only implement set_partial_array_mask() for regular oops, not for narrowOops.
+  // We always encode partial arrays as regular oop, to allow the
+  // specialization for has_partial_array_mask() for narrowOops above.
+  // This means that unintentional use of this method with narrowOops are caught
+  // by the compiler.
+  inline oop* set_partial_array_mask(oop obj) const {
+    assert(((uintptr_t)(void *)obj & G1_PARTIAL_ARRAY_MASK) == 0, "Information loss!");
+    return (oop*) ((uintptr_t)(void *)obj | G1_PARTIAL_ARRAY_MASK);
+  }
+
+  inline oop clear_partial_array_mask(oop* ref) const {
+    return cast_to_oop((intptr_t)ref & ~G1_PARTIAL_ARRAY_MASK);
+  }
+
+  void do_oop_partial_array(oop* p) {
+    assert(has_partial_array_mask(p), "invariant");
+    oop from_obj = clear_partial_array_mask(p);
+
+    assert(Universe::heap()->is_in_reserved(from_obj), "must be in heap.");
+    assert(from_obj->is_objArray(), "must be obj array");
+    objArrayOop from_obj_array = objArrayOop(from_obj);
+    // The from-space object contains the real length.
+    int length                 = from_obj_array->length();
+
+    assert(from_obj->is_forwarded(), "must be forwarded");
+    oop to_obj                 = from_obj->forwardee();
+    assert(from_obj != to_obj, "should not be chunking self-forwarded objects");
+    objArrayOop to_obj_array   = objArrayOop(to_obj);
+    // We keep track of the next start index in the length field of the
+    // to-space object.
+    int next_index             = to_obj_array->length();
+    assert(0 <= next_index && next_index < length,
+           err_msg("invariant, next index: %d, length: %d", next_index, length));
+
+    int start                  = next_index;
+    int end                    = length;
+    int remainder              = end - start;
+    // We'll try not to push a range that's smaller than ParGCArrayScanChunk.
+    if (remainder > 2 * ParGCArrayScanChunk) {
+      end = start + ParGCArrayScanChunk;
+      to_obj_array->set_length(end);
+      // Push the remainder before we process the range in case another
+      // worker has run out of things to do and can steal it.
+      oop* from_obj_p = set_partial_array_mask(from_obj);
+      push_on_queue(from_obj_p);
+    } else {
+      assert(length == end, "sanity");
+      // We'll process the final range for this object. Restore the length
+      // so that the heap remains parsable in case of evacuation failure.
+      to_obj_array->set_length(end);
+    }
+    _scanner.set_region(_g1h->heap_region_containing_raw(to_obj));
+    // Process indexes [start,end). It will also process the header
+    // along with the first chunk (i.e., the chunk with start == 0).
+    // Note that at this point the length field of to_obj_array is not
+    // correct given that we are using it to keep track of the next
+    // start index. oop_iterate_range() (thankfully!) ignores the length
+    // field and only relies on the start / end parameters.  It does
+    // however return the size of the object which will be incorrect. So
+    // we have to ignore it even if we wanted to use it.
+    to_obj_array->oop_iterate_range(&_scanner, start, end);
+  }
+
+  // This method is applied to the fields of the objects that have just been copied.
+  template <class T> void do_oop_evac(T* p, HeapRegion* from) {
+    assert(!oopDesc::is_null(oopDesc::load_decode_heap_oop(p)),
+           "Reference should not be NULL here as such are never pushed to the task queue.");
+    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+
+    // Although we never intentionally push references outside of the collection
+    // set, due to (benign) races in the claim mechanism during RSet scanning more
+    // than one thread might claim the same card. So the same card may be
+    // processed multiple times. So redo this check.
+    if (_g1h->in_cset_fast_test(obj)) {
+      oop forwardee;
+      if (obj->is_forwarded()) {
+        forwardee = obj->forwardee();
+      } else {
+        forwardee = copy_to_survivor_space(obj);
+      }
+      assert(forwardee != NULL, "forwardee should not be NULL");
+      oopDesc::encode_store_heap_oop(p, forwardee);
+    }
+
+    assert(obj != NULL, "Must be");
+    update_rs(from, p, queue_num());
+  }
+public:
 
   oop copy_to_survivor_space(oop const obj);
 
   template <class T> void deal_with_reference(T* ref_to_scan) {
-    if (has_partial_array_mask(ref_to_scan)) {
-      _partial_scan_cl->do_oop_nv(ref_to_scan);
-    } else {
+    if (!has_partial_array_mask(ref_to_scan)) {
       // Note: we can use "raw" versions of "region_containing" because
       // "obj_to_scan" is definitely in the heap, and is not in a
       // humongous region.
       HeapRegion* r = _g1h->heap_region_containing_raw(ref_to_scan);
-      _evac_cl->set_region(r);
-      _evac_cl->do_oop_nv(ref_to_scan);
+      do_oop_evac(ref_to_scan, r);
+    } else {
+      do_oop_partial_array((oop*)ref_to_scan);
     }
   }
 
