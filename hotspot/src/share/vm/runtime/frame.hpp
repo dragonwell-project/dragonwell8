@@ -46,10 +46,13 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/adGlobals_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/adGlobals_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/adGlobals_ppc_32.hpp"
 #endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/adGlobals_ppc_64.hpp"
 #endif
+#endif // COMPILER2
 #ifdef ZERO
 #ifdef TARGET_ARCH_zero
 # include "stack_zero.hpp"
@@ -311,6 +314,9 @@ class frame VALUE_OBJ_CLASS_SPEC {
   void interpreter_frame_set_monitor_end(BasicObjectLock* value);
 #endif // CC_INTERP
 
+  // Address of the temp oop in the frame. Needed as GC root.
+  oop* interpreter_frame_temp_oop_addr() const;
+
   // BasicObjectLocks:
   //
   // interpreter_frame_monitor_begin is higher in memory than interpreter_frame_monitor_end
@@ -347,9 +353,6 @@ class frame VALUE_OBJ_CLASS_SPEC {
   void interpreter_frame_set_method(Method* method);
   Method** interpreter_frame_method_addr() const;
   ConstantPoolCache** interpreter_frame_cache_addr() const;
-#ifdef PPC
-  oop* interpreter_frame_mirror_addr() const;
-#endif
 
  public:
   // Entry frames
