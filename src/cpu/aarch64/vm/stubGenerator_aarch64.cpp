@@ -135,8 +135,16 @@ class StubGenerator: public StubCodeGenerator {
   //     [ return_from_Java     ] <--- sp
   //     [ argument word n      ]
   //      ...
-  // -19 [ argument word 1      ]
-  // -18 [ saved r28            ] <--- sp_after_call
+  // -27 [ argument word 1      ]
+  // -26 [ saved d15            ] <--- sp_after_call
+  // -25 [ saved d14            ]
+  // -24 [ saved d13            ]
+  // -23 [ saved d12            ]
+  // -22 [ saved d11            ]
+  // -21 [ saved d10            ]
+  // -20 [ saved d9             ]
+  // -19 [ saved d8             ]
+  // -18 [ saved r28            ]
   // -17 [ saved r27            ]
   // -16 [ saved r26            ]
   // -15 [ saved r25            ]
@@ -159,7 +167,17 @@ class StubGenerator: public StubCodeGenerator {
 
   // Call stub stack layout word offsets from fp
   enum call_stub_layout {
-    sp_after_call_off = -18,
+    sp_after_call_off = -26,
+
+    d15_off            = -26,
+    d14_off            = -25,
+    d13_off            = -24,
+    d12_off            = -23,
+    d11_off            = -22,
+    d10_off            = -21,
+    d9_off             = -20,
+    d8_off             = -19,
+
     r28_off            = -18,
     r27_off            = -17,
     r26_off            = -16,
@@ -202,6 +220,15 @@ class StubGenerator: public StubCodeGenerator {
 
     const Address thread        (rfp, thread_off         * wordSize);
 
+    const Address d15_save      (rfp, d15_off * wordSize);
+    const Address d14_save      (rfp, d14_off * wordSize);
+    const Address d13_save      (rfp, d13_off * wordSize);
+    const Address d12_save      (rfp, d12_off * wordSize);
+    const Address d11_save      (rfp, d11_off * wordSize);
+    const Address d10_save      (rfp, d10_off * wordSize);
+    const Address d9_save       (rfp, d9_off * wordSize);
+    const Address d8_save       (rfp, d8_off * wordSize);
+
     const Address r28_save      (rfp, r28_off * wordSize);
     const Address r27_save      (rfp, r27_off * wordSize);
     const Address r26_save      (rfp, r26_off * wordSize);
@@ -220,11 +247,8 @@ class StubGenerator: public StubCodeGenerator {
 
     address aarch64_entry = __ pc();
 
-// AED: this should fix Ed's problem -- we only save the sender's SP for our sim
 #ifdef BUILTIN_SIM
     // Save sender's SP for stack traces.
-// ECN: FIXME
-// #if 0
     __ mov(rscratch1, sp);
     __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
 #endif
@@ -253,6 +277,15 @@ class StubGenerator: public StubCodeGenerator {
     __ str(r26,      r26_save);
     __ str(r27,      r27_save);
     __ str(r28,      r28_save);
+
+    __ strd(v8,      d8_save);
+    __ strd(v9,      d9_save);
+    __ strd(v10,     d10_save);
+    __ strd(v11,     d11_save);
+    __ strd(v12,     d12_save);
+    __ strd(v13,     d13_save);
+    __ strd(v14,     d14_save);
+    __ strd(v15,     d15_save);
 
     // install Java thread in global register now we have saved
     // whatever value it held
@@ -358,6 +391,15 @@ class StubGenerator: public StubCodeGenerator {
 #endif
 
     // restore callee-save registers
+    __ ldrd(v15,      d15_save);
+    __ ldrd(v14,      d14_save);
+    __ ldrd(v13,      d13_save);
+    __ ldrd(v12,      d12_save);
+    __ ldrd(v11,      d11_save);
+    __ ldrd(v10,      d10_save);
+    __ ldrd(v9,       d9_save);
+    __ ldrd(v8,       d8_save);
+
     __ ldr(r28,      r28_save);
     __ ldr(r27,      r27_save);
     __ ldr(r26,      r26_save);
