@@ -509,8 +509,7 @@ Java_java_net_PlainDatagramSocketImpl_peek(JNIEnv *env, jobject this,
         JNU_ThrowNullPointerException(env, "Null address in peek()");
     }
     if (timeout) {
-        int ret = NET_Timeout(env, fd, timeout);
-        JNU_CHECK_EXCEPTION_RETURN(env, -1);
+        int ret = NET_Timeout(fd, timeout);
         if (ret == 0) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException",
                             "Peek timed out");
@@ -518,6 +517,8 @@ Java_java_net_PlainDatagramSocketImpl_peek(JNIEnv *env, jobject this,
         } else if (ret == JVM_IO_ERR) {
             if (errno == EBADF) {
                  JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
+            } else if (errno == ENOMEM) {
+                 JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
             } else {
                  NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException", "Peek failed");
             }
@@ -612,22 +613,24 @@ Java_java_net_PlainDatagramSocketImpl_peekData(JNIEnv *env, jobject this,
     packetBufferOffset = (*env)->GetIntField(env, packet, dp_offsetID);
     packetBufferLen = (*env)->GetIntField(env, packet, dp_bufLengthID);
     if (timeout) {
-        int ret = NET_Timeout(env, fd, timeout);
-        JNU_CHECK_EXCEPTION_RETURN(env, -1);
+        int ret = NET_Timeout(fd, timeout);
         if (ret == 0) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException",
                             "Receive timed out");
             return -1;
         } else if (ret == JVM_IO_ERR) {
+            if (errno == ENOMEM) {
+                JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
 #ifdef __linux__
-            if (errno == EBADF) {
+            } else if (errno == EBADF) {
                 JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
             } else {
                 NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException", "Receive failed");
-            }
 #else
-            JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
+            } else {
+                JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
 #endif
+            }
             return -1;
         } else if (ret == JVM_IO_INTR) {
             JNU_ThrowByName(env, JNU_JAVAIOPKG "InterruptedIOException",
@@ -831,23 +834,24 @@ Java_java_net_PlainDatagramSocketImpl_receive0(JNIEnv *env, jobject this,
         retry = JNI_FALSE;
 
         if (timeout) {
-            int ret = NET_Timeout(env, fd, timeout);
+            int ret = NET_Timeout(fd, timeout);
             if (ret <= 0) {
-                if ((*env)->ExceptionCheck(env)) {
-                    // fall-through, to potentially free, then return
-                } else if (ret == 0) {
+                if (ret == 0) {
                     JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException",
                                     "Receive timed out");
                 } else if (ret == JVM_IO_ERR) {
+                     if (errno == ENOMEM) {
+                        JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
 #ifdef __linux__
-                    if (errno == EBADF) {
+                     } else if (errno == EBADF) {
                          JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
                      } else {
                          NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "SocketException", "Receive failed");
-                     }
 #else
-                     JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
+                     } else {
+                         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Socket closed");
 #endif
+                     }
                 } else if (ret == JVM_IO_INTR) {
                     JNU_ThrowByName(env, JNU_JAVAIOPKG "InterruptedIOException",
                                     "operation interrupted");
