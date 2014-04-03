@@ -29,41 +29,10 @@
 #include "runtime/icache.hpp"
 
 extern void aarch64TestHook();
-extern "C" void setup_arm_sim();
 
-#define __ _masm->
-
-void ICacheStubGenerator::generate_icache_flush(ICache::flush_icache_stub_t* flush_icache_stub) {
-
+void ICacheStubGenerator::generate_icache_flush(
+  		ICache::flush_icache_stub_t* flush_icache_stub) {
   aarch64TestHook();
-
-  StubCodeMark mark(this, "ICache", "flush_icache_stub");
-
-  address entry = __ pc();
-
-  // generate a c stub prolog which will bootstrap into the ARM code
-  // which follows, loading the 3 general registers passed by the
-  // caller into the first 3 ARM registers
-
-#ifdef BUILTIN_SIM
-  __ c_stub_prolog(3, 0, MacroAssembler::ret_type_integral);
-#endif
-
-  Register start = r0, lines = r1, auto_magic = r2;
-
-  // First flush the dcache
-  __ generate_flush_loop(&Assembler::dc, start, lines);
-
-  __ dsb(Assembler::SY);
-
-  // And then the icache
-  __ generate_flush_loop(&Assembler::ic, start, lines);
-
-  // the stub is supposed to return the 3rd argument
-  __ mov(r0, auto_magic);
-  __ ret(r30);
-
-  *flush_icache_stub =  (ICache::flush_icache_stub_t)entry;
+  // Give anyone who calls this a surprise
+  *flush_icache_stub = (ICache::flush_icache_stub_t)NULL;
 }
-
-#undef __

@@ -1361,9 +1361,6 @@ public:
   address read_polling_page(Register r, address page, relocInfo::relocType rtype);
   address read_polling_page(Register r, relocInfo::relocType rtype);
 
-  typedef void (Assembler::* flush_insn)(Register Rt);
-  void generate_flush_loop(flush_insn flush, Register start, Register lines);
-
   // Used by aarch64.ad to control code generation
   static bool use_acq_rel_for_volatile_fields();
 };
