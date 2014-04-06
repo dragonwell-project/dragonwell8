@@ -212,6 +212,7 @@ package.access=sun.,\
                jdk.internal.,\
                jdk.nashorn.internal.,\
                jdk.nashorn.tools.,\
+               com.sun.activation.registries.,\
                com.sun.java.accessibility.
 
 #
@@ -259,6 +260,7 @@ package.definition=sun.,\
                    jdk.internal.,\
                    jdk.nashorn.internal.,\
                    jdk.nashorn.tools.,\
+                   com.sun.activation.registries.,\
                    com.sun.java.accessibility.
 
 #
