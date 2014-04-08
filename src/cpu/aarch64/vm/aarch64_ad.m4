@@ -7,7 +7,7 @@ instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
                          immI src3, rFlagsReg cr) %{
   match(Set dst ($2$1 src1 ($4$1 src2 src3)));
 
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$3  $dst, $src1, $src2, $5 $src3" %}
 
   ins_encode %{
@@ -30,7 +30,7 @@ dnl into this canonical form.
   ifelse($2,Xor,
     match(Set dst (Xor$1 m1 (Xor$1 src2 src1)));,
     match(Set dst ($2$1 src1 (Xor$1 src2 m1)));)
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$3  $dst, $src1, $src2" %}
 
   ins_encode %{
@@ -52,7 +52,7 @@ dnl into this canonical form.
   ifelse($2,Xor,
     match(Set dst ($2$1 src4 (Xor$1($4$1 src2 src3) src1)));,
     match(Set dst ($2$1 src1 (Xor$1($4$1 src2 src3) src4)));)
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$3  $dst, $src1, $src2, $5 $src3" %}
 
   ins_encode %{
@@ -70,7 +70,7 @@ define(`NOT_INSN',
                          iReg$1 src1, imm$1_M1 m1,
                          rFlagsReg cr) %{
   match(Set dst (Xor$1 src1 m1));
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$2  $dst, $src1, zr" %}
 
   ins_encode %{
@@ -131,7 +131,7 @@ instruct $4$1(iReg$1NoSp dst, iReg$1 src, immI lshift_count, immI rshift_count)
   predicate((unsigned int)n->in(2)->get_int() <= $2
             && (unsigned int)n->in(1)->in(2)->get_int() <= $2);
 
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST * 2);
   format %{ "$4  $dst, $src, $rshift_count - $lshift_count, #$2 - $lshift_count" %}
   ins_encode %{
     int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
@@ -155,7 +155,7 @@ define(`BFX_INSN',
 %{
   match(Set dst (And$1 ($2$1 src rshift) mask));
 
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$3 $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -175,7 +175,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask m
 %{
   match(Set dst (ConvI2L (AndI (URShiftI src rshift) mask)));
 
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST * 2);
   format %{ "ubfx $dst, $src, $mask" %}
   ins_encode %{
     int rshift = $rshift$$constant;
@@ -195,7 +195,7 @@ define(`EXTRACT_INSN',
   match(Set dst ($3$1 (LShift$1 src1 lshift) (URShift$1 src2 rshift)));
   predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & $2));
 
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
 
   ins_encode %{
@@ -217,7 +217,7 @@ instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
   effect(DEF dst, USE src, USE shift);
 
   format %{ "$2    $dst, $src, $shift" %}
-  ins_cost(2*DEFAULT_COST);
+  ins_cost(INSN_COST * 3);
   ins_encode %{
     __ subw(rscratch1, zr, as_Register($shift$$reg));
     __ $3(as_Register($dst$$reg), as_Register($src$$reg),
@@ -233,7 +233,7 @@ instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
   effect(DEF dst, USE src, USE shift);
 
   format %{ "$2    $dst, $src, $shift" %}
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   ins_encode %{
     __ $3(as_Register($dst$$reg), as_Register($src$$reg),
 	    as_Register($shift$$reg));
@@ -277,7 +277,7 @@ define(`ADD_SUB_CONV', `
 instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1orL2I src2, rFlagsReg cr)
 %{
   match(Set dst ($3$2 src1 (ConvI2L src2)));
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$4  $dst, $src1, $6 $src2" %}
 
    ins_encode %{
@@ -293,7 +293,7 @@ define(`ADD_SUB_EXTENDED', `
 instruct $3Ext$1_$6(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, immI_`'eval($7-$2) lshift, immI_`'eval($7-$2) rshift, rFlagsReg cr)
 %{
   match(Set dst ($3$1 src1 EXTEND($1, $4, src2, lshift, rshift)));
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$5  $dst, $src1, $6 $src2" %}
 
    ins_encode %{
@@ -315,7 +315,7 @@ define(`ADD_SUB_ZERO_EXTEND', `
 instruct $3Ext$1_$5_and(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, imm$1_$2 mask, rFlagsReg cr)
 %{
   match(Set dst ($3$1 src1 (And$1 src2 mask)));
-  ins_cost(DEFAULT_COST);
+  ins_cost(INSN_COST);
   format %{ "$4  $dst, $src1, $src2, $5" %}
 
    ins_encode %{
