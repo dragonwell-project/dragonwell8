@@ -107,9 +107,7 @@ inline int os::close(int fd) {
   return ::close(fd);
 }
 
-#ifndef PRODUCT
-  #define CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(f) \
-            os::win32::call_test_func_with_wrapper(f)
-#endif
+#define CALL_TEST_FUNC_WITH_WRAPPER_IF_NEEDED(f) \
+        os::win32::call_test_func_with_wrapper(f)
 
 #endif // OS_WINDOWS_VM_OS_WINDOWS_INLINE_HPP

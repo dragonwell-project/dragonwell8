@@ -30,6 +30,8 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.internal.scripts.JS;
+import jdk.nashorn.internal.codegen.CompilerConstants;
+import jdk.nashorn.internal.objects.Global;
 
 /**
  * Helper class to throw various standard "ECMA error" exceptions such as Error, ReferenceError, TypeError etc.
@@ -65,7 +67,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException asEcmaException(final ParserException e) {
-        return asEcmaException(Context.getGlobalTrusted(), e);
+        return asEcmaException(Context.getGlobal(), e);
     }
 
     /**
@@ -77,11 +79,11 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException asEcmaException(final ScriptObject global, final ParserException e) {
+    public static ECMAException asEcmaException(final Global global, final ParserException e) {
         final JSErrorType errorType = e.getErrorType();
         assert errorType != null : "error type for " + e + " was null";
 
-        final GlobalObject globalObj = (GlobalObject)global;
+        final Global globalObj    = global;
         final String       msg    = e.getMessage();
 
         // translate to ECMAScript Error object using error type
@@ -115,7 +117,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException syntaxError(final String msgId, final String... args) {
-        return syntaxError(Context.getGlobalTrusted(), msgId, args);
+        return syntaxError(Context.getGlobal(), msgId, args);
     }
 
     /**
@@ -127,7 +129,7 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException syntaxError(final ScriptObject global, final String msgId, final String... args) {
+    public static ECMAException syntaxError(final Global global, final String msgId, final String... args) {
         return syntaxError(global, null, msgId, args);
     }
 
@@ -141,7 +143,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException syntaxError(final Throwable cause, final String msgId, final String... args) {
-        return syntaxError(Context.getGlobalTrusted(), cause, msgId, args);
+        return syntaxError(Context.getGlobal(), cause, msgId, args);
     }
 
     /**
@@ -154,9 +156,9 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException syntaxError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static ECMAException syntaxError(final Global global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("syntax.error." + msgId, args);
-        return error(((GlobalObject)global).newSyntaxError(msg), cause);
+        return error(global.newSyntaxError(msg), cause);
     }
 
     /**
@@ -168,7 +170,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException typeError(final String msgId, final String... args) {
-        return typeError(Context.getGlobalTrusted(), msgId, args);
+        return typeError(Context.getGlobal(), msgId, args);
     }
 
     /**
@@ -180,7 +182,7 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException typeError(final ScriptObject global, final String msgId, final String... args) {
+    public static ECMAException typeError(final Global global, final String msgId, final String... args) {
         return typeError(global, null, msgId, args);
     }
 
@@ -194,7 +196,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException typeError(final Throwable cause, final String msgId, final String... args) {
-        return typeError(Context.getGlobalTrusted(), cause, msgId, args);
+        return typeError(Context.getGlobal(), cause, msgId, args);
     }
 
     /**
@@ -207,9 +209,9 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException typeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static ECMAException typeError(final Global global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("type.error." + msgId, args);
-        return error(((GlobalObject)global).newTypeError(msg), cause);
+        return error(global.newTypeError(msg), cause);
     }
 
     /**
@@ -221,7 +223,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException rangeError(final String msgId, final String... args) {
-        return rangeError(Context.getGlobalTrusted(), msgId, args);
+        return rangeError(Context.getGlobal(), msgId, args);
     }
 
     /**
@@ -233,7 +235,7 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException rangeError(final ScriptObject global, final String msgId, final String... args) {
+    public static ECMAException rangeError(final Global global, final String msgId, final String... args) {
         return rangeError(global, null, msgId, args);
     }
 
@@ -247,7 +249,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException rangeError(final Throwable cause, final String msgId, final String... args) {
-        return rangeError(Context.getGlobalTrusted(), cause, msgId, args);
+        return rangeError(Context.getGlobal(), cause, msgId, args);
     }
 
     /**
@@ -260,9 +262,9 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException rangeError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static ECMAException rangeError(final Global global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("range.error." + msgId, args);
-        return error(((GlobalObject)global).newRangeError(msg), cause);
+        return error(global.newRangeError(msg), cause);
     }
 
     /**
@@ -274,7 +276,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException referenceError(final String msgId, final String... args) {
-        return referenceError(Context.getGlobalTrusted(), msgId, args);
+        return referenceError(Context.getGlobal(), msgId, args);
     }
 
     /**
@@ -286,7 +288,7 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException referenceError(final ScriptObject global, final String msgId, final String... args) {
+    public static ECMAException referenceError(final Global global, final String msgId, final String... args) {
         return referenceError(global, null, msgId, args);
     }
 
@@ -300,7 +302,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException referenceError(final Throwable cause, final String msgId, final String... args) {
-        return referenceError(Context.getGlobalTrusted(), cause, msgId, args);
+        return referenceError(Context.getGlobal(), cause, msgId, args);
     }
 
     /**
@@ -313,9 +315,9 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException referenceError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static ECMAException referenceError(final Global global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("reference.error." + msgId, args);
-        return error(((GlobalObject)global).newReferenceError(msg), cause);
+        return error(global.newReferenceError(msg), cause);
     }
 
     /**
@@ -327,7 +329,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException uriError(final String msgId, final String... args) {
-        return uriError(Context.getGlobalTrusted(), msgId, args);
+        return uriError(Context.getGlobal(), msgId, args);
     }
 
     /**
@@ -339,7 +341,7 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException uriError(final ScriptObject global, final String msgId, final String... args) {
+    public static ECMAException uriError(final Global global, final String msgId, final String... args) {
         return uriError(global, null, msgId, args);
     }
 
@@ -353,7 +355,7 @@ public final class ECMAErrors {
      * @return the resulting {@link ECMAException}
      */
     public static ECMAException uriError(final Throwable cause, final String msgId, final String... args) {
-        return uriError(Context.getGlobalTrusted(), cause, msgId, args);
+        return uriError(Context.getGlobal(), cause, msgId, args);
     }
 
     /**
@@ -366,9 +368,9 @@ public final class ECMAErrors {
      *
      * @return the resulting {@link ECMAException}
      */
-    public static ECMAException uriError(final ScriptObject global, final Throwable cause, final String msgId, final String... args) {
+    public static ECMAException uriError(final Global global, final Throwable cause, final String msgId, final String... args) {
         final String msg = getMessage("uri.error." + msgId, args);
-        return error(((GlobalObject)global).newURIError(msg), cause);
+        return error(global.newURIError(msg), cause);
     }
 
     /**
@@ -401,7 +403,7 @@ public final class ECMAErrors {
         final String className = frame.getClassName();
 
         // Look for script package in class name (into which compiler puts generated code)
-        if (className.startsWith(scriptPackage)) {
+        if (className.startsWith(scriptPackage) && !frame.getMethodName().startsWith(CompilerConstants.INTERNAL_METHOD_PREFIX)) {
             final String source = frame.getFileName();
             /*
              * Make sure that it is not some Java code that Nashorn has in that package!
