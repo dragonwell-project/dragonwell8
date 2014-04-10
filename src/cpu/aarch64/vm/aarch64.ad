@@ -2328,12 +2328,11 @@ encode %{
       }
     }
     Label retry_load, done;
-    __ membar(__ AnyAny);
     __ bind(retry_load);
-    __ ldxr(rscratch1, addr_reg);
+    __ ldaxr(rscratch1, addr_reg);
     __ cmp(rscratch1, old_reg);
     __ br(Assembler::NE, done);
-    __ stxr(rscratch1, new_reg, addr_reg);
+    __ stlxr(rscratch1, new_reg, addr_reg);
     __ cbnzw(rscratch1, retry_load);
     __ bind(done);
     __ membar(__ AnyAny);
@@ -2370,11 +2369,10 @@ encode %{
     }
     Label retry_load, done;
     __ bind(retry_load);
-    __ membar(__ AnyAny);
-    __ ldxrw(rscratch1, addr_reg);
+    __ ldaxrw(rscratch1, addr_reg);
     __ cmpw(rscratch1, old_reg);
     __ br(Assembler::NE, done);
-    __ stxrw(rscratch1, new_reg, addr_reg);
+    __ stlxrw(rscratch1, new_reg, addr_reg);
     __ cbnzw(rscratch1, retry_load);
     __ bind(done);
     __ membar(__ AnyAny);
@@ -5927,7 +5925,7 @@ instruct membar_acquire_lock() %{
 
   ins_encode %{
     __ block_comment("membar-acquire-lock");
-    // __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
+    __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
   %}
 
   ins_pipe(pipe_class_memory);
@@ -5940,7 +5938,7 @@ instruct membar_release_lock() %{
 
   ins_encode %{
     __ block_comment("MEMBAR-release-lock");
-    // __ membar(Assembler::AnyAny);
+    __ membar(Assembler::AnyAny);
   %}
 
   ins_pipe(pipe_class_memory);

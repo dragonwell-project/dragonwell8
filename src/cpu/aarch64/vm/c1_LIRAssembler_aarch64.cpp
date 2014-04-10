@@ -1590,7 +1590,7 @@ void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
   // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stxrw(rscratch1, newval, addr);
+  __ stlxrw(rscratch1, newval, addr);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   __ cbnzw(rscratch1, retry_load);
@@ -1608,7 +1608,7 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
   __ cset(rscratch1, Assembler::NE);
   __ br(Assembler::NE, nope);
   // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stxr(rscratch1, newval, addr);
+  __ stlxr(rscratch1, newval, addr);
   // retry so we only ever return after a load fails to compare
   // ensures we don't return a stale value after a failed write.
   __ cbnz(rscratch1, retry_load);
@@ -3087,23 +3087,23 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   case T_INT:
     lda = &MacroAssembler::ldaxrw;
     add = &MacroAssembler::addw;
-    stl = &MacroAssembler::stxrw;
+    stl = &MacroAssembler::stlxrw;
     break;
   case T_LONG:
     lda = &MacroAssembler::ldaxr;
     add = &MacroAssembler::add;
-    stl = &MacroAssembler::stxr;
+    stl = &MacroAssembler::stlxr;
     break;
   case T_OBJECT:
   case T_ARRAY:
     if (UseCompressedOops) {
       lda = &MacroAssembler::ldaxrw;
       add = &MacroAssembler::addw;
-      stl = &MacroAssembler::stxrw;
+      stl = &MacroAssembler::stlxrw;
     } else {
       lda = &MacroAssembler::ldaxr;
       add = &MacroAssembler::add;
-      stl = &MacroAssembler::stxr;
+      stl = &MacroAssembler::stlxr;
     }
     break;
   default:
