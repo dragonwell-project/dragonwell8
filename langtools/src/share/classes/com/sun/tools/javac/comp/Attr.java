@@ -3009,15 +3009,6 @@ public class Attr extends JCTree.Visitor {
                 Type ctype = cfolder.fold1(opc, argtype);
                 if (ctype != null) {
                     owntype = cfolder.coerce(ctype, owntype);
-
-                    // Remove constant types from arguments to
-                    // conserve space. The parser will fold concatenations
-                    // of string literals; the code here also
-                    // gets rid of intermediate results when some of the
-                    // operands are constant identifiers.
-                    if (tree.arg.type.tsym == syms.stringType.tsym) {
-                        tree.arg.type = syms.stringType;
-                    }
                 }
             }
         }
@@ -3051,18 +3042,6 @@ public class Attr extends JCTree.Visitor {
                 Type ctype = cfolder.fold2(opc, left, right);
                 if (ctype != null) {
                     owntype = cfolder.coerce(ctype, owntype);
-
-                    // Remove constant types from arguments to
-                    // conserve space. The parser will fold concatenations
-                    // of string literals; the code here also
-                    // gets rid of intermediate results when some of the
-                    // operands are constant identifiers.
-                    if (tree.lhs.type.tsym == syms.stringType.tsym) {
-                        tree.lhs.type = syms.stringType;
-                    }
-                    if (tree.rhs.type.tsym == syms.stringType.tsym) {
-                        tree.rhs.type = syms.stringType;
-                    }
                 }
             }
 
