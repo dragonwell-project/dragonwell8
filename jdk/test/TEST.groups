@@ -103,7 +103,8 @@ jdk_net = \
     java/net \
     com/sun/net \
     com/oracle/net \
-    sun/net
+    sun/net \
+    jdk/net
 
 jdk_time = \
     java/time
