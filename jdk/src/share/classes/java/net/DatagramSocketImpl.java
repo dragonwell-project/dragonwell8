@@ -48,6 +48,20 @@ public abstract class DatagramSocketImpl implements SocketOptions {
     protected FileDescriptor fd;
 
     /**
+     * The DatagramSocket or MulticastSocket
+     * that owns this impl
+     */
+    DatagramSocket socket;
+
+    void setDatagramSocket(DatagramSocket socket) {
+        this.socket = socket;
+    }
+
+    DatagramSocket getDatagramSocket() {
+        return socket;
+    }
+
+    /**
      * Creates a datagram socket.
      * @exception SocketException if there is an error in the
      * underlying protocol, such as a TCP error.
@@ -231,6 +245,56 @@ public abstract class DatagramSocketImpl implements SocketOptions {
      */
     protected int getLocalPort() {
         return localPort;
+    }
+
+    <T> void setOption(SocketOption<T> name, T value) throws IOException {
+        if (name == StandardSocketOptions.SO_SNDBUF) {
+            setOption(SocketOptions.SO_SNDBUF, value);
+        } else if (name == StandardSocketOptions.SO_RCVBUF) {
+            setOption(SocketOptions.SO_RCVBUF, value);
+        } else if (name == StandardSocketOptions.SO_REUSEADDR) {
+            setOption(SocketOptions.SO_REUSEADDR, value);
+        } else if (name == StandardSocketOptions.IP_TOS) {
+            setOption(SocketOptions.IP_TOS, value);
+        } else if (name == StandardSocketOptions.IP_MULTICAST_IF &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            setOption(SocketOptions.IP_MULTICAST_IF2, value);
+        } else if (name == StandardSocketOptions.IP_MULTICAST_TTL &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            if (! (value instanceof Integer)) {
+                throw new IllegalArgumentException("not an integer");
+            }
+            setTimeToLive((Integer)value);
+        } else if (name == StandardSocketOptions.IP_MULTICAST_LOOP &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            setOption(SocketOptions.IP_MULTICAST_LOOP, value);
+        } else {
+            throw new UnsupportedOperationException("unsupported option");
+        }
+    }
+
+    <T> T getOption(SocketOption<T> name) throws IOException {
+        if (name == StandardSocketOptions.SO_SNDBUF) {
+            return (T) getOption(SocketOptions.SO_SNDBUF);
+        } else if (name == StandardSocketOptions.SO_RCVBUF) {
+            return (T) getOption(SocketOptions.SO_RCVBUF);
+        } else if (name == StandardSocketOptions.SO_REUSEADDR) {
+            return (T) getOption(SocketOptions.SO_REUSEADDR);
+        } else if (name == StandardSocketOptions.IP_TOS) {
+            return (T) getOption(SocketOptions.IP_TOS);
+        } else if (name == StandardSocketOptions.IP_MULTICAST_IF &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            return (T) getOption(SocketOptions.IP_MULTICAST_IF2);
+        } else if (name == StandardSocketOptions.IP_MULTICAST_TTL &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            Integer ttl = getTimeToLive();
+            return (T)ttl;
+        } else if (name == StandardSocketOptions.IP_MULTICAST_LOOP &&
+            (getDatagramSocket() instanceof MulticastSocket)) {
+            return (T) getOption(SocketOptions.IP_MULTICAST_LOOP);
+        } else {
+            throw new UnsupportedOperationException("unsupported option");
+        }
     }
 
     /**
