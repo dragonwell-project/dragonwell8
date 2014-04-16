@@ -629,6 +629,7 @@ public class LWWindowPeer
         final boolean isNewDevice = updateGraphicsDevice();
         if (resized || isNewDevice) {
             replaceSurfaceData();
+            updateMinimumSize();
         }
 
         // Third, COMPONENT_MOVED/COMPONENT_RESIZED/PAINT events
@@ -1046,7 +1047,9 @@ public class LWWindowPeer
 
     @Override
     public final void displayChanged() {
-        updateGraphicsDevice();
+        if (updateGraphicsDevice()) {
+            updateMinimumSize();
+        }
         // Replace surface unconditionally, because internal state of the
         // GraphicsDevice could be changed.
         replaceSurfaceData();
