@@ -2698,6 +2698,7 @@ bool PhaseIdealLoop::partial_peel( IdealLoopTree *loop, Node_List &old_new ) {
   // Inhibit more partial peeling on this loop
   new_head_clone->set_partial_peel_loop();
   C->set_major_progress();
+  loop->record_for_igvn();
 
 #if !defined(PRODUCT)
   if (TracePartialPeeling) {

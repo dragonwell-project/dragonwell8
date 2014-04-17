@@ -182,6 +182,8 @@ class Klass : public Metadata {
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
+  enum MethodLookupMode { normal, skip_overpass, skip_defaults };
+
   bool is_klass() const volatile { return true; }
 
   // super
@@ -421,10 +423,10 @@ class Klass : public Metadata {
   virtual void initialize(TRAPS);
   // lookup operation for MethodLookupCache
   friend class MethodLookupCache;
-  virtual Method* uncached_lookup_method(Symbol* name, Symbol* signature) const;
+  virtual Method* uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
  public:
   Method* lookup_method(Symbol* name, Symbol* signature) const {
-    return uncached_lookup_method(name, signature);
+    return uncached_lookup_method(name, signature, normal);
   }
 
   // array class with specific rank
