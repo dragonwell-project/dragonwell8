@@ -34,7 +34,6 @@ import java.awt.print.*;
 
 import java.beans.*;
 
-import java.io.Serializable;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
@@ -58,7 +57,6 @@ import sun.swing.SwingUtilities2;
 import sun.swing.SwingUtilities2.Section;
 import static sun.swing.SwingUtilities2.Section.*;
 import sun.swing.PrintingStatus;
-import sun.swing.SwingLazyValue;
 
 /**
  * The <code>JTable</code> is used to display and edit regular two-dimensional tables
@@ -5307,14 +5305,6 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
         return retValue;
     }
 
-    private void setLazyValue(Hashtable h, Class c, String s) {
-        h.put(c, new SwingLazyValue(s));
-    }
-
-    private void setLazyRenderer(Class c, String s) {
-        setLazyValue(defaultRenderersByColumnClass, c, s);
-    }
-
     /**
      * Creates default cell renderers for objects, numbers, doubles, dates,
      * booleans, and icons.
@@ -5325,24 +5315,24 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
         defaultRenderersByColumnClass = new UIDefaults(8, 0.75f);
 
         // Objects
-        setLazyRenderer(Object.class, "javax.swing.table.DefaultTableCellRenderer$UIResource");
+        defaultRenderersByColumnClass.put(Object.class, (UIDefaults.LazyValue) t -> new DefaultTableCellRenderer.UIResource());
 
         // Numbers
-        setLazyRenderer(Number.class, "javax.swing.JTable$NumberRenderer");
+        defaultRenderersByColumnClass.put(Number.class, (UIDefaults.LazyValue) t -> new NumberRenderer());
 
         // Doubles and Floats
-        setLazyRenderer(Float.class, "javax.swing.JTable$DoubleRenderer");
-        setLazyRenderer(Double.class, "javax.swing.JTable$DoubleRenderer");
+        defaultRenderersByColumnClass.put(Float.class, (UIDefaults.LazyValue) t -> new DoubleRenderer());
+        defaultRenderersByColumnClass.put(Double.class, (UIDefaults.LazyValue) t -> new DoubleRenderer());
 
         // Dates
-        setLazyRenderer(Date.class, "javax.swing.JTable$DateRenderer");
+        defaultRenderersByColumnClass.put(Date.class, (UIDefaults.LazyValue) t -> new DateRenderer());
 
         // Icons and ImageIcons
-        setLazyRenderer(Icon.class, "javax.swing.JTable$IconRenderer");
-        setLazyRenderer(ImageIcon.class, "javax.swing.JTable$IconRenderer");
+        defaultRenderersByColumnClass.put(Icon.class, (UIDefaults.LazyValue) t -> new IconRenderer());
+        defaultRenderersByColumnClass.put(ImageIcon.class, (UIDefaults.LazyValue) t -> new IconRenderer());
 
         // Booleans
-        setLazyRenderer(Boolean.class, "javax.swing.JTable$BooleanRenderer");
+        defaultRenderersByColumnClass.put(Boolean.class, (UIDefaults.LazyValue) t -> new BooleanRenderer());
     }
 
     /**
@@ -5420,10 +5410,6 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
         }
     }
 
-    private void setLazyEditor(Class c, String s) {
-        setLazyValue(defaultEditorsByColumnClass, c, s);
-    }
-
     /**
      * Creates default cell editors for objects, numbers, and boolean values.
      * @see DefaultCellEditor
@@ -5432,13 +5418,13 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
         defaultEditorsByColumnClass = new UIDefaults(3, 0.75f);
 
         // Objects
-        setLazyEditor(Object.class, "javax.swing.JTable$GenericEditor");
+        defaultEditorsByColumnClass.put(Object.class, (UIDefaults.LazyValue) t -> new GenericEditor());
 
         // Numbers
-        setLazyEditor(Number.class, "javax.swing.JTable$NumberEditor");
+        defaultEditorsByColumnClass.put(Number.class, (UIDefaults.LazyValue) t -> new NumberEditor());
 
         // Booleans
-        setLazyEditor(Boolean.class, "javax.swing.JTable$BooleanEditor");
+        defaultEditorsByColumnClass.put(Boolean.class, (UIDefaults.LazyValue) t -> new BooleanEditor());
     }
 
     /**
