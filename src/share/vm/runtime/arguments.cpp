@@ -2339,6 +2339,8 @@ bool Arguments::check_vm_args_consistency() {
   status &= verify_interval(NmethodSweepFraction, 1, ReservedCodeCacheSize/K, "NmethodSweepFraction");
   status &= verify_interval(NmethodSweepActivity, 0, 2000, "NmethodSweepActivity");
 
+  status &= verify_interval(SafepointPollOffset, 0, os::vm_page_size() - BytesPerWord, "SafepointPollOffset");
+
   return status;
 }
 
