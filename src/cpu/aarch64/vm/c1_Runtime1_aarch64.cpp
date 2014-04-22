@@ -69,7 +69,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   int call_offset = offset();
   // verify callee-saved register
 #ifdef ASSERT
-  push(0b1, sp); // r0
+  push(RegSet::of(r0), sp);
   { Label L;
     get_thread(r0);
     cmp(rthread, r0);
@@ -77,7 +77,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
     stop("StubAssembler::call_RT: rthread not callee saved?");
     bind(L);
   }
-  pop(0b1, sp);
+  pop(RegSet::of(r0), sp);
 #endif
   reset_last_Java_frame(true, true);
 
@@ -262,7 +262,7 @@ static OopMap* save_live_registers(StubAssembler* sasm,
                                    bool save_fpu_registers = true) {
   __ block_comment("save_live_registers");
 
-  __ push(0x3fffffff, sp);         // integer registers except lr & sp
+  __ push(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
 
   if (save_fpu_registers) {
     for (int i = 30; i >= 0; i -= 2)
@@ -284,7 +284,7 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
     __ add(sp, sp, 32 * wordSize);
   }
 
-  __ pop(0x3fffffff, sp);
+  __ pop(RegSet::range(r0, r29), sp);
 }
 
 static void restore_live_registers_except_r0(StubAssembler* sasm, bool restore_fpu_registers = true)  {
@@ -298,7 +298,7 @@ static void restore_live_registers_except_r0(StubAssembler* sasm, bool restore_f
   }
 
   __ ldp(zr, r1, Address(__ post(sp, 16)));
-  __ pop(0x3ffffffc, sp);
+  __ pop(RegSet::range(r2, r29), sp);
 }
 
 
@@ -1014,7 +1014,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         };
 
         __ set_info("slow_subtype_check", dont_gc_arguments);
-	__ push((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+	__ push(RegSet::of(r0, r2, r4, r5), sp);
 
         // This is called by pushing args and not with C abi
         // __ ldr(r4, Address(sp, (klass_off) * VMRegImpl::stack_slot_size)); // subclass
@@ -1028,12 +1028,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // fallthrough on success:
 	__ mov(rscratch1, 1);
         __ str(rscratch1, Address(sp, (result_off) * VMRegImpl::stack_slot_size)); // result
-	__ pop((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+	__ pop(RegSet::of(r0, r2, r4, r5), sp);
         __ ret(lr);
 
         __ bind(miss);
         __ str(zr, Address(sp, (result_off) * VMRegImpl::stack_slot_size)); // result
-	__ pop((1 << 0) | (1 <<2) | (1 << 4) | (1 << 5), sp);
+	__ pop(RegSet::of(r0, r2, r4, r5), sp);
         __ ret(lr);
       }
       break;
@@ -1154,12 +1154,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 #if INCLUDE_ALL_GCS
 
 // Registers to be saved around calls to g1_wb_pre or g1_wb_post
-#define G1_SAVE_REGS  ((r0->bit(1)|r1->bit(1)| \
-			r2->bit(1)|r3->bit(1)|r4->bit(1)|r5->bit(1)| \
-			r6->bit(1)|r7->bit(1)|r8->bit(1)|r9->bit(1)| \
-			r10->bit(1)|r11->bit(1)|r12->bit(1)|r13->bit(1)| \
-			r14->bit(1)|r15->bit(1)|r16->bit(1)|r17->bit(1)| \
-			r18->bit(1))&~(rscratch1->bit(1)|rscratch2->bit(1)))
+#define G1_SAVE_REGS (RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2))
 
     case g1_pre_barrier_slow_id:
       {
@@ -1262,10 +1257,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         const Register buffer_addr = r0;
 
-	__ push(r0->bit(1) | r1->bit(1), sp);
+	__ push(RegSet::of(r0, r1), sp);
 	__ ldr(buffer_addr, buffer);
 	__ str(card_addr, Address(buffer_addr, rscratch1));
-	__ pop(r0->bit(1) | r1->bit(1), sp);
+	__ pop(RegSet::of(r0, r1), sp);
 	__ b(done);
 
         __ bind(runtime);

@@ -1052,29 +1052,27 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm, BasicType ret_ty
   }
 }
 static void save_args(MacroAssembler *masm, int arg_count, int first_arg, VMRegPair *args) {
-  unsigned long x = 0;  // Register bit vector
+  RegSet x;
   for ( int i = first_arg ; i < arg_count ; i++ ) {
     if (args[i].first()->is_Register()) {
-      x |= 1 << args[i].first()->as_Register()->encoding();
+      x = x + args[i].first()->as_Register();
     } else if (args[i].first()->is_FloatRegister()) {
       __ strd(args[i].first()->as_FloatRegister(), Address(__ pre(sp, -2 * wordSize)));
     }
   }
-  if (x)
-    __ push(x, sp);
+  __ push(x, sp);
 }
 
 static void restore_args(MacroAssembler *masm, int arg_count, int first_arg, VMRegPair *args) {
-  unsigned long x = 0;
+  RegSet x;
   for ( int i = first_arg ; i < arg_count ; i++ ) {
     if (args[i].first()->is_Register()) {
-      x |= 1 << args[i].first()->as_Register()->encoding();
+      x = x + args[i].first()->as_Register();
     } else {
       ;
     }
   }
-  if (x)
-    __ pop(x, sp);
+  __ pop(x, sp);
   for ( int i = first_arg ; i < arg_count ; i++ ) {
     if (args[i].first()->is_Register()) {
       ;

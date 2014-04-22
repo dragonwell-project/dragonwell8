@@ -77,7 +77,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   BLOCK_COMMENT("verify_klass {");
   __ verify_oop(obj);
   __ cbz(obj, L_bad);
-  __ push(temp->bit() | temp2->bit(), sp);
+  __ push(RegSet::of(temp, temp2), sp);
   __ load_klass(temp, obj);
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ br(Assembler::EQ, L_ok);
@@ -85,11 +85,11 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   __ ldr(temp, Address(temp, super_check_offset));
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ br(Assembler::EQ, L_ok);
-  __ pop(temp->bit() | temp2->bit(), sp);
+  __ pop(RegSet::of(temp, temp2), sp);
   __ bind(L_bad);
   __ stop(error_message);
   __ BIND(L_ok);
-  __ pop(temp->bit() | temp2->bit(), sp);
+  __ pop(RegSet::of(temp, temp2), sp);
   BLOCK_COMMENT("} verify_klass");
 }
 

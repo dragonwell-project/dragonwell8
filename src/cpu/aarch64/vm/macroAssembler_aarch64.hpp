@@ -403,9 +403,15 @@ private:
   void mov_immediate64(Register dst, u_int64_t imm64);
   void mov_immediate32(Register dst, u_int32_t imm32);
 
+  int push(unsigned int bitset, Register stack);
+  int pop(unsigned int bitset, Register stack);
+
+public:
+  int push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
+  int pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
+
   // now mov instructions for loading absolute addresses and 32 or
   // 64 bit integers
-public:
 
   inline void mov(Register dst, address addr)
   {
@@ -1228,9 +1234,6 @@ public:
   // push all registers onto the stack
   void pusha();
   void popa();
-
-  int push(unsigned int bitset, Register stack);
-  int pop(unsigned int bitset, Register stack);
 
   void repne_scan(Register addr, Register value, Register count,
 		  Register scratch);

@@ -232,4 +232,57 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
   static const int max_fpr;
 };
 
+// A set of registers
+class RegSet {
+  uint32_t _bitset;
+
+  RegSet(uint32_t bitset) : _bitset (bitset) { }
+
+public:
+
+  RegSet() : _bitset(0) { }
+
+  RegSet operator+(Register r1) const {
+    RegSet result(_bitset | r1->bit());
+    return result;
+  }
+
+  RegSet operator+(RegSet aSet) const {
+    RegSet result(_bitset | aSet._bitset);
+    return result;
+  }
+
+  RegSet operator-(RegSet aSet) const {
+    RegSet result(_bitset & ~aSet._bitset);
+    return result;
+  }
+
+  static RegSet of(Register r1) {
+    return RegSet(r1->bit());
+  }
+
+  static RegSet of(Register r1, Register r2) {
+    return of(r1) + r2;
+  }
+
+  static RegSet of(Register r1, Register r2, Register r3) {
+    return of(r1, r2) + r3;
+  }
+
+  static RegSet of(Register r1, Register r2, Register r3, Register r4) {
+    return of(r1, r2, r3) + r4;
+  }
+
+  static RegSet range(Register start, Register end) {
+    uint32_t bits = ~0;
+    bits <<= start->encoding();
+    bits <<= 31 - end->encoding();
+    bits >>= 31 - end->encoding();
+
+    return RegSet(bits);
+  }
+
+  uint32_t bits() const { return _bitset; }
+};
+
 #endif // CPU_AARCH64_VM_REGISTER_AARCH64_HPP

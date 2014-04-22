@@ -146,8 +146,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop(TosState state); // transition vtos -> state
   void push(TosState state); // transition state -> vtos
 
-  void pop(unsigned bitset, Register stack) { ((MacroAssembler*)this)->pop(bitset, stack); }
-  void push(unsigned bitset, Register stack) { ((MacroAssembler*)this)->push(bitset, stack); }
+  void pop(RegSet regs, Register stack) { ((MacroAssembler*)this)->pop(regs, stack); }
+  void push(RegSet regs, Register stack) { ((MacroAssembler*)this)->push(regs, stack); }
 
   void empty_expression_stack() {
     ldr(esp, Address(rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize));

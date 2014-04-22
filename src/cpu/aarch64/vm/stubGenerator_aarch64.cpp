@@ -805,7 +805,7 @@ class StubGenerator: public StubCodeGenerator {
     __ bind(error);
     __ ldp(c_rarg3, c_rarg2, Address(__ post(sp, 16)));
 
-    __ push(0x7fffffff, sp);
+    __ push(RegSet::range(r0, r29), sp);
     // debug(char* msg, int64_t pc, int64_t regs[])
     __ ldr(c_rarg0, Address(sp, rscratch1->encoding()));    // pass address of error message
     __ mov(c_rarg1, Address(sp, lr));             // pass return address
@@ -816,7 +816,7 @@ class StubGenerator: public StubCodeGenerator {
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
     __ blrt(rscratch1, 3, 0, 1);
-    __ pop(0x7fffffff, sp);
+    __ pop(RegSet::range(r0, r29), sp);
 
     __ ldp(rscratch2, lr, Address(__ post(sp, 2 * wordSize)));
     __ ldp(r0, rscratch1, Address(__ post(sp, 2 * wordSize)));
@@ -880,7 +880,7 @@ class StubGenerator: public StubCodeGenerator {
     case BarrierSet::G1SATBCTLogging:
       // With G1, don't generate the call if we statically know that the target in uninitialized
       if (!dest_uninitialized) {
-	__ push(0x3fffffff, sp);         // integer registers except lr & sp
+	__ push(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
 	if (count == c_rarg0) {
 	  if (addr == c_rarg1) {
 	    // exactly backwards!!
@@ -895,7 +895,7 @@ class StubGenerator: public StubCodeGenerator {
 	  __ mov(c_rarg1, count);
 	}
 	__ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_pre), 2);
-	__ pop(0x3fffffff, sp);         // integer registers except lr & sp        }
+	__ pop(RegSet::range(r0, r29), sp);         // integer registers except lr & sp        }
 	break;
       case BarrierSet::CardTableModRef:
       case BarrierSet::CardTableExtension:
@@ -926,7 +926,7 @@ class StubGenerator: public StubCodeGenerator {
       case BarrierSet::G1SATBCTLogging:
 
         {
-	  __ push(0x3fffffff, sp);         // integer registers except lr & sp
+	  __ push(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
           // must compute element count unless barrier set interface is changed (other platforms supply count)
           assert_different_registers(start, end, scratch);
           __ lea(scratch, Address(end, BytesPerHeapOop));
@@ -935,7 +935,7 @@ class StubGenerator: public StubCodeGenerator {
           __ mov(c_rarg0, start);
           __ mov(c_rarg1, scratch);
           __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_post), 2);
-	  __ pop(0x3fffffff, sp);         // integer registers except lr & sp        }
+	  __ pop(RegSet::range(r0, r29), sp);         // integer registers except lr & sp        }
         }
         break;
       case BarrierSet::CardTableModRef:
@@ -1298,13 +1298,13 @@ class StubGenerator: public StubCodeGenerator {
     }
     __ enter();
     if (is_oop) {
-      __ push(d->bit() | count->bit(), sp);
+      __ push(RegSet::of(d, count), sp);
       // no registers are destroyed by this call
       gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
     }
     copy_memory(aligned, s, d, count, rscratch1, size);
     if (is_oop) {
-      __ pop(d->bit() | count->bit(), sp);
+      __ pop(RegSet::of(d, count), sp);
       if (VerifyOops)
 	verify_oop_array(size, d, count, r16);
       __ sub(count, count, 1); // make an inclusive end pointer
@@ -1350,13 +1350,13 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter();
     if (is_oop) {
-      __ push(d->bit() | count->bit(), sp);
+      __ push(RegSet::of(d, count), sp);
       // no registers are destroyed by this call
       gen_write_ref_array_pre_barrier(d, count, dest_uninitialized);
     }
     copy_memory(aligned, s, d, count, rscratch1, -size);
     if (is_oop) {
-      __ pop(d->bit() | count->bit(), sp);
+      __ pop(RegSet::of(d, count), sp);
       if (VerifyOops)
 	verify_oop_array(size, d, count, r16);
       __ sub(count, count, 1); // make an inclusive end pointer
@@ -1682,7 +1682,7 @@ class StubGenerator: public StubCodeGenerator {
      // Empty array:  Nothing to do.
     __ cbz(count, L_done);
 
-    __ push(r18->bit() | r19->bit() | r20->bit() | r21->bit(), sp);
+    __ push(RegSet::of(r18, r19, r20, r21), sp);
 
 #ifdef ASSERT
     BLOCK_COMMENT("assert consistent ckoff/ckval");
@@ -1743,7 +1743,7 @@ class StubGenerator: public StubCodeGenerator {
     gen_write_ref_array_post_barrier(start_to, to, rscratch1);
 
     __ bind(L_done_pop);
-    __ pop(r18->bit() | r19->bit() | r20->bit()| r21->bit(), sp);
+    __ pop(RegSet::of(r18, r19, r20, r21), sp);
     inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr);
 
     __ bind(L_done);
