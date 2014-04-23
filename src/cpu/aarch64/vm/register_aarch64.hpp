@@ -236,16 +236,13 @@ class ConcreteRegisterImpl : public AbstractRegisterImpl {
 class RegSet {
   uint32_t _bitset;
 
-  RegSet(uint32_t bitset) : _bitset (bitset) { }
+  RegSet(uint32_t bitset) : _bitset(bitset) { }
 
 public:
 
   RegSet() : _bitset(0) { }
 
-  RegSet operator+(Register r1) const {
-    RegSet result(_bitset | r1->bit());
-    return result;
-  }
+  RegSet(Register r1) : _bitset(r1->bit()) { }
 
   RegSet operator+(RegSet aSet) const {
     RegSet result(_bitset | aSet._bitset);
@@ -258,7 +255,7 @@ public:
   }
 
   static RegSet of(Register r1) {
-    return RegSet(r1->bit());
+    return RegSet(r1);
   }
 
   static RegSet of(Register r1, Register r2) {

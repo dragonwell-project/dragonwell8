@@ -69,7 +69,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   int call_offset = offset();
   // verify callee-saved register
 #ifdef ASSERT
-  push(RegSet::of(r0), sp);
+  push(r0, sp);
   { Label L;
     get_thread(r0);
     cmp(rthread, r0);
@@ -77,7 +77,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
     stop("StubAssembler::call_RT: rthread not callee saved?");
     bind(L);
   }
-  pop(RegSet::of(r0), sp);
+  pop(r0, sp);
 #endif
   reset_last_Java_frame(true, true);
 
