@@ -414,7 +414,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
     Label here;
     load_prototype_header(tmp_reg, obj_reg);
     orr(tmp_reg, rthread, tmp_reg);
-    cmpxchgptr(tmp_reg, swap_reg, obj_reg, rscratch1, here, slow_case);
+    cmpxchgptr(swap_reg, tmp_reg, obj_reg, rscratch1, here, slow_case);
     // If the biasing toward our thread failed, then another thread
     // succeeded in biasing it toward itself and we need to revoke that
     // bias. The revocation will occur in the runtime in the slow case.
@@ -441,7 +441,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   {
     Label here, nope;
     load_prototype_header(tmp_reg, obj_reg);
-    cmpxchgptr(tmp_reg, swap_reg, obj_reg, rscratch1, here, &nope);
+    cmpxchgptr(swap_reg, tmp_reg, obj_reg, rscratch1, here, &nope);
     bind(here);
 
     // Fall through to the normal CAS-based lock, because no matter what

@@ -1274,10 +1274,8 @@ class CommandLineFlags {
   product(bool, RestrictContended, true,                                    \
           "Restrict @Contended to trusted classes")                         \
                                                                             \
-  AARCH64_ONLY(product_pd(bool, UseBiasedLocking,			    \
-			  "Enable biased locking in JVM"))		    \
-  NOT_AARCH64(product(bool, UseBiasedLocking, true,			    \
-		      "Enable biased locking in JVM"))			    \
+  product(bool, UseBiasedLocking, true,                                     \
+          "Enable biased locking in JVM")                                   \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 4000,                            \
           "Number of milliseconds to wait before enabling biased locking")  \
