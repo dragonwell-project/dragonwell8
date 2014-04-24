@@ -39,6 +39,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -659,13 +662,13 @@ void gcLogFileStream::write(const char* s, size_t len) {
 // write to gc log file at safepoint. If in future, changes made for mutator threads or
 // concurrent GC threads to run parallel with VMThread at safepoint, write and rotate_log
 // must be synchronized.
-void gcLogFileStream::rotate_log() {
+void gcLogFileStream::rotate_log(bool force, outputStream* out) {
   char time_msg[FILENAMEBUFLEN];
   char time_str[EXTRACHARLEN];
   char current_file_name[FILENAMEBUFLEN];
   char renamed_file_name[FILENAMEBUFLEN];
 
-  if (_bytes_written < (jlong)GCLogFileSize) {
+  if (!should_rotate(force)) {
     return;
   }
 
@@ -682,6 +685,11 @@ void gcLogFileStream::rotate_log() {
     jio_snprintf(time_msg, sizeof(time_msg), "File  %s rotated at %s\n",
                  _file_name, os::local_time_string((char *)time_str, sizeof(time_str)));
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print(time_msg);
+    }
+
     dump_loggc_header();
     return;
   }
@@ -703,11 +711,17 @@ void gcLogFileStream::rotate_log() {
                  _file_name, _cur_file_num);
     jio_snprintf(current_file_name, filename_len + EXTRACHARLEN, "%s.%d" CURRENTAPPX,
                  _file_name, _cur_file_num);
-    jio_snprintf(time_msg, sizeof(time_msg), "%s GC log file has reached the"
-                           " maximum size. Saved as %s\n",
-                           os::local_time_string((char *)time_str, sizeof(time_str)),
-                           renamed_file_name);
+
+    const char* msg = force ? "GC log rotation request has been received."
+                            : "GC log file has reached the maximum size.";
+    jio_snprintf(time_msg, sizeof(time_msg), "%s %s Saved as %s\n",
+                     os::local_time_string((char *)time_str, sizeof(time_str)),
+                                                         msg, renamed_file_name);
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print(time_msg);
+    }
 
     fclose(_file);
     _file = NULL;
@@ -749,6 +763,11 @@ void gcLogFileStream::rotate_log() {
                            os::local_time_string((char *)time_str, sizeof(time_str)),
                            current_file_name);
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print(time_msg);
+    }
+
     dump_loggc_header();
     // remove the existing file
     if (access(current_file_name, F_OK) == 0) {
@@ -1238,7 +1257,7 @@ bufferedStream::~bufferedStream() {
 
 #ifndef PRODUCT
 
-#if defined(SOLARIS) || defined(LINUX) || defined(_ALLBSD_SOURCE)
+#if defined(SOLARIS) || defined(LINUX) || defined(AIX) || defined(_ALLBSD_SOURCE)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

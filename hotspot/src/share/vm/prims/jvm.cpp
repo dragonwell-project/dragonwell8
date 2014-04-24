@@ -76,6 +76,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "jvm_windows.h"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "jvm_aix.h"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "jvm_bsd.h"
 #endif
@@ -1214,7 +1217,8 @@ JVM_ENTRY(jobject, JVM_DoPrivileged(JNIEnv *env, jclass cls, jobject action, job
   // get run() method
   Method* m_oop = object->klass()->uncached_lookup_method(
                                            vmSymbols::run_method_name(),
-                                           vmSymbols::void_object_signature());
+                                           vmSymbols::void_object_signature(),
+                                           Klass::normal);
   methodHandle m (THREAD, m_oop);
   if (m.is_null() || !m->is_method() || !m()->is_public() || m()->is_static()) {
     THROW_MSG_0(vmSymbols::java_lang_InternalError(), "No run method");

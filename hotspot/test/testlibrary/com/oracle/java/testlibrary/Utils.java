@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.lang.reflect.Field;
+import sun.misc.Unsafe;
 
 /**
  * Common library for various test helper functions.
@@ -58,6 +60,8 @@ public final class Utils {
      * Returns the value of 'test.java.opts'system property.
      */
     public static final String JAVA_OPTIONS = System.getProperty("test.java.opts", "").trim();
+
+    private static Unsafe unsafe = null;
 
     /**
     * Returns the value of 'test.timeout.factor' system property
@@ -105,6 +109,40 @@ public final class Utils {
         Collections.addAll(opts, safeSplitString(VM_OPTIONS));
         Collections.addAll(opts, safeSplitString(JAVA_OPTIONS));
         return opts.toArray(new String[0]);
+    }
+
+    /**
+     * Returns the default JTReg arguments for a jvm running a test without
+     * options that matches regular expressions in {@code filters}.
+     * This is the combination of JTReg arguments test.vm.opts and test.java.opts.
+     * @param filters Regular expressions used to filter out options.
+     * @return An array of options, or an empty array if no options.
+     */
+    public static String[] getFilteredTestJavaOpts(String... filters) {
+        String options[] = getTestJavaOpts();
+
+        if (filters.length == 0) {
+            return options;
+        }
+
+        List<String> filteredOptions = new ArrayList<String>(options.length);
+        Pattern patterns[] = new Pattern[filters.length];
+        for (int i = 0; i < filters.length; i++) {
+            patterns[i] = Pattern.compile(filters[i]);
+        }
+
+        for (String option : options) {
+            boolean matched = false;
+            for (int i = 0; i < patterns.length && !matched; i++) {
+                Matcher matcher = patterns[i].matcher(option);
+                matched = matcher.find();
+            }
+            if (!matched) {
+                filteredOptions.add(option);
+            }
+        }
+
+        return filteredOptions.toArray(new String[filteredOptions.size()]);
     }
 
     /**
@@ -260,4 +298,38 @@ public final class Utils {
         return output;
     }
 
+    /**
+     * @return Unsafe instance.
+     */
+    public static synchronized Unsafe getUnsafe() {
+        if (unsafe == null) {
+            try {
+                Field f = Unsafe.class.getDeclaredField("theUnsafe");
+                f.setAccessible(true);
+                unsafe = (Unsafe) f.get(null);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                throw new RuntimeException("Unable to get Unsafe instance.", e);
+            }
+        }
+        return unsafe;
+    }
+    private static final char[] hexArray = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+    /**
+     * Returns hex view of byte array
+     *
+     * @param bytes byte array to process
+     * @return Space separated hexadecimal string representation of bytes
+     */
+
+    public static String toHexString(byte[] bytes) {
+        char[] hexView = new char[bytes.length * 3];
+        int i = 0;
+        for (byte b : bytes) {
+            hexView[i++] = hexArray[(b >> 4) & 0x0F];
+            hexView[i++] = hexArray[b & 0x0F];
+            hexView[i++] = ' ';
+        }
+        return new String(hexView);
+    }
 }

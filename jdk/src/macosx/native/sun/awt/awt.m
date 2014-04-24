@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -363,6 +363,7 @@ AWT_ASSERT_APPKIT_THREAD;
     //  AppKit Application.
     NSApplication *app = [NSApplicationAWT sharedApplication];
     isEmbedded = ![NSApp isKindOfClass:[NSApplicationAWT class]];
+    [ThreadUtilities setAWTEmbedded:isEmbedded];
 
     if (!isEmbedded) {
         // Install run loop observers and set the AppKit Java thread name
@@ -433,6 +434,14 @@ JNF_COCOA_ENTER(env);
     if (isSWTInWebStart(env)) {
         forceEmbeddedMode = YES;
     }
+    JNIEnv* env = [ThreadUtilities getJNIEnvUncached];
+    jclass jc_ThreadGroupUtils = (*env)->FindClass(env, "sun/misc/ThreadGroupUtils");
+    jmethodID sjm_getRootThreadGroup = (*env)->GetStaticMethodID(env, jc_ThreadGroupUtils, "getRootThreadGroup", "()Ljava/lang/ThreadGroup;");
+    jobject rootThreadGroup = (*env)->CallStaticObjectMethod(env, jc_ThreadGroupUtils, sjm_getRootThreadGroup);
+    [ThreadUtilities setAppkitThreadGroup:(*env)->NewGlobalRef(env, rootThreadGroup)];
+    // The current thread was attached in getJNIEnvUnchached.
+    // Detach it back. It will be reattached later if needed with a proper TG
+    [ThreadUtilities detachCurrentThread];
 
     BOOL headless = isHeadless(env);
 

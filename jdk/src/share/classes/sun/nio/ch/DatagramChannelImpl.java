@@ -33,6 +33,7 @@ import java.nio.channels.*;
 import java.nio.channels.spi.*;
 import java.util.*;
 import sun.net.ResourceManager;
+import sun.net.ExtendedOptionsImpl;
 
 /**
  * An implementation of DatagramChannels.
@@ -317,6 +318,9 @@ class DatagramChannelImpl
             set.add(StandardSocketOptions.IP_MULTICAST_IF);
             set.add(StandardSocketOptions.IP_MULTICAST_TTL);
             set.add(StandardSocketOptions.IP_MULTICAST_LOOP);
+            if (ExtendedOptionsImpl.flowSupported()) {
+                set.add(jdk.net.ExtendedSocketOptions.SO_FLOW_SLA);
+            }
             return Collections.unmodifiableSet(set);
         }
     }
@@ -1042,25 +1046,24 @@ class DatagramChannelImpl
         int oldOps = sk.nioReadyOps();
         int newOps = initialOps;
 
-        if ((ops & PollArrayWrapper.POLLNVAL) != 0) {
+        if ((ops & Net.POLLNVAL) != 0) {
             // This should only happen if this channel is pre-closed while a
             // selection operation is in progress
             // ## Throw an error if this channel has not been pre-closed
             return false;
         }
 
-        if ((ops & (PollArrayWrapper.POLLERR
-                    | PollArrayWrapper.POLLHUP)) != 0) {
+        if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
             sk.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
-        if (((ops & PollArrayWrapper.POLLIN) != 0) &&
+        if (((ops & Net.POLLIN) != 0) &&
             ((intOps & SelectionKey.OP_READ) != 0))
             newOps |= SelectionKey.OP_READ;
 
-        if (((ops & PollArrayWrapper.POLLOUT) != 0) &&
+        if (((ops & Net.POLLOUT) != 0) &&
             ((intOps & SelectionKey.OP_WRITE) != 0))
             newOps |= SelectionKey.OP_WRITE;
 
@@ -1105,11 +1108,11 @@ class DatagramChannelImpl
         int newOps = 0;
 
         if ((ops & SelectionKey.OP_READ) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         if ((ops & SelectionKey.OP_WRITE) != 0)
-            newOps |= PollArrayWrapper.POLLOUT;
+            newOps |= Net.POLLOUT;
         if ((ops & SelectionKey.OP_CONNECT) != 0)
-            newOps |= PollArrayWrapper.POLLIN;
+            newOps |= Net.POLLIN;
         sk.selector.putEventOps(sk, newOps);
     }
 

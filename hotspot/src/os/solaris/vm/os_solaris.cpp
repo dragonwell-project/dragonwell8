@@ -648,9 +648,6 @@ bool os::have_special_privileges() {
 
 
 void os::init_system_properties_values() {
-  char arch[12];
-  sysinfo(SI_ARCHITECTURE, arch, sizeof(arch));
-
   // The next steps are taken in the product version:
   //
   // Obtain the JAVA_HOME value from the location of libjvm.so.
@@ -677,218 +674,174 @@ void os::init_system_properties_values() {
   // Important note: if the location of libjvm.so changes this
   // code needs to be changed accordingly.
 
-  // The next few definitions allow the code to be verbatim:
-#define malloc(n) (char*)NEW_C_HEAP_ARRAY(char, (n), mtInternal)
-#define free(p) FREE_C_HEAP_ARRAY(char, p, mtInternal)
-#define getenv(n) ::getenv(n)
-
+// Base path of extensions installed on the system.
+#define SYS_EXT_DIR     "/usr/jdk/packages"
 #define EXTENSIONS_DIR  "/lib/ext"
 #define ENDORSED_DIR    "/lib/endorsed"
-#define COMMON_DIR      "/usr/jdk/packages"
 
+  char cpu_arch[12];
+  // Buffer that fits several sprintfs.
+  // Note that the space for the colon and the trailing null are provided
+  // by the nulls included by the sizeof operator.
+  const size_t bufsize =
+    MAX4((size_t)MAXPATHLEN,  // For dll_dir & friends.
+         sizeof(SYS_EXT_DIR) + sizeof("/lib/") + strlen(cpu_arch), // invariant ld_library_path
+         (size_t)MAXPATHLEN + sizeof(EXTENSIONS_DIR) + sizeof(SYS_EXT_DIR) + sizeof(EXTENSIONS_DIR), // extensions dir
+         (size_t)MAXPATHLEN + sizeof(ENDORSED_DIR)); // endorsed dir
+  char *buf = (char *)NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
+
+  // sysclasspath, java_home, dll_dir
   {
-    /* sysclasspath, java_home, dll_dir */
-    {
-        char *home_path;
-        char *dll_path;
-        char *pslash;
-        char buf[MAXPATHLEN];
-        os::jvm_path(buf, sizeof(buf));
+    char *pslash;
+    os::jvm_path(buf, bufsize);
 
-        // Found the full path to libjvm.so.
-        // Now cut the path to <java_home>/jre if we can.
-        *(strrchr(buf, '/')) = '\0';  /* get rid of /libjvm.so */
+    // Found the full path to libjvm.so.
+    // Now cut the path to <java_home>/jre if we can.
+    *(strrchr(buf, '/')) = '\0'; // Get rid of /libjvm.so.
+    pslash = strrchr(buf, '/');
+    if (pslash != NULL) {
+      *pslash = '\0';            // Get rid of /{client|server|hotspot}.
+    }
+    Arguments::set_dll_dir(buf);
+
+    if (pslash != NULL) {
+      pslash = strrchr(buf, '/');
+      if (pslash != NULL) {
+        *pslash = '\0';          // Get rid of /<arch>.
         pslash = strrchr(buf, '/');
-        if (pslash != NULL)
-            *pslash = '\0';           /* get rid of /{client|server|hotspot} */
-        dll_path = malloc(strlen(buf) + 1);
-        if (dll_path == NULL)
-            return;
-        strcpy(dll_path, buf);
-        Arguments::set_dll_dir(dll_path);
-
         if (pslash != NULL) {
-            pslash = strrchr(buf, '/');
-            if (pslash != NULL) {
-                *pslash = '\0';       /* get rid of /<arch> */
-                pslash = strrchr(buf, '/');
-                if (pslash != NULL)
-                    *pslash = '\0';   /* get rid of /lib */
-            }
+          *pslash = '\0';        // Get rid of /lib.
         }
-
-        home_path = malloc(strlen(buf) + 1);
-        if (home_path == NULL)
-            return;
-        strcpy(home_path, buf);
-        Arguments::set_java_home(home_path);
-
-        if (!set_boot_path('/', ':'))
-            return;
+      }
     }
-
-    /*
-     * Where to look for native libraries
-     */
-    {
-      // Use dlinfo() to determine the correct java.library.path.
-      //
-      // If we're launched by the Java launcher, and the user
-      // does not set java.library.path explicitly on the commandline,
-      // the Java launcher sets LD_LIBRARY_PATH for us and unsets
-      // LD_LIBRARY_PATH_32 and LD_LIBRARY_PATH_64.  In this case
-      // dlinfo returns LD_LIBRARY_PATH + crle settings (including
-      // /usr/lib), which is exactly what we want.
-      //
-      // If the user does set java.library.path, it completely
-      // overwrites this setting, and always has.
-      //
-      // If we're not launched by the Java launcher, we may
-      // get here with any/all of the LD_LIBRARY_PATH[_32|64]
-      // settings.  Again, dlinfo does exactly what we want.
-
-      Dl_serinfo     _info, *info = &_info;
-      Dl_serpath     *path;
-      char*          library_path;
-      char           *common_path;
-      int            i;
-
-      // determine search path count and required buffer size
-      if (dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info) == -1) {
-        vm_exit_during_initialization("dlinfo SERINFOSIZE request", dlerror());
-      }
-
-      // allocate new buffer and initialize
-      info = (Dl_serinfo*)malloc(_info.dls_size);
-      if (info == NULL) {
-        vm_exit_out_of_memory(_info.dls_size, OOM_MALLOC_ERROR,
-                              "init_system_properties_values info");
-      }
-      info->dls_size = _info.dls_size;
-      info->dls_cnt = _info.dls_cnt;
-
-      // obtain search path information
-      if (dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info) == -1) {
-        free(info);
-        vm_exit_during_initialization("dlinfo SERINFO request", dlerror());
-      }
-
-      path = &info->dls_serpath[0];
-
-      // Note: Due to a legacy implementation, most of the library path
-      // is set in the launcher.  This was to accomodate linking restrictions
-      // on legacy Solaris implementations (which are no longer supported).
-      // Eventually, all the library path setting will be done here.
-      //
-      // However, to prevent the proliferation of improperly built native
-      // libraries, the new path component /usr/jdk/packages is added here.
-
-      // Determine the actual CPU architecture.
-      char cpu_arch[12];
-      sysinfo(SI_ARCHITECTURE, cpu_arch, sizeof(cpu_arch));
-#ifdef _LP64
-      // If we are a 64-bit vm, perform the following translations:
-      //   sparc   -> sparcv9
-      //   i386    -> amd64
-      if (strcmp(cpu_arch, "sparc") == 0)
-        strcat(cpu_arch, "v9");
-      else if (strcmp(cpu_arch, "i386") == 0)
-        strcpy(cpu_arch, "amd64");
-#endif
-
-      // Construct the invariant part of ld_library_path. Note that the
-      // space for the colon and the trailing null are provided by the
-      // nulls included by the sizeof operator.
-      size_t bufsize = sizeof(COMMON_DIR) + sizeof("/lib/") + strlen(cpu_arch);
-      common_path = malloc(bufsize);
-      if (common_path == NULL) {
-        free(info);
-        vm_exit_out_of_memory(bufsize, OOM_MALLOC_ERROR,
-                              "init_system_properties_values common_path");
-      }
-      sprintf(common_path, COMMON_DIR "/lib/%s", cpu_arch);
-
-      // struct size is more than sufficient for the path components obtained
-      // through the dlinfo() call, so only add additional space for the path
-      // components explicitly added here.
-      bufsize = info->dls_size + strlen(common_path);
-      library_path = malloc(bufsize);
-      if (library_path == NULL) {
-        free(info);
-        free(common_path);
-        vm_exit_out_of_memory(bufsize, OOM_MALLOC_ERROR,
-                              "init_system_properties_values library_path");
-      }
-      library_path[0] = '\0';
-
-      // Construct the desired Java library path from the linker's library
-      // search path.
-      //
-      // For compatibility, it is optimal that we insert the additional path
-      // components specific to the Java VM after those components specified
-      // in LD_LIBRARY_PATH (if any) but before those added by the ld.so
-      // infrastructure.
-      if (info->dls_cnt == 0) { // Not sure this can happen, but allow for it
-        strcpy(library_path, common_path);
-      } else {
-        int inserted = 0;
-        for (i = 0; i < info->dls_cnt; i++, path++) {
-          uint_t flags = path->dls_flags & LA_SER_MASK;
-          if (((flags & LA_SER_LIBPATH) == 0) && !inserted) {
-            strcat(library_path, common_path);
-            strcat(library_path, os::path_separator());
-            inserted = 1;
-          }
-          strcat(library_path, path->dls_name);
-          strcat(library_path, os::path_separator());
-        }
-        // eliminate trailing path separator
-        library_path[strlen(library_path)-1] = '\0';
-      }
-
-      // happens before argument parsing - can't use a trace flag
-      // tty->print_raw("init_system_properties_values: native lib path: ");
-      // tty->print_raw_cr(library_path);
-
-      // callee copies into its own buffer
-      Arguments::set_library_path(library_path);
-
-      free(common_path);
-      free(library_path);
-      free(info);
-    }
-
-    /*
-     * Extensions directories.
-     *
-     * Note that the space for the colon and the trailing null are provided
-     * by the nulls included by the sizeof operator (so actually one byte more
-     * than necessary is allocated).
-     */
-    {
-        char *buf = (char *) malloc(strlen(Arguments::get_java_home()) +
-            sizeof(EXTENSIONS_DIR) + sizeof(COMMON_DIR) +
-            sizeof(EXTENSIONS_DIR));
-        sprintf(buf, "%s" EXTENSIONS_DIR ":" COMMON_DIR EXTENSIONS_DIR,
-            Arguments::get_java_home());
-        Arguments::set_ext_dirs(buf);
-    }
-
-    /* Endorsed standards default directory. */
-    {
-        char * buf = malloc(strlen(Arguments::get_java_home()) + sizeof(ENDORSED_DIR));
-        sprintf(buf, "%s" ENDORSED_DIR, Arguments::get_java_home());
-        Arguments::set_endorsed_dirs(buf);
-    }
+    Arguments::set_java_home(buf);
+    set_boot_path('/', ':');
   }
 
-#undef malloc
-#undef free
-#undef getenv
+  // Where to look for native libraries.
+  {
+    // Use dlinfo() to determine the correct java.library.path.
+    //
+    // If we're launched by the Java launcher, and the user
+    // does not set java.library.path explicitly on the commandline,
+    // the Java launcher sets LD_LIBRARY_PATH for us and unsets
+    // LD_LIBRARY_PATH_32 and LD_LIBRARY_PATH_64.  In this case
+    // dlinfo returns LD_LIBRARY_PATH + crle settings (including
+    // /usr/lib), which is exactly what we want.
+    //
+    // If the user does set java.library.path, it completely
+    // overwrites this setting, and always has.
+    //
+    // If we're not launched by the Java launcher, we may
+    // get here with any/all of the LD_LIBRARY_PATH[_32|64]
+    // settings.  Again, dlinfo does exactly what we want.
+
+    Dl_serinfo     info_sz, *info = &info_sz;
+    Dl_serpath     *path;
+    char           *library_path;
+    char           *common_path = buf;
+
+    // Determine search path count and required buffer size.
+    if (dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info) == -1) {
+      FREE_C_HEAP_ARRAY(char, buf,  mtInternal);
+      vm_exit_during_initialization("dlinfo SERINFOSIZE request", dlerror());
+    }
+
+    // Allocate new buffer and initialize.
+    info = (Dl_serinfo*)NEW_C_HEAP_ARRAY(char, info_sz.dls_size, mtInternal);
+    info->dls_size = info_sz.dls_size;
+    info->dls_cnt = info_sz.dls_cnt;
+
+    // Obtain search path information.
+    if (dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info) == -1) {
+      FREE_C_HEAP_ARRAY(char, buf,  mtInternal);
+      FREE_C_HEAP_ARRAY(char, info, mtInternal);
+      vm_exit_during_initialization("dlinfo SERINFO request", dlerror());
+    }
+
+    path = &info->dls_serpath[0];
+
+    // Note: Due to a legacy implementation, most of the library path
+    // is set in the launcher. This was to accomodate linking restrictions
+    // on legacy Solaris implementations (which are no longer supported).
+    // Eventually, all the library path setting will be done here.
+    //
+    // However, to prevent the proliferation of improperly built native
+    // libraries, the new path component /usr/jdk/packages is added here.
+
+    // Determine the actual CPU architecture.
+    sysinfo(SI_ARCHITECTURE, cpu_arch, sizeof(cpu_arch));
+#ifdef _LP64
+    // If we are a 64-bit vm, perform the following translations:
+    //   sparc   -> sparcv9
+    //   i386    -> amd64
+    if (strcmp(cpu_arch, "sparc") == 0) {
+      strcat(cpu_arch, "v9");
+    } else if (strcmp(cpu_arch, "i386") == 0) {
+      strcpy(cpu_arch, "amd64");
+    }
+#endif
+
+    // Construct the invariant part of ld_library_path.
+    sprintf(common_path, SYS_EXT_DIR "/lib/%s", cpu_arch);
+
+    // Struct size is more than sufficient for the path components obtained
+    // through the dlinfo() call, so only add additional space for the path
+    // components explicitly added here.
+    size_t library_path_size = info->dls_size + strlen(common_path);
+    library_path = (char *)NEW_C_HEAP_ARRAY(char, library_path_size, mtInternal);
+    library_path[0] = '\0';
+
+    // Construct the desired Java library path from the linker's library
+    // search path.
+    //
+    // For compatibility, it is optimal that we insert the additional path
+    // components specific to the Java VM after those components specified
+    // in LD_LIBRARY_PATH (if any) but before those added by the ld.so
+    // infrastructure.
+    if (info->dls_cnt == 0) { // Not sure this can happen, but allow for it.
+      strcpy(library_path, common_path);
+    } else {
+      int inserted = 0;
+      int i;
+      for (i = 0; i < info->dls_cnt; i++, path++) {
+        uint_t flags = path->dls_flags & LA_SER_MASK;
+        if (((flags & LA_SER_LIBPATH) == 0) && !inserted) {
+          strcat(library_path, common_path);
+          strcat(library_path, os::path_separator());
+          inserted = 1;
+        }
+        strcat(library_path, path->dls_name);
+        strcat(library_path, os::path_separator());
+      }
+      // Eliminate trailing path separator.
+      library_path[strlen(library_path)-1] = '\0';
+    }
+
+    // happens before argument parsing - can't use a trace flag
+    // tty->print_raw("init_system_properties_values: native lib path: ");
+    // tty->print_raw_cr(library_path);
+
+    // Callee copies into its own buffer.
+    Arguments::set_library_path(library_path);
+
+    FREE_C_HEAP_ARRAY(char, library_path, mtInternal);
+    FREE_C_HEAP_ARRAY(char, info, mtInternal);
+  }
+
+  // Extensions directories.
+  sprintf(buf, "%s" EXTENSIONS_DIR ":" SYS_EXT_DIR EXTENSIONS_DIR, Arguments::get_java_home());
+  Arguments::set_ext_dirs(buf);
+
+  // Endorsed standards default directory.
+  sprintf(buf, "%s" ENDORSED_DIR, Arguments::get_java_home());
+  Arguments::set_endorsed_dirs(buf);
+
+  FREE_C_HEAP_ARRAY(char, buf, mtInternal);
+
+#undef SYS_EXT_DIR
 #undef EXTENSIONS_DIR
 #undef ENDORSED_DIR
-#undef COMMON_DIR
-
 }
 
 void os::breakpoint() {
@@ -2251,67 +2204,12 @@ void os::print_memory_info(outputStream* st) {
   (void) check_addr0(st);
 }
 
-// Taken from /usr/include/sys/machsig.h  Supposed to be architecture specific
-// but they're the same for all the solaris architectures that we support.
-const char *ill_names[] = { "ILL0", "ILL_ILLOPC", "ILL_ILLOPN", "ILL_ILLADR",
-                          "ILL_ILLTRP", "ILL_PRVOPC", "ILL_PRVREG",
-                          "ILL_COPROC", "ILL_BADSTK" };
-
-const size_t ill_names_length = (sizeof(ill_names)/sizeof(char *));
-
-const char *fpe_names[] = { "FPE0", "FPE_INTDIV", "FPE_INTOVF", "FPE_FLTDIV",
-                          "FPE_FLTOVF", "FPE_FLTUND", "FPE_FLTRES",
-                          "FPE_FLTINV", "FPE_FLTSUB" };
-const size_t fpe_names_length = (sizeof(fpe_names)/sizeof(char *));
-
-const char *segv_names[] = { "SEGV0", "SEGV_MAPERR", "SEGV_ACCERR" };
-const size_t segv_names_length = (sizeof(segv_names)/sizeof(char *));
-
-const char *bus_names[] = { "BUS0", "BUS_ADRALN", "BUS_ADRERR", "BUS_OBJERR" };
-const size_t bus_names_length = (sizeof(bus_names)/sizeof(char *));
-
 void os::print_siginfo(outputStream* st, void* siginfo) {
-  st->print("siginfo:");
+  const siginfo_t* si = (const siginfo_t*)siginfo;
 
-  const int buflen = 100;
-  char buf[buflen];
-  siginfo_t *si = (siginfo_t*)siginfo;
-  st->print("si_signo=%s: ", os::exception_name(si->si_signo, buf, buflen));
-  char *err = strerror(si->si_errno);
-  if (si->si_errno != 0 && err != NULL) {
-    st->print("si_errno=%s", err);
-  } else {
-    st->print("si_errno=%d", si->si_errno);
-  }
-  const int c = si->si_code;
-  assert(c > 0, "unexpected si_code");
-  switch (si->si_signo) {
-  case SIGILL:
-    st->print(", si_code=%d (%s)", c,
-      c >= ill_names_length ? "" : ill_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGFPE:
-    st->print(", si_code=%d (%s)", c,
-      c >= fpe_names_length ? "" : fpe_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGSEGV:
-    st->print(", si_code=%d (%s)", c,
-      c >= segv_names_length ? "" : segv_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGBUS:
-    st->print(", si_code=%d (%s)", c,
-      c >= bus_names_length ? "" : bus_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  default:
-    st->print(", si_code=%d", si->si_code);
-    // no si_addr
-  }
+  os::Posix::print_siginfo_brief(st, si);
 
-  if ((si->si_signo == SIGBUS || si->si_signo == SIGSEGV) &&
+  if (si && (si->si_signo == SIGBUS || si->si_signo == SIGSEGV) &&
       UseSharedSpaces) {
     FileMapInfo* mapinfo = FileMapInfo::current_info();
     if (mapinfo->is_in_shared_space(si->si_addr)) {
@@ -2381,7 +2279,8 @@ static void print_signal_handler(outputStream* st, int sig,
     st->print("[%s]", get_signal_handler_name(handler, buf, buflen));
   }
 
-  st->print(", sa_mask[0]=" PTR32_FORMAT, *(uint32_t*)&sa.sa_mask);
+  st->print(", sa_mask[0]=");
+  os::Posix::print_signal_set_short(st, &sa.sa_mask);
 
   address rh = VMError::get_resetted_sighandler(sig);
   // May be, handler was resetted by VMError?
@@ -2390,7 +2289,8 @@ static void print_signal_handler(outputStream* st, int sig,
     sa.sa_flags = VMError::get_resetted_sigflags(sig);
   }
 
-  st->print(", sa_flags="   PTR32_FORMAT, sa.sa_flags);
+  st->print(", sa_flags=");
+  os::Posix::print_sa_flags(st, sa.sa_flags);
 
   // Check: is it our handler?
   if(handler == CAST_FROM_FN_PTR(address, signalHandler) ||

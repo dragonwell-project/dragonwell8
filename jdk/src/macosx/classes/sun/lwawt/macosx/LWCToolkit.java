@@ -33,6 +33,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.InvocationEvent;
 import java.awt.event.KeyEvent;
 import java.awt.im.InputMethodHighlight;
+import java.awt.im.spi.InputMethodDescriptor;
 import java.awt.peer.*;
 import java.lang.reflect.*;
 import java.net.URL;
@@ -43,6 +44,7 @@ import java.net.MalformedURLException;
 
 import sun.awt.*;
 import sun.awt.datatransfer.DataTransferer;
+import sun.java2d.opengl.OGLRenderQueue;
 import sun.lwawt.*;
 import sun.lwawt.LWWindowPeer.PeerType;
 import sun.security.action.GetBooleanAction;
@@ -50,7 +52,7 @@ import sun.awt.image.MultiResolutionImage;
 
 import sun.util.CoreResourceBundleControl;
 
-class NamedCursor extends Cursor {
+final class NamedCursor extends Cursor {
     NamedCursor(String name) {
         super(name);
     }
@@ -76,6 +78,7 @@ public final class LWCToolkit extends LWToolkit {
 
         ResourceBundle platformResources = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<ResourceBundle>() {
+            @Override
             public ResourceBundle run() {
                 ResourceBundle platformResources = null;
                 try {
@@ -133,18 +136,20 @@ public final class LWCToolkit extends LWToolkit {
 
     private native void loadNativeColors(final int[] systemColors, final int[] appleColors);
 
+    @Override
     protected void loadSystemColors(final int[] systemColors) {
         if (systemColors == null) return;
         loadNativeColors(systemColors, appleColors);
     }
 
     private static class AppleSpecificColor extends Color {
-        int index;
-        public AppleSpecificColor(int index) {
+        private final int index;
+        AppleSpecificColor(int index) {
             super(appleColors[index]);
             this.index = index;
         }
 
+        @Override
         public int getRGB() {
             return appleColors[index];
         }
@@ -152,7 +157,6 @@ public final class LWCToolkit extends LWToolkit {
 
     /**
      * Returns Apple specific colors that we may expose going forward.
-     *
      */
     public static Color getAppleColor(int color) {
         return new AppleSpecificColor(color);
@@ -181,13 +185,44 @@ public final class LWCToolkit extends LWToolkit {
         } else if (peerType == PeerType.LW_FRAME) {
             return new CPlatformLWWindow();
         } else {
-            assert (peerType == PeerType.SIMPLEWINDOW || peerType == PeerType.DIALOG || peerType == PeerType.FRAME);
+            assert (peerType == PeerType.SIMPLEWINDOW
+                    || peerType == PeerType.DIALOG
+                    || peerType == PeerType.FRAME);
             return new CPlatformWindow();
         }
     }
 
+    LWWindowPeer createEmbeddedFrame(CEmbeddedFrame target) {
+        PlatformComponent platformComponent = createPlatformComponent();
+        PlatformWindow platformWindow = createPlatformWindow(PeerType.EMBEDDED_FRAME);
+        return createDelegatedPeer(target, platformComponent, platformWindow, PeerType.EMBEDDED_FRAME);
+    }
+
+    LWWindowPeer createEmbeddedFrame(CViewEmbeddedFrame target) {
+        PlatformComponent platformComponent = createPlatformComponent();
+        PlatformWindow platformWindow = createPlatformWindow(PeerType.VIEW_EMBEDDED_FRAME);
+        return createDelegatedPeer(target, platformComponent, platformWindow, PeerType.VIEW_EMBEDDED_FRAME);
+    }
+
+    private CPrinterDialogPeer createCPrinterDialog(CPrinterDialog target) {
+        PlatformComponent platformComponent = createPlatformComponent();
+        PlatformWindow platformWindow = createPlatformWindow(PeerType.DIALOG);
+        CPrinterDialogPeer peer = new CPrinterDialogPeer(target, platformComponent, platformWindow);
+        targetCreatedPeer(target, peer);
+        return peer;
+    }
+
     @Override
-    protected SecurityWarningWindow createSecurityWarning(Window ownerWindow, LWWindowPeer ownerPeer) {
+    public DialogPeer createDialog(Dialog target) {
+        if (target instanceof CPrinterDialog) {
+            return createCPrinterDialog((CPrinterDialog)target);
+        }
+        return super.createDialog(target);
+    }
+
+    @Override
+    protected SecurityWarningWindow createSecurityWarning(Window ownerWindow,
+                                                          LWWindowPeer ownerPeer) {
         return new CWarningWindow(ownerWindow, ownerPeer);
     }
 
@@ -239,13 +274,11 @@ public final class LWCToolkit extends LWToolkit {
         PopupMenuPeer peer = new CPopupMenu(target);
         targetCreatedPeer(target, peer);
         return peer;
-
     }
 
     @Override
     public SystemTrayPeer createSystemTray(SystemTray target) {
-        SystemTrayPeer peer = new CSystemTray();
-        return peer;
+        return new CSystemTray();
     }
 
     @Override
@@ -256,56 +289,63 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     @Override
+    protected DesktopPeer createDesktopPeer(Desktop target) {
+        return new CDesktopPeer();
+    }
+
+    @Override
     public LWCursorManager getCursorManager() {
         return CCursorManager.getInstance();
     }
 
     @Override
-    public Cursor createCustomCursor(final Image cursor, final Point hotSpot, final String name) throws IndexOutOfBoundsException, HeadlessException {
+    public Cursor createCustomCursor(final Image cursor, final Point hotSpot,
+                                     final String name)
+            throws IndexOutOfBoundsException, HeadlessException {
         return new CCustomCursor(cursor, hotSpot, name);
     }
 
     @Override
-    public Dimension getBestCursorSize(final int preferredWidth, final int preferredHeight) throws HeadlessException {
+    public Dimension getBestCursorSize(final int preferredWidth,
+                                       final int preferredHeight)
+            throws HeadlessException {
         return CCustomCursor.getBestCursorSize(preferredWidth, preferredHeight);
     }
 
     @Override
     protected void platformCleanup() {
         // TODO Auto-generated method stub
-
     }
 
     @Override
     protected void platformInit() {
         // TODO Auto-generated method stub
-
     }
 
     @Override
     protected void platformRunMessage() {
         // TODO Auto-generated method stub
-
     }
 
     @Override
     protected void platformShutdown() {
         // TODO Auto-generated method stub
-
     }
 
     class OSXPlatformFont extends sun.awt.PlatformFont
     {
-        public OSXPlatformFont(String name, int style)
+        OSXPlatformFont(String name, int style)
         {
             super(name, style);
         }
+        @Override
         protected char getMissingGlyphCharacter()
         {
             // Follow up for real implementation
             return (char)0xfff8; // see http://developer.apple.com/fonts/LastResortFont/
         }
     }
+    @Override
     public FontPeer getFontPeer(String name, int style) {
         return new OSXPlatformFont(name, style);
     }
@@ -325,7 +365,7 @@ public final class LWCToolkit extends LWToolkit {
     @Override
     protected void initializeDesktopProperties() {
         super.initializeDesktopProperties();
-        Map <Object, Object> fontHints = new HashMap<Object, Object>();
+        Map <Object, Object> fontHints = new HashMap<>();
         fontHints.put(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         fontHints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         desktopProperties.put(SunToolkit.DESKTOPFONTHINTS, fontHints);
@@ -346,14 +386,8 @@ public final class LWCToolkit extends LWToolkit {
         desktopProperties.put("DnD.Cursor.CopyNoDrop", new NamedCursor("DnD.Cursor.CopyNoDrop"));
         desktopProperties.put("DnD.Cursor.MoveNoDrop", new NamedCursor("DnD.Cursor.MoveNoDrop"));
         desktopProperties.put("DnD.Cursor.LinkNoDrop", new NamedCursor("DnD.Cursor.LinkNoDrop"));
-
     }
 
-
-/*
- * The method returns true if some events were processed during that timeout.
- * @see sun.awt.SunToolkit#syncNativeQueue(long)
- */
     @Override
     protected boolean syncNativeQueue(long timeout) {
         return nativeSyncQueue(timeout);
@@ -376,8 +410,11 @@ public final class LWCToolkit extends LWToolkit {
 
     @Override
     public void sync() {
-        // TODO Auto-generated method stub
-
+        // flush the OGL pipeline (this is a no-op if OGL is not enabled)
+        OGLRenderQueue.sync();
+        // setNeedsDisplay() selector was sent to the appropriate CALayer so now
+        // we have to flush the native selectors queue.
+        flushNativeSelectors();
     }
 
     @Override
@@ -397,6 +434,7 @@ public final class LWCToolkit extends LWToolkit {
      * as Num Lock on PC keyboards is called Clear, doesn't lock
      * anything and is used for entirely different purpose.
      */
+    @Override
     public boolean getLockingKeyState(int keyCode) throws UnsupportedOperationException {
         switch (keyCode) {
             case KeyEvent.VK_NUM_LOCK:
@@ -416,10 +454,12 @@ public final class LWCToolkit extends LWToolkit {
     //Set to true by default.
     private static boolean areExtraMouseButtonsEnabled = true;
 
+    @Override
     public boolean areExtraMouseButtonsEnabled() throws HeadlessException {
         return areExtraMouseButtonsEnabled;
     }
 
+    @Override
     public int getNumberOfButtons(){
         return BUTTONS;
     }
@@ -440,8 +480,12 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     // Intended to be called from the LWCToolkit.m only.
-    private static void installToolkitThreadNameInJava() {
+    private static void installToolkitThreadInJava() {
         Thread.currentThread().setName(CThreading.APPKIT_THREAD_NAME);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            Thread.currentThread().setContextClassLoader(null);
+            return null;
+        });
     }
 
     @Override
@@ -478,6 +522,7 @@ public final class LWCToolkit extends LWToolkit {
      * @see       java.awt.MenuShortcut
      * @since     JDK1.1
      */
+    @Override
     public int getMenuShortcutKeyMask() {
         return Event.META_MASK;
     }
@@ -511,8 +556,8 @@ public final class LWCToolkit extends LWToolkit {
                 ? getImageWithResolutionVariant(url, url2x) : super.getImage(url);
     }
 
-    static final String nsImagePrefix = "NSImage://";
-    protected Image checkForNSImage(final String imageName) {
+    private static final String nsImagePrefix = "NSImage://";
+    private Image checkForNSImage(final String imageName) {
         if (imageName == null) return null;
         if (!imageName.startsWith(nsImagePrefix)) return null;
         return CImage.getCreator().createImageFromName(imageName.substring(nsImagePrefix.length()));
@@ -531,8 +576,9 @@ public final class LWCToolkit extends LWToolkit {
         synchronized(ret) { return ret[0]; }
     }
 
-    public static <T> T invokeAndWait(final Callable<T> callable, Component component) throws Exception {
-        final CallableWrapper<T> wrapper = new CallableWrapper<T>(callable);
+    public static <T> T invokeAndWait(final Callable<T> callable,
+                                      Component component) throws Exception {
+        final CallableWrapper<T> wrapper = new CallableWrapper<>(callable);
         invokeAndWait(wrapper, component);
         return wrapper.getResult();
     }
@@ -542,10 +588,11 @@ public final class LWCToolkit extends LWToolkit {
         T object;
         Exception e;
 
-        public CallableWrapper(final Callable<T> callable) {
+        CallableWrapper(final Callable<T> callable) {
             this.callable = callable;
         }
 
+        @Override
         public void run() {
             try {
                 object = callable.call();
@@ -560,12 +607,16 @@ public final class LWCToolkit extends LWToolkit {
         }
     }
 
-    // Kicks an event over to the appropriate eventqueue and waits for it to finish
-    // To avoid deadlocking, we manually run the NSRunLoop while waiting
-    // Any selector invoked using ThreadUtilities performOnMainThread will be processed in doAWTRunLoop
-    // The InvocationEvent will call LWCToolkit.stopAWTRunLoop() when finished, which will stop our manual runloop
-    // Does not dispatch native events while in the loop
-    public static void invokeAndWait(Runnable runnable, Component component) throws InvocationTargetException {
+    /**
+     * Kicks an event over to the appropriate eventqueue and waits for it to
+     * finish To avoid deadlocking, we manually run the NSRunLoop while waiting
+     * Any selector invoked using ThreadUtilities performOnMainThread will be
+     * processed in doAWTRunLoop The InvocationEvent will call
+     * LWCToolkit.stopAWTRunLoop() when finished, which will stop our manual
+     * runloop Does not dispatch native events while in the loop
+     */
+    public static void invokeAndWait(Runnable runnable, Component component)
+            throws InvocationTargetException {
         final long mediator = createAWTRunLoopMediator();
 
         InvocationEvent invocationEvent =
@@ -600,7 +651,8 @@ public final class LWCToolkit extends LWToolkit {
         }
     }
 
-    public static void invokeLater(Runnable event, Component component) throws InvocationTargetException {
+    public static void invokeLater(Runnable event, Component component)
+            throws InvocationTargetException {
         final InvocationEvent invocationEvent =
                 new InvocationEvent(component != null ? component : Toolkit.getDefaultToolkit(), event);
 
@@ -629,16 +681,18 @@ public final class LWCToolkit extends LWToolkit {
         return getSystemEventQueueImpl();
     }
 
-
 // DnD support
 
-    public DragSourceContextPeer createDragSourceContextPeer(DragGestureEvent dge) throws InvalidDnDOperationException {
-        DragSourceContextPeer dscp = CDragSourceContextPeer.createDragSourceContextPeer(dge);
-
-        return dscp;
+    @Override
+    public DragSourceContextPeer createDragSourceContextPeer(
+            DragGestureEvent dge) throws InvalidDnDOperationException {
+        return CDragSourceContextPeer.createDragSourceContextPeer(dge);
     }
 
-    public <T extends DragGestureRecognizer> T createDragGestureRecognizer(Class<T> abstractRecognizerClass, DragSource ds, Component c, int srcActions, DragGestureListener dgl) {
+    @Override
+    public <T extends DragGestureRecognizer> T createDragGestureRecognizer(
+            Class<T> abstractRecognizerClass, DragSource ds, Component c,
+            int srcActions, DragGestureListener dgl) {
         DragGestureRecognizer dgr = null;
 
         // Create a new mouse drag gesture recognizer if we have a class match:
@@ -652,6 +706,7 @@ public final class LWCToolkit extends LWToolkit {
     /**
      * Returns the default keyboard locale of the underlying operating system
      */
+    @Override
     public Locale getDefaultKeyboardLocale() {
         Locale locale = CInputMethod.getNativeLocale();
 
@@ -662,7 +717,8 @@ public final class LWCToolkit extends LWToolkit {
         return locale;
     }
 
-    public java.awt.im.spi.InputMethodDescriptor getInputMethodAdapterDescriptor() {
+    @Override
+    public InputMethodDescriptor getInputMethodAdapterDescriptor() {
         if (sInputMethodDescriptor == null)
             sInputMethodDescriptor = new CInputMethodDescriptor();
 
@@ -678,12 +734,14 @@ public final class LWCToolkit extends LWToolkit {
      * @return style attribute map, or null
      * @since 1.3
      */
+    @Override
     public Map mapInputMethodHighlight(InputMethodHighlight highlight) {
         return CInputMethod.mapInputMethodHighlight(highlight);
     }
 
     /**
-     * Returns key modifiers used by Swing to set up a focus accelerator key stroke.
+     * Returns key modifiers used by Swing to set up a focus accelerator key
+     * stroke.
      */
     @Override
     public int getFocusAcceleratorKeyMask() {
@@ -691,8 +749,8 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     /**
-     * Tests whether specified key modifiers mask can be used to enter a printable
-     * character.
+     * Tests whether specified key modifiers mask can be used to enter a
+     * printable character.
      */
     @Override
     public boolean isPrintableCharacterModifiersMask(int mods) {
@@ -713,14 +771,13 @@ public final class LWCToolkit extends LWToolkit {
      * Returns the value of "sun.awt.disableCALayers" property. Default
      * value is {@code false}.
      */
-    public synchronized static boolean getSunAwtDisableCALayers() {
+    public static synchronized boolean getSunAwtDisableCALayers() {
         if (sunAwtDisableCALayers == null) {
             sunAwtDisableCALayers = AccessController.doPrivileged(
                 new GetBooleanAction("sun.awt.disableCALayers"));
         }
-        return sunAwtDisableCALayers.booleanValue();
+        return sunAwtDisableCALayers;
     }
-
 
     /*
      * Returns true if the application (one of its windows) owns keyboard focus.
@@ -746,10 +803,15 @@ public final class LWCToolkit extends LWToolkit {
     static void doAWTRunLoop(long mediator, boolean processEvents) {
         doAWTRunLoopImpl(mediator, processEvents, inAWT);
     }
-    static private native void doAWTRunLoopImpl(long mediator, boolean processEvents, boolean inAWT);
+    private static native void doAWTRunLoopImpl(long mediator, boolean processEvents, boolean inAWT);
     static native void stopAWTRunLoop(long mediator);
 
     private native boolean nativeSyncQueue(long timeout);
+
+    /**
+     * Just spin a single empty block synchronously.
+     */
+    private static native void flushNativeSelectors();
 
     @Override
     public Clipboard createPlatformClipboard() {
@@ -790,6 +852,7 @@ public final class LWCToolkit extends LWToolkit {
         return true;
     }
 
+    @Override
     public boolean isSwingBackbufferTranslucencySupported() {
         return true;
     }

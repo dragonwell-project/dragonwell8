@@ -1804,7 +1804,6 @@ class G1ParNoteEndTask;
 
 class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
   G1CollectedHeap* _g1;
-  int _worker_num;
   size_t _max_live_bytes;
   uint _regions_claimed;
   size_t _freed_bytes;
@@ -1817,10 +1816,9 @@ class G1NoteEndOfConcMarkClosure : public HeapRegionClosure {
 
 public:
   G1NoteEndOfConcMarkClosure(G1CollectedHeap* g1,
-                             int worker_num,
                              FreeRegionList* local_cleanup_list,
                              HRRSCleanupTask* hrrs_cleanup_task) :
-    _g1(g1), _worker_num(worker_num),
+    _g1(g1),
     _max_live_bytes(0), _regions_claimed(0),
     _freed_bytes(0),
     _claimed_region_time(0.0), _max_region_time(0.0),
@@ -1893,7 +1891,7 @@ public:
     double start = os::elapsedTime();
     FreeRegionList local_cleanup_list("Local Cleanup List");
     HRRSCleanupTask hrrs_cleanup_task;
-    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, worker_id, &local_cleanup_list,
+    G1NoteEndOfConcMarkClosure g1_note_end(_g1h, &local_cleanup_list,
                                            &hrrs_cleanup_task);
     if (G1CollectedHeap::use_parallel_gc_threads()) {
       _g1h->heap_region_par_iterate_chunked(&g1_note_end, worker_id,
@@ -1929,7 +1927,7 @@ public:
         }
       }
 
-      _cleanup_list->add_as_tail(&local_cleanup_list);
+      _cleanup_list->add_ordered(&local_cleanup_list);
       assert(local_cleanup_list.is_empty(), "post-condition");
 
       HeapRegionRemSet::finish_cleanup_task(&hrrs_cleanup_task);
@@ -2145,7 +2143,7 @@ void ConcurrentMark::completeCleanup() {
 
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-  _cleanup_list.verify_list();
+  _cleanup_list.verify_optional();
   FreeRegionList tmp_free_list("Tmp Free List");
 
   if (G1ConcRegionFreeingVerbose) {
@@ -2158,9 +2156,9 @@ void ConcurrentMark::completeCleanup() {
   // so it's not necessary to take any locks
   while (!_cleanup_list.is_empty()) {
     HeapRegion* hr = _cleanup_list.remove_head();
-    assert(hr != NULL, "the list was not empty");
+    assert(hr != NULL, "Got NULL from a non-empty list");
     hr->par_clear();
-    tmp_free_list.add_as_tail(hr);
+    tmp_free_list.add_ordered(hr);
 
     // Instead of adding one region at a time to the secondary_free_list,
     // we accumulate them in the local list and move them a few at a
@@ -2180,7 +2178,7 @@ void ConcurrentMark::completeCleanup() {
 
       {
         MutexLockerEx x(SecondaryFreeList_lock, Mutex::_no_safepoint_check_flag);
-        g1h->secondary_free_list_add_as_tail(&tmp_free_list);
+        g1h->secondary_free_list_add(&tmp_free_list);
         SecondaryFreeList_lock->notify_all();
       }
 
@@ -2527,6 +2525,11 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
 
     rp->verify_no_references_recorded();
     assert(!rp->discovery_enabled(), "Post condition");
+  }
+
+  if (has_overflown()) {
+    // We can not trust g1_is_alive if the marking stack overflowed
+    return;
   }
 
   g1h->unlink_string_and_symbol_table(&g1_is_alive,

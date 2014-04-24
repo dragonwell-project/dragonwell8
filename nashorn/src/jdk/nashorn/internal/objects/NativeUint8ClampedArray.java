@@ -89,6 +89,15 @@ public final class NativeUint8ClampedArray extends ArrayBufferView {
         }
 
         @Override
+        protected void setImpl(final int index, final long value) {
+            if (JSType.isRepresentableAsInt(value)) {
+                setImpl(index, (int)value);
+            } else {
+                buffer.getByteArray()[byteIndex(index)] = value > 0 ? (byte)0xff : 0;
+            }
+        }
+
+        @Override
         protected void setImpl(final int key, final double value) {
             setImpl(key, (int)Math.rint(value));
         }
@@ -109,8 +118,8 @@ public final class NativeUint8ClampedArray extends ArrayBufferView {
      * @return new typed array
      */
     @Constructor(arity = 1)
-    public static Object constructor(final boolean newObj, final Object self, final Object... args) {
-        return constructorImpl(args, FACTORY);
+    public static NativeUint8ClampedArray constructor(final boolean newObj, final Object self, final Object... args) {
+        return (NativeUint8ClampedArray)constructorImpl(args, FACTORY);
     }
 
     NativeUint8ClampedArray(final NativeArrayBuffer buffer, final int byteOffset, final int length) {
@@ -160,8 +169,8 @@ public final class NativeUint8ClampedArray extends ArrayBufferView {
      * @return sub array
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    protected static Object subarray(final Object self, final Object begin, final Object end) {
-        return ArrayBufferView.subarrayImpl(self, begin, end);
+    protected static NativeUint8ClampedArray subarray(final Object self, final Object begin, final Object end) {
+        return (NativeUint8ClampedArray)ArrayBufferView.subarrayImpl(self, begin, end);
     }
 
     @Override

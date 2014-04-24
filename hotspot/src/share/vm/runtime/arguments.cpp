@@ -50,6 +50,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -1877,24 +1880,22 @@ static bool verify_serial_gc_flags() {
 // check if do gclog rotation
 // +UseGCLogFileRotation is a must,
 // no gc log rotation when log file not supplied or
-// NumberOfGCLogFiles is 0, or GCLogFileSize is 0
+// NumberOfGCLogFiles is 0
 void check_gclog_consistency() {
   if (UseGCLogFileRotation) {
-    if ((Arguments::gc_log_filename() == NULL) ||
-        (NumberOfGCLogFiles == 0)  ||
-        (GCLogFileSize == 0)) {
+    if ((Arguments::gc_log_filename() == NULL) || (NumberOfGCLogFiles == 0)) {
       jio_fprintf(defaultStream::output_stream(),
-                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files> -XX:GCLogFileSize=<num_of_size>[k|K|m|M|g|G]\n"
-                  "where num_of_file > 0 and num_of_size > 0\n"
+                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files>\n"
+                  "where num_of_file > 0\n"
                   "GC log rotation is turned off\n");
       UseGCLogFileRotation = false;
     }
   }
 
-  if (UseGCLogFileRotation && GCLogFileSize < 8*K) {
-        FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
-        jio_fprintf(defaultStream::output_stream(),
-                    "GCLogFileSize changed to minimum 8K\n");
+  if (UseGCLogFileRotation && (GCLogFileSize != 0) && (GCLogFileSize < 8*K)) {
+    FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
+    jio_fprintf(defaultStream::output_stream(),
+                "GCLogFileSize changed to minimum 8K\n");
   }
 }
 
@@ -2217,6 +2218,8 @@ bool Arguments::check_vm_args_consistency() {
                                        "G1ConcRSHotCardLimit");
     status = status && verify_interval(G1ConcRSLogCacheSize, 0, 31,
                                        "G1ConcRSLogCacheSize");
+    status = status && verify_interval(StringDeduplicationAgeThreshold, 1, markOopDesc::max_age,
+                                       "StringDeduplicationAgeThreshold");
   }
   if (UseConcMarkSweepGC) {
     status = status && verify_min_value(CMSOldPLABNumRefills, 1, "CMSOldPLABNumRefills");
@@ -3737,8 +3740,8 @@ jint Arguments::apply_ergo() {
     UseBiasedLocking = false;
   }
 
-#ifdef CC_INTERP
-  // Clear flags not supported by the C++ interpreter
+#ifdef ZERO
+  // Clear flags not supported on zero.
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
@@ -3746,9 +3749,6 @@ jint Arguments::apply_ergo() {
 #endif // CC_INTERP
 
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
-    UseOptoBiasInlining = false;
-  }
   if (!EliminateLocks) {
     EliminateNestedLocks = false;
   }
@@ -3809,6 +3809,11 @@ jint Arguments::apply_ergo() {
       UseBiasedLocking = false;
     }
   }
+#ifdef COMPILER2
+  if (!UseBiasedLocking || EmitSync != 0) {
+    UseOptoBiasInlining = false;
+  }
+#endif
 
   // set PauseAtExit if the gamma launcher was used and a debugger is attached
   // but only if not already set on the commandline

@@ -106,6 +106,9 @@ $(BUILD_DIR_ROOT)/.bridge2configureOptsLatest: FRC
         ifdef ENABLE_SJAVAC
 	  @$(ECHO) " --enable-sjavac" >> $@.tmp
         endif
+        ifdef JDK_UPDATE_VERSION
+	  @$(ECHO) " --with-update-version=$(JDK_UPDATE_VERSION)" >> $@.tmp
+        endif
         ifeq ($(HOTSPOT_AVAILABLE),false)
           ifdef ALT_JDK_IMPORT_PATH
 	    @$(ECHO) " --with-import-hotspot=$(call UnixPath,$(ALT_JDK_IMPORT_PATH)) " >> $@.tmp

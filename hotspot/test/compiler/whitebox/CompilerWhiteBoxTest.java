@@ -24,6 +24,7 @@
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.VMOption;
 import sun.hotspot.WhiteBox;
+import sun.hotspot.code.NMethod;
 import sun.management.ManagementFactoryHelper;
 
 import java.lang.reflect.Constructor;
@@ -196,6 +197,29 @@ public abstract class CompilerWhiteBoxTest {
     }
 
     /**
+     * Checks, that {@linkplain #method} is not compiled at the given compilation
+     * level or above.
+     *
+     * @param compLevel
+     *
+     * @throws RuntimeException if {@linkplain #method} is in compiler queue or
+     *                          is compiled, or if {@linkplain #method} has zero
+     *                          compilation level.
+     */
+
+    protected final void checkNotCompiled(int compLevel) {
+        if (WHITE_BOX.isMethodQueuedForCompilation(method)) {
+            throw new RuntimeException(method + " must not be in queue");
+        }
+        if (WHITE_BOX.getMethodCompilationLevel(method, false) >= compLevel) {
+            throw new RuntimeException(method + " comp_level must be >= maxCompLevel");
+        }
+        if (WHITE_BOX.getMethodCompilationLevel(method, true) >= compLevel) {
+            throw new RuntimeException(method + " osr_comp_level must be >= maxCompLevel");
+        }
+    }
+
+    /**
      * Checks, that {@linkplain #method} is not compiled.
      *
      * @throws RuntimeException if {@linkplain #method} is in compiler queue or
@@ -255,7 +279,8 @@ public abstract class CompilerWhiteBoxTest {
     }
 
     protected final int getCompLevel() {
-        return WHITE_BOX.getMethodCompilationLevel(method, testCase.isOsr());
+        NMethod nm = NMethod.get(method, testCase.isOsr());
+        return nm == null ? COMP_LEVEL_NONE : nm.comp_level;
     }
 
     protected final boolean isCompilable() {

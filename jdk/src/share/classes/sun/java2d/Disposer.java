@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,14 @@
 
 package sun.java2d;
 
+import sun.misc.ThreadGroupUtils;
+
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.WeakReference;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Hashtable;
 
@@ -76,26 +80,20 @@ public class Disposer implements Runnable {
             }
         }
         disposerInstance = new Disposer();
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction() {
-                public Object run() {
+        AccessController.doPrivileged(
+                (PrivilegedAction<Void>) () -> {
                     /* The thread must be a member of a thread group
                      * which will not get GCed before VM exit.
                      * Make its parent the top-level thread group.
                      */
-                    ThreadGroup tg = Thread.currentThread().getThreadGroup();
-                    for (ThreadGroup tgn = tg;
-                         tgn != null;
-                         tg = tgn, tgn = tg.getParent());
-                    Thread t =
-                        new Thread(tg, disposerInstance, "Java2D Disposer");
+                    ThreadGroup rootTG = ThreadGroupUtils.getRootThreadGroup();
+                    Thread t = new Thread(rootTG, disposerInstance, "Java2D Disposer");
                     t.setContextClassLoader(null);
                     t.setDaemon(true);
                     t.setPriority(Thread.MAX_PRIORITY);
                     t.start();
                     return null;
                 }
-            }
         );
     }
 
