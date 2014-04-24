@@ -37,7 +37,17 @@
 #endif
 
 
-#if defined(__linux__) || defined(MACOSX)
+/*
+   AIX needs a workaround for I/O cancellation, see:
+   http://publib.boulder.ibm.com/infocenter/pseries/v5r3/index.jsp?topic=/com.ibm.aix.basetechref/doc/basetrf1/close.htm
+   ...
+   The close subroutine is blocked until all subroutines which use the file
+   descriptor return to usr space. For example, when a thread is calling close
+   and another thread is calling select with the same file descriptor, the
+   close subroutine does not return until the select call returns.
+   ...
+*/
+#if defined(__linux__) || defined(MACOSX) || defined (_AIX)
 extern int NET_Timeout(int s, long timeout);
 extern int NET_Read(int s, void* buf, size_t len);
 extern int NET_RecvFrom(int s, void *buf, int len, unsigned int flags,
@@ -83,7 +93,46 @@ int getDefaultIPv6Interface(struct in6_addr *target_addr);
 
 #ifdef __solaris__
 extern int net_getParam(char *driver, char *param);
-#endif
+
+#ifndef SO_FLOW_SLA
+#define SO_FLOW_SLA 0x1018
+
+#if _LONG_LONG_ALIGNMENT == 8 && _LONG_LONG_ALIGNMENT_32 == 4
+#pragma pack(4)
+ #endif
+
+/*
+ * Used with the setsockopt(SO_FLOW_SLA, ...) call to set
+ * per socket service level properties.
+ * When the application uses per-socket API, we will enforce the properties
+ * on both outbound and inbound packets.
+ *
+ * For now, only priority and maxbw are supported in SOCK_FLOW_PROP_VERSION1.
+ */
+typedef struct sock_flow_props_s {
+        int             sfp_version;
+        uint32_t        sfp_mask;
+        int             sfp_priority;   /* flow priority */
+        uint64_t        sfp_maxbw;      /* bandwidth limit in bps */
+        int             sfp_status;     /* flow create status for getsockopt */
+} sock_flow_props_t;
+
+#define SOCK_FLOW_PROP_VERSION1 1
+
+/* bit mask values for sfp_mask */
+#define SFP_MAXBW       0x00000001      /* Flow Bandwidth Limit */
+#define SFP_PRIORITY    0x00000008      /* Flow priority */
+
+/* possible values for sfp_priority */
+#define SFP_PRIO_NORMAL 1
+#define SFP_PRIO_HIGH   2
+
+#if _LONG_LONG_ALIGNMENT == 8 && _LONG_LONG_ALIGNMENT_32 == 4
+#pragma pack()
+#endif /* _LONG_LONG_ALIGNMENT */
+
+#endif /* SO_FLOW_SLA */
+#endif /* __solaris__ */
 
 /* needed from libsocket on Solaris 8 */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,33 @@
  * questions.
  */
 
-package javax.swing.text.html;
-
-import java.io.InputStream;
+package sun.misc;
 
 /**
- * Simple class to load resources using the 1.2
- * security model.  Since the html support is loaded
- * lazily, it's resources are potentially fetched with
- * applet code in the call stack.  By providing this
- * functionality in a class that is only built on 1.2,
- * reflection can be used from the code that is also
- * built on 1.1 to call this functionality (and avoid
- * the evils of preprocessing).  This functionality
- * is called from HTMLEditorKit.getResourceAsStream.
+ * A utility class needed to access the root {@code ThreadGroup}
  *
- * @author  Timothy Prinzing
+ * The class should not depend on any others, because it' called from JNI_OnLoad of the AWT
+ * native library. Triggering class loading could could lead to a deadlock.
  */
-class ResourceLoader implements java.security.PrivilegedAction {
+public final class ThreadGroupUtils {
 
-    ResourceLoader(String name) {
-        this.name = name;
+    private ThreadGroupUtils() {
+        // Avoid instantiation
     }
 
-    public Object run() {
-        Object o = HTMLEditorKit.class.getResourceAsStream(name);
-        return o;
+    /**
+     * Returns a root thread group.
+     * Should be called with {@link sun.security.util.SecurityConstants#MODIFY_THREADGROUP_PERMISSION}
+     *
+     * @return a root {@code ThreadGroup}
+     */
+    public static ThreadGroup getRootThreadGroup() {
+        ThreadGroup currentTG = Thread.currentThread().getThreadGroup();
+        ThreadGroup parentTG = currentTG.getParent();
+        while (parentTG != null) {
+            currentTG = parentTG;
+            parentTG = currentTG.getParent();
+        }
+        return currentTG;
     }
-
-    public static InputStream getResourceAsStream(String name) {
-        java.security.PrivilegedAction a = new ResourceLoader(name);
-        return (InputStream) java.security.AccessController.doPrivileged(a);
-    }
-
-    private String name;
 }
