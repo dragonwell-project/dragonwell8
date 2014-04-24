@@ -57,7 +57,7 @@ public class AquaImageFactory {
 
         return new IconUIResource(new AquaIcon.CachingScalingIcon(kAlertIconSize, kAlertIconSize) {
             Image createImage() {
-                return getThisApplicationsIcon(kAlertIconSize, kAlertIconSize);
+                return getGenericJavaIcon();
             }
         });
     }
@@ -81,24 +81,6 @@ public class AquaImageFactory {
 
         final Image lockIcon = Toolkit.getDefaultToolkit().getImage("NSImage://NSSecurity");
         return getAppIconCompositedOn(lockIcon);
-    }
-
-    static Image getThisApplicationsIcon(final int width, final int height) {
-        final String path = getPathToThisApplication();
-
-        if (path == null) {
-            return getGenericJavaIcon();
-        }
-
-        if (path.endsWith("/Home/bin")) {
-            return getGenericJavaIcon();
-        }
-
-        if (path.startsWith("/usr/bin")) {
-            return getGenericJavaIcon();
-        }
-
-        return AquaUtils.getCImageCreator().createImageOfFile(path, height, width);
     }
 
     static Image getGenericJavaIcon() {
@@ -144,7 +126,7 @@ public class AquaImageFactory {
         final Icon smallAppIconScaled = new AquaIcon.CachingScalingIcon(
                 kAlertSubIconSize, kAlertSubIconSize) {
                     Image createImage() {
-                        return getThisApplicationsIcon(kAlertSubIconSize, kAlertSubIconSize);
+                        return getGenericJavaIcon();
                     }
                 };
 
