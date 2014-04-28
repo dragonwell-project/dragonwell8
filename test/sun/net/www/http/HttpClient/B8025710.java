@@ -43,7 +43,7 @@ public class B8025710 {
     private final static AtomicBoolean connectInServer = new AtomicBoolean();
     private static final String keystorefile =
             System.getProperty("test.src", "./")
-            + "/../../../../../javax/net/ssl/etc/keystore";
+            + "/../../../../../sun/security/ssl/etc/keystore";
     private static final String passphrase = "passphrase";
 
     public static void main(String[] args) throws Exception {
