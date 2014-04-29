@@ -30,6 +30,7 @@
 #include "memory/allocation.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
