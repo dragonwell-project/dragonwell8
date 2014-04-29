@@ -3356,6 +3356,16 @@ operand immI_M1()
   interface(CONST_INTER);
 %}
 
+operand immI_31()
+%{
+  predicate(n->get_int() == 31);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 operand immI_8()
 %{
   predicate(n->get_int() == 8);
@@ -7271,6 +7281,30 @@ instruct divI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
   format %{ "sdivw  $dst, $src1, $src2" %}
 
   ins_encode(aarch64_enc_divw(dst, src1, src2));
+  ins_pipe(pipe_class_default);
+%}
+
+instruct signExtract(iRegINoSp dst, iRegI src, immI_31 div1, immI_31 div2) %{
+  match(Set dst (URShiftI (RShiftI src div1) div2));
+  ins_cost(INSN_COST);
+  format %{ "lsrw $dst, $src, $div1" %}
+  ins_encode %{
+    __ lsrw(as_Register($dst$$reg), as_Register($src$$reg), 31);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct div2Round(iRegINoSp dst, iRegI src, immI_31 div1, immI_31 div2) %{
+  match(Set dst (AddI src (URShiftI (RShiftI src div1) div2)));
+  ins_cost(INSN_COST);
+  format %{ "addw $dst, $src, $div1" %}
+
+  ins_encode %{
+    __ addw(as_Register($dst$$reg),
+	      as_Register($src$$reg),
+	      as_Register($src$$reg),
+	      Assembler::LSR, 31);
+  %}
   ins_pipe(pipe_class_default);
 %}
 
