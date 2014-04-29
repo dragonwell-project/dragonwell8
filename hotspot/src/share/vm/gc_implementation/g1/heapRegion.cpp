@@ -33,6 +33,7 @@
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/iterator.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
