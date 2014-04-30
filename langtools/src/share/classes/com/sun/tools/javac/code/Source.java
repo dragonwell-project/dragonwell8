@@ -191,6 +191,9 @@ public enum Source {
     public boolean allowObjectToPrimitiveCast() {
         return compareTo(JDK1_7) >= 0;
     }
+    public boolean enforceThisDotInit() {
+        return compareTo(JDK1_7) >= 0;
+    }
     public boolean allowPoly() {
         return compareTo(JDK1_8) >= 0;
     }
