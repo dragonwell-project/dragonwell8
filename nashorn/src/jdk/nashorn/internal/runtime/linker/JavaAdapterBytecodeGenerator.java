@@ -131,7 +131,7 @@ import sun.reflect.CallerSensitive;
  * implemented securely.
  */
 final class JavaAdapterBytecodeGenerator {
-    static final Type OBJECT_TYPE        = Type.getType(Object.class);
+    static final Type OBJECT_TYPE = Type.getType(Object.class);
 
     static final String OBJECT_TYPE_NAME  = OBJECT_TYPE.getInternalName();
 
@@ -139,6 +139,7 @@ final class JavaAdapterBytecodeGenerator {
 
     static final String GLOBAL_FIELD_NAME = "global";
 
+    // "global" is declared as Object instead of Global - avoid static references to internal Nashorn classes when possible.
     static final String GLOBAL_TYPE_DESCRIPTOR = OBJECT_TYPE.getDescriptor();
 
     static final String SET_GLOBAL_METHOD_DESCRIPTOR = Type.getMethodDescriptor(Type.VOID_TYPE, OBJECT_TYPE);
@@ -642,7 +643,7 @@ final class JavaAdapterBytecodeGenerator {
             mv.athrow();
         } else {
             // If the super method is not abstract, delegate to it.
-            emitSuperCall(mv, name, methodDesc);
+            emitSuperCall(mv, method.getDeclaringClass(), name, methodDesc);
         }
 
         mv.visitLabel(handleDefined);
@@ -671,7 +672,7 @@ final class JavaAdapterBytecodeGenerator {
         // stack: [creatingGlobal, creatingGlobal, handle]
 
         // Emit code for switching to the creating global
-        // ScriptObject currentGlobal = Context.getGlobal();
+        // Global currentGlobal = Context.getGlobal();
         invokeGetGlobal(mv);
         mv.dup();
 
@@ -814,12 +815,12 @@ final class JavaAdapterBytecodeGenerator {
                 SUPER_PREFIX + name, methodDesc, null, getExceptionNames(method.getExceptionTypes())));
         mv.visitCode();
 
-        emitSuperCall(mv, name, methodDesc);
+        emitSuperCall(mv, method.getDeclaringClass(), name, methodDesc);
 
         endMethod(mv);
     }
 
-    private void emitSuperCall(final InstructionAdapter mv, final String name, final String methodDesc) {
+    private void emitSuperCall(final InstructionAdapter mv, final Class<?> owner, final String name, final String methodDesc) {
         mv.visitVarInsn(ALOAD, 0);
         int nextParam = 1;
         final Type methodType = Type.getMethodType(methodDesc);
@@ -827,7 +828,13 @@ final class JavaAdapterBytecodeGenerator {
             mv.load(nextParam, t);
             nextParam += t.getSize();
         }
-        mv.invokespecial(superClassName, name, methodDesc, false);
+
+        // default method - non-abstract, interface method
+        if (Modifier.isInterface(owner.getModifiers())) {
+            mv.invokespecial(Type.getInternalName(owner), name, methodDesc, false);
+        } else {
+            mv.invokespecial(superClassName, name, methodDesc, false);
+        }
         mv.areturn(methodType.getReturnType());
     }
 
