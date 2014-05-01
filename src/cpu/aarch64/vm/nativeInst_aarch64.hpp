@@ -54,7 +54,7 @@
 class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   friend class Relocation;
  public:
-  enum { instruction_size = BytesPerWord };
+  enum { instruction_size = 4 };
   inline bool is_nop();
   bool is_dtrace_trap();
   inline bool is_call();
