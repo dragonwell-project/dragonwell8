@@ -1445,12 +1445,19 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
          * Inference variable bound kinds
          */
         public enum InferenceBound {
-            /** upper bounds */
-            UPPER,
-            /** lower bounds */
-            LOWER,
-            /** equality constraints */
-            EQ;
+            UPPER {
+                public InferenceBound complement() { return LOWER; }
+            },
+             /** lower bounds */
+            LOWER {
+                public InferenceBound complement() { return UPPER; }
+            },
+             /** equality constraints */
+            EQ {
+                public InferenceBound complement() { return EQ; }
+            };
+
+            public abstract InferenceBound complement();
         }
 
         /** inference variable bounds */
@@ -1635,6 +1642,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             if (update) {
                 //only change bounds if request comes from substBounds
                 super.addBound(ib, bound, types, update);
+            }
+            else if (bound.hasTag(UNDETVAR) && !((UndetVar) bound).isCaptured()) {
+                ((UndetVar) bound).addBound(ib.complement(), this, types, false);
             }
         }
 
