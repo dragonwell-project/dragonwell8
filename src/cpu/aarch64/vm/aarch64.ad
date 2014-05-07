@@ -1011,7 +1011,7 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   }
 
   if (do_polling() && C->is_method_compilation()) {
-    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+    address polling_page(os::get_polling_page());
     __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
   }
 }
@@ -2557,6 +2557,15 @@ encode %{
     __ mov(dst_reg, (u_int64_t)1);
   %}
 
+  enc_class aarch64_enc_mov_poll_page(iRegP dst, immPollPage src) %{
+    MacroAssembler _masm(&cbuf);
+    address page = (address)$src$$constant;
+    Register dst_reg = as_Register($dst$$reg);
+    unsigned long off;
+    __ adrp(dst_reg, Address(page, relocInfo::poll_type), off);
+    assert(off == 0, "assumed offset == 0");
+  %}
+
   enc_class aarch64_enc_mov_n(iRegN dst, immN src) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
@@ -3719,6 +3728,17 @@ operand immP0()
 operand immP_1()
 %{
   predicate(n->get_ptr() == 1);
+  match(ConP);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Polling Page Pointer Immediate
+operand immPollPage()
+%{
+  predicate((address)n->get_ptr() == os::get_polling_page());
   match(ConP);
 
   op_cost(0);
@@ -5054,6 +5074,20 @@ instruct loadConP1(iRegPNoSp dst, immP_1 con)
   format %{ "mov  $dst, $con\t# NULL ptr" %}
 
   ins_encode(aarch64_enc_mov_p1(dst, con));
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Load Poll Page Constant
+
+instruct loadConPollPage(iRegPNoSp dst, immPollPage con)
+%{
+  match(Set dst con);
+
+  ins_cost(INSN_COST);
+  format %{ "adr  $dst, $con\t# Poll Page Ptr" %}
+
+  ins_encode(aarch64_enc_mov_poll_page(dst, con));
 
   ins_pipe(pipe_class_default);
 %}
@@ -10815,7 +10849,7 @@ instruct safePoint(iRegP poll)
   match(SafePoint poll);
 
   format %{
-    "ldrw zr, [rscratch1, $poll]\t# Safepoint: poll for GC"
+    "ldrw zr, [$poll]\t# Safepoint: poll for GC"
   %}
   ins_encode %{
     __ read_polling_page(as_Register($poll$$reg), relocInfo::poll_type);

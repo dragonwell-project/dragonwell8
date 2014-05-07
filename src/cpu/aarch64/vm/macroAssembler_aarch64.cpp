@@ -94,7 +94,9 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
       offset = adr_page - pc_page;
 
       unsigned insn2 = ((unsigned*)branch)[1];
-      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+      if ((address)target == os::get_polling_page()) {
+	assert(offset_lo == 0, "offset must be 0 for polling page");
+      } else if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
 	// Load/store register (unsigned immediate)
 	unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
@@ -180,7 +182,9 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
       uint64_t target_page = ((uint64_t)insn_addr) + offset;
       target_page &= ((uint64_t)-1) << shift;
       unsigned insn2 = ((unsigned*)insn_addr)[1];
-      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+      if ((address)target_page == os::get_polling_page()) {
+	return (address)target_page;
+      } else if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
 	// Load/store register (unsigned immediate)
 	unsigned int byte_offset = Instruction_aarch64::extract(insn2, 21, 10);
 	unsigned int size = Instruction_aarch64::extract(insn2, 31, 30);

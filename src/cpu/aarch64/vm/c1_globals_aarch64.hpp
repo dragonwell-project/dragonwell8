@@ -74,6 +74,6 @@ define_pd_global(bool, OptimizeSinglePrecision,      true );
 define_pd_global(bool, CSEArrayLength,               false);
 define_pd_global(bool, TwoOperandLIRForm,            false );
 
-define_pd_global(intx, SafepointPollOffset,          256  );
+define_pd_global(intx, SafepointPollOffset,          0  );
 
 #endif // CPU_AARCH64_VM_C1_GLOBALS_AARCH64_HPP
