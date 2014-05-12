@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,36 @@
  * questions.
  */
 
-package javax.swing.text.html;
-
-import java.io.InputStream;
-
 /**
- * Simple class to load resources using the 1.2
- * security model.  Since the html support is loaded
- * lazily, it's resources are potentially fetched with
- * applet code in the call stack.  By providing this
- * functionality in a class that is only built on 1.2,
- * reflection can be used from the code that is also
- * built on 1.1 to call this functionality (and avoid
- * the evils of preprocessing).  This functionality
- * is called from HTMLEditorKit.getResourceAsStream.
- *
- * @author  Timothy Prinzing
+ * @test
+ * @bug 8036942
+ * @summary javac generates incorrect exception table for multi-catch statements inside a lambda
+ * @run main LambdaMultiCatchTest
  */
-class ResourceLoader implements java.security.PrivilegedAction {
 
-    ResourceLoader(String name) {
-        this.name = name;
+import java.io.IOException;
+import java.util.function.Function;
+
+public class LambdaMultiCatchTest {
+    public static void main(String[] args) {
+        Function<String,String> fi = x -> {
+            String result = "nada";
+            try {
+                switch (x) {
+                    case "IO":  throw new IOException();
+                    case "Illegal": throw new IllegalArgumentException();
+                    case "Run": throw new RuntimeException();
+                }
+            } catch (IOException|IllegalArgumentException ex) {
+               result = "IO/Illegal";
+            } catch (Exception ex) {
+               result = "Any";
+            };
+            return result;
+        };
+        String val = fi.apply("Run");
+        if (!val.equals("Any")) {
+            throw new AssertionError("Fail: Expected 'Any' but got '" + val + "'");
+        }
     }
-
-    public Object run() {
-        Object o = HTMLEditorKit.class.getResourceAsStream(name);
-        return o;
-    }
-
-    public static InputStream getResourceAsStream(String name) {
-        java.security.PrivilegedAction a = new ResourceLoader(name);
-        return (InputStream) java.security.AccessController.doPrivileged(a);
-    }
-
-    private String name;
 }

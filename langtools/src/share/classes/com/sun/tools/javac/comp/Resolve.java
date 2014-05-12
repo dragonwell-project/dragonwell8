@@ -565,7 +565,7 @@ public class Resolve {
                                     tvars,
                                     (MethodType)mt,
                                     resultInfo,
-                                    m,
+                                    (MethodSymbol)m,
                                     argtypes,
                                     allowBoxing,
                                     useVarargs,
@@ -773,6 +773,7 @@ public class Resolve {
         public MethodCheck mostSpecificCheck(List<Type> actuals, boolean strict) {
             return nilMethodCheck;
         }
+
     }
 
     /**
@@ -783,6 +784,11 @@ public class Resolve {
         @Override
         void checkArg(DiagnosticPosition pos, boolean varargs, Type actual, Type formal, DeferredAttrContext deferredAttrContext, Warner warn) {
             //do nothing - actual always compatible to formals
+        }
+
+        @Override
+        public String toString() {
+            return "arityMethodCheck";
         }
     };
 
@@ -869,6 +875,11 @@ public class Resolve {
         public MethodCheck mostSpecificCheck(List<Type> actuals, boolean strict) {
             return new MostSpecificCheck(strict, actuals);
         }
+
+        @Override
+        public String toString() {
+            return "resolveMethodCheck";
+        }
     };
 
     /**
@@ -900,7 +911,9 @@ public class Resolve {
                 @Override
                 public boolean compatible(Type found, Type req, Warner warn) {
                     found = pendingInferenceContext.asUndetVar(found);
-                    req = infer.returnConstraintTarget(found, req);
+                    if (found.hasTag(UNDETVAR) && req.isPrimitive()) {
+                        req = types.boxedClass(req).type;
+                    }
                     return super.compatible(found, req, warn);
                 }
 
@@ -955,6 +968,12 @@ public class Resolve {
         public DeferredAttrContext deferredAttrContext() {
             return deferredAttrContext;
         }
+
+        @Override
+        public String toString() {
+            return "MethodReferenceCheck";
+        }
+
     }
 
     /**
@@ -973,7 +992,12 @@ public class Resolve {
                 DeferredType dt = (DeferredType)found;
                 return dt.check(this);
             } else {
-                return super.check(pos, chk.checkNonVoid(pos, types.capture(U(found.baseType()))));
+                Type uResult = U(found.baseType());
+                Type capturedType = pos == null || pos.getTree() == null ?
+                        types.capture(uResult) :
+                        checkContext.inferenceContext()
+                            .cachedCapture(pos.getTree(), uResult, true);
+                return super.check(pos, chk.checkNonVoid(pos, capturedType));
             }
         }
 
@@ -1500,14 +1524,22 @@ public class Resolve {
             if (m2SignatureMoreSpecific) return m2;
             return ambiguityError(m1, m2);
         case AMBIGUOUS:
-            //check if m1 is more specific than all ambiguous methods in m2
+            //compare m1 to ambiguous methods in m2
             AmbiguityError e = (AmbiguityError)m2.baseSymbol();
+            boolean m1MoreSpecificThanAnyAmbiguous = true;
+            boolean allAmbiguousMoreSpecificThanM1 = true;
             for (Symbol s : e.ambiguousSyms) {
-                if (mostSpecific(argtypes, m1, s, env, site, allowBoxing, useVarargs) != m1) {
-                    return e.addAmbiguousSymbol(m1);
-                }
+                Symbol moreSpecific = mostSpecific(argtypes, m1, s, env, site, allowBoxing, useVarargs);
+                m1MoreSpecificThanAnyAmbiguous &= moreSpecific == m1;
+                allAmbiguousMoreSpecificThanM1 &= moreSpecific == s;
             }
-            return m1;
+            if (m1MoreSpecificThanAnyAmbiguous)
+                return m1;
+            //if m1 is more specific than some ambiguous methods, but other ambiguous methods are
+            //more specific than m1, add it as a new ambiguous method:
+            if (!allAmbiguousMoreSpecificThanM1)
+                e.addAmbiguousSymbol(m1);
+            return e;
         default:
             throw new AssertionError();
         }
@@ -1525,7 +1557,7 @@ public class Resolve {
             currentResolutionContext.methodCheck =
                     prevResolutionContext.methodCheck.mostSpecificCheck(actuals, !allowBoxing);
             Type mst = instantiate(env, site, m2, null,
-                    adjustArgs(types.lowerBounds(types.memberType(site, m1).getParameterTypes()), m1, maxLength, useVarargs), null,
+                    adjustArgs(types.cvarLowerBounds(types.memberType(site, m1).getParameterTypes()), m1, maxLength, useVarargs), null,
                     allowBoxing, useVarargs, noteWarner);
             return mst != null &&
                     !noteWarner.hasLint(Lint.LintCategory.UNCHECKED);

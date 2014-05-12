@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,33 @@
 
 /*
  * @test
- * @bug 8003280
- * @summary Add lambda tests
- *  stale state after speculative attribution round leads to missing classfiles
- * @compile/fail/ref=ErroneousLambdaExpr.out -XDrawDiagnostics ErroneousLambdaExpr.java
+ * @bug 8029725
+ * @summary Lambda reference to containing local class causes javac infinite recursion
+ * @author  Robert Field
+ * @run main LambdaLocalTest
  */
-public class ErroneousLambdaExpr<T> {
 
-    static int assertionCount = 0;
+public class LambdaLocalTest {
+    interface F {void f();}
 
-    static void assertTrue(boolean cond) {
-        assertionCount++;
-        if (!cond)
-            throw new AssertionError();
+    static F f;
+    static StringBuffer sb = new StringBuffer();
+
+    static void assertEquals(Object val, Object expected) {
+        if (!val.equals(expected)) {
+            throw new AssertionError("expected '" + expected + "' got '" + val + "'");
+        }
     }
-
-    interface SAM1<X> {
-        X m(X t, String s);
-    }
-
-    interface SAM2 {
-        void m(String s, int i);
-    }
-
-    interface SAM3<X> {
-        X m(X t, String s, int i);
-    }
-
-    void call(SAM1<T> s1) { assertTrue(true); }
-
-    void call(SAM2 s2) { assertTrue(false); }
-
-    void call(SAM3<T> s3) { assertTrue(false); }
 
     public static void main(String[] args) {
-        ErroneousLambdaExpr<StringBuilder> test =
-                new ErroneousLambdaExpr<>();
-
-        test.call((builder, string) -> { builder.append(string); return builder; });
-        assertTrue(assertionCount == 1);
+        class Local {
+            public Local() {
+                f = () -> new Local();
+                sb.append("+");
+            }
+        }
+        new Local();
+        f.f();
+        assertEquals(sb.toString(), "++");
     }
 }
