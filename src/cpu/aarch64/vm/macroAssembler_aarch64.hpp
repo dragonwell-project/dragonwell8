@@ -703,6 +703,7 @@ public:
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
+  void cmp_klass(Register oop, Register trial_klass, Register tmp);
 
   void load_heap_oop(Register dst, Address src);
 

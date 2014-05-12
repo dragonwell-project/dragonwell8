@@ -2080,6 +2080,20 @@ void MacroAssembler::load_klass(Register dst, Register src) {
   }
 }
 
+void MacroAssembler::cmp_klass(Register oop, Register trial_klass, Register tmp) {
+  if (UseCompressedClassPointers) {
+    ldrw(tmp, Address(oop, oopDesc::klass_offset_in_bytes()));
+    if (Universe::narrow_klass_base() == NULL) {
+      cmp(trial_klass, tmp, LSL, Universe::narrow_klass_shift());
+      return;
+    }
+    decode_klass_not_null(tmp);
+  } else {
+    ldr(tmp, Address(oop, oopDesc::klass_offset_in_bytes()));
+  }
+  cmp(trial_klass, tmp);
+}
+
 void MacroAssembler::load_prototype_header(Register dst, Register src) {
   load_klass(dst, src);
   ldr(dst, Address(dst, Klass::prototype_header_offset()));

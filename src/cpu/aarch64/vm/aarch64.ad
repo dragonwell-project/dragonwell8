@@ -1421,9 +1421,8 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   MacroAssembler _masm(&cbuf);
 
   // no need to worry about 4-byte of br alignment on AArch64
-  __ load_klass(rscratch1, j_rarg0);
+  __ cmp_klass(j_rarg0, rscratch2, rscratch1);
   Label skip;
-  __ cmp(rscratch2, rscratch1);
   // TODO
   // can we avoid this skip and still use a reloc?
   __ br(Assembler::EQ, skip);
