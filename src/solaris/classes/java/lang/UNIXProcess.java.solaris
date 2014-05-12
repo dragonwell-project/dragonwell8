@@ -25,10 +25,23 @@
 
 package java.lang;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.security.AccessController;
+import static java.security.AccessController.doPrivileged;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 /* java.lang.Process subclass in the UNIX environment.
  *
@@ -108,14 +121,15 @@ final class UNIXProcess extends Process {
      * - fork(2) and exec(2)
      * - posix_spawn(2)
      *
-     * @param std_fds array of file descriptors.  Indexes 0, 1, and
-     *        2 correspond to standard input, standard output and
-     *        standard error, respectively.  On input, a value of -1
-     *        means to create a pipe to connect child and parent
-     *        processes.  On output, a value which is not -1 is the
-     *        parent pipe fd corresponding to the pipe which has
-     *        been created.  An element of this array is -1 on input
-     *        if and only if it is <em>not</em> -1 on output.
+     * @param fds an array of three file descriptors.
+     *        Indexes 0, 1, and 2 correspond to standard input,
+     *        standard output and standard error, respectively.  On
+     *        input, a value of -1 means to create a pipe to connect
+     *        child and parent processes.  On output, a value which
+     *        is not -1 is the parent pipe fd corresponding to the
+     *        pipe which has been created.  An element of this array
+     *        is -1 on input if and only if it is <em>not</em> -1 on
+     *        output.
      * @return the pid of the subprocess
      */
     private native int forkAndExec(int mode, byte[] helperpath,
@@ -123,15 +137,51 @@ final class UNIXProcess extends Process {
                                    byte[] argBlock, int argc,
                                    byte[] envBlock, int envc,
                                    byte[] dir,
-                                   int[] std_fds,
+                                   int[] fds,
                                    boolean redirectErrorStream)
         throws IOException;
+
+    /**
+     * The thread factory used to create "process reaper" daemon threads.
+     */
+    private static class ProcessReaperThreadFactory implements ThreadFactory {
+        private final static ThreadGroup group = getRootThreadGroup();
+
+        private static ThreadGroup getRootThreadGroup() {
+            return doPrivileged(new PrivilegedAction<ThreadGroup> () {
+                public ThreadGroup run() {
+                    ThreadGroup root = Thread.currentThread().getThreadGroup();
+                    while (root.getParent() != null)
+                        root = root.getParent();
+                    return root;
+                }});
+        }
+
+        public Thread newThread(Runnable grimReaper) {
+            // Our thread stack requirement is quite modest.
+            Thread t = new Thread(group, grimReaper, "process reaper", 32768);
+            t.setDaemon(true);
+            // A small attempt (probably futile) to avoid priority inversion
+            t.setPriority(Thread.MAX_PRIORITY);
+            return t;
+        }
+    }
+
+    /**
+     * The thread pool of "process reaper" daemon threads.
+     */
+    private static final Executor processReaperExecutor =
+        doPrivileged(new PrivilegedAction<Executor>() {
+            public Executor run() {
+                return Executors.newCachedThreadPool
+                    (new ProcessReaperThreadFactory());
+            }});
 
     UNIXProcess(final byte[] prog,
                 final byte[] argBlock, int argc,
                 final byte[] envBlock, int envc,
                 final byte[] dir,
-                final int[] std_fds,
+                final int[] fds,
                 final boolean redirectErrorStream)
     throws IOException {
         pid = forkAndExec(launchMechanism.value,
@@ -140,63 +190,62 @@ final class UNIXProcess extends Process {
                           argBlock, argc,
                           envBlock, envc,
                           dir,
-                          std_fds,
+                          fds,
                           redirectErrorStream);
 
-        java.security.AccessController.doPrivileged(
-        new java.security.PrivilegedAction<Void>() { public Void run() {
-            if (std_fds[0] == -1)
-                stdin_stream = ProcessBuilder.NullOutputStream.INSTANCE;
-            else {
-                FileDescriptor stdin_fd = new FileDescriptor();
-                fdAccess.set(stdin_fd, std_fds[0]);
-                stdin_stream = new BufferedOutputStream(
-                    new FileOutputStream(stdin_fd));
-            }
-
-            if (std_fds[1] == -1)
-                stdout_stream = ProcessBuilder.NullInputStream.INSTANCE;
-            else {
-                FileDescriptor stdout_fd = new FileDescriptor();
-                fdAccess.set(stdout_fd, std_fds[1]);
-                stdout_inner_stream = new DeferredCloseInputStream(stdout_fd);
-                stdout_stream = new BufferedInputStream(stdout_inner_stream);
-            }
-
-            if (std_fds[2] == -1)
-                stderr_stream = ProcessBuilder.NullInputStream.INSTANCE;
-            else {
-                FileDescriptor stderr_fd = new FileDescriptor();
-                fdAccess.set(stderr_fd, std_fds[2]);
-                stderr_stream = new DeferredCloseInputStream(stderr_fd);
-            }
-
-            return null; }});
-
-        /*
-         * For each subprocess forked a corresponding reaper thread
-         * is started.  That thread is the only thread which waits
-         * for the subprocess to terminate and it doesn't hold any
-         * locks while doing so.  This design allows waitFor() and
-         * exitStatus() to be safely executed in parallel (and they
-         * need no native code).
-         */
-
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction<Void>() { public Void run() {
-                Thread t = new Thread("process reaper") {
-                    public void run() {
-                        int res = waitForProcessExit(pid);
-                        synchronized (UNIXProcess.this) {
-                            hasExited = true;
-                            exitcode = res;
-                            UNIXProcess.this.notifyAll();
-                        }
+        try {
+            doPrivileged(
+                new PrivilegedExceptionAction<Void>() {
+                    public Void run() throws IOException {
+                        initStreams(fds);
+                        return null;
                     }
-                };
-                t.setDaemon(true);
-                t.start();
-                return null; }});
+                });
+        } catch (PrivilegedActionException ex) {
+            throw (IOException) ex.getException();
+        }
+    }
+
+    void initStreams(int[] fds) throws IOException {
+        if (fds[0] == -1)
+            stdin_stream = ProcessBuilder.NullOutputStream.INSTANCE;
+        else {
+            FileDescriptor stdin_fd = new FileDescriptor();
+            fdAccess.set(stdin_fd, fds[0]);
+            stdin_stream = new BufferedOutputStream(
+                new FileOutputStream(stdin_fd));
+        }
+
+        if (fds[1] == -1)
+            stdout_stream = ProcessBuilder.NullInputStream.INSTANCE;
+        else {
+            FileDescriptor stdout_fd = new FileDescriptor();
+            fdAccess.set(stdout_fd, fds[1]);
+            stdout_inner_stream = new DeferredCloseInputStream(stdout_fd);
+            stdout_stream = new BufferedInputStream(stdout_inner_stream);
+        }
+
+        if (fds[2] == -1)
+            stderr_stream = ProcessBuilder.NullInputStream.INSTANCE;
+        else {
+            FileDescriptor stderr_fd = new FileDescriptor();
+            fdAccess.set(stderr_fd, fds[2]);
+            stderr_stream = new DeferredCloseInputStream(stderr_fd);
+        }
+
+        processReaperExecutor.execute(new Runnable() {
+            public void run() {
+                int exitcode = waitForProcessExit(pid);
+                UNIXProcess.this.processExited(exitcode);
+            }});
+    }
+
+    void processExited(int exitcode) {
+        synchronized (this) {
+            this.exitcode = exitcode;
+            hasExited = true;
+            notifyAll();
+        }
     }
 
     public OutputStream getOutputStream() {
