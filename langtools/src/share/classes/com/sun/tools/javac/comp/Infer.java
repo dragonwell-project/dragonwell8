@@ -220,9 +220,10 @@ public class Infer {
      */
     Type generateReturnConstraints(Attr.ResultInfo resultInfo,
             MethodType mt, InferenceContext inferenceContext) {
+        InferenceContext rsInfoInfContext = resultInfo.checkContext.inferenceContext();
         Type from = mt.getReturnType();
         if (mt.getReturnType().containsAny(inferenceContext.inferencevars) &&
-                resultInfo.checkContext.inferenceContext() != emptyContext) {
+                rsInfoInfContext != emptyContext) {
             from = types.capture(from);
             //add synthetic captured ivars
             for (Type t : from.getTypeArguments()) {
@@ -231,13 +232,13 @@ public class Infer {
                 }
             }
         }
-        Type qtype1 = inferenceContext.asFree(from);
+        Type qtype1 = inferenceContext.asUndetVar(from);
         Type to = returnConstraintTarget(qtype1, resultInfo.pt);
-        Assert.check(allowGraphInference || !resultInfo.checkContext.inferenceContext().free(to),
+        Assert.check(allowGraphInference || !rsInfoInfContext.free(to),
                 "legacy inference engine cannot handle constraints on both sides of a subtyping assertion");
         //we need to skip capture?
         Warner retWarn = new Warner();
-        if (!resultInfo.checkContext.compatible(qtype1, resultInfo.checkContext.inferenceContext().asFree(to), retWarn) ||
+        if (!resultInfo.checkContext.compatible(qtype1, rsInfoInfContext.asUndetVar(to), retWarn) ||
                 //unchecked conversion is not allowed in source 7 mode
                 (!allowGraphInference && retWarn.hasLint(Lint.LintCategory.UNCHECKED))) {
             throw inferenceException
@@ -280,7 +281,7 @@ public class Infer {
         ListBuffer<Type> todo = new ListBuffer<>();
         //step 1 - create fresh tvars
         for (Type t : vars) {
-            UndetVar uv = (UndetVar)inferenceContext.asFree(t);
+            UndetVar uv = (UndetVar)inferenceContext.asUndetVar(t);
             List<Type> upperBounds = uv.getBounds(InferenceBound.UPPER);
             if (Type.containsAny(upperBounds, vars)) {
                 TypeSymbol fresh_tvar = new TypeVariableSymbol(Flags.SYNTHETIC, uv.qtype.tsym.name, null, uv.qtype.tsym.owner);
@@ -399,7 +400,7 @@ public class Infer {
                 return types.createErrorType(funcInterface);
             }
             for (Type p : descParameterTypes) {
-                if (!types.isSameType(funcInterfaceContext.asFree(p), paramTypes.head)) {
+                if (!types.isSameType(funcInterfaceContext.asUndetVar(p), paramTypes.head)) {
                     checkContext.report(pos, diags.fragment("no.suitable.functional.intf.inst", funcInterface));
                     return types.createErrorType(funcInterface);
                 }
@@ -515,6 +516,32 @@ public class Infer {
         /** max number of incorporation rounds */
         static final int MAX_INCORPORATION_STEPS = 100;
 
+    /* If for two types t and s there is a least upper bound that is a
+     * parameterized type G, then there exists a supertype of 't' of the form
+     * G<T1, ..., Tn> and a supertype of 's' of the form G<S1, ..., Sn>
+     * which will be returned by this method. If no such supertypes exists then
+     * null is returned.
+     *
+     * As an example for the following input:
+     *
+     * t = java.util.ArrayList<java.lang.String>
+     * s = java.util.List<T>
+     *
+     * we get this ouput:
+     *
+     * Pair[java.util.List<java.lang.String>,java.util.List<T>]
+     */
+    private Pair<Type, Type> getParameterizedSupers(Type t, Type s) {
+        Type lubResult = types.lub(t, s);
+        if (lubResult == syms.errType || lubResult == syms.botType ||
+                !lubResult.isParameterized()) {
+            return null;
+        }
+        Type asSuperOfT = types.asSuper(t, lubResult.tsym);
+        Type asSuperOfS = types.asSuper(s, lubResult.tsym);
+        return new Pair<>(asSuperOfT, asSuperOfS);
+    }
+
     /**
      * This enumeration defines an entry point for doing inference variable
      * bound incorporation - it can be used to inject custom incorporation
@@ -533,22 +560,23 @@ public class Infer {
                 if (uv.inst != null) {
                     Type inst = uv.inst;
                     for (Type u : uv.getBounds(InferenceBound.UPPER)) {
-                        if (!isSubtype(inst, inferenceContext.asFree(u), warn, infer)) {
+                        if (!isSubtype(inst, inferenceContext.asUndetVar(u), warn, infer)) {
                             infer.reportBoundError(uv, BoundErrorKind.UPPER);
                         }
                     }
                     for (Type l : uv.getBounds(InferenceBound.LOWER)) {
-                        if (!isSubtype(inferenceContext.asFree(l), inst, warn, infer)) {
+                        if (!isSubtype(inferenceContext.asUndetVar(l), inst, warn, infer)) {
                             infer.reportBoundError(uv, BoundErrorKind.LOWER);
                         }
                     }
                     for (Type e : uv.getBounds(InferenceBound.EQ)) {
-                        if (!isSameType(inst, inferenceContext.asFree(e), infer)) {
+                        if (!isSameType(inst, inferenceContext.asUndetVar(e), infer)) {
                             infer.reportBoundError(uv, BoundErrorKind.EQ);
                         }
                     }
                 }
             }
+
             @Override
             boolean accepts(UndetVar uv, InferenceContext inferenceContext) {
                 //applies to all undetvars
@@ -594,12 +622,12 @@ public class Infer {
                 for (Type e : uv.getBounds(InferenceBound.EQ)) {
                     if (e.containsAny(inferenceContext.inferenceVars())) continue;
                     for (Type u : uv.getBounds(InferenceBound.UPPER)) {
-                        if (!isSubtype(e, inferenceContext.asFree(u), warn, infer)) {
+                        if (!isSubtype(e, inferenceContext.asUndetVar(u), warn, infer)) {
                             infer.reportBoundError(uv, BoundErrorKind.BAD_EQ_UPPER);
                         }
                     }
                     for (Type l : uv.getBounds(InferenceBound.LOWER)) {
-                        if (!isSubtype(inferenceContext.asFree(l), e, warn, infer)) {
+                        if (!isSubtype(inferenceContext.asUndetVar(l), e, warn, infer)) {
                             infer.reportBoundError(uv, BoundErrorKind.BAD_EQ_LOWER);
                         }
                     }
@@ -615,7 +643,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.UPPER)) {
                     for (Type b2 : uv.getBounds(InferenceBound.LOWER)) {
-                        isSubtype(inferenceContext.asFree(b2), inferenceContext.asFree(b1), warn , infer);
+                        isSubtype(inferenceContext.asUndetVar(b2), inferenceContext.asUndetVar(b1), warn , infer);
                     }
                 }
             }
@@ -629,7 +657,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.UPPER)) {
                     for (Type b2 : uv.getBounds(InferenceBound.EQ)) {
-                        isSubtype(inferenceContext.asFree(b2), inferenceContext.asFree(b1), warn, infer);
+                        isSubtype(inferenceContext.asUndetVar(b2), inferenceContext.asUndetVar(b1), warn, infer);
                     }
                 }
             }
@@ -643,9 +671,56 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b1 : uv.getBounds(InferenceBound.EQ)) {
                     for (Type b2 : uv.getBounds(InferenceBound.LOWER)) {
-                        isSubtype(inferenceContext.asFree(b2), inferenceContext.asFree(b1), warn, infer);
+                        isSubtype(inferenceContext.asUndetVar(b2), inferenceContext.asUndetVar(b1), warn, infer);
                     }
                 }
+            }
+        },
+        /**
+         * Given a bound set containing {@code alpha <: P<T>} and
+         * {@code alpha <: P<S>} where P is a parameterized type,
+         * perform {@code T = S} (which could lead to new bounds).
+         */
+        CROSS_UPPER_UPPER() {
+            @Override
+            public void apply(UndetVar uv, InferenceContext inferenceContext, Warner warn) {
+                Infer infer = inferenceContext.infer();
+                List<Type> boundList = uv.getBounds(InferenceBound.UPPER);
+                List<Type> boundListTail = boundList.tail;
+                while (boundList.nonEmpty()) {
+                    List<Type> tmpTail = boundListTail;
+                    while (tmpTail.nonEmpty()) {
+                        Type b1 = boundList.head;
+                        Type b2 = tmpTail.head;
+                        if (b1 != b2) {
+                            Pair<Type, Type> commonSupers = infer.getParameterizedSupers(b1, b2);
+                            if (commonSupers != null) {
+                                List<Type> allParamsSuperBound1 = commonSupers.fst.allparams();
+                                List<Type> allParamsSuperBound2 = commonSupers.snd.allparams();
+                                while (allParamsSuperBound1.nonEmpty() && allParamsSuperBound2.nonEmpty()) {
+                                    //traverse the list of all params comparing them
+                                    if (!allParamsSuperBound1.head.hasTag(WILDCARD) &&
+                                        !allParamsSuperBound2.head.hasTag(WILDCARD)) {
+                                        isSameType(inferenceContext.asUndetVar(allParamsSuperBound1.head),
+                                            inferenceContext.asUndetVar(allParamsSuperBound2.head), infer);
+                                    }
+                                    allParamsSuperBound1 = allParamsSuperBound1.tail;
+                                    allParamsSuperBound2 = allParamsSuperBound2.tail;
+                                }
+                                Assert.check(allParamsSuperBound1.isEmpty() && allParamsSuperBound2.isEmpty());
+                            }
+                        }
+                        tmpTail = tmpTail.tail;
+                    }
+                    boundList = boundList.tail;
+                    boundListTail = boundList.tail;
+                }
+            }
+
+            @Override
+            boolean accepts(UndetVar uv, InferenceContext inferenceContext) {
+                return !uv.isCaptured() &&
+                        uv.getBounds(InferenceBound.UPPER).nonEmpty();
             }
         },
         /**
@@ -658,7 +733,7 @@ public class Infer {
                 for (Type b1 : uv.getBounds(InferenceBound.EQ)) {
                     for (Type b2 : uv.getBounds(InferenceBound.EQ)) {
                         if (b1 != b2) {
-                            isSameType(inferenceContext.asFree(b2), inferenceContext.asFree(b1), infer);
+                            isSameType(inferenceContext.asUndetVar(b2), inferenceContext.asUndetVar(b1), infer);
                         }
                     }
                 }
@@ -673,7 +748,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b : uv.getBounds(InferenceBound.UPPER)) {
                     if (inferenceContext.inferenceVars().contains(b)) {
-                        UndetVar uv2 = (UndetVar)inferenceContext.asFree(b);
+                        UndetVar uv2 = (UndetVar)inferenceContext.asUndetVar(b);
                         if (uv2.isCaptured()) continue;
                         //alpha <: beta
                         //0. set beta :> alpha
@@ -699,7 +774,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b : uv.getBounds(InferenceBound.LOWER)) {
                     if (inferenceContext.inferenceVars().contains(b)) {
-                        UndetVar uv2 = (UndetVar)inferenceContext.asFree(b);
+                        UndetVar uv2 = (UndetVar)inferenceContext.asUndetVar(b);
                         if (uv2.isCaptured()) continue;
                         //alpha :> beta
                         //0. set beta <: alpha
@@ -725,7 +800,7 @@ public class Infer {
                 Infer infer = inferenceContext.infer();
                 for (Type b : uv.getBounds(InferenceBound.EQ)) {
                     if (inferenceContext.inferenceVars().contains(b)) {
-                        UndetVar uv2 = (UndetVar)inferenceContext.asFree(b);
+                        UndetVar uv2 = (UndetVar)inferenceContext.asUndetVar(b);
                         if (uv2.isCaptured()) continue;
                         //alpha == beta
                         //0. set beta == alpha
@@ -1475,7 +1550,7 @@ public class Infer {
                         StringBuilder buf = new StringBuilder();
                         String sep = "";
                         for (Type from : data) {
-                            UndetVar uv = (UndetVar)inferenceContext.asFree(from);
+                            UndetVar uv = (UndetVar)inferenceContext.asUndetVar(from);
                             for (Type bound : uv.getBounds(InferenceBound.values())) {
                                 if (bound.containsAny(List.from(to.data))) {
                                     buf.append(sep);
@@ -1684,7 +1759,7 @@ public class Infer {
                     Set<Type> optDepsByNode = stuckDeps.get(i);
                     for (Node n_j : nodes) {
                         Type j = n_j.data.first();
-                        UndetVar uv_i = (UndetVar)inferenceContext.asFree(i);
+                        UndetVar uv_i = (UndetVar)inferenceContext.asUndetVar(i);
                         if (Type.containsAny(uv_i.getBounds(InferenceBound.values()), List.of(j))) {
                             //update i's bound dependencies
                             n_i.addDependency(DependencyKind.BOUND, n_j);
@@ -1833,6 +1908,8 @@ public class Infer {
             });
         }
 
+        /* Returns the corresponding inference variables.
+         */
         private List<Type> filterVars(Filter<UndetVar> fu) {
             ListBuffer<Type> res = new ListBuffer<>();
             for (Type t : undetvars) {
@@ -1890,14 +1967,14 @@ public class Infer {
          * undet vars (used ahead of subtyping/compatibility checks to allow propagation
          * of inference constraints).
          */
-        final Type asFree(Type t) {
+        final Type asUndetVar(Type t) {
             return types.subst(t, inferencevars, undetvars);
         }
 
-        final List<Type> asFree(List<Type> ts) {
+        final List<Type> asUndetVars(List<Type> ts) {
             ListBuffer<Type> buf = new ListBuffer<>();
             for (Type t : ts) {
-                buf.append(asFree(t));
+                buf.append(asUndetVar(t));
             }
             return buf.toList();
         }
@@ -2073,7 +2150,7 @@ public class Infer {
         private boolean solveBasic(List<Type> varsToSolve, EnumSet<InferenceStep> steps) {
             boolean changed = false;
             for (Type t : varsToSolve.intersect(restvars())) {
-                UndetVar uv = (UndetVar)asFree(t);
+                UndetVar uv = (UndetVar)asUndetVar(t);
                 for (InferenceStep step : steps) {
                     if (step.accepts(uv, this)) {
                         uv.inst = step.solve(uv, this);

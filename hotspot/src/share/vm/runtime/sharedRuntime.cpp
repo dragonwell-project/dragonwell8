@@ -960,14 +960,13 @@ jlong SharedRuntime::get_java_tid(Thread* thread) {
  * it gets turned into a tail-call on sparc, which runs into dtrace bug
  * 6254741.  Once that is fixed we can remove the dummy return value.
  */
-int SharedRuntime::dtrace_object_alloc(oopDesc* o) {
-  return dtrace_object_alloc_base(Thread::current(), o);
+int SharedRuntime::dtrace_object_alloc(oopDesc* o, int size) {
+  return dtrace_object_alloc_base(Thread::current(), o, size);
 }
 
-int SharedRuntime::dtrace_object_alloc_base(Thread* thread, oopDesc* o) {
+int SharedRuntime::dtrace_object_alloc_base(Thread* thread, oopDesc* o, int size) {
   assert(DTraceAllocProbes, "wrong call");
   Klass* klass = o->klass();
-  int size = o->size();
   Symbol* name = klass->name();
 #ifndef USDT2
   HS_DTRACE_PROBE4(hotspot, object__alloc, get_java_tid(thread),
@@ -2691,19 +2690,20 @@ JRT_ENTRY_NO_ASYNC(void, SharedRuntime::block_for_jni_critical(JavaThread* threa
 JRT_END
 
 #ifdef HAVE_DTRACE_H
-// Create a dtrace nmethod for this method.  The wrapper converts the
-// java compiled calling convention to the native convention, makes a dummy call
-// (actually nops for the size of the call instruction, which become a trap if
-// probe is enabled). The returns to the caller. Since this all looks like a
-// leaf no thread transition is needed.
-
+/**
+ * Create a dtrace nmethod for this method.  The wrapper converts the
+ * Java-compiled calling convention to the native convention, makes a dummy call
+ * (actually nops for the size of the call instruction, which become a trap if
+ * probe is enabled), and finally returns to the caller. Since this all looks like a
+ * leaf, no thread transition is needed.
+ */
 nmethod *AdapterHandlerLibrary::create_dtrace_nmethod(methodHandle method) {
   ResourceMark rm;
   nmethod* nm = NULL;
 
   if (PrintCompilation) {
     ttyLocker ttyl;
-    tty->print("---   n%s  ");
+    tty->print("---   n  ");
     method->print_short_name(tty);
     if (method->is_static()) {
       tty->print(" (static)");
