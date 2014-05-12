@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,27 @@
 
 /*
  * @test
- * @bug 8003280 8009131
- * @summary Add lambda tests
- *  check nested case of overload resolution and lambda parameter inference
- * @compile/fail/ref=TargetType01.out -XDrawDiagnostics TargetType01.java
+ * @bug 8042656
+ * @summary Subtyping for intersection types containing type variables
+ * @compile IntersectionSubVar.java
  */
 
-class TargetType01 {
+class IntersectionSubVar {
 
-    interface Func<A,B> {
-        B call(A a);
+    interface Box<T> {
+        void set(T arg);
+        T get();
     }
 
-    interface F_I_I extends Func<Integer,Integer> {}
-    interface F_S_S extends Func<String,String> {}
-
-    static Integer M(F_I_I f){ return null; }
-    static String M(F_S_S f){ return null; }
-
-    static {
-        M(x1 -> {
-            return M( x2 -> {
-                return x1 + x2;
-            });
-        }); //ambiguous
+    <I> Box<I> glb(Box<? super I> arg1, Box<? super I> arg2) {
+        return null;
     }
+
+    <E extends Cloneable> void takeBox(Box<? super E> box) {}
+
+    <T> void test(Box<T> arg1, Box<Cloneable> arg2, Box<? super T> arg3) {
+        T t = glb(arg1, arg2).get(); // assign T&Cloneable to T
+        takeBox(arg3); // inference tests Box<CAP> <: Box<? super CAP&Cloneable>
+    }
+
 }

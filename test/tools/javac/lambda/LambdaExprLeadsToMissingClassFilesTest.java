@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,44 @@
 
 /*
  * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @bug 8003280
+ * @summary Add lambda tests
+ *  stale state after speculative attribution round leads to missing classfiles
  */
-import java.util.List;
+public class LambdaExprLeadsToMissingClassFilesTest<T> {
 
-public class T7086586b {
+    static int assertionCount = 0;
 
-    int assertionCount = 0;
-
-    void assertTrue(boolean cond) {
+    static void assertTrue(boolean cond) {
+        assertionCount++;
         if (!cond) {
             throw new AssertionError();
         }
-        assertionCount++;
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
+    interface SAM1<X> {
+        X m(X t, String s);
     }
+
+    interface SAM2 {
+        void m(String s, int i);
+    }
+
+    interface SAM3<X> {
+        X m(X t, String s, int i);
+    }
+
+    void call(SAM1<T> s1) { assertTrue(true); }
+
+    void call(SAM2 s2) { assertTrue(false); }
+
+    void call(SAM3<T> s3) { assertTrue(false); }
 
     public static void main(String[] args) {
-        new T7086586b().test(null);
+        LambdaExprLeadsToMissingClassFilesTest<StringBuilder> test =
+                new LambdaExprLeadsToMissingClassFilesTest<>();
+
+        test.call((builder, string) -> { builder.append(string); return builder; });
+        assertTrue(assertionCount == 1);
     }
 }

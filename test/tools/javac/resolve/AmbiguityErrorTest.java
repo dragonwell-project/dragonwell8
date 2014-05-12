@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,35 +21,55 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @bug 8041663
  */
-import java.util.List;
 
-public class T7086586b {
+public class AmbiguityErrorTest {
 
-    int assertionCount = 0;
+    public interface A { }
 
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
+    public interface B extends A { }
+
+    public interface C {
+        A m(B strategy);
+    }
+
+    public interface D {
+        A m(A strategy);
+        A m(B strategy);
+    }
+
+    public interface T1 extends C, D { }
+    public interface T2 extends D, C { }
+
+    int count;
+
+    class T1Impl implements T1, T2 {
+        public A m(B strategy) {
+            count++;
+            return null;
         }
-        assertionCount++;
+        public A m(A strategy) {
+            throw new AssertionError("Should not get here.");
+        }
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
+    public static void main(String... args) {
+        new AmbiguityErrorTest().test();
     }
 
-    public static void main(String[] args) {
-        new T7086586b().test(null);
+    void test() {
+        T1 t1 = new T1Impl();
+        T2 t2 = new T1Impl();
+        final B b = new B() { };
+        t1.m(b);
+        t2.m(b);
+
+        if (count != 2) {
+            throw new IllegalStateException("Did not call the methods properly");
+        }
     }
+
 }

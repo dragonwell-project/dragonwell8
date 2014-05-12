@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +21,27 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @bug 8003280 8009131
- * @summary Add lambda tests
- *  check nested case of overload resolution and lambda parameter inference
- * @compile/fail/ref=TargetType01.out -XDrawDiagnostics TargetType01.java
+ * @bug 8033718
+ * @author dlsmith
+ * @summary GLB for two capture variables with lower bounds
+ * @compile LowerBoundGLB.java
  */
 
-class TargetType01 {
+public class LowerBoundGLB {
 
-    interface Func<A,B> {
-        B call(A a);
+    interface Box<T> {
+        T get();
+        void set(T arg);
     }
 
-    interface F_I_I extends Func<Integer,Integer> {}
-    interface F_S_S extends Func<String,String> {}
-
-    static Integer M(F_I_I f){ return null; }
-    static String M(F_S_S f){ return null; }
-
-    static {
-        M(x1 -> {
-            return M( x2 -> {
-                return x1 + x2;
-            });
-        }); //ambiguous
+    <T> T doGLB(Box<? super T> b1, Box<? super T> b2) {
+        return null;
     }
+
+    void test(Box<? super String> l1, Box<? super CharSequence> l2) {
+        doGLB(l1, l2).substring(3);
+    }
+
 }
