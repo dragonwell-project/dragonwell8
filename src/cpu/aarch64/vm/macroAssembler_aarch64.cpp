@@ -1665,7 +1665,7 @@ int MacroAssembler::push(unsigned int bitset, Register stack) {
 
   // Scan bitset to accumulate register pairs
   unsigned char regs[32];
-  unsigned count = 0;
+  int count = 0;
   for (int reg = 0; reg <= 30; reg++) {
     if (1 & bitset)
       regs[count++] = reg;
@@ -1674,9 +1674,14 @@ int MacroAssembler::push(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;  // Only push an even nuber of regs
 
-  for (int i = count - 2; i >= 0; i-= 2) {
+  if (count) {
+    stp(as_Register(regs[0]), as_Register(regs[1]),
+	Address(pre(stack, -count * wordSize)));
+    words_pushed += 2;
+  }
+  for (int i = 2; i < count; i += 2) {
     stp(as_Register(regs[i]), as_Register(regs[i+1]),
-	Address(pre(stack, -2 * wordSize)));
+	Address(stack, i * wordSize));
     words_pushed += 2;
   }
 
@@ -1688,7 +1693,7 @@ int MacroAssembler::pop(unsigned int bitset, Register stack) {
 
   // Scan bitset to accumulate register pairs
   unsigned char regs[32];
-  unsigned count = 0;
+  int count = 0;
   for (int reg = 0; reg <= 30; reg++) {
     if (1 & bitset)
       regs[count++] = reg;
@@ -1697,10 +1702,19 @@ int MacroAssembler::pop(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;
 
-  for (unsigned i = 0; i < count; i+= 2) {
-    ldp(as_Register(regs[i]), as_Register(regs[i+1]),
-	Address(post(stack, 2 * wordSize)));
-    words_pushed += 2;
+  if (count <= 4) {
+    for (int i = 0; i < count; i+= 2) {
+      ldp(as_Register(regs[i]), as_Register(regs[i+1]),
+	  Address(post(stack, 2 * wordSize)));
+      words_pushed += 2;
+    }
+  } else {
+    for (int i = 0; i < count; i+= 2) {
+      ldp(as_Register(regs[i]), as_Register(regs[i+1]),
+	  Address(stack, i * wordSize));
+      words_pushed += 2;
+    }
+    add(stack, stack, words_pushed * wordSize);
   }
 
   return words_pushed;

@@ -911,19 +911,16 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   if (C->need_stack_bang(framesize))
     __ generate_stack_overflow_check(framesize);
 
-  // push lr and rfp to create a frame
-  __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-
-  // allow for already pushed values
-  framesize -= 2 * wordSize;
-
-  if (framesize) {
-    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
-      __ sub(sp, sp, framesize);
-    } else {
-      __ mov(rscratch1, framesize);
-      __ sub(sp, sp, rscratch1);
-    }
+  if (framesize == 0) {
+    // Is this even possible?
+    __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
+  } else if (framesize < (1 << 12)) {
+    __ sub(sp, sp, framesize);
+    __ stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+  } else {
+    __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
+    __ mov(rscratch1, framesize - 2 * wordSize);
+    __ sub(sp, sp, rscratch1);
   }
 
   if (NotifySimulator) {
@@ -993,18 +990,16 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   MacroAssembler _masm(&cbuf);
   int framesize = C->frame_slots() << LogBytesPerInt;
 
-  framesize -= 2 * wordSize;
-  
-  if (framesize) {
-    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
-      __ add(sp, sp, framesize); 
-    } else {
-      __ mov(rscratch1, framesize);
-      __ add(sp, sp, rscratch1);
-    }
+  if (framesize == 0) {
+    __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
+  } else if (framesize < (1 << 12)) {
+    __ ldp(rfp, lr, Address(sp, framesize - 2 * wordSize));
+    __ add(sp, sp, framesize);
+  } else {
+    __ mov(rscratch1, framesize - 2 * wordSize);
+    __ add(sp, sp, rscratch1);
+    __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
   }
-
-  __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
 
   if (NotifySimulator) {
     __ notify(Assembler::method_reentry);
