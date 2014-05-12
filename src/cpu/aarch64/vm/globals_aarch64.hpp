@@ -49,7 +49,7 @@ define_pd_global(bool, UncommonNullCast,         true);  // Uncommon-trap NULLs 
 // the uep and the vep doesn't get real alignment but just slops on by
 // only assured that the entry instruction meets the 5 byte size requirement.
 #ifdef COMPILER2
-define_pd_global(intx, CodeEntryAlignment,       32);
+define_pd_global(intx, CodeEntryAlignment,       64);
 #else
 define_pd_global(intx, CodeEntryAlignment,       16);
 #endif // COMPILER2
