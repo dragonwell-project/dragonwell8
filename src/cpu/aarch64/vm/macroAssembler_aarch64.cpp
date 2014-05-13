@@ -1657,10 +1657,8 @@ void MacroAssembler::popa() {
 }
 
 // Push lots of registers in the bit set supplied.  Don't push sp.
-// Return the number of registers pushed
+// Return the number of words pushed
 int MacroAssembler::push(unsigned int bitset, Register stack) {
-  // need to push all registers including original sp
-
   int words_pushed = 0;
 
   // Scan bitset to accumulate register pairs
@@ -1676,16 +1674,18 @@ int MacroAssembler::push(unsigned int bitset, Register stack) {
 
   if (count) {
     stp(as_Register(regs[0]), as_Register(regs[1]),
-	Address(pre(stack, -count * wordSize)));
+       Address(pre(stack, -count * wordSize)));
     words_pushed += 2;
   }
   for (int i = 2; i < count; i += 2) {
     stp(as_Register(regs[i]), as_Register(regs[i+1]),
-	Address(stack, i * wordSize));
+       Address(stack, i * wordSize));
     words_pushed += 2;
   }
 
-  return words_pushed;
+  assert(words_pushed == count, "oops, pushed != count");
+
+  return count;
 }
 
 int MacroAssembler::pop(unsigned int bitset, Register stack) {
@@ -1702,25 +1702,22 @@ int MacroAssembler::pop(unsigned int bitset, Register stack) {
   regs[count++] = zr->encoding_nocheck();
   count &= ~1;
 
-  if (count <= 4) {
-    for (int i = 0; i < count; i+= 2) {
-      ldp(as_Register(regs[i]), as_Register(regs[i+1]),
-	  Address(post(stack, 2 * wordSize)));
-      words_pushed += 2;
-    }
-  } else {
-    for (int i = 0; i < count; i+= 2) {
-      ldp(as_Register(regs[i]), as_Register(regs[i+1]),
-	  Address(stack, i * wordSize));
-      words_pushed += 2;
-    }
-    add(stack, stack, words_pushed * wordSize);
+  for (int i = 2; i < count; i += 2) {
+    ldp(as_Register(regs[i]), as_Register(regs[i+1]),
+       Address(stack, i * wordSize));
+    words_pushed += 2;
+  }
+  if (count) {
+    ldp(as_Register(regs[0]), as_Register(regs[1]),
+       Address(post(stack, count * wordSize)));
+    words_pushed += 2;
   }
 
-  return words_pushed;
-}
+  assert(words_pushed == count, "oops, pushed != count");
 
-#ifdef ASSERT 
+  return count;
+}
+#ifdef ASSERT
 void MacroAssembler::verify_heapbase(const char* msg) {
 #if 0
   assert (UseCompressedOops || UseCompressedClassPointers, "should be compressed");
