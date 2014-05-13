@@ -22,20 +22,12 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP
-#define OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP
-
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/threadLocalStorage.hpp"
 
-#if 0
-void MacroAssembler::int3() {
-  fixme()
-}
-#endif
 
 // get_thread can be called anywhere inside generated code so we need
 // to save whatever non-callee save context might get clobbered by the
@@ -47,7 +39,7 @@ void MacroAssembler::get_thread(Register dst) {
   // void * pthread_getspecific(pthread_key_t key);
 
   // Save all call-clobbered regs except dst, plus r19 and r20.
-  unsigned int saved_regs = 0x401fffff & ~(1<<dst->encoding());
+  RegSet saved_regs = RegSet::range(r0, r20) + lr - dst;
   push(saved_regs, sp);
   mov(c_rarg0, ThreadLocalStorage::thread_index());
   mov(r19, CAST_FROM_FN_PTR(address, pthread_getspecific));
@@ -59,4 +51,3 @@ void MacroAssembler::get_thread(Register dst) {
   pop(saved_regs, sp);
 }
 
-#endif // OS_CPU_LINUX_AARCH64_VM_ASSEMBLER_LINUX_AARCH64_HPP

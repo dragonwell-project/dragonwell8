@@ -989,14 +989,15 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   assert(sub_klass != r2, "killed reg"); // killed by lea(r2, &pst_counter)
 
   // Get super_klass value into r0 (even if it was in r5 or r2).
-  bool pushed_r0 = false, pushed_r2 = !IS_A_TEMP(r2), pushed_r5 = !IS_A_TEMP(r5);
+  RegSet pushed_registers;
+  if (!IS_A_TEMP(r2))    pushed_registers += r2;
+  if (!IS_A_TEMP(r5))    pushed_registers += r5;
 
   if (super_klass != r0 || UseCompressedOops) {
-    if (!IS_A_TEMP(r0))
-      pushed_r0 = true;
+    if (!IS_A_TEMP(r0))   pushed_registers += r0;
   }
 
-  push(r0->bit(pushed_r0) | r2->bit(pushed_r2) | r5->bit(pushed_r5), sp);
+  push(pushed_registers, sp);
 
 #ifndef PRODUCT
   mov(rscratch2, (address)&SharedRuntime::_partial_subtype_ctr);
@@ -1019,7 +1020,7 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   repne_scan(r5, r0, r2, rscratch1);
 
   // Unspill the temp. registers:
-  pop(r0->bit(pushed_r0) | r2->bit(pushed_r2) | r5->bit(pushed_r5), sp);
+  pop(pushed_registers, sp);
 
   br(Assembler::NE, *L_failure);
 
