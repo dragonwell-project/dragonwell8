@@ -244,14 +244,19 @@ public:
 
   RegSet(Register r1) : _bitset(r1->bit()) { }
 
-  RegSet operator+(RegSet aSet) const {
+  RegSet operator+(const RegSet aSet) const {
     RegSet result(_bitset | aSet._bitset);
     return result;
   }
 
-  RegSet operator-(RegSet aSet) const {
+  RegSet operator-(const RegSet aSet) const {
     RegSet result(_bitset & ~aSet._bitset);
     return result;
+  }
+
+  RegSet &operator+=(const RegSet aSet) {
+    *this = *this + aSet;
+    return *this;
   }
 
   static RegSet of(Register r1) {
