@@ -93,45 +93,42 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
       unsigned offset_lo = dest & 0xfff;
       offset = adr_page - pc_page;
 
+      // We handle 3 types of PC relative addressing
+      //   1 - adrp    Rx, target_page
+      //       ldr/str Ry, [Rx, #offset_in_page]
+      //   2 - adrp    Rx, target_page
+      //       add     Ry, Rx, #offset_in_page
+      //   3 - adrp    Rx, target_page (page aligned reloc, offset == 0)
+      // In the first 2 cases we must check that Rx is the same in the adrp and the
+      // subsequent ldr/str or add instruction. Otherwise we could accidentally end
+      // up treating a type 3 relocation as a type 1 or 2 just because it happened
+      // to be followed by a random unrelated ldr/str or add instruction.
+      //
+      // In the case of a type 3 relocation, we know that these are only generated
+      // for the safepoint polling page, or for the card type byte map base so we
+      // assert as much and of course that the offset is 0.
+      //
       unsigned insn2 = ((unsigned*)branch)[1];
-      if ((address)target == os::get_polling_page()) {
-	assert(offset_lo == 0, "offset must be 0 for polling page");
-      } else if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001 &&
+		Instruction_aarch64::extract(insn, 4, 0) ==
+			Instruction_aarch64::extract(insn2, 9, 5)) {
 	// Load/store register (unsigned immediate)
 	unsigned size = Instruction_aarch64::extract(insn2, 31, 30);
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				    21, 10, offset_lo >> size);
 	guarantee(((dest >> size) << size) == dest, "misaligned target");
-	guarantee(Instruction_aarch64::extract(insn, 4, 0)
-		  == Instruction_aarch64::extract(insn2, 9, 5),
-		  "Registers should be the same");
-      } else if (Instruction_aarch64::extract(insn2, 31, 22) == 0b1001000100) {
+      } else if (Instruction_aarch64::extract(insn2, 31, 22) == 0b1001000100 &&
+		Instruction_aarch64::extract(insn, 4, 0) ==
+			Instruction_aarch64::extract(insn2, 4, 0)) {
 	// add (immediate)
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				   21, 10, offset_lo);
-	guarantee(Instruction_aarch64::extract(insn, 4, 0)
-		  == Instruction_aarch64::extract(insn2, 4, 0),
-		  "Registers should be the same");
-      } else if (Instruction_aarch64::extract(insn2, 31, 21) == 0b10001011000
-		 && Instruction_aarch64::extract(insn2, 15, 10) == 0) {
-	// Handle the cardtable relocation in g1_post_barrier
-	//	__ adrp(Rx, cardtable, offset);
-	//	__ add(Ry, Ry, Rx);
-	//	__ ldrb(Rz, Address(Ry, offset));
-        unsigned insn3 = ((unsigned*)branch)[2];
-	unsigned size = Instruction_aarch64::extract(insn3, 31, 30);
-	// The offset must not change becase it is used later in the
-	// g1_post_barrier code. So we don't patch anything here.
-	guarantee(Instruction_aarch64::extract(insn3, 21, 10) == (offset_lo >> size), "offset changed");
-	guarantee(Instruction_aarch64::extract(insn3, 29, 24) == 0b111001, "must be ldr imm");
-	guarantee(Instruction_aarch64::extract(insn, 4, 0)
-		  == Instruction_aarch64::extract(insn2, 20, 16), "Registers must match");
-	guarantee(Instruction_aarch64::extract(insn2, 4, 0)
-		  == Instruction_aarch64::extract(insn2, 9, 5), "Registers must match");
-	guarantee(Instruction_aarch64::extract(insn2, 4, 0)
-		  == Instruction_aarch64::extract(insn3, 9, 5), "Registers must match");
       } else {
-	ShouldNotReachHere();
+	assert((jbyte *)target ==
+		((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base ||
+               (address)target == os::get_polling_page(),
+	       "adrp must be polling page or byte map base");
+	assert(offset_lo == 0, "offset must be 0 for polling page or byte map base");
       }
     }
     int offset_lo = offset & 3;
@@ -181,16 +178,38 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
       offset <<= shift;
       uint64_t target_page = ((uint64_t)insn_addr) + offset;
       target_page &= ((uint64_t)-1) << shift;
+      // Return the target address for the following sequences
+      //   1 - adrp    Rx, target_page
+      //       ldr/str Ry, [Rx, #offset_in_page]
+      //   [ 2 - adrp    Rx, target_page         ] Not handled
+      //   [    add     Ry, Rx, #offset_in_page  ]
+      //   3 - adrp    Rx, target_page (page aligned reloc, offset == 0)
+      //
+      // In the case of type 1 we check that the register is the same and
+      // return the target_page + the offset within the page.
+      //
+      // Otherwise we assume it is a page aligned relocation and return
+      // the target page only. The only cases this is generated is for
+      // the safepoint polling page or for the card table byte map base so
+      // we assert as much.
+      //
+      // Note: Strangely, we do not handle 'type 2' relocation (adrp followed
+      // by add) which is handled in pd_patch_instruction above.
+      //
       unsigned insn2 = ((unsigned*)insn_addr)[1];
-      if ((address)target_page == os::get_polling_page()) {
-	return (address)target_page;
-      } else if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001) {
+      if (Instruction_aarch64::extract(insn2, 29, 24) == 0b111001 &&
+		Instruction_aarch64::extract(insn, 4, 0) ==
+			Instruction_aarch64::extract(insn2, 9, 5)) {
 	// Load/store register (unsigned immediate)
 	unsigned int byte_offset = Instruction_aarch64::extract(insn2, 21, 10);
 	unsigned int size = Instruction_aarch64::extract(insn2, 31, 30);
 	return address(target_page + (byte_offset << size));
       } else {
-	ShouldNotReachHere();
+	assert((jbyte *)target_page ==
+		((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base ||
+               (address)target_page == os::get_polling_page(),
+	       "adrp must be polling page or byte map base");
+	return (address)target_page;
       }
     } else {
       ShouldNotReachHere();

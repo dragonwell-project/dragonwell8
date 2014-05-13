@@ -2560,6 +2560,15 @@ encode %{
     assert(off == 0, "assumed offset == 0");
   %}
 
+  enc_class aarch64_enc_mov_byte_map_base(iRegP dst, immByteMapBase src) %{
+    MacroAssembler _masm(&cbuf);
+    address page = (address)$src$$constant;
+    Register dst_reg = as_Register($dst$$reg);
+    unsigned long off;
+    __ adrp(dst_reg, ExternalAddress(page), off);
+    assert(off == 0, "assumed offset == 0");
+  %}
+
   enc_class aarch64_enc_mov_n(iRegN dst, immN src) %{
     MacroAssembler _masm(&cbuf);
     Register dst_reg = as_Register($dst$$reg);
@@ -3743,6 +3752,19 @@ operand immP_1()
 operand immPollPage()
 %{
   predicate((address)n->get_ptr() == os::get_polling_page());
+  match(ConP);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// Card Table Byte Map Base
+operand immByteMapBase()
+%{
+  // Get base of card map
+  predicate((jbyte*)n->get_ptr() ==
+	((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base);
   match(ConP);
 
   op_cost(0);
@@ -5092,6 +5114,20 @@ instruct loadConPollPage(iRegPNoSp dst, immPollPage con)
   format %{ "adr  $dst, $con\t# Poll Page Ptr" %}
 
   ins_encode(aarch64_enc_mov_poll_page(dst, con));
+
+  ins_pipe(pipe_class_default);
+%}
+
+// Load Byte Map Base Constant
+
+instruct loadByteMapBase(iRegPNoSp dst, immByteMapBase con)
+%{
+  match(Set dst con);
+
+  ins_cost(INSN_COST);
+  format %{ "adr  $dst, $con\t# Byte Map Base" %}
+
+  ins_encode(aarch64_enc_mov_byte_map_base(dst, con));
 
   ins_pipe(pipe_class_default);
 %}
