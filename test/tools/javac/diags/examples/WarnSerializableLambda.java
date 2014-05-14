@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,35 +21,21 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
- */
-import java.util.List;
+// key: compiler.warn.access.to.sensitive.member.from.serializable.element
+// options: -XDwarnOnAccessToSensitiveMembers
 
-public class T7086586b {
+import java.io.Serializable;
 
-    int assertionCount = 0;
-
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
-        }
-        assertionCount++;
+public class WarnSerializableLambda {
+    interface SAM {
+        void apply(String s);
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
+    private void m1() {
+        SAM s = (SAM & Serializable) c -> {
+            packageField = "";
+        };
     }
 
-    public static void main(String[] args) {
-        new T7086586b().test(null);
-    }
+    String packageField;
 }

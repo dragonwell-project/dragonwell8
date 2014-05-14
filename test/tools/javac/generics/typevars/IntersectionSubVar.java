@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,27 @@
 
 /*
  * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @bug 8042656
+ * @summary Subtyping for intersection types containing type variables
+ * @compile IntersectionSubVar.java
  */
-import java.util.List;
 
-public class T7086586b {
+class IntersectionSubVar {
 
-    int assertionCount = 0;
-
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
-        }
-        assertionCount++;
+    interface Box<T> {
+        void set(T arg);
+        T get();
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
+    <I> Box<I> glb(Box<? super I> arg1, Box<? super I> arg2) {
+        return null;
     }
 
-    public static void main(String[] args) {
-        new T7086586b().test(null);
+    <E extends Cloneable> void takeBox(Box<? super E> box) {}
+
+    <T> void test(Box<T> arg1, Box<Cloneable> arg2, Box<? super T> arg3) {
+        T t = glb(arg1, arg2).get(); // assign T&Cloneable to T
+        takeBox(arg3); // inference tests Box<CAP> <: Box<? super CAP&Cloneable>
     }
+
 }
