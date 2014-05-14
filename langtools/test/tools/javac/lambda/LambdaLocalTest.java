@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,33 @@
 
 /*
  * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @bug 8029725
+ * @summary Lambda reference to containing local class causes javac infinite recursion
+ * @author  Robert Field
+ * @run main LambdaLocalTest
  */
-import java.util.List;
 
-public class T7086586b {
+public class LambdaLocalTest {
+    interface F {void f();}
 
-    int assertionCount = 0;
+    static F f;
+    static StringBuffer sb = new StringBuffer();
 
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
+    static void assertEquals(Object val, Object expected) {
+        if (!val.equals(expected)) {
+            throw new AssertionError("expected '" + expected + "' got '" + val + "'");
         }
-        assertionCount++;
-    }
-
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
     }
 
     public static void main(String[] args) {
-        new T7086586b().test(null);
+        class Local {
+            public Local() {
+                f = () -> new Local();
+                sb.append("+");
+            }
+        }
+        new Local();
+        f.f();
+        assertEquals(sb.toString(), "++");
     }
 }

@@ -82,6 +82,7 @@ public class Check {
     private final TreeInfo treeinfo;
     private final JavaFileManager fileManager;
     private final Profile profile;
+    private final boolean warnOnAccessToSensitiveMembers;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -131,6 +132,7 @@ public class Check {
         warnOnSyntheticConflicts = options.isSet("warnOnSyntheticConflicts");
         suppressAbortOnBadClassFile = options.isSet("suppressAbortOnBadClassFile");
         enableSunApiLintControl = options.isSet("enableSunApiLintControl");
+        warnOnAccessToSensitiveMembers = options.isSet("warnOnAccessToSensitiveMembers");
 
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -510,6 +512,11 @@ public class Check {
         public DeferredAttrContext deferredAttrContext() {
             return deferredAttr.emptyDeferredAttrContext;
         }
+
+        @Override
+        public String toString() {
+            return "CheckContext: basicHandler";
+        }
     };
 
     /** Check that a given type is assignable to a given proto-type.
@@ -616,7 +623,7 @@ public class Check {
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.upperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
-             return !types.notSoftSubtype(types.lowerBound(a), bound);
+             return !types.notSoftSubtype(types.wildLowerBound(a), bound);
          }
          return true;
      }
@@ -2583,6 +2590,44 @@ public class Check {
         }
     }
 
+    void checkElemAccessFromSerializableLambda(final JCTree tree) {
+        if (warnOnAccessToSensitiveMembers) {
+            Symbol sym = TreeInfo.symbol(tree);
+            if ((sym.kind & (VAR | MTH)) == 0) {
+                return;
+            }
+
+            if (sym.kind == VAR) {
+                if ((sym.flags() & PARAMETER) != 0 ||
+                    sym.isLocal() ||
+                    sym.name == names._this ||
+                    sym.name == names._super) {
+                    return;
+                }
+            }
+
+            if (!types.isSubtype(sym.owner.type, syms.serializableType) &&
+                    isEffectivelyNonPublic(sym)) {
+                log.warning(tree.pos(),
+                        "access.to.sensitive.member.from.serializable.element", sym);
+            }
+        }
+    }
+
+    private boolean isEffectivelyNonPublic(Symbol sym) {
+        if (sym.packge() == syms.rootPackage) {
+            return false;
+        }
+
+        while (sym.kind != Kinds.PCK) {
+            if ((sym.flags() & PUBLIC) == 0) {
+                return true;
+            }
+            sym = sym.owner;
+        }
+        return false;
+    }
+
     /** Report a conflict between a user symbol and a synthetic symbol.
      */
     private void syntheticError(DiagnosticPosition pos, Symbol sym) {
@@ -2680,7 +2725,7 @@ public class Check {
         if (types.isSameType(type, syms.stringType)) return;
         if ((type.tsym.flags() & Flags.ENUM) != 0) return;
         if ((type.tsym.flags() & Flags.ANNOTATION) != 0) return;
-        if (types.lowerBound(type).tsym == syms.classType.tsym) return;
+        if (types.cvarLowerBound(type).tsym == syms.classType.tsym) return;
         if (types.isArray(type) && !types.isArray(types.elemtype(type))) {
             validateAnnotationType(pos, types.elemtype(type));
             return;

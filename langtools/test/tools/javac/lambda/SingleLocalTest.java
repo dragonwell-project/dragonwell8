@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,28 @@
 
 /*
  * @test
- * @bug 7086586 8033718
- *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @bug 8029852
+ * @summary Bad code generated (VerifyError) when lambda instantiates
+ *          enclosing local class and has captured variables
  */
-import java.util.List;
+public class SingleLocalTest {
+    interface F {void f();}
 
-public class T7086586b {
-
-    int assertionCount = 0;
-
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
-        }
-        assertionCount++;
-    }
-
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
-    }
+    static F f;
 
     public static void main(String[] args) {
-        new T7086586b().test(null);
+        StringBuffer sb = new StringBuffer();
+        class Local1 {
+            public Local1() {
+                f = () -> new Local1();
+                sb.append("1");
+            }
+        }
+        new Local1();
+        f.f();
+        String s = sb.toString();
+        if (!s.equals("11")) {
+            throw new AssertionError("Expected '11' got '" + s + "'");
+        }
     }
 }
