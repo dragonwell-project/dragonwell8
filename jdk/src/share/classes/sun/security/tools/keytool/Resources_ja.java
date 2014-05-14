@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -348,17 +348,17 @@ public class Resources_ja extends java.util.ListResourceBundle {
         {".PATTERN.printX509Cert",
                 "\u6240\u6709\u8005: {0}\n\u767A\u884C\u8005: {1}\n\u30B7\u30EA\u30A2\u30EB\u756A\u53F7: {2}\n\u6709\u52B9\u671F\u9593\u306E\u958B\u59CB\u65E5: {3}\u7D42\u4E86\u65E5: {4}\n\u8A3C\u660E\u66F8\u306E\u30D5\u30A3\u30F3\u30AC\u30D7\u30EA\u30F3\u30C8:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\t \u7F72\u540D\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0\u540D: {8}\n\t \u30D0\u30FC\u30B8\u30E7\u30F3: {9}"},
         {"What.is.your.first.and.last.name.",
-                "\u59D3\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u59D3\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.name.of.your.organizational.unit.",
-                "\u7D44\u7E54\u5358\u4F4D\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u7D44\u7E54\u5358\u4F4D\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.name.of.your.organization.",
-                "\u7D44\u7E54\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u7D44\u7E54\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.name.of.your.City.or.Locality.",
-                "\u90FD\u5E02\u540D\u307E\u305F\u306F\u5730\u57DF\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u90FD\u5E02\u540D\u307E\u305F\u306F\u5730\u57DF\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.name.of.your.State.or.Province.",
-                "\u90FD\u9053\u5E9C\u770C\u540D\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u90FD\u9053\u5E9C\u770C\u540D\u307E\u305F\u306F\u5DDE\u540D\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"What.is.the.two.letter.country.code.for.this.unit.",
-                "\u3053\u306E\u5358\u4F4D\u306B\u8A72\u5F53\u3059\u308B2\u6587\u5B57\u306E\u56FD\u30B3\u30FC\u30C9\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044\u3002"},
+                "\u3053\u306E\u5358\u4F4D\u306B\u8A72\u5F53\u3059\u308B2\u6587\u5B57\u306E\u56FD\u30B3\u30FC\u30C9\u306F\u4F55\u3067\u3059\u304B\u3002"},
         {"Is.name.correct.", "{0}\u3067\u3088\u308D\u3057\u3044\u3067\u3059\u304B\u3002"},
         {"no", "\u3044\u3044\u3048"},
         {"yes", "\u306F\u3044"},
