@@ -190,9 +190,9 @@ public class bug8016833 {
         // not too wide
         assertTrue(out3.getWidth() * 0.8 < out2.getWidth());
         // not too low
-        assertTrue(out3.getY() - (out1.getY() + out2.getHeight()) < 3);
+        assertTrue(out3.getY() - (out1.getY() + out2.getHeight() - 1) < 4);
         // not too high
-        assertTrue(out3.getY() - (out1.getY() + out2.getHeight()) > 0);
+        assertTrue(out3.getY() - (out1.getY() + out2.getHeight() - 1) > 0);
     }
 
     void testStrikthrough() {
@@ -217,7 +217,7 @@ public class bug8016833 {
         // not too wide
         assertTrue(out3.getWidth() * 0.8 < out2.getWidth());
         // not too low
-        assertTrue(out3.getY() - (out1.getY() + out2.getHeight()) < 0);
+        assertTrue(out3.getY() - (out1.getY() + out2.getHeight() - 1) < 0);
         // not too high
         assertTrue(out3.getY() - out1.getY() > 1);
     }
