@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -326,7 +326,7 @@ else
                 echo "ERROR: Missing parent path: ${parent_path}" > ${status_output}
                 exit 1
               fi
-              times=`expr ${times} '+' 1)`
+              times=`expr ${times} '+' 1`
               if [ `expr ${times} '%' 10` -eq 0 ] ; then
                 echo "${parent_path} still not created, waiting..." > ${status_output}
               fi
