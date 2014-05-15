@@ -7,7 +7,7 @@ instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
                          immI src3, rFlagsReg cr) %{
   match(Set dst ($2$1 src1 ($4$1 src2 src3)));
 
-  ins_cost(INSN_COST);
+  ins_cost(1.9 * INSN_COST);
   format %{ "$3  $dst, $src1, $src2, $5 $src3" %}
 
   ins_encode %{
@@ -52,7 +52,7 @@ dnl into this canonical form.
   ifelse($2,Xor,
     match(Set dst ($2$1 src4 (Xor$1($4$1 src2 src3) src1)));,
     match(Set dst ($2$1 src1 (Xor$1($4$1 src2 src3) src4)));)
-  ins_cost(INSN_COST);
+  ins_cost(1.9 * INSN_COST);
   format %{ "$3  $dst, $src1, $src2, $5 $src3" %}
 
   ins_encode %{
@@ -278,7 +278,7 @@ instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1orL2I src2, rFlagsReg cr)
 %{
   match(Set dst ($3$2 src1 (ConvI2L src2)));
   ins_cost(INSN_COST);
-  format %{ "$4  $dst, $src1, $6 $src2" %}
+  format %{ "$4  $dst, $src1, $5 $src2" %}
 
    ins_encode %{
      __ $4(as_Register($dst$$reg), as_Register($src1$$reg),
