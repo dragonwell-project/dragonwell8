@@ -84,8 +84,6 @@ public class CertificateRevokedException extends CertificateException {
      * @throws NullPointerException if {@code revocationDate},
      *    {@code reason}, {@code authority}, or
      *    {@code extensions} is {@code null}
-     * @throws ClassCastException if {@code extensions} contains an incorrectly
-     *    typed key or value
      */
     public CertificateRevokedException(Date revocationDate, CRLReason reason,
         X500Principal authority, Map<String, Extension> extensions) {
