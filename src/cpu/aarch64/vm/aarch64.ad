@@ -861,38 +861,21 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   Compile* C = ra_->C;
 
   int framesize = C->frame_slots() << LogBytesPerInt;
-  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  if (C->need_stack_bang(framesize)) {
+
+  if (C->need_stack_bang(framesize))
     st->print("# stack bang size=%d\n\t", framesize);
+
+  if (framesize == 0) {
+    // Is this even possible?
+    st->print("stp  lr, rfp, [sp, #%d]!", -(2 * wordSize)); 
+  } else if (framesize < (1 << 12)) {
+    st->print("sub  sp, sp, #%d\n\t", framesize);
+    st->print("stp  rfp, lr, [sp, #%d]", framesize - 2 * wordSize);
+  } else {
+    st->print("stp  lr, rfp, [sp, #%d]!\n\t", -(2 * wordSize)); 
+    st->print("mov  rscratch1, #%d\n\t", framesize - 2 * wordSize);
+    st->print("sub  sp, sp, rscratch1");
   }
-
-  if (framesize > 0) {
-    st->print("# create frame %d\n\t", framesize);
-  }
-
-  st->print("stp  lr, rfp, [sp, #%d]!\n\t", -(2 * wordSize)); 
-
-  // allow for pushing ret address and rfp
-
-  framesize -= (2 * wordSize);
-
-  if (framesize) {
-    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
-       st->print("sub  sp, sp, #%d", framesize); 
-    } else {
-       st->print("mov  rscratch1, #%d\n\t", framesize); 
-       st->print("sub  sp, sp, rscratch1"); 
-    }
-  }
-
-  if (NotifySimulator) {
-    st->print("\n\t# notify(Assembler::method_entry)");
-  }
-
-  if (VerifyStackAtCalls) {
-    st->print("\n\t# VerifyStackAtCalls Unimplemented!");
-  }
-  st->cr();
 }
 #endif
 
@@ -960,27 +943,22 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   int framesize = C->frame_slots() << LogBytesPerInt;
 
   st->print("# pop frame %d\n\t",framesize);
-  framesize -= 2 * wordSize;
 
-  if (framesize) {
-    if (Assembler::operand_valid_for_add_sub_immediate(framesize)) {
-       st->print("add  sp, sp, #%d", framesize); 
-    } else {
-       st->print("mov  rscratch1, #%d\n\t", framesize); 
-       st->print("add  sp, sp, rscratch1\n\t"); 
-    }
+  if (framesize == 0) {
+    st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize));
+  } else if (framesize < (1 << 12)) {
+    st->print("ldp  lr, rfp, [sp,#%d]\n\t", framesize - 2 * wordSize);
+    st->print("add  sp, sp, #%d\n\t", framesize);
+  } else {
+    st->print("mov  rscratch1, #%d\n\t", framesize - 2 * wordSize);
+    st->print("add  sp, sp, rscratch1\n\t");
+    st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize));
   }
 
-  st->print("# remove frame\n\t");
-  st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize)); 
-
-  if (NotifySimulator) {
-    st->print("notify method_reentry\n\t");
-  }
   if (do_polling() && C->is_method_compilation()) {
     st->print("# touch polling page\n\t");
     st->print("mov  rscratch1, #0x%x\n\t", os::get_polling_page());
-    st->print("ldr zr, [rscratch1]\n\t");
+    st->print("ldr zr, [rscratch1]");
   }
 }
 #endif
