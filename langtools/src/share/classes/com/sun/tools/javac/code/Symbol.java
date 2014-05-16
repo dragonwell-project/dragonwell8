@@ -392,7 +392,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     /** A class is an inner class if it it has an enclosing instance class.
      */
     public boolean isInner() {
-        return type.getEnclosingType().hasTag(CLASS);
+        return kind == TYP && type.getEnclosingType().hasTag(CLASS);
     }
 
     /** An inner class has an outer instance if it is not an interface
@@ -703,10 +703,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         }
 
         /**
-         * A total ordering between type symbols that refines the
+         * A partial ordering between type symbols that refines the
          * class inheritance graph.
          *
-         * Typevariables always precede other kinds of symbols.
+         * Type variables always precede other kinds of symbols.
          */
         public final boolean precedes(TypeSymbol that, Types types) {
             if (this == that)
