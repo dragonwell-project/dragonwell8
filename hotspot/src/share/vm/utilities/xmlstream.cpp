@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -336,6 +336,8 @@ void xmlStream::done_raw(const char* kind) {
   print_raw_cr(">");
 }
 
+PRAGMA_DIAG_PUSH
+PRAGMA_FORMAT_NONLITERAL_IGNORED
 // ------------------------------------------------------------------
 void xmlStream::va_done(const char* format, va_list ap) {
   char buffer[200];
@@ -354,6 +356,7 @@ void xmlStream::va_done(const char* format, va_list ap) {
   buffer[kind_len] = 0;
   tail(buffer);
 }
+PRAGMA_DIAG_POP
 
 // Output a timestamp attribute.
 void xmlStream::stamp() {
