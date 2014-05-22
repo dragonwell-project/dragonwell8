@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,7 @@
 #include "utilities/quickSort.hpp"
 #include "utilities/xmlstream.hpp"
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // Implementation of Method
 
@@ -1426,7 +1427,7 @@ class SignatureTypePrinter : public SignatureTypeNames {
 
   void type_name(const char* name) {
     if (_use_separator) _st->print(", ");
-    _st->print(name);
+    _st->print("%s", name);
     _use_separator = true;
   }
 
@@ -1907,7 +1908,7 @@ void Method::print_jmethod_ids(ClassLoaderData* loader_data, outputStream* out) 
 void Method::print_on(outputStream* st) const {
   ResourceMark rm;
   assert(is_method(), "must be method");
-  st->print_cr(internal_name());
+  st->print_cr("%s", internal_name());
   // get the effect of PrintOopAddress, always, for methods:
   st->print_cr(" - this oop:          "INTPTR_FORMAT, (intptr_t)this);
   st->print   (" - method holder:     "); method_holder()->print_value_on(st); st->cr();
@@ -1990,7 +1991,7 @@ void Method::print_on(outputStream* st) const {
 
 void Method::print_value_on(outputStream* st) const {
   assert(is_method(), "must be method");
-  st->print(internal_name());
+  st->print("%s", internal_name());
   print_address_on(st);
   st->print(" ");
   name()->print_value_on(st);
