@@ -28,9 +28,8 @@
  *          monitors are started and stopped in a loop.
  * @author Luis-Miguel Alventosa
  * @library /lib/testlibrary
- * @run build jdk.testlibrary.Utils
  * @run clean StartStopTest
- * @run build StartStopTest
+ * @run build jdk.testlibrary.* StartStopTest
  * @run main/othervm/timeout=300 StartStopTest 1
  * @run main/othervm/timeout=300 StartStopTest 2
  * @run main/othervm/timeout=300 StartStopTest 3
