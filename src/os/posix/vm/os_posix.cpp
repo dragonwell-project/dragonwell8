@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@
 #include <sys/utsname.h>
 #include <pthread.h>
 #include <signal.h>
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // Todo: provide a os::get_max_process_id() or similar. Number of processes
 // may have been configured, can be read more accurately from proc fs etc.
@@ -191,10 +193,10 @@ void os::Posix::print_uname_info(outputStream* st) {
   st->print("uname:");
   struct utsname name;
   uname(&name);
-  st->print(name.sysname); st->print(" ");
-  st->print(name.release); st->print(" ");
-  st->print(name.version); st->print(" ");
-  st->print(name.machine);
+  st->print("%s ", name.sysname);
+  st->print("%s ", name.release);
+  st->print("%s ", name.version);
+  st->print("%s", name.machine);
   st->cr();
 }
 
@@ -552,7 +554,7 @@ const char* os::Posix::describe_signal_set_short(const sigset_t* set, char* buff
 void os::Posix::print_signal_set_short(outputStream* st, const sigset_t* set) {
   char buf[NUM_IMPORTANT_SIGS + 1];
   os::Posix::describe_signal_set_short(set, buf, sizeof(buf));
-  st->print(buf);
+  st->print("%s", buf);
 }
 
 // Writes one-line description of a combination of sigaction.sa_flags into a user
@@ -612,7 +614,7 @@ const char* os::Posix::describe_sa_flags(int flags, char* buffer, size_t size) {
 void os::Posix::print_sa_flags(outputStream* st, int flags) {
   char buffer[0x100];
   os::Posix::describe_sa_flags(flags, buffer, sizeof(buffer));
-  st->print(buffer);
+  st->print("%s", buffer);
 }
 
 // Helper function for os::Posix::print_siginfo_...():
