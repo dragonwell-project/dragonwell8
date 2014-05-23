@@ -93,7 +93,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 JNIEXPORT jlong JNICALL Java_sun_security_smartcardio_PCSC_SCardEstablishContext
     (JNIEnv *env, jclass thisClass, jint dwScope)
 {
-    SCARDCONTEXT context;
+    SCARDCONTEXT context = 0;
     LONG rv;
     dprintf("-establishContext\n");
     rv = CALL_SCardEstablishContext(dwScope, NULL, NULL, &context);
@@ -147,7 +147,7 @@ JNIEXPORT jobjectArray JNICALL Java_sun_security_smartcardio_PCSC_SCardListReade
     SCARDCONTEXT context = (SCARDCONTEXT)jContext;
     LONG rv;
     LPTSTR mszReaders;
-    DWORD size;
+    DWORD size = 0;
     jobjectArray result;
 
     dprintf1("-context: %x\n", context);
@@ -177,8 +177,8 @@ JNIEXPORT jlong JNICALL Java_sun_security_smartcardio_PCSC_SCardConnect
     SCARDCONTEXT context = (SCARDCONTEXT)jContext;
     LONG rv;
     LPCTSTR readerName;
-    SCARDHANDLE card;
-    DWORD proto;
+    SCARDHANDLE card = 0;
+    DWORD proto = 0;
 
     readerName = (*env)->GetStringUTFChars(env, jReaderName, NULL);
     rv = CALL_SCardConnect(context, readerName, jShareMode, jPreferredProtocols, &card, &proto);
@@ -231,8 +231,8 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_smartcardio_PCSC_SCardStatus
     DWORD readerLen = READERNAME_BUFFER_SIZE;
     unsigned char atr[ATR_BUFFER_SIZE];
     DWORD atrLen = ATR_BUFFER_SIZE;
-    DWORD state;
-    DWORD protocol;
+    DWORD state = 0;
+    DWORD protocol = 0;
     jbyteArray jArray;
     jbyte tmp;
 
