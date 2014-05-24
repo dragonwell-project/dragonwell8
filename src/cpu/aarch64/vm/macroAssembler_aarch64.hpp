@@ -1226,6 +1226,11 @@ public:
   void verified_entry(int framesize, bool stack_bang, bool fp_mode_24b);
 #endif
 
+  // CRC32 code for java.util.zip.CRC32::updateBytes() instrinsic.
+  void kernel_crc32(Register crc, Register buf, Register len,
+        Register table0, Register table1, Register table2, Register table3,
+        Register tmp, Register tmp2, Register tmp3);
+
 #undef VIRTUAL
 
   // Stack push and pop individual 64 bit registers
@@ -1367,6 +1372,12 @@ public:
 
   // Used by aarch64.ad to control code generation
   static bool use_acq_rel_for_volatile_fields();
+
+  // CRC32 code for java.util.zip.CRC32::updateBytes() instrinsic.
+  void update_byte_crc32(Register crc, Register val, Register table);
+  void update_word_crc32(Register crc, Register v, Register tmp,
+        Register table0, Register table1, Register table2, Register table3,
+        bool upper = false);
 };
 
 // Used by aarch64.ad to control code generation

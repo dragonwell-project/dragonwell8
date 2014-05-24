@@ -126,6 +126,7 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
       } else {
 	assert((jbyte *)target ==
 		((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base ||
+               target == StubRoutines::crc_table_addr() ||
                (address)target == os::get_polling_page(),
 	       "adrp must be polling page or byte map base");
 	assert(offset_lo == 0, "offset must be 0 for polling page or byte map base");
@@ -2043,6 +2044,114 @@ void MacroAssembler::pop_CPU_state() {
 	 Address(post(sp, 2 * wordSize)));
 
   pop(0x3fffffff, sp);         // integer registers except lr & sp
+}
+
+/**
+ * Emits code to update CRC-32 with a byte value according to constants in table
+ *
+ * @param [in,out]crc   Register containing the crc.
+ * @param [in]val       Register containing the byte to fold into the CRC.
+ * @param [in]table     Register containing the table of crc constants.
+ *
+ * uint32_t crc;
+ * val = crc_table[(val ^ crc) & 0xFF];
+ * crc = val ^ (crc >> 8);
+ *
+ */
+void MacroAssembler::update_byte_crc32(Register crc, Register val, Register table) {
+  eor(val, val, crc);
+  andr(val, val, 0xff);
+  ldrw(val, Address(table, val, Address::lsl(2)));
+  eor(crc, val, crc, Assembler::LSR, 8);
+}
+
+/**
+ * Emits code to update CRC-32 with a 32-bit value according to tables 0 to 3
+ *
+ * @param [in,out]crc   Register containing the crc.
+ * @param [in]v         Register containing the 32-bit to fold into the CRC.
+ * @param [in]table0    Register containing table 0 of crc constants.
+ * @param [in]table1    Register containing table 1 of crc constants.
+ * @param [in]table2    Register containing table 2 of crc constants.
+ * @param [in]table3    Register containing table 3 of crc constants.
+ *
+ * uint32_t crc;
+ *   v = crc ^ v
+ *   crc = table3[v&0xff]^table2[(v>>8)&0xff]^table1[(v>>16)&0xff]^table0[v>>24]
+ *
+ */
+void MacroAssembler::update_word_crc32(Register crc, Register v, Register tmp,
+        Register table0, Register table1, Register table2, Register table3,
+        bool upper) {
+  eor(v, crc, v, upper ? LSR:LSL, upper ? 32:0);
+  uxtb(tmp, v);
+  ldrw(crc, Address(table3, tmp, Address::lsl(2)));
+  ubfx(tmp, v, 8, 8);
+  ldrw(tmp, Address(table2, tmp, Address::lsl(2)));
+  eor(crc, crc, tmp);
+  ubfx(tmp, v, 16, 8);
+  ldrw(tmp, Address(table1, tmp, Address::lsl(2)));
+  eor(crc, crc, tmp);
+  ubfx(tmp, v, 24, 8);
+  ldrw(tmp, Address(table0, tmp, Address::lsl(2)));
+  eor(crc, crc, tmp);
+}
+
+/**
+ * @param crc   register containing existing CRC (32-bit)
+ * @param buf   register pointing to input byte buffer (byte*)
+ * @param len   register containing number of bytes
+ * @param table register that will contain address of CRC table
+ * @param tmp   scratch register
+ */
+void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len,
+        Register table0, Register table1, Register table2, Register table3,
+        Register tmp, Register tmp2, Register tmp3) {
+  Label L_by16_loop, L_by4, L_by4_loop, L_by1, L_by1_loop, L_exit;
+  unsigned long offset;
+    ornw(crc, zr, crc);
+    adrp(table0, ExternalAddress(StubRoutines::crc_table_addr()), offset);
+    if (offset) add(table0, table0, offset);
+    add(table1, table0, 1*256*sizeof(juint));
+    add(table2, table0, 2*256*sizeof(juint));
+    add(table3, table0, 3*256*sizeof(juint));
+    subs(len, len, 16);
+    br(Assembler::GE, L_by16_loop);
+    adds(len, len, 16-4);
+    br(Assembler::GE, L_by4_loop);
+    adds(len, len, 4);
+    br(Assembler::GT, L_by1_loop);
+    b(L_exit);
+
+  BIND(L_by4_loop);
+    ldrw(tmp, Address(post(buf, 4)));
+    update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3);
+    subs(len, len, 4);
+    br(Assembler::GE, L_by4_loop);
+    adds(len, len, 4);
+    br(Assembler::LE, L_exit);
+  BIND(L_by1_loop);
+    subs(len, len, 1);
+    ldrb(tmp, Address(post(buf, 1)));
+    update_byte_crc32(crc, tmp, table0);
+    br(Assembler::GT, L_by1_loop);
+    b(L_exit);
+
+    align(CodeEntryAlignment);
+  BIND(L_by16_loop);
+    subs(len, len, 16);
+    ldp(tmp, tmp3, Address(post(buf, 16)));
+    update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, false);
+    update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, true);
+    update_word_crc32(crc, tmp3, tmp2, table0, table1, table2, table3, false);
+    update_word_crc32(crc, tmp3, tmp2, table0, table1, table2, table3, true);
+    br(Assembler::GE, L_by16_loop);
+    adds(len, len, 16-4);
+    br(Assembler::GE, L_by4_loop);
+    adds(len, len, 4);
+    br(Assembler::GT, L_by1_loop);
+  BIND(L_exit);
+    ornw(crc, zr, crc);
 }
 
 SkipIfEqual::SkipIfEqual(

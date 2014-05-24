@@ -673,6 +673,122 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   return NULL;
 }
 
+/**
+ * Method entry for static native methods:
+ *   int java.util.zip.CRC32.update(int crc, int b)
+ */
+address InterpreterGenerator::generate_CRC32_update_entry() {
+  if (UseCRC32Intrinsics) {
+    address entry = __ pc();
+
+    // rmethod: Method*
+    // r13: senderSP must preserved for slow path
+    // esp: args
+
+    Label slow_path;
+    // If we need a safepoint check, generate full interpreter entry.
+    ExternalAddress state(SafepointSynchronize::address_of_state());
+    unsigned long offset;
+    __ adrp(rscratch1, ExternalAddress(SafepointSynchronize::address_of_state()), offset);
+    __ ldrw(rscratch1, Address(rscratch1, offset));
+    assert(SafepointSynchronize::_not_synchronized == 0, "rewrite this code");
+    __ cbnz(rscratch1, slow_path);
+
+    // We don't generate local frame and don't align stack because
+    // we call stub code and there is no safepoint on this path.
+
+    // Load parameters
+    const Register crc = c_rarg0;  // crc
+    const Register val = c_rarg1;  // source java byte value
+    const Register tbl = c_rarg2;  // scratch
+
+    // Arguments are reversed on java expression stack
+    __ ldrw(val, Address(esp, 0));              // byte value
+    __ ldrw(crc, Address(esp, wordSize));       // Initial CRC
+
+    __ adrp(tbl, ExternalAddress(StubRoutines::crc_table_addr()), offset);
+    __ add(tbl, tbl, offset);
+
+    __ ornw(crc, zr, crc); // ~crc
+    __ update_byte_crc32(crc, val, tbl);
+    __ ornw(crc, zr, crc); // ~crc
+
+    // result in c_rarg0
+
+    __ ret(lr);
+
+    // generate a vanilla native entry as the slow path
+    __ bind(slow_path);
+
+    (void) generate_native_entry(false);
+
+    return entry;
+  }
+  return generate_native_entry(false);
+}
+
+/**
+ * Method entry for static native methods:
+ *   int java.util.zip.CRC32.updateBytes(int crc, byte[] b, int off, int len)
+ *   int java.util.zip.CRC32.updateByteBuffer(int crc, long buf, int off, int len)
+ */
+address InterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind) {
+  if (UseCRC32Intrinsics) {
+    address entry = __ pc();
+
+    // rmethod,: Method*
+    // r13: senderSP must preserved for slow path
+
+    Label slow_path;
+    // If we need a safepoint check, generate full interpreter entry.
+    ExternalAddress state(SafepointSynchronize::address_of_state());
+    unsigned long offset;
+    __ adrp(rscratch1, ExternalAddress(SafepointSynchronize::address_of_state()), offset);
+    __ ldrw(rscratch1, Address(rscratch1, offset));
+    assert(SafepointSynchronize::_not_synchronized == 0, "rewrite this code");
+    __ cbnz(rscratch1, slow_path);
+
+    // We don't generate local frame and don't align stack because
+    // we call stub code and there is no safepoint on this path.
+
+    // Load parameters
+    const Register crc = c_rarg0;  // crc
+    const Register buf = c_rarg1;  // source java byte array address
+    const Register len = c_rarg2;  // length
+    const Register off = len;      // offset (never overlaps with 'len')
+
+    // Arguments are reversed on java expression stack
+    // Calculate address of start element
+    if (kind == Interpreter::java_util_zip_CRC32_updateByteBuffer) {
+      __ ldr(buf, Address(esp, 2*wordSize)); // long buf
+      __ ldrw(off, Address(esp, wordSize)); // offset
+      __ add(buf, buf, off); // + offset
+      __ ldrw(crc,   Address(esp, 4*wordSize)); // Initial CRC
+    } else {
+      __ ldr(buf, Address(esp, 2*wordSize)); // byte[] array
+      __ add(buf, buf, arrayOopDesc::base_offset_in_bytes(T_BYTE)); // + header size
+      __ ldrw(off, Address(esp, wordSize)); // offset
+      __ add(buf, buf, off); // + offset
+      __ ldrw(crc,   Address(esp, 3*wordSize)); // Initial CRC
+    }
+    // Can now load 'len' since we're finished with 'off'
+    __ ldrw(len, Address(esp, 0x0)); // Length
+
+    __ mov(rscratch1, lr); // saved by call_VM_leaf
+    __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, StubRoutines::updateBytesCRC32()), crc, buf, len);
+
+    __ ret(rscratch1);
+
+    // generate a vanilla native entry as the slow path
+    __ bind(slow_path);
+
+    (void) generate_native_entry(false);
+
+    return entry;
+  }
+  return generate_native_entry(false);
+}
+
 void InterpreterGenerator::bang_stack_shadow_pages(bool native_call) {
   // Bang each page in the shadow zone. We can't assume it's been done for
   // an interpreter frame with greater than a page of locals, so each page
@@ -1376,6 +1492,12 @@ address AbstractInterpreterGenerator::generate_method_entry(
   case Interpreter::java_lang_math_exp     : entry_point = ((InterpreterGenerator*) this)->generate_math_entry(kind);    break;
   case Interpreter::java_lang_ref_reference_get
                                            : entry_point = ((InterpreterGenerator*)this)->generate_Reference_get_entry(); break;
+  case Interpreter::java_util_zip_CRC32_update
+                                           : entry_point = ((InterpreterGenerator*)this)->generate_CRC32_update_entry();  break;
+  case Interpreter::java_util_zip_CRC32_updateBytes
+                                           : // fall thru
+  case Interpreter::java_util_zip_CRC32_updateByteBuffer
+                                           : entry_point = ((InterpreterGenerator*)this)->generate_CRC32_updateBytes_entry(kind); break;
   default                                  : ShouldNotReachHere();                                                       break;
   }
 

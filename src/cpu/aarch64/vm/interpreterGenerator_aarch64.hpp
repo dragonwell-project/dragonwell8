@@ -46,6 +46,8 @@ void generate_transcendental_entry(AbstractInterpreter::MethodKind kind, int fpa
   address generate_empty_entry(void);
   address generate_accessor_entry(void);
   address generate_Reference_get_entry();
+  address generate_CRC32_update_entry();
+  address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind);
   void lock_method(void);
   void generate_stack_overflow_check(void);
 

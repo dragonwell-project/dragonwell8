@@ -91,6 +91,10 @@ void VM_Version::get_processor_features() {
   FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 256);
   FLAG_SET_DEFAULT(PrefetchFieldsAhead, 256);
   FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
+
+  if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
+    UseCRC32Intrinsics = true;
+  }
 }
 
 void VM_Version::initialize() {

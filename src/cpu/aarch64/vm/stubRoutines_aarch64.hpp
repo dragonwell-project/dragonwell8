@@ -24,8 +24,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP
-#define CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP
+#ifndef CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
+#define CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
@@ -45,7 +45,7 @@ enum platform_dependent_constants {
   code_size2 = 22000           // simply increase if too small (assembler will crash if too small)
 };
 
-class x86 {
+class aarch64 {
  friend class StubGenerator;
 
  private:
@@ -113,6 +113,10 @@ class x86 {
   {
     return _double_sign_flip;
   }
+
+ private:
+  static juint    _crc_table[];
+
 };
 
-#endif // CPU_AARCH64_VM_STUBROUTINES_AARCH64_64_HPP
+#endif // CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
