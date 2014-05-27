@@ -39,7 +39,9 @@ import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
+
 import java.util.concurrent.ConcurrentHashMap;
+
 import sun.security.util.SecurityConstants;
 
 /**
@@ -1503,6 +1505,10 @@ return mh1;
                 // N.B. The return type is not adjusted, because
                 // that is *not* the bytecode behavior.
                 mods ^= Modifier.PROTECTED | Modifier.PUBLIC;
+            }
+            if (Modifier.isProtected(mods) && refKind == REF_newInvokeSpecial) {
+                // cannot "new" a protected ctor in a different package
+                mods ^= Modifier.PROTECTED;
             }
             if (Modifier.isFinal(mods) &&
                     MethodHandleNatives.refKindIsSetter(refKind))
