@@ -3141,7 +3141,7 @@ void Metaspace::global_initialize() {
   MetaspaceGC::initialize();
 
   // Initialize the alignment for shared spaces.
-  int max_alignment = os::vm_page_size();
+  int max_alignment = os::vm_allocation_granularity();
   size_t cds_total = 0;
 
   MetaspaceShared::set_max_alignment(max_alignment);
