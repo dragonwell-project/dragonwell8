@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,8 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vframe.hpp"
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 ConstantPool* ConstantPool::allocate(ClassLoaderData* loader_data, int length, TRAPS) {
   // Tags are RW but comment below applies to tags also.
@@ -1884,7 +1886,7 @@ void ConstantPool::preload_and_initialize_all_classes(ConstantPool* obj, TRAPS) 
 void ConstantPool::print_on(outputStream* st) const {
   EXCEPTION_MARK;
   assert(is_constantPool(), "must be constantPool");
-  st->print_cr(internal_name());
+  st->print_cr("%s", internal_name());
   if (flags() != 0) {
     st->print(" - flags: 0x%x", flags());
     if (has_preresolution()) st->print(" has_preresolution");

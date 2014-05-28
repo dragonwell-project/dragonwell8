@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,6 +80,8 @@
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
 #endif
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // --------------------------------------------------------------------------------------------------
 // Implementation of Safepoint begin/end
@@ -538,6 +540,13 @@ void SafepointSynchronize::do_cleanup_tasks() {
     gclog_or_tty->rotate_log(false);
   }
 
+  {
+    // CMS delays purging the CLDG until the beginning of the next safepoint and to
+    // make sure concurrent sweep is done
+    TraceTime t7("purging class loader data graph", TraceSafepointCleanupTime);
+    ClassLoaderDataGraph::purge_if_needed();
+  }
+
   if (MemTracker::is_on()) {
     MemTracker::sync();
   }
@@ -786,7 +795,7 @@ static void print_me(intptr_t *new_sp, intptr_t *old_sp, bool *was_oops) {
   old_sp += incr*32;  new_sp += incr*32;  was_oops += incr*32;
   for( int i2=0; i2<16; i2++ ) {
     tty->print("call %c%d |"PTR_FORMAT" ","LI"[i2>>3],i2&7,new_sp); print_ptrs(*old_sp++,*new_sp++,*was_oops++); }
-  tty->print_cr("");
+  tty->cr();
 }
 #endif  // SPARC
 #endif  // PRODUCT
@@ -828,7 +837,7 @@ void SafepointSynchronize::print_safepoint_timeout(SafepointTimeoutReason reason
     timeout_error_printed = true;
     // Print out the thread infor which didn't reach the safepoint for debugging
     // purposes (useful when there are lots of threads in the debugger).
-    tty->print_cr("");
+    tty->cr();
     tty->print_cr("# SafepointSynchronize::begin: Timeout detected:");
     if (reason ==  _spinning_timeout) {
       tty->print_cr("# SafepointSynchronize::begin: Timed out while spinning to reach a safepoint.");
@@ -848,7 +857,7 @@ void SafepointSynchronize::print_safepoint_timeout(SafepointTimeoutReason reason
            (reason == _blocking_timeout && !cur_state->has_called_back()))) {
         tty->print("# ");
         cur_thread->print();
-        tty->print_cr("");
+        tty->cr();
       }
     }
     tty->print_cr("# SafepointSynchronize::begin: (End of list)");
@@ -1321,7 +1330,7 @@ void SafepointSynchronize::print_stat_on_exit() {
        spstat->_time_to_sync > PrintSafepointStatisticsTimeout * MICROUNITS) {
     print_statistics();
   }
-  tty->print_cr("");
+  tty->cr();
 
   // Print out polling page sampling status.
   if (!need_to_track_page_armed_status) {
