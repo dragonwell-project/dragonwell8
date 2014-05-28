@@ -715,6 +715,7 @@ address InterpreterGenerator::generate_CRC32_update_entry() {
 
     // result in c_rarg0
 
+    __ andr(sp, r13, -16);
     __ ret(lr);
 
     // generate a vanilla native entry as the slow path
@@ -777,6 +778,7 @@ address InterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpret
     __ mov(rscratch1, lr); // saved by call_VM_leaf
     __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, StubRoutines::updateBytesCRC32()), crc, buf, len);
 
+    __ andr(sp, r13, -16);
     __ ret(rscratch1);
 
     // generate a vanilla native entry as the slow path
