@@ -22,6 +22,10 @@
  *
  */
 
+#if !defined(__clang_major__) && defined(__GNUC__)
+#define ATTRIBUTE_PRINTF(x,y) // FIXME, formats are a mess.
+#endif
+
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
@@ -372,7 +376,7 @@ void YoungList::print() {
     }
   }
 
-  gclog_or_tty->print_cr("");
+  gclog_or_tty->cr();
 }
 
 void G1CollectedHeap::push_dirty_cards_region(HeapRegion* hr)
@@ -431,6 +435,9 @@ HeapRegion* G1CollectedHeap::pop_dirty_cards_region()
 void G1CollectedHeap::stop_conc_gc_threads() {
   _cg1r->stop();
   _cmThread->stop();
+  if (G1StringDedup::is_enabled()) {
+    G1StringDedup::stop();
+  }
 }
 
 #ifdef ASSERT
@@ -2178,6 +2185,23 @@ jint G1CollectedHeap::initialize() {
   return JNI_OK;
 }
 
+void G1CollectedHeap::stop() {
+#if 0
+  // Stopping concurrent worker threads is currently disabled until
+  // some bugs in concurrent mark has been resolve. Without fixing
+  // those bugs first we risk haning during VM exit when trying to
+  // stop these threads.
+
+  // Abort any ongoing concurrent root region scanning and stop all
+  // concurrent threads. We do this to make sure these threads do
+  // not continue to execute and access resources (e.g. gclog_or_tty)
+  // that are destroyed during shutdown.
+  _cm->root_regions()->abort();
+  _cm->root_regions()->wait_until_scan_finished();
+  stop_conc_gc_threads();
+#endif
+}
+
 size_t G1CollectedHeap::conservative_max_heap_alignment() {
   return HeapRegion::max_region_size();
 }
@@ -3488,7 +3512,7 @@ void G1CollectedHeap::verify(bool silent, VerifyOption vo) {
       // help us track down what went wrong. This is why we call
       // print_extended_on() instead of print_on().
       print_extended_on(gclog_or_tty);
-      gclog_or_tty->print_cr("");
+      gclog_or_tty->cr();
 #ifndef PRODUCT
       if (VerifyDuringGC && G1VerifyDuringGCPrintReachable) {
         concurrent_mark()->print_reachable("at-verification-failure",
@@ -3682,7 +3706,7 @@ public:
   PrintRSetsClosure(const char* msg) : _msg(msg), _occupied_sum(0) {
     gclog_or_tty->cr();
     gclog_or_tty->print_cr("========================================");
-    gclog_or_tty->print_cr(msg);
+    gclog_or_tty->print_cr("%s", msg);
     gclog_or_tty->cr();
   }
 
@@ -5416,7 +5440,7 @@ public:
       if (_g1h->is_in_g1_reserved(p)) {
         _par_scan_state->push_on_queue(p);
       } else {
-        assert(!ClassLoaderDataGraph::contains((address)p),
+        assert(!Metaspace::contains((const void*)p),
                err_msg("Otherwise need to call _copy_metadata_obj_cl->do_oop(p) "
                               PTR_FORMAT, p));
           _copy_non_heap_obj_cl->do_oop(p);
