@@ -22,6 +22,10 @@
  *
  */
 
+#if !defined(__clang_major__) && defined(__GNUC__)
+#define ATTRIBUTE_PRINTF(x,y) // FIXME, formats are a mess.
+#endif
+
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
@@ -372,7 +376,7 @@ void YoungList::print() {
     }
   }
 
-  gclog_or_tty->print_cr("");
+  gclog_or_tty->cr();
 }
 
 void G1CollectedHeap::push_dirty_cards_region(HeapRegion* hr)
@@ -3488,7 +3492,7 @@ void G1CollectedHeap::verify(bool silent, VerifyOption vo) {
       // help us track down what went wrong. This is why we call
       // print_extended_on() instead of print_on().
       print_extended_on(gclog_or_tty);
-      gclog_or_tty->print_cr("");
+      gclog_or_tty->cr();
 #ifndef PRODUCT
       if (VerifyDuringGC && G1VerifyDuringGCPrintReachable) {
         concurrent_mark()->print_reachable("at-verification-failure",
@@ -3682,7 +3686,7 @@ public:
   PrintRSetsClosure(const char* msg) : _msg(msg), _occupied_sum(0) {
     gclog_or_tty->cr();
     gclog_or_tty->print_cr("========================================");
-    gclog_or_tty->print_cr(msg);
+    gclog_or_tty->print_cr("%s", msg);
     gclog_or_tty->cr();
   }
 
@@ -5416,7 +5420,7 @@ public:
       if (_g1h->is_in_g1_reserved(p)) {
         _par_scan_state->push_on_queue(p);
       } else {
-        assert(!ClassLoaderDataGraph::contains((address)p),
+        assert(!Metaspace::contains((const void*)p),
                err_msg("Otherwise need to call _copy_metadata_obj_cl->do_oop(p) "
                               PTR_FORMAT, p));
           _copy_non_heap_obj_cl->do_oop(p);
