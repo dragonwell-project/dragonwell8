@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,6 +113,7 @@ void collect_invoked_methods(Method* m) {
   }
 }
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 GrowableArray<Method*>* collected_profiled_methods;
 
@@ -367,7 +368,7 @@ void print_statistics() {
       BaselineTTYOutputer outputer(tty);
       MemTracker::print_memory_usage(outputer, K, false);
     } else {
-      tty->print_cr(MemTracker::reason());
+      tty->print_cr("%s", MemTracker::reason());
     }
   }
 }
@@ -404,7 +405,7 @@ void print_statistics() {
       BaselineTTYOutputer outputer(tty);
       MemTracker::print_memory_usage(outputer, K, false);
     } else {
-      tty->print_cr(MemTracker::reason());
+      tty->print_cr("%s", MemTracker::reason());
     }
   }
 }
@@ -495,6 +496,9 @@ void before_exit(JavaThread * thread) {
   if (ShowMessageBoxOnError && is_error_reported()) {
     os::infinite_sleep();
   }
+
+  // Stop any ongoing concurrent GC work
+  Universe::heap()->stop();
 
   // Terminate watcher thread - must before disenrolling any periodic task
   if (PeriodicTask::num_tasks() > 0)

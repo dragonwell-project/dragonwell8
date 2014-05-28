@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -308,7 +308,7 @@ const int MAX_REASONABLE_LOCAL_CAPACITY = 4*K;
 
   class JNITraceWrapper : public StackObj {
    public:
-    JNITraceWrapper(const char* format, ...) {
+    JNITraceWrapper(const char* format, ...) ATTRIBUTE_PRINTF(2, 3) {
       if (TraceJNICalls) {
         va_list ap;
         va_start(ap, format);
