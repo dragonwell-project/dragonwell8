@@ -2597,7 +2597,9 @@ public final class String
             } else {
                 srcCount = 1;
             }
-            if (localeDependent || srcChar == '\u03A3') { // GREEK CAPITAL LETTER SIGMA
+            if (localeDependent ||
+                srcChar == '\u03A3' || // GREEK CAPITAL LETTER SIGMA
+                srcChar == '\u0130') { // LATIN CAPITAL LETTER I WITH DOT ABOVE
                 lowerChar = ConditionalSpecialCasing.toLowerCaseEx(this, i, locale);
             } else {
                 lowerChar = Character.toLowerCase(srcChar);

@@ -26,7 +26,7 @@
  * @bug 4167874
  * @library ../../../../com/sun/net/httpserver
  * @library /lib/testlibrary
- * @build FileServerHandler jdk.testlibrary.FileUtils
+ * @build jdk.testlibrary.* FileServerHandler
  * @run shell build.sh
  * @run main/othervm CloseTest
  * @summary URL-downloaded jar files can consume all available file descriptors

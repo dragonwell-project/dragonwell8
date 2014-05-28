@@ -25,7 +25,7 @@
  * @bug 8038491
  * @summary Crash in ZipFile.read() when ZipFileInputStream is shared between threads
  * @library /lib/testlibrary
- * @build jdk.testlibrary.FileUtils
+ * @build jdk.testlibrary.*
  * @run main MultiThreadedReadTest
  */
 
