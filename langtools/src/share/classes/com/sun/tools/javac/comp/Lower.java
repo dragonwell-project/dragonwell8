@@ -3472,7 +3472,7 @@ public class Lower extends TreeTranslator {
         private void visitIterableForeachLoop(JCEnhancedForLoop tree) {
             make_at(tree.expr.pos());
             Type iteratorTarget = syms.objectType;
-            Type iterableType = types.asSuper(types.upperBound(tree.expr.type),
+            Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type),
                                               syms.iterableType.tsym);
             if (iterableType.getTypeArguments().nonEmpty())
                 iteratorTarget = types.erasure(iterableType.getTypeArguments().head);
@@ -3506,7 +3506,7 @@ public class Lower extends TreeTranslator {
                                        List.<Type>nil());
             JCExpression vardefinit = make.App(make.Select(make.Ident(itvar), next));
             if (tree.var.type.isPrimitive())
-                vardefinit = make.TypeCast(types.upperBound(iteratorTarget), vardefinit);
+                vardefinit = make.TypeCast(types.cvarUpperBound(iteratorTarget), vardefinit);
             else
                 vardefinit = make.TypeCast(tree.var.type, vardefinit);
             JCVariableDecl indexDef = (JCVariableDecl)make.VarDef(tree.var.mods,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -171,8 +171,8 @@ int AdaptiveSizePolicy::calc_default_active_workers(uintx total_workers,
        "active_workers(): %d  new_acitve_workers: %d  "
        "prev_active_workers: %d\n"
        " active_workers_by_JT: %d  active_workers_by_heap_size: %d",
-       active_workers, new_active_workers, prev_active_workers,
-       active_workers_by_JT, active_workers_by_heap_size);
+       (int) active_workers, (int) new_active_workers, (int) prev_active_workers,
+       (int) active_workers_by_JT, (int) active_workers_by_heap_size);
   }
   assert(new_active_workers > 0, "Always need at least 1");
   return new_active_workers;
@@ -545,13 +545,13 @@ void AdaptiveSizePolicy::check_gc_overhead_limit(
   if (UseGCOverheadLimit && PrintGCDetails && Verbose) {
     if (gc_overhead_limit_exceeded()) {
       gclog_or_tty->print_cr("      GC is exceeding overhead limit "
-        "of %d%%", GCTimeLimit);
+        "of %d%%", (int) GCTimeLimit);
       reset_gc_overhead_limit_count();
     } else if (print_gc_overhead_limit_would_be_exceeded) {
       assert(gc_overhead_limit_count() > 0, "Should not be printing");
       gclog_or_tty->print_cr("      GC would exceed overhead limit "
         "of %d%% %d consecutive time(s)",
-        GCTimeLimit, gc_overhead_limit_count());
+        (int) GCTimeLimit, gc_overhead_limit_count());
     }
   }
 }

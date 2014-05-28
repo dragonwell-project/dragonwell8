@@ -101,6 +101,8 @@
 # include <inttypes.h>
 # include <sys/ioctl.h>
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
+
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
 // getrusage() is prepared to handle the associated failure.
 #ifndef RUSAGE_THREAD
@@ -2137,7 +2139,7 @@ void os::print_os_info(outputStream* st) {
   // Print warning if unsafe chroot environment detected
   if (unsafe_chroot_detected) {
     st->print("WARNING!! ");
-    st->print_cr(unstable_chroot_error);
+    st->print_cr("%s", unstable_chroot_error);
   }
 
   os::Linux::print_libversion_info(st);
@@ -2198,8 +2200,8 @@ void os::Linux::print_distro_info(outputStream* st) {
 void os::Linux::print_libversion_info(outputStream* st) {
   // libc, pthread
   st->print("libc:");
-  st->print(os::Linux::glibc_version()); st->print(" ");
-  st->print(os::Linux::libpthread_version()); st->print(" ");
+  st->print("%s ", os::Linux::glibc_version());
+  st->print("%s ", os::Linux::libpthread_version());
   if (os::Linux::is_LinuxThreads()) {
      st->print("(%s stack)", os::Linux::is_floating_stack() ? "floating" : "fixed");
   }
@@ -3415,7 +3417,7 @@ char* os::Linux::reserve_memory_special_shm(size_t bytes, size_t alignment, char
      //            the system is still "fresh".
      if (warn_on_failure) {
        jio_snprintf(msg, sizeof(msg), "Failed to reserve shared memory (errno = %d).", errno);
-       warning(msg);
+       warning("%s", msg);
      }
      return NULL;
   }
@@ -3433,7 +3435,7 @@ char* os::Linux::reserve_memory_special_shm(size_t bytes, size_t alignment, char
   if ((intptr_t)addr == -1) {
      if (warn_on_failure) {
        jio_snprintf(msg, sizeof(msg), "Failed to attach shared memory (errno = %d).", err);
-       warning(msg);
+       warning("%s", msg);
      }
      return NULL;
   }
@@ -3453,7 +3455,7 @@ static void warn_on_large_pages_failure(char* req_addr, size_t bytes, int error)
     char msg[128];
     jio_snprintf(msg, sizeof(msg), "Failed to reserve large pages memory req_addr: "
         PTR_FORMAT " bytes: " SIZE_FORMAT " (errno = %d).", req_addr, bytes, error);
-    warning(msg);
+    warning("%s", msg);
   }
 }
 
@@ -5392,6 +5394,8 @@ jlong os::thread_cpu_time(Thread *thread, bool user_sys_cpu_time) {
 //  -1 on error.
 //
 
+PRAGMA_DIAG_PUSH
+PRAGMA_FORMAT_NONLITERAL_IGNORED
 static jlong slow_thread_cpu_time(Thread *thread, bool user_sys_cpu_time) {
   static bool proc_task_unchecked = true;
   static const char *proc_stat_path = "/proc/%d/stat";
@@ -5453,6 +5457,7 @@ static jlong slow_thread_cpu_time(Thread *thread, bool user_sys_cpu_time) {
     return (jlong)user_time * (1000000000 / clock_tics_per_sec);
   }
 }
+PRAGMA_DIAG_POP
 
 void os::current_thread_cpu_time_info(jvmtiTimerInfo *info_ptr) {
   info_ptr->max_value = ALL_64_BITS;       // will not wrap in less than 64 bits
