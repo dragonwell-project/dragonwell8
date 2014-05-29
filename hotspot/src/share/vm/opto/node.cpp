@@ -27,6 +27,7 @@
 #include "memory/allocation.inline.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/connode.hpp"
+#include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/node.hpp"
@@ -995,13 +996,13 @@ void Node::raise_bottom_type(const Type* new_type) {
   if (is_Type()) {
     TypeNode *n = this->as_Type();
     if (VerifyAliases) {
-      assert(new_type->higher_equal(n->type()), "new type must refine old type");
+      assert(new_type->higher_equal_speculative(n->type()), "new type must refine old type");
     }
     n->set_type(new_type);
   } else if (is_Load()) {
     LoadNode *n = this->as_Load();
     if (VerifyAliases) {
-      assert(new_type->higher_equal(n->type()), "new type must refine old type");
+      assert(new_type->higher_equal_speculative(n->type()), "new type must refine old type");
     }
     n->set_type(new_type);
   }
@@ -1255,6 +1256,7 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
 
   Node *top = igvn->C->top();
   nstack.push(dead);
+  bool has_irreducible_loop = igvn->C->has_irreducible_loop();
 
   while (nstack.size() > 0) {
     dead = nstack.pop();
@@ -1269,13 +1271,31 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
           assert (!use->is_Con(), "Control for Con node should be Root node.");
           use->set_req(0, top);       // Cut dead edge to prevent processing
           nstack.push(use);           // the dead node again.
+        } else if (!has_irreducible_loop && // Backedge could be alive in irreducible loop
+                   use->is_Loop() && !use->is_Root() &&       // Don't kill Root (RootNode extends LoopNode)
+                   use->in(LoopNode::EntryControl) == dead) { // Dead loop if its entry is dead
+          use->set_req(LoopNode::EntryControl, top);          // Cut dead edge to prevent processing
+          use->set_req(0, top);       // Cut self edge
+          nstack.push(use);
         } else {                      // Else found a not-dead user
+          // Dead if all inputs are top or null
+          bool dead_use = !use->is_Root(); // Keep empty graph alive
           for (uint j = 1; j < use->req(); j++) {
-            if (use->in(j) == dead) { // Turn all dead inputs into TOP
+            Node* in = use->in(j);
+            if (in == dead) {         // Turn all dead inputs into TOP
               use->set_req(j, top);
+            } else if (in != NULL && !in->is_top()) {
+              dead_use = false;
             }
           }
-          igvn->_worklist.push(use);
+          if (dead_use) {
+            if (use->is_Region()) {
+              use->set_req(0, top);   // Cut self edge
+            }
+            nstack.push(use);
+          } else {
+            igvn->_worklist.push(use);
+          }
         }
         // Refresh the iterator, since any number of kills might have happened.
         k = dead->last_outs(kmin);
@@ -1523,7 +1543,6 @@ Node* Node::find_ctrl(int idx) const {
 
 
 #ifndef PRODUCT
-int Node::_in_dump_cnt = 0;
 
 // -----------------------------Name-------------------------------------------
 extern const char *NodeClassNames[];
@@ -1595,7 +1614,7 @@ void Node::set_debug_orig(Node* orig) {
 void Node::dump(const char* suffix, outputStream *st) const {
   Compile* C = Compile::current();
   bool is_new = C->node_arena()->contains(this);
-  _in_dump_cnt++;
+  C->_in_dump_cnt++;
   st->print("%c%d\t%s\t=== ", is_new ? ' ' : 'o', _idx, Name());
 
   // Dump the required and precedence inputs
@@ -1610,7 +1629,7 @@ void Node::dump(const char* suffix, outputStream *st) const {
     dump_orig(debug_orig(), st);
 #endif
     st->cr();
-    _in_dump_cnt--;
+    C->_in_dump_cnt--;
     return;                     // don't process dead nodes
   }
 
@@ -1662,7 +1681,7 @@ void Node::dump(const char* suffix, outputStream *st) const {
     }
   }
   if (suffix) st->print(suffix);
-  _in_dump_cnt--;
+  C->_in_dump_cnt--;
 }
 
 //------------------------------dump_req--------------------------------------

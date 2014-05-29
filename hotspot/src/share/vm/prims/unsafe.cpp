@@ -162,6 +162,9 @@ jint Unsafe_invocation_key_to_method_slot(jint key) {
 
 #define GET_FIELD_VOLATILE(obj, offset, type_name, v) \
   oop p = JNIHandles::resolve(obj); \
+  if (support_IRIW_for_not_multiple_copy_atomic_cpu) { \
+    OrderAccess::fence(); \
+  } \
   volatile type_name v = OrderAccess::load_acquire((volatile type_name*)index_oop_from_field_offset_long(p, offset));
 
 #define SET_FIELD_VOLATILE(obj, offset, type_name, x) \
@@ -858,6 +861,11 @@ static inline void throw_new(JNIEnv *env, const char *ename) {
   strcpy(buf, "java/lang/");
   strcat(buf, ename);
   jclass cls = env->FindClass(buf);
+  if (env->ExceptionCheck()) {
+    env->ExceptionClear();
+    tty->print_cr("Unsafe: cannot throw %s because FindClass has failed", buf);
+    return;
+  }
   char* msg = NULL;
   env->ThrowNew(cls, msg);
 }

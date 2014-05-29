@@ -82,6 +82,9 @@ ConstantPool::ConstantPool(Array<u1>* tags) {
 void ConstantPool::deallocate_contents(ClassLoaderData* loader_data) {
   MetadataFactory::free_metadata(loader_data, cache());
   set_cache(NULL);
+  MetadataFactory::free_array<u2>(loader_data, reference_map());
+  set_reference_map(NULL);
+
   MetadataFactory::free_array<jushort>(loader_data, operands());
   set_operands(NULL);
 
@@ -140,6 +143,10 @@ void ConstantPool::initialize_resolved_references(ClassLoaderData* loader_data,
 
 // CDS support. Create a new resolved_references array.
 void ConstantPool::restore_unshareable_info(TRAPS) {
+
+  // Only create the new resolved references array and lock if it hasn't been
+  // attempted before
+  if (resolved_references() != NULL) return;
 
   // restore the C++ vtable from the shared archive
   restore_vtable();
@@ -1292,6 +1299,7 @@ void ConstantPool::copy_entry_to(constantPoolHandle from_cp, int from_i,
   } break;
 
   case JVM_CONSTANT_UnresolvedClass:
+  case JVM_CONSTANT_UnresolvedClassInError:
   {
     // Can be resolved after checking tag, so check the slot first.
     CPSlot entry = from_cp->slot_at(from_i);
