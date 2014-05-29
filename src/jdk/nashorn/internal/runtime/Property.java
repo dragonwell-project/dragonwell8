@@ -29,6 +29,7 @@ import static jdk.nashorn.internal.runtime.PropertyDescriptor.CONFIGURABLE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.ENUMERABLE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.WRITABLE;
 
+import java.io.Serializable;
 import java.lang.invoke.MethodHandle;
 import java.util.Objects;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
@@ -43,7 +44,7 @@ import jdk.nashorn.internal.codegen.types.Type;
  * @see AccessorProperty
  * @see UserAccessorProperty
  */
-public abstract class Property {
+public abstract class Property implements Serializable {
     /*
      * ECMA 8.6.1 Property Attributes
      *
@@ -84,8 +85,12 @@ public abstract class Property {
     /** Can this property be undefined? */
     public static final int CAN_BE_UNDEFINED = 1 << 8;
 
-    /* Is this a function declaration property ? */
+    /** Is this a function declaration property ? */
     public static final int IS_FUNCTION_DECLARATION = 1 << 9;
+
+    /** Is this property bound to a receiver? This means get/set operations will be delegated to
+     *  a statically defined object instead of the object passed as callsite parameter. */
+    public static final int IS_BOUND = 1 << 10;
 
     /** Property key. */
     private final String key;
@@ -95,6 +100,8 @@ public abstract class Property {
 
     /** Property field number or spill slot. */
     private final int slot;
+
+    private static final long serialVersionUID = 2099814273074501176L;
 
     /**
      * Constructor
@@ -252,6 +259,16 @@ public abstract class Property {
     }
 
     /**
+     * Is this property bound to a receiver? If this method returns {@code true} get and set operations
+     * will be delegated to a statically bound object instead of the object passed as parameter.
+     *
+     * @return true if this is a bound property
+     */
+    public boolean isBound() {
+        return (flags & IS_BOUND) == IS_BOUND;
+    }
+
+    /**
      * Does this property use any slots in the spill array described in
      * {@link Property#isSpill}? In that case how many. Currently a property
      * only uses max one spill slot, but this may change in future representations
@@ -342,6 +359,13 @@ public abstract class Property {
      * @return a getter for this property as {@code type}
      */
     public abstract MethodHandle getGetter(final Class<?> type);
+
+    /**
+     * Hook to initialize method handles after deserialization.
+     *
+     * @param structure the structure class
+     */
+    abstract void initMethodHandles(final Class<?> structure);
 
     /**
      * Get the key for this property. This key is an ordinary string. The "name".

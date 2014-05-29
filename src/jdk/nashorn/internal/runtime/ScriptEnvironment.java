@@ -62,6 +62,9 @@ public final class ScriptEnvironment {
     /** Only compile script, do not run it or generate other ScriptObjects */
     public final boolean _compile_only;
 
+    /** Accept "const" keyword and treat it as variable. Interim feature */
+    public final boolean _const_as_var;
+
     /** Accumulated callsite flags that will be used when bootstrapping script callsites */
     public final int     _callsite_flags;
 
@@ -134,6 +137,9 @@ public final class ScriptEnvironment {
     /** Only parse the source code, do not compile */
     public final boolean _parse_only;
 
+    /** Enable disk cache for compiled scripts */
+    public final boolean _persistent_cache;
+
     /** Print the AST before lowering */
     public final boolean _print_ast;
 
@@ -197,6 +203,7 @@ public final class ScriptEnvironment {
 
         _class_cache_size     = options.getInteger("class.cache.size");
         _compile_only         = options.getBoolean("compile.only");
+        _const_as_var         = options.getBoolean("const.as.var");
         _debug_lines          = options.getBoolean("debug.lines");
         _dest_dir             = options.getString("d");
         _dump_on_error        = options.getBoolean("doe");
@@ -218,6 +225,7 @@ public final class ScriptEnvironment {
         _no_syntax_extensions = options.getBoolean("no.syntax.extensions");
         _no_typed_arrays      = options.getBoolean("no.typed.arrays");
         _parse_only           = options.getBoolean("parse.only");
+        _persistent_cache     = options.getBoolean("persistent.code.cache");
         _print_ast            = options.getBoolean("print.ast");
         _print_lower_ast      = options.getBoolean("print.lower.ast");
         _print_code           = options.getBoolean("print.code");

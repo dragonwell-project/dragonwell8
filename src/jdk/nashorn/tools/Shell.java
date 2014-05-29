@@ -25,6 +25,8 @@
 
 package jdk.nashorn.tools;
 
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -42,6 +44,7 @@ import jdk.nashorn.internal.codegen.Compiler;
 import jdk.nashorn.internal.ir.FunctionNode;
 import jdk.nashorn.internal.ir.debug.ASTWriter;
 import jdk.nashorn.internal.ir.debug.PrintVisitor;
+import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.parser.Parser;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ErrorManager;
@@ -49,7 +52,6 @@ import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptFunction;
-import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.options.Options;
@@ -148,7 +150,7 @@ public class Shell {
             return COMMANDLINE_ERROR;
         }
 
-        final ScriptObject global = context.createGlobal();
+        final Global global = context.createGlobal();
         final ScriptEnvironment env = context.getEnv();
         final List<String> files = env.getFiles();
         if (files.isEmpty()) {
@@ -231,8 +233,8 @@ public class Shell {
      * @return error code
      * @throws IOException when any script file read results in I/O error
      */
-    private static int compileScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
-        final ScriptObject oldGlobal = Context.getGlobal();
+    private static int compileScripts(final Context context, final Global global, final List<String> files) throws IOException {
+        final Global oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
         final ScriptEnvironment env = context.getEnv();
         try {
@@ -243,7 +245,7 @@ public class Shell {
 
             // For each file on the command line.
             for (final String fileName : files) {
-                final FunctionNode functionNode = new Parser(env, new Source(fileName, new File(fileName)), errors).parse();
+                final FunctionNode functionNode = new Parser(env, sourceFor(fileName, new File(fileName)), errors).parse();
 
                 if (errors.getNumberOfErrors() != 0) {
                     return COMPILATION_ERROR;
@@ -281,8 +283,8 @@ public class Shell {
      * @return error code
      * @throws IOException when any script file read results in I/O error
      */
-    private int runScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
-        final ScriptObject oldGlobal = Context.getGlobal();
+    private int runScripts(final Context context, final Global global, final List<String> files) throws IOException {
+        final Global oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
         try {
             if (globalChanged) {
@@ -301,7 +303,7 @@ public class Shell {
                 }
 
                 final File file = new File(fileName);
-                final ScriptFunction script = context.compileScript(new Source(fileName, file.toURI().toURL()), global);
+                final ScriptFunction script = context.compileScript(sourceFor(fileName, file), global);
                 if (script == null || errors.getNumberOfErrors() != 0) {
                     return COMPILATION_ERROR;
                 }
@@ -339,8 +341,8 @@ public class Shell {
      * @return error code
      * @throws IOException when any script file read results in I/O error
      */
-    private static int runFXScripts(final Context context, final ScriptObject global, final List<String> files) throws IOException {
-        final ScriptObject oldGlobal = Context.getGlobal();
+    private static int runFXScripts(final Context context, final Global global, final List<String> files) throws IOException {
+        final Global oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
         try {
             if (globalChanged) {
@@ -389,11 +391,11 @@ public class Shell {
      * @return return code
      */
     @SuppressWarnings("resource")
-    private static int readEvalPrint(final Context context, final ScriptObject global) {
+    private static int readEvalPrint(final Context context, final Global global) {
         final String prompt = bundle.getString("shell.prompt");
         final BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         final PrintWriter err = context.getErr();
-        final ScriptObject oldGlobal = Context.getGlobal();
+        final Global oldGlobal = Context.getGlobal();
         final boolean globalChanged = (oldGlobal != global);
         final ScriptEnvironment env = context.getEnv();
 
@@ -404,7 +406,7 @@ public class Shell {
 
             // initialize with "shell.js" script
             try {
-                final Source source = new Source("<shell.js>", Shell.class.getResource("resources/shell.js"));
+                final Source source = sourceFor("<shell.js>", Shell.class.getResource("resources/shell.js"));
                 context.eval(global, source.getString(), global, "<shell.js>", false);
             } catch (final Exception e) {
                 err.println(e);
@@ -451,7 +453,7 @@ public class Shell {
             }
         } finally {
             if (globalChanged) {
-                Context.setGlobal(global);
+                Context.setGlobal(oldGlobal);
             }
         }
 
