@@ -3104,7 +3104,6 @@ encode %{
       __ br(Assembler::NE, cont);
       // need a release store here
       __ lea(tmp, Address(tmp, ObjectMonitor::owner_offset_in_bytes()));
-      __ mov(zr, rscratch1);
       __ stlr(rscratch1, tmp);
     }
 
