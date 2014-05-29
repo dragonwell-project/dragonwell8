@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -840,7 +840,7 @@ void Arguments::print_jvm_flags_on(outputStream* st) {
     for (int i=0; i < _num_jvm_flags; i++) {
       st->print("%s ", _jvm_flags_array[i]);
     }
-    st->print_cr("");
+    st->cr();
   }
 }
 
@@ -849,7 +849,7 @@ void Arguments::print_jvm_args_on(outputStream* st) {
     for (int i=0; i < _num_jvm_args; i++) {
       st->print("%s ", _jvm_args_array[i]);
     }
-    st->print_cr("");
+    st->cr();
   }
 }
 
@@ -1341,8 +1341,8 @@ void Arguments::set_cms_and_parnew_gc_flags() {
   }
   if (PrintGCDetails && Verbose) {
     tty->print_cr("MarkStackSize: %uk  MarkStackSizeMax: %uk",
-      MarkStackSize / K, MarkStackSizeMax / K);
-    tty->print_cr("ConcGCThreads: %u", ConcGCThreads);
+      (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
+    tty->print_cr("ConcGCThreads: %u", (uint) ConcGCThreads);
   }
 }
 #endif // INCLUDE_ALL_GCS
@@ -1422,7 +1422,7 @@ bool Arguments::should_auto_select_low_pause_collector() {
     if (PrintGCDetails) {
       // Cannot use gclog_or_tty yet.
       tty->print_cr("Automatic selection of the low pause collector"
-       " based on pause goal of %d (ms)", MaxGCPauseMillis);
+       " based on pause goal of %d (ms)", (int) MaxGCPauseMillis);
     }
     return true;
   }
@@ -1639,8 +1639,8 @@ void Arguments::set_g1_gc_flags() {
 
   if (PrintGCDetails && Verbose) {
     tty->print_cr("MarkStackSize: %uk  MarkStackSizeMax: %uk",
-      MarkStackSize / K, MarkStackSizeMax / K);
-    tty->print_cr("ConcGCThreads: %u", ConcGCThreads);
+      (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
+    tty->print_cr("ConcGCThreads: %u", (uint) ConcGCThreads);
   }
 }
 
@@ -1703,7 +1703,7 @@ void Arguments::set_heap_size() {
 
     if (PrintGCDetails && Verbose) {
       // Cannot use gclog_or_tty yet.
-      tty->print_cr("  Maximum heap size " SIZE_FORMAT, reasonable_max);
+      tty->print_cr("  Maximum heap size " SIZE_FORMAT, (size_t) reasonable_max);
     }
     FLAG_SET_ERGO(uintx, MaxHeapSize, (uintx)reasonable_max);
   }
@@ -2090,7 +2090,7 @@ bool Arguments::check_vm_args_consistency() {
     // Using "else if" below to avoid printing two error messages if min > max.
     // This will also prevent us from reporting both min>100 and max>100 at the
     // same time, but that is less annoying than printing two identical errors IMHO.
-    FormatBuffer<80> err_msg("");
+    FormatBuffer<80> err_msg("%s","");
     if (!verify_MinHeapFreeRatio(err_msg, MinHeapFreeRatio)) {
       jio_fprintf(defaultStream::error_stream(), "%s\n", err_msg.buffer());
       status = false;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,9 @@
 # include "gc_implementation/parallelScavenge/psPromotionManager.hpp"
 #endif // INCLUDE_ALL_GCS
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
-// Implememtation of ConstantPoolCacheEntry
+// Implementation of ConstantPoolCacheEntry
 
 void ConstantPoolCacheEntry::initialize_entry(int index) {
   assert(0 < index && index < 0x10000, "sanity check");
@@ -667,7 +668,7 @@ void ConstantPoolCache::dump_cache() {
 
 void ConstantPoolCache::print_on(outputStream* st) const {
   assert(is_constantPoolCache(), "obj must be constant pool cache");
-  st->print_cr(internal_name());
+  st->print_cr("%s", internal_name());
   // print constant pool cache entries
   for (int i = 0; i < length(); i++) entry_at(i)->print(st, i);
 }

@@ -123,12 +123,19 @@
 #define ALL_64_BITS CONST64(0xFFFFFFFFFFFFFFFF)
 
 #define LARGEPAGES_BIT (1 << 6)
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
+
 ////////////////////////////////////////////////////////////////////////////////
 // global variables
 julong os::Bsd::_physical_memory = 0;
 
-
+#ifdef __APPLE__
+mach_timebase_info_data_t os::Bsd::_timebase_info = {0, 0};
+volatile uint64_t         os::Bsd::_max_abstime   = 0;
+#else
 int (*os::Bsd::_clock_gettime)(clockid_t, struct timespec *) = NULL;
+#endif
 pthread_t os::Bsd::_main_thread;
 int os::Bsd::_page_size = -1;
 
@@ -986,13 +993,15 @@ jlong os::javaTimeMillis() {
   return jlong(time.tv_sec) * 1000  +  jlong(time.tv_usec / 1000);
 }
 
+#ifndef __APPLE__
 #ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC (1)
+#endif
 #endif
 
 #ifdef __APPLE__
 void os::Bsd::clock_init() {
-        // XXXDARWIN: Investigate replacement monotonic clock
+  mach_timebase_info(&_timebase_info);
 }
 #else
 void os::Bsd::clock_init() {
@@ -1007,10 +1016,38 @@ void os::Bsd::clock_init() {
 #endif
 
 
+#ifdef __APPLE__
+
+jlong os::javaTimeNanos() {
+    const uint64_t tm = mach_absolute_time();
+    const uint64_t now = (tm * Bsd::_timebase_info.numer) / Bsd::_timebase_info.denom;
+    const uint64_t prev = Bsd::_max_abstime;
+    if (now <= prev) {
+      return prev;   // same or retrograde time;
+    }
+    const uint64_t obsv = Atomic::cmpxchg(now, (volatile jlong*)&Bsd::_max_abstime, prev);
+    assert(obsv >= prev, "invariant");   // Monotonicity
+    // If the CAS succeeded then we're done and return "now".
+    // If the CAS failed and the observed value "obsv" is >= now then
+    // we should return "obsv".  If the CAS failed and now > obsv > prv then
+    // some other thread raced this thread and installed a new value, in which case
+    // we could either (a) retry the entire operation, (b) retry trying to install now
+    // or (c) just return obsv.  We use (c).   No loop is required although in some cases
+    // we might discard a higher "now" value in deference to a slightly lower but freshly
+    // installed obsv value.   That's entirely benign -- it admits no new orderings compared
+    // to (a) or (b) -- and greatly reduces coherence traffic.
+    // We might also condition (c) on the magnitude of the delta between obsv and now.
+    // Avoiding excessive CAS operations to hot RW locations is critical.
+    // See https://blogs.oracle.com/dave/entry/cas_and_cache_trivia_invalidate
+    return (prev == obsv) ? now : obsv;
+}
+
+#else // __APPLE__
+
 jlong os::javaTimeNanos() {
   if (Bsd::supports_monotonic_clock()) {
     struct timespec tp;
-    int status = Bsd::clock_gettime(CLOCK_MONOTONIC, &tp);
+    int status = Bsd::_clock_gettime(CLOCK_MONOTONIC, &tp);
     assert(status == 0, "gettime error");
     jlong result = jlong(tp.tv_sec) * (1000 * 1000 * 1000) + jlong(tp.tv_nsec);
     return result;
@@ -1022,6 +1059,8 @@ jlong os::javaTimeNanos() {
     return 1000 * usecs;
   }
 }
+
+#endif // __APPLE__
 
 void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
   if (Bsd::supports_monotonic_clock()) {
@@ -2351,7 +2390,6 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr,
                         (!FLAG_IS_DEFAULT(UseLargePages) ||
                          !FLAG_IS_DEFAULT(LargePageSizeInBytes)
                         );
-  char msg[128];
 
   // Create a large shared memory region to attach to based on size.
   // Currently, size is the total size of the heap
@@ -2372,8 +2410,7 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr,
      //            coalesce into large pages. Try to reserve large pages when
      //            the system is still "fresh".
      if (warn_on_failure) {
-       jio_snprintf(msg, sizeof(msg), "Failed to reserve shared memory (errno = %d).", errno);
-       warning(msg);
+       warning("Failed to reserve shared memory (errno = %d).", errno);
      }
      return NULL;
   }
@@ -2390,8 +2427,7 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr,
 
   if ((intptr_t)addr == -1) {
      if (warn_on_failure) {
-       jio_snprintf(msg, sizeof(msg), "Failed to attach shared memory (errno = %d).", err);
-       warning(msg);
+       warning("Failed to attach shared memory (errno = %d).", err);
      }
      return NULL;
   }
@@ -3890,6 +3926,7 @@ bool os::check_heap(bool force) {
   return true;
 }
 
+ATTRIBUTE_PRINTF(3, 0)
 int local_vsnprintf(char* buf, size_t count, const char* format, va_list args) {
   return ::vsnprintf(buf, count, format, args);
 }

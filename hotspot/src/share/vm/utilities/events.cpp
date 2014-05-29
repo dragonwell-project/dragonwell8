@@ -82,7 +82,7 @@ EventMark::EventMark(const char* format, ...) {
     va_start(ap, format);
     // Save a copy of begin message and log it.
     _buffer.printv(format, ap);
-    Events::log(NULL, "%s", (const char*)_buffer);
+    Events::log(NULL, "%s", _buffer.buffer());
     va_end(ap);
   }
 }
@@ -91,6 +91,6 @@ EventMark::~EventMark() {
   if (LogEvents) {
     // Append " done" to the begin message and log it
     _buffer.append(" done");
-    Events::log(NULL, "%s", (const char*)_buffer);
+    Events::log(NULL, "%s", _buffer.buffer());
   }
 }
