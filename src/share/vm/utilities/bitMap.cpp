@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
@@ -107,7 +110,7 @@ void BitMap::par_put_range_within_word(idx_t beg, idx_t end, bool value) {
     while (true) {
       intptr_t res = Atomic::cmpxchg_ptr(nw, pw, w);
       if (res == w) break;
-      w  = *pw;
+      w  = res;
       nw = value ? (w | ~mr) : (w & mr);
     }
   }
@@ -520,13 +523,13 @@ BitMap::idx_t BitMap::count_one_bits() const {
 
 void BitMap::print_on_error(outputStream* st, const char* prefix) const {
   st->print_cr("%s[" PTR_FORMAT ", " PTR_FORMAT ")",
-      prefix, map(), (char*)map() + (size() >> LogBitsPerByte));
+      prefix, p2i(map()), p2i((char*)map() + (size() >> LogBitsPerByte)));
 }
 
 #ifndef PRODUCT
 
 void BitMap::print_on(outputStream* st) const {
-  tty->print("Bitmap(%d):", size());
+  tty->print("Bitmap(" SIZE_FORMAT "):", size());
   for (idx_t index = 0; index < size(); index++) {
     tty->print("%c", at(index) ? '1' : '0');
   }

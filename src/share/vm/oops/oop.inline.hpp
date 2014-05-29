@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -209,7 +209,7 @@ inline oop oopDesc::decode_heap_oop_not_null(narrowOop v) {
   address base = Universe::narrow_oop_base();
   int    shift = Universe::narrow_oop_shift();
   oop result = (oop)(void*)((uintptr_t)base + ((uintptr_t)v << shift));
-  assert(check_obj_alignment(result), err_msg("address not aligned: " PTR_FORMAT, (void*) result));
+  assert(check_obj_alignment(result), err_msg("address not aligned: " INTPTR_FORMAT, p2i((void*) result)));
   return result;
 }
 
@@ -490,9 +490,9 @@ inline int oopDesc::size()  {
   return size_given_klass(klass());
 }
 
-inline void update_barrier_set(void* p, oop v) {
+inline void update_barrier_set(void* p, oop v, bool release = false) {
   assert(oopDesc::bs() != NULL, "Uninitialized bs in oop!");
-  oopDesc::bs()->write_ref_field(p, v);
+  oopDesc::bs()->write_ref_field(p, v, release);
 }
 
 template <class T> inline void update_barrier_set_pre(T* p, oop v) {
@@ -505,7 +505,10 @@ template <class T> inline void oop_store(T* p, oop v) {
   } else {
     update_barrier_set_pre(p, v);
     oopDesc::encode_store_heap_oop(p, v);
-    update_barrier_set((void*)p, v);  // cast away type
+    // always_do_update_barrier == false =>
+    // Either we are at a safepoint (in GC) or CMS is not used. In both
+    // cases it's unnecessary to mark the card as dirty with release sematics.
+    update_barrier_set((void*)p, v, false /* release */);  // cast away type
   }
 }
 
@@ -513,7 +516,12 @@ template <class T> inline void oop_store(volatile T* p, oop v) {
   update_barrier_set_pre((T*)p, v);   // cast away volatile
   // Used by release_obj_field_put, so use release_store_ptr.
   oopDesc::release_encode_store_heap_oop(p, v);
-  update_barrier_set((void*)p, v);    // cast away type
+  // When using CMS we must mark the card corresponding to p as dirty
+  // with release sematics to prevent that CMS sees the dirty card but
+  // not the new value v at p due to reordering of the two
+  // stores. Note that CMS has a concurrent precleaning phase, where
+  // it reads the card table while the Java threads are running.
+  update_barrier_set((void*)p, v, true /* release */);    // cast away type
 }
 
 // Should replace *addr = oop assignments where addr type depends on UseCompressedOops

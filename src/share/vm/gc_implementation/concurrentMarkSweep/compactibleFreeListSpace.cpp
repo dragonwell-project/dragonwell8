@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -427,7 +427,7 @@ size_t CompactibleFreeListSpace::max_alloc_in_words() const {
 void LinearAllocBlock::print_on(outputStream* st) const {
   st->print_cr(" LinearAllocBlock: ptr = " PTR_FORMAT ", word_size = " SIZE_FORMAT
             ", refillsize = " SIZE_FORMAT ", allocation_size_limit = " SIZE_FORMAT,
-            _ptr, _word_size, _refillSize, _allocation_size_limit);
+            p2i(_ptr), _word_size, _refillSize, _allocation_size_limit);
 }
 
 void CompactibleFreeListSpace::print_on(outputStream* st) const {
@@ -458,7 +458,7 @@ const {
     for (FreeChunk* fc = _indexedFreeList[i].head(); fc != NULL;
          fc = fc->next()) {
       gclog_or_tty->print_cr("\t[" PTR_FORMAT "," PTR_FORMAT ")  %s",
-                          fc, (HeapWord*)fc + i,
+                          p2i(fc), p2i((HeapWord*)fc + i),
                           fc->cantCoalesce() ? "\t CC" : "");
     }
   }
@@ -502,7 +502,7 @@ size_t BlkPrintingClosure::do_blk(HeapWord* addr) {
   if (_sp->block_is_obj(addr)) {
     const bool dead = _post_remark && !_live_bit_map->isMarked(addr);
     _st->print_cr(PTR_FORMAT ": %s object of size " SIZE_FORMAT "%s",
-      addr,
+      p2i(addr),
       dead ? "dead" : "live",
       sz,
       (!dead && CMSPrintObjectsInDump) ? ":" : ".");
@@ -512,7 +512,7 @@ size_t BlkPrintingClosure::do_blk(HeapWord* addr) {
     }
   } else { // free block
     _st->print_cr(PTR_FORMAT ": free block of size " SIZE_FORMAT "%s",
-      addr, sz, CMSPrintChunksInDump ? ":" : ".");
+      p2i(addr), sz, CMSPrintChunksInDump ? ":" : ".");
     if (CMSPrintChunksInDump) {
       ((FreeChunk*)addr)->print_on(_st);
       _st->print_cr("--------------------------------------");
@@ -564,11 +564,11 @@ void CompactibleFreeListSpace::reportIndexedFreeListStatistics() const {
                       "--------------------------------\n");
   size_t total_size = totalSizeInIndexedFreeLists();
   size_t   free_blocks = numFreeBlocksInIndexedFreeLists();
-  gclog_or_tty->print("Total Free Space: %d\n", total_size);
-  gclog_or_tty->print("Max   Chunk Size: %d\n", maxChunkSizeInIndexedFreeLists());
-  gclog_or_tty->print("Number of Blocks: %d\n", free_blocks);
+  gclog_or_tty->print("Total Free Space: " SIZE_FORMAT "\n", total_size);
+  gclog_or_tty->print("Max   Chunk Size: " SIZE_FORMAT "\n", maxChunkSizeInIndexedFreeLists());
+  gclog_or_tty->print("Number of Blocks: " SIZE_FORMAT "\n", free_blocks);
   if (free_blocks != 0) {
-    gclog_or_tty->print("Av.  Block  Size: %d\n", total_size/free_blocks);
+    gclog_or_tty->print("Av.  Block  Size: " SIZE_FORMAT "\n", total_size/free_blocks);
   }
 }
 
@@ -997,6 +997,13 @@ size_t CompactibleFreeListSpace::block_size(const HeapWord* p) const {
     if (FreeChunk::indicatesFreeChunk(p)) {
       volatile FreeChunk* fc = (volatile FreeChunk*)p;
       size_t res = fc->size();
+
+      // Bugfix for systems with weak memory model (PPC64/IA64). The
+      // block's free bit was set and we have read the size of the
+      // block. Acquire and check the free bit again. If the block is
+      // still free, the read size is correct.
+      OrderAccess::acquire();
+
       // If the object is still a free chunk, return the size, else it
       // has been allocated so try again.
       if (FreeChunk::indicatesFreeChunk(p)) {
@@ -1010,6 +1017,12 @@ size_t CompactibleFreeListSpace::block_size(const HeapWord* p) const {
         assert(k->is_klass(), "Should really be klass oop.");
         oop o = (oop)p;
         assert(o->is_oop(true /* ignore mark word */), "Should be an oop.");
+
+        // Bugfix for systems with weak memory model (PPC64/IA64).
+        // The object o may be an array. Acquire to make sure that the array
+        // size (third word) is consistent.
+        OrderAccess::acquire();
+
         size_t res = o->size_given_klass(k);
         res = adjustObjectSize(res);
         assert(res != 0, "Block size should not be 0");
@@ -1040,6 +1053,13 @@ const {
     if (FreeChunk::indicatesFreeChunk(p)) {
       volatile FreeChunk* fc = (volatile FreeChunk*)p;
       size_t res = fc->size();
+
+      // Bugfix for systems with weak memory model (PPC64/IA64). The
+      // free bit of the block was set and we have read the size of
+      // the block. Acquire and check the free bit again. If the
+      // block is still free, the read size is correct.
+      OrderAccess::acquire();
+
       if (FreeChunk::indicatesFreeChunk(p)) {
         assert(res != 0, "Block size should not be 0");
         assert(loops == 0, "Should be 0");
@@ -1055,6 +1075,12 @@ const {
         assert(k->is_klass(), "Should really be klass oop.");
         oop o = (oop)p;
         assert(o->is_oop(), "Should be an oop");
+
+        // Bugfix for systems with weak memory model (PPC64/IA64).
+        // The object o may be an array. Acquire to make sure that the array
+        // size (third word) is consistent.
+        OrderAccess::acquire();
+
         size_t res = o->size_given_klass(k);
         res = adjustObjectSize(res);
         assert(res != 0, "Block size should not be 0");
@@ -1704,8 +1730,8 @@ CompactibleFreeListSpace::returnChunkToDictionary(FreeChunk* chunk) {
   _dictionary->return_chunk(chunk);
 #ifndef PRODUCT
   if (CMSCollector::abstract_state() != CMSCollector::Sweeping) {
-    TreeChunk<FreeChunk, AdaptiveFreeList>* tc = TreeChunk<FreeChunk, AdaptiveFreeList>::as_TreeChunk(chunk);
-    TreeList<FreeChunk, AdaptiveFreeList>* tl = tc->list();
+    TreeChunk<FreeChunk, AdaptiveFreeList<FreeChunk> >* tc = TreeChunk<FreeChunk, AdaptiveFreeList<FreeChunk> >::as_TreeChunk(chunk);
+    TreeList<FreeChunk, AdaptiveFreeList<FreeChunk> >* tl = tc->list();
     tl->verify_stats();
   }
 #endif // PRODUCT
@@ -1985,7 +2011,7 @@ void CompactibleFreeListSpace::save_marks() {
   assert(ur.contains(urasm),
          err_msg(" Error at save_marks(): [" PTR_FORMAT "," PTR_FORMAT ")"
                  " should contain [" PTR_FORMAT "," PTR_FORMAT ")",
-                 ur.start(), ur.end(), urasm.start(), urasm.end()));
+                 p2i(ur.start()), p2i(ur.end()), p2i(urasm.start()), p2i(urasm.end())));
 #endif
   // inform allocator that promotions should be tracked.
   assert(_promoInfo.noPromotions(), "_promoInfo inconsistency");
@@ -2155,7 +2181,7 @@ void CompactibleFreeListSpace::beginSweepFLCensus(
   for (i = IndexSetStart; i < IndexSetSize; i += IndexSetStride) {
     AdaptiveFreeList<FreeChunk>* fl    = &_indexedFreeList[i];
     if (PrintFLSStatistics > 1) {
-      gclog_or_tty->print("size[%d] : ", i);
+      gclog_or_tty->print("size[" SIZE_FORMAT "] : ", i);
     }
     fl->compute_desired(inter_sweep_current, inter_sweep_estimate, intra_sweep_estimate);
     fl->set_coal_desired((ssize_t)((double)fl->desired() * CMSSmallCoalSurplusPercent));
@@ -2208,7 +2234,7 @@ void CompactibleFreeListSpace::endSweepFLCensus(size_t sweep_count) {
   if (PrintFLSStatistics > 0) {
     HeapWord* largestAddr = (HeapWord*) dictionary()->find_largest_dict();
     gclog_or_tty->print_cr("CMS: Large block " PTR_FORMAT,
-                           largestAddr);
+                           p2i(largestAddr));
   }
   setFLSurplus();
   setFLHints();
@@ -2357,8 +2383,8 @@ class VerifyAllBlksClosure: public BlkClosure {
       gclog_or_tty->print_cr(
         " Current:  addr = " PTR_FORMAT ", size = " SIZE_FORMAT ", obj = %s, live = %s \n"
         " Previous: addr = " PTR_FORMAT ", size = " SIZE_FORMAT ", obj = %s, live = %s \n",
-        addr,       res,        was_obj      ?"true":"false", was_live      ?"true":"false",
-        _last_addr, _last_size, _last_was_obj?"true":"false", _last_was_live?"true":"false");
+        p2i(addr),       res,        was_obj      ?"true":"false", was_live      ?"true":"false",
+        p2i(_last_addr), _last_size, _last_was_obj?"true":"false", _last_was_live?"true":"false");
       _sp->print_on(gclog_or_tty);
       guarantee(false, "Seppuku!");
     }
@@ -2515,10 +2541,10 @@ void CompactibleFreeListSpace::verifyIndexedFreeList(size_t size) const {
 
 #ifndef PRODUCT
 void CompactibleFreeListSpace::check_free_list_consistency() const {
-  assert((TreeChunk<FreeChunk, AdaptiveFreeList>::min_size() <= IndexSetSize),
+  assert((TreeChunk<FreeChunk, AdaptiveFreeList<FreeChunk> >::min_size() <= IndexSetSize),
     "Some sizes can't be allocated without recourse to"
     " linear allocation buffers");
-  assert((TreeChunk<FreeChunk, AdaptiveFreeList>::min_size()*HeapWordSize == sizeof(TreeChunk<FreeChunk, AdaptiveFreeList>)),
+  assert((TreeChunk<FreeChunk, AdaptiveFreeList<FreeChunk> >::min_size()*HeapWordSize == sizeof(TreeChunk<FreeChunk, AdaptiveFreeList<FreeChunk> >)),
     "else MIN_TREE_CHUNK_SIZE is wrong");
   assert(IndexSetStart != 0, "IndexSetStart not initialized");
   assert(IndexSetStride != 0, "IndexSetStride not initialized");
@@ -2686,7 +2712,7 @@ void CFLS_LAB::compute_desired_plab_size() {
       _global_num_workers[i] = 0;
       _global_num_blocks[i] = 0;
       if (PrintOldPLAB) {
-        gclog_or_tty->print_cr("[%d]: %d", i, (size_t)_blocks_to_claim[i].average());
+        gclog_or_tty->print_cr("[" SIZE_FORMAT "]: " SIZE_FORMAT, i, (size_t)_blocks_to_claim[i].average());
       }
     }
   }
@@ -2725,7 +2751,7 @@ void CFLS_LAB::retire(int tid) {
         }
       }
       if (PrintOldPLAB) {
-        gclog_or_tty->print_cr("%d[%d]: %d/%d/%d",
+        gclog_or_tty->print_cr("%d[" SIZE_FORMAT "]: " SIZE_FORMAT "/" SIZE_FORMAT "/" SIZE_FORMAT,
                                tid, i, num_retire, _num_blocks[i], (size_t)_blocks_to_claim[i].average());
       }
       // Reset stats for next round

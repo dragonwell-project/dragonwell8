@@ -90,7 +90,7 @@ class ArrayKlass: public Klass {
   Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
 
   // Lookup operations
-  Method* uncached_lookup_method(Symbol* name, Symbol* signature) const;
+  Method* uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
 
   // Casting from Klass*
   static ArrayKlass* cast(Klass* k) {
@@ -150,7 +150,7 @@ class ArrayKlass: public Klass {
   void oop_print_on(oop obj, outputStream* st);
 
   // Verification
-  void verify_on(outputStream* st, bool check_dictionary);
+  void verify_on(outputStream* st);
 
   void oop_verify_on(oop obj, outputStream* st);
 };

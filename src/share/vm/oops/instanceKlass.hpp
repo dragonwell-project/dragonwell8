@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -306,7 +306,7 @@ class InstanceKlass: public Klass {
   //   three cases:
   //     NULL: no implementor.
   //     A Klass* that's not itself: one implementor.
-  //     Itsef: more than one implementors.
+  //     Itself: more than one implementors.
   // embedded host klass follows here
   //   The embedded host klass only exists in an anonymous class for
   //   dynamic language support (JSR 292 enabled). The host class grants
@@ -518,14 +518,14 @@ class InstanceKlass: public Klass {
   static Method* find_instance_method(Array<Method*>* methods, Symbol* name, Symbol* signature);
 
   // find a local method index in default_methods (returns -1 if not found)
-  static int find_method_index(Array<Method*>* methods, Symbol* name, Symbol* signature);
+  static int find_method_index(Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass);
 
   // lookup operation (returns NULL if not found)
-  Method* uncached_lookup_method(Symbol* name, Symbol* signature) const;
+  Method* uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
 
   // lookup a method in all the interfaces that this class implements
   // (returns NULL if not found)
-  Method* lookup_method_in_all_interfaces(Symbol* name, Symbol* signature, bool skip_default_methods) const;
+  Method* lookup_method_in_all_interfaces(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
 
   // lookup a method in local defaults then in all interfaces
   // (returns NULL if not found)
@@ -554,6 +554,7 @@ class InstanceKlass: public Klass {
     if (hk == NULL) {
       return NULL;
     } else {
+      assert(*hk != NULL, "host klass should always be set if the address is not null");
       return *hk;
     }
   }
@@ -829,7 +830,7 @@ class InstanceKlass: public Klass {
   // Iterators
   void do_local_static_fields(FieldClosure* cl);
   void do_nonstatic_fields(FieldClosure* cl); // including inherited fields
-  void do_local_static_fields(void f(fieldDescriptor*, TRAPS), TRAPS);
+  void do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle, TRAPS);
 
   void methods_do(void f(Method* method));
   void array_klasses_do(void f(Klass* k));
@@ -1037,7 +1038,7 @@ private:
   static void set_initialization_state_and_notify_impl  (instanceKlassHandle this_oop, ClassState state, TRAPS);
   static void call_class_initializer_impl               (instanceKlassHandle this_oop, TRAPS);
   static Klass* array_klass_impl                      (instanceKlassHandle this_oop, bool or_null, int n, TRAPS);
-  static void do_local_static_fields_impl               (instanceKlassHandle this_oop, void f(fieldDescriptor* fd, TRAPS), TRAPS);
+  static void do_local_static_fields_impl               (instanceKlassHandle this_oop, void f(fieldDescriptor* fd, Handle, TRAPS), Handle, TRAPS);
   /* jni_id_for_impl for jfieldID only */
   static JNIid* jni_id_for_impl                         (instanceKlassHandle this_oop, int offset);
 
@@ -1046,6 +1047,10 @@ private:
 
   // Returns the array class with this class as element type
   Klass* array_klass_impl(bool or_null, TRAPS);
+
+  // find a local method (returns NULL if not found)
+  Method* find_method_impl(Symbol* name, Symbol* signature, bool skipping_overpass) const;
+  static Method* find_method_impl(Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass);
 
   // Free CHeap allocated fields.
   void release_C_heap_structures();
@@ -1086,7 +1091,7 @@ public:
   const char* internal_name() const;
 
   // Verification
-  void verify_on(outputStream* st, bool check_dictionary);
+  void verify_on(outputStream* st);
 
   void oop_verify_on(oop obj, outputStream* st);
 };

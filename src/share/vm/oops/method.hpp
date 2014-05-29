@@ -156,6 +156,8 @@ class Method : public Metadata {
   void restore_vtable() { guarantee(is_method(), "vtable restored by this call"); }
   bool is_method() const volatile { return true; }
 
+  void restore_unshareable_info(TRAPS);
+
   // accessors for instance variables
 
   ConstMethod* constMethod() const             { return _constMethod; }
@@ -350,16 +352,21 @@ class Method : public Metadata {
   }
 
   void set_method_data(MethodData* data)       {
-    _method_data = data;
+    // The store into method must be released. On platforms without
+    // total store order (TSO) the reference may become visible before
+    // the initialization of data otherwise.
+    OrderAccess::release_store_ptr((volatile void *)&_method_data, data);
   }
 
   MethodCounters* method_counters() const {
     return _method_counters;
   }
 
-
   void set_method_counters(MethodCounters* counters) {
-    _method_counters = counters;
+    // The store into method must be released. On platforms without
+    // total store order (TSO) the reference may become visible before
+    // the initialization of data otherwise.
+    OrderAccess::release_store_ptr((volatile void *)&_method_counters, counters);
   }
 
 #ifdef TIERED
@@ -861,6 +868,7 @@ class Method : public Metadata {
   const char* internal_name() const { return "{method}"; }
 
   // Check for valid method pointer
+  static bool has_method_vptr(const void* ptr);
   bool is_valid_method() const;
 
   // Verify

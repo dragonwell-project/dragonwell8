@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 bool always_do_update_barrier = false;
 
@@ -102,7 +104,7 @@ intptr_t oopDesc::slow_identity_hash() {
 }
 
 // When String table needs to rehash
-unsigned int oopDesc::new_hash(jint seed) {
+unsigned int oopDesc::new_hash(juint seed) {
   EXCEPTION_MARK;
   ResourceMark rm;
   int length;

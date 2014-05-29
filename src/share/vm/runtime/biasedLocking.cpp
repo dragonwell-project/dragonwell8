@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,7 +128,7 @@ static GrowableArray<MonitorInfo*>* get_or_compute_monitor_info(JavaThread* thre
         // Walk monitors youngest to oldest
         for (int i = len - 1; i >= 0; i--) {
           MonitorInfo* mon_info = monitors->at(i);
-          if (mon_info->owner_is_scalar_replaced()) continue;
+          if (mon_info->eliminated()) continue;
           oop owner = mon_info->owner();
           if (owner != NULL) {
             info->append(mon_info);
@@ -161,7 +161,7 @@ static BiasedLocking::Condition revoke_bias(oop obj, bool allow_rebias, bool is_
   if (TraceBiasedLocking && (Verbose || !is_bulk)) {
     ResourceMark rm;
     tty->print_cr("Revoking bias of object " INTPTR_FORMAT " , mark " INTPTR_FORMAT " , type %s , prototype header " INTPTR_FORMAT " , allow rebias %d , requesting thread " INTPTR_FORMAT,
-                  (void *)obj, (intptr_t) mark, obj->klass()->external_name(), (intptr_t) obj->klass()->prototype_header(), (allow_rebias ? 1 : 0), (intptr_t) requesting_thread);
+                  p2i((void *)obj), (intptr_t) mark, obj->klass()->external_name(), (intptr_t) obj->klass()->prototype_header(), (allow_rebias ? 1 : 0), (intptr_t) requesting_thread);
   }
 
   JavaThread* biased_thread = mark->biased_locker();
@@ -214,8 +214,8 @@ static BiasedLocking::Condition revoke_bias(oop obj, bool allow_rebias, bool is_
     if (mon_info->owner() == obj) {
       if (TraceBiasedLocking && Verbose) {
         tty->print_cr("   mon_info->owner (" PTR_FORMAT ") == obj (" PTR_FORMAT ")",
-                      (void *) mon_info->owner(),
-                      (void *) obj);
+                      p2i((void *) mon_info->owner()),
+                      p2i((void *) obj));
       }
       // Assume recursive case and fix up highest lock later
       markOop mark = markOopDesc::encode((BasicLock*) NULL);
@@ -224,8 +224,8 @@ static BiasedLocking::Condition revoke_bias(oop obj, bool allow_rebias, bool is_
     } else {
       if (TraceBiasedLocking && Verbose) {
         tty->print_cr("   mon_info->owner (" PTR_FORMAT ") != obj (" PTR_FORMAT ")",
-                      (void *) mon_info->owner(),
-                      (void *) obj);
+                      p2i((void *) mon_info->owner()),
+                      p2i((void *) obj));
       }
     }
   }
@@ -233,8 +233,10 @@ static BiasedLocking::Condition revoke_bias(oop obj, bool allow_rebias, bool is_
     // Fix up highest lock to contain displaced header and point
     // object at it
     highest_lock->set_displaced_header(unbiased_prototype);
-    // Reset object header to point to displaced mark
-    obj->set_mark(markOopDesc::encode(highest_lock));
+    // Reset object header to point to displaced mark.
+    // Must release storing the lock address for platforms without TSO
+    // ordering (e.g. ppc).
+    obj->release_set_mark(markOopDesc::encode(highest_lock));
     assert(!obj->mark()->has_bias_pattern(), "illegal mark state: stack lock used bias bit");
     if (TraceBiasedLocking && (Verbose || !is_bulk)) {
       tty->print_cr("  Revoked bias of currently-locked object");
@@ -326,7 +328,7 @@ static BiasedLocking::Condition bulk_revoke_or_rebias_at_safepoint(oop o,
     tty->print_cr("* Beginning bulk revocation (kind == %s) because of object "
                   INTPTR_FORMAT " , mark " INTPTR_FORMAT " , type %s",
                   (bulk_rebias ? "rebias" : "revoke"),
-                  (void *) o, (intptr_t) o->mark(), o->klass()->external_name());
+                  p2i((void *) o), (intptr_t) o->mark(), o->klass()->external_name());
   }
 
   jlong cur_time = os::javaTimeMillis();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,7 @@
 #include "utilities/quickSort.hpp"
 #include "utilities/xmlstream.hpp"
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // Implementation of Method
 
@@ -273,7 +274,7 @@ int Method::validate_bci_from_bcx(intptr_t bcx) const {
 }
 
 address Method::bcp_from(int bci) const {
-  assert((is_native() && bci == 0)  || (!is_native() && 0 <= bci && bci < code_size()), "illegal bci");
+  assert((is_native() && bci == 0)  || (!is_native() && 0 <= bci && bci < code_size()), err_msg("illegal bci: %d", bci));
   address bcp = code_base() + bci;
   assert(is_native() && bcp == code_base() || contains(bcp), "bcp doesn't belong to this method");
   return bcp;
@@ -905,6 +906,19 @@ address Method::make_adapters(methodHandle mh, TRAPS) {
   return adapter->get_c2i_entry();
 }
 
+void Method::restore_unshareable_info(TRAPS) {
+  // Since restore_unshareable_info can be called more than once for a method, don't
+  // redo any work.   If this field is restored, there is nothing to do.
+  if (_from_compiled_entry == NULL) {
+    // restore method's vtable by calling a virtual function
+    restore_vtable();
+
+    methodHandle mh(THREAD, this);
+    link_method(mh, CHECK);
+  }
+}
+
+
 // The verified_code_entry() must be called when a invoke is resolved
 // on this method.
 
@@ -1413,7 +1427,7 @@ class SignatureTypePrinter : public SignatureTypeNames {
 
   void type_name(const char* name) {
     if (_use_separator) _st->print(", ");
-    _st->print(name);
+    _st->print("%s", name);
     _use_separator = true;
   }
 
@@ -1860,6 +1874,14 @@ void Method::clear_jmethod_ids(ClassLoaderData* loader_data) {
   loader_data->jmethod_ids()->clear_all_methods();
 }
 
+bool Method::has_method_vptr(const void* ptr) {
+  Method m;
+  // This assumes that the vtbl pointer is the first word of a C++ object.
+  // This assumption is also in universe.cpp patch_klass_vtble
+  void* vtbl2 = dereference_vptr((const void*)&m);
+  void* this_vtbl = dereference_vptr(ptr);
+  return vtbl2 == this_vtbl;
+}
 
 // Check that this pointer is valid by checking that the vtbl pointer matches
 bool Method::is_valid_method() const {
@@ -1868,12 +1890,7 @@ bool Method::is_valid_method() const {
   } else if (!is_metaspace_object()) {
     return false;
   } else {
-    Method m;
-    // This assumes that the vtbl pointer is the first word of a C++ object.
-    // This assumption is also in universe.cpp patch_klass_vtble
-    void* vtbl2 = dereference_vptr((void*)&m);
-    void* this_vtbl = dereference_vptr((void*)this);
-    return vtbl2 == this_vtbl;
+    return has_method_vptr((const void*)this);
   }
 }
 
@@ -1891,7 +1908,7 @@ void Method::print_jmethod_ids(ClassLoaderData* loader_data, outputStream* out) 
 void Method::print_on(outputStream* st) const {
   ResourceMark rm;
   assert(is_method(), "must be method");
-  st->print_cr(internal_name());
+  st->print_cr("%s", internal_name());
   // get the effect of PrintOopAddress, always, for methods:
   st->print_cr(" - this oop:          "INTPTR_FORMAT, (intptr_t)this);
   st->print   (" - method holder:     "); method_holder()->print_value_on(st); st->cr();
@@ -1974,7 +1991,7 @@ void Method::print_on(outputStream* st) const {
 
 void Method::print_value_on(outputStream* st) const {
   assert(is_method(), "must be method");
-  st->print(internal_name());
+  st->print("%s", internal_name());
   print_address_on(st);
   st->print(" ");
   name()->print_value_on(st);
