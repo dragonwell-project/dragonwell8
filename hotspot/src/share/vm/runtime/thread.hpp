@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -249,9 +249,6 @@ class Thread: public ThreadShadow {
   // Used by SkipGCALot class.
   NOT_PRODUCT(bool _skip_gcalot;)               // Should we elide gc-a-lot?
 
-  // Record when GC is locked out via the GC_locker mechanism
-  CHECK_UNHANDLED_OOPS_ONLY(int _gc_locked_out_count;)
-
   friend class No_Alloc_Verifier;
   friend class No_Safepoint_Verifier;
   friend class Pause_No_Safepoint_Verifier;
@@ -397,7 +394,6 @@ class Thread: public ThreadShadow {
   void clear_unhandled_oops() {
     if (CheckUnhandledOops) unhandled_oops()->clear_unhandled_oops();
   }
-  bool is_gc_locked_out() { return _gc_locked_out_count > 0; }
 #endif // CHECK_UNHANDLED_OOPS
 
 #ifndef PRODUCT
@@ -699,7 +695,7 @@ class NamedThread: public Thread {
   NamedThread();
   ~NamedThread();
   // May only be called once per thread.
-  void set_name(const char* format, ...);
+  void set_name(const char* format, ...)  ATTRIBUTE_PRINTF(2, 3);
   virtual bool is_Named_thread() const { return true; }
   virtual char* name() const { return _name == NULL ? (char*)"Unknown Thread" : _name; }
   JavaThread *processed_thread() { return _processed_thread; }
@@ -913,7 +909,11 @@ class JavaThread: public Thread {
 
  private:
 
-  StackGuardState        _stack_guard_state;
+  StackGuardState  _stack_guard_state;
+
+  // Precompute the limit of the stack as used in stack overflow checks.
+  // We load it from here to simplify the stack overflow check in assembly.
+  address          _stack_overflow_limit;
 
   // Compiler exception handling (NOTE: The _exception_oop is *NOT* the same as _pending_exception. It is
   // used to temp. parsing values into and out of the runtime system during exception handling for compiled
@@ -1029,20 +1029,31 @@ class JavaThread: public Thread {
 
   // Last frame anchor routines
 
-  JavaFrameAnchor* frame_anchor(void)                { return &_anchor; }
+  JavaFrameAnchor* frame_anchor(void)            { return &_anchor; }
 
   // last_Java_sp
-  bool has_last_Java_frame() const                   { return _anchor.has_last_Java_frame(); }
-  intptr_t* last_Java_sp() const                     { return _anchor.last_Java_sp(); }
+  bool has_last_Java_frame() const               { return _anchor.has_last_Java_frame(); }
+  intptr_t* last_Java_sp() const                 { return _anchor.last_Java_sp(); }
 
   // last_Java_pc
 
-  address last_Java_pc(void)                         { return _anchor.last_Java_pc(); }
+  address last_Java_pc(void)                     { return _anchor.last_Java_pc(); }
 
   // Safepoint support
+#ifndef PPC64
   JavaThreadState thread_state() const           { return _thread_state; }
-  void set_thread_state(JavaThreadState s)       { _thread_state=s;      }
-  ThreadSafepointState *safepoint_state() const  { return _safepoint_state;  }
+  void set_thread_state(JavaThreadState s)       { _thread_state = s;    }
+#else
+  // Use membars when accessing volatile _thread_state. See
+  // Threads::create_vm() for size checks.
+  JavaThreadState thread_state() const           {
+    return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
+  }
+  void set_thread_state(JavaThreadState s)       {
+    OrderAccess::release_store((volatile jint*)&_thread_state, (jint)s);
+  }
+#endif
+  ThreadSafepointState *safepoint_state() const  { return _safepoint_state; }
   void set_safepoint_state(ThreadSafepointState *state) { _safepoint_state = state; }
   bool is_at_poll_safepoint()                    { return _safepoint_state->is_at_poll_safepoint(); }
 
@@ -1319,6 +1330,14 @@ class JavaThread: public Thread {
   // and reguard if possible.
   bool reguard_stack(void);
 
+  address stack_overflow_limit() { return _stack_overflow_limit; }
+  void set_stack_overflow_limit() {
+    _stack_overflow_limit = _stack_base - _stack_size +
+                            ((StackShadowPages +
+                              StackYellowPages +
+                              StackRedPages) * os::vm_page_size());
+  }
+
   // Misc. accessors/mutators
   void set_do_not_unlock(void)                   { _do_not_unlock_if_synchronized = true; }
   void clr_do_not_unlock(void)                   { _do_not_unlock_if_synchronized = false; }
@@ -1353,6 +1372,7 @@ class JavaThread: public Thread {
   static ByteSize exception_oop_offset()         { return byte_offset_of(JavaThread, _exception_oop       ); }
   static ByteSize exception_pc_offset()          { return byte_offset_of(JavaThread, _exception_pc        ); }
   static ByteSize exception_handler_pc_offset()  { return byte_offset_of(JavaThread, _exception_handler_pc); }
+  static ByteSize stack_overflow_limit_offset()  { return byte_offset_of(JavaThread, _stack_overflow_limit); }
   static ByteSize is_method_handle_return_offset() { return byte_offset_of(JavaThread, _is_method_handle_return); }
   static ByteSize stack_guard_state_offset()     { return byte_offset_of(JavaThread, _stack_guard_state   ); }
   static ByteSize suspend_flags_offset()         { return byte_offset_of(JavaThread, _suspend_flags       ); }
@@ -1716,6 +1736,9 @@ public:
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "thread_linux_ppc.hpp"
 #endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "thread_aix_ppc.hpp"
+#endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "thread_bsd_x86.hpp"
 #endif
@@ -1755,12 +1778,12 @@ public:
   void set_done_attaching_via_jni() { _jni_attach_state = _attached_via_jni; OrderAccess::fence(); }
 private:
   // This field is used to determine if a thread has claimed
-  // a par_id: it is -1 if the thread has not claimed a par_id;
+  // a par_id: it is UINT_MAX if the thread has not claimed a par_id;
   // otherwise its value is the par_id that has been claimed.
-  int _claimed_par_id;
+  uint _claimed_par_id;
 public:
-  int get_claimed_par_id() { return _claimed_par_id; }
-  void set_claimed_par_id(int id) { _claimed_par_id = id;}
+  uint get_claimed_par_id() { return _claimed_par_id; }
+  void set_claimed_par_id(uint id) { _claimed_par_id = id;}
 };
 
 // Inline implementation of JavaThread::current

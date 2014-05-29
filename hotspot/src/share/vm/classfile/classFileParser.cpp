@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2777,6 +2777,11 @@ void ClassFileParser::parse_classfile_bootstrap_methods_attribute(u4 attribute_b
                      "Short length on BootstrapMethods in class file %s",
                      CHECK);
 
+  guarantee_property(attribute_byte_length >= sizeof(u2),
+                     "Invalid BootstrapMethods attribute length %u in class file %s",
+                     attribute_byte_length,
+                     CHECK);
+
   // The attribute contains a counted array of counted tuples of shorts,
   // represending bootstrap specifiers:
   //    length*{bootstrap_method_index, argument_count*{argument_index}}
@@ -3746,18 +3751,24 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_UnsupportedClassVersionError(),
-        "Unsupported major.minor version %u.%u",
+        "Unsupported class file version %u.%u, "
+        "this version of the Java Runtime only recognizes class file versions up to %u.%u",
         major_version,
-        minor_version);
+        minor_version,
+        JAVA_MAX_SUPPORTED_VERSION,
+        JAVA_MAX_SUPPORTED_MINOR_VERSION);
     } else {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_UnsupportedClassVersionError(),
-        "%s : Unsupported major.minor version %u.%u",
+        "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
+        "this version of the Java Runtime only recognizes class file versions up to %u.%u",
         name->as_C_string(),
         major_version,
-        minor_version);
+        minor_version,
+        JAVA_MAX_SUPPORTED_VERSION,
+        JAVA_MAX_SUPPORTED_MINOR_VERSION);
     }
     return nullHandle;
   }
@@ -4170,8 +4181,12 @@ ClassFileParser::~ClassFileParser() {
 
   clear_class_metadata();
 
-  // deallocate the klass if already created.
-  MetadataFactory::free_metadata(_loader_data, _klass);
+  // deallocate the klass if already created.  Don't directly deallocate, but add
+  // to the deallocate list so that the klass is removed from the CLD::_klasses list
+  // at a safepoint.
+  if (_klass != NULL) {
+    _loader_data->add_to_deallocate_list(_klass);
+  }
   _klass = NULL;
 }
 
@@ -4500,8 +4515,8 @@ void ClassFileParser::check_final_method_override(instanceKlassHandle this_klass
             break; // didn't find any match; get out
           }
 
-          if (super_m->is_final() &&
-              // matching method in super is final
+          if (super_m->is_final() && !super_m->is_static() &&
+              // matching method in super is final, and not static
               (Reflection::verify_field_access(this_klass(),
                                                super_m->method_holder(),
                                                super_m->method_holder(),

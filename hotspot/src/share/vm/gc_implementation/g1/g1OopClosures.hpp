@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@ class ReferenceProcessor;
 
 // A class that scans oops in a given heap region (much as OopsInGenClosure
 // scans oops in a generation.)
-class OopsInHeapRegionClosure: public OopsInGenClosure {
+class OopsInHeapRegionClosure: public ExtendedOopClosure {
 protected:
   HeapRegion* _from;
 public:
@@ -48,12 +48,8 @@ public:
 class G1ParClosureSuper : public OopsInHeapRegionClosure {
 protected:
   G1CollectedHeap* _g1;
-  G1RemSet* _g1_rem;
-  ConcurrentMark* _cm;
   G1ParScanThreadState* _par_scan_state;
   uint _worker_id;
-  bool _during_initial_mark;
-  bool _mark_in_progress;
 public:
   G1ParClosureSuper(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state);
   bool apply_to_weak_ref_discovered_field() { return true; }
@@ -84,59 +80,12 @@ public:
   virtual void do_oop(narrowOop* p)    { do_oop_nv(p); }
 };
 
-#define G1_PARTIAL_ARRAY_MASK 0x2
-
-template <class T> inline bool has_partial_array_mask(T* ref) {
-  return ((uintptr_t)ref & G1_PARTIAL_ARRAY_MASK) == G1_PARTIAL_ARRAY_MASK;
-}
-
-template <class T> inline T* set_partial_array_mask(T obj) {
-  assert(((uintptr_t)(void *)obj & G1_PARTIAL_ARRAY_MASK) == 0, "Information loss!");
-  return (T*) ((uintptr_t)(void *)obj | G1_PARTIAL_ARRAY_MASK);
-}
-
-template <class T> inline oop clear_partial_array_mask(T* ref) {
-  return cast_to_oop((intptr_t)ref & ~G1_PARTIAL_ARRAY_MASK);
-}
-
-class G1ParScanPartialArrayClosure : public G1ParClosureSuper {
-  G1ParScanClosure _scanner;
-
-public:
-  G1ParScanPartialArrayClosure(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state, ReferenceProcessor* rp) :
-    G1ParClosureSuper(g1, par_scan_state), _scanner(g1, par_scan_state, rp)
-  {
-    assert(_ref_processor == NULL, "sanity");
-  }
-
-  G1ParScanClosure* scanner() {
-    return &_scanner;
-  }
-
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p)       { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-};
-
 // Add back base class for metadata
 class G1ParCopyHelper : public G1ParClosureSuper {
-  Klass* _scanned_klass;
-
- public:
-  G1ParCopyHelper(G1CollectedHeap* g1,  G1ParScanThreadState* par_scan_state) :
-      _scanned_klass(NULL),
-      G1ParClosureSuper(g1, par_scan_state) {}
-
-  void set_scanned_klass(Klass* k) { _scanned_klass = k; }
-  template <class T> void do_klass_barrier(T* p, oop new_obj);
-};
-
-template <bool do_gen_barrier, G1Barrier barrier, bool do_mark_object>
-class G1ParCopyClosure : public G1ParCopyHelper {
-  G1ParScanClosure _scanner;
-  template <class T> void do_oop_work(T* p);
-
 protected:
+  Klass* _scanned_klass;
+  ConcurrentMark* _cm;
+
   // Mark the object if it's not already marked. This is used to mark
   // objects pointed to by roots that are guaranteed not to move
   // during the GC (i.e., non-CSet objects). It is MT-safe.
@@ -146,50 +95,41 @@ protected:
   // objects pointed to by roots that have been forwarded during a
   // GC. It is MT-safe.
   void mark_forwarded_object(oop from_obj, oop to_obj);
+ public:
+  G1ParCopyHelper(G1CollectedHeap* g1,  G1ParScanThreadState* par_scan_state);
 
-  oop copy_to_survivor_space(oop obj);
+  void set_scanned_klass(Klass* k) { _scanned_klass = k; }
+  template <class T> void do_klass_barrier(T* p, oop new_obj);
+};
+
+template <G1Barrier barrier, bool do_mark_object>
+class G1ParCopyClosure : public G1ParCopyHelper {
+private:
+  template <class T> void do_oop_work(T* p);
 
 public:
   G1ParCopyClosure(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state,
                    ReferenceProcessor* rp) :
-      _scanner(g1, par_scan_state, rp),
       G1ParCopyHelper(g1, par_scan_state) {
     assert(_ref_processor == NULL, "sanity");
   }
 
-  G1ParScanClosure* scanner() { return &_scanner; }
-
-  template <class T> void do_oop_nv(T* p) {
-    do_oop_work(p);
-  }
+  template <class T> void do_oop_nv(T* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_nv(p); }
   virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
 };
 
-typedef G1ParCopyClosure<false, G1BarrierNone, false> G1ParScanExtRootClosure;
-typedef G1ParCopyClosure<false, G1BarrierKlass, false> G1ParScanMetadataClosure;
+typedef G1ParCopyClosure<G1BarrierNone, false> G1ParScanExtRootClosure;
+typedef G1ParCopyClosure<G1BarrierKlass, false> G1ParScanMetadataClosure;
 
 
-typedef G1ParCopyClosure<false, G1BarrierNone, true> G1ParScanAndMarkExtRootClosure;
-typedef G1ParCopyClosure<true,  G1BarrierNone, true> G1ParScanAndMarkClosure;
-typedef G1ParCopyClosure<false, G1BarrierKlass, true> G1ParScanAndMarkMetadataClosure;
-
-// The following closure types are no longer used but are retained
-// for historical reasons:
-// typedef G1ParCopyClosure<false, G1BarrierRS,   false> G1ParScanHeapRSClosure;
-// typedef G1ParCopyClosure<false, G1BarrierRS,   true> G1ParScanAndMarkHeapRSClosure;
-
-// The following closure type is defined in g1_specialized_oop_closures.hpp:
-//
-// typedef G1ParCopyClosure<false, G1BarrierEvac, false> G1ParScanHeapEvacClosure;
+typedef G1ParCopyClosure<G1BarrierNone, true> G1ParScanAndMarkExtRootClosure;
+typedef G1ParCopyClosure<G1BarrierKlass, true> G1ParScanAndMarkMetadataClosure;
 
 // We use a separate closure to handle references during evacuation
 // failure processing.
-// We could have used another instance of G1ParScanHeapEvacClosure
-// (since that closure no longer assumes that the references it
-// handles point into the collection set).
 
-typedef G1ParCopyClosure<false, G1BarrierEvac, false> G1ParScanHeapEvacFailureClosure;
+typedef G1ParCopyClosure<G1BarrierEvac, false> G1ParScanHeapEvacFailureClosure;
 
 class FilterIntoCSClosure: public ExtendedOopClosure {
   G1CollectedHeap* _g1;
@@ -294,14 +234,14 @@ class G1UpdateRSOrPushRefOopClosure: public ExtendedOopClosure {
   HeapRegion* _from;
   OopsInHeapRegionClosure* _push_ref_cl;
   bool _record_refs_into_cset;
-  int _worker_i;
+  uint _worker_i;
 
 public:
   G1UpdateRSOrPushRefOopClosure(G1CollectedHeap* g1h,
                                 G1RemSet* rs,
                                 OopsInHeapRegionClosure* push_ref_cl,
                                 bool record_refs_into_cset,
-                                int worker_i = 0);
+                                uint worker_i = 0);
 
   void set_from(HeapRegion* from) {
     assert(from != NULL, "from region must be non-NULL");

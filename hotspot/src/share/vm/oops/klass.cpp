@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,7 +129,7 @@ bool Klass::compute_is_subtype_of(Klass* k) {
 }
 
 
-Method* Klass::uncached_lookup_method(Symbol* name, Symbol* signature) const {
+Method* Klass::uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const {
 #ifdef ASSERT
   tty->print_cr("Error: uncached_lookup_method called on a klass oop."
                 " Likely error: reflection method does not correctly"
@@ -376,8 +376,6 @@ void Klass::append_to_sibling_list() {
 }
 
 bool Klass::is_loader_alive(BoolObjectClosure* is_alive) {
-  assert(ClassLoaderDataGraph::contains((address)this), "is in the metaspace");
-
 #ifdef ASSERT
   // The class is alive iff the class loader is alive.
   oop loader = class_loader();
@@ -485,12 +483,8 @@ void Klass::oops_do(OopClosure* cl) {
 }
 
 void Klass::remove_unshareable_info() {
-  if (!DumpSharedSpaces) {
-    // Clean up after OOM during class loading
-    if (class_loader_data() != NULL) {
-      class_loader_data()->remove_class(this);
-    }
-  }
+  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+
   set_subklass(NULL);
   set_next_sibling(NULL);
   // Clear the java mirror
@@ -502,17 +496,27 @@ void Klass::remove_unshareable_info() {
 }
 
 void Klass::restore_unshareable_info(TRAPS) {
-  ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
-  // Restore class_loader_data to the null class loader data
-  set_class_loader_data(loader_data);
+  TRACE_INIT_ID(this);
+  // If an exception happened during CDS restore, some of these fields may already be
+  // set.  We leave the class on the CLD list, even if incomplete so that we don't
+  // modify the CLD list outside a safepoint.
+  if (class_loader_data() == NULL) {
+    ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
+    // Restore class_loader_data to the null class loader data
+    set_class_loader_data(loader_data);
 
-  // Add to null class loader list first before creating the mirror
-  // (same order as class file parsing)
-  loader_data->add_class(this);
+    // Add to null class loader list first before creating the mirror
+    // (same order as class file parsing)
+    loader_data->add_class(this);
+  }
 
   // Recreate the class mirror.  The protection_domain is always null for
   // boot loader, for now.
-  java_lang_Class::create_mirror(this, Handle(NULL), CHECK);
+  // Only recreate it if not present.  A previous attempt to restore may have
+  // gotten an OOM later but keep the mirror if it was created.
+  if (java_mirror() == NULL) {
+    java_lang_Class::create_mirror(this, Handle(NULL), CHECK);
+  }
 }
 
 Klass* Klass::array_klass_or_null(int rank) {
@@ -640,11 +644,11 @@ void Klass::collect_statistics(KlassSizeStats *sz) const {
 
 // Verification
 
-void Klass::verify_on(outputStream* st, bool check_dictionary) {
+void Klass::verify_on(outputStream* st) {
 
   // This can be expensive, but it is worth checking that this klass is actually
   // in the CLD graph but not in production.
-  assert(ClassLoaderDataGraph::contains((address)this), "Should be");
+  assert(Metaspace::contains((address)this), "Should be");
 
   guarantee(this->is_klass(),"should be klass");
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,7 @@ class nmethod;
                 (_hr_)->startsHumongous() ? "HS" : \
                 (_hr_)->continuesHumongous() ? "HC" : \
                 !(_hr_)->is_empty() ? "O" : "F", \
-                (_hr_)->bottom(), (_hr_)->top(), (_hr_)->end()
+                p2i((_hr_)->bottom()), p2i((_hr_)->top()), p2i((_hr_)->end())
 
 // sentinel value for hrs_index
 #define G1_NULL_HRS_INDEX ((uint) -1)
@@ -271,6 +271,7 @@ class HeapRegion: public G1OffsetTableContigSpace {
 
   // Fields used by the HeapRegionSetBase class and subclasses.
   HeapRegion* _next;
+  HeapRegion* _prev;
 #ifdef ASSERT
   HeapRegionSetBase* _containing_set;
 #endif // ASSERT
@@ -531,11 +532,13 @@ class HeapRegion: public G1OffsetTableContigSpace {
 
   // Methods used by the HeapRegionSetBase class and subclasses.
 
-  // Getter and setter for the next field used to link regions into
+  // Getter and setter for the next and prev fields used to link regions into
   // linked lists.
   HeapRegion* next()              { return _next; }
+  HeapRegion* prev()              { return _prev; }
 
   void set_next(HeapRegion* next) { _next = next; }
+  void set_prev(HeapRegion* prev) { _prev = prev; }
 
   // Every region added to a set is tagged with a reference to that
   // set. This is used for doing consistency checking to make sure that
@@ -547,7 +550,7 @@ class HeapRegion: public G1OffsetTableContigSpace {
            (containing_set != NULL && _containing_set == NULL),
            err_msg("containing_set: "PTR_FORMAT" "
                    "_containing_set: "PTR_FORMAT,
-                   containing_set, _containing_set));
+                   p2i(containing_set), p2i(_containing_set)));
 
     _containing_set = containing_set;
   }
@@ -596,7 +599,7 @@ class HeapRegion: public G1OffsetTableContigSpace {
   void save_marks();
 
   // Reset HR stuff to default values.
-  void hr_clear(bool par, bool clear_space);
+  void hr_clear(bool par, bool clear_space, bool locked = false);
   void par_clear();
 
   // Get the start of the unmarked area in this region.

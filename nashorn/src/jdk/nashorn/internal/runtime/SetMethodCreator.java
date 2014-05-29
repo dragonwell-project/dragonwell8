@@ -31,7 +31,6 @@ import static jdk.nashorn.internal.lookup.Lookup.MH;
 import java.lang.invoke.MethodHandle;
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.linker.GuardedInvocation;
-import jdk.nashorn.internal.codegen.ObjectClassGenerator;
 import jdk.nashorn.internal.lookup.Lookup;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
 import jdk.nashorn.internal.runtime.linker.NashornGuards;
@@ -80,7 +79,7 @@ final class SetMethodCreator {
     }
 
     /**
-     * This class encapsulates the results of looking up a setter method; it's basically a triple of a method hanle,
+     * This class encapsulates the results of looking up a setter method; it's basically a triple of a method handle,
      * a Property object, and flags for invocation.
      *
      */
@@ -104,21 +103,9 @@ final class SetMethodCreator {
          * @return the composed guarded invocation that represents the dynamic setter method for the property.
          */
         GuardedInvocation createGuardedInvocation() {
-            return new GuardedInvocation(methodHandle, getGuard());
+            return new GuardedInvocation(methodHandle, NashornGuards.getGuard(sobj, property, desc));
         }
 
-        private MethodHandle getGuard() {
-            return needsNoGuard() ? null : NashornGuards.getMapGuard(getMap());
-        }
-
-        private boolean needsNoGuard() {
-            return NashornCallSiteDescriptor.isFastScope(desc) &&
-                    (ObjectClassGenerator.OBJECT_FIELDS_ONLY || isPropertyTypeStable());
-        }
-
-        private boolean isPropertyTypeStable() {
-            return property == null || !property.canChangeType();
-        }
     }
 
     private SetMethod createSetMethod() {
@@ -151,10 +138,9 @@ final class SetMethodCreator {
         assert methodHandle != null;
         assert property     != null;
 
-        final ScriptObject prototype = find.getOwner();
         final MethodHandle boundHandle;
-        if (!property.hasSetterFunction(prototype) && find.isInherited()) {
-            boundHandle = ScriptObject.bindTo(methodHandle, prototype);
+        if (!property.hasSetterFunction(find.getOwner()) && find.isInherited()) {
+            boundHandle = ScriptObject.addProtoFilter(methodHandle, find.getProtoChainLength());
         } else {
             boundHandle = methodHandle;
         }
@@ -162,13 +148,16 @@ final class SetMethodCreator {
     }
 
     private SetMethod createGlobalPropertySetter() {
-        final ScriptObject global = Context.getGlobalTrusted();
-        return new SetMethod(ScriptObject.bindTo(global.addSpill(getName()), global), null);
+        final ScriptObject global = Context.getGlobal();
+        return new SetMethod(MH.filterArguments(global.addSpill(getName()), 0, ScriptObject.GLOBALFILTER), null);
     }
 
     private SetMethod createNewPropertySetter() {
         final SetMethod sm = map.getFieldCount() < map.getFieldMaximum() ? createNewFieldSetter() : createNewSpillPropertySetter();
-        sobj.notifyPropertyAdded(sobj, sm.property);
+        final PropertyListeners listeners = map.getListeners();
+        if (listeners != null) {
+            listeners.propertyAdded(sm.property);
+        }
         return sm;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -375,10 +375,6 @@ public:
   static bool is_internal_format(Symbol* class_name);
 #endif
 
-  // Verify class is in dictionary
-  static void verify_obj_klass_present(Symbol* class_name,
-                                       ClassLoaderData* loader_data);
-
   // Initialization
   static void initialize(TRAPS);
 
@@ -621,7 +617,6 @@ private:
                                                Handle class_loader, TRAPS);
   static instanceKlassHandle load_shared_class(instanceKlassHandle ik,
                                                Handle class_loader, TRAPS);
-  static void clean_up_shared_class(instanceKlassHandle ik, Handle class_loader, TRAPS);
   static instanceKlassHandle load_instance_class(Symbol* class_name, Handle class_loader, TRAPS);
   static Handle compute_loader_lock_object(Handle class_loader, TRAPS);
   static void check_loader_lock_contention(Handle loader_lock, TRAPS);

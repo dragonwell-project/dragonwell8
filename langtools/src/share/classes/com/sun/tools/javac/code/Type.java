@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1445,12 +1445,19 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
          * Inference variable bound kinds
          */
         public enum InferenceBound {
-            /** upper bounds */
-            UPPER,
-            /** lower bounds */
-            LOWER,
-            /** equality constraints */
-            EQ;
+            UPPER {
+                public InferenceBound complement() { return LOWER; }
+            },
+             /** lower bounds */
+            LOWER {
+                public InferenceBound complement() { return UPPER; }
+            },
+             /** equality constraints */
+            EQ {
+                public InferenceBound complement() { return EQ; }
+            };
+
+            public abstract InferenceBound complement();
         }
 
         /** inference variable bounds */
@@ -1481,8 +1488,21 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         }
 
         public String toString() {
-            if (inst != null) return inst.toString();
-            else return qtype + "?";
+            return (inst == null) ? qtype + "?" : inst.toString();
+        }
+
+        public String debugString() {
+            String result = "inference var = " + qtype + "\n";
+            if (inst != null) {
+                result += "inst = " + inst + '\n';
+            }
+            for (InferenceBound bound: InferenceBound.values()) {
+                List<Type> aboundList = bounds.get(bound);
+                if (aboundList.size() > 0) {
+                    result += bound + " = " + aboundList + '\n';
+                }
+            }
+            return result;
         }
 
         @Override
@@ -1492,8 +1512,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         @Override
         public Type baseType() {
-            if (inst != null) return inst.baseType();
-            else return this;
+            return (inst == null) ? this : inst.baseType();
         }
 
         /** get all bounds of a given kind */
@@ -1623,6 +1642,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             if (update) {
                 //only change bounds if request comes from substBounds
                 super.addBound(ib, bound, types, update);
+            }
+            else if (bound.hasTag(UNDETVAR) && !((UndetVar) bound).isCaptured()) {
+                ((UndetVar) bound).addBound(ib.complement(), this, types, false);
             }
         }
 

@@ -57,6 +57,16 @@ public final class Utils {
     public static final String JAVA_OPTIONS = System.getProperty("test.java.opts", "").trim();
 
 
+    /**
+    * Returns the value of 'test.timeout.factor' system property
+    * converted to {@code double}.
+    */
+    public static final double TIMEOUT_FACTOR;
+    static {
+        String toFactor = System.getProperty("test.timeout.factor", "1.0");
+       TIMEOUT_FACTOR = Double.parseDouble(toFactor);
+    }
+
     private Utils() {
         // Private constructor to prevent class instantiation
     }
@@ -105,6 +115,26 @@ public final class Utils {
         Collections.addAll(opts, getTestJavaOpts());
         Collections.addAll(opts, userArgs);
         return opts.toArray(new String[0]);
+    }
+
+    /**
+     * Removes any options specifying which GC to use, for example "-XX:+UseG1GC".
+     * Removes any options matching: -XX:(+/-)Use*GC
+     * Used when a test need to set its own GC version. Then any
+     * GC specified by the framework must first be removed.
+     * @return A copy of given opts with all GC options removed.
+     */
+    private static final Pattern useGcPattern = Pattern.compile("\\-XX\\:[\\+\\-]Use.+GC");
+    public static List<String> removeGcOpts(List<String> opts) {
+        List<String> optsWithoutGC = new ArrayList<String>();
+        for (String opt : opts) {
+            if (useGcPattern.matcher(opt).matches()) {
+                System.out.println("removeGcOpts: removed " + opt);
+            } else {
+                optsWithoutGC.add(opt);
+            }
+        }
+        return optsWithoutGC;
     }
 
     /**

@@ -27,6 +27,7 @@ package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.util.List;
 
@@ -71,7 +72,7 @@ public final class NativeFunction {
      * @return string representation of Function
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toString(final Object self) {
+    public static String toString(final Object self) {
         if (!(self instanceof ScriptFunction)) {
             throw typeError("not.a.function", ScriptRuntime.safeToString(self));
         }
@@ -174,7 +175,7 @@ public final class NativeFunction {
      * @return function with bound arguments
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
-    public static Object bind(final Object self, final Object... args) {
+    public static ScriptFunction bind(final Object self, final Object... args) {
         if (!(self instanceof ScriptFunction)) {
             throw typeError("not.a.function", ScriptRuntime.safeToString(self));
         }
@@ -199,7 +200,7 @@ public final class NativeFunction {
      * @return source for function
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE)
-    public static Object toSource(final Object self) {
+    public static String toSource(final Object self) {
         if (!(self instanceof ScriptFunction)) {
             throw typeError("not.a.function", ScriptRuntime.safeToString(self));
         }
@@ -217,7 +218,7 @@ public final class NativeFunction {
      * @return new NativeFunction
      */
     @Constructor(arity = 1)
-    public static Object function(final boolean newObj, final Object self, final Object... args) {
+    public static ScriptFunction function(final boolean newObj, final Object self, final Object... args) {
         final StringBuilder sb = new StringBuilder();
 
         sb.append("(function (");
@@ -253,11 +254,11 @@ public final class NativeFunction {
 
         final Global global = Global.instance();
 
-        return Global.directEval(global, sb.toString(), global, "<function>", global.isStrictContext());
+        return (ScriptFunction)Global.directEval(global, sb.toString(), global, "<function>", global.isStrictContext());
     }
 
     private static void checkFunctionParameters(final String params) {
-        final Source src = new Source("<function>", params);
+        final Source src = sourceFor("<function>", params);
         final Parser parser = new Parser(Global.getEnv(), src, new Context.ThrowErrorManager());
         try {
             parser.parseFormalParameterList();
@@ -267,7 +268,7 @@ public final class NativeFunction {
     }
 
     private static void checkFunctionBody(final String funcBody) {
-        final Source src = new Source("<function>", funcBody);
+        final Source src = sourceFor("<function>", funcBody);
         final Parser parser = new Parser(Global.getEnv(), src, new Context.ThrowErrorManager());
         try {
             parser.parseFunctionBody();

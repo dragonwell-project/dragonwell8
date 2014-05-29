@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,6 +81,8 @@
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // Shared stub locations
 RuntimeStub*        SharedRuntime::_wrong_method_blob;
@@ -408,7 +410,7 @@ double SharedRuntime::dabs(double f)  {
 
 #endif
 
-#if defined(__SOFTFP__) || defined(PPC)
+#if defined(__SOFTFP__) || defined(PPC32)
 double SharedRuntime::dsqrt(double f) {
   return sqrt(f);
 }
@@ -494,6 +496,13 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
     assert(!nm->is_native_method(), "no exception handler");
     assert(nm->header_begin() != nm->exception_begin(), "no exception handler");
     if (nm->is_deopt_pc(return_address)) {
+      // If we come here because of a stack overflow, the stack may be
+      // unguarded. Reguard the stack otherwise if we return to the
+      // deopt blob and the stack bang causes a stack overflow we
+      // crash.
+      bool guard_pages_enabled = thread->stack_yellow_zone_enabled();
+      if (!guard_pages_enabled) guard_pages_enabled = thread->reguard_stack();
+      assert(guard_pages_enabled, "stack banging in deopt blob may cause crash");
       return SharedRuntime::deopt_blob()->unpack_with_exception();
     } else {
       return nm->exception_begin();
@@ -953,14 +962,13 @@ jlong SharedRuntime::get_java_tid(Thread* thread) {
  * it gets turned into a tail-call on sparc, which runs into dtrace bug
  * 6254741.  Once that is fixed we can remove the dummy return value.
  */
-int SharedRuntime::dtrace_object_alloc(oopDesc* o) {
-  return dtrace_object_alloc_base(Thread::current(), o);
+int SharedRuntime::dtrace_object_alloc(oopDesc* o, int size) {
+  return dtrace_object_alloc_base(Thread::current(), o, size);
 }
 
-int SharedRuntime::dtrace_object_alloc_base(Thread* thread, oopDesc* o) {
+int SharedRuntime::dtrace_object_alloc_base(Thread* thread, oopDesc* o, int size) {
   assert(DTraceAllocProbes, "wrong call");
   Klass* klass = o->klass();
-  int size = o->size();
   Symbol* name = klass->name();
 #ifndef USDT2
   HS_DTRACE_PROBE4(hotspot, object__alloc, get_java_tid(thread),
@@ -2400,7 +2408,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
   ResourceMark rm;
 
   NOT_PRODUCT(int insts_size);
-  AdapterBlob* B = NULL;
+  AdapterBlob* new_adapter = NULL;
   AdapterHandlerEntry* entry = NULL;
   AdapterFingerPrint* fingerprint = NULL;
   {
@@ -2432,7 +2440,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
 
 #ifdef ASSERT
     AdapterHandlerEntry* shared_entry = NULL;
-    if (VerifyAdapterSharing && entry != NULL) {
+    // Start adapter sharing verification only after the VM is booted.
+    if (VerifyAdapterSharing && (entry != NULL)) {
       shared_entry = entry;
       entry = NULL;
     }
@@ -2448,41 +2457,44 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
     // Make a C heap allocated version of the fingerprint to store in the adapter
     fingerprint = new AdapterFingerPrint(total_args_passed, sig_bt);
 
-    // Create I2C & C2I handlers
+    // StubRoutines::code2() is initialized after this function can be called. As a result,
+    // VerifyAdapterCalls and VerifyAdapterSharing can fail if we re-use code that generated
+    // prior to StubRoutines::code2() being set. Checks refer to checks generated in an I2C
+    // stub that ensure that an I2C stub is called from an interpreter frame.
+    bool contains_all_checks = StubRoutines::code2() != NULL;
 
+    // Create I2C & C2I handlers
     BufferBlob* buf = buffer_blob(); // the temporary code buffer in CodeCache
     if (buf != NULL) {
       CodeBuffer buffer(buf);
       short buffer_locs[20];
       buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
                                              sizeof(buffer_locs)/sizeof(relocInfo));
-      MacroAssembler _masm(&buffer);
 
+      MacroAssembler _masm(&buffer);
       entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
                                                      total_args_passed,
                                                      comp_args_on_stack,
                                                      sig_bt,
                                                      regs,
                                                      fingerprint);
-
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
         if (shared_entry != NULL) {
-          assert(shared_entry->compare_code(buf->code_begin(), buffer.insts_size(), total_args_passed, sig_bt),
-                 "code must match");
+          assert(shared_entry->compare_code(buf->code_begin(), buffer.insts_size()), "code must match");
           // Release the one just created and return the original
           _adapters->free_entry(entry);
           return shared_entry;
         } else  {
-          entry->save_code(buf->code_begin(), buffer.insts_size(), total_args_passed, sig_bt);
+          entry->save_code(buf->code_begin(), buffer.insts_size());
         }
       }
 #endif
 
-      B = AdapterBlob::create(&buffer);
+      new_adapter = AdapterBlob::create(&buffer);
       NOT_PRODUCT(insts_size = buffer.insts_size());
     }
-    if (B == NULL) {
+    if (new_adapter == NULL) {
       // CodeCache is full, disable compilation
       // Ought to log this but compile log is only per compile thread
       // and we're some non descript Java thread.
@@ -2490,7 +2502,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
       CompileBroker::handle_full_code_cache();
       return NULL; // Out of CodeCache space
     }
-    entry->relocate(B->content_begin());
+    entry->relocate(new_adapter->content_begin());
 #ifndef PRODUCT
     // debugging suppport
     if (PrintAdapterHandlers || PrintStubCode) {
@@ -2509,22 +2521,25 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(methodHandle method) {
       }
     }
 #endif
-
-    _adapters->add(entry);
+    // Add the entry only if the entry contains all required checks (see sharedRuntime_xxx.cpp)
+    // The checks are inserted only if -XX:+VerifyAdapterCalls is specified.
+    if (contains_all_checks || !VerifyAdapterCalls) {
+      _adapters->add(entry);
+    }
   }
   // Outside of the lock
-  if (B != NULL) {
+  if (new_adapter != NULL) {
     char blob_id[256];
     jio_snprintf(blob_id,
                  sizeof(blob_id),
                  "%s(%s)@" PTR_FORMAT,
-                 B->name(),
+                 new_adapter->name(),
                  fingerprint->as_string(),
-                 B->content_begin());
-    Forte::register_stub(blob_id, B->content_begin(), B->content_end());
+                 new_adapter->content_begin());
+    Forte::register_stub(blob_id, new_adapter->content_begin(),new_adapter->content_end());
 
     if (JvmtiExport::should_post_dynamic_code_generated()) {
-      JvmtiExport::post_dynamic_code_generated(blob_id, B->content_begin(), B->content_end());
+      JvmtiExport::post_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_end());
     }
   }
   return entry;
@@ -2556,7 +2571,6 @@ void AdapterHandlerEntry::deallocate() {
   delete _fingerprint;
 #ifdef ASSERT
   if (_saved_code) FREE_C_HEAP_ARRAY(unsigned char, _saved_code, mtCode);
-  if (_saved_sig)  FREE_C_HEAP_ARRAY(Basictype, _saved_sig, mtCode);
 #endif
 }
 
@@ -2565,35 +2579,30 @@ void AdapterHandlerEntry::deallocate() {
 // Capture the code before relocation so that it can be compared
 // against other versions.  If the code is captured after relocation
 // then relative instructions won't be equivalent.
-void AdapterHandlerEntry::save_code(unsigned char* buffer, int length, int total_args_passed, BasicType* sig_bt) {
+void AdapterHandlerEntry::save_code(unsigned char* buffer, int length) {
   _saved_code = NEW_C_HEAP_ARRAY(unsigned char, length, mtCode);
-  _code_length = length;
+  _saved_code_length = length;
   memcpy(_saved_code, buffer, length);
-  _total_args_passed = total_args_passed;
-  _saved_sig = NEW_C_HEAP_ARRAY(BasicType, _total_args_passed, mtCode);
-  memcpy(_saved_sig, sig_bt, _total_args_passed * sizeof(BasicType));
 }
 
 
-bool AdapterHandlerEntry::compare_code(unsigned char* buffer, int length, int total_args_passed, BasicType* sig_bt) {
-  if (length != _code_length) {
+bool AdapterHandlerEntry::compare_code(unsigned char* buffer, int length) {
+  if (length != _saved_code_length) {
     return false;
   }
-  for (int i = 0; i < length; i++) {
-    if (buffer[i] != _saved_code[i]) {
-      return false;
-    }
-  }
-  return true;
+
+  return (memcmp(buffer, _saved_code, length) == 0) ? true : false;
 }
 #endif
 
 
-// Create a native wrapper for this native method.  The wrapper converts the
-// java compiled calling convention to the native convention, handlizes
-// arguments, and transitions to native.  On return from the native we transition
-// back to java blocking if a safepoint is in progress.
-nmethod *AdapterHandlerLibrary::create_native_wrapper(methodHandle method, int compile_id) {
+/**
+ * Create a native wrapper for this native method.  The wrapper converts the
+ * Java-compiled calling convention to the native convention, handles
+ * arguments, and transitions to native.  On return from the native we transition
+ * back to java blocking if a safepoint is in progress.
+ */
+void AdapterHandlerLibrary::create_native_wrapper(methodHandle method) {
   ResourceMark rm;
   nmethod* nm = NULL;
 
@@ -2602,16 +2611,19 @@ nmethod *AdapterHandlerLibrary::create_native_wrapper(methodHandle method, int c
          method->has_native_function(), "must have something valid to call!");
 
   {
-    // perform the work while holding the lock, but perform any printing outside the lock
+    // Perform the work while holding the lock, but perform any printing outside the lock
     MutexLocker mu(AdapterHandlerLibrary_lock);
     // See if somebody beat us to it
     nm = method->code();
-    if (nm) {
-      return nm;
+    if (nm != NULL) {
+      return;
     }
 
-    ResourceMark rm;
+    const int compile_id = CompileBroker::assign_compile_id(method, CompileBroker::standard_entry_bci);
+    assert(compile_id > 0, "Must generate native wrapper");
 
+
+    ResourceMark rm;
     BufferBlob*  buf = buffer_blob(); // the temporary code buffer in CodeCache
     if (buf != NULL) {
       CodeBuffer buffer(buf);
@@ -2643,16 +2655,14 @@ nmethod *AdapterHandlerLibrary::create_native_wrapper(methodHandle method, int c
       int comp_args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, total_args_passed, is_outgoing);
 
       // Generate the compiled-to-native wrapper code
-      nm = SharedRuntime::generate_native_wrapper(&_masm,
-                                                  method,
-                                                  compile_id,
-                                                  sig_bt,
-                                                  regs,
-                                                  ret_type);
-    }
-  }
+      nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type);
 
-  // Must unlock before calling set_code
+      if (nm != NULL) {
+        method->set_code(method, nm);
+      }
+    }
+  } // Unlock AdapterHandlerLibrary_lock
+
 
   // Install the generated code.
   if (nm != NULL) {
@@ -2660,13 +2670,11 @@ nmethod *AdapterHandlerLibrary::create_native_wrapper(methodHandle method, int c
       ttyLocker ttyl;
       CompileTask::print_compilation(tty, nm, method->is_static() ? "(static)" : "");
     }
-    method->set_code(method, nm);
     nm->post_compiled_method_load_event();
   } else {
     // CodeCache is full, disable compilation
     CompileBroker::handle_full_code_cache();
   }
-  return nm;
 }
 
 JRT_ENTRY_NO_ASYNC(void, SharedRuntime::block_for_jni_critical(JavaThread* thread))
@@ -2684,19 +2692,20 @@ JRT_ENTRY_NO_ASYNC(void, SharedRuntime::block_for_jni_critical(JavaThread* threa
 JRT_END
 
 #ifdef HAVE_DTRACE_H
-// Create a dtrace nmethod for this method.  The wrapper converts the
-// java compiled calling convention to the native convention, makes a dummy call
-// (actually nops for the size of the call instruction, which become a trap if
-// probe is enabled). The returns to the caller. Since this all looks like a
-// leaf no thread transition is needed.
-
+/**
+ * Create a dtrace nmethod for this method.  The wrapper converts the
+ * Java-compiled calling convention to the native convention, makes a dummy call
+ * (actually nops for the size of the call instruction, which become a trap if
+ * probe is enabled), and finally returns to the caller. Since this all looks like a
+ * leaf, no thread transition is needed.
+ */
 nmethod *AdapterHandlerLibrary::create_dtrace_nmethod(methodHandle method) {
   ResourceMark rm;
   nmethod* nm = NULL;
 
   if (PrintCompilation) {
     ttyLocker ttyl;
-    tty->print("---   n%s  ");
+    tty->print("---   n  ");
     method->print_short_name(tty);
     if (method->is_static()) {
       tty->print(" (static)");
@@ -2743,6 +2752,71 @@ void SharedRuntime::get_utf(oopDesc* src, address dst) {
   (void) UNICODE::as_utf8(jlsPos, jlsLen, (char *)dst, max_dtrace_string_size);
 }
 #endif // ndef HAVE_DTRACE_H
+
+int SharedRuntime::convert_ints_to_longints_argcnt(int in_args_count, BasicType* in_sig_bt) {
+  int argcnt = in_args_count;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    for (int in = 0; in < in_args_count; in++) {
+      BasicType bt = in_sig_bt[in];
+      switch (bt) {
+        case T_BOOLEAN:
+        case T_CHAR:
+        case T_BYTE:
+        case T_SHORT:
+        case T_INT:
+          argcnt++;
+          break;
+        default:
+          break;
+      }
+    }
+  } else {
+    assert(0, "This should not be needed on this platform");
+  }
+
+  return argcnt;
+}
+
+void SharedRuntime::convert_ints_to_longints(int i2l_argcnt, int& in_args_count,
+                                             BasicType*& in_sig_bt, VMRegPair*& in_regs) {
+  if (CCallingConventionRequiresIntsAsLongs) {
+    VMRegPair *new_in_regs   = NEW_RESOURCE_ARRAY(VMRegPair, i2l_argcnt);
+    BasicType *new_in_sig_bt = NEW_RESOURCE_ARRAY(BasicType, i2l_argcnt);
+
+    int argcnt = 0;
+    for (int in = 0; in < in_args_count; in++, argcnt++) {
+      BasicType bt  = in_sig_bt[in];
+      VMRegPair reg = in_regs[in];
+      switch (bt) {
+        case T_BOOLEAN:
+        case T_CHAR:
+        case T_BYTE:
+        case T_SHORT:
+        case T_INT:
+          // Convert (bt) to (T_LONG,bt).
+          new_in_sig_bt[argcnt  ] = T_LONG;
+          new_in_sig_bt[argcnt+1] = bt;
+          assert(reg.first()->is_valid() && !reg.second()->is_valid(), "");
+          new_in_regs[argcnt  ].set2(reg.first());
+          new_in_regs[argcnt+1].set_bad();
+          argcnt++;
+          break;
+        default:
+          // No conversion needed.
+          new_in_sig_bt[argcnt] = bt;
+          new_in_regs[argcnt]   = reg;
+          break;
+      }
+    }
+    assert(argcnt == i2l_argcnt, "must match");
+
+    in_regs = new_in_regs;
+    in_sig_bt = new_in_sig_bt;
+    in_args_count = i2l_argcnt;
+  } else {
+    assert(0, "This should not be needed on this platform");
+  }
+}
 
 // -------------------------------------------------------------------------
 // Java-Java calling convention
