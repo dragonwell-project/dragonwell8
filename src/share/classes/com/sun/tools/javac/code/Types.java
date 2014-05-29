@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.ClassReader;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import static com.sun.tools.javac.code.BoundKind.*;
 import static com.sun.tools.javac.code.Flags.*;
@@ -84,7 +85,6 @@ public class Types {
     final boolean allowBoxing;
     final boolean allowCovariantReturns;
     final boolean allowObjectToPrimitiveCast;
-    final boolean allowDefaultMethods;
     final ClassReader reader;
     final Check chk;
     final Enter enter;
@@ -111,7 +111,6 @@ public class Types {
         allowBoxing = source.allowBoxing();
         allowCovariantReturns = source.allowCovariantReturns();
         allowObjectToPrimitiveCast = source.allowObjectToPrimitiveCast();
-        allowDefaultMethods = source.allowDefaultMethods();
         reader = ClassReader.instance(context);
         chk = Check.instance(context);
         enter = Enter.instance(context);
@@ -153,31 +152,31 @@ public class Types {
         };
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="lowerBound">
+    // <editor-fold defaultstate="collapsed" desc="wildLowerBound">
     /**
-     * The "lvalue conversion".<br>
-     * The lower bound of most types is the type
-     * itself.  Wildcards, on the other hand have upper
-     * and lower bounds.
-     * @param t a type
-     * @return the lower bound of the given type
+     * Get a wildcard's lower bound, returning non-wildcards unchanged.
+     * @param t a type argument, either a wildcard or a type
      */
-    public Type lowerBound(Type t) {
-        return lowerBound.visit(t);
+    public Type wildLowerBound(Type t) {
+        if (t.hasTag(WILDCARD)) {
+            WildcardType w = (WildcardType) t;
+            return w.isExtendsBound() ? syms.botType : wildLowerBound(w.type);
+        }
+        else return t;
     }
-    // where
-        private final MapVisitor<Void> lowerBound = new MapVisitor<Void>() {
+    // </editor-fold>
 
-            @Override
-            public Type visitWildcardType(WildcardType t, Void ignored) {
-                return t.isExtendsBound() ? syms.botType : visit(t.type);
-            }
-
-            @Override
-            public Type visitCapturedType(CapturedType t, Void ignored) {
-                return visit(t.getLowerBound());
-            }
-        };
+    // <editor-fold defaultstate="collapsed" desc="cvarLowerBound">
+    /**
+     * Get a capture variable's lower bound, returning other types unchanged.
+     * @param t a type
+     */
+    public Type cvarLowerBound(Type t) {
+        if (t.hasTag(TYPEVAR) && ((TypeVar) t).isCaptured()) {
+            return cvarLowerBound(t.getLowerBound());
+        }
+        else return t;
+    }
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="isUnbounded">
@@ -307,8 +306,8 @@ public class Types {
     }
 
     /**
-     * Is t a subtype of or convertiable via boxing/unboxing
-     * convertions to s?
+     * Is t a subtype of or convertible via boxing/unboxing
+     * conversions to s?
      */
     public boolean isConvertible(Type t, Type s) {
         return isConvertible(t, s, noWarnings);
@@ -829,9 +828,15 @@ public class Types {
             return true;
         }
 
-        Type lower = lowerBound(s);
-        if (s != lower)
-            return isSubtype(capture ? capture(t) : t, lower, false);
+        // Generally, if 's' is a type variable, recur on lower bound; but
+        // for inference variables and intersections, we need to keep 's'
+        // (see JLS 4.10.2 for intersections and 18.2.3 for inference vars)
+        if (!t.hasTag(UNDETVAR) && !t.isCompound()) {
+            // TODO: JDK-8039198, bounds checking sometimes passes in a wildcard as s
+            Type lower = cvarLowerBound(wildLowerBound(s));
+            if (s != lower)
+                return isSubtype(capture ? capture(t) : t, lower, false);
+        }
 
         return isSubtype.visit(capture ? capture(t) : t, s);
     }
@@ -915,14 +920,11 @@ public class Types {
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
                 Type sup = asSuper(t, s.tsym);
-                return sup != null
-                    && sup.tsym == s.tsym
-                    // You're not allowed to write
-                    //     Vector<Object> vec = new Vector<String>();
-                    // But with wildcards you can write
-                    //     Vector<? extends Object> vec = new Vector<String>();
-                    // which means that subtype checking must be done
-                    // here instead of same-type checking (via containsType).
+                if (sup == null) return false;
+                // If t is an intersection, sup might not be a class type
+                if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
+                return sup.tsym == s.tsym
+                     // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
                                           s.getEnclosingType());
@@ -1138,7 +1140,7 @@ public class Types {
                     return visit(s, t);
 
                 if (s.isSuperBound() && !s.isExtendsBound())
-                    return visit(t, upperBound(s)) && visit(t, lowerBound(s));
+                    return visit(t, upperBound(s)) && visit(t, wildLowerBound(s));
 
                 if (t.isCompound() && s.isCompound()) {
                     if (!visit(supertype(t), supertype(s)))
@@ -1293,7 +1295,7 @@ public class Types {
                         break;
                     }
                     case SUPER: {
-                        Type bound = lowerBound(s);
+                        Type bound = wildLowerBound(s);
                         undetvar.addBound(InferenceBound.LOWER, bound, this);
                         break;
                     }
@@ -1386,9 +1388,9 @@ public class Types {
 //                                  t.isSuperBound()
 //                                  || isSubtypeNoCapture(upperBound(s), U(t)));
 //                System.err.format(" %s L(%s) <: L(%s) %s = %s%n",
-//                                  L(t), t, s, lowerBound(s),
+//                                  L(t), t, s, wildLowerBound(s),
 //                                  t.isExtendsBound()
-//                                  || isSubtypeNoCapture(L(t), lowerBound(s)));
+//                                  || isSubtypeNoCapture(L(t), wildLowerBound(s)));
 //                System.err.println();
 //            }
 
@@ -1400,7 +1402,7 @@ public class Types {
 //                    debugContainsType(t, s);
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
-                        || ((t.isExtendsBound() || isSubtypeNoCapture(L(t), lowerBound(s))) &&
+                        || ((t.isExtendsBound() || isSubtypeNoCapture(L(t), wildLowerBound(s))) &&
                             (t.isSuperBound() || isSubtypeNoCapture(upperBound(s), U(t))));
                 }
             }
@@ -1762,7 +1764,7 @@ public class Types {
                     if (s.isExtendsBound())
                         return !isCastableRecursive(t.type, upperBound(s));
                     else if (s.isSuperBound())
-                        return notSoftSubtypeRecursive(lowerBound(s), t.type);
+                        return notSoftSubtypeRecursive(wildLowerBound(s), t.type);
                 } else if (t.isSuperBound()) {
                     if (s.isExtendsBound())
                         return notSoftSubtypeRecursive(t.type, upperBound(s));
@@ -1772,19 +1774,13 @@ public class Types {
         };
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="lowerBoundArgtypes">
-    /**
-     * Returns the lower bounds of the formals of a method.
-     */
-    public List<Type> lowerBoundArgtypes(Type t) {
-        return lowerBounds(t.getParameterTypes());
+    // <editor-fold defaultstate="collapsed" desc="cvarLowerBounds">
+    public List<Type> cvarLowerBounds(List<Type> ts) {
+        return map(ts, cvarLowerBoundMapping);
     }
-    public List<Type> lowerBounds(List<Type> ts) {
-        return map(ts, lowerBoundMapping);
-    }
-    private final Mapping lowerBoundMapping = new Mapping("lowerBound") {
+    private final Mapping cvarLowerBoundMapping = new Mapping("cvarLowerBound") {
             public Type apply(Type t) {
-                return lowerBound(t);
+                return cvarLowerBound(t);
             }
         };
     // </editor-fold>
@@ -1936,6 +1932,17 @@ public class Types {
      * @param sym a symbol
      */
     public Type asSuper(Type t, Symbol sym) {
+        /* Some examples:
+         *
+         * (Enum<E>, Comparable) => Comparable<E>
+         * (c.s.s.d.AttributeTree.ValueKind, Enum) => Enum<c.s.s.d.AttributeTree.ValueKind>
+         * (c.s.s.t.ExpressionTree, c.s.s.t.Tree) => c.s.s.t.Tree
+         * (j.u.List<capture#160 of ? extends c.s.s.d.DocTree>, Iterable) =>
+         *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
+         */
+        if (sym.type == syms.objectType) { //optimization
+            return syms.objectType;
+        }
         return asSuper.visit(t, sym);
     }
     // where
@@ -1951,16 +1958,18 @@ public class Types {
                     return t;
 
                 Type st = supertype(t);
-                if (st.hasTag(CLASS) || st.hasTag(TYPEVAR) || st.hasTag(ERROR)) {
+                if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
                     Type x = asSuper(st, sym);
                     if (x != null)
                         return x;
                 }
                 if ((sym.flags() & INTERFACE) != 0) {
                     for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
-                        Type x = asSuper(l.head, sym);
-                        if (x != null)
-                            return x;
+                        if (!l.head.hasTag(ERROR)) {
+                            Type x = asSuper(l.head, sym);
+                            if (x != null)
+                                return x;
+                        }
                     }
                 }
                 return null;
@@ -2242,7 +2251,8 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="makeCompoundType">
     /**
-     * Make a compound type from non-empty list of types
+     * Make a compound type from non-empty list of types.  The list should be
+     * ordered according to {@link Symbol#precedes(TypeSymbol,Types)}.
      *
      * @param bounds            the types from which the compound type is formed
      * @param supertype         is objectType if all bounds are interfaces,
@@ -3332,12 +3342,15 @@ public class Types {
      * Insert a type in a closure
      */
     public List<Type> insert(List<Type> cl, Type t) {
-        if (cl.isEmpty() || t.tsym.precedes(cl.head.tsym, this)) {
+        if (cl.isEmpty()) {
             return cl.prepend(t);
-        } else if (cl.head.tsym.precedes(t.tsym, this)) {
-            return insert(cl.tail, t).prepend(cl.head);
-        } else {
+        } else if (t.tsym == cl.head.tsym) {
             return cl;
+        } else if (t.tsym.precedes(cl.head.tsym, this)) {
+            return cl.prepend(t);
+        } else {
+            // t comes after head, or the two are unrelated
+            return insert(cl.tail, t).prepend(cl.head);
         }
     }
 
@@ -3349,12 +3362,15 @@ public class Types {
             return cl2;
         } else if (cl2.isEmpty()) {
             return cl1;
+        } else if (cl1.head.tsym == cl2.head.tsym) {
+            return union(cl1.tail, cl2.tail).prepend(cl1.head);
         } else if (cl1.head.tsym.precedes(cl2.head.tsym, this)) {
             return union(cl1.tail, cl2).prepend(cl1.head);
         } else if (cl2.head.tsym.precedes(cl1.head.tsym, this)) {
             return union(cl1, cl2.tail).prepend(cl2.head);
         } else {
-            return union(cl1.tail, cl2.tail).prepend(cl1.head);
+            // unrelated types
+            return union(cl1.tail, cl2).prepend(cl1.head);
         }
     }
 
@@ -3464,18 +3480,31 @@ public class Types {
     private List<Type> closureMin(List<Type> cl) {
         ListBuffer<Type> classes = new ListBuffer<>();
         ListBuffer<Type> interfaces = new ListBuffer<>();
+        Set<Type> toSkip = new HashSet<>();
         while (!cl.isEmpty()) {
             Type current = cl.head;
-            if (current.isInterface())
-                interfaces.append(current);
-            else
-                classes.append(current);
-            ListBuffer<Type> candidates = new ListBuffer<>();
-            for (Type t : cl.tail) {
-                if (!isSubtypeNoCapture(current, t))
-                    candidates.append(t);
+            boolean keep = !toSkip.contains(current);
+            if (keep && current.hasTag(TYPEVAR)) {
+                // skip lower-bounded variables with a subtype in cl.tail
+                for (Type t : cl.tail) {
+                    if (isSubtypeNoCapture(t, current)) {
+                        keep = false;
+                        break;
+                    }
+                }
             }
-            cl = candidates.toList();
+            if (keep) {
+                if (current.isInterface())
+                    interfaces.append(current);
+                else
+                    classes.append(current);
+                for (Type t : cl.tail) {
+                    // skip supertypes of 'current' in cl.tail
+                    if (isSubtypeNoCapture(current, t))
+                        toSkip.add(t);
+                }
+            }
+            cl = cl.tail;
         }
         return classes.appendList(interfaces).toList();
     }
@@ -3635,7 +3664,19 @@ public class Types {
             return s;
 
         List<Type> closure = union(closure(t), closure(s));
-        List<Type> bounds = closureMin(closure);
+        return glbFlattened(closure, t);
+    }
+    //where
+    /**
+     * Perform glb for a list of non-primitive, non-error, non-compound types;
+     * redundant elements are removed.  Bounds should be ordered according to
+     * {@link Symbol#precedes(TypeSymbol,Types)}.
+     *
+     * @param flatBounds List of type to glb
+     * @param errT Original type to use if the result is an error type
+     */
+    private Type glbFlattened(List<Type> flatBounds, Type errT) {
+        List<Type> bounds = closureMin(flatBounds);
 
         if (bounds.isEmpty()) {             // length == 0
             return syms.objectType;
@@ -3643,11 +3684,21 @@ public class Types {
             return bounds.head;
         } else {                            // length > 1
             int classCount = 0;
-            for (Type bound : bounds)
-                if (!bound.isInterface())
+            List<Type> lowers = List.nil();
+            for (Type bound : bounds) {
+                if (!bound.isInterface()) {
                     classCount++;
-            if (classCount > 1)
-                return createErrorType(t);
+                    Type lower = cvarLowerBound(bound);
+                    if (bound != lower && !lower.hasTag(BOT))
+                        lowers = insert(lowers, lower);
+                }
+            }
+            if (classCount > 1) {
+                if (lowers.isEmpty())
+                    return createErrorType(errT);
+                else
+                    return glbFlattened(union(bounds, lowers), errT);
+            }
         }
         return makeCompoundType(bounds);
     }
@@ -3871,9 +3922,11 @@ public class Types {
         }
         return buf.reverse();
     }
+
     public Type capture(Type t) {
-        if (!t.hasTag(CLASS))
+        if (!t.hasTag(CLASS)) {
             return t;
+        }
         if (t.getEnclosingType() != Type.noType) {
             Type capturedEncl = capture(t.getEnclosingType());
             if (capturedEncl != t.getEnclosingType()) {
@@ -4125,7 +4178,7 @@ public class Types {
             if (source.isExtendsBound())
                 adaptRecursive(upperBound(source), upperBound(target));
             else if (source.isSuperBound())
-                adaptRecursive(lowerBound(source), lowerBound(target));
+                adaptRecursive(wildLowerBound(source), wildLowerBound(target));
             return null;
         }
 
@@ -4137,7 +4190,7 @@ public class Types {
             Type val = mapping.get(source.tsym);
             if (val != null) {
                 if (val.isSuperBound() && target.isSuperBound()) {
-                    val = isSubtype(lowerBound(val), lowerBound(target))
+                    val = isSubtype(wildLowerBound(val), wildLowerBound(target))
                         ? target : val;
                 } else if (val.isExtendsBound() && target.isExtendsBound()) {
                     val = isSubtype(upperBound(val), upperBound(target))
@@ -4251,7 +4304,7 @@ public class Types {
         }
 
         public Type visitType(Type t, Void s) {
-            return high ? upperBound(t) : lowerBound(t);
+            return high ? upperBound(t) : t;
         }
 
         @Override
