@@ -81,8 +81,8 @@ CompiledIC::CompiledIC(nmethod* nm, NativeCall* call)
 void CompiledStaticCall::emit_to_interp_stub(CodeBuffer &cbuf, address mark) {
   // Stub is fixed up when the corresponding call is converted from
   // calling compiled code to calling interpreted code.
-  // movq rbx, 0
-  // jmp -5 # to self
+  // movq rmethod, 0
+  // jmp -4 # to self
 
   // address mark = cbuf.insts_mark();  // Get mark within main instrs section.
 

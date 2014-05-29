@@ -263,7 +263,7 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   profile_typecheck(r2, Rsub_klass, r5); // blows r2, reloads r5
 
   // Do the check.
-  check_klass_subtype(Rsub_klass, r0, r2, ok_is_subtype); // blows rcx
+  check_klass_subtype(Rsub_klass, r0, r2, ok_is_subtype); // blows r2
 
   // Profile the failure of the check.
   profile_typecheck_failed(r2); // blows r2
@@ -721,7 +721,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
     save_bcp(); // Save in case of exception
 
     // Convert from BasicObjectLock structure to object and BasicLock
-    // structure Store the BasicLock address into %rax
+    // structure Store the BasicLock address into %r0
     lea(swap_reg, Address(lock_reg, BasicObjectLock::lock_offset_in_bytes()));
 
     // Load oop into obj_reg(%c_rarg3)

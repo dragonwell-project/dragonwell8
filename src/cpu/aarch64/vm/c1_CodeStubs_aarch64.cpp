@@ -209,7 +209,7 @@ void NewInstanceStub::emit_code(LIR_Assembler* ce) {
   __ bl(RuntimeAddress(Runtime1::entry_for(_stub_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  assert(_result->as_register() == r0, "result must in rax,");
+  assert(_result->as_register() == r0, "result must in r0,");
   __ b(_continuation);
 }
 

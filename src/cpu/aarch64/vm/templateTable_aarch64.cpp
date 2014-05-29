@@ -2724,7 +2724,7 @@ void TemplateTable::fast_storefield(TosState state)
   // access constant pool cache
   __ get_cache_and_index_at_bcp(r2, r1, 1);
 
-  // test for volatile with rdx
+  // test for volatile with r3
   __ ldrw(r3, Address(r2, in_bytes(base +
 				   ConstantPoolCacheEntry::flags_offset())));
 
@@ -3188,7 +3188,7 @@ void TemplateTable::invokedynamic(int byte_no) {
   // r0: CallSite object (from cpool->resolved_references[])
   // rmethod: MH.linkToCallSite method (from f2)
 
-  // Note:  rax_callsite is already pushed by prepare_invoke
+  // Note:  r0_callsite is already pushed by prepare_invoke
 
   // %%% should make a type profile for any invokedynamic that takes a ref argument
   // profile this call
@@ -3657,7 +3657,6 @@ void TemplateTable::monitorexit()
   __ should_not_reach_here();
 
   // call run-time routine
-  // rsi: points to monitor entry
   __ bind(found);
   __ push_ptr(r0); // make sure object is on stack (contract with oopMaps)
   __ unlock_object(c_rarg1);

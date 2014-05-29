@@ -479,7 +479,7 @@ static void gen_i2c_adapter(MacroAssembler *masm,
   // stack pointer.  It also recalculates and aligns sp.
 
   // A c2i adapter is frameless because the *callee* frame, which is
-  // interpreted, routinely repairs its caller's es (from sender_sp,
+  // interpreted, routinely repairs its caller's sp (from sender_sp,
   // which is set up via the senderSP register).
 
   // In other words, if *either* the caller or callee is interpreted, we can
@@ -702,7 +702,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   AArch64Simulator *sim = NULL;
   size_t len = 65536;
   if (NotifySimulator) {
-    name = new char[len];
+    name = NEW_C_HEAP_ARRAY(char, len, mtInternal);
   }
 
   if (name) {
@@ -757,7 +757,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     name[0] = 'c';
     name[2] = 'i';
     sim->notifyCompile(name, c2i_entry);
-    delete[] name;
+    FREE_C_HEAP_ARRAY(char, name, mtInternal);
   }
 #endif
 
@@ -1606,9 +1606,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // Mark location of rfp (someday)
   // map->set_callee_saved(VMRegImpl::stack2reg( stack_slots - 2), stack_slots * 2, 0, vmreg(rfp));
 
-  // Use eax, ebx as temporaries during any memory-memory moves we have to do
-  // All inbound args are referenced based on rfp and all outbound args via sp.
-
 
   int float_args = 0;
   int int_args = 0;
@@ -1957,9 +1954,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     // Don't use call_VM as it will see a possible pending exception and forward it
     // and never return here preventing us from clearing _last_native_pc down below.
-    // Also can't use call_VM_leaf either as it will check to see if rsi & rdi are
-    // preserved and correspond to the bcp/locals pointers. So we do a runtime call
-    // by hand.
     //
     save_native_result(masm, ret_type, stack_slots);
     __ mov(c_rarg0, rthread);
@@ -2853,7 +2847,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
 
   oop_maps->add_gc_map( __ offset() - start, map);
 
-  // rax contains the address we are going to jump to assuming no exception got installed
+  // r0 contains the address we are going to jump to assuming no exception got installed
 
   // clear last_Java_sp
   __ reset_last_Java_frame(false, true);
@@ -2956,7 +2950,6 @@ void OptoRuntime::generate_exception_blob() {
   // Store exception in Thread object. We cannot pass any arguments to the
   // handle_exception call, since we do not want to make any assumption
   // about the size of the frame where the exception happened in.
-  // c_rarg0 is either rdi (Linux) or rcx (Windows).
   __ str(r0, Address(rthread, JavaThread::exception_oop_offset()));
   __ str(r3, Address(rthread, JavaThread::exception_pc_offset()));
 

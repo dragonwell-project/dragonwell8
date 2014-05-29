@@ -1933,9 +1933,6 @@ void MacroAssembler::debug64(char* msg, int64_t pc, int64_t regs[])
       BytecodeCounter::print();
     }
 #endif
-    // To see where a verify_oop failed, get $ebx+40/X for this frame.
-    // XXX correct this offset for amd64
-    // This is the value of eip which points to where verify_oop will return.
     if (os::message_box(msg, "Execution stopped, print registers?")) {
       ttyLocker ttyl;
       tty->print_cr(" pc = 0x%016lx", pc);

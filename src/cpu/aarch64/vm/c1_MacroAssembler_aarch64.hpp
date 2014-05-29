@@ -54,7 +54,7 @@ void zero_memory(Register addr, Register len, Register t1);
 		 Register result);
 
   // locking
-  // hdr     : must be rax, contents destroyed
+  // hdr     : must be r0, contents destroyed
   // obj     : must point to the object to lock, contents preserved
   // disp_hdr: must point to the displaced header location, contents preserved
   // scratch : scratch register, contents destroyed
@@ -64,7 +64,7 @@ void zero_memory(Register addr, Register len, Register t1);
   // unlocking
   // hdr     : contents destroyed
   // obj     : must point to the object to lock, contents preserved
-  // disp_hdr: must be eax & must point to the displaced header location, contents destroyed
+  // disp_hdr: must be r0 & must point to the displaced header location, contents destroyed
   void unlock_object(Register swap, Register obj, Register lock, Label& slow_case);
 
   void initialize_object(
@@ -79,7 +79,7 @@ void zero_memory(Register addr, Register len, Register t1);
   // allocation of fixed-size objects
   // (can also be used to allocate fixed-size arrays, by setting
   // hdr_size correctly and storing the array length afterwards)
-  // obj        : must be rax, will contain pointer to allocated object
+  // obj        : will contain pointer to allocated object
   // t1, t2     : scratch registers - contents destroyed
   // header_size: size of object header in words
   // object_size: total size of object in words
@@ -91,7 +91,7 @@ void zero_memory(Register addr, Register len, Register t1);
   };
 
   // allocation of arrays
-  // obj        : must be rax, will contain pointer to allocated object
+  // obj        : will contain pointer to allocated object
   // len        : array length in number of elements
   // t          : scratch register - contents destroyed
   // header_size: size of object header in words

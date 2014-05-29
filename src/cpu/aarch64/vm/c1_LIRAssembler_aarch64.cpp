@@ -378,7 +378,7 @@ int LIR_Assembler::emit_exception_handler() {
 
   int offset = code_offset();
 
-  // the exception oop and pc are in rax, and rdx
+  // the exception oop and pc are in r0, and r3
   // no other registers need to be preserved, so invalidate them
   __ invalidate_registers(false, true, true, false, true, true);
 
@@ -2073,7 +2073,7 @@ void LIR_Assembler::throw_op(LIR_Opr exceptionPC, LIR_Opr exceptionOop, CodeEmit
   add_call_info(pc_for_athrow_offset, info); // for exception handler
 
   __ verify_not_null_oop(r0);
-  // search an exception handler (rax: exception oop, rdx: throwing pc)
+  // search an exception handler (r0: exception oop, r3: throwing pc)
   if (compilation()->has_fpu_code()) {
     unwind_id = Runtime1::handle_exception_id;
   } else {

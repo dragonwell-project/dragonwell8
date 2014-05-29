@@ -180,7 +180,7 @@ extern "C" void setup_arm_sim(void *sp, u_int64_t calltype)
   default:
     break;
   case MacroAssembler::ret_type_integral:
-  // this overwrites the saved rax
+  // this overwrites the saved r0
     *return_slot = sim->getCPUState().xreg(R0, 0);
     break;
   case MacroAssembler::ret_type_float:

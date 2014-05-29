@@ -456,7 +456,7 @@ class StubGenerator: public StubCodeGenerator {
   // not the case if the callee is compiled code => need to setup the
   // rsp.
   //
-  // rax: exception oop
+  // r0: exception oop
 
   // NOTE: this is used as a target from the signal handler so it
   // needs an x86 prolog which returns into the current simulator
@@ -849,21 +849,6 @@ class StubGenerator: public StubCodeGenerator {
   void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
   void array_overlap_test(Label& L_no_overlap, Address::sxtw sf) { __ b(L_no_overlap); }
   void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
-
-  // Shuffle first three arg regs on Windows into Linux/Solaris locations.
-  //
-  // Outputs:
-  //    rdi - rcx
-  //    rsi - rdx
-  //    rdx - r8
-  //    rcx - r9
-  //
-  // Registers r9 and r10 are used to save rdi and rsi on Windows, which latter
-  // are non-volatile.  r9 and r10 should not be used by the caller.
-  //
-  void setup_arg_regs(int nargs = 3) { Unimplemented(); }
-
-  void restore_arg_regs() { Unimplemented(); }
 
   // Generate code for an array write pre barrier
   //
@@ -1796,8 +1781,8 @@ class StubGenerator: public StubCodeGenerator {
   //    rsp+40     -  element count (32-bits)
   //
   //  Output:
-  //    rax ==  0  -  success
-  //    rax == -1^K - failure, where K is partial transfer count
+  //    r0 ==  0  -  success
+  //    r0 == -1^K - failure, where K is partial transfer count
   //
   address generate_generic_copy(const char *name,
                                 address byte_copy_entry, address short_copy_entry,
@@ -1952,8 +1937,12 @@ class StubGenerator: public StubCodeGenerator {
    *   c_rarg1   - byte* buf
    *   c_rarg2   - int length
    *
-   * Ouput:
-   *       rax   - int crc result
+   * Output:
+   *       r0   - int crc result
+   *
+   * Preserves:
+   *       r13
+   *
    */
   address generate_updateBytesCRC32() {
     assert(UseCRC32Intrinsics, "what are we doing here?");

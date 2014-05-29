@@ -103,7 +103,7 @@ class MacroAssembler: public Assembler {
 
   // Biased locking support
   // lock_reg and obj_reg must be loaded up with the appropriate values.
-  // swap_reg must be rax, and is killed.
+  // swap_reg is killed.
   // tmp_reg is optional. If it is supplied (i.e., != noreg) it will
   // be killed; if not supplied, push/pop will be used internally to
   // allocate a temporary (inefficient, avoid if possible).
@@ -765,88 +765,6 @@ public:
   void int3();
 #endif
 
-  // currently unimplemented
-#if 0
-  // Long operation macros for a 32bit cpu
-  // Long negation for Java
-  void lneg(Register hi, Register lo);
-
-  // Long multiplication for Java
-  // (destroys contents of eax, ebx, ecx and edx)
-  void lmul(int x_rsp_offset, int y_rsp_offset); // rdx:rax = x * y
-
-  // Long shifts for Java
-  // (semantics as described in JVM spec.)
-  void lshl(Register hi, Register lo);                               // hi:lo << (rcx & 0x3f)
-  void lshr(Register hi, Register lo, bool sign_extension = false);  // hi:lo >> (rcx & 0x3f)
-
-  // Long compare for Java
-  // (semantics as described in JVM spec.)
-  void lcmp2int(Register x_hi, Register x_lo, Register y_hi, Register y_lo); // x_hi = lcmp(x, y)
-
-
-  // misc
-
-  // Sign extension
-  void sign_extend_short(Register reg);
-  void sign_extend_byte(Register reg);
-
-  // Division by power of 2, rounding towards 0
-  void division_with_shift(Register reg, int shift_value);
-#endif
-
-  // unimpelements
-#if 0
-  // Compares the top-most stack entries on the FPU stack and sets the eflags as follows:
-  //
-  // CF (corresponds to C0) if x < y
-  // PF (corresponds to C2) if unordered
-  // ZF (corresponds to C3) if x = y
-  //
-  // The arguments are in reversed order on the stack (i.e., top of stack is first argument).
-  // tmp is a temporary register, if none is available use noreg (only matters for non-P6 code)
-  void fcmp(Register tmp);
-  // Variant of the above which allows y to be further down the stack
-  // and which only pops x and y if specified. If pop_right is
-  // specified then pop_left must also be specified.
-  void fcmp(Register tmp, int index, bool pop_left, bool pop_right);
-
-  // Floating-point comparison for Java
-  // Compares the top-most stack entries on the FPU stack and stores the result in dst.
-  // The arguments are in reversed order on the stack (i.e., top of stack is first argument).
-  // (semantics as described in JVM spec.)
-  void fcmp2int(Register dst, bool unordered_is_less);
-  // Variant of the above which allows y to be further down the stack
-  // and which only pops x and y if specified. If pop_right is
-  // specified then pop_left must also be specified.
-  void fcmp2int(Register dst, bool unordered_is_less, int index, bool pop_left, bool pop_right);
-
-  // Floating-point remainder for Java (ST0 = ST0 fremr ST1, ST1 is empty afterwards)
-  // tmp is a temporary register, if none is available use noreg
-  void fremr(Register tmp);
-
-
-  // Inlined sin/cos generator for Java; must not use CPU instruction
-  // directly on Intel as it does not have high enough precision
-  // outside of the range [-pi/4, pi/4]. Extra argument indicate the
-  // number of FPU stack slots in use; all but the topmost will
-  // require saving if a slow case is necessary. Assumes argument is
-  // on FP TOS; result is on FP TOS.  No cpu registers are changed by
-  // this code.
-  void trigfunc(char trig, int num_fpu_regs_in_use = 1);
-
-  // branch to L if FPU flag C2 is set/not set
-  // tmp is a temporary register, if none is available use noreg
-  void jC2 (Register tmp, Label& L);
-  void jnC2(Register tmp, Label& L);
-
-  void push_IU_state();
-  void pop_IU_state();
-
-  void push_FPU_state();
-  void pop_FPU_state();
-#endif
-
   void push_CPU_state();
   void pop_CPU_state() ;
 
@@ -1010,33 +928,6 @@ public:
 
   // Support for serializing memory accesses between threads
   void serialize_memory(Register thread, Register tmp);
-
-  // unimplemented
-#if 0
-  void verify_tlab();
-
-  // Biased locking support
-  // lock_reg and obj_reg must be loaded up with the appropriate values.
-  // swap_reg must be rax, and is killed.
-  // tmp_reg is optional. If it is supplied (i.e., != noreg) it will
-  // be killed; if not supplied, push/pop will be used internally to
-  // allocate a temporary (inefficient, avoid if possible).
-  // Optional slow case is for implementations (interpreter and C1) which branch to
-  // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
-  // Returns offset of first potentially-faulting instruction for null
-  // check info (currently consumed only by C1). If
-  // swap_reg_contains_mark is true then returns -1 as it is assumed
-  // the calling code has already passed any potential faults.
-  int biased_locking_enter(Register lock_reg, Register obj_reg,
-                           Register swap_reg, Register tmp_reg,
-                           bool swap_reg_contains_mark,
-                           Label& done, Label* slow_case = NULL,
-                           BiasedLockingCounters* counters = NULL);
-  void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
-
-
-  Condition negate_condition(Condition cond);
-#endif
 
   // Arithmetics
 

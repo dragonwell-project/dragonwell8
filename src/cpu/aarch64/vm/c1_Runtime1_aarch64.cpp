@@ -850,7 +850,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           // refilling the TLAB or allocating directly from eden.
           Label retry_tlab, try_eden;
           const Register thread =
-            __ tlab_refill(retry_tlab, try_eden, slow_path); // preserves rbx & rdx, returns rdi
+            __ tlab_refill(retry_tlab, try_eden, slow_path); // preserves r19 & r3, returns rthread
 
           __ bind(retry_tlab);
 
@@ -945,7 +945,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_r0(sasm);
 
-        // rax,: new multi array
+        // r0,: new multi array
         __ verify_oop(r0);
       }
       break;
