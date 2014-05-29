@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @summary Check that a bad handshake doesn't cause a debuggee to abort
  * @library /lib/testlibrary
  *
- * @build VMConnection BadHandshakeTest Exit0
+ * @build jdk.testlibrary.* VMConnection BadHandshakeTest Exit0
  * @run main BadHandshakeTest
  *
  */
@@ -85,7 +85,7 @@ public class BadHandshakeTest {
                 success.set(line.contains("Listening for transport dt_socket at address:"));
                 return true;
             },
-            1500,
+            Integer.MAX_VALUE,
             TimeUnit.MILLISECONDS
         );
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -282,6 +282,20 @@ static jint set_uintx_flag(const char* name, AttachOperation* op, outputStream* 
       return JNI_ERR;
     }
   }
+
+  if (strncmp(name, "MaxHeapFreeRatio", 17) == 0) {
+    FormatBuffer<80> err_msg("%s", "");
+    if (!Arguments::verify_MaxHeapFreeRatio(err_msg, value)) {
+      out->print_cr("%s", err_msg.buffer());
+      return JNI_ERR;
+    }
+  } else if (strncmp(name, "MinHeapFreeRatio", 17) == 0) {
+    FormatBuffer<80> err_msg("%s", "");
+    if (!Arguments::verify_MinHeapFreeRatio(err_msg, value)) {
+      out->print_cr("%s", err_msg.buffer());
+      return JNI_ERR;
+    }
+  }
   bool res = CommandLineFlags::uintxAtPut((char*)name, &value, Flag::ATTACH_ON_DEMAND);
   if (! res) {
     out->print_cr("setting flag %s failed", name);
@@ -367,7 +381,7 @@ static jint print_flag(AttachOperation* op, outputStream* out) {
   Flag* f = Flag::find_flag((char*)name, strlen(name));
   if (f) {
     f->print_as_flag(out);
-    out->print_cr("");
+    out->cr();
   } else {
     out->print_cr("no such flag '%s'", name);
   }

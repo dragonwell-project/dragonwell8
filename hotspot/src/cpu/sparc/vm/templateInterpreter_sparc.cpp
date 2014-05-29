@@ -156,6 +156,10 @@ address TemplateInterpreterGenerator::generate_StackOverflowError_handler() {
 address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, int step, size_t index_size) {
   address entry = __ pc();
 
+  if (state == atos) {
+    __ profile_return_type(O0, G3_scratch, G1_scratch);
+  }
+
 #if !defined(_LP64) && defined(COMPILER2)
   // All return values are where we want them, except for Longs.  C2 returns
   // longs in G1 in the 32-bit build whereas the interpreter wants them in O0/O1.
@@ -1143,7 +1147,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // reset handle block
   __ ld_ptr(G2_thread, JavaThread::active_handles_offset(), G3_scratch);
-  __ st_ptr(G0, G3_scratch, JNIHandleBlock::top_offset_in_bytes());
+  __ st(G0, G3_scratch, JNIHandleBlock::top_offset_in_bytes());
 
   // If we have an oop result store it where it will be safe for any further gc
   // until we return now that we've released the handle it might be protected by
@@ -1333,6 +1337,7 @@ address InterpreterGenerator::generate_normal_entry(bool synchronized) {
   __ movbool(true, G3_scratch);
   __ stbool(G3_scratch, do_not_unlock_if_synchronized);
 
+  __ profile_parameters_type(G1_scratch, G3_scratch, G4_scratch, Lscratch);
   // increment invocation counter and check for overflow
   //
   // Note: checking for negative value instead of overflow

@@ -33,6 +33,11 @@ SLASH_JAVA ?= /java
 # ARCH can be set explicitly in spec.gmk
 ifndef ARCH
   ARCH := $(shell uname -m)
+  # Fold little endian PowerPC64 into big-endian (if ARCH is set in
+  # hotspot-spec.gmk, this will be done by the configure script).
+  ifeq ($(ARCH),ppc64le)
+    ARCH := ppc64
+  endif
 endif
 
 PATH_SEP ?= :
@@ -117,6 +122,15 @@ ifeq ($(ARCH), ppc)
   ARCH_DATA_MODEL  = 32
   PLATFORM         = linux-ppc
   VM_PLATFORM      = linux_ppc
+  HS_ARCH          = ppc
+endif
+
+# PPC64
+ifeq ($(ARCH), ppc64)
+  ARCH_DATA_MODEL  = 64
+  MAKE_ARGS        += LP64=1
+  PLATFORM         = linux-ppc64
+  VM_PLATFORM      = linux_ppc64
   HS_ARCH          = ppc
 endif
 
@@ -255,7 +269,7 @@ EXPORT_SERVER_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/server
 EXPORT_CLIENT_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/client
 EXPORT_MINIMAL_DIR = $(EXPORT_JRE_LIB_ARCH_DIR)/minimal
 
-ifeq ($(findstring true, $(JVM_VARIANT_SERVER) $(JVM_VARIANT_ZERO) $(JVM_VARIANT_ZEROSHARK)), true)
+ifeq ($(findstring true, $(JVM_VARIANT_SERVER) $(JVM_VARIANT_ZERO) $(JVM_VARIANT_ZEROSHARK) $(JVM_VARIANT_CORE)), true)
   EXPORT_LIST += $(EXPORT_SERVER_DIR)/Xusage.txt
   EXPORT_LIST += $(EXPORT_SERVER_DIR)/libjvm.$(LIBRARY_SUFFIX)
   ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)

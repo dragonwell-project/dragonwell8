@@ -111,6 +111,18 @@ JNIEXPORT jboolean JNICALL Java_sun_lwawt_macosx_LWCToolkit_nativeSyncQueue
     return JNI_FALSE;
 }
 
+/*
+ * Class:     sun_lwawt_macosx_LWCToolkit
+ * Method:    flushNativeSelectors
+ * Signature: ()J
+ */
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_LWCToolkit_flushNativeSelectors
+(JNIEnv *env, jclass clz)
+{
+JNF_COCOA_ENTER(env);
+        [ThreadUtilities performOnMainThreadWaiting:YES block:^(){}];
+JNF_COCOA_EXIT(env);
+}
 
 static JNF_CLASS_CACHE(jc_Component, "java/awt/Component");
 static JNF_MEMBER_CACHE(jf_Component_appContext, jc_Component, "appContext", "Lsun/awt/AppContext;");
@@ -188,25 +200,30 @@ JNIEXPORT void JNICALL
 Java_sun_lwawt_macosx_LWCToolkit_initIDs
 (JNIEnv *env, jclass klass) {
     // set thread names
-    dispatch_async(dispatch_get_main_queue(), ^(void){
-        [[NSThread currentThread] setName:@"AppKit Thread"];
-
-        JNIEnv *env = [ThreadUtilities getJNIEnv];
-        static JNF_CLASS_CACHE(jc_LWCToolkit, "sun/lwawt/macosx/LWCToolkit");
-        static JNF_STATIC_MEMBER_CACHE(jsm_installToolkitThreadNameInJava, jc_LWCToolkit, "installToolkitThreadNameInJava", "()V");
-        JNFCallStaticVoidMethod(env, jsm_installToolkitThreadNameInJava);
-    });
-
+    if (![ThreadUtilities isAWTEmbedded]) {
+        dispatch_async(dispatch_get_main_queue(), ^(void){
+            [[NSThread currentThread] setName:@"AppKit Thread"];
+            JNIEnv *env = [ThreadUtilities getJNIEnv];
+            static JNF_CLASS_CACHE(jc_LWCToolkit, "sun/lwawt/macosx/LWCToolkit");
+            static JNF_STATIC_MEMBER_CACHE(jsm_installToolkitThreadInJava, jc_LWCToolkit, "installToolkitThreadInJava", "()V");
+            JNFCallStaticVoidMethod(env, jsm_installToolkitThreadInJava);
+        });
+    }
+    
     gNumberOfButtons = sun_lwawt_macosx_LWCToolkit_BUTTONS;
 
     jclass inputEventClazz = (*env)->FindClass(env, "java/awt/event/InputEvent");
+    CHECK_NULL(inputEventClazz);
     jmethodID getButtonDownMasksID = (*env)->GetStaticMethodID(env, inputEventClazz, "getButtonDownMasks", "()[I");
+    CHECK_NULL(getButtonDownMasksID);
     jintArray obj = (jintArray)(*env)->CallStaticObjectMethod(env, inputEventClazz, getButtonDownMasksID);
     jint * tmp = (*env)->GetIntArrayElements(env, obj, JNI_FALSE);
+    CHECK_NULL(tmp);
 
     gButtonDownMasks = (jint*)SAFE_SIZE_ARRAY_ALLOC(malloc, sizeof(jint), gNumberOfButtons);
     if (gButtonDownMasks == NULL) {
         gNumberOfButtons = 0;
+        (*env)->ReleaseIntArrayElements(env, obj, tmp, JNI_ABORT);
         JNU_ThrowOutOfMemoryError(env, NULL);
         return;
     }
@@ -240,7 +257,7 @@ static UInt32 RGB(NSColor *c) {
     return ((ia & 0xFF) << 24) | ((ir & 0xFF) << 16) | ((ig & 0xFF) << 8) | ((ib & 0xFF) << 0);
 }
 
-void doLoadNativeColors(JNIEnv *env, jintArray jColors, BOOL useAppleColors) {
+BOOL doLoadNativeColors(JNIEnv *env, jintArray jColors, BOOL useAppleColors) {
     jint len = (*env)->GetArrayLength(env, jColors);
 
     UInt32 colorsArray[len];
@@ -254,8 +271,12 @@ void doLoadNativeColors(JNIEnv *env, jintArray jColors, BOOL useAppleColors) {
     }];
 
     jint *_colors = (*env)->GetPrimitiveArrayCritical(env, jColors, 0);
+    if (_colors == NULL) {
+        return NO;
+    }
     memcpy(_colors, colors, len * sizeof(UInt32));
     (*env)->ReleasePrimitiveArrayCritical(env, jColors, _colors, 0);
+    return YES;
 }
 
 /**
@@ -267,8 +288,9 @@ JNIEXPORT void JNICALL Java_sun_lwawt_macosx_LWCToolkit_loadNativeColors
 (JNIEnv *env, jobject peer, jintArray jSystemColors, jintArray jAppleColors)
 {
 JNF_COCOA_ENTER(env);
-    doLoadNativeColors(env, jSystemColors, NO);
-    doLoadNativeColors(env, jAppleColors, YES);
+    if (doLoadNativeColors(env, jSystemColors, NO)) {
+        doLoadNativeColors(env, jAppleColors, YES);
+    }
 JNF_COCOA_EXIT(env);
 }
 

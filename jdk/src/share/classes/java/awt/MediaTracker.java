@@ -28,6 +28,7 @@ package java.awt;
 import java.awt.Component;
 import java.awt.Image;
 import java.awt.image.ImageObserver;
+import sun.awt.image.MultiResolutionToolkitImage;
 
 /**
  * The <code>MediaTracker</code> class is a utility class to track
@@ -222,10 +223,19 @@ public class MediaTracker implements java.io.Serializable {
      * @param     h    the height at which the image is rendered
      */
     public synchronized void addImage(Image image, int id, int w, int h) {
+        addImageImpl(image, id, w, h);
+        Image rvImage = getResolutionVariant(image);
+        if (rvImage != null) {
+            addImageImpl(rvImage, id,
+                    w == -1 ? -1 : 2 * w,
+                    h == -1 ? -1 : 2 * h);
+        }
+    }
+
+    private void addImageImpl(Image image, int id, int w, int h) {
         head = MediaEntry.insert(head,
                                  new ImageMediaEntry(this, image, id, w, h));
     }
-
     /**
      * Flag indicating that media is currently being loaded.
      * @see         java.awt.MediaTracker#statusAll
@@ -719,6 +729,15 @@ public class MediaTracker implements java.io.Serializable {
      * @since   JDK1.1
      */
     public synchronized void removeImage(Image image) {
+        removeImageImpl(image);
+        Image rvImage = getResolutionVariant(image);
+        if (rvImage != null) {
+            removeImageImpl(rvImage);
+        }
+        notifyAll();    // Notify in case remaining images are "done".
+    }
+
+    private void removeImageImpl(Image image) {
         MediaEntry cur = head;
         MediaEntry prev = null;
         while (cur != null) {
@@ -735,7 +754,6 @@ public class MediaTracker implements java.io.Serializable {
             }
             cur = next;
         }
-        notifyAll();    // Notify in case remaining images are "done".
     }
 
     /**
@@ -750,6 +768,15 @@ public class MediaTracker implements java.io.Serializable {
      * @since      JDK1.1
      */
     public synchronized void removeImage(Image image, int id) {
+        removeImageImpl(image, id);
+        Image rvImage = getResolutionVariant(image);
+        if (rvImage != null) {
+            removeImageImpl(rvImage, id);
+        }
+        notifyAll();    // Notify in case remaining images are "done".
+    }
+
+    private void removeImageImpl(Image image, int id) {
         MediaEntry cur = head;
         MediaEntry prev = null;
         while (cur != null) {
@@ -766,7 +793,6 @@ public class MediaTracker implements java.io.Serializable {
             }
             cur = next;
         }
-        notifyAll();    // Notify in case remaining images are "done".
     }
 
     /**
@@ -783,6 +809,17 @@ public class MediaTracker implements java.io.Serializable {
      */
     public synchronized void removeImage(Image image, int id,
                                          int width, int height) {
+        removeImageImpl(image, id, width, height);
+        Image rvImage = getResolutionVariant(image);
+        if (rvImage != null) {
+            removeImageImpl(rvImage, id,
+                    width == -1 ? -1 : 2 * width,
+                    height == -1 ? -1 : 2 * height);
+        }
+        notifyAll();    // Notify in case remaining images are "done".
+    }
+
+    private void removeImageImpl(Image image, int id, int width, int height) {
         MediaEntry cur = head;
         MediaEntry prev = null;
         while (cur != null) {
@@ -801,11 +838,17 @@ public class MediaTracker implements java.io.Serializable {
             }
             cur = next;
         }
-        notifyAll();    // Notify in case remaining images are "done".
     }
 
     synchronized void setDone() {
         notifyAll();
+    }
+
+    private static Image getResolutionVariant(Image image) {
+        if (image instanceof MultiResolutionToolkitImage) {
+            return ((MultiResolutionToolkitImage) image).getResolutionVariant();
+        }
+        return null;
     }
 }
 

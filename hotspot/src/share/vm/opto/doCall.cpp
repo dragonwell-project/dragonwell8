@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@ void trace_type_profile(Compile* C, ciMethod *method, int depth, int bci, ciMeth
     out->print(" \\-> TypeProfile (%d/%d counts) = ", receiver_count, site_count);
     stringStream ss;
     prof_klass->name()->print_symbol_on(&ss);
-    out->print(ss.as_string());
+    out->print("%s", ss.as_string());
     out->cr();
   }
 }
@@ -161,19 +161,8 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
 
     // Try inlining a bytecoded method:
     if (!call_does_dispatch) {
-      InlineTree* ilt;
-      if (UseOldInlining) {
-        ilt = InlineTree::find_subtree_from_root(this->ilt(), jvms->caller(), jvms->method());
-      } else {
-        // Make a disembodied, stateless ILT.
-        // TO DO:  When UseOldInlining is removed, copy the ILT code elsewhere.
-        float site_invoke_ratio = prof_factor;
-        // Note:  ilt is for the root of this parse, not the present call site.
-        ilt = new InlineTree(this, jvms->method(), jvms->caller(), site_invoke_ratio, MaxInlineLevel);
-      }
+      InlineTree* ilt = InlineTree::find_subtree_from_root(this->ilt(), jvms->caller(), jvms->method());
       WarmCallInfo scratch_ci;
-      if (!UseOldInlining)
-        scratch_ci.init(jvms, callee, profile, prof_factor);
       bool should_delay = false;
       WarmCallInfo* ci = ilt->ok_to_inline(callee, jvms, profile, &scratch_ci, should_delay);
       assert(ci != &scratch_ci, "do not let this pointer escape");
@@ -261,7 +250,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           CallGenerator* miss_cg;
           Deoptimization::DeoptReason reason = morphism == 2 ?
                                     Deoptimization::Reason_bimorphic :
-                                    Deoptimization::Reason_class_check;
+                                    (speculative_receiver_type == NULL ? Deoptimization::Reason_class_check : Deoptimization::Reason_speculate_class_check);
           if ((morphism == 1 || (morphism == 2 && next_hit_cg != NULL)) &&
               !too_many_traps(jvms->method(), jvms->bci(), reason)
              ) {
@@ -369,7 +358,7 @@ bool Compile::should_delay_string_inlining(ciMethod* call_method, JVMState* jvms
 bool Compile::should_delay_boxing_inlining(ciMethod* call_method, JVMState* jvms) {
   if (eliminate_boxing() && call_method->is_boxing_method()) {
     set_has_boxed_value(true);
-    return true;
+    return aggressive_unboxing();
   }
   return false;
 }

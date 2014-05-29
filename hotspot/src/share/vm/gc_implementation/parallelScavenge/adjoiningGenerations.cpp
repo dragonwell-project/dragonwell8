@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,7 +143,7 @@ void AdjoiningGenerations::request_old_gen_expansion(size_t expand_in_bytes) {
 
   if (TraceAdaptiveGCBoundary) {
     gclog_or_tty->print_cr("Before expansion of old gen with boundary move");
-    gclog_or_tty->print_cr("  Requested change: 0x%x  Attempted change: 0x%x",
+    gclog_or_tty->print_cr("  Requested change: " SIZE_FORMAT_HEX "  Attempted change: " SIZE_FORMAT_HEX,
       expand_in_bytes, change_in_bytes);
     if (!PrintHeapAtGC) {
       Universe::print_on(gclog_or_tty);
@@ -201,7 +201,7 @@ bool AdjoiningGenerations::request_young_gen_expansion(size_t expand_in_bytes) {
 
   if (TraceAdaptiveGCBoundary) {
     gclog_or_tty->print_cr("Before expansion of young gen with boundary move");
-    gclog_or_tty->print_cr("  Requested change: 0x%x  Attempted change: 0x%x",
+    gclog_or_tty->print_cr("  Requested change: " SIZE_FORMAT_HEX "  Attempted change: " SIZE_FORMAT_HEX,
       expand_in_bytes, change_in_bytes);
     if (!PrintHeapAtGC) {
       Universe::print_on(gclog_or_tty);

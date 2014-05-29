@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,8 @@
 #endif
 
 # include <signal.h>
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 OSThread*         os::_starting_thread    = NULL;
 address           os::_polling_page       = NULL;
@@ -909,9 +911,9 @@ void os::print_environment_variables(outputStream* st, const char** env_list,
 
     for (int i = 0; env_list[i] != NULL; i++) {
       if (getenv(env_list[i], buffer, len)) {
-        st->print(env_list[i]);
+        st->print("%s", env_list[i]);
         st->print("=");
-        st->print_cr(buffer);
+        st->print_cr("%s", buffer);
       }
     }
   }
@@ -929,6 +931,10 @@ void os::print_cpu_info(outputStream* st) {
 }
 
 void os::print_date_and_time(outputStream *st) {
+  const int secs_per_day  = 86400;
+  const int secs_per_hour = 3600;
+  const int secs_per_min  = 60;
+
   time_t tloc;
   (void)time(&tloc);
   st->print("time: %s", ctime(&tloc));  // ctime adds newline.
@@ -937,7 +943,17 @@ void os::print_date_and_time(outputStream *st) {
   // NOTE: It tends to crash after a SEGV if we want to printf("%f",...) in
   //       Linux. Must be a bug in glibc ? Workaround is to round "t" to int
   //       before printf. We lost some precision, but who cares?
-  st->print_cr("elapsed time: %d seconds", (int)t);
+  int eltime = (int)t;  // elapsed time in seconds
+
+  // print elapsed time in a human-readable format:
+  int eldays = eltime / secs_per_day;
+  int day_secs = eldays * secs_per_day;
+  int elhours = (eltime - day_secs) / secs_per_hour;
+  int hour_secs = elhours * secs_per_hour;
+  int elmins = (eltime - day_secs - hour_secs) / secs_per_min;
+  int minute_secs = elmins * secs_per_min;
+  int elsecs = (eltime - day_secs - hour_secs - minute_secs);
+  st->print_cr("elapsed time: %d seconds (%dd %dh %dm %ds)", eltime, eldays, elhours, elmins, elsecs);
 }
 
 // moved from debug.cpp (used to be find()) but still called from there
@@ -1081,15 +1097,17 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 
   }
 
-#ifndef PRODUCT
-  // Check if in metaspace.
-  if (ClassLoaderDataGraph::contains((address)addr)) {
-    // Use addr->print() from the debugger instead (not here)
-    st->print_cr(INTPTR_FORMAT
-                 " is pointing into metadata", addr);
+  // Check if in metaspace and print types that have vptrs (only method now)
+  if (Metaspace::contains(addr)) {
+    if (Method::has_method_vptr((const void*)addr)) {
+      ((Method*)addr)->print_value_on(st);
+      st->cr();
+    } else {
+      // Use addr->print() from the debugger instead (not here)
+      st->print_cr(INTPTR_FORMAT " is pointing into metadata", addr);
+    }
     return;
   }
-#endif
 
   // Try an OS specific find
   if (os::find(addr, st)) {
@@ -1103,7 +1121,7 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 // if C stack is walkable beyond current frame. The check for fp() is not
 // necessary on Sparc, but it's harmless.
 bool os::is_first_C_frame(frame* fr) {
-#if defined(IA64) && !defined(_WIN32)
+#if (defined(IA64) && !defined(AIX)) && !defined(_WIN32)
   // On IA64 we have to check if the callers bsp is still valid
   // (i.e. within the register stack bounds).
   // Notice: this only works for threads created by the VM and only if

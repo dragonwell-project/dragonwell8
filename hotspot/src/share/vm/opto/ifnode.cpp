@@ -76,7 +76,6 @@ static Node* split_if(IfNode *iff, PhaseIterGVN *igvn) {
   if( !i1->is_Bool() ) return NULL;
   BoolNode *b = i1->as_Bool();
   Node *cmp = b->in(1);
-  if( cmp->is_FlagsProj() ) return NULL;
   if( !cmp->is_Cmp() ) return NULL;
   i1 = cmp->in(1);
   if( i1 == NULL || !i1->is_Phi() ) return NULL;
@@ -674,7 +673,7 @@ const TypeInt* IfNode::filtered_int_type(PhaseGVN* gvn, Node *val, Node* if_proj
 //           /    Region
 //
 Node* IfNode::fold_compares(PhaseGVN* phase) {
-  if (!phase->C->eliminate_boxing() || Opcode() != Op_If) return NULL;
+  if (Opcode() != Op_If) return NULL;
 
   Node* this_cmp = in(1)->in(1);
   if (this_cmp != NULL && this_cmp->Opcode() == Op_CmpI &&

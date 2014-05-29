@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ extern Display *awt_display;
 
 #define MAXFDIRS 512    /* Max number of directories that contain fonts */
 
-#if !defined(__linux__)
+#if defined(__solaris__)
 /*
  * This can be set in the makefile to "/usr/X11" if so desired.
  */
@@ -114,7 +114,7 @@ static char *fullSolarisFontPath[] = {
     NULL, /* terminates the list */
 };
 
-#else /* __linux */
+#elif defined( __linux__)
 /* All the known interesting locations we have discovered on
  * various flavors of Linux
  */
@@ -132,6 +132,12 @@ static char *fullLinuxFontPath[] = {
     "/var/lib/defoma/x-ttcidfont-conf.d/dirs/TrueType", /* Debian */
     "/usr/X11R6/lib/X11/fonts/Type1",
     "/usr/share/fonts/default/Type1",     /* RH 9.0 */
+    NULL, /* terminates the list */
+};
+#elif defined(_AIX)
+static char *fullAixFontPath[] = {
+    "/usr/lpp/X11/lib/X11/fonts/Type1",    /* from X11.fnt.iso_T1  */
+    "/usr/lpp/X11/lib/X11/fonts/TrueType", /* from X11.fnt.ucs.ttf */
     NULL, /* terminates the list */
 };
 #endif
@@ -155,17 +161,22 @@ jboolean isDisplayLocal(JNIEnv *env) {
 
     if (! isLocalSet) {
       jclass geCls = (*env)->FindClass(env, "java/awt/GraphicsEnvironment");
+      CHECK_NULL_RETURN(geCls, JNI_FALSE);
       jmethodID getLocalGE = (*env)->GetStaticMethodID(env, geCls,
                                                  "getLocalGraphicsEnvironment",
                                            "()Ljava/awt/GraphicsEnvironment;");
+      CHECK_NULL_RETURN(getLocalGE, JNI_FALSE);
       jobject ge = (*env)->CallStaticObjectMethod(env, geCls, getLocalGE);
+      JNU_CHECK_EXCEPTION_RETURN(env, JNI_FALSE);
 
       jclass sgeCls = (*env)->FindClass(env,
                                         "sun/java2d/SunGraphicsEnvironment");
+      CHECK_NULL_RETURN(sgeCls, JNI_FALSE);
       if ((*env)->IsInstanceOf(env, ge, sgeCls)) {
         jmethodID isDisplayLocal = (*env)->GetMethodID(env, sgeCls,
                                                        "isDisplayLocal",
                                                        "()Z");
+        JNU_CHECK_EXCEPTION_RETURN(env, JNI_FALSE);
         isLocal = (*env)->CallBooleanMethod(env, ge, isDisplayLocal);
       } else {
         isLocal = True;
@@ -497,10 +508,11 @@ static char *getPlatformFontPathChars(JNIEnv *env, jboolean noType1) {
 
 #if defined(__linux__)
     knowndirs = fullLinuxFontPath;
-#else /* IF SOLARIS */
+#elif defined(__solaris__)
     knowndirs = fullSolarisFontPath;
+#elif defined(_AIX)
+    knowndirs = fullAixFontPath;
 #endif
-
     /* REMIND: this code requires to be executed when the GraphicsEnvironment
      * is already initialised. That is always true, but if it were not so,
      * this code could throw an exception and the fontpath would fail to
@@ -592,6 +604,25 @@ static void* openFontConfig() {
         }
     }
 #endif
+
+#if defined(_AIX)
+    /* On AIX, fontconfig is not a standard package supported by IBM.
+     * instead it has to be installed from the "AIX Toolbox for Linux Applications"
+     * site http://www-03.ibm.com/systems/power/software/aix/linux/toolbox/alpha.html
+     * and will be installed under /opt/freeware/lib/libfontconfig.a.
+     * Notice that the archive contains the real 32- and 64-bit shared libraries.
+     * We first try to load 'libfontconfig.so' from the default library path in the
+     * case the user has installed a private version of the library and if that
+     * doesn't succeed, we try the version from /opt/freeware/lib/libfontconfig.a
+     */
+    libfontconfig = dlopen("libfontconfig.so", RTLD_LOCAL|RTLD_LAZY);
+    if (libfontconfig == NULL) {
+        libfontconfig = dlopen("/opt/freeware/lib/libfontconfig.a(libfontconfig.so.1)", RTLD_MEMBER|RTLD_LOCAL|RTLD_LAZY);
+        if (libfontconfig == NULL) {
+            return NULL;
+        }
+    }
+#else
     /* 64 bit sparc should pick up the right version from the lib path.
      * New features may be added to libfontconfig, this is expected to
      * be compatible with old features, but we may need to start
@@ -606,6 +637,7 @@ static void* openFontConfig() {
             return NULL;
         }
     }
+#endif
 
     /* Version 1.0 of libfontconfig crashes if HOME isn't defined in
      * the environment. This should generally never happen, but we can't
@@ -978,50 +1010,38 @@ Java_sun_font_FontConfigManager_getFontConfig
     jmethodID fcFontCons;
     char* debugMinGlyphsStr = getenv("J2D_DEBUG_MIN_GLYPHS");
 
+    CHECK_NULL(fcInfoObj);
+    CHECK_NULL(fcCompFontArray);
+
     jclass fcInfoClass =
         (*env)->FindClass(env, "sun/font/FontConfigManager$FontConfigInfo");
+    CHECK_NULL(fcInfoClass);
     jclass fcCompFontClass =
         (*env)->FindClass(env, "sun/font/FontConfigManager$FcCompFont");
+    CHECK_NULL(fcCompFontClass);
     jclass fcFontClass =
          (*env)->FindClass(env, "sun/font/FontConfigManager$FontConfigFont");
+    CHECK_NULL(fcFontClass);
 
-    if (fcInfoObj == NULL || fcCompFontArray == NULL || fcInfoClass == NULL ||
-        fcCompFontClass == NULL || fcFontClass == NULL) {
-        return;
-    }
 
-    fcVersionID = (*env)->GetFieldID(env, fcInfoClass, "fcVersion", "I");
-
-    fcCacheDirsID = (*env)->GetFieldID(env, fcInfoClass, "cacheDirs",
-                                       "[Ljava/lang/String;");
-
-    fcNameID = (*env)->GetFieldID(env, fcCompFontClass,
-                                  "fcName", "Ljava/lang/String;");
-    fcFirstFontID =
-        (*env)->GetFieldID(env, fcCompFontClass, "firstFont",
-                           "Lsun/font/FontConfigManager$FontConfigFont;");
-
-    fcAllFontsID =
-        (*env)->GetFieldID(env, fcCompFontClass, "allFonts",
-                           "[Lsun/font/FontConfigManager$FontConfigFont;");
-
-    fcFontCons = (*env)->GetMethodID(env, fcFontClass, "<init>", "()V");
-
-    familyNameID = (*env)->GetFieldID(env, fcFontClass,
-                                      "familyName", "Ljava/lang/String;");
-    styleNameID = (*env)->GetFieldID(env, fcFontClass,
-                                    "styleStr", "Ljava/lang/String;");
-    fullNameID = (*env)->GetFieldID(env, fcFontClass,
-                                    "fullName", "Ljava/lang/String;");
-    fontFileID = (*env)->GetFieldID(env, fcFontClass,
-                                    "fontFile", "Ljava/lang/String;");
-
-    if (fcVersionID == NULL || fcCacheDirsID == NULL || fcNameID == NULL ||
-        fcFirstFontID == NULL || fcAllFontsID == NULL || fcFontCons == NULL ||
-        familyNameID == NULL || styleNameID == NULL || fullNameID == NULL ||
-        fontFileID == NULL) {
-        return;
-    }
+    CHECK_NULL(fcVersionID = (*env)->GetFieldID(env, fcInfoClass, "fcVersion", "I"));
+    CHECK_NULL(fcCacheDirsID = (*env)->GetFieldID(env, fcInfoClass, "cacheDirs",
+                                                  "[Ljava/lang/String;"));
+    CHECK_NULL(fcNameID = (*env)->GetFieldID(env, fcCompFontClass,
+                                             "fcName", "Ljava/lang/String;"));
+    CHECK_NULL(fcFirstFontID = (*env)->GetFieldID(env, fcCompFontClass, "firstFont",
+                                        "Lsun/font/FontConfigManager$FontConfigFont;"));
+    CHECK_NULL(fcAllFontsID = (*env)->GetFieldID(env, fcCompFontClass, "allFonts",
+                                        "[Lsun/font/FontConfigManager$FontConfigFont;"));
+    CHECK_NULL(fcFontCons = (*env)->GetMethodID(env, fcFontClass, "<init>", "()V"));
+    CHECK_NULL(familyNameID = (*env)->GetFieldID(env, fcFontClass,
+                                      "familyName", "Ljava/lang/String;"));
+    CHECK_NULL(styleNameID = (*env)->GetFieldID(env, fcFontClass,
+                                    "styleStr", "Ljava/lang/String;"));
+    CHECK_NULL(fullNameID = (*env)->GetFieldID(env, fcFontClass,
+                                    "fullName", "Ljava/lang/String;"));
+    CHECK_NULL(fontFileID = (*env)->GetFieldID(env, fcFontClass,
+                                    "fontFile", "Ljava/lang/String;"));
 
     if ((libfontconfig = openFontConfig()) == NULL) {
         return;
@@ -1102,6 +1122,8 @@ Java_sun_font_FontConfigManager_getFontConfig
         if (cacheDirs != NULL) {
             while ((cnt < max) && (cacheDir = (*FcStrListNext)(cacheDirs))) {
                 jstr = (*env)->NewStringUTF(env, (const char*)cacheDir);
+                JNU_CHECK_EXCEPTION(env);
+
                 (*env)->SetObjectArrayElement(env, cacheDirArray, cnt++, jstr);
             }
             (*FcStrListDone)(cacheDirs);
@@ -1109,6 +1131,11 @@ Java_sun_font_FontConfigManager_getFontConfig
     }
 
     locale = (*env)->GetStringUTFChars(env, localeStr, 0);
+    if (locale == NULL) {
+        (*env)->ExceptionClear(env);
+        JNU_ThrowOutOfMemoryError(env, "Could not create locale");
+        return;
+    }
 
     arrlen = (*env)->GetArrayLength(env, fcCompFontArray);
     for (i=0; i<arrlen; i++) {
@@ -1203,7 +1230,7 @@ Java_sun_font_FontConfigManager_getFontConfig
              */
             if (fontformat != NULL
                 && (strcmp((char*)fontformat, "TrueType") != 0)
-#ifdef __linux__
+#if defined(__linux__) || defined(_AIX)
                 && (strcmp((char*)fontformat, "Type 1") != 0)
 #endif
              ) {
