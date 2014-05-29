@@ -1814,9 +1814,9 @@ void MacroAssembler::add(Register Rd, Register Rn, RegisterOrConstant increment)
 
 void MacroAssembler::addw(Register Rd, Register Rn, RegisterOrConstant increment) {
   if (increment.is_register()) {
-    add(Rd, Rn, increment.as_register());
+    addw(Rd, Rn, increment.as_register());
   } else {
-    add(Rd, Rn, increment.as_constant());
+    addw(Rd, Rn, increment.as_constant());
   }
 }
 
@@ -1897,6 +1897,54 @@ void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Regis
   if (fail)
     b(*fail);
 }
+
+static bool different(Register a, RegisterOrConstant b, Register c) {
+  if (b.is_constant())
+    return a != c;
+  else
+    return a != b.as_register() && a != c && b.as_register() != c;
+}
+
+#define ATOMIC_OP(LDXR, OP, STXR)					\
+void MacroAssembler::atomic_##OP(Register prev, RegisterOrConstant incr, Register addr) { \
+  Register result = rscratch2;						\
+  if (prev->is_valid())							\
+    result = different(prev, incr, addr) ? prev : rscratch2;		\
+									\
+  Label retry_load;							\
+  bind(retry_load);							\
+  LDXR(result, addr);							\
+  OP(rscratch1, result, incr);						\
+  STXR(rscratch1, rscratch1, addr);					\
+  cbnzw(rscratch1, retry_load);						\
+  if (prev->is_valid() && prev != result)				\
+    mov(prev, result);							\
+}
+
+ATOMIC_OP(ldxr, add, stxr)
+ATOMIC_OP(ldxrw, addw, stxrw)
+
+#undef ATOMIC_OP
+
+#define ATOMIC_XCHG(OP, LDXR, STXR)					\
+void MacroAssembler::atomic_##OP(Register prev, Register newv, Register addr) {	\
+  Register result = rscratch2;						\
+  if (prev->is_valid())							\
+    result = different(prev, newv, addr) ? prev : rscratch2;		\
+									\
+  Label retry_load;							\
+  bind(retry_load);							\
+  LDXR(result, addr);							\
+  STXR(rscratch1, newv, addr);						\
+  cbnzw(rscratch1, retry_load);						\
+  if (prev->is_valid() && prev != result)				\
+    mov(prev, result);							\
+}
+
+ATOMIC_XCHG(xchg, ldxr, stxr)
+ATOMIC_XCHG(xchgw, ldxrw, stxrw)
+
+#undef ATOMIC_XCHG
 
 void MacroAssembler::incr_allocated_bytes(Register thread,
                                           Register var_size_in_bytes,

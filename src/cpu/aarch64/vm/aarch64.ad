@@ -6207,17 +6207,12 @@ instruct castII(iRegI dst)
 // and to use StoreIConditional only for 32-bit and StoreLConditional
 // only for 64-bit.
 //
-// So, it looks like we could implement LoadPLocked and StorePLocked
-// instructions using, respectively the AArch64 hw load-exclusive and
-// store-conditional instructions. Whereas we must implement each of
+// We implement LoadPLocked and StorePLocked instructions using,
+// respectively the AArch64 hw load-exclusive and store-conditional
+// instructions. Whereas we must implement each of
 // Store{IL}Conditional using a CAS which employs a pair of
 // instructions comprising a load-exclusive followed by a
 // store-conditional.
-//
-// We also need CompareAndSwapI, CompareAndSwapL, CompareAndSwapP and
-// CompareAndSwapN, GetAndAddI, GetAndAddL, GetAndSeI, GetAndSetL,
-// GetAndSetP and GetAndSetN. These are used to implement various
-// atomic intrinsics and also to inline various Unsafe operations.
 
 
 // Locked-load (linked load) of the current heap-top
@@ -6367,13 +6362,127 @@ instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp 
   ins_pipe(pipe_class_memory);
 %}
 
-// TODO
-// GetAndAddI
-// GetAndAddL
-// GetAndSetI
-// GetAndSetL
-// GetAndSetP
-// GetAndSetN
+
+instruct get_and_setI(indirect mem, iRegINoSp newv, iRegI prev) %{
+  match(Set prev (GetAndSetI mem newv));
+  format %{ "atomic_xchgw  $prev, $newv, [$mem]" %}
+  ins_encode %{
+    __ atomic_xchgw($prev$$Register, $newv$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_setL(indirect mem, iRegLNoSp newv, iRegL prev) %{
+  match(Set prev (GetAndSetL mem newv));
+  format %{ "atomic_xchg  $prev, $newv, [$mem]" %}
+  ins_encode %{
+    __ atomic_xchg($prev$$Register, $newv$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_setN(indirect mem, iRegNNoSp newv, iRegI prev) %{
+  match(Set prev (GetAndSetN mem newv));
+  format %{ "atomic_xchgw $prev, $newv, [$mem]" %}
+  ins_encode %{
+    __ atomic_xchgw($prev$$Register, $newv$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_setP(indirect mem, iRegPNoSp newv, iRegP prev) %{
+  match(Set prev (GetAndSetP mem newv));
+  format %{ "atomic_xchg  $prev, $newv, [$mem]" %}
+  ins_encode %{
+    __ atomic_xchg($prev$$Register, $newv$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+
+instruct get_and_addL(indirect mem, iRegLNoSp newval, iRegL incr) %{
+  match(Set newval (GetAndAddL mem incr));
+  ins_cost(INSN_COST * 10);
+  format %{ "get_and_addL $newval, [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_add($newval$$Register, $incr$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addL_no_res(indirect mem, Universe dummy, iRegL incr) %{
+  predicate(n->as_LoadStore()->result_not_used());
+  match(Set dummy (GetAndAddL mem incr));
+  ins_cost(INSN_COST * 9);
+  format %{ "get_and_addL [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_add(noreg, $incr$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addLi(indirect mem, iRegLNoSp newval, immLAddSub incr) %{
+  match(Set newval (GetAndAddL mem incr));
+  ins_cost(INSN_COST * 10);
+  format %{ "get_and_addL $newval, [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_add($newval$$Register, $incr$$constant, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addLi_no_res(indirect mem, Universe dummy, immLAddSub incr) %{
+  predicate(n->as_LoadStore()->result_not_used());
+  match(Set dummy (GetAndAddL mem incr));
+  ins_cost(INSN_COST * 9);
+  format %{ "get_and_addL [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_add(noreg, $incr$$constant, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addI(indirect mem, iRegINoSp newval, iRegIorL2I incr) %{
+  match(Set newval (GetAndAddI mem incr));
+  ins_cost(INSN_COST * 10);
+  format %{ "get_and_addI $newval, [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_addw($newval$$Register, $incr$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addI_no_res(indirect mem, Universe dummy, iRegIorL2I incr) %{
+  predicate(n->as_LoadStore()->result_not_used());
+  match(Set dummy (GetAndAddI mem incr));
+  ins_cost(INSN_COST * 9);
+  format %{ "get_and_addI [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_addw(noreg, $incr$$Register, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addIi(indirect mem, iRegINoSp newval, immIAddSub incr) %{
+  match(Set newval (GetAndAddI mem incr));
+  ins_cost(INSN_COST * 10);
+  format %{ "get_and_addI $newval, [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_addw($newval$$Register, $incr$$constant, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct get_and_addIi_no_res(indirect mem, Universe dummy, immIAddSub incr) %{
+  predicate(n->as_LoadStore()->result_not_used());
+  match(Set dummy (GetAndAddI mem incr));
+  ins_cost(INSN_COST * 9);
+  format %{ "get_and_addI [$mem], $incr" %}
+  ins_encode %{
+    __ atomic_addw(noreg, $incr$$constant, as_Register($mem$$base));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
 
 // ============================================================================
 // Conditional Move Instructions

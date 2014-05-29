@@ -978,6 +978,12 @@ public:
   void cmpxchgw(Register oldv, Register newv, Register addr, Register tmp,
 		  Label &suceed, Label *fail);
 
+  void atomic_add(Register prev, RegisterOrConstant incr, Register addr);
+  void atomic_addw(Register prev, RegisterOrConstant incr, Register addr);
+
+  void atomic_xchg(Register prev, Register newv, Register addr);
+  void atomic_xchgw(Register prev, Register newv, Register addr);
+
   void imulptr(Register dst, Register src) { Unimplemented(); }
 
 
