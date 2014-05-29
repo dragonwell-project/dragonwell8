@@ -105,5 +105,9 @@ JNIEXPORT void JNICALL Java_sun_security_smartcardio_PlatformPCSC_initialize
     scardListReaders      = (FPTR_SCardListReaders)     findFunction(env, hModule, "SCardListReaders");
     scardBeginTransaction = (FPTR_SCardBeginTransaction)findFunction(env, hModule, "SCardBeginTransaction");
     scardEndTransaction   = (FPTR_SCardEndTransaction)  findFunction(env, hModule, "SCardEndTransaction");
+#ifndef __APPLE__
     scardControl          = (FPTR_SCardControl)         findFunction(env, hModule, "SCardControl");
+#else
+    scardControl          = (FPTR_SCardControl)         findFunction(env, hModule, "SCardControl132");
+#endif // __APPLE__
 }
