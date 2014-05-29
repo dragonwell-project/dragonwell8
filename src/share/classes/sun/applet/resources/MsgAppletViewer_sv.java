@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,7 +85,7 @@ public class MsgAppletViewer_sv extends ListResourceBundle {
             {"appletviewer.main.prop.store", "Anv\u00E4ndarspecifika egenskaper f\u00F6r AppletViewer"},
             {"appletviewer.main.err.prop.cantread", "Kan inte l\u00E4sa egenskapsfilen: {0}"},
             {"appletviewer.main.err.prop.cantsave", "Kan inte spara egenskapsfilen: {0}"},
-            {"appletviewer.main.warn.nosecmgr", "Varning: s\u00E4kerheten inaktiveras."},
+            {"appletviewer.main.warn.nosecmgr", "Varning! S\u00E4kerheten avaktiveras."},
             {"appletviewer.main.debug.cantfinddebug", "Hittar inte fels\u00F6kningsprogrammet!"},
             {"appletviewer.main.debug.cantfindmain", "Hittar inte huvudmetoden i fels\u00F6kningsprogrammet!"},
             {"appletviewer.main.debug.exceptionindebug", "Undantag i fels\u00F6kningsprogrammet!"},

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,16 +94,13 @@ public final class PKIXCertPathValidator extends CertPathValidatorSpi {
             X509Certificate firstCert = certList.get(0);
             // check trusted certificate's subject
             selector.setSubject(firstCert.getIssuerX500Principal());
-            // check the validity period
-            selector.setValidityPeriod(firstCert.getNotBefore(),
-                                       firstCert.getNotAfter());
             /*
              * Facilitate certification path construction with authority
              * key identifier and subject key identifier.
              */
             try {
                 X509CertImpl firstCertImpl = X509CertImpl.toImpl(firstCert);
-                selector.parseAuthorityKeyIdentifierExtension(
+                selector.setSkiAndSerialNumber(
                             firstCertImpl.getAuthorityKeyIdentifierExtension());
             } catch (CertificateException | IOException e) {
                 // ignore

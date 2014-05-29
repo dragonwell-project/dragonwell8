@@ -43,6 +43,7 @@ import sun.awt.SunToolkit;
 import sun.misc.ThreadGroupUtils;
 import sun.awt.Win32GraphicsDevice;
 import sun.awt.Win32GraphicsEnvironment;
+import sun.awt.datatransfer.DataTransferer;
 import sun.java2d.d3d.D3DRenderQueue;
 import sun.java2d.opengl.OGLRenderQueue;
 
@@ -68,7 +69,7 @@ import sun.misc.PerformanceLogger;
 import sun.util.logging.PlatformLogger;
 import sun.security.util.SecurityConstants;
 
-public class WToolkit extends SunToolkit implements Runnable {
+public final class WToolkit extends SunToolkit implements Runnable {
 
     private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.windows.WToolkit");
 
@@ -99,6 +100,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         if (!loaded) {
             java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<Void>() {
+                    @Override
                     public Void run() {
                         System.loadLibrary("awt");
                         return null;
@@ -122,6 +124,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         AccessController.doPrivileged(
             new PrivilegedAction <Void> ()
         {
+            @Override
             public Void run() {
                 String browserProp = System.getProperty("browser");
                 if (browserProp != null && browserProp.equals("sun.plugin")) {
@@ -212,9 +215,8 @@ public class WToolkit extends SunToolkit implements Runnable {
      */
     public native void embeddedEventLoopIdleProcessing();
 
-    public static final String DATA_TRANSFERER_CLASS_NAME = "sun.awt.windows.WDataTransferer";
-
     static class ToolkitDisposer implements sun.java2d.DisposerRecord {
+        @Override
         public void dispose() {
             WToolkit.postDispose();
         }
@@ -260,8 +262,6 @@ public class WToolkit extends SunToolkit implements Runnable {
             // swallow the exception
         }
 
-        SunToolkit.setDataTransfererClassName(DATA_TRANSFERER_CLASS_NAME);
-
         // Enabled "live resizing" by default.  It remains controlled
         // by the native system though.
         setDynamicLayout(true);
@@ -281,6 +281,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         });
      }
 
+    @Override
     public void run() {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             Thread.currentThread().setContextClassLoader(null);
@@ -329,85 +330,98 @@ public class WToolkit extends SunToolkit implements Runnable {
      * WARNING: startSecondaryEventLoop must only be called from the "AWT-
      * Windows" thread.
      */
-    public static native void startSecondaryEventLoop();
-    public static native void quitSecondaryEventLoop();
+    static native void startSecondaryEventLoop();
+    static native void quitSecondaryEventLoop();
 
     /*
      * Create peer objects.
      */
 
+    @Override
     public ButtonPeer createButton(Button target) {
         ButtonPeer peer = new WButtonPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public TextFieldPeer createTextField(TextField target) {
         TextFieldPeer peer = new WTextFieldPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public LabelPeer createLabel(Label target) {
         LabelPeer peer = new WLabelPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public ListPeer createList(List target) {
         ListPeer peer = new WListPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public CheckboxPeer createCheckbox(Checkbox target) {
         CheckboxPeer peer = new WCheckboxPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public ScrollbarPeer createScrollbar(Scrollbar target) {
         ScrollbarPeer peer = new WScrollbarPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public ScrollPanePeer createScrollPane(ScrollPane target) {
         ScrollPanePeer peer = new WScrollPanePeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public TextAreaPeer createTextArea(TextArea target) {
         TextAreaPeer peer = new WTextAreaPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public ChoicePeer createChoice(Choice target) {
         ChoicePeer peer = new WChoicePeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public FramePeer  createFrame(Frame target) {
         FramePeer peer = new WFramePeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public FramePeer createLightweightFrame(LightweightFrame target) {
         FramePeer peer = new WLightweightFramePeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public CanvasPeer createCanvas(Canvas target) {
         CanvasPeer peer = new WCanvasPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     @SuppressWarnings("deprecation")
     public void disableBackgroundErase(Canvas canvas) {
         WCanvasPeer peer = (WCanvasPeer)canvas.getPeer();
@@ -417,60 +431,70 @@ public class WToolkit extends SunToolkit implements Runnable {
         peer.disableBackgroundErase();
     }
 
+    @Override
     public PanelPeer createPanel(Panel target) {
         PanelPeer peer = new WPanelPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public WindowPeer createWindow(Window target) {
         WindowPeer peer = new WWindowPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public DialogPeer createDialog(Dialog target) {
         DialogPeer peer = new WDialogPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public FileDialogPeer createFileDialog(FileDialog target) {
         FileDialogPeer peer = new WFileDialogPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public MenuBarPeer createMenuBar(MenuBar target) {
         MenuBarPeer peer = new WMenuBarPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public MenuPeer createMenu(Menu target) {
         MenuPeer peer = new WMenuPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public PopupMenuPeer createPopupMenu(PopupMenu target) {
         PopupMenuPeer peer = new WPopupMenuPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public MenuItemPeer createMenuItem(MenuItem target) {
         MenuItemPeer peer = new WMenuItemPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public CheckboxMenuItemPeer createCheckboxMenuItem(CheckboxMenuItem target) {
         CheckboxMenuItemPeer peer = new WCheckboxMenuItemPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public RobotPeer createRobot(Robot target, GraphicsDevice screen) {
         // (target is unused for now)
         // Robot's don't need to go in the peer map since
@@ -496,28 +520,38 @@ public class WToolkit extends SunToolkit implements Runnable {
         return peer;
     }
 
+    @Override
     public TrayIconPeer createTrayIcon(TrayIcon target) {
         WTrayIconPeer peer = new WTrayIconPeer(target);
         targetCreatedPeer(target, peer);
         return peer;
     }
 
+    @Override
     public SystemTrayPeer createSystemTray(SystemTray target) {
         return new WSystemTrayPeer(target);
     }
 
+    @Override
     public boolean isTraySupported() {
         return true;
     }
 
+    @Override
+    public DataTransferer getDataTransferer() {
+        return WDataTransferer.getInstanceImpl();
+    }
+
+    @Override
     public KeyboardFocusManagerPeer getKeyboardFocusManagerPeer()
       throws HeadlessException
     {
         return WKeyboardFocusManagerPeer.getInstance();
     }
 
-    protected native void setDynamicLayoutNative(boolean b);
+    private native void setDynamicLayoutNative(boolean b);
 
+    @Override
     public void setDynamicLayout(boolean b) {
         if (b == dynamicLayoutSetting) {
             return;
@@ -527,6 +561,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         setDynamicLayoutNative(b);
     }
 
+    @Override
     protected boolean isDynamicLayoutSet() {
         return dynamicLayoutSetting;
     }
@@ -535,8 +570,9 @@ public class WToolkit extends SunToolkit implements Runnable {
      * Called from lazilyLoadDynamicLayoutSupportedProperty because
      * Windows doesn't always send WM_SETTINGCHANGE when it should.
      */
-    protected native boolean isDynamicLayoutSupportedNative();
+    private native boolean isDynamicLayoutSupportedNative();
 
+    @Override
     public boolean isDynamicLayoutActive() {
         return (isDynamicLayoutSet() && isDynamicLayoutSupported());
     }
@@ -568,25 +604,31 @@ public class WToolkit extends SunToolkit implements Runnable {
         return config.getColorModel();
     }
 
+    @Override
     public ColorModel getColorModel() {
         return getStaticColorModel();
     }
 
+    @Override
     public Insets getScreenInsets(GraphicsConfiguration gc)
     {
         return getScreenInsets(((Win32GraphicsDevice) gc.getDevice()).getScreen());
     }
 
+    @Override
     public int getScreenResolution() {
         Win32GraphicsEnvironment ge = (Win32GraphicsEnvironment)
             GraphicsEnvironment.getLocalGraphicsEnvironment();
         return ge.getXResolution();
     }
+    @Override
     protected native int getScreenWidth();
+    @Override
     protected native int getScreenHeight();
-    protected native Insets getScreenInsets(int screen);
+    private native Insets getScreenInsets(int screen);
 
 
+    @Override
     public FontMetrics getFontMetrics(Font font) {
         // This is an unsupported hack, but left in for a customer.
         // Do not remove.
@@ -598,6 +640,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         return super.getFontMetrics(font);
     }
 
+    @Override
     public FontPeer getFontPeer(String name, int style) {
         FontPeer retval = null;
         String lcName = name.toLowerCase();
@@ -621,6 +664,7 @@ public class WToolkit extends SunToolkit implements Runnable {
 
     private native void nativeSync();
 
+    @Override
     public void sync() {
         // flush the GDI/DD buffers
         nativeSync();
@@ -630,11 +674,13 @@ public class WToolkit extends SunToolkit implements Runnable {
         D3DRenderQueue.sync();
     }
 
+    @Override
     public PrintJob getPrintJob(Frame frame, String doctitle,
                                 Properties props) {
         return getPrintJob(frame, doctitle, null, null);
     }
 
+    @Override
     public PrintJob getPrintJob(Frame frame, String doctitle,
                                 JobAttributes jobAttributes,
                                 PageAttributes pageAttributes)
@@ -653,8 +699,10 @@ public class WToolkit extends SunToolkit implements Runnable {
         return printJob;
     }
 
+    @Override
     public native void beep();
 
+    @Override
     public boolean getLockingKeyState(int key) {
         if (! (key == KeyEvent.VK_CAPS_LOCK || key == KeyEvent.VK_NUM_LOCK ||
                key == KeyEvent.VK_SCROLL_LOCK || key == KeyEvent.VK_KANA_LOCK)) {
@@ -663,8 +711,9 @@ public class WToolkit extends SunToolkit implements Runnable {
         return getLockingKeyStateNative(key);
     }
 
-    public native boolean getLockingKeyStateNative(int key);
+    private native boolean getLockingKeyStateNative(int key);
 
+    @Override
     public void setLockingKeyState(int key, boolean on) {
         if (! (key == KeyEvent.VK_CAPS_LOCK || key == KeyEvent.VK_NUM_LOCK ||
                key == KeyEvent.VK_SCROLL_LOCK || key == KeyEvent.VK_KANA_LOCK)) {
@@ -673,8 +722,9 @@ public class WToolkit extends SunToolkit implements Runnable {
         setLockingKeyStateNative(key, on);
     }
 
-    public native void setLockingKeyStateNative(int key, boolean on);
+    private native void setLockingKeyStateNative(int key, boolean on);
 
+    @Override
     public Clipboard getSystemClipboard() {
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
@@ -688,6 +738,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         return clipboard;
     }
 
+    @Override
     protected native void loadSystemColors(int[] systemColors);
 
     public static final Object targetToPeer(Object target) {
@@ -701,6 +752,7 @@ public class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns a new input method adapter descriptor for native input methods.
      */
+    @Override
     public InputMethodDescriptor getInputMethodAdapterDescriptor() {
         return new WInputMethodDescriptor();
     }
@@ -708,6 +760,7 @@ public class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns a style map for the input method highlight.
      */
+    @Override
     public Map<java.awt.font.TextAttribute,?> mapInputMethodHighlight(
         InputMethodHighlight highlight)
     {
@@ -718,6 +771,7 @@ public class WToolkit extends SunToolkit implements Runnable {
      * Returns whether enableInputMethods should be set to true for peered
      * TextComponent instances on this platform.
      */
+    @Override
     public boolean enableInputMethodsForTextComponent() {
         return true;
     }
@@ -725,6 +779,7 @@ public class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns the default keyboard locale of the underlying operating system
      */
+    @Override
     public Locale getDefaultKeyboardLocale() {
         Locale locale = WInputMethod.getNativeLocale();
 
@@ -738,6 +793,7 @@ public class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns a new custom cursor.
      */
+    @Override
     public Cursor createCustomCursor(Image cursor, Point hotSpot, String name)
         throws IndexOutOfBoundsException {
         return new WCustomCursor(cursor, hotSpot, name);
@@ -746,11 +802,13 @@ public class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns the supported cursor size (Win32 only has one).
      */
+    @Override
     public Dimension getBestCursorSize(int preferredWidth, int preferredHeight) {
         return new Dimension(WCustomCursor.getCursorWidth(),
                              WCustomCursor.getCursorHeight());
     }
 
+    @Override
     public native int getMaximumCursorColors();
 
     static void paletteChanged() {
@@ -766,6 +824,7 @@ public class WToolkit extends SunToolkit implements Runnable {
      */
     static public void displayChanged() {
         EventQueue.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 ((Win32GraphicsEnvironment)GraphicsEnvironment
                 .getLocalGraphicsEnvironment())
@@ -778,10 +837,12 @@ public class WToolkit extends SunToolkit implements Runnable {
      * create the peer for a DragSourceContext
      */
 
+    @Override
     public DragSourceContextPeer createDragSourceContextPeer(DragGestureEvent dge) throws InvalidDnDOperationException {
         return WDragSourceContextPeer.createDragSourceContextPeer(dge);
     }
 
+    @Override
     public <T extends DragGestureRecognizer> T
         createDragGestureRecognizer(Class<T> abstractRecognizerClass,
                                     DragSource ds, Component c, int srcActions,
@@ -802,6 +863,7 @@ public class WToolkit extends SunToolkit implements Runnable {
     private static final String awtPrefix  = "awt.";
     private static final String dndPrefix  = "DnD.";
 
+    @Override
     protected Object lazilyLoadDesktopProperty(String name) {
         if (name.startsWith(prefix)) {
             String cursorName = name.substring(prefix.length(), name.length()) + postfix;
@@ -895,6 +957,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
+    @Override
     public synchronized void addPropertyChangeListener(String name, PropertyChangeListener pcl) {
         if (name == null) {
             // See JavaDoc for the Toolkit.addPropertyChangeListener() method
@@ -930,6 +993,7 @@ public class WToolkit extends SunToolkit implements Runnable {
      * This returns the value for the desktop property "awt.font.desktophints"
      * This requires that the Windows properties have already been gathered.
      */
+    @Override
     protected synchronized RenderingHints getDesktopAAHints() {
         if (wprops == null) {
             return null;
@@ -938,6 +1002,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
+    @Override
     public boolean isModalityTypeSupported(Dialog.ModalityType modalityType) {
         return (modalityType == null) ||
                (modalityType == Dialog.ModalityType.MODELESS) ||
@@ -946,6 +1011,7 @@ public class WToolkit extends SunToolkit implements Runnable {
                (modalityType == Dialog.ModalityType.TOOLKIT_MODAL);
     }
 
+    @Override
     public boolean isModalExclusionTypeSupported(Dialog.ModalExclusionType exclusionType) {
         return (exclusionType == null) ||
                (exclusionType == Dialog.ModalExclusionType.NO_EXCLUDE) ||
@@ -985,6 +1051,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         return !Win32GraphicsEnvironment.isDWMCompositionEnabled();
     }
 
+    @Override
     @SuppressWarnings("deprecation")
     public void grab(Window w) {
         if (w.getPeer() != null) {
@@ -992,6 +1059,7 @@ public class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
+    @Override
     @SuppressWarnings("deprecation")
     public void ungrab(Window w) {
         if (w.getPeer() != null) {
@@ -999,17 +1067,21 @@ public class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
+    @Override
     public native boolean syncNativeQueue(final long timeout);
+    @Override
     public boolean isDesktopSupported() {
         return true;
     }
 
+    @Override
     public DesktopPeer createDesktopPeer(Desktop target) {
         return new WDesktopPeer();
     }
 
-    public static native void setExtraMouseButtonsEnabledNative(boolean enable);
+    private static native void setExtraMouseButtonsEnabledNative(boolean enable);
 
+    @Override
     public boolean areExtraMouseButtonsEnabled() throws HeadlessException {
         return areExtraMouseButtonsEnabled;
     }

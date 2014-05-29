@@ -47,6 +47,7 @@ import java.util.*;
 import javax.swing.LookAndFeel;
 import javax.swing.UIDefaults;
 import sun.awt.*;
+import sun.awt.datatransfer.DataTransferer;
 import sun.font.FontConfigManager;
 import sun.java2d.SunGraphicsEnvironment;
 import sun.misc.*;
@@ -292,8 +293,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         return awtAppClassName;
     }
 
-    static final String DATA_TRANSFERER_CLASS_NAME = "sun.awt.X11.XDataTransferer";
-
     public XToolkit() {
         super();
         if (PerformanceLogger.loggingEnabled()) {
@@ -315,7 +314,6 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
             init();
             XWM.init();
-            SunToolkit.setDataTransfererClassName(DATA_TRANSFERER_CLASS_NAME);
             toolkitThread = AccessController.doPrivileged((PrivilegedAction<Thread>) () -> {
                 Thread thread = new Thread(sun.misc.ThreadGroupUtils.getRootThreadGroup(), XToolkit.this, "AWT-XAWT");
                 thread.setContextClassLoader(null);
@@ -1106,6 +1104,11 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
             return peer.isAvailable();
         }
         return false;
+    }
+
+    @Override
+    public DataTransferer getDataTransferer() {
+        return XDataTransferer.getInstanceImpl();
     }
 
     /**
