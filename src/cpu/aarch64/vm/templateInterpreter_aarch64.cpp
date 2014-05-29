@@ -775,11 +775,10 @@ address InterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpret
     // Can now load 'len' since we're finished with 'off'
     __ ldrw(len, Address(esp, 0x0)); // Length
 
-    __ mov(rscratch1, lr); // saved by call_VM_leaf
-    __ super_call_VM_leaf(CAST_FROM_FN_PTR(address, StubRoutines::updateBytesCRC32()), crc, buf, len);
+    __ andr(sp, r13, -16); // Restore the caller's SP
 
-    __ andr(sp, r13, -16);
-    __ ret(rscratch1);
+    // We are frameless so we can just jump to the stub.
+    __ b(CAST_FROM_FN_PTR(address, StubRoutines::updateBytesCRC32()));
 
     // generate a vanilla native entry as the slow path
     __ bind(slow_path);
@@ -1218,7 +1217,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   //       not properly paired (was bug - gri 11/22/99).
   __ notify_method_exit(vtos, InterpreterMacroAssembler::NotifyJVMTI);
 
-  // restore potential result in edx:eax, call result handler to
+  // restore potential result in r0:d0, call result handler to
   // restore potential result in ST0 & handle result
 
   __ pop(ltos);
