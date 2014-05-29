@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -374,7 +374,7 @@ void GenCollectedHeap::do_collection(bool  full,
 
   ClearedAllSoftRefs casr(do_clear_all_soft_refs, collector_policy());
 
-  const size_t metadata_prev_used = MetaspaceAux::allocated_used_bytes();
+  const size_t metadata_prev_used = MetaspaceAux::used_bytes();
 
   print_heap_before_gc();
 
@@ -809,7 +809,7 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
 bool GenCollectedHeap::is_in_young(oop p) {
   bool result = ((HeapWord*)p) < _gens[_n_gens - 1]->reserved().start();
   assert(result == _gens[0]->is_in_reserved(p),
-         err_msg("incorrect test - result=%d, p=" PTR_FORMAT, result, (void*)p));
+         err_msg("incorrect test - result=%d, p=" PTR_FORMAT, result, p2i((void*)p)));
   return result;
 }
 
@@ -932,6 +932,16 @@ size_t GenCollectedHeap::tlab_capacity(Thread* thr) const {
   for (int i = 0; i < _n_gens; i += 1) {
     if (_gens[i]->supports_tlab_allocation()) {
       result += _gens[i]->tlab_capacity();
+    }
+  }
+  return result;
+}
+
+size_t GenCollectedHeap::tlab_used(Thread* thr) const {
+  size_t result = 0;
+  for (int i = 0; i < _n_gens; i += 1) {
+    if (_gens[i]->supports_tlab_allocation()) {
+      result += _gens[i]->tlab_used();
     }
   }
   return result;
@@ -1078,7 +1088,7 @@ void GenCollectedHeap::verify(bool silent, VerifyOption option /* ignored */) {
   for (int i = _n_gens-1; i >= 0; i--) {
     Generation* g = _gens[i];
     if (!silent) {
-      gclog_or_tty->print(g->name());
+      gclog_or_tty->print("%s", g->name());
       gclog_or_tty->print(" ");
     }
     g->verify();
@@ -1281,7 +1291,7 @@ jlong GenCollectedHeap::millis_since_last_gc() {
   // back a time later than 'now'.
   jlong retVal = now - tolgc_cl.time();
   if (retVal < 0) {
-    NOT_PRODUCT(warning("time warp: "INT64_FORMAT, retVal);)
+    NOT_PRODUCT(warning("time warp: "INT64_FORMAT, (int64_t) retVal);)
     return 0;
   }
   return retVal;

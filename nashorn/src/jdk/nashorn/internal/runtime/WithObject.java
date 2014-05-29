@@ -36,6 +36,7 @@ import jdk.internal.dynalink.linker.GuardedInvocation;
 import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
+import jdk.nashorn.internal.runtime.linker.NashornGuards;
 
 /**
  * This class supports the handling of scope in a with body.
@@ -87,6 +88,11 @@ public final class WithObject extends ScriptObject implements Scope {
 
     @Override
     public GuardedInvocation lookup(final CallSiteDescriptor desc, final LinkRequest request) {
+        if (request.isCallSiteUnstable()) {
+            // Fall back to megamorphic invocation which performs a complete lookup each time without further relinking.
+            return super.lookup(desc, request);
+        }
+
         // With scopes can never be observed outside of Nashorn code, so all call sites that can address it will of
         // necessity have a Nashorn descriptor - it is safe to cast.
         final NashornCallSiteDescriptor ndesc = (NashornCallSiteDescriptor)desc;
@@ -123,7 +129,7 @@ public final class WithObject extends ScriptObject implements Scope {
         }
 
         if (find != null) {
-            return fixScopeCallSite(scope.lookup(desc, request), name);
+            return fixScopeCallSite(scope.lookup(desc, request), name, find.getOwner());
         }
 
         // the property is not found - now check for
@@ -175,7 +181,7 @@ public final class WithObject extends ScriptObject implements Scope {
         link = scope.lookup(desc, request);
 
         if (link != null) {
-            return fixScopeCallSite(link, name);
+            return fixScopeCallSite(link, name, null);
         }
 
         return null;
@@ -252,13 +258,10 @@ public final class WithObject extends ScriptObject implements Scope {
                 filterGuard(link, WITHEXPRESSIONFILTER));
     }
 
-    private GuardedInvocation fixScopeCallSite(final GuardedInvocation link, final String name) {
+    private GuardedInvocation fixScopeCallSite(final GuardedInvocation link, final String name, final ScriptObject owner) {
         final GuardedInvocation newLink = fixReceiverType(link, WITHSCOPEFILTER);
         return link.replaceMethods(filter(newLink.getInvocation(), WITHSCOPEFILTER),
-            MH.guardWithTest(
-                expressionGuard(name),
-                filterGuard(newLink, WITHSCOPEFILTER),
-                MH.dropArguments(MH.constant(boolean.class, false), 0, Object.class)));
+                NashornGuards.combineGuards(expressionGuard(name, owner), filterGuard(newLink, WITHSCOPEFILTER)));
     }
 
     private static MethodHandle filterGuard(final GuardedInvocation link, final MethodHandle filter) {
@@ -267,7 +270,7 @@ public final class WithObject extends ScriptObject implements Scope {
     }
 
     private static MethodHandle filter(final MethodHandle mh, final MethodHandle filter) {
-        return MH.filterArguments(mh, 0, filter);
+        return MH.filterArguments(mh, 0, filter.asType(filter.type().changeReturnType(mh.type().parameterType(0))));
     }
 
     /**
@@ -288,9 +291,9 @@ public final class WithObject extends ScriptObject implements Scope {
         return fn.makeBoundFunction(withFilterExpression(receiver), new Object[0]);
     }
 
-    private MethodHandle expressionGuard(final String name) {
+    private MethodHandle expressionGuard(final String name, final ScriptObject owner) {
         final PropertyMap map = expression.getMap();
-        final SwitchPoint sp = map.getProtoGetSwitchPoint(expression.getProto(), name);
+        final SwitchPoint sp = expression.getProtoSwitchPoint(name, owner);
         return MH.insertArguments(WITHEXPRESSIONGUARD, 1, map, sp);
     }
 

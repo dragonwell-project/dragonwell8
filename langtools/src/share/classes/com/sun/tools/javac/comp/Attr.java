@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -249,7 +249,7 @@ public class Attr extends JCTree.Visitor {
         if (!owntype.hasTag(ERROR) && !resultInfo.pt.hasTag(METHOD) && !resultInfo.pt.hasTag(FORALL)) {
             if (allowPoly && inferenceContext.free(found)) {
                 if ((ownkind & ~resultInfo.pkind) == 0) {
-                    owntype = resultInfo.check(tree, inferenceContext.asFree(owntype));
+                    owntype = resultInfo.check(tree, inferenceContext.asUndetVar(owntype));
                 } else {
                     log.error(tree.pos(), "unexpected.type",
                             kindNames(resultInfo.pkind),
@@ -516,6 +516,10 @@ public class Attr extends JCTree.Visitor {
 
         protected ResultInfo dup(CheckContext newContext) {
             return new ResultInfo(pkind, pt, newContext);
+        }
+
+        protected ResultInfo dup(Type newPt, CheckContext newContext) {
+            return new ResultInfo(pkind, newPt, newContext);
         }
 
         @Override
@@ -812,6 +816,10 @@ public class Attr extends JCTree.Visitor {
                    boolean classExpected,
                    boolean interfaceExpected,
                    boolean checkExtensible) {
+        if (t.tsym.isAnonymous()) {
+            log.error(tree.pos(), "cant.inherit.from.anon");
+            return types.createErrorType(t);
+        }
         if (t.isErroneous())
             return t;
         if (t.hasTag(TYPEVAR) && !classExpected && !interfaceExpected) {
@@ -2139,6 +2147,11 @@ public class Attr extends JCTree.Visitor {
                     cdef.extending = clazz;
                 }
 
+                if (resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK &&
+                    isSerializable(clazztype)) {
+                    localEnv.info.isSerializable = true;
+                }
+
                 attribStat(cdef, localEnv);
 
                 checkLambdaCandidate(tree, cdef.sym, clazztype);
@@ -2294,6 +2307,9 @@ public class Attr extends JCTree.Visitor {
                 resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK;
         try {
             Type currentTarget = pt();
+            if (needsRecovery && isSerializable(currentTarget)) {
+                localEnv.info.isSerializable = true;
+            }
             List<Type> explicitParamTypes = null;
             if (that.paramKind == JCLambda.ParameterKind.EXPLICIT) {
                 //attribute lambda parameters
@@ -2398,7 +2414,7 @@ public class Attr extends JCTree.Visitor {
                 //add thrown types as bounds to the thrown types free variables if needed:
                 if (resultInfo.checkContext.inferenceContext().free(lambdaType.getThrownTypes())) {
                     List<Type> inferredThrownTypes = flow.analyzeLambdaThrownTypes(env, that, make);
-                    List<Type> thrownTypes = resultInfo.checkContext.inferenceContext().asFree(lambdaType.getThrownTypes());
+                    List<Type> thrownTypes = resultInfo.checkContext.inferenceContext().asUndetVars(lambdaType.getThrownTypes());
 
                     chk.unhandled(inferredThrownTypes, thrownTypes);
                 }
@@ -2539,7 +2555,7 @@ public class Attr extends JCTree.Visitor {
             @Override
             public boolean compatible(Type found, Type req, Warner warn) {
                 //return type must be compatible in both current context and assignment context
-                return chk.basicHandler.compatible(found, inferenceContext().asFree(req), warn);
+                return chk.basicHandler.compatible(found, inferenceContext().asUndetVar(req), warn);
             }
 
             @Override
@@ -2572,7 +2588,7 @@ public class Attr extends JCTree.Visitor {
         * types must be compatible with the return type of the expected descriptor.
         */
         private void checkLambdaCompatible(JCLambda tree, Type descriptor, CheckContext checkContext) {
-            Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType());
+            Type returnType = checkContext.inferenceContext().asUndetVar(descriptor.getReturnType());
 
             //return values have already been checked - but if lambda has no return
             //values, we must ensure that void/value compatibility is correct;
@@ -2584,7 +2600,7 @@ public class Attr extends JCTree.Visitor {
                         diags.fragment("missing.ret.val", returnType)));
             }
 
-            List<Type> argTypes = checkContext.inferenceContext().asFree(descriptor.getParameterTypes());
+            List<Type> argTypes = checkContext.inferenceContext().asUndetVars(descriptor.getParameterTypes());
             if (!types.isSameTypes(argTypes, TreeInfo.types(tree.params))) {
                 checkContext.report(tree, diags.fragment("incompatible.arg.types.in.lambda"));
             }
@@ -2614,7 +2630,7 @@ public class Attr extends JCTree.Visitor {
          * - an instance field, we use the first constructor.
          * - a static field, we create a fake clinit method.
          */
-        private Env<AttrContext> lambdaEnv(JCLambda that, Env<AttrContext> env) {
+        public Env<AttrContext> lambdaEnv(JCLambda that, Env<AttrContext> env) {
             Env<AttrContext> lambdaEnv;
             Symbol owner = env.info.scope.owner;
             if (owner.kind == VAR && owner.owner.kind == TYP) {
@@ -2698,17 +2714,20 @@ public class Attr extends JCTree.Visitor {
                 typeargtypes = attribTypes(that.typeargs, localEnv);
             }
 
-            Type target;
             Type desc;
-            if (pt() != Type.recoveryType) {
-                target = targetChecker.visit(pt(), that);
-                desc = types.findDescriptorType(target);
+            Type currentTarget = pt();
+            boolean isTargetSerializable =
+                    resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK &&
+                    isSerializable(currentTarget);
+            if (currentTarget != Type.recoveryType) {
+                currentTarget = targetChecker.visit(currentTarget, that);
+                desc = types.findDescriptorType(currentTarget);
             } else {
-                target = Type.recoveryType;
+                currentTarget = Type.recoveryType;
                 desc = fallbackDescriptorType(that);
             }
 
-            setFunctionalInfo(localEnv, that, pt(), desc, target, resultInfo.checkContext);
+            setFunctionalInfo(localEnv, that, pt(), desc, currentTarget, resultInfo.checkContext);
             List<Type> argtypes = desc.getParameterTypes();
             Resolve.MethodCheck referenceCheck = rs.resolveMethodCheck;
 
@@ -2750,7 +2769,7 @@ public class Attr extends JCTree.Visitor {
                         targetError = false;
                 }
 
-                JCDiagnostic detailsDiag = ((Resolve.ResolveError)refSym).getDiagnostic(JCDiagnostic.DiagnosticType.FRAGMENT,
+                JCDiagnostic detailsDiag = ((Resolve.ResolveError)refSym.baseSymbol()).getDiagnostic(JCDiagnostic.DiagnosticType.FRAGMENT,
                                 that, exprType.tsym, exprType, that.name, argtypes, typeargtypes);
 
                 JCDiagnostic.DiagnosticType diagKind = targetError ?
@@ -2759,10 +2778,10 @@ public class Attr extends JCTree.Visitor {
                 JCDiagnostic diag = diags.create(diagKind, log.currentSource(), that,
                         "invalid.mref", Kinds.kindName(that.getMode()), detailsDiag);
 
-                if (targetError && target == Type.recoveryType) {
+                if (targetError && currentTarget == Type.recoveryType) {
                     //a target error doesn't make sense during recovery stage
                     //as we don't know what actual parameter types are
-                    result = that.type = target;
+                    result = that.type = currentTarget;
                     return;
                 } else {
                     if (targetError) {
@@ -2770,7 +2789,7 @@ public class Attr extends JCTree.Visitor {
                     } else {
                         log.report(diag);
                     }
-                    result = that.type = types.createErrorType(target);
+                    result = that.type = types.createErrorType(currentTarget);
                     return;
                 }
             }
@@ -2781,7 +2800,7 @@ public class Attr extends JCTree.Visitor {
 
             if (desc.getReturnType() == Type.recoveryType) {
                 // stop here
-                result = that.type = target;
+                result = that.type = currentTarget;
                 return;
             }
 
@@ -2799,7 +2818,7 @@ public class Attr extends JCTree.Visitor {
                     //static ref with class type-args
                     log.error(that.expr.pos(), "invalid.mref", Kinds.kindName(that.getMode()),
                             diags.fragment("static.mref.with.targs"));
-                    result = that.type = types.createErrorType(target);
+                    result = that.type = types.createErrorType(currentTarget);
                     return;
                 }
 
@@ -2808,7 +2827,7 @@ public class Attr extends JCTree.Visitor {
                     //no static bound mrefs
                     log.error(that.expr.pos(), "invalid.mref", Kinds.kindName(that.getMode()),
                             diags.fragment("static.bound.mref"));
-                    result = that.type = types.createErrorType(target);
+                    result = that.type = types.createErrorType(currentTarget);
                     return;
                 }
 
@@ -2816,19 +2835,24 @@ public class Attr extends JCTree.Visitor {
                     // Check that super-qualified symbols are not abstract (JLS)
                     rs.checkNonAbstract(that.pos(), that.sym);
                 }
+
+                if (isTargetSerializable) {
+                    chk.checkElemAccessFromSerializableLambda(that);
+                }
             }
 
             ResultInfo checkInfo =
                     resultInfo.dup(newMethodTemplate(
                         desc.getReturnType().hasTag(VOID) ? Type.noType : desc.getReturnType(),
-                        that.kind.isUnbound() ? argtypes.tail : argtypes, typeargtypes));
+                        that.kind.isUnbound() ? argtypes.tail : argtypes, typeargtypes),
+                        new FunctionalReturnContext(resultInfo.checkContext));
 
             Type refType = checkId(that, lookupHelper.site, refSym, localEnv, checkInfo);
 
             if (that.kind.isUnbound() &&
                     resultInfo.checkContext.inferenceContext().free(argtypes.head)) {
                 //re-generate inference constraints for unbound receiver
-                if (!types.isSubtype(resultInfo.checkContext.inferenceContext().asFree(argtypes.head), exprType)) {
+                if (!types.isSubtype(resultInfo.checkContext.inferenceContext().asUndetVar(argtypes.head), exprType)) {
                     //cannot happen as this has already been checked - we just need
                     //to regenerate the inference constraints, as that has been lost
                     //as a result of the call to inferenceContext.save()
@@ -2847,9 +2871,9 @@ public class Attr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             checkReferenceCompatible(that, desc, refType, resultInfo.checkContext, isSpeculativeRound);
             if (!isSpeculativeRound) {
-                checkAccessibleTypes(that, localEnv, resultInfo.checkContext.inferenceContext(), desc, target);
+                checkAccessibleTypes(that, localEnv, resultInfo.checkContext.inferenceContext(), desc, currentTarget);
             }
-            result = check(that, target, VAL, resultInfo);
+            result = check(that, currentTarget, VAL, resultInfo);
         } catch (Types.FunctionDescriptorLookupError ex) {
             JCDiagnostic cause = ex.getDiagnostic();
             resultInfo.checkContext.report(that, cause);
@@ -2866,7 +2890,7 @@ public class Attr extends JCTree.Visitor {
 
     @SuppressWarnings("fallthrough")
     void checkReferenceCompatible(JCMemberReference tree, Type descriptor, Type refType, CheckContext checkContext, boolean speculativeAttr) {
-        Type returnType = checkContext.inferenceContext().asFree(descriptor.getReturnType());
+        Type returnType = checkContext.inferenceContext().asUndetVar(descriptor.getReturnType());
 
         Type resType;
         switch (tree.getMode()) {
@@ -2898,7 +2922,7 @@ public class Attr extends JCTree.Visitor {
         }
 
         if (!speculativeAttr) {
-            List<Type> thrownTypes = checkContext.inferenceContext().asFree(descriptor.getThrownTypes());
+            List<Type> thrownTypes = checkContext.inferenceContext().asUndetVars(descriptor.getThrownTypes());
             if (chk.unhandled(refType.getThrownTypes(), thrownTypes).nonEmpty()) {
                 log.error(tree, "incompatible.thrown.types.in.mref", refType.getThrownTypes());
             }
@@ -3009,15 +3033,6 @@ public class Attr extends JCTree.Visitor {
                 Type ctype = cfolder.fold1(opc, argtype);
                 if (ctype != null) {
                     owntype = cfolder.coerce(ctype, owntype);
-
-                    // Remove constant types from arguments to
-                    // conserve space. The parser will fold concatenations
-                    // of string literals; the code here also
-                    // gets rid of intermediate results when some of the
-                    // operands are constant identifiers.
-                    if (tree.arg.type.tsym == syms.stringType.tsym) {
-                        tree.arg.type = syms.stringType;
-                    }
                 }
             }
         }
@@ -3051,18 +3066,6 @@ public class Attr extends JCTree.Visitor {
                 Type ctype = cfolder.fold2(opc, left, right);
                 if (ctype != null) {
                     owntype = cfolder.coerce(ctype, owntype);
-
-                    // Remove constant types from arguments to
-                    // conserve space. The parser will fold concatenations
-                    // of string literals; the code here also
-                    // gets rid of intermediate results when some of the
-                    // operands are constant identifiers.
-                    if (tree.lhs.type.tsym == syms.stringType.tsym) {
-                        tree.lhs.type = syms.stringType;
-                    }
-                    if (tree.rhs.type.tsym == syms.stringType.tsym) {
-                        tree.rhs.type = syms.stringType;
-                    }
                 }
             }
 
@@ -3210,6 +3213,11 @@ public class Attr extends JCTree.Visitor {
             while (env1.outer != null && !rs.isAccessible(env, env1.enclClass.sym.type, sym))
                 env1 = env1.outer;
         }
+
+        if (env.info.isSerializable) {
+            chk.checkElemAccessFromSerializableLambda(tree);
+        }
+
         result = checkId(tree, env1.enclClass.sym.type, sym, env, resultInfo);
     }
 
@@ -3332,6 +3340,10 @@ public class Attr extends JCTree.Visitor {
                 Type site1 = types.asSuper(env.enclClass.sym.type, site.tsym);
                 if (site1 != null) site = site1;
             }
+        }
+
+        if (env.info.isSerializable) {
+            chk.checkElemAccessFromSerializableLambda(tree);
         }
 
         env.info.selectSuper = selectSuperPrev;
@@ -4212,6 +4224,11 @@ public class Attr extends JCTree.Visitor {
                     ((c.flags_field & (Flags.ENUM | Flags.COMPOUND)) == 0)) {
                     log.error(env.tree.pos(), "enum.types.not.extensible");
                 }
+
+                if (isSerializable(c.type)) {
+                    env.info.isSerializable = true;
+                }
+
                 attribClassBody(env, c);
 
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
@@ -4325,7 +4342,7 @@ public class Attr extends JCTree.Visitor {
 
         // Check for proper use of serialVersionUID
         if (env.info.lint.isEnabled(LintCategory.SERIAL) &&
-            isSerializable(c) &&
+            isSerializable(c.type) &&
             (c.flags() & Flags.ENUM) == 0 &&
             checkForSerial(c)) {
             checkSerialVersionUID(tree, c);
@@ -4365,15 +4382,15 @@ public class Attr extends JCTree.Visitor {
             return null;
         }
 
-        /** check if a class is a subtype of Serializable, if that is available. */
-        private boolean isSerializable(ClassSymbol c) {
+        /** check if a type is a subtype of Serializable, if that is available. */
+        boolean isSerializable(Type t) {
             try {
                 syms.serializableType.complete();
             }
             catch (CompletionFailure e) {
                 return false;
             }
-            return types.isSubtype(c.type, syms.serializableType);
+            return types.isSubtype(t, syms.serializableType);
         }
 
         /** Check that an appropriate serialVersionUID member is defined. */
@@ -4653,8 +4670,17 @@ public class Attr extends JCTree.Visitor {
 
         private void initTypeIfNeeded(JCTree that) {
             if (that.type == null) {
-                that.type = syms.unknownType;
+                if (that.hasTag(METHODDEF)) {
+                    that.type = dummyMethodType();
+                } else {
+                    that.type = syms.unknownType;
+                }
             }
+        }
+
+        private Type dummyMethodType() {
+            return new MethodType(List.<Type>nil(), syms.unknownType,
+                            List.<Type>nil(), syms.methodClass);
         }
 
         @Override
@@ -4712,7 +4738,8 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitNewClass(JCNewClass that) {
             if (that.constructor == null) {
-                that.constructor = new MethodSymbol(0, names.init, syms.unknownType, syms.noSymbol);
+                that.constructor = new MethodSymbol(0, names.init,
+                        dummyMethodType(), syms.noSymbol);
             }
             if (that.constructorType == null) {
                 that.constructorType = syms.unknownType;
@@ -4722,22 +4749,28 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitAssignop(JCAssignOp that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitAssignop(that);
         }
 
         @Override
         public void visitBinary(JCBinary that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitBinary(that);
         }
 
         @Override
         public void visitUnary(JCUnary that) {
-            if (that.operator == null)
-                that.operator = new OperatorSymbol(names.empty, syms.unknownType, -1, syms.noSymbol);
+            if (that.operator == null) {
+                that.operator = new OperatorSymbol(names.empty, dummyMethodType(),
+                        -1, syms.noSymbol);
+            }
             super.visitUnary(that);
         }
 
@@ -4753,7 +4786,8 @@ public class Attr extends JCTree.Visitor {
         public void visitReference(JCMemberReference that) {
             super.visitReference(that);
             if (that.sym == null) {
-                that.sym = new MethodSymbol(0, names.empty, syms.unknownType, syms.noSymbol);
+                that.sym = new MethodSymbol(0, names.empty, dummyMethodType(),
+                        syms.noSymbol);
             }
             if (that.targets == null) {
                 that.targets = List.nil();

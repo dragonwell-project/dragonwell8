@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,12 +53,14 @@
 # include "os_bsd.inline.hpp"
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(PPC64)
   // Need to inhibit inlining for older versions of GCC to avoid build-time failures
   #define ATTR __attribute__((noinline))
 #else
   #define ATTR
 #endif
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 // The "core" versions of monitor enter and exit reside in this file.
 // The interpreter and compilers contain specialized transliterated

@@ -609,6 +609,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             super.setPos(pos);
             return this;
         }
+
+        public boolean isPoly() { return false; }
+        public boolean isStandalone() { return true; }
     }
 
     /**
@@ -629,6 +632,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
 
         /** is this poly expression a 'true' poly expression? */
         public PolyKind polyKind;
+
+        @Override public boolean isPoly() { return polyKind == PolyKind.POLY; }
+        @Override public boolean isStandalone() { return polyKind == PolyKind.STANDALONE; }
     }
 
     /**

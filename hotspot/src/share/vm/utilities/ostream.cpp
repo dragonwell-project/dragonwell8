@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
@@ -265,7 +268,7 @@ void outputStream::print_data(void* data, size_t len, bool with_ascii) {
   size_t limit = (len + 16) / 16 * 16;
   for (size_t i = 0; i < limit; ++i) {
     if (i % 16 == 0) {
-      indent().print("%07x:", i);
+      indent().print(SIZE_FORMAT_HEX_W(07)":", i);
     }
     if (i % 2 == 0) {
       print(" ");
@@ -286,7 +289,7 @@ void outputStream::print_data(void* data, size_t len, bool with_ascii) {
           }
         }
       }
-      print_cr("");
+      cr();
     }
   }
 }
@@ -603,7 +606,7 @@ void fdStream::write(const char* s, size_t len) {
 // memory usage and command line flags into header
 void gcLogFileStream::dump_loggc_header() {
   if (is_open()) {
-    print_cr(Abstract_VM_Version::internal_vm_info_string());
+    print_cr("%s", Abstract_VM_Version::internal_vm_info_string());
     os::print_memory_info(this);
     print("CommandLine flags: ");
     CommandLineFlags::printSetFlags(this);
@@ -659,13 +662,13 @@ void gcLogFileStream::write(const char* s, size_t len) {
 // write to gc log file at safepoint. If in future, changes made for mutator threads or
 // concurrent GC threads to run parallel with VMThread at safepoint, write and rotate_log
 // must be synchronized.
-void gcLogFileStream::rotate_log() {
+void gcLogFileStream::rotate_log(bool force, outputStream* out) {
   char time_msg[FILENAMEBUFLEN];
   char time_str[EXTRACHARLEN];
   char current_file_name[FILENAMEBUFLEN];
   char renamed_file_name[FILENAMEBUFLEN];
 
-  if (_bytes_written < (jlong)GCLogFileSize) {
+  if (!should_rotate(force)) {
     return;
   }
 
@@ -682,6 +685,11 @@ void gcLogFileStream::rotate_log() {
     jio_snprintf(time_msg, sizeof(time_msg), "File  %s rotated at %s\n",
                  _file_name, os::local_time_string((char *)time_str, sizeof(time_str)));
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print("%s", time_msg);
+    }
+
     dump_loggc_header();
     return;
   }
@@ -703,11 +711,17 @@ void gcLogFileStream::rotate_log() {
                  _file_name, _cur_file_num);
     jio_snprintf(current_file_name, filename_len + EXTRACHARLEN, "%s.%d" CURRENTAPPX,
                  _file_name, _cur_file_num);
-    jio_snprintf(time_msg, sizeof(time_msg), "%s GC log file has reached the"
-                           " maximum size. Saved as %s\n",
-                           os::local_time_string((char *)time_str, sizeof(time_str)),
-                           renamed_file_name);
+
+    const char* msg = force ? "GC log rotation request has been received."
+                            : "GC log file has reached the maximum size.";
+    jio_snprintf(time_msg, sizeof(time_msg), "%s %s Saved as %s\n",
+                     os::local_time_string((char *)time_str, sizeof(time_str)),
+                                                         msg, renamed_file_name);
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print("%s", time_msg);
+    }
 
     fclose(_file);
     _file = NULL;
@@ -749,6 +763,11 @@ void gcLogFileStream::rotate_log() {
                            os::local_time_string((char *)time_str, sizeof(time_str)),
                            current_file_name);
     write(time_msg, strlen(time_msg));
+
+    if (out != NULL) {
+      out->print("%s", time_msg);
+    }
+
     dump_loggc_header();
     // remove the existing file
     if (access(current_file_name, F_OK) == 0) {
@@ -826,7 +845,7 @@ void defaultStream::init_log() {
     xs->head("hotspot_log version='%d %d'"
              " process='%d' time_ms='"INT64_FORMAT"'",
              LOG_MAJOR_VERSION, LOG_MINOR_VERSION,
-             os::current_process_id(), time_ms);
+             os::current_process_id(), (int64_t)time_ms);
     // Write VM version header immediately.
     xs->head("vm_version");
     xs->head("name"); xs->text("%s", VM_Version::vm_name()); xs->cr();
@@ -1238,7 +1257,7 @@ bufferedStream::~bufferedStream() {
 
 #ifndef PRODUCT
 
-#if defined(SOLARIS) || defined(LINUX) || defined(_ALLBSD_SOURCE)
+#if defined(SOLARIS) || defined(LINUX) || defined(AIX) || defined(_ALLBSD_SOURCE)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

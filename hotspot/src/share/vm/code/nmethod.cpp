@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,8 @@
 #ifdef SHARK
 #include "shark/sharkCompiler.hpp"
 #endif
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 #ifdef DTRACE_ENABLED
 
@@ -481,7 +483,9 @@ void nmethod::init_defaults() {
   _scavenge_root_link      = NULL;
   _scavenge_root_state     = 0;
   _compiler                = NULL;
-
+#if INCLUDE_RTM_OPT
+  _rtm_state               = NoRTM;
+#endif
 #ifdef HAVE_DTRACE_H
   _trap_offset             = 0;
 #endif // def HAVE_DTRACE_H
@@ -619,7 +623,7 @@ nmethod* nmethod::new_nmethod(methodHandle method,
         InstanceKlass::cast(klass)->add_dependent_nmethod(nm);
       }
       NOT_PRODUCT(nmethod_stats.note_nmethod(nm));
-      if (PrintAssembly) {
+      if (PrintAssembly || CompilerOracle::has_option_string(method, "PrintAssembly")) {
         Disassembler::decode(nm);
       }
     }
@@ -769,7 +773,11 @@ nmethod::nmethod(
     _hotness_counter         = NMethodSweeper::hotness_counter_reset_val();
 
     code_buffer->copy_values_to(this);
-    debug_only(verify_scavenge_root_oops());
+    if (ScavengeRootsInCode && detect_scavenge_root_oops()) {
+      CodeCache::add_scavenge_root_nmethod(this);
+      Universe::heap()->register_nmethod(this);
+    }
+    DEBUG_ONLY(verify_scavenge_root_oops();)
     CodeCache::commit(this);
   }
 
