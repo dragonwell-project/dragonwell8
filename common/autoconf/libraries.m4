@@ -43,6 +43,14 @@ AC_DEFUN_ONCE([LIB_SETUP_INIT],
     AC_MSG_RESULT([alsa pulse])
   fi
 
+  if test "x$OPENJDK_TARGET_OS" = xaix; then
+    AC_MSG_CHECKING([what is not needed on AIX?])
+    ALSA_NOT_NEEDED=yes
+    PULSE_NOT_NEEDED=yes
+    AC_MSG_RESULT([alsa pulse])
+  fi
+
+
   if test "x$OPENJDK_TARGET_OS" = xwindows; then
     AC_MSG_CHECKING([what is not needed on Windows?])
     CUPS_NOT_NEEDED=yes
@@ -554,7 +562,7 @@ AC_DEFUN_ONCE([LIB_SETUP_ALSA],
     fi
 
     if test "x${with_alsa}" != x; then
-      ALSA_LIBS="-L${with_alsa}/lib -lalsa"
+      ALSA_LIBS="-L${with_alsa}/lib -lasound"
       ALSA_CFLAGS="-I${with_alsa}/include"
       ALSA_FOUND=yes
     fi
@@ -563,7 +571,7 @@ AC_DEFUN_ONCE([LIB_SETUP_ALSA],
       ALSA_FOUND=yes
     fi
     if test "x${with_alsa_lib}" != x; then
-      ALSA_LIBS="-L${with_alsa_lib} -lalsa"
+      ALSA_LIBS="-L${with_alsa_lib} -lasound"
       ALSA_FOUND=yes
     fi
     if test "x$ALSA_FOUND" = xno; then

@@ -531,13 +531,16 @@ jint frame::interpreter_frame_expression_stack_size() const {
   // Number of elements on the interpreter expression stack
   // Callers should span by stackElementWords
   int element_size = Interpreter::stackElementWords;
+  size_t stack_size = 0;
   if (frame::interpreter_frame_expression_stack_direction() < 0) {
-    return (interpreter_frame_expression_stack() -
-            interpreter_frame_tos_address() + 1)/element_size;
+    stack_size = (interpreter_frame_expression_stack() -
+                  interpreter_frame_tos_address() + 1)/element_size;
   } else {
-    return (interpreter_frame_tos_address() -
-            interpreter_frame_expression_stack() + 1)/element_size;
+    stack_size = (interpreter_frame_tos_address() -
+                  interpreter_frame_expression_stack() + 1)/element_size;
   }
+  assert( stack_size <= (size_t)max_jint, "stack size too big");
+  return ((jint)stack_size);
 }
 
 
@@ -933,20 +936,9 @@ void frame::oops_interpreted_do(OopClosure* f, CLDToOopClosure* cld_f,
     cld_f->do_cld(m->method_holder()->class_loader_data());
   }
 
-#if !defined(PPC) || defined(ZERO)
-  if (m->is_native()) {
-#ifdef CC_INTERP
-    interpreterState istate = get_interpreterState();
-    f->do_oop((oop*)&istate->_oop_temp);
-#else
-    f->do_oop((oop*)( fp() + interpreter_frame_oop_temp_offset ));
-#endif /* CC_INTERP */
+  if (m->is_native() PPC32_ONLY(&& m->is_static())) {
+    f->do_oop(interpreter_frame_temp_oop_addr());
   }
-#else // PPC
-  if (m->is_native() && m->is_static()) {
-    f->do_oop(interpreter_frame_mirror_addr());
-  }
-#endif // PPC
 
   int max_locals = m->is_native() ? m->size_of_parameters() : m->max_locals();
 

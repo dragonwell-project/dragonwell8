@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,10 +64,10 @@ oop ArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   return NULL;
 }
 
-Method* ArrayKlass::uncached_lookup_method(Symbol* name, Symbol* signature) const {
+Method* ArrayKlass::uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const {
   // There are no methods in an array klass but the super class (Object) has some
   assert(super(), "super klass must be present");
-  return super()->uncached_lookup_method(name, signature);
+  return super()->uncached_lookup_method(name, signature, mode);
 }
 
 ArrayKlass::ArrayKlass(Symbol* name) {
@@ -214,8 +214,8 @@ void ArrayKlass::oop_print_on(oop obj, outputStream* st) {
 
 // Verification
 
-void ArrayKlass::verify_on(outputStream* st, bool check_dictionary) {
-  Klass::verify_on(st, check_dictionary);
+void ArrayKlass::verify_on(outputStream* st) {
+  Klass::verify_on(st);
 
   if (component_mirror() != NULL) {
     guarantee(component_mirror()->klass() != NULL, "should have a class");

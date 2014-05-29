@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -182,6 +182,8 @@ class Klass : public Metadata {
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
+  enum MethodLookupMode { normal, skip_overpass, skip_defaults };
+
   bool is_klass() const volatile { return true; }
 
   // super
@@ -421,10 +423,10 @@ class Klass : public Metadata {
   virtual void initialize(TRAPS);
   // lookup operation for MethodLookupCache
   friend class MethodLookupCache;
-  virtual Method* uncached_lookup_method(Symbol* name, Symbol* signature) const;
+  virtual Method* uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
  public:
   Method* lookup_method(Symbol* name, Symbol* signature) const {
-    return uncached_lookup_method(name, signature);
+    return uncached_lookup_method(name, signature, normal);
   }
 
   // array class with specific rank
@@ -695,8 +697,8 @@ class Klass : public Metadata {
   virtual const char* internal_name() const = 0;
 
   // Verification
-  virtual void verify_on(outputStream* st, bool check_dictionary);
-  void verify(bool check_dictionary = true) { verify_on(tty, check_dictionary); }
+  virtual void verify_on(outputStream* st);
+  void verify() { verify_on(tty); }
 
 #ifndef PRODUCT
   bool verify_vtable_index(int index);

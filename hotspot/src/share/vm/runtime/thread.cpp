@@ -107,6 +107,9 @@
 #include "opto/c2compiler.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #endif
+#if INCLUDE_RTM_OPT
+#include "runtime/rtmLocking.hpp"
+#endif
 
 #ifdef DTRACE_ENABLED
 
@@ -236,7 +239,6 @@ Thread::Thread() {
   debug_only(_allow_allocation_count = 0;)
   NOT_PRODUCT(_allow_safepoint_count = 0;)
   NOT_PRODUCT(_skip_gcalot = false;)
-  CHECK_UNHANDLED_OOPS_ONLY(_gc_locked_out_count = 0;)
   _jvmti_env_iteration_count = 0;
   set_allocated_bytes(0);
   _vm_operation_started_count = 0;
@@ -312,6 +314,9 @@ void Thread::initialize_thread_local_storage() {
 void Thread::record_stack_base_and_size() {
   set_stack_base(os::current_stack_base());
   set_stack_size(os::current_stack_size());
+  if (is_Java_thread()) {
+    ((JavaThread*) this)->set_stack_overflow_limit();
+  }
   // CR 7190089: on Solaris, primordial thread's stack is adjusted
   // in initialize_thread(). Without the adjustment, stack size is
   // incorrect if stack is set to unlimited (ulimit -s unlimited).
@@ -1414,8 +1419,8 @@ void WatcherThread::print_on(outputStream* st) const {
 void JavaThread::initialize() {
   // Initialize fields
 
-  // Set the claimed par_id to -1 (ie not claiming any par_ids)
-  set_claimed_par_id(-1);
+  // Set the claimed par_id to UINT_MAX (ie not claiming any par_ids)
+  set_claimed_par_id(UINT_MAX);
 
   set_saved_exception_pc(NULL);
   set_threadObj(NULL);
@@ -3670,6 +3675,10 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   BiasedLocking::init();
 
+#if INCLUDE_RTM_OPT
+  RTMLockingCounters::init();
+#endif
+
   if (JDK_Version::current().post_vm_init_hook_enabled()) {
     call_postVMInitHook(THREAD);
     // The Java side of PostVMInitHook.run must deal with all
@@ -4446,9 +4455,7 @@ void Thread::SpinAcquire (volatile int * adr, const char * LockName) {
         ++ctr ;
         if ((ctr & 0xFFF) == 0 || !os::is_MP()) {
            if (Yields > 5) {
-             // Consider using a simple NakedSleep() instead.
-             // Then SpinAcquire could be called by non-JVM threads
-             Thread::current()->_ParkEvent->park(1) ;
+             os::naked_short_sleep(1);
            } else {
              os::NakedYield() ;
              ++Yields ;

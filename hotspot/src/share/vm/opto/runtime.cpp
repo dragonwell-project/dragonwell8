@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,8 +83,11 @@
 #ifdef TARGET_ARCH_MODEL_arm
 # include "adfiles/ad_arm.hpp"
 #endif
-#ifdef TARGET_ARCH_MODEL_ppc
-# include "adfiles/ad_ppc.hpp"
+#ifdef TARGET_ARCH_MODEL_ppc_32
+# include "adfiles/ad_ppc_32.hpp"
+#endif
+#ifdef TARGET_ARCH_MODEL_ppc_64
+# include "adfiles/ad_ppc_64.hpp"
 #endif
 
 
@@ -793,11 +796,20 @@ const TypeFunc* OptoRuntime::generic_arraycopy_Type() {
 
 
 const TypeFunc* OptoRuntime::array_fill_Type() {
-  // create input type (domain): pointer, int, size_t
-  const Type** fields = TypeTuple::fields(3 LP64_ONLY( + 1));
+  const Type** fields;
   int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL;
-  fields[argp++] = TypeInt::INT;
+  if (CCallingConventionRequiresIntsAsLongs) {
+  // create input type (domain): pointer, int, size_t
+    fields = TypeTuple::fields(3 LP64_ONLY( + 2));
+    fields[argp++] = TypePtr::NOTNULL;
+    fields[argp++] = TypeLong::LONG;
+    fields[argp++] = Type::HALF;
+  } else {
+    // create input type (domain): pointer, int, size_t
+    fields = TypeTuple::fields(3 LP64_ONLY( + 1));
+    fields[argp++] = TypePtr::NOTNULL;
+    fields[argp++] = TypeInt::INT;
+  }
   fields[argp++] = TypeX_X;               // size in whatevers (size_t)
   LP64_ONLY(fields[argp++] = Type::HALF); // other half of long length
   const TypeTuple *domain = TypeTuple::make(argp, fields);
@@ -814,12 +826,18 @@ const TypeFunc* OptoRuntime::array_fill_Type() {
 const TypeFunc* OptoRuntime::aescrypt_block_Type() {
   // create input type (domain)
   int num_args      = 3;
+  if (Matcher::pass_original_key_for_aes()) {
+    num_args = 4;
+  }
   int argcnt = num_args;
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
   fields[argp++] = TypePtr::NOTNULL;    // src
   fields[argp++] = TypePtr::NOTNULL;    // dest
   fields[argp++] = TypePtr::NOTNULL;    // k array
+  if (Matcher::pass_original_key_for_aes()) {
+    fields[argp++] = TypePtr::NOTNULL;    // original k array
+  }
   assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
@@ -852,10 +870,13 @@ const TypeFunc* OptoRuntime::updateBytesCRC32_Type() {
   return TypeFunc::make(domain, range);
 }
 
-// for cipherBlockChaining calls of aescrypt encrypt/decrypt, four pointers and a length, returning void
+// for cipherBlockChaining calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
 const TypeFunc* OptoRuntime::cipherBlockChaining_aescrypt_Type() {
   // create input type (domain)
   int num_args      = 5;
+  if (Matcher::pass_original_key_for_aes()) {
+    num_args = 6;
+  }
   int argcnt = num_args;
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
@@ -864,13 +885,16 @@ const TypeFunc* OptoRuntime::cipherBlockChaining_aescrypt_Type() {
   fields[argp++] = TypePtr::NOTNULL;    // k array
   fields[argp++] = TypePtr::NOTNULL;    // r array
   fields[argp++] = TypeInt::INT;        // src len
+  if (Matcher::pass_original_key_for_aes()) {
+    fields[argp++] = TypePtr::NOTNULL;    // original k array
+  }
   assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
-  // no result type needed
+  // returning cipher len (int)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = NULL; // void
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  fields[TypeFunc::Parms+0] = TypeInt::INT;
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
   return TypeFunc::make(domain, range);
 }
 
@@ -1035,7 +1059,7 @@ JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* t
     }
 
     // If we are forcing an unwind because of stack overflow then deopt is
-    // irrelevant sice we are throwing the frame away anyway.
+    // irrelevant since we are throwing the frame away anyway.
 
     if (deopting && !force_unwind) {
       handler_address = SharedRuntime::deopt_blob()->unpack_with_exception();
@@ -1078,7 +1102,7 @@ JRT_END
 // Note we enter without the usual JRT wrapper. We will call a helper routine that
 // will do the normal VM entry. We do it this way so that we can see if the nmethod
 // we looked up the handler for has been deoptimized in the meantime. If it has been
-// we must not use the handler and instread return the deopt blob.
+// we must not use the handler and instead return the deopt blob.
 address OptoRuntime::handle_exception_C(JavaThread* thread) {
 //
 // We are in Java not VM and in debug mode we have a NoHandleMark
@@ -1287,6 +1311,14 @@ void OptoRuntime::print_named_counters() {
         tty->print_cr("%s", c->name());
         blc->print_on(tty);
       }
+#if INCLUDE_RTM_OPT
+    } else if (c->tag() == NamedCounter::RTMLockingCounter) {
+      RTMLockingCounters* rlc = ((RTMLockingNamedCounter*)c)->counters();
+      if (rlc->nonzero()) {
+        tty->print_cr("%s", c->name());
+        rlc->print_on(tty);
+      }
+#endif
     }
     c = c->next();
   }
@@ -1326,6 +1358,8 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
   NamedCounter* c;
   if (tag == NamedCounter::BiasedLockingCounter) {
     c = new BiasedLockingNamedCounter(strdup(st.as_string()));
+  } else if (tag == NamedCounter::RTMLockingCounter) {
+    c = new RTMLockingNamedCounter(strdup(st.as_string()));
   } else {
     c = new NamedCounter(strdup(st.as_string()), tag);
   }
@@ -1334,6 +1368,7 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
   // add counters so this is safe.
   NamedCounter* head;
   do {
+    c->set_next(NULL);
     head = _named_counters;
     c->set_next(head);
   } while (Atomic::cmpxchg_ptr(c, &_named_counters, head) != head);

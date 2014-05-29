@@ -27,6 +27,9 @@
 
 // Bsd_OS defines the interface to Bsd operating systems
 
+// Information about the protection of the page at address '0' on this os.
+static bool zero_page_read_protected() { return true; }
+
 /* pthread_getattr_np comes with BsdThreads-0.9-7 on RedHat 7.1 */
 typedef int (*pthread_getattr_func_type) (pthread_t, pthread_attr_t *);
 
@@ -55,7 +58,13 @@ class Bsd {
   // For signal flags diagnostics
   static int sigflags[MAXSIGNUM];
 
+#ifdef __APPLE__
+  // mach_absolute_time
+  static mach_timebase_info_data_t _timebase_info;
+  static volatile uint64_t         _max_abstime;
+#else
   static int (*_clock_gettime)(clockid_t, struct timespec *);
+#endif
 
   static GrowableArray<int>* _cpu_to_node;
 
@@ -132,11 +141,11 @@ class Bsd {
   static void clock_init(void);
 
   static inline bool supports_monotonic_clock() {
+#ifdef __APPLE__
+    return true;
+#else
     return _clock_gettime != NULL;
-  }
-
-  static int clock_gettime(clockid_t clock_id, struct timespec *tp) {
-    return _clock_gettime ? _clock_gettime(clock_id, tp) : -1;
+#endif
   }
 
   // Stack repair handling

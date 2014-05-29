@@ -273,7 +273,7 @@ int Method::validate_bci_from_bcx(intptr_t bcx) const {
 }
 
 address Method::bcp_from(int bci) const {
-  assert((is_native() && bci == 0)  || (!is_native() && 0 <= bci && bci < code_size()), "illegal bci");
+  assert((is_native() && bci == 0)  || (!is_native() && 0 <= bci && bci < code_size()), err_msg("illegal bci: %d", bci));
   address bcp = code_base() + bci;
   assert(is_native() && bcp == code_base() || contains(bcp), "bcp doesn't belong to this method");
   return bcp;
@@ -904,6 +904,19 @@ address Method::make_adapters(methodHandle mh, TRAPS) {
   mh->_from_compiled_entry = adapter->get_c2i_entry();
   return adapter->get_c2i_entry();
 }
+
+void Method::restore_unshareable_info(TRAPS) {
+  // Since restore_unshareable_info can be called more than once for a method, don't
+  // redo any work.   If this field is restored, there is nothing to do.
+  if (_from_compiled_entry == NULL) {
+    // restore method's vtable by calling a virtual function
+    restore_vtable();
+
+    methodHandle mh(THREAD, this);
+    link_method(mh, CHECK);
+  }
+}
+
 
 // The verified_code_entry() must be called when a invoke is resolved
 // on this method.

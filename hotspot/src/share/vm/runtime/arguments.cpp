@@ -50,6 +50,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
 #endif
@@ -290,6 +293,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UsePermISM",                    JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseMPSS",                       JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
+  { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
@@ -878,7 +882,7 @@ bool Arguments::process_argument(const char* arg,
     arg_len = equal_sign - argname;
   }
 
-  Flag* found_flag = Flag::find_flag((const char*)argname, arg_len, true);
+  Flag* found_flag = Flag::find_flag((const char*)argname, arg_len, true, true);
   if (found_flag != NULL) {
     char locked_message_buf[BUFLEN];
     found_flag->get_locked_message(locked_message_buf, BUFLEN);
@@ -1569,6 +1573,16 @@ void Arguments::set_parallel_gc_flags() {
     vm_exit(1);
   }
 
+  if (UseAdaptiveSizePolicy) {
+    // We don't want to limit adaptive heap sizing's freedom to adjust the heap
+    // unless the user actually sets these flags.
+    if (FLAG_IS_DEFAULT(MinHeapFreeRatio)) {
+      FLAG_SET_DEFAULT(MinHeapFreeRatio, 0);
+    }
+    if (FLAG_IS_DEFAULT(MaxHeapFreeRatio)) {
+      FLAG_SET_DEFAULT(MaxHeapFreeRatio, 100);
+    }
+  }
 
   // If InitialSurvivorRatio or MinSurvivorRatio were not specified, but the
   // SurvivorRatio has been set, reset their default values to SurvivorRatio +
@@ -1844,7 +1858,7 @@ bool Arguments::verify_min_value(intx val, intx min, const char* name) {
 }
 
 bool Arguments::verify_percentage(uintx value, const char* name) {
-  if (value <= 100) {
+  if (is_percentage(value)) {
     return true;
   }
   jio_fprintf(defaultStream::error_stream(),
@@ -1866,24 +1880,22 @@ static bool verify_serial_gc_flags() {
 // check if do gclog rotation
 // +UseGCLogFileRotation is a must,
 // no gc log rotation when log file not supplied or
-// NumberOfGCLogFiles is 0, or GCLogFileSize is 0
+// NumberOfGCLogFiles is 0
 void check_gclog_consistency() {
   if (UseGCLogFileRotation) {
-    if ((Arguments::gc_log_filename() == NULL) ||
-        (NumberOfGCLogFiles == 0)  ||
-        (GCLogFileSize == 0)) {
+    if ((Arguments::gc_log_filename() == NULL) || (NumberOfGCLogFiles == 0)) {
       jio_fprintf(defaultStream::output_stream(),
-                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files> -XX:GCLogFileSize=<num_of_size>[k|K|m|M|g|G]\n"
-                  "where num_of_file > 0 and num_of_size > 0\n"
+                  "To enable GC log rotation, use -Xloggc:<filename> -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=<num_of_files>\n"
+                  "where num_of_file > 0\n"
                   "GC log rotation is turned off\n");
       UseGCLogFileRotation = false;
     }
   }
 
-  if (UseGCLogFileRotation && GCLogFileSize < 8*K) {
-        FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
-        jio_fprintf(defaultStream::output_stream(),
-                    "GCLogFileSize changed to minimum 8K\n");
+  if (UseGCLogFileRotation && (GCLogFileSize != 0) && (GCLogFileSize < 8*K)) {
+    FLAG_SET_CMDLINE(uintx, GCLogFileSize, 8*K);
+    jio_fprintf(defaultStream::output_stream(),
+                "GCLogFileSize changed to minimum 8K\n");
   }
 }
 
@@ -1930,6 +1942,34 @@ bool is_filename_valid(const char *file_name) {
     return false;
   }
   return count_p < 2 && count_t < 2;
+}
+
+bool Arguments::verify_MinHeapFreeRatio(FormatBuffer<80>& err_msg, uintx min_heap_free_ratio) {
+  if (!is_percentage(min_heap_free_ratio)) {
+    err_msg.print("MinHeapFreeRatio must have a value between 0 and 100");
+    return false;
+  }
+  if (min_heap_free_ratio > MaxHeapFreeRatio) {
+    err_msg.print("MinHeapFreeRatio (" UINTX_FORMAT ") must be less than or "
+                  "equal to MaxHeapFreeRatio (" UINTX_FORMAT ")", min_heap_free_ratio,
+                  MaxHeapFreeRatio);
+    return false;
+  }
+  return true;
+}
+
+bool Arguments::verify_MaxHeapFreeRatio(FormatBuffer<80>& err_msg, uintx max_heap_free_ratio) {
+  if (!is_percentage(max_heap_free_ratio)) {
+    err_msg.print("MaxHeapFreeRatio must have a value between 0 and 100");
+    return false;
+  }
+  if (max_heap_free_ratio < MinHeapFreeRatio) {
+    err_msg.print("MaxHeapFreeRatio (" UINTX_FORMAT ") must be greater than or "
+                  "equal to MinHeapFreeRatio (" UINTX_FORMAT ")", max_heap_free_ratio,
+                  MinHeapFreeRatio);
+    return false;
+  }
+  return true;
 }
 
 // Check consistency of GC selection
@@ -2037,8 +2077,6 @@ bool Arguments::check_vm_args_consistency() {
   status = status && verify_interval(AdaptiveSizePolicyWeight, 0, 100,
                               "AdaptiveSizePolicyWeight");
   status = status && verify_percentage(ThresholdTolerance, "ThresholdTolerance");
-  status = status && verify_percentage(MinHeapFreeRatio, "MinHeapFreeRatio");
-  status = status && verify_percentage(MaxHeapFreeRatio, "MaxHeapFreeRatio");
 
   // Divide by bucket size to prevent a large size from causing rollover when
   // calculating amount of memory needed to be allocated for the String table.
@@ -2048,15 +2086,19 @@ bool Arguments::check_vm_args_consistency() {
   status = status && verify_interval(SymbolTableSize, minimumSymbolTableSize,
     (max_uintx / SymbolTable::bucket_size()), "SymbolTable size");
 
-  if (MinHeapFreeRatio > MaxHeapFreeRatio) {
-    jio_fprintf(defaultStream::error_stream(),
-                "MinHeapFreeRatio (" UINTX_FORMAT ") must be less than or "
-                "equal to MaxHeapFreeRatio (" UINTX_FORMAT ")\n",
-                MinHeapFreeRatio, MaxHeapFreeRatio);
-    status = false;
+  {
+    // Using "else if" below to avoid printing two error messages if min > max.
+    // This will also prevent us from reporting both min>100 and max>100 at the
+    // same time, but that is less annoying than printing two identical errors IMHO.
+    FormatBuffer<80> err_msg("");
+    if (!verify_MinHeapFreeRatio(err_msg, MinHeapFreeRatio)) {
+      jio_fprintf(defaultStream::error_stream(), "%s\n", err_msg.buffer());
+      status = false;
+    } else if (!verify_MaxHeapFreeRatio(err_msg, MaxHeapFreeRatio)) {
+      jio_fprintf(defaultStream::error_stream(), "%s\n", err_msg.buffer());
+      status = false;
+    }
   }
-  // Keeping the heap 100% free is hard ;-) so limit it to 99%.
-  MinHeapFreeRatio = MIN2(MinHeapFreeRatio, (uintx) 99);
 
   // Min/MaxMetaspaceFreeRatio
   status = status && verify_percentage(MinMetaspaceFreeRatio, "MinMetaspaceFreeRatio");
@@ -2176,6 +2218,8 @@ bool Arguments::check_vm_args_consistency() {
                                        "G1ConcRSHotCardLimit");
     status = status && verify_interval(G1ConcRSLogCacheSize, 0, 31,
                                        "G1ConcRSLogCacheSize");
+    status = status && verify_interval(StringDeduplicationAgeThreshold, 1, markOopDesc::max_age,
+                                       "StringDeduplicationAgeThreshold");
   }
   if (UseConcMarkSweepGC) {
     status = status && verify_min_value(CMSOldPLABNumRefills, 1, "CMSOldPLABNumRefills");
@@ -2338,6 +2382,10 @@ bool Arguments::check_vm_args_consistency() {
 
   status &= verify_interval(NmethodSweepFraction, 1, ReservedCodeCacheSize/K, "NmethodSweepFraction");
   status &= verify_interval(NmethodSweepActivity, 0, 2000, "NmethodSweepActivity");
+
+  if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
+    warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
+  }
 
   return status;
 }
@@ -2689,7 +2737,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
     } else if (match_option(option, "-Xmaxf", &tail)) {
       char* err;
       int maxf = (int)(strtod(tail, &err) * 100);
-      if (*err != '\0' || maxf < 0 || maxf > 100) {
+      if (*err != '\0' || *tail == '\0' || maxf < 0 || maxf > 100) {
         jio_fprintf(defaultStream::error_stream(),
                     "Bad max heap free percentage size: %s\n",
                     option->optionString);
@@ -2701,7 +2749,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
     } else if (match_option(option, "-Xminf", &tail)) {
       char* err;
       int minf = (int)(strtod(tail, &err) * 100);
-      if (*err != '\0' || minf < 0 || minf > 100) {
+      if (*err != '\0' || *tail == '\0' || minf < 0 || minf > 100) {
         jio_fprintf(defaultStream::error_stream(),
                     "Bad min heap free percentage size: %s\n",
                     option->optionString);
@@ -3646,9 +3694,9 @@ jint Arguments::apply_ergo() {
   // Set per-collector flags
   if (UseParallelGC || UseParallelOldGC) {
     set_parallel_gc_flags();
-  } else if (UseConcMarkSweepGC) { // should be done before ParNew check below
+  } else if (UseConcMarkSweepGC) { // Should be done before ParNew check below
     set_cms_and_parnew_gc_flags();
-  } else if (UseParNewGC) {  // skipped if CMS is set above
+  } else if (UseParNewGC) {  // Skipped if CMS is set above
     set_parnew_gc_flags();
   } else if (UseG1GC) {
     set_g1_gc_flags();
@@ -3661,6 +3709,10 @@ jint Arguments::apply_ergo() {
               " you should configure the number of parallel GC threads appropriately"
               " using -XX:ParallelGCThreads=N");
     }
+  }
+  if (MinHeapFreeRatio == 100) {
+    // Keeping the heap 100% free is hard ;-) so limit it to 99%.
+    FLAG_SET_ERGO(uintx, MinHeapFreeRatio, 99);
   }
 #else // INCLUDE_ALL_GCS
   assert(verify_serial_gc_flags(), "SerialGC unset");
@@ -3692,8 +3744,8 @@ jint Arguments::apply_ergo() {
     UseBiasedLocking = false;
   }
 
-#ifdef CC_INTERP
-  // Clear flags not supported by the C++ interpreter
+#ifdef ZERO
+  // Clear flags not supported on zero.
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
@@ -3701,9 +3753,6 @@ jint Arguments::apply_ergo() {
 #endif // CC_INTERP
 
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
-    UseOptoBiasInlining = false;
-  }
   if (!EliminateLocks) {
     EliminateNestedLocks = false;
   }
@@ -3727,10 +3776,6 @@ jint Arguments::apply_ergo() {
     // Doing the replace in parent maps helps speculation
     FLAG_SET_DEFAULT(ReplaceInParentMaps, true);
   }
-#ifndef X86
-  // Only on x86 for now
-  FLAG_SET_DEFAULT(TypeProfileLevel, 0);
-#endif
 #endif
 
   if (PrintAssembly && FLAG_IS_DEFAULT(DebugNonSafepoints)) {
@@ -3768,6 +3813,11 @@ jint Arguments::apply_ergo() {
       UseBiasedLocking = false;
     }
   }
+#ifdef COMPILER2
+  if (!UseBiasedLocking || EmitSync != 0) {
+    UseOptoBiasInlining = false;
+  }
+#endif
 
   // set PauseAtExit if the gamma launcher was used and a debugger is attached
   // but only if not already set on the commandline

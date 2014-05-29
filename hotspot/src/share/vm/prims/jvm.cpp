@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "jvm_windows.h"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "jvm_aix.h"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "jvm_bsd.h"
@@ -518,6 +521,12 @@ JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   JavaThreadInObjectWaitState jtiows(thread, ms != 0);
   if (JvmtiExport::should_post_monitor_wait()) {
     JvmtiExport::post_monitor_wait((JavaThread *)THREAD, (oop)obj(), ms);
+
+    // The current thread already owns the monitor and it has not yet
+    // been added to the wait queue so the current thread cannot be
+    // made the successor. This means that the JVMTI_EVENT_MONITOR_WAIT
+    // event handler cannot accidentally consume an unpark() meant for
+    // the ParkEvent associated with this ObjectMonitor.
   }
   ObjectSynchronizer::wait(obj, ms, CHECK);
 JVM_END
@@ -1208,7 +1217,8 @@ JVM_ENTRY(jobject, JVM_DoPrivileged(JNIEnv *env, jclass cls, jobject action, job
   // get run() method
   Method* m_oop = object->klass()->uncached_lookup_method(
                                            vmSymbols::run_method_name(),
-                                           vmSymbols::void_object_signature());
+                                           vmSymbols::void_object_signature(),
+                                           Klass::normal);
   methodHandle m (THREAD, m_oop);
   if (m.is_null() || !m->is_method() || !m()->is_public() || m()->is_static()) {
     THROW_MSG_0(vmSymbols::java_lang_InternalError(), "No run method");

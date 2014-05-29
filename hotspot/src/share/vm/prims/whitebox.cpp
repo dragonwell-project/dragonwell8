@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -316,9 +316,10 @@ WB_END
 
 WB_ENTRY(jint, WB_DeoptimizeMethod(JNIEnv* env, jobject o, jobject method, jboolean is_osr))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  int result = 0;
+  CHECK_JNI_EXCEPTION_(env, result);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
-  int result = 0;
   nmethod* code;
   if (is_osr) {
     int bci = InvocationEntryBci;
@@ -344,6 +345,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_IsMethodCompiled(JNIEnv* env, jobject o, jobject method, jboolean is_osr))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   nmethod* code = is_osr ? mh->lookup_osr_nmethod_for(InvocationEntryBci, CompLevel_none, false) : mh->code();
@@ -355,6 +357,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_IsMethodCompilable(JNIEnv* env, jobject o, jobject method, jint comp_level, jboolean is_osr))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   if (is_osr) {
@@ -366,6 +369,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_IsMethodQueuedForCompilation(JNIEnv* env, jobject o, jobject method))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   return mh->queued_for_compilation();
@@ -373,6 +377,7 @@ WB_END
 
 WB_ENTRY(jint, WB_GetMethodCompilationLevel(JNIEnv* env, jobject o, jobject method, jboolean is_osr))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, CompLevel_none);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   nmethod* code = is_osr ? mh->lookup_osr_nmethod_for(InvocationEntryBci, CompLevel_none, false) : mh->code();
   return (code != NULL ? code->comp_level() : CompLevel_none);
@@ -380,6 +385,7 @@ WB_END
 
 WB_ENTRY(void, WB_MakeMethodNotCompilable(JNIEnv* env, jobject o, jobject method, jint comp_level, jboolean is_osr))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION(env);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   if (is_osr) {
     mh->set_not_osr_compilable(comp_level, true /* report */, "WhiteBox");
@@ -390,6 +396,7 @@ WB_END
 
 WB_ENTRY(jint, WB_GetMethodEntryBci(JNIEnv* env, jobject o, jobject method))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, InvocationEntryBci);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   nmethod* code = mh->lookup_osr_nmethod_for(InvocationEntryBci, CompLevel_none, false);
   return (code != NULL && code->is_osr_method() ? code->osr_entry_bci() : InvocationEntryBci);
@@ -397,6 +404,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_TestSetDontInlineMethod(JNIEnv* env, jobject o, jobject method, jboolean value))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   bool result = mh->dont_inline();
   mh->set_dont_inline(value == JNI_TRUE);
@@ -414,6 +422,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_TestSetForceInlineMethod(JNIEnv* env, jobject o, jobject method, jboolean value))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   bool result = mh->force_inline();
   mh->set_force_inline(value == JNI_TRUE);
@@ -422,14 +431,40 @@ WB_END
 
 WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobject method, jint comp_level, jint bci))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), "WhiteBox", THREAD);
   MutexLockerEx mu(Compile_lock);
   return (mh->queued_for_compilation() || nm != NULL);
 WB_END
 
+class VM_WhiteBoxOperation : public VM_Operation {
+ public:
+  VM_WhiteBoxOperation()                         { }
+  VMOp_Type type()                  const        { return VMOp_WhiteBoxOperation; }
+  bool allow_nested_vm_operations() const        { return true; }
+};
+
+class AlwaysFalseClosure : public BoolObjectClosure {
+ public:
+  bool do_object_b(oop p) { return false; }
+};
+
+static AlwaysFalseClosure always_false;
+
+class VM_WhiteBoxCleanMethodData : public VM_WhiteBoxOperation {
+ public:
+  VM_WhiteBoxCleanMethodData(MethodData* mdo) : _mdo(mdo) { }
+  void doit() {
+    _mdo->clean_method_data(&always_false);
+  }
+ private:
+  MethodData* _mdo;
+};
+
 WB_ENTRY(void, WB_ClearMethodState(JNIEnv* env, jobject o, jobject method))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION(env);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   MutexLockerEx mu(Compile_lock);
   MethodData* mdo = mh->method_data();
@@ -442,6 +477,8 @@ WB_ENTRY(void, WB_ClearMethodState(JNIEnv* env, jobject o, jobject method))
     for (int i = 0; i < arg_count; i++) {
       mdo->set_arg_modified(i, 0);
     }
+    VM_WhiteBoxCleanMethodData op(mdo);
+    VMThread::execute(&op);
   }
 
   mh->clear_not_c1_compilable();
@@ -488,6 +525,54 @@ WB_ENTRY(void, WB_ReadReservedMemory(JNIEnv* env, jobject o))
 
   c = *p;
 WB_END
+
+WB_ENTRY(jstring, WB_GetCPUFeatures(JNIEnv* env, jobject o))
+  const char* cpu_features = VM_Version::cpu_features();
+  ThreadToNativeFromVM ttn(thread);
+  jstring features_string = env->NewStringUTF(cpu_features);
+
+  CHECK_JNI_EXCEPTION_(env, NULL);
+
+  return features_string;
+WB_END
+
+
+WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jboolean is_osr))
+  ResourceMark rm(THREAD);
+  jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
+  nmethod* code = is_osr ? mh->lookup_osr_nmethod_for(InvocationEntryBci, CompLevel_none, false) : mh->code();
+  jobjectArray result = NULL;
+  if (code == NULL) {
+    return result;
+  }
+  int insts_size = code->insts_size();
+
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_Object()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  result = env->NewObjectArray(2, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  clazz = env->FindClass(vmSymbols::java_lang_Integer()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  jmethodID constructor = env->GetMethodID(clazz, vmSymbols::object_initializer_name()->as_C_string(), vmSymbols::int_void_signature()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  jobject obj = env->NewObject(clazz, constructor, code->comp_level());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetObjectArrayElement(result, 0, obj);
+
+  jbyteArray insts = env->NewByteArray(insts_size);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  env->SetByteArrayRegion(insts, 0, insts_size, (jbyte*) code->insts_begin());
+  env->SetObjectArrayElement(result, 1, insts);
+
+  return result;
+WB_END
+
 
 //Some convenience methods to deal with objects from java
 int WhiteBox::offset_for_field(const char* field_name, oop object,
@@ -600,6 +685,9 @@ static JNINativeMethod methods[] = {
   {CC"isInStringTable",   CC"(Ljava/lang/String;)Z",  (void*)&WB_IsInStringTable  },
   {CC"fullGC",   CC"()V",                             (void*)&WB_FullGC },
   {CC"readReservedMemory", CC"()V",                   (void*)&WB_ReadReservedMemory },
+  {CC"getCPUFeatures",     CC"()Ljava/lang/String;",  (void*)&WB_GetCPUFeatures     },
+  {CC"getNMethod",         CC"(Ljava/lang/reflect/Executable;Z)[Ljava/lang/Object;",
+                                                      (void*)&WB_GetNMethod         },
 };
 
 #undef CC
@@ -616,14 +704,18 @@ JVM_ENTRY(void, JVM_RegisterWhiteBoxMethods(JNIEnv* env, jclass wbclass))
         bool result = true;
         //  one by one registration natives for exception catching
         jclass exceptionKlass = env->FindClass(vmSymbols::java_lang_NoSuchMethodError()->as_C_string());
+        CHECK_JNI_EXCEPTION(env);
         for (int i = 0, n = sizeof(methods) / sizeof(methods[0]); i < n; ++i) {
           if (env->RegisterNatives(wbclass, methods + i, 1) != 0) {
             result = false;
-            if (env->ExceptionCheck() && env->IsInstanceOf(env->ExceptionOccurred(), exceptionKlass)) {
-              // j.l.NoSuchMethodError is thrown when a method can't be found or a method is not native
-              // ignoring the exception
-              tty->print_cr("Warning: 'NoSuchMethodError' on register of sun.hotspot.WhiteBox::%s%s", methods[i].name, methods[i].signature);
+            jthrowable throwable_obj = env->ExceptionOccurred();
+            if (throwable_obj != NULL) {
               env->ExceptionClear();
+              if (env->IsInstanceOf(throwable_obj, exceptionKlass)) {
+                // j.l.NoSuchMethodError is thrown when a method can't be found or a method is not native
+                // ignoring the exception
+                tty->print_cr("Warning: 'NoSuchMethodError' on register of sun.hotspot.WhiteBox::%s%s", methods[i].name, methods[i].signature);
+              }
             } else {
               // register is failed w/o exception or w/ unexpected exception
               tty->print_cr("Warning: unexpected error on register of sun.hotspot.WhiteBox::%s%s. All methods will be unregistered", methods[i].name, methods[i].signature);

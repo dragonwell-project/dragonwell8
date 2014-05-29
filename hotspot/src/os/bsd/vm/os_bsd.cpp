@@ -127,8 +127,12 @@
 // global variables
 julong os::Bsd::_physical_memory = 0;
 
-
+#ifdef __APPLE__
+mach_timebase_info_data_t os::Bsd::_timebase_info = {0, 0};
+volatile uint64_t         os::Bsd::_max_abstime   = 0;
+#else
 int (*os::Bsd::_clock_gettime)(clockid_t, struct timespec *) = NULL;
+#endif
 pthread_t os::Bsd::_main_thread;
 int os::Bsd::_page_size = -1;
 
@@ -219,7 +223,7 @@ static char cpu_arch[] = "i386";
 static char cpu_arch[] = "amd64";
 #elif defined(ARM)
 static char cpu_arch[] = "arm";
-#elif defined(PPC)
+#elif defined(PPC32)
 static char cpu_arch[] = "ppc";
 #elif defined(SPARC)
 #  ifdef _LP64
@@ -306,9 +310,6 @@ static const char *get_home() {
 #endif
 
 void os::init_system_properties_values() {
-//  char arch[12];
-//  sysinfo(SI_ARCHITECTURE, arch, sizeof(arch));
-
   // The next steps are taken in the product version:
   //
   // Obtain the JAVA_HOME value from the location of libjvm.so.
@@ -335,199 +336,205 @@ void os::init_system_properties_values() {
   // Important note: if the location of libjvm.so changes this
   // code needs to be changed accordingly.
 
-  // The next few definitions allow the code to be verbatim:
-#define malloc(n) (char*)NEW_C_HEAP_ARRAY(char, (n), mtInternal)
-#define getenv(n) ::getenv(n)
-
-/*
- * See ld(1):
- *      The linker uses the following search paths to locate required
- *      shared libraries:
- *        1: ...
- *        ...
- *        7: The default directories, normally /lib and /usr/lib.
- */
+// See ld(1):
+//      The linker uses the following search paths to locate required
+//      shared libraries:
+//        1: ...
+//        ...
+//        7: The default directories, normally /lib and /usr/lib.
 #ifndef DEFAULT_LIBPATH
 #define DEFAULT_LIBPATH "/lib:/usr/lib"
 #endif
 
+// Base path of extensions installed on the system.
+#define SYS_EXT_DIR     "/usr/java/packages"
 #define EXTENSIONS_DIR  "/lib/ext"
 #define ENDORSED_DIR    "/lib/endorsed"
-#define REG_DIR         "/usr/java/packages"
 
-#ifdef __APPLE__
-#define SYS_EXTENSIONS_DIR   "/Library/Java/Extensions"
-#define SYS_EXTENSIONS_DIRS  SYS_EXTENSIONS_DIR ":/Network" SYS_EXTENSIONS_DIR ":/System" SYS_EXTENSIONS_DIR ":/usr/lib/java"
-        const char *user_home_dir = get_home();
-        // the null in SYS_EXTENSIONS_DIRS counts for the size of the colon after user_home_dir
-        int system_ext_size = strlen(user_home_dir) + sizeof(SYS_EXTENSIONS_DIR) +
-            sizeof(SYS_EXTENSIONS_DIRS);
-#endif
-
-  {
-    /* sysclasspath, java_home, dll_dir */
-    {
-        char *home_path;
-        char *dll_path;
-        char *pslash;
-        char buf[MAXPATHLEN];
-        os::jvm_path(buf, sizeof(buf));
-
-        // Found the full path to libjvm.so.
-        // Now cut the path to <java_home>/jre if we can.
-        *(strrchr(buf, '/')) = '\0';  /* get rid of /libjvm.so */
-        pslash = strrchr(buf, '/');
-        if (pslash != NULL)
-            *pslash = '\0';           /* get rid of /{client|server|hotspot} */
-        dll_path = malloc(strlen(buf) + 1);
-        if (dll_path == NULL)
-            return;
-        strcpy(dll_path, buf);
-        Arguments::set_dll_dir(dll_path);
-
-        if (pslash != NULL) {
-            pslash = strrchr(buf, '/');
-            if (pslash != NULL) {
-                *pslash = '\0';       /* get rid of /<arch> (/lib on macosx) */
 #ifndef __APPLE__
-                pslash = strrchr(buf, '/');
-                if (pslash != NULL)
-                    *pslash = '\0';   /* get rid of /lib */
-#endif
-            }
-        }
 
-        home_path = malloc(strlen(buf) + 1);
-        if (home_path == NULL)
-            return;
-        strcpy(home_path, buf);
-        Arguments::set_java_home(home_path);
+  // Buffer that fits several sprintfs.
+  // Note that the space for the colon and the trailing null are provided
+  // by the nulls included by the sizeof operator.
+  const size_t bufsize =
+    MAX3((size_t)MAXPATHLEN,  // For dll_dir & friends.
+         (size_t)MAXPATHLEN + sizeof(EXTENSIONS_DIR) + sizeof(SYS_EXT_DIR) + sizeof(EXTENSIONS_DIR), // extensions dir
+         (size_t)MAXPATHLEN + sizeof(ENDORSED_DIR)); // endorsed dir
+  char *buf = (char *)NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
 
-        if (!set_boot_path('/', ':'))
-            return;
+  // sysclasspath, java_home, dll_dir
+  {
+    char *pslash;
+    os::jvm_path(buf, bufsize);
+
+    // Found the full path to libjvm.so.
+    // Now cut the path to <java_home>/jre if we can.
+    *(strrchr(buf, '/')) = '\0'; // Get rid of /libjvm.so.
+    pslash = strrchr(buf, '/');
+    if (pslash != NULL) {
+      *pslash = '\0';            // Get rid of /{client|server|hotspot}.
     }
+    Arguments::set_dll_dir(buf);
 
-    /*
-     * Where to look for native libraries
-     *
-     * Note: Due to a legacy implementation, most of the library path
-     * is set in the launcher.  This was to accomodate linking restrictions
-     * on legacy Bsd implementations (which are no longer supported).
-     * Eventually, all the library path setting will be done here.
-     *
-     * However, to prevent the proliferation of improperly built native
-     * libraries, the new path component /usr/java/packages is added here.
-     * Eventually, all the library path setting will be done here.
-     */
-    {
-        char *ld_library_path;
-
-        /*
-         * Construct the invariant part of ld_library_path. Note that the
-         * space for the colon and the trailing null are provided by the
-         * nulls included by the sizeof operator (so actually we allocate
-         * a byte more than necessary).
-         */
-#ifdef __APPLE__
-        ld_library_path = (char *) malloc(system_ext_size);
-        sprintf(ld_library_path, "%s" SYS_EXTENSIONS_DIR ":" SYS_EXTENSIONS_DIRS, user_home_dir);
-#else
-        ld_library_path = (char *) malloc(sizeof(REG_DIR) + sizeof("/lib/") +
-            strlen(cpu_arch) + sizeof(DEFAULT_LIBPATH));
-        sprintf(ld_library_path, REG_DIR "/lib/%s:" DEFAULT_LIBPATH, cpu_arch);
-#endif
-
-        /*
-         * Get the user setting of LD_LIBRARY_PATH, and prepended it.  It
-         * should always exist (until the legacy problem cited above is
-         * addressed).
-         */
-#ifdef __APPLE__
-        // Prepend the default path with the JAVA_LIBRARY_PATH so that the app launcher code can specify a directory inside an app wrapper
-        char *l = getenv("JAVA_LIBRARY_PATH");
-        if (l != NULL) {
-            char *t = ld_library_path;
-            /* That's +1 for the colon and +1 for the trailing '\0' */
-            ld_library_path = (char *) malloc(strlen(l) + 1 + strlen(t) + 1);
-            sprintf(ld_library_path, "%s:%s", l, t);
-            free(t);
+    if (pslash != NULL) {
+      pslash = strrchr(buf, '/');
+      if (pslash != NULL) {
+        *pslash = '\0';          // Get rid of /<arch>.
+        pslash = strrchr(buf, '/');
+        if (pslash != NULL) {
+          *pslash = '\0';        // Get rid of /lib.
         }
-
-        char *v = getenv("DYLD_LIBRARY_PATH");
-#else
-        char *v = getenv("LD_LIBRARY_PATH");
-#endif
-        if (v != NULL) {
-            char *t = ld_library_path;
-            /* That's +1 for the colon and +1 for the trailing '\0' */
-            ld_library_path = (char *) malloc(strlen(v) + 1 + strlen(t) + 1);
-            sprintf(ld_library_path, "%s:%s", v, t);
-            free(t);
-        }
-
-#ifdef __APPLE__
-        // Apple's Java6 has "." at the beginning of java.library.path.
-        // OpenJDK on Windows has "." at the end of java.library.path.
-        // OpenJDK on Linux and Solaris don't have "." in java.library.path
-        // at all. To ease the transition from Apple's Java6 to OpenJDK7,
-        // "." is appended to the end of java.library.path. Yes, this
-        // could cause a change in behavior, but Apple's Java6 behavior
-        // can be achieved by putting "." at the beginning of the
-        // JAVA_LIBRARY_PATH environment variable.
-        {
-            char *t = ld_library_path;
-            // that's +3 for appending ":." and the trailing '\0'
-            ld_library_path = (char *) malloc(strlen(t) + 3);
-            sprintf(ld_library_path, "%s:%s", t, ".");
-            free(t);
-        }
-#endif
-
-        Arguments::set_library_path(ld_library_path);
+      }
     }
-
-    /*
-     * Extensions directories.
-     *
-     * Note that the space for the colon and the trailing null are provided
-     * by the nulls included by the sizeof operator (so actually one byte more
-     * than necessary is allocated).
-     */
-    {
-#ifdef __APPLE__
-        char *buf = malloc(strlen(Arguments::get_java_home()) +
-            sizeof(EXTENSIONS_DIR) + system_ext_size);
-        sprintf(buf, "%s" SYS_EXTENSIONS_DIR ":%s" EXTENSIONS_DIR ":"
-            SYS_EXTENSIONS_DIRS, user_home_dir, Arguments::get_java_home());
-#else
-        char *buf = malloc(strlen(Arguments::get_java_home()) +
-            sizeof(EXTENSIONS_DIR) + sizeof(REG_DIR) + sizeof(EXTENSIONS_DIR));
-        sprintf(buf, "%s" EXTENSIONS_DIR ":" REG_DIR EXTENSIONS_DIR,
-            Arguments::get_java_home());
-#endif
-
-        Arguments::set_ext_dirs(buf);
-    }
-
-    /* Endorsed standards default directory. */
-    {
-        char * buf;
-        buf = malloc(strlen(Arguments::get_java_home()) + sizeof(ENDORSED_DIR));
-        sprintf(buf, "%s" ENDORSED_DIR, Arguments::get_java_home());
-        Arguments::set_endorsed_dirs(buf);
-    }
+    Arguments::set_java_home(buf);
+    set_boot_path('/', ':');
   }
 
-#ifdef __APPLE__
+  // Where to look for native libraries.
+  //
+  // Note: Due to a legacy implementation, most of the library path
+  // is set in the launcher. This was to accomodate linking restrictions
+  // on legacy Bsd implementations (which are no longer supported).
+  // Eventually, all the library path setting will be done here.
+  //
+  // However, to prevent the proliferation of improperly built native
+  // libraries, the new path component /usr/java/packages is added here.
+  // Eventually, all the library path setting will be done here.
+  {
+    // Get the user setting of LD_LIBRARY_PATH, and prepended it. It
+    // should always exist (until the legacy problem cited above is
+    // addressed).
+    const char *v = ::getenv("LD_LIBRARY_PATH");
+    const char *v_colon = ":";
+    if (v == NULL) { v = ""; v_colon = ""; }
+    // That's +1 for the colon and +1 for the trailing '\0'.
+    char *ld_library_path = (char *)NEW_C_HEAP_ARRAY(char,
+                                                     strlen(v) + 1 +
+                                                     sizeof(SYS_EXT_DIR) + sizeof("/lib/") + strlen(cpu_arch) + sizeof(DEFAULT_LIBPATH) + 1,
+                                                     mtInternal);
+    sprintf(ld_library_path, "%s%s" SYS_EXT_DIR "/lib/%s:" DEFAULT_LIBPATH, v, v_colon, cpu_arch);
+    Arguments::set_library_path(ld_library_path);
+    FREE_C_HEAP_ARRAY(char, ld_library_path, mtInternal);
+  }
+
+  // Extensions directories.
+  sprintf(buf, "%s" EXTENSIONS_DIR ":" SYS_EXT_DIR EXTENSIONS_DIR, Arguments::get_java_home());
+  Arguments::set_ext_dirs(buf);
+
+  // Endorsed standards default directory.
+  sprintf(buf, "%s" ENDORSED_DIR, Arguments::get_java_home());
+  Arguments::set_endorsed_dirs(buf);
+
+  FREE_C_HEAP_ARRAY(char, buf, mtInternal);
+
+#else // __APPLE__
+
+#define SYS_EXTENSIONS_DIR   "/Library/Java/Extensions"
+#define SYS_EXTENSIONS_DIRS  SYS_EXTENSIONS_DIR ":/Network" SYS_EXTENSIONS_DIR ":/System" SYS_EXTENSIONS_DIR ":/usr/lib/java"
+
+  const char *user_home_dir = get_home();
+  // The null in SYS_EXTENSIONS_DIRS counts for the size of the colon after user_home_dir.
+  size_t system_ext_size = strlen(user_home_dir) + sizeof(SYS_EXTENSIONS_DIR) +
+    sizeof(SYS_EXTENSIONS_DIRS);
+
+  // Buffer that fits several sprintfs.
+  // Note that the space for the colon and the trailing null are provided
+  // by the nulls included by the sizeof operator.
+  const size_t bufsize =
+    MAX3((size_t)MAXPATHLEN,  // for dll_dir & friends.
+         (size_t)MAXPATHLEN + sizeof(EXTENSIONS_DIR) + system_ext_size, // extensions dir
+         (size_t)MAXPATHLEN + sizeof(ENDORSED_DIR)); // endorsed dir
+  char *buf = (char *)NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
+
+  // sysclasspath, java_home, dll_dir
+  {
+    char *pslash;
+    os::jvm_path(buf, bufsize);
+
+    // Found the full path to libjvm.so.
+    // Now cut the path to <java_home>/jre if we can.
+    *(strrchr(buf, '/')) = '\0'; // Get rid of /libjvm.so.
+    pslash = strrchr(buf, '/');
+    if (pslash != NULL) {
+      *pslash = '\0';            // Get rid of /{client|server|hotspot}.
+    }
+    Arguments::set_dll_dir(buf);
+
+    if (pslash != NULL) {
+      pslash = strrchr(buf, '/');
+      if (pslash != NULL) {
+        *pslash = '\0';          // Get rid of /lib.
+      }
+    }
+    Arguments::set_java_home(buf);
+    set_boot_path('/', ':');
+  }
+
+  // Where to look for native libraries.
+  //
+  // Note: Due to a legacy implementation, most of the library path
+  // is set in the launcher. This was to accomodate linking restrictions
+  // on legacy Bsd implementations (which are no longer supported).
+  // Eventually, all the library path setting will be done here.
+  //
+  // However, to prevent the proliferation of improperly built native
+  // libraries, the new path component /usr/java/packages is added here.
+  // Eventually, all the library path setting will be done here.
+  {
+    // Get the user setting of LD_LIBRARY_PATH, and prepended it. It
+    // should always exist (until the legacy problem cited above is
+    // addressed).
+    // Prepend the default path with the JAVA_LIBRARY_PATH so that the app launcher code
+    // can specify a directory inside an app wrapper
+    const char *l = ::getenv("JAVA_LIBRARY_PATH");
+    const char *l_colon = ":";
+    if (l == NULL) { l = ""; l_colon = ""; }
+
+    const char *v = ::getenv("DYLD_LIBRARY_PATH");
+    const char *v_colon = ":";
+    if (v == NULL) { v = ""; v_colon = ""; }
+
+    // Apple's Java6 has "." at the beginning of java.library.path.
+    // OpenJDK on Windows has "." at the end of java.library.path.
+    // OpenJDK on Linux and Solaris don't have "." in java.library.path
+    // at all. To ease the transition from Apple's Java6 to OpenJDK7,
+    // "." is appended to the end of java.library.path. Yes, this
+    // could cause a change in behavior, but Apple's Java6 behavior
+    // can be achieved by putting "." at the beginning of the
+    // JAVA_LIBRARY_PATH environment variable.
+    char *ld_library_path = (char *)NEW_C_HEAP_ARRAY(char,
+                                                     strlen(v) + 1 + strlen(l) + 1 +
+                                                     system_ext_size + 3,
+                                                     mtInternal);
+    sprintf(ld_library_path, "%s%s%s%s%s" SYS_EXTENSIONS_DIR ":" SYS_EXTENSIONS_DIRS ":.",
+            v, v_colon, l, l_colon, user_home_dir);
+    Arguments::set_library_path(ld_library_path);
+    FREE_C_HEAP_ARRAY(char, ld_library_path, mtInternal);
+  }
+
+  // Extensions directories.
+  //
+  // Note that the space for the colon and the trailing null are provided
+  // by the nulls included by the sizeof operator (so actually one byte more
+  // than necessary is allocated).
+  sprintf(buf, "%s" SYS_EXTENSIONS_DIR ":%s" EXTENSIONS_DIR ":" SYS_EXTENSIONS_DIRS,
+          user_home_dir, Arguments::get_java_home());
+  Arguments::set_ext_dirs(buf);
+
+  // Endorsed standards default directory.
+  sprintf(buf, "%s" ENDORSED_DIR, Arguments::get_java_home());
+  Arguments::set_endorsed_dirs(buf);
+
+  FREE_C_HEAP_ARRAY(char, buf, mtInternal);
+
 #undef SYS_EXTENSIONS_DIR
-#endif
-#undef malloc
-#undef getenv
+#undef SYS_EXTENSIONS_DIRS
+
+#endif // __APPLE__
+
+#undef SYS_EXT_DIR
 #undef EXTENSIONS_DIR
 #undef ENDORSED_DIR
-
-  // Done
-  return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -914,9 +921,20 @@ void os::free_thread(OSThread* osthread) {
 //////////////////////////////////////////////////////////////////////////////
 // thread local storage
 
+// Restore the thread pointer if the destructor is called. This is in case
+// someone from JNI code sets up a destructor with pthread_key_create to run
+// detachCurrentThread on thread death. Unless we restore the thread pointer we
+// will hang or crash. When detachCurrentThread is called the key will be set
+// to null and we will not be called again. If detachCurrentThread is never
+// called we could loop forever depending on the pthread implementation.
+static void restore_thread_pointer(void* p) {
+  Thread* thread = (Thread*) p;
+  os::thread_local_storage_at_put(ThreadLocalStorage::thread_index(), thread);
+}
+
 int os::allocate_thread_local_storage() {
   pthread_key_t key;
-  int rslt = pthread_key_create(&key, NULL);
+  int rslt = pthread_key_create(&key, restore_thread_pointer);
   assert(rslt == 0, "cannot allocate thread local storage");
   return (int)key;
 }
@@ -972,13 +990,15 @@ jlong os::javaTimeMillis() {
   return jlong(time.tv_sec) * 1000  +  jlong(time.tv_usec / 1000);
 }
 
+#ifndef __APPLE__
 #ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC (1)
+#endif
 #endif
 
 #ifdef __APPLE__
 void os::Bsd::clock_init() {
-        // XXXDARWIN: Investigate replacement monotonic clock
+  mach_timebase_info(&_timebase_info);
 }
 #else
 void os::Bsd::clock_init() {
@@ -993,10 +1013,38 @@ void os::Bsd::clock_init() {
 #endif
 
 
+#ifdef __APPLE__
+
+jlong os::javaTimeNanos() {
+    const uint64_t tm = mach_absolute_time();
+    const uint64_t now = (tm * Bsd::_timebase_info.numer) / Bsd::_timebase_info.denom;
+    const uint64_t prev = Bsd::_max_abstime;
+    if (now <= prev) {
+      return prev;   // same or retrograde time;
+    }
+    const uint64_t obsv = Atomic::cmpxchg(now, (volatile jlong*)&Bsd::_max_abstime, prev);
+    assert(obsv >= prev, "invariant");   // Monotonicity
+    // If the CAS succeeded then we're done and return "now".
+    // If the CAS failed and the observed value "obsv" is >= now then
+    // we should return "obsv".  If the CAS failed and now > obsv > prv then
+    // some other thread raced this thread and installed a new value, in which case
+    // we could either (a) retry the entire operation, (b) retry trying to install now
+    // or (c) just return obsv.  We use (c).   No loop is required although in some cases
+    // we might discard a higher "now" value in deference to a slightly lower but freshly
+    // installed obsv value.   That's entirely benign -- it admits no new orderings compared
+    // to (a) or (b) -- and greatly reduces coherence traffic.
+    // We might also condition (c) on the magnitude of the delta between obsv and now.
+    // Avoiding excessive CAS operations to hot RW locations is critical.
+    // See https://blogs.oracle.com/dave/entry/cas_and_cache_trivia_invalidate
+    return (prev == obsv) ? now : obsv;
+}
+
+#else // __APPLE__
+
 jlong os::javaTimeNanos() {
   if (Bsd::supports_monotonic_clock()) {
     struct timespec tp;
-    int status = Bsd::clock_gettime(CLOCK_MONOTONIC, &tp);
+    int status = Bsd::_clock_gettime(CLOCK_MONOTONIC, &tp);
     assert(status == 0, "gettime error");
     jlong result = jlong(tp.tv_sec) * (1000 * 1000 * 1000) + jlong(tp.tv_nsec);
     return result;
@@ -1008,6 +1056,8 @@ jlong os::javaTimeNanos() {
     return 1000 * usecs;
   }
 }
+
+#endif // __APPLE__
 
 void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
   if (Bsd::supports_monotonic_clock()) {
@@ -1557,6 +1607,17 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
 }
 #endif /* !__APPLE__ */
 
+void* os::get_default_process_handle() {
+#ifdef __APPLE__
+  // MacOS X needs to use RTLD_FIRST instead of RTLD_LAZY
+  // to avoid finding unexpected symbols on second (or later)
+  // loads of a library.
+  return (void*)::dlopen(NULL, RTLD_FIRST);
+#else
+  return (void*)::dlopen(NULL, RTLD_LAZY);
+#endif
+}
+
 // XXX: Do we need a lock around this as per Linux?
 void* os::dll_lookup(void* handle, const char* name) {
   return dlsym(handle, name);
@@ -1666,58 +1727,12 @@ void os::print_memory_info(outputStream* st) {
   st->cr();
 }
 
-// Taken from /usr/include/bits/siginfo.h  Supposed to be architecture specific
-// but they're the same for all the bsd arch that we support
-// and they're the same for solaris but there's no common place to put this.
-const char *ill_names[] = { "ILL0", "ILL_ILLOPC", "ILL_ILLOPN", "ILL_ILLADR",
-                          "ILL_ILLTRP", "ILL_PRVOPC", "ILL_PRVREG",
-                          "ILL_COPROC", "ILL_BADSTK" };
-
-const char *fpe_names[] = { "FPE0", "FPE_INTDIV", "FPE_INTOVF", "FPE_FLTDIV",
-                          "FPE_FLTOVF", "FPE_FLTUND", "FPE_FLTRES",
-                          "FPE_FLTINV", "FPE_FLTSUB", "FPE_FLTDEN" };
-
-const char *segv_names[] = { "SEGV0", "SEGV_MAPERR", "SEGV_ACCERR" };
-
-const char *bus_names[] = { "BUS0", "BUS_ADRALN", "BUS_ADRERR", "BUS_OBJERR" };
-
 void os::print_siginfo(outputStream* st, void* siginfo) {
-  st->print("siginfo:");
+  const siginfo_t* si = (const siginfo_t*)siginfo;
 
-  const int buflen = 100;
-  char buf[buflen];
-  siginfo_t *si = (siginfo_t*)siginfo;
-  st->print("si_signo=%s: ", os::exception_name(si->si_signo, buf, buflen));
-  if (si->si_errno != 0 && strerror_r(si->si_errno, buf, buflen) == 0) {
-    st->print("si_errno=%s", buf);
-  } else {
-    st->print("si_errno=%d", si->si_errno);
-  }
-  const int c = si->si_code;
-  assert(c > 0, "unexpected si_code");
-  switch (si->si_signo) {
-  case SIGILL:
-    st->print(", si_code=%d (%s)", c, c > 8 ? "" : ill_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGFPE:
-    st->print(", si_code=%d (%s)", c, c > 9 ? "" : fpe_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGSEGV:
-    st->print(", si_code=%d (%s)", c, c > 2 ? "" : segv_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  case SIGBUS:
-    st->print(", si_code=%d (%s)", c, c > 3 ? "" : bus_names[c]);
-    st->print(", si_addr=" PTR_FORMAT, si->si_addr);
-    break;
-  default:
-    st->print(", si_code=%d", si->si_code);
-    // no si_addr
-  }
+  os::Posix::print_siginfo_brief(st, si);
 
-  if ((si->si_signo == SIGBUS || si->si_signo == SIGSEGV) &&
+  if (si && (si->si_signo == SIGBUS || si->si_signo == SIGSEGV) &&
       UseSharedSpaces) {
     FileMapInfo* mapinfo = FileMapInfo::current_info();
     if (mapinfo->is_in_shared_space(si->si_addr)) {
@@ -2625,9 +2640,21 @@ int os::sleep(Thread* thread, jlong millis, bool interruptible) {
   }
 }
 
-int os::naked_sleep() {
-  // %% make the sleep time an integer flag. for now use 1 millisec.
-  return os::sleep(Thread::current(), 1, false);
+void os::naked_short_sleep(jlong ms) {
+  struct timespec req;
+
+  assert(ms < 1000, "Un-interruptable sleep, short time use only");
+  req.tv_sec = 0;
+  if (ms > 0) {
+    req.tv_nsec = (ms % 1000) * 1000000;
+  }
+  else {
+    req.tv_nsec = 1;
+  }
+
+  nanosleep(&req, NULL);
+
+  return;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
@@ -3235,7 +3262,7 @@ void os::Bsd::set_signal_handler(int sig, bool set_installed) {
     sigAct.sa_sigaction = signalHandler;
     sigAct.sa_flags = SA_SIGINFO|SA_RESTART;
   }
-#if __APPLE__
+#ifdef __APPLE__
   // Needed for main thread as XNU (Mac OS X kernel) will only deliver SIGSEGV
   // (which starts as SIGBUS) on main thread with faulting address inside "stack+guard pages"
   // if the signal handler declares it will handle it on alternate stack.
@@ -3392,7 +3419,8 @@ static void print_signal_handler(outputStream* st, int sig,
     st->print("[%s]", get_signal_handler_name(handler, buf, buflen));
   }
 
-  st->print(", sa_mask[0]=" PTR32_FORMAT, *(uint32_t*)&sa.sa_mask);
+  st->print(", sa_mask[0]=");
+  os::Posix::print_signal_set_short(st, &sa.sa_mask);
 
   address rh = VMError::get_resetted_sighandler(sig);
   // May be, handler was resetted by VMError?
@@ -3401,7 +3429,8 @@ static void print_signal_handler(outputStream* st, int sig,
     sa.sa_flags = VMError::get_resetted_sigflags(sig) & SIGNIFICANT_SIGNAL_MASK;
   }
 
-  st->print(", sa_flags="   PTR32_FORMAT, sa.sa_flags);
+  st->print(", sa_flags=");
+  os::Posix::print_sa_flags(st, sa.sa_flags);
 
   // Check: is it our handler?
   if(handler == CAST_FROM_FN_PTR(address, (sa_sigaction_t)signalHandler) ||

@@ -42,12 +42,8 @@ abstract class ArrayBufferView extends ScriptObject {
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     private ArrayBufferView(final NativeArrayBuffer buffer, final int byteOffset, final int elementLength, final Global global) {
-        super(global.getArrayBufferViewMap());
+        super($nasgenmap$);
         checkConstructorArgs(buffer, byteOffset, elementLength);
         this.setProto(getPrototype(global));
         this.setArray(factory().createArrayData(buffer, byteOffset, elementLength));
@@ -386,7 +382,7 @@ abstract class ArrayBufferView extends ScriptObject {
         return (int) (length & Integer.MAX_VALUE);
     }
 
-    protected static Object subarrayImpl(final Object self, final Object begin0, final Object end0) {
+    protected static ScriptObject subarrayImpl(final Object self, final Object begin0, final Object end0) {
         final ArrayBufferView arrayView = ((ArrayBufferView)self);
         final int elementLength = arrayView.elementLength();
         final int begin = NativeArrayBuffer.adjustIndex(JSType.toInt32(begin0), elementLength);

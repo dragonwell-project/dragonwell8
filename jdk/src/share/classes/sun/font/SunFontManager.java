@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,7 @@ import javax.swing.plaf.FontUIResource;
 import sun.awt.AppContext;
 import sun.awt.FontConfiguration;
 import sun.awt.SunToolkit;
+import sun.misc.ThreadGroupUtils;
 import sun.java2d.FontSupport;
 import sun.util.logging.PlatformLogger;
 
@@ -763,7 +764,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
             if (family == null) {
                 family = new FontFamily(familyName, false, rank);
                 family.setFont(f, f.style);
-            } else if (family.getRank() >= rank) {
+            } else {
                 family.setFont(f, f.style);
             }
             fullNameToFont.put(fontName.toLowerCase(Locale.ENGLISH), f);
@@ -854,7 +855,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
                 if (family == null) {
                     family = new FontFamily(familyName, false, rank);
                     family.setFont(newFont, newFont.style);
-                } else if (family.getRank() >= rank) {
+                } else {
                     family.setFont(newFont, newFont.style);
                 }
                 return newFont;
@@ -2521,24 +2522,18 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
                           });
                       }
                     };
-                    java.security.AccessController.doPrivileged(
-                       new java.security.PrivilegedAction() {
-                          public Object run() {
-                              /* The thread must be a member of a thread group
-                               * which will not get GCed before VM exit.
-                               * Make its parent the top-level thread group.
-                               */
-                              ThreadGroup tg =
-                                  Thread.currentThread().getThreadGroup();
-                              for (ThreadGroup tgn = tg;
-                                   tgn != null;
-                                   tg = tgn, tgn = tg.getParent());
-                              fileCloser = new Thread(tg, fileCloserRunnable);
-                              fileCloser.setContextClassLoader(null);
-                              Runtime.getRuntime().addShutdownHook(fileCloser);
-                              return null;
-                          }
-                    });
+                    AccessController.doPrivileged(
+                            (PrivilegedAction<Void>) () -> {
+                                /* The thread must be a member of a thread group
+                                 * which will not get GCed before VM exit.
+                                 * Make its parent the top-level thread group.
+                                 */
+                                ThreadGroup rootTG = ThreadGroupUtils.getRootThreadGroup();
+                                fileCloser = new Thread(rootTG, fileCloserRunnable);
+                                fileCloser.setContextClassLoader(null);
+                                Runtime.getRuntime().addShutdownHook(fileCloser);
+                                return null;
+                            });
                 }
             }
         }

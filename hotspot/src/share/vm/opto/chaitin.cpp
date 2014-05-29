@@ -761,7 +761,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         // processes as vector in RA.
         if (RegMask::is_vector(ireg))
           lrg._is_vector = 1;
-        assert(n_type->isa_vect() == NULL || lrg._is_vector || ireg == Op_RegD,
+        assert(n_type->isa_vect() == NULL || lrg._is_vector || ireg == Op_RegD || ireg == Op_RegL,
                "vector must be in vector registers");
 
         // Check for bound register masks
@@ -961,7 +961,7 @@ void PhaseChaitin::gather_lrg_masks( bool after_aggressive ) {
         int kreg = n->in(k)->ideal_reg();
         bool is_vect = RegMask::is_vector(kreg);
         assert(n->in(k)->bottom_type()->isa_vect() == NULL ||
-               is_vect || kreg == Op_RegD,
+               is_vect || kreg == Op_RegD || kreg == Op_RegL,
                "vector must be in vector registers");
         if (lrgmask.is_bound(kreg))
           lrg._is_bound = 1;
@@ -1682,9 +1682,21 @@ Node *PhaseChaitin::find_base_for_derived( Node **derived_base_map, Node *derive
       // (where top() node is placed).
       base->init_req(0, _cfg.get_root_node());
       Block *startb = _cfg.get_block_for_node(C->top());
-      startb->insert_node(base, startb->find_node(C->top()));
+      uint node_pos = startb->find_node(C->top());
+      startb->insert_node(base, node_pos);
       _cfg.map_node_to_block(base, startb);
       assert(_lrg_map.live_range_id(base) == 0, "should not have LRG yet");
+
+      // The loadConP0 might have projection nodes depending on architecture
+      // Add the projection nodes to the CFG
+      for (DUIterator_Fast imax, i = base->fast_outs(imax); i < imax; i++) {
+        Node* use = base->fast_out(i);
+        if (use->is_MachProj()) {
+          startb->insert_node(use, ++node_pos);
+          _cfg.map_node_to_block(use, startb);
+          new_lrg(use, maxlrg++);
+        }
+      }
     }
     if (_lrg_map.live_range_id(base) == 0) {
       new_lrg(base, maxlrg++);

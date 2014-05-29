@@ -52,6 +52,7 @@
 #include "runtime/memprofiler.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/statSampler.hpp"
+#include "runtime/sweeper.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
@@ -217,9 +218,7 @@ AllocStats alloc_stats;
 
 
 // General statistics printing (profiling ...)
-
 void print_statistics() {
-
 #ifdef ASSERT
 
   if (CountRuntimeCalls) {
@@ -269,7 +268,7 @@ void print_statistics() {
     os::print_statistics();
   }
 
-  if (PrintLockStatistics || PrintPreciseBiasedLockingStatistics) {
+  if (PrintLockStatistics || PrintPreciseBiasedLockingStatistics || PrintPreciseRTMLockingStatistics) {
     OptoRuntime::print_named_counters();
   }
 
@@ -313,6 +312,10 @@ void print_statistics() {
   if (PrintCodeCache) {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     CodeCache::print();
+  }
+
+  if (PrintMethodFlushingStatistics) {
+    NMethodSweeper::print();
   }
 
   if (PrintCodeCache2) {
@@ -382,8 +385,12 @@ void print_statistics() {
     CodeCache::print();
   }
 
+  if (PrintMethodFlushingStatistics) {
+    NMethodSweeper::print();
+  }
+
 #ifdef COMPILER2
-  if (PrintPreciseBiasedLockingStatistics) {
+  if (PrintPreciseBiasedLockingStatistics || PrintPreciseRTMLockingStatistics) {
     OptoRuntime::print_named_counters();
   }
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "globals_windows.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "globals_aix.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "globals_bsd.hpp"
 #endif
@@ -87,6 +90,9 @@
 #endif
 #ifdef TARGET_OS_ARCH_linux_ppc
 # include "globals_linux_ppc.hpp"
+#endif
+#ifdef TARGET_OS_ARCH_aix_ppc
+# include "globals_aix_ppc.hpp"
 #endif
 #ifdef TARGET_OS_ARCH_bsd_x86
 # include "globals_bsd_x86.hpp"
@@ -116,6 +122,9 @@
 #ifdef TARGET_OS_FAMILY_windows
 # include "c1_globals_windows.hpp"
 #endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "c1_globals_aix.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "c1_globals_bsd.hpp"
 #endif
@@ -130,6 +139,9 @@
 #ifdef TARGET_ARCH_arm
 # include "c2_globals_arm.hpp"
 #endif
+#ifdef TARGET_ARCH_ppc
+# include "c2_globals_ppc.hpp"
+#endif
 #ifdef TARGET_OS_FAMILY_linux
 # include "c2_globals_linux.hpp"
 #endif
@@ -138,6 +150,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "c2_globals_windows.hpp"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "c2_globals_aix.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "c2_globals_bsd.hpp"
@@ -167,7 +182,6 @@ define_pd_global(intx, BackEdgeThreshold,            0);
 define_pd_global(intx, OnStackReplacePercentage,     0);
 define_pd_global(bool, ResizeTLAB,                   false);
 define_pd_global(intx, FreqInlineSize,               0);
-define_pd_global(intx, InlineSmallCode,              0);
 define_pd_global(intx, NewSizeThreadIncrease,        4*K);
 define_pd_global(intx, InlineClassNatives,           true);
 define_pd_global(intx, InlineUnsafeOps,              true);
@@ -241,7 +255,7 @@ struct Flag {
   // number of flags
   static size_t numFlags;
 
-  static Flag* find_flag(const char* name, size_t length, bool allow_locked = false);
+  static Flag* find_flag(const char* name, size_t length, bool allow_locked = false, bool return_flag = false);
   static Flag* fuzzy_match(const char* name, size_t length, bool allow_locked = false);
 
   void check_writable();
@@ -1257,6 +1271,9 @@ class CommandLineFlags {
                                                                             \
   develop(bool, TraceJNICalls, false,                                       \
           "Trace JNI calls")                                                \
+                                                                            \
+  develop(bool, StressRewriter, false,                                      \
+          "Stress linktime bytecode rewriting")                             \
                                                                             \
   notproduct(bool, TraceJVMCalls, false,                                    \
           "Trace JVM calls")                                                \
@@ -2405,9 +2422,9 @@ class CommandLineFlags {
           "Number of gclog files in rotation "                              \
           "(default: 0, no rotation)")                                      \
                                                                             \
-  product(uintx, GCLogFileSize, 0,                                          \
-          "GC log file size (default: 0 bytes, no rotation). "              \
-          "It requires UseGCLogFileRotation")                               \
+  product(uintx, GCLogFileSize, 8*K,                                        \
+          "GC log file size, requires UseGCLogFileRotation. "               \
+          "Set to 0 to only trigger rotation via jcmd")                     \
                                                                             \
   /* JVMTI heap profiling */                                                \
                                                                             \
@@ -2486,6 +2503,12 @@ class CommandLineFlags {
   develop_pd(bool, ImplicitNullChecks,                                      \
           "Generate code for implicit null checks")                         \
                                                                             \
+  product_pd(bool, TrapBasedNullChecks,                                     \
+          "Generate code for null checks that uses a cmp and trap "         \
+          "instruction raising SIGTRAP.  This is only used if an access to" \
+          "null (+offset) will not raise a SIGSEGV, i.e.,"                  \
+          "ImplicitNullChecks don't work (PPC64).")                         \
+                                                                            \
   product(bool, PrintSafepointStatistics, false,                            \
           "Print statistics about safepoint synchronization")               \
                                                                             \
@@ -2530,6 +2553,9 @@ class CommandLineFlags {
                                                                             \
   develop(bool, PrintMethodFlushing, false,                                 \
           "Print the nmethods being flushed")                               \
+                                                                            \
+  diagnostic(bool, PrintMethodFlushingStatistics, false,                    \
+          "print statistics about method flushing")                         \
                                                                             \
   develop(bool, UseRelocIndex, false,                                       \
           "Use an index to speed random access to relocations")             \
@@ -2793,6 +2819,11 @@ class CommandLineFlags {
   product_pd(bool, ProfileInterpreter,                                      \
           "Profile at the bytecode level during interpretation")            \
                                                                             \
+  develop(bool, TraceProfileInterpreter, false,                             \
+          "Trace profiling at the bytecode level during interpretation. "   \
+          "This outputs the profiling information collected to improve "    \
+          "jit compilation.")                                               \
+                                                                            \
   develop_pd(bool, ProfileTraps,                                            \
           "Profile deoptimization traps at the bytecode level")             \
                                                                             \
@@ -2955,7 +2986,8 @@ class CommandLineFlags {
           "maximum number of nested recursive calls that are inlined")      \
                                                                             \
   develop(intx, MaxForceInlineLevel, 100,                                   \
-          "maximum number of nested @ForceInline calls that are inlined")   \
+          "maximum number of nested calls that are forced for inlining "    \
+          "(using CompilerOracle or marked w/ @ForceInline)")               \
                                                                             \
   product_pd(intx, InlineSmallCode,                                         \
           "Only inline already compiled methods if their code size is "     \
@@ -3049,8 +3081,14 @@ class CommandLineFlags {
   product(intx, PerMethodTrapLimit,  100,                                   \
           "Limit on traps (of one kind) in a method (includes inlines)")    \
                                                                             \
+  experimental(intx, PerMethodSpecTrapLimit,  5000,                         \
+          "Limit on speculative traps (of one kind) in a method (includes inlines)") \
+                                                                            \
   product(intx, PerBytecodeTrapLimit,  4,                                   \
           "Limit on traps (of one kind) at a particular BCI")               \
+                                                                            \
+  experimental(intx, SpecTrapLimitExtraEntries,  3,                         \
+          "Extra method data trap entries for speculation")                 \
                                                                             \
   develop(intx, InlineFrequencyRatio,    20,                                \
           "Ratio of call site execution to caller method invocation")       \
@@ -3130,15 +3168,15 @@ class CommandLineFlags {
           "Maximum size of class area in Metaspace when compressed "        \
           "class pointers are used")                                        \
                                                                             \
-  product(uintx, MinHeapFreeRatio,    40,                                   \
+  manageable(uintx, MinHeapFreeRatio, 40,                                   \
           "The minimum percentage of heap free after GC to avoid expansion."\
-          " For most GCs this applies to the old generation. In G1 it"      \
-          " applies to the whole heap. Not supported by ParallelGC.")       \
+          " For most GCs this applies to the old generation. In G1 and"     \
+          " ParallelGC it applies to the whole heap.")                      \
                                                                             \
-  product(uintx, MaxHeapFreeRatio,    70,                                   \
+  manageable(uintx, MaxHeapFreeRatio, 70,                                   \
           "The maximum percentage of heap free after GC to avoid shrinking."\
-          " For most GCs this applies to the old generation. In G1 it"      \
-          " applies to the whole heap. Not supported by ParallelGC.")       \
+          " For most GCs this applies to the old generation. In G1 and"     \
+          " ParallelGC it applies to the whole heap.")                      \
                                                                             \
   product(intx, SoftRefLRUPolicyMSPerMB, 1000,                              \
           "Number of milliseconds per MB of free space in the heap")        \
@@ -3257,7 +3295,8 @@ class CommandLineFlags {
           "disable this feature")                                           \
                                                                             \
   /* code cache parameters */                                               \
-  develop(uintx, CodeCacheSegmentSize, 64,                                  \
+  /* ppc64 has large code-entry alignment. */                               \
+  develop(uintx, CodeCacheSegmentSize, 64 PPC64_ONLY(+64),                  \
           "Code cache segment size (in bytes) - smallest unit of "          \
           "allocation")                                                     \
                                                                             \
@@ -3306,21 +3345,21 @@ class CommandLineFlags {
   develop(intx, CIStart, 0,                                                 \
           "The id of the first compilation to permit")                      \
                                                                             \
-  develop(intx, CIStop,    -1,                                              \
+  develop(intx, CIStop, max_jint,                                           \
           "The id of the last compilation to permit")                       \
                                                                             \
-  develop(intx, CIStartOSR,     0,                                          \
+  develop(intx, CIStartOSR, 0,                                              \
           "The id of the first osr compilation to permit "                  \
           "(CICountOSR must be on)")                                        \
                                                                             \
-  develop(intx, CIStopOSR,    -1,                                           \
+  develop(intx, CIStopOSR, max_jint,                                        \
           "The id of the last osr compilation to permit "                   \
           "(CICountOSR must be on)")                                        \
                                                                             \
-  develop(intx, CIBreakAtOSR,    -1,                                        \
+  develop(intx, CIBreakAtOSR, -1,                                           \
           "The id of osr compilation to break at")                          \
                                                                             \
-  develop(intx, CIBreakAt,    -1,                                           \
+  develop(intx, CIBreakAt, -1,                                              \
           "The id of compilation to break at")                              \
                                                                             \
   product(ccstrlist, CompileOnly, "",                                       \
@@ -3338,6 +3377,10 @@ class CommandLineFlags {
   product(ccstr, ReplayDataFile, NULL,                                      \
           "File containing compilation replay information"                  \
           "[default: ./replay_pid%p.log] (%p replaced with pid)")           \
+                                                                            \
+   product(ccstr, InlineDataFile, NULL,                                     \
+          "File containing inlining replay information"                     \
+          "[default: ./inline_pid%p.log] (%p replaced with pid)")           \
                                                                             \
   develop(intx, ReplaySuppressInitializers, 2,                              \
           "Control handling of class initialization during replay: "        \
@@ -3755,8 +3798,8 @@ class CommandLineFlags {
   experimental(bool, TrustFinalNonStaticFields, false,                      \
           "trust final non-static declarations for constant folding")       \
                                                                             \
-  experimental(bool, FoldStableValues, false,                               \
-          "Private flag to control optimizations for stable variables")     \
+  diagnostic(bool, FoldStableValues, true,                                  \
+          "Optimize loads from stable fields (marked w/ @Stable)")          \
                                                                             \
   develop(bool, TraceInvokeDynamic, false,                                  \
           "trace internal invoke dynamic operations")                       \
@@ -3795,6 +3838,22 @@ class CommandLineFlags {
                                                                             \
   experimental(uintx, SymbolTableSize, defaultSymbolTableSize,              \
           "Number of buckets in the JVM internal Symbol table")             \
+                                                                            \
+  product(bool, UseStringDeduplication, false,                              \
+          "Use string deduplication")                                       \
+                                                                            \
+  product(bool, PrintStringDeduplicationStatistics, false,                  \
+          "Print string deduplication statistics")                          \
+                                                                            \
+  product(uintx, StringDeduplicationAgeThreshold, 3,                        \
+          "A string must reach this age (or be promoted to an old region) " \
+          "to be considered for deduplication")                             \
+                                                                            \
+  diagnostic(bool, StringDeduplicationResizeALot, false,                    \
+          "Force table resize every time the table is scanned")             \
+                                                                            \
+  diagnostic(bool, StringDeduplicationRehashALot, false,                    \
+          "Force table rehash every time the table is scanned")             \
                                                                             \
   develop(bool, TraceDefaultMethods, false,                                 \
           "Trace the default method processing steps")                      \
