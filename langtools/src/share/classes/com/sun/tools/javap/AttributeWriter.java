@@ -226,10 +226,7 @@ public class AttributeWriter extends BasicWriter
     }
 
     public Void visitConstantValue(ConstantValue_attribute attr, Void ignore) {
-        if (options.compat) // BUG 6622216 javap names some attributes incorrectly
-            print("Constant value: ");
-        else
-            print("ConstantValue: ");
+        print("ConstantValue: ");
         constantWriter.write(attr.constantvalue_index);
         println();
         return null;
@@ -290,20 +287,10 @@ public class AttributeWriter extends BasicWriter
 
     public Void visitInnerClasses(InnerClasses_attribute attr, Void ignore) {
         boolean first = true;
-        if (options.compat) {
-            writeInnerClassHeader();
-            first = false;
-        }
         for (int i = 0 ; i < attr.classes.length; i++) {
             InnerClasses_attribute.Info info = attr.classes[i];
             //access
             AccessFlags access_flags = info.inner_class_access_flags;
-            if (options.compat) {
-                // BUG 6622215: javap ignores certain relevant access flags
-                access_flags = access_flags.ignore(ACC_STATIC | ACC_PROTECTED | ACC_PRIVATE | ACC_INTERFACE | ACC_SYNTHETIC | ACC_ENUM);
-                // BUG 6622232: javap gets whitespace confused
-                print("   ");
-            }
             if (options.checkAccess(access_flags)) {
                 if (first) {
                     writeInnerClassHeader();
@@ -345,11 +332,7 @@ public class AttributeWriter extends BasicWriter
     }
 
     private void writeInnerClassHeader() {
-        if (options.compat) // BUG 6622216: javap names some attributes incorrectly
-            print("InnerClass");
-        else
-            print("InnerClasses");
-        println(":");
+        println("InnerClasses:");
         indent(+1);
     }
 
@@ -547,7 +530,6 @@ public class AttributeWriter extends BasicWriter
         for (StackMapTable_attribute.stack_map_frame entry : attr.entries) {
             w.write(entry);
         }
-        println();
         indent(-1);
         return null;
     }
@@ -559,7 +541,6 @@ public class AttributeWriter extends BasicWriter
         for (StackMapTable_attribute.stack_map_frame entry : attr.entries) {
             w.write(entry);
         }
-        println();
         indent(-1);
         return null;
     }
@@ -571,14 +552,12 @@ public class AttributeWriter extends BasicWriter
         }
 
         public Void visit_same_frame(StackMapTable_attribute.same_frame frame, Void p) {
-            printHeader(frame);
-            println(" /* same */");
+            printHeader(frame, "/* same */");
             return null;
         }
 
         public Void visit_same_locals_1_stack_item_frame(StackMapTable_attribute.same_locals_1_stack_item_frame frame, Void p) {
-            printHeader(frame);
-            println(" /* same_locals_1_stack_item */");
+            printHeader(frame, "/* same_locals_1_stack_item */");
             indent(+1);
             printMap("stack", frame.stack);
             indent(-1);
@@ -586,8 +565,7 @@ public class AttributeWriter extends BasicWriter
         }
 
         public Void visit_same_locals_1_stack_item_frame_extended(StackMapTable_attribute.same_locals_1_stack_item_frame_extended frame, Void p) {
-            printHeader(frame);
-            println(" /* same_locals_1_stack_item_frame_extended */");
+            printHeader(frame, "/* same_locals_1_stack_item_frame_extended */");
             indent(+1);
             println("offset_delta = " + frame.offset_delta);
             printMap("stack", frame.stack);
@@ -596,8 +574,7 @@ public class AttributeWriter extends BasicWriter
         }
 
         public Void visit_chop_frame(StackMapTable_attribute.chop_frame frame, Void p) {
-            printHeader(frame);
-            println(" /* chop */");
+            printHeader(frame, "/* chop */");
             indent(+1);
             println("offset_delta = " + frame.offset_delta);
             indent(-1);
@@ -605,8 +582,7 @@ public class AttributeWriter extends BasicWriter
         }
 
         public Void visit_same_frame_extended(StackMapTable_attribute.same_frame_extended frame, Void p) {
-            printHeader(frame);
-            println(" /* same_frame_extended */");
+            printHeader(frame, "/* same_frame_extended */");
             indent(+1);
             println("offset_delta = " + frame.offset_delta);
             indent(-1);
@@ -614,21 +590,20 @@ public class AttributeWriter extends BasicWriter
         }
 
         public Void visit_append_frame(StackMapTable_attribute.append_frame frame, Void p) {
-            printHeader(frame);
-            println(" /* append */");
+            printHeader(frame, "/* append */");
             indent(+1);
             println("offset_delta = " + frame.offset_delta);
             printMap("locals", frame.locals);
+            indent(-1);
             return null;
         }
 
         public Void visit_full_frame(StackMapTable_attribute.full_frame frame, Void p) {
-            printHeader(frame);
             if (frame instanceof StackMap_attribute.stack_map_frame) {
+                printHeader(frame, "offset = " + frame.offset_delta);
                 indent(+1);
-                println(" offset = " + frame.offset_delta);
             } else {
-                println(" /* full_frame */");
+                printHeader(frame, "/* full_frame */");
                 indent(+1);
                 println("offset_delta = " + frame.offset_delta);
             }
@@ -638,8 +613,9 @@ public class AttributeWriter extends BasicWriter
             return null;
         }
 
-        void printHeader(StackMapTable_attribute.stack_map_frame frame) {
-            print("   frame_type = " + frame.frame_type);
+        void printHeader(StackMapTable_attribute.stack_map_frame frame, String extra) {
+            print("frame_type = " + frame.frame_type + " ");
+            println(extra);
         }
 
         void printMap(String name, StackMapTable_attribute.verification_type_info[] map) {
@@ -710,10 +686,7 @@ public class AttributeWriter extends BasicWriter
     }
 
     String toHex(byte b, int w) {
-        if (options.compat) // BUG 6622260: javap prints negative bytes incorrectly in hex
-            return toHex((int) b, w);
-        else
-            return toHex(b & 0xff, w);
+        return toHex(b & 0xff, w);
     }
 
     static String toHex(int i) {

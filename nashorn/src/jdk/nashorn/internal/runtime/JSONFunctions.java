@@ -33,10 +33,13 @@ import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.ObjectNode;
 import jdk.nashorn.internal.ir.PropertyNode;
 import jdk.nashorn.internal.ir.UnaryNode;
+import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.parser.JSONParser;
 import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
+
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 /**
  * Utilities used by "JSON" object implementation.
@@ -47,7 +50,7 @@ public final class JSONFunctions {
     private static final Object REVIVER_INVOKER = new Object();
 
     private static MethodHandle getREVIVER_INVOKER() {
-        return ((GlobalObject)Context.getGlobal()).getDynamicInvoker(REVIVER_INVOKER,
+        return Context.getGlobal().getDynamicInvoker(REVIVER_INVOKER,
                 new Callable<MethodHandle>() {
                     @Override
                     public MethodHandle call() {
@@ -76,9 +79,7 @@ public final class JSONFunctions {
      */
     public static Object parse(final Object text, final Object reviver) {
         final String     str     = JSType.toString(text);
-        final JSONParser parser  = new JSONParser(
-                new Source("<json>", str),
-                new Context.ThrowErrorManager());
+        final JSONParser parser  = new JSONParser(sourceFor("<json>", str), new Context.ThrowErrorManager());
 
         Node node;
 
@@ -88,7 +89,7 @@ public final class JSONFunctions {
             throw ECMAErrors.syntaxError(e, "invalid.json", e.getMessage());
         }
 
-        final ScriptObject global = Context.getGlobalTrusted();
+        final Global global = Context.getGlobal();
         Object unfiltered = convertNode(global, node);
         return applyReviver(global, unfiltered, reviver);
     }
@@ -98,10 +99,9 @@ public final class JSONFunctions {
     // parse helpers
 
     // apply 'reviver' function if available
-    private static Object applyReviver(final ScriptObject global, final Object unfiltered, final Object reviver) {
+    private static Object applyReviver(final Global global, final Object unfiltered, final Object reviver) {
         if (reviver instanceof ScriptFunction) {
-            assert global instanceof GlobalObject;
-            final ScriptObject root = ((GlobalObject)global).newObject();
+            final ScriptObject root = global.newObject();
             root.addOwnProperty("", Property.WRITABLE_ENUMERABLE_CONFIGURABLE, unfiltered);
             return walk(root, "", (ScriptFunction)reviver);
         }
@@ -138,8 +138,8 @@ public final class JSONFunctions {
     }
 
     // Converts IR node to runtime value
-    private static Object convertNode(final ScriptObject global, final Node node) {
-        assert global instanceof GlobalObject;
+    private static Object convertNode(final Global global, final Node node) {
+        assert global instanceof Global;
 
         if (node instanceof LiteralNode) {
             // check for array literal
@@ -157,7 +157,7 @@ public final class JSONFunctions {
                     for (final Node elem : elements) {
                         values[index++] = JSType.toNumber(convertNode(global, elem));
                     }
-                    return ((GlobalObject)global).wrapAsObject(values);
+                    return global.wrapAsObject(values);
                 }
 
                 final Object[] values = new Object[elements.length];
@@ -167,14 +167,14 @@ public final class JSONFunctions {
                     values[index++] = convertNode(global, elem);
                 }
 
-                return ((GlobalObject)global).wrapAsObject(values);
+                return global.wrapAsObject(values);
             }
 
             return ((LiteralNode<?>)node).getValue();
 
         } else if (node instanceof ObjectNode) {
             final ObjectNode   objNode  = (ObjectNode) node;
-            final ScriptObject object   = ((GlobalObject)global).newObject();
+            final ScriptObject object   = global.newObject();
 
             for (final PropertyNode pNode: objNode.getElements()) {
                 final Node         valueNode = pNode.getValue();

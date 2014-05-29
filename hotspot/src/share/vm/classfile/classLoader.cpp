@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,6 +67,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "os_windows.inline.hpp"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "os_aix.inline.hpp"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "os_bsd.inline.hpp"
@@ -340,7 +343,7 @@ static void print_meta_index(LazyClassPathEntry* entry,
   tty->print("[Meta index for %s=", entry->name());
   for (int i = 0; i < meta_packages.length(); i++) {
     if (i > 0) tty->print(" ");
-    tty->print(meta_packages.at(i));
+    tty->print("%s", meta_packages.at(i));
   }
   tty->print_cr("]");
 }
@@ -1296,7 +1299,7 @@ void ClassLoader::compile_the_world() {
     e = e->next();
   }
   jlong end = os::javaTimeMillis();
-  tty->print_cr("CompileTheWorld : Done (%d classes, %d methods, %d ms)",
+  tty->print_cr("CompileTheWorld : Done (%d classes, %d methods, " JLONG_FORMAT " ms)",
                 _compile_the_world_class_counter, _compile_the_world_method_counter, (end - start));
   {
     // Print statistics as if before normal exit:

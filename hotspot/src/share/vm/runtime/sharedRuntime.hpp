@@ -141,7 +141,7 @@ class SharedRuntime: AllStatic {
   static double dabs(double f);
 #endif
 
-#if defined(__SOFTFP__) || defined(PPC)
+#if defined(__SOFTFP__) || defined(PPC32)
   static double dsqrt(double f);
 #endif
 
@@ -261,8 +261,8 @@ class SharedRuntime: AllStatic {
   static void register_finalizer(JavaThread* thread, oopDesc* obj);
 
   // dtrace notifications
-  static int dtrace_object_alloc(oopDesc* o);
-  static int dtrace_object_alloc_base(Thread* thread, oopDesc* o);
+  static int dtrace_object_alloc(oopDesc* o, int size);
+  static int dtrace_object_alloc_base(Thread* thread, oopDesc* o, int size);
   static int dtrace_method_entry(JavaThread* thread, Method* m);
   static int dtrace_method_exit(JavaThread* thread, Method* m);
 
@@ -362,7 +362,25 @@ class SharedRuntime: AllStatic {
                                                           const VMRegPair* regs) NOT_DEBUG_RETURN;
 
   // Ditto except for calling C
-  static int c_calling_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed);
+  //
+  // C argument in register AND stack slot.
+  // Some architectures require that an argument must be passed in a register
+  // AND in a stack slot. These architectures provide a second VMRegPair array
+  // to be filled by the c_calling_convention method. On other architectures,
+  // NULL is being passed as the second VMRegPair array, so arguments are either
+  // passed in a register OR in a stack slot.
+  static int c_calling_convention(const BasicType *sig_bt, VMRegPair *regs, VMRegPair *regs2,
+                                  int total_args_passed);
+
+  // Compute the new number of arguments in the signature if 32 bit ints
+  // must be converted to longs. Needed if CCallingConventionRequiresIntsAsLongs
+  // is true.
+  static int  convert_ints_to_longints_argcnt(int in_args_count, BasicType* in_sig_bt);
+  // Adapt a method's signature if it contains 32 bit integers that must
+  // be converted to longs. Needed if CCallingConventionRequiresIntsAsLongs
+  // is true.
+  static void convert_ints_to_longints(int i2l_argcnt, int& in_args_count,
+                                       BasicType*& in_sig_bt, VMRegPair*& in_regs);
 
   // Generate I2C and C2I adapters. These adapters are simple argument marshalling
   // blobs. Unlike adapters in the tiger and earlier releases the code in these
@@ -376,7 +394,7 @@ class SharedRuntime: AllStatic {
   // location for the interpreter to record. This is used by the frame code
   // to correct the sender code to match up with the stack pointer when the
   // thread left the compiled code. In addition it allows the interpreter
-  // to remove the space the c2i adapter allocated to do it argument conversion.
+  // to remove the space the c2i adapter allocated to do its argument conversion.
 
   // Although a c2i blob will always run interpreted even if compiled code is
   // present if we see that compiled code is present the compiled call site
@@ -612,9 +630,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   // Captures code and signature used to generate this adapter when
   // verifing adapter equivalence.
   unsigned char* _saved_code;
-  int            _code_length;
-  BasicType*     _saved_sig;
-  int            _total_args_passed;
+  int            _saved_code_length;
 #endif
 
   void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry) {
@@ -624,9 +640,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
     _c2i_unverified_entry = c2i_unverified_entry;
 #ifdef ASSERT
     _saved_code = NULL;
-    _code_length = 0;
-    _saved_sig = NULL;
-    _total_args_passed = 0;
+    _saved_code_length = 0;
 #endif
   }
 
@@ -639,7 +653,6 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address get_i2c_entry()            const { return _i2c_entry; }
   address get_c2i_entry()            const { return _c2i_entry; }
   address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
-
   address base_address();
   void relocate(address new_base);
 
@@ -651,8 +664,8 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 
 #ifdef ASSERT
   // Used to verify that code generated for shared adapters is equivalent
-  void save_code(unsigned char* code, int length, int total_args_passed, BasicType* sig_bt);
-  bool compare_code(unsigned char* code, int length, int total_args_passed, BasicType* sig_bt);
+  void save_code   (unsigned char* code, int length);
+  bool compare_code(unsigned char* code, int length);
 #endif
 
   //virtual void print_on(outputStream* st) const;  DO NOT USE
@@ -671,7 +684,7 @@ class AdapterHandlerLibrary: public AllStatic {
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
                                         address i2c_entry, address c2i_entry, address c2i_unverified_entry);
-  static nmethod* create_native_wrapper(methodHandle method, int compile_id);
+  static void create_native_wrapper(methodHandle method);
   static AdapterHandlerEntry* get_adapter(methodHandle method);
 
 #ifdef HAVE_DTRACE_H

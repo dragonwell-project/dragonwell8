@@ -67,12 +67,8 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    static PropertyMap getInitialMap() {
-        return $nasgenmap$;
-    }
-
     AccessorPropertyDescriptor(final boolean configurable, final boolean enumerable, final Object get, final Object set, final Global global) {
-        super(global.getObjectPrototype(), global.getAccessorPropertyDescriptorMap());
+        super(global.getObjectPrototype(), $nasgenmap$);
         this.configurable = configurable;
         this.enumerable   = enumerable;
         this.get          = get;
@@ -182,6 +178,18 @@ public final class AccessorPropertyDescriptor extends ScriptObject implements Pr
     @Override
     public int type() {
         return ACCESSOR;
+    }
+
+    @Override
+    public boolean hasAndEquals(final PropertyDescriptor otherDesc) {
+        if (! (otherDesc instanceof AccessorPropertyDescriptor)) {
+            return false;
+        }
+        final AccessorPropertyDescriptor other = (AccessorPropertyDescriptor)otherDesc;
+        return (!has(CONFIGURABLE) || sameValue(configurable, other.configurable)) &&
+               (!has(ENUMERABLE) || sameValue(enumerable, other.enumerable)) &&
+               (!has(GET) || sameValue(get, other.get)) &&
+               (!has(SET) || sameValue(set, other.set));
     }
 
     @Override

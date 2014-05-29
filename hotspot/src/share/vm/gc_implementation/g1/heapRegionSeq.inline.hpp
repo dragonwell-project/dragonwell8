@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ inline HeapRegion* HeapRegionSeq::addr_to_region_unsafe(HeapWord* addr) const {
 inline HeapRegion* HeapRegionSeq::addr_to_region(HeapWord* addr) const {
   if (addr != NULL && addr < heap_end()) {
     assert(addr >= heap_bottom(),
-          err_msg("addr: "PTR_FORMAT" bottom: "PTR_FORMAT, addr, heap_bottom()));
+          err_msg("addr: " PTR_FORMAT " bottom: " PTR_FORMAT, p2i(addr), p2i(heap_bottom())));
     return addr_to_region_unsafe(addr);
   }
   return NULL;

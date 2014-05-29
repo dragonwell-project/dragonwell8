@@ -161,6 +161,7 @@ public class JavacParser implements Parser {
         this.allowStaticInterfaceMethods = source.allowStaticInterfaceMethods();
         this.allowIntersectionTypesInCast = source.allowIntersectionTypesInCast();
         this.allowTypeAnnotations = source.allowTypeAnnotations();
+        this.allowAnnotationsAfterTypeParams = source.allowAnnotationsAfterTypeParams();
         this.keepDocComments = keepDocComments;
         docComments = newDocCommentTable(keepDocComments, fac);
         this.keepLineMap = keepLineMap;
@@ -253,6 +254,10 @@ public class JavacParser implements Parser {
     /** Switch: should we recognize type annotations?
      */
     boolean allowTypeAnnotations;
+
+    /** Switch: should we allow annotations after the method type parameters?
+     */
+    boolean allowAnnotationsAfterTypeParams;
 
     /** Switch: is "this" allowed as an identifier?
      * This is needed to parse receiver types.
@@ -2020,7 +2025,7 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, List<JCExpression> typeArgs) {
-        List<JCAnnotation> newAnnotations = annotationsOpt(Tag.ANNOTATION);
+        List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
 
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
@@ -3401,16 +3406,28 @@ public class JavacParser implements Parser {
      *    | ModifiersOpt
      *      ( Type Ident
      *        ( VariableDeclaratorsRest ";" | MethodDeclaratorRest )
-     *      | VOID Ident MethodDeclaratorRest
-     *      | TypeParameters (Type | VOID) Ident MethodDeclaratorRest
+     *      | VOID Ident VoidMethodDeclaratorRest
+     *      | TypeParameters [Annotations]
+     *        ( Type Ident MethodDeclaratorRest
+     *        | VOID Ident VoidMethodDeclaratorRest
+     *        )
      *      | Ident ConstructorDeclaratorRest
      *      | TypeParameters Ident ConstructorDeclaratorRest
      *      | ClassOrInterfaceOrEnumDeclaration
      *      )
      *  InterfaceBodyDeclaration =
      *      ";"
-     *    | ModifiersOpt Type Ident
-     *      ( ConstantDeclaratorsRest | InterfaceMethodDeclaratorRest ";" )
+     *    | ModifiersOpt
+     *      ( Type Ident
+     *        ( ConstantDeclaratorsRest ";" | MethodDeclaratorRest )
+     *      | VOID Ident MethodDeclaratorRest
+     *      | TypeParameters [Annotations]
+     *        ( Type Ident MethodDeclaratorRest
+     *        | VOID Ident VoidMethodDeclaratorRest
+     *        )
+     *      | ClassOrInterfaceOrEnumDeclaration
+     *      )
+     *
      */
     protected List<JCTree> classOrInterfaceBodyDeclaration(Name className, boolean isInterface) {
         if (token.kind == SEMI) {
@@ -3439,27 +3456,29 @@ public class JavacParser implements Parser {
                 }
                 List<JCAnnotation> annosAfterParams = annotationsOpt(Tag.ANNOTATION);
 
+                if (annosAfterParams.nonEmpty()) {
+                    checkAnnotationsAfterTypeParams(annosAfterParams.head.pos);
+                    mods.annotations = mods.annotations.appendList(annosAfterParams);
+                    if (mods.pos == Position.NOPOS)
+                        mods.pos = mods.annotations.head.pos;
+                }
+
                 Token tk = token;
                 pos = token.pos;
                 JCExpression type;
                 boolean isVoid = token.kind == VOID;
                 if (isVoid) {
-                    if (annosAfterParams.nonEmpty())
-                        illegal(annosAfterParams.head.pos);
                     type = to(F.at(pos).TypeIdent(TypeTag.VOID));
                     nextToken();
                 } else {
-                    if (annosAfterParams.nonEmpty()) {
-                        mods.annotations = mods.annotations.appendList(annosAfterParams);
-                        if (mods.pos == Position.NOPOS)
-                            mods.pos = mods.annotations.head.pos;
-                    }
                     // method returns types are un-annotated types
                     type = unannotatedType();
                 }
                 if (token.kind == LPAREN && !isInterface && type.hasTag(IDENT)) {
                     if (isInterface || tk.name() != className)
                         error(pos, "invalid.meth.decl.ret.type.req");
+                    else if (annosAfterParams.nonEmpty())
+                        illegal(annosAfterParams.head.pos);
                     return List.of(methodDeclaratorRest(
                         pos, mods, null, names.init, typarams,
                         isInterface, true, dc));
@@ -3491,13 +3510,9 @@ public class JavacParser implements Parser {
     }
 
     /** MethodDeclaratorRest =
-     *      FormalParameters BracketsOpt [Throws TypeList] ( MethodBody | [DEFAULT AnnotationValue] ";")
+     *      FormalParameters BracketsOpt [THROWS TypeList] ( MethodBody | [DEFAULT AnnotationValue] ";")
      *  VoidMethodDeclaratorRest =
-     *      FormalParameters [Throws TypeList] ( MethodBody | ";")
-     *  InterfaceMethodDeclaratorRest =
-     *      FormalParameters BracketsOpt [THROWS TypeList] ";"
-     *  VoidInterfaceMethodDeclaratorRest =
-     *      FormalParameters [THROWS TypeList] ";"
+     *      FormalParameters [THROWS TypeList] ( MethodBody | ";")
      *  ConstructorDeclaratorRest =
      *      "(" FormalParameterListOpt ")" [THROWS TypeList] MethodBody
      */
@@ -4039,6 +4054,12 @@ public class JavacParser implements Parser {
         if (!allowTypeAnnotations) {
             log.error(token.pos, "type.annotations.not.supported.in.source", source.name);
             allowTypeAnnotations = true;
+        }
+    }
+    void checkAnnotationsAfterTypeParams(int pos) {
+        if (!allowAnnotationsAfterTypeParams) {
+            log.error(pos, "annotations.after.type.params.not.supported.in.source", source.name);
+            allowAnnotationsAfterTypeParams = true;
         }
     }
 

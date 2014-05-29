@@ -315,6 +315,7 @@ class DatagramSocket implements java.io.Closeable {
         }
         // creates a udp socket
         impl.create();
+        impl.setDatagramSocket(this);
         created = true;
     }
 

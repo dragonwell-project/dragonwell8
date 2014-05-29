@@ -302,7 +302,7 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
   int dimensions() const {
     assert(is_array(), "Must be an array");
     int index = 0;
-    while (name()->byte_at(index++) == '[');
+    while (name()->byte_at(index) == '[') index++;
     return index;
   }
 

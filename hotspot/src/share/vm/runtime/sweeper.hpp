@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,28 +54,33 @@
 //     is full.
 
 class NMethodSweeper : public AllStatic {
-  static long      _traversals;                   // Stack scan count, also sweep ID.
-  static long      _time_counter;                 // Virtual time used to periodically invoke sweeper
-  static long      _last_sweep;                   // Value of _time_counter when the last sweep happened
-  static nmethod*  _current;                      // Current nmethod
-  static int       _seen;                         // Nof. nmethod we have currently processed in current pass of CodeCache
-  static int       _flushed_count;                // Nof. nmethods flushed in current sweep
-  static int       _zombified_count;              // Nof. nmethods made zombie in current sweep
-  static int       _marked_for_reclamation_count; // Nof. nmethods marked for reclaim in current sweep
+  static long      _traversals;                     // Stack scan count, also sweep ID.
+  static long      _total_nof_code_cache_sweeps;    // Total number of full sweeps of the code cache
+  static long      _time_counter;                   // Virtual time used to periodically invoke sweeper
+  static long      _last_sweep;                     // Value of _time_counter when the last sweep happened
+  static nmethod*  _current;                        // Current nmethod
+  static int       _seen;                           // Nof. nmethod we have currently processed in current pass of CodeCache
+  static int       _flushed_count;                  // Nof. nmethods flushed in current sweep
+  static int       _zombified_count;                // Nof. nmethods made zombie in current sweep
+  static int       _marked_for_reclamation_count;   // Nof. nmethods marked for reclaim in current sweep
 
-  static volatile int  _sweep_fractions_left;     // Nof. invocations left until we are completed with this pass
-  static volatile int  _sweep_started;            // Flag to control conc sweeper
-  static volatile bool _should_sweep;             // Indicates if we should invoke the sweeper
-  static volatile int _bytes_changed;             // Counts the total nmethod size if the nmethod changed from:
-                                                  //   1) alive       -> not_entrant
-                                                  //   2) not_entrant -> zombie
-                                                  //   3) zombie      -> marked_for_reclamation
+  static volatile int  _sweep_fractions_left;       // Nof. invocations left until we are completed with this pass
+  static volatile int  _sweep_started;              // Flag to control conc sweeper
+  static volatile bool _should_sweep;               // Indicates if we should invoke the sweeper
+  static volatile int  _bytes_changed;              // Counts the total nmethod size if the nmethod changed from:
+                                                    //   1) alive       -> not_entrant
+                                                    //   2) not_entrant -> zombie
+                                                    //   3) zombie      -> marked_for_reclamation
   // Stat counters
-  static int       _total_nof_methods_reclaimed;  // Accumulated nof methods flushed
-  static Tickspan  _total_time_sweeping;          // Accumulated time sweeping
-  static Tickspan  _total_time_this_sweep;        // Total time this sweep
-  static Tickspan  _peak_sweep_time;              // Peak time for a full sweep
-  static Tickspan  _peak_sweep_fraction_time;     // Peak time sweeping one fraction
+  static long      _total_nof_methods_reclaimed;    // Accumulated nof methods flushed
+  static long      _total_nof_c2_methods_reclaimed; // Accumulated nof C2-compiled methods flushed
+  static size_t    _total_flushed_size;             // Total size of flushed methods
+  static int       _hotness_counter_reset_val;
+
+  static Tickspan  _total_time_sweeping;            // Accumulated time sweeping
+  static Tickspan  _total_time_this_sweep;          // Total time this sweep
+  static Tickspan  _peak_sweep_time;                // Peak time for a full sweep
+  static Tickspan  _peak_sweep_fraction_time;       // Peak time sweeping one fraction
 
   static int  process_nmethod(nmethod *nm);
   static void release_nmethod(nmethod* nm);
@@ -83,15 +88,13 @@ class NMethodSweeper : public AllStatic {
   static bool sweep_in_progress();
   static void sweep_code_cache();
 
-  static int _hotness_counter_reset_val;
-
  public:
   static long traversal_count()              { return _traversals; }
   static int  total_nof_methods_reclaimed()  { return _total_nof_methods_reclaimed; }
   static const Tickspan total_time_sweeping()      { return _total_time_sweeping; }
   static const Tickspan peak_sweep_time()          { return _peak_sweep_time; }
   static const Tickspan peak_sweep_fraction_time() { return _peak_sweep_fraction_time; }
-  static void log_sweep(const char* msg, const char* format = NULL, ...);
+  static void log_sweep(const char* msg, const char* format = NULL, ...) ATTRIBUTE_PRINTF(2, 3);
 
 
 #ifdef ASSERT
@@ -105,10 +108,10 @@ class NMethodSweeper : public AllStatic {
   static void mark_active_nmethods();      // Invoked at the end of each safepoint
   static void possibly_sweep();            // Compiler threads call this to sweep
 
-  static int sort_nmethods_by_hotness(nmethod** nm1, nmethod** nm2);
   static int hotness_counter_reset_val();
   static void report_state_change(nmethod* nm);
   static void possibly_enable_sweeper();
+  static void print();   // Printing/debugging
 };
 
 #endif // SHARE_VM_RUNTIME_SWEEPER_HPP

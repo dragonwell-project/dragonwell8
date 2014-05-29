@@ -36,6 +36,7 @@ import java.util.List;
 import jdk.internal.dynalink.beans.StaticClass;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
+import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.parser.Lexer;
 import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
@@ -437,7 +438,9 @@ public enum JSType {
 
         // encode integer part from least significant digit, then reverse
         do {
-            sb.append(chars.charAt((int) (intPart % radix)));
+            final double remainder = intPart % radix;
+            sb.append(chars.charAt((int) remainder));
+            intPart -= remainder;
             intPart /= radix;
         } while (intPart >= 1.0);
 
@@ -852,7 +855,7 @@ public enum JSType {
      * @return the wrapped object
      */
     public static Object toScriptObject(final Object obj) {
-        return toScriptObject(Context.getGlobalTrusted(), obj);
+        return toScriptObject(Context.getGlobal(), obj);
     }
 
     /**
@@ -865,7 +868,7 @@ public enum JSType {
      *
      * @return the wrapped object
      */
-    public static Object toScriptObject(final ScriptObject global, final Object obj) {
+    public static Object toScriptObject(final Global global, final Object obj) {
         if (nullOrUndefined(obj)) {
             throw typeError(global, "not.an.object", ScriptRuntime.safeToString(obj));
         }
@@ -874,7 +877,7 @@ public enum JSType {
             return obj;
         }
 
-        return ((GlobalObject)global).wrapAsObject(obj);
+        return global.wrapAsObject(obj);
     }
 
     /**
@@ -984,7 +987,7 @@ public enum JSType {
         if (obj instanceof ScriptObject) {
             if (safe) {
                 final ScriptObject sobj = (ScriptObject)obj;
-                final GlobalObject gobj = (GlobalObject)Context.getGlobalTrusted();
+                final Global gobj = Context.getGlobal();
                 return gobj.isError(sobj) ?
                     ECMAException.safeToString(sobj) :
                     sobj.safeToString();

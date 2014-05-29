@@ -127,7 +127,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
 
       if (MethodData::profile_return()) {
         // We're right after the type profile for the last
-        // argument. tmp is the number of cell left in the
+        // argument. tmp is the number of cells left in the
         // CallTypeData/VirtualCallTypeData to reach its end. Non null
         // if there's a return to profile.
         assert(ReturnTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
@@ -137,7 +137,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
       movptr(Address(rbp, frame::interpreter_frame_mdx_offset * wordSize), mdp);
     } else {
       assert(MethodData::profile_return(), "either profile call args or call ret");
-      update_mdp_by_constant(mdp, in_bytes(ReturnTypeEntry::size()));
+      update_mdp_by_constant(mdp, in_bytes(TypeEntriesAtCall::return_only_size()));
     }
 
     // mdp points right after the end of the
@@ -198,7 +198,7 @@ void InterpreterMacroAssembler::profile_parameters_type(Register mdp, Register t
     // parameters. Collect profiling from last parameter down.
     // mdo start + parameters offset + array length - 1
     addptr(mdp, tmp1);
-    movptr(tmp1, Address(mdp, in_bytes(ArrayData::array_len_offset())));
+    movptr(tmp1, Address(mdp, ArrayData::array_len_offset()));
     decrement(tmp1, TypeStackSlotEntries::per_arg_count());
 
     Label loop;

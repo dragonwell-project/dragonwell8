@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #endif
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 #ifdef DTRACE_ENABLED
 
@@ -1203,7 +1205,11 @@ void InstanceKlass::mask_for(methodHandle method, int bci,
     MutexLocker x(OopMapCacheAlloc_lock);
     // First time use. Allocate a cache in C heap
     if (_oop_map_cache == NULL) {
-      _oop_map_cache = new OopMapCache();
+      // Release stores from OopMapCache constructor before assignment
+      // to _oop_map_cache. C++ compilers on ppc do not emit the
+      // required memory barrier only because of the volatile
+      // qualifier of _oop_map_cache.
+      OrderAccess::release_store_ptr(&_oop_map_cache, new OopMapCache());
     }
   }
   // _oop_map_cache is constant after init; lookup below does is own locking.
@@ -1325,17 +1331,18 @@ void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
 }
 
 
-void InstanceKlass::do_local_static_fields(void f(fieldDescriptor*, TRAPS), TRAPS) {
+void InstanceKlass::do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle mirror, TRAPS) {
   instanceKlassHandle h_this(THREAD, this);
-  do_local_static_fields_impl(h_this, f, CHECK);
+  do_local_static_fields_impl(h_this, f, mirror, CHECK);
 }
 
 
-void InstanceKlass::do_local_static_fields_impl(instanceKlassHandle this_oop, void f(fieldDescriptor* fd, TRAPS), TRAPS) {
-  for (JavaFieldStream fs(this_oop()); !fs.done(); fs.next()) {
+void InstanceKlass::do_local_static_fields_impl(instanceKlassHandle this_k,
+                             void f(fieldDescriptor* fd, Handle mirror, TRAPS), Handle mirror, TRAPS) {
+  for (JavaFieldStream fs(this_k()); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
-      f(&fd, CHECK);
+      f(&fd, mirror, CHECK);
     }
   }
 }
@@ -1424,7 +1431,11 @@ static int binary_search(Array<Method*>* methods, Symbol* name) {
 
 // find_method looks up the name/signature in the local methods array
 Method* InstanceKlass::find_method(Symbol* name, Symbol* signature) const {
-  return InstanceKlass::find_method(methods(), name, signature);
+  return find_method_impl(name, signature, false);
+}
+
+Method* InstanceKlass::find_method_impl(Symbol* name, Symbol* signature, bool skipping_overpass) const {
+  return InstanceKlass::find_method_impl(methods(), name, signature, skipping_overpass);
 }
 
 // find_instance_method looks up the name/signature in the local methods array
@@ -1441,40 +1452,49 @@ Method* InstanceKlass::find_instance_method(
 // find_method looks up the name/signature in the local methods array
 Method* InstanceKlass::find_method(
     Array<Method*>* methods, Symbol* name, Symbol* signature) {
-  int hit = find_method_index(methods, name, signature);
+  return InstanceKlass::find_method_impl(methods, name, signature, false);
+}
+
+Method* InstanceKlass::find_method_impl(
+    Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass) {
+  int hit = find_method_index(methods, name, signature, skipping_overpass);
   return hit >= 0 ? methods->at(hit): NULL;
 }
 
 // Used directly for default_methods to find the index into the
 // default_vtable_indices, and indirectly by find_method
 // find_method_index looks in the local methods array to return the index
-// of the matching name/signature
+// of the matching name/signature. If, overpass methods are being ignored,
+// the search continues to find a potential non-overpass match.  This capability
+// is important during method resolution to prefer a static method, for example,
+// over an overpass method.
 int InstanceKlass::find_method_index(
-    Array<Method*>* methods, Symbol* name, Symbol* signature) {
+    Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass) {
   int hit = binary_search(methods, name);
   if (hit != -1) {
     Method* m = methods->at(hit);
     // Do linear search to find matching signature.  First, quick check
-    // for common case
-    if (m->signature() == signature) return hit;
+    // for common case, ignoring overpasses if requested.
+    if ((m->signature() == signature) && (!skipping_overpass || !m->is_overpass())) return hit;
+
     // search downwards through overloaded methods
     int i;
     for (i = hit - 1; i >= 0; --i) {
         Method* m = methods->at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (m->signature() == signature) return i;
+        if ((m->signature() == signature) && (!skipping_overpass || !m->is_overpass())) return i;
     }
     // search upwards
     for (i = hit + 1; i < methods->length(); ++i) {
         Method* m = methods->at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (m->signature() == signature) return i;
+        if ((m->signature() == signature) && (!skipping_overpass || !m->is_overpass())) return i;
     }
     // not found
 #ifdef ASSERT
-    int index = linear_search(methods, name, signature);
+    int index = skipping_overpass ? -1 : linear_search(methods, name, signature);
     assert(index == -1, err_msg("binary search should have found entry %d", index));
 #endif
   }
@@ -1500,16 +1520,16 @@ int InstanceKlass::find_method_by_name(
 
 // uncached_lookup_method searches both the local class methods array and all
 // superclasses methods arrays, skipping any overpass methods in superclasses.
-Method* InstanceKlass::uncached_lookup_method(Symbol* name, Symbol* signature) const {
+Method* InstanceKlass::uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const {
+  MethodLookupMode lookup_mode = mode;
   Klass* klass = const_cast<InstanceKlass*>(this);
-  bool dont_ignore_overpasses = true;  // For the class being searched, find its overpasses.
   while (klass != NULL) {
-    Method* method = InstanceKlass::cast(klass)->find_method(name, signature);
-    if ((method != NULL) && (dont_ignore_overpasses || !method->is_overpass())) {
+    Method* method = InstanceKlass::cast(klass)->find_method_impl(name, signature, (lookup_mode == skip_overpass));
+    if (method != NULL) {
       return method;
     }
     klass = InstanceKlass::cast(klass)->super();
-    dont_ignore_overpasses = false;  // Ignore overpass methods in all superclasses.
+    lookup_mode = skip_overpass;   // Always ignore overpass methods in superclasses
   }
   return NULL;
 }
@@ -1524,7 +1544,7 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
   }
   // Look up interfaces
   if (m == NULL) {
-    m = lookup_method_in_all_interfaces(name, signature, false);
+    m = lookup_method_in_all_interfaces(name, signature, normal);
   }
   return m;
 }
@@ -1534,7 +1554,7 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
 // They should only be found in the initial InterfaceMethodRef
 Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
                                                        Symbol* signature,
-                                                       bool skip_default_methods) const {
+                                                       MethodLookupMode mode) const {
   Array<Klass*>* all_ifs = transitive_interfaces();
   int num_ifs = all_ifs->length();
   InstanceKlass *ik = NULL;
@@ -1542,7 +1562,7 @@ Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
     ik = InstanceKlass::cast(all_ifs->at(i));
     Method* m = ik->lookup_method(name, signature);
     if (m != NULL && m->is_public() && !m->is_static() &&
-        (!skip_default_methods || !m->is_default_method())) {
+        ((mode != skip_defaults) || !m->is_default_method())) {
       return m;
     }
   }
@@ -2234,15 +2254,7 @@ void InstanceKlass::clean_method_data(BoolObjectClosure* is_alive) {
   for (int m = 0; m < methods()->length(); m++) {
     MethodData* mdo = methods()->at(m)->method_data();
     if (mdo != NULL) {
-      for (ProfileData* data = mdo->first_data();
-           mdo->is_valid(data);
-           data = mdo->next_data(data)) {
-        data->clean_weak_klass_links(is_alive);
-      }
-      ParametersTypeData* parameters = mdo->parameters_type_data();
-      if (parameters != NULL) {
-        parameters->clean_weak_klass_links(is_alive);
-      }
+      mdo->clean_method_data(is_alive);
     }
   }
 }
@@ -2284,9 +2296,7 @@ void InstanceKlass::restore_unshareable_info(TRAPS) {
   int num_methods = methods->length();
   for (int index2 = 0; index2 < num_methods; ++index2) {
     methodHandle m(THREAD, methods->at(index2));
-    m()->link_method(m, CHECK);
-    // restore method's vtable by calling a virtual function
-    m->restore_vtable();
+    m->restore_unshareable_info(CHECK);
   }
   if (JvmtiExport::has_redefined_a_class()) {
     // Reinitialize vtable because RedefineClasses may have changed some
@@ -2887,7 +2897,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"instance size:     %d", size_helper());                        st->cr();
   st->print(BULLET"klass size:        %d", size());                               st->cr();
   st->print(BULLET"access:            "); access_flags().print_on(st);            st->cr();
-  st->print(BULLET"state:             "); st->print_cr(state_names[_init_state]);
+  st->print(BULLET"state:             "); st->print_cr("%s", state_names[_init_state]);
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
   st->print(BULLET"super:             "); super()->print_value_on_maybe_null(st); st->cr();
   st->print(BULLET"sub:               ");
@@ -3180,7 +3190,7 @@ class VerifyFieldClosure: public OopClosure {
   virtual void do_oop(narrowOop* p) { VerifyFieldClosure::do_oop_work(p); }
 };
 
-void InstanceKlass::verify_on(outputStream* st, bool check_dictionary) {
+void InstanceKlass::verify_on(outputStream* st) {
 #ifndef PRODUCT
   // Avoid redundant verifies, this really should be in product.
   if (_verify_count == Universe::verify_count()) return;
@@ -3188,14 +3198,11 @@ void InstanceKlass::verify_on(outputStream* st, bool check_dictionary) {
 #endif
 
   // Verify Klass
-  Klass::verify_on(st, check_dictionary);
+  Klass::verify_on(st);
 
-  // Verify that klass is present in SystemDictionary if not already
-  // verifying the SystemDictionary.
-  if (is_loaded() && !is_anonymous() && check_dictionary) {
-    Symbol* h_name = name();
-    SystemDictionary::verify_obj_klass_present(h_name, class_loader_data());
-  }
+  // Verify that klass is present in ClassLoaderData
+  guarantee(class_loader_data()->contains_klass(this),
+            "this class isn't found in class loader data");
 
   // Verify vtables
   if (is_linked()) {

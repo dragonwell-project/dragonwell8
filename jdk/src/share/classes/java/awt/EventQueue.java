@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1062,11 +1062,11 @@ public class EventQueue {
                             t.setContextClassLoader(classLoader);
                             t.setPriority(Thread.NORM_PRIORITY + 1);
                             t.setDaemon(false);
+                            AWTAutoShutdown.getInstance().notifyThreadBusy(t);
                             return t;
                         }
                     }
                 );
-                AWTAutoShutdown.getInstance().notifyThreadBusy(dispatchThread);
                 dispatchThread.start();
             }
         } finally {
@@ -1093,6 +1093,13 @@ public class EventQueue {
                 dispatchThread = null;
             }
             AWTAutoShutdown.getInstance().notifyThreadFree(edt);
+            /*
+             * Event was posted after EDT events pumping had stopped, so start
+             * another EDT to handle this event
+             */
+            if (peekEvent() != null) {
+                initDispatchThread();
+            }
         } finally {
             pushPopLock.unlock();
         }

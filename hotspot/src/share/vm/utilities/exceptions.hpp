@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,7 +132,7 @@ class Exceptions {
   // There is no THROW... macro for this method. Caller should remember
   // to do a return after calling it.
   static void fthrow(Thread* thread, const char* file, int line, Symbol* name,
-                     const char* format, ...);
+                     const char* format, ...) ATTRIBUTE_PRINTF(5, 6);
 
   // Create and initialize a new exception
   static Handle new_exception(Thread* thread, Symbol* name,

@@ -26,6 +26,9 @@
 #define OS_WINDOWS_VM_OS_WINDOWS_HPP
 // Win32_OS defines the interface to windows operating systems
 
+// Information about the protection of the page at address '0' on this os.
+static bool zero_page_read_protected() { return true; }
+
 class win32 {
   friend class os;
 
@@ -94,9 +97,7 @@ class win32 {
   static address fast_jni_accessor_wrapper(BasicType);
 #endif
 
-#ifndef PRODUCT
   static void call_test_func_with_wrapper(void (*funcPtr)(void));
-#endif
 
   // filter function to ignore faults on serializations page
   static LONG WINAPI serialize_fault_filter(struct _EXCEPTION_POINTERS* e);

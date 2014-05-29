@@ -313,7 +313,9 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
     if (!b) { classfile_parse_error(msg, CHECK); }
   }
 
-  inline void assert_property(bool b, const char* msg, TRAPS) {
+PRAGMA_DIAG_PUSH
+PRAGMA_FORMAT_NONLITERAL_IGNORED
+inline void assert_property(bool b, const char* msg, TRAPS) {
 #ifdef ASSERT
     if (!b) {
       ResourceMark rm(THREAD);
@@ -330,6 +332,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
     }
 #endif
   }
+PRAGMA_DIAG_POP
 
   inline void check_property(bool property, const char* msg, int index, TRAPS) {
     if (_need_verify) {

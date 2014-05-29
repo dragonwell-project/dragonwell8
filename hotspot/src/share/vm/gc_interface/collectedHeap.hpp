@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,7 +151,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   inline static void post_allocation_setup_no_klass_install(KlassHandle klass,
                                                             HeapWord* objPtr);
 
-  inline static void post_allocation_setup_obj(KlassHandle klass, HeapWord* obj);
+  inline static void post_allocation_setup_obj(KlassHandle klass, HeapWord* obj, int size);
 
   inline static void post_allocation_setup_array(KlassHandle klass,
                                                  HeapWord* obj, int length);
@@ -312,9 +312,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // May be overridden to set additional parallelism.
   virtual void set_par_threads(uint t) { _n_par_threads = t; };
 
-  // Allocate and initialize instances of Class
-  static oop Class_obj_allocate(KlassHandle klass, int size, KlassHandle real_klass, TRAPS);
-
   // General obj/array allocation facilities.
   inline static oop obj_allocate(KlassHandle klass, int size, TRAPS);
   inline static oop array_allocate(KlassHandle klass, int size, int length, TRAPS);
@@ -403,14 +400,16 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // the following methods:
   // Returns "true" iff the heap supports thread-local allocation buffers.
   // The default is "no".
-  virtual bool supports_tlab_allocation() const {
-    return false;
-  }
+  virtual bool supports_tlab_allocation() const = 0;
+
   // The amount of space available for thread-local allocation buffers.
-  virtual size_t tlab_capacity(Thread *thr) const {
-    guarantee(false, "thread-local allocation buffers not supported");
-    return 0;
-  }
+  virtual size_t tlab_capacity(Thread *thr) const = 0;
+
+  // The amount of used space for thread-local allocation buffers for the given thread.
+  virtual size_t tlab_used(Thread *thr) const = 0;
+
+  virtual size_t max_tlab_size() const;
+
   // An estimate of the maximum allocation that could be performed
   // for thread-local allocation buffers without triggering any
   // collection or expansion activity.
