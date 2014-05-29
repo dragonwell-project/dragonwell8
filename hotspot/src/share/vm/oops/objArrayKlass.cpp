@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -269,7 +269,7 @@ template <class T> void ObjArrayKlass::do_copy(arrayOop s, T* src,
         if (element_is_null ||
             (new_val->klass())->is_subtype_of(bound)) {
           bs->write_ref_field_pre(p, new_val);
-          *p = *from;
+          *p = element;
         } else {
           // We must do a barrier to cover the partial copy.
           const size_t pd = pointer_delta(p, dst, (size_t)heapOopSize);
@@ -674,8 +674,8 @@ const char* ObjArrayKlass::internal_name() const {
 
 // Verification
 
-void ObjArrayKlass::verify_on(outputStream* st, bool check_dictionary) {
-  ArrayKlass::verify_on(st, check_dictionary);
+void ObjArrayKlass::verify_on(outputStream* st) {
+  ArrayKlass::verify_on(st);
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass* bk = bottom_klass();

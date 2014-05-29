@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "prims/jvmtiRedefineClassesTrace.hpp"
 #include "utilities/hashtable.inline.hpp"
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 DictionaryEntry*  Dictionary::_current_class_entry = NULL;
 int               Dictionary::_current_class_index =    0;
@@ -707,7 +708,7 @@ void Dictionary::verify() {
                 loader_data->class_loader() == NULL ||
                 loader_data->class_loader()->is_instance(),
                 "checking type of class_loader");
-      e->verify(/*check_dictionary*/false);
+      e->verify();
       probe->verify_protection_domain_set();
       element_count++;
     }

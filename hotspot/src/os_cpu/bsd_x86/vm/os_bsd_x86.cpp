@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -276,6 +276,8 @@
 # endif
 #endif
 
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
+
 address os::current_stack_pointer() {
 #if defined(__clang__) || defined(__llvm__)
   register void *esp;
@@ -490,6 +492,11 @@ JVM_handle_bsd_signal(int sig,
           tty->print_raw_cr("An irrecoverable stack overflow has occurred.");
         }
       }
+    }
+
+    if ((sig == SIGSEGV || sig == SIGBUS) && VM_Version::is_cpuinfo_segv_addr(pc)) {
+      // Verify that OS save/restore AVX registers.
+      stub = VM_Version::cpuinfo_cont_addr();
     }
 
     // We test if stub is already set (by the stack overflow code

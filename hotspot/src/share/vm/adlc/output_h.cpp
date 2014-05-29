@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,11 @@
 #include "adlc.hpp"
 
 // The comment delimiter used in format statements after assembler instructions.
+#if defined(PPC64)
+#define commentSeperator "\t//"
+#else
 #define commentSeperator "!"
+#endif
 
 // Generate the #define that describes the number of registers.
 static void defineRegCount(FILE *fp, RegisterForm *registers) {
@@ -382,14 +386,14 @@ static void defineConstructor(FILE *fp, const char *name, uint num_consts,
 static void defineCCodeDump(OperandForm* oper, FILE *fp, int i) {
   assert(oper != NULL, "what");
   CondInterface* cond = oper->_interface->is_CondInterface();
-  fprintf(fp, "       if( _c%d == BoolTest::eq ) st->print(\"%s\");\n",i,cond->_equal_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::ne ) st->print(\"%s\");\n",i,cond->_not_equal_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::le ) st->print(\"%s\");\n",i,cond->_less_equal_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::ge ) st->print(\"%s\");\n",i,cond->_greater_equal_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::lt ) st->print(\"%s\");\n",i,cond->_less_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::gt ) st->print(\"%s\");\n",i,cond->_greater_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::overflow ) st->print(\"%s\");\n",i,cond->_overflow_format);
-  fprintf(fp, "  else if( _c%d == BoolTest::no_overflow ) st->print(\"%s\");\n",i,cond->_no_overflow_format);
+  fprintf(fp, "       if( _c%d == BoolTest::eq ) st->print_raw(\"%s\");\n",i,cond->_equal_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::ne ) st->print_raw(\"%s\");\n",i,cond->_not_equal_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::le ) st->print_raw(\"%s\");\n",i,cond->_less_equal_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::ge ) st->print_raw(\"%s\");\n",i,cond->_greater_equal_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::lt ) st->print_raw(\"%s\");\n",i,cond->_less_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::gt ) st->print_raw(\"%s\");\n",i,cond->_greater_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::overflow ) st->print_raw(\"%s\");\n",i,cond->_overflow_format);
+  fprintf(fp, "  else if( _c%d == BoolTest::no_overflow ) st->print_raw(\"%s\");\n",i,cond->_no_overflow_format);
 }
 
 // Output code that dumps constant values, increment "i" if type is constant
@@ -412,8 +416,8 @@ static uint dump_spec_constant(FILE *fp, const char *ideal_type, uint i, Operand
     ++i;
   }
   else if (!strcmp(ideal_type, "ConL")) {
-    fprintf(fp,"    st->print(\"#\" INT64_FORMAT, _c%d);\n", i);
-    fprintf(fp,"    st->print(\"/\" PTR64_FORMAT, _c%d);\n", i);
+    fprintf(fp,"    st->print(\"#\" INT64_FORMAT, (int64_t)_c%d);\n", i);
+    fprintf(fp,"    st->print(\"/\" PTR64_FORMAT, (uint64_t)_c%d);\n", i);
     ++i;
   }
   else if (!strcmp(ideal_type, "ConF")) {
@@ -425,7 +429,7 @@ static uint dump_spec_constant(FILE *fp, const char *ideal_type, uint i, Operand
   else if (!strcmp(ideal_type, "ConD")) {
     fprintf(fp,"    st->print(\"#%%f\", _c%d);\n", i);
     fprintf(fp,"    jlong _c%dl = JavaValue(_c%d).get_jlong();\n", i, i);
-    fprintf(fp,"    st->print(\"/\" PTR64_FORMAT, _c%dl);\n", i);
+    fprintf(fp,"    st->print(\"/\" PTR64_FORMAT, (uint64_t)_c%dl);\n", i);
     ++i;
   }
   else if (!strcmp(ideal_type, "Bool")) {
@@ -467,7 +471,7 @@ void gen_oper_format(FILE *fp, FormDict &globals, OperandForm &oper, bool for_c_
         if ( string != NameList::_signal ) {
           // Normal string
           // Pass through to st->print
-          fprintf(fp,"  st->print(\"%s\");\n", string);
+          fprintf(fp,"  st->print_raw(\"%s\");\n", string);
         } else {
           // Replacement variable
           const char *rep_var = oper._format->_rep_vars.iter();
@@ -538,7 +542,7 @@ void gen_oper_format(FILE *fp, FormDict &globals, OperandForm &oper, bool for_c_
         if ( string != NameList::_signal ) {
           // Normal string
           // Pass through to st->print
-          fprintf(fp,"  st->print(\"%s\");\n", string);
+          fprintf(fp,"  st->print_raw(\"%s\");\n", string);
         } else {
           // Replacement variable
           const char *rep_var = oper._format->_rep_vars.iter();
@@ -665,7 +669,7 @@ void gen_inst_format(FILE *fp, FormDict &globals, InstructForm &inst, bool for_c
       } else if( string == NameList::_signal2 ) // Raw program text
         fputs(inst._format->_strings.iter(), fp);
       else
-        fprintf(fp,"st->print(\"%s\");\n", string);
+        fprintf(fp,"st->print_raw(\"%s\");\n", string);
     } // Done with all format strings
   } // Done generating the user-defined portion of the format
 
@@ -692,13 +696,13 @@ void gen_inst_format(FILE *fp, FormDict &globals, InstructForm &inst, bool for_c
     default:
       assert(0,"ShouldNotReachHere");
     }
-    fprintf(fp,  "  st->print_cr(\"\");\n" );
+    fprintf(fp,  "  st->cr();\n" );
     fprintf(fp,  "  if (_jvms) _jvms->format(ra, this, st); else st->print_cr(\"        No JVM State Info\");\n" );
     fprintf(fp,  "  st->print(\"        # \");\n" );
     fprintf(fp,  "  if( _jvms && _oop_map ) _oop_map->print_on(st);\n");
   }
   else if(inst.is_ideal_safepoint()) {
-    fprintf(fp,  "  st->print(\"\");\n" );
+    fprintf(fp,  "  st->print_raw(\"\");\n" );
     fprintf(fp,  "  if (_jvms) _jvms->format(ra, this, st); else st->print_cr(\"        No JVM State Info\");\n" );
     fprintf(fp,  "  st->print(\"        # \");\n" );
     fprintf(fp,  "  if( _jvms && _oop_map ) _oop_map->print_on(st);\n");
@@ -1551,7 +1555,20 @@ void ArchDesc::declareClasses(FILE *fp) {
     if ( instr->is_ideal_jump() ) {
       fprintf(fp, "  GrowableArray<Label*> _index2label;\n");
     }
-    fprintf(fp,"public:\n");
+
+    fprintf(fp, "public:\n");
+
+    Attribute *att = instr->_attribs;
+    // Fields of the node specified in the ad file.
+    while (att != NULL) {
+      if (strncmp(att->_ident, "ins_field_", 10) == 0) {
+        const char *field_name = att->_ident+10;
+        const char *field_type = att->_val;
+        fprintf(fp, "  %s _%s;\n", field_type, field_name);
+      }
+      att = (Attribute *)att->_next;
+    }
+
     fprintf(fp,"  MachOper *opnd_array(uint operand_index) const {\n");
     fprintf(fp,"    assert(operand_index < _num_opnds, \"invalid _opnd_array index\");\n");
     fprintf(fp,"    return _opnd_array[operand_index];\n");
@@ -1596,16 +1613,20 @@ void ArchDesc::declareClasses(FILE *fp) {
     // Each instruction attribute results in a virtual call of same name.
     // The ins_cost is not handled here.
     Attribute *attr = instr->_attribs;
-    bool avoid_back_to_back = false;
+    Attribute *avoid_back_to_back_attr = NULL;
     while (attr != NULL) {
-      if (strcmp(attr->_ident,"ins_cost") &&
-          strcmp(attr->_ident,"ins_short_branch")) {
-        fprintf(fp,"          int            %s() const { return %s; }\n",
-                attr->_ident, attr->_val);
+      if (strcmp (attr->_ident, "ins_is_TrapBasedCheckNode") == 0) {
+        fprintf(fp, "  virtual bool           is_TrapBasedCheckNode() const { return %s; }\n", attr->_val);
+      } else if (strcmp (attr->_ident, "ins_cost") != 0 &&
+          strncmp(attr->_ident, "ins_field_", 10) != 0 &&
+          // Must match function in node.hpp: return type bool, no prefix "ins_".
+          strcmp (attr->_ident, "ins_is_TrapBasedCheckNode") != 0 &&
+          strcmp (attr->_ident, "ins_short_branch") != 0) {
+        fprintf(fp, "  virtual int            %s() const { return %s; }\n", attr->_ident, attr->_val);
       }
-      // Check value for ins_avoid_back_to_back, and if it is true (1), set the flag
-      if (!strcmp(attr->_ident,"ins_avoid_back_to_back") && attr->int_val(*this) != 0)
-        avoid_back_to_back = true;
+      if (strcmp(attr->_ident, "ins_avoid_back_to_back") == 0) {
+        avoid_back_to_back_attr = attr;
+      }
       attr = (Attribute *)attr->_next;
     }
 
@@ -1619,7 +1640,12 @@ void ArchDesc::declareClasses(FILE *fp) {
     // Output the opcode function and the encode function here using the
     // encoding class information in the _insencode slot.
     if ( instr->_insencode ) {
-      fprintf(fp,"  virtual void           emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;\n");
+      if (instr->postalloc_expands()) {
+        fprintf(fp,"  virtual bool           requires_postalloc_expand() const { return true; }\n");
+        fprintf(fp,"  virtual void           postalloc_expand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_);\n");
+      } else {
+        fprintf(fp,"  virtual void           emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;\n");
+      }
     }
 
     // virtual function for getting the size of an instruction
@@ -1634,6 +1660,19 @@ void ArchDesc::declareClasses(FILE *fp) {
          strcmp("MachNode", instr->mach_base_class(_globalNames)) != 0 ) {
       fprintf(fp,"  virtual int            ideal_Opcode() const { return Op_%s; }\n",
             instr->ideal_Opcode(_globalNames) );
+    }
+
+    if (instr->needs_constant_base() &&
+        !instr->is_mach_constant()) {  // These inherit the funcion from MachConstantNode.
+      fprintf(fp,"  virtual uint           mach_constant_base_node_input() const { ");
+      if (instr->is_ideal_call() != Form::invalid_type &&
+          instr->is_ideal_call() != Form::JAVA_LEAF) {
+        // MachConstantBase goes behind arguments, but before jvms.
+        fprintf(fp,"assert(tf() && tf()->domain(), \"\"); return tf()->domain()->cnt();");
+      } else {
+        fprintf(fp,"return req()-1;");
+      }
+      fprintf(fp," }\n");
     }
 
     // Allow machine-independent optimization, invert the sense of the IF test
@@ -1759,11 +1798,11 @@ void ArchDesc::declareClasses(FILE *fp) {
     }
 
     // flag: if this instruction should not be generated back to back.
-    if ( avoid_back_to_back ) {
-      if ( node_flags_set ) {
-        fprintf(fp," | Flag_avoid_back_to_back");
+    if (avoid_back_to_back_attr != NULL) {
+      if (node_flags_set) {
+        fprintf(fp," | (%s)", avoid_back_to_back_attr->_val);
       } else {
-        fprintf(fp,"init_flags(Flag_avoid_back_to_back");
+        fprintf(fp,"init_flags((%s)", avoid_back_to_back_attr->_val);
         node_flags_set = true;
       }
     }
@@ -1804,6 +1843,7 @@ void ArchDesc::declareClasses(FILE *fp) {
     if( instr->expands() || instr->needs_projections() ||
         instr->has_temps() ||
         instr->is_mach_constant() ||
+        instr->needs_constant_base() ||
         instr->_matrule != NULL &&
         instr->num_opnds() != instr->num_unique_opnds() ) {
       fprintf(fp,"  virtual MachNode      *Expand(State *state, Node_List &proj_list, Node* mem);\n");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
 #include "memory/sharedHeap.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/oop.inline.hpp"
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 ParGCAllocBuffer::ParGCAllocBuffer(size_t desired_plab_sz_) :
   _word_sz(desired_plab_sz_), _bottom(NULL), _top(NULL),
@@ -89,6 +91,10 @@ void ParGCAllocBuffer::flush_stats(PLABStats* stats) {
 // scavenge; it clears the sensor accumulators.
 void PLABStats::adjust_desired_plab_sz(uint no_of_gc_workers) {
   assert(ResizePLAB, "Not set");
+
+  assert(is_object_aligned(max_size()) && min_size() <= max_size(),
+         "PLAB clipping computation may be incorrect");
+
   if (_allocated == 0) {
     assert(_unused == 0,
            err_msg("Inconsistency in PLAB stats: "

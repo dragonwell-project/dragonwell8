@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import jdk.testlibrary.ProcessTools;
 
 /**
  * @test
@@ -41,12 +42,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *          without connection or username/password details.
  *          TestManager will attempt a connection to the address obtained from
  *          both agent properties and jvmstat buffer.
- * @build jdk.testlibrary.ProcessTools
- * @build TestManager TestApplication
- * @run main/othervm/timeout=300 LocalManagementTest
+ * @build jdk.testlibrary.* TestManager TestApplication
+ * @run main/othervm/timeout=300 -XX:+UsePerfData LocalManagementTest
  */
-
-import jdk.testlibrary.ProcessTools;
 
 public class LocalManagementTest {
     private static final  String TEST_CLASSPATH = System.getProperty("test.class.path");

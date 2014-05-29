@@ -25,7 +25,7 @@
 #ifndef SHARE_VM_GC_IMPLEMENTATION_G1_CONCURRENTMARK_HPP
 #define SHARE_VM_GC_IMPLEMENTATION_G1_CONCURRENTMARK_HPP
 
-#include "gc_implementation/g1/heapRegionSets.hpp"
+#include "gc_implementation/g1/heapRegionSet.hpp"
 #include "utilities/taskqueue.hpp"
 
 class G1CollectedHeap;
@@ -542,8 +542,12 @@ protected:
   // frequently.
   HeapRegion* claim_region(uint worker_id);
 
-  // It determines whether we've run out of regions to scan.
-  bool        out_of_regions() { return _finger == _heap_end; }
+  // It determines whether we've run out of regions to scan. Note that
+  // the finger can point past the heap end in case the heap was expanded
+  // to satisfy an allocation without doing a GC. This is fine, because all
+  // objects in those regions will be considered live anyway because of
+  // SATB guarantees (i.e. their TAMS will be equal to bottom).
+  bool        out_of_regions() { return _finger >= _heap_end; }
 
   // Returns the task with the given id
   CMTask* task(int id) {

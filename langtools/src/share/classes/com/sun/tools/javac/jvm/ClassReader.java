@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,10 +115,6 @@ public class ClassReader {
    /** Lint option: warn about classfile issues
      */
     boolean lintClassfile;
-
-    /** Switch: allow default methods
-     */
-    boolean allowDefaultMethods;
 
     /** Switch: preserve parameter names from the variable table.
      */
@@ -307,7 +303,6 @@ public class ClassReader {
         allowVarargs     = source.allowVarargs();
         allowAnnotations = source.allowAnnotations();
         allowSimplifiedVarargs = source.allowSimplifiedVarargs();
-        allowDefaultMethods = source.allowDefaultMethods();
 
         saveParameterNames = options.isSet("save-parameter-names");
         cacheCompletionFailure = options.isUnset("dev");
@@ -517,14 +512,14 @@ public class ClassReader {
             break;
         case CONSTANT_Fieldref: {
             ClassSymbol owner = readClassSymbol(getChar(index + 1));
-            NameAndType nt = (NameAndType)readPool(getChar(index + 3));
+            NameAndType nt = readNameAndType(getChar(index + 3));
             poolObj[i] = new VarSymbol(0, nt.name, nt.uniqueType.type, owner);
             break;
         }
         case CONSTANT_Methodref:
         case CONSTANT_InterfaceMethodref: {
             ClassSymbol owner = readClassSymbol(getChar(index + 1));
-            NameAndType nt = (NameAndType)readPool(getChar(index + 3));
+            NameAndType nt = readNameAndType(getChar(index + 3));
             poolObj[i] = new MethodSymbol(0, nt.name, nt.uniqueType.type, owner);
             break;
         }
@@ -593,13 +588,34 @@ public class ClassReader {
     /** Read class entry.
      */
     ClassSymbol readClassSymbol(int i) {
-        return (ClassSymbol) (readPool(i));
+        Object obj = readPool(i);
+        if (obj != null && !(obj instanceof ClassSymbol))
+            throw badClassFile("bad.const.pool.entry",
+                               currentClassFile.toString(),
+                               "CONSTANT_Class_info", i);
+        return (ClassSymbol)obj;
     }
 
     /** Read name.
      */
     Name readName(int i) {
-        return (Name) (readPool(i));
+        Object obj = readPool(i);
+        if (obj != null && !(obj instanceof Name))
+            throw badClassFile("bad.const.pool.entry",
+                               currentClassFile.toString(),
+                               "CONSTANT_Utf8_info or CONSTANT_String_info", i);
+        return (Name)obj;
+    }
+
+    /** Read name and type.
+     */
+    NameAndType readNameAndType(int i) {
+        Object obj = readPool(i);
+        if (obj != null && !(obj instanceof NameAndType))
+            throw badClassFile("bad.const.pool.entry",
+                               currentClassFile.toString(),
+                               "CONSTANT_NameAndType_info", i);
+        return (NameAndType)obj;
     }
 
 /************************************************************************
@@ -1250,7 +1266,7 @@ public class ClassReader {
         sym.owner.members().remove(sym);
         ClassSymbol self = (ClassSymbol)sym;
         ClassSymbol c = readClassSymbol(nextChar());
-        NameAndType nt = (NameAndType)readPool(nextChar());
+        NameAndType nt = readNameAndType(nextChar());
 
         if (c.members_field == null)
             throw badClassFile("bad.enclosing.class", self, c);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /** This pass implements dataflow analysis for Java programs though
- *  different AST visitor steps. Liveness analysis (see AliveAlanyzer) checks that
+ *  different AST visitor steps. Liveness analysis (see AliveAnalyzer) checks that
  *  every statement is reachable. Exception analysis (see FlowAnalyzer) ensures that
  *  every checked exception that is thrown is declared or caught.  Definite assignment analysis
  *  (see AssignAnalyzer) ensures that each variable is assigned when used.  Definite
@@ -197,6 +197,7 @@ public class Flow {
     private final boolean allowImprovedRethrowAnalysis;
     private final boolean allowImprovedCatchAnalysis;
     private final boolean allowEffectivelyFinalInInnerClasses;
+    private final boolean enforceThisDotInit;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -207,7 +208,7 @@ public class Flow {
 
     public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
         new AliveAnalyzer().analyzeTree(env, make);
-        new AssignAnalyzer(log, syms, lint, names).analyzeTree(env);
+        new AssignAnalyzer(log, syms, lint, names, enforceThisDotInit).analyzeTree(env);
         new FlowAnalyzer().analyzeTree(env, make);
         new CaptureAnalyzer().analyzeTree(env, make);
     }
@@ -239,7 +240,7 @@ public class Flow {
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
         try {
-            new AssignAnalyzer(log, syms, lint, names).analyzeTree(env);
+            new AssignAnalyzer(log, syms, lint, names, enforceThisDotInit).analyzeTree(env);
             LambdaFlowAnalyzer flowAnalyzer = new LambdaFlowAnalyzer();
             flowAnalyzer.analyzeTree(env, that, make);
             return flowAnalyzer.inferredThrownTypes;
@@ -289,6 +290,7 @@ public class Flow {
         allowImprovedRethrowAnalysis = source.allowImprovedRethrowAnalysis();
         allowImprovedCatchAnalysis = source.allowImprovedCatchAnalysis();
         allowEffectivelyFinalInInnerClasses = source.allowEffectivelyFinalInInnerClasses();
+        enforceThisDotInit = source.enforceThisDotInit();
     }
 
     /**
@@ -1427,6 +1429,8 @@ public class Flow {
 
         protected Names names;
 
+        final boolean enforceThisDotInit;
+
         public static class AbstractAssignPendingExit extends BaseAnalyzer.PendingExit {
 
             final Bits inits;
@@ -1449,7 +1453,7 @@ public class Flow {
             }
         }
 
-        public AbstractAssignAnalyzer(Bits inits, Symtab syms, Names names) {
+        public AbstractAssignAnalyzer(Bits inits, Symtab syms, Names names, boolean enforceThisDotInit) {
             this.inits = inits;
             uninits = new Bits();
             uninitsTry = new Bits();
@@ -1459,11 +1463,22 @@ public class Flow {
             uninitsWhenFalse = new Bits(true);
             this.syms = syms;
             this.names = names;
+            this.enforceThisDotInit = enforceThisDotInit;
         }
+
+        private boolean isInitialConstructor = false;
 
         @Override
         protected void markDead(JCTree tree) {
-            inits.inclRange(returnadr, nextadr);
+            if (!isInitialConstructor) {
+                inits.inclRange(returnadr, nextadr);
+            } else {
+                for (int address = returnadr; address < nextadr; address++) {
+                    if (!(isFinalUninitializedStaticField(vardecls[address].sym))) {
+                        inits.incl(address);
+                    }
+                }
+            }
             uninits.inclRange(returnadr, nextadr);
         }
 
@@ -1476,8 +1491,17 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH ||
-                 ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
-                  classDef.sym.isEnclosedBy((ClassSymbol)sym.owner))));
+                isFinalUninitializedField(sym)));
+        }
+
+        boolean isFinalUninitializedField(VarSymbol sym) {
+            return sym.owner.kind == TYP &&
+                   ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == FINAL &&
+                   classDef.sym.isEnclosedBy((ClassSymbol)sym.owner));
+        }
+
+        boolean isFinalUninitializedStaticField(VarSymbol sym) {
+            return isFinalUninitializedField(sym) && sym.isStatic();
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -1731,10 +1755,9 @@ public class Flow {
             int returnadrPrev = returnadr;
 
             Assert.check(pendingExits.isEmpty());
-
+            boolean lastInitialConstructor = isInitialConstructor;
             try {
-                boolean isInitialConstructor =
-                    TreeInfo.isInitialConstructor(tree);
+                isInitialConstructor = TreeInfo.isInitialConstructor(tree);
 
                 if (!isInitialConstructor) {
                     firstadr = nextadr;
@@ -1789,6 +1812,7 @@ public class Flow {
                 nextadr = nextadrPrev;
                 firstadr = firstadrPrev;
                 returnadr = returnadrPrev;
+                isInitialConstructor = lastInitialConstructor;
             }
         }
 
@@ -2261,11 +2285,33 @@ public class Flow {
 
         public void visitAssign(JCAssign tree) {
             JCTree lhs = TreeInfo.skipParens(tree.lhs);
-            if (!(lhs instanceof JCIdent)) {
+            if (!isIdentOrThisDotIdent(lhs))
                 scanExpr(lhs);
-            }
             scanExpr(tree.rhs);
             letInit(lhs);
+        }
+        private boolean isIdentOrThisDotIdent(JCTree lhs) {
+            if (lhs.hasTag(IDENT))
+                return true;
+            if (!lhs.hasTag(SELECT))
+                return false;
+
+            JCFieldAccess fa = (JCFieldAccess)lhs;
+            return fa.selected.hasTag(IDENT) &&
+                   ((JCIdent)fa.selected).name == names._this;
+        }
+
+        // check fields accessed through this.<field> are definitely
+        // assigned before reading their value
+        public void visitSelect(JCFieldAccess tree) {
+            super.visitSelect(tree);
+            if (enforceThisDotInit &&
+                tree.selected.hasTag(IDENT) &&
+                ((JCIdent)tree.selected).name == names._this &&
+                tree.sym.kind == VAR)
+            {
+                checkInit(tree.pos(), (VarSymbol)tree.sym);
+            }
         }
 
         public void visitAssignop(JCAssignOp tree) {
@@ -2400,8 +2446,8 @@ public class Flow {
             }
         }
 
-        public AssignAnalyzer(Log log, Symtab syms, Lint lint, Names names) {
-            super(new Bits(), syms, names);
+        public AssignAnalyzer(Log log, Symtab syms, Lint lint, Names names, boolean enforceThisDotInit) {
+            super(new Bits(), syms, names, enforceThisDotInit);
             this.log = log;
             this.lint = lint;
         }

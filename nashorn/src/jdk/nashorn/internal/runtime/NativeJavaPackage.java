@@ -35,7 +35,6 @@ import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.internal.dynalink.support.Guards;
 import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.lookup.MethodHandleFunctionality;
-import jdk.nashorn.internal.objects.NativeJava;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Function;
 
@@ -52,7 +51,7 @@ import jdk.nashorn.internal.objects.annotations.Function;
  * var ArrayList = java.util.ArrayList
  * var list = new ArrayList
  * </pre>
- * You can also use {@link NativeJava#type(Object, Object)} to access Java classes. These two statements are mostly
+ * You can also use {@link jdk.nashorn.internal.objects.NativeJava#type(Object, Object)} to access Java classes. These two statements are mostly
  * equivalent:
  * <pre>
  * var listType1 = java.util.ArrayList
@@ -198,24 +197,13 @@ public final class NativeJavaPackage extends ScriptObject {
     @Override
     public GuardedInvocation noSuchProperty(final CallSiteDescriptor desc, final LinkRequest request) {
         final String propertyName = desc.getNameToken(2);
-        final String fullName     = name.isEmpty() ? propertyName : name + "." + propertyName;
-
-        final Context context = Context.getContextTrusted();
-
-        Class<?> javaClass = null;
-        try {
-            javaClass = context.findClass(fullName);
-        } catch (final NoClassDefFoundError | ClassNotFoundException e) {
-            //ignored
-        }
-
-        if (javaClass == null) {
-            set(propertyName, new NativeJavaPackage(fullName, getProto()), false);
-        } else {
-            set(propertyName, StaticClass.forClass(javaClass), false);
-        }
-
+        createProperty(propertyName);
         return super.lookup(desc, request);
+    }
+
+    @Override
+    protected Object invokeNoSuchProperty(final String name) {
+        return createProperty(name);
     }
 
     @Override
@@ -225,5 +213,27 @@ public final class NativeJavaPackage extends ScriptObject {
 
     private static MethodHandle findOwnMH(final String name, final Class<?> rtype, final Class<?>... types) {
         return MH.findStatic(MethodHandles.lookup(), NativeJavaPackage.class, name, MH.type(rtype, types));
+    }
+
+    private Object createProperty(final String propertyName) {
+        final String fullName     = name.isEmpty() ? propertyName : name + "." + propertyName;
+        final Context context = Context.getContextTrusted();
+
+        Class<?> javaClass = null;
+        try {
+            javaClass = context.findClass(fullName);
+        } catch (final NoClassDefFoundError | ClassNotFoundException e) {
+            //ignored
+        }
+
+        final Object propertyValue;
+        if (javaClass == null) {
+            propertyValue = new NativeJavaPackage(fullName, getProto());
+        } else {
+            propertyValue = StaticClass.forClass(javaClass);
+        }
+
+        set(propertyName, propertyValue, false);
+        return propertyValue;
     }
 }

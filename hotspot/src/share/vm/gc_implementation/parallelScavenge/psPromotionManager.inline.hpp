@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc_implementation/parallelScavenge/psOldGen.hpp"
 #include "gc_implementation/parallelScavenge/psPromotionManager.hpp"
 #include "gc_implementation/parallelScavenge/psScavenge.hpp"
+#include "oops/oop.psgc.inline.hpp"
 
 inline PSPromotionManager* PSPromotionManager::manager_array(int index) {
   assert(_manager_array != NULL, "access of NULL manager_array");
@@ -225,7 +226,7 @@ oop PSPromotionManager::copy_to_survivor_space(oop o) {
   if (TraceScavenge) {
     gclog_or_tty->print_cr("{%s %s " PTR_FORMAT " -> " PTR_FORMAT " (%d)}",
        PSScavenge::should_scavenge(&new_obj) ? "copying" : "tenuring",
-       new_obj->klass()->internal_name(), (void *)o, (void *)new_obj, new_obj->size());
+       new_obj->klass()->internal_name(), p2i((void *)o), p2i((void *)new_obj), new_obj->size());
   }
 #endif
 

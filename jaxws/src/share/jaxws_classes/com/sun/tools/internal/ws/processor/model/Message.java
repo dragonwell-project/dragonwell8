@@ -177,7 +177,8 @@ public abstract class Message extends ModelObject {
             throw new AbortException();
         }
         _parameters.add(p);
-        _parametersByName.put(p.getName(), p);
+        String name = p.getCustomName() != null ? p.getCustomName() : p.getName();
+        _parametersByName.put(name, p);
     }
 
     public Parameter getParameterByName(String name) {
