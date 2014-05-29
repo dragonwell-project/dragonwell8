@@ -36,7 +36,7 @@ class MachNode;
 // Simple constants
 class ConNode : public TypeNode {
 public:
-  ConNode( const Type *t ) : TypeNode(t,1) {
+  ConNode( const Type *t ) : TypeNode(t->remove_speculative(),1) {
     init_req(0, (Node*)Compile::current()->root());
     init_flags(Flag_is_Con);
   }
@@ -641,6 +641,19 @@ public:
   virtual int Opcode() const;
   virtual const Type *bottom_type() const { return TypeInt::INT; }
 };
+
+//------------------------------Opaque3Node------------------------------------
+// A node to prevent unwanted optimizations. Will be optimized only during
+// macro nodes expansion.
+class Opaque3Node : public Opaque2Node {
+  int _opt; // what optimization it was used for
+public:
+  enum { RTM_OPT };
+  Opaque3Node(Compile* C, Node *n, int opt) : Opaque2Node(C, n), _opt(opt) {}
+  virtual int Opcode() const;
+  bool rtm_opt() const { return (_opt == RTM_OPT); }
+};
+
 
 //----------------------PartialSubtypeCheckNode--------------------------------
 // The 2nd slow-half of a subtype check.  Scan the subklass's 2ndary superklass

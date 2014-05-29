@@ -29,6 +29,12 @@ import static jdk.nashorn.internal.lookup.Lookup.MH;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.ref.WeakReference;
+import jdk.internal.dynalink.CallSiteDescriptor;
+import jdk.nashorn.api.scripting.JSObject;
+import jdk.nashorn.internal.codegen.ObjectClassGenerator;
+import jdk.nashorn.internal.objects.Global;
+import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
@@ -37,10 +43,12 @@ import jdk.nashorn.internal.runtime.ScriptObject;
  * Constructor of method handles used to guard call sites.
  */
 public final class NashornGuards {
-    private static final MethodHandle IS_SCRIPTOBJECT          = findOwnMH("isScriptObject", boolean.class, Object.class);
-    private static final MethodHandle IS_SCRIPTFUNCTION        = findOwnMH("isScriptFunction", boolean.class, Object.class);
-    private static final MethodHandle IS_MAP                   = findOwnMH("isMap", boolean.class, Object.class, PropertyMap.class);
-    private static final MethodHandle IS_INSTANCEOF_2          = findOwnMH("isInstanceOf2", boolean.class, Object.class, Class.class, Class.class);
+    private static final MethodHandle IS_SCRIPTOBJECT   = findOwnMH("isScriptObject", boolean.class, Object.class);
+    private static final MethodHandle IS_NOT_JSOBJECT   = findOwnMH("isNotJSObject", boolean.class, Object.class);
+    private static final MethodHandle IS_SCRIPTFUNCTION = findOwnMH("isScriptFunction", boolean.class, Object.class);
+    private static final MethodHandle IS_MAP            = findOwnMH("isMap", boolean.class, Object.class, PropertyMap.class);
+    private static final MethodHandle SAME_OBJECT       = findOwnMH("sameObject", boolean.class, Object.class, WeakReference.class);
+    private static final MethodHandle IS_INSTANCEOF_2   = findOwnMH("isInstanceOf2", boolean.class, Object.class, Class.class, Class.class);
 
     // don't create me!
     private NashornGuards() {
@@ -52,6 +60,14 @@ public final class NashornGuards {
      */
     public static MethodHandle getScriptObjectGuard() {
         return IS_SCRIPTOBJECT;
+    }
+
+    /**
+     * Get the guard that checks if an item is not a {@code JSObject}
+     * @return method handle for guard
+     */
+    public static MethodHandle getNotJSObjectGuard() {
+        return IS_NOT_JSOBJECT;
     }
 
     /**
@@ -75,6 +91,55 @@ public final class NashornGuards {
     }
 
     /**
+     * Determine whether the given callsite needs a guard.
+     * @param property the property, or null
+     * @param desc the callsite descriptor
+     * @return true if a guard should be used for this callsite
+     */
+    static boolean needsGuard(final Property property, final CallSiteDescriptor desc) {
+        return property == null || property.isConfigurable()
+                || property.isBound() || !ObjectClassGenerator.OBJECT_FIELDS_ONLY
+                || !NashornCallSiteDescriptor.isFastScope(desc) || property.canChangeType();
+    }
+
+    /**
+     * Get the guard for a property access. This returns an identity guard for non-configurable global properties
+     * and a map guard for everything else.
+     *
+     * @param sobj the first object in the prototype chain
+     * @param property the property
+     * @param desc the callsite descriptor
+     * @return method handle for guard
+     */
+    public static MethodHandle getGuard(final ScriptObject sobj, final Property property, final CallSiteDescriptor desc) {
+        if (!needsGuard(property, desc)) {
+            return null;
+        }
+        if (NashornCallSiteDescriptor.isScope(desc)) {
+            if (property != null && property.isBound()) {
+                // This is a declared top level variables in main script or eval, use identity guard.
+                return getIdentityGuard(sobj);
+            }
+            if (!(sobj instanceof Global) && (property == null || property.isConfigurable())) {
+                // Undeclared variables in nested evals need stronger guards
+                return combineGuards(getIdentityGuard(sobj), getMapGuard(sobj.getMap()));
+            }
+        }
+        return getMapGuard(sobj.getMap());
+    }
+
+
+    /**
+     * Get a guard that checks referential identity of the current object.
+     *
+     * @param sobj the self object
+     * @return true if same self object instance
+     */
+    public static MethodHandle getIdentityGuard(final ScriptObject sobj) {
+        return MH.insertArguments(SAME_OBJECT, 1, new WeakReference<>(sobj));
+    }
+
+    /**
      * Get a guard that checks if in item is an instance of either of two classes.
      *
      * @param class1 the first class
@@ -85,9 +150,25 @@ public final class NashornGuards {
         return MH.insertArguments(IS_INSTANCEOF_2, 1, class1, class2);
     }
 
+    /**
+     * Combine two method handles of type {@code (Object)boolean} using logical AND.
+     *
+     * @param guard1 the first guard
+     * @param guard2 the second guard, only invoked if guard1 returns true
+     * @return true if both guard1 and guard2 returned true
+     */
+    public static MethodHandle combineGuards(final MethodHandle guard1, final MethodHandle guard2) {
+        return MH.guardWithTest(guard1, guard2, MH.dropArguments(MH.constant(boolean.class, false), 0, Object.class));
+    }
+
     @SuppressWarnings("unused")
     private static boolean isScriptObject(final Object self) {
         return self instanceof ScriptObject;
+    }
+
+    @SuppressWarnings("unused")
+    private static boolean isNotJSObject(final Object self) {
+        return !(self instanceof JSObject);
     }
 
     @SuppressWarnings("unused")
@@ -98,6 +179,11 @@ public final class NashornGuards {
     @SuppressWarnings("unused")
     private static boolean isMap(final Object self, final PropertyMap map) {
         return self instanceof ScriptObject && ((ScriptObject)self).getMap() == map;
+    }
+
+    @SuppressWarnings("unused")
+    private static boolean sameObject(final Object self, final WeakReference<ScriptObject> ref) {
+        return self == ref.get();
     }
 
     @SuppressWarnings("unused")

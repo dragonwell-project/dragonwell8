@@ -543,7 +543,9 @@ OGLSD_SetNativeDimensions(JNIEnv *env, OGLSDOps *oglsdo,
     }
 
     JNU_SetFieldByName(env, NULL, sdObject, "nativeWidth", "I", width);
+    if (!((*env)->ExceptionOccurred(env))) {
     JNU_SetFieldByName(env, NULL, sdObject, "nativeHeight", "I", height);
+    }
 
     (*env)->DeleteLocalRef(env, sdObject);
 }

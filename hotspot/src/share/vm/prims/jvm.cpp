@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,9 @@
 #endif
 #ifdef TARGET_OS_FAMILY_windows
 # include "jvm_windows.h"
+#endif
+#ifdef TARGET_OS_FAMILY_aix
+# include "jvm_aix.h"
 #endif
 #ifdef TARGET_OS_FAMILY_bsd
 # include "jvm_bsd.h"
@@ -217,7 +220,7 @@ void trace_class_resolution(Klass* to_class) {
 #ifdef ASSERT
   class JVMTraceWrapper : public StackObj {
    public:
-    JVMTraceWrapper(const char* format, ...) {
+    JVMTraceWrapper(const char* format, ...) ATTRIBUTE_PRINTF(2, 3) {
       if (TraceJVMCalls) {
         va_list ap;
         va_start(ap, format);
@@ -518,6 +521,12 @@ JVM_ENTRY(void, JVM_MonitorWait(JNIEnv* env, jobject handle, jlong ms))
   JavaThreadInObjectWaitState jtiows(thread, ms != 0);
   if (JvmtiExport::should_post_monitor_wait()) {
     JvmtiExport::post_monitor_wait((JavaThread *)THREAD, (oop)obj(), ms);
+
+    // The current thread already owns the monitor and it has not yet
+    // been added to the wait queue so the current thread cannot be
+    // made the successor. This means that the JVMTI_EVENT_MONITOR_WAIT
+    // event handler cannot accidentally consume an unpark() meant for
+    // the ParkEvent associated with this ObjectMonitor.
   }
   ObjectSynchronizer::wait(obj, ms, CHECK);
 JVM_END
@@ -1208,7 +1217,8 @@ JVM_ENTRY(jobject, JVM_DoPrivileged(JNIEnv *env, jclass cls, jobject action, job
   // get run() method
   Method* m_oop = object->klass()->uncached_lookup_method(
                                            vmSymbols::run_method_name(),
-                                           vmSymbols::void_object_signature());
+                                           vmSymbols::void_object_signature(),
+                                           Klass::normal);
   methodHandle m (THREAD, m_oop);
   if (m.is_null() || !m->is_method() || !m()->is_public() || m()->is_static()) {
     THROW_MSG_0(vmSymbols::java_lang_InternalError(), "No run method");
@@ -2706,14 +2716,14 @@ JVM_END
 
 
 JVM_LEAF(jlong, JVM_Lseek(jint fd, jlong offset, jint whence))
-  JVMWrapper4("JVM_Lseek (0x%x, %Ld, %d)", fd, offset, whence);
+  JVMWrapper4("JVM_Lseek (0x%x, " INT64_FORMAT ", %d)", fd, (int64_t) offset, whence);
   //%note jvm_r6
   return os::lseek(fd, offset, whence);
 JVM_END
 
 
 JVM_LEAF(jint, JVM_SetLength(jint fd, jlong length))
-  JVMWrapper3("JVM_SetLength (0x%x, %Ld)", fd, length);
+  JVMWrapper3("JVM_SetLength (0x%x, " INT64_FORMAT ")", fd, (int64_t) length);
   return os::ftruncate(fd, length);
 JVM_END
 
@@ -2728,13 +2738,14 @@ JVM_END
 // Printing support //////////////////////////////////////////////////
 extern "C" {
 
+ATTRIBUTE_PRINTF(3, 0)
 int jio_vsnprintf(char *str, size_t count, const char *fmt, va_list args) {
   // see bug 4399518, 4417214
   if ((intptr_t)count <= 0) return -1;
   return vsnprintf(str, count, fmt, args);
 }
 
-
+ATTRIBUTE_PRINTF(3, 0)
 int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   va_list args;
   int len;
@@ -2744,7 +2755,7 @@ int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   return len;
 }
 
-
+ATTRIBUTE_PRINTF(2,3)
 int jio_fprintf(FILE* f, const char *fmt, ...) {
   int len;
   va_list args;
@@ -2754,7 +2765,7 @@ int jio_fprintf(FILE* f, const char *fmt, ...) {
   return len;
 }
 
-
+ATTRIBUTE_PRINTF(2, 0)
 int jio_vfprintf(FILE* f, const char *fmt, va_list args) {
   if (Arguments::vfprintf_hook() != NULL) {
      return Arguments::vfprintf_hook()(f, fmt, args);
@@ -2763,7 +2774,7 @@ int jio_vfprintf(FILE* f, const char *fmt, va_list args) {
   }
 }
 
-
+ATTRIBUTE_PRINTF(1, 2)
 JNIEXPORT int jio_printf(const char *fmt, ...) {
   int len;
   va_list args;
@@ -2900,7 +2911,7 @@ JVM_ENTRY(void, JVM_StopThread(JNIEnv* env, jobject jthread, jobject throwable))
   JavaThread* receiver = java_lang_Thread::thread(java_thread);
   Events::log_exception(JavaThread::current(),
                         "JVM_StopThread thread JavaThread " INTPTR_FORMAT " as oop " INTPTR_FORMAT " [exception " INTPTR_FORMAT "]",
-                        receiver, (address)java_thread, throwable);
+                        p2i(receiver), p2i((address)java_thread), p2i(throwable));
   // First check if thread is alive
   if (receiver != NULL) {
     // Check if exception is getting thrown at self (use oop equality, since the

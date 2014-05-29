@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -321,6 +321,23 @@ void NodeHash::remove_useless_nodes(VectorSet &useful) {
       _table[i] = sentinel_node;       // Replace with placeholder
     }
   }
+}
+
+
+void NodeHash::check_no_speculative_types() {
+#ifdef ASSERT
+  uint max = size();
+  Node *sentinel_node = sentinel();
+  for (uint i = 0; i < max; ++i) {
+    Node *n = at(i);
+    if(n != NULL && n != sentinel_node && n->is_Type()) {
+      TypeNode* tn = n->as_Type();
+      const Type* t = tn->type();
+      const Type* t_no_spec = t->remove_speculative();
+      assert(t == t_no_spec, "dead node in hash table or missed node during speculative cleanup");
+    }
+  }
+#endif
 }
 
 #ifndef PRODUCT
@@ -985,10 +1002,10 @@ void PhaseIterGVN::optimize() {
   if ( VerifyIterativeGVN && PrintOpto ) {
     if ( _verify_counter == _verify_full_passes )
       tty->print_cr("VerifyIterativeGVN: %d transforms and verify passes",
-                    _verify_full_passes);
+                    (int) _verify_full_passes);
     else
       tty->print_cr("VerifyIterativeGVN: %d transforms, %d full verify passes",
-                  _verify_counter, _verify_full_passes);
+                  (int) _verify_counter, (int) _verify_full_passes);
   }
 #endif
 }
@@ -1362,6 +1379,15 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
           _worklist.push(u);
       }
     }
+    // If changed AddI/SubI inputs, check CmpU for range check optimization.
+    if (use_op == Op_AddI || use_op == Op_SubI) {
+      for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
+        Node* u = use->fast_out(i2);
+        if (u->is_Cmp() && (u->Opcode() == Op_CmpU)) {
+          _worklist.push(u);
+        }
+      }
+    }
     // If changed AddP inputs, check Stores for loop invariant
     if( use_op == Op_AddP ) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
@@ -1392,11 +1418,11 @@ void PhaseIterGVN::remove_speculative_types()  {
   assert(UseTypeSpeculation, "speculation is off");
   for (uint i = 0; i < _types.Size(); i++)  {
     const Type* t = _types.fast_lookup(i);
-    if (t != NULL && t->isa_oopptr()) {
-      const TypeOopPtr* to = t->is_oopptr();
-      _types.map(i, to->remove_speculative());
+    if (t != NULL) {
+      _types.map(i, t->remove_speculative());
     }
   }
+  _table.check_no_speculative_types();
 }
 
 //=============================================================================

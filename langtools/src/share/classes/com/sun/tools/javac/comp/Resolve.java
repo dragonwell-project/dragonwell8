@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,11 +92,10 @@ public class Resolve {
     TreeInfo treeinfo;
     Types types;
     JCDiagnostic.Factory diags;
-    public final boolean boxingEnabled; // = source.allowBoxing();
-    public final boolean varargsEnabled; // = source.allowVarargs();
+    public final boolean boxingEnabled;
+    public final boolean varargsEnabled;
     public final boolean allowMethodHandles;
-    public final boolean allowDefaultMethods;
-    public final boolean allowStructuralMostSpecific;
+    public final boolean allowFunctionalInterfaceMostSpecific;
     private final boolean debugResolve;
     private final boolean compactMethodDiags;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
@@ -137,8 +136,7 @@ public class Resolve {
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
         Target target = Target.instance(context);
         allowMethodHandles = target.hasMethodHandles();
-        allowDefaultMethods = source.allowDefaultMethods();
-        allowStructuralMostSpecific = source.allowStructuralMostSpecific();
+        allowFunctionalInterfaceMostSpecific = source.allowFunctionalInterfaceMostSpecific();
         polymorphicSignatureScope = new Scope(syms.noSymbol);
 
         inapplicableMethodException = new InapplicableMethodException(diags);
@@ -350,7 +348,7 @@ public class Resolve {
 
     boolean isAccessible(Env<AttrContext> env, Type t, boolean checkInner) {
         return (t.hasTag(ARRAY))
-            ? isAccessible(env, types.upperBound(types.elemtype(t)))
+            ? isAccessible(env, types.cvarUpperBound(types.elemtype(t)))
             : isAccessible(env, t.tsym, checkInner);
     }
 
@@ -567,7 +565,7 @@ public class Resolve {
                                     tvars,
                                     (MethodType)mt,
                                     resultInfo,
-                                    m,
+                                    (MethodSymbol)m,
                                     argtypes,
                                     allowBoxing,
                                     useVarargs,
@@ -775,6 +773,7 @@ public class Resolve {
         public MethodCheck mostSpecificCheck(List<Type> actuals, boolean strict) {
             return nilMethodCheck;
         }
+
     }
 
     /**
@@ -785,6 +784,11 @@ public class Resolve {
         @Override
         void checkArg(DiagnosticPosition pos, boolean varargs, Type actual, Type formal, DeferredAttrContext deferredAttrContext, Warner warn) {
             //do nothing - actual always compatible to formals
+        }
+
+        @Override
+        public String toString() {
+            return "arityMethodCheck";
         }
     };
 
@@ -871,6 +875,11 @@ public class Resolve {
         public MethodCheck mostSpecificCheck(List<Type> actuals, boolean strict) {
             return new MostSpecificCheck(strict, actuals);
         }
+
+        @Override
+        public String toString() {
+            return "resolveMethodCheck";
+        }
     };
 
     /**
@@ -901,8 +910,10 @@ public class Resolve {
 
                 @Override
                 public boolean compatible(Type found, Type req, Warner warn) {
-                    found = pendingInferenceContext.asFree(found);
-                    req = infer.returnConstraintTarget(found, req);
+                    found = pendingInferenceContext.asUndetVar(found);
+                    if (found.hasTag(UNDETVAR) && req.isPrimitive()) {
+                        req = types.boxedClass(req).type;
+                    }
                     return super.compatible(found, req, warn);
                 }
 
@@ -938,8 +949,8 @@ public class Resolve {
 
         public boolean compatible(Type found, Type req, Warner warn) {
             return strict ?
-                    types.isSubtypeUnchecked(found, deferredAttrContext.inferenceContext.asFree(req), warn) :
-                    types.isConvertible(found, deferredAttrContext.inferenceContext.asFree(req), warn);
+                    types.isSubtypeUnchecked(found, deferredAttrContext.inferenceContext.asUndetVar(req), warn) :
+                    types.isConvertible(found, deferredAttrContext.inferenceContext.asUndetVar(req), warn);
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
@@ -957,6 +968,12 @@ public class Resolve {
         public DeferredAttrContext deferredAttrContext() {
             return deferredAttrContext;
         }
+
+        @Override
+        public String toString() {
+            return "MethodReferenceCheck";
+        }
+
     }
 
     /**
@@ -975,7 +992,12 @@ public class Resolve {
                 DeferredType dt = (DeferredType)found;
                 return dt.check(this);
             } else {
-                return super.check(pos, chk.checkNonVoid(pos, types.capture(U(found.baseType()))));
+                Type uResult = U(found.baseType());
+                Type capturedType = pos == null || pos.getTree() == null ?
+                        types.capture(uResult) :
+                        checkContext.inferenceContext()
+                            .cachedCapture(pos.getTree(), uResult, true);
+                return super.check(pos, chk.checkNonVoid(pos, capturedType));
             }
         }
 
@@ -989,7 +1011,7 @@ public class Resolve {
          */
         private Type U(Type found) {
             return found == pt ?
-                    found : types.upperBound(found);
+                    found : types.cvarUpperBound(found);
         }
 
         @Override
@@ -1059,50 +1081,47 @@ public class Resolve {
             }
 
             public boolean compatible(Type found, Type req, Warner warn) {
-                if (!allowStructuralMostSpecific || actual == null) {
-                    return super.compatible(found, req, warn);
-                } else {
-                    switch (actual.getTag()) {
-                        case DEFERRED:
-                            DeferredType dt = (DeferredType) actual;
-                            DeferredType.SpeculativeCache.Entry e = dt.speculativeCache.get(deferredAttrContext.msym, deferredAttrContext.phase);
-                            return (e == null || e.speculativeTree == deferredAttr.stuckTree)
-                                    ? super.compatible(found, req, warn) :
-                                      mostSpecific(found, req, e.speculativeTree, warn);
-                        default:
-                            return standaloneMostSpecific(found, req, actual, warn);
+                if (allowFunctionalInterfaceMostSpecific &&
+                        unrelatedFunctionalInterfaces(found, req) &&
+                        (actual != null && actual.getTag() == DEFERRED)) {
+                    DeferredType dt = (DeferredType) actual;
+                    DeferredType.SpeculativeCache.Entry e =
+                            dt.speculativeCache.get(deferredAttrContext.msym, deferredAttrContext.phase);
+                    if (e != null && e.speculativeTree != deferredAttr.stuckTree) {
+                        return functionalInterfaceMostSpecific(found, req, e.speculativeTree, warn);
                     }
                 }
+                return super.compatible(found, req, warn);
             }
 
-            private boolean mostSpecific(Type t, Type s, JCTree tree, Warner warn) {
-                MostSpecificChecker msc = new MostSpecificChecker(t, s, warn);
+            /** Whether {@code t} and {@code s} are unrelated functional interface types. */
+            private boolean unrelatedFunctionalInterfaces(Type t, Type s) {
+                return types.isFunctionalInterface(t.tsym) &&
+                       types.isFunctionalInterface(s.tsym) &&
+                       types.asSuper(t, s.tsym) == null &&
+                       types.asSuper(s, t.tsym) == null;
+            }
+
+            /** Parameters {@code t} and {@code s} are unrelated functional interface types. */
+            private boolean functionalInterfaceMostSpecific(Type t, Type s, JCTree tree, Warner warn) {
+                FunctionalInterfaceMostSpecificChecker msc = new FunctionalInterfaceMostSpecificChecker(t, s, warn);
                 msc.scan(tree);
                 return msc.result;
             }
 
-            boolean polyMostSpecific(Type t1, Type t2, Warner warn) {
-                return (!t1.isPrimitive() && t2.isPrimitive())
-                        ? true : super.compatible(t1, t2, warn);
-            }
-
-            boolean standaloneMostSpecific(Type t1, Type t2, Type exprType, Warner warn) {
-                return (exprType.isPrimitive() == t1.isPrimitive()
-                        && exprType.isPrimitive() != t2.isPrimitive())
-                        ? true : super.compatible(t1, t2, warn);
-            }
-
             /**
-             * Structural checker for most specific.
+             * Tests whether one functional interface type can be considered more specific
+             * than another unrelated functional interface type for the scanned expression.
              */
-            class MostSpecificChecker extends DeferredAttr.PolyScanner {
+            class FunctionalInterfaceMostSpecificChecker extends DeferredAttr.PolyScanner {
 
                 final Type t;
                 final Type s;
                 final Warner warn;
                 boolean result;
 
-                MostSpecificChecker(Type t, Type s, Warner warn) {
+                /** Parameters {@code t} and {@code s} are unrelated functional interface types. */
+                FunctionalInterfaceMostSpecificChecker(Type t, Type s, Warner warn) {
                     this.t = t;
                     this.s = s;
                     this.warn = warn;
@@ -1111,102 +1130,96 @@ public class Resolve {
 
                 @Override
                 void skip(JCTree tree) {
-                    result &= standaloneMostSpecific(t, s, tree.type, warn);
+                    result &= false;
                 }
 
                 @Override
                 public void visitConditional(JCConditional tree) {
-                    if (tree.polyKind == PolyKind.STANDALONE) {
-                        result &= standaloneMostSpecific(t, s, tree.type, warn);
-                    } else {
-                        super.visitConditional(tree);
-                    }
-                }
-
-                @Override
-                public void visitApply(JCMethodInvocation tree) {
-                    result &= (tree.polyKind == PolyKind.STANDALONE)
-                            ? standaloneMostSpecific(t, s, tree.type, warn)
-                            : polyMostSpecific(t, s, warn);
-                }
-
-                @Override
-                public void visitNewClass(JCNewClass tree) {
-                    result &= (tree.polyKind == PolyKind.STANDALONE)
-                            ? standaloneMostSpecific(t, s, tree.type, warn)
-                            : polyMostSpecific(t, s, warn);
+                    scan(tree.truepart);
+                    scan(tree.falsepart);
                 }
 
                 @Override
                 public void visitReference(JCMemberReference tree) {
-                    if (types.isFunctionalInterface(t.tsym) &&
-                            types.isFunctionalInterface(s.tsym)) {
-                        Type desc_t = types.findDescriptorType(t);
-                        Type desc_s = types.findDescriptorType(s);
-                        if (types.isSameTypes(desc_t.getParameterTypes(),
-                                inferenceContext().asFree(desc_s.getParameterTypes()))) {
-                            if (types.asSuper(t, s.tsym) != null ||
-                                types.asSuper(s, t.tsym) != null) {
-                                result &= MostSpecificCheckContext.super.compatible(t, s, warn);
-                            } else if (!desc_s.getReturnType().hasTag(VOID)) {
-                                //perform structural comparison
-                                Type ret_t = desc_t.getReturnType();
-                                Type ret_s = desc_s.getReturnType();
-                                result &= ((tree.refPolyKind == PolyKind.STANDALONE)
-                                        ? standaloneMostSpecific(ret_t, ret_s, tree.sym.type.getReturnType(), warn)
-                                        : polyMostSpecific(ret_t, ret_s, warn));
-                            } else {
-                                return;
-                            }
-                        }
-                    } else {
+                    Type desc_t = types.findDescriptorType(t);
+                    Type desc_s = types.findDescriptorType(s);
+                    // use inference variables here for more-specific inference (18.5.4)
+                    if (!types.isSameTypes(desc_t.getParameterTypes(),
+                            inferenceContext().asUndetVars(desc_s.getParameterTypes()))) {
                         result &= false;
+                    } else {
+                        // compare return types
+                        Type ret_t = desc_t.getReturnType();
+                        Type ret_s = desc_s.getReturnType();
+                        if (ret_s.hasTag(VOID)) {
+                            result &= true;
+                        } else if (ret_t.hasTag(VOID)) {
+                            result &= false;
+                        } else if (ret_t.isPrimitive() != ret_s.isPrimitive()) {
+                            boolean retValIsPrimitive =
+                                    tree.refPolyKind == PolyKind.STANDALONE &&
+                                    tree.sym.type.getReturnType().isPrimitive();
+                            result &= (retValIsPrimitive == ret_t.isPrimitive()) &&
+                                      (retValIsPrimitive != ret_s.isPrimitive());
+                        } else {
+                            result &= MostSpecificCheckContext.super.compatible(ret_t, ret_s, warn);
+                        }
                     }
                 }
 
                 @Override
                 public void visitLambda(JCLambda tree) {
-                    if (types.isFunctionalInterface(t.tsym) &&
-                            types.isFunctionalInterface(s.tsym)) {
-                        Type desc_t = types.findDescriptorType(t);
-                        Type desc_s = types.findDescriptorType(s);
-                        if (types.isSameTypes(desc_t.getParameterTypes(),
-                                inferenceContext().asFree(desc_s.getParameterTypes()))) {
-                            if (types.asSuper(t, s.tsym) != null ||
-                                types.asSuper(s, t.tsym) != null) {
-                                result &= MostSpecificCheckContext.super.compatible(t, s, warn);
-                            } else if (!desc_s.getReturnType().hasTag(VOID)) {
-                                //perform structural comparison
-                                Type ret_t = desc_t.getReturnType();
-                                Type ret_s = desc_s.getReturnType();
-                                scanLambdaBody(tree, ret_t, ret_s);
-                            } else {
-                                return;
-                            }
-                        }
-                    } else {
+                    Type desc_t = types.findDescriptorType(t);
+                    Type desc_s = types.findDescriptorType(s);
+                    // use inference variables here for more-specific inference (18.5.4)
+                    if (!types.isSameTypes(desc_t.getParameterTypes(),
+                            inferenceContext().asUndetVars(desc_s.getParameterTypes()))) {
                         result &= false;
+                    } else {
+                        // compare return types
+                        Type ret_t = desc_t.getReturnType();
+                        Type ret_s = desc_s.getReturnType();
+                        if (ret_s.hasTag(VOID)) {
+                            result &= true;
+                        } else if (ret_t.hasTag(VOID)) {
+                            result &= false;
+                        } else if (unrelatedFunctionalInterfaces(ret_t, ret_s)) {
+                            for (JCExpression expr : lambdaResults(tree)) {
+                                result &= functionalInterfaceMostSpecific(ret_t, ret_s, expr, warn);
+                            }
+                        } else if (ret_t.isPrimitive() != ret_s.isPrimitive()) {
+                            for (JCExpression expr : lambdaResults(tree)) {
+                                boolean retValIsPrimitive = expr.isStandalone() && expr.type.isPrimitive();
+                                result &= (retValIsPrimitive == ret_t.isPrimitive()) &&
+                                          (retValIsPrimitive != ret_s.isPrimitive());
+                            }
+                        } else {
+                            result &= MostSpecificCheckContext.super.compatible(ret_t, ret_s, warn);
+                        }
                     }
                 }
                 //where
 
-                void scanLambdaBody(JCLambda lambda, final Type t, final Type s) {
+                private List<JCExpression> lambdaResults(JCLambda lambda) {
                     if (lambda.getBodyKind() == JCTree.JCLambda.BodyKind.EXPRESSION) {
-                        result &= MostSpecificCheckContext.this.mostSpecific(t, s, lambda.body, warn);
+                        return List.of((JCExpression) lambda.body);
                     } else {
+                        final ListBuffer<JCExpression> buffer = new ListBuffer<>();
                         DeferredAttr.LambdaReturnScanner lambdaScanner =
                                 new DeferredAttr.LambdaReturnScanner() {
                                     @Override
                                     public void visitReturn(JCReturn tree) {
                                         if (tree.expr != null) {
-                                            result &= MostSpecificCheckContext.this.mostSpecific(t, s, tree.expr, warn);
+                                            buffer.append(tree.expr);
                                         }
                                     }
                                 };
                         lambdaScanner.scan(lambda.body);
+                        return buffer.toList();
                     }
                 }
             }
+
         }
 
         public MethodCheck mostSpecificCheck(List<Type> actuals, boolean strict) {
@@ -1410,7 +1423,7 @@ public class Resolve {
             return bestSoFar;
         } else if (useVarargs && (sym.flags() & VARARGS) == 0) {
             return bestSoFar.kind >= ERRONEOUS ?
-                    new BadVarargsMethod((ResolveError)bestSoFar) :
+                    new BadVarargsMethod((ResolveError)bestSoFar.baseSymbol()) :
                     bestSoFar;
         }
         Assert.check(sym.kind < AMBIGUOUS);
@@ -1502,14 +1515,22 @@ public class Resolve {
             if (m2SignatureMoreSpecific) return m2;
             return ambiguityError(m1, m2);
         case AMBIGUOUS:
-            //check if m1 is more specific than all ambiguous methods in m2
+            //compare m1 to ambiguous methods in m2
             AmbiguityError e = (AmbiguityError)m2.baseSymbol();
+            boolean m1MoreSpecificThanAnyAmbiguous = true;
+            boolean allAmbiguousMoreSpecificThanM1 = true;
             for (Symbol s : e.ambiguousSyms) {
-                if (mostSpecific(argtypes, m1, s, env, site, allowBoxing, useVarargs) != m1) {
-                    return e.addAmbiguousSymbol(m1);
-                }
+                Symbol moreSpecific = mostSpecific(argtypes, m1, s, env, site, allowBoxing, useVarargs);
+                m1MoreSpecificThanAnyAmbiguous &= moreSpecific == m1;
+                allAmbiguousMoreSpecificThanM1 &= moreSpecific == s;
             }
-            return m1;
+            if (m1MoreSpecificThanAnyAmbiguous)
+                return m1;
+            //if m1 is more specific than some ambiguous methods, but other ambiguous methods are
+            //more specific than m1, add it as a new ambiguous method:
+            if (!allAmbiguousMoreSpecificThanM1)
+                e.addAmbiguousSymbol(m1);
+            return e;
         default:
             throw new AssertionError();
         }
@@ -1527,7 +1548,7 @@ public class Resolve {
             currentResolutionContext.methodCheck =
                     prevResolutionContext.methodCheck.mostSpecificCheck(actuals, !allowBoxing);
             Type mst = instantiate(env, site, m2, null,
-                    adjustArgs(types.lowerBounds(types.memberType(site, m1).getParameterTypes()), m1, maxLength, useVarargs), null,
+                    adjustArgs(types.cvarLowerBounds(types.memberType(site, m1).getParameterTypes()), m1, maxLength, useVarargs), null,
                     allowBoxing, useVarargs, noteWarner);
             return mst != null &&
                     !noteWarner.hasLint(Lint.LintCategory.UNCHECKED);
@@ -1681,7 +1702,6 @@ public class Resolve {
                 bestSoFar : methodNotFound;
 
         for (InterfaceLookupPhase iphase2 : InterfaceLookupPhase.values()) {
-            if (iphase2 == InterfaceLookupPhase.DEFAULT_OK && !allowDefaultMethods) break;
             //keep searching for abstract methods
             for (Type itype : itypes[iphase2.ordinal()]) {
                 if (!itype.isInterface()) continue; //skip j.l.Object (included by Types.closure())
@@ -1714,10 +1734,8 @@ public class Resolve {
                 //from superinterfaces)
                 if ((s.flags() & (ABSTRACT | INTERFACE | ENUM)) != 0) {
                     return this;
-                } else if (rs.allowDefaultMethods) {
-                    return DEFAULT_OK;
                 } else {
-                    return null;
+                    return DEFAULT_OK;
                 }
             }
         },
@@ -2173,7 +2191,7 @@ public class Resolve {
                   List<Type> typeargtypes,
                   LogResolveHelper logResolveHelper) {
         if (sym.kind >= AMBIGUOUS) {
-            ResolveError errSym = (ResolveError)sym;
+            ResolveError errSym = (ResolveError)sym.baseSymbol();
             sym = errSym.access(name, qualified ? site.tsym : syms.noSymbol);
             argtypes = logResolveHelper.getArgumentTypes(errSym, sym, name, argtypes);
             if (logResolveHelper.resolveDiagnosticNeeded(site, argtypes, typeargtypes)) {
@@ -2562,7 +2580,7 @@ public class Resolve {
                                 sym = super.access(env, pos, location, sym);
                             } else {
                                 final JCDiagnostic details = sym.kind == WRONG_MTH ?
-                                                ((InapplicableSymbolError)sym).errCandidate().snd :
+                                                ((InapplicableSymbolError)sym.baseSymbol()).errCandidate().snd :
                                                 null;
                                 sym = new InapplicableSymbolError(sym.kind, "diamondError", currentResolutionContext) {
                                     @Override
@@ -2970,12 +2988,12 @@ public class Resolve {
                     return true;
                 case WRONG_MTH:
                     InapplicableSymbolError errSym =
-                            (InapplicableSymbolError)s;
+                            (InapplicableSymbolError)s.baseSymbol();
                     return new Template(MethodCheckDiag.ARITY_MISMATCH.regex())
                             .matches(errSym.errCandidate().snd);
                 case WRONG_MTHS:
                     InapplicableSymbolsError errSyms =
-                            (InapplicableSymbolsError)s;
+                            (InapplicableSymbolsError)s.baseSymbol();
                     return errSyms.filterCandidates(errSyms.mapCandidates()).isEmpty();
                 case WRONG_STATICNESS:
                     return false;
@@ -3157,7 +3175,7 @@ public class Resolve {
             if (TreeInfo.isStaticSelector(referenceTree.expr, names) &&
                     argtypes.nonEmpty() &&
                     (argtypes.head.hasTag(NONE) ||
-                    types.isSubtypeUnchecked(inferenceContext.asFree(argtypes.head), site))) {
+                    types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), site))) {
                 return new UnboundMethodReferenceLookupHelper(referenceTree, name,
                         site, argtypes, typeargtypes, maxPhase);
             } else {
@@ -3341,9 +3359,9 @@ public class Resolve {
             if ((env1.enclClass.sym.flags() & STATIC) != 0) staticOnly = true;
             env1 = env1.outer;
         }
-        if (allowDefaultMethods && c.isInterface() &&
-                name == names._super && !isStatic(env) &&
-                types.isDirectSuperInterface(c, env.enclClass.sym)) {
+        if (c.isInterface() &&
+            name == names._super && !isStatic(env) &&
+            types.isDirectSuperInterface(c, env.enclClass.sym)) {
             //this might be a default super call if one of the superinterfaces is 'c'
             for (Type t : pruneInterfaces(env.enclClass.type)) {
                 if (t.tsym == c) {
@@ -4270,7 +4288,11 @@ public class Resolve {
         }
 
         DeferredAttrContext deferredAttrContext(Symbol sym, InferenceContext inferenceContext, ResultInfo pendingResult, Warner warn) {
-            return deferredAttr.new DeferredAttrContext(attrMode, sym, step, inferenceContext, pendingResult != null ? pendingResult.checkContext.deferredAttrContext() : deferredAttr.emptyDeferredAttrContext, warn);
+            DeferredAttrContext parent = (pendingResult == null)
+                ? deferredAttr.emptyDeferredAttrContext
+                : pendingResult.checkContext.deferredAttrContext();
+            return deferredAttr.new DeferredAttrContext(attrMode, sym, step,
+                    inferenceContext, parent, warn);
         }
 
         /**

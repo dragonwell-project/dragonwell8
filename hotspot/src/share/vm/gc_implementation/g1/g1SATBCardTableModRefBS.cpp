@@ -95,7 +95,15 @@ void G1SATBCardTableModRefBS::g1_mark_as_young(const MemRegion& mr) {
   jbyte *const first = byte_for(mr.start());
   jbyte *const last = byte_after(mr.last());
 
-  memset(first, g1_young_gen, last - first);
+  // Below we may use an explicit loop instead of memset() because on
+  // certain platforms memset() can give concurrent readers phantom zeros.
+  if (UseMemSetInBOT) {
+    memset(first, g1_young_gen, last - first);
+  } else {
+    for (jbyte* i = first; i < last; i++) {
+      *i = g1_young_gen;
+    }
+  }
 }
 
 #ifndef PRODUCT
@@ -115,7 +123,8 @@ G1SATBCardTableLoggingModRefBS(MemRegion whole_heap,
 
 void
 G1SATBCardTableLoggingModRefBS::write_ref_field_work(void* field,
-                                                     oop new_val) {
+                                                     oop new_val,
+                                                     bool release) {
   volatile jbyte* byte = byte_for(field);
   if (*byte == g1_young_gen) {
     return;

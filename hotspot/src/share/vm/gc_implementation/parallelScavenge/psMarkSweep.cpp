@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,8 @@
 #include "services/memoryService.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+
+PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 elapsedTimer        PSMarkSweep::_accumulated_time;
 jlong               PSMarkSweep::_time_of_last_gc   = 0;
@@ -184,7 +186,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
     size_t prev_used = heap->used();
 
     // Capture metadata size before collection for sizing.
-    size_t metadata_prev_used = MetaspaceAux::allocated_used_bytes();
+    size_t metadata_prev_used = MetaspaceAux::used_bytes();
 
     // For PrintGCDetails
     size_t old_gen_prev_used = old_gen->used_in_bytes();
