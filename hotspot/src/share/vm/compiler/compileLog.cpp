@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -294,7 +294,7 @@ void CompileLog::finish_log(outputStream* file) {
 // Print about successful method inlining.
 void CompileLog::inline_success(const char* reason) {
   begin_elem("inline_success reason='");
-  text(reason);
+  text("%s", reason);
   end_elem("'");
 }
 
@@ -304,7 +304,7 @@ void CompileLog::inline_success(const char* reason) {
 // Print about failed method inlining.
 void CompileLog::inline_fail(const char* reason) {
   begin_elem("inline_fail reason='");
-  text(reason);
+  text("%s", reason);
   end_elem("'");
 }
 
@@ -330,5 +330,5 @@ void CompileLog::set_context(const char* format, ...) {
 void CompileLog::code_cache_state() {
   begin_elem("code_cache");
   CodeCache::log_state(this);
-  end_elem("");
+  end_elem("%s", "");
 }
