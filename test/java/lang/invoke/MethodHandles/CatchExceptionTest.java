@@ -37,6 +37,7 @@ import java.util.function.Supplier;
 /* @test
  * @library /lib/testlibrary/jsr292 /lib/testlibrary/
  * @compile CatchExceptionTest.java
+ * @build jdk.testlibrary.*
  * @run main/othervm -esa test.java.lang.invoke.MethodHandles.CatchExceptionTest
  */
 public class CatchExceptionTest {
