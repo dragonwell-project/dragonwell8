@@ -2315,7 +2315,7 @@ void ClassVerifier::verify_invoke_init(
         instanceKlassHandle mh(THREAD, m->method_holder());
         if (m->is_protected() && !mh->is_same_class_package(_klass())) {
           bool assignable = current_type().is_assignable_from(
-            objectref_type, this, CHECK_VERIFY(this));
+            objectref_type, this, true, CHECK_VERIFY(this));
           if (!assignable) {
             verify_error(ErrorContext::bad_type(bci,
                 TypeOrigin::cp(new_class_index, objectref_type),
