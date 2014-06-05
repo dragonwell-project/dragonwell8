@@ -2723,7 +2723,7 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
 
   assert((int)CardTableModRefBS::dirty_card_val() == 0, "must be 0");
 
-  membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
+  membar(Assembler::Assembler::StoreLoad);
 
   ldrb(tmp2, Address(card_addr, offset));
   cbzw(tmp2, done);
@@ -3079,6 +3079,12 @@ address MacroAssembler::read_polling_page(Register r, relocInfo::relocType rtype
 }
 
 void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
+  relocInfo::relocType rtype = dest.rspec().reloc()->type();
+  guarantee(rtype == relocInfo::none
+	    || rtype == relocInfo::external_word_type
+	    || rtype == relocInfo::poll_type
+	    || rtype == relocInfo::poll_return_type,
+	    "can only use a fixed address with an ADRP");
   if (labs(pc() - dest.target()) >= (1LL << 32)) {
     // Out of range.  This doesn't happen very often, but we have to
     // handle it

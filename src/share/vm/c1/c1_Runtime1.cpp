@@ -208,11 +208,6 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
 #if defined(SPARC) || defined(PPC)
     case handle_exception_nofpu_id:  // Unused on sparc
 #endif
-#ifdef TARGET_ARCH_aarch64
-    case throw_index_exception_id:
-    case throw_array_store_exception_id:
-    case deoptimize_id:
-#endif
       break;
 
     // All other stubs should have oopmaps

@@ -717,9 +717,97 @@ definitions %{
 
 source_hpp %{
 
+class CallStubImpl {
+ 
+  //--------------------------------------------------------------
+  //---<  Used for optimization in Compile::shorten_branches  >---
+  //--------------------------------------------------------------
+
+ public:
+  // Size of call trampoline stub.
+  static uint size_call_trampoline() {
+    return 0; // no call trampolines on this platform
+  }
+  
+  // number of relocations needed by a call trampoline stub
+  static uint reloc_call_trampoline() { 
+    return 0; // no call trampolines on this platform
+  }
+};
+
+class HandlerImpl {
+
+ public:
+
+  static int emit_exception_handler(CodeBuffer &cbuf);
+  static int emit_deopt_handler(CodeBuffer& cbuf);
+
+  static uint size_exception_handler() {
+    // count up to 4 movz/n/k instructions and one branch instruction
+    return 5 * NativeInstruction::instruction_size;
+  }
+
+  static uint size_deopt_handler() {
+    // count one adr and one branch instruction
+    return 2 * NativeInstruction::instruction_size;
+  }
+};
+
+  bool followed_by_ordered_store(const Node *barrier);
+  bool preceded_by_ordered_load(const Node *barrier);
+
 %}
 
 source %{
+
+  // AArch64 has load acquire and store release instructions which we
+  // use for ordered memory accesses, e.g. for volatiles.  The ideal
+  // graph generator also inserts memory barriers around volatile
+  // accesses, and we don't want to generate both barriers and acq/rel
+  // instructions.  So, when we emit a MemBarAcquire we look back in
+  // the ideal graph for an ordered load and only emit the barrier if
+  // we don't find one.
+
+bool preceded_by_ordered_load(const Node *barrier) {
+  Node *x = barrier->lookup(TypeFunc::Parms);
+
+  if (! x)
+    return false;
+
+  if (x->is_DecodeNarrowPtr())
+    x = x->in(1);
+
+  if (x->is_Load())
+    return ! x->as_Load()->is_unordered();
+
+  return false;
+}
+
+bool followed_by_ordered_store(const Node *barrier) {
+
+  // Find following mem node.
+  //
+  Node *mem_proj = NULL;
+  for (DUIterator_Fast imax, i = barrier->fast_outs(imax); i < imax; i++) {
+    mem_proj = barrier->fast_out(i);      // Throw out-of-bounds if proj not found
+    assert(mem_proj->is_Proj(), "only projections here");
+    ProjNode *proj = mem_proj->as_Proj();
+    if (proj->_con == TypeFunc::Memory &&
+        !Compile::current()->node_arena()->contains(mem_proj)) // Unmatched old-space only
+      break;
+  }
+  assert(mem_proj->as_Proj()->_con == TypeFunc::Memory, "Graph broken");
+
+  // Search behind Proj.
+  for (DUIterator_Fast jmax, j = mem_proj->fast_outs(jmax); j < jmax; j++) {
+    Node *x = mem_proj->fast_out(j);
+    if (x->is_Store() && ! x->as_Store()->is_unordered()) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 #define __ _masm.
 
@@ -840,6 +928,11 @@ const RegMask& MachConstantBaseNode::_out_RegMask = RegMask::Empty;
 
 int Compile::ConstantTable::calculate_table_base_offset() const {
   return 0;  // absolute addressing, no offset
+}
+
+bool MachConstantBaseNode::requires_postalloc_expand() const { return false; }
+void MachConstantBaseNode::postalloc_expand(GrowableArray <Node *> *nodes, PhaseRegAlloc *ra_) {
+  ShouldNotReachHere();
 }
 
 void MachConstantBaseNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const {
@@ -984,8 +1077,7 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   }
 
   if (do_polling() && C->is_method_compilation()) {
-    address polling_page(os::get_polling_page());
-    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+    __ read_polling_page(rscratch1, os::get_polling_page(), relocInfo::poll_return_type);
   }
 }
 
@@ -1412,14 +1504,8 @@ uint MachUEPNode::size(PhaseRegAlloc* ra_) const
 
 //=============================================================================
 
-uint size_exception_handler()
-{
-  // count up to 4 movz/n/k instructions and one branch instruction
-  return 5 * NativeInstruction::instruction_size;
-}
-
 // Emit exception handler code.
-int emit_exception_handler(CodeBuffer& cbuf)
+int HandlerImpl::emit_exception_handler(CodeBuffer& cbuf)
 {
   // mov rscratch1 #exception_blob_entry_point
   // br rscratch1
@@ -1436,14 +1522,8 @@ int emit_exception_handler(CodeBuffer& cbuf)
   return offset;
 }
 
-uint size_deopt_handler()
-{
-  // count one adr and one branch instruction
-  return 2 * NativeInstruction::instruction_size;
-}
-
 // Emit deopt handler code.
-int emit_deopt_handler(CodeBuffer& cbuf)
+int HandlerImpl::emit_deopt_handler(CodeBuffer& cbuf)
 {
   // Note that the code buffer's insts_mark is always relative to insts.
   // That's why we must use the macroassembler to generate a handler.
@@ -1530,6 +1610,11 @@ const int Matcher::vector_shift_count_ideal_reg(int size) {
   return Op_RegL;
 }
 
+// AES support not yet implemented
+const bool Matcher::pass_original_key_for_aes() {
+  return false;
+}
+
 // x86 supports misaligned vectors store/load.
 const bool Matcher::misaligned_vectors_ok() {
   // TODO fixme
@@ -1553,6 +1638,9 @@ const int Matcher::float_cmove_cost() {
   // float cmoves are no more expensive than int cmoves
   return 0;
 }
+
+// Does the CPU require late expand (see block.cpp for description of late expand)?
+const bool Matcher::require_postalloc_expand = false;
 
 // Should the Matcher clone shifts on addressing modes, expecting them
 // to be subsumed into complex addressing expressions or compute them
@@ -1677,19 +1765,6 @@ const RegMask Matcher::method_handle_invoke_SP_save_mask() {
   return RegMask();
 }
 
-const RegMask Matcher::mathExactI_result_proj_mask() {
-  return R0_REG_mask();
-}
-
-const RegMask Matcher::mathExactL_result_proj_mask() {
-  ShouldNotReachHere();
-  return R0_REG_mask();
-}
-
-const RegMask Matcher::mathExactI_flags_proj_mask() {
-  return INT_FLAGS_mask();
-}
-
 // helper for encoding java_to_runtime calls on sim
 //
 // this is needed to compute the extra arguments required when
@@ -1735,19 +1810,10 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
 #define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN)	\
   MacroAssembler _masm(&cbuf);						\
   {									\
-    Register base = as_Register(BASE);					\
-    if (INDEX == -1) {							\
-	__ lea(SCRATCH, Address(base, DISP));				\
-    } else {								\
-	Register index_reg = as_Register(INDEX);			\
-	if (DISP == 0) {						\
-	  __ lea(SCRATCH, Address(base, index_reg, Address::lsl(SCALE))); \
-	} else {							\
-	  __ lea(SCRATCH, Address(base, DISP));				\
-	  __ lea(SCRATCH, Address(SCRATCH, index_reg, Address::lsl(SCALE))); \
-	}								\
-    }									\
-    __ INSN(REG, SCRATCH);						\
+    guarantee(INDEX == -1, "mode not permitted for volatile");		\
+    guarantee(DISP == 0, "mode not permitted for volatile");		\
+    guarantee(SCALE == 0, "mode not permitted for volatile");		\
+    __ INSN(REG, as_Register(BASE));					\
   }
 
 typedef void (MacroAssembler::* mem_insn)(Register Rt, const Address &adr);
@@ -2301,13 +2367,12 @@ encode %{
     }
     Label retry_load, done;
     __ bind(retry_load);
-    __ ldaxr(rscratch1, addr_reg);
+    __ ldxr(rscratch1, addr_reg);
     __ cmp(rscratch1, old_reg);
     __ br(Assembler::NE, done);
     __ stlxr(rscratch1, new_reg, addr_reg);
     __ cbnzw(rscratch1, retry_load);
     __ bind(done);
-    __ membar(__ AnyAny);
   %}
 
   enc_class aarch64_enc_cmpxchgw(memory mem, iRegINoSp oldval, iRegINoSp newval) %{
@@ -2341,13 +2406,12 @@ encode %{
     }
     Label retry_load, done;
     __ bind(retry_load);
-    __ ldaxrw(rscratch1, addr_reg);
+    __ ldxrw(rscratch1, addr_reg);
     __ cmpw(rscratch1, old_reg);
     __ br(Assembler::NE, done);
     __ stlxrw(rscratch1, new_reg, addr_reg);
     __ cbnzw(rscratch1, retry_load);
     __ bind(done);
-    __ membar(__ AnyAny);
   %}
 
   // auxiliary used for CompareAndSwapX to set result register
@@ -2512,7 +2576,13 @@ encode %{
         __ mov_metadata(dst_reg, (Metadata*)con);
       } else {
         assert(rtype == relocInfo::none, "unexpected reloc type");
-        __ lea(dst_reg, Address(con, rtype));
+	if (con < (address)(uintptr_t)os::vm_page_size()) {
+	  __ mov(dst_reg, con);
+	} else {
+	  unsigned long offset;
+	  __ adrp(dst_reg, con, offset);
+	  __ add(dst_reg, dst_reg, offset);
+	}
       }
     }
   %}
@@ -2826,9 +2896,6 @@ encode %{
       __ call_Unimplemented();
     }
   %}
-  // TODO
-  // this only works ifdef BUILTIN_SIM
-  // provide version for native AArch64 build
 
   enc_class aarch64_enc_java_to_runtime(method meth) %{
     MacroAssembler _masm(&cbuf);
@@ -3240,7 +3307,7 @@ frame %{
   c_calling_convention
   %{
     // This is obviously always outgoing
-    (void) SharedRuntime::c_calling_convention(sig_bt, regs, length);
+    (void) SharedRuntime::c_calling_convention(sig_bt, regs, NULL, length);
   %}
 
   // Location of compiled Java return values.  Same as C for now.
@@ -4612,6 +4679,7 @@ operand iRegL2I(iRegL reg) %{
 opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndexScaledOffsetI2L, indIndexScaled, indIndexScaledI2L, indIndex, indOffI, indOffL,
 	       indirectN, indIndexScaledOffsetIN,  indIndexScaledOffsetLN, indIndexScaledOffsetI2LN, indIndexScaledN, indIndexScaledI2LN, indIndexN, indOffIN, indOffLN);
 
+
 // iRegIorL2I is used for src inputs in rules for 32 bit int (I)
 // operations. it allows the src to be either an iRegI or a (ConvL2I
 // iRegL). in the latter case the l2i normally planted for a ConvL2I
@@ -4749,7 +4817,7 @@ define %{
 instruct loadB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadB mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrsbw  $dst, $mem\t# byte" %}
@@ -4763,7 +4831,7 @@ instruct loadB(iRegINoSp dst, memory mem)
 instruct loadB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
+  predicate(n->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrsb  $dst, $mem\t# byte" %}
@@ -4777,7 +4845,7 @@ instruct loadB2L(iRegLNoSp dst, memory mem)
 instruct loadUB(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUB mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrbw  $dst, $mem\t# byte" %}
@@ -4791,7 +4859,7 @@ instruct loadUB(iRegINoSp dst, memory mem)
 instruct loadUB2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
+  predicate(n->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrb  $dst, $mem\t# byte" %}
@@ -4805,7 +4873,7 @@ instruct loadUB2L(iRegLNoSp dst, memory mem)
 instruct loadS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadS mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrshw  $dst, $mem\t# short" %}
@@ -4819,7 +4887,7 @@ instruct loadS(iRegINoSp dst, memory mem)
 instruct loadS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
+  predicate(n->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrsh  $dst, $mem\t# short" %}
@@ -4833,7 +4901,7 @@ instruct loadS2L(iRegLNoSp dst, memory mem)
 instruct loadUS(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadUS mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrh  $dst, $mem\t# short" %}
@@ -4847,7 +4915,7 @@ instruct loadUS(iRegINoSp dst, memory mem)
 instruct loadUS2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
+  predicate(n->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrh  $dst, $mem\t# short" %}
@@ -4861,7 +4929,7 @@ instruct loadUS2L(iRegLNoSp dst, memory mem)
 instruct loadI(iRegINoSp dst, memory mem)
 %{
   match(Set dst (LoadI mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4875,7 +4943,7 @@ instruct loadI(iRegINoSp dst, memory mem)
 instruct loadI2L(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (ConvI2L (LoadI mem)));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1)))));
+  predicate(n->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrsw  $dst, $mem\t# int" %}
@@ -4889,7 +4957,7 @@ instruct loadI2L(iRegLNoSp dst, memory mem)
 instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
-  predicate(!treat_as_volatile(((MemNode*)(n->in(1))->in(1))));
+  predicate(n->in(1)->in(1)->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrw  $dst, $mem\t# int" %}
@@ -4903,7 +4971,7 @@ instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 instruct loadL(iRegLNoSp dst, memory mem)
 %{
   match(Set dst (LoadL mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldr  $dst, $mem\t# int" %}
@@ -4930,7 +4998,7 @@ instruct loadRange(iRegINoSp dst, memory mem)
 instruct loadP(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadP mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
@@ -4944,7 +5012,7 @@ instruct loadP(iRegPNoSp dst, memory mem)
 instruct loadN(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadN mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrw  $dst, $mem\t# compressed ptr" %}
@@ -4958,7 +5026,7 @@ instruct loadN(iRegNNoSp dst, memory mem)
 instruct loadKlass(iRegPNoSp dst, memory mem)
 %{
   match(Set dst (LoadKlass mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldr  $dst, $mem\t# class" %}
@@ -4972,7 +5040,7 @@ instruct loadKlass(iRegPNoSp dst, memory mem)
 instruct loadNKlass(iRegNNoSp dst, memory mem)
 %{
   match(Set dst (LoadNKlass mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrw  $dst, $mem\t# compressed class ptr" %}
@@ -4986,7 +5054,7 @@ instruct loadNKlass(iRegNNoSp dst, memory mem)
 instruct loadF(vRegF dst, memory mem)
 %{
   match(Set dst (LoadF mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrs  $dst, $mem\t# float" %}
@@ -5000,7 +5068,7 @@ instruct loadF(vRegF dst, memory mem)
 instruct loadD(vRegD dst, memory mem)
 %{
   match(Set dst (LoadD mem));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Load()->is_unordered());
 
   ins_cost(4 * INSN_COST);
   format %{ "ldrd  $dst, $mem\t# double" %}
@@ -5231,7 +5299,7 @@ instruct storeimmCM0(immI0 zero, memory mem)
 instruct storeB(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strb  $src, $mem\t# byte" %}
@@ -5245,7 +5313,7 @@ instruct storeB(iRegI src, memory mem)
 instruct storeimmB0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreB mem zero));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strb zr, $mem\t# byte" %}
@@ -5259,7 +5327,7 @@ instruct storeimmB0(immI0 zero, memory mem)
 instruct storeC(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strh  $src, $mem\t# short" %}
@@ -5272,7 +5340,7 @@ instruct storeC(iRegI src, memory mem)
 instruct storeimmC0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreC mem zero));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strh  zr, $mem\t# short" %}
@@ -5287,7 +5355,7 @@ instruct storeimmC0(immI0 zero, memory mem)
 instruct storeI(iRegIorL2I src, memory mem)
 %{
   match(Set mem(StoreI mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  $src, $mem\t# int" %}
@@ -5300,7 +5368,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 instruct storeimmI0(immI0 zero, memory mem)
 %{
   match(Set mem(StoreI mem zero));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  zr, $mem\t# int" %}
@@ -5314,7 +5382,7 @@ instruct storeimmI0(immI0 zero, memory mem)
 instruct storeL(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# int" %}
@@ -5328,7 +5396,7 @@ instruct storeL(iRegL src, memory mem)
 instruct storeimmL0(immL0 zero, memory mem)
 %{
   match(Set mem (StoreL mem zero));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  zr, $mem\t# int" %}
@@ -5342,7 +5410,7 @@ instruct storeimmL0(immL0 zero, memory mem)
 instruct storeP(iRegP src, memory mem)
 %{
   match(Set mem (StoreP mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# ptr" %}
@@ -5356,7 +5424,7 @@ instruct storeP(iRegP src, memory mem)
 instruct storeimmP0(immP0 zero, memory mem)
 %{
   match(Set mem (StoreP mem zero));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str zr, $mem\t# ptr" %}
@@ -5415,7 +5483,7 @@ instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
 instruct storeN(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  $src, $mem\t# compressed ptr" %}
@@ -5430,7 +5498,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
   match(Set mem (StoreN mem zero));
   predicate(Universe::narrow_oop_base() == NULL &&
             Universe::narrow_klass_base() == NULL &&
-            !((MemNode*)n)->is_volatile());
+            n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  rheapbase, $mem\t# compressed ptr (rheapbase==0)" %}
@@ -5444,7 +5512,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 instruct storeF(vRegF src, memory mem)
 %{
   match(Set mem (StoreF mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strs  $src, $mem\t# float" %}
@@ -5461,7 +5529,7 @@ instruct storeF(vRegF src, memory mem)
 instruct storeD(vRegD src, memory mem)
 %{
   match(Set mem (StoreD mem src));
-  predicate(!treat_as_volatile(((MemNode*)n)));
+  predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strd  $src, $mem\t# double" %}
@@ -5474,6 +5542,7 @@ instruct storeD(vRegD src, memory mem)
 // Store Compressed Klass Pointer
 instruct storeNKlass(iRegN src, memory mem)
 %{
+  predicate(n->as_Store()->is_unordered());
   match(Set mem (StoreNKlass mem src));
 
   ins_cost(INSN_COST);
@@ -5526,10 +5595,9 @@ instruct prefetchnta( memory mem ) %{
 //  ---------------- volatile loads and stores ----------------
 
 // Load Byte (8 bit signed)
-instruct loadB_volatile(iRegINoSp dst, memory mem)
+instruct loadB_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadB mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarsb  $dst, $mem\t# byte" %}
@@ -5540,10 +5608,9 @@ instruct loadB_volatile(iRegINoSp dst, memory mem)
 %}
 
 // Load Byte (8 bit signed) into long
-instruct loadB2L_volatile(iRegLNoSp dst, memory mem)
+instruct loadB2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (ConvI2L (LoadB mem)));
-  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarsb  $dst, $mem\t# byte" %}
@@ -5554,10 +5621,9 @@ instruct loadB2L_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Byte (8 bit unsigned)
-instruct loadUB_volatile(iRegINoSp dst, memory mem)
+instruct loadUB_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadUB mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarb  $dst, $mem\t# byte" %}
@@ -5568,10 +5634,9 @@ instruct loadUB_volatile(iRegINoSp dst, memory mem)
 %}
 
 // Load Byte (8 bit unsigned) into long
-instruct loadUB2L_volatile(iRegLNoSp dst, memory mem)
+instruct loadUB2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (ConvI2L (LoadUB mem)));
-  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarb  $dst, $mem\t# byte" %}
@@ -5582,10 +5647,9 @@ instruct loadUB2L_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Short (16 bit signed)
-instruct loadS_volatile(iRegINoSp dst, memory mem)
+instruct loadS_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadS mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarshw  $dst, $mem\t# short" %}
@@ -5595,10 +5659,9 @@ instruct loadS_volatile(iRegINoSp dst, memory mem)
   ins_pipe(pipe_class_memory);
 %}
 
-instruct loadUS_volatile(iRegINoSp dst, memory mem)
+instruct loadUS_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadUS mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarhw  $dst, $mem\t# short" %}
@@ -5609,10 +5672,9 @@ instruct loadUS_volatile(iRegINoSp dst, memory mem)
 %}
 
 // Load Short/Char (16 bit unsigned) into long
-instruct loadUS2L_volatile(iRegLNoSp dst, memory mem)
+instruct loadUS2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (ConvI2L (LoadUS mem)));
-  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarh  $dst, $mem\t# short" %}
@@ -5623,10 +5685,9 @@ instruct loadUS2L_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Short/Char (16 bit signed) into long
-instruct loadS2L_volatile(iRegLNoSp dst, memory mem)
+instruct loadS2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (ConvI2L (LoadS mem)));
-  predicate(treat_as_volatile(((MemNode*)(n->in(1)))));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarh  $dst, $mem\t# short" %}
@@ -5637,10 +5698,9 @@ instruct loadS2L_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Integer (32 bit signed)
-instruct loadI_volatile(iRegINoSp dst, memory mem)
+instruct loadI_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadI mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarw  $dst, $mem\t# int" %}
@@ -5651,10 +5711,9 @@ instruct loadI_volatile(iRegINoSp dst, memory mem)
 %}
 
 // Load Integer (32 bit unsigned) into long
-instruct loadUI2L_volatile(iRegLNoSp dst, memory mem, immL_32bits mask)
+instruct loadUI2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem, immL_32bits mask)
 %{
   match(Set dst (AndL (ConvI2L (LoadI mem)) mask));
-  predicate(treat_as_volatile(((MemNode*)(n->in(1))->in(1))));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarw  $dst, $mem\t# int" %}
@@ -5665,10 +5724,9 @@ instruct loadUI2L_volatile(iRegLNoSp dst, memory mem, immL_32bits mask)
 %}
 
 // Load Long (64 bit signed)
-instruct loadL_volatile(iRegLNoSp dst, memory mem)
+instruct loadL_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadL mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldar  $dst, $mem\t# int" %}
@@ -5679,10 +5737,9 @@ instruct loadL_volatile(iRegLNoSp dst, memory mem)
 %}
 
 // Load Pointer
-instruct loadP_volatile(iRegPNoSp dst, memory mem)
+instruct loadP_volatile(iRegPNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadP mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldar  $dst, $mem\t# ptr" %}
@@ -5693,10 +5750,9 @@ instruct loadP_volatile(iRegPNoSp dst, memory mem)
 %}
 
 // Load Compressed Pointer
-instruct loadN_volatile(iRegNNoSp dst, memory mem)
+instruct loadN_volatile(iRegNNoSp dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadN mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarw  $dst, $mem\t# compressed ptr" %}
@@ -5707,10 +5763,9 @@ instruct loadN_volatile(iRegNNoSp dst, memory mem)
 %}
 
 // Load Float
-instruct loadF_volatile(vRegF dst, memory mem)
+instruct loadF_volatile(vRegF dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadF mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldars  $dst, $mem\t# float" %}
@@ -5721,10 +5776,9 @@ instruct loadF_volatile(vRegF dst, memory mem)
 %}
 
 // Load Double
-instruct loadD_volatile(vRegD dst, memory mem)
+instruct loadD_volatile(vRegD dst, /* sync_memory*/indirect mem)
 %{
   match(Set dst (LoadD mem));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldard  $dst, $mem\t# double" %}
@@ -5735,10 +5789,9 @@ instruct loadD_volatile(vRegD dst, memory mem)
 %}
 
 // Store Byte
-instruct storeB_volatile(iRegI src, memory mem)
+instruct storeB_volatile(iRegI src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreB mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrb  $src, $mem\t# byte" %}
@@ -5749,10 +5802,9 @@ instruct storeB_volatile(iRegI src, memory mem)
 %}
 
 // Store Char/Short
-instruct storeC_volatile(iRegI src, memory mem)
+instruct storeC_volatile(iRegI src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreC mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrh  $src, $mem\t# short" %}
@@ -5764,10 +5816,9 @@ instruct storeC_volatile(iRegI src, memory mem)
 
 // Store Integer
 
-instruct storeI_volatile(iRegIorL2I src, memory mem)
+instruct storeI_volatile(iRegIorL2I src, /* sync_memory*/indirect mem)
 %{
   match(Set mem(StoreI mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrw  $src, $mem\t# int" %}
@@ -5778,10 +5829,9 @@ instruct storeI_volatile(iRegIorL2I src, memory mem)
 %}
 
 // Store Long (64 bit signed)
-instruct storeL_volatile(iRegL src, memory mem)
+instruct storeL_volatile(iRegL src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreL mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlr  $src, $mem\t# int" %}
@@ -5792,10 +5842,9 @@ instruct storeL_volatile(iRegL src, memory mem)
 %}
 
 // Store Pointer
-instruct storeP_volatile(iRegP src, memory mem)
+instruct storeP_volatile(iRegP src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreP mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlr  $src, $mem\t# ptr" %}
@@ -5806,10 +5855,9 @@ instruct storeP_volatile(iRegP src, memory mem)
 %}
 
 // Store Compressed Pointer
-instruct storeN_volatile(iRegN src, memory mem)
+instruct storeN_volatile(iRegN src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreN mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrw  $src, $mem\t# compressed ptr" %}
@@ -5820,10 +5868,9 @@ instruct storeN_volatile(iRegN src, memory mem)
 %}
 
 // Store Float
-instruct storeF_volatile(vRegF src, memory mem)
+instruct storeF_volatile(vRegF src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreF mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrs  $src, $mem\t# float" %}
@@ -5837,10 +5884,9 @@ instruct storeF_volatile(vRegF src, memory mem)
 // implement storeImmF0 and storeFImmPacked
 
 // Store Double
-instruct storeD_volatile(vRegD src, memory mem)
+instruct storeD_volatile(vRegD src, /* sync_memory*/indirect mem)
 %{
   match(Set mem (StoreD mem src));
-  predicate(treat_as_volatile(((MemNode*)n)));
 
   ins_cost(VOLATILE_REF_COST);
   format %{ "stlrd  $src, $mem\t# double" %}
@@ -5912,94 +5958,129 @@ instruct bytes_reverse_short(iRegINoSp dst) %{
 // ============================================================================
 // MemBar Instruction
 
-instruct membar_acquire()
-%{
+instruct load_fence() %{
+  match(LoadFence);
+  ins_cost(VOLATILE_REF_COST);
+
+  format %{ "load_fence" %}
+
+  ins_encode %{
+    __ membar(Assembler::LoadLoad|Assembler::LoadStore);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct unnecessary_membar_acquire() %{
+  predicate(preceded_by_ordered_load(n));
+  match(MemBarAcquire);
+  ins_cost(0);
+
+  format %{ "membar_acquire (elided)" %}
+
+  ins_encode %{
+    __ block_comment("membar_acquire (elided)");
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_acquire() %{
   match(MemBarAcquire);
   ins_cost(VOLATILE_REF_COST);
 
-  format %{ "MEMBAR-acquire\t# ???" %}
+  format %{ "membar_acquire" %}
 
   ins_encode %{
-    if (MacroAssembler::use_acq_rel_for_volatile_fields())
-      __ block_comment("membar_acquire (elided)");
-    else
-      __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
+    __ membar(Assembler::LoadLoad|Assembler::LoadStore);
   %}
 
   ins_pipe(pipe_class_memory);
 %}
 
-instruct membar_release()
-%{
+
+instruct membar_acquire_lock() %{
+  match(MemBarAcquireLock);
+  ins_cost(VOLATILE_REF_COST);
+
+  format %{ "membar_acquire_lock" %}
+
+  ins_encode %{
+    __ membar(Assembler::LoadLoad|Assembler::LoadStore);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct store_fence() %{
+  match(StoreFence);
+  ins_cost(VOLATILE_REF_COST);
+
+  format %{ "store_fence" %}
+
+  ins_encode %{
+    __ membar(Assembler::LoadStore|Assembler::StoreStore);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct unnecessary_membar_release() %{
+  match(MemBarRelease);
+  predicate(followed_by_ordered_store(n));
+  ins_cost(0);
+
+  format %{ "membar_release (elided)" %}
+
+  ins_encode %{
+    __ block_comment("membar_release (elided)");
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_release() %{
   match(MemBarRelease);
   ins_cost(VOLATILE_REF_COST);
 
-  format %{ "MEMBAR-release" %}
-  ins_encode %{
-    if (MacroAssembler::use_acq_rel_for_volatile_fields())
-      __ block_comment("membar_release (elided)");
-    else
-      __ membar(Assembler::AnyAny);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct membar_volatile() %{
-  match(MemBarVolatile);
-  ins_cost(VOLATILE_REF_COST);
-
-  format %{ "MEMBAR-volatile?" %}
+  format %{ "membar_release" %}
 
   ins_encode %{
-    __ membar(Assembler::AnyAny);
+    __ membar(Assembler::LoadStore|Assembler::StoreStore);
   %}
-
   ins_pipe(pipe_class_memory);
-%}
-
-instruct unnecessary_membar_volatile() %{
-  match(MemBarVolatile);
-  predicate(Matcher::post_store_load_barrier(n));
-  ins_cost(0);
-
-  size(0);
-  format %{ "!MEMBAR-volatile (unnecessary so empty encoding)" %}
-  ins_encode( );
-  ins_pipe(pipe_class_empty);
 %}
 
 instruct membar_storestore() %{
   match(MemBarStoreStore);
   ins_cost(VOLATILE_REF_COST);
 
+  format %{ "MEMBAR-store-store" %}
+
   ins_encode %{
     __ membar(Assembler::StoreStore);
   %}
-
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct membar_acquire_lock() %{
-  match(MemBarAcquireLock);
-
-  format %{ "MEMBAR-acquire-lock\t# ???" %}
-
-  ins_encode %{
-    __ block_comment("membar-acquire-lock");
-    __ membar(Assembler::Membar_mask_bits(Assembler::LoadLoad|Assembler::LoadStore));
-  %}
-
   ins_pipe(pipe_class_memory);
 %}
 
 instruct membar_release_lock() %{
   match(MemBarReleaseLock);
+  ins_cost(VOLATILE_REF_COST);
 
-  format %{ "MEMBAR-release-lock\t# ???" %}
+  format %{ "membar_release_lock" %}
 
   ins_encode %{
-    __ block_comment("MEMBAR-release-lock");
-    __ membar(Assembler::AnyAny);
+    __ membar(Assembler::LoadStore|Assembler::StoreStore);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct membar_volatile() %{
+  match(MemBarVolatile);
+  ins_cost(VOLATILE_REF_COST*100);
+
+  format %{ "membar_volatile" %}
+
+  ins_encode %{
+    __ membar(Assembler::StoreLoad);
   %}
 
   ins_pipe(pipe_class_memory);
@@ -6219,7 +6300,7 @@ instruct castII(iRegI dst)
 // used when updating the eden heap top
 // implemented using ldaxr on AArch64
 
-instruct loadPLocked(iRegPNoSp dst, memory mem)
+instruct loadPLocked(iRegPNoSp dst, indirect mem)
 %{
   match(Set dst (LoadPLocked mem));
 
@@ -6258,7 +6339,7 @@ instruct storePConditional(memory heap_top_ptr, iRegP oldval, iRegP newval, rFla
 %}
 
 // this has to be implemented as a CAS
-instruct storeLConditional(memory mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) 
+instruct storeLConditional(indirect mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) 
 %{
   match(Set cr (StoreLConditional mem (Binary oldval newval)));
 
@@ -6275,7 +6356,7 @@ instruct storeLConditional(memory mem, iRegLNoSp oldval, iRegLNoSp newval, rFlag
 %}
 
 // this has to be implemented as a CAS
-instruct storeIConditional(memory mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) 
+instruct storeIConditional(indirect mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) 
 %{
   match(Set cr (StoreIConditional mem (Binary oldval newval)));
 
@@ -6294,7 +6375,7 @@ instruct storeIConditional(memory mem, iRegINoSp oldval, iRegINoSp newval, rFlag
 // XXX No flag versions for CompareAndSwap{I,L,P,N} because matcher
 // can't match them
 
-instruct compareAndSwapI(iRegINoSp res, memory mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) %{
+instruct compareAndSwapI(iRegINoSp res, indirect mem, iRegINoSp oldval, iRegINoSp newval, rFlagsReg cr) %{
 
   match(Set res (CompareAndSwapI mem (Binary oldval newval)));
 
@@ -6311,7 +6392,7 @@ instruct compareAndSwapI(iRegINoSp res, memory mem, iRegINoSp oldval, iRegINoSp 
   ins_pipe(pipe_class_memory);
 %}
 
-instruct compareAndSwapL(iRegINoSp res, memory mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) %{
+instruct compareAndSwapL(iRegINoSp res, indirect mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) %{
 
   match(Set res (CompareAndSwapL mem (Binary oldval newval)));
 
@@ -6328,7 +6409,7 @@ instruct compareAndSwapL(iRegINoSp res, memory mem, iRegLNoSp oldval, iRegLNoSp 
   ins_pipe(pipe_class_memory);
 %}
 
-instruct compareAndSwapP(iRegINoSp res, memory mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
+instruct compareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
 
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
 
@@ -6345,7 +6426,7 @@ instruct compareAndSwapP(iRegINoSp res, memory mem, iRegP oldval, iRegP newval, 
   ins_pipe(pipe_class_memory);
 %}
 
-instruct compareAndSwapN(iRegINoSp res, memory mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
+instruct compareAndSwapN(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
 
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
 
@@ -7016,34 +7097,6 @@ instruct cmovUD_reg(cmpOpU cmp, rFlagsRegU cr, vRegD dst, vRegD src1,  vRegD src
 //
 
 // Integer Addition
-
-instruct addExactI_reg(iRegIorL2I src1, iRegIorL2I src2, rFlagsReg cr)
-%{
-  match(AddExactI src1 src2);
-  effect(DEF cr);
-
-  format %{ "addsw    r0, $src1, $src2\t# addExact int" %}
-  ins_encode %{
-    __ addsw(r0,
-            as_Register($src1$$reg),
-            as_Register($src2$$reg));
-  %}
-  ins_pipe(pipe_class_default);
-%}
-
-instruct addExactI_reg_imm(iRegIorL2I src1, immI src2, rFlagsReg cr)
-%{
-  match(AddExactI src1 src2);
-  effect(DEF cr);
-
-  format %{ "addsw    r0, $src1, $src2\t# addExact int" %}
-  ins_encode %{
-    __ addsw(r0,
-            as_Register($src1$$reg),
-            $src2$$constant);
-  %}
-  ins_pipe(pipe_class_default);
-%}
 
 // TODO
 // these currently employ operations which do not set CR and hence are

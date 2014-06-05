@@ -1001,13 +1001,13 @@ public:
 
   // A more convenient access to dmb for our purposes
   enum Membar_mask_bits {
-    StoreStore = ST,
-    LoadStore  = LD,
-    LoadLoad   = LD,
-    // We can use ISH for a full barrier because the ARM ARM says
-    // "This architecture assumes that all Processing Elements that
-    // use the same operating system or hypervisor are in the same
-    // Inner Shareable shareability domain."
+    // We can use ISH for a barrier because the ARM ARM says "This
+    // architecture assumes that all Processing Elements that use the
+    // same operating system or hypervisor are in the same Inner
+    // Shareable shareability domain."
+    StoreStore = ISHST,
+    LoadStore  = ISHLD,
+    LoadLoad   = ISHLD,
     StoreLoad  = ISH,
     AnyAny     = ISH
   };
@@ -1992,6 +1992,11 @@ public:
   void emit_data64(jlong data, RelocationHolder const& rspec, int format = 0);
 };
 
+inline Assembler::Membar_mask_bits operator|(Assembler::Membar_mask_bits a,
+					     Assembler::Membar_mask_bits b) {
+  return Assembler::Membar_mask_bits(unsigned(a)|unsigned(b));
+}
+
 Instruction_aarch64::~Instruction_aarch64() {
   assem->emit();
 }
@@ -2003,8 +2008,6 @@ inline const Assembler::Condition operator~(const Assembler::Condition cond) {
   return Assembler::Condition(int(cond) ^ 1);
 }
 
-// extra stuff needed to compile
-// not sure which of these methods are really necessary
 class BiasedLockingCounters;
 
 extern "C" void das(uint64_t start, int len);

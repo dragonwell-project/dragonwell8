@@ -2405,8 +2405,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static)
   __ bind(Done);
   // It's really not worth bothering to check whether this field
   // really is volatile in the slow case.
-  __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::LoadLoad |
-						    MacroAssembler::LoadStore));
+  __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
 }
 
 
@@ -2498,7 +2497,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     Label notVolatile;
     __ tbz(r5, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore));
+    __ membar(MacroAssembler::StoreStore);
     __ bind(notVolatile);
   }
 
@@ -2645,7 +2644,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     Label notVolatile;
     __ tbz(r5, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad));
+    __ membar(MacroAssembler::StoreLoad);
     __ bind(notVolatile);
   }
 }
@@ -2734,7 +2733,7 @@ void TemplateTable::fast_storefield(TosState state)
   {
     Label notVolatile;
     __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore));
+    __ membar(MacroAssembler::StoreStore);
     __ bind(notVolatile);
   }
 
@@ -2778,7 +2777,7 @@ void TemplateTable::fast_storefield(TosState state)
   {
     Label notVolatile;
     __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad));
+    __ membar(MacroAssembler::StoreLoad);
     __ bind(notVolatile);
   }
 }
@@ -2855,8 +2854,7 @@ void TemplateTable::fast_accessfield(TosState state)
   {
     Label notVolatile;
     __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
-    __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::LoadLoad |
-						      MacroAssembler::LoadStore));
+    __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
     __ bind(notVolatile);
   }
 }

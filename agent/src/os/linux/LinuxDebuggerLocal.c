@@ -368,7 +368,6 @@ JNIEXPORT jlongArray JNICALL Java_sun_jvm_hotspot_debugger_linux_LinuxDebuggerLo
 
 #undef REG_INDEX
 
-// ECN: FIXME - add case for aarch64
 #ifdef i386
 #define REG_INDEX(reg) sun_jvm_hotspot_debugger_x86_X86ThreadContext_##reg
 
@@ -421,13 +420,6 @@ JNIEXPORT jlongArray JNICALL Java_sun_jvm_hotspot_debugger_linux_LinuxDebuggerLo
 
 #endif /* amd64 */
 
-#if defined(aarch64)
-  regs = (*env)->GetLongArrayElements(env, array, &isCopy);
-  for (i = 0; i < NPRGREG; i++ ) {
-    regs[i] = 0xDEADDEAD;
-  }
-#endif /* aarch64 */
-
 #if defined(sparc) || defined(sparcv9)
 
 #define REG_INDEX(reg) sun_jvm_hotspot_debugger_sparc_SPARCThreadContext_##reg
@@ -460,6 +452,12 @@ JNIEXPORT jlongArray JNICALL Java_sun_jvm_hotspot_debugger_linux_LinuxDebuggerLo
   regs[REG_INDEX(R_O6)]  = gregs.u_regs[13];
   regs[REG_INDEX(R_O7)]  = gregs.u_regs[14];
 #endif /* sparc */
+
+#if defined(aarch64)
+
+#define REG_INDEX(reg) sun_jvm_hotspot_debugger_aarch64_AARCH64ThreadContext_##reg
+
+#endif /* aarch64 */
 
 
   (*env)->ReleaseLongArrayElements(env, array, regs, JNI_COMMIT);

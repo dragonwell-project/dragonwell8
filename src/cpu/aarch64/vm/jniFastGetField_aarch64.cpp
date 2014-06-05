@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Red Hat Inc.
+ * Copyright (c) 2014, Red Hat Inc.
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates.
  * All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -35,39 +35,136 @@
 
 #define BUFFER_SIZE 30*wordSize
 
-// Instead of issuing lfence for LoadLoad barrier, we create data dependency
-// between loads, which is more efficient than lfence.
+// Instead of issuing a LoadLoad barrier we create an address
+// dependency between loads; this might be more efficient.
 
 // Common register usage:
-// rax/xmm0: result
+// r0/v0:      result
 // c_rarg0:    jni env
 // c_rarg1:    obj
 // c_rarg2:    jfield id
 
-// static const Register robj          = r9;
-// static const Register rcounter      = r10;
-// static const Register roffset       = r11;
-// static const Register rcounter_addr = r11;
+static const Register robj          = r3;
+static const Register rcounter      = r4;
+static const Register roffset       = r5;
+static const Register rcounter_addr = r6;
+static const Register result        = r7;
 
-// Warning: do not use rip relative addressing after the first counter load
-// since that may scratch r10!
+address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
+  const char *name;
+  switch (type) {
+    case T_BOOLEAN: name = "jni_fast_GetBooleanField"; break;
+    case T_BYTE:    name = "jni_fast_GetByteField";    break;
+    case T_CHAR:    name = "jni_fast_GetCharField";    break;
+    case T_SHORT:   name = "jni_fast_GetShortField";   break;
+    case T_INT:     name = "jni_fast_GetIntField";     break;
+    case T_LONG:    name = "jni_fast_GetLongField";    break;
+    case T_FLOAT:   name = "jni_fast_GetFloatField";   break;
+    case T_DOUBLE:  name = "jni_fast_GetDoubleField";  break;
+    default:        ShouldNotReachHere();
+  }
+  ResourceMark rm;
+  BufferBlob* blob = BufferBlob::create(name, BUFFER_SIZE);
+  CodeBuffer cbuf(blob);
+  MacroAssembler* masm = new MacroAssembler(&cbuf);
+  address fast_entry = __ pc();
 
-address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) { Unimplemented(); return 0; }
+  Label slow;
 
-address JNI_FastGetField::generate_fast_get_boolean_field() { Unimplemented(); return 0; }
+  unsigned long offset;
+  __ adrp(rcounter_addr,
+	  SafepointSynchronize::safepoint_counter_addr(), offset);
+  Address safepoint_counter_addr(rcounter_addr, offset);
+  __ ldrw(rcounter, safepoint_counter_addr);
+  __ andw(rscratch1, rcounter, 1);
+  __ cbnzw(rscratch1, slow);
+  __ eor(robj, c_rarg1, rcounter);
+  __ eor(robj, robj, rcounter);               // obj, since
+                                              // robj ^ rcounter ^ rcounter == robj
+                                              // robj is address dependent on rcounter.
+  __ ldr(robj, Address(robj, 0));             // *obj
+  __ lsr(roffset, c_rarg2, 2);                // offset
 
-address JNI_FastGetField::generate_fast_get_byte_field() { Unimplemented(); return 0; }
+  assert(count < LIST_CAPACITY, "LIST_CAPACITY too small");
+  speculative_load_pclist[count] = __ pc();   // Used by the segfault handler
+  switch (type) {
+    case T_BOOLEAN: __ ldrb    (result, Address(robj, roffset)); break;
+    case T_BYTE:    __ ldrsb   (result, Address(robj, roffset)); break;
+    case T_CHAR:    __ ldrh    (result, Address(robj, roffset)); break;
+    case T_SHORT:   __ ldrsh   (result, Address(robj, roffset)); break;
+    case T_FLOAT:   __ ldrw    (result, Address(robj, roffset)); break;
+    case T_INT:     __ ldrsw   (result, Address(robj, roffset)); break;
+    case T_DOUBLE:
+    case T_LONG:    __ ldr     (result, Address(robj, roffset)); break;
+    default:        ShouldNotReachHere();
+  }
 
-address JNI_FastGetField::generate_fast_get_char_field() { Unimplemented(); return 0; }
+  // counter_addr is address dependent on result.
+  __ eor(rcounter_addr, rcounter_addr, result);
+  __ eor(rcounter_addr, rcounter_addr, result);
+  __ ldrw(rscratch1, safepoint_counter_addr);
+  __ cmpw(rcounter, rscratch1);
+  __ br (Assembler::NE, slow);
 
-address JNI_FastGetField::generate_fast_get_short_field() { Unimplemented(); return 0; }
+  switch (type) {
+    case T_FLOAT:   __ fmovs(v0, result); break;
+    case T_DOUBLE:  __ fmovd(v0, result); break;
+    default:        __ mov(r0, result);   break;
+  }
+  __ ret(lr);
 
-address JNI_FastGetField::generate_fast_get_int_field() { Unimplemented(); return 0; }
+  slowcase_entry_pclist[count++] = __ pc();
+  __ bind(slow);
+  address slow_case_addr;
+  switch (type) {
+    case T_BOOLEAN: slow_case_addr = jni_GetBooleanField_addr(); break;
+    case T_BYTE:    slow_case_addr = jni_GetByteField_addr();    break;
+    case T_CHAR:    slow_case_addr = jni_GetCharField_addr();    break;
+    case T_SHORT:   slow_case_addr = jni_GetShortField_addr();   break;
+    case T_INT:     slow_case_addr = jni_GetIntField_addr();     break;
+    case T_LONG:    slow_case_addr = jni_GetLongField_addr();    break;
+    case T_FLOAT:   slow_case_addr = jni_GetFloatField_addr();   break;
+    case T_DOUBLE:  slow_case_addr = jni_GetDoubleField_addr();  break;
+    default:        ShouldNotReachHere();
+  }
+  // tail call
+  __ lea(rscratch1, ExternalAddress(slow_case_addr));
+  __ br(rscratch1);
 
-address JNI_FastGetField::generate_fast_get_long_field() { Unimplemented(); return 0; }
+  __ flush ();
 
-address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) { Unimplemented(); return 0; }
+  return fast_entry;
+}
 
-address JNI_FastGetField::generate_fast_get_float_field() { Unimplemented(); return 0; }
+address JNI_FastGetField::generate_fast_get_boolean_field() {
+  return generate_fast_get_int_field0(T_BOOLEAN);
+}
 
-address JNI_FastGetField::generate_fast_get_double_field() { Unimplemented(); return 0; }
+address JNI_FastGetField::generate_fast_get_byte_field() {
+  return generate_fast_get_int_field0(T_BYTE);
+}
+
+address JNI_FastGetField::generate_fast_get_char_field() {
+  return generate_fast_get_int_field0(T_CHAR);
+}
+
+address JNI_FastGetField::generate_fast_get_short_field() {
+  return generate_fast_get_int_field0(T_SHORT);
+}
+
+address JNI_FastGetField::generate_fast_get_int_field() {
+  return generate_fast_get_int_field0(T_INT);
+}
+
+address JNI_FastGetField::generate_fast_get_long_field() {
+  return generate_fast_get_int_field0(T_LONG);
+}
+
+address JNI_FastGetField::generate_fast_get_float_field() {
+  return generate_fast_get_int_field0(T_FLOAT);
+}
+
+address JNI_FastGetField::generate_fast_get_double_field() {
+  return generate_fast_get_int_field0(T_DOUBLE);
+}
+

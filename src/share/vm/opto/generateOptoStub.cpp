@@ -141,7 +141,7 @@ void GraphKit::gen_stub(address C_function,
 
   Node *last_pc = new (C) ConPNode(t);
   _gvn.set_type(last_pc, t);
-  store_to_memory(NULL, adr_last_Java_pc, last_pc, T_ADDRESS, NoAlias);
+  store_to_memory(NULL, adr_last_Java_pc, last_pc, T_ADDRESS, NoAlias, MemNode::unordered);
 
 #endif /* defined(AARCH64) */
 

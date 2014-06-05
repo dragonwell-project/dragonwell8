@@ -1417,10 +1417,10 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
                                                         Register scratch, bool preloaded,
                                                         Condition cond, Label* where) {
   if (!preloaded) {
-    ldr(scratch, counter_addr);
+    ldrw(scratch, counter_addr);
   }
   add(scratch, scratch, increment);
-  str(scratch, counter_addr);
+  strw(scratch, counter_addr);
   ands(scratch, scratch, mask);
   br(cond, *where);
 }

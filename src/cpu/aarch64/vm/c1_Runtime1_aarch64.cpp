@@ -1082,6 +1082,21 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case deoptimize_id:
+      {
+        StubFrame f(sasm, "deoptimize", dont_gc_arguments);
+        OopMap* oop_map = save_live_registers(sasm);
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, deoptimize));
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, oop_map);
+        restore_live_registers(sasm);
+        DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
+        assert(deopt_blob != NULL, "deoptimization blob must have been created");
+        __ leave();
+        __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
+      }
+      break;
+
     case throw_range_check_failed_id:
       { StubFrame f(sasm, "range_check_failed", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_range_check_exception), true);
@@ -1242,7 +1257,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
 	assert((int)CardTableModRefBS::dirty_card_val() == 0, "must be 0");
 
-        __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
+        __ membar(Assembler::StoreLoad);
         __ ldrb(rscratch1, Address(card_addr, offset));
 	__ cbzw(rscratch1, done);
 

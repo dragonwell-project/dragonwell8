@@ -177,10 +177,6 @@ static jlong as_long(LIR_Opr data) {
   return result;
 }
 
-static bool is_reg(LIR_Opr op) {
-  return op->is_double_cpu() | op->is_single_cpu();
-}
-
 Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
   Register base = addr->base()->as_pointer_register();
   LIR_Opr opr = addr->index();
@@ -519,7 +515,7 @@ void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo*
   __ pop(0x3, sp);                 // r0 & r1
   __ leave();
   __ br(rscratch1);
-  address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+  address polling_page(os::get_polling_page());
   assert(os::is_poll_address(polling_page), "should be");
   unsigned long off;
   __ adrp(rscratch1, Address(polling_page, rtype), off);
@@ -538,7 +534,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   // Pop the stack before the safepoint code
   __ remove_frame(initial_frame_size_in_bytes());
   if (UseCompilerSafepoints) {
-    address polling_page(os::get_polling_page() + (SafepointPollOffset % os::vm_page_size()));
+    address polling_page(os::get_polling_page());
     __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
   } else {
     poll_for_safepoint(relocInfo::poll_return_type);
@@ -547,8 +543,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
-  address polling_page(os::get_polling_page()
-		       + (SafepointPollOffset % os::vm_page_size()));
+  address polling_page(os::get_polling_page());
   if (UseCompilerSafepoints) {
     guarantee(info != NULL, "Shouldn't be NULL");
     assert(os::is_poll_address(polling_page), "should be");
@@ -2745,148 +2740,12 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
 }
 
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {
-  if (dest->is_address()) {
-      LIR_Address* to_addr = dest->as_address_ptr();
-      Register compressed_src = noreg;
-      if (is_reg(src)) {
-	  compressed_src = as_reg(src);
-	  if (type == T_ARRAY || type == T_OBJECT) {
-	    __ verify_oop(src->as_register());
-	    if (UseCompressedOops) {
-	      compressed_src = rscratch2;
-	      __ mov(compressed_src, src->as_register());
-	      __ encode_heap_oop(compressed_src);
-	    }
-	  }
-      } else if (src->is_single_fpu()) {
-	__ fmovs(rscratch2, src->as_float_reg());
-	src = FrameMap::rscratch2_opr,	type = T_INT;
-      } else if (src->is_double_fpu()) {
-	__ fmovd(rscratch2, src->as_double_reg());
-	src = FrameMap::rscratch2_long_opr, type = T_LONG;
-      }
-
-      if (dest->is_double_cpu())
-	__ lea(rscratch1, as_Address(to_addr));
-      else
-	__ lea(rscratch1, as_Address_lo(to_addr));
-
-      int null_check_here = code_offset();
-      switch (type) {
-      case T_ARRAY:   // fall through
-      case T_OBJECT:  // fall through
-	if (UseCompressedOops) {
-	  __ stlrw(compressed_src, rscratch1);
-	} else {
-	  __ stlr(compressed_src, rscratch1);
-	}
-	break;
-      case T_METADATA:
-	// We get here to store a method pointer to the stack to pass to
-	// a dtrace runtime call. This can't work on 64 bit with
-	// compressed klass ptrs: T_METADATA can be a compressed klass
-	// ptr or a 64 bit method pointer.
-	LP64_ONLY(ShouldNotReachHere());
-	__ stlr(src->as_register(), rscratch1);
-	break;
-      case T_ADDRESS:
-	__ stlr(src->as_register(), rscratch1);
-	break;
-      case T_INT:
-	__ stlrw(src->as_register(), rscratch1);
-	break;
-
-      case T_LONG: {
-	__ stlr(src->as_register_lo(), rscratch1);
-	break;
-      }
-
-      case T_BYTE:    // fall through
-      case T_BOOLEAN: {
-	__ stlrb(src->as_register(), rscratch1);
-	break;
-      }
-
-      case T_CHAR:    // fall through
-      case T_SHORT:
-	__ stlrh(src->as_register(), rscratch1);
-	break;
-
-      default:
-	ShouldNotReachHere();
-      }
-      if (info != NULL) {
-	add_debug_info_for_null_check(null_check_here, info);
-      }
-  } else if (src->is_address()) {
-    LIR_Address* from_addr = src->as_address_ptr();
-
-    if (src->is_double_cpu())
-      __ lea(rscratch1, as_Address(from_addr));
-    else
-      __ lea(rscratch1, as_Address_lo(from_addr));
-
-    int null_check_here = code_offset();
-    switch (type) {
-    case T_ARRAY:   // fall through
-    case T_OBJECT:  // fall through
-      if (UseCompressedOops) {
-	__ ldarw(dest->as_register(), rscratch1);
-      } else {
-	__ ldar(dest->as_register(), rscratch1);
-      }
-      break;
-    case T_ADDRESS:
-      __ ldar(dest->as_register(), rscratch1);
-      break;
-    case T_INT:
-      __ ldarw(dest->as_register(), rscratch1);
-      break;
-    case T_LONG: {
-      __ ldar(dest->as_register_lo(), rscratch1);
-      break;
-    }
-
-    case T_BYTE:    // fall through
-    case T_BOOLEAN: {
-      __ ldarb(dest->as_register(), rscratch1);
-      break;
-    }
-
-    case T_CHAR:    // fall through
-    case T_SHORT:
-      __ ldarh(dest->as_register(), rscratch1);
-      break;
-
-    case T_FLOAT:
-      __ ldarw(rscratch2, rscratch1);
-      __ fmovs(dest->as_float_reg(), rscratch2);
-      break;
-
-    case T_DOUBLE:
-      __ ldar(rscratch2, rscratch1);
-      __ fmovd(dest->as_double_reg(), rscratch2);
-      break;
-
-    default:
-      ShouldNotReachHere();
-    }
-    if (info != NULL) {
-      add_debug_info_for_null_check(null_check_here, info);
-    }
-
-    if (type == T_ARRAY || type == T_OBJECT) {
-      if (UseCompressedOops) {
-	__ decode_heap_oop(dest->as_register());
-      }
-      __ verify_oop(dest->as_register());
-    } else if (type == T_ADDRESS && from_addr->disp() == oopDesc::klass_offset_in_bytes()) {
-      if (UseCompressedClassPointers) {
-	__ decode_klass_not_null(dest->as_register());
-      }
-    }
-  } else
+  if (dest->is_address() || src->is_address()) {
+    move_op(src, dest, type, lir_patch_none, info,
+	    /*pop_fpu_stack*/false, /*unaligned*/false, /*wide*/false);
+  } else {
     ShouldNotReachHere();
+  }
 }
 
 #ifdef ASSERT
@@ -2940,17 +2799,18 @@ void LIR_Assembler::membar() {
 }
 
 void LIR_Assembler::membar_acquire() {
-  __ block_comment("membar_acquire");
+  __ membar(Assembler::LoadLoad|Assembler::LoadStore);
 }
 
 void LIR_Assembler::membar_release() {
-  __ block_comment("membar_release");
+  __ membar(Assembler::LoadStore|Assembler::StoreStore);
 }
 
-void LIR_Assembler::membar_loadload() { Unimplemented(); }
+void LIR_Assembler::membar_loadload() {
+  __ membar(Assembler::LoadLoad);
+}
 
 void LIR_Assembler::membar_storestore() {
-  COMMENT("membar_storestore");
   __ membar(MacroAssembler::StoreStore);
 }
 
