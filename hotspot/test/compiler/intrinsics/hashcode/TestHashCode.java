@@ -22,15 +22,52 @@
  */
 
 /*
- * @test TestStringDeduplicationMemoryUsage
- * @summary Test string deduplication memory usage
- * @bug 8029075
- * @key gc
- * @library /testlibrary
+ * @test
+ * @bug 8011646
+ * @summary SEGV in compiled code with loop predication
+ * @run main/othervm  -XX:-TieredCompilation -XX:CompileOnly=TestHashCode.m1,Object.hashCode TestHashCode
+ *
  */
 
-public class TestStringDeduplicationMemoryUsage {
-    public static void main(String[] args) throws Exception {
-        TestStringDeduplicationTools.testMemoryUsage();
+public class TestHashCode {
+    static class A {
+        int i;
+    }
+
+    static class B extends A {
+    }
+
+    static boolean crash = false;
+
+    static A m2() {
+        if (crash) {
+            return null;
+        }
+        return new A();
+    }
+
+    static int m1(A aa) {
+        int res = 0;
+        for (int i = 0; i < 10; i++) {
+            A a = m2();
+            int j = a.i;
+            if (aa instanceof B) {
+            }
+            res += a.hashCode();
+        }
+        return res;
+    }
+
+    public static void main(String[] args) {
+        A a = new A();
+        for (int i = 0; i < 20000; i++) {
+            m1(a);
+        }
+        crash = true;
+        try {
+          m1(a);
+        } catch (NullPointerException e) {
+            System.out.println("Test passed");
+        }
     }
 }
