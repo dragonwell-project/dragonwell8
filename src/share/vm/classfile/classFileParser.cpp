@@ -2780,11 +2780,6 @@ void ClassFileParser::parse_classfile_bootstrap_methods_attribute(u4 attribute_b
   ClassFileStream* cfs = stream();
   u1* current_start = cfs->current();
 
-  guarantee_property(attribute_byte_length > sizeof(u2),
-                     "Invalid BootstrapMethods attribute length %u in class file %s",
-                     attribute_byte_length,
-                     CHECK);
-
   cfs->guarantee_more(attribute_byte_length, CHECK);
 
   int attribute_array_length = cfs->get_u2_fast();
