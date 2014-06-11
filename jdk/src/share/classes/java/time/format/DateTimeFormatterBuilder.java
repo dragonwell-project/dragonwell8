@@ -3286,7 +3286,7 @@ public final class DateTimeFormatterBuilder {
             } catch (RuntimeException ex) {
                 return ~position;
             }
-            int successPos = text.length();
+            int successPos = pos;
             successPos = context.setParsedField(INSTANT_SECONDS, instantSecs, position, successPos);
             return context.setParsedField(NANO_OF_SECOND, nano, position, successPos);
         }
