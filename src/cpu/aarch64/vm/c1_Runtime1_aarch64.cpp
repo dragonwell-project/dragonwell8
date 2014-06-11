@@ -1524,8 +1524,8 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
 	address copy_buff = stub_location - *byte_skip - *byte_count;
 	address being_initialized_entry = stub_location - *being_initialized_entry_offset;
 	if (TracePatching) {
-	  tty->print_cr(" Patching %s at bci %d at address 0x%x  (%s)", Bytecodes::name(code), bci,
-			instr_pc, (stub_id == Runtime1::access_field_patching_id) ? "field" : "klass");
+	  tty->print_cr(" Patching %s at bci %d at address " INTPTR_FORMAT " (%s)", Bytecodes::name(code), bci,
+			p2i(instr_pc), (stub_id == Runtime1::access_field_patching_id) ? "field" : "klass");
 	  nmethod* caller_code = CodeCache::find_nmethod(caller_frame.pc());
 	  assert(caller_code != NULL, "nmethod not found");
 
