@@ -31,16 +31,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import javax.management.*;
@@ -60,7 +57,6 @@ import jdk.testlibrary.JDKToolLauncher;
  *          JCMD achieves the desired results
  */
 public class JMXStartStopTest {
-    private static final String TEST_JDK = System.getProperty("test.jdk");
     private static final String TEST_SRC = System.getProperty("test.src");
 
     private static final boolean verbose = false;
@@ -76,8 +72,8 @@ public class JMXStartStopTest {
                                   QueryExp query)
     throws Exception {
 
-        Set names = server.queryNames(pattern,query);
-        for (Iterator i=names.iterator(); i.hasNext(); ) {
+        Set<ObjectName> names = server.queryNames(pattern,query);
+        for (Iterator<ObjectName> i = names.iterator(); i.hasNext(); ) {
             ObjectName name = (ObjectName)i.next();
             MBeanInfo info = server.getMBeanInfo(name);
             dbg_print("Got MBean: " + name);
@@ -87,7 +83,7 @@ public class JMXStartStopTest {
                 continue;
             for (MBeanAttributeInfo attr : attrs) {
                 if (attr.isReadable()) {
-                    Object o = server.getAttribute(name, attr.getName());
+                    server.getAttribute(name, attr.getName());
                 }
             }
         }
@@ -108,9 +104,8 @@ public class JMXStartStopTest {
             }
 
             JMXServiceURL url = new JMXServiceURL(jmxUrlStr);
-            Map m = new HashMap();
 
-            JMXConnector c = JMXConnectorFactory.connect(url,m);
+            JMXConnector c = JMXConnectorFactory.connect(url, null);
 
             MBeanServerConnection conn = c.getMBeanServerConnection();
             ObjectName pattern = new ObjectName("java.lang:type=Memory,*");
@@ -180,9 +175,8 @@ public class JMXStartStopTest {
                 port);
 
         JMXServiceURL url = new JMXServiceURL(jmxUrlStr);
-        Map m = new HashMap();
 
-        JMXConnector c = JMXConnectorFactory.connect(url,m);
+        JMXConnector c = JMXConnectorFactory.connect(url, null);
 
         MBeanServerConnection conn = c.getMBeanServerConnection();
         ObjectName pattern = new ObjectName("java.lang:type=Memory,*");
@@ -271,25 +265,6 @@ public class JMXStartStopTest {
             }
             throw new Error();
         }
-    }
-
-    /**
-     * Retrieves the PID of the test application using JCMD
-     * @return The PID of the test application
-     * @throws InterruptedException
-     * @throws IOException
-     */
-    private static String getPID() throws InterruptedException, IOException {
-        final AtomicReference<String> pid = new AtomicReference<>();
-        jcmd(
-            null,
-            line -> {
-                if (line.endsWith("JMXStartStopDoSomething")) {
-                    pid.set(line.split(" ")[0]);
-                }
-            }
-        );
-        return pid.get();
     }
 
     private static class Something {
@@ -434,7 +409,7 @@ public class JMXStartStopTest {
     private static final int port1 = 50234;
     private static final int port2 = 50235;
 
-    private static void test_01() throws Exception {
+    static void test_01() throws Exception {
         // Run an app with JMX enabled stop it and
         // restart on other port
 
@@ -459,7 +434,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_02() throws Exception {
+    static void test_02() throws Exception {
         // Run an app without JMX enabled
         // start JMX by jcmd
 
@@ -478,7 +453,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_03() throws Exception {
+    static void test_03() throws Exception {
         // Run an app without JMX enabled
         // start JMX by jcmd on one port than on other one
 
@@ -507,7 +482,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_04() throws Exception {
+    static void test_04() throws Exception {
         // Run an app without JMX enabled
         // start JMX by jcmd on one port, specify rmi port explicitly
 
@@ -528,7 +503,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_05() throws Exception {
+    static void test_05() throws Exception {
         // Run an app without JMX enabled, it will enable local server
         // but should leave remote server disabled
 
@@ -545,7 +520,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_06() throws Exception {
+    static void test_06() throws Exception {
         // Run an app without JMX enabled
         // start JMX by jcmd on one port, specify rmi port explicitly
         // attempt to start it again
@@ -648,7 +623,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_08() throws Exception {
+    static void test_08() throws Exception {
         // Run an app with JMX enabled and with some properties set
         // in command line.
         // stop JMX agent and then start it again with different property values
@@ -682,7 +657,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_09() throws Exception {
+    static void test_09() throws Exception {
         // Run an app with JMX enabled and with some properties set
         // in command line.
         // stop JMX agent and then start it again with different property values
@@ -718,7 +693,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_10() throws Exception {
+    static void test_10() throws Exception {
         // Run an app with JMX enabled and with some properties set
         // in command line.
         // stop JMX agent and then start it again with different property values
@@ -754,7 +729,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_11() throws Exception {
+    static void test_11() throws Exception {
         // Run an app with JMX enabled
         // stop remote agent
         // make sure local agent is not affected
@@ -775,7 +750,7 @@ public class JMXStartStopTest {
         }
     }
 
-    private static void test_12() throws Exception {
+    static void test_12() throws Exception {
         // Run an app with JMX disabled
         // start local agent only
 
@@ -789,30 +764,6 @@ public class JMXStartStopTest {
 
             testConnectLocal(s.getPid());
 
-        } finally {
-            s.stop();
-        }
-    }
-
-    private static void test_13() throws Exception {
-        // Run an app with -javaagent make sure it works as expected -
-        // system properties are ignored
-
-        System.out.println("**** Test thirteen ****");
-
-        String agent = TEST_JDK + "/jre/lib/management-agent.jar";
-        if (!new File(agent).exists()) {
-            agent = TEST_JDK + "/lib/management-agent.jar";
-        }
-
-        Something s = doSomething("test_14",
-            "-javaagent:" + agent + "=com.sun.management.jmxremote.port=" +
-                port1 + ",com.sun.management.jmxremote.authenticate=false",
-            "-Dcom.sun.management.jmxremote.ssl=false"
-        );
-
-        try {
-            testNoConnect(port1);
         } finally {
             s.stop();
         }
