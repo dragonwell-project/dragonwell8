@@ -990,13 +990,17 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   if (framesize == 0) {
     // Is this even possible?
     __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-  } else if (framesize < (1 << 12)) {
+  } else if (framesize < ((1 << 9) + 2 * wordSize)) {
     __ sub(sp, sp, framesize);
     __ stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
   } else {
     __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-    __ mov(rscratch1, framesize - 2 * wordSize);
-    __ sub(sp, sp, rscratch1);
+    if (framesize < ((1 << 12) + 2 * wordSize))
+      __ sub(sp, sp, framesize - 2 * wordSize);
+    else {
+      __ mov(rscratch1, framesize - 2 * wordSize);
+      __ sub(sp, sp, rscratch1);
+    }
   }
 
   if (NotifySimulator) {
@@ -1063,12 +1067,16 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   if (framesize == 0) {
     __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
-  } else if (framesize < (1 << 12)) {
+  } else if (framesize < ((1 << 9) + 2 * wordSize)) {
     __ ldp(rfp, lr, Address(sp, framesize - 2 * wordSize));
     __ add(sp, sp, framesize);
   } else {
-    __ mov(rscratch1, framesize - 2 * wordSize);
-    __ add(sp, sp, rscratch1);
+    if (framesize < ((1 << 12) + 2 * wordSize))
+      __ add(sp, sp, framesize - 2 * wordSize);
+    else {
+      __ mov(rscratch1, framesize - 2 * wordSize);
+      __ add(sp, sp, rscratch1);
+    }
     __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
   }
 
