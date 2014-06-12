@@ -100,6 +100,8 @@ define_pd_global(intx, InlineSmallCode,          1000);
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
 	     "Use acquire and release insns for volatile fields")
 
+// Don't attempt to use Neon on builtin sim until builtin sim supports it
+#define UseNeon false
 
 #else
 #define UseBuiltinSim		false
@@ -115,7 +117,9 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "doptimize instead of patching instructions")			\
 									\
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
-	     "Use acquire and release insns for volatile fields")
+	     "Use acquire and release insns for volatile fields")       \
+  product(bool, UseNeon, false,                                         \
+          "Use Neon for CRC32 computation")
 
 #endif
 

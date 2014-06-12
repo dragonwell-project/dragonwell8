@@ -1842,6 +1842,225 @@ public:
       fmovd(Vn, zr);
   }
 
+/* SIMD extensions
+ *
+ * We just use FloatRegister in the following. They are exactly the same
+ * as SIMD registers.
+ */
+public:
+
+  enum SIMD_Arrangement {
+       T8B, T16B, T4H, T8H, T2S, T4S, T1D, T2D
+  };
+
+  enum SIMD_RegVariant {
+       S32, D64, Q128
+  };
+
+  void v_shl(FloatRegister Vd, FloatRegister Vn, SIMD_Arrangement T, int shift){
+    starti;
+    /* The encodings for the immh:immb fields (bits 22:16) are
+     *   0001 xxx	8B/16B, shift = xxx
+     *   001x xxx	4H/8H,  shift = xxxx
+     *   01xx xxx	2S/4S,  shift = xxxxx
+     *   1xxx xxx	1D/2D,  shift = xxxxxx (1D is RESERVED)
+     */
+    assert((1 << ((T>>1)+3)) > shift, "Invalid Shift value");
+    f(0, 31), f(T & 1, 30), f(0b0011110, 29, 23), f((1 << ((T>>1)+3))|shift, 22, 16);
+    f(0b010101, 15, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+
+  void v_ushll(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, SIMD_Arrangement Tb, int shift) {
+    starti;
+    /* The encodings for the immh:immb fields (bits 22:16) are
+     *   0001 xxx	8H, 8B/16b shift = xxx
+     *   001x xxx	4S, 4H/8H  shift = xxxx
+     *   01xx xxx	2D, 2S/4S  shift = xxxxx
+     *   1xxx xxx	RESERVED
+     */
+    assert((Tb >> 1) + 1 == (Ta >> 1), "Incompatible arrangement");
+    assert((1 << ((Tb>>1)+3)) > shift, "Invalid shift value");
+    f(0, 31), f(Tb & 1, 30), f(0b1011110, 29, 23), f((1 << ((Tb>>1)+3))|shift, 22, 16);
+    f(0b101001, 15, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+  void v_ushll2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn,  SIMD_Arrangement Tb, int shift) {
+    v_ushll(Vd, Ta, Vn, Tb, shift);
+  }
+
+  void v_uzp1(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T, int op = 0){
+    starti;
+    f(0, 31), f((T & 0x1), 30), f(0b001110, 29, 24), f((T >> 1), 23, 22), f(0, 21);
+    rf(Vm, 16), f(0, 15), f(op, 14), f(0b0110, 13, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+  void v_uzp2(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T){
+    v_uzp1(Vd, Vn, Vm, T, 1);
+  }
+ 
+  // Move from general purpose register
+  //   mov  Vd.T[index], Rn
+  void v_mov(FloatRegister Vd, SIMD_Arrangement T, int index, Register Xn) {
+    starti;
+    f(0b01001110000, 31, 21), f(((1 << (T >> 1)) | (index << ((T >> 1) + 1))), 20, 16); 
+    f(0b000111, 15, 10), rf(Xn, 5), rf(Vd, 0);
+  }
+
+  // Move to general purpose register
+  //   mov  Rd, Vn.T[index]
+  void v_mov(Register Xd, FloatRegister Vn, SIMD_Arrangement T, int index) {
+    starti;
+    f(0, 31), f((T >= T1D) ? 1:0, 30), f(0b001110000, 29, 21);
+    f(((1 << (T >> 1)) | (index << ((T >> 1) + 1))), 20, 16);
+    f(0b001111, 15, 10), rf(Vn, 5), rf(Xd, 0);
+  }
+
+  // We do not handle the 1Q arrangement.
+  void v_pmull(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
+    starti;
+    assert(Ta == T8H && (Tb == T8B || Tb == T16B), "Invalid Size specifier");
+    f(0, 31), f(Tb & 1, 30), f(0b001110001, 29, 21), rf(Vm, 16), f(0b111000, 15, 10);
+    rf(Vn, 5), rf(Vd, 0);
+  }
+  void v_pmull2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
+    v_pmull(Vd, Ta, Vn, Vm, Tb);
+  }
+
+  void v_ld1(FloatRegister Vt, SIMD_Arrangement T, Register Xn) {
+    starti;
+    f(0,31), f((int)T & 1, 30), f(0b00110001000000, 29, 16), f(0b0111, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    f(0,31), f((int)T & 1, 30), f(0b00110001000000, 29, 16), f(0b1010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    f(0,31), f((int)T & 1, 30), f(0b00110001000000, 29, 16), f(0b0110, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, FloatRegister Vt4, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    assert((Vt4->encoding_nocheck()) == ((Vt->encoding_nocheck() + 3) % 32), "Invalid Vt4");
+    f(0,31), f((int)T & 1, 30), f(0b00110001000000, 29, 16), f(0b0010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+
+  void v_ld1(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int imm) {
+    starti;
+    assert((8 << ((int)T & 1)) == imm, "size/imm mismatch");      
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), f(0b11111, 20, 16), f(0b0111, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, SIMD_Arrangement T, Register Xn, Register Xm) {
+    starti;
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), rf(Xm, 16), f(0b0111, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn, int imm) {
+    starti;
+    assert((16 << ((int)T & 1)) == imm, "size/imm mismatch");     
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), f(0b11111, 20, 16), f(0b1010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn, Register Xm) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), rf(Xm, 16), f(0b1010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, SIMD_Arrangement T, Register Xn, int imm) {
+    starti;
+    assert((24 << ((int)T & 1)) == imm, "size/imm mismatch");
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), f(0b11111, 20, 16), f(0b0110, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, SIMD_Arrangement T, Register Xn, Register Xm) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), rf(Xm, 16), f(0b0110, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, FloatRegister Vt4, SIMD_Arrangement T, Register Xn, int imm) {
+    starti;
+    assert((32 << ((int)T & 1)) == imm, "size/imm mismatch");
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    assert((Vt4->encoding_nocheck()) == ((Vt->encoding_nocheck() + 3) % 32), "Invalid Vt4");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), f(0b11111, 20, 16), f(0b0010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, FloatRegister Vt4, SIMD_Arrangement T, Register Xn, Register Xm) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    assert((Vt4->encoding_nocheck()) == ((Vt->encoding_nocheck() + 3) % 32), "Invalid Vt4");
+    f(0, 31), f((int)T & 1, 30), f(0b001100110, 29, 21), rf(Xm, 16), f(0b0010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+
+  void v_st1(FloatRegister Vt, SIMD_Arrangement T, Register Xn) {
+    starti;
+    f(0, 31), f((int)T & 1, 30), f(0b00110000000000, 29, 16), f(0b0111, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_st1(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    f(0, 31), f((int)T & 1, 30), f(0b00110000000000, 29, 16), f(0b1010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }  
+  void v_st1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    f(0, 31), f((int)T & 1, 30), f(0b00110000000000, 29, 16), f(0b0110, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_st1(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3, FloatRegister Vt4, SIMD_Arrangement T, Register Xn) {
+    starti;
+    assert((Vt2->encoding_nocheck()) == ((Vt->encoding_nocheck() + 1) % 32), "Invalid Vt2");
+    assert((Vt3->encoding_nocheck()) == ((Vt->encoding_nocheck() + 2) % 32), "Invalid Vt3");
+    assert((Vt4->encoding_nocheck()) == ((Vt->encoding_nocheck() + 3) % 32), "Invalid Vt4");
+    f(0, 31), f((int)T & 1, 30), f(0b00110000000000, 29, 16), f(0b0010, 15, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+
+  void v_ld1r(FloatRegister Vt, SIMD_Arrangement T, Register Xn) {
+    starti;
+    f(0, 31), f((int)T & 1, 30), f(0b001101010000001100, 29, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1r(FloatRegister Vt, SIMD_Arrangement T, Register Xn, Register Xm) {
+    starti;
+    f(0, 31), f((int)T & 1, 30), f(0b001101110, 29, 21), rf(Xm, 16);
+    f(0b1100, 15, 12), f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+  void v_ld1r(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int imm) {
+    starti;
+    assert((1 << ((int)T & 3)) == imm, "size/imm mismatch");
+    f(0, 31), f((int)T & 1, 30), f(0b001101110111111100, 29, 12);
+    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+  }
+
+  void v_eor(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm) {
+    starti;
+    assert(T == T8B || T == T16B, "must be T8B or T16B");
+    f(0, 31), f((int)T & 1, 30), f(0b101110001, 29, 21);
+    rf(Vm, 16), f(0b000111, 15, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+
+
+
 /* Simulator extensions to the ISA
 
    haltsim

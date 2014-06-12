@@ -2152,14 +2152,151 @@ void MacroAssembler::update_word_crc32(Register crc, Register v, Register tmp,
 void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len,
         Register table0, Register table1, Register table2, Register table3,
         Register tmp, Register tmp2, Register tmp3) {
-  Label L_by16_loop, L_by4, L_by4_loop, L_by1, L_by1_loop, L_exit;
+  Label L_by16, L_by16_loop, L_by4, L_by4_loop, L_by1, L_by1_loop, L_exit;
   unsigned long offset;
+
     ornw(crc, zr, crc);
     adrp(table0, ExternalAddress(StubRoutines::crc_table_addr()), offset);
     if (offset) add(table0, table0, offset);
     add(table1, table0, 1*256*sizeof(juint));
     add(table2, table0, 2*256*sizeof(juint));
     add(table3, table0, 3*256*sizeof(juint));
+
+  if (UseNeon) {
+      cmp(len, 64);
+      br(Assembler::LT, L_by16);
+      v_eor(v16, T16B, v16, v16);
+
+    Label L_fold;
+
+      add(tmp, table0, 4*256*sizeof(juint)); // Point at the Neon constants
+
+      v_ld1(v0, v1, T2D, buf, 32);
+      v_ld1r(v4, T2D, tmp, 8);
+      v_ld1r(v5, T2D, tmp, 8);
+      v_ld1r(v6, T2D, tmp, 8);
+      v_ld1r(v7, T2D, tmp, 8);
+      v_mov(v16, T4S, 0, crc);
+
+      v_eor(v0, T16B, v0, v16);
+      sub(len, len, 64);
+
+    BIND(L_fold);
+      v_pmull(v22, T8H, v0, v5, T8B);
+      v_pmull(v20, T8H, v0, v7, T8B);
+      v_pmull(v23, T8H, v0, v4, T8B);
+      v_pmull(v21, T8H, v0, v6, T8B);
+    
+      v_pmull2(v18, T8H, v0, v5, T16B);
+      v_pmull2(v16, T8H, v0, v7, T16B);
+      v_pmull2(v19, T8H, v0, v4, T16B);
+      v_pmull2(v17, T8H, v0, v6, T16B);
+    
+      v_uzp1(v24, v20, v22, T8H);
+      v_uzp2(v25, v20, v22, T8H);
+      v_eor(v20, T16B, v24, v25);
+    
+      v_uzp1(v26, v16, v18, T8H);
+      v_uzp2(v27, v16, v18, T8H);
+      v_eor(v16, T16B, v26, v27);
+    
+      v_ushll2(v22, T4S, v20, T8H, 8);
+      v_ushll(v20, T4S, v20, T4H, 8);
+    
+      v_ushll2(v18, T4S, v16, T8H, 8);
+      v_ushll(v16, T4S, v16, T4H, 8);
+    
+      v_eor(v22, T16B, v23, v22);
+      v_eor(v18, T16B, v19, v18);
+      v_eor(v20, T16B, v21, v20);
+      v_eor(v16, T16B, v17, v16);
+    
+      v_uzp1(v17, v16, v20, T2D);
+      v_uzp2(v21, v16, v20, T2D);
+      v_eor(v17, T16B, v17, v21);
+    
+      v_ushll2(v20, T2D, v17, T4S, 16);
+      v_ushll(v16, T2D, v17, T2S, 16);
+    
+      v_eor(v20, T16B, v20, v22);
+      v_eor(v16, T16B, v16, v18);
+    
+      v_uzp1(v17, v20, v16, T2D);
+      v_uzp2(v21, v20, v16, T2D);
+      v_eor(v28, T16B, v17, v21);
+    
+      v_pmull(v22, T8H, v1, v5, T8B);
+      v_pmull(v20, T8H, v1, v7, T8B);
+      v_pmull(v23, T8H, v1, v4, T8B);
+      v_pmull(v21, T8H, v1, v6, T8B);
+    
+      v_pmull2(v18, T8H, v1, v5, T16B);
+      v_pmull2(v16, T8H, v1, v7, T16B);
+      v_pmull2(v19, T8H, v1, v4, T16B);
+      v_pmull2(v17, T8H, v1, v6, T16B);
+    
+      v_ld1(v0, v1, T2D, buf, 32);
+    
+      v_uzp1(v24, v20, v22, T8H);
+      v_uzp2(v25, v20, v22, T8H);
+      v_eor(v20, T16B, v24, v25);
+    
+      v_uzp1(v26, v16, v18, T8H);
+      v_uzp2(v27, v16, v18, T8H);
+      v_eor(v16, T16B, v26, v27);
+    
+      v_ushll2(v22, T4S, v20, T8H, 8);
+      v_ushll(v20, T4S, v20, T4H, 8);
+    
+      v_ushll2(v18, T4S, v16, T8H, 8);
+      v_ushll(v16, T4S, v16, T4H, 8);
+    
+      v_eor(v22, T16B, v23, v22);
+      v_eor(v18, T16B, v19, v18);
+      v_eor(v20, T16B, v21, v20);
+      v_eor(v16, T16B, v17, v16);
+    
+      v_uzp1(v17, v16, v20, T2D);
+      v_uzp2(v21, v16, v20, T2D);
+      v_eor(v16, T16B, v17, v21);
+    
+      v_ushll2(v20, T2D, v16, T4S, 16);
+      v_ushll(v16, T2D, v16, T2S, 16);
+    
+      v_eor(v20, T16B, v22, v20);
+      v_eor(v16, T16B, v16, v18);
+    
+      v_uzp1(v17, v20, v16, T2D);
+      v_uzp2(v21, v20, v16, T2D);
+      v_eor(v20, T16B, v17, v21);
+    
+      v_shl(v16, v28, T2D, 1);
+      v_shl(v17, v20, T2D, 1);
+    
+      v_eor(v0, T16B, v0, v16);
+      v_eor(v1, T16B, v1, v17);
+
+      subs(len, len, 32);
+      br(Assembler::GE, L_fold);
+
+      mov(crc, 0);
+      v_mov(tmp, v0, T1D, 0);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, false);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, true);
+      v_mov(tmp, v0, T1D, 1);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, false);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, true);
+      v_mov(tmp, v1, T1D, 0);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, false);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, true);
+      v_mov(tmp, v1, T1D, 1);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, false);
+      update_word_crc32(crc, tmp, tmp2, table0, table1, table2, table3, true);
+
+      add(len, len, 32);
+  }
+
+  BIND(L_by16);
     subs(len, len, 16);
     br(Assembler::GE, L_by16_loop);
     adds(len, len, 16-4);
