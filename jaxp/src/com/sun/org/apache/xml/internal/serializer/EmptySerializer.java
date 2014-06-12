@@ -25,8 +25,8 @@ package com.sun.org.apache.xml.internal.serializer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.Properties;
-import java.util.Vector;
 import javax.xml.transform.SourceLocator;
 import javax.xml.transform.Transformer;
 import org.w3c.dom.Node;
@@ -143,9 +143,9 @@ public class EmptySerializer implements SerializationHandler
         couldThrowIOException();
     }
     /**
-     * @see SerializationHandler#setCdataSectionElements(java.util.Vector)
+     * @see SerializationHandler#setCdataSectionElements(java.util.ArrayList<String>)
      */
-    public void setCdataSectionElements(Vector URI_and_localNames)
+    public void setCdataSectionElements(ArrayList<String> URI_and_localNames)
     {
         aMethodIsCalled();
     }
@@ -746,6 +746,27 @@ public class EmptySerializer implements SerializationHandler
      * @see SerializationHandler#setDTDEntityExpansion(boolean)
      */
     public void setDTDEntityExpansion(boolean expand) {
+        aMethodIsCalled();
+
+    }
+
+
+    public String getOutputProperty(String name) {
+        aMethodIsCalled();
+        return null;
+    }
+
+    public String getOutputPropertyDefault(String name) {
+        aMethodIsCalled();
+        return null;
+    }
+
+    public void setOutputProperty(String name, String val) {
+        aMethodIsCalled();
+
+    }
+
+    public void setOutputPropertyDefault(String name, String val) {
         aMethodIsCalled();
 
     }

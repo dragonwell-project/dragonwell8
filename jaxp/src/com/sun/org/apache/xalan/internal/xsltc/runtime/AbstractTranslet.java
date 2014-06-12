@@ -36,6 +36,7 @@ import com.sun.org.apache.xalan.internal.xsltc.runtime.output.TransletOutputHand
 import com.sun.org.apache.xml.internal.dtm.DTM;
 import com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;
 import com.sun.org.apache.xml.internal.serializer.SerializationHandler;
+import com.sun.org.apache.xml.internal.serializer.ToStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,7 +45,6 @@ import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Vector;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Templates;
@@ -75,7 +75,7 @@ public abstract class AbstractTranslet implements Translet {
     public String  _doctypeSystem = null;
     public boolean _indent = false;
     public String  _mediaType = null;
-    public Vector _cdata = null;
+    public ArrayList<String> _cdata = null;
     public int _indentamount = -1;
 
     public static final int FIRST_TRANSLET_VERSION = 100;
@@ -649,7 +649,7 @@ public abstract class AbstractTranslet implements Translet {
      */
     public void addCdataElement(String name) {
         if (_cdata == null) {
-            _cdata = new Vector();
+            _cdata = new ArrayList<>();
         }
 
         int lastColon = name.lastIndexOf(':');
@@ -657,11 +657,11 @@ public abstract class AbstractTranslet implements Translet {
         if (lastColon > 0) {
             String uri = name.substring(0, lastColon);
             String localName = name.substring(lastColon+1);
-            _cdata.addElement(uri);
-            _cdata.addElement(localName);
+            _cdata.add(uri);
+            _cdata.add(localName);
         } else {
-            _cdata.addElement(null);
-            _cdata.addElement(name);
+            _cdata.add(null);
+            _cdata.add(name);
         }
     }
 
