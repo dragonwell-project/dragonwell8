@@ -1658,9 +1658,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
                 //only change bounds if request comes from substBounds
                 super.addBound(ib, bound, types, update);
             }
-            else if (bound.hasTag(UNDETVAR) && !((UndetVar) bound).isCaptured()) {
-                ((UndetVar) bound).addBound(ib.complement(), this, types, false);
-            }
         }
 
         @Override

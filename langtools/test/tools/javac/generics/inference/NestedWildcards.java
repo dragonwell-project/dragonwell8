@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,22 @@
 
 /*
  * @test
- * @bug 7086586
- *
- * @summary Inference producing null type argument
+ * @bug 8039214
+ * @summary Nested generic methods that work on wildcard-parameterized types
+ * @compile NestedWildcards.java
  */
-import java.util.List;
 
-public class T7086586b {
+public class NestedWildcards {
 
-    int assertionCount = 0;
-
-    void assertTrue(boolean cond) {
-        if (!cond) {
-            throw new AssertionError();
-        }
-        assertionCount++;
+    public static void test(Box<String> b) {
+        foo(bar(b));
+    }
+    private static <X> Box<? extends X> foo(Box<? extends X> ts) {
+        return null;
+    }
+    public static <Y> Box<? extends Y> bar(Box<? extends Y> language) {
+        return null;
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(false); }
-    <T> void m(Object dummy) { assertTrue(true); }
-
-    void test(List<?> l) {
-        m(l);
-        assertTrue(assertionCount == 1);
-    }
-
-    public static void main(String[] args) {
-        new T7086586b().test(null);
-    }
+    interface Box<T> {}
 }
