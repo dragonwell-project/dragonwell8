@@ -35,6 +35,16 @@
 # include "os_linux.inline.hpp"
 #endif
 
+#ifndef BUILTIN_SIM
+#include <sys/auxv.h>
+#include <asm/hwcap.h>
+
+#ifndef HWCAP_CRC32
+#define HWCAP_CRC32 (1<<7)
+#endif
+
+#endif
+
 int VM_Version::_cpu;
 int VM_Version::_model;
 int VM_Version::_stepping;
@@ -91,6 +101,16 @@ void VM_Version::get_processor_features() {
   FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 256);
   FLAG_SET_DEFAULT(PrefetchFieldsAhead, 256);
   FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
+
+#ifndef BUILTIN_SIM
+  unsigned long auxv = getauxval(AT_HWCAP);
+  if (FLAG_IS_DEFAULT(UseCRC32)) {
+    UseCRC32 = (auxv & HWCAP_CRC32) != 0;
+  }
+  if (UseCRC32 && (auxv & HWCAP_CRC32) == 0) {
+    warning("UseCRC32 specified, but not supported on this CPU");
+  }
+#endif
 
   if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
     UseCRC32Intrinsics = true;

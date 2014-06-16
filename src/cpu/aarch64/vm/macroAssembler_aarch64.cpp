@@ -2160,6 +2160,57 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len,
   unsigned long offset;
 
     ornw(crc, zr, crc);
+
+  if (UseCRC32) {
+    Label CRC_by64_loop, CRC_by4_loop, CRC_by1_loop;
+
+      subs(len, len, 64);
+      br(Assembler::GE, CRC_by64_loop);
+      adds(len, len, 64-4);
+      br(Assembler::GE, CRC_by4_loop);
+      adds(len, len, 4);
+      br(Assembler::GT, CRC_by1_loop);
+      b(L_exit);
+
+    BIND(CRC_by4_loop);
+      ldrw(tmp, Address(post(buf, 4)));
+      subs(len, len, 4);
+      crc32w(crc, crc, tmp);
+      br(Assembler::GE, CRC_by4_loop);
+      adds(len, len, 4);
+      br(Assembler::LE, L_exit);
+    BIND(CRC_by1_loop);
+      ldrb(tmp, Address(post(buf, 1)));
+      subs(len, len, 1);
+      crc32b(crc, crc, tmp);
+      br(Assembler::GT, CRC_by1_loop);
+      b(L_exit);
+
+      align(CodeEntryAlignment);
+    BIND(CRC_by64_loop);
+      subs(len, len, 64);
+      ldp(tmp, tmp3, Address(post(buf, 16)));
+      crc32x(crc, crc, tmp);
+      crc32x(crc, crc, tmp3);
+      ldp(tmp, tmp3, Address(post(buf, 16)));
+      crc32x(crc, crc, tmp);
+      crc32x(crc, crc, tmp3);
+      ldp(tmp, tmp3, Address(post(buf, 16)));
+      crc32x(crc, crc, tmp);
+      crc32x(crc, crc, tmp3);
+      ldp(tmp, tmp3, Address(post(buf, 16)));
+      crc32x(crc, crc, tmp);
+      crc32x(crc, crc, tmp3);
+      br(Assembler::GE, CRC_by64_loop);
+      adds(len, len, 64-4);
+      br(Assembler::GE, CRC_by4_loop);
+      adds(len, len, 4);
+      br(Assembler::GT, CRC_by1_loop);
+    BIND(L_exit);
+      ornw(crc, zr, crc);
+      return;
+  }
+
     adrp(table0, ExternalAddress(StubRoutines::crc_table_addr()), offset);
     if (offset) add(table0, table0, offset);
     add(table1, table0, 1*256*sizeof(juint));

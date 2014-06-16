@@ -2059,6 +2059,20 @@ public:
     rf(Vm, 16), f(0b000111, 15, 10), rf(Vn, 5), rf(Vd, 0);
   }
 
+  // CRC32 instructions
+#define INSN(NAME, sf, sz)                                                \
+  void NAME(Register Rd, Register Rn, Register Rm) {                      \
+    starti;                                                               \
+    f(sf, 31), f(0b0011010110, 30, 21), f(0b0100, 15, 12), f(sz, 11, 10); \
+    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);                                     \
+  }
+
+  INSN(crc32b, 0, 0b00);
+  INSN(crc32h, 0, 0b01);
+  INSN(crc32w, 0, 0b10);
+  INSN(crc32x, 1, 0b11);
+
+#undef INSN
 
 
 /* Simulator extensions to the ISA
