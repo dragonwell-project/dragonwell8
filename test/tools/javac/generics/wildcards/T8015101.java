@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +21,24 @@
  * questions.
  */
 
-package pkg;
-
-/**
- * Here is a relative link in a class:
- * <a href="relative-class-link.html">relative class link</a>.
+/*
+ * @test
+ * @bug 8015101
+ * @summary Mishandling of wildcards in intersection member method check
+ * @compile T8015101.java
  */
-public class C {
+class T8015101 {
 
-    /**
-     * Here is a relative link in a field:\u0130
-     * <a href="relative-field-link.html">relative field link</a>.
-     */
-    public C field = null;
+     public static class Bug<X extends Child<?, ?> & Runnable> {
+     }
 
-    /**
-     * Here is a relative link in a method:
-     * <a href="relative-method-link.html">relative method link</a>.
-     */
-    public C method() { return null;}
+     interface Parent<C> {
+         public C get();
+     }
 
-    /**
-     * Here is a relative link in a method:
-     * <a
-     * href="relative-multi-line-link.html">relative-multi-line-link</a>.
-     */
-    public C multipleLineTest() { return null;}
+     interface Child<C, S extends C> extends Parent<C> {
+         @Override
+         public S get();
+     }
 
-}
+ }

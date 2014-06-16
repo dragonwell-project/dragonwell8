@@ -1221,13 +1221,34 @@ public class Types {
         TypeRelation isSameTypeLoose = new LooseSameTypeVisitor();
 
         private class LooseSameTypeVisitor extends SameTypeVisitor {
+
+            /** cache of the type-variable pairs being (recursively) tested. */
+            private Set<TypePair> cache = new HashSet<>();
+
             @Override
             boolean sameTypeVars(TypeVar tv1, TypeVar tv2) {
-                return tv1.tsym == tv2.tsym && visit(tv1.getUpperBound(), tv2.getUpperBound());
+                return tv1.tsym == tv2.tsym && checkSameBounds(tv1, tv2);
             }
             @Override
             protected boolean containsTypes(List<Type> ts1, List<Type> ts2) {
                 return containsTypeEquivalent(ts1, ts2);
+            }
+
+            /**
+             * Since type-variable bounds can be recursive, we need to protect against
+             * infinite loops - where the same bounds are checked over and over recursively.
+             */
+            private boolean checkSameBounds(TypeVar tv1, TypeVar tv2) {
+                TypePair p = new TypePair(tv1, tv2, true);
+                if (cache.add(p)) {
+                    try {
+                        return visit(tv1.getUpperBound(), tv2.getUpperBound());
+                    } finally {
+                        cache.remove(p);
+                    }
+                } else {
+                    return false;
+                }
             }
         };
 
@@ -1375,7 +1396,7 @@ public class Types {
 //                    debugContainsType(t, s);
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
-                        || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&
+                        || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), cvarLowerBound(wildLowerBound(s)))) &&
                             // TODO: JDK-8039214, cvarUpperBound call here is incorrect
                             (t.isSuperBound() || isSubtypeNoCapture(cvarUpperBound(wildUpperBound(s)), wildUpperBound(t))));
                 }
@@ -3376,9 +3397,16 @@ public class Types {
         class TypePair {
             final Type t1;
             final Type t2;
+            boolean strict;
+
             TypePair(Type t1, Type t2) {
+                this(t1, t2, false);
+            }
+
+            TypePair(Type t1, Type t2, boolean strict) {
                 this.t1 = t1;
                 this.t2 = t2;
+                this.strict = strict;
             }
             @Override
             public int hashCode() {
@@ -3389,8 +3417,8 @@ public class Types {
                 if (!(obj instanceof TypePair))
                     return false;
                 TypePair typePair = (TypePair)obj;
-                return isSameType(t1, typePair.t1)
-                    && isSameType(t2, typePair.t2);
+                return isSameType(t1, typePair.t1, strict)
+                    && isSameType(t2, typePair.t2, strict);
             }
         }
         Set<TypePair> mergeCache = new HashSet<TypePair>();
@@ -4670,7 +4698,7 @@ public class Types {
                 assembleClassSig(rawOuter
                         ? types.erasure(outer)
                         : outer);
-                append('.');
+                append(rawOuter ? '$' : '.');
                 Assert.check(c.flatname.startsWith(c.owner.enclClass().flatname));
                 append(rawOuter
                         ? c.flatname.subName(c.owner.enclClass().flatname.getByteLength() + 1, c.flatname.getByteLength())
