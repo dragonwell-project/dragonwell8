@@ -65,6 +65,7 @@
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
 void MacroAssembler::pd_patch_instruction(address branch, address target) {
+  assert((uint64_t)target < (1ul << 48), "48-bit overflow in address constant");
   long offset = (target - branch) >> 2;
   unsigned insn = *(unsigned*)branch;
   if ((Instruction_aarch64::extract(insn, 29, 24) & 0b111011) == 0b011000) {
@@ -139,10 +140,11 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
   } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
     // Move wide constant
     u_int64_t dest = (u_int64_t)target;
+    assert(nativeInstruction_at(branch+4)->is_movk(), "wrong insns in patch");
+    assert(nativeInstruction_at(branch+8)->is_movk(), "wrong insns in patch");
     Instruction_aarch64::patch(branch, 20, 5, dest & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16) & 0xffff);
-    Instruction_aarch64::patch(branch += 4, 20, 5, (dest >>= 16));
   } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
              Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
     // nothing to do
@@ -216,14 +218,13 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
       ShouldNotReachHere();
     }
   } else if (Instruction_aarch64::extract(insn, 31, 23) == 0b110100101) {
-    // Move wide constant
-    // FIXME: We assume these instructions are movz, movk, movk, movk.
-    // We don't assert this; we should.
+    // Move address constant: movz, movk, movk.  See movptr().
     u_int32_t *insns = (u_int32_t *)insn_addr;
+    assert(nativeInstruction_at(insns+1)->is_movk(), "wrong insns in patch");
+    assert(nativeInstruction_at(insns+2)->is_movk(), "wrong insns in patch");
     return address(u_int64_t(Instruction_aarch64::extract(insns[0], 20, 5))
 		   + (u_int64_t(Instruction_aarch64::extract(insns[1], 20, 5)) << 16)
-		   + (u_int64_t(Instruction_aarch64::extract(insns[2], 20, 5)) << 32)
-		   + (u_int64_t(Instruction_aarch64::extract(insns[3], 20, 5)) << 48));
+		   + (u_int64_t(Instruction_aarch64::extract(insns[2], 20, 5)) << 32));
   } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
              Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
     return 0;
@@ -1246,10 +1247,14 @@ void MacroAssembler::mov(Register r, Address dest) {
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   u_int64_t imm64 = (u_int64_t)dest.target();
-  mov64(r, imm64);
+  movptr(r, imm64);
 }
 
-void MacroAssembler::mov64(Register r, uintptr_t imm64) {
+// Move a constant pointer into r.  In AArch64 mode the virtual
+// address space is 48 bits in size, so we only need three
+// instructions to create a patchable instruction sequence that can
+// reach anywhere.
+void MacroAssembler::movptr(Register r, uintptr_t imm64) {
 #ifndef PRODUCT
   {
     char buffer[64];
@@ -1257,13 +1262,12 @@ void MacroAssembler::mov64(Register r, uintptr_t imm64) {
     block_comment(buffer);
   }
 #endif
+  assert(imm64 < (1ul << 48), "48-bit overflow in address constant");
   movz(r, imm64 & 0xffff);
   imm64 >>= 16;
   movk(r, imm64 & 0xffff, 16);
   imm64 >>= 16;
   movk(r, imm64 & 0xffff, 32);
-  imm64 >>= 16;
-  movk(r, imm64 & 0xffff, 48);
 }
 
 void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)

@@ -65,6 +65,8 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   inline bool is_cond_jump();
   bool is_safepoint_poll();
   inline bool is_mov_literal64();
+  bool is_movz();
+  bool is_movk();
 
  protected:
   address addr_at(int offset) const    { return address(this) + offset; }
@@ -105,11 +107,12 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
 };
 
 inline NativeInstruction* nativeInstruction_at(address address) {
-  NativeInstruction* inst = (NativeInstruction*)address;
-#ifdef ASSERT
-  //inst->verify();
-#endif
-  return inst;
+  return (NativeInstruction*)address;
+}
+
+// The natural type of an AArch64 instruction is uint32_t
+inline NativeInstruction* nativeInstruction_at(uint32_t *address) {
+  return (NativeInstruction*)address;
 }
 
 inline NativeCall* nativeCall_at(address address);
@@ -204,19 +207,21 @@ inline NativeCall* nativeCall_before(address return_address) {
 class NativeMovConstReg: public NativeInstruction {
  public:
   enum Aarch64_specific_constants {
-    instruction_size            =    4 * 4,
+    instruction_size            =    3 * 4, // movz, movk, movk.  See movptr().
     instruction_offset          =    0,
     displacement_offset         =    0,
   };
 
   address instruction_address() const       { return addr_at(instruction_offset); }
   address next_instruction_address() const  {
-    if (is_adrp_at(instruction_address()))
+    if (nativeInstruction_at(instruction_address())->is_movz())
+      // Assume movz, movk, movk
+      return addr_at(instruction_size);
+    else if (is_adrp_at(instruction_address()))
       return addr_at(2*4);
     else if (is_ldr_literal_at(instruction_address()))
       return(addr_at(4));
-    else
-      return addr_at(instruction_size);
+    assert(false, "Unknown instruction in NativeMovConstReg");
   }
 
   intptr_t data() const;

@@ -1273,7 +1273,7 @@ void Address::lea(MacroAssembler *as, Register r) const {
     if (rtype == relocInfo::none)
       __ mov(r, target());
     else
-      __ mov64(r, (uint64_t)target());
+      __ movptr(r, (uint64_t)target());
     break;
   }
   default:

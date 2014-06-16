@@ -207,6 +207,14 @@ bool NativeInstruction::is_ldrw_to_zr(address instr) {
           Instruction_aarch64::extract(insn, 4, 0) == 0b11111);
 }
 
+bool NativeInstruction::is_movz() {
+  return Instruction_aarch64::extract(int_at(0), 30, 23) == 0b10100101;
+}
+
+bool NativeInstruction::is_movk() {
+  return Instruction_aarch64::extract(int_at(0), 30, 23) == 0b11100101;
+}
+
 // MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
 
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) {

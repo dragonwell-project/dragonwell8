@@ -439,7 +439,7 @@ public:
   }
 
   void mov(Register dst, Address a);
-  void mov64(Register r, uintptr_t imm64);
+  void movptr(Register r, uintptr_t imm64);
 
   // macro instructions for accessing and updating floating point
   // status register
