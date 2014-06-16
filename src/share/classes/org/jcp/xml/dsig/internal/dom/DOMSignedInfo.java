@@ -193,7 +193,7 @@ public final class DOMSignedInfo extends DOMStructure implements SignedInfo {
         return id;
     }
 
-    public List getReferences() {
+    public List<Reference> getReferences() {
         return references;
     }
 
