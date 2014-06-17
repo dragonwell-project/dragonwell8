@@ -135,7 +135,7 @@ public class Types {
              else
                  return wildUpperBound(w.type);
          }
-         else return t;
+         else return t.unannotatedType();
      }
 
      /**
@@ -147,7 +147,7 @@ public class Types {
              TypeVar v = (TypeVar) t.unannotatedType();
              return v.isCaptured() ? cvarUpperBound(v.bound) : v;
          }
-         else return t;
+         else return t.unannotatedType();
      }
 
     /**
@@ -156,10 +156,10 @@ public class Types {
      */
     public Type wildLowerBound(Type t) {
         if (t.hasTag(WILDCARD)) {
-            WildcardType w = (WildcardType) t;
+            WildcardType w = (WildcardType) t.unannotatedType();
             return w.isExtendsBound() ? syms.botType : wildLowerBound(w.type);
         }
-        else return t;
+        else return t.unannotatedType();
     }
 
     /**
@@ -167,10 +167,11 @@ public class Types {
      * @param t a type
      */
     public Type cvarLowerBound(Type t) {
-        if (t.hasTag(TYPEVAR) && ((TypeVar) t).isCaptured()) {
-            return cvarLowerBound(t.getLowerBound());
+        if (t.hasTag(TYPEVAR)) {
+            TypeVar v = (TypeVar) t.unannotatedType();
+            return v.isCaptured() ? cvarLowerBound(v.getLowerBound()) : v;
         }
-        else return t;
+        else return t.unannotatedType();
     }
     // </editor-fold>
 
