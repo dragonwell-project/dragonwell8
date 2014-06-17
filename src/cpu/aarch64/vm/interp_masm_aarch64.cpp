@@ -803,10 +803,10 @@ void InterpreterMacroAssembler::verify_method_data_pointer() {
   cmp(r2, rbcp);
   br(Assembler::EQ, verify_continue);
   // r1: method
-  // rbcp: bcp // rbcp == 22
+  // r13: bcp
   // r3: mdp
   call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::verify_mdp),
-               r1, rbcp, r3);
+               r1, r13, r3);
   bind(verify_continue);
   ldp(r2, r3, Address(post(sp, 2 * wordSize)));
   ldp(r0, r1, Address(post(sp, 2 * wordSize)));

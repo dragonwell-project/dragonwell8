@@ -1133,11 +1133,10 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ bind(no_oop);
   }
 
-
   {
     Label no_reguard;
     __ lea(rscratch1, Address(rthread, in_bytes(JavaThread::stack_guard_state_offset())));
-    __ ldrw(rscratch1, Address(rscratch1));
+    __ ldrb(rscratch1, Address(rscratch1));
     __ cmp(rscratch1, JavaThread::stack_guard_yellow_disabled);
     __ br(Assembler::NE, no_reguard);
 
@@ -1146,10 +1145,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
     __ blrt(rscratch2, 0, 0, 0);
     __ popa(); // XXX only restore smashed registers
-    __ reinit_heapbase();
     __ bind(no_reguard);
   }
-
 
   // The method register is junk from after the thread_in_native transition
   // until here.  Also can't call_VM until the bcp has been

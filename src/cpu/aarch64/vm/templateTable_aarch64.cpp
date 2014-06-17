@@ -2431,7 +2431,7 @@ void TemplateTable::jvmti_post_field_mod(Register cache, Register index, bool is
     // we take the time to call into the VM.
     Label L1;
     assert_different_registers(cache, index, r0);
-    __ mov(rscratch1, ExternalAddress((address)JvmtiExport::get_field_modification_count_addr()));
+    __ lea(rscratch1, ExternalAddress((address)JvmtiExport::get_field_modification_count_addr()));
     __ ldrw(r0, Address(rscratch1));
     __ cbz(r0, L1);
 

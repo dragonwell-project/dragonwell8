@@ -63,7 +63,7 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   set_last_Java_frame(sp, rfp, retaddr, rscratch1);
 
   // do the call
-  mov(rscratch1, RuntimeAddress(entry));
+  lea(rscratch1, RuntimeAddress(entry));
   blrt(rscratch1, args_size + 1, 8, 1);
   bind(retaddr);
   int call_offset = offset();
@@ -553,7 +553,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   Label retaddr;
   __ set_last_Java_frame(sp, rfp, retaddr, rscratch1);
   // do the call
-  __ mov(rscratch1, RuntimeAddress(target));
+  __ lea(rscratch1, RuntimeAddress(target));
   __ blrt(rscratch1, 1, 0, 1);
   __ bind(retaddr);
   OopMapSet* oop_maps = new OopMapSet();
@@ -1524,8 +1524,8 @@ JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubI
 	address copy_buff = stub_location - *byte_skip - *byte_count;
 	address being_initialized_entry = stub_location - *being_initialized_entry_offset;
 	if (TracePatching) {
-	  tty->print_cr(" Patching %s at bci %d at address " INTPTR_FORMAT " (%s)", Bytecodes::name(code), bci,
-			p2i(instr_pc), (stub_id == Runtime1::access_field_patching_id) ? "field" : "klass");
+	  tty->print_cr(" Patching %s at bci %d at address 0x%x  (%s)", Bytecodes::name(code), bci,
+			instr_pc, (stub_id == Runtime1::access_field_patching_id) ? "field" : "klass");
 	  nmethod* caller_code = CodeCache::find_nmethod(caller_frame.pc());
 	  assert(caller_code != NULL, "nmethod not found");
 

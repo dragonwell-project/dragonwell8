@@ -86,7 +86,7 @@ void NativeMovConstReg::set_data(intptr_t x) {
 
 void NativeMovConstReg::print() {
   tty->print_cr(PTR_FORMAT ": mov reg, " INTPTR_FORMAT,
-                p2i(instruction_address()), data());
+                instruction_address(), data());
 }
 
 //-------------------------------------------------------------------

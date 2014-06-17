@@ -962,7 +962,7 @@ void MachPrologNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   if (framesize == 0) {
     // Is this even possible?
     st->print("stp  lr, rfp, [sp, #%d]!", -(2 * wordSize)); 
-  } else if (framesize < (1 << 12)) {
+  } else if (framesize < (1 << 7)) {
     st->print("sub  sp, sp, #%d\n\t", framesize);
     st->print("stp  rfp, lr, [sp, #%d]", framesize - 2 * wordSize);
   } else {
@@ -991,17 +991,13 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   if (framesize == 0) {
     // Is this even possible?
     __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-  } else if (framesize < ((1 << 9) + 2 * wordSize)) {
+  } else if (framesize < (1 << 7)) {
     __ sub(sp, sp, framesize);
     __ stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
   } else {
     __ stp(rfp, lr, Address(__ pre(sp, -2 * wordSize)));
-    if (framesize < ((1 << 12) + 2 * wordSize))
-      __ sub(sp, sp, framesize - 2 * wordSize);
-    else {
-      __ mov(rscratch1, framesize - 2 * wordSize);
-      __ sub(sp, sp, rscratch1);
-    }
+    __ mov(rscratch1, framesize - 2 * wordSize);
+    __ sub(sp, sp, rscratch1);
   }
 
   if (NotifySimulator) {
@@ -1044,7 +1040,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
 
   if (framesize == 0) {
     st->print("ldp  lr, rfp, [sp],#%d\n\t", (2 * wordSize));
-  } else if (framesize < (1 << 12)) {
+  } else if (framesize < (1 << 7)) {
     st->print("ldp  lr, rfp, [sp,#%d]\n\t", framesize - 2 * wordSize);
     st->print("add  sp, sp, #%d\n\t", framesize);
   } else {
@@ -1068,16 +1064,12 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   if (framesize == 0) {
     __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
-  } else if (framesize < ((1 << 9) + 2 * wordSize)) {
+  } else if (framesize < (1 << 7)) {
     __ ldp(rfp, lr, Address(sp, framesize - 2 * wordSize));
     __ add(sp, sp, framesize);
   } else {
-    if (framesize < ((1 << 12) + 2 * wordSize))
-      __ add(sp, sp, framesize - 2 * wordSize);
-    else {
-      __ mov(rscratch1, framesize - 2 * wordSize);
-      __ add(sp, sp, rscratch1);
-    }
+    __ mov(rscratch1, framesize - 2 * wordSize);
+    __ add(sp, sp, rscratch1);
     __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
   }
 
@@ -2151,7 +2143,7 @@ encode %{
     int call_offset = (nargs + 11) * 4;
     int field_offset = in_bytes(JavaThread::frame_anchor_offset()) +
                        in_bytes(JavaFrameAnchor::last_Java_pc_offset());
-    __ mov(rscratch1, InternalAddress(pc + call_offset));
+    __ lea(rscratch1, InternalAddress(pc + call_offset));
     __ str(rscratch1, Address(rthread, field_offset));
   %}
 
@@ -2578,9 +2570,9 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       if (rtype == relocInfo::oop_type) {
-        __ movoop(dst_reg, (jobject)con);
+        __ movoop(dst_reg, (jobject)con, /*mt_safe*/false);
       } else if (rtype == relocInfo::metadata_type) {
-        __ mov_metadata(dst_reg, (Metadata*)con);
+        __ mov_metadata(dst_reg, (Metadata*)con, /*mt_safe*/false);
       } else {
         assert(rtype == relocInfo::none, "unexpected reloc type");
 	if (con < (address)(uintptr_t)os::vm_page_size()) {
@@ -2633,7 +2625,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::oop_type, "unexpected reloc type");
-      __ set_narrow_oop(dst_reg, (jobject)con);
+      __ set_narrow_oop(dst_reg, (jobject)con, /*mt_safe*/false);
     }
   %}
 
@@ -2652,7 +2644,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::metadata_type, "unexpected reloc type");
-      __ set_narrow_klass(dst_reg, (Klass *)con);      
+      __ set_narrow_klass(dst_reg, (Klass *)con, /*mt_safe*/false);      
     }
   %}
 
@@ -2920,7 +2912,7 @@ encode %{
       int fpcnt;
       int rtype;
       getCallInfo(tf(), gpcnt, fpcnt, rtype);
-      __ mov(rscratch1, RuntimeAddress(entry));
+      __ lea(rscratch1, RuntimeAddress(entry));
       __ blrt(rscratch1, gpcnt, fpcnt, rtype);
     }
   %}

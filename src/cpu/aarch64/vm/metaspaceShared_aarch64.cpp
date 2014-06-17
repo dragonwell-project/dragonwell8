@@ -118,10 +118,10 @@ void MetaspaceShared::generate_vtable_methods(void** vtbl_list,
   *mc_top = (char*)__ pc();
 }
 
-void MetaspaceShared::relocate_vtbl_list(char **buffer) {
 #ifdef BUILTIN_SIM
+void MetaspaceShared::relocate_vtbl_list(char **buffer) {
   void **sim_entry = (void**)*buffer;
   *sim_entry = (void*)aarch64_prolog;
   *buffer += sizeof(intptr_t);
-#endif
 }
+#endif

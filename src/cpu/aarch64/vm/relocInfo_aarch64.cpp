@@ -33,9 +33,14 @@
 
 
 void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
-  MacroAssembler::pd_patch_instruction(addr(), x);
+  switch(type()) {
+  case relocInfo::oop_type:
+    MacroAssembler::patch_oop(addr(), x);
+    break;
+  default:
+    MacroAssembler::pd_patch_instruction(addr(), x);
+  }
 }
-
 
 address Relocation::pd_call_destination(address orig_addr) {
   if (orig_addr != NULL) {
