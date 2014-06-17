@@ -754,19 +754,16 @@ class StubGenerator: public StubCodeGenerator {
   // Stack after saving c_rarg3:
   //    [tos + 0]: saved c_rarg3
   //    [tos + 1]: saved c_rarg2
-  //    [tos + 2]: saved rscratch2
-  //    [tos + 3]: saved lr
-  //    [tos + 4]: saved rscratch1
-  //    [tos + 5]: saved r0
+  //    [tos + 2]: saved lr
+  //    [tos + 3]: saved rscratch2
+  //    [tos + 4]: saved r0
+  //    [tos + 5]: saved rscratch1
   address generate_verify_oop() {
 
     StubCodeMark mark(this, "StubRoutines", "verify_oop");
     address start = __ pc();
 
     Label exit, error;
-
-    // __ pushf();
-    // __ push(r12);
 
     // save c_rarg2 and c_rarg3
     __ stp(c_rarg3, c_rarg2, Address(__ pre(sp, -16)));
@@ -807,21 +804,15 @@ class StubGenerator: public StubCodeGenerator {
 
     __ push(RegSet::range(r0, r29), sp);
     // debug(char* msg, int64_t pc, int64_t regs[])
-    __ ldr(c_rarg0, Address(sp, rscratch1->encoding()));    // pass address of error message
-    __ mov(c_rarg1, Address(sp, lr));             // pass return address
-    __ mov(c_rarg2, sp);                          // pass address of regs on stack
+    __ mov(c_rarg0, rscratch1);      // pass address of error message
+    __ mov(c_rarg1, lr);             // pass return address
+    __ mov(c_rarg2, sp);             // pass address of regs on stack
 #ifndef PRODUCT
     assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
 #endif
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
     __ blrt(rscratch1, 3, 0, 1);
-    __ pop(RegSet::range(r0, r29), sp);
-
-    __ ldp(rscratch2, lr, Address(__ post(sp, 2 * wordSize)));
-    __ ldp(r0, rscratch1, Address(__ post(sp, 2 * wordSize)));
-
-    __ ret(lr);
 
     return start;
   }
