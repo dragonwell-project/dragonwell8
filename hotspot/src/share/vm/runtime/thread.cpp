@@ -3574,6 +3574,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // debug stuff, that does not work until all basic classes have been initialized.
   set_init_completed();
 
+  Metaspace::post_initialize();
+
 #ifndef USDT2
   HS_DTRACE_PROBE(hotspot, vm__init__end);
 #else /* USDT2 */
