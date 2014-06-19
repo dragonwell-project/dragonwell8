@@ -100,7 +100,7 @@ char* os::non_memory_address_word() {
   // even in its subfields (as defined by the CPU immediate fields,
   // if the CPU splits constants across multiple instructions).
 
-  return (char*) -1;
+  return (char*) 0xffffffffffff;
 }
 
 void os::initialize_thread(Thread *thr) {

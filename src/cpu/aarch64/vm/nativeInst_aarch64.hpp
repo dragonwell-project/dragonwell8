@@ -202,8 +202,8 @@ inline NativeCall* nativeCall_before(address return_address) {
   return call;
 }
 
-// An interface for accessing/manipulating native mov reg, imm32 instructions.
-// (used to manipulate inlined 32bit data dll calls, etc.)
+// An interface for accessing/manipulating native mov reg, imm instructions.
+// (used to manipulate inlined 64-bit data calls, etc.)
 class NativeMovConstReg: public NativeInstruction {
  public:
   enum Aarch64_specific_constants {
@@ -226,6 +226,12 @@ class NativeMovConstReg: public NativeInstruction {
 
   intptr_t data() const;
   void  set_data(intptr_t x);
+
+  void flush() {
+    if (! maybe_cpool_ref(instruction_address())) {
+      ICache::invalidate_range(instruction_address(), instruction_size);
+    }
+  }
 
   void  verify();
   void  print();

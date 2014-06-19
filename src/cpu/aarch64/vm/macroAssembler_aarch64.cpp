@@ -622,9 +622,10 @@ void MacroAssembler::call(Address entry) {
 
 void MacroAssembler::ic_call(address entry) {
   RelocationHolder rh = virtual_call_Relocation::spec(pc());
-  address const_ptr = long_constant((jlong)Universe::non_oop_word());
-  unsigned long offset;
-  ldr_constant(rscratch2, const_ptr);
+  // address const_ptr = long_constant((jlong)Universe::non_oop_word());
+  // unsigned long offset;
+  // ldr_constant(rscratch2, const_ptr);
+  movptr(rscratch2, (uintptr_t)Universe::non_oop_word());
   call(Address(entry, rh));
 }
 
@@ -2534,7 +2535,7 @@ void  MacroAssembler::decode_klass_not_null(Register r) {
   decode_klass_not_null(r, r);
 }
 
-void  MacroAssembler::set_narrow_oop(Register dst, jobject obj, bool mt_safe) {
+void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
   assert (UseCompressedOops, "should only be used for compressed oops");
   assert (Universe::heap() != NULL, "java heap should be initialized");
   assert (oop_recorder() != NULL, "this assembler needs an OopRecorder");
@@ -2549,7 +2550,7 @@ void  MacroAssembler::set_narrow_oop(Register dst, jobject obj, bool mt_safe) {
   movk(dst, 0xBEEF);
 }
 
-void  MacroAssembler::set_narrow_klass(Register dst, Klass* k, bool mt_safe) {
+void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
   assert (oop_recorder() != NULL, "this assembler needs an OopRecorder");
   int index = oop_recorder()->find_index(k);
@@ -2782,11 +2783,11 @@ Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
   return Address((address)obj, rspec);
 }
 
-// Move an oop into a register.  mt_safe is true iff we are not going
-// to patch this instruction while the code is being executed by
-// another thread.  In that case we can use move immediates rather
-// than the constant pool.
-void MacroAssembler::movoop(Register dst, jobject obj, bool mt_safe) {
+// Move an oop into a register.  immediate is true if we want
+// immediate instrcutions, i.e. we are not going to patch this
+// instruction while the code is being executed by another thread.  In
+// that case we can use move immediates rather than the constant pool.
+void MacroAssembler::movoop(Register dst, jobject obj, bool immediate) {
   int oop_index;
   if (obj == NULL) {
     oop_index = oop_recorder()->allocate_oop_index(obj);
@@ -2795,17 +2796,15 @@ void MacroAssembler::movoop(Register dst, jobject obj, bool mt_safe) {
     assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "should be real oop");
   }
   RelocationHolder rspec = oop_Relocation::spec(oop_index);
-  address const_ptr = mt_safe ? long_constant((jlong)obj) : NULL;
-  if (! const_ptr) {
+  if (! immediate) {
+    address dummy = address(uintptr_t(pc()) & -wordSize); // A nearby aligned address
+    ldr_constant(dst, Address(dummy, rspec));
+  } else
     mov(dst, Address((address)obj, rspec));
-  } else {
-    code()->consts()->relocate(const_ptr, rspec);
-    ldr_constant(dst, const_ptr);
-  }
 }
 
 // Move a metadata address into a register.
-void MacroAssembler::mov_metadata(Register dst, Metadata* obj, bool mt_safe) {
+void MacroAssembler::mov_metadata(Register dst, Metadata* obj) {
   int oop_index;
   if (obj == NULL) {
     oop_index = oop_recorder()->allocate_metadata_index(obj);
@@ -2813,13 +2812,7 @@ void MacroAssembler::mov_metadata(Register dst, Metadata* obj, bool mt_safe) {
     oop_index = oop_recorder()->find_index(obj);
   }
   RelocationHolder rspec = metadata_Relocation::spec(oop_index);
-  address const_ptr = mt_safe ? long_constant((jlong)obj) : NULL;
-  if (! const_ptr) {
-    mov(dst, Address((address)obj, rspec));
-  } else {
-    code()->consts()->relocate(const_ptr, rspec);
-    ldr_constant(dst, const_ptr);
-  }
+  mov(dst, Address((address)obj, rspec));
 }
 
 Address MacroAssembler::constant_oop_address(jobject obj) {
@@ -3107,12 +3100,12 @@ address MacroAssembler::read_polling_page(Register r, relocInfo::relocType rtype
 
 void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
   relocInfo::relocType rtype = dest.rspec().reloc()->type();
-  guarantee(rtype == relocInfo::none
-	    || rtype == relocInfo::external_word_type
-	    || rtype == relocInfo::poll_type
-	    || rtype == relocInfo::poll_return_type,
-	    "can only use a fixed address with an ADRP");
   if (labs(pc() - dest.target()) >= (1LL << 32)) {
+    guarantee(rtype == relocInfo::none
+	      || rtype == relocInfo::external_word_type
+	      || rtype == relocInfo::poll_type
+	      || rtype == relocInfo::poll_return_type,
+	      "can only use a fixed address with an ADRP");
     // Out of range.  This doesn't happen very often, but we have to
     // handle it
     mov(reg1, dest);

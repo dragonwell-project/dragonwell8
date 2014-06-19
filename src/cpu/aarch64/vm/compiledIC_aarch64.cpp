@@ -139,6 +139,7 @@ void CompiledStaticCall::set_to_interpreted(methodHandle callee, address entry) 
 
   // Update stub.
   method_holder->set_data((intptr_t)callee());
+  method_holder->flush();
   jump->set_jump_destination(entry);
 
   // Update jump to call.

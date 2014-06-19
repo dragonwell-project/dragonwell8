@@ -53,13 +53,6 @@ void NativeCall::print() { Unimplemented(); }
 // Inserts a native call instruction at a given pc
 void NativeCall::insert(address code_pos, address entry) { Unimplemented(); }
 
-// MT-safe patching of a call instruction.
-// First patches first word of instruction to two jmp's that jmps to them
-// selfs (spinlock). Then patches the last byte, and then atomicly replaces
-// the jmp's with the first 4 byte of the new instruction.
-void NativeCall::replace_mt_safe(address instr_addr, address code_buffer) { Unimplemented(); }
-
-
 void NativeMovConstReg::verify() {
   // make sure code pattern is actually mov reg64, imm64 instructions
 }
@@ -82,7 +75,6 @@ void NativeMovConstReg::set_data(intptr_t x) {
     MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
   }
 };
-
 
 void NativeMovConstReg::print() {
   tty->print_cr(PTR_FORMAT ": mov reg, " INTPTR_FORMAT,

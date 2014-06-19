@@ -839,19 +839,7 @@ int MachCallStaticJavaNode::ret_addr_offset()
 
 int MachCallDynamicJavaNode::ret_addr_offset()
 {
-  // call should be
-  //   ldr_constant
-  //   bl
-  // where ldr_constant is either
-  //   ldr // if NearCpool
-  // or
-  //   adrp // if !NearCPool
-  //   ldr
-  int off = 8;
-  if (!NearCpool) {
-    off += 4;
-  }
-  return off;
+  return 16; // movz, movk, movk, bl
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
@@ -2570,9 +2558,9 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       if (rtype == relocInfo::oop_type) {
-        __ movoop(dst_reg, (jobject)con, /*mt_safe*/false);
+        __ movoop(dst_reg, (jobject)con, /*immediate*/true);
       } else if (rtype == relocInfo::metadata_type) {
-        __ mov_metadata(dst_reg, (Metadata*)con, /*mt_safe*/false);
+        __ mov_metadata(dst_reg, (Metadata*)con);
       } else {
         assert(rtype == relocInfo::none, "unexpected reloc type");
 	if (con < (address)(uintptr_t)os::vm_page_size()) {
@@ -2625,7 +2613,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::oop_type, "unexpected reloc type");
-      __ set_narrow_oop(dst_reg, (jobject)con, /*mt_safe*/false);
+      __ set_narrow_oop(dst_reg, (jobject)con);
     }
   %}
 
@@ -2644,7 +2632,7 @@ encode %{
     } else {
       relocInfo::relocType rtype = $src->constant_reloc();
       assert(rtype == relocInfo::metadata_type, "unexpected reloc type");
-      __ set_narrow_klass(dst_reg, (Klass *)con, /*mt_safe*/false);      
+      __ set_narrow_klass(dst_reg, (Klass *)con);
     }
   %}
 
@@ -2836,8 +2824,6 @@ encode %{
     address mark = __ pc();
     address addr = (address)$meth$$method;
     if (!_method) {
-      // TODO check this
-      // think we are calling generated Java here not x86
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
       __ bl(Address(addr, relocInfo::runtime_call_type));
     } else if (_optimized_virtual) {

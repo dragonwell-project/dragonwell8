@@ -200,7 +200,9 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      address const_addr = int_constant(addr_offset);
+      // This is a rather long-winded instruction sequence, but the
+      // offset is atomically patchable.  See PatchingStub::install().
+      Address const_addr = InternalAddress(int_constant(addr_offset));
       __ ldr_constant(tmp, const_addr);
       return Address(base, tmp, Address::lsl(addr->scale()));
     }
@@ -314,19 +316,7 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
   if (o == NULL) {
     __ mov(reg, zr);
   } else {
-    int oop_index = __ oop_recorder()->find_index(o);
-    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
-    RelocationHolder rspec = oop_Relocation::spec(oop_index);
-    address const_ptr = int_constant(jlong(o));
-    __ code()->consts()->relocate(const_ptr, rspec);
-    __ ldr_constant(reg, const_ptr);
-
-    if (PrintRelocations && Verbose) {
-	puts("jobject2reg:\n");
-	printf("oop %p  at %p\n", o, const_ptr);
-	fflush(stdout);
-	das((uint64_t)__ pc(), -2);
-    }
+    __ movoop(reg, o, /*immediate*/true);
   }
 }
 
@@ -334,13 +324,16 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
 void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) {
   // Allocate a new index in table to hold the object once it's been patched
   int oop_index = __ oop_recorder()->allocate_oop_index(NULL);
-//  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_mirror_id, oop_index);
   PatchingStub* patch = new PatchingStub(_masm, patching_id(info), oop_index);
 
-  RelocationHolder rspec = oop_Relocation::spec(oop_index);
-  address const_ptr = int_constant(-1);
-  __ code()->consts()->relocate(const_ptr, rspec);
-  __ ldr_constant(reg, const_ptr);
+  if (DeoptimizeWhenPatching) {
+    __ nop();
+  } else {
+    RelocationHolder rspec = oop_Relocation::spec(oop_index);
+    address const_ptr = int_constant(-1);
+    __ code()->consts()->relocate(const_ptr, rspec);
+    __ ldr_constant(reg, InternalAddress(const_ptr));
+  }
   patching_epilog(patch, lir_patch_normal, reg, info);
 }
 
@@ -924,7 +917,10 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
 void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
   Metadata* o = NULL;
   PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_klass_id);
-  __ mov_metadata(reg, o);
+  if (DeoptimizeWhenPatching)
+    __ nop();
+  else
+    __ mov_metadata(reg, o);
   patching_epilog(patch, lir_patch_normal, reg, info);
 }
 

@@ -737,7 +737,7 @@ public:
   void encode_heap_oop_not_null(Register dst, Register src);
   void decode_heap_oop_not_null(Register dst, Register src);
 
-  void set_narrow_oop(Register dst, jobject obj, bool mt_safe = true);
+  void set_narrow_oop(Register dst, jobject obj);
   // currently unimplemented
 #if 0
   void set_narrow_oop(Address dst, jobject obj);
@@ -750,7 +750,7 @@ public:
   void encode_klass_not_null(Register dst, Register src);
   void decode_klass_not_null(Register dst, Register src);
 
-  void set_narrow_klass(Register dst, Klass* k, bool mt_safe = true);
+  void set_narrow_klass(Register dst, Klass* k);
   // currently unimplemented
 #if 0
   void set_narrow_klass(Address dst, Klass* k);
@@ -1106,7 +1106,7 @@ public:
 
   // Data
 
-  void mov_metadata(Register dst, Metadata* obj, bool mt_safe = true);
+  void mov_metadata(Register dst, Metadata* obj);
   Address allocate_metadata_address(Metadata* obj);
   Address constant_oop_address(jobject obj);
   // unimplemented
@@ -1114,7 +1114,7 @@ public:
   void pushoop(jobject obj);
 #endif
 
-  void movoop(Register dst, jobject obj, bool mt_safe = true);
+  void movoop(Register dst, jobject obj, bool immediate = false);
 
   // sign extend as need a l to ptr sized element
   void movl2ptr(Register dst, Address src) { Unimplemented(); }
@@ -1256,13 +1256,12 @@ public:
     Label*   retaddr = NULL
   );
 
-  void ldr_constant(Register dest, address const_addr) {
-    guarantee(const_addr, "constant pool overflow");
+  void ldr_constant(Register dest, const Address &const_addr) {
     if (NearCpool) {
-      ldr(dest, const_addr, relocInfo::internal_word_type);
+      ldr(dest, const_addr);
     } else {
       unsigned long offset;
-      adrp(dest, InternalAddress(const_addr), offset);
+      adrp(dest, InternalAddress(const_addr.target()), offset);
       ldr(dest, Address(dest, offset));
     }
   }
