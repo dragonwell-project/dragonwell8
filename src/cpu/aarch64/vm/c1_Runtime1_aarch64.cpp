@@ -1321,19 +1321,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
 #undef __
 
-static Klass* resolve_field_return_klass(methodHandle caller, int bci, TRAPS) {
-  Bytecode_field field_access(caller, bci);
-  // This can be static or non-static field access
-  Bytecodes::Code code       = field_access.code();
-
-  // We must load class, initialize class and resolvethe field
-  fieldDescriptor result; // initialize class if needed
-  constantPoolHandle constants(THREAD, caller->constants());
-  LinkResolver::resolve_field_access(result, constants, field_access.index(), Bytecodes::java_code(code), CHECK_NULL);
-  return result.field_holder();
-}
-
-
 // Simple helper to see if the caller of a runtime stub which
 // entered the VM has been deoptimized
 
@@ -1347,261 +1334,40 @@ static bool caller_is_deopted() {
 }
 
 JRT_ENTRY(void, Runtime1::patch_code_aarch64(JavaThread* thread, Runtime1::StubID stub_id ))
-  NOT_PRODUCT(_patch_code_slowcase_cnt++;)
-
-  ResourceMark rm(thread);
+{
   RegisterMap reg_map(thread, false);
+
+  NOT_PRODUCT(_patch_code_slowcase_cnt++;)
+  // According to the ARMv8 ARM, "Concurrent modification and
+  // execution of instructions can lead to the resulting instruction
+  // performing any behavior that can be achieved by executing any
+  // sequence of instructions that can be executed from the same
+  // Exception level, except where the instruction before
+  // modification and the instruction after modification is a B, BL,
+  // NOP, BKPT, SVC, HVC, or SMC instruction."
+  //
+  // This effectively makes the games we play when patching
+  // impossible, so when we come across an access that needs
+  // patching we must deoptimize.
+
+  if (TracePatching) {
+    tty->print_cr("Deoptimizing because patch is needed");
+  }
+
   frame runtime_frame = thread->last_frame();
   frame caller_frame = runtime_frame.sender(&reg_map);
 
-  if (DeoptimizeWhenPatching) {
-    // According to the ARMv8 ARM, "Concurrent modification and
-    // execution of instructions can lead to the resulting instruction
-    // performing any behavior that can be achieved by executing any
-    // sequence of instructions that can be executed from the same
-    // Exception level, except where the instruction before
-    // modification and the instruction after modification is a B, BL,
-    // NOP, BKPT, SVC, HVC, or SMC instruction."
-    //
-    // This effectively makes the games we play when patching
-    // impossible, so when we come across an access that needs
-    // patching we must deoptimize.
-
-    if (TracePatching) {
-      tty->print_cr("Deoptimizing because patch is needed");
-    }
-    // It's possible the nmethod was invalidated in the last
-    // safepoint, but if it's still alive then make it not_entrant.
-    nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
-    if (nm != NULL) {
-      nm->make_not_entrant();
-    }
-
-    Deoptimization::deoptimize_frame(thread, caller_frame.id());
-
-    // Return to the now deoptimized frame.
-    return;
+  // It's possible the nmethod was invalidated in the last
+  // safepoint, but if it's still alive then make it not_entrant.
+  nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
+  if (nm != NULL) {
+    nm->make_not_entrant();
   }
 
-  // last java frame on stack
-  vframeStream vfst(thread, true);
-  assert(!vfst.at_end(), "Java frame must exist");
+  Deoptimization::deoptimize_frame(thread, caller_frame.id());
 
-  methodHandle caller_method(THREAD, vfst.method());
-  // Note that caller_method->code() may not be same as caller_code because of OSR's
-  // Note also that in the presence of inlining it is not guaranteed
-  // that caller_method() == caller_code->method()
-
-  int bci = vfst.bci();
-  Bytecodes::Code code = caller_method()->java_code_at(bci);
-
-  bool deoptimize_for_volatile = false;
-  int patch_field_offset = -1;
-  KlassHandle init_klass(THREAD, NULL); // klass needed by load_klass_patching code
-  KlassHandle load_klass(THREAD, NULL); // klass needed by load_klass_patching code
-  Handle mirror(THREAD, NULL);                    // oop needed by load_mirror_patching code
-  fieldDescriptor result; // initialize class if needed
-
-  bool load_klass_or_mirror_patch_id =
-    (stub_id == Runtime1::load_klass_patching_id || stub_id == Runtime1::load_mirror_patching_id);
-
-  if (stub_id == Runtime1::access_field_patching_id) {
-
-    Bytecode_field field_access(caller_method, bci);
-    fieldDescriptor result; // initialize class if needed
-    Bytecodes::Code code = field_access.code();
-    constantPoolHandle constants(THREAD, caller_method->constants());
-    LinkResolver::resolve_field_access(result, constants, field_access.index(), Bytecodes::java_code(code), CHECK);
-    patch_field_offset = result.offset();
-
-    // If we're patching a field which is volatile then at compile it
-    // must not have been known to be volatile, so the generated code
-    // isn't correct for a volatile reference.  The nmethod has to be
-    // deoptimized so that the code can be regenerated correctly.
-    // This check is only needed for access_field_patching since this
-    // is the path for patching field offsets.  load_klass is only
-    // used for patching references to oops which don't need special
-    // handling in the volatile case.
-    deoptimize_for_volatile = result.access_flags().is_volatile();
-  } else if (load_klass_or_mirror_patch_id) {
-    Klass* k = NULL;
-    switch (code) {
-      case Bytecodes::_putstatic:
-      case Bytecodes::_getstatic:
-        { Klass* klass = resolve_field_return_klass(caller_method, bci, CHECK);
-          init_klass = KlassHandle(THREAD, klass);
-          mirror = Handle(THREAD, klass->java_mirror());
-        }
-        break;
-      case Bytecodes::_new:
-        { Bytecode_new bnew(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(bnew.index(), CHECK);
-        }
-        break;
-      case Bytecodes::_multianewarray:
-        { Bytecode_multianewarray mna(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(mna.index(), CHECK);
-        }
-        break;
-      case Bytecodes::_instanceof:
-        { Bytecode_instanceof io(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(io.index(), CHECK);
-        }
-        break;
-      case Bytecodes::_checkcast:
-        { Bytecode_checkcast cc(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(cc.index(), CHECK);
-        }
-        break;
-      case Bytecodes::_anewarray:
-        { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
-          Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
-          k = ek->array_klass(CHECK);
-        }
-        break;
-      case Bytecodes::_ldc:
-      case Bytecodes::_ldc_w:
-        {
-          Bytecode_loadconstant cc(caller_method, bci);
-          oop m = cc.resolve_constant(CHECK);
-          mirror = Handle(THREAD, m);
-        }
-        break;
-      default: Unimplemented();
-    }
-    // convert to handle
-    load_klass = KlassHandle(THREAD, k);
-  } else {
-    ShouldNotReachHere();
-  }
-
-  if (deoptimize_for_volatile) {
-    // At compile time we assumed the field wasn't volatile but after
-    // loading it turns out it was volatile so we have to throw the
-    // compiled code out and let it be regenerated.
-    if (TracePatching) {
-      tty->print_cr("Deoptimizing for patching volatile field reference");
-    }
-    // It's possible the nmethod was invalidated in the last
-    // safepoint, but if it's still alive then make it not_entrant.
-    nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
-    if (nm != NULL) {
-      nm->make_not_entrant();
-    }
-
-    Deoptimization::deoptimize_frame(thread, caller_frame.id());
-
-    // Return to the now deoptimized frame.
-  }
-
-  // If we are patching in a non-perm oop, make sure the nmethod
-  // is on the right list.
-  if (ScavengeRootsInCode && mirror.not_null() && mirror()->is_scavengable()) {
-    MutexLockerEx ml_code (CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
-    guarantee(nm != NULL, "only nmethods can contain non-perm oops");
-    if (!nm->on_scavenge_root_list())
-      CodeCache::add_scavenge_root_nmethod(nm);
-  }
-
-  // Now copy code back
-  {
-    MutexLockerEx ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
-    //
-    // Deoptimization may have happened while we waited for the lock.
-    // In that case we don't bother to do any patching we just return
-    // and let the deopt happen
-    if (!caller_is_deopted()) {
-      NativeGeneralJump* jump = nativeGeneralJump_at(caller_frame.pc());
-      address instr_pc = jump->jump_destination();
-      NativeInstruction* ni = nativeInstruction_at(instr_pc);
-      if (ni->is_jump() ) {
-	// the jump has not been patched yet
-	address stub_location = caller_frame.pc() + PatchingStub::patch_info_offset();
-	unsigned char* byte_count = (unsigned char*) (stub_location - 1);
-	unsigned char* byte_skip = (unsigned char*) (stub_location - 2);
-	unsigned char* being_initialized_entry_offset = (unsigned char*) (stub_location - 3);
-	address copy_buff = stub_location - *byte_skip - *byte_count;
-	address being_initialized_entry = stub_location - *being_initialized_entry_offset;
-	if (TracePatching) {
-	  tty->print_cr(" Patching %s at bci %d at address 0x%x  (%s)", Bytecodes::name(code), bci,
-			instr_pc, (stub_id == Runtime1::access_field_patching_id) ? "field" : "klass");
-	  nmethod* caller_code = CodeCache::find_nmethod(caller_frame.pc());
-	  assert(caller_code != NULL, "nmethod not found");
-
-	  // NOTE we use pc() not original_pc() because we already know they are
-	  // identical otherwise we'd have never entered this block of code
-	  OopMap* map = caller_code->oop_map_for_return_address(caller_frame.pc());
-	  assert(map != NULL, "null check");
-	  map->print();
-	  tty->cr();
-
-	  Disassembler::decode(copy_buff, copy_buff + *byte_count, tty);
-	}
-
-	// The word in the constant pool needs fixing.
-	unsigned insn = *(unsigned*)copy_buff;
-	unsigned long *cpool_addr
-	  = (unsigned long *)MacroAssembler::target_addr_for_insn(instr_pc, insn);
-
-	nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
-	CodeBlob *cb = CodeCache::find_blob(caller_frame.pc());
-	assert(nm != NULL, "invalid nmethod_pc");
-	assert(address(cpool_addr) >= nm->consts_begin()
-	       && address(cpool_addr) < nm->consts_end(),
-	       "constant address should be inside constant pool");
-
-	switch(stub_id) {
-	case access_field_patching_id:
-	  *cpool_addr = patch_field_offset; break;
-	case load_mirror_patching_id:
-	  *cpool_addr = cast_from_oop<uint64_t>(mirror()); break;
-	case load_klass_patching_id:
-	  *cpool_addr = (uint64_t)load_klass(); break;
-	default:
-	  ShouldNotReachHere();
-	}
-
-	// Update the location in the nmethod with the proper
-	// metadata.  When the code was generated, a NULL was stuffed
-	// in the metadata table and that table needs to be update to
-	// have the right value.  On intel the value is kept
-	// directly in the instruction instead of in the metadata
-	// table, so set_data above effectively updated the value.
-	//
-	// FIXME: It's tempting to think that rather them putting OOPs
-	// in the cpool we could refer directly to the locations in the
-	// nmethod.  However, we can't guarantee that an ADRP would be
-	// able to reach them: an ADRP can only reach within +- 4GiB of
-	// the PC using two instructions.  While it's pretty unlikely
-	// that we will exceed this limit, it's not impossible.
-	RelocIterator mds(nm, (address)cpool_addr, (address)cpool_addr + 1);
-	bool found = false;
-	while (mds.next() && !found) {
-	  if (mds.type() == relocInfo::oop_type) {
-	    assert(stub_id == Runtime1::load_mirror_patching_id, "wrong stub id");
-	    oop_Relocation* r = mds.oop_reloc();
-	    oop* oop_adr = r->oop_addr();
-	    *oop_adr = mirror();
-	    r->fix_oop_relocation();
-	    found = true;
-	  } else if (mds.type() == relocInfo::metadata_type) {
-	    assert(stub_id == Runtime1::load_klass_patching_id, "wrong stub id");
-	    metadata_Relocation* r = mds.metadata_reloc();
-	    Metadata** metadata_adr = r->metadata_addr();
-	    *metadata_adr = load_klass();
-	    r->fix_metadata_relocation();
-	    found = true;
-	  }
-	}
-
-	// And we overwrite the jump
-	NativeGeneralJump::replace_mt_safe(instr_pc, copy_buff);
-
-      }
-    }
-  }
-
+  // Return to the now deoptimized frame.
+}
 JRT_END
 
 int Runtime1::access_field_patching(JavaThread* thread) {

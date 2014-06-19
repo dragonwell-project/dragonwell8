@@ -26,6 +26,7 @@
 
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
+#include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -200,10 +201,7 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
     if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
       return Address(base, addr_offset, Address::lsl(addr->scale()));
     else {
-      // This is a rather long-winded instruction sequence, but the
-      // offset is atomically patchable.  See PatchingStub::install().
-      Address const_addr = InternalAddress(int_constant(addr_offset));
-      __ ldr_constant(tmp, const_addr);
+      __ mov(tmp, addr_offset);
       return Address(base, tmp, Address::lsl(addr->scale()));
     }
   }
@@ -320,21 +318,36 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
   }
 }
 
+void LIR_Assembler::deoptimize_trap(CodeEmitInfo *info) {
+  address target = NULL;
+  relocInfo::relocType reloc_type = relocInfo::none;
+
+  switch (patching_id(info)) {
+  case PatchingStub::access_field_id:
+    target = Runtime1::entry_for(Runtime1::access_field_patching_id);
+    reloc_type = relocInfo::section_word_type;
+    break;
+  case PatchingStub::load_klass_id:
+    target = Runtime1::entry_for(Runtime1::load_klass_patching_id);
+    reloc_type = relocInfo::metadata_type;
+    break;
+  case PatchingStub::load_mirror_id:
+    target = Runtime1::entry_for(Runtime1::load_mirror_patching_id);
+    reloc_type = relocInfo::oop_type;
+    break;
+  case PatchingStub::load_appendix_id:
+    target = Runtime1::entry_for(Runtime1::load_appendix_patching_id);
+    reloc_type = relocInfo::oop_type;
+    break;
+  default: ShouldNotReachHere();
+  }
+
+  __ bl(RuntimeAddress(target));
+  add_call_info_here(info);
+}
 
 void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) {
-  // Allocate a new index in table to hold the object once it's been patched
-  int oop_index = __ oop_recorder()->allocate_oop_index(NULL);
-  PatchingStub* patch = new PatchingStub(_masm, patching_id(info), oop_index);
-
-  if (DeoptimizeWhenPatching) {
-    __ nop();
-  } else {
-    RelocationHolder rspec = oop_Relocation::spec(oop_index);
-    address const_ptr = int_constant(-1);
-    __ code()->consts()->relocate(const_ptr, rspec);
-    __ ldr_constant(reg, InternalAddress(const_ptr));
-  }
-  patching_epilog(patch, lir_patch_normal, reg, info);
+  deoptimize_trap(info);
 }
 
 
@@ -801,21 +814,19 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   PatchingStub* patch = NULL;
   Register compressed_src = rscratch1;
 
+  if (patch_code != lir_patch_none) {
+    deoptimize_trap(info);
+    return;
+  }
+
   if (type == T_ARRAY || type == T_OBJECT) {
     __ verify_oop(src->as_register());
 
     if (UseCompressedOops && !wide) {
       __ encode_heap_oop(compressed_src, src->as_register());
-      if (patch_code != lir_patch_none) {
-        info->oop_map()->set_narrowoop(compressed_src->as_VMReg());
-      }
     } else {
       compressed_src = src->as_register();
     }
-  }
-
-  if (patch_code != lir_patch_none) {
-    patch = new PatchingStub(_masm, PatchingStub::access_field_id);
   }
 
   int null_check_here = code_offset();
@@ -875,10 +886,6 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   if (info != NULL) {
     add_debug_info_for_null_check(null_check_here, info);
   }
-
-  if (patch_code != lir_patch_none) {
-    patching_epilog(patch, patch_code, to_addr->base()->as_register(), info);
-  }
 }
 
 
@@ -915,13 +922,31 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
 
 
 void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
-  Metadata* o = NULL;
-  PatchingStub* patch = new PatchingStub(_masm, PatchingStub::load_klass_id);
-  if (DeoptimizeWhenPatching)
-    __ nop();
-  else
-    __ mov_metadata(reg, o);
-  patching_epilog(patch, lir_patch_normal, reg, info);
+  address target = NULL;
+  relocInfo::relocType reloc_type = relocInfo::none;
+
+  switch (patching_id(info)) {
+  case PatchingStub::access_field_id:
+    target = Runtime1::entry_for(Runtime1::access_field_patching_id);
+    reloc_type = relocInfo::section_word_type;
+    break;
+  case PatchingStub::load_klass_id:
+    target = Runtime1::entry_for(Runtime1::load_klass_patching_id);
+    reloc_type = relocInfo::metadata_type;
+    break;
+  case PatchingStub::load_mirror_id:
+    target = Runtime1::entry_for(Runtime1::load_mirror_patching_id);
+    reloc_type = relocInfo::oop_type;
+    break;
+  case PatchingStub::load_appendix_id:
+    target = Runtime1::entry_for(Runtime1::load_appendix_patching_id);
+    reloc_type = relocInfo::oop_type;
+    break;
+  default: ShouldNotReachHere();
+  }
+
+  __ bl(RuntimeAddress(target));
+  add_call_info_here(info);
 }
 
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
@@ -944,10 +969,9 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
-  PatchingStub* patch = NULL;
-
   if (patch_code != lir_patch_none) {
-    patch = new PatchingStub(_masm, PatchingStub::access_field_id);
+    deoptimize_trap(info);
+    return;
   }
 
   if (info != NULL) {
@@ -1017,10 +1041,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
 
     default:
       ShouldNotReachHere();
-  }
-
-  if (patch != NULL) {
-    patching_epilog(patch, patch_code, addr->base()->as_register(), info);
   }
 
   if (type == T_ARRAY || type == T_OBJECT) {

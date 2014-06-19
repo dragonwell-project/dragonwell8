@@ -150,11 +150,6 @@ void RelocIterator::initialize(nmethod* nm, address begin, address limit) {
   _section_end  [CodeBuffer::SECT_STUBS ] = nm->stub_end()    ;
 
   assert(!has_current(), "just checking");
-#ifndef TARGET_ARCH_aarch64
-  // aarch64 has relocs in the cpool
-  assert(begin == NULL || begin >= nm->code_begin(), "in bounds");
-  assert(limit == NULL || limit <= nm->code_end(),   "in bounds");
-#endif
   set_limits(begin, limit);
 }
 

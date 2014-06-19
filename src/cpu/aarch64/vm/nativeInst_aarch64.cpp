@@ -242,8 +242,7 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
 
 // MT-safe patching of a long jump instruction.
 void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) {
-  assert((! DeoptimizeWhenPatching)
-	 || nativeInstruction_at(instr_addr)->is_jump_or_nop(),
+  assert(nativeInstruction_at(instr_addr)->is_jump_or_nop(),
 	 "Aarch64 cannot replace non-jump with jump");
   uint32_t instr = *(uint32_t*)code_buffer;
   *(uint32_t*)instr_addr = instr;

@@ -94,9 +94,6 @@ define_pd_global(intx, InlineSmallCode,          1000);
   product(bool, NearCpool, true,                                        \
          "constant pool is close to instructions")                      \
                                                                         \
-  product(bool, DeoptimizeWhenPatching, true,                           \
-          "doptimize instead of patching instructions")                 \
-									\
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
 	     "Use acquire and release insns for volatile fields")
 
@@ -111,9 +108,6 @@ define_pd_global(intx, InlineSmallCode,          1000);
   product(bool, NearCpool, true,					\
          "constant pool is close to instructions")			\
                                                                         \
-  product(bool, DeoptimizeWhenPatching, true,                           \
-          "doptimize instead of patching instructions")			\
-									\
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
 	     "Use acquire and release insns for volatile fields")
 

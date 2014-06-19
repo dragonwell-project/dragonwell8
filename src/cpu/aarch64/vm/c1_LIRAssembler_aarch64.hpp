@@ -64,6 +64,8 @@
 
   void init() { tableswitch_count = 0; }
 
+  void deoptimize_trap(CodeEmitInfo *info);
+
 public:
 
   void store_parameter(Register r, int offset_from_esp_in_words);

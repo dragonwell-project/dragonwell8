@@ -1307,10 +1307,6 @@ class section_word_Relocation : public internal_word_Relocation {
   //void pack_data_to -- inherited
   void unpack_data();
 
-#ifdef TARGET_ARCH_aarch64
-  void fix_relocation_after_move(const CodeBuffer* src, CodeBuffer* dest);
-#endif
-
  private:
   friend class RelocIterator;
   section_word_Relocation() { }
