@@ -78,7 +78,10 @@ public class Test {
         final int udp_port = dg.getLocalPort();
 
         // If option not available, end test
-        Set<SocketOption<?>> options = dg.supportedOptions();
+        Set<SocketOption<?>> options = Sockets.supportedOptions(
+            DatagramSocket.class
+        );
+
         if (!options.contains(ExtendedSocketOptions.SO_FLOW_SLA)) {
             System.out.println("SO_FLOW_SLA not supported");
             return;
