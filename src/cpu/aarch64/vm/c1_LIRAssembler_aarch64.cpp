@@ -2678,8 +2678,166 @@ void LIR_Assembler::emit_updatecrc32(LIR_OpUpdateCRC32* op) {
 }
 
 void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
-  fatal("Type profiling not implemented on this platform");
+  COMMENT("emit_profile_type {");
+  Register obj = op->obj()->as_register();
+  Register tmp = op->tmp()->as_pointer_register();
+  Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
+  ciKlass* exact_klass = op->exact_klass();
+  intptr_t current_klass = op->current_klass();
+  bool not_null = op->not_null();
+  bool no_conflict = op->no_conflict();
+
+  Label update, next, none;
+
+  bool do_null = !not_null;
+  bool exact_klass_set = exact_klass != NULL && ciTypeEntries::valid_ciklass(current_klass) == exact_klass;
+  bool do_update = !TypeEntries::is_type_unknown(current_klass) && !exact_klass_set;
+
+  assert(do_null || do_update, "why are we here?");
+  assert(!TypeEntries::was_null_seen(current_klass) || do_update, "why are we here?");
+  assert(mdo_addr.base() != rscratch1, "wrong register");
+
+  __ verify_oop(obj);
+
+  if (tmp != obj) {
+    __ mov(tmp, obj);
+  }
+  if (do_null) {
+    __ cbnz(tmp, update);
+    if (!TypeEntries::was_null_seen(current_klass)) {
+      __ ldr(rscratch2, mdo_addr);
+      __ orr(rscratch2, rscratch2, TypeEntries::null_seen);
+      __ str(rscratch2, mdo_addr);
+    }
+    if (do_update) {
+#ifndef ASSERT
+      __ b(next);
+    }
+#else
+      __ b(next);
+    }
+  } else {
+    __ cbnz(tmp, update);
+    __ stop("unexpected null obj");
+#endif
+  }
+
+  __ bind(update);
+
+  if (do_update) {
+#ifdef ASSERT
+    if (exact_klass != NULL) {
+      Label ok;
+      __ load_klass(tmp, tmp);
+      __ mov_metadata(rscratch1, exact_klass->constant_encoding());
+      __ eor(rscratch1, tmp, rscratch1);
+      __ cbz(rscratch1, ok);
+      __ stop("exact klass and actual klass differ");
+      __ bind(ok);
+    }
+#endif
+    if (!no_conflict) {
+      if (exact_klass == NULL || TypeEntries::is_type_none(current_klass)) {
+        if (exact_klass != NULL) {
+          __ mov_metadata(tmp, exact_klass->constant_encoding());
+        } else {
+          __ load_klass(tmp, tmp);
+        }
+
+        __ ldr(rscratch2, mdo_addr);
+        __ eor(tmp, tmp, rscratch2);
+        __ andr(rscratch1, tmp, TypeEntries::type_klass_mask);
+        // klass seen before, nothing to do. The unknown bit may have been
+        // set already but no need to check.
+        __ cbz(rscratch1, next);
+
+        __ andr(rscratch1, tmp, TypeEntries::type_unknown);
+        __ cbnz(rscratch1, next); // already unknown. Nothing to do anymore.
+
+        if (TypeEntries::is_type_none(current_klass)) {
+          __ cbz(rscratch2, none);
+          __ cmp(rscratch2, TypeEntries::null_seen);
+          __ br(Assembler::EQ, none);
+          // There is a chance that the checks above (re-reading profiling
+          // data from memory) fail if another thread has just set the
+          // profiling to this obj's klass
+          __ dmb(Assembler::ISHLD);
+          __ ldr(rscratch2, mdo_addr);
+          __ eor(tmp, tmp, rscratch2);
+          __ andr(rscratch1, tmp, TypeEntries::type_klass_mask);
+          __ cbz(rscratch1, next);
+        }
+      } else {
+        assert(ciTypeEntries::valid_ciklass(current_klass) != NULL &&
+               ciTypeEntries::valid_ciklass(current_klass) != exact_klass, "conflict only");
+
+        __ ldr(tmp, mdo_addr);
+        __ andr(rscratch1, tmp, TypeEntries::type_unknown);
+        __ cbnz(rscratch1, next); // already unknown. Nothing to do anymore.
+      }
+
+      // different than before. Cannot keep accurate profile.
+      __ ldr(rscratch2, mdo_addr);
+      __ orr(rscratch2, rscratch2, TypeEntries::type_unknown);
+      __ str(rscratch2, mdo_addr);
+
+      if (TypeEntries::is_type_none(current_klass)) {
+        __ b(next);
+
+        __ bind(none);
+        // first time here. Set profile type.
+        __ str(tmp, mdo_addr);
+      }
+    } else {
+      // There's a single possible klass at this profile point
+      assert(exact_klass != NULL, "should be");
+      if (TypeEntries::is_type_none(current_klass)) {
+        __ mov_metadata(tmp, exact_klass->constant_encoding());
+        __ ldr(rscratch2, mdo_addr);
+        __ eor(tmp, tmp, rscratch2);
+        __ andr(rscratch1, tmp, TypeEntries::type_klass_mask);
+        __ cbz(rscratch1, next);
+#ifdef ASSERT
+        {
+          Label ok;
+          __ ldr(rscratch1, mdo_addr);
+          __ cbz(rscratch1, ok);
+          __ cmp(rscratch1, TypeEntries::null_seen);
+          __ br(Assembler::EQ, ok);
+          // may have been set by another thread
+          __ dmb(Assembler::ISHLD);
+          __ mov_metadata(rscratch1, exact_klass->constant_encoding());
+          __ ldr(rscratch2, mdo_addr);
+          __ eor(rscratch2, rscratch1, rscratch2);
+          __ andr(rscratch2, rscratch2, TypeEntries::type_mask);
+          __ cbz(rscratch2, ok);
+
+          __ stop("unexpected profiling mismatch");
+          __ bind(ok);
+          __ pop(tmp);
+        }
+#endif
+        // first time here. Set profile type.
+        __ ldr(tmp, mdo_addr);
+      } else {
+        assert(ciTypeEntries::valid_ciklass(current_klass) != NULL &&
+               ciTypeEntries::valid_ciklass(current_klass) != exact_klass, "inconsistent");
+
+        __ ldr(tmp, mdo_addr);
+        __ andr(rscratch1, tmp, TypeEntries::type_unknown);
+        __ cbnz(rscratch1, next); // already unknown. Nothing to do anymore.
+
+        __ orr(tmp, tmp, TypeEntries::type_unknown);
+        __ str(tmp, mdo_addr);
+        // FIXME: Write barrier needed here?
+      }
+    }
+
+    __ bind(next);
+  }
+  COMMENT("} emit_profile_type");
 }
+
 
 void LIR_Assembler::align_backward_branch_target() {
 }
