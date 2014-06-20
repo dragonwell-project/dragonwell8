@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +21,20 @@
  * questions.
  */
 
-package pkg;
-
-/**
- * Here is a relative link in a class:
- * <a href="relative-class-link.html">relative class link</a>.
+/*
+ * @test
+ * @bug 8037934
+ * @summary Javac generates invalid signatures for local types
+ * @run main BadSigTest
  */
-public class C {
 
-    /**
-     * Here is a relative link in a field:\u0130
-     * <a href="relative-field-link.html">relative field link</a>.
-     */
-    public C field = null;
-
-    /**
-     * Here is a relative link in a method:
-     * <a href="relative-method-link.html">relative method link</a>.
-     */
-    public C method() { return null;}
-
-    /**
-     * Here is a relative link in a method:
-     * <a
-     * href="relative-multi-line-link.html">relative-multi-line-link</a>.
-     */
-    public C multipleLineTest() { return null;}
-
+public class BadSigTest<Outer> {
+    void m(){
+        class Local1{}
+        class Local2 extends Local1{}
+        Local2.class.getTypeParameters();
+    }
+    public static void main(String[] args) {
+        new BadSigTest().m();
+    }
 }
