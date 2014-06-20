@@ -97,6 +97,9 @@ define_pd_global(intx, InlineSmallCode,          1000);
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
 	     "Use acquire and release insns for volatile fields")
 
+// Don't attempt to use Neon on builtin sim until builtin sim supports it
+#define UseNeon false
+#define UseCRC32 false
 
 #else
 #define UseBuiltinSim		false
@@ -109,7 +112,11 @@ define_pd_global(intx, InlineSmallCode,          1000);
          "constant pool is close to instructions")			\
                                                                         \
   notproduct(bool, UseAcqRelForVolatileFields, false,			\
-	     "Use acquire and release insns for volatile fields")
+	     "Use acquire and release insns for volatile fields")       \
+  product(bool, UseNeon, false,                                         \
+          "Use Neon for CRC32 computation")                             \
+  product(bool, UseCRC32, false,                                        \
+          "Use CRC32 instructions for CRC32 computation")
 
 #endif
 

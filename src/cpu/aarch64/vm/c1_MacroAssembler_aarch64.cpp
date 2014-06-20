@@ -404,23 +404,12 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   // explicit NULL check not needed since load from [klass_offset] causes a trap
   // check against inline cache
   assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
-  int start_offset = offset();
 
-  load_klass(rscratch1, receiver);
-  cmp(rscratch1, iCache);
-
-  // if icache check fails, then jump to runtime routine
-  // Note: RECEIVER must still contain the receiver!
-  Label dont;
-  br(Assembler::EQ, dont);
-  b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-  bind(dont);
-  const int ic_cmp_size = 4 * 4;
-  assert(UseCompressedClassPointers || offset() - start_offset == ic_cmp_size, "check alignment in emit_method_entry");
+  cmp_klass(receiver, iCache, rscratch1);
 }
 
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
+void C1_MacroAssembler::build_frame(int framesize) {
   // If we have to make this method not-entrant we'll overwrite its
   // first instruction with a jump.  For this action to be legal we
   // must ensure that this first instruction is a B, BL, NOP, BKPT,
@@ -428,18 +417,15 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes) {
   nop();
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter().
-  generate_stack_overflow_check(frame_size_in_bytes);
-  enter();
-  sub(sp, sp, frame_size_in_bytes); // does not emit code for frame_size == 0
+  generate_stack_overflow_check(framesize);
+  MacroAssembler::build_frame(framesize + 2 * wordSize);
   if (NotifySimulator) {
     notify(Assembler::method_entry);
   }
 }
 
-
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
-  add(sp, sp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
-  ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+void C1_MacroAssembler::remove_frame(int framesize) {
+  MacroAssembler::remove_frame(framesize + 2 * wordSize);
   if (NotifySimulator) {
     notify(Assembler::method_reentry);
   }

@@ -1529,8 +1529,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver);
-  __ cmp(ic_reg, rscratch1);
+  __ cmp_klass(receiver, ic_reg, rscratch1);
   __ br(Assembler::EQ, hit);
 
   __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));

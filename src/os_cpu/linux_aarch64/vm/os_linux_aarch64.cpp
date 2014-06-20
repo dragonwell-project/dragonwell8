@@ -621,12 +621,12 @@ void os::print_context(outputStream *st, void *context) {
   st->cr();
 #else
   for (int r = 0; r < 31; r++)
-	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, uc->uc_mcontext.regs[r]);
+	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, (int64_t)uc->uc_mcontext.regs[r]);
 #endif
   st->cr();
 
   intptr_t *sp = (intptr_t *)os::Linux::ucontext_get_sp(uc);
-  st->print_cr("Top of Stack: (sp=" PTR_FORMAT ")", sp);
+  st->print_cr("Top of Stack: (sp=" PTR_FORMAT ")", p2i(sp));
   print_hex_dump(st, (address)sp, (address)(sp + 8*sizeof(intptr_t)), sizeof(intptr_t));
   st->cr();
 
@@ -634,7 +634,7 @@ void os::print_context(outputStream *st, void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", pc);
+  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
   print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
 }
 
@@ -671,7 +671,7 @@ void os::print_register_info(outputStream *st, void *context) {
   st->print("R15="); print_location(st, uc->uc_mcontext.gregs[REG_R15]);
 #else
   for (int r = 0; r < 31; r++)
-	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, uc->uc_mcontext.regs[r]);
+	  st->print_cr(  "R%d=" INTPTR_FORMAT, r, (int64_t)uc->uc_mcontext.regs[r]);
 #endif
   st->cr();
 }

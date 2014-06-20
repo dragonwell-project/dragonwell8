@@ -151,6 +151,10 @@ class MacroAssembler: public Assembler {
     strw(scratch, a);
   }
 
+  // Frame creation and destruction shared between JITs.
+  void build_frame(int framesize);
+  void remove_frame(int framesize);
+
   virtual void _call_Unimplemented(address call_site) {
     mov(rscratch2, call_site);
     haltsim();

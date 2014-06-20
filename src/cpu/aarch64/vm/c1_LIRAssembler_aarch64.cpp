@@ -290,23 +290,25 @@ void LIR_Assembler::osr_entry() {
 int LIR_Assembler::check_icache() {
   Register receiver = FrameMap::receiver_opr->as_register();
   Register ic_klass = IC_Klass;
-  const int ic_cmp_size = 4 * 4;
-  const bool do_post_padding = VerifyOops || UseCompressedClassPointers;
-  if (!do_post_padding) {
-    // insert some nops so that the verified entry point is aligned on CodeEntryAlignment
-    while ((__ offset() + ic_cmp_size) % CodeEntryAlignment != 0) {
-      __ nop();
-    }
-  }
-  int offset = __ offset();
-  __ inline_cache_check(receiver, IC_Klass);
-  assert(__ offset() % CodeEntryAlignment == 0 || do_post_padding, "alignment must be correct");
-  if (do_post_padding) {
+  int start_offset = __ offset();
+  __ inline_cache_check(receiver, ic_klass);
+
+  // if icache check fails, then jump to runtime routine
+  // Note: RECEIVER must still contain the receiver!
+  Label dont;
+  __ br(Assembler::EQ, dont);
+  __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+
+  // We align the verified entry point unless the method body
+  // (including its inline cache check) will fit in a single 64-byte
+  // icache line.
+  if (! method()->is_accessor() || __ offset() - start_offset > 4 * 4) {
     // force alignment after the cache check.
-    // It's been verified to be aligned if !VerifyOops
     __ align(CodeEntryAlignment);
   }
-  return offset;
+
+  __ bind(dont);
+  return start_offset;
 }
 
 

@@ -270,7 +270,7 @@ void frame::patch_pc(Thread* thread, address pc) {
   address* pc_addr = &(((address*) sp())[-1]);
   if (TracePcPatching) {
     tty->print_cr("patch_pc at address " INTPTR_FORMAT " [" INTPTR_FORMAT " -> " INTPTR_FORMAT "]",
-                  pc_addr, *pc_addr, pc);
+                  p2i(pc_addr), p2i(*pc_addr), p2i(pc));
   }
   // Either the return address is the original one or we are going to
   // patch in the same address that's already there.

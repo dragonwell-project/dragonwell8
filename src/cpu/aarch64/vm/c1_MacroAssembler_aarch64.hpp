@@ -102,20 +102,6 @@ void zero_memory(Register addr, Register len, Register t1);
   int  rsp_offset() const { return _rsp_offset; }
   void set_rsp_offset(int n) { _rsp_offset = n; }
 
-  // Note: NEVER push values directly, but only through following push_xxx functions;
-  //       This helps us to track the rsp changes compared to the entry rsp (->_rsp_offset)
-
-  void push_jint (jint i)     { Unimplemented(); }
-  void push_oop  (jobject o)  { Unimplemented(); }
-  // Seems to always be in wordSize
-  void push_addr (Address a)  { Unimplemented(); }
-  void push_reg  (Register r) { Unimplemented(); }
-  void pop_reg   (Register r) { Unimplemented(); }
-
-  void dec_stack (int nof_words) { Unimplemented(); }
-
-  void dec_stack_after_call (int nof_words) { Unimplemented(); }
-
   void invalidate_registers(bool inv_r0, bool inv_r19, bool inv_r2, bool inv_r3, bool inv_r4, bool inv_r5) PRODUCT_RETURN;
 
 #endif // CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
