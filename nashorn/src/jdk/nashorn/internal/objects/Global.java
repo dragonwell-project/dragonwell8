@@ -1908,8 +1908,8 @@ public final class Global extends ScriptObject implements Scope {
 
         // ES6 draft compliant __proto__ property of Object.prototype
         // accessors on Object.prototype for "__proto__"
-        final ScriptFunction getProto = ScriptFunctionImpl.makeFunction("getProto", ScriptObject.GETPROTO);
-        final ScriptFunction setProto = ScriptFunctionImpl.makeFunction("setProto", ScriptObject.SETPROTOCHECK);
+        final ScriptFunction getProto = ScriptFunctionImpl.makeFunction("getProto", NativeObject.GET__PROTO__);
+        final ScriptFunction setProto = ScriptFunctionImpl.makeFunction("setProto", NativeObject.SET__PROTO__);
         ObjectPrototype.addOwnProperty("__proto__", Attribute.NOT_ENUMERABLE, getProto, setProto);
 
 

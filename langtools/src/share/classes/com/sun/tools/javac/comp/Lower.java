@@ -82,6 +82,7 @@ public class Lower extends TreeTranslator {
     private ConstFold cfolder;
     private Target target;
     private Source source;
+    private final TypeEnvs typeEnvs;
     private boolean allowEnums;
     private final Name dollarAssertionsDisabled;
     private final Name classDollar;
@@ -103,6 +104,7 @@ public class Lower extends TreeTranslator {
         cfolder = ConstFold.instance(context);
         target = Target.instance(context);
         source = Source.instance(context);
+        typeEnvs = TypeEnvs.instance(context);
         allowEnums = source.allowEnums();
         dollarAssertionsDisabled = names.
             fromString(target.syntheticNameChar() + "assertionsDisabled");
@@ -2452,10 +2454,16 @@ public class Lower extends TreeTranslator {
     }
 
     public void visitClassDef(JCClassDecl tree) {
+        Env<AttrContext> prevEnv = attrEnv;
         ClassSymbol currentClassPrev = currentClass;
         MethodSymbol currentMethodSymPrev = currentMethodSym;
+
         currentClass = tree.sym;
         currentMethodSym = null;
+        attrEnv = typeEnvs.remove(currentClass);
+        if (attrEnv == null)
+            attrEnv = prevEnv;
+
         classdefs.put(currentClass, tree);
 
         proxies = proxies.dup(currentClass);
@@ -2527,6 +2535,7 @@ public class Lower extends TreeTranslator {
         // Append translated tree to `translated' queue.
         translated.append(tree);
 
+        attrEnv = prevEnv;
         currentClass = currentClassPrev;
         currentMethodSym = currentMethodSymPrev;
 

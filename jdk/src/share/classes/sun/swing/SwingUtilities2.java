@@ -2041,4 +2041,11 @@ public class SwingUtilities2 {
         }
         return path;
     }
+
+    /**
+     * Used to listen to "blit" repaints in RepaintManager.
+     */
+    public interface RepaintListener {
+        void repaintPerformed(JComponent c, int x, int y, int w, int h);
+    }
 }

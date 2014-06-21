@@ -42,8 +42,6 @@ import java.lang.annotation.Native;
  * <p>
  * When a security manager is installed, a {@link NetworkPermission}
  * is required to set or get this option.
- *
- * @since 1.9
  */
 @jdk.Exported
 public class SocketFlow {
@@ -65,8 +63,6 @@ public class SocketFlow {
      * socket option. Both setting and getting the option return
      * one of these statuses, which reflect the state of socket's
      * flow.
-     *
-     * @since 1.9
      */
     @jdk.Exported
     public enum Status {

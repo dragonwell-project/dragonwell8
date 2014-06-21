@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.util.Set;
 import javax.lang.model.element.Modifier;
 
 import com.sun.tools.javac.util.Assert;
+import com.sun.tools.javac.util.StringUtils;
 
 /** Access flags and other modifiers for Java classes and members.
  *
@@ -275,6 +276,11 @@ public class Flags {
      */
     public static final long LAMBDA_METHOD = 1L<<49;
 
+    /**
+     * Flag to control recursion in TransTypes
+     */
+    public static final long TYPE_TRANSLATED = 1L<<50;
+
     /** Modifier masks.
      */
     public static final int
@@ -294,7 +300,8 @@ public class Flags {
         ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
         InterfaceMethodMask         = ABSTRACT | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
-        LocalVarFlags               = FINAL | PARAMETER;
+        LocalVarFlags               = FINAL | PARAMETER,
+        ReceiverParamFlags          = PARAMETER;
 
 
     public static Set<Modifier> asModifierSet(long flags) {
@@ -384,11 +391,12 @@ public class Flags {
         BAD_OVERRIDE(Flags.BAD_OVERRIDE),
         SIGNATURE_POLYMORPHIC(Flags.SIGNATURE_POLYMORPHIC),
         THROWS(Flags.THROWS),
-        LAMBDA_METHOD(Flags.LAMBDA_METHOD);
+        LAMBDA_METHOD(Flags.LAMBDA_METHOD),
+        TYPE_TRANSLATED(Flags.TYPE_TRANSLATED);
 
         Flag(long flag) {
             this.value = flag;
-            this.lowercaseName = name().toLowerCase();
+            this.lowercaseName = StringUtils.toLowerCase(name());
         }
 
         @Override

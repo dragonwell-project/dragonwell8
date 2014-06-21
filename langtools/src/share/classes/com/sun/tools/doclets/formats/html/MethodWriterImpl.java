@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import com.sun.javadoc.*;
 import com.sun.tools.doclets.formats.html.markup.*;
 import com.sun.tools.doclets.internal.toolkit.*;
 import com.sun.tools.doclets.internal.toolkit.util.*;
+import com.sun.tools.javac.util.StringUtils;
 
 /**
  * Writes method documentation in HTML format.
@@ -327,24 +328,6 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
             dd.addContent(writer.getSpace());
             dd.addContent(codeOverridenTypeLink);
             dl.addContent(dd);
-        }
-    }
-
-    /**
-     * Parse the &lt;Code&gt; tag and return the text.
-     */
-    protected String parseCodeTag(String tag){
-        if(tag == null){
-            return "";
-        }
-
-        String lc = tag.toLowerCase();
-        int begin = lc.indexOf("<code>");
-        int end = lc.indexOf("</code>");
-        if(begin == -1 || end == -1 || end <= begin){
-            return tag;
-        } else {
-            return tag.substring(begin + 6, end);
         }
     }
 

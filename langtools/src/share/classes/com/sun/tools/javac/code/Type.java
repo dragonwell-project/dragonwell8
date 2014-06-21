@@ -72,13 +72,28 @@ import static com.sun.tools.javac.code.TypeTag.*;
 public abstract class Type extends AnnoConstruct implements TypeMirror {
 
     /** Constant type: no type at all. */
-    public static final JCNoType noType = new JCNoType();
+    public static final JCNoType noType = new JCNoType() {
+        @Override
+        public String toString() {
+            return "none";
+        }
+    };
 
     /** Constant type: special type to be used during recovery of deferred expressions. */
-    public static final JCNoType recoveryType = new JCNoType();
+    public static final JCNoType recoveryType = new JCNoType(){
+        @Override
+        public String toString() {
+            return "recovery";
+        }
+    };
 
     /** Constant type: special type to be used for marking stuck trees. */
-    public static final JCNoType stuckType = new JCNoType();
+    public static final JCNoType stuckType = new JCNoType() {
+        @Override
+        public String toString() {
+            return "stuck";
+        }
+    };
 
     /** If this switch is turned on, the names of type variables
      *  and anonymous classes are printed with hashcodes appended.
@@ -1642,9 +1657,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             if (update) {
                 //only change bounds if request comes from substBounds
                 super.addBound(ib, bound, types, update);
-            }
-            else if (bound.hasTag(UNDETVAR) && !((UndetVar) bound).isCaptured()) {
-                ((UndetVar) bound).addBound(ib.complement(), this, types, false);
             }
         }
 
