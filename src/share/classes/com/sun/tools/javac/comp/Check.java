@@ -1038,7 +1038,9 @@ public class Check {
 
         switch (sym.kind) {
         case VAR:
-            if (sym.owner.kind != TYP)
+            if (TreeInfo.isReceiverParam(tree))
+                mask = ReceiverParamFlags;
+            else if (sym.owner.kind != TYP)
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
@@ -2677,7 +2679,7 @@ public class Check {
                 checkClassBounds(pos, seensofar, it);
             }
             Type st = types.supertype(type);
-            if (st != null) checkClassBounds(pos, seensofar, st);
+            if (st != Type.noType) checkClassBounds(pos, seensofar, st);
         }
 
     /** Enter interface into into set.
