@@ -41,7 +41,7 @@ environmentBlock9x(JNIEnv *env)
     CHECK_NULL_RETURN(string_class, NULL);
     String_init_ID =
         (*env)->GetMethodID(env, string_class, "<init>", "([B)V");
-    CHECK_NULL_RETURN(String_init_ID);
+    CHECK_NULL_RETURN(String_init_ID, NULL);
     blockA = (jbyte *) GetEnvironmentStringsA();
     if (blockA == NULL) {
         /* Both GetEnvironmentStringsW and GetEnvironmentStringsA
