@@ -3004,6 +3004,7 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   // profile this call
   __ profile_final_call(r0);
+  __ profile_arguments_type(r0, method, r4, true);
 
   __ jump_from_interpreted(method, r0);
 
@@ -3018,6 +3019,7 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   // get target methodOop & entry point
   __ lookup_virtual_method(r0, index, method);
+  __ profile_arguments_type(r3, method, r4, true);
   // FIXME -- this looks completely redundant. is it?
   // __ ldr(r3, Address(method, Method::interpreter_entry_offset()));
   __ jump_from_interpreted(method, r3);
@@ -3048,6 +3050,7 @@ void TemplateTable::invokespecial(int byte_no)
   __ null_check(r2);
   // do the call
   __ profile_call(r0);
+  __ profile_arguments_type(r0, rmethod, rbcp, false);
   __ jump_from_interpreted(rmethod, r0);
 }
 
@@ -3059,6 +3062,7 @@ void TemplateTable::invokestatic(int byte_no)
   prepare_invoke(byte_no, rmethod);  // get f1 Method*
   // do the call
   __ profile_call(r0);
+  __ profile_arguments_type(r0, rmethod, r4, false);
   __ jump_from_interpreted(rmethod, r0);
 }
 
@@ -3113,6 +3117,8 @@ void TemplateTable::invokeinterface(int byte_no) {
   //       method.
   __ cbz(rmethod, no_such_method);
 
+  __ profile_arguments_type(r3, rmethod, r13, true);
+
   // do the call
   // r2: receiver
   // rmethod,: methodOop
@@ -3162,6 +3168,7 @@ void TemplateTable::invokehandle(int byte_no) {
   // r13 is safe to use here as a scratch reg because it is about to
   // be clobbered by jump_from_interpreted().
   __ profile_final_call(r13);
+  __ profile_arguments_type(r13, rmethod, r4, true);
 
   __ jump_from_interpreted(rmethod, r0);
 }
@@ -3191,6 +3198,7 @@ void TemplateTable::invokedynamic(int byte_no) {
   // %%% should make a type profile for any invokedynamic that takes a ref argument
   // profile this call
   __ profile_call(rbcp);
+  __ profile_arguments_type(r3, rmethod, r13, false);
 
   __ verify_oop(r0);
 

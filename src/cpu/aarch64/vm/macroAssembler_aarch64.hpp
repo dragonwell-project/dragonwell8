@@ -1054,6 +1054,15 @@ public:
   void xorptr(Register dst, Address src) { Unimplemented(); }
 #endif
 
+  void orptr(Address adr, RegisterOrConstant src) {
+    ldr(rscratch2, adr);
+    if (src.is_register())
+      orr(rscratch2, rscratch2, src.as_register());
+    else
+      orr(rscratch2, rscratch2, src.as_constant());
+    str(rscratch2, adr);
+  }
+
   // Calls
 
   // void call(Label& L, relocInfo::relocType rtype);

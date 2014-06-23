@@ -263,6 +263,11 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_switch_case(Register index_in_scratch, Register mdp,
                            Register scratch2);
 
+  void profile_obj_type(Register obj, const Address& mdo_addr);
+  void profile_arguments_type(Register mdp, Register callee, Register tmp, bool is_virtual);
+  void profile_return_type(Register mdp, Register ret, Register tmp);
+  void profile_parameters_type(Register mdp, Register tmp1, Register tmp2);
+
   // Debugging
   // only if +VerifyOops && state == atos
   void verify_oop(Register reg, TosState state = atos);

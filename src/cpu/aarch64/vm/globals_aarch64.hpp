@@ -72,7 +72,7 @@ define_pd_global(bool, UseMembar,            true);
 // GC Ergo Flags
 define_pd_global(uintx, CMSYoungGenPerWorker, 64*M);  // default max size of CMS young gen, per GC worker thread
 
-define_pd_global(uintx, TypeProfileLevel, 0);
+define_pd_global(uintx, TypeProfileLevel, 111);
 
 #if defined(COMPILER1) || defined(COMPILER2)
 define_pd_global(intx, InlineSmallCode,          1000);
