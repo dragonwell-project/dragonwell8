@@ -34,8 +34,7 @@ import javax.xml.validation.Schema;
  * @author <a href="mailto:Jeff.Suttor@Sun.com">Jeff Suttor</a>
  * @author <a href="mailto:Neeraj.Bajaj@sun.com">Neeraj Bajaj</a>
  *
- * @version $Revision: 1.9 $, $Date: 2010/05/25 16:19:44 $
-
+ * @since 1.4
  */
 
 public abstract class DocumentBuilderFactory {

@@ -98,7 +98,6 @@ import com.sun.org.apache.xerces.internal.util.DatatypeMessageFormatter;
  *
  * @author <a href="mailto:Kohsuke.Kawaguchi@Sun.com">Kohsuke Kawaguchi</a>
  * @author <a href="mailto:Joseph.Fialli@Sun.com">Joseph Fialli</a>
- * @version $Revision: 1.8 $, $Date: 2010/05/19 23:20:06 $
 
  * @see XMLGregorianCalendar#add(Duration)
  */
