@@ -68,7 +68,6 @@ import com.sun.xml.internal.stream.Entity;
  * @author Eric Ye, IBM
  * @author K.Venugopal SUN Microsystems
  * @author Sunitha Reddy, SUN Microsystems
- * @version $Id: XMLScanner.java,v 1.12 2010-11-01 04:39:41 joehw Exp $
  * @LastModified: Feb 2020
  */
 public abstract class XMLScanner
