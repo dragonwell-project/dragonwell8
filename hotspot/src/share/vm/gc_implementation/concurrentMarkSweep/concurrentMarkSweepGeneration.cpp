@@ -49,7 +49,7 @@
 #include "memory/genCollectedHeap.hpp"
 #include "memory/genMarkSweep.hpp"
 #include "memory/genOopClosures.inline.hpp"
-#include "memory/iterator.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/padded.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/resourceArea.hpp"
@@ -3098,7 +3098,7 @@ void CMSCollector::verify_after_remark_work_2() {
   // Mark from roots one level into CMS
   MarkRefsIntoVerifyClosure notOlder(_span, verification_mark_bm(),
                                      markBitMap());
-  CMKlassClosure klass_closure(&notOlder);
+  KlassToOopClosure klass_closure(&notOlder);
 
   gch->rem_set()->prepare_for_younger_refs_iterate(false); // Not parallel.
   gch->gen_process_strong_roots(_cmsGen->level(),
@@ -3719,7 +3719,7 @@ void CMSCollector::checkpointRootsInitialWork(bool asynch) {
       gch->set_par_threads(0);
     } else {
       // The serial version.
-      CMKlassClosure klass_closure(&notOlder);
+      KlassToOopClosure klass_closure(&notOlder);
       gch->rem_set()->prepare_for_younger_refs_iterate(false); // Not parallel.
       gch->gen_process_strong_roots(_cmsGen->level(),
                                     true,   // younger gens are roots
@@ -4181,7 +4181,7 @@ void CMSConcMarkingTask::do_scan_and_mark(int i, CompactibleFreeListSpace* sp) {
   pst->all_tasks_completed();
 }
 
-class Par_ConcMarkingClosure: public CMSOopClosure {
+class Par_ConcMarkingClosure: public MetadataAwareOopClosure {
  private:
   CMSCollector* _collector;
   CMSConcMarkingTask* _task;
@@ -4194,7 +4194,7 @@ class Par_ConcMarkingClosure: public CMSOopClosure {
  public:
   Par_ConcMarkingClosure(CMSCollector* collector, CMSConcMarkingTask* task, OopTaskQueue* work_queue,
                          CMSBitMap* bit_map, CMSMarkStack* overflow_stack):
-    CMSOopClosure(collector->ref_processor()),
+    MetadataAwareOopClosure(collector->ref_processor()),
     _collector(collector),
     _task(task),
     _span(collector->_span),
@@ -4965,7 +4965,7 @@ size_t CMSCollector::preclean_card_table(ConcurrentMarkSweepGeneration* gen,
 }
 
 class PrecleanKlassClosure : public KlassClosure {
-  CMKlassClosure _cm_klass_closure;
+  KlassToOopClosure _cm_klass_closure;
  public:
   PrecleanKlassClosure(OopClosure* oop_closure) : _cm_klass_closure(oop_closure) {}
   void do_klass(Klass* k) {
@@ -5203,7 +5203,7 @@ void CMSParInitialMarkTask::work(uint worker_id) {
   _timer.start();
   GenCollectedHeap* gch = GenCollectedHeap::heap();
   Par_MarkRefsIntoClosure par_mri_cl(_collector->_span, &(_collector->_markBitMap));
-  CMKlassClosure klass_closure(&par_mri_cl);
+  KlassToOopClosure klass_closure(&par_mri_cl);
 
   // ---------- young gen roots --------------
   {
@@ -5277,7 +5277,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
 };
 
 class RemarkKlassClosure : public KlassClosure {
-  CMKlassClosure _cm_klass_closure;
+  KlassToOopClosure _cm_klass_closure;
  public:
   RemarkKlassClosure(OopClosure* oop_closure) : _cm_klass_closure(oop_closure) {}
   void do_klass(Klass* k) {
@@ -7716,7 +7716,7 @@ PushAndMarkVerifyClosure::PushAndMarkVerifyClosure(
   CMSCollector* collector, MemRegion span,
   CMSBitMap* verification_bm, CMSBitMap* cms_bm,
   CMSMarkStack*  mark_stack):
-  CMSOopClosure(collector->ref_processor()),
+  MetadataAwareOopClosure(collector->ref_processor()),
   _collector(collector),
   _span(span),
   _verification_bm(verification_bm),
@@ -7769,7 +7769,7 @@ PushOrMarkClosure::PushOrMarkClosure(CMSCollector* collector,
                      MemRegion span,
                      CMSBitMap* bitMap, CMSMarkStack*  markStack,
                      HeapWord* finger, MarkFromRootsClosure* parent) :
-  CMSOopClosure(collector->ref_processor()),
+  MetadataAwareOopClosure(collector->ref_processor()),
   _collector(collector),
   _span(span),
   _bitMap(bitMap),
@@ -7786,7 +7786,7 @@ Par_PushOrMarkClosure::Par_PushOrMarkClosure(CMSCollector* collector,
                      HeapWord* finger,
                      HeapWord** global_finger_addr,
                      Par_MarkFromRootsClosure* parent) :
-  CMSOopClosure(collector->ref_processor()),
+  MetadataAwareOopClosure(collector->ref_processor()),
   _collector(collector),
   _whole_span(collector->_span),
   _span(span),
@@ -7833,11 +7833,6 @@ void Par_PushOrMarkClosure::handle_stack_overflow(HeapWord* lost) {
   _collector->lower_restart_addr(ra);
   _overflow_stack->reset();  // discard stack contents
   _overflow_stack->expand(); // expand the stack if possible
-}
-
-void CMKlassClosure::do_klass(Klass* k) {
-  assert(_oop_closure != NULL, "Not initialized?");
-  k->oops_do(_oop_closure);
 }
 
 void PushOrMarkClosure::do_oop(oop obj) {
@@ -7937,7 +7932,7 @@ PushAndMarkClosure::PushAndMarkClosure(CMSCollector* collector,
                                        CMSBitMap* mod_union_table,
                                        CMSMarkStack*  mark_stack,
                                        bool           concurrent_precleaning):
-  CMSOopClosure(rp),
+  MetadataAwareOopClosure(rp),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
@@ -8010,7 +8005,7 @@ Par_PushAndMarkClosure::Par_PushAndMarkClosure(CMSCollector* collector,
                                                ReferenceProcessor* rp,
                                                CMSBitMap* bit_map,
                                                OopTaskQueue* work_queue):
-  CMSOopClosure(rp),
+  MetadataAwareOopClosure(rp),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
