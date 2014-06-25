@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      6227616
+ * @bug      6227616 8043186
  * @summary  Test the new -top option.
  * @author   jamieh
  * @library  ../lib/
@@ -39,7 +39,7 @@ public class TestTopOption extends JavadocTester {
 
     //Javadoc arguments.
     private static final String[] ARGS = new String[] {
-        "-overview", "SRC_DIR + FS + overview.html", "-use", "-top", "TOP TEXT", "-d", BUG_ID, "-sourcepath",
+        "-overview", SRC_DIR + FS + "overview.html", "-use", "-top", "\u0130{@docroot}TOP TEXT", "-d", BUG_ID, "-sourcepath",
         SRC_DIR, "pkg"
     };
 
