@@ -57,8 +57,6 @@ import java.security.BasicPermission;
  * </tr></table>
  *
  * @see jdk.net.ExtendedSocketOptions
- *
- * @since 1.9
  */
 
 @jdk.Exported
