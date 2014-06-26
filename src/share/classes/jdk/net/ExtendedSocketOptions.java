@@ -31,8 +31,6 @@ import java.net.SocketOption;
  * Defines extended socket options, beyond those defined in
  * {@link java.net.StandardSocketOptions}. These options may be platform
  * specific.
- *
- * @since 1.9
  */
 @jdk.Exported
 public final class ExtendedSocketOptions {
