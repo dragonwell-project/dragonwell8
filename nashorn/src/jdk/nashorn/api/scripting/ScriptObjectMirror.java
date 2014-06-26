@@ -496,7 +496,7 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
     public void setProto(final Object proto) {
         inGlobal(new Callable<Void>() {
             @Override public Void call() {
-                sobj.setProtoCheck(unwrap(proto, global));
+                sobj.setPrototypeOf(unwrap(proto, global));
                 return null;
             }
         });
@@ -621,6 +621,7 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
     /**
      * Utilitity to convert this script object to the given type.
      *
+     * @param <T> destination type to convert to
      * @param type destination type to convert to
      * @return converted object
      */
