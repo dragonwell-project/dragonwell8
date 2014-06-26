@@ -3676,8 +3676,8 @@ public abstract class JComponent extends Container implements Serializable,
         private volatile transient int propertyListenersCount = 0;
 
         /**
-         * This field duplicates the one in java.awt.Component.AccessibleAWTComponent,
-         * so it has been deprecated.
+         * This field duplicates the function of the accessibleAWTFocusHandler field
+         * in java.awt.Component.AccessibleAWTComponent, so it has been deprecated.
          */
         @Deprecated
         protected FocusListener accessibleFocusHandler = null;
@@ -3735,14 +3735,10 @@ public abstract class JComponent extends Container implements Serializable,
          * @param listener  the PropertyChangeListener to be added
          */
         public void addPropertyChangeListener(PropertyChangeListener listener) {
-            if (accessibleFocusHandler == null) {
-                accessibleFocusHandler = new AccessibleFocusHandler();
-            }
             if (accessibleContainerHandler == null) {
                 accessibleContainerHandler = new AccessibleContainerHandler();
             }
             if (propertyListenersCount++ == 0) {
-                JComponent.this.addFocusListener(accessibleFocusHandler);
                 JComponent.this.addContainerListener(accessibleContainerHandler);
             }
             super.addPropertyChangeListener(listener);
@@ -3757,7 +3753,6 @@ public abstract class JComponent extends Container implements Serializable,
          */
         public void removePropertyChangeListener(PropertyChangeListener listener) {
             if (--propertyListenersCount == 0) {
-                JComponent.this.removeFocusListener(accessibleFocusHandler);
                 JComponent.this.removeContainerListener(accessibleContainerHandler);
             }
             super.removePropertyChangeListener(listener);
