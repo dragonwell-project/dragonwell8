@@ -25,6 +25,8 @@
 
 package com.sun.tools.doclets.formats.html.markup;
 
+import com.sun.tools.javac.util.StringUtils;
+
 /**
  * Enum representing HTML tag attributes.
  *
@@ -64,7 +66,7 @@ public enum HtmlAttr {
     private final String value;
 
     HtmlAttr() {
-        this.value = name().toLowerCase();
+        this.value = StringUtils.toLowerCase(name());
     }
 
     HtmlAttr(String name) {

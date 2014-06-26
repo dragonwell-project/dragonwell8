@@ -94,6 +94,7 @@ public class Attr extends JCTree.Visitor {
     final Annotate annotate;
     final TypeAnnotations typeAnnotations;
     final DeferredLintHandler deferredLintHandler;
+    final TypeEnvs typeEnvs;
 
     public static Attr instance(Context context) {
         Attr instance = context.get(attrKey);
@@ -123,6 +124,7 @@ public class Attr extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         typeAnnotations = TypeAnnotations.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
+        typeEnvs = TypeEnvs.instance(context);
 
         Options options = Options.instance(context);
 
@@ -138,6 +140,7 @@ public class Attr extends JCTree.Visitor {
         allowTypeAnnos = source.allowTypeAnnotations();
         allowLambda = source.allowLambda();
         allowDefaultMethods = source.allowDefaultMethods();
+        allowStaticInterfaceMethods = source.allowStaticInterfaceMethods();
         sourceName = source.name;
         relax = (options.isSet("-retrofit") ||
                  options.isSet("-relax"));
@@ -194,6 +197,10 @@ public class Attr extends JCTree.Visitor {
     /** Switch: support default methods ?
      */
     boolean allowDefaultMethods;
+
+    /** Switch: static interface methods enabled?
+     */
+    boolean allowStaticInterfaceMethods;
 
     /** Switch: allow references to surrounding object from anonymous
      * objects during constructor call?
@@ -427,7 +434,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public Type attribType(JCTree node, TypeSymbol sym) {
-        Env<AttrContext> env = enter.typeEnvs.get(sym);
+        Env<AttrContext> env = typeEnvs.get(sym);
         Env<AttrContext> localEnv = env.dup(node, env.info.dup());
         return attribTree(node, localEnv, unknownTypeInfo);
     }
@@ -2056,7 +2063,7 @@ public class Attr extends JCTree.Visitor {
                 tree.constructor = constructor.baseSymbol();
 
                 final TypeSymbol csym = clazztype.tsym;
-                ResultInfo diamondResult = new ResultInfo(MTH, newMethodTemplate(resultInfo.pt, argtypes, typeargtypes), new Check.NestedCheckContext(resultInfo.checkContext) {
+                ResultInfo diamondResult = new ResultInfo(pkind, newMethodTemplate(resultInfo.pt, argtypes, typeargtypes), new Check.NestedCheckContext(resultInfo.checkContext) {
                     @Override
                     public void report(DiagnosticPosition _unused, JCDiagnostic details) {
                         enclosingContext.report(tree.clazz,
@@ -2961,10 +2968,19 @@ public class Attr extends JCTree.Visitor {
             if (checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK &&
                     pt != Type.recoveryType) {
                 //check that functional interface class is well-formed
-                ClassSymbol csym = types.makeFunctionalInterfaceClass(env,
-                        names.empty, List.of(fExpr.targets.head), ABSTRACT);
-                if (csym != null) {
-                    chk.checkImplementations(env.tree, csym, csym);
+                try {
+                    /* Types.makeFunctionalInterfaceClass() may throw an exception
+                     * when it's executed post-inference. See the listener code
+                     * above.
+                     */
+                    ClassSymbol csym = types.makeFunctionalInterfaceClass(env,
+                            names.empty, List.of(fExpr.targets.head), ABSTRACT);
+                    if (csym != null) {
+                        chk.checkImplementations(env.tree, csym, csym);
+                    }
+                } catch (Types.FunctionDescriptorLookupError ex) {
+                    JCDiagnostic cause = ex.getDiagnostic();
+                    resultInfo.checkContext.report(env.tree, cause);
                 }
             }
         }
@@ -3322,6 +3338,10 @@ public class Attr extends JCTree.Visitor {
                     rs.accessBase(rs.new StaticError(sym),
                               tree.pos(), site, sym.name, true);
                 }
+            }
+            if (!allowStaticInterfaceMethods && sitesym.isInterface() &&
+                    sym.isStatic() && sym.kind == MTH) {
+                log.error(tree.pos(), "static.intf.method.invoke.not.supported.in.source", sourceName);
             }
         } else if (sym.kind != ERR && (sym.flags() & STATIC) != 0 && sym.name != names._class) {
             // If the qualified item is not a type and the selected item is static, report
@@ -4042,7 +4062,7 @@ public class Attr extends JCTree.Visitor {
             // ... and attribute the bound class
             c.flags_field |= UNATTRIBUTED;
             Env<AttrContext> cenv = enter.classEnv(cd, env);
-            enter.typeEnvs.put(c, cenv);
+            typeEnvs.put(c, cenv);
             attribClass(c);
             return owntype;
         }
@@ -4192,9 +4212,9 @@ public class Attr extends JCTree.Visitor {
             c.flags_field &= ~UNATTRIBUTED;
 
             // Get environment current at the point of class definition.
-            Env<AttrContext> env = enter.typeEnvs.get(c);
+            Env<AttrContext> env = typeEnvs.get(c);
 
-            // The info.lint field in the envs stored in enter.typeEnvs is deliberately uninitialized,
+            // The info.lint field in the envs stored in typeEnvs is deliberately uninitialized,
             // because the annotations were not available at the time the env was created. Therefore,
             // we look up the environment chain for the first enclosing environment for which the
             // lint value is set. Typically, this is the parent env, but might be further if there
