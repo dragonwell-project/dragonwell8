@@ -30,6 +30,7 @@
 #include "gc_implementation/g1/heapRegion.inline.hpp"
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
 #include "gc_implementation/g1/heapRegionSeq.inline.hpp"
+#include "gc_implementation/shared/liveRange.hpp"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/space.inline.hpp"
@@ -60,7 +61,7 @@ HeapWord* walk_mem_region_loop(ClosureType* cl, G1CollectedHeap* g1h,
                                HeapRegion* hr,
                                HeapWord* cur, HeapWord* top) {
   oop cur_oop = oop(cur);
-  int oop_size = cur_oop->size();
+  size_t oop_size = hr->block_size(cur);
   HeapWord* next_obj = cur + oop_size;
   while (next_obj < top) {
     // Keep filtering the remembered set.
@@ -71,7 +72,7 @@ HeapWord* walk_mem_region_loop(ClosureType* cl, G1CollectedHeap* g1h,
     }
     cur = next_obj;
     cur_oop = oop(cur);
-    oop_size = cur_oop->size();
+    oop_size = hr->block_size(cur);
     next_obj = cur + oop_size;
   }
   return cur;
@@ -81,7 +82,7 @@ void HeapRegionDCTOC::walk_mem_region(MemRegion mr,
                                       HeapWord* bottom,
                                       HeapWord* top) {
   G1CollectedHeap* g1h = _g1;
-  int oop_size;
+  size_t oop_size;
   ExtendedOopClosure* cl2 = NULL;
 
   FilterIntoCSClosure intoCSFilt(this, g1h, _cl);
@@ -101,7 +102,7 @@ void HeapRegionDCTOC::walk_mem_region(MemRegion mr,
   if (!g1h->is_obj_dead(oop(bottom), _hr)) {
     oop_size = oop(bottom)->oop_iterate(cl2, mr);
   } else {
-    oop_size = oop(bottom)->size();
+    oop_size = _hr->block_size(bottom);
   }
 
   bottom += oop_size;
@@ -452,7 +453,7 @@ HeapRegion::object_iterate_mem_careful(MemRegion mr,
     if (cl->abort()) return cur;
     // The check above must occur before the operation below, since an
     // abort might invalidate the "size" operation.
-    cur += obj->size();
+    cur += block_size(cur);
   }
   return NULL;
 }
@@ -524,7 +525,7 @@ oops_on_card_seq_iterate_careful(MemRegion mr,
       return cur;
     }
     // Otherwise...
-    next = (cur + obj->size());
+    next = cur + block_size(cur);
   }
 
   // If we finish the above loop...We have a parseable object that
@@ -532,10 +533,9 @@ oops_on_card_seq_iterate_careful(MemRegion mr,
   // inside or spans the entire region.
 
   assert(obj == oop(cur), "sanity");
-  assert(cur <= start &&
-         obj->klass_or_null() != NULL &&
-         (cur + obj->size()) > start,
-         "Loop postcondition");
+  assert(cur <= start, "Loop postcondition");
+  assert(obj->klass_or_null() != NULL, "Loop postcondition");
+  assert((cur + block_size(cur)) > start, "Loop postcondition");
 
   if (!g1h->is_obj_dead(obj)) {
     obj->oop_iterate(cl, mr);
@@ -549,7 +549,7 @@ oops_on_card_seq_iterate_careful(MemRegion mr,
     };
 
     // Otherwise:
-    next = (cur + obj->size());
+    next = cur + block_size(cur);
 
     if (!g1h->is_obj_dead(obj)) {
       if (next < end || !obj->is_objArray()) {
@@ -904,7 +904,7 @@ void HeapRegion::verify(VerifyOption vo,
   size_t object_num = 0;
   while (p < top()) {
     oop obj = oop(p);
-    size_t obj_size = obj->size();
+    size_t obj_size = block_size(p);
     object_num += 1;
 
     if (is_humongous != g1->isHumongous(obj_size)) {
@@ -1040,7 +1040,9 @@ void HeapRegion::verify() const {
 // away eventually.
 
 void G1OffsetTableContigSpace::clear(bool mangle_space) {
-  ContiguousSpace::clear(mangle_space);
+  set_top(bottom());
+  set_saved_mark_word(bottom());
+  CompactibleSpace::clear(mangle_space);
   _offsets.zero_bottom_entry();
   _offsets.initialize_threshold();
 }
@@ -1078,7 +1080,7 @@ HeapWord* G1OffsetTableContigSpace::saved_mark_word() const {
   if (_gc_time_stamp < g1h->get_gc_time_stamp())
     return top();
   else
-    return ContiguousSpace::saved_mark_word();
+    return Space::saved_mark_word();
 }
 
 void G1OffsetTableContigSpace::record_top_and_timestamp() {
@@ -1093,7 +1095,7 @@ void G1OffsetTableContigSpace::record_top_and_timestamp() {
     // of region. If it does so after _gc_time_stamp = ..., then it
     // will pick up the right saved_mark_word() as the high water mark
     // of the region. Either way, the behaviour will be correct.
-    ContiguousSpace::set_saved_mark();
+    Space::set_saved_mark_word(top());
     OrderAccess::storestore();
     _gc_time_stamp = curr_gc_time_stamp;
     // No need to do another barrier to flush the writes above. If
@@ -1104,6 +1106,26 @@ void G1OffsetTableContigSpace::record_top_and_timestamp() {
   }
 }
 
+void G1OffsetTableContigSpace::safe_object_iterate(ObjectClosure* blk) {
+  object_iterate(blk);
+}
+
+void G1OffsetTableContigSpace::object_iterate(ObjectClosure* blk) {
+  HeapWord* p = bottom();
+  while (p < top()) {
+    if (block_is_obj(p)) {
+      blk->do_object(oop(p));
+    }
+    p += block_size(p);
+  }
+}
+
+#define block_is_always_obj(q) true
+void G1OffsetTableContigSpace::prepare_for_compaction(CompactPoint* cp) {
+  SCAN_AND_FORWARD(cp, top, block_is_always_obj, block_size);
+}
+#undef block_is_always_obj
+
 G1OffsetTableContigSpace::
 G1OffsetTableContigSpace(G1BlockOffsetSharedArray* sharedOffsetArray,
                          MemRegion mr) :
@@ -1113,7 +1135,8 @@ G1OffsetTableContigSpace(G1BlockOffsetSharedArray* sharedOffsetArray,
 {
   _offsets.set_space(this);
   // false ==> we'll do the clearing if there's clearing to be done.
-  ContiguousSpace::initialize(mr, false, SpaceDecorator::Mangle);
+  CompactibleSpace::initialize(mr, false, SpaceDecorator::Mangle);
+  _top = bottom();
   _offsets.zero_bottom_entry();
   _offsets.initialize_threshold();
 }
