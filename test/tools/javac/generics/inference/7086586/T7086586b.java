@@ -23,10 +23,9 @@
 
 /*
  * @test
- * @bug 7086586 8033718
+ * @bug 7086586
  *
- * @summary Inference producing null type argument; inference ignores capture
- *          variable as upper bound
+ * @summary Inference producing null type argument
  */
 import java.util.List;
 
@@ -41,8 +40,8 @@ public class T7086586b {
         assertionCount++;
     }
 
-    <T> void m(List<? super T> dummy) { assertTrue(true); }
-    <T> void m(Object dummy) { assertTrue(false); }
+    <T> void m(List<? super T> dummy) { assertTrue(false); }
+    <T> void m(Object dummy) { assertTrue(true); }
 
     void test(List<?> l) {
         m(l);
