@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jdb
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: 基本ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jdb
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: 基本ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jdb" "1" "2013年11月21日" "JDK 8" "基本ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,15 +50,15 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
-jdb \- Javaプラットフォーム・プログラムの不具合を検出および修正します。
+.SH "名前"
+jdb \- Javaプラットフォーム・プログラムのbugを検出および修正します。
 .SH "概要"
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjdb\fR [\fIoptions\fR] [\fIclassname\fR] [\fIarguments\fR]
+\fBjdb\fR [\fIoptions\fR] [\fIclassname\fR] [\fIarguments\fR]
 .fi
 .if n \{\
 .RE
@@ -64,7 +66,7 @@ jdb \- Javaプラットフォーム・プログラムの不具合を検出および修正します。
 .PP
 \fIoptions\fR
 .RS 4
-コマンドライン・オプション。オプションを参照してください。
+コマンド行オプション。オプションを参照してください。
 .RE
 .PP
 \fIclass\fRname
@@ -74,67 +76,70 @@ jdb \- Javaプラットフォーム・プログラムの不具合を検出および修正します。
 .PP
 \fIarguments\fR
 .RS 4
-classの\fImain()\fRメソッドに渡す引数。
+classの\fBmain()\fRメソッドに渡す引数。
 .RE
 .SH "説明"
 .PP
-Javaデバッガ(JDB)は、Javaクラス用の簡単なコマンドライン・デバッガです。\fIjdb\fRコマンドとそのオプションはJDBを呼び出します。\fIjdb\fRコマンドは、JDBA (Java Platform Debugger Architecture)を視覚的に実行し、ローカルまたはリモートのJava仮想マシン(JVM)の検査とデバッグを行うことができます。Java Platform Debugger Architecture (JDBA)
+Javaデバッガ(JDB)は、Javaクラス用の簡単なコマンド行デバッガです。\fBjdb\fRコマンドとそのオプションはJDBを呼び出します。\fBjdb\fRコマンドは、JDBA (Java Platform Debugger Architecture)を視覚的に実行し、ローカルまたはリモートのJava Virtual Machine (JVM)の検査とデバッグを行うことができます。Java Platform Debugger Architecture (JDBA)
 (http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/jpda/index\&.html)を参照してください。
 .SS "JDBセッションの開始"
 .PP
-JDBセッションを開始するには様々な方法があります。最も頻繁に使用されるのは、デバッグするアプリケーションのメイン・クラスを使用して、JDBから新しいJVMを起動する方法です。コマンドラインで、\fIjava\fRコマンドのかわりに\fIjdb\fRコマンドを入力します。たとえば、アプリケーションのメイン・クラスが\fIMyClass\fRの場合は、JDB環境でデバッグするときに次のコマンドを使用します。
+JDBセッションを開始するには様々な方法があります。最も頻繁に使用されるのは、デバッグするアプリケーションのメイン・クラスを使用して、JDBから新しいJVMを起動する方法です。コマンド行で、\fBjava\fRコマンドのかわりに\fBjdb\fRコマンドを入力します。たとえば、アプリケーションのメイン・クラスが\fBMyClass\fRの場合は、JDB環境でデバッグするときに次のコマンドを使用します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jdb MyClass
+\fBjdb MyClass\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-この方法で起動すると、\fIjdb\fRコマンドは、指定されたパラメータを使用して2つ目のJVMを呼び出します。次に、指定されたクラスをロードして、クラスの最初の命令を実行する前にJVMを停止させます。
+この方法で起動すると、\fBjdb\fRコマンドは、指定されたパラメータを使用して2つ目のJVMを呼び出します。次に、指定されたクラスをロードして、クラスの最初の命令を実行する前にJVMを停止させます。
 .PP
-\fIjdb\fRコマンドのもう1つの使用方法は、すでに実行中のJVMにjdbを接続することです。\fIjdb\fRコマンドが接続するVMを、その実行中に起動するための構文を次に示します。これは、インプロセス・デバッグ用ライブラリをロードし、接続の種類を指定します。
+\fBjdb\fRコマンドのもう1つの使用方法は、すでに実行中のJVMにjdbを接続することです。\fBjdb\fRコマンドが接続するVMを、その実行中に起動するための構文を次に示します。これは、インプロセス・デバッグ用ライブラリをロードし、接続の種類を指定します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-java \-agentlib:jdwp=transport=dt_socket,server=y,suspend=n MyClass
+\fBjava \-agentlib:jdwp=transport=dt_socket,server=y,suspend=n MyClass\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-次のコマンドを使用して、\fIjdb\fRコマンドをJVMに接続できます。
+次のコマンドを使用して、\fBjdb\fRコマンドをJVMに接続できます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jdb \-attach 8000
+\fBjdb \-attach 8000\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-この場合、\fIjdb\fRコマンドは新しいJVMを起動するかわりに既存のJVMに接続されるため、\fIjdb\fRコマンドラインに\fIMyClass\fR引数は指定しません。
+この場合、\fBjdb\fRコマンドは新しいJVMを起動するかわりに既存のJVMに接続されるため、\fBjdb\fRコマンド行に\fBMyClass\fR引数は指定しません。
 .PP
-デバッガをJVMに接続するには他にも様々な方法があり、すべて\fIjdb\fRコマンドでサポートされています。接続オプションについては、Java Platform Debugger Architectureのドキュメントを参照してください。
+デバッガをJVMに接続するには他にも様々な方法があり、すべて\fBjdb\fRコマンドでサポートされています。接続オプションについては、Java Platform Debugger Architectureのドキュメントを参照してください。
 .SS "基本jdbコマンド"
 .PP
-基本的な\fIjdb\fRコマンドの一覧を示します。JDBがサポートするコマンドはこれ以外にもあり、それらは\fI\-help\fRオプションを使用して表示できます。
+基本的な\fBjdb\fRコマンドの一覧を示します。JDBがサポートするコマンドはこれ以外にもあり、それらは\fB\-help\fRオプションを使用して表示できます。
 .PP
 helpまたは?
 .RS 4
-\fIhelp\fRまたは\fI?\fRコマンドは、認識されたコマンドのリストに簡潔な説明を付けて表示します。
+\fBhelp\fRまたは\fB?\fRコマンドは、認識されたコマンドのリストに簡潔な説明を付けて表示します。
 .RE
 .PP
 run
 .RS 4
-JDBを起動してブレークポイントを設定したあとに、\fIrun\fRコマンドを使用して、デバッグするアプリケーションの実行を開始できます。\fIrun\fRコマンドは、既存のVMに接続している場合とは異なり、デバッグするアプリケーションが\fIjdb\fRから起動したときにのみ使用できます。
+JDBを起動してブレークポイントを設定したあとに、\fBrun\fRコマンドを使用して、デバッグするアプリケーションの実行を開始できます。\fBrun\fRコマンドは、既存のVMに接続している場合とは異なり、デバッグするアプリケーションが\fBjdb\fRから起動したときにのみ使用できます。
 .RE
 .PP
 cont
@@ -147,19 +152,20 @@ print
 Javaオブジェクトおよびプリミティブ値を表示します。プリミティブ型の変数またはフィールドの場合には、実際の値が出力されます。オブジェクトの場合には、短い説明が出力されます。オブジェクトの詳細を取得する方法を探すには、dumpコマンドを参照してください。
 .sp
 \fB注意:\fR
-ローカル変数を表示するには、含んでいるクラスが\fIjavac \-g\fRオプションを使用してコンパイルされている必要があります。
+ローカル変数を表示するには、含んでいるクラスが\fBjavac \-g\fRオプションを使用してコンパイルされている必要があります。
 .sp
-\fIprint\fRコマンドは、次に示すような、メソッド呼出しを使用したものなど、多くの簡単なJava式をサポートします。
+\fBprint\fRコマンドは、次に示すような、メソッド呼出しを使用したものなど、多くの簡単なJava式をサポートします。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-print MyClass\&.myStaticField
-print myObj\&.myInstanceField
-print i + j + k (i, j, k are primities and either fields or local variables)
-print myObj\&.myMethod() (if myMethod returns a non\-null)
-print new java\&.lang\&.String("Hello")\&.length()
+\fBprint MyClass\&.myStaticField\fR
+\fBprint myObj\&.myInstanceField\fR
+\fBprint i + j + k (i, j, k are primities and either fields or local variables)\fR
+\fBprint myObj\&.myMethod() (if myMethod returns a non\-null)\fR
+\fBprint new java\&.lang\&.String("Hello")\&.length()\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -168,18 +174,19 @@ print new java\&.lang\&.String("Hello")\&.length()
 .PP
 dump
 .RS 4
-プリミティブ値の場合、\fIdump\fRコマンドは\fIprint\fRコマンドと同一です。オブジェクトの場合、\fIdump\fRコマンドでは、オブジェクト内に定義されている各フィールドの現在の値が出力されます。staticフィールドとinstanceフィールドが出力されます。\fIdump\fRコマンドでは、\fIprint\fRコマンドと同じ式がサポートされます。
+プリミティブ値の場合、\fBdump\fRコマンドは\fBprint\fRコマンドと同一です。オブジェクトの場合、\fBdump\fRコマンドでは、オブジェクト内に定義されている各フィールドの現在の値が出力されます。staticフィールドとinstanceフィールドが出力されます。\fBdump\fRコマンドでは、\fBprint\fRコマンドと同じ式がサポートされます。
 .RE
 .PP
 threads
 .RS 4
-現在実行中のスレッドを一覧表示します。スレッドごとに、名前と現在の状態、および他のコマンドに使用できるインデックスが出力されます。この例では、スレッド・インデックスは4であり、スレッドは\fIjava\&.lang\&.Thread\fRのインスタンスで、スレッドの名前は\fImain\fRであり、現在実行中です。
+現在実行中のスレッドを一覧表示します。スレッドごとに、名前と現在の状態、および他のコマンドに使用できるインデックスが出力されます。この例では、スレッド・インデックスは4であり、スレッドは\fBjava\&.lang\&.Thread\fRのインスタンスで、スレッドの名前は\fBmain\fRであり、現在実行中です。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-4\&. (java\&.lang\&.Thread)0x1 main      running
+\fB4\&. (java\&.lang\&.Thread)0x1 main      running\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -188,16 +195,16 @@ threads
 .PP
 thread
 .RS 4
-現在のスレッドにするスレッドを選択します。多くの\fIjdb\fRコマンドは、現在のスレッドの設定に基づいて実行されます。スレッドは、threadsコマンドで説明したスレッド・インデックスとともに指定します。
+現在のスレッドにするスレッドを選択します。多くの\fBjdb\fRコマンドは、現在のスレッドの設定に基づいて実行されます。スレッドは、threadsコマンドで説明したスレッド・インデックスとともに指定します。
 .RE
 .PP
 where
 .RS 4
-引数を指定しないで\fIwhere\fRコマンドを実行すると、現在のスレッドのスタックがダンプされます。\fIwhere\fR
-\fIall\fRコマンドは、現在のスレッド・グループにあるスレッドのスタックをすべてダンプします。\fIwhere\fR
-\fIthreadindex\fRコマンドは、指定されたスレッドのスタックをダンプします。
+引数を指定しないで\fBwhere\fRコマンドを実行すると、現在のスレッドのスタックがダンプされます。\fBwhere\fR
+\fBall\fRコマンドは、現在のスレッド・グループにあるスレッドのスタックをすべてダンプします。\fBwhere\fR
+\fBthreadindex\fRコマンドは、指定されたスレッドのスタックをダンプします。
 .sp
-現在のスレッドが(ブレークポイントか\fIsuspend\fRコマンドによって)中断している場合は、ローカル変数とフィールドは\fIprint\fRコマンドと\fIdump\fRコマンドで表示できます。\fIup\fRコマンドと\fIdown\fRコマンドで、どのスタック・フレームを現在のスタック・フレームにするかを選ぶことができます。
+現在のスレッドが(ブレークポイントか\fBsuspend\fRコマンドによって)中断している場合は、ローカル変数とフィールドは\fBprint\fRコマンドと\fBdump\fRコマンドで表示できます。\fBup\fRコマンドと\fBdown\fRコマンドで、どのスタック・フレームを現在のスタック・フレームにするかを選ぶことができます。
 .RE
 .SS "ブレークポイント"
 .PP
@@ -211,7 +218,7 @@ where
 .sp -1
 .IP \(bu 2.3
 .\}
-コマンド\fIstop at MyClass:22\fRは、\fIMyClass\fRが含まれるソース・ファイルの22行目の最初の命令にブレークポイントを設定します。
+コマンド\fBstop at MyClass:22\fRは、\fBMyClass\fRが含まれるソース・ファイルの22行目の最初の命令にブレークポイントを設定します。
 .RE
 .sp
 .RS 4
@@ -222,7 +229,7 @@ where
 .sp -1
 .IP \(bu 2.3
 .\}
-コマンド\fIstop in java\&.lang\&.String\&.length\fRは、メソッド\fIjava\&.lang\&.String\&.length\fRの先頭にブレークポイントを設定します。
+コマンド\fBstop in java\&.lang\&.String\&.length\fRは、メソッド\fBjava\&.lang\&.String\&.length\fRの先頭にブレークポイントを設定します。
 .RE
 .sp
 .RS 4
@@ -233,26 +240,26 @@ where
 .sp -1
 .IP \(bu 2.3
 .\}
-コマンド\fIstop in MyClass\&.<clinit>\fRは、\fI<clinit>\fRを使用して\fIMyClass\fRの静的初期化コードを特定します。
+コマンド\fBstop in MyClass\&.<clinit>\fRは、\fB<clinit>\fRを使用して、\fBMyClass\fRの静的初期化コードを特定します。
 .RE
 .PP
-メソッドがオーバーロードされている場合には、メソッドの引数の型も指定して、ブレークポイントに対して適切なメソッドが選択されるようにする必要があります。たとえば、\fIMyClass\&.myMethod(int,java\&.lang\&.String)\fRまたは\fIMyClass\&.myMethod()\fRと指定します。
+メソッドがオーバーロードされている場合には、メソッドの引数の型も指定して、ブレークポイントに対して適切なメソッドが選択されるようにする必要があります。たとえば、\fBMyClass\&.myMethod(int,java\&.lang\&.String)\fRまたは\fBMyClass\&.myMethod()\fRと指定します。
 .PP
-\fIclear\fRコマンドは、\fIclear MyClass:45\fRのような構文を使用してブレークポイントを削除します。\fIclear\fRを使用するか、引数を指定しないで\fIstop\fRコマンドを使用すると、現在設定されているすべてのブレークポイントが表示されます。\fIcont\fRコマンドは実行を継続します。
+\fBclear\fRコマンドは、\fBclear MyClass:45\fRのような構文を使用してブレークポイントを削除します。\fBclear\fRを使用するか、引数を指定しないで\fBstop\fRコマンドを使用すると、現在設定されているすべてのブレークポイントが表示されます。\fBcont\fRコマンドは実行を継続します。
 .SS "ステップ実行"
 .PP
-\fIstep\fRコマンドは、現在のスタック・フレームまたは呼び出されたメソッド内で、次の行を実行します。\fInext\fRコマンドは、現在のスタック・フレームの次の行を実行します。
+\fBstep\fRコマンドは、現在のスタック・フレームまたは呼び出されたメソッド内で、次の行を実行します。\fBnext\fRコマンドは、現在のスタック・フレームの次の行を実行します。
 .SS "例外"
 .PP
-スローしているスレッドの呼出しスタック上のどこにも\fIcatch\fR文がない場合に例外が発生すると、JVMは通常、例外トレースを出力して終了します。ただし、JDB環境で実行している場合は、違反のスロー時にJDBに制御が戻ります。次に、\fIjdb\fRコマンドを使用して例外の原因を診断します。
+スローしているスレッドの呼出しスタック上のどこにも\fBcatch\fR文がない場合に例外が発生すると、JVMは通常、例外トレースを出力して終了します。ただし、JDB環境で実行している場合は、違反のスロー時にJDBに制御が戻ります。次に、\fBjdb\fRコマンドを使用して例外の原因を診断します。
 .PP
-たとえば、\fIcatch java\&.io\&.FileNotFoundException\fRまたは\fIcatch\fR
-\fImypackage\&.BigTroubleException\fRのように\fIcatch\fRコマンドを使用すると、デバッグされたアプリケーションは、他の例外がスローされたときに停止します。例外が特定のクラスまたはサブクラスのインスタンスの場合は、アプリケーションは例外がスローされた場所で停止します。
+たとえば、\fBcatch java\&.io\&.FileNotFoundException\fRまたは\fBcatch\fR
+\fBmypackage\&.BigTroubleException\fRのように\fBcatch\fRコマンドを使用すると、デバッグされたアプリケーションは、他の例外がスローされたときに停止します。例外が特定のクラスまたはサブクラスのインスタンスの場合は、アプリケーションは例外がスローされた場所で停止します。
 .PP
-\fIignore\fRコマンドを使用すると、以前の\fIcatch\fRコマンドの効果が無効になります。\fIignore\fRコマンドでは、デバッグされるJVMは特定の例外を無視せず、デバッガのみを無視します。
+\fBignore\fRコマンドを使用すると、以前の\fBcatch\fRコマンドの効果が無効になります。\fBignore\fRコマンドでは、デバッグされるJVMは特定の例外を無視せず、デバッガのみを無視します。
 .SH "オプション"
 .PP
-コマンドラインで\fIjava\fRコマンドのかわりに\fIjdb\fRコマンドを使用する場合、\fIjdb\fRコマンドは、\fI\-D\fR、\fI\-classpath\fR、\fI\-X\fRなど、\fIjava\fRコマンドと同じ数のオプションを受け入れます。\fIjdb\fRコマンドは、その他に次のリストにあるオプションを受け入れます。
+コマンド行で\fBjava\fRコマンドのかわりに\fBjdb\fRコマンドを使用する場合、\fBjdb\fRコマンドは、\fB\-D\fR、\fB\-classpath\fR、\fB\-X\fRなど、\fBjava\fRコマンドと同じ数のオプションを受け入れます。\fBjdb\fRコマンドは、その他に次のリストにあるオプションを受け入れます。
 .PP
 デバッグを行うJVMにデバッガを接続するための代替機構を提供するために、その他のオプションがサポートされています。これらの接続の代替に関する詳細なドキュメントは、Java Platform Debugger Architecture (JPDA)
 (http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/jpda/index\&.html)を参照してください
@@ -279,7 +286,7 @@ where
 .PP
 \-launch
 .RS 4
-デバッグするアプリケーションをJDBの起動後ただちに起動します。\fI\-launch\fRオプションにより、\fIrun\fRコマンドが必要なくなります。デバッグするアプリケーションは、起動後、初期アプリケーション・クラスがロードされる直前に停止します。その時点で、必要なブレークポイントを設定し、\fIcont\fRコマンドを使用して実行を継続できます。
+デバッグするアプリケーションをJDBの起動後ただちに起動します。\fB\-launch\fRオプションにより、\fBrun\fRコマンドが必要なくなります。デバッグするアプリケーションは、起動後、初期アプリケーション・クラスがロードされる直前に停止します。その時点で、必要なブレークポイントを設定し、\fBcont\fRコマンドを使用して実行を継続できます。
 .RE
 .PP
 \-listconnectors
@@ -294,7 +301,7 @@ where
 .PP
 \-dbgtrace [\fIflags\fR]
 .RS 4
-\fIjdb\fRコマンドのデバッグの情報を出力します。
+\fBjdb\fRコマンドのデバッグの情報を出力します。
 .RE
 .PP
 \-tclient
@@ -309,7 +316,7 @@ Java HotSpot VMサーバー内でアプリケーションを実行します。
 .PP
 \-J\fIoption\fR
 .RS 4
-JVMに\fIoption\fRを渡します。optionには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fI\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
+JVMに\fBoption\fRを渡します。optionには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fB\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
 .RE
 .SH "デバッグ対象のプロセスに転送されるオプション"
 .PP
