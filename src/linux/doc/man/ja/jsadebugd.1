@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jsadebugd
-.\" Language: English
-.\" Date: 2013Ç¯11·î21Æü
-.\" SectDesc: ¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¦¥Ä¡¼¥ë
-.\" Software: JDK 8
-.\" Arch: ÈÆÍÑ
+.\" Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jsadebugd
+.\" Language: Japanese
+.\" Date: 2013Ç¯11·î21Æü
+.\" SectDesc: ¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¦¥Ä¡¼¥ë
+.\" Software: JDK 8
+.\" Arch: ÈÆÍÑ
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jsadebugd" "1" "2013Ç¯11·î21Æü" "JDK 8" "¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¦¥Ä¡¼¥ë"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "Ì¾Á°"
 jsadebugd \- Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ¡Ç½¤·¤Þ¤¹¡£¤³¤Î¥³¥Þ¥ó¥É¤Ï»î¸³Åª¤Ê¤â¤Î¤Ç¡¢¥µ¥Ý¡¼¥È¤µ¤ì¤Æ¤¤¤Þ¤»¤ó¡£
 .SH "³µÍ×"
 .sp
@@ -56,7 +58,7 @@ jsadebugd \- Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ
 .RS 4
 .\}
 .nf
-\fIjsadebugd\fR \fIpid\fR [ \fIserver\-id\fR ]
+\fBjsadebugd\fR \fIpid\fR [ \fIserver\-id\fR ]
 .fi
 .if n \{\
 .RE
@@ -66,7 +68,7 @@ jsadebugd \- Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ
 .RS 4
 .\}
 .nf
-\fIjsadebugd\fR \fIexecutable\fR \fIcore\fR [ \fIserver\-id\fR ]
+\fBjsadebugd\fR \fIexecutable\fR \fIcore\fR [ \fIserver\-id\fR ]
 .fi
 .if n \{\
 .RE
@@ -93,23 +95,24 @@ jsadebugd \- Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ
 .RE
 .SH "ÀâÌÀ"
 .PP
-\fIjsadebugd\fR¥³¥Þ¥ó¥É¤Ï¡¢Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ¡Ç½¤·¤Þ¤¹¡£\fIjstack\fR¡¢\fIjmap\fR¤ª¤è¤Ó\fIjinfo\fR¤Ê¤É¤Î¥ê¥â¡¼¥È¡¦¥¯¥é¥¤¥¢¥ó¥È¤Ï¡¢Java Remote Method Invocation (RMI)¤ò»ÈÍÑ¤·¤Æ¤¤¤ë¥µ¡¼¥Ð¡¼¤ËÀÜÂ³¤Ç¤­¤Þ¤¹¡£\fIjsadebugd\fR¥³¥Þ¥ó¥É¤òµ¯Æ°¤¹¤ëÁ°¤Ë¡¢\fIrmiregistry\fR¥³¥Þ¥ó¥É¤ÇRMI¥ì¥¸¥¹¥È¥ê¤ò¼¡¤Î¤è¤¦¤Ëµ¯Æ°¤·¤Þ¤¹¡£\fI$JAVA_HOME\fR¤ÏJDK¤Î¥¤¥ó¥¹¥È¡¼¥ë¡¦¥Ç¥£¥ì¥¯¥È¥ê¤Ç¤¹¡£
+\fBjsadebugd\fR¥³¥Þ¥ó¥É¤Ï¡¢Java¥×¥í¥»¥¹¤Þ¤¿¤Ï¥³¥¢¡¦¥Õ¥¡¥¤¥ë¤ËÀÜÂ³¤·¡¢¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤È¤·¤Æµ¡Ç½¤·¤Þ¤¹¡£\fBjstack\fR¡¢\fBjmap\fR¤ª¤è¤Ó\fBjinfo\fR¤Ê¤É¤Î¥ê¥â¡¼¥È¡¦¥¯¥é¥¤¥¢¥ó¥È¤Ï¡¢Java Remote Method Invocation(RMI)¤ò»ÈÍÑ¤·¤Æ¤¤¤ë¥µ¡¼¥Ð¡¼¤ËÀÜÂ³¤Ç¤­¤Þ¤¹¡£\fBjsadebugd\fR¥³¥Þ¥ó¥É¤òµ¯Æ°¤¹¤ëÁ°¤Ë¡¢\fBrmiregistry\fR¥³¥Þ¥ó¥É¤ÇRMI¥ì¥¸¥¹¥È¥ê¤ò¼¡¤Î¤è¤¦¤Ëµ¯Æ°¤·¤Þ¤¹¡£\fI$JAVA_HOME\fR¤ÏJDK¤Î¥¤¥ó¥¹¥È¡¼¥ë¡¦¥Ç¥£¥ì¥¯¥È¥ê¤Ç¤¹¡£
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-rmiregistry \-J\-Xbootclasspath/p:$JAVA_HOME/lib/sajdi\&.jar
+\fBrmiregistry \-J\-Xbootclasspath/p:$JAVA_HOME/lib/sajdi\&.jar\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-RMI¥ì¥¸¥¹¥È¥ê¤¬µ¯Æ°¤·¤Æ¤¤¤Ê¤¤¾ì¹ç¡¢\fIjsadebugd\fR¥³¥Þ¥ó¥É¤ÏRMI¥ì¥¸¥¹¥È¥ê¤òÉ¸½à(1099)¥Ý¡¼¥È¤ÇÆâÉô¤Çµ¯Æ°¤·¤Þ¤¹¡£¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤Ï¡¢\fISIGINT\fR¤òÁ÷¿®¤¹¤ë¤³¤È¤Ë¤è¤êÄä»ß¤Ç¤­¤Þ¤¹¡£SIGINT¤òÁ÷¿®¤¹¤ë¤Ë¤Ï¡¢\fB[Ctrl] + [C]\fR¤ò²¡¤·¤Þ¤¹¡£
+RMI¥ì¥¸¥¹¥È¥ê¤¬µ¯Æ°¤·¤Æ¤¤¤Ê¤¤¾ì¹ç¡¢\fBjsadebugd\fR¥³¥Þ¥ó¥É¤ÏRMI¥ì¥¸¥¹¥È¥ê¤òÉ¸½à(1099)¥Ý¡¼¥È¤ÇÆâÉô¤Çµ¯Æ°¤·¤Þ¤¹¡£¥Ç¥Ð¥Ã¥°¡¦¥µ¡¼¥Ð¡¼¤Ï¡¢\fBSIGINT\fR¤òÁ÷¿®¤¹¤ë¤³¤È¤Ë¤è¤êÄä»ß¤Ç¤­¤Þ¤¹¡£SIGINT¤òÁ÷¿®¤¹¤ë¤Ë¤Ï¡¢\fB[Ctrl] + [C]\fR¤ò²¡¤·¤Þ¤¹¡£
 .PP
 \fBÃí°Õ:\fR
-¤³¤Î¥æ¡¼¥Æ¥£¥ê¥Æ¥£¤Ï¥µ¥Ý¡¼¥ÈÂÐ¾Ý³°¤Ç¤¢¤ê¡¢¾­Íè¤ÎJDK¤Î¥ê¥ê¡¼¥¹¤Ç¤ÏÍøÍÑ¤Ç¤­¤Ê¤¯¤Ê¤ë²ÄÇ½À­¤¬¤¢¤ê¤Þ¤¹¡£\fIdbgeng\&.dll\fR¤¬Â¸ºß¤·¤Æ¤¤¤Ê¤¤Windows¥·¥¹¥Æ¥à¤Ç¤Ï¡¢Debugging Tools For Windows¤ò¥¤¥ó¥¹¥È¡¼¥ë¤·¤Ê¤¤¤È¤³¤ì¤é¤Î¥Ä¡¼¥ë¤¬Àµ¾ï¤ËÆ°ºî¤·¤Þ¤»¤ó¡£\fIPATH\fR´Ä¶­ÊÑ¿ô¤Ë¤Ï¡¢¥¿¡¼¥²¥Ã¥È¡¦¥×¥í¥»¥¹¤Ë¤è¤Ã¤Æ»ÈÍÑ¤µ¤ì¤ëjvm\&.dll¤Î¾ì½ê¡¢¤Þ¤¿¤Ï¥¯¥é¥Ã¥·¥å¡¦¥À¥ó¥×¡¦¥Õ¥¡¥¤¥ë¤¬À¸À®¤µ¤ì¤¿¾ì½ê¤¬´Þ¤Þ¤ì¤ë¤è¤¦¤Ë¤·¤Æ¤¯¤À¤µ¤¤¡£Îã:
-\fIs\fR\fIet PATH=%JDK_HOME%\ejre\ebin\eclient;%PATH%\fR
+¤³¤Î¥æ¡¼¥Æ¥£¥ê¥Æ¥£¤Ï¥µ¥Ý¡¼¥ÈÂÐ¾Ý³°¤Ç¤¢¤ê¡¢¾­Íè¤ÎJDK¤Î¥ê¥ê¡¼¥¹¤Ç¤ÏÍøÍÑ¤Ç¤­¤Ê¤¯¤Ê¤ë²ÄÇ½À­¤¬¤¢¤ê¤Þ¤¹¡£\fBdbgeng\&.dll\fR¤¬Â¸ºß¤·¤Æ¤¤¤Ê¤¤Windows¥·¥¹¥Æ¥à¤Ç¤Ï¡¢Debugging Tools For Windows¤ò¥¤¥ó¥¹¥È¡¼¥ë¤·¤Ê¤¤¤È¤³¤ì¤é¤Î¥Ä¡¼¥ë¤¬Àµ¾ï¤ËÆ°ºî¤·¤Þ¤»¤ó¡£\fBPATH\fR´Ä¶­ÊÑ¿ô¤Ë¤Ï¡¢¥¿¡¼¥²¥Ã¥È¡¦¥×¥í¥»¥¹¤Ë¤è¤Ã¤Æ»ÈÍÑ¤µ¤ì¤ëjvm\&.dll¤Î¾ì½ê¡¢¤Þ¤¿¤Ï¥¯¥é¥Ã¥·¥å¡¦¥À¥ó¥×¡¦¥Õ¥¡¥¤¥ë¤¬À¸À®¤µ¤ì¤¿¾ì½ê¤¬´Þ¤Þ¤ì¤ë¤è¤¦¤Ë¤·¤Æ¤¯¤À¤µ¤¤¡£Îã:
+\fBs\fR\fBet PATH=%JDK_HOME%\ejre\ebin\eclient;%PATH%\fR
 .SH "´ØÏ¢¹àÌÜ"
 .sp
 .RS 4
