@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: policytool
-.\" Language: English
-.\" Date: 2013Ç¯11·î21Æü
-.\" SectDesc: ¥»¥­¥å¥ê¥Æ¥£¡¦¥Ä¡¼¥ë
-.\" Software: JDK 8
-.\" Arch: ÈÆÍÑ
+.\" Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: policytool
+.\" Language: Japanese
+.\" Date: 2013Ç¯11·î21Æü
+.\" SectDesc: ¥»¥­¥å¥ê¥Æ¥£¡¦¥Ä¡¼¥ë
+.\" Software: JDK 8
+.\" Arch: ÈÆÍÑ
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "policytool" "1" "2013Ç¯11·î21Æü" "JDK 8" "¥»¥­¥å¥ê¥Æ¥£¡¦¥Ä¡¼¥ë"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "Ì¾Á°"
 policytool \- ¥æ¡¼¥Æ¥£¥ê¥Æ¥£GUI·ÐÍ³¤Ç¼èÆÀ¤·¤¿¥æ¡¼¥¶¡¼ÆþÎÏ¤Ë´ð¤Å¤¤¤Æ¡¢¥×¥ì¡¼¥ó¡¦¥Æ¥­¥¹¥È¤Î¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤òÆÉ¤ß½ñ¤­¤·¤Þ¤¹¡£
 .SH "³µÍ×"
 .sp
@@ -56,7 +58,7 @@ policytool \- ¥æ¡¼¥Æ¥£¥ê¥Æ¥£GUI·ÐÍ³¤Ç¼èÆÀ¤·¤¿¥æ¡¼¥¶¡¼ÆþÎÏ¤Ë´ð¤Å¤¤¤Æ¡¢¥×¥ì¡¼¥ó¡¦¥
 .RS 4
 .\}
 .nf
-\fIpolicytool\fR [ \fI\-file\fR ] [ \fIfilename\fR ] 
+\fBpolicytool\fR [ \fB\-file\fR ] [ \fIfilename\fR ] 
 .fi
 .if n \{\
 .RE
@@ -64,7 +66,7 @@ policytool \- ¥æ¡¼¥Æ¥£¥ê¥Æ¥£GUI·ÐÍ³¤Ç¼èÆÀ¤·¤¿¥æ¡¼¥¶¡¼ÆþÎÏ¤Ë´ð¤Å¤¤¤Æ¡¢¥×¥ì¡¼¥ó¡¦¥
 .PP
 \-file
 .RS 4
-¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤òÆÉ¤ß¹þ¤à¤è¤¦¤Ë\fIpolicytool\fR¤Ë»Ø¼¨¤·¤Þ¤¹¡£
+¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤òÆÉ¤ß¹þ¤à¤è¤¦¤Ë\fBpolicytool\fR¤Ë»Ø¼¨¤·¤Þ¤¹¡£
 .RE
 .PP
 \fIfilename\fR
@@ -80,32 +82,34 @@ policytool \- ¥æ¡¼¥Æ¥£¥ê¥Æ¥£GUI·ÐÍ³¤Ç¼èÆÀ¤·¤¿¥æ¡¼¥¶¡¼ÆþÎÏ¤Ë´ð¤Å¤¤¤Æ¡¢¥×¥ì¡¼¥ó¡¦¥
 .RS 4
 .\}
 .nf
-policytool
+\fBpolicytool\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .PP
-\fIpolicytool\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¡¢»ØÄê¤µ¤ì¤¿¥Õ¥¡¥¤¥ë¤ò¥í¡¼¥É¤·¤Þ¤¹:
+\fBpolicytool\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¡¢»ØÄê¤µ¤ì¤¿¥Õ¥¡¥¤¥ë¤ò¥í¡¼¥É¤·¤Þ¤¹:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-policytool\-file mypolicyfile
+\fBpolicytool\-file mypolicyfile\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .SH "ÀâÌÀ"
 .PP
-\fIpolicytool\fR¥³¥Þ¥ó¥É¤Ï¡¢´ÉÍý¼Ô¤ÎGUI¤ò¸Æ¤Ó½Ð¤·¤Þ¤¹¡£¤³¤ì¤Ë¤è¤ê¡¢¥·¥¹¥Æ¥à´ÉÍý¼Ô¤Ï¥í¡¼¥«¥ë¡¦¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤ÎÆâÍÆ¤ò´ÉÍý¤Ç¤­¤ë¤è¤¦¤Ë¤Ê¤ê¤Þ¤¹¡£¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤Ï\fI\&.policy\fR³ÈÄ¥»Ò¤ò»ý¤Ä¥×¥ì¡¼¥ó¥Æ¥­¥¹¥È¡¦¥Õ¥¡¥¤¥ë¤Ç¡¢¥É¥á¥¤¥óÊÌ¤Ë¥ê¥â¡¼¥È¡¦¥ê¥¯¥¨¥¹¥¿¤ò¸¢¸Â¥ª¥Ö¥¸¥§¥¯¥È¤Ë¥Þ¥Ã¥×¤·¤Þ¤¹¡£¾ÜºÙ¤Ï¡¢http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/security/PolicyFiles\&.html¤Ë¤¢¤ë
+\fBpolicytool\fR¥³¥Þ¥ó¥É¤Ï¡¢´ÉÍý¼Ô¤ÎGUI¤ò¸Æ¤Ó½Ð¤·¤Þ¤¹¡£¤³¤ì¤Ë¤è¤ê¡¢¥·¥¹¥Æ¥à´ÉÍý¼Ô¤Ï¥í¡¼¥«¥ë¡¦¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤ÎÆâÍÆ¤ò´ÉÍý¤Ç¤­¤ë¤è¤¦¤Ë¤Ê¤ê¤Þ¤¹¡£¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤Ï\fB\&.policy\fR³ÈÄ¥»Ò¤ò»ý¤Ä¥×¥ì¡¼¥ó¥Æ¥­¥¹¥È¡¦¥Õ¥¡¥¤¥ë¤Ç¡¢¥É¥á¥¤¥óÊÌ¤Ë¥ê¥â¡¼¥È¡¦¥ê¥¯¥¨¥¹¥¿¤ò¸¢¸Â¥ª¥Ö¥¸¥§¥¯¥È¤Ë¥Þ¥Ã¥×¤·¤Þ¤¹¡£¾ÜºÙ¤Ï¡¢http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/security/PolicyFiles\&.html¤Ë¤¢¤ë
 ¡ÖDefault Policy Implementation and Policy File Syntax¡×¤ò»²¾È¤·¤Æ¤¯¤À¤µ¤¤
 .SH "¥ª¥×¥·¥ç¥ó"
 .PP
 \-file
 .RS 4
-¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤òÆÉ¤ß¹þ¤à¤è¤¦¤Ë\fIpolicytool\fR¤Ë»Ø¼¨¤·¤Þ¤¹¡£
+¥Ý¥ê¥·¡¼¡¦¥Õ¥¡¥¤¥ë¤òÆÉ¤ß¹þ¤à¤è¤¦¤Ë\fBpolicytool\fR¤Ë»Ø¼¨¤·¤Þ¤¹¡£
 .RE
 .SH "´ØÏ¢¹àÌÜ"
 .sp
