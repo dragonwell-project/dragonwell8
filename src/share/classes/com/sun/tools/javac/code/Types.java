@@ -629,7 +629,7 @@ public class Types {
      * (ii) perform functional interface bridge calculation.
      */
     public ClassSymbol makeFunctionalInterfaceClass(Env<AttrContext> env, Name name, List<Type> targets, long cflags) {
-        if (targets.isEmpty() || !isFunctionalInterface(targets.head)) {
+        if (targets.isEmpty()) {
             return null;
         }
         Symbol descSym = findDescriptorSymbol(targets.head.tsym);
@@ -2300,7 +2300,7 @@ public class Types {
             public Type visitType(Type t, Void ignored) {
                 // A note on wildcards: there is no good way to
                 // determine a supertype for a super bounded wildcard.
-                return null;
+                return Type.noType;
             }
 
             @Override
@@ -2467,7 +2467,7 @@ public class Types {
             return false;
         return
             t.isRaw() ||
-            supertype(t) != null && isDerivedRaw(supertype(t)) ||
+            supertype(t) != Type.noType && isDerivedRaw(supertype(t)) ||
             isDerivedRaw(interfaces(t));
     }
 
@@ -3218,6 +3218,7 @@ public class Types {
             return tvar.rank_field;
         }
         case ERROR:
+        case NONE:
             return 0;
         default:
             throw new AssertionError();
