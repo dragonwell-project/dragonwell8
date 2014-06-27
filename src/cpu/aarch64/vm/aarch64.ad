@@ -375,6 +375,15 @@ reg_class any_reg32(
     R30
 );
 
+// Singleton class for R0 int register
+reg_class int_r0_reg(R0);
+
+// Singleton class for R2 int register
+reg_class int_r2_reg(R2);
+
+// Singleton class for R4 int register
+reg_class int_r4_reg(R4);
+
 // Class for all long integer registers (including RSP)
 reg_class any_reg(
     R0, R0_H,
@@ -482,9 +491,19 @@ reg_class r0_reg(
     R0, R0_H
 );
 
+// Class for 64 bit register r1
+reg_class r1_reg(
+    R1, R1_H
+);
+
 // Class for 64 bit register r2
 reg_class r2_reg(
     R2, R2_H
+);
+
+// Class for 64 bit register r3
+reg_class r3_reg(
+    R3, R3_H
 );
 
 // Class for 64 bit register r4
@@ -3986,10 +4005,34 @@ operand iRegP_R0()
   interface(REG_INTER);
 %}
 
+// Pointer 64 bit Register R1 only
+operand iRegP_R1()
+%{
+  constraint(ALLOC_IN_RC(r1_reg));
+  match(RegP);
+  // match(iRegP);
+  match(iRegPNoSp);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 // Pointer 64 bit Register R2 only
 operand iRegP_R2()
 %{
   constraint(ALLOC_IN_RC(r2_reg));
+  match(RegP);
+  // match(iRegP);
+  match(iRegPNoSp);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Pointer 64 bit Register R3 only
+operand iRegP_R3()
+%{
+  constraint(ALLOC_IN_RC(r3_reg));
   match(RegP);
   // match(iRegP);
   match(iRegPNoSp);
@@ -4059,13 +4102,36 @@ operand iRegP_FP()
 // Register R0 only
 operand iRegI_R0()
 %{
-  constraint(ALLOC_IN_RC(r0_reg));
+  constraint(ALLOC_IN_RC(int_r0_reg));
   match(RegI);
   match(iRegINoSp);
   op_cost(0);
   format %{ %}
   interface(REG_INTER);
 %}
+
+// Register R2 only
+operand iRegI_R2()
+%{
+  constraint(ALLOC_IN_RC(int_r2_reg));
+  match(RegI);
+  match(iRegINoSp);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+// Register R2 only
+operand iRegI_R4()
+%{
+  constraint(ALLOC_IN_RC(int_r4_reg));
+  match(RegI);
+  match(iRegINoSp);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 
 // Pointer Register Operands
 // Narrow Pointer Register
@@ -11264,6 +11330,21 @@ instruct partialSubtypeCheckVsZero(iRegP_R4 sub, iRegP_R0 super, iRegP_R2 temp, 
 
   opcode(0x0); // Don't zero result reg on hit
 
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct string_compare(iRegP_R1 str1, iRegI_R2 cnt1, iRegP_R3 str2, iRegI_R4 cnt2,
+                        iRegI_R0 result, iRegP tmp1, rFlagsReg cr)
+%{
+  match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
+  effect(TEMP tmp1, USE_KILL str1, USE_KILL str2, USE_KILL cnt1, USE_KILL cnt2, KILL cr);
+
+  format %{ "String Compare $str1,$cnt1,$str2,$cnt2 -> $result   # KILL $tmp1" %}
+  ins_encode %{
+    __ string_compare($str1$$Register, $str2$$Register,
+                      $cnt1$$Register, $cnt2$$Register, $result$$Register,
+                      $tmp1$$Register);
+  %}
   ins_pipe(pipe_class_memory);
 %}
 

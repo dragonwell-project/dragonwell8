@@ -1290,6 +1290,10 @@ public:
   void update_word_crc32(Register crc, Register v, Register tmp,
         Register table0, Register table1, Register table2, Register table3,
         bool upper = false);
+
+  void string_compare(Register str1, Register str2,
+                                    Register cnt1, Register cnt2, Register result,
+                                    Register tmp1);
 };
 
 // Used by aarch64.ad to control code generation

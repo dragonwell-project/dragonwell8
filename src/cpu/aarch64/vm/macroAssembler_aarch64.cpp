@@ -3353,3 +3353,86 @@ void MacroAssembler::remove_frame(int framesize) {
   }
 }
 
+// Compare strings.
+void MacroAssembler::string_compare(Register str1, Register str2,
+                                    Register cnt1, Register cnt2, Register result,
+                                    Register tmp1) {
+  Label LENGTH_DIFF, DONE, SHORT_LOOP, SHORT_STRING,
+    NEXT_WORD, DIFFERENCE;
+
+  BLOCK_COMMENT("string_compare {");
+
+  // Compute the minimum of the string lengths and save the difference.
+  subsw(tmp1, cnt1, cnt2);
+  cselw(cnt2, cnt1, cnt2, Assembler::LE); // min
+
+  // A very short string
+  cmpw(cnt2, 4);
+  br(Assembler::LT, SHORT_STRING);
+
+  // Check if the strings start at the same location.
+  cmp(str1, str2);
+  br(Assembler::EQ, LENGTH_DIFF);
+
+  // Compare longwords
+  {
+    subw(cnt2, cnt2, 4); // The last longword is a special case
+
+    // Move both string pointers to the last longword of their
+    // strings, negate the remaining count, and convert it to bytes.
+    lea(str1, Address(str1, cnt2, Address::uxtw(1)));
+    lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+    sub(cnt2, zr, cnt2, LSL, 1);
+
+    // Loop, loading longwords and comparing them into rscratch2.
+    bind(NEXT_WORD);
+    ldr(result, Address(str1, cnt2));
+    ldr(cnt1, Address(str2, cnt2));
+    adds(cnt2, cnt2, wordSize);
+    eor(rscratch2, result, cnt1);
+    cbnz(rscratch2, DIFFERENCE);
+    br(Assembler::LT, NEXT_WORD);
+
+    // Last longword.  In the case where length == 4 we compare the
+    // same longword twice, but that's still faster than another
+    // conditional branch.
+
+    ldr(result, Address(str1));
+    ldr(cnt1, Address(str2));
+    eor(rscratch2, result, cnt1);
+    cbz(rscratch2, LENGTH_DIFF);
+
+    // Find the first different characters in the longwords and
+    // compute their difference.
+    bind(DIFFERENCE);
+    rev(rscratch2, rscratch2);
+    clz(rscratch2, rscratch2);
+    andr(rscratch2, rscratch2, -16);
+    lsrv(result, result, rscratch2);
+    lsrv(cnt1, cnt1, rscratch2);
+    sub(result, result, cnt1);
+    sxthw(result, result);
+    b(DONE);
+  }
+
+  bind(SHORT_STRING);
+  // Is the minimum length zero?
+  cbz(cnt2, LENGTH_DIFF);
+
+  bind(SHORT_LOOP);
+  load_unsigned_short(result, Address(post(str1, 2)));
+  load_unsigned_short(cnt1, Address(post(str2, 2)));
+  subw(result, result, cnt1);
+  cbnz(result, DONE);
+  sub(cnt2, cnt2, 1);
+  cbnz(cnt2, SHORT_LOOP);
+
+  // Strings are equal up to min length.  Return the length difference.
+  bind(LENGTH_DIFF);
+  mov(result, tmp1);
+
+  // That's it
+  bind(DONE);
+
+  BLOCK_COMMENT("} string_compare");
+}
