@@ -5988,6 +5988,61 @@ instruct bytes_reverse_short(iRegINoSp dst) %{
 %}
 
 // ============================================================================
+// Zero Count Instructions
+
+instruct countLeadingZerosI(iRegI dst, iRegI src) %{
+  match(Set dst (CountLeadingZerosI src));
+
+  ins_cost(INSN_COST);
+  format %{ "clzw  $dst, $src" %}
+  ins_encode %{
+    __ clzw(as_Register($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct countLeadingZerosL(iRegI dst, iRegL src) %{
+  match(Set dst (CountLeadingZerosL src));
+
+  ins_cost(INSN_COST);
+  format %{ "clz   $dst, $src" %}
+  ins_encode %{
+    __ clz(as_Register($dst$$reg), as_Register($src$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct countTrailingZerosI(iRegI dst, iRegI src) %{
+  match(Set dst (CountTrailingZerosI src));
+
+  ins_cost(INSN_COST * 2);
+  format %{ "rbitw  $dst, $src\n\t"
+            "clzw   $dst, $dst" %}
+  ins_encode %{
+    __ rbitw(as_Register($dst$$reg), as_Register($src$$reg));
+    __ clzw(as_Register($dst$$reg), as_Register($dst$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+instruct countTrailingZerosL(iRegI dst, iRegL src) %{
+  match(Set dst (CountTrailingZerosL src));
+
+  ins_cost(INSN_COST * 2);
+  format %{ "rbit   $dst, $src\n\t"
+            "clz    $dst, $dst" %}
+  ins_encode %{
+    __ rbit(as_Register($dst$$reg), as_Register($src$$reg));
+    __ clz(as_Register($dst$$reg), as_Register($dst$$reg));
+  %}
+
+  ins_pipe( pipe_class_default );
+%}
+
+// ============================================================================
 // MemBar Instruction
 
 instruct load_fence() %{
@@ -9744,6 +9799,32 @@ instruct absD_reg(vRegD dst, vRegD src) %{
   format %{ "fabsd   $dst, $src" %}
   ins_encode %{
     __ fabsd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct sqrtD_reg(vRegD dst, vRegD src) %{
+  match(Set dst (SqrtD src));
+
+  ins_cost(INSN_COST * 50);
+  format %{ "fsqrtd  $dst, $src" %}
+  ins_encode %{
+    __ fsqrtd(as_FloatRegister($dst$$reg),
+             as_FloatRegister($src$$reg));
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct sqrtF_reg(vRegF dst, vRegF src) %{
+  match(Set dst (ConvD2F (SqrtD (ConvF2D src))));
+
+  ins_cost(INSN_COST * 50);
+  format %{ "fsqrts  $dst, $src" %}
+  ins_encode %{
+    __ fsqrtd(as_FloatRegister($dst$$reg),
              as_FloatRegister($src$$reg));
   %}
 
