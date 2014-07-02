@@ -3218,6 +3218,7 @@ public class Types {
             return tvar.rank_field;
         }
         case ERROR:
+        case NONE:
             return 0;
         default:
             throw new AssertionError();
