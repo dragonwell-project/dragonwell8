@@ -1292,8 +1292,11 @@ public:
         bool upper = false);
 
   void string_compare(Register str1, Register str2,
-                                    Register cnt1, Register cnt2, Register result,
-                                    Register tmp1);
+		      Register cnt1, Register cnt2, Register result,
+		      Register tmp1);
+  void string_equals(Register str1, Register str2,
+		     Register cnt, Register result,
+		     Register tmp1);
 };
 
 // Used by aarch64.ad to control code generation

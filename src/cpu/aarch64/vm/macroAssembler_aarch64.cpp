@@ -3436,3 +3436,78 @@ void MacroAssembler::string_compare(Register str1, Register str2,
 
   BLOCK_COMMENT("} string_compare");
 }
+
+
+void MacroAssembler::string_equals(Register str1, Register str2,
+				   Register cnt, Register result,
+				   Register tmp1) {
+  Label SAME_CHARS, DONE, SHORT_LOOP, SHORT_STRING,
+    NEXT_WORD;
+
+  const Register tmp2 = rscratch1;
+  assert_different_registers(str1, str2, cnt, result, tmp1, tmp2, rscratch2);
+
+  BLOCK_COMMENT("string_equals {");
+
+  // Start by assuming that the strings are not equal.
+  mov(result, zr);
+
+  // A very short string
+  cmpw(cnt, 4);
+  br(Assembler::LT, SHORT_STRING);
+
+  // Check if the strings start at the same location.
+  cmp(str1, str2);
+  br(Assembler::EQ, SAME_CHARS);
+
+  // Compare longwords
+  {
+    subw(cnt, cnt, 4); // The last longword is a special case
+
+    // Move both string pointers to the last longword of their
+    // strings, negate the remaining count, and convert it to bytes.
+    lea(str1, Address(str1, cnt, Address::uxtw(1)));
+    lea(str2, Address(str2, cnt, Address::uxtw(1)));
+    sub(cnt, zr, cnt, LSL, 1);
+
+    // Loop, loading longwords and comparing them into rscratch2.
+    bind(NEXT_WORD);
+    ldr(tmp1, Address(str1, cnt));
+    ldr(tmp2, Address(str2, cnt));
+    adds(cnt, cnt, wordSize);
+    eor(rscratch2, tmp1, tmp2);
+    cbnz(rscratch2, DONE);
+    br(Assembler::LT, NEXT_WORD);
+
+    // Last longword.  In the case where length == 4 we compare the
+    // same longword twice, but that's still faster than another
+    // conditional branch.
+
+    ldr(tmp1, Address(str1));
+    ldr(tmp2, Address(str2));
+    eor(rscratch2, tmp1, tmp2);
+    cbz(rscratch2, SAME_CHARS);
+    b(DONE);
+  }
+
+  bind(SHORT_STRING);
+  // Is the length zero?
+  cbz(cnt, SAME_CHARS);
+
+  bind(SHORT_LOOP);
+  load_unsigned_short(tmp1, Address(post(str1, 2)));
+  load_unsigned_short(tmp2, Address(post(str2, 2)));
+  subw(tmp1, tmp1, tmp2);
+  cbnz(tmp1, DONE);
+  sub(cnt, cnt, 1);
+  cbnz(cnt, SHORT_LOOP);
+
+  // Strings are equal.
+  bind(SAME_CHARS);
+  mov(result, true);
+
+  // That's it
+  bind(DONE);
+
+  BLOCK_COMMENT("} string_equals");
+}
