@@ -11415,10 +11415,10 @@ instruct partialSubtypeCheckVsZero(iRegP_R4 sub, iRegP_R0 super, iRegP_R2 temp, 
 %}
 
 instruct string_compare(iRegP_R1 str1, iRegI_R2 cnt1, iRegP_R3 str2, iRegI_R4 cnt2,
-                        iRegI_R0 result, iRegP tmp1, rFlagsReg cr)
+                        iRegI_R0 result, iRegP_R10 tmp1, rFlagsReg cr)
 %{
   match(Set result (StrComp (Binary str1 cnt1) (Binary str2 cnt2)));
-  effect(TEMP tmp1, USE_KILL str1, USE_KILL str2, USE_KILL cnt1, USE_KILL cnt2, KILL cr);
+  effect(KILL tmp1, USE_KILL str1, USE_KILL str2, USE_KILL cnt1, USE_KILL cnt2, KILL cr);
 
   format %{ "String Compare $str1,$cnt1,$str2,$cnt2 -> $result   # KILL $tmp1" %}
   ins_encode %{
@@ -11430,10 +11430,10 @@ instruct string_compare(iRegP_R1 str1, iRegI_R2 cnt1, iRegP_R3 str2, iRegI_R4 cn
 %}
 
 instruct string_equals(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
-                        iRegI_R0 result, iRegP tmp, rFlagsReg cr)
+                        iRegI_R0 result, iRegP_R10 tmp, rFlagsReg cr)
 %{
   match(Set result (StrEquals (Binary str1 str2) cnt));
-  effect(TEMP tmp, USE_KILL str1, USE_KILL str2, USE_KILL cnt, KILL cr);
+  effect(KILL tmp, USE_KILL str1, USE_KILL str2, USE_KILL cnt, KILL cr);
 
   format %{ "String Equals $str1,$str2,$cnt -> $result    // KILL $tmp" %}
   ins_encode %{
