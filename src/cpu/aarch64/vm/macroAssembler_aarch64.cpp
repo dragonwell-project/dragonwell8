@@ -3409,9 +3409,10 @@ void MacroAssembler::string_compare(Register str1, Register str2,
     clz(rscratch2, rscratch2);
     andr(rscratch2, rscratch2, -16);
     lsrv(result, result, rscratch2);
+    uxthw(result, result);
     lsrv(cnt1, cnt1, rscratch2);
-    sub(result, result, cnt1);
-    sxthw(result, result);
+    uxthw(cnt1, cnt1);
+    subw(result, result, cnt1);
     b(DONE);
   }
 
