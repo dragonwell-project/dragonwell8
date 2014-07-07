@@ -10602,6 +10602,96 @@ instruct overflowNegL_reg(rFlagsReg cr, immI0 zero, iRegL op2)
   ins_pipe(pipe_class_default);
 %}
 
+instruct overflowMulI_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  match(Set cr (OverflowMulI op1 op2));
+
+  format %{ "smull rscratch1, $op1, $op2\t# overflow check int\n\t"
+            "cmp   rscratch1, rscratch1, sxtw\n\t"
+            "movw  rscratch1, #0x80000000\n\t"
+            "cselw rscratch1, rscratch1, zr, NE\n\t"
+            "cmpw  rscratch1, #1" %}
+  ins_cost(5 * INSN_COST);
+  ins_encode %{
+    __ smull(rscratch1, $op1$$Register, $op2$$Register);
+    __ subs(zr, rscratch1, rscratch1, ext::sxtw);      // NE => overflow
+    __ movw(rscratch1, 0x80000000);                    // Develop 0 (EQ),
+    __ cselw(rscratch1, rscratch1, zr, Assembler::NE); // or 0x80000000 (NE)
+    __ cmpw(rscratch1, 1);                             // 0x80000000 - 1 => VS
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowMulI_reg_branch(cmpOp cmp, iRegI op1, iRegI op2, label labl, rFlagsReg cr)
+%{
+  match(If cmp (OverflowMulI op1 op2));
+  predicate(n->in(1)->as_Bool()->_test._test == BoolTest::overflow
+	    || n->in(1)->as_Bool()->_test._test == BoolTest::no_overflow);
+  effect(USE labl, KILL cr);
+
+  format %{ "smull rscratch1, $op1, $op2\t# overflow check int\n\t"
+            "cmp   rscratch1, rscratch1, sxtw\n\t"
+            "b$cmp   $labl" %}
+  ins_cost(3 * INSN_COST); // Branch is rare so treat as INSN_COST
+  ins_encode %{
+    Label* L = $labl$$label;
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ smull(rscratch1, $op1$$Register, $op2$$Register);
+    __ subs(zr, rscratch1, rscratch1, ext::sxtw);      // NE => overflow
+    __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowMulL_reg(rFlagsReg cr, iRegL op1, iRegL op2)
+%{
+  match(Set cr (OverflowMulL op1 op2));
+
+  format %{ "mul   rscratch1, $op1, $op2\t#overflow check long\n\t"
+            "smulh rscratch2, $op1, $op2\n\t"
+            "cmp   rscratch2, rscratch1, ASR #31\n\t"
+            "movw  rscratch1, #0x80000000\n\t"
+            "cselw rscratch1, rscratch1, zr, NE\n\t"
+            "cmpw  rscratch1, #1" %}
+  ins_cost(6 * INSN_COST);
+  ins_encode %{
+    __ mul(rscratch1, $op1$$Register, $op2$$Register);   // Result bits 0..63
+    __ smulh(rscratch2, $op1$$Register, $op2$$Register); // Result bits 64..127
+    __ cmp(rscratch2, rscratch1, Assembler::ASR, 31);    // Top is pure sign ext
+    __ movw(rscratch1, 0x80000000);                    // Develop 0 (EQ),
+    __ cselw(rscratch1, rscratch1, zr, Assembler::NE); // or 0x80000000 (NE)
+    __ cmpw(rscratch1, 1);                             // 0x80000000 - 1 => VS
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowMulL_reg_branch(cmpOp cmp, iRegL op1, iRegL op2, label labl, rFlagsReg cr)
+%{
+  match(If cmp (OverflowMulL op1 op2));
+  predicate(n->in(1)->as_Bool()->_test._test == BoolTest::overflow
+	    || n->in(1)->as_Bool()->_test._test == BoolTest::no_overflow);
+  effect(USE labl, KILL cr);
+
+  format %{ "mul   rscratch1, $op1, $op2\t#overflow check long\n\t"
+            "smulh rscratch2, $op1, $op2\n\t"
+            "cmp   rscratch2, rscratch1, ASR #31\n\t"
+            "b$cmp $labl" %}
+  ins_cost(4 * INSN_COST); // Branch is rare so treat as INSN_COST
+  ins_encode %{
+    Label* L = $labl$$label;
+    Assembler::Condition cond = (Assembler::Condition)$cmp$$cmpcode;
+    __ mul(rscratch1, $op1$$Register, $op2$$Register);   // Result bits 0..63
+    __ smulh(rscratch2, $op1$$Register, $op2$$Register); // Result bits 64..127
+    __ cmp(rscratch2, rscratch1, Assembler::ASR, 31);    // Top is pure sign ext
+    __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
 // ============================================================================
 // Compare Instructions
 
