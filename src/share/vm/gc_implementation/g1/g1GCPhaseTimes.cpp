@@ -166,7 +166,6 @@ G1GCPhaseTimes::G1GCPhaseTimes(uint max_gc_threads) :
   _last_update_rs_processed_buffers(_max_gc_threads, "%d"),
   _last_scan_rs_times_ms(_max_gc_threads, "%.1lf"),
   _last_strong_code_root_scan_times_ms(_max_gc_threads, "%.1lf"),
-  _last_strong_code_root_mark_times_ms(_max_gc_threads, "%.1lf"),
   _last_obj_copy_times_ms(_max_gc_threads, "%.1lf"),
   _last_termination_times_ms(_max_gc_threads, "%.1lf"),
   _last_termination_attempts(_max_gc_threads, SIZE_FORMAT),
@@ -193,7 +192,6 @@ void G1GCPhaseTimes::note_gc_start(uint active_gc_threads) {
   _last_update_rs_processed_buffers.reset();
   _last_scan_rs_times_ms.reset();
   _last_strong_code_root_scan_times_ms.reset();
-  _last_strong_code_root_mark_times_ms.reset();
   _last_obj_copy_times_ms.reset();
   _last_termination_times_ms.reset();
   _last_termination_attempts.reset();
@@ -214,7 +212,6 @@ void G1GCPhaseTimes::note_gc_end() {
   _last_update_rs_processed_buffers.verify();
   _last_scan_rs_times_ms.verify();
   _last_strong_code_root_scan_times_ms.verify();
-  _last_strong_code_root_mark_times_ms.verify();
   _last_obj_copy_times_ms.verify();
   _last_termination_times_ms.verify();
   _last_termination_attempts.verify();
@@ -229,7 +226,6 @@ void G1GCPhaseTimes::note_gc_end() {
                                _last_update_rs_times_ms.get(i) +
                                _last_scan_rs_times_ms.get(i) +
                                _last_strong_code_root_scan_times_ms.get(i) +
-                               _last_strong_code_root_mark_times_ms.get(i) +
                                _last_obj_copy_times_ms.get(i) +
                                _last_termination_times_ms.get(i);
 
@@ -301,9 +297,6 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
     if (_last_satb_filtering_times_ms.sum() > 0.0) {
       _last_satb_filtering_times_ms.print(2, "SATB Filtering (ms)");
     }
-    if (_last_strong_code_root_mark_times_ms.sum() > 0.0) {
-     _last_strong_code_root_mark_times_ms.print(2, "Code Root Marking (ms)");
-    }
     _last_update_rs_times_ms.print(2, "Update RS (ms)");
       _last_update_rs_processed_buffers.print(3, "Processed Buffers");
     _last_scan_rs_times_ms.print(2, "Scan RS (ms)");
@@ -320,9 +313,6 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
     _last_ext_root_scan_times_ms.print(1, "Ext Root Scanning (ms)");
     if (_last_satb_filtering_times_ms.sum() > 0.0) {
       _last_satb_filtering_times_ms.print(1, "SATB Filtering (ms)");
-    }
-    if (_last_strong_code_root_mark_times_ms.sum() > 0.0) {
-      _last_strong_code_root_mark_times_ms.print(1, "Code Root Marking (ms)");
     }
     _last_update_rs_times_ms.print(1, "Update RS (ms)");
       _last_update_rs_processed_buffers.print(2, "Processed Buffers");
