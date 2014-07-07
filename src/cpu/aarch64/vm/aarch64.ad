@@ -10470,6 +10470,139 @@ instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, Universe dummy, rFlag
 %}
 
 // ============================================================================
+// Overflow Math Instructions
+
+instruct overflowAddI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  match(Set cr (OverflowAddI op1 op2));
+
+  format %{ "cmnw  $op1, $op2\t# overflow check int" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmnw($op1$$Register, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowAddI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
+%{
+  match(Set cr (OverflowAddI op1 op2));
+
+  format %{ "cmnw  $op1, $op2\t# overflow check int" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmnw($op1$$Register, $op2$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowAddL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
+%{
+  match(Set cr (OverflowAddL op1 op2));
+
+  format %{ "cmn   $op1, $op2\t# overflow check long" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmn($op1$$Register, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowAddL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
+%{
+  match(Set cr (OverflowAddL op1 op2));
+
+  format %{ "cmn   $op1, $op2\t# overflow check long" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmn($op1$$Register, $op2$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowSubI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  match(Set cr (OverflowSubI op1 op2));
+
+  format %{ "cmpw  $op1, $op2\t# overflow check int" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmpw($op1$$Register, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowSubI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
+%{
+  match(Set cr (OverflowSubI op1 op2));
+
+  format %{ "cmpw  $op1, $op2\t# overflow check int" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmpw($op1$$Register, $op2$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowSubL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
+%{
+  match(Set cr (OverflowSubL op1 op2));
+
+  format %{ "cmp   $op1, $op2\t# overflow check long" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmp($op1$$Register, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowSubL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
+%{
+  match(Set cr (OverflowSubL op1 op2));
+
+  format %{ "cmp   $op1, $op2\t# overflow check long" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmp($op1$$Register, $op2$$constant);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowNegI_reg(rFlagsReg cr, immI0 zero, iRegI op2)
+%{
+  match(Set cr (OverflowSubI zero op2));
+
+  format %{ "cmpw  zr, $op2\t# overflow check int" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmpw(zr, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+instruct overflowNegL_reg(rFlagsReg cr, immI0 zero, iRegL op2)
+%{
+  match(Set cr (OverflowSubL zero op2));
+
+  format %{ "cmp   zr, $op2\t# overflow check long" %}
+  ins_cost(INSN_COST);
+  ins_encode %{
+    __ cmp(zr, $op2$$Register);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// ============================================================================
 // Compare Instructions
 
 instruct compI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
