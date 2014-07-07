@@ -72,7 +72,7 @@ public class TestGCId {
     // GCID logging default
     ProcessBuilder pb_default =
       ProcessTools.createJavaProcessBuilder("-XX:+" + gcFlag, "-XX:+" + logFlag, "-Xmx10M", GCTest.class.getName());
-    verifyContainsGCIDs(new OutputAnalyzer(pb_default.start()));
+    verifyContainsNoGCIDs(new OutputAnalyzer(pb_default.start()));
   }
 
   static class GCTest {
