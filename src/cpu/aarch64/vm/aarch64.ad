@@ -1048,7 +1048,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
 
   if (do_polling() && C->is_method_compilation()) {
     st->print("# touch polling page\n\t");
-    st->print("mov  rscratch1, #0x%x\n\t", os::get_polling_page());
+    st->print("mov  rscratch1, #" INTPTR_FORMAT "\n\t", p2i(os::get_polling_page()));
     st->print("ldr zr, [rscratch1]");
   }
 }
