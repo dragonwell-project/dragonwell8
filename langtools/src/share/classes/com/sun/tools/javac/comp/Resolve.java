@@ -96,6 +96,7 @@ public class Resolve {
     public final boolean varargsEnabled;
     public final boolean allowMethodHandles;
     public final boolean allowFunctionalInterfaceMostSpecific;
+    public final boolean checkVarargsAccessAfterResolution;
     private final boolean debugResolve;
     private final boolean compactMethodDiags;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
@@ -137,6 +138,8 @@ public class Resolve {
         Target target = Target.instance(context);
         allowMethodHandles = target.hasMethodHandles();
         allowFunctionalInterfaceMostSpecific = source.allowFunctionalInterfaceMostSpecific();
+        checkVarargsAccessAfterResolution =
+                source.allowPostApplicabilityVarargsAccessCheck();
         polymorphicSignatureScope = new Scope(syms.noSymbol);
 
         inapplicableMethodException = new InapplicableMethodException(diags);
@@ -835,9 +838,15 @@ public class Resolve {
             super.argumentsAcceptable(env, deferredAttrContext, argtypes, formals, warn);
             //should we expand formals?
             if (deferredAttrContext.phase.isVarargsRequired()) {
-                //check varargs element type accessibility
-                varargsAccessible(env, types.elemtype(formals.last()),
-                        deferredAttrContext.inferenceContext);
+                Type typeToCheck = null;
+                if (!checkVarargsAccessAfterResolution) {
+                    typeToCheck = types.elemtype(formals.last());
+                } else if (deferredAttrContext.mode == AttrMode.CHECK) {
+                    typeToCheck = types.erasure(types.elemtype(formals.last()));
+                }
+                if (typeToCheck != null) {
+                    varargsAccessible(env, typeToCheck, deferredAttrContext.inferenceContext);
+                }
             }
         }
 
