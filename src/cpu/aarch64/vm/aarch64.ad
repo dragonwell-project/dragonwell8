@@ -9824,7 +9824,7 @@ instruct sqrtF_reg(vRegF dst, vRegF src) %{
   ins_cost(INSN_COST * 50);
   format %{ "fsqrts  $dst, $src" %}
   ins_encode %{
-    __ fsqrtd(as_FloatRegister($dst$$reg),
+    __ fsqrts(as_FloatRegister($dst$$reg),
              as_FloatRegister($src$$reg));
   %}
 
