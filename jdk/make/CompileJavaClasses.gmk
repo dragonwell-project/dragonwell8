@@ -52,8 +52,9 @@ ifdef OPENJDK
 endif
 
 ifndef OPENJDK
-  # There exists two versions of this file...
+  # There exists two versions of these files...
   EXFILES := $(JDK_TOPDIR)/src/share/classes/javax/crypto/JarVerifier.java
+  EXFILES += $(JDK_TOPDIR)/src/share/classes/sun/management/ExtendedPlatformComponent.java
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
     # This gets built on unix platforms implicitly in the old build even though

@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jconsole
-.\" Language: English
-.\" Date: 2013Ç¯11·î21Æü
-.\" SectDesc: Java¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¢¥×¥í¥Õ¥¡¥¤¥ê¥ó¥°¡¢¥â¥Ë¥¿¥ê¥ó¥°¤ª¤è¤Ó´ÉÍý¥Ä¡¼¥ë
-.\" Software: JDK 8
-.\" Arch: ÈÆÍÑ
+.\" Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jconsole
+.\" Language: Japanese
+.\" Date: 2013Ç¯11·î21Æü
+.\" SectDesc: Java¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¢¥×¥í¥Õ¥¡¥¤¥ê¥ó¥°¡¢¥â¥Ë¥¿¥ê¥ó¥°¤ª¤è¤Ó´ÉÍý¥Ä¡¼¥ë
+.\" Software: JDK 8
+.\" Arch: ÈÆÍÑ
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jconsole" "1" "2013Ç¯11·î21Æü" "JDK 8" "Java¥È¥é¥Ö¥ë¥·¥å¡¼¥Æ¥£¥ó¥°¡¢¥×¥í¥Õ¥¡¥¤¥ê¥ó¥°¡¢¥â¥Ë¥¿¥ê¥ó"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,15 +50,15 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
-jconsole \- Java¥¢¥×¥ê¥±¡¼¥·¥ç¥ó¤ò´Æ»ë¤ª¤è¤Ó´ÉÍý¤¹¤ë¤¿¤á¤Î¥°¥é¥Õ¥£¥«¥ë¡¦¥³¥ó¥½¡¼¥ë¤ò³«»Ï¤·¤Þ¤¹¡£
+.SH "Ì¾Á°"
+jconsole \- Java¥¢¥×¥ê¥±¡¼¥·¥ç¥ó¤ò¥â¥Ë¥¿¡¼¤ª¤è¤Ó´ÉÍý¤¹¤ë¤¿¤á¤Î¥°¥é¥Õ¥£¥«¥ë¡¦¥³¥ó¥½¡¼¥ë¤ò³«»Ï¤·¤Þ¤¹¡£
 .SH "³µÍ×"
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjconsole\fR [ \fIoptions\fR ] [ connection \&.\&.\&. ]
+\fBjconsole\fR [ \fIoptions\fR ] [ connection \&.\&.\&. ]
 .fi
 .if n \{\
 .RE
@@ -64,24 +66,24 @@ jconsole \- Java¥¢¥×¥ê¥±¡¼¥·¥ç¥ó¤ò´Æ»ë¤ª¤è¤Ó´ÉÍý¤¹¤ë¤¿¤á¤Î¥°¥é¥Õ¥£¥«¥ë¡¦¥³¥ó¥½¡¼
 .PP
 \fIoptions\fR
 .RS 4
-¥³¥Þ¥ó¥É¥é¥¤¥ó¡¦¥ª¥×¥·¥ç¥ó¡£¥ª¥×¥·¥ç¥ó¤ò»²¾È¤·¤Æ¤¯¤À¤µ¤¤¡£
+¥³¥Þ¥ó¥É¹Ô¥ª¥×¥·¥ç¥ó¡£¥ª¥×¥·¥ç¥ó¤ò»²¾È¤·¤Æ¤¯¤À¤µ¤¤¡£
 .RE
 .PP
 connection = \fIpid\fR | \fIhost\fR:\fIport\fR | \fIjmxURL\fR
 .RS 4
-\fIpid\fRÃÍ¤Ï¥í¡¼¥«¥ë¤ÎJava²¾ÁÛ¥Þ¥·¥ó(JVM)¤Î¥×¥í¥»¥¹ID¤Ç¤¹¡£JVM¤Ï\fIjconsole\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¤Æ¤¤¤ë¥æ¡¼¥¶¡¼ID¤ÈÆ±¤¸¥æ¡¼¥¶¡¼ID¤Ç¼Â¹Ô¤¹¤ëÉ¬Í×¤¬¤¢¤ê¤Þ¤¹¡£\fIhost:port\fRÃÍ¤ÏJVM¤¬Æ°ºî¤·¤Æ¤¤¤ë¥Û¥¹¥È¡¦¥·¥¹¥Æ¥à¤ÎÌ¾Á°¤È¡¢JVM¤¬³«»Ï¤·¤¿¤È¤­¤Ë¥·¥¹¥Æ¥à¡¦¥×¥í¥Ñ¥Æ¥£\fIcom\&.sun\&.management\&.jmxremote\&.port\fR¤Ç»ØÄê¤·¤¿¥Ý¡¼¥ÈÈÖ¹æ¤Ç¤¹¡£\fIjmxUrl\fRÃÍ¤Ï¡¢JMXServiceURL¤Çµ­½Ò¤µ¤ì¤Æ¤¤¤ë¡¢ÀÜÂ³¤µ¤ì¤ëJMX¥¨¡¼¥¸¥§¥ó¥È¤Î¥¢¥É¥ì¥¹¤Ç¤¹¡£
+\fBpid\fRÃÍ¤Ï¥í¡¼¥«¥ë¤ÎJava Virtual Machine (JVM)¤Î¥×¥í¥»¥¹ID¤Ç¤¹¡£JVM¤Ï\fBjconsole\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¤Æ¤¤¤ë¥æ¡¼¥¶¡¼ID¤ÈÆ±¤¸¥æ¡¼¥¶¡¼ID¤Ç¼Â¹Ô¤¹¤ëÉ¬Í×¤¬¤¢¤ê¤Þ¤¹¡£\fBhost:port\fRÃÍ¤ÏJVM¤¬Æ°ºî¤·¤Æ¤¤¤ë¥Û¥¹¥È¡¦¥·¥¹¥Æ¥à¤ÎÌ¾Á°¤È¡¢JVM¤¬³«»Ï¤·¤¿¤È¤­¤Ë¥·¥¹¥Æ¥à¡¦¥×¥í¥Ñ¥Æ¥£\fBcom\&.sun\&.management\&.jmxremote\&.port\fR¤Ç»ØÄê¤·¤¿¥Ý¡¼¥ÈÈÖ¹æ¤Ç¤¹¡£\fBjmxUrl\fRÃÍ¤Ï¡¢JMXServiceURL¤Çµ­½Ò¤µ¤ì¤Æ¤¤¤ë¡¢ÀÜÂ³¤µ¤ì¤ëJMX¥¨¡¼¥¸¥§¥ó¥È¤Î¥¢¥É¥ì¥¹¤Ç¤¹¡£
 .sp
-\fIconnection\fR¥Ñ¥é¥á¡¼¥¿¤Î¾ÜºÙ¤Ï¡¢JMX¥Æ¥¯¥Î¥í¥¸¤ò»ÈÍÑ¤·¤¿¥â¥Ë¥¿¥ê¥ó¥°¤ª¤è¤Ó´ÉÍý
+\fBconnection\fR¥Ñ¥é¥á¡¼¥¿¤Î¾ÜºÙ¤Ï¡¢JMX¥Æ¥¯¥Î¥í¥¸¤ò»ÈÍÑ¤·¤¿¥â¥Ë¥¿¥ê¥ó¥°¤ª¤è¤Ó´ÉÍý
 (http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/management/agent\&.html)¤ò»²¾È¤·¤Æ¤¯¤À¤µ¤¤
 .sp
-\fIJMXServiceURL\fR¥¯¥é¥¹¤ÎÀâÌÀ(
+\fBJMXServiceURL\fR¥¯¥é¥¹¤ÎÀâÌÀ(
 http://docs\&.oracle\&.com/javase/8/docs/api/javax/management/remote/JMXServiceURL\&.html)¤â»²¾È¤·¤Æ¤¯¤À¤µ¤¤
 .RE
 .SH "ÀâÌÀ"
 .PP
-\fIjconsole\fR¥³¥Þ¥ó¥É¤Ï¡¢¥í¡¼¥«¥ë¡¦¥Þ¥·¥ó¤Þ¤¿¤Ï¥ê¥â¡¼¥È¡¦¥Þ¥·¥ó¾å¤ÎJava¥¢¥×¥ê¥±¡¼¥·¥ç¥ó¤È²¾ÁÛ¥Þ¥·¥ó¤Î´Æ»ë¤È´ÉÍý¤ò¹Ô¤¦¥°¥é¥Õ¥£¥«¥ë¡¦¥³¥ó¥½¡¼¥ë¡¦¥Ä¡¼¥ë¤òµ¯Æ°¤·¤Þ¤¹¡£
+\fBjconsole\fR¥³¥Þ¥ó¥É¤Ï¡¢¥í¡¼¥«¥ë¡¦¥Þ¥·¥ó¤Þ¤¿¤Ï¥ê¥â¡¼¥È¡¦¥Þ¥·¥ó¾å¤ÎJava¥¢¥×¥ê¥±¡¼¥·¥ç¥ó¤È²¾ÁÛ¥Þ¥·¥ó¤ò¥â¥Ë¥¿¡¼¤ª¤è¤Ó´ÉÍý¤¹¤ë¥°¥é¥Õ¥£¥«¥ë¡¦¥³¥ó¥½¡¼¥ë¡¦¥Ä¡¼¥ë¤òµ¯Æ°¤·¤Þ¤¹¡£
 .PP
-Windows¾å¤Ç¤Ï¡¢\fIjconsole\fR¥³¥Þ¥ó¥É¤Ï¥³¥ó¥½¡¼¥ë¡¦¥¦¥£¥ó¥É¥¦¤È´ØÏ¢ÉÕ¤±¤é¤ì¤Æ¤¤¤Þ¤»¤ó¡£¤¿¤À¤·¡¢\fIjconsole\fR¥³¥Þ¥ó¥É¤¬¼ºÇÔ¤¹¤ë¤È¡¢¥¨¥é¡¼¾ðÊó¤ò¼¨¤¹¥À¥¤¥¢¥í¥°¡¦¥Ü¥Ã¥¯¥¹¤¬É½¼¨¤µ¤ì¤Þ¤¹¡£
+Windows¾å¤Ç¤Ï¡¢\fBjconsole\fR¥³¥Þ¥ó¥É¤Ï¥³¥ó¥½¡¼¥ë¡¦¥¦¥£¥ó¥É¥¦¤È´ØÏ¢ÉÕ¤±¤é¤ì¤Æ¤¤¤Þ¤»¤ó¡£¤¿¤À¤·¡¢\fBjconsole\fR¥³¥Þ¥ó¥É¤¬¼ºÇÔ¤¹¤ë¤È¡¢¥¨¥é¡¼¾ðÊó¤ò¼¨¤¹¥À¥¤¥¢¥í¥°¡¦¥Ü¥Ã¥¯¥¹¤¬É½¼¨¤µ¤ì¤Þ¤¹¡£
 .SH "¥ª¥×¥·¥ç¥ó"
 .PP
 \-interval\fI=n\fR
@@ -91,12 +93,12 @@ Windows¾å¤Ç¤Ï¡¢\fIjconsole\fR¥³¥Þ¥ó¥É¤Ï¥³¥ó¥½¡¼¥ë¡¦¥¦¥£¥ó¥É¥¦¤È´ØÏ¢ÉÕ¤±¤é¤ì¤Æ¤¤¤
 .PP
 \-notile
 .RS 4
-ºÇ½é¤Ë¥¦¥£¥ó¥É¥¦¤ò¥¿¥¤¥ê¥ó¥°¤·¤Þ¤»¤ó(Ê£¿ôÀÜÂ³¤Î¾ì¹ç)¡£
+ºÇ½é¤Ï¥¦¥£¥ó¥É¥¦¤ò¥¿¥¤¥ëÉ½¼¨¤·¤Þ¤»¤ó(Ê£¿ôÀÜÂ³¤Î¾ì¹ç)¡£
 .RE
 .PP
 \-pluginpath \fIplugins\fR
 .RS 4
-\fIJConsole\fR¥×¥é¥°¥¤¥ó¤ò¸¡º÷¤¹¤ë¥Ç¥£¥ì¥¯¥È¥ê¤Þ¤¿¤ÏJAR¥Õ¥¡¥¤¥ë¤Î¥ê¥¹¥È¤ò»ØÄê¤·¤Þ¤¹¡£\fIplugins\fR¥Ñ¥¹¤Ë¤Ï\fIMETA\-INF/services/com\&.sun\&.tools\&.jconsole\&.JConsolePlugin\fR¤È¤¤¤¦Ì¾Á°¤Î¥×¥í¥Ð¥¤¥À¹½À®¥Õ¥¡¥¤¥ë¤ò´Þ¤ó¤Ç¤¤¤ëÉ¬Í×¤¬¤¢¤ê¡¢¤³¤ì¤Ë¤Ï¥×¥é¥°¥¤¥ó¤´¤È¤Ë1¹Ô¤¬´Þ¤Þ¤ì¤Æ¤¤¤Þ¤¹¡£¤½¤Î¹Ô¤Ï\fIcom\&.sun\&.tools\&.jconsole\&.JConsolePlugin\fR¥¯¥é¥¹¤ò¼ÂÁõ¤·¤Æ¤¤¤ë¥¯¥é¥¹¤Î´°Á´½¤¾þ¥¯¥é¥¹Ì¾¤ò»ØÄê¤·¤Þ¤¹¡£
+\fBJConsole\fR¥×¥é¥°¥¤¥ó¤ò¸¡º÷¤¹¤ë¥Ç¥£¥ì¥¯¥È¥ê¤Þ¤¿¤ÏJAR¥Õ¥¡¥¤¥ë¤Î¥ê¥¹¥È¤ò»ØÄê¤·¤Þ¤¹¡£\fIplugins\fR¥Ñ¥¹¤Ë¤Ï\fBMETA\-INF/services/com\&.sun\&.tools\&.jconsole\&.JConsolePlugin\fR¤È¤¤¤¦Ì¾Á°¤Î¥×¥í¥Ð¥¤¥À¹½À®¥Õ¥¡¥¤¥ë¤ò´Þ¤ó¤Ç¤¤¤ëÉ¬Í×¤¬¤¢¤ê¡¢¤³¤ì¤Ë¤Ï¥×¥é¥°¥¤¥ó¤´¤È¤Ë1¹Ô¤¬´Þ¤Þ¤ì¤Æ¤¤¤Þ¤¹¡£¤½¤Î¹Ô¤Ï\fBcom\&.sun\&.tools\&.jconsole\&.JConsolePlugin\fR¥¯¥é¥¹¤ò¼ÂÁõ¤·¤Æ¤¤¤ë¥¯¥é¥¹¤Î´°Á´½¤¾þ¥¯¥é¥¹Ì¾¤ò»ØÄê¤·¤Þ¤¹¡£
 .RE
 .PP
 \-version
@@ -111,7 +113,7 @@ Windows¾å¤Ç¤Ï¡¢\fIjconsole\fR¥³¥Þ¥ó¥É¤Ï¥³¥ó¥½¡¼¥ë¡¦¥¦¥£¥ó¥É¥¦¤È´ØÏ¢ÉÕ¤±¤é¤ì¤Æ¤¤¤
 .PP
 \-J\fIflag\fR
 .RS 4
-\fIjconsole\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¤¿JVM¤Ë\fIflag\fR¤òÅÏ¤·¤Þ¤¹¡£
+\fBjconsole\fR¥³¥Þ¥ó¥É¤ò¼Â¹Ô¤·¤¿JVM¤Ë\fBflag\fR¤òÅÏ¤·¤Þ¤¹¡£
 .RE
 .SH "´ØÏ¢¹àÌÜ"
 .sp
@@ -148,7 +150,7 @@ JMX¥Æ¥¯¥Î¥í¥¸¤ò»ÈÍÑ¤·¤¿¥â¥Ë¥¿¥ê¥ó¥°¤ª¤è¤Ó´ÉÍý
 .sp -1
 .IP \(bu 2.3
 .\}
-\fIJMXServiceURL\fR¥¯¥é¥¹¤ÎÀâÌÀ(
+\fBJMXServiceURL\fR¥¯¥é¥¹¤ÎÀâÌÀ(
 http://docs\&.oracle\&.com/javase/8/docs/api/javax/management/remote/JMXServiceURL\&.html)
 .RE
 .br

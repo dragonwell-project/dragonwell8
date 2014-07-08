@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,7 +82,7 @@ public class TTYResources_ja extends java.util.ListResourceBundle {
         {"Can only trace", "'methods'\u3001'method exit'\u307E\u305F\u306F'method exits'\u306E\u307F\u30C8\u30EC\u30FC\u30B9\u3067\u304D\u307E\u3059"},
         {"cannot redefine existing connection", "{0}\u306F\u65E2\u5B58\u306E\u63A5\u7D9A\u3092\u518D\u5B9A\u7FA9\u3067\u304D\u307E\u305B\u3093"},
         {"Cannot assign to a method invocation", "\u30E1\u30BD\u30C3\u30C9\u547C\u51FA\u3057\u306B\u5272\u5F53\u3066\u3067\u304D\u307E\u305B\u3093"},
-        {"Cannot specify command line with connector:", "\u30B3\u30CD\u30AF\u30BF\u3067\u30B3\u30DE\u30F3\u30C9\u30E9\u30A4\u30F3\u3092\u6307\u5B9A\u3067\u304D\u307E\u305B\u3093: {0}"},
+        {"Cannot specify command line with connector:", "\u30B3\u30CD\u30AF\u30BF\u3067\u30B3\u30DE\u30F3\u30C9\u884C\u3092\u6307\u5B9A\u3067\u304D\u307E\u305B\u3093: {0}"},
         {"Cannot specify target vm arguments with connector:", "\u30B3\u30CD\u30AF\u30BF\u3067\u30BF\u30FC\u30B2\u30C3\u30C8VM\u5F15\u6570\u3092\u6307\u5B9A\u3067\u304D\u307E\u305B\u3093: {0}"},
         {"Class containing field must be specified.", "\u30D5\u30A3\u30FC\u30EB\u30C9\u3092\u542B\u3080\u30AF\u30E9\u30B9\u3092\u6307\u5B9A\u3059\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\u3002"},
         {"Class:", "\u30AF\u30E9\u30B9: {0}"},
