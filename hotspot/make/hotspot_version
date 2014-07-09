@@ -1,5 +1,5 @@
 # 
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,10 @@
 #
 
 # Don't put quotes (fail windows build).
-HOTSPOT_VM_COPYRIGHT=Copyright 2014
+HOTSPOT_VM_COPYRIGHT=Copyright 2015
 
 HS_MAJOR_VER=25
-HS_MINOR_VER=25
+HS_MINOR_VER=31
 HS_BUILD_NUMBER=01
 
 JDK_MAJOR_VER=1
