@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: xjc
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: Java Webサービス・ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: xjc
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: Java Webサービス・ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "xjc" "1" "2013年11月21日" "JDK 8" "Java Webサービス・ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "名前"
 xjc \- XMLスキーマ・ファイルを完全注釈付きのJavaクラスにコンパイルします。
 .SH "概要"
 .sp
@@ -56,7 +58,7 @@ xjc \- XMLスキーマ・ファイルを完全注釈付きのJavaクラスにコンパイルします。
 .RS 4
 .\}
 .nf
-\fIxjc\fR [ \fIoptions\fR ] \fIschema\fR \fIfile/URL/dir/jar\fR \&.\&.\&. [\fI\-b\fR \fIbindinfo\fR ] \&.\&.\&.
+\fBxjc\fR [ \fIoptions\fR ] \fBschema\fR \fIfile/URL/dir/jar\fR \&.\&.\&. [\fB\-b\fR \fIbindinfo\fR ] \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -64,12 +66,12 @@ xjc \- XMLスキーマ・ファイルを完全注釈付きのJavaクラスにコンパイルします。
 .PP
 \fIoptions\fR
 .RS 4
-コマンドライン・オプション。オプションを参照してください。
+コマンド行オプション。オプションを参照してください。
 .RE
 .PP
 schema \fIfile/URL/dir/jar \&.\&.\&.\fR
 .RS 4
-XMLスキーマ・ファイルの場所。\fIdir\fRが指定されている場合は、すべてのスキーマ・ファイルがコンパイルされます。\fIjar\fRが指定されている場合は、\fI/META\-INF/sun\-jaxb\&.episode\fRバインディング・ファイルがコンパイルされます。
+XMLスキーマ・ファイルの場所。\fBdir\fRが指定されている場合は、すべてのスキーマ・ファイルがコンパイルされます。\fBjar\fRが指定されている場合は、\fB/META\-INF/sun\-jaxb\&.episode\fRバインディング・ファイルがコンパイルされます。
 .RE
 .PP
 \-b \fIbindinfo\fR
@@ -78,7 +80,7 @@ XMLスキーマ・ファイルの場所。\fIdir\fRが指定されている場合は、すべてのスキーマ・
 .RE
 .SH "説明"
 .PP
-プラットフォームのbinディレクトリにある適切な\fIxjc\fRシェル・スクリプトを使用して、バインディング・コンパイラを起動します。バインディング・コンパイラを実行するAntタスクもあります。http://jaxb\&.java\&.net/nonav/2\&.1\&.3/docs/xjcTask\&.htmlの
+プラットフォームのbinディレクトリにある適切な\fBxjc\fRシェル・スクリプトを使用して、バインディング・コンパイラを起動します。バインディング・コンパイラを実行するAntタスクもあります。http://jaxb\&.java\&.net/nonav/2\&.1\&.3/docs/xjcTask\&.htmlの
 Using the XJC with Antを参照してください
 .SH "オプション"
 .sp
@@ -111,13 +113,13 @@ Using the XJC with Antを参照してください
 .PP
 \-extension
 .RS 4
-デフォルトでは、XJCバインディング・コンパイラは、JAXB仕様のCompatibilityの章で説明されているルールを厳密に強制します。付録E\&.2には、JAXB v1\&.0で完全にはサポートされていない一連のW3C XMLスキーマ機能が定義されています。場合によっては、このスイッチで有効になる\fI\-extension\fRモードでそれらの機能が使用できる場合があります。また、デフォルトの厳密なモードでは、仕様に定義されているバインディング・カスタマイズのみが使用できます。\fI\-extension\fRスイッチを指定すれば、JAXB Vendor Extensionを使用できます。
+デフォルトでは、XJCバインディング・コンパイラは、JAXB仕様のCompatibilityの章で説明されているルールを厳密に強制します。付録E\&.2には、JAXB v1\&.0で完全にはサポートされていない一連のW3C XMLスキーマ機能が定義されています。場合によっては、このスイッチで有効になる\fB\-extension\fRモードでそれらの機能が使用できる場合があります。また、デフォルトの厳密なモードでは、仕様に定義されているバインディング・カスタマイズのみが使用できます。\fB\-extension\fRスイッチを指定すれば、JAXB Vendor Extensionを使用できます。
 .RE
 .PP
 \-b \fIfile\fR
 .RS 4
-処理する外部バインディング・ファイルを1つまたは複数指定します。バインディング・ファイルごとに\fI\-b\fRスイッチを指定する必要があります。外部バインディング・ファイルの構文は柔軟です。複数のスキーマのカスタマイズが含まれる1つのバインディング・ファイルを使用したり、それらのカスタマイズを複数のバインディング・ファイルに分割したりできます。次に例を示します。\fIxjc schema1\&.xsd schema2\&.xsd schema3\&.xsd \-b bindings123\&.xjb\fR
-\fIxjc schema1\&.xsd schema2\&.xsd schema3\&.xsd \-b bindings1\&.xjb \-b bindings2\&.xjb \-b bindings3\&.xjb\fRまた、コマンドラインにスキーマ・ファイルとバインディング・ファイルを指定する順番は任意です。
+処理する外部バインディング・ファイルを1つまたは複数指定します。バインディング・ファイルごとに\fB\-b\fRスイッチを指定する必要があります。外部バインディング・ファイルの構文は柔軟です。複数のスキーマのカスタマイズが含まれる1つのバインディング・ファイルを使用したり、それらのカスタマイズを複数のバインディング・ファイルに分割したりできます。次に例を示します。\fBxjc schema1\&.xsd schema2\&.xsd schema3\&.xsd \-b bindings123\&.xjb\fR
+\fBxjc schema1\&.xsd schema2\&.xsd schema3\&.xsd \-b bindings1\&.xjb \-b bindings2\&.xjb \-b bindings3\&.xjb\fRまた、コマンド行にスキーマ・ファイルとバインディング・ファイルを指定する順番は任意です。
 .RE
 .PP
 \-d \fIdir\fR
@@ -127,17 +129,17 @@ Using the XJC with Antを参照してください
 .PP
 \-p \fIpkg\fR
 .RS 4
-このコマンドライン・オプションでターゲット・パッケージを指定した場合、その指定内容は、パッケージ名に対するすべてのバインディング・カスタマイズや、仕様で規定されているデフォルトのパッケージ名アルゴリズムよりも優先されます。
+このコマンド行オプションでターゲット・パッケージを指定した場合、パッケージ名に対するすべてのバインディング・カスタマイズや、仕様で規定されているデフォルトのパッケージ名アルゴリズムよりも優先されます。
 .RE
 .PP
 \-httpproxy \fIproxy\fR
 .RS 4
-\fI[user[:password]@]proxyHost[:proxyPort]\fR形式でHTTPまたはHTTPSプロキシを指定します。古い\fI\-host\fRおよび\fI\-port\fRオプションは、下位互換性のために引き続きRIでサポートされますが、非推奨となりました。このオプションで指定されたパスワードは、topコマンドを使用する他のユーザーが表示できる引数です。セキュリティを高めるには、\fI\-httpproxyfile\fRを使用してください。
+\fI[user[:password]@]proxyHost[:proxyPort]\fR形式でHTTPまたはHTTPSプロキシを指定します。古い\fB\-host\fRおよび\fB\-port\fRオプションは、後方互換性のために引き続きRIでサポートされますが、非推奨となりました。このオプションで指定されたパスワードは、topコマンドを使用する他のユーザーが表示できる引数です。セキュリティを高めるには、\fB\-httpproxyfile\fRを使用してください。
 .RE
 .PP
 \-httpproxyfile file
 .RS 4
-ファイルを使用して、HTTPまたはHTTPSプロキシを指定します。形式は\fI\-httpproxy\fRオプションと同じですが、このファイル内に指定されたパスワードを他のユーザーが表示することはできません。
+ファイルを使用して、HTTPまたはHTTPSプロキシを指定します。形式は\fB\-httpproxy\fRオプションと同じですが、このファイル内に指定されたパスワードを他のユーザーが表示することはできません。
 .RE
 .PP
 \-classpath arg
@@ -158,12 +160,12 @@ XML Entity and URI Resolversを参照してください
 .PP
 \-npa
 .RS 4
-\fI**/package\-info\&.java\fRへのパッケージ・レベルの注釈の生成を抑制します。このスイッチを使用して生成するコードでは、これらの注釈が他の生成済クラスに内部化されます。
+\fB**/package\-info\&.java\fRへのパッケージ・レベルの注釈の生成を抑制します。このスイッチを使用して生成するコードでは、これらの注釈が他の生成済クラスに内部化されます。
 .RE
 .PP
 \-no\-header
 .RS 4
-多少のメモとタイムスタンプを含むファイル・ヘッダー・コメントの生成を抑制します。これを使用すると、生成されたコードと\fIdiff\fRコマンドとの互換性がより強くなります。
+多少のメモとタイムスタンプを含むファイル・ヘッダー・コメントの生成を抑制します。これを使用すると、生成されたコードと\fBdiff\fRコマンドとの互換性がより強くなります。
 .RE
 .PP
 \-target 2\&.0
@@ -218,7 +220,7 @@ JAXB 2\&.1機能に依存するコードを生成しないようにします。これにより、生成されたコ
 .PP
 \fIschema file/URL/dir\fR
 .RS 4
-コンパイル対象となる1つまたは複数のスキーマ・ファイルを指定します。ディレクトリを指定する場合、\fIxjc\fRコマンドはすべてのスキーマ・ファイルをスキャンしてコンパイルします。
+コンパイル対象となる1つまたは複数のスキーマ・ファイルを指定します。ディレクトリを指定する場合、\fBxjc\fRコマンドはすべてのスキーマ・ファイルをスキャンしてコンパイルします。
 .RE
 .SS "非標準オプション"
 .PP
@@ -229,12 +231,12 @@ JAXB 2\&.1機能に依存するコードを生成しないようにします。これにより、生成されたコ
 .PP
 \-Xsync\-methods
 .RS 4
-生成されたすべてのメソッド・シグニチャに\fIsynchronized\fRキーワードが含められます。
+生成されたすべてのメソッド・シグニチャに\fBsynchronized\fRキーワードが含められます。
 .RE
 .PP
 \-mark\-generated
 .RS 4
-生成されたコードに注釈\fI@javax\&.annotation\&.Generated\fRを付けます。
+生成されたコードに注釈\fB@javax\&.annotation\&.Generated\fRを付けます。
 .RE
 .PP
 \-episode file
@@ -245,21 +247,21 @@ JAXB 2\&.1機能に依存するコードを生成しないようにします。これにより、生成されたコ
 .PP
 \-host & \-port
 .RS 4
-これらのオプションは\fI\-httpproxy\fRオプションで置き換えられました。これらのオプションは、下位互換性を確保するためにサポートされますが、ドキュメントには記載されず、将来のリリースで削除される可能性もあります。
+これらのオプションは\fB\-httpproxy\fRオプションで置き換えられました。これらのオプションは、後方互換性を確保するためにサポートされますが、ドキュメントには記載されず、将来のリリースで削除される可能性もあります。
 .RE
 .PP
 \-use\-runtime
 .RS 4
-JAXB 2\&.0仕様では、移植性のあるランタイム環境が定義されたため、JAXB RIが\fI**/impl/runtime \fRパッケージを生成する必要がなくなりました。このため、このスイッチは不要となり、削除されました。
+JAXB 2\&.0仕様では、移植性のあるランタイム環境が定義されたため、JAXB RIが\fB**/impl/runtime \fRパッケージを生成する必要がなくなりました。このため、このスイッチは不要となり、削除されました。
 .RE
 .PP
 \-source
 .RS 4
-\fI\-source\fR互換性スイッチは、JAXB 2\&.0の最初のEarly Access版で導入されました。このスイッチはJAXB 2\&.0の今後のリリースから削除されます。1\&.0\&.xコードを生成する必要がある場合は、1\&.0\&.xコード・ベースのインストールを使用してください。
+\fB\-source\fR互換性スイッチは、JAXB 2\&.0の最初のEarly Access版で導入されました。このスイッチはJAXB 2\&.0の今後のリリースから削除されます。1\&.0\&.xコードを生成する必要がある場合は、1\&.0\&.xコード・ベースのインストールを使用してください。
 .RE
 .SH "コンパイラの制限"
 .PP
-通常は、関連するすべてのスキーマを、同じバインディング・コンパイラ・スイッチを指定して1つの単位としてコンパイルするのが最も安全です。\fIxjc\fRコマンドの実行時には、次の制限リストに留意してください。これらの問題のほとんどは、\fIxjc\fRコマンドを何度か呼び出して複数のスキーマをコンパイルする場合にのみ当てはまります。
+通常は、関連するすべてのスキーマを、同じバインディング・コンパイラ・スイッチを指定して1つの単位としてコンパイルするのが最も安全です。\fBxjc\fRコマンドの実行時には、次の制限リストに留意してください。これらの問題のほとんどは、\fBxjc\fRコマンドを何度か呼び出して複数のスキーマをコンパイルする場合にのみ当てはまります。
 .PP
 複数のスキーマを同時にコンパイルする場合は、ターゲットのJavaパッケージ名に次の優先順位のルールが適用されることに注意してください。
 .sp
@@ -271,7 +273,7 @@ JAXB 2\&.0仕様では、移植性のあるランタイム環境が定義されたため、JAXB RIが\fI**/i
 .sp -1
 .IP "  1." 4.2
 .\}
-\fI\-p\fRオプションが最も優先されます。
+\fB\-p\fRオプションが最も優先されます。
 .RE
 .sp
 .RS 4
@@ -293,7 +295,7 @@ JAXB 2\&.0仕様では、移植性のあるランタイム環境が定義されたため、JAXB RIが\fI**/i
 .sp -1
 .IP "  3." 4.2
 .\}
-\fItargetNamespace\fRが宣言されている場合は、\fIt\fR\fIargetNamespace\fRを仕様で定義されているJavaパッケージ名のアルゴリズムに適用します。
+\fBtargetNamespace\fRが宣言されている場合は、\fBt\fR\fBargetNamespace\fRを仕様で定義されているJavaパッケージ名のアルゴリズムに適用します。
 .RE
 .sp
 .RS 4
@@ -304,7 +306,7 @@ JAXB 2\&.0仕様では、移植性のあるランタイム環境が定義されたため、JAXB RIが\fI**/i
 .sp -1
 .IP "  4." 4.2
 .\}
-\fItargetNamespace\fRが宣言されていない場合は、\fIgenerated\fRという名前のハードコードされたパッケージを使用します。
+\fBtargetNamespace\fRが宣言されていない場合は、\fBgenerated\fRという名前のハードコードされたパッケージを使用します。
 .RE
 .PP
 1つのネームスペースが複数の\fIjaxb:schemaBindings\fRを持つことはできないため、異なるJavaパッケージにコンパイラされる同一ターゲット・ネームスペースが2つのスキーマを持つことはできません。
