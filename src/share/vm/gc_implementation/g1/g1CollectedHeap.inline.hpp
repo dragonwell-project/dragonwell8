@@ -33,6 +33,7 @@
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc_implementation/g1/heapRegionSet.inline.hpp"
 #include "gc_implementation/g1/heapRegionSeq.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "utilities/taskqueue.hpp"
 
 // Inline functions for G1CollectedHeap
@@ -57,6 +58,19 @@ G1CollectedHeap::heap_region_containing_raw(const T addr) const {
   assert(_g1_reserved.contains((const void*) addr), "invariant");
   HeapRegion* res = _hrs.addr_to_region_unsafe((HeapWord*) addr);
   return res;
+}
+
+inline void G1CollectedHeap::reset_gc_time_stamp() {
+  _gc_time_stamp = 0;
+  OrderAccess::fence();
+  // Clear the cached CSet starting regions and time stamps.
+  // Their validity is dependent on the GC timestamp.
+  clear_cset_start_regions();
+}
+
+inline void G1CollectedHeap::increment_gc_time_stamp() {
+  ++_gc_time_stamp;
+  OrderAccess::fence();
 }
 
 inline void G1CollectedHeap::old_set_remove(HeapRegion* hr) {

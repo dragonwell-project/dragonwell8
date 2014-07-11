@@ -2287,6 +2287,9 @@ class CommandLineFlags {
   manageable(bool, PrintGCTimeStamps, false,                                \
           "Print timestamps at garbage collection")                         \
                                                                             \
+  manageable(bool, PrintGCID, false,                                        \
+          "Print an identifier for each garbage collection")                \
+                                                                            \
   product(bool, PrintGCTaskTimeStamps, false,                               \
           "Print timestamps for individual gc worker thread tasks")         \
                                                                             \

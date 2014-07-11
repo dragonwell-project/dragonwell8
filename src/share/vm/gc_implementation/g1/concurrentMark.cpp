@@ -45,6 +45,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/prefetch.inline.hpp"
 #include "services/memTracker.hpp"
 
 // Concurrent marking bit map wrapper
@@ -510,6 +511,7 @@ ConcurrentMark::ConcurrentMark(G1CollectedHeap* g1h, ReservedSpace heap_rs) :
   _has_overflown(false),
   _concurrent(false),
   _has_aborted(false),
+  _aborted_gc_id(GCId::undefined()),
   _restart_for_overflow(false),
   _concurrent_marking_in_progress(false),
 
@@ -976,13 +978,13 @@ void ConcurrentMark::enter_first_sync_barrier(uint worker_id) {
   }
 
   if (concurrent()) {
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
   }
 
   bool barrier_aborted = !_first_overflow_barrier_sync.enter();
 
   if (concurrent()) {
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
   }
   // at this point everyone should have synced up and not be doing any
   // more work
@@ -1019,8 +1021,7 @@ void ConcurrentMark::enter_first_sync_barrier(uint worker_id) {
       force_overflow()->update();
 
       if (G1Log::fine()) {
-        gclog_or_tty->date_stamp(PrintGCDateStamps);
-        gclog_or_tty->stamp(PrintGCTimeStamps);
+        gclog_or_tty->gclog_stamp(concurrent_gc_id());
         gclog_or_tty->print_cr("[GC concurrent-mark-reset-for-overflow]");
       }
     }
@@ -1036,13 +1037,13 @@ void ConcurrentMark::enter_second_sync_barrier(uint worker_id) {
   }
 
   if (concurrent()) {
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
   }
 
   bool barrier_aborted = !_second_overflow_barrier_sync.enter();
 
   if (concurrent()) {
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
   }
   // at this point everything should be re-initialized and ready to go
 
@@ -1094,7 +1095,7 @@ public:
 
     double start_vtime = os::elapsedVTime();
 
-    ConcurrentGCThread::stsJoin();
+    SuspendibleThreadSet::join();
 
     assert(worker_id < _cm->active_tasks(), "invariant");
     CMTask* the_task = _cm->task(worker_id);
@@ -1121,9 +1122,9 @@ public:
         if (!_cm->has_aborted() && the_task->has_aborted()) {
           sleep_time_ms =
             (jlong) (elapsed_vtime_sec * _cm->sleep_factor() * 1000.0);
-          ConcurrentGCThread::stsLeave();
+          SuspendibleThreadSet::leave();
           os::sleep(Thread::current(), sleep_time_ms, false);
-          ConcurrentGCThread::stsJoin();
+          SuspendibleThreadSet::join();
         }
         double end_time2_sec = os::elapsedTime();
         double elapsed_time2_sec = end_time2_sec - start_time_sec;
@@ -1141,7 +1142,7 @@ public:
     the_task->record_end_time();
     guarantee(!the_task->has_aborted() || _cm->has_aborted(), "invariant");
 
-    ConcurrentGCThread::stsLeave();
+    SuspendibleThreadSet::leave();
 
     double end_vtime = os::elapsedVTime();
     _cm->update_accum_task_vtime(worker_id, end_vtime - start_vtime);
@@ -2464,7 +2465,7 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
     if (G1Log::finer()) {
       gclog_or_tty->put(' ');
     }
-    GCTraceTime t("GC ref-proc", G1Log::finer(), false, g1h->gc_timer_cm());
+    GCTraceTime t("GC ref-proc", G1Log::finer(), false, g1h->gc_timer_cm(), concurrent_gc_id());
 
     ReferenceProcessor* rp = g1h->ref_processor_cm();
 
@@ -2521,7 +2522,8 @@ void ConcurrentMark::weakRefsWork(bool clear_all_soft_refs) {
                                           &g1_keep_alive,
                                           &g1_drain_mark_stack,
                                           executor,
-                                          g1h->gc_timer_cm());
+                                          g1h->gc_timer_cm(),
+                                          concurrent_gc_id());
     g1h->gc_tracer_cm()->report_gc_reference_stats(stats);
 
     // The do_oop work routines of the keep_alive and drain_marking_stack
@@ -3252,6 +3254,12 @@ void ConcurrentMark::abort() {
   }
   _first_overflow_barrier_sync.abort();
   _second_overflow_barrier_sync.abort();
+  const GCId& gc_id = _g1h->gc_tracer_cm()->gc_id();
+  if (!gc_id.is_undefined()) {
+    // We can do multiple full GCs before ConcurrentMarkThread::run() gets a chance
+    // to detect that it was aborted. Only keep track of the first GC id that we aborted.
+    _aborted_gc_id = gc_id;
+   }
   _has_aborted = true;
 
   SATBMarkQueueSet& satb_mq_set = JavaThread::satb_mark_queue_set();
@@ -3264,6 +3272,13 @@ void ConcurrentMark::abort() {
 
   _g1h->trace_heap_after_concurrent_cycle();
   _g1h->register_concurrent_cycle_end();
+}
+
+const GCId& ConcurrentMark::concurrent_gc_id() {
+  if (has_aborted()) {
+    return _aborted_gc_id;
+  }
+  return _g1h->gc_tracer_cm()->gc_id();
 }
 
 static void print_ms_time_info(const char* prefix, const char* name,
@@ -3322,19 +3337,15 @@ void ConcurrentMark::print_on_error(outputStream* st) const {
 
 // We take a break if someone is trying to stop the world.
 bool ConcurrentMark::do_yield_check(uint worker_id) {
-  if (should_yield()) {
+  if (SuspendibleThreadSet::should_yield()) {
     if (worker_id == 0) {
       _g1h->g1_policy()->record_concurrent_pause();
     }
-    cmThread()->yield();
+    SuspendibleThreadSet::yield();
     return true;
   } else {
     return false;
   }
-}
-
-bool ConcurrentMark::should_yield() {
-  return cmThread()->should_yield();
 }
 
 bool ConcurrentMark::containing_card_is_marked(void* p) {
@@ -3625,7 +3636,7 @@ void CMTask::regular_clock_call() {
 #endif // _MARKING_STATS_
 
   // (4) We check whether we should yield. If we have to, then we abort.
-  if (_cm->should_yield()) {
+  if (SuspendibleThreadSet::should_yield()) {
     // We should yield. To do this we abort the task. The caller is
     // responsible for yielding.
     set_has_aborted();
