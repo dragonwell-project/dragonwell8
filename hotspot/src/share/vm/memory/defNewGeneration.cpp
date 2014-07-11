@@ -42,6 +42,7 @@
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/prefetch.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/stack.inline.hpp"
@@ -584,7 +585,7 @@ void DefNewGeneration::collect(bool   full,
 
   init_assuming_no_promotion_failure();
 
-  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL);
+  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL, gc_tracer.gc_id());
   // Capture heap used before collection (for printing).
   size_t gch_prev_used = gch->used();
 
@@ -642,7 +643,7 @@ void DefNewGeneration::collect(bool   full,
   rp->setup_policy(clear_all_soft_refs);
   const ReferenceProcessorStats& stats =
   rp->process_discovered_references(&is_alive, &keep_alive, &evacuate_followers,
-                                    NULL, _gc_timer);
+                                    NULL, _gc_timer, gc_tracer.gc_id());
   gc_tracer.report_gc_reference_stats(stats);
 
   if (!_promotion_failed) {

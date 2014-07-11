@@ -37,6 +37,7 @@
 #include "oops/methodData.hpp"
 #include "prims/jvmtiRedefineClassesTrace.hpp"
 #include "prims/jvmtiImpl.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
 #include "utilities/dtrace.hpp"
@@ -688,8 +689,10 @@ nmethod::nmethod(
     _hotness_counter         = NMethodSweeper::hotness_counter_reset_val();
 
     code_buffer->copy_values_to(this);
-    if (ScavengeRootsInCode && detect_scavenge_root_oops()) {
-      CodeCache::add_scavenge_root_nmethod(this);
+    if (ScavengeRootsInCode) {
+      if (detect_scavenge_root_oops()) {
+        CodeCache::add_scavenge_root_nmethod(this);
+      }
       Universe::heap()->register_nmethod(this);
     }
     debug_only(verify_scavenge_root_oops());
@@ -773,8 +776,10 @@ nmethod::nmethod(
     _hotness_counter         = NMethodSweeper::hotness_counter_reset_val();
 
     code_buffer->copy_values_to(this);
-    if (ScavengeRootsInCode && detect_scavenge_root_oops()) {
-      CodeCache::add_scavenge_root_nmethod(this);
+    if (ScavengeRootsInCode) {
+      if (detect_scavenge_root_oops()) {
+        CodeCache::add_scavenge_root_nmethod(this);
+      }
       Universe::heap()->register_nmethod(this);
     }
     DEBUG_ONLY(verify_scavenge_root_oops();)
@@ -889,8 +894,10 @@ nmethod::nmethod(
     code_buffer->copy_values_to(this);
     debug_info->copy_to(this);
     dependencies->copy_to(this);
-    if (ScavengeRootsInCode && detect_scavenge_root_oops()) {
-      CodeCache::add_scavenge_root_nmethod(this);
+    if (ScavengeRootsInCode) {
+      if (detect_scavenge_root_oops()) {
+        CodeCache::add_scavenge_root_nmethod(this);
+      }
       Universe::heap()->register_nmethod(this);
     }
     debug_only(verify_scavenge_root_oops());

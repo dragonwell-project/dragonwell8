@@ -34,6 +34,7 @@
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 

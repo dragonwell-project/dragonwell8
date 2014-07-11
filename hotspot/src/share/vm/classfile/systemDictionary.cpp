@@ -52,6 +52,7 @@
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/signature.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
@@ -997,7 +998,6 @@ Klass* SystemDictionary::parse_stream(Symbol* class_name,
 
   if (host_klass.not_null() && k.not_null()) {
     assert(EnableInvokeDynamic, "");
-    k->set_host_klass(host_klass());
     // If it's anonymous, initialize it now, since nobody else will.
 
     {
