@@ -287,6 +287,7 @@ void CompileTask::initialize(int compile_id,
   _hot_count = hot_count;
   _time_queued = 0;  // tidy
   _comment = comment;
+  _failure_reason = NULL;
 
   if (LogCompilation) {
     _time_queued = os::elapsed_counter();
@@ -565,6 +566,11 @@ void CompileTask::log_task_done(CompileLog* log) {
   methodHandle method(thread, this->method());
   ResourceMark rm(thread);
 
+  if (!_is_success) {
+    const char* reason = _failure_reason != NULL ? _failure_reason : "unknown";
+    log->elem("failure reason='%s'", reason);
+  }
+
   // <task_done ... stamp='1.234'>  </task>
   nmethod* nm = code();
   log->begin_elem("task_done success='%d' nmsize='%d' count='%d'",
@@ -714,6 +720,7 @@ void CompileQueue::purge_stale_tasks() {
       for (CompileTask* task = head; task != NULL; ) {
         CompileTask* next_task = task->next();
         CompileTaskWrapper ctw(task); // Frees the task
+        task->set_failure_reason("stale task");
         task = next_task;
       }
     }
@@ -1788,6 +1795,7 @@ void CompileBroker::compiler_thread_loop() {
       } else {
         // After compilation is disabled, remove remaining methods from queue
         method->clear_queued_for_compilation();
+        task->set_failure_reason("compilation is disabled");
       }
     }
   }
@@ -1975,6 +1983,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     compilable = ci_env.compilable();
 
     if (ci_env.failing()) {
+      task->set_failure_reason(ci_env.failure_reason());
       const char* retry_message = ci_env.retry_message();
       if (_compilation_log != NULL) {
         _compilation_log->log_failure(thread, task, ci_env.failure_reason(), retry_message);
