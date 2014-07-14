@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jcmd
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: トラブルシューティング・ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jcmd
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: トラブルシューティング・ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jcmd" "1" "2013年11月21日" "JDK 8" "トラブルシューティング・ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,15 +50,15 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
-jcmd \- 実行中のJava仮想マシン(JVM)に診断コマンド・リクエストを送信します。
+.SH "名前"
+jcmd \- 実行中のJava Virtual Machine (JVM)に診断コマンド・リクエストを送信します。
 .SH "概要"
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjcmd\fR [\fI\-l\fR|\fI\-h\fR|\fI\-help\fR]
+\fBjcmd\fR [\fB\-l\fR|\fB\-h\fR|\fB\-help\fR]
 .fi
 .if n \{\
 .RE
@@ -66,7 +68,7 @@ jcmd \- 実行中のJava仮想マシン(JVM)に診断コマンド・リクエストを送信します。
 .RS 4
 .\}
 .nf
-\fIjcmd\fR \fIpid\fR|\fImain\-class\fR \fIPerfCounter\&.print\fR
+\fBjcmd\fR \fIpid\fR|\fImain\-class\fR \fBPerfCounter\&.print\fR
 .fi
 .if n \{\
 .RE
@@ -76,7 +78,7 @@ jcmd \- 実行中のJava仮想マシン(JVM)に診断コマンド・リクエストを送信します。
 .RS 4
 .\}
 .nf
-\fIjcmd\fR \fIpid\fR|\fImain\-class\fR \fI\-f\fR \fIfilename\fR
+\fBjcmd\fR \fIpid\fR|\fImain\-class\fR \fB\-f\fR \fIfilename\fR
 .fi
 .if n \{\
 .RE
@@ -86,21 +88,21 @@ jcmd \- 実行中のJava仮想マシン(JVM)に診断コマンド・リクエストを送信します。
 .RS 4
 .\}
 .nf
-\fIjcmd\fR \fIpid\fR|\fImain\-class\fR \fIcommand\fR[ \fIarguments\fR]
+\fBjcmd\fR \fIpid\fR|\fImain\-class\fR \fIcommand\fR[ \fIarguments\fR]
 .fi
 .if n \{\
 .RE
 .\}
 .SH "説明"
 .PP
-\fIjcmd\fRユーティリティは、JVMに診断コマンド・リクエストを送信するために使用されます。これはJVMが稼働しているのと同じマシンで使用し、JVMの起動に使用したものと同じ有効ユーザーおよびグループ識別子を持っている必要があります。
+\fBjcmd\fRユーティリティは、JVMに診断コマンド・リクエストを送信するために使用されます。これはJVMが稼働しているのと同じマシンで使用し、JVMの起動に使用したものと同じ有効ユーザーおよびグループ識別子を持っている必要があります。
 .PP
 \fB注意:\fR
-リモート・マシンから、または別の識別子で診断コマンドを起動するには、\fIcom\&.sun\&.management\&.DiagnosticCommandMBean\fRインタフェースを使用できます。\fIDiagnosticCommandMBean\fRインタフェースの詳細は、http://download\&.java\&.net/jdk8/docs/jre/api/management/extension/com/sun/management/DiagnosticCommandMBean\&.htmlにあるAPIドキュメントを参照してください。
+リモート・マシンから、または別の識別子で診断コマンドを起動するには、\fBcom\&.sun\&.management\&.DiagnosticCommandMBean\fRインタフェースを使用できます。\fBDiagnosticCommandMBean\fRインタフェースの詳細は、http://docs\&.oracle\&.com/javase/8/docs/jre/api/management/extension/com/sun/management/DiagnosticCommandMBean\&.htmlにあるAPIドキュメントを参照してください。
 .PP
-\fIjcmd\fRを引数なしまたは\fI\- l\fRオプションを指定して実行した場合は、実行中のJavaプロセス識別子のリストが、メイン・クラスおよびプロセスの起動に使用されたコマンドライン引数とともに出力されます。\fI\-h\fRまたは\fI\-help\fRオプションを指定して\fIjcmd\fRを実行すると、ツールのヘルプ・メッセージが出力されます。
+\fBjcmd\fRを引数なしまたは\fB\- l\fRオプションを指定して実行した場合は、実行中のJavaプロセス識別子のリストが、メイン・クラスおよびプロセスの起動に使用されたコマンド行引数とともに出力されます。\fB\-h\fRまたは\fB\-help\fRオプションを指定して\fBjcmd\fRを実行すると、ツールのヘルプ・メッセージが出力されます。
 .PP
-プロセス識別子(\fIpid\fR)またはメイン・クラス(\fImain\-class\fR)を最初の引数として指定した場合、\fIjcmd\fRは、識別子を指定した場合はJavaプロセスに、メイン・クラスの名前を指定した場合はすべてのJavaプロセスに診断コマンド・リクエストを送信します。プロセス識別子として\fI0\fRを指定して、すべての使用可能なJavaプロセスに診断コマンド・リクエストを送信することもできます。診断コマンド・リクエストとして、次のいずれかを使用します。
+プロセス識別子(\fIpid\fR)またはメイン・クラス(\fImain\-class\fR)を最初の引数として指定した場合、\fBjcmd\fRは、識別子を指定した場合はJavaプロセスに、メイン・クラスの名前を指定した場合はすべてのJavaプロセスに診断コマンド・リクエストを送信します。プロセス識別子として\fB0\fRを指定して、すべての使用可能なJavaプロセスに診断コマンド・リクエストを送信することもできます。診断コマンド・リクエストとして、次のいずれかを使用します。
 .PP
 Perfcounter\&.print
 .RS 4
@@ -109,15 +111,15 @@ Perfcounter\&.print
 .PP
 \-f \fIfilename\fR
 .RS 4
-診断コマンドを読み取り、指定したJavaプロセスに送信するファイルの名前。\fI\-f\fRオプションでのみ使用します。ファイル内の各コマンドは、1行で記述する必要があります。番号記号(\fI#\fR)で始まる行は無視されます。すべての行が読み取られるか、\fIstop\fRキーワードを含む行が読み取られると、ファイルの処理が終了します。
+診断コマンドを読み取り、指定したJavaプロセスに送信するファイルの名前。\fB\-f\fRオプションでのみ使用します。ファイル内の各コマンドは、1行で記述する必要があります。番号記号(\fB#\fR)で始まる行は無視されます。すべての行が読み取られるか、\fBstop\fRキーワードを含む行が読み取られると、ファイルの処理が終了します。
 .RE
 .PP
 \fIcommand\fR [\fIarguments\fR]
 .RS 4
-指定されたJavaプロセスに送信するコマンド。指定したプロセスで使用できる診断コマンドのリストは、このプロセスに対して\fIhelp\fRコマンドを送信すれば表示されます。各診断コマンドに独自の引数セットがあります。コマンドの説明、構文および使用可能な引数のリストを表示するには、\fIhelp\fRコマンドの引数としてコマンド名を使用します。
+指定されたJavaプロセスに送信するコマンド。指定したプロセスで使用できる診断コマンドのリストは、このプロセスに対して\fBhelp\fRコマンドを送信すれば表示されます。各診断コマンドに独自の引数セットがあります。コマンドの説明、構文および使用可能な引数のリストを表示するには、\fBhelp\fRコマンドの引数としてコマンド名を使用します。
 .sp
 \fB注意:\fR
-引数にスペースが含まれている場合は、一重引用符または二重引用符(\fI\*(Aq\fRまたは\fI"\fR)で囲む必要があります。加えて、オペレーティング・システム・シェルが引用符を処理しないように、バックスラッシュ(\fI\e\fR)で一重引用符または二重引用符をエスケープする必要があります。または、これらの引数を一重引用符で囲んでから、二重引用符で囲むこともできます(または二重引用符で囲んでから、一重引用符で囲む)。
+引数にスペースが含まれている場合は、一重引用符または二重引用符(\fB\*(Aq\fRまたは\fB"\fR)で囲む必要があります。加えて、オペレーティング・システム・シェルが引用符を処理しないように、バックスラッシュ(\fB\e\fR)で一重引用符または二重引用符をエスケープする必要があります。または、これらの引数を一重引用符で囲んでから、二重引用符で囲むこともできます(または二重引用符で囲んでから、一重引用符で囲む)。
 .RE
 .SH "オプション"
 .PP
@@ -125,17 +127,19 @@ Perfcounter\&.print
 .PP
 \-f \fIfilename\fR
 .RS 4
-指定されたファイルからコマンドを読み取ります。このオプションは、最初の引数としてプロセス識別子またはメイン・クラスを指定する場合にのみ使用できます。ファイル内の各コマンドは、1行で記述する必要があります。番号記号(\fI#\fR)で始まる行は無視されます。すべての行が読み取られるか、\fIstop\fRキーワードを含む行が読み取られると、ファイルの処理が終了します。
+指定されたファイルからコマンドを読み取ります。このオプションは、最初の引数としてプロセス識別子またはメイン・クラスを指定する場合にのみ使用できます。ファイル内の各コマンドは、1行で記述する必要があります。番号記号(\fB#\fR)で始まる行は無視されます。すべての行が読み取られるか、\fBstop\fRキーワードを含む行が読み取られると、ファイルの処理が終了します。
 .RE
 .PP
-\-h, \-help
+\-h
+.br
+\-help
 .RS 4
 ヘルプ・メッセージが出力されます。
 .RE
 .PP
 \-l
 .RS 4
-実行中のJavaプロセス識別子のリストをメイン・クラスおよびコマンドライン引数とともに出力します。
+実行中のJavaプロセス識別子のリストをメイン・クラスおよびコマンド行引数とともに出力します。
 .RE
 .SH "関連項目"
 .sp
