@@ -1569,6 +1569,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         default:
           constant = new Constant(as_ValueType(field_val));
         }
+        // Stable static fields are checked for non-default values in ciField::initialize_from().
       }
       if (constant != NULL) {
         push(type, append(constant));
@@ -1609,6 +1610,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               break;
             default:
               constant = new Constant(as_ValueType(field_val));
+            }
+            if (FoldStableValues && field->is_stable() && field_val.is_null_or_zero()) {
+              // Stable field with default value can't be constant.
+              constant = NULL;
             }
           } else {
             // For CallSite objects treat the target field as a compile time constant.
@@ -1993,7 +1998,13 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   if (!UseInlineCaches && is_loaded && code == Bytecodes::_invokevirtual
       && !target->can_be_statically_bound()) {
     // Find a vtable index if one is available
-    vtable_index = target->resolve_vtable_index(calling_klass, callee_holder);
+    // For arrays, callee_holder is Object. Resolving the call with
+    // Object would allow an illegal call to finalize() on an
+    // array. We use holder instead: illegal calls to finalize() won't
+    // be compiled as vtable calls (IC call resolution will catch the
+    // illegal call) and the few legal calls on array types won't be
+    // either.
+    vtable_index = target->resolve_vtable_index(calling_klass, holder);
   }
 #endif
 
