@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: javaws
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: Java Web Startツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: javaws
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: Java Web Startツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "javaws" "1" "2013年11月21日" "JDK 8" "Java Web Startツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "名前"
 javaws \- Java Web Startを起動します。
 .SH "概要"
 .sp
@@ -56,7 +58,7 @@ javaws \- Java Web Startを起動します。
 .RS 4
 .\}
 .nf
-\fIjavaws\fR [ \fIrun\-options\fR ] \fIjnlp\fR
+\fBjavaws\fR [ \fIrun\-options\fR ] \fIjnlp\fR
 .fi
 .if n \{\
 .RE
@@ -66,7 +68,7 @@ javaws \- Java Web Startを起動します。
 .RS 4
 .\}
 .nf
-\fIjavaws\fR [ \fIcontrol\-options\fR ]
+\fBjavaws\fR [ \fIcontrol\-options\fR ]
 .fi
 .if n \{\
 .RE
@@ -74,7 +76,7 @@ javaws \- Java Web Startを起動します。
 .PP
 \fIrun\-options\fR
 .RS 4
-コマンドライン\fI実行オプション\fR。\fI実行オプション\fRは任意の順序で指定できます。実行オプションを参照してください。
+コマンド行\fB実行オプション\fR。\fB実行オプション\fRは任意の順序で指定できます。実行オプションを参照してください。
 .RE
 .PP
 \fIjnlp\fR
@@ -84,18 +86,18 @@ JNLP (Java Network Launching Protocol)ファイルのパスまたはURL (Uniform Resource 
 .PP
 \fI制御オプション\fR
 .RS 4
-コマンドライン\fI制御オプション\fR。\fI制御オプション\fRは任意の順序で指定できます。制御オプションを参照してください。
+コマンド行\fB制御オプション\fR。\fB制御オプション\fRは任意の順序で指定できます。制御オプションを参照してください。
 .RE
 .SH "説明"
 .PP
 \fB注意:\fR
-\fIjavaws\fRコマンドは、Oracle Solarisでは使用できません。
+\fBjavaws\fRコマンドは、Oracle Solarisでは使用できません。
 .PP
-\fIjavaws\fRコマンドは、JNLPのリファレンス実装であるJava Web Startを起動します。Java Web Startは、ネットワーク上で動作するJavaアプリケーションおよびアプレットを起動します。
+\fBjavaws\fRコマンドは、JNLPのリファレンス実装であるJava Web Startを起動します。Java Web Startは、ネットワーク上で動作するJavaアプリケーションおよびアプレットを起動します。
 .PP
-JNLPファイルが指定されると、\fIjavaws\fRコマンドはJNLPファイルで指定したJavaアプリケーションまたはアプレットを起動します。
+JNLPファイルが指定されると、\fBjavaws\fRコマンドはJNLPファイルで指定したJavaアプリケーションまたはアプレットを起動します。
 .PP
-\fIjavaws\fR起動ツールには、現在のリリースでサポートされている1組のオプションがあります。ただし、これらのオプションは将来のリリースでは削除される可能性があります。
+\fBjavaws\fR起動ツールには、現在のリリースでサポートされている1組のオプションがあります。ただし、これらのオプションは将来のリリースでは削除される可能性があります。
 .SH "実行オプション"
 .PP
 \-offline
@@ -110,14 +112,14 @@ Java Web Startをオフライン・モードで実行します。
 .PP
 \-open \fIarguments\fR
 .RS 4
-このオプションを指定すると、JNLPファイル内の引数が\fI\-open\fR
-\fIarguments\fRに置き換わります。
+このオプションを指定すると、JNLPファイル内の引数が\fB\-open\fR
+\fBarguments\fRに置き換わります。
 .RE
 .PP
 \-print \fIarguments\fR
 .RS 4
-このオプションを指定すると、JNLPファイル内の引数が\fI\-print\fR
-\fIarguments\fRに置き換わります。
+このオプションを指定すると、JNLPファイル内の引数が\fB\-print\fR
+\fBarguments\fRに置き換わります。
 .RE
 .PP
 \-online
@@ -127,7 +129,7 @@ Java Web Startをオフライン・モードで実行します。
 .PP
 \-wait
 .RS 4
-\fIjavaws\fRプロセスは、アプリケーションが終了するまで終了しません。Windowsプラットフォーム上では、このオプションは説明したとおりに機能しません。
+\fBjavaws\fRプロセスは、アプリケーションが終了するまで終了しません。Windowsプラットフォーム上では、このオプションは説明したとおりに機能しません。
 .RE
 .PP
 \-verbose
@@ -137,7 +139,7 @@ Java Web Startをオフライン・モードで実行します。
 .PP
 \-J\fIoption\fR
 .RS 4
-Java仮想マシンにoptionを渡します。\fIoption\fRには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fI\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
+Java Virtual Machineにoptionを渡します。\fBoption\fRには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fB\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
 .RE
 .PP
 \-system
@@ -200,20 +202,20 @@ Javaコントロール・パネルでキャッシュ・ビューアを表示します。
 \-shortcut
 .RS 4
 ユーザーがプロンプトを受け入れればショートカットをインストールします。このオプションは、
-\fI\-silent\fRオプションも使用しないと効果がありません。
+\fB\-silent\fRオプションも使用しないと効果がありません。
 .RE
 .PP
 \-association
 .RS 4
 ユーザーがプロンプトを受け入れればアソシエーションをインストールします。このオプションは、
-\fI\-silent\fRオプションも使用しないと効果がありません。
+\fB\-silent\fRオプションも使用しないと効果がありません。
 .RE
 .PP
-\fB注意:\fR\fIjavaws \-shortcut \-uninstall\fR
+\fB注意:\fR\fBjavaws \-shortcut \-uninstall\fR
 .SH "ファイル"
 .PP
-ユーザーおよびシステム・キャッシュならびにdeployment\&.propertiesファイルの詳細は、構成ファイルおよびプロパティのデプロイメント
-(http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/deployment/deployment\-guide/properties\&.html)を参照してください
+ユーザーおよびシステム・キャッシュならびにdeployment\&.propertiesファイルの詳細は、デプロイメント構成ファイルおよびプロパティ
+(http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/jweb/jcp/properties\&.html)を参照してください
 .SH "関連項目"
 .sp
 .RS 4
