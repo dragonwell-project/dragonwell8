@@ -38,6 +38,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import sun.awt.AWTAutoShutdown;
 import sun.awt.LightweightFrame;
+import sun.awt.AppContext;
 import sun.awt.SunToolkit;
 import sun.misc.ThreadGroupUtils;
 import sun.awt.Win32GraphicsDevice;
@@ -579,7 +580,6 @@ public final class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns <code>true</code> if this frame state is supported.
      */
-    @Override
     public boolean isFrameStateSupported(int state) {
         switch (state) {
           case Frame.NORMAL:
@@ -929,12 +929,16 @@ public final class WToolkit extends SunToolkit implements Runnable {
      * Windows doesn't always send WM_SETTINGCHANGE when it should.
      */
     private void windowsSettingChange() {
-        EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                updateProperties();
-            }
-        });
+        if (AppContext.getAppContext() == null) {
+            // We cannot post the update to any EventQueue. Listeners will
+            // be called on EDTs by DesktopPropertyChangeSupport
+            updateProperties();
+        } else {
+            // Cannot update on Toolkit thread.
+            // DesktopPropertyChangeSupport will call listeners on Toolkit
+            // thread if it has AppContext (standalone mode)
+            EventQueue.invokeLater(this::updateProperties);
+        }
     }
 
     private synchronized void updateProperties() {
@@ -974,7 +978,6 @@ public final class WToolkit extends SunToolkit implements Runnable {
      * initialize only static props here and do not try to initialize props which depends on wprops,
      * this should be done in lazilyLoadDesktopProperty() only.
      */
-    @Override
     protected synchronized void initializeDesktopProperties() {
         desktopProperties.put("DnD.Autoscroll.initialDelay",
                               Integer.valueOf(50));
