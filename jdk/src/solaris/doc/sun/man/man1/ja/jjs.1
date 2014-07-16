@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jjs
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: 基本ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 1994, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jjs
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: 基本ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jjs" "1" "2013年11月21日" "JDK 8" "基本ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "名前"
 jjs \- Nashornエンジンを呼び出します。
 .SH "概要"
 .sp
@@ -56,7 +58,7 @@ jjs \- Nashornエンジンを呼び出します。
 .RS 4
 .\}
 .nf
-\fIjjs\fR [\fIoptions\fR] [\fIscript\-files\fR] [\-\- \fIarguments\fR]
+\fB\fBjjs\fR\fR\fB [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIscript\-files\fR\fR\fB] [\-\- \fR\fB\fIarguments\fR\fR\fB]\fR
 .fi
 .if n \{\
 .RE
@@ -64,7 +66,7 @@ jjs \- Nashornエンジンを呼び出します。
 .PP
 \fIoptions\fR
 .RS 4
-空白文字で区切られた、\fIjjs\fRコマンドの1つ以上のオプション。詳細は、オプションを参照してください。
+空白文字で区切られた、\fBjjs\fRコマンドの1つ以上のオプション。詳細は、オプションを参照してください。
 .RE
 .PP
 \fIscript\-files\fR
@@ -74,53 +76,61 @@ jjs \- Nashornエンジンを呼び出します。
 .PP
 \fIarguments\fR
 .RS 4
-二重ハイフン・マーカー(\fI\-\-\fR)の後のすべての値が、引数としてスクリプトまたは対話型シェルに渡されます。これらの値には\fIarguments\fRプロパティを使用してアクセスできます(Example 3を参照してください)。
+二重ハイフン・マーカー(\fB\-\-\fR)の後のすべての値が、引数としてスクリプトまたは対話型シェルに渡されます。これらの値には\fBarguments\fRプロパティを使用してアクセスできます(Example 3を参照してください)。
 .RE
 .SH "説明"
 .PP
-\fIjjs\fRコマンドライン・ツールを使用してNashornエンジンを呼び出します。これを使用して、1つまたは複数のスクリプト・ファイルを解釈したり、対話型シェルを実行することができます。
+\fBjjs\fRコマンド行ツールを使用してNashornエンジンを呼び出します。これを使用して、1つまたは複数のスクリプト・ファイルを解釈したり、対話型シェルを実行することができます。
 .SH "オプション"
 .PP
-\fIjjs\fRコマンドのオプションはスクリプトがNashornによって解釈される条件を制御します。
+\fBjjs\fRコマンドのオプションはスクリプトがNashornによって解釈される条件を制御します。
 .PP
-\-ccs=\fIsize\fR, \-\-class\-cache\-size=\fIsize\fR
+\-ccs=\fIsize\fR
+.br
+\-\-class\-cache\-size=\fIsize\fR
 .RS 4
-クラス・キャッシュ・サイズをバイト単位で設定します。キロバイト(KB)を示すために\fIk\fRまたは\fIK\fRの文字を追加し、メガバイト(MB)を示すために\fIm\fRまたは\fIM\fRの文字を追加し、ギガバイト(GB)を示すために\fIg\fRまたは\fIG\fRを追加します。デフォルトでは、クラス・キャッシュ・サイズは50バイトに設定されます。次の例は、1024バイト(1 KB)に設定する方法を示します。
+クラス・キャッシュ・サイズをバイト単位で設定します。キロバイト(KB)を示すために\fBk\fRまたは\fBK\fRの文字を追加し、メガバイト(MB)を示すために\fBm\fRまたは\fBM\fRの文字を追加し、ギガバイト(GB)を示すために\fBg\fRまたは\fBG\fRを追加します。デフォルトでは、クラス・キャッシュ・サイズは50バイトに設定されます。次の例は、1024バイト(1 KB)に設定する方法を示します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\-css=100
-\-css=1k
+\fB\-css=100\fR
+\fB\-css=1k\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\-co, \-\-compile\-only
+\-co
+.br
+\-\-compile\-only
 .RS 4
 スクリプトを実行せずにコンパイルします。
 .RE
 .PP
-\-cp \fIpath\fR, \-\-classpath \fIpath\fR
+\-cp \fIpath\fR
+.br
+\-\-classpath \fIpath\fR
 .RS 4
 サポートするクラスへのパスを指定します。複数のパスを設定するには、このオプションを繰り返すか、または各パスをコロン(:)で区切ります。
 .RE
 .PP
 \-D\fIname\fR=\fIvalue\fR
 .RS 4
-プロパティ名に値を割り当てることで、スクリプトに渡すシステム・プロパティを設定します。次の例で、対話型モードでNashornを呼び出して、\fImyValue\fRを\fImyKey\fRという名前のプロパティに割り当てる方法を示します。
+プロパティ名に値を割り当てることで、スクリプトに渡すシステム・プロパティを設定します。次の例で、対話型モードでNashornを呼び出して、\fBmyValue\fRを\fBmyKey\fRという名前のプロパティに割り当てる方法を示します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
->> \fBjjs \-DmyKey=myValue\fR
-jjs> \fBjava\&.lang\&.System\&.getProperty("myKey")\fR
-myValue
-jjs>
+\fB>> \fR\fB\fBjjs \-DmyKey=myValue\fR\fR
+\fBjjs> \fR\fB\fBjava\&.lang\&.System\&.getProperty("myKey")\fR\fR
+\fBmyValue\fR
+\fBjjs>\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -128,14 +138,16 @@ jjs>
 このオプションを繰り返し使用すると、複数のプロパティを設定できます。
 .RE
 .PP
-\-d=\fIpath\fR, \-\-dump\-debug\-dir=\fIpath\fR
+\-d=\fIpath\fR
+.br
+\-\-dump\-debug\-dir=\fIpath\fR
 .RS 4
 クラス・ファイルをダンプするディレクトリへのパスを指定します。
 .RE
 .PP
 \-\-debug\-lines
 .RS 4
-クラス・ファイル内の行番号表を生成します。デフォルトでは、このオプションは有効になっています。無効にするには\fI\-\-debug\-lines=false\fRを指定します。
+クラス・ファイル内の行番号表を生成します。デフォルトでは、このオプションは有効になっています。無効にするには\fB\-\-debug\-lines=false\fRを指定します。
 .RE
 .PP
 \-\-debug\-locals
@@ -143,14 +155,16 @@ jjs>
 クラス・ファイル内のローカル変数を生成します。
 .RE
 .PP
-\-doe, \-\-dump\-on\-error
+\-doe
+.br
+\-\-dump\-on\-error
 .RS 4
 エラーが発生したときに、フル・スタック・トレースを提供します。デフォルトでは、簡単なエラー・メッセージのみが出力されます。
 .RE
 .PP
 \-\-early\-lvalue\-error
 .RS 4
-無効な左辺値式が早期エラーとして(つまり、コードが解析されるときに)報告されます。デフォルトでは、このオプションは有効になっています。無効にするには\fI\-\-early\-lvalue\-error=false\fRを指定します。無効な場合、無効な左辺値式はコードが実行されるまで報告されません。
+無効な左辺値式が早期エラーとして(つまり、コードが解析されるときに)報告されます。デフォルトでは、このオプションは有効になっています。無効にするには\fB\-\-early\-lvalue\-error=false\fRを指定します。無効な場合、無効な左辺値式はコードが実行されるまで報告されません。
 .RE
 .PP
 \-\-empty\-statements
@@ -158,7 +172,9 @@ jjs>
 空の文をJavaの抽象構文ツリーに保存します。
 .RE
 .PP
-\-fv, \-\-fullversion
+\-fv
+.br
+\-\-fullversion
 .RS 4
 完全なNashornバージョン文字列を出力します。
 .RE
@@ -178,28 +194,31 @@ jjs>
 スクリプトをJavaFXアプリケーションとして起動します。
 .RE
 .PP
-\-h, \-help
+\-h
+.br
+\-help
 .RS 4
 オプションのリストとその説明を出力します。
 .RE
 .PP
 \-J\fIoption\fR
 .RS 4
-指定した\fIjava\fR起動オプションをJVMに渡します。次の例で、対話型モードでNashornを呼び出して、JVMによって使用される最大メモリーを4 GBに設定する方法を示します。
+指定した\fBjava\fR起動オプションをJVMに渡します。次の例で、対話型モードでNashornを呼び出して、JVMによって使用される最大メモリーを4 GBに設定する方法を示します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
->> \fBjjs \-J\-Xmx4g\fR
-jjs> \fBjava\&.lang\&.Runtime\&.getRuntime()\&.maxMemory()\fR
-3817799680
-jjs>
+\fB>> \fR\fB\fBjjs \-J\-Xmx4g\fR\fR
+\fBjjs> \fR\fB\fBjava\&.lang\&.Runtime\&.getRuntime()\&.maxMemory()\fR\fR
+\fB3817799680\fR
+\fBjjs>\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-このオプションを繰り返し使用すると、複数の\fIjava\fRコマンド・オプションを渡すことができます。
+このオプションを繰り返し使用すると、複数の\fBjava\fRコマンド・オプションを渡すことができます。
 .RE
 .PP
 \-\-lazy\-compilation
@@ -209,7 +228,7 @@ jjs>
 .PP
 \-\-loader\-per\-compile
 .RS 4
-コンパイルごとに新しいクラス・ローダーを作成します。デフォルトでは、このオプションは有効になっています。無効にするには\fI\-\-loader\-per\-compile=false\fRを指定します。
+コンパイルごとに新しいクラス・ローダーを作成します。デフォルトでは、このオプションは有効になっています。無効にするには\fB\-\-loader\-per\-compile=false\fRを指定します。
 .RE
 .PP
 \-\-log=\fIsubsystem\fR:\fIlevel\fR
@@ -220,7 +239,8 @@ jjs>
 .RS 4
 .\}
 .nf
-\-\-log=fields:finest,codegen:info
+\fB\-\-log=fields:finest,codegen:info\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -259,7 +279,7 @@ jjs>
 .PP
 \-\-print\-no\-newline
 .RS 4
-その他の\fI\-\-print*\fRオプションで強制的に1行で出力します。
+その他の\fB\-\-print*\fRオプションで強制的に1行で出力します。
 .RE
 .PP
 \-\-print\-parse
@@ -272,7 +292,9 @@ jjs>
 記号表を出力します。
 .RE
 .PP
-\-pcs, \-\-profile\-callsites
+\-pcs
+.br
+\-\-profile\-callsites
 .RS 4
 呼び出しサイトのプロファイル・データをダンプします。
 .RE
@@ -284,12 +306,12 @@ jjs>
 .PP
 \-\-stderr=\fIfilename\fR|\fIstream\fR|\fItty\fR
 .RS 4
-標準エラー・ストリームを指定したファイル、ストリーム(たとえば\fIstdout\fR)に、またはテキスト端末にリダイレクトします。
+標準エラー・ストリームを指定したファイル、ストリーム(たとえば\fBstdout\fR)に、またはテキスト端末にリダイレクトします。
 .RE
 .PP
 \-\-stdout=\fIfilename\fR|\fIstream\fR|\fItty\fR
 .RS 4
-標準出力ストリームを指定したファイル、ストリーム(たとえば\fIstderr\fR)に、またはテキスト端末にリダイレクトします。
+標準出力ストリームを指定したファイル、ストリーム(たとえば\fBstderr\fR)に、またはテキスト端末にリダイレクトします。
 .RE
 .PP
 \-strict
@@ -297,12 +319,16 @@ jjs>
 標準(ECMAScript Edition 5\&.1)への準拠を強化するstrictモードを有効にし、これにより共通のコーディング・エラーを簡単に検出できるようになります。
 .RE
 .PP
-\-t=\fIzone\fR, \-timezone=\fIzone\fR
+\-t=\fIzone\fR
+.br
+\-timezone=\fIzone\fR
 .RS 4
-スクリプトの実行に対し指定したタイムゾーンを設定します。OSで設定されたタイムゾーンをオーバーライドし、\fIDate\fRオブジェクトで使用されます。
+スクリプトの実行に対し指定したタイム・ゾーンを設定します。OSで設定されたタイム・ゾーンをオーバーライドし、\fBDate\fRオブジェクトで使用されます。
 .RE
 .PP
-\-tcs=\fIparameter\fR, \-\-trace\-callsites=\fIparameter\fR
+\-tcs=\fIparameter\fR
+.br
+\-\-trace\-callsites=\fIparameter\fR
 .RS 4
 呼出しサイトのトレースのモードを有効にします。使用可能なパラメータは、次のとおりです。
 .PP
@@ -327,60 +353,71 @@ objects
 バイトコードを実行する前に検証します。
 .RE
 .PP
-\-v, \-version
+\-v
+.br
+\-version
 .RS 4
 Nashornバージョン文字列を出力します。
 .RE
 .PP
 \-xhelp
 .RS 4
-コマンドライン・オプションの拡張ヘルプを出力します。
+コマンド行オプションの拡張ヘルプを出力します。
 .RE
 .SH "例"
 .PP
-\fBExample 1\fR, Nashornを使用したスクリプトの実行
+\fB例 1\fR
+.br
+Nashornを使用したスクリプトの実行
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jjs script\&.js
+\fBjjs script\&.js\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\fBExample 2\fR, 対話型モードでのNashornの実行
+\fB例 2\fR
+.br
+対話型モードでのNashornの実行
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
->> \fBjjs\fR
-jjs> \fBprintln("Hello, World!")\fR
-Hello, World!
-jjs> \fBquit()\fR
->>
+\fB>> \fR\fB\fBjjs\fR\fR
+\fBjjs> \fR\fB\fBprintln("Hello, World!")\fR\fR
+\fBHello, World!\fR
+\fBjjs> \fR\fB\fBquit()\fR\fR
+\fB>>\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\fBExample 3\fR, Nashornへの引数の渡し
+\fB例 3\fR
+.br
+Nashornへの引数の渡し
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
->> \fBjjs \-\- a b c\fR
-jjs> \fBarguments\&.join(", ")\fR
-a, b, c
-jjs>
+\fB>> \fR\fB\fBjjs \-\- a b c\fR\fR
+\fBjjs> \fR\fB\fBarguments\&.join(", ")\fR\fR
+\fBa, b, c\fR
+\fBjjs>\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -388,7 +425,7 @@ jjs>
 .RE
 .SH "関連項目"
 .PP
-\fIjrunscript\fR
+\fBjrunscript\fR
 .br
 'pl 8.5i
 'bp
