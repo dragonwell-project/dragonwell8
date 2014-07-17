@@ -17,9 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * $Id: SerializerMessages_pt_BR.java /st_wptg_1.8.0.0.0jdk/2 2013/09/11 12:46:54 gmolloy Exp $
- */
 package com.sun.org.apache.xml.internal.serializer.utils;
 
 import java.util.ListResourceBundle;
@@ -127,7 +124,7 @@ public class SerializerMessages_pt_BR extends ListResourceBundle {
                 "Declara\u00E7\u00E3o de namespace ''{0}''=''{1}'' fora do elemento." },
 
             {   MsgKey.ER_COULD_NOT_LOAD_RESOURCE,
-                "N\u00E3o foi poss\u00EDvel carregar ''{0}'' (verificar CLASSPATH); usando agora apenas os defaults" },
+                "N\u00E3o foi poss\u00EDvel carregar ''{0}'' (verificar CLASSPATH); usando agora apenas os padr\u00F5es" },
 
             {   MsgKey.ER_ILLEGAL_CHARACTER,
                 "Tentativa de exibir um caractere de valor integral {0} que n\u00E3o est\u00E1 representado na codifica\u00E7\u00E3o de sa\u00EDda especificada de {1}." },
