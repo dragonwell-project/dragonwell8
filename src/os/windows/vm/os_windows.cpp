@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1820,7 +1820,8 @@ void os::jvm_path(char *buf, jint buflen) {
      // libjvm.so is installed there (append a fake suffix
      // hotspot/libjvm.so).
      char* java_home_var = ::getenv("JAVA_HOME");
-     if (java_home_var != NULL && java_home_var[0] != 0) {
+     if (java_home_var != NULL && java_home_var[0] != 0 &&
+         strlen(java_home_var) < (size_t)buflen) {
 
         strncpy(buf, java_home_var, buflen);
 
@@ -1838,9 +1839,9 @@ void os::jvm_path(char *buf, jint buflen) {
   }
 
   if(buf[0] == '\0') {
-  GetModuleFileName(vm_lib_handle, buf, buflen);
+    GetModuleFileName(vm_lib_handle, buf, buflen);
   }
-  strcpy(saved_jvm_path, buf);
+  strncpy(saved_jvm_path, buf, MAX_PATH);
 }
 
 
@@ -2291,19 +2292,8 @@ LONG WINAPI Handle_FLT_Exception(struct _EXCEPTION_POINTERS* exceptionInfo) {
       }
 
 */
-#endif //_WIN64
+#endif // _WIN64
 
-
-// Fatal error reporting is single threaded so we can make this a
-// static and preallocated.  If it's more than MAX_PATH silently ignore
-// it.
-static char saved_error_file[MAX_PATH] = {0};
-
-void os::set_error_file(const char *logfile) {
-  if (strlen(logfile) <= MAX_PATH) {
-    strncpy(saved_error_file, logfile, MAX_PATH);
-  }
-}
 
 static inline void report_error(Thread* t, DWORD exception_code,
                                 address addr, void* siginfo, void* context) {
