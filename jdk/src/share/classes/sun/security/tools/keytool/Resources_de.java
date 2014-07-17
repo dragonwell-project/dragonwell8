@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,7 @@ public class Resources_de extends java.util.ListResourceBundle {
         {"Imports.entries.from.a.JDK.1.1.x.style.identity.database",
                 "Importiert Eintr\u00E4ge aus einer Identity-Datenbank im JDK 1.1.x-Stil"}, //-identitydb
         {"Imports.a.certificate.or.a.certificate.chain",
-                "Importiert ein Zertifikat oder eine Zertifikatkette"}, //-importcert
+                "Importiert ein Zertifikat oder eine Zertifikatskette"}, //-importcert
         {"Imports.a.password",
                 "Importiert ein Kennwort"}, //-importpass
         {"Imports.one.or.all.entries.from.another.keystore",
@@ -304,7 +304,7 @@ public class Resources_de extends java.util.ListResourceBundle {
                 "{0}, {1,date}, "},
         {"alias.", "{0}, "},
         {"Entry.type.type.", "Eintragstyp: {0}"},
-        {"Certificate.chain.length.", "Zertifikatkettenl\u00E4nge: "},
+        {"Certificate.chain.length.", "Zertifikatskettenl\u00E4nge: "},
         {"Certificate.i.1.", "Zertifikat[{0,number,integer}]:"},
         {"Certificate.fingerprint.SHA1.", "Zertifikat-Fingerprint (SHA1): "},
         {"Keystore.type.", "Keystore-Typ: "},
@@ -388,9 +388,9 @@ public class Resources_de extends java.util.ListResourceBundle {
         {"Certificate.reply.does.not.contain.public.key.for.alias.",
                 "Zertifikatantwort enth\u00E4lt keinen Public Key f\u00FCr <{0}>"},
         {"Incomplete.certificate.chain.in.reply",
-                "Unvollst\u00E4ndige Zertifikatkette in Antwort"},
+                "Unvollst\u00E4ndige Zertifikatskette in Antwort"},
         {"Certificate.chain.in.reply.does.not.verify.",
-                "Zertifikatkette in Antwort verifiziert nicht: "},
+                "Zertifikatskette in Antwort verifiziert nicht: "},
         {"Top.level.certificate.in.reply.",
                 "Zertifikat der obersten Ebene in Antwort:\n"},
         {".is.not.trusted.", "... ist nicht vertrauensw\u00FCrdig. "},
