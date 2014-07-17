@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,8 @@
  */
 package com.sun.tools.jdeps;
 
-import com.sun.tools.classfile.Dependency.Location;
-import com.sun.tools.jdeps.PlatformClassPath.JDKArchive;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +34,9 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import com.sun.tools.classfile.Dependency.Location;
+import com.sun.tools.jdeps.PlatformClassPath.JDKArchive;
 
 /**
  * Dependency Analyzer.
@@ -52,7 +53,16 @@ public class Analyzer {
         VERBOSE
     };
 
+    /**
+     * Filter to be applied when analyzing the dependencies from the given archives.
+     * Only the accepted dependencies are recorded.
+     */
+    interface Filter {
+        boolean accepts(Location origin, Archive originArchive, Location target, Archive targetArchive);
+    }
+
     private final Type type;
+    private final Filter filter;
     private final Map<Archive, ArchiveDeps> results = new HashMap<>();
     private final Map<Location, Archive> map = new HashMap<>();
     private final Archive NOT_FOUND
@@ -62,15 +72,29 @@ public class Analyzer {
      * Constructs an Analyzer instance.
      *
      * @param type Type of the dependency analysis
+     * @param filter
      */
-    public Analyzer(Type type) {
+    public Analyzer(Type type, Filter filter) {
         this.type = type;
+        this.filter = filter;
     }
 
     /**
      * Performs the dependency analysis on the given archives.
      */
     public void run(List<Archive> archives) {
+        // build a map from Location to Archive
+        buildLocationArchiveMap(archives);
+
+        // traverse and analyze all dependencies
+        for (Archive archive : archives) {
+            ArchiveDeps deps = new ArchiveDeps(archive, type);
+            archive.visitDependences(deps);
+            results.put(archive, deps);
+        }
+    }
+
+    private void buildLocationArchiveMap(List<Archive> archives) {
         // build a map from Location to Archive
         for (Archive archive: archives) {
             for (Location l: archive.getClasses()) {
@@ -81,190 +105,223 @@ public class Analyzer {
                 }
             }
         }
-        // traverse and analyze all dependencies
-        for (Archive archive : archives) {
-            ArchiveDeps deps;
-            if (type == Type.CLASS || type == Type.VERBOSE) {
-                deps = new ClassVisitor(archive);
-            } else {
-                deps = new PackageVisitor(archive);
-            }
-            archive.visitDependences(deps);
-            results.put(archive, deps);
-        }
     }
 
     public boolean hasDependences(Archive archive) {
         if (results.containsKey(archive)) {
-            return results.get(archive).deps.size() > 0;
+            return results.get(archive).dependencies().size() > 0;
         }
         return false;
     }
 
     public interface Visitor {
         /**
-         * Visits the source archive to its destination archive of
-         * a recorded dependency.
-         */
-        void visitArchiveDependence(Archive origin, Archive target, Profile profile);
-        /**
          * Visits a recorded dependency from origin to target which can be
-         * a fully-qualified classname, a package name, a profile or
+         * a fully-qualified classname, a package name, a module or
          * archive name depending on the Analyzer's type.
          */
-        void visitDependence(String origin, Archive source, String target, Archive archive, Profile profile);
+        public void visitDependence(String origin, Archive originArchive,
+                                    String target, Archive targetArchive);
     }
 
-    public void visitArchiveDependences(Archive source, Visitor v) {
-        ArchiveDeps r = results.get(source);
-        for (ArchiveDeps.Dep d: r.requireArchives()) {
-            v.visitArchiveDependence(r.archive, d.archive, d.profile);
+    /**
+     * Visit the dependencies of the given source.
+     * If the requested level is SUMMARY, it will visit the required archives list.
+     */
+    public void visitDependences(Archive source, Visitor v, Type level) {
+        if (level == Type.SUMMARY) {
+            final ArchiveDeps result = results.get(source);
+            SortedMap<String, Archive> sorted = new TreeMap<>();
+            for (Archive a : result.requires()) {
+                sorted.put(a.getName(), a);
+            }
+            for (Archive archive : sorted.values()) {
+                Profile profile = result.getTargetProfile(archive);
+                v.visitDependence(source.getName(), source,
+                                  profile != null ? profile.profileName() : archive.getName(), archive);
+            }
+        } else {
+            ArchiveDeps result = results.get(source);
+            if (level != type) {
+                // requesting different level of analysis
+                result = new ArchiveDeps(source, level);
+                source.visitDependences(result);
+            }
+            SortedSet<Dep> sorted = new TreeSet<>(result.dependencies());
+            for (Dep d : sorted) {
+                v.visitDependence(d.origin(), d.originArchive(), d.target(), d.targetArchive());
+            }
         }
     }
 
     public void visitDependences(Archive source, Visitor v) {
-        ArchiveDeps r = results.get(source);
-        for (Map.Entry<String, SortedSet<ArchiveDeps.Dep>> e: r.deps.entrySet()) {
-            String origin = e.getKey();
-            for (ArchiveDeps.Dep d: e.getValue()) {
-                // filter intra-dependency unless in verbose mode
-                if (type == Type.VERBOSE || d.archive != source) {
-                    v.visitDependence(origin, source, d.target, d.archive, d.profile);
-                }
-            }
-        }
+        visitDependences(source, v, type);
     }
 
     /**
-     * ArchiveDeps contains the dependencies for an Archive that
-     * can have one or more classes.
+     * ArchiveDeps contains the dependencies for an Archive that can have one or
+     * more classes.
      */
-    private abstract class ArchiveDeps implements Archive.Visitor {
-        final Archive archive;
-        final SortedMap<String, SortedSet<Dep>> deps;
-        ArchiveDeps(Archive archive) {
+    class ArchiveDeps implements Archive.Visitor {
+        protected final Archive archive;
+        protected final Set<Archive> requires;
+        protected final Set<Dep> deps;
+        protected final Type level;
+        private Profile profile;
+        ArchiveDeps(Archive archive, Type level) {
             this.archive = archive;
-            this.deps = new TreeMap<>();
+            this.deps = new HashSet<>();
+            this.requires = new HashSet<>();
+            this.level = level;
         }
 
-        void add(String origin, String target, Archive targetArchive, String pkgName) {
-            SortedSet<Dep> set = deps.get(origin);
-            if (set == null) {
-                deps.put(origin, set = new TreeSet<>());
+        Set<Dep> dependencies() {
+            return deps;
+        }
+
+        Set<Archive> requires() {
+            return requires;
+        }
+
+        Profile getTargetProfile(Archive target) {
+            return JDKArchive.isProfileArchive(target) ? profile : null;
+        }
+
+        Archive findArchive(Location t) {
+            Archive target = archive.getClasses().contains(t) ? archive : map.get(t);
+            if (target == null) {
+                map.put(t, target = NOT_FOUND);
             }
-            Profile p = targetArchive instanceof JDKArchive
-                            ? Profile.getProfile(pkgName) : null;
-            set.add(new Dep(target, targetArchive, p));
+            return target;
         }
 
-        /**
-         * Returns the list of Archive dependences.  The returned
-         * list contains one {@code Dep} instance per one archive
-         * and with the minimum profile this archive depends on.
-         */
-        List<Dep> requireArchives() {
-            Map<Archive,Profile> map = new HashMap<>();
-            for (Set<Dep> set: deps.values()) {
-                for (Dep d: set) {
-                    if (this.archive != d.archive) {
-                        Profile p = map.get(d.archive);
-                        if (p == null || (d.profile != null && p.profile < d.profile.profile)) {
-                            map.put(d.archive, d.profile);
-                        }
+        // return classname or package name depedning on the level
+        private String getLocationName(Location o) {
+            if (level == Type.CLASS || level == Type.VERBOSE) {
+                return o.getClassName();
+            } else {
+                String pkg = o.getPackageName();
+                return pkg.isEmpty() ? "<unnamed>" : pkg;
+            }
+        }
+
+        @Override
+        public void visit(Location o, Location t) {
+            Archive targetArchive = findArchive(t);
+            if (filter.accepts(o, archive, t, targetArchive)) {
+                addDep(o, t);
+                if (!requires.contains(targetArchive)) {
+                    requires.add(targetArchive);
+                }
+            }
+            if (targetArchive instanceof JDKArchive) {
+                Profile p = Profile.getProfile(t.getPackageName());
+                if (profile == null || (p != null && p.compareTo(profile) > 0)) {
+                    profile = p;
+                }
+            }
+        }
+
+        private Dep curDep;
+        protected Dep addDep(Location o, Location t) {
+            String origin = getLocationName(o);
+            String target = getLocationName(t);
+            Archive targetArchive = findArchive(t);
+            if (curDep != null &&
+                    curDep.origin().equals(origin) &&
+                    curDep.originArchive() == archive &&
+                    curDep.target().equals(target) &&
+                    curDep.targetArchive() == targetArchive) {
+                return curDep;
+            }
+
+            Dep e = new Dep(origin, archive, target, targetArchive);
+            if (deps.contains(e)) {
+                for (Dep e1 : deps) {
+                    if (e.equals(e1)) {
+                        curDep = e1;
                     }
                 }
+            } else {
+                deps.add(e);
+                curDep = e;
             }
-            List<Dep> list = new ArrayList<>();
-            for (Map.Entry<Archive,Profile> e: map.entrySet()) {
-                list.add(new Dep("", e.getKey(), e.getValue()));
-            }
-            return list;
+            return curDep;
+        }
+    }
+
+    /*
+     * Class-level or package-level dependency
+     */
+    class Dep implements Comparable<Dep> {
+        final String origin;
+        final Archive originArchive;
+        final String target;
+        final Archive targetArchive;
+
+        Dep(String origin, Archive originArchive, String target, Archive targetArchive) {
+            this.origin = origin;
+            this.originArchive = originArchive;
+            this.target = target;
+            this.targetArchive = targetArchive;
         }
 
-        /**
-         * Dep represents a dependence where the target can be
-         * a classname or packagename and the archive and profile
-         * the target belongs to.
-         */
-        class Dep implements Comparable<Dep> {
-            final String target;
-            final Archive archive;
-            final Profile profile;
-            Dep(String target, Archive archive, Profile p) {
-                this.target = target;
-                this.archive = archive;
-                this.profile = p;
-            }
+        String origin() {
+            return origin;
+        }
 
-            @Override
-            public boolean equals(Object o) {
-                if (o instanceof Dep) {
-                    Dep d = (Dep)o;
-                    return this.archive == d.archive && this.target.equals(d.target);
-                }
-                return false;
-            }
+        Archive originArchive() {
+            return originArchive;
+        }
 
-            @Override
-            public int hashCode() {
-                int hash = 3;
-                hash = 17 * hash + Objects.hashCode(this.archive);
-                hash = 17 * hash + Objects.hashCode(this.target);
-                return hash;
-            }
+        String target() {
+            return target;
+        }
 
-            @Override
-            public int compareTo(Dep o) {
+        Archive targetArchive() {
+            return targetArchive;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public boolean equals(Object o) {
+            if (o instanceof Dep) {
+                Dep d = (Dep) o;
+                return this.origin.equals(d.origin) &&
+                        this.originArchive == d.originArchive &&
+                        this.target.equals(d.target) &&
+                        this.targetArchive == d.targetArchive;
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 67*hash + Objects.hashCode(this.origin)
+                           + Objects.hashCode(this.originArchive)
+                           + Objects.hashCode(this.target)
+                           + Objects.hashCode(this.targetArchive);
+            return hash;
+        }
+
+        @Override
+        public int compareTo(Dep o) {
+            if (this.origin.equals(o.origin)) {
                 if (this.target.equals(o.target)) {
-                    if (this.archive == o.archive) {
+                    if (this.originArchive == o.originArchive &&
+                            this.targetArchive == o.targetArchive) {
                         return 0;
+                    } else if (this.originArchive == o.originArchive) {
+                        return this.targetArchive.getPathName().compareTo(o.targetArchive.getPathName());
                     } else {
-                        return this.archive.getFileName().compareTo(o.archive.getFileName());
+                        return this.originArchive.getPathName().compareTo(o.originArchive.getPathName());
                     }
+                } else {
+                    return this.target.compareTo(o.target);
                 }
-                return this.target.compareTo(o.target);
             }
-        }
-        public abstract void visit(Location o, Location t);
-    }
-
-    private class ClassVisitor extends ArchiveDeps {
-        ClassVisitor(Archive archive) {
-            super(archive);
-        }
-        @Override
-        public void visit(Location o, Location t) {
-            Archive targetArchive =
-                this.archive.getClasses().contains(t) ? this.archive : map.get(t);
-            if (targetArchive == null) {
-                map.put(t, targetArchive = NOT_FOUND);
-            }
-
-            String origin = o.getClassName();
-            String target = t.getClassName();
-            add(origin, target, targetArchive, t.getPackageName());
-        }
-    }
-
-    private class PackageVisitor extends ArchiveDeps {
-        PackageVisitor(Archive archive) {
-            super(archive);
-        }
-        @Override
-        public void visit(Location o, Location t) {
-            Archive targetArchive =
-                this.archive.getClasses().contains(t) ? this.archive : map.get(t);
-            if (targetArchive == null) {
-                map.put(t, targetArchive = NOT_FOUND);
-            }
-
-            String origin = packageOf(o);
-            String target = packageOf(t);
-            add(origin, target, targetArchive, t.getPackageName());
-        }
-        public String packageOf(Location o) {
-            String pkg = o.getPackageName();
-            return pkg.isEmpty() ? "<unnamed>" : pkg;
+            return this.origin.compareTo(o.origin);
         }
     }
 }
