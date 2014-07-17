@@ -3,7 +3,7 @@
  * DO NOT REMOVE OR ALTER!
  */
 /*
- * Copyright 1999-2004 The Apache Software Foundation.
+ * Copyright 1999-2005 The Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-/*
- * $Id: XPATHErrorResources_fr.java,v 1.2.4.1 2005/09/15 00:39:21 jeffsuttor Exp $
  */
 package com.sun.org.apache.xpath.internal.res;
 
@@ -459,7 +456,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
       "Caract\u00E8re ',' trouv\u00E9 sans argument le suivant."},
 
   { ER_PREDICATE_ILLEGAL_SYNTAX,
-      "Syntaxe '..[predicate]' ou '.[predicate]' non admise. Utilisez ''self::node()[predicate]'' \u00E0 la place."},
+      "Syntaxe '..[predicate]' ou '.[predicate]' non admise. Utilisez 'self::node()[predicate]' \u00E0 la place."},
 
   { ER_ILLEGAL_AXIS_NAME,
      "nom d''axe non admis : {0}"},
@@ -643,7 +640,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
   // The message indicates that such an expression was expected following the
   // characters '/' or '//', but was not found.
   { ER_EXPECTED_REL_LOC_PATH,
-      "Un chemin d'acc\u00E8s relatif \u00E9tait attendu apr\u00E8s le jeton ''/'' ou ''//''."},
+      "Un chemin d'acc\u00E8s relatif \u00E9tait attendu apr\u00E8s le jeton '/' ou '//'."},
 
   // Note to translators:  A location path is a form of XPath expression.
   // The message indicates that syntactically such an expression was expected,but
@@ -661,7 +658,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
   // The message indicates that syntactically such an expression was expected
   // following the specified characters.
   { ER_EXPECTED_LOC_STEP,
-       "Une \u00E9tape d'emplacement \u00E9tait attendue apr\u00E8s le jeton ''/'' ou ''//''."},
+       "Une \u00E9tape d'emplacement \u00E9tait attendue apr\u00E8s le jeton '/' ou '//'."},
 
   // Note to translators:  A node test is part of an XPath expression that is
   // used to test for particular kinds of nodes.  In this case, a node test that
@@ -674,7 +671,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
   // The message indicates that syntactically such an expression was expected,
   // but the specified character was found in the expression instead.
   { ER_EXPECTED_STEP_PATTERN,
-       "Un mod\u00E8le d'\u00E9tape \u00E9tait attendu, mais ''/'' a \u00E9t\u00E9 d\u00E9tect\u00E9."},
+       "Un mod\u00E8le d'\u00E9tape \u00E9tait attendu, mais '/' a \u00E9t\u00E9 d\u00E9tect\u00E9."},
 
   // Note to translators: A relative path pattern is part of an XPath expression.
   // The message indicates that syntactically such an expression was expected,

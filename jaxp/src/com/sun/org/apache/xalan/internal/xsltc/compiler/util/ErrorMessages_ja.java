@@ -17,9 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * $Id: ErrorMessages_ja.java /st_wptg_1.8.0.0.0jdk/2 2013/09/12 17:39:58 gmolloy Exp $
- */
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler.util;
 
@@ -761,14 +758,14 @@ public class ErrorMessages_ja extends ListResourceBundle {
          * line option that was not recognized.
          */
         {ErrorMsg.ILLEGAL_CMDLINE_OPTION_ERR,
-        "\u30B3\u30DE\u30F3\u30C9\u30E9\u30A4\u30F3\u30FB\u30AA\u30D7\u30B7\u30E7\u30F3''{0}''\u306F\u7121\u52B9\u3067\u3059\u3002"},
+        "\u30B3\u30DE\u30F3\u30C9\u884C\u30AA\u30D7\u30B7\u30E7\u30F3''{0}''\u306F\u7121\u52B9\u3067\u3059\u3002"},
 
         /*
          * Note to translators:  The substitution text is the name of a command-
          * line option.
          */
         {ErrorMsg.CMDLINE_OPT_MISSING_ARG_ERR,
-        "\u30B3\u30DE\u30F3\u30C9\u30E9\u30A4\u30F3\u30FB\u30AA\u30D7\u30B7\u30E7\u30F3''{0}''\u306B\u5FC5\u9808\u306E\u5F15\u6570\u304C\u3042\u308A\u307E\u305B\u3093\u3002"},
+        "\u30B3\u30DE\u30F3\u30C9\u884C\u30AA\u30D7\u30B7\u30E7\u30F3''{0}''\u306B\u5FC5\u9808\u306E\u5F15\u6570\u304C\u3042\u308A\u307E\u305B\u3093\u3002"},
 
         /*
          * Note to translators:  This message is used to indicate the severity

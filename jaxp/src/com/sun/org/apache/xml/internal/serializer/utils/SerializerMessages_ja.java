@@ -17,9 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * $Id: SerializerMessages_ja.java /st_wptg_1.8.0.0.0jdk/2 2013/09/12 17:39:58 gmolloy Exp $
- */
 package com.sun.org.apache.xml.internal.serializer.utils;
 
 import java.util.ListResourceBundle;
@@ -76,7 +73,7 @@ public class SerializerMessages_ja extends ListResourceBundle {
                 "\u30E1\u30C3\u30BB\u30FC\u30B8\u30FB\u30AD\u30FC''{0}''\u306F\u3001\u30E1\u30C3\u30BB\u30FC\u30B8\u30FB\u30AF\u30E9\u30B9''{1}''\u3067\u306F\u3042\u308A\u307E\u305B\u3093" },
 
             {   MsgKey.BAD_MSGFORMAT,
-                "\u30E1\u30C3\u30BB\u30FC\u30B8\u30FB\u30AF\u30E9\u30B9''{1}''\u306E\u30E1\u30C3\u30BB\u30FC\u30B8''{0}''\u306E\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\u306B\u5931\u6557\u3057\u307E\u3057\u305F\u3002" },
+                "\u30E1\u30C3\u30BB\u30FC\u30B8\u30FB\u30AF\u30E9\u30B9''{1}''\u306E\u30E1\u30C3\u30BB\u30FC\u30B8''{0}''\u306E\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\u304C\u5931\u6557\u3057\u307E\u3057\u305F\u3002" },
 
             {   MsgKey.ER_SERIALIZER_NOT_CONTENTHANDLER,
                 "\u30B7\u30EA\u30A2\u30E9\u30A4\u30B6\u30FB\u30AF\u30E9\u30B9''{0}''\u306Forg.xml.sax.ContentHandler\u3092\u5B9F\u88C5\u3057\u307E\u305B\u3093\u3002" },

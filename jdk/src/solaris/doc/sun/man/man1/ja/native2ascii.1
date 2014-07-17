@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: native2ascii
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: 国際化ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: native2ascii
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: 国際化ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "native2ascii" "1" "2013年11月21日" "JDK 8" "国際化ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,7 +50,7 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "名前"
 native2ascii \- サポートされている任意の文字エンコーディングの文字を含むファイルを、ASCIIおよびUnicodeでエスケープされたファイルに変換して(またはその逆)、ローカライズ可能なアプリケーションを作成します。
 .SH "概要"
 .sp
@@ -56,7 +58,7 @@ native2ascii \- サポートされている任意の文字エンコーディングの文字を含むファイル
 .RS 4
 .\}
 .nf
-\fInative2ascii\fR [ \fIinputfile\fR ] [ \fIoutputfile\fR ]
+\fBnative2ascii\fR [ \fIinputfile\fR ] [ \fIoutputfile\fR ]
 .fi
 .if n \{\
 .RE
@@ -73,9 +75,9 @@ ASCIIに変換するエンコードされたファイル。
 .RE
 .SH "説明"
 .PP
-\fInative2ascii\fRコマンドは、ASCIIキャラクタ・セットに含まれないすべての文字にUnicodeエスケープ(\fI\eu\fR\fIxxxx\fR)表記法を使用して、Java Runtime Environment (JRE)でサポートされているエンコードされたファイルを、ASCIIでエンコードされたファイルに変換します。このプロセスは、ISO\-8859\-1文字セットに含まれない文字が含まれているプロパティ・ファイルで必要です。このツールは、その逆の変換を実行することもできます。
+\fBnative2ascii\fRコマンドは、ASCII文字セットに含まれないすべての文字にUnicodeエスケープ(\fB\eu\fR\fIxxxx\fR)表記法を使用して、Java Runtime Environment (JRE)でサポートされているエンコードされたファイルを、ASCIIでエンコードされたファイルに変換します。このプロセスは、ISO\-8859\-1文字セットに含まれない文字が含まれているプロパティ・ファイルで必要です。このツールは、その逆の変換を実行することもできます。
 .PP
-\fIoutputfile\fR値を省略した場合、標準出力に出力されます。さらに、\fIinputfile\fR値を省略した場合、標準入力から入力されます。
+\fBoutputfile\fR値を省略した場合、標準出力に出力されます。さらに、\fBinputfile\fR値を省略した場合、標準入力から入力されます。
 .SH "オプション"
 .PP
 \-reverse
@@ -85,13 +87,13 @@ ASCIIに変換するエンコードされたファイル。
 .PP
 \-encoding \fIencoding_name\fR
 .RS 4
-変換処理で使用する文字エンコーディングの名前を指定します。このオプションが存在しない場合は、デフォルトの文字エンコーディング(\fIjava\&.nio\&.charset\&.Charset\&.defaultCharset\fRメソッドで定義された)が使用されます。\fIencoding_name\fR文字列は、JREでサポートされている文字エンコーディングの名前にする必要があります。http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/intl/encoding\&.doc\&.htmlにある
+変換処理で使用する文字エンコーディングの名前を指定します。このオプションが存在しない場合は、デフォルトの文字エンコーディング(\fBjava\&.nio\&.charset\&.Charset\&.defaultCharset\fRメソッドで定義された)が使用されます。\fBencoding_name\fR文字列は、JREでサポートされている文字エンコーディングの名前にする必要があります。http://docs\&.oracle\&.com/javase/8/docs/technotes/guides/intl/encoding\&.doc\&.htmlにある
 「サポートされているエンコーディング」を参照してください
 .RE
 .PP
 \-J\fIoption\fR
 .RS 4
-Java仮想マシン(JVM)に\fIoption\fRを渡します。optionには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fI\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
+Java Virtual Machine (JVM)に\fBoption\fRを渡します。optionには、Javaアプリケーション起動ツールのリファレンス・ページに記載されているオプションを1つ指定します。たとえば、\fB\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。java(1)を参照してください。
 .RE
 .br
 'pl 8.5i

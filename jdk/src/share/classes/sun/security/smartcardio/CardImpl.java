@@ -237,7 +237,16 @@ final class CardImpl extends Card {
         }
     }
 
+    private static final boolean invertReset =
+        Boolean.parseBoolean(
+            java.security.AccessController.doPrivileged(
+                new sun.security.action.GetPropertyAction(
+                    "sun.security.smartcardio.invertCardReset", "false")));
+
     public void disconnect(boolean reset) throws CardException {
+        if (invertReset) {
+            reset = !reset;
+        }
         if (reset) {
             checkSecurity("reset");
         }
