@@ -1019,6 +1019,12 @@ public final class ProcessBuilder
 
         String dir = directory == null ? null : directory.toString();
 
+        for (int i = 1; i < cmdarray.length; i++) {
+            if (cmdarray[i].indexOf('\u0000') >= 0) {
+                throw new IOException("invalid null character in command");
+            }
+        }
+
         try {
             return ProcessImpl.start(cmdarray,
                                      environment,
