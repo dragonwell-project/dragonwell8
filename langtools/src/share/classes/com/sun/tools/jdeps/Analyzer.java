@@ -114,6 +114,11 @@ public class Analyzer {
         return false;
     }
 
+    public Set<String> dependences(Archive source) {
+        ArchiveDeps result = results.get(source);
+        return result.targetDependences();
+    }
+
     public interface Visitor {
         /**
          * Visits a recorded dependency from origin to target which can be
@@ -177,6 +182,14 @@ public class Analyzer {
 
         Set<Dep> dependencies() {
             return deps;
+        }
+
+        Set<String> targetDependences() {
+            Set<String> targets = new HashSet<>();
+            for (Dep d : deps) {
+                targets.add(d.target());
+            }
+            return targets;
         }
 
         Set<Archive> requires() {
