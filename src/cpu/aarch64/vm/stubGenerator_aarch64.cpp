@@ -1878,6 +1878,414 @@ class StubGenerator: public StubCodeGenerator {
 
   void generate_math_stubs() { Unimplemented(); }
 
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - source byte array address
+  //   c_rarg1   - destination byte array address
+  //   c_rarg2   - K (key) in little endian int array
+  //
+  address generate_aescrypt_encryptBlock() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "aescrypt_encryptBlock");
+
+    Label L_doLast;
+
+    const Register from        = c_rarg0;  // source array address
+    const Register to          = c_rarg1;  // destination array address
+    const Register key         = c_rarg2;  // key array address
+    const Register keylen      = rscratch1;
+
+    address start = __ pc();
+    __ enter();
+
+    __ ldrw(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
+
+    __ v_ld1(v0, __ T16B, from); // get 16 bytes of input
+
+    __ v_ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+    __ v_rev32(v3, __ T16B, v3);
+    __ v_rev32(v4, __ T16B, v4);
+    __ v_aese(v0, v1);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v2);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v3);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v4);
+    __ v_aesmc(v0, v0);
+
+    __ v_ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+    __ v_rev32(v3, __ T16B, v3);
+    __ v_rev32(v4, __ T16B, v4);
+    __ v_aese(v0, v1);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v2);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v3);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v4);
+    __ v_aesmc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ cmpw(keylen, 44);
+    __ br(Assembler::EQ, L_doLast);
+
+    __ v_aese(v0, v1);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v2);
+    __ v_aesmc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ cmpw(keylen, 52);
+    __ br(Assembler::EQ, L_doLast);
+
+    __ v_aese(v0, v1);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v2);
+    __ v_aesmc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ BIND(L_doLast);
+
+    __ v_aese(v0, v1);
+    __ v_aesmc(v0, v0);
+    __ v_aese(v0, v2);
+
+    __ v_ld1(v1, __ T16B, key);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_eor(v0, __ T16B, v0, v1);
+
+    __ v_st1(v0, __ T16B, to);
+
+    __ mov(r0, 0);
+
+    __ leave();
+    __ ret(lr);
+
+    return start;
+  }
+
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - source byte array address
+  //   c_rarg1   - destination byte array address
+  //   c_rarg2   - K (key) in little endian int array
+  //
+  address generate_aescrypt_decryptBlock() {
+    assert(UseAES, "need AES instructions and misaligned SSE support");
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "aescrypt_decryptBlock");
+    Label L_doLast;
+
+    const Register from        = c_rarg0;  // source array address
+    const Register to          = c_rarg1;  // destination array address
+    const Register key         = c_rarg2;  // key array address
+    const Register keylen      = rscratch1;
+
+    address start = __ pc();
+    __ enter(); // required for proper stackwalking of RuntimeStub frame
+
+    __ ldrw(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
+
+    __ v_ld1(v0, __ T16B, from); // get 16 bytes of input
+
+    __ v_ld1(v5, __ T16B, key, 16);
+    __ v_rev32(v5, __ T16B, v5);
+
+    __ v_ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+    __ v_rev32(v3, __ T16B, v3);
+    __ v_rev32(v4, __ T16B, v4);
+    __ v_aesd(v0, v1);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v2);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v3);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v4);
+    __ v_aesimc(v0, v0);
+
+    __ v_ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+    __ v_rev32(v3, __ T16B, v3);
+    __ v_rev32(v4, __ T16B, v4);
+    __ v_aesd(v0, v1);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v2);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v3);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v4);
+    __ v_aesimc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ cmpw(keylen, 44);
+    __ br(Assembler::EQ, L_doLast);
+
+    __ v_aesd(v0, v1);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v2);
+    __ v_aesimc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ cmpw(keylen, 52);
+    __ br(Assembler::EQ, L_doLast);
+
+    __ v_aesd(v0, v1);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v2);
+    __ v_aesimc(v0, v0);
+
+    __ v_ld1(v1, v2, __ T16B, key, 32);
+    __ v_rev32(v1, __ T16B, v1);
+    __ v_rev32(v2, __ T16B, v2);
+
+    __ BIND(L_doLast);
+
+    __ v_aesd(v0, v1);
+    __ v_aesimc(v0, v0);
+    __ v_aesd(v0, v2);
+
+    __ v_eor(v0, __ T16B, v0, v5);
+
+    __ v_st1(v0, __ T16B, to);
+
+    __ mov(r0, 0);
+
+    __ leave();
+    __ ret(lr);
+
+    return start;
+  }
+
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - source byte array address
+  //   c_rarg1   - destination byte array address
+  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg3   - r vector byte array address
+  //   c_rarg4   - input length
+  //
+  // Output:
+  //   x0        - input length
+  //
+  address generate_cipherBlockChaining_encryptAESCrypt() {
+    assert(UseAES, "need AES instructions and misaligned SSE support");
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "cipherBlockChaining_encryptAESCrypt");
+
+    Label L_loadkeys_44, L_loadkeys_52, L_aes_loop, L_rounds_44, L_rounds_52;
+
+    const Register from        = c_rarg0;  // source array address
+    const Register to          = c_rarg1;  // destination array address
+    const Register key         = c_rarg2;  // key array address
+    const Register rvec        = c_rarg3;  // r byte array initialized from initvector array address
+                                           // and left with the results of the last encryption block
+    const Register len_reg     = c_rarg4;  // src len (must be multiple of blocksize 16)
+    const Register keylen      = rscratch1;
+
+    address start = __ pc();
+      __ enter();
+
+      __ mov(rscratch1, len_reg);
+      __ ldrw(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
+
+      __ v_ld1(v0, __ T16B, rvec);
+
+      __ cmpw(keylen, 52);
+      __ br(Assembler::CC, L_loadkeys_44);
+      __ br(Assembler::EQ, L_loadkeys_52);
+
+      __ v_ld1(v17, v18, __ T16B, key, 32);
+      __ v_rev32(v17, __ T16B, v17);
+      __ v_rev32(v18, __ T16B, v18);
+    __ BIND(L_loadkeys_52);
+      __ v_ld1(v19, v20, __ T16B, key, 32);
+      __ v_rev32(v19, __ T16B, v19);
+      __ v_rev32(v20, __ T16B, v20);
+    __ BIND(L_loadkeys_44);
+      __ v_ld1(v21, v22, v23, v24, __ T16B, key, 64);
+      __ v_rev32(v21, __ T16B, v21);
+      __ v_rev32(v22, __ T16B, v22);
+      __ v_rev32(v23, __ T16B, v23);
+      __ v_rev32(v24, __ T16B, v24);
+      __ v_ld1(v25, v26, v27, v28, __ T16B, key, 64);
+      __ v_rev32(v25, __ T16B, v25);
+      __ v_rev32(v26, __ T16B, v26);
+      __ v_rev32(v27, __ T16B, v27);
+      __ v_rev32(v28, __ T16B, v28);
+      __ v_ld1(v29, v30, v31, __ T16B, key);
+      __ v_rev32(v29, __ T16B, v29);
+      __ v_rev32(v30, __ T16B, v30);
+      __ v_rev32(v31, __ T16B, v31);
+
+    __ BIND(L_aes_loop);
+      __ v_ld1(v1, __ T16B, from, 16);
+      __ v_eor(v0, __ T16B, v0, v1);
+
+      __ br(Assembler::CC, L_rounds_44);
+      __ br(Assembler::EQ, L_rounds_52);
+
+      __ v_aese(v0, v17); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v18); __ v_aesmc(v0, v0);
+    __ BIND(L_rounds_52);
+      __ v_aese(v0, v19); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v20); __ v_aesmc(v0, v0);
+    __ BIND(L_rounds_44);
+      __ v_aese(v0, v21); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v22); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v23); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v24); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v25); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v26); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v27); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v28); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v29); __ v_aesmc(v0, v0);
+      __ v_aese(v0, v30);
+      __ v_eor(v0, __ T16B, v0, v31);
+
+      __ v_st1(v0, __ T16B, to, 16);
+      __ sub(len_reg, len_reg, 16);
+      __ cbnz(len_reg, L_aes_loop);
+
+      __ v_st1(v0, __ T16B, rvec);
+
+      __ mov(r0, rscratch2);
+
+      __ leave();
+      __ ret(lr);
+  }
+
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - source byte array address
+  //   c_rarg1   - destination byte array address
+  //   c_rarg2   - K (key) in little endian int array
+  //   c_rarg3   - r vector byte array address
+  //   c_rarg4   - input length
+  //
+  // Output:
+  //   rax       - input length
+  //
+  address generate_cipherBlockChaining_decryptAESCrypt() {
+    assert(UseAES, "need AES instructions and misaligned SSE support");
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "cipherBlockChaining_decryptAESCrypt");
+
+    Label L_loadkeys_44, L_loadkeys_52, L_aes_loop, L_rounds_44, L_rounds_52;
+
+    const Register from        = c_rarg0;  // source array address
+    const Register to          = c_rarg1;  // destination array address
+    const Register key         = c_rarg2;  // key array address
+    const Register rvec        = c_rarg3;  // r byte array initialized from initvector array address
+                                           // and left with the results of the last encryption block
+    const Register len_reg     = c_rarg4;  // src len (must be multiple of blocksize 16)
+    const Register keylen      = rscratch1;
+
+    address start = __ pc();
+      __ enter();
+
+      __ mov(rscratch2, len_reg);
+      __ ldrw(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
+
+      __ v_ld1(v2, __ T16B, rvec);
+
+      __ v_ld1(v31, __ T16B, key, 16);
+      __ v_rev32(v31, __ T16B, v31);
+
+      __ cmpw(keylen, 52);
+      __ br(Assembler::CC, L_loadkeys_44);
+      __ br(Assembler::EQ, L_loadkeys_52);
+
+      __ v_ld1(v17, v18, __ T16B, key, 32);
+      __ v_rev32(v17, __ T16B, v17);
+      __ v_rev32(v18, __ T16B, v18);
+    __ BIND(L_loadkeys_52);
+      __ v_ld1(v19, v20, __ T16B, key, 32);
+      __ v_rev32(v19, __ T16B, v19);
+      __ v_rev32(v20, __ T16B, v20);
+    __ BIND(L_loadkeys_44);
+      __ v_ld1(v21, v22, v23, v24, __ T16B, key, 64);
+      __ v_rev32(v21, __ T16B, v21);
+      __ v_rev32(v22, __ T16B, v22);
+      __ v_rev32(v23, __ T16B, v23);
+      __ v_rev32(v24, __ T16B, v24);
+      __ v_ld1(v25, v26, v27, v28, __ T16B, key, 64);
+      __ v_rev32(v25, __ T16B, v25);
+      __ v_rev32(v26, __ T16B, v26);
+      __ v_rev32(v27, __ T16B, v27);
+      __ v_rev32(v28, __ T16B, v28);
+      __ v_ld1(v29, v30, __ T16B, key);
+      __ v_rev32(v29, __ T16B, v29);
+      __ v_rev32(v30, __ T16B, v30);
+
+    __ BIND(L_aes_loop);
+      __ v_ld1(v0, __ T16B, from, 16);
+      __ v_orr(v1, __ T16B, v0, v0);
+
+      __ br(Assembler::CC, L_rounds_44);
+      __ br(Assembler::EQ, L_rounds_52);
+
+      __ v_aesd(v0, v17); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v17); __ v_aesimc(v0, v0);
+    __ BIND(L_rounds_52);
+      __ v_aesd(v0, v19); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v20); __ v_aesimc(v0, v0);
+    __ BIND(L_rounds_44);
+      __ v_aesd(v0, v21); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v22); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v23); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v24); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v25); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v26); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v27); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v28); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v29); __ v_aesimc(v0, v0);
+      __ v_aesd(v0, v30);
+      __ v_eor(v0, __ T16B, v0, v31);
+      __ v_eor(v0, __ T16B, v0, v2);
+
+      __ v_st1(v0, __ T16B, to, 16);
+      __ v_orr(v2, __ T16B, v1, v1);
+
+      __ sub(len_reg, len_reg, 16);
+      __ cbnz(len_reg, L_aes_loop);
+
+      __ v_st1(v2, __ T16B, rvec);
+
+      __ mov(r0, rscratch2);
+
+      __ leave();
+      __ ret(lr);
+
+    return start;
+  }
+
 #ifndef BUILTIN_SIM
   // Safefetch stubs.
   void generate_safefetch(const char* name, int size, address* entry,
@@ -2174,6 +2582,13 @@ class StubGenerator: public StubCodeGenerator {
     generate_arraycopy_stubs();
 
 #ifndef BUILTIN_SIM
+    if (UseAESIntrinsics) {
+      StubRoutines::_aescrypt_encryptBlock = generate_aescrypt_encryptBlock();
+      StubRoutines::_aescrypt_decryptBlock = generate_aescrypt_decryptBlock();
+      StubRoutines::_cipherBlockChaining_encryptAESCrypt = generate_cipherBlockChaining_encryptAESCrypt();
+      StubRoutines::_cipherBlockChaining_decryptAESCrypt = generate_cipherBlockChaining_decryptAESCrypt();
+    }
+
     // Safefetch stubs.
     generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
                                                        &StubRoutines::_safefetch32_fault_pc,

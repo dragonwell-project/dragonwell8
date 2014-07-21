@@ -39,6 +39,10 @@
 #include <sys/auxv.h>
 #include <asm/hwcap.h>
 
+#ifndef HWCAP_AES
+#define HWCAP_AES   (1<<3)
+#endif
+
 #ifndef HWCAP_CRC32
 #define HWCAP_CRC32 (1<<7)
 #endif
@@ -109,6 +113,22 @@ void VM_Version::get_processor_features() {
   }
   if (UseCRC32 && (auxv & HWCAP_CRC32) == 0) {
     warning("UseCRC32 specified, but not supported on this CPU");
+  }
+  if (auxv & HWCAP_AES) {
+    UseAES = UseAES || FLAG_IS_DEFAULT(UseAES);
+    UseAESIntrinsics =
+        UseAESIntrinsics || (UseAES && FLAG_IS_DEFAULT(UseAESIntrinsics));
+    if (UseAESIntrinsics && !UseAES) {
+      warning("UseAESIntrinsics enabled, but UseAES not, enabling");
+      UseAES = true;
+    }
+  } else {
+    if (UseAES) {
+      warning("UseAES specified, but not supported on this CPU");
+    }
+    if (UseAESIntrinsics) {
+      warning("UseAESIntrinsics specified, but not supported on this CPU");
+    }
   }
 #endif
 
