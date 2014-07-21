@@ -1396,6 +1396,7 @@ public class Types {
                 else {
 //                    debugContainsType(t, s);
                     return isSameWildcard(t, s)
+                        || t.type == s
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), cvarLowerBound(wildLowerBound(s)))) &&
                             // TODO: JDK-8039214, cvarUpperBound call here is incorrect
