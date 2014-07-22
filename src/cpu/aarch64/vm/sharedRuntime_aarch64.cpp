@@ -1313,6 +1313,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t)__ pc();
     int vep_offset = ((intptr_t)__ pc()) - start;
+
+    // First instruction must be a nop as it may need to be patched on deoptimisation
+    __ nop();
     gen_special_dispatch(masm,
                          method,
                          in_sig_bt,
