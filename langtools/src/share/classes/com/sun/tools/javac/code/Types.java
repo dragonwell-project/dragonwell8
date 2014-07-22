@@ -1305,7 +1305,8 @@ public class Types {
                 UndetVar undetvar = (UndetVar)t;
                 WildcardType wt = (WildcardType)s.unannotatedType();
                 switch(wt.kind) {
-                    case UNBOUND: //similar to ? extends Object
+                    case UNBOUND:
+                        break;
                     case EXTENDS: {
                         Type bound = wildUpperBound(s);
                         undetvar.addBound(InferenceBound.UPPER, bound, this);
