@@ -1,11 +1,5 @@
 '\" t
-.\" Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
-.\" Title: jar
-.\" Language: English
-.\" Date: 2013年11月21日
-.\" SectDesc: 基本ツール
-.\" Software: JDK 8
-.\" Arch: 汎用
+.\" Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .\"
 .\" DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 .\"
@@ -27,7 +21,15 @@
 .\" or visit www.oracle.com if you need additional information or have any
 .\" questions.
 .\"
-.pl 99999
+.\" Title: jar
+.\" Language: Japanese
+.\" Date: 2013年11月21日
+.\" SectDesc: 基本ツール
+.\" Software: JDK 8
+.\" Arch: 汎用
+.\" Part Number: E54734-01
+.\"
+.if n .pl 99999
 .TH "jar" "1" "2013年11月21日" "JDK 8" "基本ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
@@ -48,72 +50,77 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.SH "NAME"
+.SH "名前"
 jar \- Java Archive (JAR)ファイルを操作します。
 .SH "概要"
+.PP
 JARファイルの作成
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjar c\fR[\fIefmMnv0\fR] [\fIentrypoint\fR] [\fIjarfile\fR] [\fImanifest\fR] [\fI\-C\fR \fIdir\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
+\fBjar c\fR[\fBefmMnv0\fR] [\fIentrypoint\fR] [\fIjarfile\fR] [\fImanifest\fR] [\fB\-C\fR \fIdir\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
+.PP
 JARファイルの更新
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjar u\fR[\fIefmMnv0\fR] [\fIentrypoint\fR] [\fIjarfile\fR] [\fImanifest\fR] [\fI\-C\fR \fIdir\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
+\fBjar u\fR[\fBefmMnv0\fR] [\fIentrypoint\fR] [\fIjarfile\fR] [\fImanifest\fR] [\fB\-C\fR \fIdir\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
+.PP
 JARファイルの抽出
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjar\fR \fIx\fR[\fIvf\fR] [\fIjarfile\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
+\fBjar\fR \fBx\fR[\fBvf\fR] [\fIjarfile\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
+.PP
 JARファイルのコンテンツのリスト
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjar\fR \fIt\fR[\fIvf\fR] [\fIjarfile\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
+\fBjar\fR \fBt\fR[\fBvf\fR] [\fIjarfile\fR] \fIfile\fR \&.\&.\&. [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
+.PP
 JARファイルへの索引の追加
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-\fIjar\fR \fIi\fR \fIjarfile\fR [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
+\fBjar\fR \fBi\fR \fIjarfile\fR [\-J\fIoption\fR \&.\&.\&.] [@\fIarg\-file\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
 .\}
 .SH "説明"
 .PP
-\fIjar\fRコマンドは、ZIPおよびZLIB圧縮形式に基づく汎用のアーカイブおよび圧縮ツールです。ただし、\fIjar\fRコマンドは、主にいくつかのJavaアプレットやアプリケーションを単一のアーカイブにパッケージ化するように設計されました。アプレットやアプリケーションのコンポーネント(ファイル、イメージ、およびサウンド)が1つのアーカイブに結合されていると、Javaエージェント(ブラウザなど)は、それらのコンポーネントを1回のHTTPトランザクションでダウンロードすることができ、コンポーネントごとに新しい接続が不要になります。これにより、ダウンロード時間が大幅に短縮されます。また、\fIjar\fRコマンドはファイルの圧縮も行うため、ダウンロード時間がさらに短縮されます。また、\fIjar\fRコマンドによって、ファイル内の個々のエントリにアプレット作成者による署名を書き込めるため、配布元の認証が可能になります。JARファイルは、圧縮されているかどうかにかかわらず、クラス・パスのエントリとして使用できます。
+\fBjar\fRコマンドは、ZIPおよびZLIB圧縮形式に基づく汎用のアーカイブおよび圧縮ツールです。ただし、\fBjar\fRコマンドは、主にいくつかのJavaアプレットやアプリケーションを単一のアーカイブにパッケージ化するように設計されました。アプレットやアプリケーションのコンポーネント(ファイル、イメージ、およびサウンド)が1つのアーカイブに結合されていると、Javaエージェント(ブラウザなど)は、それらのコンポーネントを1回のHTTPトランザクションでダウンロードすることができ、コンポーネントごとに新しい接続が不要になります。これにより、ダウンロード時間が大幅に短縮されます。また、\fBjar\fRコマンドはファイルの圧縮も行うため、ダウンロード時間がさらに短縮されます。また、\fBjar\fRコマンドによって、ファイル内の個々のエントリにアプレット作成者による署名を書き込めるため、配布元の認証が可能になります。JARファイルは、圧縮されているかどうかにかかわらず、クラス・パスのエントリとして使用できます。
 .PP
-\fIjar\fRコマンドの構文は、\fItar\fRコマンドの構文に似ています。必須の\fI操作の引数\fRの1つで定義された複数の操作モードがあります。他の引数は、操作の動作を変更する\fIオプション\fR、または操作を実行するために必要な\fIオペランド\fRを使用します。
+\fBjar\fRコマンドの構文は、\fBtar\fRコマンドの構文に似ています。必須の\fI操作の引数\fRの1つで定義された複数の操作モードがあります。他の引数は、操作の動作を変更する\fIオプション\fR、または操作を実行するために必要な\fIオペランド\fRを使用します。
 .SH "操作の引数"
 .PP
-\fIjar\fRコマンドを使用する場合は、次の操作の引数のいずれかを指定して実行される操作を選択する必要があります。コマンドラインで他の1文字のオプションと混在させることができますが、通常、操作の引数は指定される最初の引数です。
+\fBjar\fRコマンドを使用する場合は、次の操作の引数のいずれかを指定して実行される操作を選択する必要があります。コマンド行で他の1文字のオプションと混在させることができますが、通常、操作の引数は指定される最初の引数です。
 .PP
 c
 .RS 4
@@ -145,15 +152,16 @@ JARアーカイブからファイルを抽出します。
 .PP
 e
 .RS 4
-\fIentrypoint\fRオペランドで指定されるクラスを、実行可能JARファイルにバンドルされるスタンドアロンJavaアプリケーションのエントリ・ポイントに設定します。このオプションを使用すると、マニフェスト・ファイル内の\fIMain\-Class\fR属性値が作成またはオーバーライドされます。\fIe\fRオプションは、JARファイルの作成時(\fIc\fR)または更新時(\fIu\fR)に使用できます。
+\fIentrypoint\fRオペランドで指定されるクラスを、実行可能JARファイルにバンドルされるスタンドアロンJavaアプリケーションのエントリ・ポイントに設定します。このオプションを使用すると、マニフェスト・ファイル内の\fBMain\-Class\fR属性値が作成またはオーバーライドされます。\fBe\fRオプションは、JARファイルの作成時(\fBc\fR)または更新時(\fBu\fR)に使用できます。
 .sp
-たとえば、次のコマンドでは、\fIMain\&.jar\fRアーカイブが\fIMain\&.class\fRファイルとともに作成されますが、その際、マニフェスト内の\fIMain\-Class\fR属性値は\fIMain\fRに設定されます。
+たとえば、次のコマンドでは、\fBMain\&.jar\fRアーカイブが\fBMain\&.class\fRファイルとともに作成されますが、その際、マニフェスト内の\fBMain\-Class\fR属性値は\fBMain\fRに設定されます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar cfe Main\&.jar Main Main\&.class
+\fBjar cfe Main\&.jar Main Main\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -164,19 +172,21 @@ Java Runtime Environment (JRE)は、次のコマンドを実行して、このアプリケーションを
 .RS 4
 .\}
 .nf
-java \-jar Main\&.jar
+\fBjava \-jar Main\&.jar\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-あるパッケージ内にエントリ・ポイントのクラス名が含まれている場合、ドット(\&.)またはスラッシュ(/)のいずれかを区切り文字として使用できます。たとえば、\fIMain\&.class\fRが\fImydir\fRという名前のパッケージに含まれている場合、エントリ・ポイントは次のいずれかの方法で指定できます。
+あるパッケージ内にエントリ・ポイントのクラス名が含まれている場合、ドット(\&.)またはスラッシュ(/)のいずれかを区切り文字として使用できます。たとえば、\fBMain\&.class\fRが\fBmydir\fRという名前のパッケージに含まれている場合、エントリ・ポイントは次のいずれかの方法で指定できます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar \-cfe Main\&.jar mydir/Main mydir/Main\&.class
-jar \-cfe Main\&.jar mydir\&.Main mydir/Main\&.class
+\fBjar \-cfe Main\&.jar mydir/Main mydir/Main\&.class\fR
+\fBjar \-cfe Main\&.jar mydir\&.Main mydir/Main\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -190,7 +200,7 @@ jar \-cfe Main\&.jar mydir\&.Main mydir/Main\&.class
 .nr an-break-flag 1
 .br
 .ps +1
-\fBNote\fR
+\fB注記\fR
 .ps -1
 .br
 .TS
@@ -198,7 +208,7 @@ allbox tab(:);
 l.
 T{
 注意
-特定のマニフェストにも\fIMain\-Class\fR属性が含まれている場合に\fIm\fRオプションと\fIe\fRオプションの両方を同時に指定すると、\fIMain\-Class\fRの指定があいまいになります。このあいまいさによってエラーが発生し、\fIjar\fRコマンドの作成や更新の操作が終了します。
+特定のマニフェストにも\fBMain\-Class\fR属性が含まれている場合に\fBm\fRオプションと\fBe\fRオプションの両方を同時に指定すると、\fBMain\-Class\fRの指定があいまいになります。このあいまいさによってエラーが発生し、\fBjar\fRコマンドの作成や更新の操作が終了します。
 T}
 .TE
 .sp 1
@@ -208,26 +218,26 @@ T}
 .PP
 f
 .RS 4
-\fIjarfile\fRオペランドで指定されたファイルを、作成(\fIc\fR)、更新(\fIu\fR)、抽出(\fIx\fR)または表示(\fIt\fR)されるJARファイルの名前に設定します。\fIf\fRオプションおよび\fIjarfile\fRオペランドを省略すると、\fIjar\fRコマンドに、\fIstdin\fRからのJARファイル名を受け入れるか(\fIx\fRおよび\fIt\fRの場合)、JARファイルを\fIstdout\fRに送信すること(\fIc\fRおよび\fIu\fRの場合)が指示されます。
+\fIjarfile\fRオペランドで指定されたファイルを、作成(\fBc\fR)、更新(\fBu\fR)、抽出(\fBx\fR)または表示(\fBt\fR)されるJARファイルの名前に設定します。\fBf\fRオプションおよび\fIjarfile\fRオペランドを省略すると、\fBjar\fRコマンドに、\fBstdin\fRからのJARファイル名を受け入れるか(\fBx\fRおよび\fBt\fRの場合)、JARファイルを\fBstdout\fRに送信すること(\fBc\fRおよび\fBu\fRの場合)が指示されます。
 .RE
 .PP
 m
 .RS 4
-(\fIMETA\-INF/MANIFEST\&.MF\fRのアーカイブにある)
-\fIjar\fRコマンドのマニフェスト・ファイルの\fImanifest\fRオペランドで指定されたファイルから、属性の名前と値のペアを含めます。\fIjar\fRコマンドは、同じ名前のエントリがすでに存在する場合を除き、属性の名前と値をJARファイルに追加します。同じ名前のエントリがすでに存在する場合、\fIjar\fRコマンドは属性の値を更新します。\fIm\fRオプションは、JARファイルの作成時(\fIc\fR)または更新時(\fIu\fR)に使用できます。
+(\fBMETA\-INF/MANIFEST\&.MF\fRのアーカイブにある)
+\fBjar\fRコマンドのマニフェスト・ファイルの\fBmanifest\fRオペランドで指定されたファイルから、属性の名前と値のペアを含めます。\fBjar\fRコマンドは、同じ名前のエントリがすでに存在する場合を除き、属性の名前と値をJARファイルに追加します。同じ名前のエントリがすでに存在する場合、\fBjar\fRコマンドは属性の値を更新します。\fBm\fRオプションは、JARファイルの作成時(\fBc\fR)または更新時(\fBu\fR)に使用できます。
 .sp
-デフォルトのマニフェスト・ファイルには含まれないマニフェストに、特別な目的の名前\-値の属性ペアを追加できます。たとえば、ベンダー情報、リリース情報、パッケージ・シーリングを指定する属性、またはJARにバンドルされたアプリケーションを実行可能にするための属性を追加できます。\fIm\fRオプションの使用例は、http://docs\&.oracle\&.com/javase/tutorial/deployment/jar/index\&.htmlにある
+デフォルトのマニフェスト・ファイルには含まれないマニフェストに、特別な目的の名前\-値の属性ペアを追加できます。たとえば、ベンダー情報、リリース情報、パッケージ・シーリングを指定する属性、またはJARにバンドルされたアプリケーションを実行可能にするための属性を追加できます。\fBm\fRオプションの使用例は、http://docs\&.oracle\&.com/javase/tutorial/deployment/jar/index\&.htmlにある
 プログラムのパッケージ化に関する項を参照してください。
 .RE
 .PP
 M
 .RS 4
-マニフェスト・ファイル・エントリを作成しない(\fIc\fRおよび\fIu\fRの場合)か、またはマニフェスト・ファイル・エントリが存在する場合は削除します(\fIu\fRの場合)。\fIM\fRオプションは、JARファイルの作成時(\fIc\fR)または更新時(\fIu\fR)に使用できます。
+マニフェスト・ファイル・エントリを作成しない(\fBc\fRおよび\fBu\fRの場合)か、またはマニフェスト・ファイル・エントリが存在する場合は削除します(\fBu\fRの場合)。\fBM\fRオプションは、JARファイルの作成時(\fBc\fR)または更新時(\fBu\fR)に使用できます。
 .RE
 .PP
 n
 .RS 4
-JARファイルの作成(\fIc\fR)時に、このオプションは、コンテンツがpack200(1)コマンドのパックおよびアンパック操作の影響を受けないようにアーカイブを正規化します。この正規化を使用しない場合、署名付きJARの署名は無効になります。
+JARファイルの作成(\fBc\fR)時に、このオプションは、コンテンツがpack200(1)コマンドのパックおよびアンパック操作の影響を受けないようにアーカイブを正規化します。この正規化を使用しない場合、署名付きJARの署名は無効になります。
 .RE
 .PP
 v
@@ -237,46 +247,48 @@ v
 .PP
 0
 .RS 4
-(ゼロ) ZIP圧縮を使用しないでJARファイルを作成(\fIc\fR)または更新(\fIu\fR)します。
+(ゼロ) ZIP圧縮を使用しないでJARファイルを作成(\fBc\fR)または更新(\fBu\fR)します。
 .RE
 .PP
 \-C \fIdir\fR
 .RS 4
-JARファイルの作成(\fIc\fR)または更新(\fIu\fR)時に、このオプションは\fIfile\fRオペランドで指定されたファイルの処理中にディレクトリを一時的に変更します。この操作は、UNIX
-\fItar\fRユーティリティの\fI\-C\fRオプションと同様になることを目的としています。たとえば、次のコマンドによって、\fIclasses\fRディレクトリに変更され、そのディレクトリから\fImy\&.jar\fRに\fIBar\&.class\fRファイルが追加されます。
+JARファイルの作成(\fBc\fR)または更新(\fBu\fR)時に、このオプションは\fIfile\fRオペランドで指定されたファイルの処理中にディレクトリを一時的に変更します。この操作は、\fBtar\fRユーティリティの\fB\-C\fRオプションと同様になることを目的としています。たとえば、次のコマンドによって、\fBclasses\fRディレクトリに変更され、そのディレクトリから\fBmy\&.jar\fRに\fBBar\&.class\fRファイルが追加されます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar uf my\&.jar \-C classes Bar\&.class
+\fBjar uf my\&.jar \-C classes Bar\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-次のコマンドでは、\fIclasses\fRディレクトリに移動し、classesディレクトリ内のすべてのファイルを\fImy\&.jar\fRに追加します(JARファイルには\fIclasses\fRディレクトリを作成しません)。次に元のディレクトリに戻ってから、\fIbin\fRディレクトリに移動し、\fIXyz\&.class\fRを\fImy\&.jar\fRに追加します。
+次のコマンドでは、\fBclasses\fRディレクトリに移動し、classesディレクトリ内のすべてのファイルを\fBmy\&.jar\fRに追加します(JARファイルには\fBclasses\fRディレクトリを作成しません)。次に元のディレクトリに戻ってから、\fBbin\fRディレクトリに移動し、\fBXyz\&.class\fRを\fBmy\&.jar\fRに追加します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar uf my\&.jar \-C classes \&. \-C bin Xyz\&.class
+\fBjar uf my\&.jar \-C classes \&. \-C bin Xyz\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-\fIclasses\fRに\fIbar1\fRファイルと\fIbar2\fRファイルが含まれている場合、前述のコマンドを実行した後、JARファイルには次のものが含まれます。
+\fBclasses\fRに\fBbar1\fRファイルと\fBbar2\fRファイルが含まれている場合、前述のコマンドを実行した後、JARファイルには次のものが含まれます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-% \fIjar tf my\&.jar\fR
-META\-INF/
-META\-INF/MANIFEST\&.MF
-bar1
-bar2
-Xyz\&.class
+\fB% \fR\fB\fBjar tf my\&.jar\fR\fR
+\fBMETA\-INF/\fR
+\fBMETA\-INF/MANIFEST\&.MF\fR
+\fBbar1\fR
+\fBbar2\fR
+\fBXyz\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -285,69 +297,72 @@ Xyz\&.class
 .PP
 \-J\fIoption\fR
 .RS 4
-指定したJVMオプションを、JREがJARファイルを実行する際に使用するように設定します。JVMオプションは、java(1)コマンドのリファレンス・ページで説明されています。たとえば、\fI\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。
+指定したJVMオプションを、JREがJARファイルを実行する際に使用するように設定します。JVMオプションは、java(1)コマンドのリファレンス・ページで説明されています。たとえば、\fB\-J\-Xms48m\fRと指定すると、スタートアップ・メモリーは48MBに設定されます。
 .RE
 .SH "オペランド"
 .PP
-次のオペランドは、\fIjar\fRコマンドで認識されます。
+次のオペランドは、\fBjar\fRコマンドで認識されます。
 .PP
 \fIfile\fR
 .RS 4
-JARファイルの作成(\fIc\fR)または更新(\fIu\fR)時に、\fIfile\fRオペランドは、アーカイブに追加する必要のあるファイルまたはディレクトリのパスと名前を定義します。JARファイルの抽出(\fIx\fR)またはコンテンツのリスト(\fIt\fR)時に、\fIfile\fRオペランドは抽出またはリストするファイルのパスと名前を定義します。少なくとも1つの有効なファイルまたはディレクトリを指定する必要があります。複数の\fIfile\fRオペランドを空白で区切ります。\fIentrypoint\fR、\fIjarfile\fRまたは\fImanifest\fRオペランドが使用される場合は、その後に\fIfile\fRオペランドを指定する必要があります。
+JARファイルの作成(\fBc\fR)または更新(\fBu\fR)時に、\fIfile\fRオペランドは、アーカイブに追加する必要のあるファイルまたはディレクトリのパスと名前を定義します。JARファイルの抽出(\fBx\fR)またはコンテンツのリスト(\fBt\fR)時に、\fIfile\fRオペランドは抽出またはリストするファイルのパスと名前を定義します。少なくとも1つの有効なファイルまたはディレクトリを指定する必要があります。複数の\fIfile\fRオペランドを空白で区切ります。\fIentrypoint\fR、\fIjarfile\fRまたは\fImanifest\fRオペランドが使用される場合は、その後に\fIfile\fRオペランドを指定する必要があります。
 .RE
 .PP
 \fIentrypoint\fR
 .RS 4
-JARファイルの作成(\fIc\fR)または更新(\fIu\fR)時に、\fIentrypoint\fRオペランドは、実行可能JARファイルにバンドルされているスタンドアロンJavaアプリケーションのエントリ・ポイントとなるクラスの名前を定義します。\fIe\fRオプションが存在する場合は\fIentrypoint\fRオペランドを指定する必要があります。
+JARファイルの作成(\fBc\fR)または更新(\fBu\fR)時に、\fIentrypoint\fRオペランドは、実行可能JARファイルにバンドルされているスタンドアロンJavaアプリケーションのエントリ・ポイントとなるクラスの名前を定義します。\fBe\fRオプションが存在する場合は\fIentrypoint\fRオペランドを指定する必要があります。
 .RE
 .PP
 \fIjarfile\fR
 .RS 4
-作成(\fIc\fR)、更新(\fIu\fR)、抽出(\fIx\fR)または表示(\fIt\fR)するファイルの名前を定義します。\fIf\fRオプションが存在する場合は\fIjarfile\fRオペランドを指定する必要があります。\fIf\fRオプションおよび\fIjarfile\fRオペランドを省略すると、\fIjar\fRコマンドに、\fIstdin\fRからのJARファイル名を受け入れるか(\fIx\fRおよび\fIt\fRの場合)、JARファイルを\fIstdout\fRに送信すること(\fIc\fRおよび\fIu\fRの場合)が指示されます。
+作成(\fBc\fR)、更新(\fBu\fR)、抽出(\fBx\fR)または表示(\fBt\fR)するファイルの名前を定義します。\fBf\fRオプションが存在する場合は\fIjarfile\fRオペランドを指定する必要があります。\fBf\fRオプションおよび\fIjarfile\fRオペランドを省略すると、\fBjar\fRコマンドに、\fBstdin\fRからのJARファイル名を受け入れるか(\fBx\fRおよび\fBt\fRの場合)、JARファイルを\fBstdout\fRに送信すること(\fBc\fRおよび\fBu\fRの場合)が指示されます。
 .sp
-JARファイルを索引付け(\fIi\fR)する場合は、\fIf\fRオプションを指定しないで\fIjarfile\fRオペランドを指定します。
+JARファイルを索引付け(\fBi\fR)する場合は、\fBf\fRオプションを指定しないで\fIjarfile\fRオペランドを指定します。
 .RE
 .PP
 \fImanifest\fR
 .RS 4
-JARファイルの作成(\fIc\fR)または更新(\fIu\fR)時に、\fImanifest\fRオペランドはJARファイルの\fIMANIFEST\&.MF\fRに含める属性の名前と値を持つ既存のマニフェスト・ファイルを定義します。\fIf\fRオプションが存在する場合は\fImanifest\fRオペランドを指定する必要があります。
+JARファイルの作成(\fBc\fR)または更新(\fBu\fR)時に、\fImanifest\fRオペランドはJARファイルの\fBMANIFEST\&.MF\fRに含める属性の名前と値を持つ既存のマニフェスト・ファイルを定義します。\fBf\fRオプションが存在する場合は\fImanifest\fRオペランドを指定する必要があります。
 .RE
 .PP
 \fI@arg\-file\fR
 .RS 4
-\fIjar\fRコマンドを短縮または簡素化するには、別のテキスト・ファイル内の引数を指定し、接頭辞としてアットマーク(@)を付けて\fIjar\fRコマンドに渡すことができます。\fIjar\fRコマンドは、アットマーク文字で始まる引数を見つけると、そのファイルの内容を展開して引数リストに挿入します。
+\fBjar\fRコマンドを短縮または簡素化するには、別のテキスト・ファイル内の引数を指定し、接頭辞としてアットマーク(@)を付けて\fBjar\fRコマンドに渡すことができます。\fBjar\fRコマンドは、アットマーク文字で始まる引数を見つけると、そのファイルの内容を展開して引数リストに挿入します。
 .sp
-引数ファイルには、\fIjar\fRコマンドのオプションと引数(引数ファイルをサポートしない起動ツールに渡される\fI\-J\fRオプションを除く)を含めることができます。ファイル内の引数は、空白または改行文字で区切ることができます。引数ファイル内のファイル名は、\fIjar\fRコマンドを実行できる現在のディレクトリに対して相対的であり、引数ファイルの場所に対しては相対的ではありません。通常はオペレーティング・システム・シェルによって展開されるアスタリスク(*)などのワイルドカードは展開されません。
+引数ファイルには、\fBjar\fRコマンドのオプションと引数(引数ファイルをサポートしない起動ツールに渡される\fB\-J\fRオプションを除く)を含めることができます。ファイル内の引数は、空白または改行文字で区切ることができます。引数ファイル内のファイル名は、\fBjar\fRコマンドを実行できる現在のディレクトリに対して相対的であり、引数ファイルの場所に対しては相対的ではありません。通常はオペレーティング・システム・シェルによって展開されるアスタリスク(*)などのワイルドカードは展開されません。
 .sp
-次の例は、\fIfind\fRコマンドによる現在のディレクトリ出力からのファイル名で\fIclasses\&.list\fRファイルを作成する方法を示します。
+次の例は、\fBfind\fRコマンドによる現在のディレクトリ出力からのファイル名で\fBclasses\&.list\fRファイルを作成する方法を示します。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-find \&. \-name \*(Aq*\&.class\*(Aq \-print > classes\&.list
+\fBfind \&. \-name \*(Aq*\&.class\*(Aq \-print > classes\&.list\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-\fIjar\fRコマンドを実行し、\fI@arg\-file\fR構文を使用して\fIclasses\&.list\fRファイルを渡すことができます。
+\fBjar\fRコマンドを実行し、\fI@arg\-file\fR構文を使用して\fBclasses\&.list\fRファイルを渡すことができます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar cf my\&.jar @classes\&.list
+\fBjar cf my\&.jar @classes\&.list\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-引数ファイルはパスを指定できますが、相対パスが記述された引数ファイル内のすべてのファイル名は、渡されたパスに対して相対的ではなく、\fIjar\fRコマンドの現在の作業ディレクトリに相対的となります。たとえば、次のようになります。
+引数ファイルはパスを指定できますが、相対パスが記述された引数ファイル内のすべてのファイル名は、渡されたパスに対して相対的ではなく、\fBjar\fRコマンドの現在の作業ディレクトリに相対的となります。たとえば、次のようになります。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar @dir/classes\&.list
+\fBjar @dir/classes\&.list\fR
+ 
 .fi
 .if n \{\
 .RE
@@ -355,86 +370,95 @@ jar @dir/classes\&.list
 .RE
 .SH "注意"
 .PP
-\fIe\fR、\fIf\fRおよび\fIm\fRオプションは、\fIentrypoint\fR、\fIjarfile\fRおよび\fImanifest\fRオペランドと同じ順序でコマンドラインに出現する必要があります。
+\fBe\fR、\fBf\fRおよび\fBm\fRオプションは、\fIentrypoint\fR、\fIjarfile\fRおよび\fImanifest\fRオペランドと同じ順序でコマンド行に出現する必要があります。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-jar cmef myManifestFile MyMainClass myFile\&.jar *\&.class
+\fBjar cmef myManifestFile MyMainClass myFile\&.jar *\&.class\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .SH "例"
 .PP
-\fBExample 1\fR, 冗長な出力による現在のディレクトリからのすべてのファイルの追加
+\fB例 1\fR
+.br
+冗長な出力による現在のディレクトリからのすべてのファイルの追加
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-% ls
-1\&.au          Animator\&.class    monkey\&.jpg
-2\&.au          Wave\&.class        spacemusic\&.au
-3\&.au          at_work\&.gif
-
-% jar cvf bundle\&.jar *
-added manifest
-adding: 1\&.au(in = 2324) (out= 67)(deflated 97%)
-adding: 2\&.au(in = 6970) (out= 90)(deflated 98%)
-adding: 3\&.au(in = 11616) (out= 108)(deflated 99%)
-adding: Animator\&.class(in = 2266) (out= 66)(deflated 97%)
-adding: Wave\&.class(in = 3778) (out= 81)(deflated 97%)
-adding: at_work\&.gif(in = 6621) (out= 89)(deflated 98%)
-adding: monkey\&.jpg(in = 7667) (out= 91)(deflated 98%)
-adding: spacemusic\&.au(in = 3079) (out= 73)(deflated 97%)
+\fB% ls\fR
+\fB1\&.au          Animator\&.class    monkey\&.jpg\fR
+\fB2\&.au          Wave\&.class        spacemusic\&.au\fR
+\fB3\&.au          at_work\&.gif\fR
+ 
+\fB% jar cvf bundle\&.jar *\fR
+\fBadded manifest\fR
+\fBadding: 1\&.au(in = 2324) (out= 67)(deflated 97%)\fR
+\fBadding: 2\&.au(in = 6970) (out= 90)(deflated 98%)\fR
+\fBadding: 3\&.au(in = 11616) (out= 108)(deflated 99%)\fR
+\fBadding: Animator\&.class(in = 2266) (out= 66)(deflated 97%)\fR
+\fBadding: Wave\&.class(in = 3778) (out= 81)(deflated 97%)\fR
+\fBadding: at_work\&.gif(in = 6621) (out= 89)(deflated 98%)\fR
+\fBadding: monkey\&.jpg(in = 7667) (out= 91)(deflated 98%)\fR
+\fBadding: spacemusic\&.au(in = 3079) (out= 73)(deflated 97%)\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\fBExample 2\fR, サブディレクトリからのファイルの追加
+\fB例 2\fR
+.br
+サブディレクトリからのファイルの追加
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-% ls \-F
-audio/ classes/ images/
-% jar cvf bundle\&.jar audio classes images
-added manifest
-adding: audio/(in = 0) (out= 0)(stored 0%)
-adding: audio/1\&.au(in = 2324) (out= 67)(deflated 97%)
-adding: audio/2\&.au(in = 6970) (out= 90)(deflated 98%)
-adding: audio/3\&.au(in = 11616) (out= 108)(deflated 99%)
-adding: audio/spacemusic\&.au(in = 3079) (out= 73)(deflated 97%)
-adding: classes/(in = 0) (out= 0)(stored 0%)
-adding: classes/Animator\&.class(in = 2266) (out= 66)(deflated 97%)
-adding: classes/Wave\&.class(in = 3778) (out= 81)(deflated 97%)
-adding: images/(in = 0) (out= 0)(stored 0%)
-adding: images/monkey\&.jpg(in = 7667) (out= 91)(deflated 98%)
-adding: images/at_work\&.gif(in = 6621) (out= 89)(deflated 98%)
-
-% ls \-F
-audio/ bundle\&.jar classes/ images/
+\fB% ls \-F\fR
+\fBaudio/ classes/ images/\fR
+\fB% jar cvf bundle\&.jar audio classes images\fR
+\fBadded manifest\fR
+\fBadding: audio/(in = 0) (out= 0)(stored 0%)\fR
+\fBadding: audio/1\&.au(in = 2324) (out= 67)(deflated 97%)\fR
+\fBadding: audio/2\&.au(in = 6970) (out= 90)(deflated 98%)\fR
+\fBadding: audio/3\&.au(in = 11616) (out= 108)(deflated 99%)\fR
+\fBadding: audio/spacemusic\&.au(in = 3079) (out= 73)(deflated 97%)\fR
+\fBadding: classes/(in = 0) (out= 0)(stored 0%)\fR
+\fBadding: classes/Animator\&.class(in = 2266) (out= 66)(deflated 97%)\fR
+\fBadding: classes/Wave\&.class(in = 3778) (out= 81)(deflated 97%)\fR
+\fBadding: images/(in = 0) (out= 0)(stored 0%)\fR
+\fBadding: images/monkey\&.jpg(in = 7667) (out= 91)(deflated 98%)\fR
+\fBadding: images/at_work\&.gif(in = 6621) (out= 89)(deflated 98%)\fR
+ 
+\fB% ls \-F\fR
+\fBaudio/ bundle\&.jar classes/ images/\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\fBExample 3\fR, JARのコンテンツのリスト
+\fB例 3\fR
+.br
+JARのコンテンツのリスト
 .RS 4
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-% jar tf bundle\&.jar
+\fB% jar tf bundle\&.jar\fR
 .fi
 .if n \{\
 .RE
@@ -444,45 +468,50 @@ audio/ bundle\&.jar classes/ images/
 .RS 4
 .\}
 .nf
-META\-INF/
-META\-INF/MANIFEST\&.MF
-audio/1\&.au
-audio/2\&.au
-audio/3\&.au
-audio/spacemusic\&.au
-classes/Animator\&.class
-classes/Wave\&.class
-images/monkey\&.jpg
-images/at_work\&.gif
+\fBMETA\-INF/\fR
+\fBMETA\-INF/MANIFEST\&.MF\fR
+\fBaudio/1\&.au\fR
+\fBaudio/2\&.au\fR
+\fBaudio/3\&.au\fR
+\fBaudio/spacemusic\&.au\fR
+\fBclasses/Animator\&.class\fR
+\fBclasses/Wave\&.class\fR
+\fBimages/monkey\&.jpg\fR
+\fBimages/at_work\&.gif\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
 .RE
 .PP
-\fBExample 4\fR, 索引の追加
+\fB例 4\fR
+.br
+索引の追加
 .RS 4
-株式取引のアプリケーションの相互依存クラスを、\fImain\&.jar\fR、\fIbuy\&.jar\fRおよび\fIsell\&.jar\fRの3つのJARファイルに分割する場合、\fIi\fRオプションを使用します。\fImain\&.jar\fRマニフェスト内の\fIClass\-Path\fR属性を指定する場合、\fIi\fRオプションを使用して、アプリケーションのクラス・ロードの速度を向上できます。
+株式取引のアプリケーションの相互依存クラスを、\fBmain\&.jar\fR、\fBbuy\&.jar\fRおよび\fBsell\&.jar\fRの3つのJARファイルに分割する場合、\fBi\fRオプションを使用します。\fBmain\&.jar\fRマニフェスト内の\fBClass\-Path\fR属性を指定する場合、\fBi\fRオプションを使用して、アプリケーションのクラス・ロードの速度を向上できます。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-Class\-Path: buy\&.jar sell\&.jar
-jar i main\&.jar
+\fBClass\-Path: buy\&.jar sell\&.jar\fR
+\fBjar i main\&.jar\fR
+ 
 .fi
 .if n \{\
 .RE
 .\}
-\fIINDEX\&.LIST\fRファイルが\fIMETA\-INF\fRディレクトリに挿入されます。これにより、アプリケーションのクラス・ローダーによってクラスまたはリソースの検索が行われるときに、指定したJARファイルがダウンロードされるようになります。
+\fBINDEX\&.LIST\fRファイルが\fBMETA\-INF\fRディレクトリに挿入されます。これにより、アプリケーションのクラス・ローダーによってクラスまたはリソースの検索が行われるときに、指定したJARファイルがダウンロードされるようになります。
 .sp
-アプリケーションのクラス・ローダーは、このファイルに格納されている情報を使用して、効率的にクラスをロードします。ディレクトリをコピーするには、最初に\fIdir1\fR内のファイルを\fIstdout\fRに圧縮してから、\fIstdin\fRから\fIdir2\fRにパイプラインを作成して抽出します(\fI\-f\fRオプションは両方の\fIjar\fRコマンドで省略します)。
+アプリケーションのクラス・ローダーは、このファイルに格納されている情報を使用して、効率的にクラスをロードします。ディレクトリをコピーするには、最初に\fBdir1\fR内のファイルを\fBstdout\fRに圧縮してから、\fBstdin\fRから\fBdir2\fRにパイプラインを作成して抽出します(\fB\-f\fRオプションは両方の\fBjar\fRコマンドで省略します)。
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-(cd dir1; jar c \&.) | (cd dir2; jar x)
+\fB(cd dir1; jar c \&.) | (cd dir2; jar x)\fR
+ 
 .fi
 .if n \{\
 .RE
