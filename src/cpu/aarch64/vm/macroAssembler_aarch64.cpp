@@ -2245,11 +2245,11 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len,
 
       add(tmp, table0, 4*256*sizeof(juint)); // Point at the Neon constants
 
-      ld1(v0, v1, T2D, buf, 32);
-      ld1r(v4, T2D, tmp, 8);
-      ld1r(v5, T2D, tmp, 8);
-      ld1r(v6, T2D, tmp, 8);
-      ld1r(v7, T2D, tmp, 8);
+      ld1(v0, v1, T2D, post(buf, 32));
+      ld1r(v4, T2D, post(tmp, 8));
+      ld1r(v5, T2D, post(tmp, 8));
+      ld1r(v6, T2D, post(tmp, 8));
+      ld1r(v7, T2D, post(tmp, 8));
       mov(v16, T4S, 0, crc);
 
       eor(v0, T16B, v0, v16);
@@ -2309,7 +2309,7 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len,
       pmull2(v19, T8H, v1, v4, T16B);
       pmull2(v17, T8H, v1, v6, T16B);
 
-      ld1(v0, v1, T2D, buf, 32);
+      ld1(v0, v1, T2D, post(buf, 32));
 
       uzp1(v24, v20, v22, T8H);
       uzp2(v25, v20, v22, T8H);

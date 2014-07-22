@@ -33,7 +33,7 @@
 
 class ICache : public AbstractICache {
  public:
-  static void initialize() {}
+  static void initialize();
   static void invalidate_word(address addr) {
     __clear_cache((char *)addr, (char *)(addr + 3));
   }

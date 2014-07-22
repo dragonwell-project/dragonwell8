@@ -1191,18 +1191,11 @@ Disassembly of section .text:
   }
 
 #ifndef PRODUCT
-  {
-    address PC = __ pc();
-    __ bl(__ pc()+(1<<27)-4);
-    NativeCall* call = nativeCall_at(PC);
-    ptrdiff_t offset = call->destination()-PC;
-    assert(offset == (1<<27)-4, "broken branch coding");
-    PC = __ pc();
-    __ bl(__ pc()-(1<<27));
-    call = nativeCall_at(PC);
-    offset = call->destination()-PC;
-    assert(offset == -(1<<27), "broken branch coding");
-  }
+
+  address PC = __ pc();
+  __ ld1(v0, __ T16B, Address(r16)); // No offset
+  __ ld1(v0, __ T16B, __ post(r16, 0)); // Post-index
+  __ ld1(v0, __ T16B, Address(r16, r17)); // 
 
 
 #endif // PRODUCT

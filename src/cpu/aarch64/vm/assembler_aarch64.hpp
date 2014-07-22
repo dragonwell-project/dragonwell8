@@ -417,15 +417,16 @@ class Address VALUE_OBJ_CLASS_SPEC {
     }
   }
 
-  Register base() {
-    guarantee((_mode == base_plus_offset | _mode == base_plus_offset_reg),
+  Register base() const {
+    guarantee((_mode == base_plus_offset | _mode == base_plus_offset_reg
+	       | _mode == post),
 	      "wrong mode");
     return _base;
   }
-  long offset() {
+  long offset() const {
     return _offset;
   }
-  Register index() {
+  Register index() const {
     return _index;
   }
   mode getMode() const {
@@ -1847,7 +1848,7 @@ public:
  * We just use FloatRegister in the following. They are exactly the same
  * as SIMD registers.
  */
-public:
+ public:
 
   enum SIMD_Arrangement {
        T8B, T16B, T4H, T8H, T2S, T4S, T1D, T2D
@@ -1857,92 +1858,74 @@ public:
        S32, D64, Q128
   };
 
-void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int op1, int op2)
-{
+
+ private:
+
+  void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int op1, int op2) {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1, 29, 21), f(0, 20, 16), f(op2, 15, 12);
     f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
-}
-void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
-             int imm, int op1, int op2)
-{
+  }
+  void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
+             int imm, int op1, int op2) {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1 | 0b100, 29, 21), f(0b11111, 20, 16), f(op2, 15, 12);
     f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
-}
-void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
-             Register Xm, int op1, int op2)
-{
+  }
+  void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
+             Register Xm, int op1, int op2) {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1 | 0b100, 29, 21), rf(Xm, 16), f(op2, 15, 12);
     f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
-}
+  }
 
-#define INSN1(NAME, op1, op2)                                                       \
-  void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn) {                    \
-    ld_st(Vt, T, Xn, op1, op2);                                                   \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int imm) {           \
-    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn, Register Xm) {       \
-    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+ void ld_st(FloatRegister Vt, SIMD_Arrangement T, Address a, int op1, int op2) {
+   switch (a.getMode()) {
+   case Address::base_plus_offset:
+     guarantee(a.offset() == 0, "no offset allowed here");
+     ld_st(Vt, T, a.base(), op1, op2);
+     break;
+   case Address::post:
+     ld_st(Vt, T, a.base(), a.offset(), op1, op2);
+     break;
+   case Address::base_plus_offset_reg:
+     ld_st(Vt, T, a.base(), a.index(), op1, op2);
+     break;
+   default:
+     ShouldNotReachHere();
+   }
+ }
+
+ public:
+
+#define INSN1(NAME, op1, op2)					\
+  void NAME(FloatRegister Vt, SIMD_Arrangement T, const Address &a) {	\
+   ld_st(Vt, T, a, op1, op2);						\
+ }
+
+#define INSN2(NAME, op1, op2)						\
+  void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, const Address &a) { \
+    assert(Vt->successor() == Vt2, "Registers must be ordered");	\
+    ld_st(Vt, T, a, op1, op2);						\
   }
-#define INSN2(NAME, op1, op2)                                                       \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn) { \
-    assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    ld_st(Vt, T, Xn, op1, op2);                                                   \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn,   \
-            int imm) {                                                              \
-    assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn,   \
-            Register Xm) {                                                          \
-    assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+
+#define INSN3(NAME, op1, op2)						\
+  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,	\
+            SIMD_Arrangement T, const Address &a) {			\
+    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,		\
+           "Registers must be ordered");				\
+    ld_st(Vt, T, a, op1, op2);						\
   }
-#define INSN3(NAME, op1, op2)                                                       \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            SIMD_Arrangement T, Register Xn) {                                      \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
-           "Registers must be ordered");                                            \
-    ld_st(Vt, T, Xn, op1, op2);                                                   \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            SIMD_Arrangement T, Register Xn, int imm) {                             \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
-           "Registers must be ordered");                                            \
-    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            SIMD_Arrangement T, Register Xn, Register Xm) {                         \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
-           "Registers must be ordered");                                            \
-    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
-  }
-#define INSN4(NAME, op1, op2)                                                       \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            FloatRegister Vt4, SIMD_Arrangement T, Register Xn) {                   \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
-           Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    ld_st(Vt, T, Xn, op1, op2);                                                   \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            FloatRegister Vt4, SIMD_Arrangement T, Register Xn, int imm) {          \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
-           Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
-  }                                                                                 \
-  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
-            FloatRegister Vt4, SIMD_Arrangement T, Register Xn, Register Xm) {      \
-    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
-           Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+
+#define INSN4(NAME, op1, op2)						\
+  void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,	\
+            FloatRegister Vt4, SIMD_Arrangement T, const Address &a) {	\
+    assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&		\
+           Vt3->successor() == Vt4, "Registers must be ordered");	\
+    ld_st(Vt, T, a, op1, op2);						\
   }
 
   INSN1(ld1,  0b001100010, 0b0111);

@@ -1903,7 +1903,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ ld1(v0, __ T16B, from); // get 16 bytes of input
 
-    __ ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ ld1(v1, v2, v3, v4, __ T16B, __ post(key, 64));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
     __ rev32(v3, __ T16B, v3);
@@ -1917,7 +1917,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aese(v0, v4);
     __ aesmc(v0, v0);
 
-    __ ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ ld1(v1, v2, v3, v4, __ T16B, __ post(key, 64));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
     __ rev32(v3, __ T16B, v3);
@@ -1931,7 +1931,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aese(v0, v4);
     __ aesmc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -1943,7 +1943,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aese(v0, v2);
     __ aesmc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -1955,7 +1955,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aese(v0, v2);
     __ aesmc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -2004,10 +2004,10 @@ class StubGenerator: public StubCodeGenerator {
 
     __ ld1(v0, __ T16B, from); // get 16 bytes of input
 
-    __ ld1(v5, __ T16B, key, 16);
+    __ ld1(v5, __ T16B, __ post(key, 16));
     __ rev32(v5, __ T16B, v5);
 
-    __ ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ ld1(v1, v2, v3, v4, __ T16B, __ post(key, 64));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
     __ rev32(v3, __ T16B, v3);
@@ -2021,7 +2021,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aesd(v0, v4);
     __ aesimc(v0, v0);
 
-    __ ld1(v1, v2, v3, v4, __ T16B, key, 64);
+    __ ld1(v1, v2, v3, v4, __ T16B, __ post(key, 64));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
     __ rev32(v3, __ T16B, v3);
@@ -2035,7 +2035,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aesd(v0, v4);
     __ aesimc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -2047,7 +2047,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aesd(v0, v2);
     __ aesimc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -2059,7 +2059,7 @@ class StubGenerator: public StubCodeGenerator {
     __ aesd(v0, v2);
     __ aesimc(v0, v0);
 
-    __ ld1(v1, v2, __ T16B, key, 32);
+    __ ld1(v1, v2, __ T16B, __ post(key, 32));
     __ rev32(v1, __ T16B, v1);
     __ rev32(v2, __ T16B, v2);
 
@@ -2120,20 +2120,20 @@ class StubGenerator: public StubCodeGenerator {
       __ br(Assembler::CC, L_loadkeys_44);
       __ br(Assembler::EQ, L_loadkeys_52);
 
-      __ ld1(v17, v18, __ T16B, key, 32);
+      __ ld1(v17, v18, __ T16B, __ post(key, 32));
       __ rev32(v17, __ T16B, v17);
       __ rev32(v18, __ T16B, v18);
     __ BIND(L_loadkeys_52);
-      __ ld1(v19, v20, __ T16B, key, 32);
+      __ ld1(v19, v20, __ T16B, __ post(key, 32));
       __ rev32(v19, __ T16B, v19);
       __ rev32(v20, __ T16B, v20);
     __ BIND(L_loadkeys_44);
-      __ ld1(v21, v22, v23, v24, __ T16B, key, 64);
+      __ ld1(v21, v22, v23, v24, __ T16B, __ post(key, 64));
       __ rev32(v21, __ T16B, v21);
       __ rev32(v22, __ T16B, v22);
       __ rev32(v23, __ T16B, v23);
       __ rev32(v24, __ T16B, v24);
-      __ ld1(v25, v26, v27, v28, __ T16B, key, 64);
+      __ ld1(v25, v26, v27, v28, __ T16B, __ post(key, 64));
       __ rev32(v25, __ T16B, v25);
       __ rev32(v26, __ T16B, v26);
       __ rev32(v27, __ T16B, v27);
@@ -2144,7 +2144,7 @@ class StubGenerator: public StubCodeGenerator {
       __ rev32(v31, __ T16B, v31);
 
     __ BIND(L_aes_loop);
-      __ ld1(v1, __ T16B, from, 16);
+      __ ld1(v1, __ T16B, __ post(from, 16));
       __ eor(v0, __ T16B, v0, v1);
 
       __ br(Assembler::CC, L_rounds_44);
@@ -2168,7 +2168,7 @@ class StubGenerator: public StubCodeGenerator {
       __ aese(v0, v30);
       __ eor(v0, __ T16B, v0, v31);
 
-      __ st1(v0, __ T16B, to, 16);
+      __ st1(v0, __ T16B, __ post(to, 16));
       __ sub(len_reg, len_reg, 16);
       __ cbnz(len_reg, L_aes_loop);
 
@@ -2215,27 +2215,27 @@ class StubGenerator: public StubCodeGenerator {
 
       __ ld1(v2, __ T16B, rvec);
 
-      __ ld1(v31, __ T16B, key, 16);
+      __ ld1(v31, __ T16B, __ post(key, 16));
       __ rev32(v31, __ T16B, v31);
 
       __ cmpw(keylen, 52);
       __ br(Assembler::CC, L_loadkeys_44);
       __ br(Assembler::EQ, L_loadkeys_52);
 
-      __ ld1(v17, v18, __ T16B, key, 32);
+      __ ld1(v17, v18, __ T16B, __ post(key, 32));
       __ rev32(v17, __ T16B, v17);
       __ rev32(v18, __ T16B, v18);
     __ BIND(L_loadkeys_52);
-      __ ld1(v19, v20, __ T16B, key, 32);
+      __ ld1(v19, v20, __ T16B, __ post(key, 32));
       __ rev32(v19, __ T16B, v19);
       __ rev32(v20, __ T16B, v20);
     __ BIND(L_loadkeys_44);
-      __ ld1(v21, v22, v23, v24, __ T16B, key, 64);
+      __ ld1(v21, v22, v23, v24, __ T16B, __ post(key, 64));
       __ rev32(v21, __ T16B, v21);
       __ rev32(v22, __ T16B, v22);
       __ rev32(v23, __ T16B, v23);
       __ rev32(v24, __ T16B, v24);
-      __ ld1(v25, v26, v27, v28, __ T16B, key, 64);
+      __ ld1(v25, v26, v27, v28, __ T16B, __ post(key, 64));
       __ rev32(v25, __ T16B, v25);
       __ rev32(v26, __ T16B, v26);
       __ rev32(v27, __ T16B, v27);
@@ -2245,7 +2245,7 @@ class StubGenerator: public StubCodeGenerator {
       __ rev32(v30, __ T16B, v30);
 
     __ BIND(L_aes_loop);
-      __ ld1(v0, __ T16B, from, 16);
+      __ ld1(v0, __ T16B, __ post(from, 16));
       __ orr(v1, __ T16B, v0, v0);
 
       __ br(Assembler::CC, L_rounds_44);
@@ -2270,7 +2270,7 @@ class StubGenerator: public StubCodeGenerator {
       __ eor(v0, __ T16B, v0, v31);
       __ eor(v0, __ T16B, v0, v2);
 
-      __ st1(v0, __ T16B, to, 16);
+      __ st1(v0, __ T16B, __ post(to, 16));
       __ orr(v2, __ T16B, v1, v1);
 
       __ sub(len_reg, len_reg, 16);
