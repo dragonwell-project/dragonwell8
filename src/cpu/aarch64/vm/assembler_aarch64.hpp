@@ -1857,14 +1857,14 @@ public:
        S32, D64, Q128
   };
 
-void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int op1, int op2)
+void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int op1, int op2)
 {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1, 29, 21), f(0, 20, 16), f(op2, 15, 12);
     f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
 }
-void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
+void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
              int imm, int op1, int op2)
 {
     starti;
@@ -1872,7 +1872,7 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
     f(op1 | 0b100, 29, 21), f(0b11111, 20, 16), f(op2, 15, 12);
     f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
 }
-void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
+void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
              Register Xm, int op1, int op2)
 {
     starti;
@@ -1883,90 +1883,90 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
 
 #define INSN1(NAME, op1, op2)                                                       \
   void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn) {                    \
-    v_ld_st(Vt, T, Xn, op1, op2);                                                   \
+    ld_st(Vt, T, Xn, op1, op2);                                                   \
   }                                                                                 \
   void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn, int imm) {           \
-    v_ld_st(Vt, T, Xn, imm, op1, op2);                                              \
+    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
   }                                                                                 \
   void NAME(FloatRegister Vt, SIMD_Arrangement T, Register Xn, Register Xm) {       \
-    v_ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
   }
 #define INSN2(NAME, op1, op2)                                                       \
   void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn) { \
     assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    v_ld_st(Vt, T, Xn, op1, op2);                                                   \
+    ld_st(Vt, T, Xn, op1, op2);                                                   \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn,   \
             int imm) {                                                              \
     assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    v_ld_st(Vt, T, Xn, imm, op1, op2);                                              \
+    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, Register Xn,   \
             Register Xm) {                                                          \
     assert(Vt->successor() == Vt2, "Registers must be ordered");                    \
-    v_ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
   }
 #define INSN3(NAME, op1, op2)                                                       \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             SIMD_Arrangement T, Register Xn) {                                      \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
            "Registers must be ordered");                                            \
-    v_ld_st(Vt, T, Xn, op1, op2);                                                   \
+    ld_st(Vt, T, Xn, op1, op2);                                                   \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             SIMD_Arrangement T, Register Xn, int imm) {                             \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
            "Registers must be ordered");                                            \
-    v_ld_st(Vt, T, Xn, imm, op1, op2);                                              \
+    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             SIMD_Arrangement T, Register Xn, Register Xm) {                         \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,                       \
            "Registers must be ordered");                                            \
-    v_ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
   }
 #define INSN4(NAME, op1, op2)                                                       \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             FloatRegister Vt4, SIMD_Arrangement T, Register Xn) {                   \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
            Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    v_ld_st(Vt, T, Xn, op1, op2);                                                   \
+    ld_st(Vt, T, Xn, op1, op2);                                                   \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             FloatRegister Vt4, SIMD_Arrangement T, Register Xn, int imm) {          \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
            Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    v_ld_st(Vt, T, Xn, imm, op1, op2);                                              \
+    ld_st(Vt, T, Xn, imm, op1, op2);                                              \
   }                                                                                 \
   void NAME(FloatRegister Vt, FloatRegister Vt2, FloatRegister Vt3,                 \
             FloatRegister Vt4, SIMD_Arrangement T, Register Xn, Register Xm) {      \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&                     \
            Vt3->successor() == Vt4, "Registers must be ordered");                   \
-    v_ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
+    ld_st(Vt, T, Xn, Xm, op1, op2);                                               \
   }
 
-  INSN1(v_ld1,  0b001100010, 0b0111);
-  INSN2(v_ld1,  0b001100010, 0b1010);
-  INSN3(v_ld1,  0b001100010, 0b0110);
-  INSN4(v_ld1,  0b001100010, 0b0010);
+  INSN1(ld1,  0b001100010, 0b0111);
+  INSN2(ld1,  0b001100010, 0b1010);
+  INSN3(ld1,  0b001100010, 0b0110);
+  INSN4(ld1,  0b001100010, 0b0010);
 
-  INSN2(v_ld2,  0b001100010, 0b1000);
-  INSN3(v_ld3,  0b001100010, 0b0100);
-  INSN4(v_ld4,  0b001100010, 0b0000);
+  INSN2(ld2,  0b001100010, 0b1000);
+  INSN3(ld3,  0b001100010, 0b0100);
+  INSN4(ld4,  0b001100010, 0b0000);
 
-  INSN1(v_st1,  0b001100000, 0b0111);
-  INSN2(v_st1,  0b001100000, 0b1010);
-  INSN3(v_st1,  0b001100000, 0b0110);
-  INSN4(v_st1,  0b001100000, 0b0010);
+  INSN1(st1,  0b001100000, 0b0111);
+  INSN2(st1,  0b001100000, 0b1010);
+  INSN3(st1,  0b001100000, 0b0110);
+  INSN4(st1,  0b001100000, 0b0010);
 
-  INSN2(v_st2,  0b001100000, 0b1000);
-  INSN3(v_st3,  0b001100000, 0b0100);
-  INSN4(v_st4,  0b001100000, 0b0000);
+  INSN2(st2,  0b001100000, 0b1000);
+  INSN3(st3,  0b001100000, 0b0100);
+  INSN4(st4,  0b001100000, 0b0000);
 
-  INSN1(v_ld1r, 0b001101010, 0b1100);
-  INSN2(v_ld2r, 0b001101011, 0b1100);
-  INSN3(v_ld3r, 0b001101010, 0b1110);
-  INSN4(v_ld4r, 0b001101011, 0b1110);
+  INSN1(ld1r, 0b001101010, 0b1100);
+  INSN2(ld2r, 0b001101011, 0b1100);
+  INSN3(ld3r, 0b001101010, 0b1110);
+  INSN4(ld4r, 0b001101011, 0b1110);
 
 #undef INSN1
 #undef INSN2
@@ -1981,14 +1981,14 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
     rf(Vm, 16), f(0b000111, 15, 10), rf(Vn, 5), rf(Vd, 0);                              \
   }
 
-  INSN(v_eor, 0b101110001);
-  INSN(v_orr, 0b001110101);
-  INSN(v_and, 0b001110001);
-  INSN(v_bic, 0b001110011);
-  INSN(v_bif, 0b101110111);
-  INSN(v_bit, 0b101110101);
-  INSN(v_bsl, 0b101110011);
-  INSN(v_orn, 0b001110111);
+  INSN(eor, 0b101110001);
+  INSN(orr, 0b001110101);
+  INSN(andr, 0b001110001);
+  INSN(bic, 0b001110011);
+  INSN(bif, 0b101110111);
+  INSN(bit, 0b101110101);
+  INSN(bsl, 0b101110011);
+  INSN(orn, 0b001110111);
 
 #undef INSN
 
@@ -1998,14 +1998,14 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
     f(opc, 31, 10), rf(Vn, 5), rf(Vd, 0);         \
   }
 
-  INSN(v_aese, 0b0100111000101000010010);
-  INSN(v_aesd, 0b0100111000101000010110);
-  INSN(v_aesmc, 0b0100111000101000011010);
-  INSN(v_aesimc, 0b0100111000101000011110);
+  INSN(aese, 0b0100111000101000010010);
+  INSN(aesd, 0b0100111000101000010110);
+  INSN(aesmc, 0b0100111000101000011010);
+  INSN(aesimc, 0b0100111000101000011110);
 
 #undef INSN
 
-  void v_shl(FloatRegister Vd, FloatRegister Vn, SIMD_Arrangement T, int shift){
+  void shl(FloatRegister Vd, FloatRegister Vn, SIMD_Arrangement T, int shift){
     starti;
     /* The encodings for the immh:immb fields (bits 22:16) are
      *   0001 xxx	8B/16B, shift = xxx
@@ -2018,7 +2018,7 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
     f(0b010101, 15, 10), rf(Vn, 5), rf(Vd, 0);
   }
 
-  void v_ushll(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, SIMD_Arrangement Tb, int shift) {
+  void ushll(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, SIMD_Arrangement Tb, int shift) {
     starti;
     /* The encodings for the immh:immb fields (bits 22:16) are
      *   0001 xxx	8H, 8B/16b shift = xxx
@@ -2031,22 +2031,22 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
     f(0, 31), f(Tb & 1, 30), f(0b1011110, 29, 23), f((1 << ((Tb>>1)+3))|shift, 22, 16);
     f(0b101001, 15, 10), rf(Vn, 5), rf(Vd, 0);
   }
-  void v_ushll2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn,  SIMD_Arrangement Tb, int shift) {
-    v_ushll(Vd, Ta, Vn, Tb, shift);
+  void ushll2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn,  SIMD_Arrangement Tb, int shift) {
+    ushll(Vd, Ta, Vn, Tb, shift);
   }
 
-  void v_uzp1(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T, int op = 0){
+  void uzp1(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T, int op = 0){
     starti;
     f(0, 31), f((T & 0x1), 30), f(0b001110, 29, 24), f((T >> 1), 23, 22), f(0, 21);
     rf(Vm, 16), f(0, 15), f(op, 14), f(0b0110, 13, 10), rf(Vn, 5), rf(Vd, 0);
   }
-  void v_uzp2(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T){
-    v_uzp1(Vd, Vn, Vm, T, 1);
+  void uzp2(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T){
+    uzp1(Vd, Vn, Vm, T, 1);
   }
  
   // Move from general purpose register
   //   mov  Vd.T[index], Rn
-  void v_mov(FloatRegister Vd, SIMD_Arrangement T, int index, Register Xn) {
+  void mov(FloatRegister Vd, SIMD_Arrangement T, int index, Register Xn) {
     starti;
     f(0b01001110000, 31, 21), f(((1 << (T >> 1)) | (index << ((T >> 1) + 1))), 20, 16); 
     f(0b000111, 15, 10), rf(Xn, 5), rf(Vd, 0);
@@ -2054,7 +2054,7 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
 
   // Move to general purpose register
   //   mov  Rd, Vn.T[index]
-  void v_mov(Register Xd, FloatRegister Vn, SIMD_Arrangement T, int index) {
+  void mov(Register Xd, FloatRegister Vn, SIMD_Arrangement T, int index) {
     starti;
     f(0, 31), f((T >= T1D) ? 1:0, 30), f(0b001110000, 29, 21);
     f(((1 << (T >> 1)) | (index << ((T >> 1) + 1))), 20, 16);
@@ -2062,17 +2062,17 @@ void v_ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
   }
 
   // We do not handle the 1Q arrangement.
-  void v_pmull(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
+  void pmull(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
     starti;
     assert(Ta == T8H && (Tb == T8B || Tb == T16B), "Invalid Size specifier");
     f(0, 31), f(Tb & 1, 30), f(0b001110001, 29, 21), rf(Vm, 16), f(0b111000, 15, 10);
     rf(Vn, 5), rf(Vd, 0);
   }
-  void v_pmull2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
-    v_pmull(Vd, Ta, Vn, Vm, Tb);
+  void pmull2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn, FloatRegister Vm, SIMD_Arrangement Tb) {
+    pmull(Vd, Ta, Vn, Vm, Tb);
   }
 
-  void v_rev32(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn)
+  void rev32(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn)
   {
     starti;
     assert(T <= T8H, "must be one of T8B, T16B, T4H, T8H");

@@ -37,6 +37,8 @@
 class MacroAssembler: public Assembler {
   friend class LIR_Assembler;
 
+  using Assembler::mov;
+
  protected:
 
   // Support for VM calls
