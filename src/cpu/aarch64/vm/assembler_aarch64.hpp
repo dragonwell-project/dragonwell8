@@ -1244,12 +1244,6 @@ public:
       f(size & 0b01, 31, 30), f(0b011, 29, 27), f(0b00, 25, 24);
       long offset = (adr.target() - pc()) >> 2;
       sf(offset, 23, 5);
-#if 0
-      Relocation* reloc = adr.rspec().reloc();
-      relocInfo::relocType rtype = (relocInfo::relocType) reloc->type();
-      assert(rtype == relocInfo::internal_word_type,
-	     "only internal_word_type relocs make sense here");
-#endif
       code_section()->relocate(pc(), adr.rspec());
       return;
     }

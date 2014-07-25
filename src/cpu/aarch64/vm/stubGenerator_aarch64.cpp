@@ -67,10 +67,6 @@
 
 // Stub Code definitions
 
-#if 0
-static address handle_unsafe_access() { Unimplemented(); return 0; }
-#endif
-
 class StubGenerator: public StubCodeGenerator {
  private:
 
@@ -592,159 +588,6 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  // Support for jint atomic::xchg(jint exchange_value, volatile jint* dest)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg0: dest
-  //
-  // Result:
-  //    *dest <- ex, return (orig *dest)
-
-  // NOTE: not sure this is actually needed but if so it looks like it
-  // is called from os-specific code i.e. it needs an x86 prolog
-
-  address generate_atomic_xchg() { return 0; }
-
-  // Support for intptr_t atomic::xchg_ptr(intptr_t exchange_value, volatile intptr_t* dest)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest <- ex, return (orig *dest)
-
-  // NOTE: not sure this is actually needed but if so it looks like it
-  // is called from os-specific code i.e. it needs an x86 prolog
-
-  address generate_atomic_xchg_ptr() { return 0; }
-
-  // Support for jint atomic::atomic_cmpxchg(jint exchange_value, volatile jint* dest,
-  //                                         jint compare_value)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //    c_rarg2: compare_value
-  //
-  // Result:
-  //    if ( compare_value == *dest ) {
-  //       *dest = exchange_value
-  //       return compare_value;
-  //    else
-  //       return *dest;
-  address generate_atomic_cmpxchg() { return 0; }
-
-  // Support for jint atomic::atomic_cmpxchg_long(jlong exchange_value,
-  //                                             volatile jlong* dest,
-  //                                             jlong compare_value)
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //    c_rarg2: compare_value
-  //
-  // Result:
-  //    if ( compare_value == *dest ) {
-  //       *dest = exchange_value
-  //       return compare_value;
-  //    else
-  //       return *dest;
-
-  // NOTE: not sure this is actually needed but if so it looks like it
-  // is called from os-specific code i.e. it needs an x86 prolog
-
-  address generate_atomic_cmpxchg_long() { return 0; }
-
-  // Support for jint atomic::add(jint add_value, volatile jint* dest)
-  //
-  // Arguments :
-  //    c_rarg0: add_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest += add_value
-  //    return *dest;
-
-  // NOTE: not sure this is actually needed but if so it looks like it
-  // is called from os-specific code i.e. it needs an x86 prolog
-
-  address generate_atomic_add() { return 0; }
-
-  // Support for intptr_t atomic::add_ptr(intptr_t add_value, volatile intptr_t* dest)
-  //
-  // Arguments :
-  //    c_rarg0: add_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest += add_value
-  //    return *dest;
-
-  // NOTE: not sure this is actually needed but if so it looks like it
-  // is called from os-specific code i.e. it needs an x86 prolog
-
-  address generate_atomic_add_ptr() { return 0; }
-
-  // Support for intptr_t OrderAccess::fence()
-  //
-  // Arguments :
-  //
-  // Result:
-
-  // NOTE: this is called from C code so it needs an x86 prolog
-  // or else we need to fiddle it with inline asm for now
-
-  address generate_orderaccess_fence() { return 0; }
-
-  // Support for intptr_t get_previous_fp()
-  //
-  // This routine is used to find the previous frame pointer for the
-  // caller (current_frame_guess). This is used as part of debugging
-  // ps() is seemingly lost trying to find frames.
-  // This code assumes that caller current_frame_guess) has a frame.
-
-  // NOTE: this is called from C code in os_windows.cpp with AMD64. other
-  // builds use inline asm -- so we should be ok for aarch64
-
-  address generate_get_previous_fp() { return 0; }
-
-  // Support for intptr_t get_previous_sp()
-  //
-  // This routine is used to find the previous stack pointer for the
-  // caller.
-
-  // NOTE: this is called from C code in os_windows.cpp with AMD64. other
-  // builds use inline asm -- so we should be ok for aarch64
-
-  address generate_get_previous_sp() { return 0; }
-
-  // NOTE: these fixup routines appear only to be called from the
-  // opto code (they are mentioned in x86_64.ad) so we can do
-  // without them for now on aarch64
-
-  address generate_f2i_fixup() { Unimplemented(); return 0; }
-
-  address generate_f2l_fixup() { Unimplemented(); return 0; }
-
-  address generate_d2i_fixup() { Unimplemented(); return 0; }
-
-  address generate_d2l_fixup() { Unimplemented(); return 0; }
-
-  // The following routine generates a subroutine to throw an
-  // asynchronous UnknownError when an unsafe access gets a fault that
-  // could not be reasonably prevented by the programmer.  (Example:
-  // SIGBUS/OBJERR.)
-
-  // NOTE: this is used by the signal handler code as a return address
-  // to re-enter Java execution so it needs an x86 prolog which will
-  // reenter the simulator executing the generated handler code. so
-  // the prolog needs to adjust the sim's restart pc to enter the
-  // generated code at the start position then return from native to
-  // simulated execution.
-
-  address generate_handler_for_unsafe_access() { return 0; }
-
   // Non-destructive plausibility checks for oops
   //
   // Arguments:
@@ -817,29 +660,7 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  //
-  // Verify that a register contains clean 32-bits positive value
-  // (high 32-bits are 0) so it could be used in 64-bits shifts.
-  //
-  //  Input:
-  //    Rint  -  32-bits value
-  //    Rtmp  -  scratch
-  //
-  void assert_clean_int(Register Rint, Register Rtmp) { Unimplemented(); }
-
-  //  Generate overlap test for array copy stubs
-  //
-  //  Input:
-  //     c_rarg0 - from
-  //     c_rarg1 - to
-  //     c_rarg2 - element count
-  //
-  //  Output:
-  //     r0   - &from[element count - 1]
-  //
-  void array_overlap_test(address no_overlap_target, int sf) { Unimplemented(); }
   void array_overlap_test(Label& L_no_overlap, Address::sxtw sf) { __ b(L_no_overlap); }
-  void array_overlap_test(address no_overlap_target, Label* NOLp, int sf) { Unimplemented(); }
 
   // Generate code for an array write pre barrier
   //
@@ -1730,23 +1551,6 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  //
-  //  Generate 'unsafe' array copy stub
-  //  Though just as safe as the other stubs, it takes an unscaled
-  //  size_t argument instead of an element count.
-  //
-  //  Input:
-  //    c_rarg0   - source array address
-  //    c_rarg1   - destination array address
-  //    c_rarg2   - byte count, treated as ssize_t, can be zero
-  //
-  // Examines the alignment of the operands and dispatches
-  // to a long, int, short, or byte copy loop.
-  //
-  address generate_unsafe_copy(const char *name,
-                               address byte_copy_entry, address short_copy_entry,
-                               address int_copy_entry, address long_copy_entry) { Unimplemented(); return 0; }
-
   // Perform range checks on the proposed arraycopy.
   // Kills temp, but nothing else.
   // Also, clean the sign bits of src_pos and dst_pos.
@@ -1757,28 +1561,6 @@ class StubGenerator: public StubCodeGenerator {
                               Register length,
                               Register temp,
                               Label& L_failed) { Unimplemented(); }
-
-  //
-  //  Generate generic array copy stubs
-  //
-  //  Input:
-  //    c_rarg0    -  src oop
-  //    c_rarg1    -  src_pos (32-bits)
-  //    c_rarg2    -  dst oop
-  //    c_rarg3    -  dst_pos (32-bits)
-  // not Win64
-  //    c_rarg4    -  element count (32-bits)
-  // Win64
-  //    rsp+40     -  element count (32-bits)
-  //
-  //  Output:
-  //    r0 ==  0  -  success
-  //    r0 == -1^K - failure, where K is partial transfer count
-  //
-  address generate_generic_copy(const char *name,
-                                address byte_copy_entry, address short_copy_entry,
-                                address int_copy_entry, address oop_copy_entry,
-                                address long_copy_entry, address checkcast_copy_entry) { Unimplemented(); return 0; }
 
   // These stubs get called from some dumb test routine.
   // I'll write them properly when they're called from
@@ -1875,8 +1657,6 @@ class StubGenerator: public StubCodeGenerator {
     StubRoutines::_checkcast_arraycopy_uninit = generate_checkcast_copy("checkcast_arraycopy_uninit", NULL,
                                                                         /*dest_uninitialized*/true);
   }
-
-  void generate_math_stubs() { Unimplemented(); }
 
   // Arguments:
   //
@@ -2391,38 +2171,6 @@ class StubGenerator: public StubCodeGenerator {
   // otherwise assume that stack unwinding will be initiated, so
   // caller saved registers were assumed volatile in the compiler.
 
-  // NOTE: this needs carefully checking to see where the generated
-  // code gets called from for each generated error
-  //
-  // WrongMethodTypeException : jumped to directly from generated method
-  // handle code.
-  //
-  // StackOverflowError : jumped to directly from generated code in
-  // cpp and template interpreter. the generated code address also
-  // appears to be returned from the signal handler as the re-entry
-  // address forJava execution to continue from. This means it needs
-  // to be enterable from x86 code. Hmm, we may need to expose both an
-  // x86 prolog and the address of the generated ARM code and clients
-  // will have to be mdoified to pick the correct one.
-  //
-  // AbstractMethodError : never jumped to from generated code but the
-  // generated code address appears to be returned from the signal
-  // handler as the re-entry address for Java execution to continue
-  // from. This means it needs to be enterable from x86 code. So, we
-  // will need to provide this one with an x86 prolog as per
-  // StackOverflowError
-  //
-  // IncompatibleClassChangeError : only appears to be jumped to
-  // directly from vtableStubs code
-  //
-  // NullPointerException : never jumped to from generated code but
-  // the generated code address appears to be returned from the signal
-  // handler as the re-entry address for Java execution to continue
-  // from. This means it needs to be enterable from x86 code. So, we
-  // will need to provide this one with an x86 prolog as per
-  // StackOverflowError
-
-
   address generate_throw_exception(const char* name,
                                    address runtime_entry,
                                    Register arg1 = noreg,
@@ -2527,22 +2275,6 @@ class StubGenerator: public StubCodeGenerator {
 
     // is referenced by megamorphic call
     StubRoutines::_catch_exception_entry = generate_catch_exception();
-
-    // atomic calls
-    StubRoutines::_atomic_xchg_entry         = generate_atomic_xchg();
-    StubRoutines::_atomic_xchg_ptr_entry     = generate_atomic_xchg_ptr();
-    StubRoutines::_atomic_cmpxchg_entry      = generate_atomic_cmpxchg();
-    StubRoutines::_atomic_cmpxchg_long_entry = generate_atomic_cmpxchg_long();
-    StubRoutines::_atomic_add_entry          = generate_atomic_add();
-    StubRoutines::_atomic_add_ptr_entry      = generate_atomic_add_ptr();
-    StubRoutines::_fence_entry               = generate_orderaccess_fence();
-
-    StubRoutines::_handler_for_unsafe_access_entry =
-      generate_handler_for_unsafe_access();
-
-    // platform dependent
-    StubRoutines::aarch64::_get_previous_fp_entry = generate_get_previous_fp();
-    StubRoutines::aarch64::_get_previous_sp_entry = generate_get_previous_sp();
 
     // Build this early so it's available for the interpreter.
     StubRoutines::_throw_StackOverflowError_entry =

@@ -432,9 +432,6 @@ void C1_MacroAssembler::remove_frame(int framesize) {
 }
 
 
-void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) { Unimplemented(); }
-
-
 void C1_MacroAssembler::verified_entry() {
 }
 

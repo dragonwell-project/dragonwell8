@@ -174,44 +174,6 @@ CONSTANT_REGISTER_DECLARATION(FloatRegister, v29    , (29));
 CONSTANT_REGISTER_DECLARATION(FloatRegister, v30    , (30));
 CONSTANT_REGISTER_DECLARATION(FloatRegister, v31    , (31));
 
-// #ifndef DONT_USE_REGISTER_DEFINES
-#if 0
-#define fnoreg ((FloatRegister)(fnoreg_FloatRegisterEnumValue))
-#define v0     ((FloatRegister)(    v0_FloatRegisterEnumValue))
-#define v1     ((FloatRegister)(    v1_FloatRegisterEnumValue))
-#define v2     ((FloatRegister)(    v2_FloatRegisterEnumValue))
-#define v3     ((FloatRegister)(    v3_FloatRegisterEnumValue))
-#define v4     ((FloatRegister)(    v4_FloatRegisterEnumValue))
-#define v5     ((FloatRegister)(    v5_FloatRegisterEnumValue))
-#define v6     ((FloatRegister)(    v6_FloatRegisterEnumValue))
-#define v7     ((FloatRegister)(    v7_FloatRegisterEnumValue))
-#define v8     ((FloatRegister)(    v8_FloatRegisterEnumValue))
-#define v9     ((FloatRegister)(    v9_FloatRegisterEnumValue))
-#define v10    ((FloatRegister)(   v10_FloatRegisterEnumValue))
-#define v11    ((FloatRegister)(   v11_FloatRegisterEnumValue))
-#define v12    ((FloatRegister)(   v12_FloatRegisterEnumValue))
-#define v13    ((FloatRegister)(   v13_FloatRegisterEnumValue))
-#define v14    ((FloatRegister)(   v14_FloatRegisterEnumValue))
-#define v15    ((FloatRegister)(   v15_FloatRegisterEnumValue))
-#define v16    ((FloatRegister)(   v16_FloatRegisterEnumValue))
-#define v17    ((FloatRegister)(   v17_FloatRegisterEnumValue))
-#define v18    ((FloatRegister)(   v18_FloatRegisterEnumValue))
-#define v19    ((FloatRegister)(   v19_FloatRegisterEnumValue))
-#define v20    ((FloatRegister)(   v20_FloatRegisterEnumValue))
-#define v21    ((FloatRegister)(   v21_FloatRegisterEnumValue))
-#define v22    ((FloatRegister)(   v22_FloatRegisterEnumValue))
-#define v23    ((FloatRegister)(   v23_FloatRegisterEnumValue))
-#define v24    ((FloatRegister)(   v24_FloatRegisterEnumValue))
-#define v25    ((FloatRegister)(   v25_FloatRegisterEnumValue))
-#define v26    ((FloatRegister)(   v26_FloatRegisterEnumValue))
-#define v27    ((FloatRegister)(   v27_FloatRegisterEnumValue))
-#define v28    ((FloatRegister)(   v28_FloatRegisterEnumValue))
-#define v29    ((FloatRegister)(   v29_FloatRegisterEnumValue))
-#define v30    ((FloatRegister)(   v30_FloatRegisterEnumValue))
-#define v31    ((FloatRegister)(   v31_FloatRegisterEnumValue))
-#endif // 0
-//#endif // DONT_USE_REGISTER_DEFINES
-
 // Need to know the total number of registers of all sorts for SharedInfo.
 // Define a class that exports it.
 class ConcreteRegisterImpl : public AbstractRegisterImpl {

@@ -2994,7 +2994,9 @@ void LIR_Assembler::membar_loadstore() { __ membar(MacroAssembler::LoadStore); }
 
 void LIR_Assembler::membar_storeload() { __ membar(MacroAssembler::StoreLoad); }
 
-void LIR_Assembler::get_thread(LIR_Opr result_reg) { Unimplemented(); }
+void LIR_Assembler::get_thread(LIR_Opr result_reg) {
+  __ mov(result_reg->as_register(), rthread);
+}
 
 
 void LIR_Assembler::peephole(LIR_List *lir) {

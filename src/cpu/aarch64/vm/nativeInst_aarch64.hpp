@@ -57,7 +57,6 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   enum { instruction_size = 4 };
   inline bool is_nop();
   bool is_dtrace_trap();
-  inline bool is_call();
   inline bool is_illegal();
   inline bool is_return();
   bool is_jump();
@@ -173,11 +172,6 @@ class NativeCall: public NativeInstruction {
 
   static bool is_call_before(address return_address) {
     return is_call_at(return_address - NativeCall::return_address_offset);
-  }
-
-  static bool is_call_to(address instr, address target) {
-    return nativeInstruction_at(instr)->is_call() &&
-      nativeCall_at(instr)->destination() == target;
   }
 
   // MT-safe patching of a call instruction.
@@ -345,9 +339,6 @@ class NativeLoadAddress: public NativeMovRegMem {
 
   // unit test stuff
   static void test() {}
-
- private:
-  friend NativeLoadAddress* nativeLoadAddress_at (address address) { Unimplemented(); return 0; }
 };
 
 class NativeJump: public NativeInstruction {
@@ -434,10 +425,6 @@ class NativeTstRegMem: public NativeInstruction {
  public:
 };
 
-inline bool NativeInstruction::is_illegal()      { Unimplemented(); return false; }
-inline bool NativeInstruction::is_call()         { Unimplemented(); return false; }
-inline bool NativeInstruction::is_return()       { Unimplemented(); return false; }
-
 inline bool NativeInstruction::is_nop()         {
   uint32_t insn = *(uint32_t*)addr_at(0);
   return insn == 0xd503201f;
@@ -465,9 +452,5 @@ inline bool NativeInstruction::is_jump() {
 inline bool NativeInstruction::is_jump_or_nop() {
   return is_nop() || is_jump();
 }
-
-inline bool NativeInstruction::is_cond_jump()    { Unimplemented(); return false; }
-
-inline bool NativeInstruction::is_mov_literal64() { Unimplemented(); return false; }
 
 #endif // CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP

@@ -892,11 +892,6 @@ bool SafePointNode::needs_polling_address_input()
 
 //=============================================================================
 
-// Emit an interrupt that is caught by the debugger (for debugging compiler).
-void emit_break(CodeBuffer &cbuf) {
-  Unimplemented();
-}
-
 #ifndef PRODUCT
 void MachBreakpointNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   st->print("BREAKPOINT");

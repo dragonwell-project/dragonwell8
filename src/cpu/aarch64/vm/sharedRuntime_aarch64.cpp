@@ -2580,11 +2580,6 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   }
 #endif
 
-  // TODO check various assumptions here
-  //
-  // call unimplemented to make sure we actually check this later
-  // __ call_Unimplemented();
-
   assert(SimpleRuntimeFrame::framesize % 4 == 0, "sp not 16-byte aligned");
 
   address start = __ pc();

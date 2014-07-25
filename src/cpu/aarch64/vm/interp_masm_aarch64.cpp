@@ -43,10 +43,6 @@
 
 // Implementation of InterpreterMacroAssembler
 
-#ifdef CC_INTERP
-void InterpreterMacroAssembler::get_method(Register reg) { Unimplemented(); }
-#endif // CC_INTERP
-
 #ifndef CC_INTERP
 
 void InterpreterMacroAssembler::check_and_handle_popframe(Register java_thread) {

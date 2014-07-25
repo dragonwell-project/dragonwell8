@@ -31,8 +31,6 @@
 
 #ifndef PRODUCT
 
-inline void MacroAssembler::pd_print_patched_instruction(address branch) { Unimplemented(); }
-
 #endif // ndef PRODUCT
 
 #endif // CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_INLINE_HPP

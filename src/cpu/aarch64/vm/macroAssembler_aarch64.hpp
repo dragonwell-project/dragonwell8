@@ -696,19 +696,6 @@ public:
   void store_check_part_1(Register obj);
   void store_check_part_2(Register obj);
 
-  // currently unimplemented
-#if 0
-  // C 'boolean' to Java boolean: x == 0 ? 0 : 1
-  void c2bool(Register x);
-
-  // C++ bool manipulation
-
-  void movbool(Register dst, Address src);
-  void movbool(Address dst, bool boolconst);
-  void movbool(Address dst, Register src);
-  void testbool(Register dst);
-#endif
-
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
@@ -744,12 +731,6 @@ public:
   void decode_heap_oop_not_null(Register dst, Register src);
 
   void set_narrow_oop(Register dst, jobject obj);
-  // currently unimplemented
-#if 0
-  void set_narrow_oop(Address dst, jobject obj);
-  void cmp_narrow_oop(Register dst, jobject obj);
-  void cmp_narrow_oop(Address dst, jobject obj);
-#endif
 
   void encode_klass_not_null(Register r);
   void decode_klass_not_null(Register r);
@@ -757,37 +738,17 @@ public:
   void decode_klass_not_null(Register dst, Register src);
 
   void set_narrow_klass(Register dst, Klass* k);
-  // currently unimplemented
-#if 0
-  void set_narrow_klass(Address dst, Klass* k);
-  void cmp_narrow_klass(Register dst, Klass* k);
-  void cmp_narrow_klass(Address dst, Klass* k);
-#endif
 
   // if heap base register is used - reinit it with the correct value
   void reinit_heapbase();
 
   DEBUG_ONLY(void verify_heapbase(const char* msg);)
 
-  // currently unimplemented
-#if 0
-  void int3();
-#endif
-
   void push_CPU_state();
   void pop_CPU_state() ;
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
-
-  // unimplemented
-#if 0
-  // Callee saved registers handling
-  void push_callee_saved_registers();
-  void pop_callee_saved_registers();
-#endif
-
-  // unimplemented
 
   // allocation
   void eden_allocate(
@@ -860,24 +821,8 @@ public:
                            Register temp_reg,
                            Label& L_success);
 
-  // unimplemented
-#if 0
-  // method handles (JSR 292)
-  void check_method_handle_type(Register mtype_reg, Register mh_reg,
-                                Register temp_reg,
-                                Label& wrong_method_type);
-  void load_method_handle_vmslots(Register vmslots_reg, Register mh_reg,
-                                  Register temp_reg);
-  void jump_to_method_handle_entry(Register mh_reg, Register temp_reg);
-#endif
   Address argument_address(RegisterOrConstant arg_slot, int extra_slot_offset = 0);
 
-
-  //----
-#if 0
-  // method handles (JSR 292)
-  void set_word_if_not_zero(Register reg); // sets reg to 1 if not zero, otherwise 0
-#endif
 
   // Debugging
 
@@ -903,21 +848,11 @@ public:
 
   static void debug64(char* msg, int64_t pc, int64_t regs[]);
 
-  // unimplemented
-#if 0
-  void os_breakpoint();
-#endif
-
   void untested()                                { stop("untested"); }
 
   void unimplemented(const char* what = "")      { char* b = new char[1024];  jio_snprintf(b, 1024, "unimplemented: %s", what);  stop(b); }
 
   void should_not_reach_here()                   { stop("should not reach here"); }
-
-  // unimplemented
-#if 0
-  void print_CPU_state();
-#endif
 
   // Stack overflow checking
   void bang_stack_with_offset(int offset) {
@@ -947,39 +882,7 @@ public:
     str(rscratch1, Address(rscratch2));
   }
 
-  // unimplemented
-#if 0
-  void addptr(Address dst, Register src);
-#endif
-
-  void addptr(Register dst, Address src) { Unimplemented(); }
-  // unimplemented
-#if 0
-  void addptr(Register dst, int32_t src);
-  void addptr(Register dst, Register src);
-#endif
-  void addptr(Register dst, RegisterOrConstant src) { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  void andptr(Register dst, int32_t src);
-#endif
-  void andptr(Register src1, Register src2) { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  // renamed to drag out the casting of address to int32_t/intptr_t
-  void cmp32(Register src1, int32_t imm);
-
-  void cmp32(Register src1, Address src2);
-#endif
-
-  void cmpptr(Register src1, Register src2) { Unimplemented(); }
   void cmpptr(Register src1, Address src2);
-  // void cmpptr(Address src1, Register src2) { Unimplemented(); }
-
-  void cmpptr(Register src1, int32_t src2) { Unimplemented(); }
-  void cmpptr(Address src1, int32_t src2) { Unimplemented(); }
 
   void cmpxchgptr(Register oldv, Register newv, Register addr, Register tmp,
 		  Label &suceed, Label *fail);
@@ -992,69 +895,6 @@ public:
 
   void atomic_xchg(Register prev, Register newv, Register addr);
   void atomic_xchgw(Register prev, Register newv, Register addr);
-
-  void imulptr(Register dst, Register src) { Unimplemented(); }
-
-
-  void negptr(Register dst) { Unimplemented(); }
-
-  void notptr(Register dst) { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  void shlptr(Register dst, int32_t shift);
-#endif
-  void shlptr(Register dst) { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  void shrptr(Register dst, int32_t shift);
-#endif
-  void shrptr(Register dst) { Unimplemented(); }
-
-  void sarptr(Register dst) { Unimplemented(); }
-  void sarptr(Register dst, int32_t src) { Unimplemented(); }
-
-  void subptr(Address dst, int32_t src) { Unimplemented(); }
-
-  void subptr(Register dst, Address src) { Unimplemented(); }
-  // unimplemented
-#if 0
-  void subptr(Register dst, int32_t src);
-  // Force generation of a 4 byte immediate value even if it fits into 8bit
-  void subptr_imm32(Register dst, int32_t src);
-  void subptr(Register dst, Register src);
-#endif
-  void subptr(Register dst, RegisterOrConstant src) { Unimplemented(); }
-
-  void sbbptr(Address dst, int32_t src) { Unimplemented(); }
-  void sbbptr(Register dst, int32_t src) { Unimplemented(); }
-
-  void xchgptr(Register src1, Register src2) { Unimplemented(); }
-  void xchgptr(Register src1, Address src2) { Unimplemented(); }
-
-  void xaddptr(Address src1, Register src2) { Unimplemented(); }
-
-
-
-  // unimplemented
-#if 0
-
-  // Perhaps we should implement this one
-  void lea(Register dst, Address adr) { Unimplemented(); }
-
-  void leal32(Register dst, Address src) { Unimplemented(); }
-
-  void orptr(Register dst, Address src) { Unimplemented(); }
-  void orptr(Register dst, Register src) { Unimplemented(); }
-  void orptr(Register dst, int32_t src) { Unimplemented(); }
-
-  void testptr(Register src, int32_t imm32) {  Unimplemented(); }
-  void testptr(Register src1, Register src2);
-
-  void xorptr(Register dst, Register src) { Unimplemented(); }
-  void xorptr(Register dst, Address src) { Unimplemented(); }
-#endif
 
   void orptr(Address adr, RegisterOrConstant src) {
     ldr(rscratch2, adr);
@@ -1077,46 +917,6 @@ public:
   // Emit the CompiledIC call idiom
   void ic_call(address entry);
 
-  // Jumps
-
-  // unimplemented
-#if 0
-  // NOTE: these jumps tranfer to the effective address of dst NOT
-  // the address contained by dst. This is because this is more natural
-  // for jumps/calls.
-  void jump(Address dst);
-  void jump_cc(Condition cc, Address dst);
-#endif
-
-  // Floating
-
-  void fadd_s(Address src)        { Unimplemented(); }
-
-  void fldcw(Address src) { Unimplemented(); }
-
-  void fld_s(int index)   { Unimplemented(); }
-  void fld_s(Address src) { Unimplemented(); }
-
-  void fld_d(Address src) { Unimplemented(); }
-
-  void fld_x(Address src) { Unimplemented(); }
-
-  void fmul_s(Address src)        { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  // compute pow(x,y) and exp(x) with x86 instructions. Don't cover
-  // all corner cases and may result in NaN and require fallback to a
-  // runtime call.
-  void fast_pow();
-  void fast_exp();
-#endif
-
-  // computes exp(x). Fallback to runtime call included.
-  void exp_with_fallback(int num_fpu_regs_in_use) { Unimplemented(); }
-  // computes pow(x,y). Fallback to runtime call included.
-  void pow_with_fallback(int num_fpu_regs_in_use) { Unimplemented(); }
-
 public:
 
   // Data
@@ -1124,22 +924,8 @@ public:
   void mov_metadata(Register dst, Metadata* obj);
   Address allocate_metadata_address(Metadata* obj);
   Address constant_oop_address(jobject obj);
-  // unimplemented
-#if 0
-  void pushoop(jobject obj);
-#endif
 
   void movoop(Register dst, jobject obj, bool immediate = false);
-
-  // sign extend as need a l to ptr sized element
-  void movl2ptr(Register dst, Address src) { Unimplemented(); }
-  void movl2ptr(Register dst, Register src) { Unimplemented(); }
-
-  // unimplemented
-#if 0
-  // C2 compiled method's prolog code.
-  void verified_entry(int framesize, bool stack_bang, bool fp_mode_24b);
-#endif
 
   // CRC32 code for java.util.zip.CRC32::updateBytes() instrinsic.
   void kernel_crc32(Register crc, Register buf, Register len,

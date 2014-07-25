@@ -48,8 +48,6 @@ address NativeCall::destination() const {
   return instruction_address() + displacement();
 }
 
-void NativeCall::print() { Unimplemented(); }
-
 // Inserts a native call instruction at a given pc
 void NativeCall::insert(address code_pos, address entry) { Unimplemented(); }
 
@@ -83,11 +81,7 @@ void NativeMovConstReg::print() {
 
 //-------------------------------------------------------------------
 
-int NativeMovRegMem::instruction_start() const { Unimplemented(); return 0; }
-
 address NativeMovRegMem::instruction_address() const      { return addr_at(instruction_offset); }
-
-address NativeMovRegMem::next_instruction_address() const { Unimplemented(); return 0; }
 
 int NativeMovRegMem::offset() const  {
   address pc = instruction_address();
@@ -117,22 +111,10 @@ void NativeMovRegMem::verify() {
 #endif
 }
 
-
-void NativeMovRegMem::print() { Unimplemented(); }
-
-//-------------------------------------------------------------------
-
-void NativeLoadAddress::verify() { Unimplemented(); }
-
-
-void NativeLoadAddress::print() { Unimplemented(); }
-
 //--------------------------------------------------------------------------------
 
 void NativeJump::verify() { ; }
 
-
-void NativeJump::insert(address code_pos, address entry) { Unimplemented(); }
 
 void NativeJump::check_verified_entry_alignment(address entry, address verified_entry) {
 }
@@ -221,11 +203,6 @@ void NativeJump::patch_verified_entry(address entry, address verified_entry, add
   ICache::invalidate_range(verified_entry, instruction_size);
 }
 
-
-void NativePopReg::insert(address code_pos, Register reg) { Unimplemented(); }
-
-
-void NativeIllegalInstruction::insert(address code_pos) { Unimplemented(); }
 
 void NativeGeneralJump::verify() {  }
 

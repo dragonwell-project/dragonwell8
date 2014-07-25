@@ -41,13 +41,6 @@
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
-// Workaround for C++ overloading nastiness on '0' for RegisterOrConstant.
-#if 0
-static RegisterOrConstant constant(int value) {
-  return RegisterOrConstant(value);
-}
-#endif
-
 void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_reg) {
   if (VerifyMethodHandles)
     verify_klass(_masm, klass_reg, SystemDictionary::WK_KLASS_ENUM_NAME(java_lang_Class),
