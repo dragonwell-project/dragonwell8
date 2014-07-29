@@ -899,7 +899,7 @@ class StubGenerator: public StubCodeGenerator {
 
   void copy_memory_small(Register s, Register d, Register count, Register tmp, int step) {
     bool is_backwards = step < 0;
-    size_t granularity = abs(step);
+    size_t granularity = uabs(step);
     int direction = is_backwards ? -1 : 1;
     int unit = wordSize * direction;
 
@@ -955,7 +955,7 @@ class StubGenerator: public StubCodeGenerator {
 		   Register count, Register tmp, int step) {
     copy_direction direction = step < 0 ? copy_backwards : copy_forwards;
     bool is_backwards = step < 0;
-    int granularity = abs(step);
+    int granularity = uabs(step);
     const Register t0 = r3, t1 = r4;
 
     if (is_backwards) {

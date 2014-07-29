@@ -320,6 +320,29 @@ namespace ext
   enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
 };
 
+// abs methods which cannot overflow and so are well-defined across
+// the entire domain of integer types.
+static inline unsigned int uabs(unsigned int n) {
+  union {
+    unsigned int result;
+    int value;
+  };
+  result = n;
+  if (value < 0) result = -result;
+  return result;
+}
+static inline unsigned long uabs(unsigned long n) {
+  union {
+    unsigned long result;
+    long value;
+  };
+  result = n;
+  if (value < 0) result = -result;
+  return result;
+}
+static inline unsigned long uabs(long n) { return uabs((unsigned long)n); }
+static inline unsigned long uabs(int n) { return uabs((unsigned int)n); }
+
 // Addressing modes
 class Address VALUE_OBJ_CLASS_SPEC {
  public:
@@ -547,7 +570,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
   static bool offset_ok_for_immed(long offset, int shift = 0) {
     unsigned mask = (1 << shift) - 1;
     if (offset < 0 || offset & mask) {
-      return (abs(offset) < (1 << (20 - 12))); // Unscaled offset
+      return (uabs(offset) < (1 << (20 - 12))); // Unscaled offset
     } else {
       return ((offset >> shift) < (1 << (21 - 10 + 1))); // Scaled, unsigned offset
     }
@@ -618,6 +641,7 @@ class Assembler : public AbstractAssembler {
 #endif
 
 public:
+
   enum { instruction_size = 4 };
 
   Address adjust(Register base, int offset, bool preIncrement) {

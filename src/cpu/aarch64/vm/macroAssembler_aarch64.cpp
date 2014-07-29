@@ -1796,7 +1796,7 @@ void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned im
   if (operand_valid_for_add_sub_immediate((int)imm)) {
     (this->*insn1)(Rd, Rn, imm);
   } else {
-    if (labs(imm) < (1 << 24)) {
+    if (uabs(imm) < (1 << 24)) {
        (this->*insn1)(Rd, Rn, imm & -(1 << 12));
        (this->*insn1)(Rd, Rd, imm & ((1 << 12)-1));
     } else {
@@ -3292,7 +3292,7 @@ address MacroAssembler::read_polling_page(Register r, relocInfo::relocType rtype
 
 void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byte_offset) {
   relocInfo::relocType rtype = dest.rspec().reloc()->type();
-  if (labs(pc() - dest.target()) >= (1LL << 32)) {
+  if (uabs(pc() - dest.target()) >= (1LL << 32)) {
     guarantee(rtype == relocInfo::none
 	      || rtype == relocInfo::external_word_type
 	      || rtype == relocInfo::poll_type
