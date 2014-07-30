@@ -452,3 +452,14 @@ Java_sun_font_FontManager_populateFontFileNameMap
 
 }
 
+/*
+ * Class:     sun_lwawt_macosx_LWCToolkit
+ * Method:    isEmbedded
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL
+Java_sun_lwawt_macosx_LWCToolkit_isEmbedded
+(JNIEnv *env, jclass klass) {
+    return [ThreadUtilities isAWTEmbedded] ? JNI_TRUE : JNI_FALSE;
+}
+

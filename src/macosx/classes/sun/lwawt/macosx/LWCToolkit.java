@@ -784,6 +784,13 @@ public final class LWCToolkit extends LWToolkit {
      */
     native boolean isApplicationActive();
 
+    /**
+     * Returns true if AWT toolkit is embedded, false otherwise.
+     *
+     * @return true if AWT toolkit is embedded, false otherwise
+     */
+    public static native boolean isEmbedded();
+
     /************************
      * Native methods section
      ************************/
