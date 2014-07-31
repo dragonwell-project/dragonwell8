@@ -29,8 +29,8 @@
 
 public:
 
-   static Thread* thread() {
-     return (Thread*) os::thread_local_storage_at(thread_index());
-   }
+  static Thread *thread() {
+    return aarch64_currentThread;
+  }
 
 #endif // OS_CPU_LINUX_AARCH64_VM_THREADLS_LINUX_AARCH64_HPP
