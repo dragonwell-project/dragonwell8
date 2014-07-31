@@ -1085,6 +1085,8 @@ public:
   void string_equals(Register str1, Register str2,
 		     Register cnt, Register result,
 		     Register tmp1);
+  void char_arrays_equals(Register ary1, Register ary2,
+                          Register result, Register tmp1);
 };
 
 // Used by aarch64.ad to control code generation
