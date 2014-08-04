@@ -735,15 +735,29 @@ void MacroAssembler::align(int modulus) {
   while (offset() % modulus != 0) nop();
 }
 
-// these are meant to be no-ops overridden by InterpreterMacroAssembler
+// these are no-ops overridden by InterpreterMacroAssembler
 
-void MacroAssembler::check_and_handle_earlyret(Register java_thread) { Unimplemented(); }
+void MacroAssembler::check_and_handle_earlyret(Register java_thread) { }
 
-void MacroAssembler::check_and_handle_popframe(Register java_thread) { Unimplemented(); }
+void MacroAssembler::check_and_handle_popframe(Register java_thread) { }
+
 
 RegisterOrConstant MacroAssembler::delayed_value_impl(intptr_t* delayed_value_addr,
                                                       Register tmp,
-                                                      int offset) { Unimplemented(); return RegisterOrConstant(r0); }
+                                                      int offset) {
+  intptr_t value = *delayed_value_addr;
+  if (value != 0)
+    return RegisterOrConstant(value + offset);
+
+  // load indirectly to solve generation ordering problem
+  ldr(tmp, ExternalAddress((address) delayed_value_addr));
+
+  if (offset != 0)
+    add(tmp, tmp, offset);
+
+  return RegisterOrConstant(tmp);
+}
+
 
 void MacroAssembler:: notify(int type) {
   if (type == bytecode_start) {
@@ -1671,7 +1685,7 @@ void MacroAssembler::increment(Register reg, int value)
   }
 }
 
-void MacroAssembler::increment(Address dst, int value)
+void MacroAssembler::incrementw(Address dst, int value)
 {
   assert(!dst.uses(rscratch1), "invalid dst for address increment");
   ldrw(rscratch1, dst);
@@ -1679,7 +1693,7 @@ void MacroAssembler::increment(Address dst, int value)
   strw(rscratch1, dst);
 }
 
-void MacroAssembler::incrementw(Address dst, int value)
+void MacroAssembler::increment(Address dst, int value)
 {
   assert(!dst.uses(rscratch1), "invalid dst for address increment");
   ldr(rscratch1, dst);

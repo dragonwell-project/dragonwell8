@@ -58,7 +58,8 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
 
 #ifndef PRODUCT
   if (CountCompiledCalls) {
-    __ increment(ExternalAddress((address) SharedRuntime::nof_megamorphic_calls_addr()));
+    __ lea(r19, ExternalAddress((address) SharedRuntime::nof_megamorphic_calls_addr()));
+    __ incrementw(Address(r19));
   }
 #endif
 
@@ -73,12 +74,14 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   if (DebugVtables) {
     Label L;
     // check offset vs vtable length
-    __ ldrw(rscratch1, Address(r0, InstanceKlass::vtable_length_offset() * wordSize));
+    __ ldrw(rscratch1, Address(r19, InstanceKlass::vtable_length_offset() * wordSize));
     __ cmpw(rscratch1, vtable_index * vtableEntry::size());
     __ br(Assembler::GT, L);
+    __ enter();
     __ mov(r2, vtable_index);
     __ call_VM(noreg,
                CAST_FROM_FN_PTR(address, bad_compiled_vtable_index), j_rarg0, r2);
+    __ leave();
     __ bind(L);
   }
 #endif // PRODUCT
@@ -109,9 +112,6 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
                   (int)(s->code_end() - __ pc()));
   }
   guarantee(__ pc() <= s->code_end(), "overflowed buffer");
-  // shut the door on sizing bugs
-  int slop = 3;  // 32-bit offset is this much larger than an 8-bit one
-  assert(vtable_index > 10 || __ pc() + slop <= s->code_end(), "room for 32-bit offset");
 
   s->set_exception_points(npe_addr, ame_addr);
   return s;
@@ -130,7 +130,8 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
 #ifndef PRODUCT
   if (CountCompiledCalls) {
-    __ increment(ExternalAddress((address) SharedRuntime::nof_megamorphic_calls_addr()));
+    __ lea(r10, ExternalAddress((address) SharedRuntime::nof_megamorphic_calls_addr()));
+    __ incrementw(Address(r10));
   }
 #endif
 
@@ -190,9 +191,6 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
                   (int)(s->code_end() - __ pc()));
   }
   guarantee(__ pc() <= s->code_end(), "overflowed buffer");
-  // shut the door on sizing bugs
-  int slop = 3;  // 32-bit offset is this much larger than an 8-bit one
-  assert(itable_index > 10 || __ pc() + slop <= s->code_end(), "room for 32-bit offset");
 
   s->set_exception_points(npe_addr, ame_addr);
   return s;
@@ -200,8 +198,49 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
 
 int VtableStub::pd_code_size_limit(bool is_vtable_stub) {
+  int size = DebugVtables ? 216 : 0;
+  if (CountCompiledCalls)
+    size += 6 * 4;
   // FIXME
-  return 200;
+  if (is_vtable_stub)
+    size += 52;
+  else
+    size += 104;
+  return size;
+
+  // In order to tune these parameters, run the JVM with VM options
+  // +PrintMiscellaneous and +WizardMode to see information about
+  // actual itable stubs.  Run it with -Xmx31G -XX:+UseCompressedOops.
+  //
+  // If Universe::narrow_klass_base is nonzero, decoding a compressed
+  // class can take zeveral instructions.  Run it with -Xmx31G
+  // -XX:+UseCompressedOops.
+  //
+  // The JVM98 app. _202_jess has a megamorphic interface call.
+  // The itable code looks like this:
+  // Decoding VtableStub itbl[1]@12
+  //     ldr     w10, [x1,#8]
+  //     lsl     x10, x10, #3
+  //     ldr     w11, [x10,#280]
+  //     add     x11, x10, x11, uxtx #3
+  //     add     x11, x11, #0x1b8
+  //     ldr     x12, [x11]
+  //     cmp     x9, x12
+  //     b.eq    success
+  // loop:
+  //     cbz     x12, throw_icce
+  //     add     x11, x11, #0x10
+  //     ldr     x12, [x11]
+  //     cmp     x9, x12
+  //     b.ne    loop
+  // success:
+  //     ldr     x11, [x11,#8]
+  //     ldr     x12, [x10,x11]
+  //     ldr     x8, [x12,#72]
+  //     br      x8
+  // throw_icce:
+  //     b	throw_ICCE_entry
+
 }
 
 int VtableStub::pd_code_alignment() { return 4; }
