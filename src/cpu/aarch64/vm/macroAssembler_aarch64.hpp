@@ -1085,6 +1085,12 @@ public:
   void string_equals(Register str1, Register str2,
 		     Register cnt, Register result,
 		     Register tmp1);
+  void char_arrays_equals(Register ary1, Register ary2,
+                          Register result, Register tmp1);
+  void encode_iso_array(Register src, Register dst,
+                        Register len, Register result,
+                        FloatRegister Vtmp1, FloatRegister Vtmp2,
+                        FloatRegister Vtmp3, FloatRegister Vtmp4);
 };
 
 // Used by aarch64.ad to control code generation

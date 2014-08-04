@@ -381,6 +381,9 @@ reg_class int_r0_reg(R0);
 // Singleton class for R2 int register
 reg_class int_r2_reg(R2);
 
+// Singleton class for R3 int register
+reg_class int_r3_reg(R3);
+
 // Singleton class for R4 int register
 reg_class int_r4_reg(R4);
 
@@ -696,6 +699,26 @@ reg_class double_reg(
     V29, V29_H, 
     V30, V30_H, 
     V31, V31_H
+);
+
+// Class for 128 bit register v0
+reg_class v0_reg(
+    V0, V0_H
+);
+
+// Class for 128 bit register v1
+reg_class v1_reg(
+    V1, V1_H
+);
+
+// Class for 128 bit register v2
+reg_class v2_reg(
+    V2, V2_H
+);
+
+// Class for 128 bit register v3
+reg_class v3_reg(
+    V3, V3_H
 );
 
 // Singleton class for condition codes
@@ -4116,6 +4139,18 @@ operand iRegI_R2()
   interface(REG_INTER);
 %}
 
+// Register R3 only
+operand iRegI_R3()
+%{
+  constraint(ALLOC_IN_RC(int_r3_reg));
+  match(RegI);
+  match(iRegINoSp);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+
 // Register R2 only
 operand iRegI_R4()
 %{
@@ -4180,6 +4215,42 @@ operand vRegD()
   constraint(ALLOC_IN_RC(double_reg));
   match(RegD);
 
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V0()
+%{
+  constraint(ALLOC_IN_RC(v0_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V1()
+%{
+  constraint(ALLOC_IN_RC(v1_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V2()
+%{
+  constraint(ALLOC_IN_RC(v2_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V3()
+%{
+  constraint(ALLOC_IN_RC(v3_reg));
+  match(RegD);
   op_cost(0);
   format %{ %}
   interface(REG_INTER);
@@ -11675,6 +11746,39 @@ instruct string_equals(iRegP_R1 str1, iRegP_R3 str2, iRegI_R4 cnt,
                       $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
+%}
+
+instruct array_equals(iRegP_R1 ary1, iRegP_R2 ary2, iRegI_R0 result,
+                      iRegP_R10 tmp, rFlagsReg cr)
+%{
+  match(Set result (AryEq ary1 ary2));
+  effect(KILL tmp, USE_KILL ary1, USE_KILL ary2, KILL cr);
+
+  format %{ "Array Equals $ary1,ary2 -> $result    // KILL $tmp" %}
+  ins_encode %{
+    __ char_arrays_equals($ary1$$Register, $ary2$$Register,
+                          $result$$Register, $tmp$$Register);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+// encode char[] to byte[] in ISO_8859_1
+instruct encode_iso_array(iRegP_R2 src, iRegP_R1 dst, iRegI_R3 len,
+                          vRegD_V0 Vtmp1, vRegD_V1 Vtmp2,
+                          vRegD_V2 Vtmp3, vRegD_V3 Vtmp4,
+                          iRegI_R0 result, rFlagsReg cr)
+%{
+  match(Set result (EncodeISOArray src (Binary dst len)));
+  effect(USE_KILL src, USE_KILL dst, USE_KILL len,
+         KILL Vtmp1, KILL Vtmp2, KILL Vtmp3, KILL Vtmp4, KILL cr);
+
+  format %{ "Encode array $src,$dst,$len -> $result" %}
+  ins_encode %{
+    __ encode_iso_array($src$$Register, $dst$$Register, $len$$Register,
+         $result$$Register, $Vtmp1$$FloatRegister,  $Vtmp2$$FloatRegister,
+         $Vtmp3$$FloatRegister,  $Vtmp4$$FloatRegister);
+  %}
+  ins_pipe( pipe_class_memory );
 %}
 
 // ============================================================================

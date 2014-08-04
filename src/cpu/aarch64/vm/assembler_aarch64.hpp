@@ -2073,6 +2073,15 @@ public:
     pmull(Vd, Ta, Vn, Vm, Tb);
   }
 
+  void uqxtn(FloatRegister Vd, SIMD_Arrangement Tb, FloatRegister Vn, SIMD_Arrangement Ta) {
+    starti;
+    int size_b = (int)Tb >> 1;
+    int size_a = (int)Ta >> 1;
+    assert(size_b < 3 && size_b == size_a - 1, "Invalid size specifier");
+    f(0, 31), f(Tb & 1, 30), f(0b101110, 29, 24), f(size_b, 23, 22);
+    f(0b100001010010, 21, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+
   void rev32(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn)
   {
     starti;

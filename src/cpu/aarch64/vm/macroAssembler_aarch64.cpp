@@ -3545,3 +3545,132 @@ void MacroAssembler::string_equals(Register str1, Register str2,
 
   BLOCK_COMMENT("} string_equals");
 }
+
+// Compare char[] arrays aligned to 4 bytes
+void MacroAssembler::char_arrays_equals(Register ary1, Register ary2,
+                                        Register result, Register tmp1)
+{
+  Register cnt1 = rscratch1;
+  Register cnt2 = rscratch2;
+  Register tmp2 = rscratch2;
+
+  Label SAME, DIFFER, NEXT, TAIL03, TAIL01;
+
+  int length_offset  = arrayOopDesc::length_offset_in_bytes();
+  int base_offset    = arrayOopDesc::base_offset_in_bytes(T_CHAR);
+
+  BLOCK_COMMENT("char_arrays_equals  {");
+
+    // different until proven equal
+    mov(result, false);
+
+    // same array?
+    cmp(ary1, ary2);
+    br(Assembler::EQ, SAME);
+
+    // ne if either null
+    cbz(ary1, DIFFER);
+    cbz(ary2, DIFFER);
+
+    // lengths ne?
+    ldrw(cnt1, Address(ary1, length_offset));
+    ldrw(cnt2, Address(ary2, length_offset));
+    cmp(cnt1, cnt2);
+    br(Assembler::NE, DIFFER);
+
+    lea(ary1, Address(ary1, base_offset));
+    lea(ary2, Address(ary2, base_offset));
+
+    subs(cnt1, cnt1, 4);
+    br(LT, TAIL03);
+
+  BIND(NEXT);
+    ldr(tmp1, Address(post(ary1, 8)));
+    ldr(tmp2, Address(post(ary2, 8)));
+    subs(cnt1, cnt1, 4);
+    eor(tmp1, tmp1, tmp2);
+    cbnz(tmp1, DIFFER);
+    br(GE, NEXT);
+
+  BIND(TAIL03);  // 0-3 chars left, cnt1 = #chars left - 4
+    tst(cnt1, 0b10);
+    br(EQ, TAIL01);
+    ldrw(tmp1, Address(post(ary1, 4)));
+    ldrw(tmp2, Address(post(ary2, 4)));
+    cmp(tmp1, tmp2);
+    br(NE, DIFFER);
+  BIND(TAIL01);  // 0-1 chars left
+    tst(cnt1, 0b01);
+    br(EQ, SAME);
+    ldrh(tmp1, ary1);
+    ldrh(tmp2, ary2);
+    cmp(tmp1, tmp2);
+    br(NE, DIFFER);
+
+  BIND(SAME);
+    mov(result, true);
+  BIND(DIFFER);	// result already set
+  
+  BLOCK_COMMENT("} char_arrays_equals");
+}
+
+// encode char[] to byte[] in ISO_8859_1
+void MacroAssembler::encode_iso_array(Register src, Register dst,
+		      Register len, Register result,
+		      FloatRegister Vtmp1, FloatRegister Vtmp2,
+                      FloatRegister Vtmp3, FloatRegister Vtmp4)
+{
+    Label DONE, NEXT_32, LOOP_8, NEXT_8, LOOP_1, NEXT_1;
+    Register tmp1 = rscratch1;
+
+      mov(result, len);	// Save initial len
+
+      subs(len, len, 32);
+      br(LT, LOOP_8);
+
+// The following code uses the SIMD 'uqxtn' and 'uqxtn2' instructions
+// to convert chars to bytes. These set the 'QC' bit in the FPSR if
+// any char could not fit in a byte, so clear the FPSR so we can test it.
+      clear_fpsr();
+
+    BIND(NEXT_32);
+      ld1(Vtmp1, Vtmp2, Vtmp3, Vtmp4, T8H, src);
+      uqxtn(Vtmp1, T8B, Vtmp1, T8H);  // uqxtn  - write bottom half
+      uqxtn(Vtmp1, T16B, Vtmp2, T8H); // uqxtn2 - write top half
+      uqxtn(Vtmp2, T8B, Vtmp3, T8H);
+      uqxtn(Vtmp2, T16B, Vtmp4, T8H); // uqxtn2
+      get_fpsr(tmp1);
+      cbnzw(tmp1, LOOP_8);
+      st1(Vtmp1, Vtmp2, T16B, post(dst, 32));
+      subs(len, len, 32);
+      add(src, src, 64);
+      br(GE, NEXT_32);
+
+    BIND(LOOP_8);
+      adds(len, len, 32-8);
+      br(LT, LOOP_1);
+      clear_fpsr(); // QC may be set from loop above, clear again
+    BIND(NEXT_8);
+      ld1(Vtmp1, T8H, src);
+      uqxtn(Vtmp1, T8B, Vtmp1, T8H);
+      get_fpsr(tmp1);
+      cbnzw(tmp1, LOOP_1);
+      st1(Vtmp1, T8B, post(dst, 8));
+      subs(len, len, 8);
+      add(src, src, 16);
+      br(GE, NEXT_8);
+
+    BIND(LOOP_1);
+      adds(len, len, 8);
+      br(LE, DONE);
+    BIND(NEXT_1);
+      ldrh(tmp1, Address(post(src, 2)));
+      tst(tmp1, 0xff00);
+      br(NE, DONE);
+      strb(tmp1, Address(post(dst, 1)));
+      subs(len, len, 1);
+      br(GT, NEXT_1);
+
+    BIND(DONE);
+      sub(result, result, len); // Return index where we stopped
+}
