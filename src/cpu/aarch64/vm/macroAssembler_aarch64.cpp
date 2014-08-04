@@ -2496,6 +2496,11 @@ void MacroAssembler::cmp_klass(Register oop, Register trial_klass, Register tmp)
     if (Universe::narrow_klass_base() == NULL) {
       cmp(trial_klass, tmp, LSL, Universe::narrow_klass_shift());
       return;
+    } else if (((uint64_t)Universe::narrow_klass_base() & 0xffffffff) == 0
+	       && Universe::narrow_klass_shift() == 0) {
+      // Only the bottom 32 bits matter
+      cmpw(trial_klass, tmp);
+      return;
     }
     decode_klass_not_null(tmp);
   } else {
@@ -2680,6 +2685,12 @@ void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
     return;
   }
 
+  if (((uint64_t)Universe::narrow_klass_base() & 0xffffffff) == 0
+      && Universe::narrow_klass_shift() == 0) {
+    movw(dst, src);
+    return;
+  }
+
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::encode_klass_not_null2: heap base corrupted?");
 #endif
@@ -2720,6 +2731,14 @@ void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
     } else {
       eor(dst, src, (uint64_t)Universe::narrow_klass_base());
     }
+    return;
+  }
+
+  if (((uint64_t)Universe::narrow_klass_base() & 0xffffffff) == 0
+      && Universe::narrow_klass_shift() == 0) {
+    if (dst != src)
+      movw(dst, src);
+    movk(dst, (uint64_t)Universe::narrow_klass_base() >> 32, 32);
     return;
   }
 
