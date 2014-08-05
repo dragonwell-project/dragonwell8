@@ -3625,6 +3625,7 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
 
       mov(result, len);	// Save initial len
 
+#ifndef BUILTIN_SIM
       subs(len, len, 32);
       br(LT, LOOP_8);
 
@@ -3663,6 +3664,9 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
     BIND(LOOP_1);
       adds(len, len, 8);
       br(LE, DONE);
+#else
+      cbz(len, DONE);
+#endif
     BIND(NEXT_1);
       ldrh(tmp1, Address(post(src, 2)));
       tst(tmp1, 0xff00);
