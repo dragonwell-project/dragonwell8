@@ -769,6 +769,7 @@ class DatagramSocket implements java.io.Closeable {
                     } // end of while
                 }
             }
+            DatagramPacket tmp = null;
             if ((connectState == ST_CONNECTED_NO_IMPL) || explicitFilter) {
                 // We have to do the filtering the old fashioned way since
                 // the native impl doesn't support connect or the connect
@@ -793,11 +794,13 @@ class DatagramSocket implements java.io.Closeable {
                     if ((!connectedAddress.equals(peekAddress)) ||
                         (connectedPort != peekPort)) {
                         // throw the packet away and silently continue
-                        DatagramPacket tmp = new DatagramPacket(
+                        tmp = new DatagramPacket(
                                                 new byte[1024], 1024);
                         getImpl().receive(tmp);
                         if (explicitFilter) {
-                            bytesLeftToFilter -= tmp.getLength();
+                            if (checkFiltering(tmp)) {
+                                stop = true;
+                            }
                         }
                     } else {
                         stop = true;
@@ -807,16 +810,20 @@ class DatagramSocket implements java.io.Closeable {
             // If the security check succeeds, or the datagram is
             // connected then receive the packet
             getImpl().receive(p);
-            if (explicitFilter) {
-                bytesLeftToFilter -= p.getLength();
-                if (bytesLeftToFilter <= 0) {
-                    explicitFilter = false;
-                } else {
-                    // break out of filter, if there is no more data queued
-                    explicitFilter = getImpl().dataAvailable() > 0;
-                }
+            if (explicitFilter && tmp == null) {
+                // packet was not filtered, account for it here
+                checkFiltering(p);
             }
         }
+    }
+
+    private boolean checkFiltering(DatagramPacket p) throws SocketException {
+        bytesLeftToFilter -= p.getLength();
+        if (bytesLeftToFilter <= 0 || getImpl().dataAvailable() <= 0) {
+            explicitFilter = false;
+            return true;
+        }
+        return false;
     }
 
     /**
