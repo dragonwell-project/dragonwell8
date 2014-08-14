@@ -120,7 +120,6 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
   WorkerDataArray<int>    _last_update_rs_processed_buffers;
   WorkerDataArray<double> _last_scan_rs_times_ms;
   WorkerDataArray<double> _last_strong_code_root_scan_times_ms;
-  WorkerDataArray<double> _last_strong_code_root_mark_times_ms;
   WorkerDataArray<double> _last_obj_copy_times_ms;
   WorkerDataArray<double> _last_termination_times_ms;
   WorkerDataArray<size_t> _last_termination_attempts;
@@ -158,11 +157,17 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
   double _recorded_young_free_cset_time_ms;
   double _recorded_non_young_free_cset_time_ms;
 
+  double _cur_fast_reclaim_humongous_time_ms;
+  size_t _cur_fast_reclaim_humongous_total;
+  size_t _cur_fast_reclaim_humongous_candidates;
+  size_t _cur_fast_reclaim_humongous_reclaimed;
+
   double _cur_verify_before_time_ms;
   double _cur_verify_after_time_ms;
 
   // Helper methods for detailed logging
   void print_stats(int level, const char* str, double value);
+  void print_stats(int level, const char* str, size_t value);
   void print_stats(int level, const char* str, double value, uint workers);
 
  public:
@@ -197,10 +202,6 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
 
   void record_strong_code_root_scan_time(uint worker_i, double ms) {
     _last_strong_code_root_scan_times_ms.set(worker_i, ms);
-  }
-
-  void record_strong_code_root_mark_time(uint worker_i, double ms) {
-    _last_strong_code_root_mark_times_ms.set(worker_i, ms);
   }
 
   void record_obj_copy_time(uint worker_i, double ms) {
@@ -287,6 +288,16 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
     _recorded_non_young_free_cset_time_ms = time_ms;
   }
 
+  void record_fast_reclaim_humongous_stats(size_t total, size_t candidates) {
+    _cur_fast_reclaim_humongous_total = total;
+    _cur_fast_reclaim_humongous_candidates = candidates;
+  }
+
+  void record_fast_reclaim_humongous_time_ms(double value, size_t reclaimed) {
+    _cur_fast_reclaim_humongous_time_ms = value;
+    _cur_fast_reclaim_humongous_reclaimed = reclaimed;
+  }
+
   void record_young_cset_choice_time_ms(double time_ms) {
     _recorded_young_cset_choice_time_ms = time_ms;
   }
@@ -353,6 +364,10 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
     return _recorded_non_young_free_cset_time_ms;
   }
 
+  double fast_reclaim_humongous_time_ms() {
+    return _cur_fast_reclaim_humongous_time_ms;
+  }
+
   double average_last_update_rs_time() {
     return _last_update_rs_times_ms.average();
   }
@@ -367,10 +382,6 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
 
   double average_last_strong_code_root_scan_time(){
     return _last_strong_code_root_scan_times_ms.average();
-  }
-
-  double average_last_strong_code_root_mark_time(){
-    return _last_strong_code_root_mark_times_ms.average();
   }
 
   double average_last_obj_copy_time() {

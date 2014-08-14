@@ -1398,6 +1398,22 @@ bool verify_object_alignment() {
                 (int)ObjectAlignmentInBytes, os::vm_page_size());
     return false;
   }
+  if(SurvivorAlignmentInBytes == 0) {
+    SurvivorAlignmentInBytes = ObjectAlignmentInBytes;
+  } else {
+    if (!is_power_of_2(SurvivorAlignmentInBytes)) {
+      jio_fprintf(defaultStream::error_stream(),
+            "error: SurvivorAlignmentInBytes=%d must be power of 2\n",
+            (int)SurvivorAlignmentInBytes);
+      return false;
+    }
+    if (SurvivorAlignmentInBytes < ObjectAlignmentInBytes) {
+      jio_fprintf(defaultStream::error_stream(),
+          "error: SurvivorAlignmentInBytes=%d must be greater than ObjectAlignmentInBytes=%d \n",
+          (int)SurvivorAlignmentInBytes, (int)ObjectAlignmentInBytes);
+      return false;
+    }
+  }
   return true;
 }
 
@@ -1505,8 +1521,10 @@ void Arguments::set_conservative_max_heap_alignment() {
     heap_alignment = G1CollectedHeap::conservative_max_heap_alignment();
   }
 #endif // INCLUDE_ALL_GCS
-  _conservative_max_heap_alignment = MAX3(heap_alignment, os::max_page_size(),
-    CollectorPolicy::compute_heap_alignment());
+  _conservative_max_heap_alignment = MAX4(heap_alignment,
+                                          (size_t)os::vm_allocation_granularity(),
+                                          os::max_page_size(),
+                                          CollectorPolicy::compute_heap_alignment());
 }
 
 void Arguments::set_ergonomics_flags() {

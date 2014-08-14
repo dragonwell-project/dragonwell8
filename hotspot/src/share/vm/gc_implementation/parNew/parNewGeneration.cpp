@@ -28,12 +28,12 @@
 #include "gc_implementation/parNew/parOopClosures.inline.hpp"
 #include "gc_implementation/shared/adaptiveSizePolicy.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
-#include "gc_implementation/shared/parGCAllocBuffer.hpp"
+#include "gc_implementation/shared/copyFailedInfo.hpp"
 #include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
-#include "gc_implementation/shared/copyFailedInfo.hpp"
+#include "gc_implementation/shared/parGCAllocBuffer.inline.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "memory/defNewGeneration.inline.hpp"
 #include "memory/genCollectedHeap.hpp"
@@ -251,7 +251,7 @@ HeapWord* ParScanThreadState::alloc_in_to_space_slow(size_t word_sz) {
         plab->set_word_size(buf_size);
         plab->set_buf(buf_space);
         record_survivor_plab(buf_space, buf_size);
-        obj = plab->allocate(word_sz);
+        obj = plab->allocate_aligned(word_sz, SurvivorAlignmentInBytes);
         // Note that we cannot compare buf_size < word_sz below
         // because of AlignmentReserve (see ParGCAllocBuffer::allocate()).
         assert(obj != NULL || plab->words_remaining() < word_sz,
@@ -613,20 +613,21 @@ void ParNewGenTask::work(uint worker_id) {
 
   KlassScanClosure klass_scan_closure(&par_scan_state.to_space_root_closure(),
                                       gch->rem_set()->klass_rem_set());
-
-  int so = SharedHeap::SO_AllClasses | SharedHeap::SO_Strings | SharedHeap::SO_CodeCache;
+  CLDToKlassAndOopClosure cld_scan_closure(&klass_scan_closure,
+                                           &par_scan_state.to_space_root_closure(),
+                                           false);
 
   par_scan_state.start_strong_roots();
-  gch->gen_process_strong_roots(_gen->level(),
-                                true,  // Process younger gens, if any,
-                                       // as strong roots.
-                                false, // no scope; this is parallel code
-                                true,  // is scavenging
-                                SharedHeap::ScanningOption(so),
-                                &par_scan_state.to_space_root_closure(),
-                                true,   // walk *all* scavengable nmethods
-                                &par_scan_state.older_gen_closure(),
-                                &klass_scan_closure);
+  gch->gen_process_roots(_gen->level(),
+                         true,  // Process younger gens, if any,
+                                // as strong roots.
+                         false, // no scope; this is parallel code
+                         SharedHeap::SO_ScavengeCodeCache,
+                         GenCollectedHeap::StrongAndWeakRoots,
+                         &par_scan_state.to_space_root_closure(),
+                         &par_scan_state.older_gen_closure(),
+                         &cld_scan_closure);
+
   par_scan_state.end_strong_roots();
 
   // "evacuate followers".

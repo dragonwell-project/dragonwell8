@@ -5064,6 +5064,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetDefaultJavaVMInitArgs(void *args_) {
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
 #endif
+#include "memory/guardedMemory.hpp"
 #include "utilities/quickSort.hpp"
 #include "utilities/ostream.hpp"
 #if INCLUDE_VM_STRUCTS
@@ -5082,9 +5083,11 @@ void TestMetaspaceAux_test();
 void TestMetachunk_test();
 void TestVirtualSpaceNode_test();
 void TestNewSize_test();
+void TestKlass_test();
 #if INCLUDE_ALL_GCS
 void TestOldFreeSpaceCalculation_test();
 void TestG1BiasedArray_test();
+void TestBufferingOopClosure_test();
 void TestCodeCacheRemSet_test();
 #endif
 
@@ -5102,9 +5105,11 @@ void execute_internal_vm_tests() {
     run_unit_test(arrayOopDesc::test_max_array_length());
     run_unit_test(CollectedHeap::test_is_in());
     run_unit_test(QuickSort::test_quick_sort());
+    run_unit_test(GuardedMemory::test_guarded_memory());
     run_unit_test(AltHashing::test_alt_hash());
     run_unit_test(test_loggc_filename());
     run_unit_test(TestNewSize_test());
+    run_unit_test(TestKlass_test());
 #if INCLUDE_VM_STRUCTS
     run_unit_test(VMStructs::test());
 #endif
@@ -5112,6 +5117,7 @@ void execute_internal_vm_tests() {
     run_unit_test(TestOldFreeSpaceCalculation_test());
     run_unit_test(TestG1BiasedArray_test());
     run_unit_test(HeapRegionRemSet::test_prt());
+    run_unit_test(TestBufferingOopClosure_test());
     run_unit_test(TestCodeCacheRemSet_test());
 #endif
     tty->print_cr("All internal VM tests passed");

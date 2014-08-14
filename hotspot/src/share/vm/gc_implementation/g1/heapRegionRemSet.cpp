@@ -694,6 +694,9 @@ void OtherRegionsTable::scrub(CardTableModRefBS* ctbs,
   clear_fcc();
 }
 
+bool OtherRegionsTable::is_empty() const {
+  return occ_sparse() == 0 && occ_coarse() == 0 && _first_all_fine_prts == NULL;
+}
 
 size_t OtherRegionsTable::occupied() const {
   size_t sum = occ_fine();
@@ -929,7 +932,10 @@ void HeapRegionRemSet::add_strong_code_root(nmethod* nm) {
 
 void HeapRegionRemSet::remove_strong_code_root(nmethod* nm) {
   assert(nm != NULL, "sanity");
-  _code_roots.remove(nm);
+  assert_locked_or_safepoint(CodeCache_lock);
+
+  _code_roots.remove_lock_free(nm);
+
   // Check that there were no duplicates
   guarantee(!_code_roots.contains(nm), "duplicate entry found");
 }
