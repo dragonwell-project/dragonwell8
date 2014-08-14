@@ -467,7 +467,9 @@ void AwtComponent::InitPeerGraphicsConfig(JNIEnv *env, jobject peer)
         jclass win32GCCls = env->FindClass("sun/awt/Win32GraphicsConfig");
         DASSERT(win32GCCls != NULL);
         DASSERT(env->IsInstanceOf(compGC, win32GCCls));
-        CHECK_NULL(win32GCCls);
+        if (win32GCCls == NULL) {
+            throw std::bad_alloc();
+        }
         env->SetObjectField(peer, AwtComponent::peerGCID, compGC);
     }
 }
@@ -2141,19 +2143,7 @@ namespace TimeHelper {
     }
 
     jlong getMessageTimeUTC() {
-        return windowsToUTC(getMessageTimeWindows());
-    }
-
-    // If calling order of GetTickCount and JVM_CurrentTimeMillis
-    // is swapped, it would sometimes give different result.
-    // Anyway, we would not always have determinism
-    // and sortedness of time conversion here (due to Windows's
-    // timers peculiarities). Having some euristic algorithm might
-    // help here.
-    jlong windowsToUTC(DWORD windowsTime) {
-        jlong offset = ::GetTickCount() - windowsTime;
-        jlong jvm_time = ::JVM_CurrentTimeMillis(NULL, 0);
-        return jvm_time - offset;
+        return ::JVM_CurrentTimeMillis(NULL, 0);
     }
 } //TimeHelper
 
@@ -3578,7 +3568,7 @@ MsgRouting AwtComponent::WmKeyDown(UINT wkey, UINT repCnt,
 
 
     SendKeyEventToFocusOwner(java_awt_event_KeyEvent_KEY_PRESSED,
-                             TimeHelper::windowsToUTC(msg.time), jkey, character,
+                             TimeHelper::getMessageTimeUTC(), jkey, character,
                              modifiers, keyLocation, (jlong)wkey, &msg);
 
     // bugid 4724007: Windows does not create a WM_CHAR for the Del key
@@ -3588,7 +3578,7 @@ MsgRouting AwtComponent::WmKeyDown(UINT wkey, UINT repCnt,
     // for Java - we don't want Windows trying to process it).
     if (jkey == java_awt_event_KeyEvent_VK_DELETE) {
         SendKeyEventToFocusOwner(java_awt_event_KeyEvent_KEY_TYPED,
-                                 TimeHelper::windowsToUTC(msg.time),
+                                 TimeHelper::getMessageTimeUTC(),
                                  java_awt_event_KeyEvent_VK_UNDEFINED,
                                  character, modifiers,
                                  java_awt_event_KeyEvent_KEY_LOCATION_UNKNOWN, (jlong)0);
@@ -3620,7 +3610,7 @@ MsgRouting AwtComponent::WmKeyUp(UINT wkey, UINT repCnt,
     UpdateDynPrimaryKeymap(wkey, jkey, keyLocation, modifiers);
 
     SendKeyEventToFocusOwner(java_awt_event_KeyEvent_KEY_RELEASED,
-                             TimeHelper::windowsToUTC(msg.time), jkey, character,
+                             TimeHelper::getMessageTimeUTC(), jkey, character,
                              modifiers, keyLocation, (jlong)wkey, &msg);
     return mrConsume;
 }
@@ -3665,7 +3655,7 @@ MsgRouting AwtComponent::WmIMEChar(UINT character, UINT repCnt, UINT flags, BOOL
 
     jint modifiers = GetJavaModifiers();
     SendKeyEventToFocusOwner(java_awt_event_KeyEvent_KEY_TYPED,
-                             TimeHelper::windowsToUTC(msg.time),
+                             TimeHelper::getMessageTimeUTC(),
                              java_awt_event_KeyEvent_VK_UNDEFINED,
                              unicodeChar, modifiers,
                              java_awt_event_KeyEvent_KEY_LOCATION_UNKNOWN, (jlong)0,
@@ -3734,7 +3724,7 @@ MsgRouting AwtComponent::WmChar(UINT character, UINT repCnt, UINT flags,
     InitMessage(&msg, message, character,
                               MAKELPARAM(repCnt, flags));
     SendKeyEventToFocusOwner(java_awt_event_KeyEvent_KEY_TYPED,
-                             TimeHelper::windowsToUTC(msg.time),
+                             TimeHelper::getMessageTimeUTC(),
                              java_awt_event_KeyEvent_VK_UNDEFINED,
                              unicodeChar, modifiers,
                              java_awt_event_KeyEvent_KEY_LOCATION_UNKNOWN, (jlong)0,
