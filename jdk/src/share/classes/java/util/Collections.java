@@ -3497,6 +3497,7 @@ public class Collections {
          */
         @Override
         public void replaceAll(UnaryOperator<E> operator) {
+            Objects.requireNonNull(operator);
             list.replaceAll(e -> typeCheck(operator.apply(e)));
         }
 
