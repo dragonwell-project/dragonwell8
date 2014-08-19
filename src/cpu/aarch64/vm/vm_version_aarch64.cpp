@@ -105,6 +105,7 @@ void VM_Version::get_processor_features() {
   FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 256);
   FLAG_SET_DEFAULT(PrefetchFieldsAhead, 256);
   FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
+  FLAG_SET_DEFAULT(UseSSE42Intrinsics, true);
 
 #ifndef BUILTIN_SIM
   unsigned long auxv = getauxval(AT_HWCAP);

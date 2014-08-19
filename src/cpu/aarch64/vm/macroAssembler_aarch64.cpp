@@ -1,4 +1,5 @@
 /*
+/*
  * Copyright (c) 2013, Red Hat Inc.
  * Copyright (c) 1997, 2012, Oracle and/or its affiliates.
  * All rights reserved.
@@ -3384,6 +3385,346 @@ void MacroAssembler::remove_frame(int framesize) {
     }
     ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
   }
+}
+
+// Search for str1 in str2 and return index or -1
+void MacroAssembler::string_indexof(Register str2, Register str1,
+                                    Register cnt2, Register cnt1,
+                                    Register tmp1, Register tmp2,
+                                    Register tmp3, Register tmp4,
+                                    int icnt1, Register result) {
+  Label BM, LINEARSEARCH, DONE, NOMATCH, MATCH;
+
+  Register ch1 = rscratch1;
+  Register ch2 = rscratch2;
+  Register cnt1tmp = tmp1;
+  Register cnt2tmp = tmp2;
+  Register cnt1_neg = cnt1;
+  Register cnt2_neg = cnt2;
+  Register result_tmp = tmp4;
+
+  // Note, inline_string_indexOf() generates checks:
+  // if (substr.count > string.count) return -1;
+  // if (substr.count == 0) return 0;
+
+// We have two strings, a source string in str2, cnt2 and a pattern string
+// in str1, cnt1. Find the 1st occurence of pattern in source or return -1.
+
+// For larger pattern and source we use a simplified Boyer Moore algorithm.
+// With a small pattern and source we use linear scan.
+
+  if (icnt1 == -1) {
+    cmp(cnt1, 256);             // Use Linear Scan if cnt1 < 8 || cnt1 >= 256
+    ccmp(cnt1, 8, 0b0000, LO);  // Can't handle skip >= 256 because we use
+    br(LO, LINEARSEARCH);       // a byte array.
+    cmp(cnt1, cnt2, LSR, 2);    // Source must be 4 * pattern for BM
+    br(HS, LINEARSEARCH);
+  }
+
+// The Boyer Moore alogorithm is based on the description here:-
+//
+// http://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string_search_algorithm
+//
+// This describes and algorithm with 2 shift rules. The 'Bad Character' rule
+// and the 'Good Suffix' rule.
+//
+// These rules are essentially heuristics for how far we can shift the
+// pattern along the search string.
+//
+// The implementation here uses the 'Bad Character' rule only because of the
+// complexity of initialisation for the 'Good Suffix' rule.
+//
+// This is also known as the Boyer-Moore-Horspool algorithm:-
+//
+// http://en.wikipedia.org/wiki/Boyer-Moore-Horspool_algorithm
+//
+// #define ASIZE 128
+//
+//    int bm(unsigned char *x, int m, unsigned char *y, int n) {
+//       int i, j;
+//       unsigned c;
+//       unsigned char bc[ASIZE];
+//    
+//       /* Preprocessing */
+//       for (i = 0; i < ASIZE; ++i)
+//          bc[i] = 0;
+//       for (i = 0; i < m - 1; ) {
+//          c = x[i];
+//          ++i;
+//          if (c < ASIZE) bc[c] = i;
+//       }
+//    
+//       /* Searching */
+//       j = 0;
+//       while (j <= n - m) {
+//          c = y[i+j];
+//          if (x[m-1] == c)
+//            for (i = m - 2; i >= 0 && x[i] == y[i + j]; --i);
+//          if (i < 0) return j;
+//          if (c < ASIZE)
+//            j = j - bc[y[j+m-1]] + m;
+//          else
+//            j += 1; // Advance by 1 only if char >= ASIZE
+//       }
+//    }
+
+  if (icnt1 == -1) {
+    BIND(BM);
+
+    Label ZLOOP, BCLOOP, BCSKIP, BMLOOPSTR2, BMLOOPSTR1, BMSKIP;
+    Label BMADV, BMMATCH, BMCHECKEND;
+
+    Register cnt1end = tmp2;
+    Register str2end = cnt2;
+    Register skipch = tmp2;
+
+    // Restrict ASIZE to 128 to reduce stack space/initialisation.
+    // The presence of chars >= ASIZE in the target string does not affect
+    // performance, but we must be careful not to initialise them in the stack
+    // array.
+    // The presence of chars >= ASIZE in the source string may adversely affect
+    // performance since we can only advance by one when we encounter one.
+
+      stp(zr, zr, pre(sp, -128));
+      for (int i = 1; i < 8; i++)
+          stp(zr, zr, Address(sp, i*16));
+
+      mov(cnt1tmp, 0);
+      sub(cnt1end, cnt1, 1);
+    BIND(BCLOOP);
+      ldrh(ch1, Address(str1, cnt1tmp, Address::lsl(1)));
+      cmp(ch1, 128);
+      add(cnt1tmp, cnt1tmp, 1);
+      br(HS, BCSKIP);
+      strb(cnt1tmp, Address(sp, ch1));
+    BIND(BCSKIP);
+      cmp(cnt1tmp, cnt1end);
+      br(LT, BCLOOP);
+
+      mov(result_tmp, str2);
+
+      sub(cnt2, cnt2, cnt1);
+      add(str2end, str2, cnt2, LSL, 1);
+    BIND(BMLOOPSTR2);
+      sub(cnt1tmp, cnt1, 1);
+      ldrh(ch1, Address(str1, cnt1tmp, Address::lsl(1)));
+      ldrh(skipch, Address(str2, cnt1tmp, Address::lsl(1)));
+      cmp(ch1, skipch);
+      br(NE, BMSKIP);
+      subs(cnt1tmp, cnt1tmp, 1);
+      br(LT, BMMATCH);
+    BIND(BMLOOPSTR1);
+      ldrh(ch1, Address(str1, cnt1tmp, Address::lsl(1)));
+      ldrh(ch2, Address(str2, cnt1tmp, Address::lsl(1)));
+      cmp(ch1, ch2);
+      br(NE, BMSKIP);
+      subs(cnt1tmp, cnt1tmp, 1);
+      br(GE, BMLOOPSTR1);
+    BIND(BMMATCH);
+      sub(result_tmp, str2, result_tmp);
+      lsr(result, result_tmp, 1);
+      add(sp, sp, 128);
+      b(DONE);
+    BIND(BMADV);
+      add(str2, str2, 2);
+      b(BMCHECKEND);
+    BIND(BMSKIP);
+      cmp(skipch, 128);
+      br(HS, BMADV);
+      ldrb(ch2, Address(sp, skipch));
+      add(str2, str2, cnt1, LSL, 1);
+      sub(str2, str2, ch2, LSL, 1);
+    BIND(BMCHECKEND);
+      cmp(str2, str2end);
+      br(LE, BMLOOPSTR2);
+      add(sp, sp, 128);
+      b(NOMATCH);
+  }
+
+  BIND(LINEARSEARCH);
+  {
+    Label DO1, DO2, DO3;
+
+    Register str2tmp = tmp2;
+    Register first = tmp3;
+
+    if (icnt1 == -1)
+    {
+        Label DOSHORT, FIRST_LOOP, STR2_NEXT, STR1_LOOP, STR1_NEXT, LAST_WORD;
+
+        cmp(cnt1, 4);
+        br(LT, DOSHORT);
+
+        sub(cnt2, cnt2, cnt1);
+        sub(cnt1, cnt1, 4);
+        mov(result_tmp, cnt2);
+
+        lea(str1, Address(str1, cnt1, Address::uxtw(1)));
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt1_neg, zr, cnt1, LSL, 1);
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+        ldr(first, Address(str1, cnt1_neg));
+
+      BIND(FIRST_LOOP);
+        ldr(ch2, Address(str2, cnt2_neg));
+        cmp(first, ch2);
+        br(EQ, STR1_LOOP);
+      BIND(STR2_NEXT);
+        adds(cnt2_neg, cnt2_neg, 2);
+        br(LE, FIRST_LOOP);
+        b(NOMATCH);
+
+      BIND(STR1_LOOP);
+        adds(cnt1tmp, cnt1_neg, 8);
+        add(cnt2tmp, cnt2_neg, 8);
+        br(GE, LAST_WORD);
+
+      BIND(STR1_NEXT);
+        ldr(ch1, Address(str1, cnt1tmp));
+        ldr(ch2, Address(str2, cnt2tmp));
+        cmp(ch1, ch2);
+        br(NE, STR2_NEXT);
+        adds(cnt1tmp, cnt1tmp, 8);
+        add(cnt2tmp, cnt2tmp, 8);
+        br(LT, STR1_NEXT);
+
+      BIND(LAST_WORD);
+        ldr(ch1, Address(str1));
+        sub(str2tmp, str2, cnt1_neg);         // adjust to corresponding
+        ldr(ch2, Address(str2tmp, cnt2_neg)); // word in str2
+        cmp(ch1, ch2);
+        br(NE, STR2_NEXT);
+        b(MATCH);
+
+      BIND(DOSHORT);
+        cmp(cnt1, 2);
+        br(LT, DO1);
+        br(GT, DO3);
+    }
+
+    if (icnt1 == 4) {
+      Label CH1_LOOP;
+
+        ldr(ch1, str1);
+        sub(cnt2, cnt2, 4);
+        mov(result_tmp, cnt2);
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+
+      BIND(CH1_LOOP);
+        ldr(ch2, Address(str2, cnt2_neg));
+        cmp(ch1, ch2);
+        br(EQ, MATCH);
+        adds(cnt2_neg, cnt2_neg, 2);
+        br(LE, CH1_LOOP);
+        b(NOMATCH);
+    }
+
+    if (icnt1 == -1 || icnt1 == 2) {
+      Label CH1_LOOP;
+
+      BIND(DO2);
+        ldrw(ch1, str1);
+        sub(cnt2, cnt2, 2);
+        mov(result_tmp, cnt2);
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+
+      BIND(CH1_LOOP);
+        ldrw(ch2, Address(str2, cnt2_neg));
+        cmp(ch1, ch2);
+        br(EQ, MATCH);
+        adds(cnt2_neg, cnt2_neg, 2);
+        br(LE, CH1_LOOP);
+        b(NOMATCH);
+    }
+
+    if (icnt1 == -1 || icnt1 == 3) {
+      Label FIRST_LOOP, STR2_NEXT, STR1_LOOP;
+
+      BIND(DO3);
+        ldrw(first, str1);
+        ldrh(ch1, Address(str1, 4));
+
+        sub(cnt2, cnt2, 3);
+        mov(result_tmp, cnt2);
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+
+      BIND(FIRST_LOOP);
+        ldrw(ch2, Address(str2, cnt2_neg));
+        cmpw(first, ch2);
+        br(EQ, STR1_LOOP);
+      BIND(STR2_NEXT);
+        adds(cnt2_neg, cnt2_neg, 2);
+        br(LE, FIRST_LOOP);
+        b(NOMATCH);
+
+      BIND(STR1_LOOP);
+        add(cnt2tmp, cnt2_neg, 4);
+        ldrh(ch2, Address(str2, cnt2tmp));
+        cmp(ch1, ch2);
+        br(NE, STR2_NEXT);
+        b(MATCH);
+    }
+
+    if (icnt1 == -1 || icnt1 == 1) {
+      Label CH1_LOOP, HAS_ZERO;
+      Label DO1_SHORT, DO1_LOOP;
+
+      BIND(DO1);
+        ldrh(ch1, str1);
+        cmp(cnt2, 4);
+        br(LT, DO1_SHORT);
+
+        orr(ch1, ch1, ch1, LSL, 16);
+        orr(ch1, ch1, ch1, LSL, 32);
+
+        sub(cnt2, cnt2, 4);
+        mov(result_tmp, cnt2);
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+
+        mov(tmp3, 0x0001000100010001);
+      BIND(CH1_LOOP);
+        ldr(ch2, Address(str2, cnt2_neg));
+        eor(ch2, ch1, ch2);
+        sub(tmp1, ch2, tmp3);
+        orr(tmp2, ch2, 0x7fff7fff7fff7fff);
+        bics(tmp1, tmp1, tmp2);
+        br(NE, HAS_ZERO);
+        adds(cnt2_neg, cnt2_neg, 8);
+        br(LT, CH1_LOOP);
+
+        cmp(cnt2_neg, 8);
+        mov(cnt2_neg, 0);
+        br(LT, CH1_LOOP);
+        b(NOMATCH);
+
+      BIND(HAS_ZERO);
+        rev(tmp1, tmp1);
+        clz(tmp1, tmp1);
+        add(cnt2_neg, cnt2_neg, tmp1, LSR, 3);
+        b(MATCH);
+
+      BIND(DO1_SHORT);
+        mov(result_tmp, cnt2);
+        lea(str2, Address(str2, cnt2, Address::uxtw(1)));
+        sub(cnt2_neg, zr, cnt2, LSL, 1);
+      BIND(DO1_LOOP);
+        ldrh(ch2, Address(str2, cnt2_neg));
+        cmpw(ch1, ch2);
+        br(EQ, MATCH);
+        adds(cnt2_neg, cnt2_neg, 2);
+        br(LT, DO1_LOOP);
+    }
+  }
+  BIND(NOMATCH);
+    mov(result, -1);
+    b(DONE);
+  BIND(MATCH);
+    add(result, result_tmp, cnt2_neg, ASR, 1);
+  BIND(DONE);
 }
 
 // Compare strings.

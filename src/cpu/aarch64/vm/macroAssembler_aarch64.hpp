@@ -1091,6 +1091,11 @@ public:
                         Register len, Register result,
                         FloatRegister Vtmp1, FloatRegister Vtmp2,
                         FloatRegister Vtmp3, FloatRegister Vtmp4);
+  void string_indexof(Register str1, Register str2,
+                      Register cnt1, Register cnt2,
+                      Register tmp1, Register tmp2,
+                      Register tmp3, Register tmp4,
+                      int int_cnt1, Register result);
 };
 
 // Used by aarch64.ad to control code generation

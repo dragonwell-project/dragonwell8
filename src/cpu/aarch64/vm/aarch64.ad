@@ -3415,6 +3415,16 @@ operand immI_M1()
   interface(CONST_INTER);
 %}
 
+operand immI_le_4()
+%{
+  predicate(n->get_int() <= 4);
+  match(ConI);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
 operand immI_31()
 %{
   predicate(n->get_int() == 31);
@@ -11729,6 +11739,44 @@ instruct string_compare(iRegP_R1 str1, iRegI_R2 cnt1, iRegP_R3 str2, iRegI_R4 cn
     __ string_compare($str1$$Register, $str2$$Register,
                       $cnt1$$Register, $cnt2$$Register, $result$$Register,
                       $tmp1$$Register);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct string_indexof(iRegP_R1 str1, iRegI_R4 cnt1, iRegP_R3 str2, iRegI_R2 cnt2,
+       iRegI_R0 result, iRegI tmp1, iRegI tmp2, iRegI tmp3, iRegI tmp4, rFlagsReg cr)
+%{
+  match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 cnt2)));
+  effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt1, USE_KILL cnt2,
+         TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
+  format %{ "String IndexOf $str1,$cnt1,$str2,$cnt2 -> $result" %}
+
+  ins_encode %{
+    __ string_indexof($str1$$Register, $str2$$Register,
+                      $cnt1$$Register, $cnt2$$Register,
+                      $tmp1$$Register, $tmp2$$Register,
+                      $tmp3$$Register, $tmp4$$Register,
+                      -1, $result$$Register);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct string_indexof_con(iRegP_R1 str1, iRegI_R4 cnt1, iRegP_R3 str2,
+                 immI_le_4 int_cnt2, iRegI_R0 result, iRegI tmp1, iRegI tmp2,
+                 iRegI tmp3, iRegI tmp4, rFlagsReg cr)
+%{
+  match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 int_cnt2)));
+  effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt1,
+         TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
+  format %{ "String IndexOf $str1,$cnt1,$str2,$int_cnt2 -> $result" %}
+
+  ins_encode %{
+    int icnt2 = (int)$int_cnt2$$constant;
+    __ string_indexof($str1$$Register, $str2$$Register,
+                      $cnt1$$Register, zr,
+                      $tmp1$$Register, $tmp2$$Register,
+                      $tmp3$$Register, $tmp4$$Register,
+                      icnt2, $result$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
