@@ -50,21 +50,14 @@ void C1_MacroAssembler::float_cmp(bool is_float, int unordered_result,
   if (unordered_result < 0) {
     // we want -1 for unordered or less than, 0 for equal and 1 for
     // greater than.
-    mov(result, (u_int64_t)-1L);
-    // for FP LT tests less than or unordered
-    br(Assembler::LT, done);
-    // install 0 for EQ otherwise 1
-    csinc(result, zr, zr, Assembler::EQ);
+    cset(result, NE);  // Not equal or unordered
+    cneg(result, result, LT);  // Less than or unordered
   } else {
     // we want -1 for less than, 0 for equal and 1 for unordered or
     // greater than.
-    mov(result, 1L);
-    // for FP HI tests greater than or unordered
-    br(Assembler::HI, done);
-    // install 0 for EQ otherwise ~0
-    csinv(result, zr, zr, Assembler::EQ);
+    cset(result, NE);  // Not equal or unordered
+    cneg(result, result, LO);  // Less than
   }
-  bind(done);
 }
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
