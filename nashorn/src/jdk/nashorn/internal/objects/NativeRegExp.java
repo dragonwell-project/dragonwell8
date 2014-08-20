@@ -28,9 +28,11 @@ package jdk.nashorn.internal.objects;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
+import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
 import jdk.nashorn.internal.objects.annotations.Function;
@@ -46,6 +48,7 @@ import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.regexp.RegExp;
 import jdk.nashorn.internal.runtime.regexp.RegExpFactory;
 import jdk.nashorn.internal.runtime.regexp.RegExpMatcher;
@@ -595,7 +598,7 @@ public final class NativeRegExp extends ScriptObject {
         for (int i = 0, lastGroupStart = matcher.start(); i <= groupCount; i++) {
             final int groupStart = matcher.start(i);
             if (lastGroupStart > groupStart
-                    || (groupsInNegativeLookahead != null && groupsInNegativeLookahead.isSet(i))) {
+                    || groupsInNegativeLookahead != null && groupsInNegativeLookahead.isSet(i)) {
                 // (1) ECMA 15.10.2.5 NOTE 3: need to clear Atom's captures each time Atom is repeated.
                 // (2) ECMA 15.10.2.8 NOTE 3: Backreferences to captures in (?!Disjunction) from elsewhere
                 // in the pattern always return undefined because the negative lookahead must fail.
@@ -648,7 +651,7 @@ public final class NativeRegExp extends ScriptObject {
      * @param replacement Replacement string.
      * @return String with substitutions.
      */
-    String replace(final String string, final String replacement, final ScriptFunction function) {
+    String replace(final String string, final String replacement, final ScriptFunction function) throws Throwable {
         final RegExpMatcher matcher = regexp.match(string);
 
         if (matcher == null) {
@@ -664,7 +667,8 @@ public final class NativeRegExp extends ScriptObject {
             sb.append(string, 0, matcher.start());
 
             if (function != null) {
-                sb.append(callReplaceValue(function, matcher, string));
+                final Object self = function.isStrict() ? UNDEFINED : Global.instance();
+                sb.append(callReplaceValue(getReplaceValueInvoker(), function, self, matcher, string));
             } else {
                 appendReplacement(matcher, string, replacement, sb);
             }
@@ -682,10 +686,13 @@ public final class NativeRegExp extends ScriptObject {
         int previousLastIndex = 0;
         final StringBuilder sb = new StringBuilder();
 
+        final MethodHandle invoker = function == null ? null : getReplaceValueInvoker();
+        final Object self = function == null || function.isStrict() ? UNDEFINED : Global.instance();
+
         do {
             sb.append(string, thisIndex, matcher.start());
             if (function != null) {
-                sb.append(callReplaceValue(function, matcher, string));
+                sb.append(callReplaceValue(invoker, function, self, matcher, string));
             } else {
                 appendReplacement(matcher, string, replacement, sb);
             }
@@ -745,8 +752,8 @@ public final class NativeRegExp extends ScriptObject {
                     cursor++;
                     if (cursor < replacement.length() && firstDigit < matcher.groupCount()) {
                         final int secondDigit = replacement.charAt(cursor) - '0';
-                        if ((secondDigit >= 0) && (secondDigit <= 9)) {
-                            final int newRefNum = (firstDigit * 10) + secondDigit;
+                        if (secondDigit >= 0 && secondDigit <= 9) {
+                            final int newRefNum = firstDigit * 10 + secondDigit;
                             if (newRefNum <= matcher.groupCount() && newRefNum > 0) {
                                 // $nn ($01-$99)
                                 refNum = newRefNum;
@@ -789,16 +796,26 @@ public final class NativeRegExp extends ScriptObject {
         }
     }
 
-    private String callReplaceValue(final ScriptFunction function, final RegExpMatcher matcher, final String string) {
+    private static final Object REPLACE_VALUE = new Object();
+
+    private static final MethodHandle getReplaceValueInvoker() {
+        return Global.instance().getDynamicInvoker(REPLACE_VALUE,
+                new Callable<MethodHandle>() {
+                    @Override
+                    public MethodHandle call() {
+                        return Bootstrap.createDynamicInvoker("dyn:call", String.class, ScriptFunction.class, Object.class, Object[].class);
+                    }
+                });
+    }
+
+    private String callReplaceValue(final MethodHandle invoker, final ScriptFunction function, final Object self, final RegExpMatcher matcher, final String string) throws Throwable {
         final Object[] groups = groups(matcher);
         final Object[] args   = Arrays.copyOf(groups, groups.length + 2);
 
         args[groups.length]     = matcher.start();
         args[groups.length + 1] = string;
 
-        final Object self = function.isStrict() ? UNDEFINED : Global.instance();
-
-        return JSType.toString(ScriptRuntime.apply(function, self, args));
+        return (String)invoker.invokeExact(function, self, args);
     }
 
     /**
@@ -907,7 +924,6 @@ public final class NativeRegExp extends ScriptObject {
     }
 
     private static NativeRegExp checkRegExp(final Object self) {
-        Global.checkObjectCoercible(self);
         if (self instanceof NativeRegExp) {
             return (NativeRegExp)self;
         } else if (self != null && self == Global.instance().getRegExpPrototype()) {

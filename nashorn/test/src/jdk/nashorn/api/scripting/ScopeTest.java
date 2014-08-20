@@ -142,7 +142,9 @@ public class ScopeTest {
             final Object y1 = origCtxt.getAttribute("y");
             final Object y2 = newCtxt.getAttribute("y");
             Assert.assertNotEquals(y1, y2);
-            Assert.assertNotEquals(e.eval("y"), e.eval("y", origCtxt));
+            final Object yeval1 = e.eval("y");
+            final Object yeval2 = e.eval("y", origCtxt);
+            Assert.assertNotEquals(yeval1, yeval2);
             Assert.assertEquals("[object Object]", y1.toString());
             Assert.assertEquals("[object Object]", y2.toString());
         } catch (final ScriptException se) {

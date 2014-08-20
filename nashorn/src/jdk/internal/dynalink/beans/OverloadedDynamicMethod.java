@@ -148,7 +148,6 @@ class OverloadedDynamicMethod extends DynamicMethod {
         }
     }
 
-    @SuppressWarnings("fallthrough")
     @Override
     public MethodHandle getInvocation(final CallSiteDescriptor callSiteDescriptor, final LinkerServices linkerServices) {
         final MethodType callSiteType = callSiteDescriptor.getMethodType();
@@ -207,7 +206,7 @@ class OverloadedDynamicMethod extends DynamicMethod {
             case 1: {
                 // Very lucky, we ended up with a single candidate method handle based on the call site signature; we
                 // can link it very simply by delegating to the SingleDynamicMethod.
-                invokables.iterator().next().getInvocation(callSiteDescriptor, linkerServices);
+                return invokables.iterator().next().getInvocation(callSiteDescriptor, linkerServices);
             }
             default: {
                 // We have more than one candidate. We have no choice but to link to a method that resolves overloads on
@@ -235,6 +234,12 @@ class OverloadedDynamicMethod extends DynamicMethod {
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean isConstructor() {
+        assert !methods.isEmpty();
+        return methods.getFirst().isConstructor();
     }
 
     ClassLoader getClassLoader() {
@@ -304,6 +309,11 @@ class OverloadedDynamicMethod extends DynamicMethod {
      * @param method a method to add
      */
     public void addMethod(final SingleDynamicMethod method) {
+        assert constructorFlagConsistent(method);
         methods.add(method);
+    }
+
+    private boolean constructorFlagConsistent(final SingleDynamicMethod method) {
+        return methods.isEmpty()? true : (methods.getFirst().isConstructor() == method.isConstructor());
     }
 }

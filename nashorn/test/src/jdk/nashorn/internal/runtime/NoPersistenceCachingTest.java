@@ -69,7 +69,10 @@ public class NoPersistenceCachingTest {
       if (nashornFactory == null) {
          fail("Cannot find nashorn factory!");
       }
-      final String[] options = new String[]{"--log=compiler:finest"};
+      // fine is enough for cache hits, finest produces way too much information
+      // TODO this should be ported to use the RuntimeEvents instead of screen scraping
+      // logs, as obviously this is very brittle
+      final String[] options = new String[]{"--log=compiler:fine"};
       engine = nashornFactory.getScriptEngine(options);
       context1 = engine.getContext();
       context2 = new SimpleScriptContext();

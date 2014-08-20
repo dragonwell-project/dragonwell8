@@ -191,6 +191,9 @@ public class PropertyListeners {
         }
     }
 
+    /**
+     * Callback for when a proto is changed
+     */
     public synchronized void protoChanged() {
         if (listeners != null) {
             for (final WeakPropertyMapSet set : listeners.values()) {

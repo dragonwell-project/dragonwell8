@@ -48,7 +48,6 @@ import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import jdk.nashorn.internal.runtime.Logging;
 import jdk.nashorn.internal.runtime.QuotedStringTokenizer;
 
 /**
@@ -79,7 +78,10 @@ public final class Options {
     /** The options map of enabled options */
     private final TreeMap<String, Option<?>> options;
 
-    /** System property that can be used for command line option propagation */
+    /** System property that can be used to prepend options to the explicitly specified command line. */
+    private static final String NASHORN_ARGS_PREPEND_PROPERTY = "nashorn.args.prepend";
+
+    /** System property that can be used to append options to the explicitly specified command line. */
     private static final String NASHORN_ARGS_PROPERTY = "nashorn.args";
 
     /**
@@ -137,9 +139,10 @@ public final class Options {
      * Convenience function for getting system properties in a safe way
 
      * @param name of boolean property
-     * @return true if set to true, false if unset or set to false
+     * @param defValue default value of boolean property
+     * @return true if set to true, default value if unset or set to false
      */
-    public static boolean getBooleanProperty(final String name) {
+    public static boolean getBooleanProperty(final String name, final Boolean defValue) {
         name.getClass(); // null check
         if (!name.startsWith("nashorn.")) {
             throw new IllegalArgumentException(name);
@@ -151,6 +154,9 @@ public final class Options {
                     public Boolean run() {
                         try {
                             final String property = System.getProperty(name);
+                            if (property == null && defValue != null) {
+                                return defValue;
+                            }
                             return property != null && !"false".equalsIgnoreCase(property);
                         } catch (final SecurityException e) {
                             // if no permission to read, assume false
@@ -158,6 +164,16 @@ public final class Options {
                         }
                     }
                 }, READ_PROPERTY_ACC_CTXT);
+    }
+
+    /**
+     * Convenience function for getting system properties in a safe way
+
+     * @param name of boolean property
+     * @return true if set to true, false if unset or set to false
+     */
+    public static boolean getBooleanProperty(final String name) {
+        return getBooleanProperty(name, null);
     }
 
     /**
@@ -406,15 +422,9 @@ public final class Options {
      */
     public void process(final String[] args) {
         final LinkedList<String> argList = new LinkedList<>();
+        addSystemProperties(NASHORN_ARGS_PREPEND_PROPERTY, argList);
         Collections.addAll(argList, args);
-
-        final String extra = getStringProperty(NASHORN_ARGS_PROPERTY, null);
-        if (extra != null) {
-            final StringTokenizer st = new StringTokenizer(extra);
-            while (st.hasMoreTokens()) {
-                argList.add(st.nextToken());
-            }
-        }
+        addSystemProperties(NASHORN_ARGS_PROPERTY, argList);
 
         while (!argList.isEmpty()) {
             final String arg = argList.remove(0);
@@ -496,6 +506,16 @@ public final class Options {
         }
     }
 
+    private static void addSystemProperties(final String sysPropName, final List<String> argList) {
+        final String sysArgs = getStringProperty(sysPropName, null);
+        if (sysArgs != null) {
+            final StringTokenizer st = new StringTokenizer(sysArgs);
+            while (st.hasMoreTokens()) {
+                argList.add(st.nextToken());
+            }
+        }
+    }
+
     private static OptionTemplate getOptionTemplate(final String key) {
         for (final OptionTemplate t : Options.validOptions) {
             if (t.matches(key)) {
@@ -518,14 +538,12 @@ public final class Options {
         case "keyvalues":
             return new KeyValueOption(value);
         case "log":
-            final KeyValueOption kv = new KeyValueOption(value);
-            Logging.initialize(kv.getValues());
-            return kv;
+            return new LoggingOption(value);
         case "boolean":
             return new Option<>(value != null && Boolean.parseBoolean(value));
         case "integer":
             try {
-                return new Option<>((value == null) ? 0 : Integer.parseInt(value));
+                return new Option<>(value == null ? 0 : Integer.parseInt(value));
             } catch (final NumberFormatException nfe) {
                 throw new IllegalOptionException(t);
             }

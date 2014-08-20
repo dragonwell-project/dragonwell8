@@ -58,6 +58,9 @@ public abstract class AbstractParser {
     /** Index of current token. */
     protected int k;
 
+    /** Previous token - accessible to sub classes */
+    protected long previousToken;
+
     /** Descriptor of current token. */
     protected long token;
 
@@ -85,17 +88,18 @@ public abstract class AbstractParser {
     /** Is this parser running under strict mode? */
     protected boolean isStrictMode;
 
-    /** //@ sourceURL or //# sourceURL */
-    protected String sourceURL;
+    /** What should line numbers be counted from? */
+    protected final int lineOffset;
 
     /**
      * Construct a parser.
      *
-     * @param source  Source to parse.
-     * @param errors  Error reporting manager.
-     * @param strict  True if we are in strict mode
+     * @param source     Source to parse.
+     * @param errors     Error reporting manager.
+     * @param strict     True if we are in strict mode
+     * @param lineOffset Offset from which lines should be counted
      */
-    protected AbstractParser(final Source source, final ErrorManager errors, final boolean strict) {
+    protected AbstractParser(final Source source, final ErrorManager errors, final boolean strict, final int lineOffset) {
         this.source       = source;
         this.errors       = errors;
         this.k            = -1;
@@ -103,6 +107,7 @@ public abstract class AbstractParser {
         this.type         = EOL;
         this.last         = EOL;
         this.isStrictMode = strict;
+        this.lineOffset   = lineOffset;
     }
 
     /**
@@ -174,7 +179,7 @@ public abstract class AbstractParser {
     // currently only @sourceURL=foo supported
     private void checkDirectiveComment() {
         // if already set, ignore this one
-        if (sourceURL != null) {
+        if (source.getExplicitURL() != null) {
             return;
         }
 
@@ -182,7 +187,7 @@ public abstract class AbstractParser {
         final int len = comment.length();
         // 4 characters for directive comment marker //@\s or //#\s
         if (len > 4 && comment.substring(4).startsWith(SOURCE_URL_PREFIX)) {
-            sourceURL = comment.substring(4 + SOURCE_URL_PREFIX.length());
+            source.setExplicitURL(comment.substring(4 + SOURCE_URL_PREFIX.length()));
         }
     }
 
@@ -199,6 +204,7 @@ public abstract class AbstractParser {
             // Set up next token.
             k++;
             final long lastToken = token;
+            previousToken = token;
             token = getToken(k);
             type = Token.descType(token);
 
@@ -208,7 +214,7 @@ public abstract class AbstractParser {
             }
 
             if (type == EOL) {
-                line = Token.descLength(token);
+                line         = Token.descLength(token);
                 linePosition = Token.descPosition(token);
             } else {
                 start = Token.descPosition(token);

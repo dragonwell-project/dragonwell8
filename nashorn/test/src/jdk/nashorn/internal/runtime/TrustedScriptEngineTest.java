@@ -54,7 +54,7 @@ public class TrustedScriptEngineTest {
         private final boolean[] reached = new boolean[1];
 
         @Override
-        protected Class findClass(final String name) throws ClassNotFoundException {
+        protected Class<?> findClass(final String name) throws ClassNotFoundException {
             // flag that it reached here
             reached[0] = true;
             return super.findClass(name);

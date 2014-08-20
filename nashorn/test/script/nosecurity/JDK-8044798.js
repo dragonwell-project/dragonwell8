@@ -37,11 +37,7 @@ var DebuggerValueDesc = Java.type("jdk.nashorn.internal.runtime.DebuggerSupport.
 
 var valueDescFields = DebuggerValueDesc.class.declaredFields;
 Arrays.sort(valueDescFields, function(f1, f2) f1.name.compareTo(f2.name));
-var keyField;
 for each (var f in valueDescFields) {
-    if (f.name == "key") {
-        keyField = f;
-    }
     f.accessible = true;
 }
 
@@ -92,8 +88,6 @@ for each (var f in valueDescFields) {
 
 // valueInfos
 var infos = valueInfosMethod.invoke(null, Object, true);
-Arrays.sort(infos, function (i1, i2) keyField.get(i1).compareTo(keyField.get(i2)));
-
 for each (var info in infos) {
     for each (var f in valueDescFields) {
         print(f.name, "=", f.get(info));
@@ -102,8 +96,6 @@ for each (var info in infos) {
 
 // valueInfos - user defined object
 var infos = valueInfosMethod.invoke(null, { foo: 34, bar: "hello" }, true);
-Arrays.sort(infos, function (i1, i2) keyField.get(i1).compareTo(keyField.get(i2)));
-
 for each (var info in infos) {
     for each (var f in valueDescFields) {
         print(f.name, "=", f.get(info));

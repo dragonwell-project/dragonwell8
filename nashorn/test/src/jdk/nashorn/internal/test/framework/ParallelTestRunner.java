@@ -235,6 +235,7 @@ public class ParallelTestRunner {
                             outputFile.write(out.toByteArray());
                             errorFile.write(err.toByteArray());
                         }
+                        ex.printStackTrace();
                         throw ex;
                     }
                 }
@@ -280,6 +281,7 @@ public class ParallelTestRunner {
             } catch (final Throwable ex) {
                 result.exception = ex;
                 result.passed = false;
+                ex.printStackTrace();
             }
             return result;
         }
@@ -431,7 +433,9 @@ public class ParallelTestRunner {
     public static void main(final String[] args) throws Exception {
         parseArgs(args);
 
-        while(new ParallelTestRunner().run());
+        while(new ParallelTestRunner().run()) {
+            ;
+        }
     }
 
     private static void parseArgs(final String[] args) {
