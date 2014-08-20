@@ -68,7 +68,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     private int fieldCount;
 
     /** Number of fields available. */
-    private int fieldMaximum;
+    private final int fieldMaximum;
 
     /** Length of spill in use. */
     private int spillLength;
@@ -173,7 +173,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
 
         assert className != null;
         final Class<?> structure = Context.forStructureClass(className);
-        for (Property prop : props) {
+        for (final Property prop : props) {
             prop.initMethodHandles(structure);
         }
     }
@@ -191,7 +191,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * @return New {@link PropertyMap}.
      */
     public static PropertyMap newMap(final Collection<Property> properties, final String className, final int fieldCount, final int fieldMaximum,  final int spillLength) {
-        PropertyHashMap newProperties = EMPTY_HASHMAP.immutableAdd(properties);
+        final PropertyHashMap newProperties = EMPTY_HASHMAP.immutableAdd(properties);
         return new PropertyMap(newProperties, className, fieldCount, fieldMaximum, spillLength, false);
     }
 
@@ -590,7 +590,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     PropertyMap freeze() {
         PropertyHashMap newProperties = EMPTY_HASHMAP;
 
-        for (Property oldProperty : properties.getProperties()) {
+        for (final Property oldProperty : properties.getProperties()) {
             int propertyFlags = Property.NOT_CONFIGURABLE;
 
             if (!(oldProperty instanceof UserAccessorProperty)) {
@@ -705,7 +705,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     private PropertyMap checkHistory(final Property property) {
 
         if (history != null) {
-            SoftReference<PropertyMap> ref = history.get(property);
+            final SoftReference<PropertyMap> ref = history.get(property);
             final PropertyMap historicMap = ref == null ? null : ref.get();
 
             if (historicMap != null) {

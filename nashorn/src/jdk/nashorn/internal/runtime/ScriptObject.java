@@ -55,7 +55,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.linker.GuardedInvocation;
 import jdk.internal.dynalink.linker.LinkRequest;
@@ -1856,7 +1855,7 @@ public abstract class ScriptObject implements PropertyAccess {
         }
 
         for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
-            ScriptObject parent = obj.getProto();
+            final ScriptObject parent = obj.getProto();
             parent.getMap().addListener(name, obj.getMap());
         }
 
@@ -1911,7 +1910,7 @@ public abstract class ScriptObject implements PropertyAccess {
         return new SetMethodCreator(this, find, desc).createGuardedInvocation();
     }
 
-    private GuardedInvocation createEmptySetMethod(final CallSiteDescriptor desc, String strictErrorMessage, boolean canBeFastScope) {
+    private GuardedInvocation createEmptySetMethod(final CallSiteDescriptor desc, final String strictErrorMessage, final boolean canBeFastScope) {
         final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
         if (NashornCallSiteDescriptor.isStrict(desc)) {
                throw typeError(strictErrorMessage, name, ScriptRuntime.safeToString((this)));
@@ -2214,8 +2213,8 @@ public abstract class ScriptObject implements PropertyAccess {
      * @return Added property.
      */
     private Property addSpillProperty(final String key, final int propertyFlags) {
-        int fieldCount   = getMap().getFieldCount();
-        int fieldMaximum = getMap().getFieldMaximum();
+        final int fieldCount   = getMap().getFieldCount();
+        final int fieldMaximum = getMap().getFieldMaximum();
         Property property;
 
         if (fieldCount < fieldMaximum) {

@@ -86,7 +86,7 @@ public final class PrimitiveLookup {
         final CallSiteDescriptor desc = request.getCallSiteDescriptor();
         final String operator = CallSiteDescriptorFactory.tokenizeOperators(desc).get(0);
         if ("setProp".equals(operator) || "setElem".equals(operator)) {
-            MethodType type = desc.getMethodType();
+            final MethodType type = desc.getMethodType();
             MethodHandle method = MH.asType(Lookup.EMPTY_SETTER, MH.type(void.class, Object.class, type.parameterType(1)));
             if (type.parameterCount() == 3) {
                 method = MH.dropArguments(method, 2, type.parameterType(2));

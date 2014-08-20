@@ -25,11 +25,10 @@
 
 package jdk.nashorn.internal.codegen;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
 
+import java.util.ArrayList;
+import java.util.List;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.LexicalContext;
@@ -48,7 +47,7 @@ public class SplitMethodEmitter extends MethodEmitter {
 
     private final List<Label> externalTargets = new ArrayList<>();
 
-    SplitMethodEmitter(final ClassEmitter classEmitter, final MethodVisitor mv, SplitNode splitNode) {
+    SplitMethodEmitter(final ClassEmitter classEmitter, final MethodVisitor mv, final SplitNode splitNode) {
         super(classEmitter, mv);
         this.splitNode = splitNode;
     }

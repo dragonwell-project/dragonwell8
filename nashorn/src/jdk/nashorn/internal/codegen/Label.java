@@ -94,7 +94,7 @@ public final class Label {
         }
 
         Type peek(final int n) {
-            int pos = sp - 1 - n;
+            final int pos = sp - 1 - n;
             return pos < 0 ? null : data[pos];
         }
 

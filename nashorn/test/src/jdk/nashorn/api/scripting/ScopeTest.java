@@ -24,6 +24,11 @@
  */
 package jdk.nashorn.api.scripting;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -32,10 +37,6 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 import org.testng.Assert;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import org.testng.annotations.Test;
 
 /**
@@ -47,7 +48,7 @@ public class ScopeTest {
     public void createBindingsTest() {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
-        Bindings b = e.createBindings();
+        final Bindings b = e.createBindings();
         b.put("foo", 42.0);
         Object res = null;
         try {
@@ -64,7 +65,7 @@ public class ScopeTest {
     public void engineScopeTest() {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
-        Bindings engineScope = e.getBindings(ScriptContext.ENGINE_SCOPE);
+        final Bindings engineScope = e.getBindings(ScriptContext.ENGINE_SCOPE);
 
         // check few ECMA standard built-in global properties
         assertNotNull(engineScope.get("Object"));
@@ -112,8 +113,8 @@ public class ScopeTest {
         newCtxt.setBindings(b, ScriptContext.ENGINE_SCOPE);
 
         try {
-            Object obj1 = e.eval("Object");
-            Object obj2 = e.eval("Object", newCtxt);
+            final Object obj1 = e.eval("Object");
+            final Object obj2 = e.eval("Object", newCtxt);
             Assert.assertNotEquals(obj1, obj2);
             Assert.assertNotNull(obj1);
             Assert.assertNotNull(obj2);
@@ -138,8 +139,8 @@ public class ScopeTest {
             e.eval("y = new Object()");
             e.eval("y = new Object()", origCtxt);
 
-            Object y1 = origCtxt.getAttribute("y");
-            Object y2 = newCtxt.getAttribute("y");
+            final Object y1 = origCtxt.getAttribute("y");
+            final Object y2 = newCtxt.getAttribute("y");
             Assert.assertNotEquals(y1, y2);
             Assert.assertNotEquals(e.eval("y"), e.eval("y", origCtxt));
             Assert.assertEquals("[object Object]", y1.toString());
@@ -159,7 +160,7 @@ public class ScopeTest {
         final ScriptContext newContext = new SimpleScriptContext();
         newContext.setBindings(new SimpleBindings(), ScriptContext.ENGINE_SCOPE);
         // we are using a new bindings - so it should have 'func' defined
-        Object value = e.eval("typeof func", newContext);
+        final Object value = e.eval("typeof func", newContext);
         assertTrue(value.equals("undefined"));
     }
 
@@ -210,7 +211,7 @@ public class ScopeTest {
         assertTrue(value instanceof ScriptObjectMirror && ((ScriptObjectMirror)value).isFunction());
 
         // check new global instance created has engine.js definitions
-        Bindings b = e.createBindings();
+        final Bindings b = e.createBindings();
         value = b.get("__noSuchProperty__");
         assertTrue(value instanceof ScriptObjectMirror && ((ScriptObjectMirror)value).isFunction());
         value = b.get("print");
@@ -231,7 +232,7 @@ public class ScopeTest {
         assertTrue(e.eval("x", ctx).equals("hello"));
 
         // try some arbitray Bindings for ENGINE_SCOPE
-        Bindings sb = new SimpleBindings();
+        final Bindings sb = new SimpleBindings();
         ctx.setBindings(sb, ScriptContext.ENGINE_SCOPE);
 
         // GLOBAL_SCOPE mapping should be visible from non-default ScriptContext eval
@@ -305,7 +306,7 @@ public class ScopeTest {
         t1.join();
         t2.join();
 
-        Object obj3 = e.eval("delete foo; foo = 'newer context';", newCtxt);
+        final Object obj3 = e.eval("delete foo; foo = 'newer context';", newCtxt);
         assertEquals(obj3, "newer context");
         final Thread t3 = new Thread(new ScriptRunner(e, origContext, sharedScript, "original context", 1000));
         final Thread t4 = new Thread(new ScriptRunner(e, newCtxt, sharedScript, "newer context", 1000));
@@ -342,7 +343,7 @@ public class ScopeTest {
                     for (int i = 0; i < 1000; i++) {
                         assertEquals(e.eval(sharedScript, origContext), (double)i);
                     }
-                } catch (ScriptException se) {
+                } catch (final ScriptException se) {
                     fail(se.toString());
                 }
             }
@@ -354,7 +355,7 @@ public class ScopeTest {
                     for (int i = 2; i < 1000; i++) {
                         assertEquals(e.eval(sharedScript, newCtxt), (double)i);
                     }
-                } catch (ScriptException se) {
+                } catch (final ScriptException se) {
                     fail(se.toString());
                 }
             }
@@ -377,8 +378,8 @@ public class ScopeTest {
         final ScriptContext newCtxt = new SimpleScriptContext();
         newCtxt.setBindings(b, ScriptContext.ENGINE_SCOPE);
 
-        Object obj1 = e.eval("String.prototype.foo = 'original context';", origContext);
-        Object obj2 = e.eval("String.prototype.foo = 'new context';", newCtxt);
+        final Object obj1 = e.eval("String.prototype.foo = 'original context';", origContext);
+        final Object obj2 = e.eval("String.prototype.foo = 'new context';", newCtxt);
         assertEquals(obj1, "original context");
         assertEquals(obj2, "new context");
         final String sharedScript = "''.foo";
@@ -390,7 +391,7 @@ public class ScopeTest {
         t1.join();
         t2.join();
 
-        Object obj3 = e.eval("delete String.prototype.foo; Object.prototype.foo = 'newer context';", newCtxt);
+        final Object obj3 = e.eval("delete String.prototype.foo; Object.prototype.foo = 'newer context';", newCtxt);
         assertEquals(obj3, "newer context");
         final Thread t3 = new Thread(new ScriptRunner(e, origContext, sharedScript, "original context", 1000));
         final Thread t4 = new Thread(new ScriptRunner(e, newCtxt, sharedScript, "newer context", 1000));
@@ -572,7 +573,7 @@ public class ScopeTest {
                 for (int i = 0; i < iterations; i++) {
                     assertEquals(engine.eval(source, context), expected);
                 }
-            } catch (ScriptException se) {
+            } catch (final ScriptException se) {
                 throw new RuntimeException(se);
             }
         }

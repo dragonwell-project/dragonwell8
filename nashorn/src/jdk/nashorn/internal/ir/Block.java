@@ -25,6 +25,8 @@
 
 package jdk.nashorn.internal.ir;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
+
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,13 +35,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import jdk.nashorn.internal.codegen.Label;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
-
-import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
 
 /**
  * IR representation for a list of statements.
@@ -295,7 +294,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     }
 
     @Override
-    public Block setFlags(final LexicalContext lc, int flags) {
+    public Block setFlags(final LexicalContext lc, final int flags) {
         if (this.flags == flags) {
             return this;
         }
@@ -303,12 +302,12 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     }
 
     @Override
-    public Block clearFlag(final LexicalContext lc, int flag) {
+    public Block clearFlag(final LexicalContext lc, final int flag) {
         return setFlags(lc, flags & ~flag);
     }
 
     @Override
-    public Block setFlag(final LexicalContext lc, int flag) {
+    public Block setFlag(final LexicalContext lc, final int flag) {
         return setFlags(lc, flags | flag);
     }
 
@@ -357,7 +356,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     }
 
     @Override
-    public Node accept(NodeVisitor<? extends LexicalContext> visitor) {
+    public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
         return Acceptor.accept(this, visitor);
     }
 }

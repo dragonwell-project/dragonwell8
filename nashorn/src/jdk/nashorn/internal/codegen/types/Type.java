@@ -872,7 +872,7 @@ public abstract class Type implements Comparable<Type>, BytecodeOps {
         }
     };
 
-    private static <T extends Type> T putInCache(T type) {
+    private static <T extends Type> T putInCache(final T type) {
         cache.put(type.getTypeClass(), type);
         return type;
     }

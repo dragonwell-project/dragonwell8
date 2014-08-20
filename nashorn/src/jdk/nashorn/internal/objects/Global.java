@@ -432,7 +432,7 @@ public final class Global extends ScriptObject implements Scope {
      * @return the global singleton
      */
     public static Global instance() {
-        Global global = Context.getGlobal();
+        final Global global = Context.getGlobal();
         global.getClass(); // null check
         return global;
     }
@@ -1744,7 +1744,7 @@ public final class Global extends ScriptObject implements Scope {
     }
 
     private static void copyOptions(final ScriptObject options, final ScriptEnvironment scriptEnv) {
-        for (Field f : scriptEnv.getClass().getFields()) {
+        for (final Field f : scriptEnv.getClass().getFields()) {
             try {
                 options.set(f.getName(), f.get(scriptEnv), false);
             } catch (final IllegalArgumentException | IllegalAccessException exp) {

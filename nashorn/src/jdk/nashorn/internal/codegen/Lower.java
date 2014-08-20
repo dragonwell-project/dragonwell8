@@ -222,7 +222,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> {
     }
 
     @Override
-    public Node leaveBlockStatement(BlockStatement blockStatement) {
+    public Node leaveBlockStatement(final BlockStatement blockStatement) {
         return addStatement(blockStatement);
     }
 
@@ -468,7 +468,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> {
         if (tryNode.getCatchBlocks().isEmpty()) {
             newTryNode = tryNode.setFinallyBody(null);
         } else {
-            Block outerBody = new Block(tryNode.getToken(), tryNode.getFinish(), tryNode.setFinallyBody(null));
+            final Block outerBody = new Block(tryNode.getToken(), tryNode.getFinish(), tryNode.setFinallyBody(null));
             newTryNode = tryNode.setBody(outerBody).setCatchBlocks(null);
         }
 
@@ -656,7 +656,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> {
      * @return true if an assignment to eval result, false otherwise
      */
     private static boolean isEvalResultAssignment(final Node expression) {
-        Node e = expression;
+        final Node e = expression;
         assert e.tokenType() != TokenType.DISCARD; //there are no discards this early anymore
         if (e instanceof BinaryNode) {
             final Node lhs = ((BinaryNode)e).lhs();

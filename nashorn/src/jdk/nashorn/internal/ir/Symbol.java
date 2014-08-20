@@ -25,6 +25,8 @@
 
 package jdk.nashorn.internal.ir;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
+
 import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Set;
@@ -34,8 +36,6 @@ import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.Debug;
 import jdk.nashorn.internal.runtime.options.Options;
-
-import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
 
 /**
  * Maps a name to specific data.
@@ -109,7 +109,7 @@ public final class Symbol implements Comparable<Symbol> {
         if (stacktrace != null) {
             trace = stacktrace; //stacktrace always implies trace as well
             TRACE_SYMBOLS_STACKTRACE = new HashSet<>();
-            for (StringTokenizer st = new StringTokenizer(stacktrace, ","); st.hasMoreTokens(); ) {
+            for (final StringTokenizer st = new StringTokenizer(stacktrace, ","); st.hasMoreTokens(); ) {
                 TRACE_SYMBOLS_STACKTRACE.add(st.nextToken());
             }
         } else {
@@ -119,7 +119,7 @@ public final class Symbol implements Comparable<Symbol> {
 
         if (trace != null) {
             TRACE_SYMBOLS = new HashSet<>();
-            for (StringTokenizer st = new StringTokenizer(trace, ","); st.hasMoreTokens(); ) {
+            for (final StringTokenizer st = new StringTokenizer(trace, ","); st.hasMoreTokens(); ) {
                 TRACE_SYMBOLS.add(st.nextToken());
             }
         } else {

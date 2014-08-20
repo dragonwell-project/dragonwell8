@@ -382,7 +382,7 @@ public class LexicalContext {
      * @param symbol symbol
      * @return function node in which this symbol is defined, assert if no such symbol exists in context
      */
-    public FunctionNode getDefiningFunction(Symbol symbol) {
+    public FunctionNode getDefiningFunction(final Symbol symbol) {
         if (symbol.isTemp()) {
             return null;
         }
@@ -418,7 +418,7 @@ public class LexicalContext {
      * @param functionNode the function node being tested
      * @return true if the expression defining the current function is a callee of a call expression.
      */
-    public boolean isFunctionDefinedInCurrentCall(FunctionNode functionNode) {
+    public boolean isFunctionDefinedInCurrentCall(final FunctionNode functionNode) {
         final LexicalContextNode parent = stack[sp - 2];
         if (parent instanceof CallNode && ((CallNode)parent).getFunction() == functionNode) {
             return true;
@@ -627,7 +627,7 @@ public class LexicalContext {
             if (next == null) {
                 throw new NoSuchElementException();
             }
-            T lnext = next;
+            final T lnext = next;
             next = findNext();
             return lnext;
         }

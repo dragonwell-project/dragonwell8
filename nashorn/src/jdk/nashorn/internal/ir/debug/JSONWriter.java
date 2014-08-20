@@ -27,9 +27,9 @@ package jdk.nashorn.internal.ir.debug;
 
 import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.ArrayList;
 import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.ir.AccessNode;
 import jdk.nashorn.internal.ir.BinaryNode;
@@ -319,7 +319,7 @@ public final class JSONWriter extends NodeVisitor<LexicalContext> {
     }
 
     @Override
-    public boolean enterBlockStatement(BlockStatement blockStatement) {
+    public boolean enterBlockStatement(final BlockStatement blockStatement) {
         enterDefault(blockStatement);
 
         type("BlockStatement");
@@ -339,13 +339,13 @@ public final class JSONWriter extends NodeVisitor<LexicalContext> {
             type("ForInStatement");
             comma();
 
-            Node init = forNode.getInit();
+            final Node init = forNode.getInit();
             assert init != null;
             property("left");
             init.accept(this);
             comma();
 
-            Node modify = forNode.getModify();
+            final Node modify = forNode.getModify();
             assert modify != null;
             property("right");
             modify.accept(this);
@@ -762,8 +762,8 @@ public final class JSONWriter extends NodeVisitor<LexicalContext> {
         final List<CatchNode> guarded = new ArrayList<>();
         CatchNode unguarded = null;
         if (catches != null) {
-            for (Node n : catches) {
-                CatchNode cn = (CatchNode)n;
+            for (final Node n : catches) {
+                final CatchNode cn = (CatchNode)n;
                 if (cn.getExceptionCondition() != null) {
                     guarded.add(cn);
                 } else {

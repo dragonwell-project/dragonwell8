@@ -158,8 +158,8 @@ public class DynamicLinker {
      * @param linkerServices the linkerServices used by the linker, created by the factory.
      * @param runtimeContextArgCount see {@link DynamicLinkerFactory#setRuntimeContextArgCount(int)}
      */
-    DynamicLinker(LinkerServices linkerServices, int runtimeContextArgCount, boolean syncOnRelink,
-            int unstableRelinkThreshold) {
+    DynamicLinker(final LinkerServices linkerServices, final int runtimeContextArgCount, final boolean syncOnRelink,
+            final int unstableRelinkThreshold) {
         if(runtimeContextArgCount < 0) {
             throw new IllegalArgumentException("runtimeContextArgCount < 0");
         }
@@ -199,7 +199,7 @@ public class DynamicLinker {
     private static final MethodHandle RELINK = Lookup.findOwnSpecial(MethodHandles.lookup(), RELINK_METHOD_NAME,
             MethodHandle.class, RelinkableCallSite.class, int.class, Object[].class);
 
-    private MethodHandle createRelinkAndInvokeMethod(final RelinkableCallSite callSite, int relinkCount) {
+    private MethodHandle createRelinkAndInvokeMethod(final RelinkableCallSite callSite, final int relinkCount) {
         // Make a bound MH of invoke() for this linker and call site
         final MethodHandle boundRelinker = MethodHandles.insertArguments(RELINK, 0, this, callSite, Integer.valueOf(
                 relinkCount));
@@ -219,7 +219,7 @@ public class DynamicLinker {
      * @throws Exception rethrows any exception thrown by the linkers
      */
     @SuppressWarnings("unused")
-    private MethodHandle relink(RelinkableCallSite callSite, int relinkCount, Object... arguments) throws Exception {
+    private MethodHandle relink(final RelinkableCallSite callSite, final int relinkCount, final Object... arguments) throws Exception {
         final CallSiteDescriptor callSiteDescriptor = callSite.getDescriptor();
         final boolean unstableDetectionEnabled = unstableRelinkThreshold > 0;
         final boolean callSiteUnstable = unstableDetectionEnabled && relinkCount >= unstableRelinkThreshold;

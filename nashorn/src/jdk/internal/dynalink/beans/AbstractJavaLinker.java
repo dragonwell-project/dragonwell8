@@ -97,7 +97,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.beans.GuardedInvocationComponent.ValidationType;
 import jdk.internal.dynalink.linker.GuardedInvocation;
@@ -123,18 +122,18 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
     private final Map<String, DynamicMethod> propertySetters = new HashMap<>();
     private final Map<String, DynamicMethod> methods = new HashMap<>();
 
-    AbstractJavaLinker(Class<?> clazz, MethodHandle classGuard) {
+    AbstractJavaLinker(final Class<?> clazz, final MethodHandle classGuard) {
         this(clazz, classGuard, classGuard);
     }
 
-    AbstractJavaLinker(Class<?> clazz, MethodHandle classGuard, MethodHandle assignableGuard) {
+    AbstractJavaLinker(final Class<?> clazz, final MethodHandle classGuard, final MethodHandle assignableGuard) {
         this.clazz = clazz;
         this.classGuard = classGuard;
         this.assignableGuard = assignableGuard;
 
         final FacetIntrospector introspector = createFacetIntrospector();
         // Add methods and properties
-        for(Method method: introspector.getMethods()) {
+        for(final Method method: introspector.getMethods()) {
             final String name = method.getName();
             // Add method
             addMember(name, method, methods);
@@ -153,7 +152,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
 
         // Add field getter/setters as property getters/setters.
-        for(Field field: introspector.getFields()) {
+        for(final Field field: introspector.getFields()) {
             final String name = field.getName();
             // Only add a property getter when one is not defined already as a getXxx()/isXxx() method.
             if(!propertyGetters.containsKey(name)) {
@@ -166,7 +165,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
 
         // Add inner classes, but only those for which we don't hide a property with it
-        for(Map.Entry<String, MethodHandle> innerClassSpec: introspector.getInnerClassGetters().entrySet()) {
+        for(final Map.Entry<String, MethodHandle> innerClassSpec: introspector.getInnerClassGetters().entrySet()) {
             final String name = innerClassSpec.getKey();
             if(!propertyGetters.containsKey(name)) {
                 setPropertyGetter(name, innerClassSpec.getValue(), ValidationType.EXACT_CLASS);
@@ -174,7 +173,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
     }
 
-    private static String decapitalize(String str) {
+    private static String decapitalize(final String str) {
         assert str != null;
         if(str.isEmpty()) {
             return str;
@@ -209,7 +208,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         return getUnmodifiableKeys(methods);
     }
 
-    private static Collection<String> getUnmodifiableKeys(Map<String, ?> m) {
+    private static Collection<String> getUnmodifiableKeys(final Map<String, ?> m) {
         return Collections.unmodifiableCollection(m.keySet());
     }
 
@@ -222,7 +221,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param handle the method handle that implements the property getter
      * @param validationType the validation type for the property
      */
-    private void setPropertyGetter(String name, SingleDynamicMethod handle, ValidationType validationType) {
+    private void setPropertyGetter(final String name, final SingleDynamicMethod handle, final ValidationType validationType) {
         propertyGetters.put(name, new AnnotatedDynamicMethod(handle, validationType));
     }
 
@@ -232,7 +231,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param prefixLen the getter prefix in the method name; should be 3 for getter names starting with "get" and 2 for
      * names starting with "is".
      */
-    private void setPropertyGetter(Method getter, int prefixLen) {
+    private void setPropertyGetter(final Method getter, final int prefixLen) {
         setPropertyGetter(decapitalize(getter.getName().substring(prefixLen)), createDynamicMethod(
                 getMostGenericGetter(getter)), ValidationType.INSTANCE_OF);
     }
@@ -246,15 +245,15 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param handle the method handle that implements the property getter
      * @param validationType the validation type for the property
      */
-    void setPropertyGetter(String name, MethodHandle handle, ValidationType validationType) {
+    void setPropertyGetter(final String name, final MethodHandle handle, final ValidationType validationType) {
         setPropertyGetter(name, new SimpleDynamicMethod(handle, clazz, name), validationType);
     }
 
-    private void addMember(String name, AccessibleObject ao, Map<String, DynamicMethod> methodMap) {
+    private void addMember(final String name, final AccessibleObject ao, final Map<String, DynamicMethod> methodMap) {
         addMember(name, createDynamicMethod(ao), methodMap);
     }
 
-    private void addMember(String name, SingleDynamicMethod method, Map<String, DynamicMethod> methodMap) {
+    private void addMember(final String name, final SingleDynamicMethod method, final Map<String, DynamicMethod> methodMap) {
         final DynamicMethod existingMethod = methodMap.get(name);
         final DynamicMethod newMethod = mergeMethods(method, existingMethod, clazz, name);
         if(newMethod != existingMethod) {
@@ -270,9 +269,9 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param name the common name of the reflective members.
      * @return a dynamic method representing all the specified reflective members.
      */
-    static DynamicMethod createDynamicMethod(Iterable<? extends AccessibleObject> members, Class<?> clazz, String name) {
+    static DynamicMethod createDynamicMethod(final Iterable<? extends AccessibleObject> members, final Class<?> clazz, final String name) {
         DynamicMethod dynMethod = null;
-        for(AccessibleObject method: members) {
+        for(final AccessibleObject method: members) {
             dynMethod = mergeMethods(createDynamicMethod(method), dynMethod, clazz, name);
         }
         return dynMethod;
@@ -285,7 +284,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param m the reflective member
      * @return the single dynamic method representing the reflective member
      */
-    private static SingleDynamicMethod createDynamicMethod(AccessibleObject m) {
+    private static SingleDynamicMethod createDynamicMethod(final AccessibleObject m) {
         if(CallerSensitiveDetector.isCallerSensitive(m)) {
             return new CallerSensitiveDynamicMethod(m);
         }
@@ -301,7 +300,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param m the method or constructor
      * @return the method handle
      */
-    private static MethodHandle unreflectSafely(AccessibleObject m) {
+    private static MethodHandle unreflectSafely(final AccessibleObject m) {
         if(m instanceof Method) {
             final Method reflMethod = (Method)m;
             final MethodHandle handle = Lookup.PUBLIC.unreflect(reflMethod);
@@ -313,7 +312,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         return StaticClassIntrospector.editConstructorMethodHandle(Lookup.PUBLIC.unreflectConstructor((Constructor<?>)m));
     }
 
-    private static DynamicMethod mergeMethods(SingleDynamicMethod method, DynamicMethod existing, Class<?> clazz, String name) {
+    private static DynamicMethod mergeMethods(final SingleDynamicMethod method, final DynamicMethod existing, final Class<?> clazz, final String name) {
         if(existing == null) {
             return method;
         } else if(existing.contains(method)) {
@@ -331,7 +330,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
     }
 
     @Override
-    public GuardedInvocation getGuardedInvocation(LinkRequest request, final LinkerServices linkerServices)
+    public GuardedInvocation getGuardedInvocation(final LinkRequest request, final LinkerServices linkerServices)
             throws Exception {
         final LinkRequest ncrequest = request.withoutRuntimeContext();
         // BeansLinker already checked that the name is at least 2 elements long and the first element is "dyn".
@@ -353,8 +352,8 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         return null;
     }
 
-    protected GuardedInvocationComponent getGuardedInvocationComponent(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, List<String> operations) throws Exception {
+    protected GuardedInvocationComponent getGuardedInvocationComponent(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final List<String> operations) throws Exception {
         if(operations.isEmpty()) {
             return null;
         }
@@ -374,27 +373,27 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         return null;
     }
 
-    static final <T> List<T> pop(List<T> l) {
+    static final <T> List<T> pop(final List<T> l) {
         return l.subList(1, l.size());
     }
 
-    MethodHandle getClassGuard(CallSiteDescriptor desc) {
+    MethodHandle getClassGuard(final CallSiteDescriptor desc) {
         return getClassGuard(desc.getMethodType());
     }
 
-    MethodHandle getClassGuard(MethodType type) {
+    MethodHandle getClassGuard(final MethodType type) {
         return Guards.asType(classGuard, type);
     }
 
-    GuardedInvocationComponent getClassGuardedInvocationComponent(MethodHandle invocation, MethodType type) {
+    GuardedInvocationComponent getClassGuardedInvocationComponent(final MethodHandle invocation, final MethodType type) {
         return new GuardedInvocationComponent(invocation, getClassGuard(type), clazz, ValidationType.EXACT_CLASS);
     }
 
-    private MethodHandle getAssignableGuard(MethodType type) {
+    private MethodHandle getAssignableGuard(final MethodType type) {
         return Guards.asType(assignableGuard, type);
     }
 
-    private GuardedInvocation getCallPropWithThis(CallSiteDescriptor callSiteDescriptor, LinkerServices linkerServices) {
+    private GuardedInvocation getCallPropWithThis(final CallSiteDescriptor callSiteDescriptor, final LinkerServices linkerServices) {
         switch(callSiteDescriptor.getNameTokenCount()) {
             case 3: {
                 return createGuardedDynamicMethodInvocation(callSiteDescriptor, linkerServices,
@@ -406,25 +405,25 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
     }
 
-    private GuardedInvocation createGuardedDynamicMethodInvocation(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, String methodName, Map<String, DynamicMethod> methodMap){
+    private GuardedInvocation createGuardedDynamicMethodInvocation(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final String methodName, final Map<String, DynamicMethod> methodMap){
         final MethodHandle inv = getDynamicMethodInvocation(callSiteDescriptor, linkerServices, methodName, methodMap);
         return inv == null ? null : new GuardedInvocation(inv, getClassGuard(callSiteDescriptor.getMethodType()));
     }
 
-    private static MethodHandle getDynamicMethodInvocation(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, String methodName, Map<String, DynamicMethod> methodMap) {
+    private static MethodHandle getDynamicMethodInvocation(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final String methodName, final Map<String, DynamicMethod> methodMap) {
         final DynamicMethod dynaMethod = getDynamicMethod(methodName, methodMap);
         return dynaMethod != null ? dynaMethod.getInvocation(callSiteDescriptor, linkerServices) : null;
     }
 
-    private static DynamicMethod getDynamicMethod(String methodName, Map<String, DynamicMethod> methodMap) {
+    private static DynamicMethod getDynamicMethod(final String methodName, final Map<String, DynamicMethod> methodMap) {
         final DynamicMethod dynaMethod = methodMap.get(methodName);
         return dynaMethod != null ? dynaMethod : getExplicitSignatureDynamicMethod(methodName, methodMap);
     }
 
-    private static SingleDynamicMethod getExplicitSignatureDynamicMethod(String methodName,
-            Map<String, DynamicMethod> methodsMap) {
+    private static SingleDynamicMethod getExplicitSignatureDynamicMethod(final String methodName,
+            final Map<String, DynamicMethod> methodsMap) {
         // What's below is meant to support the "name(type, type, ...)" syntax that programmers can use in a method name
         // to manually pin down an exact overloaded variant. This is not usually required, as the overloaded method
         // resolution works correctly in almost every situation. However, in presence of many language-specific
@@ -457,8 +456,8 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
     private static final MethodHandle CONSTANT_NULL_DROP_METHOD_HANDLE = MethodHandles.dropArguments(
             MethodHandles.constant(Object.class, null), 0, MethodHandle.class);
 
-    private GuardedInvocationComponent getPropertySetter(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, List<String> operations) throws Exception {
+    private GuardedInvocationComponent getPropertySetter(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final List<String> operations) throws Exception {
         final MethodType type = callSiteDescriptor.getMethodType();
         switch(callSiteDescriptor.getNameTokenCount()) {
             case 2: {
@@ -543,8 +542,8 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
             "getTarget", MethodType.methodType(MethodHandle.class, MethodHandles.Lookup.class));
     private static final MethodHandle GETTER_INVOKER = MethodHandles.invoker(MethodType.methodType(Object.class, Object.class));
 
-    private GuardedInvocationComponent getPropertyGetter(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, List<String> ops) throws Exception {
+    private GuardedInvocationComponent getPropertyGetter(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final List<String> ops) throws Exception {
         final MethodType type = callSiteDescriptor.getMethodType();
         switch(callSiteDescriptor.getNameTokenCount()) {
             case 2: {
@@ -622,7 +621,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
     }
 
-    private MethodHandle getGuard(ValidationType validationType, MethodType methodType) {
+    private MethodHandle getGuard(final ValidationType validationType, final MethodType methodType) {
         switch(validationType) {
             case EXACT_CLASS: {
                 return getClassGuard(methodType);
@@ -646,8 +645,8 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
             MethodType.methodType(boolean.class, DynamicMethod.class));
     private static final MethodHandle DYNAMIC_METHOD_IDENTITY = MethodHandles.identity(DynamicMethod.class);
 
-    private GuardedInvocationComponent getMethodGetter(CallSiteDescriptor callSiteDescriptor,
-            LinkerServices linkerServices, List<String> ops) throws Exception {
+    private GuardedInvocationComponent getMethodGetter(final CallSiteDescriptor callSiteDescriptor,
+            final LinkerServices linkerServices, final List<String> ops) throws Exception {
         final MethodType type = callSiteDescriptor.getMethodType();
         switch(callSiteDescriptor.getNameTokenCount()) {
             case 2: {
@@ -704,7 +703,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         }
     }
 
-    private static void assertParameterCount(CallSiteDescriptor descriptor, int paramCount) {
+    private static void assertParameterCount(final CallSiteDescriptor descriptor, final int paramCount) {
         if(descriptor.getMethodType().parameterCount() != paramCount) {
             throw new BootstrapMethodError(descriptor.getName() + " must have exactly " + paramCount + " parameters.");
         }
@@ -719,7 +718,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @return the method handle for retrieving the property, or null if the property does not exist
      */
     @SuppressWarnings("unused")
-    private Object getPropertyGetterHandle(Object id) {
+    private Object getPropertyGetterHandle(final Object id) {
         return propertyGetters.get(id);
     }
 
@@ -733,8 +732,8 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
     private final MethodHandle getPropertySetterHandle = GET_PROPERTY_SETTER_HANDLE.bindTo(this);
 
     @SuppressWarnings("unused")
-    private MethodHandle getPropertySetterHandle(CallSiteDescriptor setterDescriptor, LinkerServices linkerServices,
-            Object id) {
+    private MethodHandle getPropertySetterHandle(final CallSiteDescriptor setterDescriptor, final LinkerServices linkerServices,
+            final Object id) {
         return getDynamicMethodInvocation(setterDescriptor, linkerServices, String.valueOf(id), propertySetters);
     }
 
@@ -743,7 +742,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
     private final MethodHandle getDynamicMethod = GET_DYNAMIC_METHOD.bindTo(this);
 
     @SuppressWarnings("unused")
-    private DynamicMethod getDynamicMethod(Object name) {
+    private DynamicMethod getDynamicMethod(final Object name) {
         return getDynamicMethod(String.valueOf(name), methods);
     }
 
@@ -754,7 +753,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @return the dynamic method (either {@link SimpleDynamicMethod} or {@link OverloadedDynamicMethod}, or null if the
      * method with the specified name does not exist.
      */
-    DynamicMethod getDynamicMethod(String name) {
+    DynamicMethod getDynamicMethod(final String name) {
         return getDynamicMethod(name, methods);
     }
 
@@ -765,16 +764,16 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
      * @param getter the getter
      * @return getter with same name, declared on the most generic superclass/interface of the declaring class
      */
-    private static Method getMostGenericGetter(Method getter) {
+    private static Method getMostGenericGetter(final Method getter) {
         return getMostGenericGetter(getter.getName(), getter.getReturnType(), getter.getDeclaringClass());
     }
 
-    private static Method getMostGenericGetter(String name, Class<?> returnType, Class<?> declaringClass) {
+    private static Method getMostGenericGetter(final String name, final Class<?> returnType, final Class<?> declaringClass) {
         if(declaringClass == null) {
             return null;
         }
         // Prefer interfaces
-        for(Class<?> itf: declaringClass.getInterfaces()) {
+        for(final Class<?> itf: declaringClass.getInterfaces()) {
             final Method itfGetter = getMostGenericGetter(name, returnType, itf);
             if(itfGetter != null) {
                 return itfGetter;
@@ -787,7 +786,7 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         if(!CheckRestrictedPackage.isRestrictedClass(declaringClass)) {
             try {
                 return declaringClass.getMethod(name);
-            } catch(NoSuchMethodException e) {
+            } catch(final NoSuchMethodException e) {
                 // Intentionally ignored, meant to fall through
             }
         }
@@ -798,18 +797,18 @@ abstract class AbstractJavaLinker implements GuardingDynamicLinker {
         private final SingleDynamicMethod method;
         /*private*/ final ValidationType validationType;
 
-        AnnotatedDynamicMethod(SingleDynamicMethod method, ValidationType validationType) {
+        AnnotatedDynamicMethod(final SingleDynamicMethod method, final ValidationType validationType) {
             this.method = method;
             this.validationType = validationType;
         }
 
-        MethodHandle getInvocation(CallSiteDescriptor callSiteDescriptor, LinkerServices linkerServices) {
+        MethodHandle getInvocation(final CallSiteDescriptor callSiteDescriptor, final LinkerServices linkerServices) {
             return method.getInvocation(callSiteDescriptor, linkerServices);
         }
 
         @SuppressWarnings("unused")
-        MethodHandle getTarget(MethodHandles.Lookup lookup) {
-            MethodHandle inv = method.getTarget(lookup);
+        MethodHandle getTarget(final MethodHandles.Lookup lookup) {
+            final MethodHandle inv = method.getTarget(lookup);
             assert inv != null;
             return inv;
         }

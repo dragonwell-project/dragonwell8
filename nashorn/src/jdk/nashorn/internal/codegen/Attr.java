@@ -377,7 +377,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
     private Symbol defineSymbol(final Block block, final String name, final int symbolFlags) {
         int     flags    = symbolFlags;
         Symbol  symbol   = findSymbol(block, name); // Locate symbol.
-        boolean isGlobal = (flags & KINDMASK) == IS_GLOBAL;
+        final boolean isGlobal = (flags & KINDMASK) == IS_GLOBAL;
 
         if (isGlobal) {
             flags |= IS_SCOPE;
@@ -552,7 +552,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
         final IdentNode init = compilerConstant(initConstant);
         assert init.getSymbol() != null && init.getSymbol().hasSlot();
 
-        VarNode synthVar = new VarNode(fn.getLineNumber(), fn.getToken(), fn.getFinish(), name, init);
+        final VarNode synthVar = new VarNode(fn.getLineNumber(), fn.getToken(), fn.getFinish(), name, init);
 
         final Symbol nameSymbol = fn.getBody().getExistingSymbol(name.getName());
         assert nameSymbol != null;
@@ -639,7 +639,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
         }
     }
 
-    private boolean symbolNeedsToBeScope(Symbol symbol) {
+    private boolean symbolNeedsToBeScope(final Symbol symbol) {
         if (symbol.isThis() || symbol.isInternal()) {
             return false;
         }
@@ -996,7 +996,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
         return end(ensureSymbol(Type.BOOLEAN, unaryNode));
     }
 
-    private IdentNode compilerConstant(CompilerConstants cc) {
+    private IdentNode compilerConstant(final CompilerConstants cc) {
         return (IdentNode)createImplicitIdentifier(cc.symbolName()).setSymbol(lc, lc.getCurrentFunction().compilerConstant(cc));
     }
 
@@ -1015,7 +1015,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
     public Node leaveTYPEOF(final UnaryNode unaryNode) {
         final Expression rhs = unaryNode.rhs();
 
-        List<Expression> args = new ArrayList<>();
+        final List<Expression> args = new ArrayList<>();
         if (rhs instanceof IdentNode && !rhs.getSymbol().isParam() && !rhs.getSymbol().isVar()) {
             args.add(compilerConstant(SCOPE));
             args.add((Expression)LiteralNode.newInstance(rhs, ((IdentNode)rhs).getName()).accept(this)); //null
@@ -1120,7 +1120,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
         return end(ensureSymbol(type, binaryNode));
     }
 
-    private boolean isLocal(FunctionNode function, Symbol symbol) {
+    private boolean isLocal(final FunctionNode function, final Symbol symbol) {
         final FunctionNode definingFn = lc.getDefiningFunction(symbol);
         // Temp symbols are not assigned to a block, so their defining fn is null; those can be assumed local
         return definingFn == null || definingFn == function;
@@ -1289,7 +1289,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
     private Node leaveCmp(final BinaryNode binaryNode) {
         ensureTypeNotUnknown(binaryNode.lhs());
         ensureTypeNotUnknown(binaryNode.rhs());
-        Type widest = Type.widest(binaryNode.lhs().getType(), binaryNode.rhs().getType());
+        final Type widest = Type.widest(binaryNode.lhs().getType(), binaryNode.rhs().getType());
         ensureSymbol(widest, binaryNode.lhs());
         ensureSymbol(widest, binaryNode.rhs());
         return end(ensureSymbol(Type.BOOLEAN, binaryNode));
@@ -1650,7 +1650,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
                     if (node instanceof LiteralNode) {
                         return node;
                     }
-                    Type from = node.getType();
+                    final Type from = node.getType();
                     if (!Type.areEquivalent(from, to) && Type.widest(from, to) == to) {
                         LOG.fine("Had to post pass widen '", node, "' ", Debug.id(node), " from ", node.getType(), " to ", to);
                         Symbol symbol = node.getSymbol();
@@ -1880,7 +1880,7 @@ final class Attr extends NodeOperatorVisitor<LexicalContext> {
 
     private static String name(final Node node) {
         final String cn = node.getClass().getName();
-        int lastDot = cn.lastIndexOf('.');
+        final int lastDot = cn.lastIndexOf('.');
         if (lastDot == -1) {
             return cn;
         }

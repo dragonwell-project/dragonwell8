@@ -105,7 +105,7 @@ public class LinkRequestImpl implements LinkRequest {
      * @param callSiteUnstable true if the call site being linked is considered unstable
      * @param arguments the arguments for the invocation
      */
-    public LinkRequestImpl(CallSiteDescriptor callSiteDescriptor, boolean callSiteUnstable, Object... arguments) {
+    public LinkRequestImpl(final CallSiteDescriptor callSiteDescriptor, final boolean callSiteUnstable, final Object... arguments) {
         this.callSiteDescriptor = callSiteDescriptor;
         this.callSiteUnstable = callSiteUnstable;
         this.arguments = arguments;
@@ -137,7 +137,7 @@ public class LinkRequestImpl implements LinkRequest {
     }
 
     @Override
-    public LinkRequest replaceArguments(CallSiteDescriptor newCallSiteDescriptor, Object[] newArguments) {
+    public LinkRequest replaceArguments(final CallSiteDescriptor newCallSiteDescriptor, final Object[] newArguments) {
         return new LinkRequestImpl(newCallSiteDescriptor, callSiteUnstable, newArguments);
     }
 }

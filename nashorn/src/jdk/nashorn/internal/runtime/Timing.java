@@ -26,7 +26,6 @@ package jdk.nashorn.internal.runtime;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import jdk.nashorn.internal.runtime.options.Options;
 
 /**

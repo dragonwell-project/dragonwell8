@@ -29,9 +29,9 @@ import static jdk.nashorn.internal.runtime.ECMAErrors.rangeError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.VALUE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.WRITABLE;
+import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.arrayLikeIterator;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.reverseArrayLikeIterator;
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
@@ -41,7 +41,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
-
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
@@ -857,7 +856,7 @@ public final class NativeArray extends ScriptObject {
             } else {
                 boolean hasPrevious = true;
                 for (long k = 1; k < len; k++) {
-                    boolean hasCurrent = sobj.has(k);
+                    final boolean hasCurrent = sobj.has(k);
                     if (hasCurrent) {
                         sobj.set(k - 1, sobj.get(k), true);
                     } else if (hasPrevious) {
@@ -1054,7 +1053,7 @@ public final class NativeArray extends ScriptObject {
                 for (int i = 0; i < items.length; i++, k++) {
                     sobj.defineOwnProperty(k, items[i]);
                 }
-            } catch (UnsupportedOperationException uoe) {
+            } catch (final UnsupportedOperationException uoe) {
                 returnValue = slowSplice(sobj, actualStart, actualDeleteCount, items, len);
             }
         } else {

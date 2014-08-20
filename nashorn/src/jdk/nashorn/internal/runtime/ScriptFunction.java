@@ -38,7 +38,6 @@ import jdk.internal.dynalink.linker.GuardedInvocation;
 import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.lookup.MethodHandleFactory;
-import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
 import jdk.nashorn.internal.runtime.linker.NashornGuards;
 
@@ -235,7 +234,7 @@ public abstract class ScriptFunction extends ScriptObject {
         final ScriptObject object = data.allocate(allocatorMap);
 
         if (object != null) {
-            Object prototype = getPrototype();
+            final Object prototype = getPrototype();
             if (prototype instanceof ScriptObject) {
                 object.setInitialProto((ScriptObject)prototype);
             }

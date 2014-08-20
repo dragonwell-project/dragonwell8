@@ -281,7 +281,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
     private static Source makeSource(final Reader reader, final ScriptContext ctxt) throws ScriptException {
         try {
             return sourceFor(getScriptName(ctxt), reader);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new ScriptException(e);
         }
     }
@@ -380,7 +380,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
         }
 
         // Arbitrary user Bindings implementation. Look for NASHORN_GLOBAL in it!
-        Object scope = bindings.get(NASHORN_GLOBAL);
+        final Object scope = bindings.get(NASHORN_GLOBAL);
         if (scope instanceof ScriptObjectMirror) {
             final Global glob = globalFromMirror((ScriptObjectMirror)scope);
             if (glob != null) {
@@ -397,7 +397,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
 
     // Retrieve nashorn Global object from a given ScriptObjectMirror
     private Global globalFromMirror(final ScriptObjectMirror mirror) {
-        ScriptObject sobj = mirror.getScriptObject();
+        final ScriptObject sobj = mirror.getScriptObject();
         if (sobj instanceof Global && isOfContext((Global)sobj, nashornContext)) {
             return (Global)sobj;
         }
@@ -671,7 +671,7 @@ public final class NashornScriptEngine extends AbstractScriptEngine implements C
                 continue;
             }
 
-            Object obj = sobj.get(method.getName());
+            final Object obj = sobj.get(method.getName());
             if (! (obj instanceof ScriptFunction)) {
                 return false;
             }

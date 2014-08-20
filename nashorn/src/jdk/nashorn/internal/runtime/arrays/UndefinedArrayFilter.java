@@ -45,7 +45,7 @@ final class UndefinedArrayFilter extends ArrayFilter {
 
     @Override
     public ArrayData copy() {
-        UndefinedArrayFilter copy = new UndefinedArrayFilter(underlying.copy());
+        final UndefinedArrayFilter copy = new UndefinedArrayFilter(underlying.copy());
         copy.getUndefined().copy(undefined);
         return copy;
     }

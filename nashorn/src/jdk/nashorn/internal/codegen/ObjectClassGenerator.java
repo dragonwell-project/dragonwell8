@@ -232,7 +232,7 @@ public final class ObjectClassGenerator {
      * @param clazz the JavaScript scope class.
      * @return the number of fields in the scope class.
      */
-    public static int getFieldCount(Class<?> clazz) {
+    public static int getFieldCount(final Class<?> clazz) {
         final String name = clazz.getSimpleName();
         final String prefix = JS_OBJECT_PREFIX.symbolName();
         if(prefix.equals(name)) {

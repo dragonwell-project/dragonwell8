@@ -115,7 +115,7 @@ public class TypeUtilities {
      * most specific common type, or the types themselves are completely unrelated interfaces, {@link java.lang.Object}
      * is returned.
      */
-    public static Class<?> getMostSpecificCommonType(Class<?> c1, Class<?> c2) {
+    public static Class<?> getMostSpecificCommonType(final Class<?> c1, final Class<?> c2) {
         if(c1 == c2) {
             return c1;
         }
@@ -136,8 +136,8 @@ public class TypeUtilities {
             else if(c3 == Double.TYPE)
                 c3 = Double.class;
         }
-        Set<Class<?>> a1 = getAssignables(c1, c3);
-        Set<Class<?>> a2 = getAssignables(c3, c1);
+        final Set<Class<?>> a1 = getAssignables(c1, c3);
+        final Set<Class<?>> a2 = getAssignables(c3, c1);
         a1.retainAll(a2);
         if(a1.isEmpty()) {
             // Can happen when at least one of the arguments is an interface,
@@ -148,10 +148,10 @@ public class TypeUtilities {
         // thank to interfaces. I.e., if you call this method for String.class
         // and Number.class, you'll have Comparable, Serializable, and Object
         // as maximal elements.
-        List<Class<?>> max = new ArrayList<>();
-        outer: for(Class<?> clazz: a1) {
-            for(Iterator<Class<?>> maxiter = max.iterator(); maxiter.hasNext();) {
-                Class<?> maxClazz = maxiter.next();
+        final List<Class<?>> max = new ArrayList<>();
+        outer: for(final Class<?> clazz: a1) {
+            for(final Iterator<Class<?>> maxiter = max.iterator(); maxiter.hasNext();) {
+                final Class<?> maxClazz = maxiter.next();
                 if(isSubtype(maxClazz, clazz)) {
                     // It can't be maximal, if there's already a more specific
                     // maximal than it.
@@ -173,21 +173,21 @@ public class TypeUtilities {
         return max.get(0);
     }
 
-    private static Set<Class<?>> getAssignables(Class<?> c1, Class<?> c2) {
-        Set<Class<?>> s = new HashSet<>();
+    private static Set<Class<?>> getAssignables(final Class<?> c1, final Class<?> c2) {
+        final Set<Class<?>> s = new HashSet<>();
         collectAssignables(c1, c2, s);
         return s;
     }
 
-    private static void collectAssignables(Class<?> c1, Class<?> c2, Set<Class<?>> s) {
+    private static void collectAssignables(final Class<?> c1, final Class<?> c2, final Set<Class<?>> s) {
         if(c1.isAssignableFrom(c2)) {
             s.add(c1);
         }
-        Class<?> sc = c1.getSuperclass();
+        final Class<?> sc = c1.getSuperclass();
         if(sc != null) {
             collectAssignables(sc, c2, s);
         }
-        Class<?>[] itf = c1.getInterfaces();
+        final Class<?>[] itf = c1.getInterfaces();
         for(int i = 0; i < itf.length; ++i) {
             collectAssignables(itf[i], c2, s);
         }
@@ -210,17 +210,17 @@ public class TypeUtilities {
         return Collections.unmodifiableMap(wrapperTypes);
     }
 
-    private static Map<String, Class<?>> createClassNameMapping(Collection<Class<?>> classes) {
+    private static Map<String, Class<?>> createClassNameMapping(final Collection<Class<?>> classes) {
         final Map<String, Class<?>> map = new HashMap<>();
-        for(Class<?> clazz: classes) {
+        for(final Class<?> clazz: classes) {
             map.put(clazz.getName(), clazz);
         }
         return map;
     }
 
-    private static <K, V> Map<V, K> invertMap(Map<K, V> map) {
+    private static <K, V> Map<V, K> invertMap(final Map<K, V> map) {
         final Map<V, K> inverted = new IdentityHashMap<>(map.size());
-        for(Map.Entry<K, V> entry: map.entrySet()) {
+        for(final Map.Entry<K, V> entry: map.entrySet()) {
             inverted.put(entry.getValue(), entry.getKey());
         }
         return Collections.unmodifiableMap(inverted);
@@ -236,7 +236,7 @@ public class TypeUtilities {
      * @param methodType the parameter type in the method declaration
      * @return true if callSiteType is method invocation convertible to the methodType.
      */
-    public static boolean isMethodInvocationConvertible(Class<?> callSiteType, Class<?> methodType) {
+    public static boolean isMethodInvocationConvertible(final Class<?> callSiteType, final Class<?> methodType) {
         if(methodType.isAssignableFrom(callSiteType)) {
             return true;
         }
@@ -264,7 +264,7 @@ public class TypeUtilities {
      * @param methodType the parameter type in the method declaration
      * @return true if callSiteType is potentially convertible to the methodType.
      */
-    public static boolean isPotentiallyConvertible(Class<?> callSiteType, Class<?> methodType) {
+    public static boolean isPotentiallyConvertible(final Class<?> callSiteType, final Class<?> methodType) {
         // Widening or narrowing reference conversion
         if(methodType.isAssignableFrom(callSiteType) || callSiteType.isAssignableFrom(methodType)) {
             return true;
@@ -297,7 +297,7 @@ public class TypeUtilities {
      * @return true if subType can be converted by identity conversion, widening primitive conversion, or widening
      * reference conversion to superType.
      */
-    public static boolean isSubtype(Class<?> subType, Class<?> superType) {
+    public static boolean isSubtype(final Class<?> subType, final Class<?> superType) {
         // Covers both JLS 4.10.2 "Subtyping among Class and Interface Types"
         // and JLS 4.10.3 "Subtyping among Array Types", as well as primitive
         // type identity.
@@ -328,7 +328,7 @@ public class TypeUtilities {
      * @param superType the supposed supertype
      * @return true if subType is a proper (not identical to) primitive subtype of the superType
      */
-    private static boolean isProperPrimitiveSubtype(Class<?> subType, Class<?> superType) {
+    private static boolean isProperPrimitiveSubtype(final Class<?> subType, final Class<?> superType) {
         if(superType == boolean.class || subType == boolean.class) {
             return false;
         }
@@ -384,13 +384,13 @@ public class TypeUtilities {
         return classes.keySet();
     }
 
-    private static void addClassHierarchy(Map<Class<?>, Class<?>> map, Class<?> clazz) {
+    private static void addClassHierarchy(final Map<Class<?>, Class<?>> map, final Class<?> clazz) {
         if(clazz == null) {
             return;
         }
         map.put(clazz, clazz);
         addClassHierarchy(map, clazz.getSuperclass());
-        for(Class<?> itf: clazz.getInterfaces()) {
+        for(final Class<?> itf: clazz.getInterfaces()) {
             addClassHierarchy(map, itf);
         }
     }
@@ -402,7 +402,7 @@ public class TypeUtilities {
      * @return true if the class can be assigned from any boxed primitive. Basically, it is true if the class is any
      * primitive wrapper class, or a superclass or superinterface of any primitive wrapper class.
      */
-    private static boolean isAssignableFromBoxedPrimitive(Class<?> clazz) {
+    private static boolean isAssignableFromBoxedPrimitive(final Class<?> clazz) {
         return PRIMITIVE_WRAPPER_TYPES.contains(clazz);
     }
 
@@ -413,7 +413,7 @@ public class TypeUtilities {
      * @return the class representing the primitive type, or null if the name does not correspond to a primitive type
      * or is "void".
      */
-    public static Class<?> getPrimitiveTypeByName(String name) {
+    public static Class<?> getPrimitiveTypeByName(final String name) {
         return PRIMITIVE_TYPES_BY_NAME.get(name);
     }
 
@@ -424,7 +424,7 @@ public class TypeUtilities {
      * @param wrapperType the class object representing a wrapper for a primitive type
      * @return the class object representing the primitive type, or null if the passed class is not a primitive wrapper.
      */
-    public static Class<?> getPrimitiveType(Class<?> wrapperType) {
+    public static Class<?> getPrimitiveType(final Class<?> wrapperType) {
         return WRAPPER_TO_PRIMITIVE_TYPES.get(wrapperType);
     }
 
@@ -436,7 +436,7 @@ public class TypeUtilities {
      * @param primitiveType the class object representing a primitive type
      * @return the class object representing the wrapper type, or null if the passed class is not a primitive.
      */
-    public static Class<?> getWrapperType(Class<?> primitiveType) {
+    public static Class<?> getWrapperType(final Class<?> primitiveType) {
         return WRAPPER_TYPES.get(primitiveType);
     }
 }

@@ -115,7 +115,7 @@ public class GuardedInvocation {
      * an unconditional invocation, although that is unusual.
      * @throws NullPointerException if invocation is null.
      */
-    public GuardedInvocation(MethodHandle invocation, MethodHandle guard) {
+    public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard) {
         this(invocation, guard, null);
     }
 
@@ -129,7 +129,7 @@ public class GuardedInvocation {
      * @param switchPoint the optional switch point that can be used to invalidate this linkage.
      * @throws NullPointerException if invocation is null.
      */
-    public GuardedInvocation(MethodHandle invocation, MethodHandle guard, SwitchPoint switchPoint) {
+    public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard, final SwitchPoint switchPoint) {
         invocation.getClass(); // NPE check
         this.invocation = invocation;
         this.guard = guard;
@@ -146,7 +146,7 @@ public class GuardedInvocation {
      * and the switch point are null, this represents an unconditional invocation, which is legal but unusual.
      * @throws NullPointerException if invocation is null.
      */
-    public GuardedInvocation(MethodHandle invocation, SwitchPoint switchPoint, MethodHandle guard) {
+    public GuardedInvocation(final MethodHandle invocation, final SwitchPoint switchPoint, final MethodHandle guard) {
         this(invocation, guard, switchPoint);
     }
     /**
@@ -191,7 +191,7 @@ public class GuardedInvocation {
      * @param type the asserted type
      * @throws WrongMethodTypeException if the invocation and the guard are not of the expected method type.
      */
-    public void assertType(MethodType type) {
+    public void assertType(final MethodType type) {
         assertType(invocation, type);
         if(guard != null) {
             assertType(guard, type.changeReturnType(Boolean.TYPE));
@@ -205,11 +205,11 @@ public class GuardedInvocation {
      * @param newGuard the new guard
      * @return a new guarded invocation with the replaced methods and the same switch point as this invocation.
      */
-    public GuardedInvocation replaceMethods(MethodHandle newInvocation, MethodHandle newGuard) {
+    public GuardedInvocation replaceMethods(final MethodHandle newInvocation, final MethodHandle newGuard) {
         return new GuardedInvocation(newInvocation, newGuard, switchPoint);
     }
 
-    private GuardedInvocation replaceMethodsOrThis(MethodHandle newInvocation, MethodHandle newGuard) {
+    private GuardedInvocation replaceMethodsOrThis(final MethodHandle newInvocation, final MethodHandle newGuard) {
         if(newInvocation == invocation && newGuard == guard) {
             return this;
         }
@@ -223,7 +223,7 @@ public class GuardedInvocation {
      * @param newType the new type of the invocation.
      * @return a guarded invocation with the new type applied to it.
      */
-    public GuardedInvocation asType(MethodType newType) {
+    public GuardedInvocation asType(final MethodType newType) {
         return replaceMethodsOrThis(invocation.asType(newType), guard == null ? null : Guards.asType(guard, newType));
     }
 
@@ -235,7 +235,7 @@ public class GuardedInvocation {
      * @param newType the new type of the invocation.
      * @return a guarded invocation with the new type applied to it.
      */
-    public GuardedInvocation asType(LinkerServices linkerServices, MethodType newType) {
+    public GuardedInvocation asType(final LinkerServices linkerServices, final MethodType newType) {
         return replaceMethodsOrThis(linkerServices.asType(invocation, newType), guard == null ? null :
             Guards.asType(linkerServices, guard, newType));
     }
@@ -247,7 +247,7 @@ public class GuardedInvocation {
      * @param desc a call descriptor whose method type is adapted.
      * @return a guarded invocation with the new type applied to it.
      */
-    public GuardedInvocation asType(CallSiteDescriptor desc) {
+    public GuardedInvocation asType(final CallSiteDescriptor desc) {
         return asType(desc.getMethodType());
     }
 
@@ -257,7 +257,7 @@ public class GuardedInvocation {
      * @param filters the argument filters
      * @return a filtered invocation
      */
-    public GuardedInvocation filterArguments(int pos, MethodHandle... filters) {
+    public GuardedInvocation filterArguments(final int pos, final MethodHandle... filters) {
         return replaceMethods(MethodHandles.filterArguments(invocation, pos, filters), guard == null ? null :
             MethodHandles.filterArguments(guard, pos, filters));
     }
@@ -268,7 +268,7 @@ public class GuardedInvocation {
      * @param valueTypes the types of the values being dropped
      * @return an invocation that drops arguments
      */
-    public GuardedInvocation dropArguments(int pos, List<Class<?>> valueTypes) {
+    public GuardedInvocation dropArguments(final int pos, final List<Class<?>> valueTypes) {
         return replaceMethods(MethodHandles.dropArguments(invocation, pos, valueTypes), guard == null ? null :
             MethodHandles.dropArguments(guard, pos, valueTypes));
     }
@@ -279,7 +279,7 @@ public class GuardedInvocation {
      * @param valueTypes the types of the values being dropped
      * @return an invocation that drops arguments
      */
-    public GuardedInvocation dropArguments(int pos, Class<?>... valueTypes) {
+    public GuardedInvocation dropArguments(final int pos, final Class<?>... valueTypes) {
         return replaceMethods(MethodHandles.dropArguments(invocation, pos, valueTypes), guard == null ? null :
             MethodHandles.dropArguments(guard, pos, valueTypes));
     }
@@ -290,7 +290,7 @@ public class GuardedInvocation {
      * @param fallback the fallback method handle in case switchpoint is invalidated or guard returns false.
      * @return a composite method handle.
      */
-    public MethodHandle compose(MethodHandle fallback) {
+    public MethodHandle compose(final MethodHandle fallback) {
         return compose(fallback, fallback);
     }
 
@@ -300,13 +300,13 @@ public class GuardedInvocation {
      * @param guardFallback the fallback method handle in case guard returns false.
      * @return a composite method handle.
      */
-    public MethodHandle compose(MethodHandle switchpointFallback, MethodHandle guardFallback) {
+    public MethodHandle compose(final MethodHandle switchpointFallback, final MethodHandle guardFallback) {
         final MethodHandle guarded =
                 guard == null ? invocation : MethodHandles.guardWithTest(guard, invocation, guardFallback);
         return switchPoint == null ? guarded : switchPoint.guardWithTest(guarded, switchpointFallback);
     }
 
-    private static void assertType(MethodHandle mh, MethodType type) {
+    private static void assertType(final MethodHandle mh, final MethodType type) {
         if(!mh.type().equals(type)) {
             throw new WrongMethodTypeException("Expected type: " + type + " actual type: " + mh.type());
         }

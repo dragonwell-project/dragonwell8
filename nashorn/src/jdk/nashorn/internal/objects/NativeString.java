@@ -155,7 +155,7 @@ public final class NativeString extends ScriptObject {
 
         if (returnType == Object.class && (self instanceof String || self instanceof ConsString)) {
             try {
-                MethodHandle mh = MH.findStatic(MethodHandles.lookup(), NativeString.class, "get", desc.getMethodType());
+                final MethodHandle mh = MH.findStatic(MethodHandles.lookup(), NativeString.class, "get", desc.getMethodType());
                 return new GuardedInvocation(mh, NashornGuards.getInstanceOf2Guard(String.class, ConsString.class));
             } catch (final LookupException e) {
                 // Shouldn't happen. Fall back to super
@@ -882,7 +882,7 @@ public final class NativeString extends ScriptObject {
         return splitString(str, JSType.toString(separator), lim);
     }
 
-    private static ScriptObject splitString(String str, String separator, long limit) {
+    private static ScriptObject splitString(final String str, final String separator, final long limit) {
         if (separator.isEmpty()) {
             final int length = (int) Math.min(str.length(), limit);
             final Object[] array = new Object[length];
@@ -899,7 +899,7 @@ public final class NativeString extends ScriptObject {
         int n = 0;
 
         while (pos < strLength && n < limit) {
-            int found = str.indexOf(separator, pos);
+            final int found = str.indexOf(separator, pos);
             if (found == -1) {
                 break;
             }
@@ -1092,7 +1092,7 @@ public final class NativeString extends ScriptObject {
 
         final String str = checkObjectToString(self);
         int start = 0;
-        int end   = str.length() - 1;
+        final int end   = str.length() - 1;
 
         while (start <= end && ScriptRuntime.isJSWhitespace(str.charAt(start))) {
             start++;
@@ -1110,7 +1110,7 @@ public final class NativeString extends ScriptObject {
     public static String trimRight(final Object self) {
 
         final String str = checkObjectToString(self);
-        int start = 0;
+        final int start = 0;
         int end   = str.length() - 1;
 
         while (end >= start && ScriptRuntime.isJSWhitespace(str.charAt(end))) {

@@ -25,18 +25,16 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.Callable;
-
 import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.lookup.Lookup;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
-
-import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
-import jdk.nashorn.internal.objects.Global;
-import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
-import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 /**
  * Property with user defined getters/setters. Actual getter and setter

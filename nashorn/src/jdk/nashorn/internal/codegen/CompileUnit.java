@@ -118,7 +118,7 @@ public class CompileUnit implements Comparable<CompileUnit> {
     }
 
     @Override
-    public int compareTo(CompileUnit o) {
+    public int compareTo(final CompileUnit o) {
         return className.compareTo(o.className);
     }
 }

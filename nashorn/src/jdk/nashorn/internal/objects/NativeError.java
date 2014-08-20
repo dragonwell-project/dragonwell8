@@ -25,12 +25,11 @@
 
 package jdk.nashorn.internal.objects;
 
-import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-
 import jdk.nashorn.api.scripting.NashornException;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
@@ -41,8 +40,8 @@ import jdk.nashorn.internal.objects.annotations.Where;
 import jdk.nashorn.internal.runtime.ECMAException;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptFunction;
+import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 
 /**
@@ -326,7 +325,7 @@ public final class NativeError extends ScriptObject {
 
         final Object exception = ECMAException.getException(sobj);
         if (exception instanceof Throwable) {
-            Object value = getScriptStackString(sobj, (Throwable)exception);
+            final Object value = getScriptStackString(sobj, (Throwable)exception);
             if (sobj.hasOwnProperty(STACK)) {
                 sobj.put(STACK, value, false);
             } else {

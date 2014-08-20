@@ -40,10 +40,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import jdk.nashorn.tools.Shell;
 import org.testng.Assert;
 import org.testng.ITest;
@@ -86,7 +84,7 @@ public final class ScriptRunnable extends AbstractScriptRunnable implements ITes
 
     // avoid direct System.out.println - use reporter to capture
     @Override
-    protected void log(String msg) {
+    protected void log(final String msg) {
         org.testng.Reporter.log(msg, true);
     }
 
@@ -174,7 +172,7 @@ public final class ScriptRunnable extends AbstractScriptRunnable implements ITes
 
         cmd.add(System.getProperty("java.home") + separator + "bin" + separator + "java");
         cmd.add("-Djava.ext.dirs=dist");
-        for (String str : forkJVMOptions) {
+        for (final String str : forkJVMOptions) {
             cmd.add(str);
         }
         cmd.add(Shell.class.getName());

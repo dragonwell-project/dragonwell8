@@ -285,7 +285,7 @@ public abstract class ScriptFunctionData implements Serializable {
         // Clear the callee and this flags
         final int boundFlags = flags & ~NEEDS_CALLEE & ~USES_THIS;
 
-        CompiledFunctions boundList = new CompiledFunctions();
+        final CompiledFunctions boundList = new CompiledFunctions();
         if (code.size() == 1) {
             // only one variant - bind that
             boundList.add(bind(code.first(), fn, self, allArgs));

@@ -150,7 +150,7 @@ public final class BinaryNode extends Expression implements Assignment<Expressio
     }
 
     @Override
-    public BinaryNode setAssignmentDest(Expression n) {
+    public BinaryNode setAssignmentDest(final Expression n) {
         return setLHS(n);
     }
 

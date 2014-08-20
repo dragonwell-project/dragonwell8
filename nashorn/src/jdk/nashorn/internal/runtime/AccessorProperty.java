@@ -69,7 +69,7 @@ public final class AccessorProperty extends Property implements Serializable {
      */
     private static ClassValue<GettersSetters> GETTERS_SETTERS = new ClassValue<GettersSetters>() {
         @Override
-        protected GettersSetters computeValue(Class<?> structure) {
+        protected GettersSetters computeValue(final Class<?> structure) {
             return new GettersSetters(structure);
         }
     };
@@ -224,7 +224,7 @@ public final class AccessorProperty extends Property implements Serializable {
         final MethodHandle[] getters;
         final MethodHandle[] setters;
 
-        public GettersSetters(Class<?> structure) {
+        public GettersSetters(final Class<?> structure) {
             final int fieldCount = ObjectClassGenerator.getFieldCount(structure);
             getters = new MethodHandle[fieldCount];
             setters = new MethodHandle[fieldCount];

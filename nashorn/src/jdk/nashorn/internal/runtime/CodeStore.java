@@ -86,7 +86,7 @@ final class CodeStore {
                     return dir;
                 }
             });
-        } catch (PrivilegedActionException e) {
+        } catch (final PrivilegedActionException e) {
             throw (IOException) e.getException();
         }
     }
@@ -114,13 +114,13 @@ final class CodeStore {
                         return null;
                     }
                     try (ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-                        CompiledScript compiledScript = (CompiledScript) in.readObject();
+                        final CompiledScript compiledScript = (CompiledScript) in.readObject();
                         compiledScript.setSource(source);
                         return compiledScript;
                     }
                 }
             });
-        } catch (PrivilegedActionException e) {
+        } catch (final PrivilegedActionException e) {
             final Exception ex = e.getException();
             if (ex instanceof IOException) {
                 throw  (IOException) ex;
@@ -165,7 +165,7 @@ final class CodeStore {
                     return null;
                 }
             });
-        } catch (PrivilegedActionException e) {
+        } catch (final PrivilegedActionException e) {
              throw (IOException) e.getException();
         }
     }

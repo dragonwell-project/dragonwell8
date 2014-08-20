@@ -127,7 +127,7 @@ public class SpillObjectCreator extends ObjectCreator {
         }
 
         // Create properties with non-constant values
-        for (int i : postsetValues) {
+        for (final int i : postsetValues) {
             final String key = keys.get(i);
             final Property property = propertyMap.findProperty(key);
 
@@ -154,7 +154,7 @@ public class SpillObjectCreator extends ObjectCreator {
 
         propertyMap = new MapCreator(JO.class, keys, symbols) {
             @Override
-            protected int getPropertyFlags(Symbol symbol, boolean hasArguments) {
+            protected int getPropertyFlags(final Symbol symbol, final boolean hasArguments) {
                 return super.getPropertyFlags(symbol, hasArguments) | Property.IS_SPILL | Property.IS_ALWAYS_OBJECT;
             }
         }.makeSpillMap(false);
