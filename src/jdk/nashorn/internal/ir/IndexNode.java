@@ -103,7 +103,7 @@ public final class IndexNode extends BaseNode {
      * @param index new index expression
      * @return a node equivalent to this one except for the requested change.
      */
-    public IndexNode setIndex(Expression index) {
+    public IndexNode setIndex(final Expression index) {
         if(this.index == index) {
             return this;
         }

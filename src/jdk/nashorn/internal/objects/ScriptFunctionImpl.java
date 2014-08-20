@@ -30,6 +30,7 @@ import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.GlobalFunctions;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
@@ -37,7 +38,6 @@ import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptObject;
-import jdk.nashorn.internal.runtime.AccessorProperty;
 
 /**
  * Concrete implementation of ScriptFunction. This sets correct map for the
@@ -226,7 +226,7 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @return a function with the specified self and parameters bound.
      */
     @Override
-    protected ScriptFunction makeBoundFunction(Object self, Object[] args) {
+    protected ScriptFunction makeBoundFunction(final Object self, final Object[] args) {
         return super.makeBoundFunction(self, args);
     }
 

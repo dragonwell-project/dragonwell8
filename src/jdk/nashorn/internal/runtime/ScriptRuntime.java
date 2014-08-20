@@ -271,7 +271,7 @@ public final class ScriptRuntime {
         private final int length;
         private int index;
 
-        RangeIterator(int length) {
+        RangeIterator(final int length) {
             this.length = length;
         }
 

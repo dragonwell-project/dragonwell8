@@ -149,7 +149,7 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
         final LexicalContext lc = new LexicalContext();
         block.accept(lc, new NodeVisitor<LexicalContext>(lc) {
             @Override
-            public boolean enterVarNode(VarNode varNode) {
+            public boolean enterVarNode(final VarNode varNode) {
                 statements.add(varNode.setInit(null));
                 return false;
             }
@@ -261,7 +261,7 @@ final class FoldConstants extends NodeVisitor<LexicalContext> {
                 break;
             case ADD:
                 if ((lhs.isString() || rhs.isNumeric()) && (rhs.isString() || rhs.isNumeric())) {
-                    Object res = ScriptRuntime.ADD(lhs.getObject(), rhs.getObject());
+                    final Object res = ScriptRuntime.ADD(lhs.getObject(), rhs.getObject());
                     if (res instanceof Number) {
                         value = ((Number)res).doubleValue();
                         break;

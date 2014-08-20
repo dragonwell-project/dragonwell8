@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.runtime;
 
-import static jdk.nashorn.internal.runtime.ECMAErrors.referenceError;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.ECMAErrors.referenceError;
 
 import java.lang.invoke.MethodHandle;
 import jdk.internal.dynalink.CallSiteDescriptor;
@@ -165,7 +165,7 @@ final class SetMethodCreator {
         final PropertyMap oldMap = getMap();
         final Property property = new AccessorProperty(getName(), 0, sobj.getClass(), oldMap.getFieldCount());
         final PropertyMap newMap = oldMap.addProperty(property);
-        MethodHandle setter = MH.insertArguments(ScriptObject.SETFIELD, 0, desc, oldMap, newMap, property.getSetter(Object.class, newMap));
+        final MethodHandle setter = MH.insertArguments(ScriptObject.SETFIELD, 0, desc, oldMap, newMap, property.getSetter(Object.class, newMap));
 
         return new SetMethod(MH.asType(setter, Lookup.SET_OBJECT_TYPE), property);
     }
@@ -177,7 +177,7 @@ final class SetMethodCreator {
         return new SetMethod(createSpillMethodHandle(nextSpill, property), property);
     }
 
-    private MethodHandle createSpillMethodHandle(final int nextSpill, Property property) {
+    private MethodHandle createSpillMethodHandle(final int nextSpill, final Property property) {
         final PropertyMap oldMap = getMap();
         final PropertyMap newMap = getNewMap(property);
 
@@ -192,7 +192,7 @@ final class SetMethodCreator {
         }
     }
 
-    private PropertyMap getNewMap(Property property) {
+    private PropertyMap getNewMap(final Property property) {
         return getMap().addProperty(property);
     }
 }

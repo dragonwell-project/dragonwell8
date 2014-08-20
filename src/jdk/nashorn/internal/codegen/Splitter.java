@@ -138,7 +138,7 @@ final class Splitter extends NodeVisitor<LexicalContext> {
 
             @Override
             public Node leaveFunctionNode(final FunctionNode nestedFunction) {
-                FunctionNode split = new Splitter(compiler, nestedFunction, outermostCompileUnit).split(nestedFunction);
+                final FunctionNode split = new Splitter(compiler, nestedFunction, outermostCompileUnit).split(nestedFunction);
                 lc.replace(nestedFunction, split);
                 return split;
             }

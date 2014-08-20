@@ -31,7 +31,6 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
-
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.Block;
 import jdk.nashorn.internal.ir.FunctionNode;
@@ -108,7 +107,7 @@ final class CodeGeneratorLexicalContext extends LexicalContext {
         return dynamicScopeCount > 0;
     }
 
-    static boolean isFunctionDynamicScope(FunctionNode fn) {
+    static boolean isFunctionDynamicScope(final FunctionNode fn) {
         return fn.hasEval() && !fn.isStrict();
     }
 

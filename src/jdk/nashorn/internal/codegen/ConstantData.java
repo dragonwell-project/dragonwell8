@@ -25,14 +25,13 @@
 
 package jdk.nashorn.internal.codegen;
 
-import jdk.nashorn.internal.runtime.Property;
-import jdk.nashorn.internal.runtime.PropertyMap;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import jdk.nashorn.internal.runtime.Property;
+import jdk.nashorn.internal.runtime.PropertyMap;
 
 /**
  * Manages constants needed by code generation.  Objects are maintained in an

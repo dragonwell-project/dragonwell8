@@ -270,7 +270,7 @@ public enum JSType {
      *
      * @return the string form of the primitive form of the object
      */
-    public static String toPrimitiveToString(Object obj) {
+    public static String toPrimitiveToString(final Object obj) {
         return toString(toPrimitive(obj));
     }
 

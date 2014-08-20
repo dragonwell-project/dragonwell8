@@ -195,7 +195,7 @@ enum CompilationPhase {
                 @Override
                 public Node leaveFunctionNode(final FunctionNode node) {
                     if (node.isLazy()) {
-                        FunctionNode newNode = node.setReturnType(lc, Type.OBJECT);
+                        final FunctionNode newNode = node.setReturnType(lc, Type.OBJECT);
                         return ts.ensureSymbol(lc, Type.OBJECT, newNode);
                     }
                     //node may have a reference here that needs to be nulled if it was referred to by

@@ -449,7 +449,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
 
             @Override
-            public boolean enterFunctionNode(FunctionNode functionNode) {
+            public boolean enterFunctionNode(final FunctionNode functionNode) {
                 // function nodes will always leave a constructed function object on stack, no need to load the symbol
                 // separately as in enterDefault()
                 lc.pop(functionNode);
@@ -464,12 +464,12 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             }
 
             @Override
-            public boolean enterCallNode(CallNode callNode) {
+            public boolean enterCallNode(final CallNode callNode) {
                 return codegen.enterCallNode(callNode, type);
             }
 
             @Override
-            public boolean enterLiteralNode(LiteralNode<?> literalNode) {
+            public boolean enterLiteralNode(final LiteralNode<?> literalNode) {
                 return codegen.enterLiteralNode(literalNode, type);
             }
 
@@ -1182,7 +1182,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         lineNumber(statement.getLineNumber());
     }
 
-    private void lineNumber(int lineNumber) {
+    private void lineNumber(final int lineNumber) {
         if (lineNumber != lastLineNumber) {
             method.lineNumber(lineNumber);
         }
@@ -1444,7 +1444,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         boolean hasGettersSetters = false;
         Expression protoNode = null;
 
-        for (PropertyNode propertyNode: elements) {
+        for (final PropertyNode propertyNode: elements) {
             final Expression   value        = propertyNode.getValue();
             final String       key          = propertyNode.getKeyName();
             final Symbol       symbol       = value == null ? null : propertyNode.getKey().getSymbol();
@@ -1708,7 +1708,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             case GT:
                 return enterCmp(lhs, rhs, Condition.GT, type, symbol);
             case ADD:
-                Type widest = Type.widest(lhs.getType(), rhs.getType());
+                final Type widest = Type.widest(lhs.getType(), rhs.getType());
                 load(lhs, widest);
                 load(rhs, widest);
                 method.add();
@@ -2173,7 +2173,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
         if (needsScope) {
             load(init);
-            int flags = CALLSITE_SCOPE | getCallSiteFlags();
+            final int flags = CALLSITE_SCOPE | getCallSiteFlags();
             if (isFastScope(identSymbol)) {
                 storeFastScopeVar(identSymbol, flags);
             } else {
@@ -3163,7 +3163,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
              */
             target.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
                 @Override
-                protected boolean enterDefault(Node node) {
+                protected boolean enterDefault(final Node node) {
                     throw new AssertionError("Unexpected node " + node + " in store epilogue");
                 }
 

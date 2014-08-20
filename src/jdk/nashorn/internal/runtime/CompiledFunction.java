@@ -26,7 +26,6 @@ package jdk.nashorn.internal.runtime;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
-
 import jdk.nashorn.internal.codegen.types.Type;
 
 /**
@@ -105,7 +104,7 @@ final class CompiledFunction implements Comparable<CompiledFunction> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         return obj instanceof CompiledFunction && type().equals(((CompiledFunction)obj).type());
     }
 

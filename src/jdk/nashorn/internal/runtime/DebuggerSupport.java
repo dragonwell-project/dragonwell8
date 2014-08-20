@@ -53,6 +53,7 @@ final class DebuggerSupport {
          * available to external debuggers.
          */
         @SuppressWarnings("unused")
+        final
         DebuggerValueDesc forceLoad = new DebuggerValueDesc(null, false, null, null);
 
         // Hook to force the loading of the SourceInfo class
@@ -155,7 +156,7 @@ final class DebuggerSupport {
 
         try {
             return context.eval(initialScope, string, callThis, ScriptRuntime.UNDEFINED, false);
-        } catch (Throwable ex) {
+        } catch (final Throwable ex) {
             return returnException ? ex : null;
         }
     }

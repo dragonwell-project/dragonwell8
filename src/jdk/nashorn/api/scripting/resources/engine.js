@@ -43,7 +43,7 @@ function print() {
     if (! (writer instanceof java.io.PrintWriter)) {
         writer = new java.io.PrintWriter(writer);
     }
-    
+
     var buf = new java.lang.StringBuilder();
     for (var i = 0; i < arguments.length; i++) {
         if (i != 0) {

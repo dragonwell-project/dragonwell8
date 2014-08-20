@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.parser;
 
-import static jdk.nashorn.internal.codegen.CompilerConstants.EVAL;
 import static jdk.nashorn.internal.codegen.CompilerConstants.ANON_FUNCTION_PREFIX;
+import static jdk.nashorn.internal.codegen.CompilerConstants.EVAL;
 import static jdk.nashorn.internal.codegen.CompilerConstants.RUN_SCRIPT;
 import static jdk.nashorn.internal.parser.TokenType.ASSIGN;
 import static jdk.nashorn.internal.parser.TokenType.CASE;
@@ -410,7 +410,7 @@ loop:
         }
 
         // Start new block.
-        FunctionNode functionNode =
+        final FunctionNode functionNode =
             new FunctionNode(
                 source,
                 line, //TODO?
@@ -986,7 +986,7 @@ loop:
 
         // If is a statement then handle end of line.
         if (isStatement) {
-            boolean semicolon = type == SEMICOLON;
+            final boolean semicolon = type == SEMICOLON;
             endOfLine();
             if (semicolon) {
                 lc.getCurrentBlock().setFinish(finish);
@@ -2164,7 +2164,7 @@ loop:
                         argIdent = null;
                     }
                     expect(RPAREN);
-                    List<IdentNode> parameters = new ArrayList<>();
+                    final List<IdentNode> parameters = new ArrayList<>();
                     if (argIdent != null) {
                         parameters.add(argIdent);
                     }
@@ -2429,7 +2429,7 @@ loop:
         return nodeList;
     }
 
-    private static <T> List<T> optimizeList(ArrayList<T> list) {
+    private static <T> List<T> optimizeList(final ArrayList<T> list) {
         switch(list.size()) {
             case 0: {
                 return Collections.emptyList();

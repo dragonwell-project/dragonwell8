@@ -27,20 +27,14 @@ package jdk.nashorn.internal.codegen;
 
 import static jdk.nashorn.internal.codegen.CompilerConstants.ARGUMENTS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.CALLEE;
-import static jdk.nashorn.internal.codegen.CompilerConstants.CONSTANTS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.DEFAULT_SCRIPT_NAME;
 import static jdk.nashorn.internal.codegen.CompilerConstants.LAZY;
 import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
-import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.THIS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.VARARGS;
 
 import java.io.File;
-import java.lang.reflect.Field;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -316,7 +310,7 @@ public final class Compiler {
 
         Collections.sort(list, new Comparator<ClassHistogramElement>() {
             @Override
-            public int compare(ClassHistogramElement o1, ClassHistogramElement o2) {
+            public int compare(final ClassHistogramElement o1, final ClassHistogramElement o2) {
                 final long diff = o1.getBytes() - o2.getBytes();
                 if (diff < 0) {
                     return 1;

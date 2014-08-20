@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.parser;
 
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
 import static jdk.nashorn.internal.runtime.Source.readFully;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.io.File;
 import jdk.nashorn.internal.runtime.Context;
@@ -53,7 +53,7 @@ public class ParserTest {
         public boolean exclude(File file, String content);
     }
 
-    private void log(String msg) {
+    private void log(final String msg) {
         org.testng.Reporter.log(msg, true);
     }
 
@@ -67,7 +67,7 @@ public class ParserTest {
         options.set("scripting", true);
         options.set("const.as.var", true);
 
-        ErrorManager errors = new ErrorManager();
+        final ErrorManager errors = new ErrorManager();
         this.context = new Context(options, errors, Thread.currentThread().getContextClassLoader());
     }
 

@@ -106,7 +106,7 @@ public final class UnaryNode extends Expression implements Assignment<Expression
     }
 
     @Override
-    public UnaryNode setAssignmentDest(Expression n) {
+    public UnaryNode setAssignmentDest(final Expression n) {
         return setRHS(n);
     }
 

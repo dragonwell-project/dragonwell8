@@ -307,7 +307,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     }
 
     private static boolean canCoerce(final Object arg, final Type type) {
-        Type argType = runtimeType(arg);
+        final Type argType = runtimeType(arg);
         if (Type.widest(argType, type) == type || arg == ScriptRuntime.UNDEFINED) {
             return true;
         }
@@ -322,7 +322,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         assert args.length >= paramTypes.length;
 
         //i==start, skip the this, callee params etc
-        int start = args.length - paramTypes.length;
+        final int start = args.length - paramTypes.length;
         for (int i = start; i < args.length; i++) {
             final Object arg = args[i];
             if (!canCoerce(arg, paramTypes[i - start])) {

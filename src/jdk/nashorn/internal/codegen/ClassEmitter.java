@@ -58,7 +58,6 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
-
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
@@ -636,7 +635,7 @@ public class ClassEmitter implements Emitter {
         }
     }
 
-    private MethodVisitor methodVisitor(EnumSet<Flag> flags, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
+    private MethodVisitor methodVisitor(final EnumSet<Flag> flags, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
         return cw.visitMethod(Flag.getValue(flags), methodName, methodDescriptor(rtype, ptypes), null, null);
     }
 

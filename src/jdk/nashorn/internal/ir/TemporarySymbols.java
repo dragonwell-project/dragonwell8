@@ -79,7 +79,7 @@ public class TemporarySymbols {
      * This method is called to signal to this object that all the symbols it holds can be reused now.
      */
     public void reuse() {
-        for(TypedTemporarySymbols ts: temporarySymbolsByType.values()) {
+        for(final TypedTemporarySymbols ts: temporarySymbolsByType.values()) {
             ts.reuse();
         }
     }
@@ -89,7 +89,7 @@ public class TemporarySymbols {
      * @param symbol the shared symbol
      * @return the unshared, uniquely named copy of the symbol
      */
-    public Symbol createUnshared(Symbol symbol) {
+    public Symbol createUnshared(final Symbol symbol) {
         return symbol.createUnshared(getUniqueName());
     }
 
@@ -148,7 +148,7 @@ public class TemporarySymbols {
             return symbol;
         }
 
-        private void addSymbol(Symbol symbol) {
+        private void addSymbol(final Symbol symbol) {
             ensureCapacity();
             symbols[symbolCount++] = symbol;
         }

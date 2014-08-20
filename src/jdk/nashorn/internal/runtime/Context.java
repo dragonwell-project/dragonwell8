@@ -43,7 +43,6 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.concurrent.atomic.AtomicLong;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.AccessControlContext;
@@ -58,7 +57,7 @@ import java.security.ProtectionDomain;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import java.util.concurrent.atomic.AtomicLong;
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.util.CheckClassAdapter;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -422,7 +421,7 @@ public final class Context {
                 try {
                     final String cacheDir = Options.getStringProperty("nashorn.persistent.code.cache", "nashorn_code_cache");
                     codeStore = new CodeStore(cacheDir);
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw new RuntimeException("Error initializing code cache", e);
                 }
             }
@@ -581,7 +580,7 @@ public final class Context {
             scope = strictEvalScope;
         }
 
-        ScriptFunction func = getRunScriptFunction(clazz, scope);
+        final ScriptFunction func = getRunScriptFunction(clazz, scope);
         Object evalThis;
         if (directEval) {
             evalThis = (callThis instanceof ScriptObject || strictFlag) ? callThis : global;
@@ -634,7 +633,7 @@ public final class Context {
         if (src instanceof String) {
             final String srcStr = (String)src;
             if (srcStr.startsWith(LOAD_CLASSPATH)) {
-                URL url = getResourceURL(srcStr.substring(LOAD_CLASSPATH.length()));
+                final URL url = getResourceURL(srcStr.substring(LOAD_CLASSPATH.length()));
                 source = (url != null)? sourceFor(url.toString(), url) : null;
             } else {
                 final File file = new File(srcStr);
@@ -1009,7 +1008,7 @@ public final class Context {
 
         // Get run method - the entry point to the script
         final MethodHandle runMethodHandle = getRunScriptHandle(script);
-        boolean strict = isStrict(script);
+        final boolean strict = isStrict(script);
 
         // Package as a JavaScript function and pass function back to shell.
         return Context.getGlobal().newScriptFunction(RUN_SCRIPT.symbolName(), runMethodHandle, scope, strict);
@@ -1123,7 +1122,7 @@ public final class Context {
 
             installedClasses.put(className, installer.install(className, code, source, constants));
         }
-        for (Object constant : constants) {
+        for (final Object constant : constants) {
             if (constant instanceof RecompilableScriptFunctionData) {
                 ((RecompilableScriptFunctionData) constant).setCodeAndSource(installedClasses, source);
             }
@@ -1140,7 +1139,7 @@ public final class Context {
         private final int size;
         private final ReferenceQueue<Class<?>> queue;
 
-        ClassCache(int size) {
+        ClassCache(final int size) {
             super(size, 0.75f, true);
             this.size = size;
             this.queue = new ReferenceQueue<>();
@@ -1156,7 +1155,7 @@ public final class Context {
         }
 
         @Override
-        public ClassReference get(Object key) {
+        public ClassReference get(final Object key) {
             for (ClassReference ref; (ref = (ClassReference)queue.poll()) != null; ) {
                 remove(ref.source);
             }
@@ -1176,7 +1175,7 @@ public final class Context {
 
     // Class cache management
     private Class<?> findCachedClass(final Source source) {
-        ClassReference ref = classCache == null ? null : classCache.get(source);
+        final ClassReference ref = classCache == null ? null : classCache.get(source);
         return ref != null ? ref.get() : null;
     }
 

@@ -81,7 +81,7 @@ public final class ForNode extends LoopNode {
     }
 
     @Override
-    public Node ensureUniqueLabels(LexicalContext lc) {
+    public Node ensureUniqueLabels(final LexicalContext lc) {
         return Node.replaceInLexicalContext(lc, this, new ForNode(this, init, test, body, modify, flags, controlFlowEscapes));
     }
 

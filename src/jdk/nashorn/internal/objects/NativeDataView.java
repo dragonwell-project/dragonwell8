@@ -24,9 +24,9 @@
  */
 package jdk.nashorn.internal.objects;
 
-import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 import static jdk.nashorn.internal.runtime.ECMAErrors.rangeError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -88,15 +88,15 @@ public class NativeDataView extends ScriptObject {
     // underlying ByteBuffer
     private final ByteBuffer buf;
 
-    private NativeDataView(NativeArrayBuffer arrBuf) {
+    private NativeDataView(final NativeArrayBuffer arrBuf) {
         this(arrBuf, arrBuf.getBuffer(), 0);
     }
 
-    private NativeDataView(NativeArrayBuffer arrBuf, int offset) {
+    private NativeDataView(final NativeArrayBuffer arrBuf, final int offset) {
         this(arrBuf, bufferFrom(arrBuf, offset), offset);
     }
 
-    private NativeDataView(NativeArrayBuffer arrBuf, int offset, int length) {
+    private NativeDataView(final NativeArrayBuffer arrBuf, final int offset, final int length) {
         this(arrBuf, bufferFrom(arrBuf, offset, length), offset, length);
     }
 

@@ -523,7 +523,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     @Override
-    public FunctionNode setFlags(final LexicalContext lc, int flags) {
+    public FunctionNode setFlags(final LexicalContext lc, final int flags) {
         if (this.flags == flags) {
             return this;
         }

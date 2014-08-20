@@ -422,7 +422,7 @@ final class JavaAdapterBytecodeGenerator {
         // Invoke super constructor with the same arguments.
         mv.visitVarInsn(ALOAD, 0);
         int offset = 1; // First arg is at position 1, after this.
-        for (Type argType: argTypes) {
+        for (final Type argType: argTypes) {
             mv.load(offset, argType);
             offset += argType.getSize();
         }
@@ -805,7 +805,7 @@ final class JavaAdapterBytecodeGenerator {
         }
     }
 
-    private void generateSuperMethod(MethodInfo mi) {
+    private void generateSuperMethod(final MethodInfo mi) {
         final Method method = mi.method;
 
         final String methodDesc = mi.type.toMethodDescriptorString();

@@ -34,7 +34,7 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 @Immutable
 public class ContinueNode extends Statement {
 
-    private IdentNode label;
+    private final IdentNode label;
 
     /**
      * Constructor

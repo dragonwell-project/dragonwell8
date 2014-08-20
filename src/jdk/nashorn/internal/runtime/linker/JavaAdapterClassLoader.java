@@ -48,7 +48,7 @@ final class JavaAdapterClassLoader {
     private final String className;
     private final byte[] classBytes;
 
-    JavaAdapterClassLoader(String className, byte[] classBytes) {
+    JavaAdapterClassLoader(final String className, final byte[] classBytes) {
         this.className = className.replace('/', '.');
         this.classBytes = classBytes;
     }

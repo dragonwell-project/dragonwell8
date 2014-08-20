@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.runtime;
 
-import static jdk.nashorn.internal.runtime.JSType.digit;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.JSType.digit;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;

@@ -30,7 +30,6 @@ import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.util.List;
-
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
@@ -148,7 +147,7 @@ public final class NativeFunction {
             throw typeError("not.a.function", ScriptRuntime.safeToString(self));
         }
 
-        Object thiz = (args.length == 0) ? UNDEFINED : args[0];
+        final Object thiz = (args.length == 0) ? UNDEFINED : args[0];
         Object[] arguments;
 
         if (args.length > 1) {

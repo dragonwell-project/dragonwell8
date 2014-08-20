@@ -112,7 +112,7 @@ public class ChainedCallSite extends AbstractRelinkableCallSite {
      * Creates a new chained call site.
      * @param descriptor the descriptor for the call site.
      */
-    public ChainedCallSite(CallSiteDescriptor descriptor) {
+    public ChainedCallSite(final CallSiteDescriptor descriptor) {
         super(descriptor);
     }
 
@@ -126,23 +126,23 @@ public class ChainedCallSite extends AbstractRelinkableCallSite {
     }
 
     @Override
-    public void relink(GuardedInvocation guardedInvocation, MethodHandle fallback) {
+    public void relink(final GuardedInvocation guardedInvocation, final MethodHandle fallback) {
         relinkInternal(guardedInvocation, fallback, false);
     }
 
     @Override
-    public void resetAndRelink(GuardedInvocation guardedInvocation, MethodHandle fallback) {
+    public void resetAndRelink(final GuardedInvocation guardedInvocation, final MethodHandle fallback) {
         relinkInternal(guardedInvocation, fallback, true);
     }
 
-    private MethodHandle relinkInternal(GuardedInvocation invocation, MethodHandle relink, boolean reset) {
+    private MethodHandle relinkInternal(final GuardedInvocation invocation, final MethodHandle relink, final boolean reset) {
         final LinkedList<GuardedInvocation> currentInvocations = invocations.get();
         @SuppressWarnings({ "unchecked", "rawtypes" })
         final LinkedList<GuardedInvocation> newInvocations =
             currentInvocations == null || reset ? new LinkedList<>() : (LinkedList)currentInvocations.clone();
 
         // First, prune the chain of invalidated switchpoints.
-        for(Iterator<GuardedInvocation> it = newInvocations.iterator(); it.hasNext();) {
+        for(final Iterator<GuardedInvocation> it = newInvocations.iterator(); it.hasNext();) {
             if(it.next().hasBeenInvalidated()) {
                 it.remove();
             }
@@ -164,7 +164,7 @@ public class ChainedCallSite extends AbstractRelinkableCallSite {
 
         // Fold the new chain
         MethodHandle target = relink;
-        for(GuardedInvocation inv: newInvocations) {
+        for(final GuardedInvocation inv: newInvocations) {
             target = inv.compose(pruneAndInvoke, target);
         }
 
@@ -183,7 +183,7 @@ public class ChainedCallSite extends AbstractRelinkableCallSite {
      * @param relink the ultimate fallback for the chain (the {@code DynamicLinker}'s relink).
      * @return a method handle for prune-and-invoke
      */
-    private MethodHandle makePruneAndInvokeMethod(MethodHandle relink) {
+    private MethodHandle makePruneAndInvokeMethod(final MethodHandle relink) {
         // Bind prune to (this, relink)
         final MethodHandle boundPrune = MethodHandles.insertArguments(PRUNE, 0, this, relink);
         // Make it ignore all incoming arguments
@@ -193,7 +193,7 @@ public class ChainedCallSite extends AbstractRelinkableCallSite {
     }
 
     @SuppressWarnings("unused")
-    private MethodHandle prune(MethodHandle relink) {
+    private MethodHandle prune(final MethodHandle relink) {
         return relinkInternal(null, relink, false);
     }
 }

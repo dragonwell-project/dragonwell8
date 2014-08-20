@@ -107,7 +107,7 @@ public final class Source {
                 CACHE.put(newSource, newSource);
                 return newSource;
             }
-        } catch (RuntimeException e) {
+        } catch (final RuntimeException e) {
             final Throwable cause = e.getCause();
             if (cause instanceof IOException) {
                 throw (IOException) cause;
@@ -171,7 +171,7 @@ public final class Source {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (this == obj) {
                 return true;
             }
@@ -232,7 +232,7 @@ public final class Source {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (this == other) {
                 return true;
             }
@@ -240,7 +240,7 @@ public final class Source {
                 return false;
             }
 
-            URLData otherData = (URLData) other;
+            final URLData otherData = (URLData) other;
 
             if (url.equals(otherData.url)) {
                 // Make sure both have meta data loaded
@@ -252,7 +252,7 @@ public final class Source {
                     } else if (otherData.isDeferred()) {
                         otherData.loadMeta();
                     }
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     throw new RuntimeException(e);
                 }
 
