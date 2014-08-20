@@ -107,8 +107,8 @@ public final class ScriptingFunctions {
 
         if (file instanceof File) {
             f = (File)file;
-        } else if (file instanceof String) {
-            f = new java.io.File((String)file);
+        } else if (file instanceof String || file instanceof ConsString) {
+            f = new java.io.File(((CharSequence)file).toString());
         }
 
         if (f == null || !f.isFile()) {
@@ -226,9 +226,9 @@ public final class ScriptingFunctions {
         global.set(EXIT_NAME, exit, false);
 
         // Propagate exception if present.
-        for (int i = 0; i < exception.length; i++) {
-            if (exception[i] != null) {
-                throw exception[i];
+        for (final IOException element : exception) {
+            if (element != null) {
+                throw element;
             }
         }
 

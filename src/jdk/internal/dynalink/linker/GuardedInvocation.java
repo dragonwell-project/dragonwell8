@@ -83,6 +83,8 @@
 
 package jdk.internal.dynalink.linker;
 
+import static jdk.nashorn.internal.lookup.Lookup.MH;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -104,7 +106,18 @@ import jdk.internal.dynalink.support.Guards;
 public class GuardedInvocation {
     private final MethodHandle invocation;
     private final MethodHandle guard;
-    private final SwitchPoint switchPoint;
+    private final Class<? extends Throwable> exception;
+    private final SwitchPoint[] switchPoints;
+
+    /**
+     * Creates a new guarded invocation. This invocation is unconditional as it has no invalidations.
+     *
+     * @param invocation the method handle representing the invocation. Must not be null.
+     * @throws NullPointerException if invocation is null.
+     */
+    public GuardedInvocation(final MethodHandle invocation) {
+        this(invocation, null, (SwitchPoint)null, null);
+    }
 
     /**
      * Creates a new guarded invocation.
@@ -116,7 +129,18 @@ public class GuardedInvocation {
      * @throws NullPointerException if invocation is null.
      */
     public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard) {
-        this(invocation, guard, null);
+        this(invocation, guard, (SwitchPoint)null, null);
+    }
+
+    /**
+     * Creates a new guarded invocation.
+     *
+     * @param invocation the method handle representing the invocation. Must not be null.
+     * @param switchPoint the optional switch point that can be used to invalidate this linkage.
+     * @throws NullPointerException if invocation is null.
+     */
+    public GuardedInvocation(final MethodHandle invocation, final SwitchPoint switchPoint) {
+        this(invocation, null, switchPoint, null);
     }
 
     /**
@@ -130,25 +154,49 @@ public class GuardedInvocation {
      * @throws NullPointerException if invocation is null.
      */
     public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard, final SwitchPoint switchPoint) {
-        invocation.getClass(); // NPE check
-        this.invocation = invocation;
-        this.guard = guard;
-        this.switchPoint = switchPoint;
+        this(invocation, guard, switchPoint, null);
     }
 
     /**
      * Creates a new guarded invocation.
      *
      * @param invocation the method handle representing the invocation. Must not be null.
-     * @param switchPoint the optional switch point that can be used to invalidate this linkage.
      * @param guard the method handle representing the guard. Must have the same method type as the invocation, except
      * it must return boolean. For some useful guards, check out the {@link Guards} class. It can be null. If both it
      * and the switch point are null, this represents an unconditional invocation, which is legal but unusual.
+     * @param switchPoint the optional switch point that can be used to invalidate this linkage.
+     * @param exception the optional exception type that is expected to be thrown by the invocation and that also
+     * invalidates the linkage.
      * @throws NullPointerException if invocation is null.
      */
-    public GuardedInvocation(final MethodHandle invocation, final SwitchPoint switchPoint, final MethodHandle guard) {
-        this(invocation, guard, switchPoint);
+    public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard, final SwitchPoint switchPoint, final Class<? extends Throwable> exception) {
+        invocation.getClass(); // NPE check
+        this.invocation = invocation;
+        this.guard = guard;
+        this.switchPoints = switchPoint == null ? null : new SwitchPoint[] { switchPoint };
+        this.exception = exception;
     }
+
+    /**
+     * Creates a new guarded invocation
+     *
+     * @param invocation the method handle representing the invocation. Must not be null.
+     * @param guard the method handle representing the guard. Must have the same method type as the invocation, except
+     * it must return boolean. For some useful guards, check out the {@link Guards} class. It can be null. If both it
+     * and the switch point are null, this represents an unconditional invocation, which is legal but unusual.
+     * @param switchPoints the optional switch points that can be used to invalidate this linkage.
+     * @param exception the optional exception type that is expected to be thrown by the invocation and that also
+     * invalidates the linkage.
+     * @throws NullPointerException if invocation is null.
+     */
+    public GuardedInvocation(final MethodHandle invocation, final MethodHandle guard, final SwitchPoint[] switchPoints, final Class<? extends Throwable> exception) {
+        invocation.getClass(); // NPE check
+        this.invocation = invocation;
+        this.guard = guard;
+        this.switchPoints = switchPoints == null ? null : switchPoints.clone();
+        this.exception = exception;
+    }
+
     /**
      * Returns the invocation method handle.
      *
@@ -172,8 +220,17 @@ public class GuardedInvocation {
      *
      * @return the switch point that can be used to invalidate the invocation handle. Can be null.
      */
-    public SwitchPoint getSwitchPoint() {
-        return switchPoint;
+    public SwitchPoint[] getSwitchPoints() {
+        return switchPoints == null ? null : switchPoints.clone();
+    }
+
+    /**
+     * Returns the exception type that if thrown should be used to invalidate the linkage.
+     *
+     * @return the exception type that if thrown should be used to invalidate the linkage. Can be null.
+     */
+    public Class<? extends Throwable> getException() {
+        return exception;
     }
 
     /**
@@ -181,7 +238,15 @@ public class GuardedInvocation {
      * @return true if and only if this guarded invocation has a switchpoint, and that switchpoint has been invalidated.
      */
     public boolean hasBeenInvalidated() {
-        return switchPoint != null && switchPoint.hasBeenInvalidated();
+        if (switchPoints == null) {
+            return false;
+        }
+        for (final SwitchPoint sp : switchPoints) {
+            if (sp.hasBeenInvalidated()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -193,7 +258,7 @@ public class GuardedInvocation {
      */
     public void assertType(final MethodType type) {
         assertType(invocation, type);
-        if(guard != null) {
+        if (guard != null) {
             assertType(guard, type.changeReturnType(Boolean.TYPE));
         }
     }
@@ -206,11 +271,33 @@ public class GuardedInvocation {
      * @return a new guarded invocation with the replaced methods and the same switch point as this invocation.
      */
     public GuardedInvocation replaceMethods(final MethodHandle newInvocation, final MethodHandle newGuard) {
-        return new GuardedInvocation(newInvocation, newGuard, switchPoint);
+        return new GuardedInvocation(newInvocation, newGuard, switchPoints, exception);
+    }
+
+    /**
+     * Add a switchpoint to this guarded invocation
+     * @param newSwitchPoint new switchpoint, or null for nop
+     * @return new guarded invocation with the extra switchpoint
+     */
+    public GuardedInvocation addSwitchPoint(final SwitchPoint newSwitchPoint) {
+        if (newSwitchPoint == null) {
+            return this;
+        }
+
+        final SwitchPoint[] newSwitchPoints;
+        if (switchPoints != null) {
+            newSwitchPoints = new SwitchPoint[switchPoints.length + 1];
+            System.arraycopy(switchPoints, 0, newSwitchPoints, 0, switchPoints.length);
+            newSwitchPoints[switchPoints.length] = newSwitchPoint;
+        } else {
+            newSwitchPoints = new SwitchPoint[] { newSwitchPoint };
+        }
+
+        return new GuardedInvocation(invocation, guard, newSwitchPoints, exception);
     }
 
     private GuardedInvocation replaceMethodsOrThis(final MethodHandle newInvocation, final MethodHandle newGuard) {
-        if(newInvocation == invocation && newGuard == guard) {
+        if (newInvocation == invocation && newGuard == guard) {
             return this;
         }
         return replaceMethods(newInvocation, newGuard);
@@ -237,6 +324,20 @@ public class GuardedInvocation {
      */
     public GuardedInvocation asType(final LinkerServices linkerServices, final MethodType newType) {
         return replaceMethodsOrThis(linkerServices.asType(invocation, newType), guard == null ? null :
+            Guards.asType(linkerServices, guard, newType));
+    }
+
+    /**
+     * Changes the type of the invocation, as if {@link LinkerServices#asTypeLosslessReturn(MethodHandle, MethodType)} was
+     * applied to its invocation and {@link LinkerServices#asType(MethodHandle, MethodType)} applied to its guard, if it
+     * has one (with return type changed to boolean, and parameter count potentially truncated for the guard). If the
+     * invocation doesn't change its type, returns this object.
+     * @param linkerServices the linker services to use for the conversion
+     * @param newType the new type of the invocation.
+     * @return a guarded invocation with the new type applied to it.
+     */
+    public GuardedInvocation asTypeSafeReturn(final LinkerServices linkerServices, final MethodType newType) {
+        return replaceMethodsOrThis(linkerServices.asTypeLosslessReturn(invocation, newType), guard == null ? null :
             Guards.asType(linkerServices, guard, newType));
     }
 
@@ -291,19 +392,46 @@ public class GuardedInvocation {
      * @return a composite method handle.
      */
     public MethodHandle compose(final MethodHandle fallback) {
-        return compose(fallback, fallback);
+        return compose(fallback, fallback, fallback);
     }
 
     /**
      * Composes the invocation, switchpoint, and the guard into a composite method handle that knows how to fall back.
      * @param switchpointFallback the fallback method handle in case switchpoint is invalidated.
      * @param guardFallback the fallback method handle in case guard returns false.
+     * @param catchFallback the fallback method in case the exception handler triggers
      * @return a composite method handle.
      */
-    public MethodHandle compose(final MethodHandle switchpointFallback, final MethodHandle guardFallback) {
+    public MethodHandle compose(final MethodHandle guardFallback, final MethodHandle switchpointFallback, final MethodHandle catchFallback) {
         final MethodHandle guarded =
-                guard == null ? invocation : MethodHandles.guardWithTest(guard, invocation, guardFallback);
-        return switchPoint == null ? guarded : switchPoint.guardWithTest(guarded, switchpointFallback);
+                guard == null ?
+                        invocation :
+                        MethodHandles.guardWithTest(
+                                guard,
+                                invocation,
+                                guardFallback);
+
+        final MethodHandle catchGuarded =
+                exception == null ?
+                        guarded :
+                        MH.catchException(
+                                guarded,
+                                exception,
+                                MethodHandles.dropArguments(
+                                    catchFallback,
+                                    0,
+                                    exception));
+
+        if (switchPoints == null) {
+            return catchGuarded;
+        }
+
+        MethodHandle spGuarded = catchGuarded;
+        for (final SwitchPoint sp : switchPoints) {
+            spGuarded = sp.guardWithTest(spGuarded, switchpointFallback);
+        }
+
+        return spGuarded;
     }
 
     private static void assertType(final MethodHandle mh, final MethodType type) {

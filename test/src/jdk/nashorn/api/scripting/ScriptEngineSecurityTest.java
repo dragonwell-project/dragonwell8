@@ -185,8 +185,8 @@ public class ScriptEngineSecurityTest {
         // put an empty script object into array
         e.eval("holder[0] = {}");
         // holder[0] is an object of some subclass of ScriptObject
-        final Class ScriptObjectClass = holder[0].getClass().getSuperclass();
-        final Class PropertyAccessClass = ScriptObjectClass.getInterfaces()[0];
+        final Class<?> ScriptObjectClass = holder[0].getClass().getSuperclass();
+        final Class<?> PropertyAccessClass = ScriptObjectClass.getInterfaces()[0];
         // implementation methods for PropertyAccess class
         e.eval("function set() {}; function get() {}; function getInt(){} " +
                "function getDouble(){}; function getLong() {}; " +
@@ -233,7 +233,7 @@ public class ScriptEngineSecurityTest {
 
         // Should not be able to call static methods of Proxy via fake subclass
         try {
-            final Class c = (Class)e.eval(getClass);
+            final Class<?> c = (Class<?>)e.eval(getClass);
             fail("should have thrown SecurityException");
         } catch (final Exception exp) {
             if (! (exp instanceof SecurityException)) {
@@ -260,7 +260,7 @@ public class ScriptEngineSecurityTest {
 
         // Should not be able to call static methods of Proxy via fake subclass
         try {
-            final Class c = (Class)e.eval(getClass);
+            final Class<?> c = (Class<?>)e.eval(getClass);
             fail("should have thrown SecurityException");
         } catch (final Exception exp) {
             if (! (exp instanceof SecurityException)) {

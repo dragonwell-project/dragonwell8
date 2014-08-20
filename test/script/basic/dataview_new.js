@@ -57,7 +57,8 @@ function checkError(callback, ErrorType) {
         fail("Should have thrown " + ErrorType.name);
     } catch (e) {
         if (! (e instanceof ErrorType)) {
-            fail("Expected " + ErrorType.name + " got " + e);
+            print("Expected " + ErrorType.name + " got " + e);
+            e.printStackTrace()
         }
     }
 }

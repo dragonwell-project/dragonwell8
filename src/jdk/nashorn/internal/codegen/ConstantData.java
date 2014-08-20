@@ -30,14 +30,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
 
 /**
  * Manages constants needed by code generation.  Objects are maintained in an
  * interning maps to remove duplicates.
  */
-class ConstantData {
+final class ConstantData {
     /** Constant table. */
     final List<Object> constants;
 
@@ -63,7 +62,7 @@ class ConstantData {
         private int calcHashCode() {
             final Class<?> cls = array.getClass();
 
-            if (cls == Object[].class) {
+            if (!cls.getComponentType().isPrimitive()) {
                 return Arrays.hashCode((Object[])array);
             } else if (cls == double[].class) {
                 return Arrays.hashCode((double[])array);
@@ -91,7 +90,7 @@ class ConstantData {
             final Class<?> cls = array.getClass();
 
             if (cls == otherArray.getClass()) {
-                if (cls == Object[].class) {
+                if (!cls.getComponentType().isPrimitive()) {
                     return Arrays.equals((Object[])array, (Object[])otherArray);
                 } else if (cls == double[].class) {
                     return Arrays.equals((double[])array, (double[])otherArray);
@@ -121,12 +120,7 @@ class ConstantData {
         private final int hashCode;
 
         public PropertyMapWrapper(final PropertyMap map) {
-            int hash = 0;
-            for (final Property property : map.getProperties()) {
-                hash = hash << 7 ^ hash >> 7;
-                hash ^= property.hashCode();
-            }
-            this.hashCode = hash;
+            this.hashCode = Arrays.hashCode(map.getProperties());
             this.propertyMap = map;
         }
 
@@ -137,14 +131,8 @@ class ConstantData {
 
         @Override
         public boolean equals(final Object other) {
-            if (!(other instanceof PropertyMapWrapper)) {
-                return false;
-            }
-
-            final Property[] ownProperties = propertyMap.getProperties();
-            final Property[] otherProperties = ((PropertyMapWrapper) other).propertyMap.getProperties();
-
-            return Arrays.equals(ownProperties, otherProperties);
+            return other instanceof PropertyMapWrapper &&
+                    Arrays.equals(propertyMap.getProperties(), ((PropertyMapWrapper) other).propertyMap.getProperties());
         }
     }
 
@@ -184,6 +172,7 @@ class ConstantData {
      * @return the index in the constant pool that the object was given
      */
     public int add(final Object object) {
+        assert object != null;
         final Object  entry;
         if (object.getClass().isArray()) {
             entry = new ArrayWrapper(object);

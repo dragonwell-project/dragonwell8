@@ -237,8 +237,9 @@ class BeanLinker extends AbstractJavaLinker implements TypeBasedGuardingDynamicL
         } else {
             checkGuard = convertArgToInt(RANGE_CHECK_ARRAY, linkerServices, callSiteDescriptor);
         }
-        return nextComponent.compose(MethodHandles.guardWithTest(binder.bindTest(checkGuard),
-                binder.bind(invocation), nextComponent.getGuardedInvocation().getInvocation()), gi.getGuard(),
+        final MethodPair matchedInvocations = matchReturnTypes(binder.bind(invocation),
+                nextComponent.getGuardedInvocation().getInvocation());
+        return nextComponent.compose(matchedInvocations.guardWithTest(binder.bindTest(checkGuard)), gi.getGuard(),
                 gic.getValidatorClass(), gic.getValidationType());
     }
 
@@ -308,7 +309,7 @@ class BeanLinker extends AbstractJavaLinker implements TypeBasedGuardingDynamicL
         }
 
         /*private*/ MethodHandle bind(final MethodHandle handle) {
-            return bindToFixedKey(linkerServices.asType(handle, methodType));
+            return bindToFixedKey(linkerServices.asTypeLosslessReturn(handle, methodType));
         }
 
         /*private*/ MethodHandle bindTest(final MethodHandle handle) {
@@ -440,8 +441,9 @@ class BeanLinker extends AbstractJavaLinker implements TypeBasedGuardingDynamicL
 
         final MethodHandle checkGuard = convertArgToInt(invocation == SET_LIST_ELEMENT ? RANGE_CHECK_LIST :
             RANGE_CHECK_ARRAY, linkerServices, callSiteDescriptor);
-        return nextComponent.compose(MethodHandles.guardWithTest(binder.bindTest(checkGuard),
-                binder.bind(invocation), nextComponent.getGuardedInvocation().getInvocation()), gi.getGuard(),
+        final MethodPair matchedInvocations = matchReturnTypes(binder.bind(invocation),
+                nextComponent.getGuardedInvocation().getInvocation());
+        return nextComponent.compose(matchedInvocations.guardWithTest(binder.bindTest(checkGuard)), gi.getGuard(),
                 gic.getValidatorClass(), gic.getValidationType());
     }
 

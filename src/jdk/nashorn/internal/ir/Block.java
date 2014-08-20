@@ -25,8 +25,6 @@
 
 package jdk.nashorn.internal.ir;
 
-import static jdk.nashorn.internal.codegen.CompilerConstants.RETURN;
-
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,7 +34,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.nashorn.internal.codegen.Label;
-import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 
@@ -44,7 +41,7 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  * IR representation for a list of statements.
  */
 @Immutable
-public class Block extends Node implements BreakableNode, Flags<Block> {
+public class Block extends Node implements BreakableNode, Terminal, Flags<Block> {
     /** List of statements */
     protected final List<Statement> statements;
 
@@ -52,7 +49,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     protected final Map<String, Symbol> symbols;
 
     /** Entry label. */
-    protected final Label entryLabel;
+    private final Label entryLabel;
 
     /** Break label. */
     private final Label breakLabel;
@@ -60,23 +57,25 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     /** Does the block/function need a new scope? */
     protected final int flags;
 
+    /**
+     * @see JoinPredecessor
+     */
+    private final LocalVariableConversion conversion;
+
     /** Flag indicating that this block needs scope */
     public static final int NEEDS_SCOPE = 1 << 0;
-
-    /**
-     * Flag indicating whether this block needs
-     * self symbol assignment at the start. This is used only for
-     * blocks that are the bodies of function nodes who refer to themselves
-     * by name. It causes codegen to insert a var [fn_name] = __callee__
-     * at the start of the body
-     */
-    public static final int NEEDS_SELF_SYMBOL = 1 << 1;
 
     /**
      * Is this block tagged as terminal based on its contents
      * (usually the last statement)
      */
     public static final int IS_TERMINAL = 1 << 2;
+
+    /**
+     * Is this block the eager global scope - i.e. the original program. This isn't true for the
+     * outermost level of recompiles
+     */
+    public static final int IS_GLOBAL_SCOPE = 1 << 3;
 
     /**
      * Constructor
@@ -93,7 +92,8 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         this.entryLabel = new Label("block_entry");
         this.breakLabel = new Label("block_break");
         final int len = statements.length;
-        this.flags = (len > 0 && statements[len - 1].hasTerminalFlags()) ? IS_TERMINAL : 0;
+        this.flags = len > 0 && statements[len - 1].hasTerminalFlags() ? IS_TERMINAL : 0;
+        this.conversion = null;
     }
 
     /**
@@ -107,7 +107,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         this(token, finish, statements.toArray(new Statement[statements.size()]));
     }
 
-    private Block(final Block block, final int finish, final List<Statement> statements, final int flags, final Map<String, Symbol> symbols) {
+    private Block(final Block block, final int finish, final List<Statement> statements, final int flags, final Map<String, Symbol> symbols, final LocalVariableConversion conversion) {
         super(block);
         this.statements = statements;
         this.flags      = flags;
@@ -115,11 +115,21 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         this.entryLabel = new Label(block.entryLabel);
         this.breakLabel = new Label(block.breakLabel);
         this.finish     = finish;
+        this.conversion = conversion;
     }
 
     /**
-     * Clear the symbols in a block
-     * TODO: make this immutable
+     * Is this block the outermost eager global scope - i.e. the primordial program?
+     * Used for global anchor point for scope depth computation for recompilation code
+     * @return true if outermost eager global scope
+     */
+    public boolean isGlobalScope() {
+        return getFlag(IS_GLOBAL_SCOPE);
+    }
+
+    /**
+     * Clear the symbols in the block.
+     * TODO: make this immutable.
      */
     public void clearSymbols() {
         symbols.clear();
@@ -127,7 +137,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
 
     @Override
     public Node ensureUniqueLabels(final LexicalContext lc) {
-        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags, symbols));
+        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags, symbols, conversion));
     }
 
     /**
@@ -139,14 +149,14 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     @Override
     public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
         if (visitor.enterBlock(this)) {
-            return visitor.leaveBlock(setStatements(lc, Node.accept(visitor, Statement.class, statements)));
+            return visitor.leaveBlock(setStatements(lc, Node.accept(visitor, statements)));
         }
 
         return this;
     }
 
     /**
-     * Get an iterator for all the symbols defined in this block
+     * Get a copy of the list for all the symbols defined in this block
      * @return symbol iterator
      */
     public List<Symbol> getSymbols() {
@@ -174,9 +184,9 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         for (final Node statement : statements) {
-            statement.toString(sb);
+            statement.toString(sb, printType);
             sb.append(';');
         }
     }
@@ -216,19 +226,16 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         return isTerminal ? setFlag(lc, IS_TERMINAL) : clearFlag(lc, IS_TERMINAL);
     }
 
-    /**
-     * Set the type of the return symbol in this block if present.
-     * @param returnType the new type
-     * @return this block
-     */
-    public Block setReturnType(final Type returnType) {
-        final Symbol symbol = getExistingSymbol(RETURN.symbolName());
-        if (symbol != null) {
-            symbol.setTypeOverride(returnType);
-        }
-        return this;
+    @Override
+    public int getFlags() {
+        return flags;
     }
 
+    /**
+     * Is this a terminal block, i.e. does it end control flow like ending with a throw or return?
+     *
+     * @return true if this node statement is terminal
+     */
     @Override
     public boolean isTerminal() {
         return getFlag(IS_TERMINAL);
@@ -247,6 +254,19 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         return breakLabel;
     }
 
+    @Override
+    public Block setLocalVariableConversion(final LexicalContext lc, final LocalVariableConversion conversion) {
+        if(this.conversion == conversion) {
+            return this;
+        }
+        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags, symbols, conversion));
+    }
+
+    @Override
+    public LocalVariableConversion getLocalVariableConversion() {
+        return conversion;
+    }
+
     /**
      * Get the list of statements in this block
      *
@@ -254,6 +274,17 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
      */
     public List<Statement> getStatements() {
         return Collections.unmodifiableList(statements);
+    }
+
+    /**
+     * Returns the line number of the first statement in the block.
+     * @return the line number of the first statement in the block, or -1 if the block has no statements.
+     */
+    public int getFirstStatementLineNumber() {
+        if(statements == null || statements.isEmpty()) {
+            return -1;
+        }
+        return statements.get(0).getLineNumber();
     }
 
     /**
@@ -271,7 +302,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         if (!statements.isEmpty()) {
             lastFinish = statements.get(statements.size() - 1).getFinish();
         }
-        return Node.replaceInLexicalContext(lc, this, new Block(this, Math.max(finish, lastFinish), statements, flags, symbols));
+        return Node.replaceInLexicalContext(lc, this, new Block(this, Math.max(finish, lastFinish), statements, flags, symbols, conversion));
     }
 
     /**
@@ -298,7 +329,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
         if (this.flags == flags) {
             return this;
         }
-        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags, symbols));
+        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags, symbols, conversion));
     }
 
     @Override
@@ -326,7 +357,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
             return this;
         }
 
-        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags | NEEDS_SCOPE, symbols));
+        return Node.replaceInLexicalContext(lc, this, new Block(this, finish, statements, flags | NEEDS_SCOPE, symbols, conversion));
     }
 
     /**
@@ -352,7 +383,7 @@ public class Block extends Node implements BreakableNode, Flags<Block> {
 
     @Override
     public List<Label> getLabels() {
-        return Collections.singletonList(breakLabel);
+        return Collections.unmodifiableList(Arrays.asList(entryLabel, breakLabel));
     }
 
     @Override

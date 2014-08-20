@@ -25,10 +25,13 @@
 
 package jdk.nashorn.internal.codegen;
 
+import java.util.Set;
+import java.util.TreeSet;
+
 /**
  * Used to track split class compilation.
  */
-public class CompileUnit implements Comparable<CompileUnit> {
+public final class CompileUnit implements Comparable<CompileUnit> {
     /** Current class name */
     private final String className;
 
@@ -39,14 +42,14 @@ public class CompileUnit implements Comparable<CompileUnit> {
 
     private Class<?> clazz;
 
-    CompileUnit(final String className, final ClassEmitter classEmitter) {
-        this(className, classEmitter, 0L);
-    }
-
     CompileUnit(final String className, final ClassEmitter classEmitter, final long initialWeight) {
         this.className    = className;
-        this.classEmitter = classEmitter;
         this.weight       = initialWeight;
+        this.classEmitter = classEmitter;
+    }
+
+    static Set<CompileUnit> createCompileUnitSet() {
+        return new TreeSet<>();
     }
 
     /**
@@ -112,9 +115,13 @@ public class CompileUnit implements Comparable<CompileUnit> {
         return className;
     }
 
+    private static String shortName(final String name) {
+        return name.lastIndexOf('/') == -1 ? name : name.substring(name.lastIndexOf('/') + 1);
+    }
+
     @Override
     public String toString() {
-        return "[classname=" + className + " weight=" + weight + '/' + Splitter.SPLIT_THRESHOLD + ']';
+        return "[CompileUnit className=" + shortName(className) + " weight=" + weight + '/' + Splitter.SPLIT_THRESHOLD + ']';
     }
 
     @Override

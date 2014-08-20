@@ -26,6 +26,7 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
+import static jdk.nashorn.internal.runtime.UnwarrantedOptimismException.INVALID_PROGRAM_POINT;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
@@ -238,12 +239,12 @@ final class DebuggerSupport {
 
         if (ScriptObject.isArray(object)) {
             sb.append('[');
-            final long length = object.getLong("length");
+            final long length = object.getLong("length", INVALID_PROGRAM_POINT);
 
             for (long i = 0; i < length; i++) {
                 if (object.has(i)) {
                     final Object valueAsObject = object.get(i);
-                    final boolean isUndefined = JSType.of(valueAsObject) == JSType.UNDEFINED;
+                    final boolean isUndefined = valueAsObject == ScriptRuntime.UNDEFINED;
 
                     if (isUndefined) {
                         if (i != 0) {

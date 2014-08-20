@@ -27,7 +27,6 @@ package jdk.nashorn.internal.ir;
 
 import java.util.ArrayList;
 import java.util.List;
-import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.parser.Token;
 import jdk.nashorn.internal.parser.TokenType;
@@ -82,15 +81,6 @@ public abstract class Node implements Cloneable {
     }
 
     /**
-     * Is this an atom node - for example a literal or an identity
-     *
-     * @return true if atom
-     */
-    public boolean isAtom() {
-        return false;
-    }
-
-    /**
      * Is this a loop node?
      *
      * @return true if atom
@@ -106,31 +96,6 @@ public abstract class Node implements Cloneable {
      * @return true if assignment
      */
     public boolean isAssignment() {
-        return false;
-    }
-
-    /**
-     * Is this a self modifying assignment?
-     * @return true if self modifying, e.g. a++, or a*= 17
-     */
-    public boolean isSelfModifying() {
-        return false;
-    }
-
-    /**
-     * Returns widest operation type of this operation.
-     *
-     * @return the widest type for this operation
-     */
-    public Type getWidestOperationType() {
-        return Type.OBJECT;
-    }
-
-    /**
-     * Returns true if this node represents a comparison operator
-     * @return true if comparison
-     */
-    public boolean isComparison() {
         return false;
     }
 
@@ -164,16 +129,19 @@ public abstract class Node implements Cloneable {
      *
      * @param sb a StringBuilder
      */
-    public abstract void toString(StringBuilder sb);
+    public void toString(final StringBuilder sb) {
+        toString(sb, true);
+    }
 
     /**
-     * Check if this node has terminal flags, i.e. ends or breaks control flow
-     *
-     * @return true if terminal
+     * Print logic that decides whether to show the optimistic type
+     * or not - for example it should not be printed after just parse,
+     * when it hasn't been computed, or has been set to a trivially provable
+     * value
+     * @param sb   string builder
+     * @param printType print type?
      */
-    public boolean hasTerminalFlags() {
-        return isTerminal() || hasGoto();
-    }
+    public abstract void toString(final StringBuilder sb, final boolean printType);
 
     /**
      * Get the finish position for this node in the source string
@@ -189,15 +157,6 @@ public abstract class Node implements Cloneable {
      */
     public void setFinish(final int finish) {
         this.finish = finish;
-    }
-
-    /**
-     * Check if this function repositions control flow with goto like
-     * semantics, for example {@link BreakNode} or a {@link ForNode} with no test
-     * @return true if node has goto semantics
-     */
-    public boolean hasGoto() {
-        return false;
     }
 
     /**
@@ -272,30 +231,35 @@ public abstract class Node implements Cloneable {
         return token;
     }
 
-    /**
-     * Is this a terminal Node, i.e. does it end control flow like a throw or return
-     * expression does?
-     *
-     * @return true if this node is terminal
-     */
-    public boolean isTerminal() {
-        return false;
-    }
-
     //on change, we have to replace the entire list, that's we can't simple do ListIterator.set
-    static <T extends Node> List<T> accept(final NodeVisitor<? extends LexicalContext> visitor, final Class<T> clazz, final List<T> list) {
-        boolean changed = false;
-        final List<T> newList = new ArrayList<>();
-
-        for (final Node node : list) {
-            final T newNode = node == null ? null : clazz.cast(node.accept(visitor));
-            if (newNode != node) {
-                changed = true;
-            }
-            newList.add(newNode);
+    static <T extends Node> List<T> accept(final NodeVisitor<? extends LexicalContext> visitor, final List<T> list) {
+        final int size = list.size();
+        if (size == 0) {
+            return list;
         }
 
-        return changed ? newList : list;
+         List<T> newList = null;
+
+        for (int i = 0; i < size; i++) {
+            final T node = list.get(i);
+            @SuppressWarnings("unchecked")
+            final T newNode = node == null ? null : (T)node.accept(visitor);
+            if (newNode != node) {
+                if (newList == null) {
+                    newList = new ArrayList<>(size);
+                    for (int j = 0; j < i; j++) {
+                        newList.add(list.get(j));
+                    }
+                }
+                newList.add(newNode);
+            } else {
+                if (newList != null) {
+                    newList.add(node);
+                }
+            }
+        }
+
+        return newList == null ? list : newList;
     }
 
     static <T extends LexicalContextNode> T replaceInLexicalContext(final LexicalContext lc, final T oldNode, final T newNode) {

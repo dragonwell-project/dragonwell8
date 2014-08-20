@@ -372,6 +372,7 @@ public class TypeConverterFactory {
 
     /*private*/ static final MethodHandle IDENTITY_CONVERSION = MethodHandles.identity(Object.class);
 
+    @SuppressWarnings("serial")
     private static class NotCacheableConverter extends RuntimeException {
         final MethodHandle converter;
 

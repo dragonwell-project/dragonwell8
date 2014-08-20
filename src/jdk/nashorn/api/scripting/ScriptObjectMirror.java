@@ -169,6 +169,12 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
         });
     }
 
+    /**
+     * Call member function
+     * @param functionName function name
+     * @param args         arguments
+     * @return return value of function
+     */
     public Object callMember(final String functionName, final Object... args) {
         functionName.getClass(); // null check
         final Global oldGlobal = Context.getGlobal();
@@ -707,6 +713,23 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
             index++;
         }
         return newArgs;
+    }
+
+    /**
+     * Are the given objects mirrors to same underlying object?
+     *
+     * @param obj1 first object
+     * @param obj2 second object
+     * @return true if obj1 and obj2 are identical script objects or mirrors of it.
+     */
+    public static boolean identical(final Object obj1, final Object obj2) {
+        final Object o1 = (obj1 instanceof ScriptObjectMirror)?
+            ((ScriptObjectMirror)obj1).sobj : obj1;
+
+        final Object o2 = (obj2 instanceof ScriptObjectMirror)?
+            ((ScriptObjectMirror)obj2).sobj : obj2;
+
+        return o1 == o2;
     }
 
     // package-privates below this.

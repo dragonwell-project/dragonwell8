@@ -36,6 +36,7 @@ import java.io.Serializable;
 import java.lang.invoke.SwitchPoint;
 import java.lang.ref.SoftReference;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -88,6 +89,8 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     /** property listeners */
     private transient PropertyListeners listeners;
 
+    private transient BitSet freeSlots;
+
     private static final long serialVersionUID = -7041836752008732533L;
 
     /**
@@ -129,6 +132,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
         this.fieldMaximum = propertyMap.fieldMaximum;
         // We inherit the parent property listeners instance. It will be cloned when a new listener is added.
         this.listeners    = propertyMap.listeners;
+        this.freeSlots    = propertyMap.freeSlots;
 
         if (Context.DEBUG) {
             count++;
@@ -143,21 +147,6 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
       */
     private PropertyMap(final PropertyMap propertyMap) {
         this(propertyMap, propertyMap.properties);
-    }
-
-    /**
-     * Duplicates this PropertyMap instance. This is used to duplicate 'shared'
-     * maps {@link PropertyMap} used as process wide singletons. Shared maps are
-     * duplicated for every global scope object. That way listeners, proto and property
-     * histories are scoped within a global scope.
-     *
-     * @return Duplicated {@link PropertyMap}.
-     */
-    public PropertyMap duplicate() {
-        if (Context.DEBUG) {
-            duplicatedCount++;
-        }
-        return new PropertyMap(this.properties, this.className, 0, 0, 0, containsArrayKeys());
     }
 
     private void writeObject(final ObjectOutputStream out) throws IOException {
@@ -185,6 +174,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * properties with keys that are valid array indices.</p>
      *
      * @param properties   Collection of initial properties.
+     * @param className    class name
      * @param fieldCount   Number of fields in use.
      * @param fieldMaximum Number of fields available.
      * @param spillLength  Number of used spill slots.
@@ -205,7 +195,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * @return New {@link PropertyMap}.
      */
     public static PropertyMap newMap(final Collection<Property> properties) {
-        return (properties == null || properties.isEmpty())? newMap() : newMap(properties, JO.class.getName(), 0, 0, 0);
+        return properties == null || properties.isEmpty()? newMap() : newMap(properties, JO.class.getName(), 0, 0, 0);
     }
 
     /**
@@ -364,6 +354,51 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
         return addPropertyNoHistory(new AccessorProperty(property, bindTo));
     }
 
+    // Get a logical slot index for a property, with spill slot 0 starting at fieldMaximum.
+    private int logicalSlotIndex(final Property property) {
+        final int slot = property.getSlot();
+        if (slot < 0) {
+            return -1;
+        }
+        return property.isSpill() ? slot + fieldMaximum : slot;
+    }
+
+    // Update boundaries and flags after a property has been added
+    private void updateFlagsAndBoundaries(final Property newProperty) {
+        if(newProperty.isSpill()) {
+            spillLength = Math.max(spillLength, newProperty.getSlot() + 1);
+        } else {
+            fieldCount = Math.max(fieldCount, newProperty.getSlot() + 1);
+        }
+        if (isValidArrayIndex(getArrayIndex(newProperty.getKey()))) {
+            setContainsArrayKeys();
+        }
+    }
+
+    // Update the free slots bitmap for a property that has been deleted and/or added.
+    private void updateFreeSlots(final Property oldProperty, final Property newProperty) {
+        // Free slots bitset is possibly shared with parent map, so we must clone it before making modifications.
+        boolean freeSlotsCloned = false;
+        if (oldProperty != null) {
+            final int slotIndex = logicalSlotIndex(oldProperty);
+            if (slotIndex >= 0) {
+                final BitSet newFreeSlots = freeSlots == null ? new BitSet() : (BitSet)freeSlots.clone();
+                assert !newFreeSlots.get(slotIndex);
+                newFreeSlots.set(slotIndex);
+                freeSlots = newFreeSlots;
+                freeSlotsCloned = true;
+            }
+        }
+        if (freeSlots != null && newProperty != null) {
+            final int slotIndex = logicalSlotIndex(newProperty);
+            if (slotIndex > -1 && freeSlots.get(slotIndex)) {
+                final BitSet newFreeSlots = freeSlotsCloned ? freeSlots : ((BitSet)freeSlots.clone());
+                newFreeSlots.clear(slotIndex);
+                freeSlots = newFreeSlots.isEmpty() ? null : newFreeSlots;
+            }
+        }
+    }
+
     /**
      * Add a property to the map without adding it to the history. This should be used for properties that
      * can't be shared such as bound properties, or properties that are expected to be added only once.
@@ -377,15 +412,9 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
         }
         final PropertyHashMap newProperties = properties.immutableAdd(property);
         final PropertyMap newMap = new PropertyMap(this, newProperties);
+        newMap.updateFlagsAndBoundaries(property);
+        newMap.updateFreeSlots(null, property);
 
-        if(!property.isSpill()) {
-            newMap.fieldCount = Math.max(newMap.fieldCount, property.getSlot() + 1);
-        }
-        if (isValidArrayIndex(getArrayIndex(property.getKey()))) {
-            newMap.setContainsArrayKeys();
-        }
-
-        newMap.spillLength += property.getSpillCount();
         return newMap;
     }
 
@@ -406,15 +435,8 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
             final PropertyHashMap newProperties = properties.immutableAdd(property);
             newMap = new PropertyMap(this, newProperties);
             addToHistory(property, newMap);
-
-            if(!property.isSpill()) {
-                newMap.fieldCount = Math.max(newMap.fieldCount, property.getSlot() + 1);
-            }
-            if (isValidArrayIndex(getArrayIndex(property.getKey()))) {
-                newMap.setContainsArrayKeys();
-            }
-
-            newMap.spillLength += property.getSpillCount();
+            newMap.updateFlagsAndBoundaries(property);
+            newMap.updateFreeSlots(null, property);
         }
 
         return newMap;
@@ -436,7 +458,20 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
 
         if (newMap == null && properties.containsKey(key)) {
             final PropertyHashMap newProperties = properties.immutableRemove(key);
-            newMap = new PropertyMap(this, newProperties);
+            final boolean isSpill = property.isSpill();
+            final int slot = property.getSlot();
+            // If deleted property was last field or spill slot we can make it reusable by reducing field/slot count.
+            // Otherwise mark it as free in free slots bitset.
+            if (isSpill && slot >= 0 && slot == spillLength - 1) {
+                newMap = new PropertyMap(newProperties, className, fieldCount, fieldMaximum, spillLength - 1, containsArrayKeys());
+                newMap.freeSlots = freeSlots;
+            } else if (!isSpill && slot >= 0 && slot == fieldCount - 1) {
+                newMap = new PropertyMap(newProperties, className, fieldCount - 1, fieldMaximum, spillLength, containsArrayKeys());
+                newMap.freeSlots = freeSlots;
+            } else {
+                newMap = new PropertyMap(this, newProperties);
+                newMap.updateFreeSlots(property, null);
+            }
             addToHistory(property, newMap);
         }
 
@@ -456,9 +491,8 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
             listeners.propertyModified(oldProperty, newProperty);
         }
         // Add replaces existing property.
-        final PropertyHashMap newProperties = properties.immutableAdd(newProperty);
+        final PropertyHashMap newProperties = properties.immutableReplace(oldProperty, newProperty);
         final PropertyMap newMap = new PropertyMap(this, newProperties);
-
         /*
          * See ScriptObject.modifyProperty and ScriptObject.setUserAccessors methods.
          *
@@ -474,10 +508,11 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
          * the old property is an AccessorProperty and the new one is a UserAccessorProperty property.
          */
 
-        final boolean sameType = (oldProperty.getClass() == newProperty.getClass());
+        final boolean sameType = oldProperty.getClass() == newProperty.getClass();
         assert sameType ||
-                (oldProperty instanceof AccessorProperty &&
-                newProperty instanceof UserAccessorProperty) : "arbitrary replaceProperty attempted";
+                oldProperty instanceof AccessorProperty &&
+                newProperty instanceof UserAccessorProperty :
+            "arbitrary replaceProperty attempted " + sameType + " oldProperty=" + oldProperty.getClass() + " newProperty=" + newProperty.getClass() + " [" + oldProperty.getCurrentType() + " => " + newProperty.getCurrentType() + "]";
 
         newMap.flags = flags;
 
@@ -485,7 +520,10 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
          * spillLength remains same in case (1) and (2) because of slot reuse. Only for case (3), we need
          * to add spill count of the newly added UserAccessorProperty property.
          */
-        newMap.spillLength = spillLength + (sameType? 0 : newProperty.getSpillCount());
+        if (!sameType) {
+            newMap.spillLength = Math.max(spillLength, newProperty.getSlot() + 1);
+            newMap.updateFreeSlots(oldProperty, newProperty);
+        }
         return newMap;
     }
 
@@ -500,12 +538,7 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * @return the newly created UserAccessorProperty
      */
     public UserAccessorProperty newUserAccessors(final String key, final int propertyFlags) {
-        int oldSpillLength = spillLength;
-
-        final int getterSlot = oldSpillLength++;
-        final int setterSlot = oldSpillLength++;
-
-        return new UserAccessorProperty(key, propertyFlags, getterSlot, setterSlot);
+        return new UserAccessorProperty(key, propertyFlags, getFreeSpillSlot());
     }
 
     /**
@@ -533,10 +566,11 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
 
         final PropertyMap newMap = new PropertyMap(this, newProperties);
         for (final Property property : otherProperties) {
+            // This method is only safe to use with non-slotted, native getter/setter properties
+            assert property.getSlot() == -1;
             if (isValidArrayIndex(getArrayIndex(property.getKey()))) {
                 newMap.setContainsArrayKeys();
             }
-            newMap.spillLength += property.getSpillCount();
         }
 
         return newMap;
@@ -686,13 +720,11 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * @param newMap   Modified {@link PropertyMap}.
      */
     private void addToHistory(final Property property, final PropertyMap newMap) {
-        if (!properties.isEmpty()) {
-            if (history == null) {
-                history = new WeakHashMap<>();
-            }
-
-            history.put(property, new SoftReference<>(newMap));
+        if (history == null) {
+            history = new WeakHashMap<>();
         }
+
+        history.put(property, new SoftReference<>(newMap));
     }
 
     /**
@@ -720,32 +752,44 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
         return null;
     }
 
+    /**
+     * Returns true if the two maps have identical properties in the same order, but allows the properties to differ in
+     * their types. This method is mostly useful for tests.
+     * @param otherMap the other map
+     * @return true if this map has identical properties in the same order as the other map, allowing the properties to
+     * differ in type.
+     */
+    public boolean equalsWithoutType(final PropertyMap otherMap) {
+        if (properties.size() != otherMap.properties.size()) {
+            return false;
+        }
+
+        final Iterator<Property> iter      = properties.values().iterator();
+        final Iterator<Property> otherIter = otherMap.properties.values().iterator();
+
+        while (iter.hasNext() && otherIter.hasNext()) {
+            if (!iter.next().equalsWithoutType(otherIter.next())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
 
-        sb.append(" [");
-        boolean isFirst = true;
+        sb.append(Debug.id(this));
+        sb.append(" = {\n");
 
-        for (final Property property : properties.values()) {
-            if (!isFirst) {
-                sb.append(", ");
-            }
-
-            isFirst = false;
-
-            sb.append(ScriptRuntime.safeToString(property.getKey()));
-            final Class<?> ctype = property.getCurrentType();
-            sb.append(" <").
-                append(property.getClass().getSimpleName()).
-                append(':').
-                append(ctype == null ?
-                    "undefined" :
-                    ctype.getSimpleName()).
-                append('>');
+        for (final Property property : getProperties()) {
+            sb.append('\t');
+            sb.append(property);
+            sb.append('\n');
         }
 
-        sb.append(']');
+        sb.append('}');
 
         return sb.toString();
     }
@@ -799,29 +843,37 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     boolean isFrozen() {
         return !isExtensible() && allFrozen();
     }
+
     /**
-     * Get the number of fields allocated for this {@link PropertyMap}.
+     * Return a free field slot for this map, or {@code -1} if none is available.
      *
-     * @return Number of fields allocated.
+     * @return free field slot or -1
      */
-    int getFieldCount() {
-        return fieldCount;
-    }
-    /**
-     * Get maximum number of fields available for this {@link PropertyMap}.
-     *
-     * @return Number of fields available.
-     */
-    int getFieldMaximum() {
-        return fieldMaximum;
+    int getFreeFieldSlot() {
+        if (freeSlots != null) {
+            final int freeSlot = freeSlots.nextSetBit(0);
+            if (freeSlot > -1 && freeSlot < fieldMaximum) {
+                return freeSlot;
+            }
+        }
+        if (fieldCount < fieldMaximum) {
+            return fieldCount;
+        }
+        return -1;
     }
 
     /**
-     * Get length of spill area associated with this {@link PropertyMap}.
+     * Get a free spill slot for this map.
      *
-     * @return Length of spill area.
+     * @return free spill slot
      */
-    int getSpillLength() {
+    int getFreeSpillSlot() {
+        if (freeSlots != null) {
+            final int freeSlot = freeSlots.nextSetBit(fieldMaximum);
+            if (freeSlot > -1) {
+                return freeSlot - fieldMaximum;
+            }
+        }
         return spillLength;
     }
 
@@ -908,10 +960,60 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      * Debugging and statistics.
      */
 
+    /**
+     * Debug helper function that returns the diff of two property maps, only
+     * displaying the information that is different and in which map it exists
+     * compared to the other map. Can be used to e.g. debug map guards and
+     * investigate why they fail, causing relink
+     *
+     * @param map0 the first property map
+     * @param map1 the second property map
+     *
+     * @return property map diff as string
+     */
+    public static String diff(final PropertyMap map0, final PropertyMap map1) {
+        final StringBuilder sb = new StringBuilder();
+
+        if (map0 != map1) {
+           sb.append(">>> START: Map diff");
+           boolean found = false;
+
+           for (final Property p : map0.getProperties()) {
+               final Property p2 = map1.findProperty(p.getKey());
+               if (p2 == null) {
+                   sb.append("FIRST ONLY : [" + p + "]");
+                   found = true;
+               } else if (p2 != p) {
+                   sb.append("DIFFERENT  : [" + p + "] != [" + p2 + "]");
+                   found = true;
+               }
+           }
+
+           for (final Property p2 : map1.getProperties()) {
+               final Property p1 = map0.findProperty(p2.getKey());
+               if (p1 == null) {
+                   sb.append("SECOND ONLY: [" + p2 + "]");
+                   found = true;
+               }
+           }
+
+           //assert found;
+
+           if (!found) {
+                sb.append(map0).
+                    append("!=").
+                    append(map1);
+           }
+
+           sb.append("<<< END: Map diff\n");
+        }
+
+        return sb.toString();
+    }
+
     // counters updated only in debug mode
     private static int count;
     private static int clonedCount;
-    private static int duplicatedCount;
     private static int historyHit;
     private static int protoInvalidations;
     private static int protoHistoryHit;
@@ -929,13 +1031,6 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
      */
     public static int getClonedCount() {
         return clonedCount;
-    }
-
-    /**
-     * @return The number of maps that are duplicated.
-     */
-    public static int getDuplicatedCount() {
-        return duplicatedCount;
     }
 
     /**
@@ -965,5 +1060,4 @@ public final class PropertyMap implements Iterable<Object>, Serializable {
     public static int getSetProtoNewMapCount() {
         return setProtoNewMapCount;
     }
-
 }

@@ -593,6 +593,42 @@ public class ScriptEngineTest {
         }
     }
 
+    // @bug 8046013: TypeError: Cannot apply "with" to non script object
+    @Test
+    public void withOnMirrorTest() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+
+        final Object obj = e.eval("({ foo: 'hello'})");
+        final Object[] arr = new Object[1];
+        arr[0] = obj;
+        e.put("arr", arr);
+        final Object res = e.eval("var res; with(arr[0]) { res = foo; }; res");
+        assertEquals(res, "hello");
+    }
+
+    // @bug 8054223: Nashorn: AssertionError when use __DIR__ and ScriptEngine.eval()
+    @Test
+    public void check__DIR__Test() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+        e.eval("__DIR__");
+    }
+
+    // @bug 8050432:javax.script.filename variable should not be enumerable
+    // with nashorn engine's ENGINE_SCOPE bindings
+    @Test
+    public void enumerableGlobalsTest() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+
+        e.put(ScriptEngine.FILENAME, "test");
+        final Object enumerable = e.eval(
+            "Object.getOwnPropertyDescriptor(this, " +
+            " 'javax.script.filename').enumerable");
+        assertEquals(enumerable, Boolean.FALSE);
+    }
+
     private static void checkProperty(final ScriptEngine e, final String name)
         throws ScriptException {
         final String value = System.getProperty(name);

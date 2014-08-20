@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!--
  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -21,11 +22,10 @@
  or visit www.oracle.com if you need additional information or have any
  questions.
 -->
+
 <project name="nashorn" default="test" basedir="..">
   <import file="build-nasgen.xml"/>
-  <import file="build-benchmark.xml"/>
   <import file="code_coverage.xml"/>
-
 
   <target name="init-conditions">
     <!-- loading locally defined resources and properties. NB they owerwrite default ones defined later -->
@@ -51,7 +51,7 @@
     <available property="testng.available" file="${file.reference.testng.jar}"/>
     <!-- check if Jemmy ang testng.jar are avaiable -->
     <condition property="jemmy.jfx.testng.available" value="true">
-      <and> 
+      <and>
         <available file="${file.reference.jemmyfx.jar}"/>
         <available file="${file.reference.jemmycore.jar}"/>
         <available file="${file.reference.jemmyawtinput.jar}"/>
@@ -69,13 +69,16 @@
     <condition property="exclude.list" value="./exclude/exclude_list_cc.txt" else="./exclude/exclude_list.txt">
       <istrue value="${make.code.coverage}" />
     </condition>
+
+    <condition property="jfr.options" value="${run.test.jvmargs.jfr}" else="">
+      <istrue value="${jfr}"/>
+    </condition>
   </target>
 
   <target name="init" depends="init-conditions, init-cc">
-
     <!-- extends jvm args -->
-    <property name="run.test.jvmargs" value="${run.test.jvmargs.main}  ${run.test.cc.jvmargs}"/>
-    <property name="run.test.jvmargs.octane" value="${run.test.jvmargs.octane.main}  ${run.test.cc.jvmargs}" />
+    <property name="run.test.jvmargs" value="${run.test.jvmargs.main} ${run.test.cc.jvmargs} ${jfr.options}"/>
+    <property name="run.test.jvmargs.octane" value="${run.test.jvmargs.octane.main} ${run.test.cc.jvmargs} ${jfr.options}"/>
 
     <echo message="run.test.jvmargs=${run.test.jvmargs}"/>
     <echo message="run.test.jvmargs.octane=${run.test.jvmargs.octane}"/>
@@ -122,8 +125,7 @@
            encoding="${javac.encoding}"
            includeantruntime="false" fork="true">
       <compilerarg value="-J-Djava.ext.dirs="/>
-      <compilerarg value="-Xlint:unchecked"/>
-      <compilerarg value="-Xlint:deprecation"/>
+      <compilerarg value="-Xlint:all"/>
       <compilerarg value="-XDignore.symbol.file"/>
       <compilerarg value="-Xdiags:verbose"/>
     </javac>
@@ -291,11 +293,23 @@
   <target name="generate-policy-file" depends="prepare">
     <echo file="${build.dir}/nashorn.policy">
 
+grant codeBase "file:/${toString:nashorn.ext.path}/nashorn.jar" {
+    permission java.security.AllPermission;
+};
+
 grant codeBase "file:/${basedir}/${nashorn.internal.tests.jar}" {
     permission java.security.AllPermission;
 };
 
 grant codeBase "file:/${basedir}/${file.reference.testng.jar}" {
+    permission java.security.AllPermission;
+};
+//// in case of absolute path:
+grant codeBase "file:/${nashorn.internal.tests.jar}" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:/${file.reference.testng.jar}" {
     permission java.security.AllPermission;
 };
 
@@ -330,6 +344,10 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     permission java.lang.RuntimePermission "nashorn.JavaReflection";
 };
 
+grant codeBase "file:/${basedir}/test/script/markdown.js" {
+    permission java.io.FilePermission "${basedir}/test/script/external/showdown/-", "read";
+};
+
     </echo>
 
     <replace file="${build.dir}/nashorn.policy"><replacetoken>\</replacetoken><replacevalue>/</replacevalue></replace>    <!--hack for Windows - to make URLs with normal path separators -->
@@ -345,6 +363,7 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
       <available file="${test.external.dir}/yui" property="test-sys-prop.external.yui"/>
       <available file="${test.external.dir}/jquery" property="test-sys-prop.external.jquery"/>
       <available file="${test.external.dir}/test262" property="test-sys-prop.external.test262"/>
+      <available file="${test.external.dir}/showdown" property="test-sys-prop.external.markdown"/>
   </target>
 
   <target name="check-testng" unless="testng.available">
@@ -380,7 +399,8 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <testng outputdir="${build.nosecurity.test.results.dir}" classfilesetref="test.nosecurity.classes"
        verbose="${testng.verbose}" haltonfailure="true" useDefaultListeners="false" listeners="${testng.listeners}" workingDir="${basedir}">
       <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} -Dbuild.dir=${build.dir}"/>
+      <sysproperty key="nashorn.jar" value="${dist.dir}/nashorn.jar"/>
       <propertyset>
         <propertyref prefix="nashorn."/>
       </propertyset>
@@ -401,8 +421,11 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <testng outputdir="${build.test.results.dir}" classfilesetref="test.classes"
        verbose="${testng.verbose}" haltonfailure="true" useDefaultListeners="false" listeners="${testng.listeners}" workingDir="${basedir}">
       <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs} -Dbuild.dir=${build.dir}"/>
       <jvmarg line="${debug.test.jvmargs}"/>
+      <propertyset>
+        <propertyref prefix="nashorn."/>
+      </propertyset>
       <propertyset>
         <propertyref prefix="test-sys-prop."/>
         <mapper from="test-sys-prop.*" to="*" type="glob"/>
@@ -416,18 +439,6 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
 
   <target name="test" depends="jar, -test-classes-all,-test-classes-single, check-testng, check-external-tests, compile-test, generate-policy-file, -test-security, -test-nosecurity" if="testng.available"/>
 
-  <target name="test-basicparallel" depends="jar, check-testng, check-external-tests, compile-test, generate-policy-file">
-      <!-- use just build.test.classes.dir to avoid referring to TestNG -->
-      <java classname="${parallel.test.runner}" dir="${basedir}" classpath="${build.test.classes.dir}" failonerror="true" fork="true">
-      <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs}"/>
-      <syspropertyset>
-          <propertyref prefix="test-sys-prop."/>
-          <mapper type="glob" from="test-sys-prop.*" to="*"/>
-      </syspropertyset>
-      </java>
-  </target>
-
   <target name="check-jemmy.jfx.testng" unless="jemmy.jfx.testng.available">
     <echo message="WARNING: Jemmy or JavaFX or TestNG not available, will not run tests. Please copy testng.jar, JemmyCore.jar, JemmyFX.jar, JemmyAWTInput.jar under test${file.separator}lib directory. And make sure you have jfxrt.jar in ${java.home}${file.separator}lib${file.separator}ext dir."/>
   </target>
@@ -436,19 +447,19 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <fileset id="test.classes" dir="${build.test.classes.dir}">
        <include name="**/framework/*Test.class"/>
     </fileset>
-    
+
     <copy file="${file.reference.jfxrt.jar}" todir="dist"/>
-    
+
     <condition property="jfx.prism.order" value="-Dprism.order=j2d" else=" ">
-		<not>
+        <not>
             <os family="mac"/>
         </not>
-	</condition>
-    
+    </condition>
+
     <testng outputdir="${build.test.results.dir}" classfilesetref="test.classes"
        verbose="${testng.verbose}" haltonfailure="true" useDefaultListeners="false" listeners="${testng.listeners}" workingDir="${basedir}">
       <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} -Dbuild.dir=${build.dir}"/>
       <propertyset>
         <propertyref prefix="testjfx-test-sys-prop."/>
         <mapper from="testjfx-test-sys-prop.*" to="*" type="glob"/>
@@ -459,7 +470,26 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
       </classpath>
     </testng>
   </target>
-  
+
+  <target name="testmarkdown" depends="jar, check-testng, check-external-tests, compile-test, generate-policy-file" if="testng.available">
+    <fileset id="test.classes" dir="${build.test.classes.dir}">
+       <include name="**/framework/*Test.class"/>
+    </fileset>
+
+    <testng outputdir="${build.test.results.dir}" classfilesetref="test.classes"
+       verbose="${testng.verbose}" haltonfailure="true" useDefaultListeners="false" listeners="${testng.listeners}" workingDir="${basedir}">
+      <jvmarg line="${ext.class.path}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs} -Dbuild.dir=${build.dir}"/>
+      <propertyset>
+        <propertyref prefix="testmarkdown-test-sys-prop."/>
+        <mapper from="testmarkdown-test-sys-prop.*" to="*" type="glob"/>
+      </propertyset>
+      <classpath>
+          <pathelement path="${run.test.classpath}"/>
+      </classpath>
+    </testng>
+  </target>
+
   <target name="test262" depends="jar, check-testng, check-external-tests, compile-test, generate-policy-file" if="testng.available">
     <fileset id="test.classes" dir="${build.test.classes.dir}">
        <include name="**/framework/*Test.class"/>
@@ -468,7 +498,10 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <testng outputdir="${build.test.results.dir}" classfilesetref="test.classes"
        verbose="${testng.verbose}" haltonfailure="true" useDefaultListeners="false" listeners="${testng.listeners}" workingDir="${basedir}">
       <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs} -Dbuild.dir=${build.dir}"/>
+      <propertyset>
+        <propertyref prefix="nashorn."/>
+      </propertyset>
       <propertyset>
         <propertyref prefix="test262-test-sys-prop."/>
         <mapper from="test262-test-sys-prop.*" to="*" type="glob"/>
@@ -485,7 +518,9 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <!-- use just build.test.classes.dir to avoid referring to TestNG -->
     <java classname="${parallel.test.runner}" dir="${basedir}" fork="true">
       <jvmarg line="${ext.class.path}"/>
-      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs} -Dbuild.dir=${build.dir}"/>
+      <!-- avoid too many typeinfo cache files. Each script is run only once anyway -->
+      <jvmarg line="-Dnashorn.typeInfo.disabled=true"/>
       <classpath>
           <pathelement path="${run.test.classpath}"/>
       </classpath>
@@ -494,6 +529,26 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
           <mapper type="glob" from="test262-test-sys-prop.*" to="*"/>
       </syspropertyset>
     </java>
+  </target>
+
+  <target name="testparallel" depends="test-parallel"/>
+
+  <target name="test-parallel" depends="jar, check-testng, check-external-tests, compile-test, generate-policy-file" if="testng.available">
+      <!-- use just build.test.classes.dir to avoid referring to TestNG -->
+      <java classname="${parallel.test.runner}" dir="${basedir}"
+        failonerror="true"
+        fork="true">
+      <jvmarg line="${ext.class.path}"/>
+      <jvmarg line="${run.test.jvmargs} -Xmx${run.test.xmx} ${run.test.jvmsecurityargs}"/>
+      <classpath>
+          <pathelement path="${run.test.classpath}"/>
+      <pathelement path="${build.test.classes.dir}"/>
+      </classpath>
+      <syspropertyset>
+          <propertyref prefix="test-sys-prop."/>
+          <mapper type="glob" from="test-sys-prop.*" to="*"/>
+      </syspropertyset>
+      </java>
   </target>
 
   <target name="all" depends="test, docs"
@@ -529,6 +584,8 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <!-- clone test262 git repo -->
     <exec executable="${git.executable}">
        <arg value="clone"/>
+       <arg value="--branch"/>
+       <arg value="es5-tests"/>
        <arg value="https://github.com/tc39/test262"/>
        <arg value="${test.external.dir}/test262"/>
     </exec>
@@ -604,6 +661,11 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
     <get src="http://yui.yahooapis.com/3.5.1/build/yui/yui.js" dest="${test.external.dir}/yui" skipexisting="true" ignoreerrors="true"/>
     <get src="http://yui.yahooapis.com/3.5.1/build/yui/yui-min.js" dest="${test.external.dir}/yui" skipexisting="true" ignoreerrors="true"/>
 
+    <!-- showdown -->
+    <mkdir dir="${test.external.dir}/showdown"/>
+    <get src="https://raw.github.com/coreyti/showdown/master/src/showdown.js" dest="${test.external.dir}/showdown" skipexisting="true" ignoreerrors="true"/>
+    <get src="https://raw.github.com/coreyti/showdown/master/src/extensions/table.js" dest="${test.external.dir}/showdown" skipexisting="true" ignoreerrors="true"/>
+
   </target>
 
   <!-- update external test suites that are pulled from source control systems -->
@@ -618,5 +680,7 @@ grant codeBase "file:/${basedir}/test/script/basic/classloader.js" {
   </target>
 
   <target name="alltests" depends="exit-if-no-testng, externals, update-externals, test, test262parallel, perf"/>
+
+  <import file="build-benchmark.xml"/>
 
 </project>

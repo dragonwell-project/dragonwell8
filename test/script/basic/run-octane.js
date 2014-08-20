@@ -24,31 +24,10 @@
 /**
  * @subtest
  */
+var payload = __DIR__ + "octane-payload.js";
+load(payload);
 
-var tests = [
-    {name:"box2d",         files:["box2d.js"],                         suite:"Box2DBenchmark"},
-    {name:"code-load",     files:["code-load.js"],                     suite:"CodeLoad"},
-    {name:"crypto",        files:["crypto.js"],                        suite:"Crypto"},
-    {name:"deltablue",     files:["deltablue.js"],                     suite:"DeltaBlue"},
-    {name:"earley-boyer",  files:["earley-boyer.js"],                  suite:"EarleyBoyer"},
-    {name:"gbemu",         files:["gbemu-part1.js", "gbemu-part2.js"], suite:"GameboyBenchmark"},
-    {name:"mandreel",      files:["mandreel.js"],                      suite:"MandreelBenchmark"},
-    {name:"navier-stokes", files:["navier-stokes.js"],                 suite:"NavierStokes"},
-    {name:"pdfjs",         files:["pdfjs.js"],                         suite:"PdfJS"},
-    {name:"raytrace",      files:["raytrace.js"],                      suite:"RayTrace"},
-    {name:"regexp",        files:["regexp.js"],                        suite:"RegExpSuite"},
-    {name:"richards",      files:["richards.js"],                      suite:"Richards"},
-    {name:"splay",         files:["splay.js"],                         suite:"Splay"},
-    {name:"typescript",    files:["typescript.js", "typescript-input.js", "typescript-compiler.js"], suite:"typescript"}
-    //zlib currently disabled - requires read
-    //    {name:"zlib",          files:["zlib.js", "zlib-data.js"], suite:"zlib"},
-];
-var dir = (typeof(__DIR__) == 'undefined') ? "test/script/basic/" : __DIR__;
-
-// TODO: why is this path hard coded when it's defined in project properties?
-var path = dir + "../external/octane/";
-
-var runtime = "";
+var runtime = undefined;
 var verbose = false;
 
 var numberOfIterations = 5;
@@ -79,12 +58,17 @@ function load_bench(arg) {
     load(file_name);
     }
 
+    if (typeof arg.before !== 'undefined') {
+    arg.before();
+    }
+
     if (compile_and_return) {
     print_always(arg, "Compiled OK");
     }
     return !compile_and_return;
 
 }
+
 
 function run_one_benchmark(arg, iters) {
 
@@ -114,7 +98,7 @@ function run_one_benchmark(arg, iters) {
         benchmarks[x].Setup();
     }
     BenchmarkSuite.ResetRNG();
-    print_verbose(arg, "running '" + arg.name + "' for " + iters + " iterations of no less than " + min_time + " seconds (" + runtime + ")");
+    print_verbose(arg, "running '" + arg.name + "' for " + iters + " iterations of no less than " + min_time + " seconds");
 
     var scores = [];
 
@@ -153,9 +137,11 @@ function run_one_benchmark(arg, iters) {
         max_score = Math.max(max_score, scores[x]);
     }
     mean_score /= iters;
-
     } catch (e) {
-    print_always("*** Aborted and setting score to zero. Reason: " + e);
+    print_always(arg, "*** Aborted and setting score to zero. Reason: " + e);
+    if (e instanceof java.lang.Throwable) {
+        e.printStackTrace();
+    }
     mean_score = min_score = max_score = 0;
     scores = [0];
     }
@@ -167,8 +153,12 @@ function run_one_benchmark(arg, iters) {
     print_always(arg, res);
 }
 
+function runtime_string() {
+    return runtime == undefined ? "" : ("[" + runtime + "] ");
+}
+
 function print_always(arg, x) {
-    print("[" + arg.name + "] " + x);
+    print(runtime_string() + "[" + arg.name + "] " + x);
 }
 
 function print_verbose(arg, x) {
@@ -182,8 +172,6 @@ function run_suite(tests, iters) {
     run_one_benchmark(tests[idx], iters);
     }
 }
-
-runtime = "command line";
 
 var args = [];
 
@@ -218,12 +206,18 @@ for (var i = 0; i < args.length; i++) {
     arg = args[i];
     if (arg == "--iterations") {
     iters = +args[++i];
+    if (isNaN(iters)) {
+        throw "'--iterations' must be followed by integer";
+    }
     } else if (arg == "--runtime") {
     runtime = args[++i];
     } else if (arg == "--verbose") {
     verbose = true;
     } else if (arg == "--min-time") {
     min_time = +args[++i];
+    if (isNaN(iters)) {
+        throw "'--min-time' must be followed by integer";
+    }
     } else if (arg == "") {
     continue; //skip
     } else {
@@ -254,10 +248,30 @@ if (tests_found.length == 0) {
     }
 }
 
-tests_found.sort();
+// returns false for rhino, v8 and all other javascript runtimes, true for Nashorn
+function is_this_nashorn() {
+    return typeof Error.dumpStack == 'function'
+}
+
+if (is_this_nashorn()) {
+    try {
+    read = readFully;
+    } catch (e) {
+    print("ABORTING: Cannot find 'readFully'. You must have scripting enabled to use this test harness. (-scripting)");
+    throw e;
+    }
+}
+
+// run tests in alphabetical order by name
+tests_found.sort(function(a, b) {
+    if (a.name < b.name) {
+    return -1;
+    } else if (a.name > b.name) {
+    return 1;
+    } else {
+    return 0;
+    }
+});
 
 load(path + 'base.js');
 run_suite(tests_found, iters);
-
-
-
