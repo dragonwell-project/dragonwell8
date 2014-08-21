@@ -42,7 +42,7 @@ public:
   void clear(void) {
     // clearing _last_Java_sp must be first
     _last_Java_sp = NULL;
-    // fence?
+    OrderAccess::release();
     _last_Java_fp = NULL;
     _last_Java_pc = NULL;
   }
@@ -55,9 +55,10 @@ public:
     // To act like previous version (pd_cache_state) don't NULL _last_Java_sp
     // unless the value is changing
     //
-    if (_last_Java_sp != src->_last_Java_sp)
+    if (_last_Java_sp != src->_last_Java_sp) {
       _last_Java_sp = NULL;
-
+      OrderAccess::release();
+    }
     _last_Java_fp = src->_last_Java_fp;
     _last_Java_pc = src->_last_Java_pc;
     // Must be last so profiler will always see valid frame if has_last_frame() is true
@@ -79,10 +80,10 @@ private:
 
 public:
 
-  void set_last_Java_sp(intptr_t* sp)            { _last_Java_sp = sp; }
+  void set_last_Java_sp(intptr_t* sp)            { _last_Java_sp = sp; OrderAccess::release(); }
 
   intptr_t*   last_Java_fp(void)                     { return _last_Java_fp; }
   // Assert (last_Java_sp == NULL || fp == NULL)
-  void set_last_Java_fp(intptr_t* fp)                { _last_Java_fp = fp; }
+  void set_last_Java_fp(intptr_t* fp)                { OrderAccess::release(); _last_Java_fp = fp; }
 
 #endif // CPU_AARCH64_VM_JAVAFRAMEANCHOR_AARCH64_HPP
