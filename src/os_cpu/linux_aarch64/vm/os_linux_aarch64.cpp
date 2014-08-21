@@ -172,10 +172,14 @@ frame os::fetch_frame_from_context(void* ucVoid) {
   return frame(sp, fp, epc.pc());
 }
 
-// By default, gcc always save frame pointer (%ebp/%rbp) on stack. It may get
-// turned off by -fomit-frame-pointer,
+// By default, gcc always saves frame pointer rfp on this stack. This
+// may get turned off by -fomit-frame-pointer.
 frame os::get_sender_for_C_frame(frame* fr) {
+#ifdef BUILTIN_SIM
   return frame(fr->sender_sp(), fr->link(), fr->sender_pc());
+#else
+  return frame(fr->link(), fr->link(), fr->sender_pc());
+#endif
 }
 
 intptr_t* _get_previous_fp() {
