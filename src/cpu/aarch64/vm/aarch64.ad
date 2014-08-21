@@ -7507,8 +7507,8 @@ instruct negI_reg(iRegINoSp dst, iRegIorL2I src, immI0 zero, rFlagsReg cr) %{
   format %{ "negw $dst, $src\t# int" %}
 
   ins_encode %{
-    __ negsw(as_Register($dst$$reg),
-             as_Register($src$$reg));
+    __ negw(as_Register($dst$$reg),
+	    as_Register($src$$reg));
   %}
 
   ins_pipe(pipe_class_default);

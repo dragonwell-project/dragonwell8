@@ -179,9 +179,15 @@ class MacroAssembler: public Assembler {
   void cset(Register Rd, Assembler::Condition cond) {
     csinc(Rd, zr, zr, ~cond);
   }
-
   void csetw(Register Rd, Assembler::Condition cond) {
     csincw(Rd, zr, zr, ~cond);
+  }
+
+  void cneg(Register Rd, Register Rn, Assembler::Condition cond) {
+    csneg(Rd, Rn, Rn, ~cond);
+  }
+  void cnegw(Register Rd, Register Rn, Assembler::Condition cond) {
+    csnegw(Rd, Rn, Rn, ~cond);
   }
 
   inline void movw(Register Rd, Register Rn) {
