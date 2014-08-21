@@ -381,8 +381,8 @@ void Parse::load_interpreter_state(Node* osr_buf) {
 
 //------------------------------Parse------------------------------------------
 // Main parser constructor.
-Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses, Parse* parent)
-  : _exits(caller), _parent(parent)
+Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
+  : _exits(caller)
 {
   // Init some variables
   _caller = caller;
@@ -395,6 +395,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses, Pars
   _entry_bci = InvocationEntryBci;
   _tf = NULL;
   _block = NULL;
+  _first_return = true;
+  _replaced_nodes_for_exceptions = false;
+  _new_idx = C->unique();
   debug_only(_block_count = -1);
   debug_only(_blocks = (Block*)-1);
 #ifndef PRODUCT
@@ -895,6 +898,10 @@ void Parse::throw_to_exit(SafePointNode* ex_map) {
   for (uint i = 0; i < TypeFunc::Parms; i++) {
     caller.map()->set_req(i, ex_map->in(i));
   }
+  if (ex_map->has_replaced_nodes()) {
+    _replaced_nodes_for_exceptions = true;
+  }
+  caller.map()->transfer_replaced_nodes_from(ex_map, _new_idx);
   // ...and the exception:
   Node*          ex_oop        = saved_ex_oop(ex_map);
   SafePointNode* caller_ex_map = caller.make_exception_state(ex_oop);
@@ -963,7 +970,7 @@ void Parse::do_exits() {
   bool do_synch = method()->is_synchronized() && GenerateSynchronizationCode;
 
   // record exit from a method if compiled while Dtrace is turned on.
-  if (do_synch || C->env()->dtrace_method_probes()) {
+  if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
     // First move the exception list out of _exits:
     GraphKit kit(_exits.transfer_exceptions_into_jvms());
     SafePointNode* normal_map = kit.map();  // keep this guy safe
@@ -988,6 +995,9 @@ void Parse::do_exits() {
       if (C->env()->dtrace_method_probes()) {
         kit.make_dtrace_method_exit(method());
       }
+      if (_replaced_nodes_for_exceptions) {
+        kit.map()->apply_replaced_nodes();
+      }
       // Done with exception-path processing.
       ex_map = kit.make_exception_state(ex_oop);
       assert(ex_jvms->same_calls_as(ex_map->jvms()), "sanity");
@@ -1007,6 +1017,7 @@ void Parse::do_exits() {
       _exits.add_exception_state(ex_map);
     }
   }
+  _exits.map()->apply_replaced_nodes();
 }
 
 //-----------------------------create_entry_map-------------------------------
@@ -1020,6 +1031,9 @@ SafePointNode* Parse::create_entry_map() {
     C->record_method_not_compilable_all_tiers("too many local variables");
     return NULL;
   }
+
+  // clear current replaced nodes that are of no use from here on (map was cloned in build_exits).
+  _caller->map()->delete_replaced_nodes();
 
   // If this is an inlined method, we may have to do a receiver null check.
   if (_caller->has_method() && is_normal_parse() && !method()->is_static()) {
@@ -1044,6 +1058,8 @@ SafePointNode* Parse::create_entry_map() {
 
   SafePointNode* inmap = _caller->map();
   assert(inmap != NULL, "must have inmap");
+  // In case of null check on receiver above
+  map()->transfer_replaced_nodes_from(inmap, _new_idx);
 
   uint i;
 
@@ -1673,6 +1689,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       set_control(r->nonnull_req());
     }
 
+    map()->merge_replaced_nodes_with(newin);
+
     // newin has been subsumed into the lazy merge, and is now dead.
     set_block(save_block);
 
@@ -2075,6 +2093,13 @@ void Parse::return_current(Node* value) {
       }
     }
     phi->add_req(value);
+  }
+
+  if (_first_return) {
+    _exits.map()->transfer_replaced_nodes_from(map(), _new_idx);
+    _first_return = false;
+  } else {
+    _exits.map()->merge_replaced_nodes_with(map());
   }
 
   stop_and_kill_map();          // This CFG path dies here
