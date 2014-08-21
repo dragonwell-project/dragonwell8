@@ -5082,6 +5082,7 @@ void TestOldFreeSpaceCalculation_test();
 void TestG1BiasedArray_test();
 void TestBufferingOopClosure_test();
 void TestCodeCacheRemSet_test();
+void FreeRegionList_test();
 #endif
 
 void execute_internal_vm_tests() {
@@ -5112,6 +5113,9 @@ void execute_internal_vm_tests() {
     run_unit_test(HeapRegionRemSet::test_prt());
     run_unit_test(TestBufferingOopClosure_test());
     run_unit_test(TestCodeCacheRemSet_test());
+    if (UseG1GC) {
+      run_unit_test(FreeRegionList_test());
+    }
 #endif
     tty->print_cr("All internal VM tests passed");
   }
