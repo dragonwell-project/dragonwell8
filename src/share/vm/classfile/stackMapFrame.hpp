@@ -155,10 +155,6 @@ class StackMapFrame : public ResourceObj {
     const methodHandle m, VerificationType thisKlass, TRAPS);
 
   // Search local variable type array and stack type array.
-  // Return true if an uninitialized object is found.
-  bool has_new_object() const;
-
-  // Search local variable type array and stack type array.
   // Set every element with type of old_object to new_object.
   void initialize_object(
     VerificationType old_object, VerificationType new_object);

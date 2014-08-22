@@ -54,21 +54,6 @@ StackMapFrame* StackMapFrame::frame_in_exception_handler(u1 flags) {
   return frame;
 }
 
-bool StackMapFrame::has_new_object() const {
-  int32_t i;
-  for (i = 0; i < _max_locals; i++) {
-    if (_locals[i].is_uninitialized()) {
-      return true;
-    }
-  }
-  for (i = 0; i < _stack_size; i++) {
-    if (_stack[i].is_uninitialized()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void StackMapFrame::initialize_object(
     VerificationType old_object, VerificationType new_object) {
   int32_t i;
