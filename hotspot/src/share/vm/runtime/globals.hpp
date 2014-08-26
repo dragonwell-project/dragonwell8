@@ -1216,6 +1216,11 @@ class CommandLineFlags {
   product(bool, UseFastJNIAccessors, true,                                  \
           "Use optimized versions of Get<Primitive>Field")                  \
                                                                             \
+  product(intx, MaxJNILocalCapacity, 65536,                                 \
+          "Maximum allowable local JNI handle capacity to "                 \
+          "EnsureLocalCapacity() and PushLocalFrame(), "                    \
+          "where <= 0 is unlimited, default: 65536")                        \
+                                                                            \
   product(bool, EagerXrunInit, false,                                       \
           "Eagerly initialize -Xrun libraries; allows startup profiling, "  \
           "but not all -Xrun libraries may support the state of the VM "    \
@@ -1939,6 +1944,10 @@ class CommandLineFlags {
           "concurrent GC cycle based on the occupancy of the entire heap, " \
           "not just one of the generations (e.g., G1). A value of 0 "       \
           "denotes 'do constant GC cycles'.")                               \
+                                                                            \
+  manageable(intx, CMSTriggerInterval, -1,                                  \
+          "Commence a CMS collection cycle (at least) every so many "       \
+          "milliseconds (0 permanently, -1 disabled)")                      \
                                                                             \
   product(bool, UseCMSInitiatingOccupancyOnly, false,                       \
           "Only use occupancy as a criterion for starting a CMS collection")\

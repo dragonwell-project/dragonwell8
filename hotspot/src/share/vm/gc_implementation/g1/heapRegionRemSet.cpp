@@ -372,17 +372,17 @@ void FromCardCache::initialize(uint n_par_rs, uint max_num_regions) {
                                                        _max_regions,
                                                        &_static_mem_size);
 
-  for (uint i = 0; i < n_par_rs; i++) {
-    for (uint j = 0; j < _max_regions; j++) {
-      set(i, j, InvalidCard);
-    }
-  }
+  invalidate(0, _max_regions);
 }
 
-void FromCardCache::shrink(uint new_num_regions) {
+void FromCardCache::invalidate(uint start_idx, size_t new_num_regions) {
+  guarantee((size_t)start_idx + new_num_regions <= max_uintx,
+            err_msg("Trying to invalidate beyond maximum region, from %u size "SIZE_FORMAT,
+                    start_idx, new_num_regions));
   for (uint i = 0; i < HeapRegionRemSet::num_par_rem_sets(); i++) {
-    assert(new_num_regions <= _max_regions, "Must be within max.");
-    for (uint j = new_num_regions; j < _max_regions; j++) {
+    uint end_idx = (start_idx + (uint)new_num_regions);
+    assert(end_idx <= _max_regions, "Must be within max.");
+    for (uint j = start_idx; j < end_idx; j++) {
       set(i, j, InvalidCard);
     }
   }
@@ -406,12 +406,12 @@ void FromCardCache::clear(uint region_idx) {
   }
 }
 
-void OtherRegionsTable::init_from_card_cache(uint max_regions) {
+void OtherRegionsTable::initialize(uint max_regions) {
   FromCardCache::initialize(HeapRegionRemSet::num_par_rem_sets(), max_regions);
 }
 
-void OtherRegionsTable::shrink_from_card_cache(uint new_num_regions) {
-  FromCardCache::shrink(new_num_regions);
+void OtherRegionsTable::invalidate(uint start_idx, size_t num_regions) {
+  FromCardCache::invalidate(start_idx, num_regions);
 }
 
 void OtherRegionsTable::print_from_card_cache() {
@@ -802,7 +802,6 @@ bool OtherRegionsTable::contains_reference(OopOrNarrowOopStar from) const {
 
 bool OtherRegionsTable::contains_reference_locked(OopOrNarrowOopStar from) const {
   HeapRegion* hr = _g1h->heap_region_containing_raw(from);
-  if (hr == NULL) return false;
   RegionIdx_t hr_ind = (RegionIdx_t) hr->hrs_index();
   // Is this region in the coarse map?
   if (_coarse_map.at(hr_ind)) return true;
@@ -840,8 +839,8 @@ uint HeapRegionRemSet::num_par_rem_sets() {
 HeapRegionRemSet::HeapRegionRemSet(G1BlockOffsetSharedArray* bosa,
                                    HeapRegion* hr)
   : _bosa(bosa),
-    _m(Mutex::leaf, FormatBuffer<128>("HeapRegionRemSet lock #"UINT32_FORMAT, hr->hrs_index()), true),
-    _code_roots(), _other_regions(hr, &_m) {
+    _m(Mutex::leaf, FormatBuffer<128>("HeapRegionRemSet lock #%u", hr->hrs_index()), true),
+    _code_roots(), _other_regions(hr, &_m), _iter_state(Unclaimed), _iter_claimed(0) {
   reset_for_par_iteration();
 }
 
