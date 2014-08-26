@@ -47,23 +47,26 @@ inline uint G1CollectedHeap::addr_to_region(HeapWord* addr) const {
   return (uint)(pointer_delta(addr, _reserved.start(), sizeof(uint8_t)) >> HeapRegion::LogOfHRGrainBytes);
 }
 
-template <class T>
-inline HeapRegion*
-G1CollectedHeap::heap_region_containing(const T addr) const {
-  HeapRegion* hr = _hrs.addr_to_region((HeapWord*) addr);
-  // hr can be null if addr in perm_gen
-  if (hr != NULL && hr->continuesHumongous()) {
-    hr = hr->humongous_start_region();
-  }
-  return hr;
+inline HeapWord* G1CollectedHeap::bottom_addr_for_region(uint index) const {
+  return _hrs.reserved().start() + index * HeapRegion::GrainWords;
 }
 
 template <class T>
-inline HeapRegion*
-G1CollectedHeap::heap_region_containing_raw(const T addr) const {
-  assert(_g1_reserved.contains((const void*) addr), "invariant");
-  HeapRegion* res = _hrs.addr_to_region_unsafe((HeapWord*) addr);
-  return res;
+inline HeapRegion* G1CollectedHeap::heap_region_containing_raw(const T addr) const {
+  assert(addr != NULL, "invariant");
+  assert(is_in_g1_reserved((const void*) addr),
+      err_msg("Address "PTR_FORMAT" is outside of the heap ranging from ["PTR_FORMAT" to "PTR_FORMAT")",
+          p2i((void*)addr), p2i(g1_reserved().start()), p2i(g1_reserved().end())));
+  return _hrs.addr_to_region((HeapWord*) addr);
+}
+
+template <class T>
+inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
+  HeapRegion* hr = heap_region_containing_raw(addr);
+  if (hr->continuesHumongous()) {
+    return hr->humongous_start_region();
+  }
+  return hr;
 }
 
 inline void G1CollectedHeap::reset_gc_time_stamp() {
@@ -88,10 +91,9 @@ inline bool G1CollectedHeap::obj_in_cs(oop obj) {
   return r != NULL && r->in_collection_set();
 }
 
-inline HeapWord*
-G1CollectedHeap::attempt_allocation(size_t word_size,
-                                    unsigned int* gc_count_before_ret,
-                                    int* gclocker_retry_count_ret) {
+inline HeapWord* G1CollectedHeap::attempt_allocation(size_t word_size,
+                                                     unsigned int* gc_count_before_ret,
+                                                     int* gclocker_retry_count_ret) {
   assert_heap_not_locked_and_not_at_safepoint();
   assert(!isHumongous(word_size), "attempt_allocation() should not "
          "be called for humongous allocation requests");
@@ -154,8 +156,7 @@ G1CollectedHeap::dirty_young_block(HeapWord* start, size_t word_size) {
   // have to keep calling heap_region_containing_raw() in the
   // asserts below.
   DEBUG_ONLY(HeapRegion* containing_hr = heap_region_containing_raw(start);)
-  assert(containing_hr != NULL && start != NULL && word_size > 0,
-         "pre-condition");
+  assert(word_size > 0, "pre-condition");
   assert(containing_hr->is_in(start), "it should contain start");
   assert(containing_hr->is_young(), "it should be young");
   assert(!containing_hr->isHumongous(), "it should not be humongous");
@@ -252,8 +253,7 @@ G1CollectedHeap::set_evacuation_failure_alot_for_current_gc() {
   }
 }
 
-inline bool
-G1CollectedHeap::evacuation_should_fail() {
+inline bool G1CollectedHeap::evacuation_should_fail() {
   if (!G1EvacuationFailureALot || !_evacuation_failure_alot_for_current_gc) {
     return false;
   }
@@ -277,8 +277,10 @@ inline void G1CollectedHeap::reset_evacuation_should_fail() {
 #endif  // #ifndef PRODUCT
 
 inline bool G1CollectedHeap::is_in_young(const oop obj) {
-  HeapRegion* hr = heap_region_containing(obj);
-  return hr != NULL && hr->is_young();
+  if (obj == NULL) {
+    return false;
+  }
+  return heap_region_containing(obj)->is_young();
 }
 
 // We don't need barriers for initializing stores to objects
@@ -291,21 +293,17 @@ inline bool G1CollectedHeap::can_elide_initializing_store_barrier(oop new_obj) {
 }
 
 inline bool G1CollectedHeap::is_obj_dead(const oop obj) const {
-  const HeapRegion* hr = heap_region_containing(obj);
-  if (hr == NULL) {
-    if (obj == NULL) return false;
-    else return true;
+  if (obj == NULL) {
+    return false;
   }
-  else return is_obj_dead(obj, hr);
+  return is_obj_dead(obj, heap_region_containing(obj));
 }
 
 inline bool G1CollectedHeap::is_obj_ill(const oop obj) const {
-  const HeapRegion* hr = heap_region_containing(obj);
-  if (hr == NULL) {
-    if (obj == NULL) return false;
-    else return true;
+  if (obj == NULL) {
+    return false;
   }
-  else return is_obj_ill(obj, hr);
+  return is_obj_ill(obj, heap_region_containing(obj));
 }
 
 inline void G1CollectedHeap::set_humongous_is_live(oop obj) {
