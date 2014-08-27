@@ -66,27 +66,27 @@ abstract class Handshaker {
     ProtocolVersion protocolVersion;
 
     // the currently active protocol version during a renegotiation
-    ProtocolVersion     activeProtocolVersion;
+    ProtocolVersion activeProtocolVersion;
 
     // security parameters for secure renegotiation.
-    boolean             secureRenegotiation;
-    byte[]              clientVerifyData;
-    byte[]              serverVerifyData;
+    boolean secureRenegotiation;
+    byte[] clientVerifyData;
+    byte[] serverVerifyData;
 
     // Is it an initial negotiation  or a renegotiation?
-    boolean                     isInitialHandshake;
+    boolean isInitialHandshake;
 
     // List of enabled protocols
-    private ProtocolList        enabledProtocols;
+    private ProtocolList enabledProtocols;
 
     // List of enabled CipherSuites
-    private CipherSuiteList     enabledCipherSuites;
+    private CipherSuiteList enabledCipherSuites;
 
     // The endpoint identification protocol
-    String              identificationProtocol;
+    String identificationProtocol;
 
     // The cryptographic algorithm constraints
-    private AlgorithmConstraints    algorithmConstraints = null;
+    private AlgorithmConstraints algorithmConstraints = null;
 
     // Local supported signature and algorithms
     Collection<SignatureAndHashAlgorithm> localSupportedSignAlgs;
@@ -95,15 +95,13 @@ abstract class Handshaker {
     Collection<SignatureAndHashAlgorithm> peerSupportedSignAlgs;
 
     /*
-
-    /*
      * List of active protocols
      *
      * Active protocols is a subset of enabled protocols, and will
      * contain only those protocols that have vaild cipher suites
      * enabled.
      */
-    private ProtocolList       activeProtocols;
+    private ProtocolList activeProtocols;
 
     /*
      * List of active cipher suites
@@ -111,39 +109,41 @@ abstract class Handshaker {
      * Active cipher suites is a subset of enabled cipher suites, and will
      * contain only those cipher suites available for the active protocols.
      */
-    private CipherSuiteList    activeCipherSuites;
+    private CipherSuiteList activeCipherSuites;
 
     // The server name indication and matchers
-    List<SNIServerName>         serverNames =
-                                    Collections.<SNIServerName>emptyList();
-    Collection<SNIMatcher>      sniMatchers =
-                                    Collections.<SNIMatcher>emptyList();
+    List<SNIServerName> serverNames = Collections.<SNIServerName>emptyList();
+    Collection<SNIMatcher> sniMatchers = Collections.<SNIMatcher>emptyList();
 
-    private boolean             isClient;
-    private boolean             needCertVerify;
+    private boolean isClient;
+    private boolean needCertVerify;
 
-    SSLSocketImpl               conn = null;
-    SSLEngineImpl               engine = null;
+    SSLSocketImpl conn = null;
+    SSLEngineImpl engine = null;
 
-    HandshakeHash               handshakeHash;
-    HandshakeInStream           input;
-    HandshakeOutStream          output;
-    int                         state;
-    SSLContextImpl              sslContext;
-    RandomCookie                clnt_random, svr_random;
-    SSLSessionImpl              session;
+    HandshakeHash handshakeHash;
+    HandshakeInStream input;
+    HandshakeOutStream output;
+    int state;
+    SSLContextImpl sslContext;
+    RandomCookie clnt_random, svr_random;
+    SSLSessionImpl session;
 
     // current CipherSuite. Never null, initially SSL_NULL_WITH_NULL_NULL
-    CipherSuite         cipherSuite;
+    CipherSuite cipherSuite;
 
     // current key exchange. Never null, initially K_NULL
-    KeyExchange         keyExchange;
+    KeyExchange keyExchange;
 
-    /* True if this session is being resumed (fast handshake) */
-    boolean             resumingSession;
+    // True if this session is being resumed (fast handshake)
+    boolean resumingSession;
 
-    /* True if it's OK to start a new SSL session */
-    boolean             enableNewSession;
+    // True if it's OK to start a new SSL session
+    boolean enableNewSession;
+
+    // True if session keys have been calculated and the caller may receive
+    // and process a ChangeCipherSpec message
+    private boolean sessKeysCalculated;
 
     // Whether local cipher suites preference should be honored during
     // handshaking?
@@ -176,7 +176,7 @@ abstract class Handshaker {
     // here instead of using this lock.  Consider changing.
     private Object thrownLock = new Object();
 
-    /* Class and subclass dynamic debugging support */
+    // Class and subclass dynamic debugging support
     static final Debug debug = Debug.getInstance("ssl");
 
     // By default, disable the unsafe legacy session renegotiation
@@ -253,6 +253,7 @@ abstract class Handshaker {
         this.serverVerifyData = serverVerifyData;
         enableNewSession = true;
         invalidated = false;
+        sessKeysCalculated = false;
 
         setCipherSuite(CipherSuite.C_NULL);
         setEnabledProtocols(enabledProtocols);
@@ -1212,6 +1213,10 @@ abstract class Handshaker {
             throw new ProviderException(e);
         }
 
+        // Mark a flag that allows outside entities (like SSLSocket/SSLEngine)
+        // determine if a ChangeCipherSpec message could be processed.
+        sessKeysCalculated = true;
+
         //
         // Dump the connection keys as they're generated.
         //
@@ -1264,6 +1269,15 @@ abstract class Handshaker {
                 System.out.flush();
             }
         }
+    }
+
+    /**
+     * Return whether or not the Handshaker has derived session keys for
+     * this handshake.  This is used for determining readiness to process
+     * an incoming ChangeCipherSpec message.
+     */
+    boolean sessionKeysCalculated() {
+        return sessKeysCalculated;
     }
 
     private static void printHex(HexDumpEncoder dump, byte[] bytes) {
