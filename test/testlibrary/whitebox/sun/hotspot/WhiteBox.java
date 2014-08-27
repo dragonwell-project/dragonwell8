@@ -132,7 +132,7 @@ public class WhiteBox {
   }
   public native int     getCompileQueueSize(int compLevel);
   public native boolean testSetForceInlineMethod(Executable method, boolean value);
-  public        boolean enqueueMethodForCompilation(Executable method, int compLevel) {
+  public boolean        enqueueMethodForCompilation(Executable method, int compLevel) {
     return enqueueMethodForCompilation(method, compLevel, -1 /*InvocationEntryBci*/);
   }
   public native boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci);
@@ -145,8 +145,6 @@ public class WhiteBox {
 
   // Memory
   public native void readReservedMemory();
-  public native long allocateMetaspace(ClassLoader classLoader, long size);
-  public native void freeMetaspace(ClassLoader classLoader, long addr, long size);
 
   // force Young GC
   public native void youngGC();
@@ -162,17 +160,4 @@ public class WhiteBox {
   // CPU features
   public native String getCPUFeatures();
 
-  // VM flags
-  public native void    setBooleanVMFlag(String name, boolean value);
-  public native void    setIntxVMFlag(String name, long value);
-  public native void    setUintxVMFlag(String name, long value);
-  public native void    setUint64VMFlag(String name, long value);
-  public native void    setStringVMFlag(String name, String value);
-  public native void    setDoubleVMFlag(String name, double value);
-  public native Boolean getBooleanVMFlag(String name);
-  public native Long    getIntxVMFlag(String name);
-  public native Long    getUintxVMFlag(String name);
-  public native Long    getUint64VMFlag(String name);
-  public native String  getStringVMFlag(String name);
-  public native Double  getDoubleVMFlag(String name);
 }
