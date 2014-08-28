@@ -25,6 +25,10 @@
 package sun.hotspot;
 
 import java.lang.reflect.Executable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import java.security.BasicPermission;
 import sun.hotspot.parser.DiagnosticCommand;
 
@@ -69,6 +73,8 @@ public class WhiteBox {
   // Memory
   public native long getObjectAddress(Object o);
   public native int  getHeapOopSize();
+  public native boolean isObjectInOldGen(Object o);
+  public native long getObjectSize(Object o);
 
   // Runtime
   // Make sure class name is in the correct format
@@ -91,7 +97,8 @@ public class WhiteBox {
   public native void NMTCommitMemory(long addr, long size);
   public native void NMTUncommitMemory(long addr, long size);
   public native void NMTReleaseMemory(long addr, long size);
-  public native boolean NMTWaitForDataMerge();
+  public native void NMTOverflowHashBucket(long num);
+  public native long NMTMallocWithPseudoStack(long size, int index);
   public native boolean NMTIsDetailSupported();
 
   // Compiler
@@ -145,6 +152,9 @@ public class WhiteBox {
   public native long allocateMetaspace(ClassLoader classLoader, long size);
   public native void freeMetaspace(ClassLoader classLoader, long addr, long size);
 
+  // force Young GC
+  public native void youngGC();
+
   // force Full GC
   public native void fullGC();
 
@@ -152,6 +162,8 @@ public class WhiteBox {
   public native int stressVirtualSpaceResize(long reservedSpaceSize, long magnitude, long iterations);
   public native void runMemoryUnitTests();
   public native void readFromNoaccessArea();
+  public native long getThreadStackSize();
+  public native long getThreadRemainingStackSize();
 
   // CPU features
   public native String getCPUFeatures();
@@ -169,4 +181,15 @@ public class WhiteBox {
   public native Long    getUint64VMFlag(String name);
   public native String  getStringVMFlag(String name);
   public native Double  getDoubleVMFlag(String name);
+  private final List<Function<String,Object>> flagsGetters = Arrays.asList(
+    this::getBooleanVMFlag, this::getIntxVMFlag, this::getUintxVMFlag,
+    this::getUint64VMFlag, this::getStringVMFlag, this::getDoubleVMFlag);
+
+  public Object getVMFlag(String name) {
+    return flagsGetters.stream()
+                       .map(f -> f.apply(name))
+                       .filter(x -> x != null)
+                       .findAny()
+                       .orElse(null);
+  }
 }
