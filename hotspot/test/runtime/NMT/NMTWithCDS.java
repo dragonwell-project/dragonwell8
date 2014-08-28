@@ -26,6 +26,7 @@
  * @bug 8055061
  * @key nmt
  * @library /testlibrary
+ * @ignore
  * @run main NMTWithCDS
  */
 import com.oracle.java.testlibrary.*;
