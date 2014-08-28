@@ -50,7 +50,6 @@
 #include "runtime/sweeper.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
-#include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
@@ -546,10 +545,6 @@ void SafepointSynchronize::do_cleanup_tasks() {
     // make sure concurrent sweep is done
     TraceTime t7("purging class loader data graph", TraceSafepointCleanupTime);
     ClassLoaderDataGraph::purge_if_needed();
-  }
-
-  if (MemTracker::is_on()) {
-    MemTracker::sync();
   }
 }
 

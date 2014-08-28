@@ -2336,25 +2336,6 @@ size_t G1CollectedHeap::recalculate_used() const {
   return blk.result();
 }
 
-size_t G1CollectedHeap::unsafe_max_alloc() {
-  if (num_free_regions() > 0) return HeapRegion::GrainBytes;
-  // otherwise, is there space in the current allocation region?
-
-  // We need to store the current allocation region in a local variable
-  // here. The problem is that this method doesn't take any locks and
-  // there may be other threads which overwrite the current allocation
-  // region field. attempt_allocation(), for example, sets it to NULL
-  // and this can happen *after* the NULL check here but before the call
-  // to free(), resulting in a SIGSEGV. Note that this doesn't appear
-  // to be a problem in the optimized build, since the two loads of the
-  // current allocation region field are optimized away.
-  HeapRegion* hr = _mutator_alloc_region.get();
-  if (hr == NULL) {
-    return 0;
-  }
-  return hr->free();
-}
-
 bool G1CollectedHeap::should_do_concurrent_full_gc(GCCause::Cause cause) {
   switch (cause) {
     case GCCause::_gc_locker:               return GCLockerInvokesConcurrent;
@@ -2531,7 +2512,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
         }
       }
     } else {
-      if (cause == GCCause::_gc_locker
+      if (cause == GCCause::_gc_locker || cause == GCCause::_wb_young_gc
           DEBUG_ONLY(|| cause == GCCause::_scavenge_alot)) {
 
         // Schedule a standard evacuation pause. We're setting word_size
