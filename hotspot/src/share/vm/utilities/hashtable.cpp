@@ -353,6 +353,11 @@ template <MEMFLAGS F> void BasicHashtable<F>::verify_lookup_length(double load) 
 
 #endif
 // Explicitly instantiate these types
+#if INCLUDE_ALL_GCS
+template class Hashtable<nmethod*, mtGC>;
+template class HashtableEntry<nmethod*, mtGC>;
+template class BasicHashtable<mtGC>;
+#endif
 template class Hashtable<ConstantPool*, mtClass>;
 template class RehashableHashtable<Symbol*, mtSymbol>;
 template class RehashableHashtable<oopDesc*, mtSymbol>;
