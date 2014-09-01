@@ -31,10 +31,6 @@
 #include "runtime/os.hpp"
 #include "vm_version_aarch64.hpp"
 
-#define FULL_MEM_BARRIER  __sync_synchronize()
-#define READ_MEM_BARRIER  __atomic_thread_fence(__ATOMIC_ACQUIRE);
-#define WRITE_MEM_BARRIER __atomic_thread_fence(__ATOMIC_RELEASE);
-
 // Implementation of class OrderAccess.
 
 inline void OrderAccess::loadload()   { acquire(); }

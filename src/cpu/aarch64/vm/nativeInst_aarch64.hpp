@@ -142,6 +142,7 @@ class NativeCall: public NativeInstruction {
     offset &= (1 << 26) - 1; // mask off insn part
     insn |= offset;
     set_int_at(displacement_offset, insn);
+    ICache::invalidate_range(instruction_address(), instruction_size);
   }
 
   // Similar to replace_mt_safe, but just changes the destination.  The
