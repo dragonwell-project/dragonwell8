@@ -318,6 +318,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ mov(c_rarg1, lr);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::fixup_callers_callsite)));
   __ blrt(rscratch1, 2, 0, 0);
+  __ maybe_isb();
 
   __ pop_CPU_state();
   // restore sp
@@ -1171,7 +1172,7 @@ static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, 
     __ lea(rscratch1, RuntimeAddress(dest));
     __ mov(rscratch2, (gpargs << 6) | (fpargs << 2) | type);
     __ blrt(rscratch1, rscratch2);
-    // __ blrt(rscratch1, gpargs, fpargs, type);
+    __ maybe_isb();
   }
 }
 
@@ -1974,6 +1975,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
       __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans_and_transition)));
     }
     __ blrt(rscratch1, 1, 0, 1);
+    __ maybe_isb();
     // Restore any method result value
     restore_native_result(masm, ret_type, stack_slots);
 
@@ -2813,6 +2815,8 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   __ reset_last_Java_frame(false, true);
 
+  __ maybe_isb();
+
   __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
   __ cbz(rscratch1, noException);
 
@@ -2881,6 +2885,8 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   // registers that the compiler might be keeping live across a safepoint.
 
   oop_maps->add_gc_map( __ offset() - start, map);
+
+  __ maybe_isb();
 
   // r0 contains the address we are going to jump to assuming no exception got installed
 
@@ -3004,6 +3010,7 @@ void OptoRuntime::generate_exception_blob() {
   __ mov(c_rarg0, rthread);
   __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, OptoRuntime::handle_exception_C)));
   __ blrt(rscratch1, 1, 0, MacroAssembler::ret_type_integral);
+  __ maybe_isb();
 
   // Set an oopmap for the call site.  This oopmap will only be used if we
   // are unwinding the stack.  Hence, all locations will be dead.

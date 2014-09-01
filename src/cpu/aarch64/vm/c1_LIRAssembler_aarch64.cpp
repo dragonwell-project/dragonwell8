@@ -518,6 +518,7 @@ void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo*
   __ str(r0, Address(rthread, JavaThread::saved_exception_pc_offset()));
   __ mov(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::get_poll_stub));
   __ blrt(rscratch1, 1, 0, 1);
+  __ maybe_isb();
   __ pop(0x3ffffffc, sp);          // integer registers except lr & sp & r0 & r1
   __ mov(rscratch1, r0);
   __ pop(0x3, sp);                 // r0 & r1
@@ -2913,6 +2914,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
   if (info != NULL) {
     add_call_info_here(info);
   }
+  __ maybe_isb();
 }
 
 void LIR_Assembler::volatile_move_op(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info) {

@@ -1041,6 +1041,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // Call the native method.
   __ blrt(r10, rscratch1);
+  __ maybe_isb();
   __ get_method(rmethod);
   // result potentially in r0 or v0
 
@@ -1098,6 +1099,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
     __ mov(c_rarg0, rthread);
     __ mov(rscratch2, CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans));
     __ blrt(rscratch2, 1, 0, 0);
+    __ maybe_isb();
     __ get_method(rmethod);
     __ reinit_heapbase();
     __ bind(Continue);

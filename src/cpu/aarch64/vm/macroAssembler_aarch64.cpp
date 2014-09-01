@@ -1196,6 +1196,7 @@ void MacroAssembler::call_VM_leaf_base1(address entry_point,
     bind(*retaddr);
 
   ldp(rscratch1, rmethod, Address(post(sp, 2 * wordSize)));
+  maybe_isb();
 }
 
 void MacroAssembler::call_VM_leaf(address entry_point, int number_of_arguments) {

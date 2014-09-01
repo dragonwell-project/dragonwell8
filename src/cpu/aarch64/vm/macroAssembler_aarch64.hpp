@@ -1102,6 +1102,9 @@ public:
                       Register tmp1, Register tmp2,
                       Register tmp3, Register tmp4,
                       int int_cnt1, Register result);
+
+  // ISB may be needed because of a safepoint
+  void maybe_isb() { isb(); }
 };
 
 // Used by aarch64.ad to control code generation

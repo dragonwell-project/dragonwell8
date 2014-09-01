@@ -37,11 +37,6 @@
 #include "c1/c1_Runtime1.hpp"
 #endif
 
-void NativeInstruction::wrote(int offset) {
-  // FIXME: Native needs ISB here
-; }
-
-
 void NativeCall::verify() { ; }
 
 address NativeCall::destination() const {
@@ -51,9 +46,12 @@ address NativeCall::destination() const {
 // Inserts a native call instruction at a given pc
 void NativeCall::insert(address code_pos, address entry) { Unimplemented(); }
 
+//-------------------------------------------------------------------
+
 void NativeMovConstReg::verify() {
   // make sure code pattern is actually mov reg64, imm64 instructions
 }
+
 
 intptr_t NativeMovConstReg::data() const {
   // das(uint64_t(instruction_address()),2);
@@ -71,6 +69,7 @@ void NativeMovConstReg::set_data(intptr_t x) {
     *(intptr_t*)addr = x;
   } else {
     MacroAssembler::pd_patch_instruction(instruction_address(), (address)x);
+    ICache::invalidate_range(instruction_address(), instruction_size);
   }
 };
 
@@ -102,6 +101,7 @@ void NativeMovRegMem::set_offset(int x) {
     *(long*)addr = x;
   } else {
     MacroAssembler::pd_patch_instruction(pc, (address)intptr_t(x));
+    ICache::invalidate_range(instruction_address(), instruction_size);
   }
 }
 
@@ -138,7 +138,10 @@ void NativeJump::set_jump_destination(address dest) {
     dest = instruction_address();
 
   MacroAssembler::pd_patch_instruction(instruction_address(), dest);
+  ICache::invalidate_range(instruction_address(), instruction_size);
 };
+
+//-------------------------------------------------------------------
 
 bool NativeInstruction::is_safepoint_poll() {
   // a safepoint_poll is implemented in two steps as either
@@ -189,7 +192,9 @@ bool NativeInstruction::is_movk() {
   return Instruction_aarch64::extract(int_at(0), 30, 23) == 0b11100101;
 }
 
-// MT safe inserting of a jump over an unknown instruction sequence (used by nmethod::makeZombie)
+//-------------------------------------------------------------------
+
+// MT safe inserting of a jump over a jump or a nop (used by nmethod::makeZombie)
 
 void NativeJump::patch_verified_entry(address entry, address verified_entry, address dest) {
   ptrdiff_t disp = dest - verified_entry;
@@ -203,23 +208,22 @@ void NativeJump::patch_verified_entry(address entry, address verified_entry, add
   ICache::invalidate_range(verified_entry, instruction_size);
 }
 
-
 void NativeGeneralJump::verify() {  }
 
-
 void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
+  NativeGeneralJump* n_jump = (NativeGeneralJump*)code_pos;
   ptrdiff_t disp = entry - code_pos;
   guarantee(disp < 1 << 27 && disp > - (1 << 27), "branch overflow");
 
   unsigned int insn = (0b000101 << 26) | ((disp >> 2) & 0x3ffffff);
-
   *(unsigned int*)code_pos = insn;
   ICache::invalidate_range(code_pos, instruction_size);
 }
 
 // MT-safe patching of a long jump instruction.
 void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer) {
-  assert(nativeInstruction_at(instr_addr)->is_jump_or_nop(),
+  NativeGeneralJump* n_jump = (NativeGeneralJump*)instr_addr;
+  assert(n_jump->is_jump_or_nop(),
 	 "Aarch64 cannot replace non-jump with jump");
   uint32_t instr = *(uint32_t*)code_buffer;
   *(uint32_t*)instr_addr = instr;
