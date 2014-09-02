@@ -814,6 +814,7 @@ typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > MetablockTreeDicti
      static_field(StubRoutines,                _cipherBlockChaining_decryptAESCrypt,          address)                               \
      static_field(StubRoutines,                _updateBytesCRC32,                             address)                               \
      static_field(StubRoutines,                _crc_table_adr,                                address)                               \
+     static_field(StubRoutines,                _multiplyToLen,                                address)                               \
                                                                                                                                      \
   /*****************/                                                                                                                \
   /* SharedRuntime */                                                                                                                \
