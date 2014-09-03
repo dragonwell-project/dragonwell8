@@ -21,33 +21,27 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 8046343
- * @summary Make sure that direct protocol is available
- * @run main/manual TestDirect
+ * @bug 8054817
+ * @summary File ccache only recognizes Linux and Solaris defaults
  */
 
-// This test requires special hardware.
+import sun.security.krb5.internal.ccache.FileCredentialsCache;
 
-import java.util.List;
-import javax.smartcardio.Card;
-import javax.smartcardio.CardTerminal;
-import javax.smartcardio.CardTerminals;
-import javax.smartcardio.TerminalFactory;
-
-public class TestDirect {
+public class DefaultFile {
     public static void main(String[] args) throws Exception {
-        TerminalFactory terminalFactory = TerminalFactory.getDefault();
-        List<CardTerminal> cardTerminals = terminalFactory.terminals().list();
-        System.out.println("Terminals: " + cardTerminals);
-        if (cardTerminals.isEmpty()) {
-            throw new Exception("No card terminals available");
+        // There are 2 cases where default ccache name is not
+        // /tmp/krb5cc_uid.
+        if (System.getenv("KRB5CCNAME") != null) {
+            return;
         }
-        CardTerminal cardTerminal = cardTerminals.get(0);
-        Card card = cardTerminal.connect("DIRECT");
-        card.disconnect(true);
-
-        System.out.println("OK.");
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            return;
+        }
+        String name = FileCredentialsCache.getDefaultCacheName();
+        if (!name.startsWith("/tmp/krb5cc_")) {
+            throw new Exception("default name is " + name);
+        }
     }
 }
