@@ -219,6 +219,7 @@ void HeapRegion::hr_clear(bool par, bool clear_space, bool locked) {
 
   _in_collection_set = false;
 
+  set_allocation_context(AllocationContext::system());
   set_young_index_in_cset(-1);
   uninstall_surv_rate_group();
   set_young_type(NotYoung);
@@ -346,9 +347,9 @@ HeapWord* HeapRegion::next_block_start_careful(HeapWord* addr) {
 
 HeapRegion::HeapRegion(uint hrm_index,
                        G1BlockOffsetSharedArray* sharedOffsetArray,
-                       MemRegion mr) :
+                       MemRegion mr, AllocationContext_t context) :
     G1OffsetTableContigSpace(sharedOffsetArray, mr),
-    _hrm_index(hrm_index),
+    _hrm_index(hrm_index), _allocation_context(context),
     _humongous_type(NotHumongous), _humongous_start_region(NULL),
     _in_collection_set(false),
     _next_in_special_set(NULL), _orig_end(NULL),
@@ -715,6 +716,8 @@ void HeapRegion::verify_strong_code_roots(VerifyOption vo, bool* failures) const
 
 void HeapRegion::print() const { print_on(gclog_or_tty); }
 void HeapRegion::print_on(outputStream* st) const {
+  st->print("AC%4u", allocation_context());
+
   if (isHumongous()) {
     if (startsHumongous())
       st->print(" HS");
