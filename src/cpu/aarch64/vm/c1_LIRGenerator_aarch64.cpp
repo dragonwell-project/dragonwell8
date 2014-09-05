@@ -1089,7 +1089,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
 #endif
   CodeEmitInfo* info = state_for(x, x->state());
   LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(),
+  new_instance(reg, x->klass(), x->is_unresolved(),
                        FrameMap::r2_oop_opr,
                        FrameMap::r5_oop_opr,
                        FrameMap::r4_oop_opr,
