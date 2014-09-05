@@ -2291,6 +2291,9 @@ methodHandle SystemDictionary::find_method_handle_intrinsic(vmIntrinsics::ID iid
   }
 
   assert(spe != NULL && spe->method() != NULL, "");
+  assert(!UseCompiler || (spe->method()->has_compiled_code() &&
+         spe->method()->code()->entry_point() == spe->method()->from_compiled_entry()),
+         "MH intrinsic invariant");
   return spe->method();
 }
 
