@@ -35,6 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/arguments_ext.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "services/management.hpp"
@@ -1544,7 +1545,7 @@ void Arguments::select_gc_ergonomically() {
 
 void Arguments::select_gc() {
   if (!gc_selected()) {
-    select_gc_ergonomically();
+    ArgumentsExt::select_gc_ergonomically();
   }
 }
 
@@ -2033,7 +2034,7 @@ bool Arguments::verify_MaxHeapFreeRatio(FormatBuffer<80>& err_msg, uintx max_hea
 }
 
 // Check consistency of GC selection
-bool Arguments::check_gc_consistency() {
+bool Arguments::check_gc_consistency_user() {
   check_gclog_consistency();
   bool status = true;
   // Ensure that the user has not selected conflicting sets
@@ -2199,7 +2200,7 @@ bool Arguments::check_vm_args_consistency() {
     FLAG_SET_DEFAULT(UseGCOverheadLimit, false);
   }
 
-  status = status && check_gc_consistency();
+  status = status && ArgumentsExt::check_gc_consistency_user();
   status = status && check_stack_pages();
 
   if (CMSIncrementalMode) {
@@ -2446,8 +2447,6 @@ bool Arguments::check_vm_args_consistency() {
   if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
     warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
   }
-
-  status &= check_vm_args_consistency_ext();
 
   return status;
 }
@@ -3419,7 +3418,7 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
     }
   }
 
-  if (!check_vm_args_consistency()) {
+  if (!ArgumentsExt::check_vm_args_consistency()) {
     return JNI_ERR;
   }
 
@@ -3793,7 +3792,7 @@ jint Arguments::apply_ergo() {
   set_shared_spaces_flags();
 
   // Check the GC selections again.
-  if (!check_gc_consistency()) {
+  if (!ArgumentsExt::check_gc_consistency_ergo()) {
     return JNI_EINVAL;
   }
 

@@ -25,14 +25,16 @@
 
 package jdk.nashorn.api.scripting;
 
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+
 import java.lang.invoke.MethodHandle;
 import jdk.internal.dynalink.beans.StaticClass;
 import jdk.internal.dynalink.linker.LinkerServices;
-import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.linker.Bootstrap;
 
 /**
  * Utilities that are to be called from script code.
@@ -69,12 +71,15 @@ public final class ScriptUtils {
      * Create a wrapper function that calls {@code func} synchronized on {@code sync} or, if that is undefined,
      * {@code self}. Used to implement "sync" function in resources/mozilla_compat.js.
      *
-     * @param func the function to invoke
+     * @param func the function to wrap
      * @param sync the object to synchronize on
      * @return a synchronizing wrapper function
      */
-    public static Object makeSynchronizedFunction(final ScriptFunction func, final Object sync) {
-        return func.makeSynchronizedFunction(sync);
+    public static Object makeSynchronizedFunction(final Object func, final Object sync) {
+        if (func instanceof ScriptFunction) {
+           return ((ScriptFunction)func).makeSynchronizedFunction(sync);
+        }
+        throw typeError("not.a.function", ScriptRuntime.safeToString(func));
     }
 
     /**

@@ -909,6 +909,7 @@ public final class NativeDate extends ScriptObject {
         sb.append(n);
     }
 
+    @SuppressWarnings("fallthrough")
     private static String toStringImpl(final Object self, final int format) {
         final NativeDate nd = getNativeDate(self);
 
@@ -934,7 +935,6 @@ public final class NativeDate extends ScriptObject {
                     }
                     sb.append(' ');
 
-                    //$FALL-THROUGH$
                 case FORMAT_TIME:
                     final TimeZone tz = nd.getTimeZone();
                     final double utcTime = nd.getTime();

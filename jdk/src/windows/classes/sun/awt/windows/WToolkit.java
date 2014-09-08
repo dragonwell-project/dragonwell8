@@ -36,9 +36,9 @@ import java.awt.TrayIcon;
 import java.beans.PropertyChangeListener;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import sun.awt.AppContext;
 import sun.awt.AWTAutoShutdown;
 import sun.awt.LightweightFrame;
-import sun.awt.AppContext;
 import sun.awt.SunToolkit;
 import sun.misc.ThreadGroupUtils;
 import sun.awt.Win32GraphicsDevice;
@@ -72,6 +72,9 @@ import sun.security.util.SecurityConstants;
 public final class WToolkit extends SunToolkit implements Runnable {
 
     private static final PlatformLogger log = PlatformLogger.getLogger("sun.awt.windows.WToolkit");
+
+    // Desktop property which specifies whether XP visual styles are in effect
+    public static final String XPSTYLE_THEME_ACTIVE = "win.xpstyle.themeActive";
 
     static GraphicsConfiguration config;
 
@@ -580,6 +583,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
     /**
      * Returns <code>true</code> if this frame state is supported.
      */
+    @Override
     public boolean isFrameStateSupported(int state) {
         switch (state) {
           case Frame.NORMAL:
@@ -839,6 +843,11 @@ public final class WToolkit extends SunToolkit implements Runnable {
 
     @Override
     public DragSourceContextPeer createDragSourceContextPeer(DragGestureEvent dge) throws InvalidDnDOperationException {
+        final LightweightFrame f = SunToolkit.getLightweightFrame(dge.getComponent());
+        if (f != null) {
+            return f.createDragSourceContextPeer(dge);
+        }
+
         return WDragSourceContextPeer.createDragSourceContextPeer(dge);
     }
 
@@ -848,6 +857,11 @@ public final class WToolkit extends SunToolkit implements Runnable {
                                     DragSource ds, Component c, int srcActions,
                                     DragGestureListener dgl)
     {
+        final LightweightFrame f = SunToolkit.getLightweightFrame(c);
+        if (f != null) {
+            return f.createDragGestureRecognizer(abstractRecognizerClass, ds, c, srcActions, dgl);
+        }
+
         if (MouseDragGestureRecognizer.class.equals(abstractRecognizerClass))
             return (T)new WMouseDragGestureRecognizer(ds, c, srcActions, dgl);
         else
@@ -894,7 +908,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
     private synchronized void lazilyInitWProps() {
         if (wprops == null) {
             wprops = new WDesktopProperties(this);
-            updateProperties();
+            updateProperties(wprops.getProperties());
         }
     }
 
@@ -929,25 +943,36 @@ public final class WToolkit extends SunToolkit implements Runnable {
      * Windows doesn't always send WM_SETTINGCHANGE when it should.
      */
     private void windowsSettingChange() {
+        // JDK-8039383: Have to update the value of XPSTYLE_THEME_ACTIVE property
+        // as soon as possible to prevent NPE and other errors because theme data
+        // has become unavailable.
+        final Map<String, Object> props = getWProps();
+        if (props == null) {
+            // props has not been initialized, so we have nothing to update
+            return;
+        }
+
+        updateXPStyleEnabled(props.get(XPSTYLE_THEME_ACTIVE));
+
         if (AppContext.getAppContext() == null) {
             // We cannot post the update to any EventQueue. Listeners will
             // be called on EDTs by DesktopPropertyChangeSupport
-            updateProperties();
+            updateProperties(props);
         } else {
             // Cannot update on Toolkit thread.
             // DesktopPropertyChangeSupport will call listeners on Toolkit
             // thread if it has AppContext (standalone mode)
-            EventQueue.invokeLater(this::updateProperties);
+            EventQueue.invokeLater(() -> updateProperties(props));
         }
     }
 
-    private synchronized void updateProperties() {
-        if (null == wprops) {
-            // wprops has not been initialized, so we have nothing to update
+    private synchronized void updateProperties(final Map<String, Object> props) {
+        if (null == props) {
             return;
         }
 
-        Map<String, Object> props = wprops.getProperties();
+        updateXPStyleEnabled(props.get(XPSTYLE_THEME_ACTIVE));
+
         for (String propName : props.keySet()) {
             Object val = props.get(propName);
             if (log.isLoggable(PlatformLogger.Level.FINER)) {
@@ -955,6 +980,14 @@ public final class WToolkit extends SunToolkit implements Runnable {
             }
             setDesktopProperty(propName, val);
         }
+    }
+
+    private synchronized Map<String, Object> getWProps() {
+        return (wprops != null) ? wprops.getProperties() : null;
+    }
+
+    private void updateXPStyleEnabled(final Object dskProp) {
+        ThemeReader.xpStyleEnabled = Boolean.TRUE.equals(dskProp);
     }
 
     @Override
@@ -978,6 +1011,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
      * initialize only static props here and do not try to initialize props which depends on wprops,
      * this should be done in lazilyLoadDesktopProperty() only.
      */
+    @Override
     protected synchronized void initializeDesktopProperties() {
         desktopProperties.put("DnD.Autoscroll.initialDelay",
                               Integer.valueOf(50));

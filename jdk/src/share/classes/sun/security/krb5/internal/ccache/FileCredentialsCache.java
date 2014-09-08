@@ -402,8 +402,7 @@ public class FileCredentialsCache extends CredentialsCache
             String uidStr = null;
             long uid = 0;
 
-            if (osname.startsWith("SunOS") ||
-                (osname.startsWith("Linux"))) {
+            if (!osname.startsWith("Windows")) {
                 try {
                     Class<?> c = Class.forName
                         ("com.sun.security.auth.module.UnixSystem");

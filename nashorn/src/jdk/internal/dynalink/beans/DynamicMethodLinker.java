@@ -99,12 +99,12 @@ import jdk.internal.dynalink.support.Guards;
  */
 class DynamicMethodLinker implements TypeBasedGuardingDynamicLinker {
     @Override
-    public boolean canLinkType(Class<?> type) {
+    public boolean canLinkType(final Class<?> type) {
         return DynamicMethod.class.isAssignableFrom(type);
     }
 
     @Override
-    public GuardedInvocation getGuardedInvocation(LinkRequest linkRequest, LinkerServices linkerServices) {
+    public GuardedInvocation getGuardedInvocation(final LinkRequest linkRequest, final LinkerServices linkerServices) {
         final Object receiver = linkRequest.getReceiver();
         if(!(receiver instanceof DynamicMethod)) {
             return null;
@@ -114,15 +114,30 @@ class DynamicMethodLinker implements TypeBasedGuardingDynamicLinker {
             return null;
         }
         final String operator = desc.getNameToken(CallSiteDescriptor.OPERATOR);
-        if(operator == "call") {
-            final MethodHandle invocation = ((DynamicMethod)receiver).getInvocation(
+        final DynamicMethod dynMethod = (DynamicMethod)receiver;
+        final boolean constructor = dynMethod.isConstructor();
+        final MethodHandle invocation;
+
+        if (operator == "call" && !constructor) {
+            invocation = dynMethod.getInvocation(
                     CallSiteDescriptorFactory.dropParameterTypes(desc, 0, 1), linkerServices);
-            if(invocation == null) {
+        } else if (operator == "new" && constructor) {
+            final MethodHandle ctorInvocation = dynMethod.getInvocation(desc, linkerServices);
+            if(ctorInvocation == null) {
                 return null;
             }
-            return new GuardedInvocation(MethodHandles.dropArguments(invocation, 0,
-                    desc.getMethodType().parameterType(0)), Guards.getIdentityGuard(receiver));
+
+            // Insert null for StaticClass parameter
+            invocation = MethodHandles.insertArguments(ctorInvocation, 0, (Object)null);
+        } else {
+            return null;
         }
+
+        if (invocation != null) {
+            return new GuardedInvocation(MethodHandles.dropArguments(invocation, 0,
+                desc.getMethodType().parameterType(0)), Guards.getIdentityGuard(receiver));
+        }
+
         return null;
     }
 }

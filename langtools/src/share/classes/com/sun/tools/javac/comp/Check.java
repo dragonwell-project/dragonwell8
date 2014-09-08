@@ -531,8 +531,8 @@ public class Check {
 
     Type checkType(final DiagnosticPosition pos, final Type found, final Type req, final CheckContext checkContext) {
         final Infer.InferenceContext inferenceContext = checkContext.inferenceContext();
-        if (inferenceContext.free(req)) {
-            inferenceContext.addFreeTypeListener(List.of(req), new FreeTypeListener() {
+        if (inferenceContext.free(req) || inferenceContext.free(found)) {
+            inferenceContext.addFreeTypeListener(List.of(req, found), new FreeTypeListener() {
                 @Override
                 public void typesInferred(InferenceContext inferenceContext) {
                     checkType(pos, inferenceContext.asInstType(found), inferenceContext.asInstType(req), checkContext);
@@ -1715,7 +1715,12 @@ public class Check {
 
         // Warn if a deprecated method overridden by a non-deprecated one.
         if (!isDeprecatedOverrideIgnorable(other, origin)) {
-            checkDeprecated(TreeInfo.diagnosticPositionFor(m, tree), m, other);
+            Lint prevLint = setLint(lint.augment(m));
+            try {
+                checkDeprecated(TreeInfo.diagnosticPositionFor(m, tree), m, other);
+            } finally {
+                setLint(prevLint);
+            }
         }
     }
     // where

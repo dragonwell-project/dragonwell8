@@ -28,10 +28,9 @@ package jdk.nashorn.internal.runtime;
 import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import jdk.nashorn.api.scripting.NashornException;
-import jdk.nashorn.internal.scripts.JS;
 import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.objects.Global;
+import jdk.nashorn.internal.scripts.JS;
 
 /**
  * Helper class to throw various standard "ECMA error" exceptions such as Error, ReferenceError, TypeError etc.
@@ -47,7 +46,7 @@ public final class ECMAErrors {
     /** We assume that compiler generates script classes into the known package. */
     private static final String scriptPackage;
     static {
-        String name = JS.class.getName();
+        final String name = JS.class.getName();
         scriptPackage = name.substring(0, name.lastIndexOf('.'));
     }
 
@@ -403,14 +402,10 @@ public final class ECMAErrors {
         final String className = frame.getClassName();
 
         // Look for script package in class name (into which compiler puts generated code)
-        if (className.startsWith(scriptPackage) && !frame.getMethodName().startsWith(CompilerConstants.INTERNAL_METHOD_PREFIX)) {
+        if (className.startsWith(scriptPackage) && !CompilerConstants.isInternalMethodName(frame.getMethodName())) {
             final String source = frame.getFileName();
-            /*
-             * Make sure that it is not some Java code that Nashorn has in that package!
-             * also, we don't want to report JavaScript code that lives in script engine implementation
-             * We want to report only user's own scripts and not any of our own scripts like "engine.js"
-             */
-            return source != null && !source.endsWith(".java") && !source.contains(NashornException.ENGINE_SCRIPT_SOURCE_NAME);
+            // Make sure that it is not some Java code that Nashorn has in that package!
+            return source != null && !source.endsWith(".java");
         }
         return false;
     }

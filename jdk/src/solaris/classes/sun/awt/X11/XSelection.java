@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import sun.awt.datatransfer.DataTransferer;
 /**
  * A class which interfaces with the X11 selection service.
  */
-public final class XSelection {
+final class XSelection {
 
     /* Maps atoms to XSelection instances. */
     private static final Hashtable<XAtom, XSelection> table = new Hashtable<XAtom, XSelection>();
@@ -118,11 +118,10 @@ public final class XSelection {
     /**
      * Creates a selection object.
      *
-     * @param atom   the selection atom.
-     * @param clpbrd the corresponding clipoboard
-     * @exception NullPointerException if atom is <code>null</code>.
+     * @param  atom the selection atom
+     * @throws NullPointerException if atom is {@code null}
      */
-    public XSelection(XAtom atom) {
+    XSelection(XAtom atom) {
         if (atom == null) {
             throw new NullPointerException("Null atom");
         }
@@ -134,8 +133,8 @@ public final class XSelection {
         return selectionAtom;
     }
 
-    public synchronized boolean setOwner(Transferable contents, Map formatMap,
-                                         long[] formats, long time)
+    synchronized boolean setOwner(Transferable contents, Map formatMap,
+                                  long[] formats, long time)
     {
         long owner = XWindow.getXAWTRootWindow().getWindow();
         long selection = selectionAtom.getAtom();
@@ -433,7 +432,7 @@ public final class XSelection {
         return data != null ? data : new byte[0];
     }
 
-    void validateDataGetter(WindowPropertyGetter propertyGetter)
+    private void validateDataGetter(WindowPropertyGetter propertyGetter)
             throws IOException
     {
         // The order of checks is important because a property getter

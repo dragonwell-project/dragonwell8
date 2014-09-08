@@ -86,6 +86,7 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import sun.awt.ComponentFactory;
 import sun.util.logging.PlatformLogger;
 
 import sun.awt.AppContext;
@@ -272,7 +273,7 @@ public abstract class DataTransferer {
      * instead, null will be returned.
      */
     public static synchronized DataTransferer getInstance() {
-        return ((SunToolkit) Toolkit.getDefaultToolkit()).getDataTransferer();
+        return ((ComponentFactory) Toolkit.getDefaultToolkit()).getDataTransferer();
     }
 
     /**

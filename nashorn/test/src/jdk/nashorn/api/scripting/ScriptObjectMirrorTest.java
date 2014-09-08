@@ -25,19 +25,22 @@
 
 package jdk.nashorn.api.scripting;
 
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import javax.script.Bindings;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import javax.script.Bindings;
+import javax.script.Invocable;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import org.testng.annotations.Test;
 
 /**
@@ -133,7 +136,7 @@ public class ScriptObjectMirrorTest {
         final ScriptEngine e = m.getEngineByName("nashorn");
         try {
             e.eval("var obj = { '1': 'world', func: function() { return this.bar; }, bar: 'hello' }");
-            ScriptObjectMirror obj = (ScriptObjectMirror) e.get("obj");
+            final ScriptObjectMirror obj = (ScriptObjectMirror) e.get("obj");
 
             // try basic get on existing properties
             if (!obj.getMember("bar").equals("hello")) {
@@ -190,7 +193,7 @@ public class ScriptObjectMirrorTest {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
         try {
-            Object obj = e.eval("new TypeError('wrong type')");
+            final Object obj = e.eval("new TypeError('wrong type')");
             assertEquals(obj.toString(), "TypeError: wrong type", "toString returns wrong value");
         } catch (final Throwable t) {
             t.printStackTrace();
@@ -198,7 +201,7 @@ public class ScriptObjectMirrorTest {
         }
 
         try {
-            Object obj = e.eval("function func() { print('hello'); }");
+            final Object obj = e.eval("function func() { print('hello'); }");
             assertEquals(obj.toString(), "function func() { print('hello'); }", "toString returns wrong value");
         } catch (final Throwable t) {
             t.printStackTrace();
@@ -304,5 +307,80 @@ public class ScriptObjectMirrorTest {
         // continue to use Map's get("obj.foo") instead of ScriptObjectMirror's
         // getMember("obj.foo") - thereby getting null instead of undefined
         assertEquals("undefined", engine.eval(TEST_SCRIPT, newGlobal));
+    }
+
+    public interface MirrorCheckExample {
+        Object test1(Object arg);
+        Object test2(Object arg);
+        boolean compare(Object o1, Object o2);
+    }
+
+    // @bug 8053910: ScriptObjectMirror causing havoc with Invocation interface
+    @Test
+    public void checkMirrorToObject() throws Exception {
+        final ScriptEngineManager engineManager = new ScriptEngineManager();
+        final ScriptEngine engine = engineManager.getEngineByName("nashorn");
+        final Invocable invocable = (Invocable)engine;
+
+        engine.eval("function test1(arg) { return { arg: arg }; }");
+        engine.eval("function test2(arg) { return arg; }");
+        engine.eval("function compare(arg1, arg2) { return arg1 == arg2; }");
+
+        final Map<String, Object> map = new HashMap<>();
+        map.put("option", true);
+
+        final MirrorCheckExample example = invocable.getInterface(MirrorCheckExample.class);
+
+        final Object value1 = invocable.invokeFunction("test1", map);
+        final Object value2 = example.test1(map);
+        final Object value3 = invocable.invokeFunction("test2", value2);
+        final Object value4 = example.test2(value2);
+
+        // check that Object type argument receives a ScriptObjectMirror
+        // when ScriptObject is passed
+        assertEquals(ScriptObjectMirror.class, value1.getClass());
+        assertEquals(ScriptObjectMirror.class, value2.getClass());
+        assertEquals(ScriptObjectMirror.class, value3.getClass());
+        assertEquals(ScriptObjectMirror.class, value4.getClass());
+        assertTrue((boolean)invocable.invokeFunction("compare", value1, value1));
+        assertTrue((boolean)example.compare(value1, value1));
+        assertTrue((boolean)invocable.invokeFunction("compare", value3, value4));
+        assertTrue((boolean)example.compare(value3, value4));
+    }
+
+    // @bug 8053910: ScriptObjectMirror causing havoc with Invocation interface
+    @Test
+    @SuppressWarnings("unchecked")
+    public void mirrorUnwrapInterfaceMethod() throws Exception {
+        final ScriptEngineManager engineManager = new ScriptEngineManager();
+        final ScriptEngine engine = engineManager.getEngineByName("nashorn");
+        final Invocable invocable = (Invocable)engine;
+        engine.eval("function apply(obj) { " +
+            " return obj instanceof Packages.jdk.nashorn.api.scripting.ScriptObjectMirror; " +
+            "}");
+        final Function<Object,Object> func = invocable.getInterface(Function.class);
+        assertFalse((boolean)func.apply(engine.eval("({ x: 2 })")));
+    }
+
+    // @bug 8055687: Wrong "this" passed to JSObject.eval call
+    @Test
+    public void checkThisForJSObjectEval() throws Exception {
+        final ScriptEngineManager engineManager = new ScriptEngineManager();
+        final ScriptEngine e = engineManager.getEngineByName("nashorn");
+        final JSObject jsobj = (JSObject)e.eval("({foo: 23, bar: 'hello' })");
+        assertEquals(((Number)jsobj.eval("this.foo")).intValue(), 23);
+        assertEquals(jsobj.eval("this.bar"), "hello");
+        assertEquals(jsobj.eval("String(this)"), "[object Object]");
+        final Object global = e.eval("this");
+        assertFalse(global.equals(jsobj.eval("this")));
+    }
+
+    @Test
+    public void topLevelAnonFuncStatement() throws Exception {
+        final ScriptEngineManager engineManager = new ScriptEngineManager();
+        final ScriptEngine e = engineManager.getEngineByName("nashorn");
+        final JSObject func = (JSObject)e.eval("function(x) { return x + ' world' }");
+        assertTrue(func.isFunction());
+        assertEquals(func.call(e.eval("this"), "hello"), "hello world");
     }
 }
