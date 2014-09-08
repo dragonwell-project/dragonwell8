@@ -48,6 +48,7 @@ import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.annotations.Ignore;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.UserAccessorProperty;
@@ -110,8 +111,11 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** Source of entity. */
     private final Source source;
 
-    /** Unique ID used for recompilation among other things */
-    private final int id;
+    /**
+     * Opaque object representing parser state at the end of the function. Used when reparsing outer functions
+     * to skip parsing inner functions.
+     */
+    private final Object endParserState;
 
     /** External function identifier. */
     @Ignore
@@ -256,6 +260,14 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** trace callsite values in this function? */
     public static final int IS_TRACE_VALUES    = 1 << 26;
 
+    /**
+     * Whether this function needs the callee {@link ScriptFunction} instance passed to its code as a
+     * parameter on invocation. Note that we aren't, in fact using this flag in function nodes.
+     * Rather, it is always calculated (see {@link #needsCallee()}). {@link RecompilableScriptFunctionData}
+     * will, however, cache the value of this flag.
+     */
+    public static final int NEEDS_CALLEE       = 1 << 27;
+
     /** extension callsite flags mask */
     public static final int EXTENSION_CALLSITE_FLAGS = IS_PRINT_PARSE |
         IS_PRINT_LOWER_PARSE | IS_PRINT_AST | IS_PRINT_LOWER_AST |
@@ -271,15 +283,8 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     /** Does this function potentially need "arguments"? Note that this is not a full test, as further negative check of REDEFINES_ARGS is needed. */
     private static final int MAYBE_NEEDS_ARGUMENTS = USES_ARGUMENTS | HAS_EVAL;
 
-    /** Does this function need the parent scope? It needs it if either it or its descendants use variables from it, or have a deep eval.
-     *  We also pessimistically need a parent scope if we have lazy children that have not yet been compiled */
+    /** Does this function need the parent scope? It needs it if either it or its descendants use variables from it, or have a deep eval. */
     private static final int NEEDS_PARENT_SCOPE = USES_ANCESTOR_SCOPE | HAS_DEEP_EVAL;
-
-    /** Used to signify "null", e.g. if someone asks for the parent of the program node */
-    public static final int NO_FUNCTION_ID = 0;
-
-    /** Where to start assigning global and unique function node ids */
-    public static final int FIRST_FUNCTION_ID = NO_FUNCTION_ID + 1;
 
     /** What is the return type of this function? */
     private Type returnType = Type.UNKNOWN;
@@ -288,11 +293,10 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * Constructor
      *
      * @param source     the source
-     * @param id         unique id
      * @param lineNumber line number
      * @param token      token
      * @param finish     finish
-     * @param firstToken first token of the funtion node (including the function declaration)
+     * @param firstToken first token of the function node (including the function declaration)
      * @param namespace  the namespace
      * @param ident      the identifier
      * @param name       the name of the function
@@ -302,7 +306,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      */
     public FunctionNode(
         final Source source,
-        final int id,
         final int lineNumber,
         final long token,
         final int finish,
@@ -316,7 +319,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         super(token, finish);
 
         this.source           = source;
-        this.id               = id;
         this.lineNumber       = lineNumber;
         this.ident            = ident;
         this.name             = name;
@@ -331,11 +333,13 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         this.body             = null;
         this.thisProperties   = 0;
         this.rootClass        = null;
+        this.endParserState    = null;
     }
 
     private FunctionNode(
         final FunctionNode functionNode,
         final long lastToken,
+        Object endParserState,
         final int flags,
         final String name,
         final Type returnType,
@@ -347,6 +351,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final Class<?> rootClass) {
         super(functionNode);
 
+        this.endParserState    = endParserState;
         this.lineNumber       = functionNode.lineNumber;
         this.flags            = flags;
         this.name             = name;
@@ -361,7 +366,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
 
         // the fields below never change - they are final and assigned in constructor
         this.source          = functionNode.source;
-        this.id              = functionNode.id;
         this.ident           = functionNode.ident;
         this.namespace       = functionNode.namespace;
         this.kind            = functionNode.kind;
@@ -429,11 +433,11 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Get the unique ID for this function
+     * Get the unique ID for this function within the script file.
      * @return the id
      */
     public int getId() {
-        return id;
+        return position();
     }
 
     /**
@@ -535,6 +539,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -606,6 +611,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -644,12 +650,21 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Check if the {@code eval} keyword is used in this function
+     * Check if this function has a call expression for the identifier "eval" (that is, {@code eval(...)}).
      *
-     * @return true if {@code eval} is used
+     * @return true if {@code eval} is called.
      */
     public boolean hasEval() {
         return getFlag(HAS_EVAL);
+    }
+
+    /**
+     * Returns true if a function nested (directly or transitively) within this function {@link #hasEval()}.
+     *
+     * @return true if a nested function calls {@code eval}.
+     */
+    public boolean hasNestedEval() {
+        return getFlag(HAS_NESTED_EVAL);
     }
 
     /**
@@ -741,6 +756,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags |
                             (body.needsScope() ?
                                     FunctionNode.HAS_SCOPE_BLOCK :
@@ -839,6 +855,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -899,6 +916,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -908,6 +926,41 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         parameters,
                         thisProperties,
                         rootClass));
+    }
+
+    /**
+     * Returns the end parser state for this function.
+     * @return the end parser state for this function.
+     */
+    public Object getEndParserState() {
+        return endParserState;
+    }
+
+    /**
+     * Set the end parser state for this function.
+     * @param lc lexical context
+     * @param endParserState the parser state to set
+     * @return function node or a new one if state was changed
+     */
+    public FunctionNode setEndParserState(final LexicalContext lc, final Object endParserState) {
+        if (this.endParserState == endParserState) {
+            return this;
+        }
+        return Node.replaceInLexicalContext(
+                lc,
+                this,
+                new FunctionNode(
+                        this,
+                        lastToken,
+                        endParserState,
+                        flags,
+                        name,
+                        returnType,
+                        compileUnit,
+                        compilationState,
+                        body,
+                        parameters,
+                        thisProperties, rootClass));
     }
 
     /**
@@ -934,6 +987,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -999,6 +1053,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -1077,6 +1132,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
             new FunctionNode(
                 this,
                 lastToken,
+                endParserState,
                 flags,
                 name,
                 type,
@@ -1123,6 +1179,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
@@ -1178,6 +1235,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 new FunctionNode(
                         this,
                         lastToken,
+                        endParserState,
                         flags,
                         name,
                         returnType,
