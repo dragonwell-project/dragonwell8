@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /*
  * @test
  * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
+ *          /compiler/testlibrary
  * @build IncrementExactLongTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -34,7 +35,7 @@
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+WhiteBoxAPI -XX:+LogCompilation
  *                   -XX:CompileCommand=compileonly,MathIntrinsic*::execMathMethod
  *                   -XX:LogFile=hs.log -XX:+UseMathExactIntrinsics IncrementExactLongTest
- * @run main Verifier hs_neg.log hs.log
+ * @run main intrinsics.Verifier hs_neg.log hs.log
  */
 
 public class IncrementExactLongTest {
