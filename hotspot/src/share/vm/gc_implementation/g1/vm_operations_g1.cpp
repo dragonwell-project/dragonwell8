@@ -45,7 +45,8 @@ VM_G1CollectForAllocation::VM_G1CollectForAllocation(
 void VM_G1CollectForAllocation::doit() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   GCCauseSetter x(g1h, _gc_cause);
-  _result = g1h->satisfy_failed_allocation(_word_size, &_pause_succeeded);
+
+  _result = g1h->satisfy_failed_allocation(_word_size, allocation_context(), &_pause_succeeded);
   assert(_result == NULL || _pause_succeeded,
          "if we get back a result, the pause should have succeeded");
 }
@@ -99,7 +100,7 @@ void VM_G1IncCollectionPause::doit() {
 
   if (_word_size > 0) {
     // An allocation has been requested. So, try to do that first.
-    _result = g1h->attempt_allocation_at_safepoint(_word_size,
+    _result = g1h->attempt_allocation_at_safepoint(_word_size, allocation_context(),
                                      false /* expect_null_cur_alloc_region */);
     if (_result != NULL) {
       // If we can successfully allocate before we actually do the
@@ -152,7 +153,7 @@ void VM_G1IncCollectionPause::doit() {
     g1h->do_collection_pause_at_safepoint(_target_pause_time_ms);
   if (_pause_succeeded && _word_size > 0) {
     // An allocation had been requested.
-    _result = g1h->attempt_allocation_at_safepoint(_word_size,
+    _result = g1h->attempt_allocation_at_safepoint(_word_size, allocation_context(),
                                       true /* expect_null_cur_alloc_region */);
   } else {
     assert(_result == NULL, "invariant");
@@ -226,7 +227,7 @@ void VM_CGC_Operation::release_and_notify_pending_list_lock() {
 void VM_CGC_Operation::doit() {
   gclog_or_tty->date_stamp(G1Log::fine() && PrintGCDateStamps);
   TraceCPUTime tcpu(G1Log::finer(), true, gclog_or_tty);
-  GCTraceTime t(_printGCMessage, G1Log::fine(), true, G1CollectedHeap::heap()->gc_timer_cm());
+  GCTraceTime t(_printGCMessage, G1Log::fine(), true, G1CollectedHeap::heap()->gc_timer_cm(), G1CollectedHeap::heap()->concurrent_mark()->concurrent_gc_id());
   SharedHeap* sh = SharedHeap::heap();
   // This could go away if CollectedHeap gave access to _gc_is_active...
   if (sh != NULL) {

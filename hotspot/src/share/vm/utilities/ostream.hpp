@@ -28,6 +28,7 @@
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
 
+class GCId;
 DEBUG_ONLY(class ResourceMark;)
 
 // Output streams for printing
@@ -107,6 +108,7 @@ class outputStream : public ResourceObj {
    void date_stamp(bool guard) {
      date_stamp(guard, "", ": ");
    }
+   void gclog_stamp(const GCId& gc_id);
 
    // portable printing of 64 bit integers
    void print_jlong(jlong value);
@@ -211,6 +213,8 @@ class fileStream : public outputStream {
   void rewind() { ::rewind(_file); }
   void flush();
 };
+
+CDS_ONLY(extern fileStream*   classlist_file;)
 
 // unlike fileStream, fdStream does unbuffered I/O by calling
 // open() and write() directly. It is async-safe, but output

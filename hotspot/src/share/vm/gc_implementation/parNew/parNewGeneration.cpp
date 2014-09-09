@@ -28,12 +28,12 @@
 #include "gc_implementation/parNew/parOopClosures.inline.hpp"
 #include "gc_implementation/shared/adaptiveSizePolicy.hpp"
 #include "gc_implementation/shared/ageTable.hpp"
-#include "gc_implementation/shared/parGCAllocBuffer.hpp"
+#include "gc_implementation/shared/copyFailedInfo.hpp"
 #include "gc_implementation/shared/gcHeapSummary.hpp"
 #include "gc_implementation/shared/gcTimer.hpp"
 #include "gc_implementation/shared/gcTrace.hpp"
 #include "gc_implementation/shared/gcTraceTime.hpp"
-#include "gc_implementation/shared/copyFailedInfo.hpp"
+#include "gc_implementation/shared/parGCAllocBuffer.inline.hpp"
 #include "gc_implementation/shared/spaceDecorator.hpp"
 #include "memory/defNewGeneration.inline.hpp"
 #include "memory/genCollectedHeap.hpp"
@@ -50,7 +50,7 @@
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
-#include "runtime/thread.hpp"
+#include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/workgroup.hpp"
@@ -251,7 +251,7 @@ HeapWord* ParScanThreadState::alloc_in_to_space_slow(size_t word_sz) {
         plab->set_word_size(buf_size);
         plab->set_buf(buf_space);
         record_survivor_plab(buf_space, buf_size);
-        obj = plab->allocate(word_sz);
+        obj = plab->allocate_aligned(word_sz, SurvivorAlignmentInBytes);
         // Note that we cannot compare buf_size < word_sz below
         // because of AlignmentReserve (see ParGCAllocBuffer::allocate()).
         assert(obj != NULL || plab->words_remaining() < word_sz,
@@ -613,20 +613,21 @@ void ParNewGenTask::work(uint worker_id) {
 
   KlassScanClosure klass_scan_closure(&par_scan_state.to_space_root_closure(),
                                       gch->rem_set()->klass_rem_set());
-
-  int so = SharedHeap::SO_AllClasses | SharedHeap::SO_Strings | SharedHeap::SO_CodeCache;
+  CLDToKlassAndOopClosure cld_scan_closure(&klass_scan_closure,
+                                           &par_scan_state.to_space_root_closure(),
+                                           false);
 
   par_scan_state.start_strong_roots();
-  gch->gen_process_strong_roots(_gen->level(),
-                                true,  // Process younger gens, if any,
-                                       // as strong roots.
-                                false, // no scope; this is parallel code
-                                true,  // is scavenging
-                                SharedHeap::ScanningOption(so),
-                                &par_scan_state.to_space_root_closure(),
-                                true,   // walk *all* scavengable nmethods
-                                &par_scan_state.older_gen_closure(),
-                                &klass_scan_closure);
+  gch->gen_process_roots(_gen->level(),
+                         true,  // Process younger gens, if any,
+                                // as strong roots.
+                         false, // no scope; this is parallel code
+                         SharedHeap::SO_ScavengeCodeCache,
+                         GenCollectedHeap::StrongAndWeakRoots,
+                         &par_scan_state.to_space_root_closure(),
+                         &par_scan_state.older_gen_closure(),
+                         &cld_scan_closure);
+
   par_scan_state.end_strong_roots();
 
   // "evacuate followers".
@@ -957,7 +958,7 @@ void ParNewGeneration::collect(bool   full,
     size_policy->minor_collection_begin();
   }
 
-  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL);
+  GCTraceTime t1(GCCauseString("GC", gch->gc_cause()), PrintGC && !PrintGCDetails, true, NULL, gc_tracer.gc_id());
   // Capture heap used before collection (for printing).
   size_t gch_prev_used = gch->used();
 
@@ -1015,14 +1016,14 @@ void ParNewGeneration::collect(bool   full,
     ParNewRefProcTaskExecutor task_executor(*this, thread_state_set);
     stats = rp->process_discovered_references(&is_alive, &keep_alive,
                                               &evacuate_followers, &task_executor,
-                                              _gc_timer);
+                                              _gc_timer, gc_tracer.gc_id());
   } else {
     thread_state_set.flush();
     gch->set_par_threads(0);  // 0 ==> non-parallel.
     gch->save_marks();
     stats = rp->process_discovered_references(&is_alive, &keep_alive,
                                               &evacuate_followers, NULL,
-                                              _gc_timer);
+                                              _gc_timer, gc_tracer.gc_id());
   }
   gc_tracer.report_gc_reference_stats(stats);
   if (!promotion_failed()) {

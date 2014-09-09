@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,8 +60,6 @@ public class ThreadedVirtualAllocTestType {
     reserveThread.start();
     reserveThread.join();
 
-    mergeData();
-
     pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "detail"});
     output = new OutputAnalyzer(pb.start());
     output.shouldContain("Test (reserved=512KB, committed=0KB)");
@@ -77,8 +75,6 @@ public class ThreadedVirtualAllocTestType {
     commitThread.start();
     commitThread.join();
 
-    mergeData();
-
     output = new OutputAnalyzer(pb.start());
     output.shouldContain("Test (reserved=512KB, committed=128KB)");
     if (has_nmt_detail) {
@@ -93,8 +89,6 @@ public class ThreadedVirtualAllocTestType {
     uncommitThread.start();
     uncommitThread.join();
 
-    mergeData();
-
     output = new OutputAnalyzer(pb.start());
     output.shouldContain("Test (reserved=512KB, committed=0KB)");
     output.shouldNotMatch("\\[0x[0]*" + Long.toHexString(addr) + " - 0x[0]*" + Long.toHexString(addr + commitSize) + "\\] committed");
@@ -107,17 +101,9 @@ public class ThreadedVirtualAllocTestType {
     releaseThread.start();
     releaseThread.join();
 
-    mergeData();
-
     output = new OutputAnalyzer(pb.start());
     output.shouldNotContain("Test (reserved=");
     output.shouldNotContain("\\[0x[0]*" + Long.toHexString(addr) + " - 0x[0]*" + Long.toHexString(addr + reserveSize) + "\\] reserved");
   }
 
-  public static void mergeData() throws Exception {
-    // Use WB API to ensure that all data has been merged before we continue
-    if (!wb.NMTWaitForDataMerge()) {
-      throw new Exception("Call to WB API NMTWaitForDataMerge() failed");
     }
-  }
-}

@@ -21,6 +21,9 @@
 # questions.
 #
 #
+
+include $(GAMMADIR)/make/altsrc.make
+
 ifeq ($(INCLUDE_JVMTI), false)
       CXXFLAGS += -DINCLUDE_JVMTI=0
       CFLAGS += -DINCLUDE_JVMTI=0
@@ -70,37 +73,48 @@ ifeq ($(INCLUDE_CDS), false)
       CXXFLAGS += -DINCLUDE_CDS=0
       CFLAGS += -DINCLUDE_CDS=0
 
-      Src_Files_EXCLUDE += filemap.cpp metaspaceShared.cpp
+      Src_Files_EXCLUDE += filemap.cpp metaspaceShared*.cpp sharedPathsMiscInfo.cpp \
+        systemDictionaryShared.cpp classLoaderExt.cpp sharedClassUtil.cpp
 endif
 
 ifeq ($(INCLUDE_ALL_GCS), false)
       CXXFLAGS += -DINCLUDE_ALL_GCS=0
       CFLAGS += -DINCLUDE_ALL_GCS=0
 
-      Src_Files_EXCLUDE += \
-	cmsAdaptiveSizePolicy.cpp cmsCollectorPolicy.cpp \
-	cmsGCAdaptivePolicyCounters.cpp cmsLockVerifier.cpp compactibleFreeListSpace.cpp \
-	concurrentMarkSweepGeneration.cpp concurrentMarkSweepThread.cpp \
-	freeChunk.cpp adaptiveFreeList.cpp promotionInfo.cpp vmCMSOperations.cpp \
-	collectionSetChooser.cpp concurrentG1Refine.cpp concurrentG1RefineThread.cpp \
-	concurrentMark.cpp concurrentMarkThread.cpp dirtyCardQueue.cpp g1AllocRegion.cpp \
-	g1BlockOffsetTable.cpp g1CardCounts.cpp g1CollectedHeap.cpp g1CollectorPolicy.cpp \
-	g1ErgoVerbose.cpp g1GCPhaseTimes.cpp g1HRPrinter.cpp g1HotCardCache.cpp g1Log.cpp \
-	g1MMUTracker.cpp g1MarkSweep.cpp g1MemoryPool.cpp g1MonitoringSupport.cpp g1OopClosures.cpp \
-	g1RemSet.cpp g1RemSetSummary.cpp g1SATBCardTableModRefBS.cpp g1StringDedup.cpp g1StringDedupStat.cpp \
-	g1StringDedupTable.cpp g1StringDedupThread.cpp g1StringDedupQueue.cpp g1_globals.cpp heapRegion.cpp \
-	g1BiasedArray.cpp heapRegionRemSet.cpp heapRegionSeq.cpp heapRegionSet.cpp heapRegionSets.cpp \
-	ptrQueue.cpp satbQueue.cpp sparsePRT.cpp survRateGroup.cpp vm_operations_g1.cpp g1CodeCacheRemSet.cpp \
-	adjoiningGenerations.cpp adjoiningVirtualSpaces.cpp asPSOldGen.cpp asPSYoungGen.cpp \
-	cardTableExtension.cpp gcTaskManager.cpp gcTaskThread.cpp objectStartArray.cpp \
-	parallelScavengeHeap.cpp parMarkBitMap.cpp pcTasks.cpp psAdaptiveSizePolicy.cpp \
-	psCompactionManager.cpp psGCAdaptivePolicyCounters.cpp psGenerationCounters.cpp \
-	psMarkSweep.cpp psMarkSweepDecorator.cpp psMemoryPool.cpp psOldGen.cpp \
-	psParallelCompact.cpp psPromotionLAB.cpp psPromotionManager.cpp psScavenge.cpp \
-	psTasks.cpp psVirtualspace.cpp psYoungGen.cpp vmPSOperations.cpp asParNewGeneration.cpp \
-	parCardTableModRefBS.cpp parGCAllocBuffer.cpp parNewGeneration.cpp mutableSpace.cpp \
-	gSpaceCounters.cpp allocationStats.cpp spaceCounters.cpp gcAdaptivePolicyCounters.cpp \
-	mutableNUMASpace.cpp immutableSpace.cpp yieldingWorkGroup.cpp hSpaceCounters.cpp
+      gc_impl := $(HS_COMMON_SRC)/share/vm/gc_implementation
+      gc_impl_alt := $(HS_ALT_SRC)/share/vm/gc_implementation
+      gc_subdirs := concurrentMarkSweep g1 parallelScavenge parNew
+      gc_exclude := $(foreach gc,$(gc_subdirs),				\
+		     $(notdir $(wildcard $(gc_impl)/$(gc)/*.cpp))	\
+		     $(notdir $(wildcard $(gc_impl_alt)/$(gc)/*.cpp)))
+      Src_Files_EXCLUDE += $(gc_exclude)
+
+      # Exclude everything in $(gc_impl)/shared except the files listed
+      # in $(gc_shared_keep).
+      gc_shared_all := $(notdir $(wildcard $(gc_impl)/shared/*.cpp))
+      gc_shared_keep :=							\
+	adaptiveSizePolicy.cpp						\
+	ageTable.cpp							\
+	collectorCounters.cpp						\
+	cSpaceCounters.cpp						\
+	gcPolicyCounters.cpp						\
+	gcStats.cpp							\
+	gcTimer.cpp							\
+	gcTrace.cpp							\
+	gcTraceSend.cpp							\
+	gcTraceTime.cpp							\
+	gcUtil.cpp							\
+	generationCounters.cpp						\
+	markSweep.cpp							\
+	objectCountEventSender.cpp					\
+	spaceDecorator.cpp						\
+	vmGCOperations.cpp
+      Src_Files_EXCLUDE += $(filter-out $(gc_shared_keep),$(gc_shared_all))
+
+      # src/share/vm/services
+      Src_Files_EXCLUDE +=						\
+	g1MemoryPool.cpp						\
+	psMemoryPool.cpp
 endif
 
 ifeq ($(INCLUDE_NMT), false)
@@ -108,8 +122,8 @@ ifeq ($(INCLUDE_NMT), false)
       CFLAGS += -DINCLUDE_NMT=0
 
       Src_Files_EXCLUDE += \
-	 memBaseline.cpp memPtr.cpp memRecorder.cpp memReporter.cpp memSnapshot.cpp memTrackWorker.cpp \
-	 memTracker.cpp nmtDCmd.cpp
+	 memBaseline.cpp memReporter.cpp mallocTracker.cpp virtualMemoryTracker.cpp nmtCommon.cpp \
+	 memTracker.cpp nmtDCmd.cpp mallocSiteTable.cpp
 endif
 
 -include $(HS_ALT_MAKE)/excludeSrc.make

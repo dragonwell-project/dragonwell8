@@ -50,25 +50,15 @@ public class TestUseRTMDeoptOptionOnSupportedConfig
 
     @Override
     public void runTestCases() throws Throwable {
-        String experimentalOptionError
-                = CommandLineOptionTest.getExperimentalOptionErrorMessage(
-                "UseRTMDeopt");
-        // verify that option is experimental
-        CommandLineOptionTest.verifySameJVMStartup(
-                new String[] { experimentalOptionError }, null, ExitCode.FAIL,
-                "-XX:+UseRTMDeopt");
         // verify that option could be turned on
-        CommandLineOptionTest.verifySameJVMStartup(null, null, ExitCode.OK,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMDeopt");
+        CommandLineOptionTest.verifySameJVMStartup(
+                null, null, ExitCode.OK, "-XX:+UseRTMDeopt");
         // verify that option could be turned off
-        CommandLineOptionTest.verifySameJVMStartup(null, null, ExitCode.OK,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:-UseRTMDeopt");
+        CommandLineOptionTest.verifySameJVMStartup(
+                null, null, ExitCode.OK, "-XX:-UseRTMDeopt");
         // verify default value
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMDeopt",
-                TestUseRTMDeoptOptionOnSupportedConfig.DEFAULT_VALUE,
-                CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
+                TestUseRTMDeoptOptionOnSupportedConfig.DEFAULT_VALUE);
         // verify default value
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMDeopt",
                 TestUseRTMDeoptOptionOnSupportedConfig.DEFAULT_VALUE,

@@ -28,6 +28,7 @@
 #include "memory/iterator.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiRedefineClassesTrace.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "utilities/hashtable.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
@@ -129,15 +130,13 @@ void DictionaryEntry::add_protection_domain(Dictionary* dict, oop protection_dom
 }
 
 
-bool Dictionary::do_unloading() {
+void Dictionary::do_unloading() {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-  bool class_was_unloaded = false;
-  int  index = 0; // Defined here for portability! Do not move
 
   // Remove unloadable entries and classes from system dictionary
   // The placeholder array has been handled in always_strong_oops_do.
   DictionaryEntry* probe = NULL;
-  for (index = 0; index < table_size(); index++) {
+  for (int index = 0; index < table_size(); index++) {
     for (DictionaryEntry** p = bucket_addr(index); *p != NULL; ) {
       probe = *p;
       Klass* e = probe->klass();
@@ -157,16 +156,8 @@ bool Dictionary::do_unloading() {
         // Do we need to delete this system dictionary entry?
         if (loader_data->is_unloading()) {
           // If the loader is not live this entry should always be
-          // removed (will never be looked up again). Note that this is
-          // not the same as unloading the referred class.
-          if (k_def_class_loader_data == loader_data) {
-            // This is the defining entry, so the referred class is about
-            // to be unloaded.
-            class_was_unloaded = true;
-          }
-          // Also remove this system dictionary entry.
+          // removed (will never be looked up again).
           purge_entry = true;
-
         } else {
           // The loader in this entry is alive. If the klass is dead,
           // (determined by checking the defining class loader)
@@ -195,9 +186,51 @@ bool Dictionary::do_unloading() {
       p = probe->next_addr();
     }
   }
-  return class_was_unloaded;
 }
 
+void Dictionary::roots_oops_do(OopClosure* strong, OopClosure* weak) {
+  // Skip the strong roots probe marking if the closures are the same.
+  if (strong == weak) {
+    oops_do(strong);
+    return;
+  }
+
+  for (int index = 0; index < table_size(); index++) {
+    for (DictionaryEntry *probe = bucket(index);
+                          probe != NULL;
+                          probe = probe->next()) {
+      Klass* e = probe->klass();
+      ClassLoaderData* loader_data = probe->loader_data();
+      if (is_strongly_reachable(loader_data, e)) {
+        probe->set_strongly_reachable();
+      }
+    }
+  }
+  _pd_cache_table->roots_oops_do(strong, weak);
+}
+
+void Dictionary::remove_classes_in_error_state() {
+  assert(DumpSharedSpaces, "supported only when dumping");
+  DictionaryEntry* probe = NULL;
+  for (int index = 0; index < table_size(); index++) {
+    for (DictionaryEntry** p = bucket_addr(index); *p != NULL; ) {
+      probe = *p;
+      InstanceKlass* ik = InstanceKlass::cast(probe->klass());
+      if (ik->is_in_error_state()) { // purge this entry
+        *p = probe->next();
+        if (probe == _current_class_entry) {
+          _current_class_entry = NULL;
+        }
+        free_entry(probe);
+        ResourceMark rm;
+        tty->print_cr("Removed error class: %s", ik->external_name());
+        continue;
+      }
+
+      p = probe->next_addr();
+    }
+  }
+}
 
 void Dictionary::always_strong_oops_do(OopClosure* blk) {
   // Follow all system classes and temporary placeholders in dictionary; only
@@ -489,6 +522,23 @@ void ProtectionDomainCacheTable::oops_do(OopClosure* f) {
   }
 }
 
+void ProtectionDomainCacheTable::roots_oops_do(OopClosure* strong, OopClosure* weak) {
+  for (int index = 0; index < table_size(); index++) {
+    for (ProtectionDomainCacheEntry* probe = bucket(index);
+                                     probe != NULL;
+                                     probe = probe->next()) {
+      if (probe->is_strongly_reachable()) {
+        probe->reset_strongly_reachable();
+        probe->oops_do(strong);
+      } else {
+        if (weak != NULL) {
+          probe->oops_do(weak);
+        }
+      }
+    }
+  }
+}
+
 uint ProtectionDomainCacheTable::bucket_size() {
   return sizeof(ProtectionDomainCacheEntry);
 }
@@ -655,16 +705,17 @@ void SymbolPropertyTable::methods_do(void f(Method*)) {
 
 
 // ----------------------------------------------------------------------------
-#ifndef PRODUCT
 
-void Dictionary::print() {
+void Dictionary::print(bool details) {
   ResourceMark rm;
   HandleMark   hm;
 
-  tty->print_cr("Java system dictionary (table_size=%d, classes=%d)",
-                 table_size(), number_of_entries());
-  tty->print_cr("^ indicates that initiating loader is different from "
-                "defining loader");
+  if (details) {
+    tty->print_cr("Java system dictionary (table_size=%d, classes=%d)",
+                   table_size(), number_of_entries());
+    tty->print_cr("^ indicates that initiating loader is different from "
+                  "defining loader");
+  }
 
   for (int index = 0; index < table_size(); index++) {
     for (DictionaryEntry* probe = bucket(index);
@@ -675,20 +726,27 @@ void Dictionary::print() {
       ClassLoaderData* loader_data =  probe->loader_data();
       bool is_defining_class =
          (loader_data == InstanceKlass::cast(e)->class_loader_data());
-      tty->print("%s%s", is_defining_class ? " " : "^",
+      tty->print("%s%s", ((!details) || is_defining_class) ? " " : "^",
                    e->external_name());
 
+      if (details) {
         tty->print(", loader ");
-      loader_data->print_value();
+        if (loader_data != NULL) {
+          loader_data->print_value();
+        } else {
+          tty->print("NULL");
+        }
+      }
       tty->cr();
     }
   }
-  tty->cr();
-  _pd_cache_table->print();
+
+  if (details) {
+    tty->cr();
+    _pd_cache_table->print();
+  }
   tty->cr();
 }
-
-#endif
 
 void Dictionary::verify() {
   guarantee(number_of_entries() >= 0, "Verify of system dictionary failed");

@@ -34,19 +34,19 @@ import jdk.nashorn.internal.ir.Symbol;
 import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
+import jdk.nashorn.internal.runtime.ScriptObject;
+import jdk.nashorn.internal.runtime.SpillProperty;
 
 /**
  * Class that creates PropertyMap sent to script object constructors.
+ * @param <T> value type for tuples, e.g. Symbol
  */
-public class MapCreator {
+public class MapCreator<T> {
     /** Object structure for objects associated with this map */
     private final Class<?> structure;
 
     /** key set for object map */
-    final List<String> keys;
-
-    /** corresponding symbol set for object map */
-    final List<Symbol> symbols;
+    private final List<MapTuple<T>> tuples;
 
     /**
      * Constructor
@@ -55,31 +55,38 @@ public class MapCreator {
      * @param keys      list of keys for map
      * @param symbols   list of symbols for map
      */
-    MapCreator(final Class<?> structure, final List<String> keys, final List<Symbol> symbols) {
+    MapCreator(final Class<? extends ScriptObject> structure, final List<MapTuple<T>> tuples) {
         this.structure = structure;
-        this.keys      = keys;
-        this.symbols   = symbols;
+        this.tuples    = tuples;
     }
 
     /**
      * Constructs a property map based on a set of fields.
      *
-     * @param hasArguments does the created object have an "arguments" property
+     * @param hasArguments  does the created object have an "arguments" property
      * @param fieldCount    Number of fields in use.
-     * @param fieldMaximum Number of fields available.
-     *
+     * @param fieldMaximum  Number of fields available.
+     * @param evalCode      is this property map created for 'eval' code?
      * @return New map populated with accessor properties.
      */
-    PropertyMap makeFieldMap(final boolean hasArguments, final int fieldCount, final int fieldMaximum) {
+    PropertyMap makeFieldMap(final boolean hasArguments, final int fieldCount, final int fieldMaximum, final boolean evalCode) {
         final List<Property> properties = new ArrayList<>();
-        assert keys != null;
+        assert tuples != null;
 
-        for (int i = 0, length = keys.size(); i < length; i++) {
-            final String key    = keys.get(i);
-            final Symbol symbol = symbols.get(i);
+        for (final MapTuple<T> tuple : tuples) {
+            final String   key         = tuple.key;
+            final Symbol   symbol      = tuple.symbol;
+            final Class<?> initialType = tuple.getValueType();
 
             if (symbol != null && !isValidArrayIndex(getArrayIndex(key))) {
-                properties.add(new AccessorProperty(key, getPropertyFlags(symbol, hasArguments), structure, symbol.getFieldIndex()));
+                final int      flags    = getPropertyFlags(symbol, hasArguments, evalCode);
+                final Property property = new AccessorProperty(
+                        key,
+                        flags,
+                        structure,
+                        symbol.getFieldIndex(),
+                        initialType);
+                properties.add(property);
             }
         }
 
@@ -89,14 +96,20 @@ public class MapCreator {
     PropertyMap makeSpillMap(final boolean hasArguments) {
         final List<Property> properties = new ArrayList<>();
         int spillIndex = 0;
-        assert keys != null;
+        assert tuples != null;
 
-        for (int i = 0, length = keys.size(); i < length; i++) {
-            final String key    = keys.get(i);
-            final Symbol symbol = symbols.get(i);
+        for (final MapTuple<T> tuple : tuples) {
+            final String key    = tuple.key;
+            final Symbol symbol = tuple.symbol;
 
+            //TODO initial type is object here no matter what. Is that right?
             if (symbol != null && !isValidArrayIndex(getArrayIndex(key))) {
-                properties.add(new AccessorProperty(key, getPropertyFlags(symbol, hasArguments), spillIndex++));
+                final int flags = getPropertyFlags(symbol, hasArguments, false);
+                properties.add(
+                        new SpillProperty(
+                                key,
+                                flags,
+                                spillIndex++));
             }
         }
 
@@ -111,27 +124,25 @@ public class MapCreator {
      *
      * @return flags to use for fields
      */
-    protected int getPropertyFlags(final Symbol symbol, final boolean hasArguments) {
+    static int getPropertyFlags(final Symbol symbol, final boolean hasArguments, final boolean evalCode) {
         int flags = 0;
 
         if (symbol.isParam()) {
-            flags |= Property.IS_ALWAYS_OBJECT | Property.IS_PARAMETER;
+            flags |= Property.IS_PARAMETER;
         }
 
         if (hasArguments) {
-            flags |= Property.IS_ALWAYS_OBJECT | Property.HAS_ARGUMENTS;
+            flags |= Property.HAS_ARGUMENTS;
         }
 
-        if (symbol.isScope()) {
+        // See ECMA 5.1 10.5 Declaration Binding Instantiation.
+        // Step 2  If code is eval code, then let configurableBindings
+        // be true else let configurableBindings be false.
+        // We have to make vars, functions declared in 'eval' code
+        // configurable. But vars, functions from any other code is
+        // not configurable.
+        if (symbol.isScope() && !evalCode) {
             flags |= Property.NOT_CONFIGURABLE;
-        }
-
-        if (symbol.canBePrimitive()) {
-            flags |= Property.CAN_BE_PRIMITIVE;
-        }
-
-        if (symbol.canBeUndefined()) {
-            flags |= Property.CAN_BE_UNDEFINED;
         }
 
         if (symbol.isFunctionDeclaration()) {
@@ -140,5 +151,4 @@ public class MapCreator {
 
         return flags;
     }
-
 }

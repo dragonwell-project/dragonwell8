@@ -1305,7 +1305,8 @@ public class Types {
                 UndetVar undetvar = (UndetVar)t;
                 WildcardType wt = (WildcardType)s.unannotatedType();
                 switch(wt.kind) {
-                    case UNBOUND: //similar to ? extends Object
+                    case UNBOUND:
+                        break;
                     case EXTENDS: {
                         Type bound = wildUpperBound(s);
                         undetvar.addBound(InferenceBound.UPPER, bound, this);
@@ -1396,6 +1397,7 @@ public class Types {
                 else {
 //                    debugContainsType(t, s);
                     return isSameWildcard(t, s)
+                        || t.type == s
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), cvarLowerBound(wildLowerBound(s)))) &&
                             // TODO: JDK-8039214, cvarUpperBound call here is incorrect
@@ -2950,6 +2952,12 @@ public class Types {
                     return to.head.withTypeVar(t);
                 }
             }
+            return t;
+        }
+
+        @Override
+        public Type visitUndetVar(UndetVar t, Void ignored) {
+            //do nothing - we should not replace inside undet variables
             return t;
         }
 

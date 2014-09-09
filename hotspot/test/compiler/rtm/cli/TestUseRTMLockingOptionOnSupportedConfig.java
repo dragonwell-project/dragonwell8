@@ -51,15 +51,8 @@ public class TestUseRTMLockingOptionOnSupportedConfig
     @Override
     public void runTestCases() throws Throwable {
         String unrecongnizedOption
-                = CommandLineOptionTest.getUnrecognizedOptionErrorMessage(
+                =  CommandLineOptionTest.getUnrecognizedOptionErrorMessage(
                 "UseRTMLocking");
-        String experimentalOptionError
-                = CommandLineOptionTest.getExperimentalOptionErrorMessage(
-                "UseRTMLocking");
-        // verify that options is experimental
-        CommandLineOptionTest.verifySameJVMStartup(
-                new String[] { experimentalOptionError }, null, ExitCode.FAIL,
-                "-XX:+UseRTMLocking");
         // verify that there are no warning or error in VM output
         CommandLineOptionTest.verifySameJVMStartup(null,
                 new String[]{
@@ -67,7 +60,8 @@ public class TestUseRTMLockingOptionOnSupportedConfig
                         unrecongnizedOption
                 }, ExitCode.OK,
                 CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMLocking");
+                "-XX:+UseRTMLocking"
+        );
 
         CommandLineOptionTest.verifySameJVMStartup(null,
                 new String[]{
@@ -75,7 +69,8 @@ public class TestUseRTMLockingOptionOnSupportedConfig
                         unrecongnizedOption
                 }, ExitCode.OK,
                 CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:-UseRTMLocking");
+                "-XX:-UseRTMLocking"
+        );
         // verify that UseRTMLocking is of by default
         CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
                 TestUseRTMLockingOptionOnSupportedConfig.DEFAULT_VALUE,

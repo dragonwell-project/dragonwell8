@@ -36,19 +36,18 @@ import sun.jvm.hotspot.memory.SpaceClosure;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.runtime.VMObjectFactory;
 import sun.jvm.hotspot.types.AddressField;
-import sun.jvm.hotspot.types.CIntegerField;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
 
 // Mirror class for G1CollectedHeap.
 
 public class G1CollectedHeap extends SharedHeap {
-    // HeapRegionSeq _seq;
-    static private long hrsFieldOffset;
-    // MemRegion _g1_committed;
-    static private long g1CommittedFieldOffset;
-    // size_t _summary_bytes_used;
-    static private CIntegerField summaryBytesUsedField;
+    // HeapRegionManager _hrm;
+    static private long hrmFieldOffset;
+    // MemRegion _g1_reserved;
+    static private long g1ReservedFieldOffset;
+    // G1Allocator* _allocator
+    static private AddressField g1Allocator;
     // G1MonitoringSupport* _g1mm;
     static private AddressField g1mmField;
     // HeapRegionSet _old_set;
@@ -67,37 +66,39 @@ public class G1CollectedHeap extends SharedHeap {
     static private synchronized void initialize(TypeDataBase db) {
         Type type = db.lookupType("G1CollectedHeap");
 
-        hrsFieldOffset = type.getField("_hrs").getOffset();
-        g1CommittedFieldOffset = type.getField("_g1_committed").getOffset();
-        summaryBytesUsedField = type.getCIntegerField("_summary_bytes_used");
+        hrmFieldOffset = type.getField("_hrm").getOffset();
+        g1Allocator = type.getAddressField("_allocator");
         g1mmField = type.getAddressField("_g1mm");
         oldSetFieldOffset = type.getField("_old_set").getOffset();
         humongousSetFieldOffset = type.getField("_humongous_set").getOffset();
     }
 
     public long capacity() {
-        Address g1CommittedAddr = addr.addOffsetTo(g1CommittedFieldOffset);
-        MemRegion g1Committed = new MemRegion(g1CommittedAddr);
-        return g1Committed.byteSize();
+        return hrm().capacity();
     }
 
     public long used() {
-        return summaryBytesUsedField.getValue(addr);
+        return allocator().getSummaryBytes();
     }
 
     public long n_regions() {
-        return hrs().length();
+        return hrm().length();
     }
 
-    private HeapRegionSeq hrs() {
-        Address hrsAddr = addr.addOffsetTo(hrsFieldOffset);
-        return (HeapRegionSeq) VMObjectFactory.newObject(HeapRegionSeq.class,
-                                                         hrsAddr);
+    private HeapRegionManager hrm() {
+        Address hrmAddr = addr.addOffsetTo(hrmFieldOffset);
+        return (HeapRegionManager) VMObjectFactory.newObject(HeapRegionManager.class,
+                                                         hrmAddr);
     }
 
     public G1MonitoringSupport g1mm() {
         Address g1mmAddr = g1mmField.getValue(addr);
         return (G1MonitoringSupport) VMObjectFactory.newObject(G1MonitoringSupport.class, g1mmAddr);
+    }
+
+    public G1Allocator allocator() {
+        Address g1AllocatorAddr = g1Allocator.getValue(addr);
+        return (G1Allocator) VMObjectFactory.newObject(G1Allocator.class, g1AllocatorAddr);
     }
 
     public HeapRegionSetBase oldSet() {
@@ -113,7 +114,7 @@ public class G1CollectedHeap extends SharedHeap {
     }
 
     private Iterator<HeapRegion> heapRegionIterator() {
-        return hrs().heapRegionIterator();
+        return hrm().heapRegionIterator();
     }
 
     public void heapRegionIterate(SpaceClosure scl) {

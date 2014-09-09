@@ -99,7 +99,7 @@ import jdk.internal.dynalink.linker.LinkerServices;
 abstract class DynamicMethod {
     private final String name;
 
-    DynamicMethod(String name) {
+    DynamicMethod(final String name) {
         this.name = name;
     }
 
@@ -138,7 +138,7 @@ abstract class DynamicMethod {
      */
     abstract boolean contains(SingleDynamicMethod method);
 
-    static String getClassAndMethodName(Class<?> clazz, String name) {
+    static String getClassAndMethodName(final Class<?> clazz, final String name) {
         final String clazzName = clazz.getCanonicalName();
         return (clazzName == null ? clazz.getName() : clazzName) + "." + name;
     }
@@ -146,5 +146,14 @@ abstract class DynamicMethod {
     @Override
     public String toString() {
         return "[" + getClass().getName() + " " + getName() + "]";
+    }
+
+    /**
+     * True if this method happens to be a constructor method.
+     *
+     * @return true if this represents a constructor.
+     */
+    boolean isConstructor() {
+        return false;
     }
 }
