@@ -795,7 +795,6 @@ class HandlerImpl {
   }
 };
 
-  bool followed_by_ordered_store(const Node *barrier);
   bool preceded_by_ordered_load(const Node *barrier);
 
 %}
@@ -821,32 +820,6 @@ bool preceded_by_ordered_load(const Node *barrier) {
 
   if (x->is_Load())
     return ! x->as_Load()->is_unordered();
-
-  return false;
-}
-
-bool followed_by_ordered_store(const Node *barrier) {
-
-  // Find following mem node.
-  //
-  Node *mem_proj = NULL;
-  for (DUIterator_Fast imax, i = barrier->fast_outs(imax); i < imax; i++) {
-    mem_proj = barrier->fast_out(i);      // Throw out-of-bounds if proj not found
-    assert(mem_proj->is_Proj(), "only projections here");
-    ProjNode *proj = mem_proj->as_Proj();
-    if (proj->_con == TypeFunc::Memory &&
-        !Compile::current()->node_arena()->contains(mem_proj)) // Unmatched old-space only
-      break;
-  }
-  assert(mem_proj->as_Proj()->_con == TypeFunc::Memory, "Graph broken");
-
-  // Search behind Proj.
-  for (DUIterator_Fast jmax, j = mem_proj->fast_outs(jmax); j < jmax; j++) {
-    Node *x = mem_proj->fast_out(j);
-    if (x->is_Store() && ! x->as_Store()->is_unordered()) {
-      return true;
-    }
-  }
 
   return false;
 }
@@ -4801,7 +4774,6 @@ opclass memory(indirect, indIndexScaledOffsetI,  indIndexScaledOffsetL, indIndex
 // the result of the l2i as an iRegI input. That's a shame since the
 // movw is actually redundant but its not too costly.
 
-
 opclass iRegIorL2I(iRegI, iRegL2I);
 
 //----------PIPELINE-----------------------------------------------------------
@@ -5407,7 +5379,7 @@ instruct storeimmCM0(immI0 zero, memory mem)
 instruct storeB(iRegI src, memory mem)
 %{
   match(Set mem (StoreB mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strb  $src, $mem\t# byte" %}
@@ -5421,7 +5393,7 @@ instruct storeB(iRegI src, memory mem)
 instruct storeimmB0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreB mem zero));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strb zr, $mem\t# byte" %}
@@ -5435,7 +5407,7 @@ instruct storeimmB0(immI0 zero, memory mem)
 instruct storeC(iRegI src, memory mem)
 %{
   match(Set mem (StoreC mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strh  $src, $mem\t# short" %}
@@ -5448,7 +5420,7 @@ instruct storeC(iRegI src, memory mem)
 instruct storeimmC0(immI0 zero, memory mem)
 %{
   match(Set mem (StoreC mem zero));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strh  zr, $mem\t# short" %}
@@ -5463,7 +5435,7 @@ instruct storeimmC0(immI0 zero, memory mem)
 instruct storeI(iRegIorL2I src, memory mem)
 %{
   match(Set mem(StoreI mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  $src, $mem\t# int" %}
@@ -5476,7 +5448,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 instruct storeimmI0(immI0 zero, memory mem)
 %{
   match(Set mem(StoreI mem zero));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  zr, $mem\t# int" %}
@@ -5490,7 +5462,7 @@ instruct storeimmI0(immI0 zero, memory mem)
 instruct storeL(iRegL src, memory mem)
 %{
   match(Set mem (StoreL mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# int" %}
@@ -5504,7 +5476,7 @@ instruct storeL(iRegL src, memory mem)
 instruct storeimmL0(immL0 zero, memory mem)
 %{
   match(Set mem (StoreL mem zero));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  zr, $mem\t# int" %}
@@ -5518,7 +5490,7 @@ instruct storeimmL0(immL0 zero, memory mem)
 instruct storeP(iRegP src, memory mem)
 %{
   match(Set mem (StoreP mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# ptr" %}
@@ -5532,7 +5504,7 @@ instruct storeP(iRegP src, memory mem)
 instruct storeimmP0(immP0 zero, memory mem)
 %{
   match(Set mem (StoreP mem zero));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "str zr, $mem\t# ptr" %}
@@ -5591,7 +5563,7 @@ instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
 instruct storeN(iRegN src, memory mem)
 %{
   match(Set mem (StoreN mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strw  $src, $mem\t# compressed ptr" %}
@@ -5605,8 +5577,9 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 %{
   match(Set mem (StoreN mem zero));
   predicate(Universe::narrow_oop_base() == NULL &&
-            Universe::narrow_klass_base() == NULL &&
-            n->as_Store()->is_unordered());
+            Universe::narrow_klass_base() == NULL//  &&
+	    // n->as_Store()->is_unordered()
+	    );
 
   ins_cost(INSN_COST);
   format %{ "strw  rheapbase, $mem\t# compressed ptr (rheapbase==0)" %}
@@ -5620,7 +5593,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 instruct storeF(vRegF src, memory mem)
 %{
   match(Set mem (StoreF mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strs  $src, $mem\t# float" %}
@@ -5637,7 +5610,7 @@ instruct storeF(vRegF src, memory mem)
 instruct storeD(vRegD src, memory mem)
 %{
   match(Set mem (StoreD mem src));
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
 
   ins_cost(INSN_COST);
   format %{ "strd  $src, $mem\t# double" %}
@@ -5650,7 +5623,7 @@ instruct storeD(vRegD src, memory mem)
 // Store Compressed Klass Pointer
 instruct storeNKlass(iRegN src, memory mem)
 %{
-  predicate(n->as_Store()->is_unordered());
+//   predicate(n->as_Store()->is_unordered());
   match(Set mem (StoreNKlass mem src));
 
   ins_cost(INSN_COST);
@@ -5896,114 +5869,6 @@ instruct loadD_volatile(vRegD dst, /* sync_memory*/indirect mem)
   ins_pipe(pipe_class_memory);
 %}
 
-// Store Byte
-instruct storeB_volatile(iRegI src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreB mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrb  $src, $mem\t# byte" %}
-
-  ins_encode(aarch64_enc_stlrb(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Char/Short
-instruct storeC_volatile(iRegI src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreC mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrh  $src, $mem\t# short" %}
-
-  ins_encode(aarch64_enc_stlrh(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Integer
-
-instruct storeI_volatile(iRegIorL2I src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem(StoreI mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrw  $src, $mem\t# int" %}
-
-  ins_encode(aarch64_enc_stlrw(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Long (64 bit signed)
-instruct storeL_volatile(iRegL src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreL mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlr  $src, $mem\t# int" %}
-
-  ins_encode(aarch64_enc_stlr(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Pointer
-instruct storeP_volatile(iRegP src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreP mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlr  $src, $mem\t# ptr" %}
-
-  ins_encode(aarch64_enc_stlr(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Compressed Pointer
-instruct storeN_volatile(iRegN src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreN mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrw  $src, $mem\t# compressed ptr" %}
-
-  ins_encode(aarch64_enc_stlrw(src, mem));
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// Store Float
-instruct storeF_volatile(vRegF src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreF mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrs  $src, $mem\t# float" %}
-
-  ins_encode( aarch64_enc_fstlrs(src, mem) );
-
-  ins_pipe(pipe_class_memory);
-%}
-
-// TODO
-// implement storeImmF0 and storeFImmPacked
-
-// Store Double
-instruct storeD_volatile(vRegD src, /* sync_memory*/indirect mem)
-%{
-  match(Set mem (StoreD mem src));
-
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrd  $src, $mem\t# double" %}
-
-  ins_encode( aarch64_enc_fstlrd(src, mem) );
-
-  ins_pipe(pipe_class_memory);
-%}
-
 //  ---------------- end of volatile loads and stores ----------------
 
 // ============================================================================
@@ -6186,19 +6051,6 @@ instruct store_fence() %{
   ins_pipe(pipe_class_memory);
 %}
 
-instruct unnecessary_membar_release() %{
-  match(MemBarRelease);
-  predicate(followed_by_ordered_store(n));
-  ins_cost(0);
-
-  format %{ "membar_release (elided)" %}
-
-  ins_encode %{
-    __ block_comment("membar_release (elided)");
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
 instruct membar_release() %{
   match(MemBarRelease);
   ins_cost(VOLATILE_REF_COST);
@@ -6244,7 +6096,7 @@ instruct membar_volatile() %{
 
   ins_encode %{
     __ membar(Assembler::StoreLoad);
-  %}
+    %}
 
   ins_pipe(pipe_class_memory);
 %}
@@ -7918,6 +7770,22 @@ instruct urShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
 
   ins_cost(INSN_COST);
   format %{ "lsr $dst, $src1, ($src2 & 0x3f)" %}
+
+  ins_encode %{
+    __ lsr(as_Register($dst$$reg),
+           as_Register($src1$$reg),
+           $src2$$constant & 0x3f);
+  %}
+
+  ins_pipe(pipe_class_default);
+%}
+
+// A special-case pattern for card table stores.
+instruct urShiftP_reg_imm(iRegLNoSp dst, iRegP src1, immI src2) %{
+  match(Set dst (URShiftL (CastP2X src1) src2));
+
+  ins_cost(INSN_COST);
+  format %{ "lsr $dst, p2x($src1), ($src2 & 0x3f)" %}
 
   ins_encode %{
     __ lsr(as_Register($dst$$reg),
