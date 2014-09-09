@@ -5794,7 +5794,8 @@ bool LibraryCallKit::inline_multiplyToLen() {
 
     // Allocate the result array
     Node* zlen = _gvn.transform(new(C) AddINode(xlen, ylen));
-    Node* klass_node = makecon(TypeKlassPtr::make(ciTypeArrayKlass::make(T_INT)));
+    ciKlass* klass = ciTypeArrayKlass::make(T_INT);
+    Node* klass_node = makecon(TypeKlassPtr::make(klass));
 
     IdealKit ideal(this);
 
@@ -5828,7 +5829,8 @@ bool LibraryCallKit::inline_multiplyToLen() {
 
      sync_kit(ideal);
      z = __ value(z_alloc);
-     _gvn.set_type(z, TypeAryPtr::INTS);
+     // Can't use TypeAryPtr::INTS which uses Bottom offset.
+     _gvn.set_type(z, TypeOopPtr::make_from_klass(klass));
      // Final sync IdealKit and GraphKit.
      final_sync(ideal);
 #undef __
