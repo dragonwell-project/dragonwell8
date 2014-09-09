@@ -117,7 +117,7 @@ inline void Atomic::dec_ptr(volatile intptr_t* dest)
 
 inline intptr_t Atomic::xchg_ptr(intptr_t exchange_value, volatile intptr_t* dest)
 {
-  jint res = __sync_lock_test_and_set (dest, exchange_value);
+  intptr_t res = __sync_lock_test_and_set (dest, exchange_value);
   FULL_MEM_BARRIER;
   return res;
 }
