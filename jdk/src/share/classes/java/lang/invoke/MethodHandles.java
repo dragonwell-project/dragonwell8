@@ -863,6 +863,8 @@ assertEquals("", (String) MH_newString.invokeExact());
                 return invoker(type);
             if ("invokeExact".equals(name))
                 return exactInvoker(type);
+            if ("invokeBasic".equals(name))
+                return basicInvoker(type);
             assert(!MemberName.isMethodHandleInvokeName(name));
             return null;
         }
@@ -1880,7 +1882,7 @@ return invoker;
     static public
     MethodHandle spreadInvoker(MethodType type, int leadingArgCount) {
         if (leadingArgCount < 0 || leadingArgCount > type.parameterCount())
-            throw new IllegalArgumentException("bad argument count "+leadingArgCount);
+            throw newIllegalArgumentException("bad argument count", leadingArgCount);
         return type.invokers().spreadInvoker(leadingArgCount);
     }
 
@@ -1965,7 +1967,7 @@ return invoker;
 
     static /*non-public*/
     MethodHandle basicInvoker(MethodType type) {
-        return type.form().basicInvoker();
+        return type.invokers().basicInvoker();
     }
 
      /// method handle modification (creation from other method handles)
