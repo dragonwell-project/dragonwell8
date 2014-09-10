@@ -828,28 +828,87 @@ class MethodType implements java.io.Serializable {
     }
     /*non-public*/
     boolean isCastableTo(MethodType newType) {
+        MethodTypeForm oldForm = this.form();
+        MethodTypeForm newForm = newType.form();
+        if (oldForm == newForm)
+            // same parameter count, same primitive/object mix
+            return true;
         int argc = parameterCount();
         if (argc != newType.parameterCount())
             return false;
-        return true;
+        // Corner case:  boxing (primitive-to-reference) must have a plausible target type
+        // Therefore, we may have to return false for a boxing operation.
+        if (!canCast(returnType(), newType.returnType()))
+            return false;
+        if (newForm.primitiveParameterCount() == 0)
+            return true;  // no primitive sources to mess things up
+        if (oldForm.erasedType == this)
+            return true;  // no funny target references to mess things up
+        return canCastParameters(newType.ptypes, ptypes);
     }
     /*non-public*/
     boolean isConvertibleTo(MethodType newType) {
+        MethodTypeForm oldForm = this.form();
+        MethodTypeForm newForm = newType.form();
+        if (oldForm == newForm)
+            // same parameter count, same primitive/object mix
+            return true;
         if (!canConvert(returnType(), newType.returnType()))
             return false;
-        int argc = parameterCount();
-        if (argc != newType.parameterCount())
+        Class<?>[] srcTypes = newType.ptypes;
+        Class<?>[] dstTypes = ptypes;
+        if (srcTypes == dstTypes)
+            return true;
+        int argc;
+        if ((argc = srcTypes.length) != dstTypes.length)
             return false;
-        for (int i = 0; i < argc; i++) {
-            if (!canConvert(newType.parameterType(i), parameterType(i)))
+        if (argc <= 1) {
+            if (argc == 1 && !canConvert(srcTypes[0], dstTypes[0]))
                 return false;
+            return true;
+        }
+        if ((oldForm.primitiveParameterCount() == 0 && oldForm.erasedType == this) ||
+            (newForm.primitiveParameterCount() == 0 && newForm.erasedType == newType)) {
+            // Somewhat complicated test to avoid a loop of 2 or more trips.
+            // If either type has only Object parameters, we know we can convert.
+            assert(canConvertParameters(srcTypes, dstTypes));
+            return true;
+        }
+        return canConvertParameters(srcTypes, dstTypes);
+    }
+
+    private boolean canCastParameters(Class<?>[] srcTypes, Class<?>[] dstTypes) {
+        for (int i = 0; i < srcTypes.length; i++) {
+            if (!canCast(srcTypes[i], dstTypes[i])) {
+                return false;
+            }
         }
         return true;
     }
+
+    private boolean canConvertParameters(Class<?>[] srcTypes, Class<?>[] dstTypes) {
+        for (int i = 0; i < srcTypes.length; i++) {
+            if (!canConvert(srcTypes[i], dstTypes[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean canCast(Class<?> src, Class<?> dst) {
+        if (src.isPrimitive() && !dst.isPrimitive()) {
+            if (dst == Object.class || dst.isInterface())  return true;
+            // Here is the corner case that is not castable.  Example:  int -> String
+            Wrapper sw = Wrapper.forPrimitiveType(src);
+            return dst.isAssignableFrom(sw.wrapperType());
+        }
+        return true;
+    }
+
     /*non-public*/
     static boolean canConvert(Class<?> src, Class<?> dst) {
         // short-circuit a few cases:
-        if (src == dst || dst == Object.class)  return true;
+        if (src == dst || src == Object.class || dst == Object.class)  return true;
         // the remainder of this logic is documented in MethodHandle.asType
         if (src.isPrimitive()) {
             // can force void to an explicit null, a la reflect.Method.invoke
