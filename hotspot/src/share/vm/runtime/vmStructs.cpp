@@ -2496,6 +2496,7 @@ typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > MetablockTreeDicti
   declare_constant(Deoptimization::Reason_age)                            \
   declare_constant(Deoptimization::Reason_predicate)                      \
   declare_constant(Deoptimization::Reason_loop_limit_check)               \
+  declare_constant(Deoptimization::Reason_unstable_if)                    \
   declare_constant(Deoptimization::Reason_LIMIT)                          \
   declare_constant(Deoptimization::Reason_RECORDED_LIMIT)                 \
                                                                           \
