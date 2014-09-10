@@ -37,12 +37,12 @@ import sun.reflect.CallerSensitive;
 import sun.reflect.Reflection;
 import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
+import java.lang.invoke.LambdaForm.BasicType;
+import static java.lang.invoke.LambdaForm.BasicType.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
 
 import java.util.concurrent.ConcurrentHashMap;
-
-import sun.security.util.SecurityConstants;
 
 /**
  * This class consists exclusively of static methods that operate on or return
@@ -2202,12 +2202,12 @@ assert((int)twice.invokeExact(21) == 42);
             Object value = values[i];
             Class<?> ptype = oldType.parameterType(pos+i);
             if (ptype.isPrimitive()) {
-                char btype = 'I';
+                BasicType btype = I_TYPE;
                 Wrapper w = Wrapper.forPrimitiveType(ptype);
                 switch (w) {
-                case LONG:    btype = 'J'; break;
-                case FLOAT:   btype = 'F'; break;
-                case DOUBLE:  btype = 'D'; break;
+                case LONG:    btype = J_TYPE; break;
+                case FLOAT:   btype = F_TYPE; break;
+                case DOUBLE:  btype = D_TYPE; break;
                 }
                 // perform unboxing and/or primitive conversion
                 value = w.convert(value, ptype);
@@ -2218,7 +2218,7 @@ assert((int)twice.invokeExact(21) == 42);
             if (pos == 0) {
                 result = result.bindReceiver(value);
             } else {
-                result = result.bindArgument(pos, 'L', value);
+                result = result.bindArgument(pos, L_TYPE, value);
             }
         }
         return result;

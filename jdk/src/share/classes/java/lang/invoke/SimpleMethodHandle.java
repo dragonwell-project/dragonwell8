@@ -26,9 +26,7 @@
 package java.lang.invoke;
 
 import static java.lang.invoke.LambdaForm.*;
-import static java.lang.invoke.MethodHandleNatives.Constants.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import static java.lang.invoke.LambdaForm.BasicType.*;
 
 /**
  * A method handle whose behavior is determined only by its LambdaForm.
@@ -44,7 +42,7 @@ final class SimpleMethodHandle extends MethodHandle {
     }
 
     @Override
-    MethodHandle bindArgument(int pos, char basicType, Object value) {
+    MethodHandle bindArgument(int pos, BasicType basicType, Object value) {
         MethodType type2 = type().dropParameterTypes(pos, pos+1);
         LambdaForm form2 = internalForm().bind(1+pos, BoundMethodHandle.SpeciesData.EMPTY);
         return BoundMethodHandle.bindSingle(type2, form2, basicType, value);
@@ -61,10 +59,4 @@ final class SimpleMethodHandle extends MethodHandle {
         LambdaForm form2 = internalForm().permuteArguments(1, reorder, basicTypes(newType.parameterList()));
         return new SimpleMethodHandle(newType, form2);
     }
-
-    @Override
-    MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-        return new SimpleMethodHandle(mt, lf);
-    }
-
 }
