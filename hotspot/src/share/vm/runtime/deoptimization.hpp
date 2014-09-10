@@ -60,6 +60,7 @@ class Deoptimization : AllStatic {
     Reason_predicate,             // compiler generated predicate failed
     Reason_loop_limit_check,      // compiler generated loop limits check failed
     Reason_speculate_class_check, // saw unexpected object class from type speculation
+    Reason_unstable_if,           // a branch predicted always false was taken
     Reason_rtm_state_change,      // rtm state change detected
     Reason_LIMIT,
     // Note:  Keep this enum in sync. with _trap_reason_name.
@@ -315,6 +316,8 @@ class Deoptimization : AllStatic {
       return Reason_null_check;           // recorded per BCI as a null check
     else if (reason == Reason_speculate_class_check)
       return Reason_class_check;
+    else if (reason == Reason_unstable_if)
+      return Reason_intrinsic;
     else
       return Reason_none;
   }

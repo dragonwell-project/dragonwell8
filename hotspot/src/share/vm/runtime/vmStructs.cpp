@@ -814,6 +814,7 @@ typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > MetablockTreeDicti
      static_field(StubRoutines,                _cipherBlockChaining_decryptAESCrypt,          address)                               \
      static_field(StubRoutines,                _updateBytesCRC32,                             address)                               \
      static_field(StubRoutines,                _crc_table_adr,                                address)                               \
+     static_field(StubRoutines,                _multiplyToLen,                                address)                               \
                                                                                                                                      \
   /*****************/                                                                                                                \
   /* SharedRuntime */                                                                                                                \
@@ -2495,6 +2496,7 @@ typedef BinaryTreeDictionary<Metablock, FreeList<Metablock> > MetablockTreeDicti
   declare_constant(Deoptimization::Reason_age)                            \
   declare_constant(Deoptimization::Reason_predicate)                      \
   declare_constant(Deoptimization::Reason_loop_limit_check)               \
+  declare_constant(Deoptimization::Reason_unstable_if)                    \
   declare_constant(Deoptimization::Reason_LIMIT)                          \
   declare_constant(Deoptimization::Reason_RECORDED_LIMIT)                 \
                                                                           \
