@@ -1061,7 +1061,7 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
   // We will consult the secondary-super array.
   ldr(r5, secondary_supers_addr);
   // Load the array length.  (Positive movl does right thing on LP64.)
-  ldr(r2, Address(r5, Array<Klass*>::length_offset_in_bytes()));
+  ldrw(r2, Address(r5, Array<Klass*>::length_offset_in_bytes()));
   // Skip to start of data.
   add(r5, r5, Array<Klass*>::base_offset_in_bytes());
 
