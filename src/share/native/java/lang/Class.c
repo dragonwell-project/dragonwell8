@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,7 @@ Java_java_lang_Class_registerNatives(JNIEnv *env, jclass cls)
 
 JNIEXPORT jclass JNICALL
 Java_java_lang_Class_forName0(JNIEnv *env, jclass this, jstring classname,
-                              jboolean initialize, jobject loader)
+                              jboolean initialize, jobject loader, jclass caller)
 {
     char *clname;
     jclass cls = 0;
@@ -135,8 +135,7 @@ Java_java_lang_Class_forName0(JNIEnv *env, jclass this, jstring classname,
         goto done;
     }
 
-    cls = JVM_FindClassFromClassLoader(env, clname, initialize,
-                                       loader, JNI_FALSE);
+    cls = JVM_FindClassFromCaller(env, clname, initialize, loader, caller);
 
  done:
     if (clname != buf) {
