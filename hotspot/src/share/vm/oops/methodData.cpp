@@ -1153,8 +1153,6 @@ void MethodData::init() {
   _backedge_counter_start = 0;
   _num_loops = 0;
   _num_blocks = 0;
-  _highest_comp_level = 0;
-  _highest_osr_comp_level = 0;
   _would_profile = true;
 
 #if INCLUDE_RTM_OPT
