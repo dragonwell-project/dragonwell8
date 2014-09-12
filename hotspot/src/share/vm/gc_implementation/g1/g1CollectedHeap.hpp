@@ -263,6 +263,9 @@ private:
   // Class that handles the different kinds of allocations.
   G1Allocator* _allocator;
 
+  // Statistics for each allocation context
+  AllocationContextStats _allocation_context_stats;
+
   // PLAB sizing policy for survivors.
   PLABStats _survivor_plab_stats;
 
@@ -620,6 +623,10 @@ protected:
 
 public:
 
+  G1Allocator* allocator() {
+    return _allocator;
+  }
+
   G1MonitoringSupport* g1mm() {
     assert(_g1mm != NULL, "should have been initialized");
     return _g1mm;
@@ -651,6 +658,8 @@ public:
 
   // Determines PLAB size for a particular allocation purpose.
   size_t desired_plab_sz(GCAllocPurpose purpose);
+
+  inline AllocationContextStats& allocation_context_stats();
 
   // Do anything common to GC's.
   virtual void gc_prologue(bool full);
@@ -1239,6 +1248,11 @@ public:
 
   // The same as above but assume that the caller holds the Heap_lock.
   void collect_locked(GCCause::Cause cause);
+
+  virtual void copy_allocation_context_stats(const jint* contexts,
+                                             jlong* totals,
+                                             jbyte* accuracy,
+                                             jint len);
 
   // True iff an evacuation has failed in the most-recent collection.
   bool evacuation_failed() { return _evacuation_failed; }
