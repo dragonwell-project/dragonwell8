@@ -466,6 +466,75 @@ class MethodType implements java.io.Serializable {
         return dropParameterTypes(start, end).insertParameterTypes(start, ptypesToInsert);
     }
 
+    /** Replace the last arrayLength parameter types with the component type of arrayType.
+     * @param arrayType any array type
+     * @param arrayLength the number of parameter types to change
+     * @return the resulting type
+     */
+    /*non-public*/ MethodType asSpreaderType(Class<?> arrayType, int arrayLength) {
+        assert(parameterCount() >= arrayLength);
+        int spreadPos = ptypes.length - arrayLength;
+        if (arrayLength == 0)  return this;  // nothing to change
+        if (arrayType == Object[].class) {
+            if (isGeneric())  return this;  // nothing to change
+            if (spreadPos == 0) {
+                // no leading arguments to preserve; go generic
+                MethodType res = genericMethodType(arrayLength);
+                if (rtype != Object.class) {
+                    res = res.changeReturnType(rtype);
+                }
+                return res;
+            }
+        }
+        Class<?> elemType = arrayType.getComponentType();
+        assert(elemType != null);
+        for (int i = spreadPos; i < ptypes.length; i++) {
+            if (ptypes[i] != elemType) {
+                Class<?>[] fixedPtypes = ptypes.clone();
+                Arrays.fill(fixedPtypes, i, ptypes.length, elemType);
+                return methodType(rtype, fixedPtypes);
+            }
+        }
+        return this;  // arguments check out; no change
+    }
+
+    /** Return the leading parameter type, which must exist and be a reference.
+     *  @return the leading parameter type, after error checks
+     */
+    /*non-public*/ Class<?> leadingReferenceParameter() {
+        Class<?> ptype;
+        if (ptypes.length == 0 ||
+            (ptype = ptypes[0]).isPrimitive())
+            throw newIllegalArgumentException("no leading reference parameter");
+        return ptype;
+    }
+
+    /** Delete the last parameter type and replace it with arrayLength copies of the component type of arrayType.
+     * @param arrayType any array type
+     * @param arrayLength the number of parameter types to insert
+     * @return the resulting type
+     */
+    /*non-public*/ MethodType asCollectorType(Class<?> arrayType, int arrayLength) {
+        assert(parameterCount() >= 1);
+        assert(lastParameterType().isAssignableFrom(arrayType));
+        MethodType res;
+        if (arrayType == Object[].class) {
+            res = genericMethodType(arrayLength);
+            if (rtype != Object.class) {
+                res = res.changeReturnType(rtype);
+            }
+        } else {
+            Class<?> elemType = arrayType.getComponentType();
+            assert(elemType != null);
+            res = methodType(rtype, Collections.nCopies(arrayLength, elemType));
+        }
+        if (ptypes.length == 1) {
+            return res;
+        } else {
+            return res.insertParameterTypes(0, parameterList().subList(0, ptypes.length-1));
+        }
+    }
+
     /**
      * Finds or creates a method type with some parameter types omitted.
      * Convenience method for {@link #methodType(java.lang.Class, java.lang.Class[]) methodType}.
@@ -571,6 +640,10 @@ class MethodType implements java.io.Serializable {
      */
     public MethodType generic() {
         return genericMethodType(parameterCount());
+    }
+
+    /*non-public*/ boolean isGeneric() {
+        return this == erase() && !hasPrimitives();
     }
 
     /**
@@ -728,44 +801,114 @@ class MethodType implements java.io.Serializable {
         return sb.toString();
     }
 
-
+    /** True if the old return type can always be viewed (w/o casting) under new return type,
+     *  and the new parameters can be viewed (w/o casting) under the old parameter types.
+     */
     /*non-public*/
-    boolean isViewableAs(MethodType newType) {
-        if (!VerifyType.isNullConversion(returnType(), newType.returnType()))
+    boolean isViewableAs(MethodType newType, boolean keepInterfaces) {
+        if (!VerifyType.isNullConversion(returnType(), newType.returnType(), keepInterfaces))
             return false;
+        return parametersAreViewableAs(newType, keepInterfaces);
+    }
+    /** True if the new parameters can be viewed (w/o casting) under the old parameter types. */
+    /*non-public*/
+    boolean parametersAreViewableAs(MethodType newType, boolean keepInterfaces) {
+        if (form == newType.form && form.erasedType == this)
+            return true;  // my reference parameters are all Object
+        if (ptypes == newType.ptypes)
+            return true;
         int argc = parameterCount();
         if (argc != newType.parameterCount())
             return false;
         for (int i = 0; i < argc; i++) {
-            if (!VerifyType.isNullConversion(newType.parameterType(i), parameterType(i)))
+            if (!VerifyType.isNullConversion(newType.parameterType(i), parameterType(i), keepInterfaces))
                 return false;
         }
         return true;
     }
     /*non-public*/
     boolean isCastableTo(MethodType newType) {
+        MethodTypeForm oldForm = this.form();
+        MethodTypeForm newForm = newType.form();
+        if (oldForm == newForm)
+            // same parameter count, same primitive/object mix
+            return true;
         int argc = parameterCount();
         if (argc != newType.parameterCount())
             return false;
-        return true;
+        // Corner case:  boxing (primitive-to-reference) must have a plausible target type
+        // Therefore, we may have to return false for a boxing operation.
+        if (!canCast(returnType(), newType.returnType()))
+            return false;
+        if (newForm.primitiveParameterCount() == 0)
+            return true;  // no primitive sources to mess things up
+        if (oldForm.erasedType == this)
+            return true;  // no funny target references to mess things up
+        return canCastParameters(newType.ptypes, ptypes);
     }
     /*non-public*/
     boolean isConvertibleTo(MethodType newType) {
+        MethodTypeForm oldForm = this.form();
+        MethodTypeForm newForm = newType.form();
+        if (oldForm == newForm)
+            // same parameter count, same primitive/object mix
+            return true;
         if (!canConvert(returnType(), newType.returnType()))
             return false;
-        int argc = parameterCount();
-        if (argc != newType.parameterCount())
+        Class<?>[] srcTypes = newType.ptypes;
+        Class<?>[] dstTypes = ptypes;
+        if (srcTypes == dstTypes)
+            return true;
+        int argc;
+        if ((argc = srcTypes.length) != dstTypes.length)
             return false;
-        for (int i = 0; i < argc; i++) {
-            if (!canConvert(newType.parameterType(i), parameterType(i)))
+        if (argc <= 1) {
+            if (argc == 1 && !canConvert(srcTypes[0], dstTypes[0]))
                 return false;
+            return true;
+        }
+        if ((oldForm.primitiveParameterCount() == 0 && oldForm.erasedType == this) ||
+            (newForm.primitiveParameterCount() == 0 && newForm.erasedType == newType)) {
+            // Somewhat complicated test to avoid a loop of 2 or more trips.
+            // If either type has only Object parameters, we know we can convert.
+            assert(canConvertParameters(srcTypes, dstTypes));
+            return true;
+        }
+        return canConvertParameters(srcTypes, dstTypes);
+    }
+
+    private boolean canCastParameters(Class<?>[] srcTypes, Class<?>[] dstTypes) {
+        for (int i = 0; i < srcTypes.length; i++) {
+            if (!canCast(srcTypes[i], dstTypes[i])) {
+                return false;
+            }
         }
         return true;
     }
+
+    private boolean canConvertParameters(Class<?>[] srcTypes, Class<?>[] dstTypes) {
+        for (int i = 0; i < srcTypes.length; i++) {
+            if (!canConvert(srcTypes[i], dstTypes[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean canCast(Class<?> src, Class<?> dst) {
+        if (src.isPrimitive() && !dst.isPrimitive()) {
+            if (dst == Object.class || dst.isInterface())  return true;
+            // Here is the corner case that is not castable.  Example:  int -> String
+            Wrapper sw = Wrapper.forPrimitiveType(src);
+            return dst.isAssignableFrom(sw.wrapperType());
+        }
+        return true;
+    }
+
     /*non-public*/
     static boolean canConvert(Class<?> src, Class<?> dst) {
         // short-circuit a few cases:
-        if (src == dst || dst == Object.class)  return true;
+        if (src == dst || src == Object.class || dst == Object.class)  return true;
         // the remainder of this logic is documented in MethodHandle.asType
         if (src.isPrimitive()) {
             // can force void to an explicit null, a la reflect.Method.invoke
@@ -907,7 +1050,7 @@ class MethodType implements java.io.Serializable {
         if (!descriptor.startsWith("(") ||  // also generates NPE if needed
             descriptor.indexOf(')') < 0 ||
             descriptor.indexOf('.') >= 0)
-            throw new IllegalArgumentException("not a method descriptor: "+descriptor);
+            throw newIllegalArgumentException("not a method descriptor: "+descriptor);
         List<Class<?>> types = BytecodeDescriptor.parseMethod(descriptor, loader);
         Class<?> rtype = types.remove(types.size() - 1);
         checkSlotCount(types.size());
