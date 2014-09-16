@@ -2024,13 +2024,20 @@ return invoker;
      */
     public static
     MethodHandle explicitCastArguments(MethodHandle target, MethodType newType) {
-        MethodType oldType = target.type();
+        explicitCastArgumentsChecks(target, newType);
         // use the asTypeCache when possible:
+        MethodType oldType = target.type();
         if (oldType == newType)  return target;
         if (oldType.explicitCastEquivalentToAsType(newType)) {
             return target.asType(newType);
         }
         return MethodHandleImpl.makePairwiseConvert(target, newType, false);
+    }
+
+    private static void explicitCastArgumentsChecks(MethodHandle target, MethodType newType) {
+        if (target.type().parameterCount() != newType.parameterCount()) {
+            throw new WrongMethodTypeException("cannot explicitly cast " + target + " to " + newType);
+        }
     }
 
     /**
@@ -2480,6 +2487,7 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
     MethodHandle dropArguments(MethodHandle target, int pos, List<Class<?>> valueTypes) {
         MethodType oldType = target.type();  // get NPE
         int dropped = dropArgumentChecks(oldType, pos, valueTypes);
+        MethodType newType = oldType.insertParameterTypes(pos, valueTypes);
         if (dropped == 0)  return target;
         BoundMethodHandle result = target.rebind();
         LambdaForm lform = result.form;
@@ -2491,7 +2499,6 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
         } else {
             lform = lform.addArguments(pos, valueTypes);
         }
-        MethodType newType = oldType.insertParameterTypes(pos, valueTypes);
         result = result.copyWith(newType, lform);
         return result;
     }
