@@ -1112,9 +1112,6 @@ int ciEnv::num_inlined_bytecodes() const {
 // ------------------------------------------------------------------
 // ciEnv::record_failure()
 void ciEnv::record_failure(const char* reason) {
-  if (log() != NULL) {
-    log()->elem("failure reason='%s'", reason);
-  }
   if (_failure_reason == NULL) {
     // Record the first failure reason.
     _failure_reason = reason;
