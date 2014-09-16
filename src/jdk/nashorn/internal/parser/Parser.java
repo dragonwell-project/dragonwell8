@@ -45,6 +45,7 @@ import static jdk.nashorn.internal.parser.TokenType.IDENT;
 import static jdk.nashorn.internal.parser.TokenType.IF;
 import static jdk.nashorn.internal.parser.TokenType.INCPOSTFIX;
 import static jdk.nashorn.internal.parser.TokenType.LBRACE;
+import static jdk.nashorn.internal.parser.TokenType.LET;
 import static jdk.nashorn.internal.parser.TokenType.LPAREN;
 import static jdk.nashorn.internal.parser.TokenType.RBRACE;
 import static jdk.nashorn.internal.parser.TokenType.RBRACKET;
@@ -147,7 +148,7 @@ public class Parser extends AbstractParser implements Loggable {
     /** to receive line information from Lexer when scanning multine literals. */
     protected final Lexer.LineInfoReceiver lineInfoReceiver;
 
-    private int nextFunctionId;
+    private RecompilableScriptFunctionData reparsedFunction;
 
     /**
      * Constructor
@@ -170,7 +171,7 @@ public class Parser extends AbstractParser implements Loggable {
      * @param log debug logger if one is needed
      */
     public Parser(final ScriptEnvironment env, final Source source, final ErrorManager errors, final boolean strict, final DebugLogger log) {
-        this(env, source, errors, strict, FunctionNode.FIRST_FUNCTION_ID, 0, log);
+        this(env, source, errors, strict, 0, log);
     }
 
     /**
@@ -180,15 +181,13 @@ public class Parser extends AbstractParser implements Loggable {
      * @param source  source to parse
      * @param errors  error manager
      * @param strict  parser created with strict mode enabled.
-     * @param nextFunctionId  starting value for assigning new unique ids to function nodes
      * @param lineOffset line offset to start counting lines from
      * @param log debug logger if one is needed
      */
-    public Parser(final ScriptEnvironment env, final Source source, final ErrorManager errors, final boolean strict, final int nextFunctionId, final int lineOffset, final DebugLogger log) {
+    public Parser(final ScriptEnvironment env, final Source source, final ErrorManager errors, final boolean strict, final int lineOffset, final DebugLogger log) {
         super(source, errors, strict, lineOffset);
         this.env = env;
         this.namespace = new Namespace(env.getNamespace());
-        this.nextFunctionId    = nextFunctionId;
         this.scripting = env._scripting;
         if (this.scripting) {
             this.lineInfoReceiver = new Lexer.LineInfoReceiver() {
@@ -224,6 +223,16 @@ public class Parser extends AbstractParser implements Loggable {
      */
     public void setFunctionName(final String name) {
         defaultNames.push(createIdentNode(0, 0, name));
+    }
+
+    /**
+     * Sets the {@link RecompilableScriptFunctionData} representing the function being reparsed (when this
+     * parser instance is used to reparse a previously parsed function, as part of its on-demand compilation).
+     * This will trigger various special behaviors, such as skipping nested function bodies.
+     * @param reparsedFunction the function being reparsed.
+     */
+    public void setReparsedFunction(final RecompilableScriptFunctionData reparsedFunction) {
+        this.reparsedFunction = reparsedFunction;
     }
 
     /**
@@ -263,7 +272,7 @@ public class Parser extends AbstractParser implements Loggable {
 
         try {
             stream = new TokenStream();
-            lexer  = new Lexer(source, startPos, len, stream, scripting && !env._no_syntax_extensions);
+            lexer  = new Lexer(source, startPos, len, stream, scripting && !env._no_syntax_extensions, reparsedFunction != null);
             lexer.line = lexer.pendingLine = lineOffset + 1;
             line = lineOffset;
 
@@ -471,7 +480,6 @@ loop:
         final FunctionNode functionNode =
             new FunctionNode(
                 source,
-                nextFunctionId++,
                 functionLine,
                 token,
                 Token.descPosition(token),
@@ -577,6 +585,10 @@ loop:
         if (isArguments(ident)) {
             lc.setFlag(lc.getCurrentFunction(), FunctionNode.USES_ARGUMENTS);
         }
+    }
+
+    private boolean useBlockScope() {
+        return env._es6;
     }
 
     private static boolean isArguments(final String name) {
@@ -694,9 +706,20 @@ loop:
             FunctionNode.Kind.SCRIPT,
             functionLine);
 
+        // If ES6 block scope is enabled add a per-script block for top-level LET and CONST declarations.
+        final int startLine = start;
+        Block outer = useBlockScope() ? newBlock() : null;
         functionDeclarations = new ArrayList<>();
-        sourceElements(allowPropertyFunction);
-        addFunctionDeclarations(script);
+
+        try {
+            sourceElements(allowPropertyFunction);
+            addFunctionDeclarations(script);
+        } finally {
+            if (outer != null) {
+                outer = restoreBlock(outer);
+                appendStatement(new BlockStatement(startLine, outer));
+            }
+        }
         functionDeclarations = null;
 
         expect(EOF);
@@ -868,7 +891,7 @@ loop:
             block();
             break;
         case VAR:
-            variableStatement(true);
+            variableStatement(type, true);
             break;
         case SEMICOLON:
             emptyStatement();
@@ -918,8 +941,12 @@ loop:
             expect(SEMICOLON);
             break;
         default:
+            if (useBlockScope() && (type == LET || type == CONST)) {
+                variableStatement(type, true);
+                break;
+            }
             if (env._const_as_var && type == CONST) {
-                variableStatement(true);
+                variableStatement(TokenType.VAR, true);
                 break;
             }
 
@@ -1035,11 +1062,17 @@ loop:
      * Parse a VAR statement.
      * @param isStatement True if a statement (not used in a FOR.)
      */
-    private List<VarNode> variableStatement(final boolean isStatement) {
+    private List<VarNode> variableStatement(final TokenType varType, final boolean isStatement) {
         // VAR tested in caller.
         next();
 
         final List<VarNode> vars = new ArrayList<>();
+        int varFlags = VarNode.IS_STATEMENT;
+        if (varType == LET) {
+            varFlags |= VarNode.IS_LET;
+        } else if (varType == CONST) {
+            varFlags |= VarNode.IS_CONST;
+        }
 
         while (true) {
             // Get starting token.
@@ -1063,10 +1096,12 @@ loop:
                 } finally {
                     defaultNames.pop();
                 }
+            } else if (varType == CONST) {
+                throw error(AbstractParser.message("missing.const.assignment", name.getName()));
             }
 
             // Allocate var node.
-            final VarNode var = new VarNode(varLine, varToken, finish, name, init);
+            final VarNode var = new VarNode(varLine, varToken, finish, name.setIsDeclaredHere(), init, varFlags);
             vars.add(var);
             appendStatement(var);
 
@@ -1180,9 +1215,12 @@ loop:
      * Parse a FOR statement.
      */
     private void forStatement() {
+        // When ES6 for-let is enabled we create a container block to capture the LET.
+        final int startLine = start;
+        Block outer = useBlockScope() ? newBlock() : null;
+
         // Create FOR node, capturing FOR token.
         ForNode forNode = new ForNode(line, token, Token.descPosition(token), null, ForNode.IS_FOR);
-
         lc.push(forNode);
 
         try {
@@ -1203,14 +1241,19 @@ loop:
             switch (type) {
             case VAR:
                 // Var statements captured in for outer block.
-                vars = variableStatement(false);
+                vars = variableStatement(type, false);
                 break;
             case SEMICOLON:
                 break;
             default:
+                if (useBlockScope() && (type == LET || type == CONST)) {
+                    // LET/CONST captured in container block created above.
+                    vars = variableStatement(type, false);
+                    break;
+                }
                 if (env._const_as_var && type == CONST) {
                     // Var statements captured in for outer block.
-                    vars = variableStatement(false);
+                    vars = variableStatement(TokenType.VAR, false);
                     break;
                 }
 
@@ -1290,8 +1333,13 @@ loop:
             appendStatement(forNode);
         } finally {
             lc.pop(forNode);
+            if (outer != null) {
+                outer.setFinish(forNode.getFinish());
+                outer = restoreBlock(outer);
+                appendStatement(new BlockStatement(startLine, outer));
+            }
         }
-     }
+    }
 
     /**
      * ... IterationStatement :
@@ -1722,7 +1770,7 @@ loop:
         }
     }
 
-   /**
+    /**
      * ThrowStatement :
      *      throw Expression ; // [no LineTerminator here]
      *
@@ -2609,7 +2657,7 @@ loop:
         FunctionNode functionNode = functionBody(functionToken, name, parameters, FunctionNode.Kind.NORMAL, functionLine);
 
         if (isStatement) {
-            if (topLevel) {
+            if (topLevel || useBlockScope()) {
                 functionNode = functionNode.setFlag(lc, FunctionNode.IS_DECLARED);
             } else if (isStrictMode) {
                 throw error(JSErrorType.SYNTAX_ERROR, AbstractParser.message("strict.no.func.decl.here"), functionToken);
@@ -2661,9 +2709,16 @@ loop:
         }
 
         if (isStatement) {
-            final VarNode varNode = new VarNode(functionLine, functionToken, finish, name, functionNode, VarNode.IS_STATEMENT);
+            int varFlags = VarNode.IS_STATEMENT;
+            if (!topLevel && useBlockScope()) {
+                // mark ES6 block functions as lexically scoped
+                varFlags |= VarNode.IS_LET;
+            }
+            final VarNode varNode = new VarNode(functionLine, functionToken, finish, name, functionNode, varFlags);
             if (topLevel) {
                 functionDeclarations.add(varNode);
+            } else if (useBlockScope()) {
+                prependStatement(varNode); // Hoist to beginning of current block
             } else {
                 appendStatement(varNode);
             }
@@ -2780,10 +2835,14 @@ loop:
         FunctionNode functionNode = null;
         long lastToken = 0L;
 
+        final boolean parseBody;
+        Object endParserState = null;
         try {
             // Create a new function block.
             functionNode = newFunctionNode(firstToken, ident, parameters, kind, functionLine);
-
+            assert functionNode != null;
+            final int functionId = functionNode.getId();
+            parseBody = reparsedFunction == null || functionId <= reparsedFunction.getFunctionNodeId();
             // Nashorn extension: expression closures
             if (!env._no_syntax_extensions && type != LBRACE) {
                 /*
@@ -2799,32 +2858,141 @@ loop:
                 assert lc.getCurrentBlock() == lc.getFunctionBody(functionNode);
                 // EOL uses length field to store the line number
                 final int lastFinish = Token.descPosition(lastToken) + (Token.descType(lastToken) == EOL ? 0 : Token.descLength(lastToken));
-                final ReturnNode returnNode = new ReturnNode(functionNode.getLineNumber(), expr.getToken(), lastFinish, expr);
-                appendStatement(returnNode);
-                functionNode.setFinish(lastFinish);
-
-            } else {
-                expect(LBRACE);
-
-                // Gather the function elements.
-                final List<Statement> prevFunctionDecls = functionDeclarations;
-                functionDeclarations = new ArrayList<>();
-                try {
-                    sourceElements(false);
-                    addFunctionDeclarations(functionNode);
-                } finally {
-                    functionDeclarations = prevFunctionDecls;
+                // Only create the return node if we aren't skipping nested functions. Note that we aren't
+                // skipping parsing of these extended functions; they're considered to be small anyway. Also,
+                // they don't end with a single well known token, so it'd be very hard to get correctly (see
+                // the note below for reasoning on skipping happening before instead of after RBRACE for
+                // details).
+                if (parseBody) {
+                    final ReturnNode returnNode = new ReturnNode(functionNode.getLineNumber(), expr.getToken(), lastFinish, expr);
+                    appendStatement(returnNode);
                 }
+                functionNode.setFinish(lastFinish);
+            } else {
+                expectDontAdvance(LBRACE);
+                if (parseBody || !skipFunctionBody(functionNode)) {
+                    next();
+                    // Gather the function elements.
+                    final List<Statement> prevFunctionDecls = functionDeclarations;
+                    functionDeclarations = new ArrayList<>();
+                    try {
+                        sourceElements(false);
+                        addFunctionDeclarations(functionNode);
+                    } finally {
+                        functionDeclarations = prevFunctionDecls;
+                    }
 
-                lastToken = token;
+                    lastToken = token;
+                    if (parseBody) {
+                        // Since the lexer can read ahead and lexify some number of tokens in advance and have
+                        // them buffered in the TokenStream, we need to produce a lexer state as it was just
+                        // before it lexified RBRACE, and not whatever is its current (quite possibly well read
+                        // ahead) state.
+                        endParserState = new ParserState(Token.descPosition(token), line, linePosition);
+
+                        // NOTE: you might wonder why do we capture/restore parser state before RBRACE instead of
+                        // after RBRACE; after all, we could skip the below "expect(RBRACE);" if we captured the
+                        // state after it. The reason is that RBRACE is a well-known token that we can expect and
+                        // will never involve us getting into a weird lexer state, and as such is a great reparse
+                        // point. Typical example of a weird lexer state after RBRACE would be:
+                        //     function this_is_skipped() { ... } "use strict";
+                        // because lexer is doing weird off-by-one maneuvers around string literal quotes. Instead
+                        // of compensating for the possibility of a string literal (or similar) after RBRACE,
+                        // we'll rather just restart parsing from this well-known, friendly token instead.
+                    }
+                }
                 expect(RBRACE);
                 functionNode.setFinish(finish);
             }
         } finally {
             functionNode = restoreFunctionNode(functionNode, lastToken);
         }
+
+        // NOTE: we can only do alterations to the function node after restoreFunctionNode.
+
+        if (parseBody) {
+            functionNode = functionNode.setEndParserState(lc, endParserState);
+        } else if (functionNode.getBody().getStatementCount() > 0){
+            // This is to ensure the body is empty when !parseBody but we couldn't skip parsing it (see
+            // skipFunctionBody() for possible reasons). While it is not strictly necessary for correctness to
+            // enforce empty bodies in nested functions that were supposed to be skipped, we do assert it as
+            // an invariant in few places in the compiler pipeline, so for consistency's sake we'll throw away
+            // nested bodies early if we were supposed to skip 'em.
+            functionNode = functionNode.setBody(null, functionNode.getBody().setStatements(null,
+                    Collections.<Statement>emptyList()));
+        }
+
+        if (reparsedFunction != null) {
+            // We restore the flags stored in the function's ScriptFunctionData that we got when we first
+            // eagerly parsed the code. We're doing it because some flags would be set based on the
+            // content of the function, or even content of its nested functions, most of which are normally
+            // skipped during an on-demand compilation.
+            final RecompilableScriptFunctionData data = reparsedFunction.getScriptFunctionData(functionNode.getId());
+            if (data != null) {
+                // Data can be null if when we originally parsed the file, we removed the function declaration
+                // as it was dead code.
+                functionNode = functionNode.setFlags(lc, data.getFunctionFlags());
+                // This compensates for missing markEval() in case the function contains an inner function
+                // that contains eval(), that now we didn't discover since we skipped the inner function.
+                if (functionNode.hasNestedEval()) {
+                    assert functionNode.hasScopeBlock();
+                    functionNode = functionNode.setBody(lc, functionNode.getBody().setNeedsScope(null));
+                }
+            }
+        }
         printAST(functionNode);
         return functionNode;
+    }
+
+    private boolean skipFunctionBody(final FunctionNode functionNode) {
+        if (reparsedFunction == null) {
+            // Not reparsing, so don't skip any function body.
+            return false;
+        }
+        // Skip to the RBRACE of this function, and continue parsing from there.
+        final RecompilableScriptFunctionData data = reparsedFunction.getScriptFunctionData(functionNode.getId());
+        if (data == null) {
+            // Nested function is not known to the reparsed function. This can happen if the FunctionNode was
+            // in dead code that was removed. Both FoldConstants and Lower prune dead code. In that case, the
+            // FunctionNode was dropped before a RecompilableScriptFunctionData could've been created for it.
+            return false;
+        }
+        final ParserState parserState = (ParserState)data.getEndParserState();
+        assert parserState != null;
+
+        stream.reset();
+        lexer = parserState.createLexer(source, lexer, stream, scripting && !env._no_syntax_extensions);
+        line = parserState.line;
+        linePosition = parserState.linePosition;
+        // Doesn't really matter, but it's safe to treat it as if there were a semicolon before
+        // the RBRACE.
+        type = SEMICOLON;
+        k = -1;
+        next();
+
+        return true;
+    }
+
+    /**
+     * Encapsulates part of the state of the parser, enough to reconstruct the state of both parser and lexer
+     * for resuming parsing after skipping a function body.
+     */
+    private static class ParserState {
+        private final int position;
+        private final int line;
+        private final int linePosition;
+
+        ParserState(final int position, final int line, final int linePosition) {
+            this.position = position;
+            this.line = line;
+            this.linePosition = linePosition;
+        }
+
+        Lexer createLexer(final Source source, final Lexer lexer, final TokenStream stream, final boolean scripting) {
+            final Lexer newLexer = new Lexer(source, position, lexer.limit - position, stream, scripting, true);
+            newLexer.restoreState(new Lexer.State(position, Integer.MAX_VALUE, line, -1, linePosition, SEMICOLON));
+            return newLexer;
+        }
     }
 
     private void printAST(final FunctionNode functionNode) {
@@ -2838,7 +3006,6 @@ loop:
     }
 
     private void addFunctionDeclarations(final FunctionNode functionNode) {
-        assert lc.peek() == lc.getFunctionBody(functionNode);
         VarNode lastDecl = null;
         for (int i = functionDeclarations.size() - 1; i >= 0; i--) {
             Statement decl = functionDeclarations.get(i);
@@ -3200,6 +3367,9 @@ loop:
             } else {
                 lc.setFlag(fn, FunctionNode.HAS_NESTED_EVAL);
             }
+            // NOTE: it is crucial to mark the body of the outer function as needing scope even when we skip
+            // parsing a nested function. functionBody() contains code to compensate for the lack of invoking
+            // this method when the parser skips a nested function.
             lc.setBlockNeedsScope(lc.getFunctionBody(fn));
         }
     }
