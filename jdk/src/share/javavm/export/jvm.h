@@ -439,9 +439,6 @@ JVM_GetClassName(JNIEnv *env, jclass cls);
 JNIEXPORT jobjectArray JNICALL
 JVM_GetClassInterfaces(JNIEnv *env, jclass cls);
 
-JNIEXPORT jobject JNICALL
-JVM_GetClassLoader(JNIEnv *env, jclass cls);
-
 JNIEXPORT jboolean JNICALL
 JVM_IsInterface(JNIEnv *env, jclass cls);
 
