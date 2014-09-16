@@ -1314,6 +1314,12 @@ public class DeferredAttr extends JCTree.Visitor {
                 site = env.enclClass.sym.type;
             }
 
+            while (site.hasTag(TYPEVAR)) {
+                site = site.getUpperBound();
+            }
+
+            site = types.capture(site);
+
             List<Type> args = rs.dummyArgs(tree.args.length());
             Name name = TreeInfo.name(tree.meth);
 
@@ -1337,7 +1343,9 @@ public class DeferredAttr extends JCTree.Visitor {
                 @Override
                 public Symbol process(MethodSymbol ms) {
                     ArgumentExpressionKind kind = ArgumentExpressionKind.methodKind(ms, types);
-                    return kind != ArgumentExpressionKind.POLY ? ms.getReturnType().tsym : null;
+                    if (kind == ArgumentExpressionKind.POLY || ms.getReturnType().hasTag(TYPEVAR))
+                        return null;
+                    return ms.getReturnType().tsym;
                 }
                 @Override
                 public Symbol reduce(Symbol s1, Symbol s2) {
