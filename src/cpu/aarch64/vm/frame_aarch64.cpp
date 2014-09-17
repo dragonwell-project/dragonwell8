@@ -807,7 +807,7 @@ extern "C" void pf(unsigned long sp, unsigned long fp, unsigned long pc,
 		   unsigned long bcx, unsigned long thread) {
   RegisterMap map((JavaThread*)thread, false);
   if (!reg_map) {
-    reg_map = (RegisterMap*)new char[sizeof map];
+    reg_map = (RegisterMap*)os::malloc(sizeof map, mtNone);
   }
   memcpy(reg_map, &map, sizeof map);
   {
