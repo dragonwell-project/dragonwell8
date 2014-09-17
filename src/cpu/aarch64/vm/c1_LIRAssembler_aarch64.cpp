@@ -900,7 +900,7 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
     if (type == T_ARRAY || type == T_OBJECT) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
       __ verify_oop(dest->as_register());
-    } else if (type == T_METADATA || type == T_DOUBLE) {
+    } else if (type == T_METADATA) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
     } else {
       __ ldrw(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
@@ -953,8 +953,9 @@ void LIR_Assembler::klass2reg_with_patching(Register reg, CodeEmitInfo* info) {
 }
 
 void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
+
   LIR_Opr temp;
-  if (type == T_LONG)
+  if (type == T_LONG || type == T_DOUBLE)
     temp = FrameMap::rscratch1_long_opr;
   else
     temp = FrameMap::rscratch1_opr;
