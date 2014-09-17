@@ -262,6 +262,12 @@ else
   ifeq ($(shell expr $(CC_VER_MAJOR) = 4 \& $(CC_VER_MINOR) = 3), 1)
     OPT_CFLAGS/mulnode.o += $(OPT_CFLAGS/NOOPT)
   endif
+  # Work around problem with 4.8 series building ciEnv on aarch64
+  ifeq ($(BUILDARCH), aarch64)
+    ifeq ($(shell expr $(CC_VER_MAJOR) = 4 \& $(CC_VER_MINOR) = 8), 1)
+      OPT_CFLAGS/ciEnv.o += $(OPT_CFLAGS/NOOPT)
+    endif
+  endif
 endif
 
 # Flags for generating make dependency flags.
