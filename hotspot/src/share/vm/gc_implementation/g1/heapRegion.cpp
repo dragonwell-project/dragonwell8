@@ -195,8 +195,6 @@ void HeapRegion::reset_after_compaction() {
 }
 
 void HeapRegion::hr_clear(bool par, bool clear_space, bool locked) {
-  assert(_humongous_type == NotHumongous,
-         "we should have already filtered out humongous regions");
   assert(_humongous_start_region == NULL,
          "we should have already filtered out humongous regions");
   assert(_end == _orig_end,
@@ -207,7 +205,7 @@ void HeapRegion::hr_clear(bool par, bool clear_space, bool locked) {
   set_allocation_context(AllocationContext::system());
   set_young_index_in_cset(-1);
   uninstall_surv_rate_group();
-  set_young_type(NotYoung);
+  set_free();
   reset_pre_dummy_top();
 
   if (!par) {
@@ -258,7 +256,7 @@ void HeapRegion::set_startsHumongous(HeapWord* new_top, HeapWord* new_end) {
   assert(top() == bottom(), "should be empty");
   assert(bottom() <= new_top && new_top <= new_end, "pre-condition");
 
-  _humongous_type = StartsHumongous;
+  _type.set_starts_humongous();
   _humongous_start_region = this;
 
   set_end(new_end);
@@ -272,11 +270,11 @@ void HeapRegion::set_continuesHumongous(HeapRegion* first_hr) {
   assert(top() == bottom(), "should be empty");
   assert(first_hr->startsHumongous(), "pre-condition");
 
-  _humongous_type = ContinuesHumongous;
+  _type.set_continues_humongous();
   _humongous_start_region = first_hr;
 }
 
-void HeapRegion::set_notHumongous() {
+void HeapRegion::clear_humongous() {
   assert(isHumongous(), "pre-condition");
 
   if (startsHumongous()) {
@@ -292,7 +290,6 @@ void HeapRegion::set_notHumongous() {
   }
 
   assert(capacity() == HeapRegion::GrainBytes, "pre-condition");
-  _humongous_type = NotHumongous;
   _humongous_start_region = NULL;
 }
 
@@ -336,12 +333,12 @@ HeapRegion::HeapRegion(uint hrm_index,
     G1OffsetTableContigSpace(sharedOffsetArray, mr),
     _hrm_index(hrm_index),
     _allocation_context(AllocationContext::system()),
-    _humongous_type(NotHumongous), _humongous_start_region(NULL),
+    _humongous_start_region(NULL),
     _in_collection_set(false),
     _next_in_special_set(NULL), _orig_end(NULL),
     _claimed(InitialClaimValue), _evacuation_failed(false),
     _prev_marked_bytes(0), _next_marked_bytes(0), _gc_efficiency(0.0),
-    _young_type(NotYoung), _next_young_region(NULL),
+    _next_young_region(NULL),
     _next_dirty_cards_region(NULL), _next(NULL), _prev(NULL),
 #ifdef ASSERT
     _containing_set(NULL),
@@ -703,27 +700,11 @@ void HeapRegion::verify_strong_code_roots(VerifyOption vo, bool* failures) const
 void HeapRegion::print() const { print_on(gclog_or_tty); }
 void HeapRegion::print_on(outputStream* st) const {
   st->print("AC%4u", allocation_context());
-
-  if (isHumongous()) {
-    if (startsHumongous())
-      st->print(" HS");
-    else
-      st->print(" HC");
-  } else {
-    st->print("   ");
-  }
+  st->print(" %2s", get_short_type_str());
   if (in_collection_set())
     st->print(" CS");
   else
     st->print("   ");
-  if (is_young())
-    st->print(is_survivor() ? " SU" : " Y ");
-  else
-    st->print("   ");
-  if (is_empty())
-    st->print(" F");
-  else
-    st->print("  ");
   st->print(" TS %5d", _gc_time_stamp);
   st->print(" PTAMS "PTR_FORMAT" NTAMS "PTR_FORMAT,
             prev_top_at_mark_start(), next_top_at_mark_start());
