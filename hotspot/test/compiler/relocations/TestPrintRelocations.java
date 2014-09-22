@@ -21,35 +21,18 @@
  * questions.
  */
 
-/*
+/**
  * @test
- * @bug 8055061
- * @key nmt
- * @library /testlibrary
- * @run main NMTWithCDS
+ * @bug 8044538
+ * @summary assert hit while printing relocations for jump table entries
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -Xcomp -XX:+PrintRelocations TestPrintRelocations
  */
-import com.oracle.java.testlibrary.*;
 
-public class NMTWithCDS {
+/**
+ * The test compiles all methods (-Xcomp) and prints their relocation
+ * entries (-XX:+PrintRelocations) to make sure the printing works.
+ */
+public class TestPrintRelocations {
 
-  public static void main(String[] args) throws Exception {
-    ProcessBuilder pb;
-    pb = ProcessTools.createJavaProcessBuilder("-XX:SharedArchiveFile=./sample.jsa", "-Xshare:dump");
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    try {
-      output.shouldContain("Loading classes to share");
-      output.shouldHaveExitValue(0);
-
-      pb = ProcessTools.createJavaProcessBuilder(
-        "-XX:NativeMemoryTracking=detail", "-XX:SharedArchiveFile=./sample.jsa", "-Xshare:on", "-version");
-      output = new OutputAnalyzer(pb.start());
-      output.shouldContain("sharing");
-      output.shouldHaveExitValue(0);
-
-    } catch (RuntimeException e) {
-      // Report 'passed' if CDS was turned off.
-      output.shouldContain("Unable to use shared archive");
-      output.shouldHaveExitValue(1);
-    }
-  }
+   static public void main(String[] args) { }
 }
