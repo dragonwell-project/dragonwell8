@@ -425,7 +425,7 @@ endif
 ##################################################################################################
 
 ifndef OPENJDK
-  DB_DEMO_ZIPFILE := $(wildcard $(JDK_TOPDIR)/src/closed/share/db/*.zip)
+  DB_DEMO_ZIPFILE := $(wildcard $(JDK_TOPDIR)/src/closed/share/db/db-derby-*-bin.zip)
 
   $(JDK_OUTPUTDIR)/demo/_the.db.unzipped: $(DB_DEMO_ZIPFILE)
 	$(MKDIR) -p $(@D)
