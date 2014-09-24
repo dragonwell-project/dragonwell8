@@ -34,4 +34,40 @@ void MethodCounters::clear_counters() {
   backedge_counter()->reset();
   set_interpreter_throwout_count(0);
   set_interpreter_invocation_count(0);
+#ifdef TIERED
+  set_prev_time(0);
+  set_rate(0);
+  set_highest_comp_level(0);
+  set_highest_osr_comp_level(0);
+#endif
 }
+
+
+int MethodCounters::highest_comp_level() const {
+#ifdef TIERED
+  return _highest_comp_level;
+#else
+  return CompLevel_none;
+#endif
+}
+
+void MethodCounters::set_highest_comp_level(int level) {
+#ifdef TIERED
+  _highest_comp_level = level;
+#endif
+}
+
+int MethodCounters::highest_osr_comp_level() const {
+#ifdef TIERED
+  return _highest_osr_comp_level;
+#else
+  return CompLevel_none;
+#endif
+}
+
+void MethodCounters::set_highest_osr_comp_level(int level) {
+#ifdef TIERED
+  _highest_osr_comp_level = level;
+#endif
+}
+
