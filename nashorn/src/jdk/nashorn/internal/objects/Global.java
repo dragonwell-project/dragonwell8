@@ -439,8 +439,8 @@ public final class Global extends ScriptObject implements Scope {
 
     // current ScriptContext to use - can be null.
     private ScriptContext scontext;
-    // associated Property object for "context" property.
-    private jdk.nashorn.internal.runtime.Property scontextProperty;
+    // current ScriptEngine associated - can be null.
+    private ScriptEngine engine;
 
     /**
      * Set the current script context
@@ -448,7 +448,6 @@ public final class Global extends ScriptObject implements Scope {
      */
     public void setScriptContext(final ScriptContext scontext) {
         this.scontext = scontext;
-        scontextProperty.setValue(this, this, scontext, false);
     }
 
     // global constants for this global - they can be replaced with MethodHandle.constant until invalidated
@@ -581,6 +580,7 @@ public final class Global extends ScriptObject implements Scope {
             return;
         }
 
+        this.engine = engine;
         init(engine);
     }
 
@@ -915,6 +915,13 @@ public final class Global extends ScriptObject implements Scope {
             if (scope != -1) {
                 return ScriptObjectMirror.unwrap(sctxt.getAttribute(nameStr, scope), global);
             }
+        }
+
+        switch (nameStr) {
+            case "context":
+                return sctxt;
+            case "engine":
+                return global.engine;
         }
 
         if (self == UNDEFINED) {
@@ -1789,9 +1796,6 @@ public final class Global extends ScriptObject implements Scope {
         }
 
         if (engine != null) {
-            final int NOT_ENUMERABLE_NOT_CONFIG = Attribute.NOT_ENUMERABLE | Attribute.NOT_CONFIGURABLE;
-            scontextProperty = addOwnProperty("context", NOT_ENUMERABLE_NOT_CONFIG, null);
-            addOwnProperty("engine", NOT_ENUMERABLE_NOT_CONFIG, engine);
             // default file name
             addOwnProperty(ScriptEngine.FILENAME, Attribute.NOT_ENUMERABLE, null);
             // __noSuchProperty__ hook for ScriptContext search of missing variables
@@ -1821,10 +1825,10 @@ public final class Global extends ScriptObject implements Scope {
 
         // ECMA 15.11.4.2 Error.prototype.name
         // Error.prototype.name = "Error";
-        errorProto.set(NativeError.NAME, "Error", false);
+        errorProto.set(NativeError.NAME, "Error", 0);
         // ECMA 15.11.4.3 Error.prototype.message
         // Error.prototype.message = "";
-        errorProto.set(NativeError.MESSAGE, "", false);
+        errorProto.set(NativeError.MESSAGE, "", 0);
 
         this.builtinEvalError = initErrorSubtype("EvalError", errorProto);
         this.builtinRangeError = initErrorSubtype("RangeError", errorProto);
@@ -1837,8 +1841,8 @@ public final class Global extends ScriptObject implements Scope {
     private ScriptFunction initErrorSubtype(final String name, final ScriptObject errorProto) {
         final ScriptFunction cons = initConstructor(name, ScriptFunction.class);
         final ScriptObject prototype = ScriptFunction.getPrototype(cons);
-        prototype.set(NativeError.NAME, name, false);
-        prototype.set(NativeError.MESSAGE, "", false);
+        prototype.set(NativeError.NAME, name, 0);
+        prototype.set(NativeError.MESSAGE, "", 0);
         prototype.setInitialProto(errorProto);
         return cons;
     }
@@ -1898,7 +1902,7 @@ public final class Global extends ScriptObject implements Scope {
     private static void copyOptions(final ScriptObject options, final ScriptEnvironment scriptEnv) {
         for (final Field f : scriptEnv.getClass().getFields()) {
             try {
-                options.set(f.getName(), f.get(scriptEnv), false);
+                options.set(f.getName(), f.get(scriptEnv), 0);
             } catch (final IllegalArgumentException | IllegalAccessException exp) {
                 throw new RuntimeException(exp);
             }
@@ -2042,7 +2046,7 @@ public final class Global extends ScriptObject implements Scope {
         // <anon-function>
         builtinFunction.setInitialProto(anon);
         builtinFunction.setPrototype(anon);
-        anon.set("constructor", builtinFunction, false);
+        anon.set("constructor", builtinFunction, 0);
         anon.deleteOwnProperty(anon.getMap().findProperty("prototype"));
 
         // use "getter" so that [[ThrowTypeError]] function's arity is 0 - as specified in step 10 of section 13.2.3
