@@ -118,6 +118,8 @@ public abstract class CodeStore implements Loggable {
      * @param initializers  the function initializers
      * @param constants     the constants array
      * @param compilationId the compilation id
+     *
+     * @return stored script
      */
     public StoredScript store(final String functionKey,
                               final Source source,
@@ -153,11 +155,13 @@ public abstract class CodeStore implements Loggable {
     /**
      * Returns a new StoredScript instance.
      *
+     * @param source the source
      * @param mainClassName the main class name
      * @param classBytes a map of class bytes
      * @param initializers function initializers
      * @param constants the constants array
      * @param compilationId the compilation id
+     *
      * @return The compiled script
      */
     public StoredScript storedScriptFor(final Source source, final String mainClassName,
@@ -206,7 +210,7 @@ public abstract class CodeStore implements Loggable {
         /**
          * Constructor
          *
-         * @throws IOException
+         * @throws IOException if there are read/write problems with the cache and cache directory
          */
         public DirectoryCodeStore() throws IOException {
             this(Options.getStringProperty("nashorn.persistent.code.cache", "nashorn_code_cache"), false, DEFAULT_MIN_SIZE);
@@ -216,8 +220,9 @@ public abstract class CodeStore implements Loggable {
          * Constructor
          *
          * @param path    directory to store code in
+         * @param readOnly is this a read only code store
          * @param minSize minimum file size for caching scripts
-         * @throws IOException
+         * @throws IOException if there are read/write problems with the cache and cache directory
          */
         public DirectoryCodeStore(final String path, final boolean readOnly, final int minSize) throws IOException {
             this.dir = checkDirectory(path, readOnly);
