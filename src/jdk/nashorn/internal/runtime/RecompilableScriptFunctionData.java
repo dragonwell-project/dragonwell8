@@ -26,11 +26,11 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.lookup.Lookup.MH;
-
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -454,7 +454,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         // CompilationEnvironment#declareLocalSymbol()).
 
         if (log.isEnabled()) {
-            log.info("Type specialization of '", functionName, "' signature: ", actualCallSiteType);
+            log.info("Parameter type specialization of '", functionName, "' signature: ", actualCallSiteType);
         }
 
         final boolean persistentCache = usePersistentCodeCache() && persist;
@@ -501,13 +501,13 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
 
         for (final Map.Entry<String, byte[]> entry : classBytes.entrySet()) {
             final String className = entry.getKey();
-            final byte[] code = entry.getValue();
+            final byte[] bytecode = entry.getValue();
 
             if (className.equals(mainClassName)) {
                 continue;
             }
 
-            installedClasses.put(className, installer.install(className, code));
+            installedClasses.put(className, installer.install(className, bytecode));
         }
 
         final Map<Integer, FunctionInitializer> initializers = script.getInitializers();
@@ -588,15 +588,17 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         return lookupCodeMethod(fn.getCompileUnit().getCode(), type);
     }
 
-    MethodHandle lookupCodeMethod(final Class<?> code, final MethodType targetType) {
+    MethodHandle lookupCodeMethod(final Class<?> codeClass, final MethodType targetType) {
         log.info("Looking up ", DebugLogger.quote(name), " type=", targetType);
-        return MH.findStatic(LOOKUP, code, functionName, targetType);
+        return MH.findStatic(LOOKUP, codeClass, functionName, targetType);
     }
 
     /**
      * Initializes this function data with the eagerly generated version of the code. This method can only be invoked
      * by the compiler internals in Nashorn and is public for implementation reasons only. Attempting to invoke it
      * externally will result in an exception.
+     *
+     * @param initializer FunctionInitializer for this data
      */
     public void initializeCode(final FunctionInitializer initializer) {
         // Since the method is public, we double-check that we aren't invoked with an inappropriate compile unit.
@@ -658,8 +660,8 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
 
 
     @Override
-    synchronized CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope) {
-        CompiledFunction existingBest = super.getBest(callSiteType, runtimeScope);
+    synchronized CompiledFunction getBest(final MethodType callSiteType, final ScriptObject runtimeScope, final Collection<CompiledFunction> forbidden) {
+        CompiledFunction existingBest = super.getBest(callSiteType, runtimeScope, forbidden);
         if (existingBest == null) {
             existingBest = addCode(compileTypeSpecialization(callSiteType, runtimeScope, true), callSiteType);
         }
@@ -723,6 +725,10 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         return functionNodeId;
     }
 
+    /**
+     * Get the source for the script
+     * @return source
+     */
     public Source getSource() {
         return source;
     }
