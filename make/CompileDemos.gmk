@@ -56,6 +56,28 @@ define SetupAppletDemo
       BUILD_DEMOS += $$(BUILD_DEMO_APPLET_$1)
 endef
 
+ifneq ($(OPENJDK_TARGET_OS), solaris)
+  $(eval $(call SetupAppletDemo,ArcTest))
+  $(eval $(call SetupAppletDemo,BarChart))
+  $(eval $(call SetupAppletDemo,Blink))
+  $(eval $(call SetupAppletDemo,CardTest))
+  $(eval $(call SetupAppletDemo,Clock))
+  $(eval $(call SetupAppletDemo,DitherTest))
+  $(eval $(call SetupAppletDemo,DrawTest))
+  $(eval $(call SetupAppletDemo,Fractal))
+  $(eval $(call SetupAppletDemo,GraphicsTest))
+  $(eval $(call SetupAppletDemo,NervousText))
+  $(eval $(call SetupAppletDemo,SimpleGraph))
+  $(eval $(call SetupAppletDemo,SortDemo))
+  $(eval $(call SetupAppletDemo,SpreadSheet))
+
+  ifndef OPENJDK
+    $(eval $(call SetupAppletDemo,Animator,,closed/))
+    $(eval $(call SetupAppletDemo,GraphLayout,true,closed/))
+    $(eval $(call SetupAppletDemo,JumpingBox,,closed/))
+    $(eval $(call SetupAppletDemo,TicTacToe,,closed/))
+  endif
+endif
 
 ##################################################################################################
 
@@ -137,7 +159,13 @@ $(JDK_OUTPUTDIR)/demo/jfc/CodePointIM/_the.services: \
 
 BUILD_DEMOS += $(JDK_OUTPUTDIR)/demo/jfc/CodePointIM/_the.services
 
+ifneq ($(OPENJDK_TARGET_OS), solaris)
+  $(eval $(call SetupDemo,MoleculeViewer,applets,,XYZChemModel,,,example*.html *.java))
+  $(eval $(call SetupDemo,WireFrame,applets,,ThreeD,,,example*.html *.java))
+  $(eval $(call SetupDemo,SwingApplet,jfc,,SwingApplet,,,README* *.html))
+endif
 $(eval $(call SetupDemo,FileChooserDemo,jfc,,FileChooserDemo,,,README*))
+$(eval $(call SetupDemo,Font2DTest,jfc,,Font2DTest,,,*.html *.txt))
 $(eval $(call SetupDemo,Metalworks,jfc,,Metalworks,,,README*))
 $(eval $(call SetupDemo,Notepad,jfc,,Notepad,,,README*))
 $(eval $(call SetupDemo,SampleTree,jfc,,SampleTree,,,README*))
@@ -154,8 +182,11 @@ ifndef OPENJDK
   $(eval $(call SetupDemo,Laffy,jfc,,,,closed/,*))
   $(eval $(call SetupDemo,SwingSet3,jfc,,,,closed/,*))
 
+  $(eval $(call SetupDemo,Java2D,jfc,,java2d.Java2Demo,,closed/,*.html README*,Java2Demo))
   $(eval $(call SetupDemo,Stylepad,jfc,,Stylepad, \
   $(JDK_TOPDIR)/src/share/demo/jfc/Notepad,closed/,*.txt,,$(JDK_TOPDIR)/src/share/demo/jfc/Notepad/README.txt))
+  $(eval $(call SetupDemo,SwingSet2,jfc,,SwingSet2,,closed/,README* *.html,,,.java COPYRIGHT, \
+      SplashScreen-Image: resources/images/splash.png,true))
 
   BUILD_DEMOS += $(patsubst $(JDK_TOPDIR)/src/closed/share/demo/nbproject/%, \
       $(JDK_OUTPUTDIR)/demo/nbproject/%, \
