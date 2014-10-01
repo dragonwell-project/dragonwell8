@@ -3,7 +3,7 @@
  * DO NOT REMOVE OR ALTER!
  */
 /*
- * Copyright 1999-2004 The Apache Software Foundation.
+ * Copyright 1999-2005 The Apache Software Foundation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -878,7 +878,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
   { "optionIN", "   [-in inputXMLURL]"},
   { "optionSelect", "   [-select xpath expression]"},
   { "optionMatch", "   [-match match pattern (f\u00FCr Vergleichsdiagnose)]"},
-  { "optionAnyExpr", "Oder nur ein XPath-Ausdruck f\u00FChrt einen Diagnose-Dump aus"},
+  { "optionAnyExpr", "Oder nur ein XPath-Ausdruck f\u00FChrt einen Diagnosedump aus"},
   { "noParsermsg1", "XSL-Prozess war nicht erfolgreich."},
   { "noParsermsg2", "** Parser konnte nicht gefunden werden **"},
   { "noParsermsg3", "Pr\u00FCfen Sie den Classpath."},
