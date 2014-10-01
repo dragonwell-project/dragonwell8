@@ -105,6 +105,7 @@ import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.Debug;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.RewriteException;
+import jdk.nashorn.internal.runtime.Scope;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.UnwarrantedOptimismException;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
@@ -1048,6 +1049,14 @@ public class MethodEmitter implements Emitter {
             return this;
         }
         return load(getCompilerConstantSymbol(cc), type != null ? type : getCompilerConstantType(cc));
+    }
+
+    MethodEmitter loadScope() {
+        return loadCompilerConstant(SCOPE).checkcast(Scope.class);
+    }
+
+    MethodEmitter setSplitState(final int state) {
+        return loadScope().load(state).invoke(Scope.SET_SPLIT_STATE);
     }
 
     void storeCompilerConstant(final CompilerConstants cc) {
