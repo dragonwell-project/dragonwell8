@@ -1,4 +1,4 @@
-/*
+  /*
  * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1632,12 +1632,6 @@ public:
 
   // Unregister the given nmethod from the G1 heap
   virtual void unregister_nmethod(nmethod* nm);
-
-  // Migrate the nmethods in the code root lists of the regions
-  // in the collection set to regions in to-space. In the event
-  // of an evacuation failure, nmethods that reference objects
-  // that were not successfullly evacuated are not migrated.
-  void migrate_strong_code_roots();
 
   // Free up superfluous code root memory.
   void purge_code_root_memory();
