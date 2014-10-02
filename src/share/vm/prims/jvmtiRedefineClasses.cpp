@@ -135,7 +135,7 @@ void VM_RedefineClasses::doit() {
 
   // Mark methods seen on stack and everywhere else so old methods are not
   // cleaned up if they're on the stack.
-  MetadataOnStackMark md_on_stack;
+  MetadataOnStackMark md_on_stack(true);
   HandleMark hm(thread);   // make sure any handles created are deleted
                            // before the stack walk again.
 
