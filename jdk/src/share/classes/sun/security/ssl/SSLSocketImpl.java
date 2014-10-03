@@ -2570,6 +2570,14 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
         }
     }
 
+    /*
+     * Returns a boolean indicating whether the ChangeCipherSpec message
+     * has been received for this handshake.
+     */
+    boolean receivedChangeCipherSpec() {
+        return receivedCCS;
+    }
+
     //
     // We allocate a separate thread to deliver handshake completion
     // events.  This ensures that the notifications don't block the
