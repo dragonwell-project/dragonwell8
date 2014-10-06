@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
  *          is different from object alignment for creating a CDS file
  *          should fail when loading.
  * @library /testlibrary
+ * @bug 8025642
  */
 
 import com.oracle.java.testlibrary.*;
@@ -82,7 +83,11 @@ public class CdsDifferentObjectAlignment {
             createAlignment,
             loadAlignment);
 
-        output.shouldContain(expectedErrorMsg);
+        try {
+            output.shouldContain(expectedErrorMsg);
+        } catch (RuntimeException e) {
+            output.shouldContain("Unable to use shared archive");
+        }
         output.shouldHaveExitValue(1);
     }
 }
