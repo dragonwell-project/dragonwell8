@@ -236,10 +236,8 @@ void G1GCPhaseTimes::note_gc_end() {
   _last_gc_worker_times_ms.verify();
   _last_gc_worker_other_times_ms.verify();
 
-  if (G1DeferredRSUpdate) {
-    _last_redirty_logged_cards_time_ms.verify();
-    _last_redirty_logged_cards_processed_cards.verify();
-  }
+  _last_redirty_logged_cards_time_ms.verify();
+  _last_redirty_logged_cards_processed_cards.verify();
 }
 
 void G1GCPhaseTimes::note_string_dedup_fixup_start() {
@@ -273,9 +271,6 @@ double G1GCPhaseTimes::accounted_time_ms() {
 
     // Now subtract the time taken to fix up roots in generated code
     misc_time_ms += _cur_collection_code_root_fixup_time_ms;
-
-    // Strong code root migration time
-    misc_time_ms += _cur_strong_code_root_migration_time_ms;
 
     // Strong code root purge time
     misc_time_ms += _cur_strong_code_root_purge_time_ms;
@@ -327,7 +322,6 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
     _last_obj_copy_times_ms.print(1, "Object Copy (ms)");
   }
   print_stats(1, "Code Root Fixup", _cur_collection_code_root_fixup_time_ms);
-  print_stats(1, "Code Root Migration", _cur_strong_code_root_migration_time_ms);
   print_stats(1, "Code Root Purge", _cur_strong_code_root_purge_time_ms);
   if (G1StringDedup::is_enabled()) {
     print_stats(1, "String Dedup Fixup", _cur_string_dedup_fixup_time_ms, _active_gc_threads);
@@ -355,12 +349,10 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
     _recorded_non_young_cset_choice_time_ms));
   print_stats(2, "Ref Proc", _cur_ref_proc_time_ms);
   print_stats(2, "Ref Enq", _cur_ref_enq_time_ms);
-  if (G1DeferredRSUpdate) {
-    print_stats(2, "Redirty Cards", _recorded_redirty_logged_cards_time_ms);
-    if (G1Log::finest()) {
-      _last_redirty_logged_cards_time_ms.print(3, "Parallel Redirty");
-      _last_redirty_logged_cards_processed_cards.print(3, "Redirtied Cards");
-    }
+  print_stats(2, "Redirty Cards", _recorded_redirty_logged_cards_time_ms);
+  if (G1Log::finest()) {
+    _last_redirty_logged_cards_time_ms.print(3, "Parallel Redirty");
+    _last_redirty_logged_cards_processed_cards.print(3, "Redirtied Cards");
   }
   if (G1ReclaimDeadHumongousObjectsAtYoungGC) {
     print_stats(2, "Humongous Reclaim", _cur_fast_reclaim_humongous_time_ms);
