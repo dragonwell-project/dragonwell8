@@ -108,9 +108,6 @@
   develop(bool, G1RSBarrierRegionFilter, true,                              \
           "If true, generate region filtering code in RS barrier")          \
                                                                             \
-  develop(bool, G1DeferredRSUpdate, true,                                   \
-          "If true, use deferred RS updates")                               \
-                                                                            \
   develop(bool, G1RSLogCheckCardTable, false,                               \
           "If true, verify that no dirty cards remain after RS log "        \
           "processing.")                                                    \
@@ -284,10 +281,6 @@
                                                                             \
   product(uintx, G1MixedGCCountTarget, 8,                                   \
           "The target number of mixed GCs after a marking cycle.")          \
-                                                                            \
-  experimental(uintx, G1CodeRootsChunkCacheKeepPercent, 10,                 \
-          "The amount of code root chunks that should be kept at most "     \
-          "as percentage of already allocated.")                            \
                                                                             \
   experimental(bool, G1ReclaimDeadHumongousObjectsAtYoungGC, true,          \
           "Try to reclaim dead large objects at every young GC.")           \
