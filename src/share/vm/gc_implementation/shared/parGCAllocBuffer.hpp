@@ -62,7 +62,8 @@ public:
   ParGCAllocBuffer(size_t word_sz);
 
   static const size_t min_size() {
-    return ThreadLocalAllocBuffer::min_size();
+    // Make sure that we return something that is larger than AlignmentReserve
+    return align_object_size(MAX2(MinTLABSize / HeapWordSize, (uintx)oopDesc::header_size())) + AlignmentReserve;
   }
 
   static const size_t max_size() {
