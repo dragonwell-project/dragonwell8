@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,6 +162,8 @@ public class Launcher {
          */
         public ExtClassLoader(File[] dirs) throws IOException {
             super(getExtURLs(dirs), null, factory);
+            SharedSecrets.getJavaNetAccess().
+                getURLClassPath(this).initLookupCache(this);
         }
 
         private static File[] getExtDirs() {
@@ -285,11 +287,15 @@ public class Launcher {
             });
         }
 
+        final URLClassPath ucp;
+
         /*
          * Creates a new AppClassLoader
          */
         AppClassLoader(URL[] urls, ClassLoader parent) {
             super(urls, parent, factory);
+            ucp = SharedSecrets.getJavaNetAccess().getURLClassPath(this);
+            ucp.initLookupCache(this);
         }
 
         /**
@@ -305,6 +311,23 @@ public class Launcher {
                     sm.checkPackageAccess(name.substring(0, i));
                 }
             }
+
+            if (ucp.knownToNotExist(name)) {
+                // The class of the given name is not found in the parent
+                // class loader as well as its local URLClassPath.
+                // Check if this class has already been defined dynamically;
+                // if so, return the loaded class; otherwise, skip the parent
+                // delegation and findClass.
+                Class<?> c = findLoadedClass(name);
+                if (c != null) {
+                    if (resolve) {
+                        resolveClass(c);
+                    }
+                    return c;
+                }
+                throw new ClassNotFoundException(name);
+            }
+
             return (super.loadClass(name, resolve));
         }
 
@@ -386,6 +409,7 @@ public class Launcher {
                 urls = new URL[0];
             }
             bcp = new URLClassPath(urls, factory);
+            bcp.initLookupCache(null);
         }
     }
 
