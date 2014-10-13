@@ -138,7 +138,7 @@ public class MakeMethodNotCompilableTest extends CompilerWhiteBoxTest {
         }
 
         compile();
-        checkNotCompiled();
+        checkNotOsrCompiled();
         if (isCompilable()) {
             throw new RuntimeException(method + " must be not compilable");
         }
