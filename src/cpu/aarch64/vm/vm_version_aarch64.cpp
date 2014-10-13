@@ -136,6 +136,17 @@ void VM_Version::get_processor_features() {
   if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
     UseCRC32Intrinsics = true;
   }
+
+  if (UseSHA) {
+    warning("SHA instructions are not implemented");
+    FLAG_SET_DEFAULT(UseSHA, false);
+  }
+  if (UseSHA1Intrinsics || UseSHA256Intrinsics || UseSHA512Intrinsics) {
+    warning("SHA intrinsics are not implemented");
+    FLAG_SET_DEFAULT(UseSHA1Intrinsics, false);
+    FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
+    FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
+  }
 }
 
 void VM_Version::initialize() {
