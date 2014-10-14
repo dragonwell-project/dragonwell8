@@ -336,7 +336,7 @@ public class Resources_de extends java.util.ListResourceBundle {
         {"New.prompt.", "Neues {0}: "},
         {"Passwords.must.differ", "Kennw\u00F6rter m\u00FCssen sich unterscheiden"},
         {"Re.enter.new.prompt.", "Neues {0} erneut eingeben: "},
-        {"Re.enter.passpword.", "Geben Sie das Kennwort erneut ein: "},
+        {"Re.enter.password.", "Geben Sie das Kennwort erneut ein: "},
         {"Re.enter.new.password.", "Neues Kennwort erneut eingeben: "},
         {"They.don.t.match.Try.again", "Keine \u00DCbereinstimmung. Wiederholen Sie den Vorgang"},
         {"Enter.prompt.alias.name.", "{0}-Aliasnamen eingeben:  "},
