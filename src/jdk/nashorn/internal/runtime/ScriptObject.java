@@ -47,7 +47,6 @@ import static jdk.nashorn.internal.runtime.UnwarrantedOptimismException.isValid;
 import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.getArrayIndex;
 import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 import static jdk.nashorn.internal.runtime.linker.NashornGuards.explicitInstanceOfCheck;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -820,6 +819,19 @@ public abstract class ScriptObject implements PropertyAccess {
         return false;
     }
 
+    private SwitchPoint findBuiltinSwitchPoint(final String key) {
+        for (ScriptObject myProto = getProto(); myProto != null; myProto = myProto.getProto()) {
+            final Property prop = myProto.getMap().findProperty(key);
+            if (prop != null) {
+                final SwitchPoint sp = prop.getBuiltinSwitchPoint();
+                if (sp != null && !sp.hasBeenInvalidated()) {
+                    return sp;
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Add a new property to the object.
      * <p>
@@ -923,10 +935,10 @@ public abstract class ScriptObject implements PropertyAccess {
      * creating setters that probably aren't used. Inject directly into the spill pool
      * the defaults for "arguments" and "caller"
      *
-     * @param key
-     * @param propertyFlags
-     * @param getter
-     * @param setter
+     * @param key           property key
+     * @param propertyFlags flags
+     * @param getter        getter for {@link UserAccessorProperty}, null if not present or N/A
+     * @param setter        setter for {@link UserAccessorProperty}, null if not present or N/A
      */
     protected final void initUserAccessors(final String key, final int propertyFlags, final ScriptFunction getter, final ScriptFunction setter) {
         final int slot = spillLength;
@@ -1514,6 +1526,23 @@ public abstract class ScriptObject implements PropertyAccess {
     }
 
     /**
+     * Get the {@link ArrayData}, for this ScriptObject, ensuring it is of a type
+     * that can handle elementType
+     * @param elementType elementType
+     * @return array data
+     */
+    public final ArrayData getArray(final Class<?> elementType) {
+        if (elementType == null) {
+            return arrayData;
+        }
+        final ArrayData newArrayData = arrayData.convert(elementType);
+        if (newArrayData != arrayData) {
+            arrayData = newArrayData;
+        }
+        return newArrayData;
+    }
+
+    /**
      * Get the {@link ArrayData} for this ScriptObject if it is an array
      * @return array data
      */
@@ -1720,8 +1749,8 @@ public abstract class ScriptObject implements PropertyAccess {
      */
     public Object put(final Object key, final Object value, final boolean strict) {
         final Object oldValue = get(key);
-        final int flags = strict ? NashornCallSiteDescriptor.CALLSITE_STRICT : 0;
-        set(key, value, flags);
+        final int scriptObjectFlags = strict ? NashornCallSiteDescriptor.CALLSITE_STRICT : 0;
+        set(key, value, scriptObjectFlags);
         return oldValue;
     }
 
@@ -1734,9 +1763,9 @@ public abstract class ScriptObject implements PropertyAccess {
      * @param strict strict mode or not
      */
     public void putAll(final Map<?, ?> otherMap, final boolean strict) {
-        final int flags = strict ? NashornCallSiteDescriptor.CALLSITE_STRICT : 0;
+        final int scriptObjectFlags = strict ? NashornCallSiteDescriptor.CALLSITE_STRICT : 0;
         for (final Map.Entry<?, ?> entry : otherMap.entrySet()) {
-            set(entry.getKey(), entry.getValue(), flags);
+            set(entry.getKey(), entry.getValue(), scriptObjectFlags);
         }
     }
 
@@ -1916,17 +1945,6 @@ public abstract class ScriptObject implements PropertyAccess {
         return MH.filterArguments(methodHandle, 0, filter.asType(filter.type().changeReturnType(methodHandle.type().parameterType(0))));
     }
 
-    //this will only return true if apply is still builtin
-    private static SwitchPoint checkReservedName(final CallSiteDescriptor desc, final LinkRequest request) {
-        final boolean isApplyToCall = NashornCallSiteDescriptor.isApplyToCall(desc);
-        final String name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
-        if ("apply".equals(name) && isApplyToCall && Global.instance().isSpecialNameValid(name)) {
-            assert Global.instance().getChangeCallback("apply") == Global.instance().getChangeCallback("call");
-            return Global.instance().getChangeCallback("apply");
-        }
-        return null;
-    }
-
     /**
      * Find the appropriate GET method for an invoke dynamic call.
      *
@@ -1938,14 +1956,13 @@ public abstract class ScriptObject implements PropertyAccess {
      */
     protected GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final LinkRequest request, final String operator) {
         final boolean explicitInstanceOfCheck = explicitInstanceOfCheck(desc, request);
-        final String name;
-        final SwitchPoint reservedNameSwitchPoint;
 
-        reservedNameSwitchPoint = checkReservedName(desc, request);
-        if (reservedNameSwitchPoint != null) {
-            name = "call"; //turn apply into call, it is the builtin apply and has been modified to explode args
-        } else {
-            name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
+        String name;
+        name = desc.getNameToken(CallSiteDescriptor.NAME_OPERAND);
+        if (NashornCallSiteDescriptor.isApplyToCall(desc)) {
+            if (Global.isBuiltinFunctionPrototypeApply()) {
+                name = "call";
+            }
         }
 
         if (request.isCallSiteUnstable() || hasWithScope()) {
@@ -2006,7 +2023,7 @@ public abstract class ScriptObject implements PropertyAccess {
         assert OBJECT_FIELDS_ONLY || guard != null : "we always need a map guard here";
 
         final GuardedInvocation inv = new GuardedInvocation(mh, guard, protoSwitchPoint, exception);
-        return inv.addSwitchPoint(reservedNameSwitchPoint);
+        return inv.addSwitchPoint(findBuiltinSwitchPoint(name));
     }
 
     private static GuardedInvocation findMegaMorphicGetMethod(final CallSiteDescriptor desc, final String name, final boolean isMethod) {
@@ -2029,7 +2046,7 @@ public abstract class ScriptObject implements PropertyAccess {
     // Marks a property as declared and sets its value. Used as slow path for block-scoped LET and CONST
     @SuppressWarnings("unused")
     private void declareAndSet(final String key, final Object value) {
-        final PropertyMap map = getMap();
+        final PropertyMap oldMap = getMap();
         final FindProperty find = findProperty(key, false);
         assert find != null;
 
@@ -2037,7 +2054,7 @@ public abstract class ScriptObject implements PropertyAccess {
         assert property != null;
         assert property.needsDeclaration();
 
-        final PropertyMap newMap = map.replaceProperty(property, property.removeFlags(Property.NEEDS_DECLARATION));
+        final PropertyMap newMap = oldMap.replaceProperty(property, property.removeFlags(Property.NEEDS_DECLARATION));
         setMap(newMap);
         set(key, value, 0);
     }
@@ -2166,7 +2183,7 @@ public abstract class ScriptObject implements PropertyAccess {
             }
         }
 
-        final GuardedInvocation inv = new SetMethodCreator(this, find, desc, request).createGuardedInvocation();
+        final GuardedInvocation inv = new SetMethodCreator(this, find, desc, request).createGuardedInvocation(findBuiltinSwitchPoint(name));
 
         final GuardedInvocation cinv = Global.getConstants().findSetMethod(find, this, inv, desc, request);
         if (cinv != null) {
@@ -2429,7 +2446,7 @@ public abstract class ScriptObject implements PropertyAccess {
 
         @Override
         public void remove() {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException("remove");
         }
     }
 
