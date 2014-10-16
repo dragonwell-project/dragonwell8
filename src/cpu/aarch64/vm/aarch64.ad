@@ -11051,27 +11051,27 @@ instruct compD3_reg_immD0(iRegINoSp dst, vRegD src1, immD0 zero, rFlagsReg cr)
 
 %}
 
-instruct compL3_reg_reg(iRegINoSp dst, iRegL src1, iRegL src2, rFlagsReg cr)
+// Manifest a CmpL result in an integer register.
+// (src1 < src2) ? -1 : ((src1 > src2) ? 1 : 0)
+instruct cmpL3_reg_reg(iRegINoSp dst, iRegL src1, iRegL src2, rFlagsReg flags)
 %{
   match(Set dst (CmpL3 src1 src2));
-  effect(KILL cr);
-  format %{ "cmp $src1, $src2 # CmpL3\n\t"
-            "csinvw $dst, zr, zr, eq\n\t"
-            "csnegw $dst, $dst, $dst, lt"
+  effect(KILL flags);
+
+  ins_cost(INSN_COST * 6);
+  format %{
+      "cmp $src1, $src2"
+      "csetw $dst, ne"
+      "cnegw $dst, lt"
+  %}
+  // format %{ "CmpL3 $dst, $src1, $src2" %}
+  ins_encode %{
+    __ cmp($src1$$Register, $src2$$Register);
+    __ csetw($dst$$Register, Assembler::NE);
+    __ cnegw($dst$$Register, $dst$$Register, Assembler::LT);
   %}
 
-  ins_cost(3 * INSN_COST);
-  ins_encode %{
-    Register d = as_Register($dst$$reg);
-    Register s1 = as_Register($src1$$reg);
-    Register s2 = as_Register($src2$$reg);
-    __ cmp(s1, s2);
-    // installs 0 if EQ else -1
-    __ csinvw(d, zr, zr, Assembler::EQ);
-    // keeps -1 if less else installs 1
-    __ csnegw(d, d, d, Assembler::LT);
-  %}
-   ins_pipe(pipe_class_default);
+  ins_pipe(pipe_class_default);
 %}
 
 instruct cmpLTMask_reg_reg(iRegINoSp dst, iRegI p, iRegI q, rFlagsReg cr)
