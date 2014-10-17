@@ -541,7 +541,7 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
          * @param e Executable
          * @throws Exception
          */
-        private static void waitAndDeoptimize(Executable e) throws Exception {
+        private static void waitAndDeoptimize(Executable e) {
             CompilerWhiteBoxTest.waitBackgroundCompilation(e);
             if (WhiteBox.getWhiteBox().isMethodQueuedForCompilation(e)) {
                 throw new RuntimeException(e + " must not be in queue");
@@ -565,8 +565,6 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
             for (long i = 0; i < CompilerWhiteBoxTest.OSR_WARMUP; ++i) {
                 result += (int)m.invoke(helper, 1);
             }
-            // Deoptimize non-osr versions
-            waitAndDeoptimize(m);
             return result;
         }
 
@@ -584,8 +582,6 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
             for (long i = 0; i < CompilerWhiteBoxTest.OSR_WARMUP; ++i) {
                 result += c.newInstance(null, 1).hashCode();
             }
-            // Deoptimize non-osr versions
-            waitAndDeoptimize(c);
             return result;
         }
 
@@ -634,6 +630,11 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
         }
 
         private static int osrStaticMethod(long limit) {
+            if (limit != 1) {
+              // Make sure there is no compiled version after warmup
+              waitAndDeoptimize(OSR_STATIC);
+            }
+            // Trigger osr compilation
             int result = 0;
             for (long i = 0; i < limit; ++i) {
                 result += staticMethod();
@@ -642,6 +643,11 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
         }
 
         private int osrMethod(long limit) {
+            if (limit != 1) {
+              // Make sure there is no compiled version after warmup
+              waitAndDeoptimize(OSR_METHOD);
+            }
+            // Trigger osr compilation
             int result = 0;
             for (long i = 0; i < limit; ++i) {
                 result += method();
@@ -658,6 +664,11 @@ enum SimpleTestCase implements CompilerWhiteBoxTest.TestCase {
 
         // for OSR constructor test case
         private Helper(Object o, long limit) {
+            if (limit != 1) {
+              // Make sure there is no compiled version after warmup
+              waitAndDeoptimize(OSR_CONSTRUCTOR);
+            }
+            // Trigger osr compilation
             int result = 0;
             for (long i = 0; i < limit; ++i) {
                 result += method();
