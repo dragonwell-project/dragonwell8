@@ -314,7 +314,6 @@ bool FileMapInfo::init_from_file(int fd) {
     fail_continue("The shared archive file has the wrong version.");
     return false;
   }
-  _file_offset = (long)n;
 
   size_t info_size = _header->_paths_misc_info_size;
   _paths_misc_info = NEW_C_HEAP_ARRAY_RETURN_NULL(char, info_size, mtClass);
@@ -327,6 +326,14 @@ bool FileMapInfo::init_from_file(int fd) {
     fail_continue("Unable to read the shared path info header.");
     FREE_C_HEAP_ARRAY(char, _paths_misc_info, mtClass);
     _paths_misc_info = NULL;
+    return false;
+  }
+
+  size_t len = lseek(fd, 0, SEEK_END);
+  struct FileMapInfo::FileMapHeader::space_info* si =
+    &_header->_space[MetaspaceShared::mc];
+  if (si->_file_offset >= len || len - si->_file_offset < si->_used) {
+    fail_continue("The shared archive file has been truncated.");
     return false;
   }
 
@@ -430,6 +437,7 @@ void FileMapInfo::write_region(int region, char* base, size_t size,
   si->_capacity = capacity;
   si->_read_only = read_only;
   si->_allow_exec = allow_exec;
+  si->_crc = ClassLoader::crc32(0, base, (jint)size);
   write_bytes_aligned(base, (int)size);
 }
 
@@ -454,14 +462,15 @@ void FileMapInfo::write_bytes(const void* buffer, int nbytes) {
 // Align file position to an allocation unit boundary.
 
 void FileMapInfo::align_file_position() {
-  long new_file_offset = align_size_up(_file_offset, os::vm_allocation_granularity());
+  size_t new_file_offset = align_size_up(_file_offset,
+                                         os::vm_allocation_granularity());
   if (new_file_offset != _file_offset) {
     _file_offset = new_file_offset;
     if (_file_open) {
       // Seek one byte back from the target and write a byte to insure
       // that the written file is the correct length.
       _file_offset -= 1;
-      if (lseek(_fd, _file_offset, SEEK_SET) < 0) {
+      if (lseek(_fd, (long)_file_offset, SEEK_SET) < 0) {
         fail_stop("Unable to seek.", NULL);
       }
       char zero = 0;
@@ -568,6 +577,19 @@ char* FileMapInfo::map_region(int i) {
   return base;
 }
 
+bool FileMapInfo::verify_region_checksum(int i) {
+  if (!VerifySharedSpaces) {
+    return true;
+  }
+  const char* buf = _header->_space[i]._base;
+  size_t sz = _header->_space[i]._used;
+  int crc = ClassLoader::crc32(0, buf, (jint)sz);
+  if (crc != _header->_space[i]._crc) {
+    fail_continue("Checksum verification failed.");
+    return false;
+  }
+  return true;
+}
 
 // Unmap a memory region in the address space.
 
@@ -628,13 +650,31 @@ bool FileMapInfo::initialize() {
   return true;
 }
 
+int FileMapInfo::FileMapHeader::compute_crc() {
+  char* header = data();
+  // start computing from the field after _crc
+  char* buf = (char*)&_crc + sizeof(int);
+  size_t sz = data_size() - (buf - header);
+  int crc = ClassLoader::crc32(0, buf, (jint)sz);
+  return crc;
+}
+
+int FileMapInfo::compute_header_crc() {
+  return _header->compute_crc();
+}
+
 bool FileMapInfo::FileMapHeader::validate() {
-  if (_version != current_version()) {
-    FileMapInfo::fail_continue("The shared archive file is the wrong version.");
-    return false;
-  }
   if (_magic != (int)0xf00baba2) {
     FileMapInfo::fail_continue("The shared archive file has a bad magic number.");
+    return false;
+  }
+  if (VerifySharedSpaces && compute_crc() != _crc) {
+    fail_continue("Header checksum verification failed.");
+    return false;
+  }
+  if (_version != current_version()) {
+    FileMapInfo::fail_continue("The shared archive file is the wrong version.");
+
     return false;
   }
   char header_version[JVM_IDENT_MAX];
