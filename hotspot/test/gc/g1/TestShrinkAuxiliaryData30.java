@@ -21,39 +21,18 @@
  * questions.
  */
 
-import sun.hotspot.WhiteBox;
+/**
+ * @test TestShrinkAuxiliaryData30
+ * @bug 8038423
+ * @summary Checks that decommitment occurs for JVM with different
+ * G1ConcRSLogCacheSize and ObjectAlignmentInBytes options values
+ * @library /testlibrary /testlibrary/whitebox
+ * @build TestShrinkAuxiliaryData TestShrinkAuxiliaryData30
+ * @run driver/timeout=720 TestShrinkAuxiliaryData30
+ */
+public class TestShrinkAuxiliaryData30 {
 
-class AllocateBeyondMetaspaceSize {
-  public static Object dummy;
-
-  public static void main(String [] args) {
-    if (args.length != 2) {
-      throw new IllegalArgumentException("Usage: <MetaspaceSize> <YoungGenSize>");
+    public static void main(String[] args) throws Exception {
+        new TestShrinkAuxiliaryData(30).test();
     }
-
-    long metaspaceSize = Long.parseLong(args[0]);
-    long youngGenSize = Long.parseLong(args[1]);
-
-    run(metaspaceSize, youngGenSize);
-  }
-
-  private static void run(long metaspaceSize, long youngGenSize) {
-    WhiteBox wb = WhiteBox.getWhiteBox();
-
-    long allocationBeyondMetaspaceSize  = metaspaceSize * 2;
-    long metaspace = wb.allocateMetaspace(null, allocationBeyondMetaspaceSize);
-
-    triggerYoungGC(youngGenSize);
-
-    wb.freeMetaspace(null, metaspace, metaspace);
-  }
-
-  private static void triggerYoungGC(long youngGenSize) {
-    long approxAllocSize = 32 * 1024;
-    long numAllocations  = 2 * youngGenSize / approxAllocSize;
-
-    for (long i = 0; i < numAllocations; i++) {
-      dummy = new byte[(int)approxAllocSize];
-    }
-  }
 }
