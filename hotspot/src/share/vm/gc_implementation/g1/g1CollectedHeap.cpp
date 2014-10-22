@@ -385,7 +385,9 @@ void G1RegionMappingChangedListener::reset_from_card_cache(uint start_idx, size_
   OtherRegionsTable::invalidate(start_idx, num_regions);
 }
 
-void G1RegionMappingChangedListener::on_commit(uint start_idx, size_t num_regions) {
+void G1RegionMappingChangedListener::on_commit(uint start_idx, size_t num_regions, bool zero_filled) {
+  // The from card cache is not the memory that is actually committed. So we cannot
+  // take advantage of the zero_filled parameter.
   reset_from_card_cache(start_idx, num_regions);
 }
 
@@ -2343,6 +2345,7 @@ bool G1CollectedHeap::should_do_concurrent_full_gc(GCCause::Cause cause) {
     case GCCause::_gc_locker:               return GCLockerInvokesConcurrent;
     case GCCause::_java_lang_system_gc:     return ExplicitGCInvokesConcurrent;
     case GCCause::_g1_humongous_allocation: return true;
+    case GCCause::_update_allocation_context_stats_inc: return true;
     default:                                return false;
   }
 }
