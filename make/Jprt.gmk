@@ -25,6 +25,9 @@
 
 # This file is contains targets utilities needed by JPRT.
 
+          ifdef ALT_BSDIFF_DIR
+	    @$(ECHO) " --with-bsdiff-dir=$(call UnixPath,$(ALT_BSDIFF_DIR)) " >> $@.tmp
+          endif
 ifndef JPRT_ARCHIVE_BUNDLE
   JPRT_ARCHIVE_BUNDLE=/tmp/jprt_bundles/j2sdk-image.zip
 endif
