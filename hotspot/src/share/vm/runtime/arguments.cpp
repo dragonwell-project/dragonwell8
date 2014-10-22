@@ -2389,6 +2389,9 @@ bool Arguments::check_vm_args_consistency() {
   status = status && verify_percentage(MarkSweepDeadRatio, "MarkSweepDeadRatio");
 
   status = status && verify_min_value(MarkSweepAlwaysCompactCount, 1, "MarkSweepAlwaysCompactCount");
+#ifdef COMPILER1
+  status = status && verify_min_value(ValueMapInitialSize, 1, "ValueMapInitialSize");
+#endif
 
   if (PrintNMTStatistics) {
 #if INCLUDE_NMT
@@ -2453,6 +2456,10 @@ bool Arguments::check_vm_args_consistency() {
   if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
     warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
   }
+
+#ifdef COMPILER1
+  status &= verify_interval(SafepointPollOffset, 0, os::vm_page_size() - BytesPerWord, "SafepointPollOffset");
+#endif
 
   return status;
 }
@@ -3705,6 +3712,11 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
   SharedArchivePath = get_shared_archive_path();
   if (SharedArchivePath == NULL) {
     return JNI_ENOMEM;
+  }
+
+  // Set up VerifySharedSpaces
+  if (FLAG_IS_DEFAULT(VerifySharedSpaces) && SharedArchiveFile != NULL) {
+    VerifySharedSpaces = true;
   }
 
   // Delay warning until here so that we've had a chance to process
