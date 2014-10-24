@@ -486,7 +486,7 @@ public class Gen extends JCTree.Visitor {
                 JCBlock block = (JCBlock)def;
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
-                else
+                else if ((block.flags & SYNTHETIC) == 0)
                     initCode.append(block);
                 break;
             case METHODDEF:
