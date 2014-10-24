@@ -300,6 +300,7 @@ static ObsoleteFlag obsolete_jvm_flags[] = {
   { "UseStringCache",                JDK_Version::jdk(8), JDK_Version::jdk(9) },
   { "UseOldInlining",                JDK_Version::jdk(9), JDK_Version::jdk(10) },
   { "AutoShutdownNMT",               JDK_Version::jdk(9), JDK_Version::jdk(10) },
+  { "CompilationRepeat",             JDK_Version::jdk(8), JDK_Version::jdk(9) },
 #ifdef PRODUCT
   { "DesiredMethodLimit",
                            JDK_Version::jdk_update(7, 2), JDK_Version::jdk(8) },
