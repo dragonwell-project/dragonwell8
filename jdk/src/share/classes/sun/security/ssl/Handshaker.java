@@ -500,7 +500,9 @@ abstract class Handshaker {
 
         if (activeProtocols.collection().isEmpty() ||
                 activeProtocols.max.v == ProtocolVersion.NONE.v) {
-            throw new SSLHandshakeException("No appropriate protocol");
+            throw new SSLHandshakeException(
+                    "No appropriate protocol (protocol is disabled or " +
+                    "cipher suites are inappropriate)");
         }
 
         if (activeCipherSuites == null) {
@@ -678,6 +680,16 @@ abstract class Handshaker {
         if (activeProtocols == null) {
             ArrayList<ProtocolVersion> protocols = new ArrayList<>(4);
             for (ProtocolVersion protocol : enabledProtocols.collection()) {
+                if (!algorithmConstraints.permits(
+                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                        protocol.name, null)) {
+                    if (debug != null && Debug.isOn("verbose")) {
+                        System.out.println(
+                            "Ignoring disabled protocol: " + protocol);
+                    }
+
+                    continue;
+                }
                 boolean found = false;
                 for (CipherSuite suite : enabledCipherSuites.collection()) {
                     if (suite.isAvailable() && suite.obsoleted > protocol.v &&
