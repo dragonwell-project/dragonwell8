@@ -26,9 +26,12 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.UnwarrantedOptimismException.isValid;
 
 import java.lang.invoke.MethodHandle;
+import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
+import jdk.nashorn.internal.objects.Global;
 
 /**
  * This class represents the result from a find property search.
@@ -57,19 +60,38 @@ public final class FindProperty {
     }
 
     /**
+     * Return a copy of this FindProperty with a different property.
+     *
+     * @param newProperty the new property
+     * @return the new FindProperty instance
+     */
+    public FindProperty replaceProperty(final Property newProperty) {
+        assert this.property.getKey().equals(newProperty.getKey());
+        assert this.property.getSlot() == newProperty.getSlot();
+        return new FindProperty(self, prototype, newProperty);
+    }
+
+    /**
      * Ask for a getter that returns the given type. The type has nothing to do with the
      * internal representation of the property. It may be an Object (boxing primitives) or
      * a primitive (primitive fields with -Dnashorn.fields.dual=true)
      * @see ObjectClassGenerator
      *
      * @param type type of getter, e.g. int.class if we want a function with {@code get()I} signature
+     * @param programPoint program point, or INVALID_PROGRAM_POINT if pessimistic
+     * @param request link request
+     *
      * @return method handle for the getter
      */
-    public MethodHandle getGetter(final Class<?> type) {
-        MethodHandle getter = property.getGetter(type);
+    public MethodHandle getGetter(final Class<?> type, final int programPoint, final LinkRequest request) {
+        final MethodHandle getter;
+        if (isValid(programPoint)) {
+            getter = property.getOptimisticGetter(type, programPoint);
+        } else {
+            getter = property.getGetter(type);
+        }
         if (property instanceof UserAccessorProperty) {
-            final UserAccessorProperty uc = (UserAccessorProperty)property;
-            getter = MH.insertArguments(getter, 0, isInherited() ? getOwner() : null, uc.getGetterSlot());
+            return insertAccessorsGetter((UserAccessorProperty) property, request, getter);
         }
         return getter;
     }
@@ -82,18 +104,33 @@ public final class FindProperty {
      *
      * @param type type of setter, e.g. int.class if we want a function with {@code set(I)V} signature
      * @param strict are we in strict mode
+     * @param request link request
      *
      * @return method handle for the getter
      */
-    public MethodHandle getSetter(final Class<?> type, final boolean strict) {
+    public MethodHandle getSetter(final Class<?> type, final boolean strict, final LinkRequest request) {
         MethodHandle setter = property.getSetter(type, getOwner().getMap());
         if (property instanceof UserAccessorProperty) {
-            final UserAccessorProperty uc = (UserAccessorProperty) property;
-            setter = MH.insertArguments(setter, 0, isInherited() ? getOwner() : null,
-                    uc.getSetterSlot(), strict? property.getKey() : null);
+            setter =  MH.insertArguments(setter, 1, strict ? property.getKey() : null);
+            return insertAccessorsGetter((UserAccessorProperty) property, request, setter);
         }
 
         return setter;
+    }
+
+    // Fold an accessor getter into the method handle of a user accessor property.
+    private MethodHandle insertAccessorsGetter(final UserAccessorProperty uap, final LinkRequest request, final MethodHandle mh) {
+        MethodHandle superGetter = uap.getAccessorsGetter();
+        if (isInherited()) {
+            superGetter = ScriptObject.addProtoFilter(superGetter, getProtoChainLength());
+        }
+        if (request != null && !(request.getReceiver() instanceof ScriptObject)) {
+            final MethodHandle wrapFilter = Global.getPrimitiveWrapFilter(request.getReceiver());
+            superGetter = MH.filterArguments(superGetter, 0, wrapFilter.asType(wrapFilter.type().changeReturnType(superGetter.type().parameterType(0))));
+        }
+        superGetter = MH.asType(superGetter, superGetter.type().changeParameterType(0, Object.class));
+
+        return MH.foldArguments(mh, superGetter);
     }
 
     /**
@@ -105,11 +142,22 @@ public final class FindProperty {
     }
 
     /**
+     * Return the {@code ScriptObject} where the search started. This is usually the ScriptObject the
+     * operation was started on, except for properties found inside a 'with' statement, where it is the
+     * top-level 'with' expression object.
+     *
+     * @return the start object.
+     */
+    public ScriptObject getSelf() {
+        return self;
+    }
+
+    /**
      * Return the appropriate receiver for a getter.
      * @return appropriate receiver
      */
     public ScriptObject getGetterReceiver() {
-        return property != null && property.hasGetterFunction(prototype) ? self : prototype;
+        return property != null && property instanceof UserAccessorProperty ? self : prototype;
     }
 
     /**
@@ -155,7 +203,27 @@ public final class FindProperty {
 
     /**
      * Get the property value from self as object.
-     *
+     * @return the property value
+     */
+    public int getIntValue() {
+        return property.getIntValue(getGetterReceiver(), getOwner());
+    }
+    /**
+     * Get the property value from self as object.
+     * @return the property value
+     */
+    public long getLongValue() {
+        return property.getLongValue(getGetterReceiver(), getOwner());
+    }
+    /**
+     * Get the property value from self as object.
+     * @return the property value
+     */
+    public double getDoubleValue() {
+        return property.getDoubleValue(getGetterReceiver(), getOwner());
+    }
+    /**
+     * Get the property value from self as object.
      * @return the property value
      */
     public Object getObjectValue() {
@@ -168,8 +236,38 @@ public final class FindProperty {
      * @param value the new value
      * @param strict strict flag
      */
-    public void setObjectValue(final Object value, final boolean strict) {
-        property.setObjectValue(getSetterReceiver(), getOwner(), value, strict);
+    public void setValue(final int value, final boolean strict) {
+        property.setValue(getSetterReceiver(), getOwner(), value, strict);
+    }
+
+    /**
+     * Set the property value in self.
+     *
+     * @param value the new value
+     * @param strict strict flag
+     */
+    public void setValue(final long value, final boolean strict) {
+        property.setValue(getSetterReceiver(), getOwner(), value, strict);
+    }
+
+    /**
+     * Set the property value in self.
+     *
+     * @param value the new value
+     * @param strict strict flag
+     */
+    public void setValue(final double value, final boolean strict) {
+        property.setValue(getSetterReceiver(), getOwner(), value, strict);
+    }
+
+    /**
+     * Set the property value in self.
+     *
+     * @param value the new value
+     * @param strict strict flag
+     */
+    public void setValue(final Object value, final boolean strict) {
+        property.setValue(getSetterReceiver(), getOwner(), value, strict);
     }
 
     /**
@@ -185,6 +283,11 @@ public final class FindProperty {
             ++length;
         }
         return length;
+    }
+
+    @Override
+    public String toString() {
+        return "[FindProperty: " + property.getKey() + ']';
     }
 
 }

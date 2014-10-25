@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.objects;
 
-import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -51,9 +51,9 @@ import jdk.nashorn.internal.runtime.linker.PrimitiveLookup;
 public final class NativeBoolean extends ScriptObject {
     private final boolean value;
 
-    // Method handle to create an object wrapper for a primitive boolean
-    private static final MethodHandle WRAPFILTER = findOwnMH("wrapFilter", MH.type(NativeBoolean.class, Object.class));
-    // Method handle to retrieve the Boolean prototype object
+    /** Method handle to create an object wrapper for a primitive boolean. */
+    static final MethodHandle WRAPFILTER = findOwnMH("wrapFilter", MH.type(NativeBoolean.class, Object.class));
+    /** Method handle to retrieve the Boolean prototype object. */
     private static final MethodHandle PROTOFILTER = findOwnMH("protoFilter", MH.type(Object.class, Object.class));
 
     // initialized by nasgen

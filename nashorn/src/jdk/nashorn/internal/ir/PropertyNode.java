@@ -33,6 +33,7 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  */
 @Immutable
 public final class PropertyNode extends Node {
+    private static final long serialVersionUID = 1L;
 
     /** Property key. */
     private final PropertyKey key;
@@ -94,25 +95,25 @@ public final class PropertyNode extends Node {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         if (value instanceof FunctionNode && ((FunctionNode)value).getIdent() != null) {
             value.toString(sb);
         }
 
         if (value != null) {
-            ((Node)key).toString(sb);
+            ((Node)key).toString(sb, printType);
             sb.append(": ");
-            value.toString(sb);
+            value.toString(sb, printType);
         }
 
         if (getter != null) {
             sb.append(' ');
-            getter.toString(sb);
+            getter.toString(sb, printType);
         }
 
         if (setter != null) {
             sb.append(' ');
-            setter.toString(sb);
+            setter.toString(sb, printType);
         }
     }
 

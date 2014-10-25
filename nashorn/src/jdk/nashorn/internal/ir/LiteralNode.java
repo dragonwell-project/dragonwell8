@@ -25,10 +25,11 @@
 
 package jdk.nashorn.internal.ir;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
+import java.util.function.Function;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.types.ArrayType;
 import jdk.nashorn.internal.codegen.types.Type;
@@ -49,6 +50,8 @@ import jdk.nashorn.internal.runtime.Undefined;
  */
 @Immutable
 public abstract class LiteralNode<T> extends Expression implements PropertyKey {
+    private static final long serialVersionUID = 1L;
+
     /** Literal value */
     protected final T value;
 
@@ -86,9 +89,15 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         this.value = newValue;
     }
 
-    @Override
-    public boolean isAtom() {
-        return true;
+    /**
+     * Initialization setter, if required for immutable state. This is used for
+     * things like ArrayLiteralNodes that need to carry state for the splitter.
+     * Default implementation is just a nop.
+     * @param lc lexical context
+     * @return new literal node with initialized state, or same if nothing changed
+     */
+    public LiteralNode<?> initialize(final LexicalContext lc) {
+        return this;
     }
 
     /**
@@ -100,7 +109,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
     }
 
     @Override
-    public Type getType() {
+    public Type getType(final Function<Symbol, Type> localVariableTypes) {
         return Type.typeFor(value.getClass());
     }
 
@@ -215,7 +224,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         if (value == null) {
             sb.append("null");
         } else {
@@ -227,8 +236,12 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
      * Get the literal node value
      * @return the value
      */
-    public T getValue() {
+    public final T getValue() {
         return value;
+    }
+
+    private static Expression[] valueToArray(final List<Expression> value) {
+        return value.toArray(new Expression[value.size()]);
     }
 
     /**
@@ -260,6 +273,8 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
      * @param <T> the literal type
      */
     public static class PrimitiveLiteralNode<T> extends LiteralNode<T> {
+        private static final long serialVersionUID = 1L;
+
         private PrimitiveLiteralNode(final long token, final int finish, final T value) {
             super(token, finish, value);
         }
@@ -280,10 +295,21 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         public boolean isLocal() {
             return true;
         }
+
+        @Override
+        public boolean isAlwaysFalse() {
+            return !isTrue();
+        }
+
+        @Override
+        public boolean isAlwaysTrue() {
+            return isTrue();
+        }
     }
 
     @Immutable
     private static final class BooleanLiteralNode extends PrimitiveLiteralNode<Boolean> {
+        private static final long serialVersionUID = 1L;
 
         private BooleanLiteralNode(final long token, final int finish, final boolean value) {
             super(Token.recast(token, value ? TokenType.TRUE : TokenType.FALSE), finish, value);
@@ -299,7 +325,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public Type getType() {
+        public Type getType(final Function<Symbol, Type> localVariableTypes) {
             return Type.BOOLEAN;
         }
 
@@ -336,6 +362,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
 
     @Immutable
     private static final class NumberLiteralNode extends PrimitiveLiteralNode<Number> {
+        private static final long serialVersionUID = 1L;
 
         private final Type type = numberGetType(value);
 
@@ -362,7 +389,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public Type getType() {
+        public Type getType(final Function<Symbol, Type> localVariableTypes) {
             return type;
         }
 
@@ -398,6 +425,8 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
     }
 
     private static class UndefinedLiteralNode extends PrimitiveLiteralNode<Undefined> {
+        private static final long serialVersionUID = 1L;
+
         private UndefinedLiteralNode(final long token, final int finish) {
             super(Token.recast(token, TokenType.OBJECT), finish, ScriptRuntime.UNDEFINED);
         }
@@ -434,6 +463,8 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
 
     @Immutable
     private static class StringLiteralNode extends PrimitiveLiteralNode<String> {
+        private static final long serialVersionUID = 1L;
+
         private StringLiteralNode(final long token, final int finish, final String value) {
             super(Token.recast(token, TokenType.STRING), finish, value);
         }
@@ -443,7 +474,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public void toString(final StringBuilder sb) {
+        public void toString(final StringBuilder sb, final boolean printType) {
             sb.append('\"');
             sb.append(value);
             sb.append('\"');
@@ -477,6 +508,8 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
 
     @Immutable
     private static class LexerTokenLiteralNode extends LiteralNode<LexerToken> {
+        private static final long serialVersionUID = 1L;
+
         private LexerTokenLiteralNode(final long token, final int finish, final LexerToken value) {
             super(Token.recast(token, TokenType.STRING), finish, value); //TODO is string the correct token type here?
         }
@@ -486,12 +519,12 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public Type getType() {
+        public Type getType(final Function<Symbol, Type> localVariableTypes) {
             return Type.OBJECT;
         }
 
         @Override
-        public void toString(final StringBuilder sb) {
+        public void toString(final StringBuilder sb, final boolean printType) {
             sb.append(value.toString());
         }
     }
@@ -540,6 +573,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
     }
 
     private static final class NullLiteralNode extends PrimitiveLiteralNode<Object> {
+        private static final long serialVersionUID = 1L;
 
         private NullLiteralNode(final long token, final int finish) {
             super(Token.recast(token, TokenType.OBJECT), finish, null);
@@ -555,7 +589,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public Type getType() {
+        public Type getType(final Function<Symbol, Type> localVariableTypes) {
             return Type.OBJECT;
         }
 
@@ -568,24 +602,29 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
     /**
      * Array literal node class.
      */
-    public static final class ArrayLiteralNode extends LiteralNode<Expression[]> {
+    @Immutable
+    public static final class ArrayLiteralNode extends LiteralNode<Expression[]> implements LexicalContextNode {
+        private static final long serialVersionUID = 1L;
 
         /** Array element type. */
-        private Type elementType;
+        private final Type elementType;
 
         /** Preset constant array. */
-        private Object presets;
+        private final Object presets;
 
         /** Indices of array elements requiring computed post sets. */
-        private int[] postsets;
+        private final int[] postsets;
 
-        private List<ArrayUnit> units;
+        /** Sub units with indexes ranges, in which to split up code generation, for large literals */
+        private final List<ArrayUnit> units;
 
         /**
          * An ArrayUnit is a range in an ArrayLiteral. ArrayLiterals can
          * be split if they are too large, for bytecode generation reasons
          */
-        public static class ArrayUnit {
+        public static final class ArrayUnit implements CompileUnitHolder, Serializable {
+            private static final long serialVersionUID = 1L;
+
             /** Compile unit associated with the postsets range. */
             private final CompileUnit compileUnit;
 
@@ -624,8 +663,153 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
              * The array compile unit
              * @return array compile unit
              */
+            @Override
             public CompileUnit getCompileUnit() {
                 return compileUnit;
+            }
+        }
+
+        private static final class ArrayLiteralInitializer {
+
+            static ArrayLiteralNode initialize(final ArrayLiteralNode node) {
+                final Type elementType = computeElementType(node.value);
+                final int[] postsets = computePostsets(node.value);
+                final Object presets = computePresets(node.value, elementType, postsets);
+                return new ArrayLiteralNode(node, node.value, elementType, postsets, presets, node.units);
+            }
+
+            private static Type computeElementType(final Expression[] value) {
+                Type widestElementType = Type.INT;
+
+                for (final Expression elem : value) {
+                    if (elem == null) {
+                        widestElementType = widestElementType.widest(Type.OBJECT); //no way to represent undefined as number
+                        break;
+                    }
+
+                    final Type type = elem.getType().isUnknown() ? Type.OBJECT : elem.getType();
+                    if (type.isBoolean()) {
+                        //TODO fix this with explicit boolean types
+                        widestElementType = widestElementType.widest(Type.OBJECT);
+                        break;
+                    }
+
+                    widestElementType = widestElementType.widest(type);
+                    if (widestElementType.isObject()) {
+                        break;
+                    }
+                }
+                return widestElementType;
+            }
+
+            private static int[] computePostsets(final Expression[] value) {
+                final int[] computed = new int[value.length];
+                int nComputed = 0;
+
+                for (int i = 0; i < value.length; i++) {
+                    final Expression element = value[i];
+                    if (element == null || objectAsConstant(element) == POSTSET_MARKER) {
+                        computed[nComputed++] = i;
+                    }
+                }
+                return Arrays.copyOf(computed, nComputed);
+            }
+
+            private static boolean setArrayElement(final int[] array, final int i, final Object n) {
+                if (n instanceof Number) {
+                    array[i] = ((Number)n).intValue();
+                    return true;
+                }
+                return false;
+            }
+
+            private static boolean setArrayElement(final long[] array, final int i, final Object n) {
+                if (n instanceof Number) {
+                    array[i] = ((Number)n).longValue();
+                    return true;
+                }
+                return false;
+            }
+
+            private static boolean setArrayElement(final double[] array, final int i, final Object n) {
+                if (n instanceof Number) {
+                    array[i] = ((Number)n).doubleValue();
+                    return true;
+                }
+                return false;
+            }
+
+            private static int[] presetIntArray(final Expression[] value, final int[] postsets) {
+                final int[] array = new int[value.length];
+                int nComputed = 0;
+                for (int i = 0; i < value.length; i++) {
+                    if (!setArrayElement(array, i, objectAsConstant(value[i]))) {
+                        assert postsets[nComputed++] == i;
+                    }
+                }
+                assert postsets.length == nComputed;
+                return array;
+            }
+
+            private static long[] presetLongArray(final Expression[] value, final int[] postsets) {
+                final long[] array = new long[value.length];
+                int nComputed = 0;
+                for (int i = 0; i < value.length; i++) {
+                    if (!setArrayElement(array, i, objectAsConstant(value[i]))) {
+                        assert postsets[nComputed++] == i;
+                    }
+                }
+                assert postsets.length == nComputed;
+                return array;
+            }
+
+            private static double[] presetDoubleArray(final Expression[] value, final int[] postsets) {
+                final double[] array = new double[value.length];
+                int nComputed = 0;
+                for (int i = 0; i < value.length; i++) {
+                    if (!setArrayElement(array, i, objectAsConstant(value[i]))) {
+                        assert postsets[nComputed++] == i;
+                    }
+                }
+                assert postsets.length == nComputed;
+                return array;
+            }
+
+            private static Object[] presetObjectArray(final Expression[] value, final int[] postsets) {
+                final Object[] array = new Object[value.length];
+                int nComputed = 0;
+
+                for (int i = 0; i < value.length; i++) {
+                    final Node node = value[i];
+
+                    if (node == null) {
+                        assert postsets[nComputed++] == i;
+                        continue;
+                    }
+                    final Object element = objectAsConstant(node);
+
+                    if (element != POSTSET_MARKER) {
+                        array[i] = element;
+                    } else {
+                        assert postsets[nComputed++] == i;
+                    }
+                }
+
+                assert postsets.length == nComputed;
+                return array;
+            }
+
+            static Object computePresets(final Expression[] value, final Type elementType, final int[] postsets) {
+                assert !elementType.isUnknown();
+                if (elementType.isInteger()) {
+                    return presetIntArray(value, postsets);
+                } else if (elementType.isLong()) {
+                    return presetLongArray(value, postsets);
+                } else if (elementType.isNumeric()) {
+                    return presetDoubleArray(value, postsets);
+                } else {
+                    return presetObjectArray(value, postsets);
+                }
             }
         }
 
@@ -639,144 +823,21 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         protected ArrayLiteralNode(final long token, final int finish, final Expression[] value) {
             super(Token.recast(token, TokenType.ARRAY), finish, value);
             this.elementType = Type.UNKNOWN;
+            this.presets     = null;
+            this.postsets    = null;
+            this.units       = null;
         }
 
         /**
          * Copy constructor
          * @param node source array literal node
          */
-        private ArrayLiteralNode(final ArrayLiteralNode node, final Expression[] value) {
+        private ArrayLiteralNode(final ArrayLiteralNode node, final Expression[] value, final Type elementType, final int[] postsets, final Object presets, final List<ArrayUnit> units) {
             super(node, value);
-            this.elementType = node.elementType;
-            this.presets     = node.presets;
-            this.postsets    = node.postsets;
-            this.units       = node.units;
-        }
-
-        /**
-         * Compute things like widest element type needed. Internal use from compiler only
-         */
-        public void analyze() {
-            elementType = Type.INT;
-            analyzeElements();
-
-            if (elementType.isInteger()) {
-                presetIntArray();
-            } else if (elementType.isLong()) {
-                presetLongArray();
-            } else if (elementType.isNumeric()) {
-                presetNumberArray();
-            } else {
-                presetObjectArray();
-            }
-        }
-
-        private void presetIntArray() {
-            final int[] array = new int[value.length];
-            final int[] computed = new int[value.length];
-            int nComputed = 0;
-
-            for (int i = 0; i < value.length; i++) {
-                final Object element = objectAsConstant(value[i]);
-
-                if (element instanceof Number) {
-                    array[i] = ((Number)element).intValue();
-                } else {
-                    computed[nComputed++] = i;
-                }
-            }
-
-            presets = array;
-            postsets = Arrays.copyOf(computed, nComputed);
-        }
-
-        private void presetLongArray() {
-            final long[] array = new long[value.length];
-            final int[] computed = new int[value.length];
-            int nComputed = 0;
-
-            for (int i = 0; i < value.length; i++) {
-                final Object element = objectAsConstant(value[i]);
-
-                if (element instanceof Number) {
-                    array[i] = ((Number)element).longValue();
-                } else {
-                    computed[nComputed++] = i;
-                }
-            }
-
-            presets = array;
-            postsets = Arrays.copyOf(computed, nComputed);
-        }
-
-        private void presetNumberArray() {
-            final double[] array = new double[value.length];
-            final int[] computed = new int[value.length];
-            int nComputed = 0;
-
-            for (int i = 0; i < value.length; i++) {
-                final Object element = objectAsConstant(value[i]);
-
-                if (element instanceof Number) {
-                    array[i] = ((Number)element).doubleValue();
-                } else {
-                    computed[nComputed++] = i;
-                }
-            }
-
-            presets = array;
-            postsets = Arrays.copyOf(computed, nComputed);
-        }
-
-        private void presetObjectArray() {
-            final Object[] array = new Object[value.length];
-            final int[] computed = new int[value.length];
-            int nComputed = 0;
-
-            for (int i = 0; i < value.length; i++) {
-                final Node node = value[i];
-
-                if (node == null) {
-                    computed[nComputed++] = i;
-                } else {
-                    final Object element = objectAsConstant(node);
-
-                    if (element != POSTSET_MARKER) {
-                        array[i] = element;
-                    } else {
-                        computed[nComputed++] = i;
-                    }
-                }
-            }
-
-            presets = array;
-            postsets = Arrays.copyOf(computed, nComputed);
-        }
-
-        private void analyzeElements() {
-            for (final Expression node : value) {
-                if (node == null) {
-                    elementType = elementType.widest(Type.OBJECT); //no way to represent undefined as number
-                    break;
-                }
-
-                assert node.getSymbol() != null; //don't run this on unresolved nodes or you are in trouble
-                Type symbolType = node.getSymbol().getSymbolType();
-                if (symbolType.isUnknown()) {
-                    symbolType = Type.OBJECT;
-                }
-
-                if (symbolType.isBoolean()) {
-                    elementType = elementType.widest(Type.OBJECT);
-                    break;
-                }
-
-                elementType = elementType.widest(symbolType);
-
-                if (elementType.isObject()) {
-                    break;
-                }
-            }
+            this.elementType = elementType;
+            this.postsets    = postsets;
+            this.presets     = presets;
+            this.units       = units;
         }
 
         @Override
@@ -785,10 +846,27 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         /**
+         * Setter that initializes all code generation meta data for an
+         * ArrayLiteralNode. This acts a setter, so the return value may
+         * return a new node and must be handled
+         *
+         * @param lc lexical context
+         * @return new array literal node with postsets, presets and element types initialized
+         */
+        @Override
+        public ArrayLiteralNode initialize(final LexicalContext lc) {
+            return Node.replaceInLexicalContext(lc, this, ArrayLiteralInitializer.initialize(this));
+        }
+
+        /**
          * Get the array element type as Java format, e.g. [I
          * @return array element type
          */
         public ArrayType getArrayType() {
+            return getArrayType(getElementType());
+        }
+
+        private static ArrayType getArrayType(final Type elementType) {
             if (elementType.isInteger()) {
                 return Type.INT_ARRAY;
             } else if (elementType.isLong()) {
@@ -801,7 +879,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
         }
 
         @Override
-        public Type getType() {
+        public Type getType(final Function<Symbol, Type> localVariableTypes) {
             return Type.typeFor(NativeArray.class);
         }
 
@@ -810,6 +888,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
          * @return element type
          */
         public Type getElementType() {
+            assert !elementType.isUnknown() : this + " has elementType=unknown";
             return elementType;
         }
 
@@ -819,7 +898,20 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
          * @return post set indices
          */
         public int[] getPostsets() {
+            assert postsets != null : this + " elementType=" + elementType + " has no postsets";
             return postsets;
+        }
+
+        private boolean presetsMatchElementType() {
+            if (elementType == Type.INT) {
+                return presets instanceof int[];
+            } else if (elementType == Type.LONG) {
+                return presets instanceof long[];
+            } else if (elementType == Type.NUMBER) {
+                return presets instanceof double[];
+            } else {
+                return presets instanceof Object[];
+            }
         }
 
         /**
@@ -827,6 +919,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
          * @return presets array, always returns an array type
          */
         public Object getPresets() {
+            assert presets != null && presetsMatchElementType() : this + " doesn't have presets, or invalid preset type: " + presets;
             return presets;
         }
 
@@ -841,29 +934,46 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
 
         /**
          * Set the ArrayUnits that make up this ArrayLiteral
+         * @param lc lexical context
          * @see ArrayUnit
          * @param units list of array units
+         * @return new or changed arrayliteralnode
          */
-        public void setUnits(final List<ArrayUnit> units) {
-            this.units = units;
+        public ArrayLiteralNode setUnits(final LexicalContext lc, final List<ArrayUnit> units) {
+            if (this.units == units) {
+                return this;
+            }
+            return Node.replaceInLexicalContext(lc, this, new ArrayLiteralNode(this, value, elementType, postsets, presets, units));
         }
 
         @Override
         public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
+            return Acceptor.accept(this, visitor);
+        }
+
+        @Override
+        public Node accept(final LexicalContext lc, final NodeVisitor<? extends LexicalContext> visitor) {
             if (visitor.enterLiteralNode(this)) {
                 final List<Expression> oldValue = Arrays.asList(value);
-                final List<Expression> newValue = Node.accept(visitor, Expression.class, oldValue);
-                return visitor.leaveLiteralNode(oldValue != newValue ? setValue(newValue) : this);
+                final List<Expression> newValue = Node.accept(visitor, oldValue);
+                return visitor.leaveLiteralNode(oldValue != newValue ? setValue(lc, newValue) : this);
             }
             return this;
         }
 
-        private ArrayLiteralNode setValue(final List<Expression> value) {
-            return new ArrayLiteralNode(this, value.toArray(new Expression[value.size()]));
+        private ArrayLiteralNode setValue(final LexicalContext lc, final Expression[] value) {
+            if (this.value == value) {
+                return this;
+            }
+            return Node.replaceInLexicalContext(lc, this, new ArrayLiteralNode(this, value, elementType, postsets, presets, units));
+        }
+
+        private ArrayLiteralNode setValue(final LexicalContext lc, final List<Expression> value) {
+            return setValue(lc, value.toArray(new Expression[value.size()]));
         }
 
         @Override
-        public void toString(final StringBuilder sb) {
+        public void toString(final StringBuilder sb, final boolean printType) {
             sb.append('[');
             boolean first = true;
             for (final Node node : value) {
@@ -874,7 +984,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
                 if (node == null) {
                     sb.append("undefined");
                 } else {
-                    node.toString(sb);
+                    node.toString(sb, printType);
                 }
                 first = false;
             }
@@ -892,9 +1002,8 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
      * @return the new literal node
      */
     public static LiteralNode<Expression[]> newInstance(final long token, final int finish, final List<Expression> value) {
-        return new ArrayLiteralNode(token, finish, value.toArray(new Expression[value.size()]));
+        return new ArrayLiteralNode(token, finish, valueToArray(value));
     }
-
 
     /**
      * Create a new array literal based on a parent node (source, token, finish)
@@ -905,7 +1014,7 @@ public abstract class LiteralNode<T> extends Expression implements PropertyKey {
      * @return the new literal node
      */
     public static LiteralNode<?> newInstance(final Node parent, final List<Expression> value) {
-        return new ArrayLiteralNode(parent.getToken(), parent.getFinish(), value.toArray(new Expression[value.size()]));
+        return new ArrayLiteralNode(parent.getToken(), parent.getFinish(), valueToArray(value));
     }
 
     /**

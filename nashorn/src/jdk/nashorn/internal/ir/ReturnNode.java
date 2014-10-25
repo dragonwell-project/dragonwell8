@@ -36,6 +36,8 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  */
 @Immutable
 public class ReturnNode extends Statement {
+    private static final long serialVersionUID = 1L;
+
     /** Optional expression. */
     private final Expression expression;
 
@@ -100,11 +102,11 @@ public class ReturnNode extends Statement {
 
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         sb.append(isYield() ? "yield" : "return");
         if (expression != null) {
             sb.append(' ');
-            expression.toString(sb);
+            expression.toString(sb, printType);
         }
     }
 

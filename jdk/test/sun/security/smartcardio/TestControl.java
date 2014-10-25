@@ -30,10 +30,9 @@
  * @run main/manual TestControl
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import javax.smartcardio.Card;
+import javax.smartcardio.CardException;
+import javax.smartcardio.CardTerminal;
 
 public class TestControl extends Utils {
 
@@ -67,7 +66,7 @@ public class TestControl extends Utils {
         }
 
         // disconnect
-        card.disconnect(false);
+        card.disconnect(true);
 
         System.out.println("OK.");
     }

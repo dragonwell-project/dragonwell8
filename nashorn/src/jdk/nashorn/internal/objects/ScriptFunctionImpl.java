@@ -30,6 +30,8 @@ import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+
+import jdk.nashorn.internal.runtime.AccessorProperty;
 import jdk.nashorn.internal.runtime.GlobalFunctions;
 import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.PropertyMap;
@@ -37,7 +39,7 @@ import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptFunctionData;
 import jdk.nashorn.internal.runtime.ScriptObject;
-import jdk.nashorn.internal.runtime.AccessorProperty;
+import jdk.nashorn.internal.runtime.Specialization;
 
 /**
  * Concrete implementation of ScriptFunction. This sets correct map for the
@@ -58,7 +60,7 @@ public class ScriptFunctionImpl extends ScriptFunction {
     // Marker object for lazily initialized prototype object
     private static final Object LAZY_PROTOTYPE = new Object();
 
-    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final MethodHandle[] specs, final Global global) {
+    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final Specialization[] specs, final Global global) {
         super(name, invokeHandle, map$, null, specs, ScriptFunctionData.IS_BUILTIN_CONSTRUCTOR);
         init(global);
     }
@@ -71,11 +73,11 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @param invokeHandle handle for invocation
      * @param specs specialized versions of this method, if available, null otherwise
      */
-    ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final MethodHandle[] specs) {
+    ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final Specialization[] specs) {
         this(name, invokeHandle, specs, Global.instance());
     }
 
-    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final MethodHandle[] specs, final Global global) {
+    private ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final Specialization[] specs, final Global global) {
         super(name, invokeHandle, map.addAll(map$), null, specs, ScriptFunctionData.IS_BUILTIN_CONSTRUCTOR);
         init(global);
     }
@@ -89,11 +91,11 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @param map initial property map
      * @param specs specialized versions of this method, if available, null otherwise
      */
-    ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final MethodHandle[] specs) {
+    ScriptFunctionImpl(final String name, final MethodHandle invokeHandle, final PropertyMap map, final Specialization[] specs) {
         this(name, invokeHandle, map, specs, Global.instance());
     }
 
-    private ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final MethodHandle[] specs, final int flags, final Global global) {
+    private ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final Specialization[] specs, final int flags, final Global global) {
         super(name, methodHandle, getMap(isStrict(flags)), scope, specs, flags);
         init(global);
     }
@@ -107,7 +109,7 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @param specs specialized versions of this method, if available, null otherwise
      * @param flags {@link ScriptFunctionData} flags
      */
-    ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final MethodHandle[] specs, final int flags) {
+    ScriptFunctionImpl(final String name, final MethodHandle methodHandle, final ScriptObject scope, final Specialization[] specs, final int flags) {
         this(name, methodHandle, scope, specs, flags, Global.instance());
     }
 
@@ -175,13 +177,22 @@ public class ScriptFunctionImpl extends ScriptFunction {
     private static class AnonymousFunction extends ScriptFunctionImpl {
         private static final PropertyMap anonmap$ = PropertyMap.newMap();
 
-        AnonymousFunction(final Global global) {
+        AnonymousFunction() {
             super("", GlobalFunctions.ANONYMOUS, anonmap$, null);
         }
     }
 
-    static ScriptFunctionImpl newAnonymousFunction(final Global global) {
-        return new AnonymousFunction(global);
+    static ScriptFunctionImpl newAnonymousFunction() {
+        return new AnonymousFunction();
+    }
+
+    private static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final Specialization[] specs, final int flags) {
+        final ScriptFunctionImpl func = new ScriptFunctionImpl(name, methodHandle, null, specs, flags);
+        func.setPrototype(UNDEFINED);
+        // Non-constructor built-in functions do not have "prototype" property
+        func.deleteOwnProperty(func.getMap().findProperty("prototype"));
+
+        return func;
     }
 
     /**
@@ -192,13 +203,19 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @param specs  specialized versions of function if available, null otherwise
      * @return new ScriptFunction
      */
-    static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final MethodHandle[] specs) {
-        final ScriptFunctionImpl func = new ScriptFunctionImpl(name, methodHandle, null, specs, ScriptFunctionData.IS_BUILTIN);
-        func.setPrototype(UNDEFINED);
-        // Non-constructor built-in functions do not have "prototype" property
-        func.deleteOwnProperty(func.getMap().findProperty("prototype"));
+    static ScriptFunction makeFunction(final String name, final MethodHandle methodHandle, final Specialization[] specs) {
+        return makeFunction(name, methodHandle, specs, ScriptFunctionData.IS_BUILTIN);
+    }
 
-        return func;
+    /**
+     * Factory method for non-constructor built-in, strict functions
+     *
+     * @param name   function name
+     * @param methodHandle handle for invocation
+     * @return new ScriptFunction
+     */
+    static ScriptFunction makeStrictFunction(final String name, final MethodHandle methodHandle) {
+        return makeFunction(name, methodHandle, null, ScriptFunctionData.IS_BUILTIN | ScriptFunctionData.IS_STRICT );
     }
 
     /**
@@ -226,7 +243,7 @@ public class ScriptFunctionImpl extends ScriptFunction {
      * @return a function with the specified self and parameters bound.
      */
     @Override
-    protected ScriptFunction makeBoundFunction(Object self, Object[] args) {
+    protected ScriptFunction makeBoundFunction(final Object self, final Object[] args) {
         return super.makeBoundFunction(self, args);
     }
 
@@ -272,14 +289,13 @@ public class ScriptFunctionImpl extends ScriptFunction {
 
         // We have to fill user accessor functions late as these are stored
         // in this object rather than in the PropertyMap of this object.
-
-        final ScriptFunction errorThrower = global.getTypeErrorThrower();
+        assert objectSpill == null;
+        final ScriptFunction typeErrorThrower = global.getTypeErrorThrower();
         if (findProperty("arguments", true) != null) {
-            setUserAccessors("arguments", errorThrower, errorThrower);
-        }
-
+            initUserAccessors("arguments", Property.NOT_CONFIGURABLE | Property.NOT_ENUMERABLE, typeErrorThrower, typeErrorThrower);
+       }
         if (findProperty("caller", true) != null) {
-            setUserAccessors("caller", errorThrower, errorThrower);
-        }
+            initUserAccessors("caller", Property.NOT_CONFIGURABLE | Property.NOT_ENUMERABLE, typeErrorThrower, typeErrorThrower);
+       }
     }
 }

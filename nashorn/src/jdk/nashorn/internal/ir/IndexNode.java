@@ -25,14 +25,16 @@
 
 package jdk.nashorn.internal.ir;
 
+import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
-
 /**
  * IR representation of an indexed access (brackets operator.)
  */
 @Immutable
 public final class IndexNode extends BaseNode {
+    private static final long serialVersionUID = 1L;
+
     /** Property index. */
     private final Expression index;
 
@@ -49,8 +51,8 @@ public final class IndexNode extends BaseNode {
         this.index = index;
     }
 
-    private IndexNode(final IndexNode indexNode, final Expression base, final Expression index, final boolean isFunction) {
-        super(indexNode, base, isFunction);
+    private IndexNode(final IndexNode indexNode, final Expression base, final Expression index, final boolean isFunction, final Type type, final int programPoint) {
+        super(indexNode, base, isFunction, type, programPoint);
         this.index = index;
     }
 
@@ -65,21 +67,25 @@ public final class IndexNode extends BaseNode {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         final boolean needsParen = tokenType().needsParens(base.tokenType(), true);
 
         if (needsParen) {
             sb.append('(');
         }
 
-        base.toString(sb);
+        if (printType) {
+            optimisticTypeToString(sb);
+        }
+
+        base.toString(sb, printType);
 
         if (needsParen) {
             sb.append(')');
         }
 
         sb.append('[');
-        index.toString(sb);
+        index.toString(sb, printType);
         sb.append(']');
     }
 
@@ -95,7 +101,7 @@ public final class IndexNode extends BaseNode {
         if (this.base == base) {
             return this;
         }
-        return new IndexNode(this, base, index, isFunction());
+        return new IndexNode(this, base, index, isFunction(), type, programPoint);
     }
 
     /**
@@ -103,19 +109,34 @@ public final class IndexNode extends BaseNode {
      * @param index new index expression
      * @return a node equivalent to this one except for the requested change.
      */
-    public IndexNode setIndex(Expression index) {
+    public IndexNode setIndex(final Expression index) {
         if(this.index == index) {
             return this;
         }
-        return new IndexNode(this, base, index, isFunction());
+        return new IndexNode(this, base, index, isFunction(), type, programPoint);
     }
 
     @Override
-    public BaseNode setIsFunction() {
+    public IndexNode setType(final Type type) {
+        if (this.type == type) {
+            return this;
+        }
+        return new IndexNode(this, base, index, isFunction(), type, programPoint);
+    }
+
+    @Override
+    public IndexNode setIsFunction() {
         if (isFunction()) {
             return this;
         }
-        return new IndexNode(this, base, index, true);
+        return new IndexNode(this, base, index, true, type, programPoint);
     }
 
+    @Override
+    public IndexNode setProgramPoint(final int programPoint) {
+        if (this.programPoint == programPoint) {
+            return this;
+        }
+        return new IndexNode(this, base, index, isFunction(), type, programPoint);
+    }
 }

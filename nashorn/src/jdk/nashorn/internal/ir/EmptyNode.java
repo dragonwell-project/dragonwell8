@@ -33,6 +33,7 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  */
 @Immutable
 public final class EmptyNode extends Statement {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructor
@@ -64,7 +65,7 @@ public final class EmptyNode extends Statement {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printTypes) {
         sb.append(';');
     }
 

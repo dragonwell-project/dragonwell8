@@ -40,12 +40,9 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threadLocalStorage.hpp"
+#include "runtime/thread_ext.hpp"
 #include "runtime/unhandledOops.hpp"
 #include "utilities/macros.hpp"
-
-#if INCLUDE_NMT
-#include "services/memRecorder.hpp"
-#endif // INCLUDE_NMT
 
 #include "trace/traceBackend.hpp"
 #include "trace/traceMacros.hpp"
@@ -261,6 +258,8 @@ class Thread: public ThreadShadow {
 
   TRACE_DATA _trace_data;                       // Thread-local data for tracing
 
+  ThreadExt _ext;
+
   int   _vm_operation_started_count;            // VM_Operation support
   int   _vm_operation_completed_count;          // VM_Operation support
 
@@ -436,20 +435,12 @@ class Thread: public ThreadShadow {
   jlong allocated_bytes()               { return _allocated_bytes; }
   void set_allocated_bytes(jlong value) { _allocated_bytes = value; }
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
-  jlong cooked_allocated_bytes() {
-    jlong allocated_bytes = OrderAccess::load_acquire(&_allocated_bytes);
-    if (UseTLAB) {
-      size_t used_bytes = tlab().used_bytes();
-      if ((ssize_t)used_bytes > 0) {
-        // More-or-less valid tlab.  The load_acquire above should ensure
-        // that the result of the add is <= the instantaneous value
-        return allocated_bytes + used_bytes;
-      }
-    }
-    return allocated_bytes;
-  }
+  inline jlong cooked_allocated_bytes();
 
   TRACE_DATA* trace_data()              { return &_trace_data; }
+
+  const ThreadExt& ext() const          { return _ext; }
+  ThreadExt& ext()                      { return _ext; }
 
   // VM operation support
   int vm_operation_ticket()                      { return ++_vm_operation_started_count; }
@@ -483,13 +474,13 @@ class Thread: public ThreadShadow {
   // Apply "cld_f->do_cld" to CLDs that are otherwise not kept alive.
   //   Used by JavaThread::oops_do.
   // Apply "cf->do_code_blob" (if !NULL) to all code blobs active in frames
-  virtual void oops_do(OopClosure* f, CLDToOopClosure* cld_f, CodeBlobClosure* cf);
+  virtual void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
 
   // Handles the parallel case for the method below.
 private:
   bool claim_oops_do_par_case(int collection_parity);
 public:
-  // Requires that "collection_parity" is that of the current strong roots
+  // Requires that "collection_parity" is that of the current roots
   // iteration.  If "is_par" is false, sets the parity of "this" to
   // "collection_parity", and returns "true".  If "is_par" is true,
   // uses an atomic instruction to set the current threads parity to
@@ -1017,6 +1008,7 @@ class JavaThread: public Thread {
   // not specified, use the priority of the thread object. Threads_lock
   // must be held while this function is called.
   void prepare(jobject jni_thread, ThreadPriority prio=NoPriority);
+  void prepare_ext();
 
   void set_saved_exception_pc(address pc)        { _saved_exception_pc = pc; }
   address saved_exception_pc()                   { return _saved_exception_pc; }
@@ -1046,12 +1038,8 @@ class JavaThread: public Thread {
 #else
   // Use membars when accessing volatile _thread_state. See
   // Threads::create_vm() for size checks.
-  JavaThreadState thread_state() const           {
-    return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
-  }
-  void set_thread_state(JavaThreadState s)       {
-    OrderAccess::release_store((volatile jint*)&_thread_state, (jint)s);
-  }
+  inline JavaThreadState thread_state() const;
+  inline void set_thread_state(JavaThreadState s);
 #endif
   ThreadSafepointState *safepoint_state() const  { return _safepoint_state; }
   void set_safepoint_state(ThreadSafepointState *state) { _safepoint_state = state; }
@@ -1073,16 +1061,6 @@ class JavaThread: public Thread {
 
   bool do_not_unlock_if_synchronized()             { return _do_not_unlock_if_synchronized; }
   void set_do_not_unlock_if_synchronized(bool val) { _do_not_unlock_if_synchronized = val; }
-
-#if INCLUDE_NMT
-  // native memory tracking
-  inline MemRecorder* get_recorder() const          { return (MemRecorder*)_recorder; }
-  inline void         set_recorder(MemRecorder* rc) { _recorder = rc; }
-
- private:
-  // per-thread memory recorder
-  MemRecorder* volatile _recorder;
-#endif // INCLUDE_NMT
 
   // Suspend/resume support for JavaThread
  private:
@@ -1444,7 +1422,7 @@ class JavaThread: public Thread {
   void frames_do(void f(frame*, const RegisterMap*));
 
   // Memory operations
-  void oops_do(OopClosure* f, CLDToOopClosure* cld_f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
 
   // Sweeper operations
   void nmethods_do(CodeBlobClosure* cf);
@@ -1526,19 +1504,6 @@ public:
      return result;
    }
 
- // NMT (Native memory tracking) support.
- // This flag helps NMT to determine if this JavaThread will be blocked
- // at safepoint. If not, ThreadCritical is needed for writing memory records.
- // JavaThread is only safepoint visible when it is in Threads' thread list,
- // it is not visible until it is added to the list and becomes invisible
- // once it is removed from the list.
- public:
-  bool is_safepoint_visible() const { return _safepoint_visible; }
-  void set_safepoint_visible(bool visible) { _safepoint_visible = visible; }
- private:
-  bool _safepoint_visible;
-
-  // Static operations
  public:
   // Returns the running thread as a JavaThread
   static inline JavaThread* current();
@@ -1775,7 +1740,7 @@ public:
   // clearing/querying jni attach status
   bool is_attaching_via_jni() const { return _jni_attach_state == _attaching_via_jni; }
   bool has_attached_via_jni() const { return is_attaching_via_jni() || _jni_attach_state == _attached_via_jni; }
-  void set_done_attaching_via_jni() { _jni_attach_state = _attached_via_jni; OrderAccess::fence(); }
+  inline void set_done_attaching_via_jni();
 private:
   // This field is used to determine if a thread has claimed
   // a par_id: it is UINT_MAX if the thread has not claimed a par_id;
@@ -1875,7 +1840,7 @@ class CompilerThread : public JavaThread {
   // GC support
   // Apply "f->do_oop" to all root oops in "this".
   // Apply "cf->do_code_blob" (if !NULL) to all code blobs active in frames
-  void oops_do(OopClosure* f, CLDToOopClosure* cld_f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
 
 #ifndef PRODUCT
 private:
@@ -1942,9 +1907,9 @@ class Threads: AllStatic {
 
   // Apply "f->do_oop" to all root oops in all threads.
   // This version may only be called by sequential code.
-  static void oops_do(OopClosure* f, CLDToOopClosure* cld_f, CodeBlobClosure* cf);
+  static void oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
   // This version may be called by sequential or parallel code.
-  static void possibly_parallel_oops_do(OopClosure* f, CLDToOopClosure* cld_f, CodeBlobClosure* cf);
+  static void possibly_parallel_oops_do(OopClosure* f, CLDClosure* cld_f, CodeBlobClosure* cf);
   // This creates a list of GCTasks, one per thread.
   static void create_thread_roots_tasks(GCTaskQueue* q);
   // This creates a list of GCTasks, one per thread, for marking objects.
@@ -1997,6 +1962,8 @@ class Threads: AllStatic {
 
   // Deoptimizes all frames tied to marked nmethods
   static void deoptimized_wrt_marked_nmethods();
+
+  static JavaThread* find_java_thread_from_java_tid(jlong java_tid);
 
 };
 

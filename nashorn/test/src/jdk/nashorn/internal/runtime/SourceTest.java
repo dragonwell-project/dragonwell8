@@ -25,8 +25,10 @@
 
 package jdk.nashorn.internal.runtime;
 
-import jdk.nashorn.api.scripting.URLReader;
-import org.testng.annotations.Test;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,11 +36,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.util.Arrays;
-
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import jdk.nashorn.api.scripting.URLReader;
+import org.testng.annotations.Test;
 
 /**
  * Tests different Source representations.
@@ -118,9 +117,6 @@ public class SourceTest {
         assertEquals(str1, str2);
         assertEquals(source1.hashCode(), source2.hashCode());
         assertTrue(source1.equals(source2));
-        // Test for immutability
-        Arrays.fill(source1.getContent(), (char)0);
-        Arrays.fill(source2.getContent(), (char)1);
         assertTrue(Arrays.equals(source1.getContent(), str1.toCharArray()));
         assertTrue(Arrays.equals(source1.getContent(), chars1));
         assertTrue(Arrays.equals(source1.getContent(), source2.getContent()));

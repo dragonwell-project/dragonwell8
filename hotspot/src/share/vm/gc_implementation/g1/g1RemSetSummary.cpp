@@ -253,19 +253,22 @@ public:
     size_t occupied_cards = hrrs->occupied();
     size_t code_root_mem_sz = hrrs->strong_code_roots_mem_size();
     if (code_root_mem_sz > max_code_root_mem_sz()) {
+      _max_code_root_mem_sz = code_root_mem_sz;
       _max_code_root_mem_sz_region = r;
     }
     size_t code_root_elems = hrrs->strong_code_roots_list_length();
 
     RegionTypeCounter* current = NULL;
-    if (r->is_young()) {
+    if (r->is_free()) {
+      current = &_free;
+    } else if (r->is_young()) {
       current = &_young;
     } else if (r->isHumongous()) {
       current = &_humonguous;
-    } else if (r->is_empty()) {
-      current = &_free;
-    } else {
+    } else if (r->is_old()) {
       current = &_old;
+    } else {
+      ShouldNotReachHere();
     }
     current->add(rs_mem_sz, occupied_cards, code_root_mem_sz, code_root_elems);
     _all.add(rs_mem_sz, occupied_cards, code_root_mem_sz, code_root_elems);
