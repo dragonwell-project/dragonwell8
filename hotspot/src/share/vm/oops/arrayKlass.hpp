@@ -28,6 +28,7 @@
 #include "memory/universe.hpp"
 #include "oops/klass.hpp"
 
+class fieldDescriptor;
 class klassVtable;
 
 // ArrayKlass is the abstract baseclass for all array classes
@@ -85,6 +86,9 @@ class ArrayKlass: public Klass {
   virtual oop multi_allocate(int rank, jint* sizes, TRAPS);
   objArrayOop allocate_arrayArray(int n, int length, TRAPS);
 
+  // find field according to JVM spec 5.4.3.2, returns the klass in which the field is defined
+  Klass* find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const;
+
   // Lookup operations
   Method* uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const;
 
@@ -137,7 +141,7 @@ class ArrayKlass: public Klass {
 
   // CDS support - remove and restore oops from metadata. Oops are not shared.
   virtual void remove_unshareable_info();
-  virtual void restore_unshareable_info(TRAPS);
+  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 
   // Printing
   void print_on(outputStream* st) const;

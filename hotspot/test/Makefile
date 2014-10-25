@@ -147,6 +147,11 @@ BUNDLE_UP_FAILED = ( exitCode=$$? && $(BUNDLE_UP) && exit $${exitCode} )
 all: jtreg_tests
 	@$(ECHO) "Testing completed successfully"
 
+# Support "hotspot_" prefixed test make targets too
+# The hotspot_% targets are for example invoked by the top level Makefile
+hotspot_%:
+	$(MAKE) $*
+
 # Prep for output
 prep: clean
 	@$(MKDIR) -p $(ABS_TEST_OUTPUT_DIR)
@@ -175,8 +180,8 @@ ifdef TESTDIRS
   JTREG_TESTDIRS = $(TESTDIRS)
 endif
 
-# Default JTREG to run (win32 script works for everybody)
-JTREG = $(JT_HOME)/win32/bin/jtreg
+# Default JTREG to run
+JTREG = $(JT_HOME)/bin/jtreg
 
 # Option to tell jtreg to not run tests marked with "ignore"
 ifeq ($(PLATFORM), windows)

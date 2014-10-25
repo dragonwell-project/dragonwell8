@@ -28,12 +28,11 @@ package jdk.nashorn.internal.runtime;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.CONFIGURABLE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.ENUMERABLE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.WRITABLE;
-
 import java.io.Serializable;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.SwitchPoint;
 import java.util.Objects;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
-import jdk.nashorn.internal.codegen.types.Type;
 
 /**
  * This is the abstract superclass representing a JavaScript Property.
@@ -65,41 +64,46 @@ public abstract class Property implements Serializable {
     /** ECMA 8.6.1 - Is this property not configurable? */
     public static final int NOT_CONFIGURABLE = 1 << 2;
 
-    private static final int MODIFY_MASK     = (NOT_WRITABLE | NOT_ENUMERABLE | NOT_CONFIGURABLE);
-
-    /** Is this a spill property? See {@link AccessorProperty} */
-    public static final int IS_SPILL         = 1 << 3;
+    private static final int MODIFY_MASK     = NOT_WRITABLE | NOT_ENUMERABLE | NOT_CONFIGURABLE;
 
     /** Is this a function parameter? */
-    public static final int IS_PARAMETER     = 1 << 4;
+    public static final int IS_PARAMETER     = 1 << 3;
 
     /** Is parameter accessed thru arguments? */
-    public static final int HAS_ARGUMENTS    = 1 << 5;
-
-    /** Is this property always represented as an Object? See {@link ObjectClassGenerator} and dual fields flag. */
-    public static final int IS_ALWAYS_OBJECT = 1 << 6;
-
-    /** Can this property be primitive? */
-    public static final int CAN_BE_PRIMITIVE = 1 << 7;
-
-    /** Can this property be undefined? */
-    public static final int CAN_BE_UNDEFINED = 1 << 8;
+    public static final int HAS_ARGUMENTS    = 1 << 4;
 
     /** Is this a function declaration property ? */
-    public static final int IS_FUNCTION_DECLARATION = 1 << 9;
+    public static final int IS_FUNCTION_DECLARATION = 1 << 5;
+
+    /**
+     * Is this is a primitive field given to us by Nasgen, i.e.
+     * something we can be sure remains a constant whose type
+     * is narrower than object, e.g. Math.PI which is declared
+     * as a double
+     */
+    public static final int IS_NASGEN_PRIMITIVE     = 1 << 6;
+
+    /** Is this a builtin property, e.g. Function.prototype.apply */
+    public static final int IS_BUILTIN = 1 << 7;
 
     /** Is this property bound to a receiver? This means get/set operations will be delegated to
      *  a statically defined object instead of the object passed as callsite parameter. */
-    public static final int IS_BOUND = 1 << 10;
+    public static final int IS_BOUND                = 1 << 7;
+
+    /** Is this a lexically scoped LET or CONST variable that is dead until it is declared. */
+    public static final int NEEDS_DECLARATION       = 1 << 8;
 
     /** Property key. */
     private final String key;
 
     /** Property flags. */
-    protected int flags;
+    private int flags;
 
     /** Property field number or spill slot. */
     private final int slot;
+
+    /** SwitchPoint that is invalidated when property is changed, optional */
+    protected transient SwitchPoint builtinSwitchPoint;
 
     private static final long serialVersionUID = 2099814273074501176L;
 
@@ -122,10 +126,11 @@ public abstract class Property implements Serializable {
      *
      * @param property source property
      */
-    Property(final Property property) {
-        this.key   = property.key;
-        this.flags = property.flags;
-        this.slot  = property.slot;
+    Property(final Property property, final int flags) {
+        this.key                = property.key;
+        this.slot               = property.slot;
+        this.builtinSwitchPoint = property.builtinSwitchPoint;
+        this.flags              = flags;
     }
 
     /**
@@ -133,7 +138,15 @@ public abstract class Property implements Serializable {
      *
      * @return cloned property
      */
-    abstract Property copy();
+    public abstract Property copy();
+
+    /**
+     * Copy function
+     *
+     * @param  newType new type
+     * @return cloned property with new type
+     */
+    public abstract Property copy(final Class<?> newType);
 
     /**
      * Property flag utility method for {@link PropertyDescriptor}s. Given two property descriptors,
@@ -163,6 +176,34 @@ public abstract class Property implements Serializable {
         }
 
         return propFlags;
+    }
+
+    /**
+     * Set the change callback for this property, i.e. a SwitchPoint
+     * that will be invalidated when the value of the property is
+     * changed
+     * @param sp SwitchPoint to use for change callback
+     */
+    public final void setBuiltinSwitchPoint(final SwitchPoint sp) {
+        this.builtinSwitchPoint = sp;
+    }
+
+    /**
+     * Builtin properties have an invalidation switchpoint that is
+     * invalidated when they are set, this is a getter for it
+     * @return builtin switchpoint, or null if none
+     */
+    public final SwitchPoint getBuiltinSwitchPoint() {
+        return builtinSwitchPoint;
+    }
+
+    /**
+     * Checks if this is a builtin property, this means that it has
+     * a builtin switchpoint that hasn't been invalidated by a setter
+     * @return true if builtin, untouched (unset) property
+     */
+    public boolean isBuiltin() {
+        return builtinSwitchPoint != null && !builtinSwitchPoint.hasBeenInvalidated();
     }
 
     /**
@@ -255,7 +296,7 @@ public abstract class Property implements Serializable {
      * @return true if spill property
      */
     public boolean isSpill() {
-        return (flags & IS_SPILL) == IS_SPILL;
+        return false;
     }
 
     /**
@@ -269,15 +310,12 @@ public abstract class Property implements Serializable {
     }
 
     /**
-     * Does this property use any slots in the spill array described in
-     * {@link Property#isSpill}? In that case how many. Currently a property
-     * only uses max one spill slot, but this may change in future representations
-     * Only {@link AccessorProperty} instances use spill slots
+     * Is this a LET or CONST property that needs to see its declaration before being usable?
      *
-     * @return number of spill slots a property is using
+     * @return true if this is a block-scoped variable
      */
-    public int getSpillCount() {
-        return isSpill() ? 1 : 0;
+    public boolean needsDeclaration() {
+        return (flags & NEEDS_DECLARATION) == NEEDS_DECLARATION;
     }
 
     /**
@@ -295,6 +333,16 @@ public abstract class Property implements Serializable {
             return cloned;
         }
         return this;
+    }
+
+    /**
+     * Check if a flag is set for a property
+     * @param property property
+     * @param flag     flag to check
+     * @return true if flag is set
+     */
+    public static boolean checkFlag(final Property property, final int flag) {
+        return (property.getFlags() & flag) == flag;
     }
 
     /**
@@ -361,6 +409,14 @@ public abstract class Property implements Serializable {
     public abstract MethodHandle getGetter(final Class<?> type);
 
     /**
+     * Get an optimistic getter that throws an exception if type is not the known given one
+     * @param type          type
+     * @param programPoint  program point
+     * @return getter
+     */
+    public abstract MethodHandle getOptimisticGetter(final Class<?> type, final int programPoint);
+
+    /**
      * Hook to initialize method handles after deserialization.
      *
      * @param structure the structure class
@@ -384,6 +440,46 @@ public abstract class Property implements Serializable {
     }
 
     /**
+     * get the Object value of this property from {@code owner}. This allows to bypass creation of the
+     * getter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner of the property
+     * @return  the property value
+     */
+    public abstract int getIntValue(final ScriptObject self, final ScriptObject owner);
+
+    /**
+     * get the Object value of this property from {@code owner}. This allows to bypass creation of the
+     * getter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner of the property
+     * @return  the property value
+     */
+    public abstract long getLongValue(final ScriptObject self, final ScriptObject owner);
+
+    /**
+     * get the Object value of this property from {@code owner}. This allows to bypass creation of the
+     * getter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner of the property
+     * @return  the property value
+     */
+    public abstract double getDoubleValue(final ScriptObject self, final ScriptObject owner);
+
+    /**
+     * get the Object value of this property from {@code owner}. This allows to bypass creation of the
+     * getter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner of the property
+     * @return  the property value
+     */
+    public abstract Object getObjectValue(final ScriptObject self, final ScriptObject owner);
+
+    /**
      * Set the value of this property in {@code owner}. This allows to bypass creation of the
      * setter MethodHandle for spill and user accessor properties.
      *
@@ -392,17 +488,40 @@ public abstract class Property implements Serializable {
      * @param value the new property value
      * @param strict is this a strict setter?
      */
-    public abstract void setObjectValue(ScriptObject self, ScriptObject owner, Object value, boolean strict);
+    public abstract void setValue(final ScriptObject self, final ScriptObject owner, final int value, final boolean strict);
 
     /**
-     * Set the Object value of this property from {@code owner}. This allows to bypass creation of the
-     * getter MethodHandle for spill and user accessor properties.
+     * Set the value of this property in {@code owner}. This allows to bypass creation of the
+     * setter MethodHandle for spill and user accessor properties.
      *
      * @param self the this object
      * @param owner the owner object
-     * @return  the property value
+     * @param value the new property value
+     * @param strict is this a strict setter?
      */
-    public abstract Object getObjectValue(ScriptObject self, ScriptObject owner);
+    public abstract void setValue(final ScriptObject self, final ScriptObject owner, final long value, final boolean strict);
+
+    /**
+     * Set the value of this property in {@code owner}. This allows to bypass creation of the
+     * setter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner object
+     * @param value the new property value
+     * @param strict is this a strict setter?
+     */
+    public abstract void setValue(final ScriptObject self, final ScriptObject owner, final double value, final boolean strict);
+
+    /**
+     * Set the value of this property in {@code owner}. This allows to bypass creation of the
+     * setter MethodHandle for spill and user accessor properties.
+     *
+     * @param self the this object
+     * @param owner the owner object
+     * @param value the new property value
+     * @param strict is this a strict setter?
+     */
+    public abstract void setValue(final ScriptObject self, final ScriptObject owner, final Object value, final boolean strict);
 
     /**
      * Abstract method for retrieving the setter for the property. We do not know
@@ -466,30 +585,71 @@ public abstract class Property implements Serializable {
 
         final Property otherProperty = (Property)other;
 
-        return getFlags()       == otherProperty.getFlags() &&
-               getSlot()        == otherProperty.getSlot() &&
-               getCurrentType() == otherProperty.getCurrentType() &&
-               getKey().equals(otherProperty.getKey());
+        return equalsWithoutType(otherProperty) &&
+               getCurrentType() == otherProperty.getCurrentType();
     }
+
+    boolean equalsWithoutType(final Property otherProperty) {
+        return getFlags() == otherProperty.getFlags() &&
+                getSlot() == otherProperty.getSlot() &&
+                getKey().equals(otherProperty.getKey());
+    }
+
+    private static final String type(final Class<?> type) {
+        if (type == null) {
+            return "undef";
+        } else if (type == int.class) {
+            return "i";
+        } else if (type == long.class) {
+            return "j";
+        } else if (type == double.class) {
+            return "d";
+        } else {
+            return "o";
+        }
+    }
+
+    /**
+     * Short toString version
+     * @return short toString
+     */
+    public final String toStringShort() {
+        final StringBuilder sb   = new StringBuilder();
+        final Class<?>      type = getCurrentType();
+        sb.append(getKey()).append(" (").append(type(type)).append(')');
+        return sb.toString();
+    }
+
+    private static String indent(final String str, final int indent) {
+        final StringBuilder sb = new StringBuilder();
+        sb.append(str);
+        for (int i = 0; i < indent - str.length(); i++) {
+            sb.append(' ');
+        }
+        return sb.toString();
+     }
 
     @Override
     public String toString() {
         final StringBuilder sb   = new StringBuilder();
         final Class<?>      type = getCurrentType();
 
-        sb.append(getKey()).
-            append("(0x").
-            append(Integer.toHexString(flags)).
+        sb.append(indent(getKey(), 20)).
+            append(" id=").
+            append(Debug.id(this)).
+            append(" (0x").
+            append(indent(Integer.toHexString(flags), 4)).
             append(") ").
             append(getClass().getSimpleName()).
             append(" {").
-            append(type == null ? "UNDEFINED" : Type.typeFor(type).getDescriptor()).
+            append(indent(type(type), 5)).
             append('}');
 
         if (slot != -1) {
-            sb.append('[');
-            sb.append(slot);
-            sb.append(']');
+            sb.append(" [").
+               append("slot=").
+               append(slot).
+               append(']');
         }
 
         return sb.toString();
@@ -503,9 +663,13 @@ public abstract class Property implements Serializable {
      *
      * @return current type of property, null means undefined
      */
-    public Class<?> getCurrentType() {
-        return Object.class;
-    }
+    public abstract Class<?> getCurrentType();
+
+    /**
+     * Reset the current type of this property
+     * @param currentType new current type
+     */
+    public abstract void setCurrentType(final Class<?> currentType);
 
     /**
      * Check whether this Property can ever change its type. The default is false, and if
@@ -514,40 +678,6 @@ public abstract class Property implements Serializable {
      */
     public boolean canChangeType() {
         return false;
-    }
-
-    /**
-     * Check whether this Property is ever used as anything but an Object. If this is used only
-     * as an object, dual fields mode need not even try to represent it as a primitive at any
-     * callsite, saving map rewrites for performance.
-     *
-     * @return true if representation should always be an object field
-     */
-    public boolean isAlwaysObject() {
-        return (flags & IS_ALWAYS_OBJECT) == IS_ALWAYS_OBJECT;
-    }
-
-    /**
-     * Check whether this property can be primitive. This is a conservative
-     * analysis result, so {@code false} might mean that it can still be
-     * primitive
-     *
-     * @return can be primitive status
-     */
-    public boolean canBePrimitive() {
-        return (flags & CAN_BE_PRIMITIVE) == CAN_BE_PRIMITIVE;
-    }
-
-    /**
-     * Check whether this property can be primitive. This is a conservative
-     * analysis result, so {@code true} might mean that it can still be
-     * defined, but it will never say that a property can not be undefined
-     * if it can
-     *
-     * @return can be undefined status
-     */
-    public boolean canBeUndefined() {
-        return (flags & CAN_BE_UNDEFINED) == CAN_BE_UNDEFINED;
     }
 
     /**

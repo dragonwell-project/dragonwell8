@@ -32,6 +32,7 @@
 #include "gc_implementation/shared/generationCounters.hpp"
 #include "memory/freeBlockDictionary.hpp"
 #include "memory/generation.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/virtualspace.hpp"
 #include "services/memoryService.hpp"
@@ -1285,7 +1286,6 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   void save_sweep_limit();
 
   // More iteration support
-  virtual void oop_iterate(MemRegion mr, ExtendedOopClosure* cl);
   virtual void oop_iterate(ExtendedOopClosure* cl);
   virtual void safe_object_iterate(ObjectClosure* cl);
   virtual void object_iterate(ObjectClosure* cl);
@@ -1383,13 +1383,6 @@ class ASConcurrentMarkSweepGeneration : public ConcurrentMarkSweepGeneration {
 // Closures of various sorts used by CMS to accomplish its work
 //
 
-// This closure is used to check that a certain set of oops is empty.
-class FalseClosure: public OopClosure {
- public:
-  void do_oop(oop* p)       { guarantee(false, "Should be an empty set"); }
-  void do_oop(narrowOop* p) { guarantee(false, "Should be an empty set"); }
-};
-
 // This closure is used to do concurrent marking from the roots
 // following the first checkpoint.
 class MarkFromRootsClosure: public BitMapClosure {
@@ -1454,7 +1447,7 @@ class Par_MarkFromRootsClosure: public BitMapClosure {
 
 // The following closures are used to do certain kinds of verification of
 // CMS marking.
-class PushAndMarkVerifyClosure: public CMSOopClosure {
+class PushAndMarkVerifyClosure: public MetadataAwareOopClosure {
   CMSCollector*    _collector;
   MemRegion        _span;
   CMSBitMap*       _verification_bm;
@@ -1505,6 +1498,19 @@ class FalseBitMapClosure: public BitMapClosure {
     guarantee(false, "Should not have a 1 bit");
     return true;
   }
+};
+
+// A version of ObjectClosure with "memory" (see _previous_address below)
+class UpwardsObjectClosure: public BoolObjectClosure {
+  HeapWord* _previous_address;
+ public:
+  UpwardsObjectClosure() : _previous_address(NULL) { }
+  void set_previous(HeapWord* addr) { _previous_address = addr; }
+  HeapWord* previous()              { return _previous_address; }
+  // A return value of "true" can be used by the caller to decide
+  // if this object's end should *NOT* be recorded in
+  // _previous_address above.
+  virtual bool do_object_bm(oop obj, MemRegion mr) = 0;
 };
 
 // This closure is used during the second checkpointing phase

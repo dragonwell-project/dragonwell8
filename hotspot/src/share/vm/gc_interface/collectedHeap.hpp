@@ -351,6 +351,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     fill_with_object(start, pointer_delta(end, start), zap);
   }
 
+  // Return the address "addr" aligned by "alignment_in_bytes" if such
+  // an address is below "end".  Return NULL otherwise.
+  inline static HeapWord* align_allocation_or_fail(HeapWord* addr,
+                                                   HeapWord* end,
+                                                   unsigned short alignment_in_bytes);
+
   // Some heaps may offer a contiguous region for shared non-blocking
   // allocation, via inlined code (by exporting the address of the top and
   // end fields defining the extent of the contiguous allocation region.)
@@ -388,15 +394,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // are merely filled or also retired, thus preventing further
   // allocation from them and necessitating allocation of new TLABs.
   virtual void ensure_parsability(bool retire_tlabs);
-
-  // Return an estimate of the maximum allocation that could be performed
-  // without triggering any collection or expansion activity.  In a
-  // generational collector, for example, this is probably the largest
-  // allocation that could be supported (without expansion) in the youngest
-  // generation.  It is "unsafe" because no locks are taken; the result
-  // should be treated as an approximation, not a guarantee, for use in
-  // heuristic resizing decisions.
-  virtual size_t unsafe_max_alloc() = 0;
 
   // Section on thread-local allocation buffers (TLABs)
   // If the heap supports thread-local allocation buffers, it should override
@@ -639,6 +636,15 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // reduce the occurrence of ParallelGCThreads to uses where the
   // actual number may be germane.
   static bool use_parallel_gc_threads() { return ParallelGCThreads > 0; }
+
+  // Copy the current allocation context statistics for the specified contexts.
+  // For each context in contexts, set the corresponding entries in the totals
+  // and accuracy arrays to the current values held by the statistics.  Each
+  // array should be of length len.
+  virtual void copy_allocation_context_stats(const jint* contexts,
+                                             jlong* totals,
+                                             jbyte* accuracy,
+                                             jint len) { }
 
   /////////////// Unit tests ///////////////
 

@@ -414,6 +414,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
                     mediaSizeNames = cps.getMediaSizeNames();
                     mediaTrays = cps.getMediaTrays();
                     customMediaSizeNames = cps.getCustomMediaSizeNames();
+                    defaultMediaIndex = cps.getDefaultMediaIndex();
                     urlConnection.disconnect();
                     init = true;
                     return;
@@ -993,7 +994,9 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
 
     public synchronized Class[] getSupportedAttributeCategories() {
         if (supportedCats != null) {
-            return supportedCats;
+            Class<?> [] copyCats = new Class<?>[supportedCats.length];
+            System.arraycopy(supportedCats, 0, copyCats, 0, copyCats.length);
+            return copyCats;
         }
 
         initAttributes();
@@ -1050,7 +1053,9 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
         }
         supportedCats = new Class[catList.size()];
         catList.toArray(supportedCats);
-        return supportedCats;
+        Class<?>[] copyCats = new Class<?>[supportedCats.length];
+        System.arraycopy(supportedCats, 0, copyCats, 0, copyCats.length);
+        return copyCats;
     }
 
 
@@ -1432,7 +1437,9 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
                 return JobSheets.STANDARD;
             }
         } else if (category == Media.class) {
-            defaultMediaIndex = 0;
+            if (defaultMediaIndex == -1) {
+                defaultMediaIndex = 0;
+            }
             if (mediaSizeNames.length == 0) {
                 String defaultCountry = Locale.getDefault().getCountry();
                 if (defaultCountry != null &&
@@ -1448,17 +1455,7 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
             if (attribClass != null) {
                 String name = attribClass.getStringValue();
                 if (isCupsPrinter) {
-                    for (int i=0; i< customMediaSizeNames.length; i++) {
-                        //REMIND:  get default from PPD. In native _getMedia,
-                        // move default (ppd_option_t->defchoice) to index 0.
-                        // In the meantime, use indexOf because PPD name
-                        // may be different from the IPP attribute name.
-                        if (customMediaSizeNames[i].toString().indexOf(name)
-                            != -1) {
-                            defaultMediaIndex = i;
-                            return mediaSizeNames[defaultMediaIndex];
-                        }
-                    }
+                    return mediaSizeNames[defaultMediaIndex];
                 } else {
                     for (int i=0; i< mediaSizeNames.length; i++) {
                         if (mediaSizeNames[i].toString().indexOf(name) != -1) {

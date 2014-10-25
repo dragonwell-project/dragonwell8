@@ -653,8 +653,8 @@
   product(bool, UseMathExactIntrinsics, true,                               \
           "Enables intrinsification of various java.lang.Math functions")   \
                                                                             \
-  experimental(bool, ReplaceInParentMaps, false,                            \
-          "Propagate type improvements in callers of inlinee if possible")  \
+  product(bool, UseMultiplyToLenIntrinsic, false,                           \
+          "Enables intrinsification of BigInteger.multiplyToLen()")         \
                                                                             \
   product(bool, UseTypeSpeculation, true,                                   \
           "Speculatively propagate types from profiles")                    \

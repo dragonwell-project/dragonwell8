@@ -23,6 +23,10 @@
 # questions.
 #
 
+# Include custom extensions if available.
+-include $(CUSTOM_MAKE_DIR)/lib/ServiceabilityLibraries.gmk
+
+
 LIBATTACH_EXCLUDE_FILES :=
 ifneq ($(OPENJDK_TARGET_OS), solaris)
   LIBATTACH_EXCLUDE_FILES += SolarisVirtualMachine.c
@@ -283,12 +287,12 @@ BUILD_LIBRARIES += $(BUILD_LIBINSTRUMENT)
 
 ##########################################################################################
 
-BUILD_LIBMANAGEMENT_SRC := $(JDK_TOPDIR)/src/share/native/sun/management \
+BUILD_LIBMANAGEMENT_SRC += $(JDK_TOPDIR)/src/share/native/sun/management \
     $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/management
 
 BUILD_LIBMANAGEMENT_EXCLUDES :=
 
-BUILD_LIBMANAGEMENT_CFLAGS := -I$(JDK_TOPDIR)/src/share/native/sun/management
+BUILD_LIBMANAGEMENT_CFLAGS += -I$(JDK_TOPDIR)/src/share/native/sun/management
 
 ifneq ($(OPENJDK_TARGET_OS), solaris)
   BUILD_LIBMANAGEMENT_EXCLUDES += SolarisOperatingSystem.c
@@ -309,6 +313,9 @@ ifneq ($(findstring $(OPENJDK_TARGET_OS), solaris linux), )
   endif
 endif
 
+# Make it possible to override this variable
+LIBMANAGEMENT_MAPFILE ?= $(JDK_TOPDIR)/make/mapfiles/libmanagement/mapfile-vers
+
 $(eval $(call SetupNativeCompilation,BUILD_LIBMANAGEMENT, \
     LIBRARY := management, \
     OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
@@ -317,7 +324,7 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBMANAGEMENT, \
     LANG := C, \
     OPTIMIZATION := $(LIBMANAGEMENT_OPTIMIZATION), \
     CFLAGS := $(CFLAGS_JDKLIB) $(BUILD_LIBMANAGEMENT_CFLAGS), \
-    MAPFILE := $(JDK_TOPDIR)/make/mapfiles/libmanagement/mapfile-vers, \
+    MAPFILE := $(LIBMANAGEMENT_MAPFILE), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_solaris := -lkstat, \

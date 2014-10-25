@@ -86,6 +86,7 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import sun.awt.ComponentFactory;
 import sun.util.logging.PlatformLogger;
 
 import sun.awt.AppContext;
@@ -272,7 +273,7 @@ public abstract class DataTransferer {
      * instead, null will be returned.
      */
     public static synchronized DataTransferer getInstance() {
-        return ((SunToolkit) Toolkit.getDefaultToolkit()).getDataTransferer();
+        return ((ComponentFactory) Toolkit.getDefaultToolkit()).getDataTransferer();
     }
 
     /**
@@ -2892,6 +2893,14 @@ search:
                                       UNKNOWN_OBJECT_LOSES);
                 if (comp != 0) {
                     return comp;
+                }
+
+                if (flavor1.isFlavorTextType()) {
+                    return 1;
+                }
+
+                if (flavor2.isFlavorTextType()) {
+                    return -1;
                 }
 
                 // Next, look for application/x-java-* types. Prefer unknown

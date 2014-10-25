@@ -98,6 +98,7 @@ import java.lang.invoke.MethodType;
  */
 class SimpleDynamicMethod extends SingleDynamicMethod {
     private final MethodHandle target;
+    private final boolean constructor;
 
     /**
      * Creates a new simple dynamic method, with a name constructed from the class name, method name, and handle
@@ -107,12 +108,26 @@ class SimpleDynamicMethod extends SingleDynamicMethod {
      * @param clazz the class declaring the method
      * @param name the simple name of the method
      */
-    SimpleDynamicMethod(MethodHandle target, Class<?> clazz, String name) {
-        super(getName(target, clazz, name));
-        this.target = target;
+    SimpleDynamicMethod(final MethodHandle target, final Class<?> clazz, final String name) {
+        this(target, clazz, name, false);
     }
 
-    private static String getName(MethodHandle target, Class<?> clazz, String name) {
+    /**
+     * Creates a new simple dynamic method, with a name constructed from the class name, method name, and handle
+     * signature.
+     *
+     * @param target the target method handle
+     * @param clazz the class declaring the method
+     * @param name the simple name of the method
+     * @param constructor does this represent a constructor?
+     */
+    SimpleDynamicMethod(final MethodHandle target, final Class<?> clazz, final String name, final boolean constructor) {
+        super(getName(target, clazz, name));
+        this.target = target;
+        this.constructor = constructor;
+    }
+
+    private static String getName(final MethodHandle target, final Class<?> clazz, final String name) {
         return getMethodNameWithSignature(target.type(), getClassAndMethodName(clazz, name));
     }
 
@@ -127,7 +142,12 @@ class SimpleDynamicMethod extends SingleDynamicMethod {
     }
 
     @Override
-    MethodHandle getTarget(Lookup lookup) {
+    MethodHandle getTarget(final Lookup lookup) {
         return target;
+    }
+
+    @Override
+    boolean isConstructor() {
+        return constructor;
     }
 }

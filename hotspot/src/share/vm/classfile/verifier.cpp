@@ -43,7 +43,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
 #ifdef TARGET_ARCH_x86
 # include "bytes_x86.hpp"
@@ -633,8 +633,6 @@ void ClassVerifier::verify_method(methodHandle m, TRAPS) {
   bool no_control_flow = false; // Set to true when there is no direct control
                                 // flow from current instruction to the next
                                 // instruction in sequence
-
-  set_furthest_jump(0);
 
   Bytecodes::Code opcode;
   while (!bcs.is_last_bytecode()) {
@@ -1736,7 +1734,7 @@ void ClassVerifier::verify_exception_handler_table(u4 code_length, char* code_da
       VerificationType throwable =
         VerificationType::reference_type(vmSymbols::java_lang_Throwable());
       bool is_subclass = throwable.is_assignable_from(
-        catch_type, this, CHECK_VERIFY(this));
+        catch_type, this, false, CHECK_VERIFY(this));
       if (!is_subclass) {
         // 4286534: should throw VerifyError according to recent spec change
         verify_error(ErrorContext::bad_type(handler_pc,
@@ -1794,7 +1792,7 @@ u2 ClassVerifier::verify_stackmap_table(u2 stackmap_index, u2 bci,
       // If matched, current_frame will be updated by this method.
       bool matches = stackmap_table->match_stackmap(
         current_frame, this_offset, stackmap_index,
-        !no_control_flow, true, &ctx, CHECK_VERIFY_(this, 0));
+        !no_control_flow, true, false, &ctx, CHECK_VERIFY_(this, 0));
       if (!matches) {
         // report type error
         verify_error(ctx, "Instruction type does not match stack map");
@@ -1841,7 +1839,7 @@ void ClassVerifier::verify_exception_handler_targets(u2 bci, bool this_uninit, S
       }
       ErrorContext ctx;
       bool matches = stackmap_table->match_stackmap(
-        new_frame, handler_pc, true, false, &ctx, CHECK_VERIFY(this));
+        new_frame, handler_pc, true, false, true, &ctx, CHECK_VERIFY(this));
       if (!matches) {
         verify_error(ctx, "Stack map does not match the one at "
             "exception handler %d", handler_pc);
@@ -2191,7 +2189,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         stack_object_type = current_type();
       }
       is_assignable = target_class_type.is_assignable_from(
-        stack_object_type, this, CHECK_VERIFY(this));
+        stack_object_type, this, false, CHECK_VERIFY(this));
       if (!is_assignable) {
         verify_error(ErrorContext::bad_type(bci,
             current_frame->stack_top_ctx(),
@@ -2218,7 +2216,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         // It's protected access, check if stack object is assignable to
         // current class.
         is_assignable = current_type().is_assignable_from(
-          stack_object_type, this, CHECK_VERIFY(this));
+          stack_object_type, this, true, CHECK_VERIFY(this));
         if (!is_assignable) {
           verify_error(ErrorContext::bad_type(bci,
               current_frame->stack_top_ctx(),
@@ -2231,6 +2229,181 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
     }
     default: ShouldNotReachHere();
   }
+}
+
+// Look at the method's handlers.  If the bci is in the handler's try block
+// then check if the handler_pc is already on the stack.  If not, push it.
+void ClassVerifier::push_handlers(ExceptionTable* exhandlers,
+                                  GrowableArray<u4>* handler_stack,
+                                  u4 bci) {
+  int exlength = exhandlers->length();
+  for(int x = 0; x < exlength; x++) {
+    if (bci >= exhandlers->start_pc(x) && bci < exhandlers->end_pc(x)) {
+      handler_stack->append_if_missing(exhandlers->handler_pc(x));
+    }
+  }
+}
+
+// Return TRUE if all code paths starting with start_bc_offset end in
+// bytecode athrow or loop.
+bool ClassVerifier::ends_in_athrow(u4 start_bc_offset) {
+  ResourceMark rm;
+  // Create bytecode stream.
+  RawBytecodeStream bcs(method());
+  u4 code_length = method()->code_size();
+  bcs.set_start(start_bc_offset);
+  u4 target;
+  // Create stack for storing bytecode start offsets for if* and *switch.
+  GrowableArray<u4>* bci_stack = new GrowableArray<u4>(30);
+  // Create stack for handlers for try blocks containing this handler.
+  GrowableArray<u4>* handler_stack = new GrowableArray<u4>(30);
+  // Create list of visited branch opcodes (goto* and if*).
+  GrowableArray<u4>* visited_branches = new GrowableArray<u4>(30);
+  ExceptionTable exhandlers(_method());
+
+  while (true) {
+    if (bcs.is_last_bytecode()) {
+      // if no more starting offsets to parse or if at the end of the
+      // method then return false.
+      if ((bci_stack->is_empty()) || ((u4)bcs.end_bci() == code_length))
+        return false;
+      // Pop a bytecode starting offset and scan from there.
+      bcs.set_start(bci_stack->pop());
+    }
+    Bytecodes::Code opcode = bcs.raw_next();
+    u4 bci = bcs.bci();
+
+    // If the bytecode is in a TRY block, push its handlers so they
+    // will get parsed.
+    push_handlers(&exhandlers, handler_stack, bci);
+
+    switch (opcode) {
+      case Bytecodes::_if_icmpeq:
+      case Bytecodes::_if_icmpne:
+      case Bytecodes::_if_icmplt:
+      case Bytecodes::_if_icmpge:
+      case Bytecodes::_if_icmpgt:
+      case Bytecodes::_if_icmple:
+      case Bytecodes::_ifeq:
+      case Bytecodes::_ifne:
+      case Bytecodes::_iflt:
+      case Bytecodes::_ifge:
+      case Bytecodes::_ifgt:
+      case Bytecodes::_ifle:
+      case Bytecodes::_if_acmpeq:
+      case Bytecodes::_if_acmpne:
+      case Bytecodes::_ifnull:
+      case Bytecodes::_ifnonnull:
+        target = bcs.dest();
+        if (visited_branches->contains(bci)) {
+          if (bci_stack->is_empty()) return true;
+          // Pop a bytecode starting offset and scan from there.
+          bcs.set_start(bci_stack->pop());
+        } else {
+          if (target > bci) { // forward branch
+            if (target >= code_length) return false;
+            // Push the branch target onto the stack.
+            bci_stack->push(target);
+            // then, scan bytecodes starting with next.
+            bcs.set_start(bcs.next_bci());
+          } else { // backward branch
+            // Push bytecode offset following backward branch onto the stack.
+            bci_stack->push(bcs.next_bci());
+            // Check bytecodes starting with branch target.
+            bcs.set_start(target);
+          }
+          // Record target so we don't branch here again.
+          visited_branches->append(bci);
+        }
+        break;
+
+      case Bytecodes::_goto:
+      case Bytecodes::_goto_w:
+        target = (opcode == Bytecodes::_goto ? bcs.dest() : bcs.dest_w());
+        if (visited_branches->contains(bci)) {
+          if (bci_stack->is_empty()) return true;
+          // Been here before, pop new starting offset from stack.
+          bcs.set_start(bci_stack->pop());
+        } else {
+          if (target >= code_length) return false;
+          // Continue scanning from the target onward.
+          bcs.set_start(target);
+          // Record target so we don't branch here again.
+          visited_branches->append(bci);
+        }
+        break;
+
+      // Check that all switch alternatives end in 'athrow' bytecodes. Since it
+      // is  difficult to determine where each switch alternative ends, parse
+      // each switch alternative until either hit a 'return', 'athrow', or reach
+      // the end of the method's bytecodes.  This is gross but should be okay
+      // because:
+      // 1. tableswitch and lookupswitch byte codes in handlers for ctor explicit
+      //    constructor invocations should be rare.
+      // 2. if each switch alternative ends in an athrow then the parsing should be
+      //    short.  If there is no athrow then it is bogus code, anyway.
+      case Bytecodes::_lookupswitch:
+      case Bytecodes::_tableswitch:
+        {
+          address aligned_bcp = (address) round_to((intptr_t)(bcs.bcp() + 1), jintSize);
+          u4 default_offset = Bytes::get_Java_u4(aligned_bcp) + bci;
+          int keys, delta;
+          if (opcode == Bytecodes::_tableswitch) {
+            jint low = (jint)Bytes::get_Java_u4(aligned_bcp + jintSize);
+            jint high = (jint)Bytes::get_Java_u4(aligned_bcp + 2*jintSize);
+            // This is invalid, but let the regular bytecode verifier
+            // report this because the user will get a better error message.
+            if (low > high) return true;
+            keys = high - low + 1;
+            delta = 1;
+          } else {
+            keys = (int)Bytes::get_Java_u4(aligned_bcp + jintSize);
+            delta = 2;
+          }
+          // Invalid, let the regular bytecode verifier deal with it.
+          if (keys < 0) return true;
+
+          // Push the offset of the next bytecode onto the stack.
+          bci_stack->push(bcs.next_bci());
+
+          // Push the switch alternatives onto the stack.
+          for (int i = 0; i < keys; i++) {
+            u4 target = bci + (jint)Bytes::get_Java_u4(aligned_bcp+(3+i*delta)*jintSize);
+            if (target > code_length) return false;
+            bci_stack->push(target);
+          }
+
+          // Start bytecode parsing for the switch at the default alternative.
+          if (default_offset > code_length) return false;
+          bcs.set_start(default_offset);
+          break;
+        }
+
+      case Bytecodes::_return:
+        return false;
+
+      case Bytecodes::_athrow:
+        {
+          if (bci_stack->is_empty()) {
+            if (handler_stack->is_empty()) {
+              return true;
+            } else {
+              // Parse the catch handlers for try blocks containing athrow.
+              bcs.set_start(handler_stack->pop());
+            }
+          } else {
+            // Pop a bytecode offset and starting scanning from there.
+            bcs.set_start(bci_stack->pop());
+          }
+        }
+        break;
+
+      default:
+        ;
+    } // end switch
+  } // end while loop
+
+  return false;
 }
 
 void ClassVerifier::verify_invoke_init(
@@ -2252,25 +2425,26 @@ void ClassVerifier::verify_invoke_init(
       return;
     }
 
-    // Make sure that this call is not jumped over.
-    if (bci < furthest_jump()) {
-      verify_error(ErrorContext::bad_code(bci),
-                   "Bad <init> method call from inside of a branch");
-      return;
-    }
-
-    // Make sure that this call is not done from within a TRY block because
-    // that can result in returning an incomplete object.  Simply checking
-    // (bci >= start_pc) also ensures that this call is not done after a TRY
-    // block.  That is also illegal because this call must be the first Java
-    // statement in the constructor.
+    // Check if this call is done from inside of a TRY block.  If so, make
+    // sure that all catch clause paths end in a throw.  Otherwise, this
+    // can result in returning an incomplete object.
     ExceptionTable exhandlers(_method());
     int exlength = exhandlers.length();
     for(int i = 0; i < exlength; i++) {
-      if (bci >= exhandlers.start_pc(i)) {
-        verify_error(ErrorContext::bad_code(bci),
-                     "Bad <init> method call from after the start of a try block");
-        return;
+      u2 start_pc = exhandlers.start_pc(i);
+      u2 end_pc = exhandlers.end_pc(i);
+
+      if (bci >= start_pc && bci < end_pc) {
+        if (!ends_in_athrow(exhandlers.handler_pc(i))) {
+          verify_error(ErrorContext::bad_code(bci),
+            "Bad <init> method call from after the start of a try block");
+          return;
+        } else if (VerboseVerification) {
+          ResourceMark rm;
+          tty->print_cr(
+            "Survived call to ends_in_athrow(): %s",
+                        current_class()->name()->as_C_string());
+        }
       }
     }
 
@@ -2315,7 +2489,7 @@ void ClassVerifier::verify_invoke_init(
         instanceKlassHandle mh(THREAD, m->method_holder());
         if (m->is_protected() && !mh->is_same_class_package(_klass())) {
           bool assignable = current_type().is_assignable_from(
-            objectref_type, this, CHECK_VERIFY(this));
+            objectref_type, this, true, CHECK_VERIFY(this));
           if (!assignable) {
             verify_error(ErrorContext::bad_type(bci,
                 TypeOrigin::cp(new_class_index, objectref_type),
@@ -2490,11 +2664,11 @@ void ClassVerifier::verify_invoke_instructions(
     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
     if (!current_class()->is_anonymous()) {
       subtype = ref_class_type.is_assignable_from(
-                 current_type(), this, CHECK_VERIFY(this));
+                 current_type(), this, false, CHECK_VERIFY(this));
     } else {
       VerificationType host_klass_type =
                         VerificationType::reference_type(current_class()->host_klass()->name());
-      subtype = ref_class_type.is_assignable_from(host_klass_type, this, CHECK_VERIFY(this));
+      subtype = ref_class_type.is_assignable_from(host_klass_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
       // direct interface relative to the host class
@@ -2538,7 +2712,7 @@ void ClassVerifier::verify_invoke_instructions(
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
           VerificationType hosttype =
             VerificationType::reference_type(current_class()->host_klass()->name());
-          bool subtype = hosttype.is_assignable_from(top, this, CHECK_VERIFY(this));
+          bool subtype = hosttype.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),
               current_frame->stack_top_ctx(),
@@ -2563,7 +2737,7 @@ void ClassVerifier::verify_invoke_instructions(
               // It's protected access, check if stack object is
               // assignable to current class.
               bool is_assignable = current_type().is_assignable_from(
-                stack_object_type, this, CHECK_VERIFY(this));
+                stack_object_type, this, true, CHECK_VERIFY(this));
               if (!is_assignable) {
                 if (ref_class_type.name() == vmSymbols::java_lang_Object()
                     && stack_object_type.is_array()
@@ -2746,7 +2920,7 @@ void ClassVerifier::verify_return_value(
         "Method expects a return value");
     return;
   }
-  bool match = return_type.is_assignable_from(type, this, CHECK_VERIFY(this));
+  bool match = return_type.is_assignable_from(type, this, false, CHECK_VERIFY(this));
   if (!match) {
     verify_error(ErrorContext::bad_type(bci,
         current_frame->stack_top_ctx(), TypeOrigin::signature(return_type)),
