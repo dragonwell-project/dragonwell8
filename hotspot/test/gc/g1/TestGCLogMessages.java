@@ -22,8 +22,8 @@
  */
 
 /*
- * @test TestPrintGCDetails
- * @bug 8035406 8027295 8035398
+ * @test TestGCLogMessages
+ * @bug 8035406 8027295 8035398 8019342 8027959
  * @summary Ensure that the PrintGCDetails output for a minor GC with G1
  * includes the expected necessary messages.
  * @key gc
@@ -48,10 +48,13 @@ public class TestGCLogMessages {
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
     output.shouldNotContain("[Redirty Cards");
+    output.shouldNotContain("[Parallel Redirty");
+    output.shouldNotContain("[Redirtied Cards");
     output.shouldNotContain("[Code Root Purge");
     output.shouldNotContain("[String Dedup Fixup");
     output.shouldNotContain("[Young Free CSet");
     output.shouldNotContain("[Non-Young Free CSet");
+    output.shouldNotContain("[Humongous Reclaim");
     output.shouldHaveExitValue(0);
 
     pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
@@ -63,10 +66,16 @@ public class TestGCLogMessages {
     output = new OutputAnalyzer(pb.start());
 
     output.shouldContain("[Redirty Cards");
+    output.shouldNotContain("[Parallel Redirty");
+    output.shouldNotContain("[Redirtied Cards");
     output.shouldContain("[Code Root Purge");
     output.shouldContain("[String Dedup Fixup");
     output.shouldNotContain("[Young Free CSet");
     output.shouldNotContain("[Non-Young Free CSet");
+    output.shouldContain("[Humongous Reclaim");
+    output.shouldNotContain("[Humongous Total");
+    output.shouldNotContain("[Humongous Candidate");
+    output.shouldNotContain("[Humongous Reclaimed");
     output.shouldHaveExitValue(0);
 
     pb = ProcessTools.createJavaProcessBuilder("-XX:+UseG1GC",
@@ -80,16 +89,16 @@ public class TestGCLogMessages {
     output = new OutputAnalyzer(pb.start());
 
     output.shouldContain("[Redirty Cards");
+    output.shouldContain("[Parallel Redirty");
+    output.shouldContain("[Redirtied Cards");
     output.shouldContain("[Code Root Purge");
     output.shouldContain("[String Dedup Fixup");
     output.shouldContain("[Young Free CSet");
     output.shouldContain("[Non-Young Free CSet");
-
-    // also check evacuation failure messages once
-    output.shouldNotContain("[Evacuation Failure");
-    output.shouldNotContain("[Recalculate Used");
-    output.shouldNotContain("[Remove Self Forwards");
-    output.shouldNotContain("[Restore RemSet");
+    output.shouldContain("[Humongous Reclaim");
+    output.shouldContain("[Humongous Total");
+    output.shouldContain("[Humongous Candidate");
+    output.shouldContain("[Humongous Reclaimed");
     output.shouldHaveExitValue(0);
   }
 

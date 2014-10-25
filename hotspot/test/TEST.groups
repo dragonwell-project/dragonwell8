@@ -73,15 +73,25 @@ needs_jdk = \
   runtime/jsig/Test8017498.sh \
   runtime/Metaspace/FragmentMetaspace.java \
   runtime/NMT/BaselineWithParameter.java \
+  runtime/NMT/JcmdBaselineDetail.java \
+  runtime/NMT/JcmdDetailDiff.java \
+  runtime/NMT/JcmdScaleDetail.java \
   runtime/NMT/JcmdScale.java \
   runtime/NMT/JcmdWithNMTDisabled.java \
+  runtime/NMT/MallocRoundingReportTest.java \
+  runtime/NMT/MallocSiteHashOverflow.java \
+  runtime/NMT/MallocStressTest.java \
   runtime/NMT/MallocTestType.java \
+  runtime/NMT/MallocTrackingVerify.java \
   runtime/NMT/ReleaseCommittedMemory.java \
+  runtime/NMT/ReleaseNoCommit.java \
   runtime/NMT/ShutdownTwice.java \
   runtime/NMT/SummaryAfterShutdown.java \
   runtime/NMT/SummarySanityCheck.java \
   runtime/NMT/ThreadedMallocTestType.java \
   runtime/NMT/ThreadedVirtualAllocTestType.java \
+  runtime/NMT/UnsafeMallocLimit.java \
+  runtime/NMT/VirtualAllocCommitUncommitRecommit.java \
   runtime/NMT/VirtualAllocTestType.java \
   runtime/RedefineObject/TestRedefineObject.java \
   runtime/Thread/TestThreadDumpMonitorContention.java \
@@ -129,10 +139,18 @@ needs_compact3 = \
   gc/6581734/Test6581734.java \
   gc/7072527/TestFullGCCount.java \
   gc/g1/TestHumongousAllocInitialMark.java \
+  gc/g1/TestHumongousShrinkHeap.java \
   gc/arguments/TestG1HeapRegionSize.java \
   gc/metaspace/TestMetaspaceMemoryPool.java \
   gc/arguments/TestDynMinHeapFreeRatio.java \
   gc/arguments/TestDynMaxHeapFreeRatio.java \
+  gc/g1/TestShrinkAuxiliaryData00.java \
+  gc/g1/TestShrinkAuxiliaryData05.java \
+  gc/g1/TestShrinkAuxiliaryData10.java \
+  gc/g1/TestShrinkAuxiliaryData15.java \
+  gc/g1/TestShrinkAuxiliaryData20.java \
+  gc/g1/TestShrinkAuxiliaryData25.java \
+  gc/g1/TestShrinkAuxiliaryData30.java \
   runtime/InternalApi/ThreadCpuTimesDeadlock.java \
   serviceability/threads/TestFalseDeadLock.java \
   serviceability/jvmti/GetObjectSizeOverflow.java \
@@ -169,6 +187,8 @@ compact1 = \
 #
 needs_full_vm_compact1 = \
   runtime/NMT \
+  gc/class_unloading/TestCMSClassUnloadingEnabledHWM.java \
+  gc/class_unloading/TestG1ClassUnloadingHWM.java \
   gc/g1/TestRegionAlignment.java \
   gc/g1/TestShrinkToOneRegion.java \
   gc/metaspace/G1AddMetaspaceDependency.java \

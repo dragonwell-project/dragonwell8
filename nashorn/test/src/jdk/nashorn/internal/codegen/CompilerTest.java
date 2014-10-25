@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.codegen;
 
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
 import static jdk.nashorn.internal.runtime.Source.readFully;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -56,7 +56,7 @@ public class CompilerTest {
         public boolean exclude(File file, String content);
     }
 
-    private void log(String msg) {
+    private void log(final String msg) {
         org.testng.Reporter.log(msg, true);
     }
 
@@ -98,11 +98,16 @@ public class CompilerTest {
             compileTestSet(new File(TEST262_SUITE_DIR), new TestFilter() {
                 @Override
                 public boolean exclude(final File file, final String content) {
-                    return content.indexOf("@negative") != -1;
+                    return content != null && content.contains("@negative");
                 }
             });
         }
-        compileTestSet(new File(TEST_BASIC_DIR), null);
+        compileTestSet(new File(TEST_BASIC_DIR), new TestFilter() {
+            @Override
+            public boolean exclude(final File file, final String content) {
+                return file.getName().equals("es6");
+            }
+        });
         compileTestSet(new File(TEST_NODE_DIR, "node"), null);
         compileTestSet(new File(TEST_NODE_DIR, "src"), null);
     }
@@ -136,6 +141,9 @@ public class CompilerTest {
     private int skipped;
 
     private void compileJSDirectory(final File dir, final TestFilter filter) {
+        if (filter != null && filter.exclude(dir, null)) {
+            return;
+        }
         for (final File f : dir.listFiles()) {
             if (f.isDirectory()) {
                 compileJSDirectory(f, filter);

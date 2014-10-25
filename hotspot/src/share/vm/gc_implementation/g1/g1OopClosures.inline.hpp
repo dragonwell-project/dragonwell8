@@ -28,9 +28,12 @@
 #include "gc_implementation/g1/concurrentMark.inline.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.hpp"
 #include "gc_implementation/g1/g1OopClosures.hpp"
+#include "gc_implementation/g1/g1ParScanThreadState.inline.hpp"
 #include "gc_implementation/g1/g1RemSet.hpp"
 #include "gc_implementation/g1/g1RemSet.inline.hpp"
 #include "gc_implementation/g1/heapRegionRemSet.hpp"
+#include "memory/iterator.inline.hpp"
+#include "runtime/prefetch.inline.hpp"
 
 /*
  * This really ought to be an inline function, but apparently the C++
@@ -41,7 +44,7 @@ template <class T>
 inline void FilterIntoCSClosure::do_oop_nv(T* p) {
   T heap_oop = oopDesc::load_heap_oop(p);
   if (!oopDesc::is_null(heap_oop) &&
-      _g1->obj_in_cs(oopDesc::decode_heap_oop_not_null(heap_oop))) {
+      _g1->is_in_cset_or_humongous(oopDesc::decode_heap_oop_not_null(heap_oop))) {
     _oc->do_oop(p);
   }
 }
@@ -64,7 +67,8 @@ inline void G1ParScanClosure::do_oop_nv(T* p) {
 
   if (!oopDesc::is_null(heap_oop)) {
     oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
-    if (_g1->in_cset_fast_test(obj)) {
+    G1CollectedHeap::in_cset_state_t state = _g1->in_cset_state(obj);
+    if (state == G1CollectedHeap::InCSet) {
       // We're not going to even bother checking whether the object is
       // already forwarded or not, as this usually causes an immediate
       // stall. We'll try to prefetch the object (for write, given that
@@ -83,6 +87,9 @@ inline void G1ParScanClosure::do_oop_nv(T* p) {
 
       _par_scan_state->push_on_queue(p);
     } else {
+      if (state == G1CollectedHeap::IsHumongous) {
+        _g1->set_humongous_is_live(obj);
+      }
       _par_scan_state->update_rs(_from, p, _worker_id);
     }
   }
@@ -94,22 +101,20 @@ inline void G1ParPushHeapRSClosure::do_oop_nv(T* p) {
 
   if (!oopDesc::is_null(heap_oop)) {
     oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
-    if (_g1->in_cset_fast_test(obj)) {
+    if (_g1->is_in_cset_or_humongous(obj)) {
       Prefetch::write(obj->mark_addr(), 0);
       Prefetch::read(obj->mark_addr(), (HeapWordSize*2));
 
       // Place on the references queue
       _par_scan_state->push_on_queue(p);
+    } else {
+      assert(!_g1->obj_in_cs(obj), "checking");
     }
   }
 }
 
 template <class T>
 inline void G1CMOopClosure::do_oop_nv(T* p) {
-  assert(_g1h->is_in_g1_reserved((HeapWord*) p), "invariant");
-  assert(!_g1h->is_on_master_free_list(
-                    _g1h->heap_region_containing((HeapWord*) p)), "invariant");
-
   oop obj = oopDesc::load_decode_heap_oop(p);
   if (_cm->verbose_high()) {
     gclog_or_tty->print_cr("[%u] we're looking at location "
@@ -125,9 +130,7 @@ inline void G1RootRegionScanClosure::do_oop_nv(T* p) {
   if (!oopDesc::is_null(heap_oop)) {
     oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
     HeapRegion* hr = _g1h->heap_region_containing((HeapWord*) obj);
-    if (hr != NULL) {
-      _cm->grayRoot(obj, obj->size(), _worker_id, hr);
-    }
+    _cm->grayRoot(obj, obj->size(), _worker_id, hr);
   }
 }
 
@@ -154,57 +157,61 @@ inline void G1InvokeIfNotTriggeredClosure::do_oop_nv(T* p) {
 template <class T>
 inline void G1UpdateRSOrPushRefOopClosure::do_oop_nv(T* p) {
   oop obj = oopDesc::load_decode_heap_oop(p);
+  if (obj == NULL) {
+    return;
+  }
 #ifdef ASSERT
   // can't do because of races
   // assert(obj == NULL || obj->is_oop(), "expected an oop");
 
   // Do the safe subset of is_oop
-  if (obj != NULL) {
 #ifdef CHECK_UNHANDLED_OOPS
-    oopDesc* o = obj.obj();
+  oopDesc* o = obj.obj();
 #else
-    oopDesc* o = obj;
+  oopDesc* o = obj;
 #endif // CHECK_UNHANDLED_OOPS
-    assert((intptr_t)o % MinObjAlignmentInBytes == 0, "not oop aligned");
-    assert(Universe::heap()->is_in_reserved(obj), "must be in heap");
-  }
+  assert((intptr_t)o % MinObjAlignmentInBytes == 0, "not oop aligned");
+  assert(Universe::heap()->is_in_reserved(obj), "must be in heap");
 #endif // ASSERT
 
   assert(_from != NULL, "from region must be non-NULL");
   assert(_from->is_in_reserved(p), "p is not in from");
 
   HeapRegion* to = _g1->heap_region_containing(obj);
-  if (to != NULL && _from != to) {
-    // The _record_refs_into_cset flag is true during the RSet
-    // updating part of an evacuation pause. It is false at all
-    // other times:
-    //  * rebuilding the rembered sets after a full GC
-    //  * during concurrent refinement.
-    //  * updating the remembered sets of regions in the collection
-    //    set in the event of an evacuation failure (when deferred
-    //    updates are enabled).
+  if (_from == to) {
+    // Normally this closure should only be called with cross-region references.
+    // But since Java threads are manipulating the references concurrently and we
+    // reload the values things may have changed.
+    return;
+  }
+  // The _record_refs_into_cset flag is true during the RSet
+  // updating part of an evacuation pause. It is false at all
+  // other times:
+  //  * rebuilding the remembered sets after a full GC
+  //  * during concurrent refinement.
+  //  * updating the remembered sets of regions in the collection
+  //    set in the event of an evacuation failure (when deferred
+  //    updates are enabled).
 
-    if (_record_refs_into_cset && to->in_collection_set()) {
-      // We are recording references that point into the collection
-      // set and this particular reference does exactly that...
-      // If the referenced object has already been forwarded
-      // to itself, we are handling an evacuation failure and
-      // we have already visited/tried to copy this object
-      // there is no need to retry.
-      if (!self_forwarded(obj)) {
-        assert(_push_ref_cl != NULL, "should not be null");
-        // Push the reference in the refs queue of the G1ParScanThreadState
-        // instance for this worker thread.
-        _push_ref_cl->do_oop(p);
-      }
+  if (_record_refs_into_cset && to->in_collection_set()) {
+    // We are recording references that point into the collection
+    // set and this particular reference does exactly that...
+    // If the referenced object has already been forwarded
+    // to itself, we are handling an evacuation failure and
+    // we have already visited/tried to copy this object
+    // there is no need to retry.
+    if (!self_forwarded(obj)) {
+      assert(_push_ref_cl != NULL, "should not be null");
+      // Push the reference in the refs queue of the G1ParScanThreadState
+      // instance for this worker thread.
+      _push_ref_cl->do_oop(p);
+     }
 
-      // Deferred updates to the CSet are either discarded (in the normal case),
-      // or processed (if an evacuation failure occurs) at the end
-      // of the collection.
-      // See G1RemSet::cleanup_after_oops_into_collection_set_do().
-      return;
-    }
-
+    // Deferred updates to the CSet are either discarded (in the normal case),
+    // or processed (if an evacuation failure occurs) at the end
+    // of the collection.
+    // See G1RemSet::cleanup_after_oops_into_collection_set_do().
+  } else {
     // We either don't care about pushing references that point into the
     // collection set (i.e. we're not during an evacuation pause) _or_
     // the reference doesn't point into the collection set. Either way

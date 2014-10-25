@@ -51,6 +51,7 @@
 #include "runtime/init.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/thread.inline.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
@@ -85,7 +86,8 @@ static bool firstEnv = true;
 
 // ------------------------------------------------------------------
 // ciEnv::ciEnv
-ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter) {
+ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter)
+  : _ciEnv_arena(mtCompiler) {
   VM_ENTRY_MARK;
 
   // Set up ciEnv::current immediately, for the sake of ciObjectFactory, etc.
@@ -138,7 +140,7 @@ ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter) {
   _the_min_jint_string = NULL;
 }
 
-ciEnv::ciEnv(Arena* arena) {
+ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
   ASSERT_IN_VM;
 
   // Set up ciEnv::current immediately, for the sake of ciObjectFactory, etc.
@@ -1110,9 +1112,6 @@ int ciEnv::num_inlined_bytecodes() const {
 // ------------------------------------------------------------------
 // ciEnv::record_failure()
 void ciEnv::record_failure(const char* reason) {
-  if (log() != NULL) {
-    log()->elem("failure reason='%s'", reason);
-  }
   if (_failure_reason == NULL) {
     // Record the first failure reason.
     _failure_reason = reason;

@@ -36,11 +36,13 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline2.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomic.inline.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "trace/traceMacros.hpp"
 #include "utilities/stack.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc_implementation/parallelScavenge/psParallelCompact.hpp"
 #include "gc_implementation/parallelScavenge/psPromotionManager.hpp"
 #include "gc_implementation/parallelScavenge/psScavenge.hpp"
@@ -167,7 +169,12 @@ Klass::Klass() {
   _primary_supers[0] = k;
   set_super_check_offset(in_bytes(primary_supers_offset()));
 
-  set_java_mirror(NULL);
+  // The constructor is used from init_self_patching_vtbl_list,
+  // which doesn't zero out the memory before calling the constructor.
+  // Need to set the field explicitly to not hit an assert that the field
+  // should be NULL before setting it.
+  _java_mirror = NULL;
+
   set_modifier_flags(0);
   set_layout_helper(Klass::_lh_neutral_value);
   set_name(NULL);
@@ -186,6 +193,7 @@ Klass::Klass() {
   // The klass doesn't have any references at this point.
   clear_modified_oops();
   clear_accumulated_modified_oops();
+  _shared_class_path_index = -1;
 }
 
 jint Klass::array_layout_helper(BasicType etype) {
@@ -399,7 +407,7 @@ bool Klass::is_loader_alive(BoolObjectClosure* is_alive) {
   return mirror_alive;
 }
 
-void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive) {
+void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive_klasses) {
   if (!ClassUnloading) {
     return;
   }
@@ -444,7 +452,7 @@ void Klass::clean_weak_klass_links(BoolObjectClosure* is_alive) {
     }
 
     // Clean the implementors list and method data.
-    if (current->oop_is_instance()) {
+    if (clean_alive_klasses && current->oop_is_instance()) {
       InstanceKlass* ik = InstanceKlass::cast(current);
       ik->clean_implementors_list(is_alive);
       ik->clean_method_data(is_alive);
@@ -456,12 +464,18 @@ void Klass::klass_update_barrier_set(oop v) {
   record_modified_oops();
 }
 
-void Klass::klass_update_barrier_set_pre(void* p, oop v) {
-  // This barrier used by G1, where it's used remember the old oop values,
-  // so that we don't forget any objects that were live at the snapshot at
-  // the beginning. This function is only used when we write oops into
-  // Klasses. Since the Klasses are used as roots in G1, we don't have to
-  // do anything here.
+// This barrier is used by G1 to remember the old oop values, so
+// that we don't forget any objects that were live at the snapshot at
+// the beginning. This function is only used when we write oops into Klasses.
+void Klass::klass_update_barrier_set_pre(oop* p, oop v) {
+#if INCLUDE_ALL_GCS
+  if (UseG1GC) {
+    oop obj = *p;
+    if (obj != NULL) {
+      G1SATBCardTableModRefBS::enqueue(obj);
+    }
+  }
+#endif
 }
 
 void Klass::klass_oop_store(oop* p, oop v) {
@@ -472,7 +486,7 @@ void Klass::klass_oop_store(oop* p, oop v) {
   if (always_do_update_barrier) {
     klass_oop_store((volatile oop*)p, v);
   } else {
-    klass_update_barrier_set_pre((void*)p, v);
+    klass_update_barrier_set_pre(p, v);
     *p = v;
     klass_update_barrier_set(v);
   }
@@ -482,7 +496,7 @@ void Klass::klass_oop_store(volatile oop* p, oop v) {
   assert(!Universe::heap()->is_in_reserved((void*)p), "Should store pointer into metadata");
   assert(v == NULL || Universe::heap()->is_in_reserved((void*)v), "Should store pointer to an object");
 
-  klass_update_barrier_set_pre((void*)p, v);
+  klass_update_barrier_set_pre((oop*)p, v); // Cast away volatile.
   OrderAccess::release_store_ptr(p, v);
   klass_update_barrier_set(v);
 }
@@ -504,27 +518,25 @@ void Klass::remove_unshareable_info() {
   set_class_loader_data(NULL);
 }
 
-void Klass::restore_unshareable_info(TRAPS) {
+void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
   TRACE_INIT_ID(this);
   // If an exception happened during CDS restore, some of these fields may already be
   // set.  We leave the class on the CLD list, even if incomplete so that we don't
   // modify the CLD list outside a safepoint.
   if (class_loader_data() == NULL) {
-    ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
-    // Restore class_loader_data to the null class loader data
+    // Restore class_loader_data
     set_class_loader_data(loader_data);
 
-    // Add to null class loader list first before creating the mirror
+    // Add to class loader list first before creating the mirror
     // (same order as class file parsing)
     loader_data->add_class(this);
   }
 
-  // Recreate the class mirror.  The protection_domain is always null for
-  // boot loader, for now.
+  // Recreate the class mirror.
   // Only recreate it if not present.  A previous attempt to restore may have
   // gotten an OOM later but keep the mirror if it was created.
   if (java_mirror() == NULL) {
-    java_lang_Class::create_mirror(this, Handle(NULL), CHECK);
+    java_lang_Class::create_mirror(this, class_loader(), protection_domain, CHECK);
   }
 }
 
@@ -704,6 +716,24 @@ bool Klass::verify_itable_index(int i) {
   int method_count = klassItable::method_count_for_interface(this);
   assert(i >= 0 && i < method_count, "index out of bounds");
   return true;
+}
+
+#endif
+
+/////////////// Unit tests ///////////////
+
+#ifndef PRODUCT
+
+class TestKlass {
+ public:
+  static void test_oop_is_instanceClassLoader() {
+    assert(SystemDictionary::ClassLoader_klass()->oop_is_instanceClassLoader(), "assert");
+    assert(!SystemDictionary::String_klass()->oop_is_instanceClassLoader(), "assert");
+  }
+};
+
+void TestKlass_test() {
+  TestKlass::test_oop_is_instanceClassLoader();
 }
 
 #endif

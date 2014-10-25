@@ -27,14 +27,11 @@ package jdk.nashorn.internal.codegen;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static jdk.nashorn.internal.codegen.CompilerConstants.SCOPE;
-
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.nashorn.internal.codegen.types.Type;
+import jdk.nashorn.internal.ir.BreakableNode;
 import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.SplitNode;
-import jdk.nashorn.internal.runtime.Scope;
 
 /**
  * Emitter used for splitting methods. Needs to keep track of if there are jump targets
@@ -47,37 +44,43 @@ public class SplitMethodEmitter extends MethodEmitter {
     private final SplitNode splitNode;
 
     private final List<Label> externalTargets = new ArrayList<>();
+    /**
+     * In addition to external target labels, we need to track the target breakables too as the code generator needs to
+     * be able to correctly pop the scopes to the target, see {@link CodeGenerator#leaveSplitNode(SplitNode)}. Note that
+     * this is only used within CodeGenerator, which doesn't mutate the AST, so keeping pointers to other nodes is not
+     * incorrect.
+     */
+    private final List<BreakableNode> externalTargetNodes = new ArrayList<>();
 
-    SplitMethodEmitter(final ClassEmitter classEmitter, final MethodVisitor mv, SplitNode splitNode) {
+    SplitMethodEmitter(final ClassEmitter classEmitter, final MethodVisitor mv, final SplitNode splitNode) {
         super(classEmitter, mv);
         this.splitNode = splitNode;
     }
 
     @Override
-    void splitAwareGoto(final LexicalContext lc, final Label label) {
+    void splitAwareGoto(final LexicalContext lc, final Label label, final BreakableNode targetNode) {
         assert splitNode != null;
-        final int index = findExternalTarget(lc, label);
+        final int index = findExternalTarget(lc, label, targetNode);
         if (index >= 0) {
-            loadCompilerConstant(SCOPE);
-            checkcast(Scope.class);
-            load(index + 1);
-            invoke(Scope.SET_SPLIT_STATE);
-            loadUndefined(Type.OBJECT);
-            _return(functionNode.getReturnType());
-            return;
+            setSplitState(index + 1); // 0 is ordinary return
+            final Type retType = functionNode.getReturnType();
+            loadUndefined(retType);
+            _return(retType);
+        } else {
+            super.splitAwareGoto(lc, label, targetNode);
         }
-        super.splitAwareGoto(lc, label);
     }
 
-    private int findExternalTarget(final LexicalContext lc, final Label label) {
+    private int findExternalTarget(final LexicalContext lc, final Label label, final BreakableNode targetNode) {
         final int index = externalTargets.indexOf(label);
 
         if (index >= 0) {
             return index;
         }
 
-        if (lc.isExternalTarget(splitNode, label)) {
+        if (lc.isExternalTarget(splitNode, targetNode)) {
             externalTargets.add(label);
+            externalTargetNodes.add(targetNode);
             return externalTargets.size() - 1;
         }
         return -1;
@@ -86,15 +89,14 @@ public class SplitMethodEmitter extends MethodEmitter {
     @Override
     MethodEmitter registerReturn() {
         setHasReturn();
-        loadCompilerConstant(SCOPE);
-        checkcast(Scope.class);
-        load(0);
-        invoke(Scope.SET_SPLIT_STATE);
-        return this;
+        return setSplitState(0);
     }
 
-    @Override
     final List<Label> getExternalTargets() {
         return externalTargets;
+    }
+
+    final List<BreakableNode> getExternalTargetNodes() {
+        return externalTargetNodes;
     }
 }

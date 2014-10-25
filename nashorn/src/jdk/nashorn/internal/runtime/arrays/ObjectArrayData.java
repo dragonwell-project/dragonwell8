@@ -25,7 +25,11 @@
 
 package jdk.nashorn.internal.runtime.arrays;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 
@@ -33,7 +37,7 @@ import jdk.nashorn.internal.runtime.ScriptRuntime;
  * Implementation of {@link ArrayData} as soon as an Object has been
  * written to the array
  */
-final class ObjectArrayData extends ArrayData {
+final class ObjectArrayData extends ContinuousArrayData {
 
     /**
      * The wrapped array
@@ -52,13 +56,26 @@ final class ObjectArrayData extends ArrayData {
     }
 
     @Override
+    public Class<?> getElementType() {
+        return Object.class;
+    }
+
+    @Override
     public ArrayData copy() {
-        return new ObjectArrayData(array.clone(), (int) length());
+        return new ObjectArrayData(array.clone(), (int)length);
     }
 
     @Override
     public Object[] asObjectArray() {
-        return Arrays.copyOf(array, (int) length());
+        return array.length == length ? array.clone() : asObjectArrayCopy();
+    }
+
+    private Object[] asObjectArrayCopy() {
+        final long len = length;
+        assert len <= Integer.MAX_VALUE;
+        final Object[] copy = new Object[(int)len];
+        System.arraycopy(array, 0, copy, 0, (int)len);
+        return copy;
     }
 
     @Override
@@ -73,7 +90,7 @@ final class ObjectArrayData extends ArrayData {
 
     @Override
     public ArrayData shiftRight(final int by) {
-        final ArrayData newData = ensure(by + length() - 1);
+        final ArrayData newData = ensure(by + length - 1);
         if (newData != this) {
             newData.shiftRight(by);
             return newData;
@@ -84,23 +101,15 @@ final class ObjectArrayData extends ArrayData {
 
     @Override
     public ArrayData ensure(final long safeIndex) {
-        if (safeIndex >= SparseArrayData.MAX_DENSE_LENGTH && safeIndex >= array.length) {
+        if (safeIndex >= SparseArrayData.MAX_DENSE_LENGTH) {
             return new SparseArrayData(this, safeIndex + 1);
         }
-
-        int newLength = array.length;
-
-        while (newLength <= safeIndex) {
-            newLength = ArrayData.nextSize(newLength);
+        final int alen = array.length;
+        if (safeIndex >= alen) {
+            final int newLength = ArrayData.nextSize((int)safeIndex);
+            array = Arrays.copyOf(array, newLength); //fill with undefined or OK? TODO
         }
-
-        if (array.length <= safeIndex) {
-            array = Arrays.copyOf(array, newLength);
-            Arrays.fill(array, (int) length(), newLength, ScriptRuntime.UNDEFINED);
-        }
-
         setLength(safeIndex + 1);
-
         return this;
     }
 
@@ -113,28 +122,28 @@ final class ObjectArrayData extends ArrayData {
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
         array[index] = value;
-        setLength(Math.max(index + 1, length()));
+        setLength(Math.max(index + 1, length));
         return this;
     }
 
     @Override
     public ArrayData set(final int index, final int value, final boolean strict) {
         array[index] = value;
-        setLength(Math.max(index + 1, length()));
+        setLength(Math.max(index + 1, length));
         return this;
     }
 
     @Override
     public ArrayData set(final int index, final long value, final boolean strict) {
         array[index] = value;
-        setLength(Math.max(index + 1, length()));
+        setLength(Math.max(index + 1, length));
         return this;
     }
 
     @Override
     public ArrayData set(final int index, final double value, final boolean strict) {
         array[index] = value;
-        setLength(Math.max(index + 1, length()));
+        setLength(Math.max(index + 1, length));
         return this;
     }
 
@@ -149,6 +158,45 @@ final class ObjectArrayData extends ArrayData {
         Arrays.fill(array, (int)Math.max(lo, 0L), (int)Math.min(hi, Integer.MAX_VALUE), ScriptRuntime.EMPTY);
         return this;
     }
+
+    @Override
+    public Type getOptimisticType() {
+        return Type.OBJECT;
+    }
+
+    private static final MethodHandle HAS_GET_ELEM = specialCall(MethodHandles.lookup(), ObjectArrayData.class, "getElem", Object.class, int.class).methodHandle();
+    private static final MethodHandle SET_ELEM     = specialCall(MethodHandles.lookup(), ObjectArrayData.class, "setElem", void.class, int.class, Object.class).methodHandle();
+
+    @SuppressWarnings("unused")
+    private Object getElem(final int index) {
+        if (has(index)) {
+            return array[index];
+        }
+        throw new ClassCastException();
+    }
+
+    @SuppressWarnings("unused")
+    private void setElem(final int index, final Object elem) {
+        if (hasRoomFor(index)) {
+            array[index] = elem;
+            return;
+        }
+        throw new ClassCastException();
+    }
+
+    @Override
+    public MethodHandle getElementGetter(final Class<?> returnType, final int programPoint) {
+        if (returnType.isPrimitive()) {
+            return null;
+        }
+        return getContinuousElementGetter(HAS_GET_ELEM, returnType, programPoint);
+    }
+
+    @Override
+    public MethodHandle getElementSetter(final Class<?> elementType) {
+        return getContinuousElementSetter(SET_ELEM, Object.class);
+    }
+
 
     @Override
     public int getInt(final int index) {
@@ -172,7 +220,7 @@ final class ObjectArrayData extends ArrayData {
 
     @Override
     public boolean has(final int index) {
-        return 0 <= index && index < length();
+        return 0 <= index && index < length;
     }
 
     @Override
@@ -188,12 +236,48 @@ final class ObjectArrayData extends ArrayData {
     }
 
     @Override
+    public long fastPush(final int arg) {
+        return fastPush((Object)arg);
+    }
+
+    @Override
+    public long fastPush(final long arg) {
+        return fastPush((Object)arg);
+    }
+
+    @Override
+    public long fastPush(final double arg) {
+        return fastPush((Object)arg);
+    }
+
+    @Override
+    public long fastPush(final Object arg) {
+        final int len = (int)length;
+        if (len == array.length) {
+            array = Arrays.copyOf(array, nextSize(len));
+        }
+        array[len] = arg;
+        return ++length;
+    }
+
+    @Override
+    public Object fastPopObject() {
+        if (length == 0) {
+            return ScriptRuntime.UNDEFINED;
+        }
+        final int newLength = (int)--length;
+        final Object elem = array[newLength];
+        array[newLength] = ScriptRuntime.EMPTY;
+        return elem;
+    }
+
+    @Override
     public Object pop() {
-        if (length() == 0) {
+        if (length == 0) {
             return ScriptRuntime.UNDEFINED;
         }
 
-        final int newLength = (int) (length() - 1);
+        final int newLength = (int)length - 1;
         final Object elem = array[newLength];
         setEmpty(newLength);
         setLength(newLength);
@@ -202,19 +286,30 @@ final class ObjectArrayData extends ArrayData {
 
     @Override
     public ArrayData slice(final long from, final long to) {
-        final long start     = from < 0 ? (from + length()) : from;
+        final long start     = from < 0 ? from + length : from;
         final long newLength = to - start;
         return new ObjectArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)newLength);
     }
 
     @Override
+    public ArrayData push(final boolean strict, final Object item) {
+        final long      len     = length;
+        final ArrayData newData = ensure(len);
+        if (newData == this) {
+            array[(int)len] = item;
+            return this;
+        }
+        return newData.set((int)len, item, strict);
+    }
+
+    @Override
     public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
-        final long oldLength = length();
+        final long oldLength = length;
         final long newLength = oldLength - removed + added;
         if (newLength > SparseArrayData.MAX_DENSE_LENGTH && newLength > array.length) {
             throw new UnsupportedOperationException();
         }
-        final ArrayData returnValue = (removed == 0) ?
+        final ArrayData returnValue = removed == 0 ?
                 EMPTY_ARRAY : new ObjectArrayData(Arrays.copyOfRange(array, start, start + removed), removed);
 
         if (newLength != oldLength) {

@@ -25,9 +25,9 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -107,8 +107,8 @@ public final class ScriptingFunctions {
 
         if (file instanceof File) {
             f = (File)file;
-        } else if (file instanceof String) {
-            f = new java.io.File((String)file);
+        } else if (file instanceof String || file instanceof ConsString) {
+            f = new java.io.File(((CharSequence)file).toString());
         }
 
         if (f == null || !f.isFile()) {
@@ -157,7 +157,7 @@ public final class ScriptingFunctions {
             // Set up ENV variables.
             final Map<String, String> environment = processBuilder.environment();
             environment.clear();
-            for (Map.Entry<Object, Object> entry : envProperties.entrySet()) {
+            for (final Map.Entry<Object, Object> entry : envProperties.entrySet()) {
                 environment.put(JSType.toString(entry.getKey()), JSType.toString(entry.getValue()));
             }
         }
@@ -168,15 +168,15 @@ public final class ScriptingFunctions {
 
         // Collect output.
         final StringBuilder outBuffer = new StringBuilder();
-        Thread outThread = new Thread(new Runnable() {
+        final Thread outThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                char buffer[] = new char[1024];
+                final char buffer[] = new char[1024];
                 try (final InputStreamReader inputStream = new InputStreamReader(process.getInputStream())) {
                     for (int length; (length = inputStream.read(buffer, 0, buffer.length)) != -1; ) {
                         outBuffer.append(buffer, 0, length);
                     }
-                } catch (IOException ex) {
+                } catch (final IOException ex) {
                     exception[0] = ex;
                 }
             }
@@ -184,15 +184,15 @@ public final class ScriptingFunctions {
 
         // Collect errors.
         final StringBuilder errBuffer = new StringBuilder();
-        Thread errThread = new Thread(new Runnable() {
+        final Thread errThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                char buffer[] = new char[1024];
+                final char buffer[] = new char[1024];
                 try (final InputStreamReader inputStream = new InputStreamReader(process.getErrorStream())) {
                     for (int length; (length = inputStream.read(buffer, 0, buffer.length)) != -1; ) {
                         errBuffer.append(buffer, 0, length);
                     }
-                } catch (IOException ex) {
+                } catch (final IOException ex) {
                     exception[1] = ex;
                 }
             }
@@ -205,10 +205,10 @@ public final class ScriptingFunctions {
         // If input is present, pass on to process.
         try (OutputStreamWriter outputStream = new OutputStreamWriter(process.getOutputStream())) {
             if (input != UNDEFINED) {
-                String in = JSType.toString(input);
+                final String in = JSType.toString(input);
                 outputStream.write(in, 0, in.length());
             }
-        } catch (IOException ex) {
+        } catch (final IOException ex) {
             // Process was not expecting input.  May be normal state of affairs.
         }
 
@@ -221,14 +221,14 @@ public final class ScriptingFunctions {
         final String err = errBuffer.toString();
 
         // Set globals for secondary results.
-        global.set(OUT_NAME, out, false);
-        global.set(ERR_NAME, err, false);
-        global.set(EXIT_NAME, exit, false);
+        global.set(OUT_NAME, out, 0);
+        global.set(ERR_NAME, err, 0);
+        global.set(EXIT_NAME, exit, 0);
 
         // Propagate exception if present.
-        for (int i = 0; i < exception.length; i++) {
-            if (exception[i] != null) {
-                throw exception[i];
+        for (final IOException element : exception) {
+            if (element != null) {
+                throw element;
             }
         }
 

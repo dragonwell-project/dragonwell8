@@ -25,56 +25,61 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+import static jdk.nashorn.internal.runtime.JSType.CONVERT_OBJECT_OPTIMISTIC;
+import static jdk.nashorn.internal.runtime.JSType.getAccessorTypeIndex;
+import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.concurrent.Callable;
-
-import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.lookup.Lookup;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
-
-import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
-import jdk.nashorn.internal.objects.Global;
-import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
-import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 
 /**
  * Property with user defined getters/setters. Actual getter and setter
  * functions are stored in underlying ScriptObject. Only the 'slot' info is
  * stored in the property.
- *
- * The slots here denote either ScriptObject embed field number or spill
- * array index. For spill array index, we use slot value of
- * (index + ScriptObject.embedSize). See also ScriptObject.getEmbedOrSpill
- * method. Negative slot value means that the corresponding getter or setter
- * is null. Note that always two slots are allocated in ScriptObject - but
- * negative (less by 1) slot number is stored for null getter or setter.
- * This is done so that when the property is redefined with a different
- * getter and setter (say, both non-null), we'll have spill slots to store
- * those. When a slot is negative, (-slot - 1) is the embed/spill index.
  */
-public final class UserAccessorProperty extends Property {
+public final class UserAccessorProperty extends SpillProperty {
 
-    /** User defined getter function slot. */
-    private final int getterSlot;
+    private static final long serialVersionUID = -5928687246526840321L;
 
-    /** User defined setter function slot. */
-    private final int setterSlot;
+    static final class Accessors {
+        Object getter;
+        Object setter;
+
+        Accessors(final Object getter, final Object setter) {
+            set(getter, setter);
+        }
+
+        final void set(final Object getter, final Object setter) {
+            this.getter = getter;
+            this.setter = setter;
+        }
+
+        @Override
+        public String toString() {
+            return "[getter=" + getter + " setter=" + setter + ']';
+        }
+    }
+
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     /** Getter method handle */
-    private final static CompilerConstants.Call USER_ACCESSOR_GETTER = staticCall(MethodHandles.lookup(), UserAccessorProperty.class,
-            "userAccessorGetter", Object.class, ScriptObject.class, int.class, Object.class);
+    private final static MethodHandle INVOKE_GETTER_ACCESSOR = findOwnMH_S("invokeGetterAccessor", Object.class, Accessors.class, Object.class);
 
     /** Setter method handle */
-    private final static CompilerConstants.Call USER_ACCESSOR_SETTER = staticCall(MethodHandles.lookup(), UserAccessorProperty.class,
-            "userAccessorSetter", void.class, ScriptObject.class, int.class, String.class, Object.class, Object.class);
+    private final static MethodHandle INVOKE_SETTER_ACCESSOR = findOwnMH_S("invokeSetterAccessor", void.class, Accessors.class, String.class, Object.class, Object.class);
 
     /** Dynamic invoker for getter */
-    private static final Object INVOKE_UA_GETTER = new Object();
+    private static final Object GETTER_INVOKER_KEY = new Object();
 
     private static MethodHandle getINVOKE_UA_GETTER() {
 
-        return Context.getGlobal().getDynamicInvoker(INVOKE_UA_GETTER,
+        return Context.getGlobal().getDynamicInvoker(GETTER_INVOKER_KEY,
                 new Callable<MethodHandle>() {
                     @Override
                     public MethodHandle call() {
@@ -85,9 +90,10 @@ public final class UserAccessorProperty extends Property {
     }
 
     /** Dynamic invoker for setter */
-    private static Object INVOKE_UA_SETTER = new Object();
+    private static Object SETTER_INVOKER_KEY = new Object();
+
     private static MethodHandle getINVOKE_UA_SETTER() {
-        return Context.getGlobal().getDynamicInvoker(INVOKE_UA_SETTER,
+        return Context.getGlobal().getDynamicInvoker(SETTER_INVOKER_KEY,
                 new Callable<MethodHandle>() {
                     @Override
                     public MethodHandle call() {
@@ -100,90 +106,144 @@ public final class UserAccessorProperty extends Property {
     /**
      * Constructor
      *
-     * @param key        property key
-     * @param flags      property flags
-     * @param getterSlot getter slot, starting at first embed
-     * @param setterSlot setter slot, starting at first embed
+     * @param key   property key
+     * @param flags property flags
+     * @param slot  spill slot
      */
-    UserAccessorProperty(final String key, final int flags, final int getterSlot, final int setterSlot) {
-        super(key, flags, -1);
-        this.getterSlot = getterSlot;
-        this.setterSlot = setterSlot;
+    UserAccessorProperty(final String key, final int flags, final int slot) {
+        super(key, flags, slot);
     }
 
     private UserAccessorProperty(final UserAccessorProperty property) {
         super(property);
-        this.getterSlot = property.getterSlot;
-        this.setterSlot = property.setterSlot;
     }
 
-    /**
-     * Return getter spill slot for this UserAccessorProperty.
-     * @return getter slot
-     */
-    public int getGetterSlot() {
-        return getterSlot;
-    }
-
-    /**
-     * Return setter spill slot for this UserAccessorProperty.
-     * @return setter slot
-     */
-    public int getSetterSlot() {
-        return setterSlot;
+    private UserAccessorProperty(final UserAccessorProperty property, final Class<?> newType) {
+        super(property, newType);
     }
 
     @Override
-    protected Property copy() {
+    public Property copy() {
         return new UserAccessorProperty(this);
     }
 
     @Override
-    public boolean equals(final Object other) {
-        if (!super.equals(other)) {
-            return false;
+    public Property copy(final Class<?> newType) {
+        return new UserAccessorProperty(this, newType);
+    }
+
+    void setAccessors(final ScriptObject sobj, final PropertyMap map, final Accessors gs) {
+        try {
+            //invoke the getter and find out
+            super.getSetter(Object.class, map).invokeExact((Object)sobj, (Object)gs);
+        } catch (final Error | RuntimeException t) {
+            throw t;
+        } catch (final Throwable t) {
+            throw new RuntimeException(t);
         }
+    }
 
-        final UserAccessorProperty uc = (UserAccessorProperty) other;
-        return getterSlot == uc.getterSlot && setterSlot == uc.setterSlot;
+    //pick the getter setter out of the correct spill slot in sobj
+    Accessors getAccessors(final ScriptObject sobj) {
+        try {
+            //invoke the super getter with this spill slot
+            //get the getter setter from the correct spill slot
+            final Object gs = super.getGetter(Object.class).invokeExact((Object)sobj);
+            return (Accessors)gs;
+        } catch (final Error | RuntimeException t) {
+            throw t;
+        } catch (final Throwable t) {
+            throw new RuntimeException(t);
+        }
     }
 
     @Override
-    public int hashCode() {
-        return super.hashCode() ^ getterSlot ^ setterSlot;
-    }
-
-    /*
-     * Accessors.
-     */
-    @Override
-    public int getSpillCount() {
-        return 2;
+    public Class<?> getCurrentType() {
+        return Object.class;
     }
 
     @Override
-    public boolean hasGetterFunction(final ScriptObject obj) {
-        return obj.getSpill(getterSlot) != null;
+    public boolean hasGetterFunction(final ScriptObject sobj) {
+        return getAccessors(sobj).getter != null;
     }
 
     @Override
-    public boolean hasSetterFunction(final ScriptObject obj) {
-        return obj.getSpill(setterSlot) != null;
+    public boolean hasSetterFunction(final ScriptObject sobj) {
+        return getAccessors(sobj).setter != null;
+    }
+
+    @Override
+    public int getIntValue(final ScriptObject self, final ScriptObject owner) {
+        return (int)getObjectValue(self, owner);
+    }
+
+    @Override
+    public long getLongValue(final ScriptObject self, final ScriptObject owner) {
+        return (long)getObjectValue(self, owner);
+    }
+
+    @Override
+    public double getDoubleValue(final ScriptObject self, final ScriptObject owner) {
+        return (double)getObjectValue(self, owner);
     }
 
     @Override
     public Object getObjectValue(final ScriptObject self, final ScriptObject owner) {
-        return userAccessorGetter(owner, getGetterSlot(), self);
+        return invokeGetterAccessor(getAccessors((owner != null) ? owner : self), self);
     }
 
     @Override
-    public void setObjectValue(final ScriptObject self, final ScriptObject owner, final Object value, final boolean strict) {
-        userAccessorSetter(owner, getSetterSlot(), strict ? getKey() : null, self, value);
+    public void setValue(final ScriptObject self, final ScriptObject owner, final int value, final boolean strict) {
+        setValue(self, owner, (Object) value, strict);
+    }
+
+    @Override
+    public void setValue(final ScriptObject self, final ScriptObject owner, final long value, final boolean strict) {
+        setValue(self, owner, (Object) value, strict);
+    }
+
+    @Override
+    public void setValue(final ScriptObject self, final ScriptObject owner, final double value, final boolean strict) {
+        setValue(self, owner, (Object) value, strict);
+    }
+
+    @Override
+    public void setValue(final ScriptObject self, final ScriptObject owner, final Object value, final boolean strict) {
+        invokeSetterAccessor(getAccessors((owner != null) ? owner : self), strict ? getKey() : null, self, value);
     }
 
     @Override
     public MethodHandle getGetter(final Class<?> type) {
-        return Lookup.filterReturnType(USER_ACCESSOR_GETTER.methodHandle(), type);
+        //this returns a getter on the format (Accessors, Object receiver)
+        return Lookup.filterReturnType(INVOKE_GETTER_ACCESSOR, type);
+    }
+
+    @Override
+    public MethodHandle getOptimisticGetter(final Class<?> type, final int programPoint) {
+        //fortype is always object, but in the optimistic world we have to throw
+        //unwarranted optimism exception for narrower types. We can improve this
+        //by checking for boxed types and unboxing them, but it is doubtful that
+        //this gives us any performance, as UserAccessorProperties are typically not
+        //primitives. Are there? TODO: investigate later. For now we just throw an
+        //exception for narrower types than object
+
+        if (type.isPrimitive()) {
+            final MethodHandle getter = getGetter(Object.class);
+            final MethodHandle mh =
+                    MH.asType(
+                            MH.filterReturnValue(
+                                    getter,
+                                    MH.insertArguments(
+                                            CONVERT_OBJECT_OPTIMISTIC.get(getAccessorTypeIndex(type)),
+                                            1,
+                                            programPoint)),
+                                    getter.type().changeReturnType(type));
+
+            return mh;
+        }
+
+        assert type == Object.class;
+        return getGetter(type);
     }
 
     @Override
@@ -192,36 +252,44 @@ public final class UserAccessorProperty extends Property {
     }
 
     @Override
-    public ScriptFunction getGetterFunction(final ScriptObject obj) {
-        final Object value = obj.getSpill(getterSlot);
-        return (value instanceof ScriptFunction) ? (ScriptFunction) value : null;
+    public ScriptFunction getGetterFunction(final ScriptObject sobj) {
+        final Object value = getAccessors(sobj).getter;
+        return (value instanceof ScriptFunction) ? (ScriptFunction)value : null;
     }
 
     @Override
     public MethodHandle getSetter(final Class<?> type, final PropertyMap currentMap) {
-        return USER_ACCESSOR_SETTER.methodHandle();
+        return INVOKE_SETTER_ACCESSOR;
     }
 
     @Override
-    public ScriptFunction getSetterFunction(final ScriptObject obj) {
-        final Object value = obj.getSpill(setterSlot);
-        return (value instanceof ScriptFunction) ? (ScriptFunction) value : null;
+    public ScriptFunction getSetterFunction(final ScriptObject sobj) {
+        final Object value = getAccessors(sobj).setter;
+        return (value instanceof ScriptFunction) ? (ScriptFunction)value : null;
+    }
+
+    /**
+     * Get the getter for the {@code Accessors} object.
+     * This is the the super {@code Object} type getter with {@code Accessors} return type.
+     *
+     * @return The getter handle for the Accessors
+     */
+    MethodHandle getAccessorsGetter() {
+        return super.getGetter(Object.class).asType(MethodType.methodType(Accessors.class, Object.class));
     }
 
     // User defined getter and setter are always called by "dyn:call". Note that the user
     // getter/setter may be inherited. If so, proto is bound during lookup. In either
     // inherited or self case, slot is also bound during lookup. Actual ScriptFunction
     // to be called is retrieved everytime and applied.
-    static Object userAccessorGetter(final ScriptObject proto, final int slot, final Object self) {
-        final ScriptObject container = (proto != null) ? proto : (ScriptObject)self;
-        final Object       func      = container.getSpill(slot);
-
+    private static Object invokeGetterAccessor(final Accessors gs, final Object self) {
+        final Object func = gs.getter;
         if (func instanceof ScriptFunction) {
             try {
                 return getINVOKE_UA_GETTER().invokeExact(func, self);
-            } catch(final Error|RuntimeException t) {
+            } catch (final Error | RuntimeException t) {
                 throw t;
-            } catch(final Throwable t) {
+            } catch (final Throwable t) {
                 throw new RuntimeException(t);
             }
         }
@@ -229,21 +297,23 @@ public final class UserAccessorProperty extends Property {
         return UNDEFINED;
     }
 
-    static void userAccessorSetter(final ScriptObject proto, final int slot, final String name, final Object self, final Object value) {
-        final ScriptObject container = (proto != null) ? proto : (ScriptObject)self;
-        final Object       func      = container.getSpill(slot);
-
+    private static void invokeSetterAccessor(final Accessors gs, final String name, final Object self, final Object value) {
+        final Object func = gs.setter;
         if (func instanceof ScriptFunction) {
             try {
                 getINVOKE_UA_SETTER().invokeExact(func, self, value);
-            } catch(final Error|RuntimeException t) {
+            } catch (final Error | RuntimeException t) {
                 throw t;
-            } catch(final Throwable t) {
+            } catch (final Throwable t) {
                 throw new RuntimeException(t);
             }
-        }  else if (name != null) {
+        } else if (name != null) {
             throw typeError("property.has.no.setter", name, ScriptRuntime.safeToString(self));
         }
+    }
+
+    private static MethodHandle findOwnMH_S(final String name, final Class<?> rtype, final Class<?>... types) {
+        return MH.findStatic(LOOKUP, UserAccessorProperty.class, name, MH.type(rtype, types));
     }
 
 }

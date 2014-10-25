@@ -100,7 +100,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, KlassHandle super_kl
   ResourceMark rm(THREAD);
   k->initialize_supers(super_klass(), CHECK);
   k->vtable()->initialize_vtable(false, CHECK);
-  java_lang_Class::create_mirror(k, Handle(NULL), CHECK);
+  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(NULL), CHECK);
 }
 
 GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots) {
@@ -193,8 +193,9 @@ void ArrayKlass::remove_unshareable_info() {
   set_component_mirror(NULL);
 }
 
-void ArrayKlass::restore_unshareable_info(TRAPS) {
-  Klass::restore_unshareable_info(CHECK);
+void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
+  assert(loader_data == ClassLoaderData::the_null_class_loader_data(), "array classes belong to null loader");
+  Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
   // Klass recreates the component mirror also
 }
 

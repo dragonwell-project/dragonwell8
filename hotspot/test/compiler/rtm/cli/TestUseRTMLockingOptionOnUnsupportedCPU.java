@@ -63,9 +63,7 @@ public class TestUseRTMLockingOptionOnUnsupportedCPU
             CommandLineOptionTest.verifySameJVMStartup(
                     new String[] { errorMessage },
                     new String[] { unrecongnizedOption },
-                    ExitCode.FAIL,
-                    CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                    "-XX:+UseRTMLocking");
+                    ExitCode.FAIL, "-XX:+UseRTMLocking");
             // verify that we can pass -UseRTMLocking without
             // getting any error messages
             CommandLineOptionTest.verifySameJVMStartup(
@@ -73,27 +71,20 @@ public class TestUseRTMLockingOptionOnUnsupportedCPU
                     new String[]{
                             errorMessage,
                             unrecongnizedOption
-                    }, ExitCode.OK,
-                    CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                    "-XX:-UseRTMLocking");
+                    }, ExitCode.OK, "-XX:-UseRTMLocking");
 
             // verify that UseRTMLocking is false by default
             CommandLineOptionTest.verifyOptionValueForSameVM("UseRTMLocking",
-                    TestUseRTMLockingOptionOnUnsupportedCPU.DEFAULT_VALUE,
-                    CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS);
+                    TestUseRTMLockingOptionOnUnsupportedCPU.DEFAULT_VALUE);
         } else {
             // verify that on non-x86 CPUs RTMLocking could not be used
             CommandLineOptionTest.verifySameJVMStartup(
                     new String[] { unrecongnizedOption },
-                    null, ExitCode.FAIL,
-                    CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                    "-XX:+UseRTMLocking");
+                    null, ExitCode.FAIL, "-XX:+UseRTMLocking");
 
             CommandLineOptionTest.verifySameJVMStartup(
                     new String[] { unrecongnizedOption },
-                    null, ExitCode.FAIL,
-                    CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                    "-XX:-UseRTMLocking");
+                    null, ExitCode.FAIL, "-XX:-UseRTMLocking");
         }
     }
 

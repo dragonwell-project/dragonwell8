@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,11 +92,17 @@
   template(java_lang_CharSequence,                    "java/lang/CharSequence")                   \
   template(java_lang_SecurityManager,                 "java/lang/SecurityManager")                \
   template(java_security_AccessControlContext,        "java/security/AccessControlContext")       \
+  template(java_security_CodeSource,                  "java/security/CodeSource")                 \
   template(java_security_ProtectionDomain,            "java/security/ProtectionDomain")           \
+  template(java_security_SecureClassLoader,           "java/security/SecureClassLoader")          \
+  template(java_net_URLClassLoader,                   "java/net/URLClassLoader")                  \
+  template(java_net_URL,                              "java/net/URL")                             \
+  template(java_util_jar_Manifest,                    "java/util/jar/Manifest")                   \
   template(impliesCreateAccessControlContext_name,    "impliesCreateAccessControlContext")        \
   template(java_io_OutputStream,                      "java/io/OutputStream")                     \
   template(java_io_Reader,                            "java/io/Reader")                           \
   template(java_io_BufferedReader,                    "java/io/BufferedReader")                   \
+  template(java_io_File,                              "java/io/File")                             \
   template(java_io_FileInputStream,                   "java/io/FileInputStream")                  \
   template(java_io_ByteArrayInputStream,              "java/io/ByteArrayInputStream")             \
   template(java_io_Serializable,                      "java/io/Serializable")                     \
@@ -107,6 +113,7 @@
   template(java_util_Hashtable,                       "java/util/Hashtable")                      \
   template(java_lang_Compiler,                        "java/lang/Compiler")                       \
   template(sun_misc_Signal,                           "sun/misc/Signal")                          \
+  template(sun_misc_Launcher,                         "sun/misc/Launcher")                        \
   template(java_lang_AssertionStatusDirectives,       "java/lang/AssertionStatusDirectives")      \
   template(getBootClassPathEntryForClass_name,        "getBootClassPathEntryForClass")            \
   template(sun_misc_PostVMInitHook,                   "sun/misc/PostVMInitHook")                  \
@@ -398,6 +405,14 @@
   template(signers_name,                              "signers_name")                             \
   template(loader_data_name,                          "loader_data")                              \
   template(dependencies_name,                         "dependencies")                             \
+  template(input_stream_void_signature,               "(Ljava/io/InputStream;)V")                 \
+  template(getFileURL_name,                           "getFileURL")                               \
+  template(getFileURL_signature,                      "(Ljava/io/File;)Ljava/net/URL;")           \
+  template(definePackageInternal_name,                "definePackageInternal")                    \
+  template(definePackageInternal_signature,           "(Ljava/lang/String;Ljava/util/jar/Manifest;Ljava/net/URL;)V") \
+  template(getProtectionDomain_name,                  "getProtectionDomain")                      \
+  template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
+  template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
                                                                                                   \
   /* non-intrinsic name/signature pairs: */                                                       \
   template(register_method_name,                      "register")                                 \
@@ -573,6 +588,7 @@
   template(serializePropertiesToByteArray_signature,   "()[B")                                                    \
   template(serializeAgentPropertiesToByteArray_name,   "serializeAgentPropertiesToByteArray")                     \
   template(classRedefinedCount_name,                   "classRedefinedCount")                                     \
+  template(classLoader_name,                           "classLoader")                                             \
                                                                                                                   \
   /* trace signatures */                                                                                          \
   TRACE_TEMPLATES(template)                                                                                       \
@@ -772,6 +788,11 @@
    do_name(     encodeISOArray_name,                             "encodeISOArray")                                      \
    do_signature(encodeISOArray_signature,                        "([CI[BII)I")                                          \
                                                                                                                         \
+  do_class(java_math_BigInteger,                      "java/math/BigInteger")                                           \
+  do_intrinsic(_multiplyToLen,      java_math_BigInteger, multiplyToLen_name, multiplyToLen_signature, F_R)             \
+   do_name(     multiplyToLen_name,                             "multiplyToLen")                                        \
+   do_signature(multiplyToLen_signature,                        "([II[II[I)[I")                                         \
+                                                                                                                        \
   /* java/lang/ref/Reference */                                                                                         \
   do_intrinsic(_Reference_get,            java_lang_ref_Reference, get_name,    void_object_signature, F_R)             \
                                                                                                                         \
@@ -789,6 +810,26 @@
    do_name(     encrypt_name,                                      "encrypt")                                           \
    do_name(     decrypt_name,                                      "decrypt")                                           \
    do_signature(byteArray_int_int_byteArray_int_signature,         "([BII[BI)I")                                        \
+                                                                                                                        \
+  /* support for sun.security.provider.SHA */                                                                           \
+  do_class(sun_security_provider_sha,                              "sun/security/provider/SHA")                         \
+  do_intrinsic(_sha_implCompress, sun_security_provider_sha, implCompress_name, implCompress_signature, F_R)            \
+   do_name(     implCompress_name,                                 "implCompress")                                      \
+   do_signature(implCompress_signature,                            "([BI)V")                                            \
+                                                                                                                        \
+  /* support for sun.security.provider.SHA2 */                                                                          \
+  do_class(sun_security_provider_sha2,                             "sun/security/provider/SHA2")                        \
+  do_intrinsic(_sha2_implCompress, sun_security_provider_sha2, implCompress_name, implCompress_signature, F_R)          \
+                                                                                                                        \
+  /* support for sun.security.provider.SHA5 */                                                                          \
+  do_class(sun_security_provider_sha5,                             "sun/security/provider/SHA5")                        \
+  do_intrinsic(_sha5_implCompress, sun_security_provider_sha5, implCompress_name, implCompress_signature, F_R)          \
+                                                                                                                        \
+  /* support for sun.security.provider.DigestBase */                                                                    \
+  do_class(sun_security_provider_digestbase,                       "sun/security/provider/DigestBase")                  \
+  do_intrinsic(_digestBase_implCompressMB, sun_security_provider_digestbase, implCompressMB_name, implCompressMB_signature, F_R)   \
+   do_name(     implCompressMB_name,                               "implCompressMultiBlock")                            \
+   do_signature(implCompressMB_signature,                          "([BII)I")                                           \
                                                                                                                         \
   /* support for java.util.zip */                                                                                       \
   do_class(java_util_zip_CRC32,           "java/util/zip/CRC32")                                                        \

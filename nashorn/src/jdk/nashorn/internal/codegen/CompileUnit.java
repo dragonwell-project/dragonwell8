@@ -25,10 +25,13 @@
 
 package jdk.nashorn.internal.codegen;
 
+import java.util.Set;
+import java.util.TreeSet;
+
 /**
  * Used to track split class compilation.
  */
-public class CompileUnit implements Comparable<CompileUnit> {
+public final class CompileUnit implements Comparable<CompileUnit> {
     /** Current class name */
     private final String className;
 
@@ -39,14 +42,53 @@ public class CompileUnit implements Comparable<CompileUnit> {
 
     private Class<?> clazz;
 
-    CompileUnit(final String className, final ClassEmitter classEmitter) {
-        this(className, classEmitter, 0L);
-    }
+    private boolean isUsed;
+
+    private static int emittedUnitCount;
 
     CompileUnit(final String className, final ClassEmitter classEmitter, final long initialWeight) {
         this.className    = className;
-        this.classEmitter = classEmitter;
         this.weight       = initialWeight;
+        this.classEmitter = classEmitter;
+    }
+
+    static Set<CompileUnit> createCompileUnitSet() {
+        return new TreeSet<>();
+    }
+
+    static void increaseEmitCount() {
+        emittedUnitCount++;
+    }
+
+    /**
+     * Get the amount of emitted compile units so far in the system
+     * @return emitted compile unit count
+     */
+    public static int getEmittedUnitCount() {
+        return emittedUnitCount;
+    }
+
+    /**
+     * Check if this compile unit is used
+     * @return true if tagged as in use - i.e active code that needs to be generated
+     */
+    public boolean isUsed() {
+        return isUsed;
+    }
+
+    /**
+     * Check if a compile unit has code, not counting inits and clinits
+     * @return true of if there is "real code" in the compile unit
+     */
+    public boolean hasCode() {
+        return (classEmitter.getMethodCount() - classEmitter.getInitCount() - classEmitter.getClinitCount()) > 0;
+    }
+
+    /**
+     * Tag this compile unit as used
+     */
+    public void setUsed() {
+        this.isUsed = true;
     }
 
     /**
@@ -112,13 +154,18 @@ public class CompileUnit implements Comparable<CompileUnit> {
         return className;
     }
 
-    @Override
-    public String toString() {
-        return "[classname=" + className + " weight=" + weight + '/' + Splitter.SPLIT_THRESHOLD + ']';
+    private static String shortName(final String name) {
+        return name.lastIndexOf('/') == -1 ? name : name.substring(name.lastIndexOf('/') + 1);
     }
 
     @Override
-    public int compareTo(CompileUnit o) {
+    public String toString() {
+        final String methods = classEmitter != null ? classEmitter.getMethodNames().toString() : "<anon>";
+        return "[CompileUnit className=" + shortName(className) + " weight=" + weight + '/' + Splitter.SPLIT_THRESHOLD + " hasCode=" + methods + ']';
+    }
+
+    @Override
+    public int compareTo(final CompileUnit o) {
         return className.compareTo(o.className);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -359,6 +359,17 @@ abstract class Handshaker {
         }
     }
 
+    String getEndpointIdentificationAlgorithmSE() {
+        SSLParameters paras;
+        if (conn != null) {
+            paras = conn.getSSLParameters();
+        } else {
+            paras = engine.getSSLParameters();
+        }
+
+        return paras.getEndpointIdentificationAlgorithm();
+    }
+
     private void setVersionSE(ProtocolVersion protocolVersion) {
         if (conn != null) {
             conn.setVersion(protocolVersion);
@@ -656,8 +667,15 @@ abstract class Handshaker {
      */
     ProtocolList getActiveProtocols() {
         if (activeProtocols == null) {
+            boolean enabledSSL20Hello = false;
             ArrayList<ProtocolVersion> protocols = new ArrayList<>(4);
             for (ProtocolVersion protocol : enabledProtocols.collection()) {
+                // Need not to check the SSL20Hello protocol.
+                if (protocol.v == ProtocolVersion.SSL20Hello.v) {
+                    enabledSSL20Hello = true;
+                    continue;
+                }
+
                 boolean found = false;
                 for (CipherSuite suite : enabledCipherSuites.collection()) {
                     if (suite.isAvailable() && suite.obsoleted > protocol.v &&
@@ -684,6 +702,11 @@ abstract class Handshaker {
                         "No available cipher suite for " + protocol);
                 }
             }
+
+            if (!protocols.isEmpty() && enabledSSL20Hello) {
+                protocols.add(ProtocolVersion.SSL20Hello);
+            }
+
             activeProtocols = new ProtocolList(protocols);
         }
 
