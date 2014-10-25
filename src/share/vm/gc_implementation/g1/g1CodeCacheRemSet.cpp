@@ -22,298 +22,386 @@
  *
  */
 
-
 #include "precompiled.hpp"
+#include "code/codeCache.hpp"
 #include "code/nmethod.hpp"
 #include "gc_implementation/g1/g1CodeCacheRemSet.hpp"
+#include "gc_implementation/g1/heapRegion.hpp"
+#include "memory/heap.hpp"
 #include "memory/iterator.hpp"
+#include "oops/oop.inline.hpp"
+#include "utilities/hashtable.inline.hpp"
+#include "utilities/stack.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
-G1CodeRootChunk::G1CodeRootChunk() : _top(NULL), _next(NULL), _prev(NULL) {
-  _top = bottom();
+class CodeRootSetTable : public Hashtable<nmethod*, mtGC> {
+  friend class G1CodeRootSetTest;
+  typedef HashtableEntry<nmethod*, mtGC> Entry;
+
+  static CodeRootSetTable* volatile _purge_list;
+
+  CodeRootSetTable* _purge_next;
+
+  unsigned int compute_hash(nmethod* nm) {
+    uintptr_t hash = (uintptr_t)nm;
+    return hash ^ (hash >> 7); // code heap blocks are 128byte aligned
+  }
+
+  void remove_entry(Entry* e, Entry* previous);
+  Entry* new_entry(nmethod* nm);
+
+ public:
+  CodeRootSetTable(int size) : Hashtable<nmethod*, mtGC>(size, sizeof(Entry)), _purge_next(NULL) {}
+  ~CodeRootSetTable();
+
+  // Needs to be protected locks
+  bool add(nmethod* nm);
+  bool remove(nmethod* nm);
+
+  // Can be called without locking
+  bool contains(nmethod* nm);
+
+  int entry_size() const { return BasicHashtable<mtGC>::entry_size(); }
+
+  void copy_to(CodeRootSetTable* new_table);
+  void nmethods_do(CodeBlobClosure* blk);
+
+  template<typename CB>
+  int remove_if(CB& should_remove);
+
+  static void purge_list_append(CodeRootSetTable* tbl);
+  static void purge();
+
+  static size_t static_mem_size() {
+    return sizeof(_purge_list);
+  }
+};
+
+CodeRootSetTable* volatile CodeRootSetTable::_purge_list = NULL;
+
+CodeRootSetTable::Entry* CodeRootSetTable::new_entry(nmethod* nm) {
+  unsigned int hash = compute_hash(nm);
+  Entry* entry = (Entry*) new_entry_free_list();
+  if (entry == NULL) {
+    entry = (Entry*) NEW_C_HEAP_ARRAY2(char, entry_size(), mtGC, CURRENT_PC);
+  }
+  entry->set_next(NULL);
+  entry->set_hash(hash);
+  entry->set_literal(nm);
+  return entry;
 }
 
-void G1CodeRootChunk::reset() {
-  _next = _prev = NULL;
-  _top = bottom();
+void CodeRootSetTable::remove_entry(Entry* e, Entry* previous) {
+  int index = hash_to_index(e->hash());
+  assert((e == bucket(index)) == (previous == NULL), "if e is the first entry then previous should be null");
+
+  if (previous == NULL) {
+    set_entry(index, e->next());
+  } else {
+    previous->set_next(e->next());
+  }
+  free_entry(e);
 }
 
-void G1CodeRootChunk::nmethods_do(CodeBlobClosure* cl) {
-  nmethod** cur = bottom();
-  while (cur != _top) {
-    cl->do_code_blob(*cur);
-    cur++;
+CodeRootSetTable::~CodeRootSetTable() {
+  for (int index = 0; index < table_size(); ++index) {
+    for (Entry* e = bucket(index); e != NULL; ) {
+      Entry* to_remove = e;
+      // read next before freeing.
+      e = e->next();
+      unlink_entry(to_remove);
+      FREE_C_HEAP_ARRAY(char, to_remove, mtGC);
+    }
+  }
+  assert(number_of_entries() == 0, "should have removed all entries");
+  free_buckets();
+  for (BasicHashtableEntry<mtGC>* e = new_entry_free_list(); e != NULL; e = new_entry_free_list()) {
+    FREE_C_HEAP_ARRAY(char, e, mtGC);
   }
 }
 
-FreeList<G1CodeRootChunk> G1CodeRootSet::_free_list;
-size_t G1CodeRootSet::_num_chunks_handed_out = 0;
-
-G1CodeRootChunk* G1CodeRootSet::new_chunk() {
-  G1CodeRootChunk* result = _free_list.get_chunk_at_head();
-  if (result == NULL) {
-    result = new G1CodeRootChunk();
+bool CodeRootSetTable::add(nmethod* nm) {
+  if (!contains(nm)) {
+    Entry* e = new_entry(nm);
+    int index = hash_to_index(e->hash());
+    add_entry(index, e);
+    return true;
   }
-  G1CodeRootSet::_num_chunks_handed_out++;
-  result->reset();
-  return result;
+  return false;
 }
 
-void G1CodeRootSet::free_chunk(G1CodeRootChunk* chunk) {
-  _free_list.return_chunk_at_head(chunk);
-  G1CodeRootSet::_num_chunks_handed_out--;
-}
-
-void G1CodeRootSet::free_all_chunks(FreeList<G1CodeRootChunk>* list) {
-  G1CodeRootSet::_num_chunks_handed_out -= list->count();
-  _free_list.prepend(list);
-}
-
-void G1CodeRootSet::purge_chunks(size_t keep_ratio) {
-  size_t keep = G1CodeRootSet::_num_chunks_handed_out * keep_ratio / 100;
-
-  if (keep >= (size_t)_free_list.count()) {
-    return;
+bool CodeRootSetTable::contains(nmethod* nm) {
+  int index = hash_to_index(compute_hash(nm));
+  for (Entry* e = bucket(index); e != NULL; e = e->next()) {
+    if (e->literal() == nm) {
+      return true;
+    }
   }
+  return false;
+}
 
-  FreeList<G1CodeRootChunk> temp;
-  temp.initialize();
-  temp.set_size(G1CodeRootChunk::word_size());
+bool CodeRootSetTable::remove(nmethod* nm) {
+  int index = hash_to_index(compute_hash(nm));
+  Entry* previous = NULL;
+  for (Entry* e = bucket(index); e != NULL; previous = e, e = e->next()) {
+    if (e->literal() == nm) {
+      remove_entry(e, previous);
+      return true;
+    }
+  }
+  return false;
+}
 
-  _free_list.getFirstNChunksFromList((size_t)_free_list.count() - keep, &temp);
+void CodeRootSetTable::copy_to(CodeRootSetTable* new_table) {
+  for (int index = 0; index < table_size(); ++index) {
+    for (Entry* e = bucket(index); e != NULL; e = e->next()) {
+      new_table->add(e->literal());
+    }
+  }
+  new_table->copy_freelist(this);
+}
 
-  G1CodeRootChunk* cur = temp.get_chunk_at_head();
-  while (cur != NULL) {
-    delete cur;
-    cur = temp.get_chunk_at_head();
+void CodeRootSetTable::nmethods_do(CodeBlobClosure* blk) {
+  for (int index = 0; index < table_size(); ++index) {
+    for (Entry* e = bucket(index); e != NULL; e = e->next()) {
+      blk->do_code_blob(e->literal());
+    }
   }
 }
 
-size_t G1CodeRootSet::static_mem_size() {
-  return sizeof(_free_list) + sizeof(_num_chunks_handed_out);
-}
-
-size_t G1CodeRootSet::fl_mem_size() {
-  return _free_list.count() * _free_list.size();
-}
-
-void G1CodeRootSet::initialize() {
-  _free_list.initialize();
-  _free_list.set_size(G1CodeRootChunk::word_size());
-}
-
-G1CodeRootSet::G1CodeRootSet() : _list(), _length(0) {
-  _list.initialize();
-  _list.set_size(G1CodeRootChunk::word_size());
+template<typename CB>
+int CodeRootSetTable::remove_if(CB& should_remove) {
+  int num_removed = 0;
+  for (int index = 0; index < table_size(); ++index) {
+    Entry* previous = NULL;
+    Entry* e = bucket(index);
+    while (e != NULL) {
+      Entry* next = e->next();
+      if (should_remove(e->literal())) {
+        remove_entry(e, previous);
+        ++num_removed;
+      } else {
+        previous = e;
+      }
+      e = next;
+    }
+  }
+  return num_removed;
 }
 
 G1CodeRootSet::~G1CodeRootSet() {
-  clear();
+  delete _table;
+}
+
+CodeRootSetTable* G1CodeRootSet::load_acquire_table() {
+  return (CodeRootSetTable*) OrderAccess::load_ptr_acquire(&_table);
+}
+
+void G1CodeRootSet::allocate_small_table() {
+  _table = new CodeRootSetTable(SmallSize);
+}
+
+void CodeRootSetTable::purge_list_append(CodeRootSetTable* table) {
+  for (;;) {
+    table->_purge_next = _purge_list;
+    CodeRootSetTable* old = (CodeRootSetTable*) Atomic::cmpxchg_ptr(table, &_purge_list, table->_purge_next);
+    if (old == table->_purge_next) {
+      break;
+    }
+  }
+}
+
+void CodeRootSetTable::purge() {
+  CodeRootSetTable* table = _purge_list;
+  _purge_list = NULL;
+  while (table != NULL) {
+    CodeRootSetTable* to_purge = table;
+    table = table->_purge_next;
+    delete to_purge;
+  }
+}
+
+void G1CodeRootSet::move_to_large() {
+  CodeRootSetTable* temp = new CodeRootSetTable(LargeSize);
+
+  _table->copy_to(temp);
+
+  CodeRootSetTable::purge_list_append(_table);
+
+  OrderAccess::release_store_ptr(&_table, temp);
+}
+
+
+void G1CodeRootSet::purge() {
+  CodeRootSetTable::purge();
+}
+
+size_t G1CodeRootSet::static_mem_size() {
+  return CodeRootSetTable::static_mem_size();
 }
 
 void G1CodeRootSet::add(nmethod* method) {
-  if (!contains(method)) {
-    // Try to add the nmethod. If there is not enough space, get a new chunk.
-    if (_list.head() == NULL || _list.head()->is_full()) {
-      G1CodeRootChunk* cur = new_chunk();
-      _list.return_chunk_at_head(cur);
-    }
-    bool result = _list.head()->add(method);
-    guarantee(result, err_msg("Not able to add nmethod "PTR_FORMAT" to newly allocated chunk.", method));
-    _length++;
+  bool added = false;
+  if (is_empty()) {
+    allocate_small_table();
+  }
+  added = _table->add(method);
+  if (_length == Threshold) {
+    move_to_large();
+  }
+  if (added) {
+    ++_length;
   }
 }
 
-void G1CodeRootSet::remove(nmethod* method) {
-  G1CodeRootChunk* found = find(method);
-  if (found != NULL) {
-    bool result = found->remove(method);
-    guarantee(result, err_msg("could not find nmethod "PTR_FORMAT" during removal although we previously found it", method));
-    // eventually free completely emptied chunk
-    if (found->is_empty()) {
-      _list.remove_chunk(found);
-      free(found);
-    }
+bool G1CodeRootSet::remove(nmethod* method) {
+  bool removed = false;
+  if (_table != NULL) {
+    removed = _table->remove(method);
+  }
+  if (removed) {
     _length--;
+    if (_length == 0) {
+      clear();
+    }
   }
-  assert(!contains(method), err_msg(PTR_FORMAT" still contains nmethod "PTR_FORMAT, this, method));
-}
-
-nmethod* G1CodeRootSet::pop() {
-  do {
-    G1CodeRootChunk* cur = _list.head();
-    if (cur == NULL) {
-      assert(_length == 0, "when there are no chunks, there should be no elements");
-      return NULL;
-    }
-    nmethod* result = cur->pop();
-    if (result != NULL) {
-      _length--;
-      return result;
-    } else {
-      free(_list.get_chunk_at_head());
-    }
-  } while (true);
-}
-
-G1CodeRootChunk* G1CodeRootSet::find(nmethod* method) {
-  G1CodeRootChunk* cur = _list.head();
-  while (cur != NULL) {
-    if (cur->contains(method)) {
-      return cur;
-    }
-    cur = (G1CodeRootChunk*)cur->next();
-  }
-  return NULL;
-}
-
-void G1CodeRootSet::free(G1CodeRootChunk* chunk) {
-  free_chunk(chunk);
+  return removed;
 }
 
 bool G1CodeRootSet::contains(nmethod* method) {
-  return find(method) != NULL;
+  CodeRootSetTable* table = load_acquire_table();
+  if (table != NULL) {
+    return table->contains(method);
+  }
+  return false;
 }
 
 void G1CodeRootSet::clear() {
-  free_all_chunks(&_list);
+  delete _table;
+  _table = NULL;
   _length = 0;
 }
 
+size_t G1CodeRootSet::mem_size() {
+  return sizeof(*this) +
+      (_table != NULL ? sizeof(CodeRootSetTable) + _table->entry_size() * _length : 0);
+}
+
 void G1CodeRootSet::nmethods_do(CodeBlobClosure* blk) const {
-  G1CodeRootChunk* cur = _list.head();
-  while (cur != NULL) {
-    cur->nmethods_do(blk);
-    cur = (G1CodeRootChunk*)cur->next();
+  if (_table != NULL) {
+    _table->nmethods_do(blk);
   }
 }
 
-size_t G1CodeRootSet::mem_size() {
-  return sizeof(this) + _list.count() * _list.size();
+class CleanCallback : public StackObj {
+  class PointsIntoHRDetectionClosure : public OopClosure {
+    HeapRegion* _hr;
+   public:
+    bool _points_into;
+    PointsIntoHRDetectionClosure(HeapRegion* hr) : _hr(hr), _points_into(false) {}
+
+    void do_oop(narrowOop* o) {
+      do_oop_work(o);
+    }
+
+    void do_oop(oop* o) {
+      do_oop_work(o);
+    }
+
+    template <typename T>
+    void do_oop_work(T* p) {
+      if (_hr->is_in(oopDesc::load_decode_heap_oop(p))) {
+        _points_into = true;
+      }
+    }
+  };
+
+  PointsIntoHRDetectionClosure _detector;
+  CodeBlobToOopClosure _blobs;
+
+ public:
+  CleanCallback(HeapRegion* hr) : _detector(hr), _blobs(&_detector, !CodeBlobToOopClosure::FixRelocations) {}
+
+  bool operator() (nmethod* nm) {
+    _detector._points_into = false;
+    _blobs.do_code_blob(nm);
+    return !_detector._points_into;
+  }
+};
+
+void G1CodeRootSet::clean(HeapRegion* owner) {
+  CleanCallback should_clean(owner);
+  if (_table != NULL) {
+    int removed = _table->remove_if(should_clean);
+    assert((size_t)removed <= _length, "impossible");
+    _length -= removed;
+  }
+  if (_length == 0) {
+    clear();
+  }
 }
 
 #ifndef PRODUCT
 
-void G1CodeRootSet::test() {
-  initialize();
-
-  assert(_free_list.count() == 0, "Free List must be empty");
-  assert(_num_chunks_handed_out == 0, "No elements must have been handed out yet");
-
-  // The number of chunks that we allocate for purge testing.
-  size_t const num_chunks = 10;
-  {
-    G1CodeRootSet set1;
-    assert(set1.is_empty(), "Code root set must be initially empty but is not.");
-
-    set1.add((nmethod*)1);
-    assert(_num_chunks_handed_out == 1,
-           err_msg("Must have allocated and handed out one chunk, but handed out "
-                   SIZE_FORMAT" chunks", _num_chunks_handed_out));
-    assert(set1.length() == 1, err_msg("Added exactly one element, but set contains "
-                                       SIZE_FORMAT" elements", set1.length()));
-
-    // G1CodeRootChunk::word_size() is larger than G1CodeRootChunk::num_entries which
-    // we cannot access.
-    for (uint i = 0; i < G1CodeRootChunk::word_size() + 1; i++) {
-      set1.add((nmethod*)1);
-    }
-    assert(_num_chunks_handed_out == 1,
-           err_msg("Duplicate detection must have prevented allocation of further "
-                   "chunks but contains "SIZE_FORMAT, _num_chunks_handed_out));
-    assert(set1.length() == 1,
-           err_msg("Duplicate detection should not have increased the set size but "
-                   "is "SIZE_FORMAT, set1.length()));
-
-    size_t num_total_after_add = G1CodeRootChunk::word_size() + 1;
-    for (size_t i = 0; i < num_total_after_add - 1; i++) {
-      set1.add((nmethod*)(2 + i));
-    }
-    assert(_num_chunks_handed_out > 1,
-           "After adding more code roots, more than one chunks should have been handed out");
-    assert(set1.length() == num_total_after_add,
-           err_msg("After adding in total "SIZE_FORMAT" distinct code roots, they "
-                   "need to be in the set, but there are only "SIZE_FORMAT,
-                   num_total_after_add, set1.length()));
-
-    size_t num_popped = 0;
-    while (set1.pop() != NULL) {
-      num_popped++;
-    }
-    assert(num_popped == num_total_after_add,
-           err_msg("Managed to pop "SIZE_FORMAT" code roots, but only "SIZE_FORMAT" "
-                   "were added", num_popped, num_total_after_add));
-    assert(_num_chunks_handed_out == 0,
-           err_msg("After popping all elements, all chunks must have been returned "
-                   "but are still "SIZE_FORMAT, _num_chunks_handed_out));
-
-    purge_chunks(0);
-    assert(_free_list.count() == 0,
-           err_msg("After purging everything, the free list must be empty but still "
-                   "contains "SIZE_FORMAT" chunks", _free_list.count()));
-
-    // Add some more handed out chunks.
-    size_t i = 0;
-    while (_num_chunks_handed_out < num_chunks) {
-      set1.add((nmethod*)i);
-      i++;
-    }
-
+class G1CodeRootSetTest {
+ public:
+  static void test() {
     {
-      // Generate chunks on the free list.
-      G1CodeRootSet set2;
-      size_t i = 0;
-      while (_num_chunks_handed_out < num_chunks * 2) {
-        set2.add((nmethod*)i);
-        i++;
+      G1CodeRootSet set1;
+      assert(set1.is_empty(), "Code root set must be initially empty but is not.");
+
+      assert(G1CodeRootSet::static_mem_size() == sizeof(void*),
+          err_msg("The code root set's static memory usage is incorrect, "SIZE_FORMAT" bytes", G1CodeRootSet::static_mem_size()));
+
+      set1.add((nmethod*)1);
+      assert(set1.length() == 1, err_msg("Added exactly one element, but set contains "
+          SIZE_FORMAT" elements", set1.length()));
+
+      const size_t num_to_add = (size_t)G1CodeRootSet::Threshold + 1;
+
+      for (size_t i = 1; i <= num_to_add; i++) {
+        set1.add((nmethod*)1);
       }
-      // Exit of the scope of the set2 object will call the destructor that generates
-      // num_chunks elements on the free list.
+      assert(set1.length() == 1,
+          err_msg("Duplicate detection should not have increased the set size but "
+              "is "SIZE_FORMAT, set1.length()));
+
+      for (size_t i = 2; i <= num_to_add; i++) {
+        set1.add((nmethod*)(uintptr_t)(i));
+      }
+      assert(set1.length() == num_to_add,
+          err_msg("After adding in total "SIZE_FORMAT" distinct code roots, they "
+              "need to be in the set, but there are only "SIZE_FORMAT,
+              num_to_add, set1.length()));
+
+      assert(CodeRootSetTable::_purge_list != NULL, "should have grown to large hashtable");
+
+      size_t num_popped = 0;
+      for (size_t i = 1; i <= num_to_add; i++) {
+        bool removed = set1.remove((nmethod*)i);
+        if (removed) {
+          num_popped += 1;
+        } else {
+          break;
+        }
+      }
+      assert(num_popped == num_to_add,
+          err_msg("Managed to pop "SIZE_FORMAT" code roots, but only "SIZE_FORMAT" "
+              "were added", num_popped, num_to_add));
+      assert(CodeRootSetTable::_purge_list != NULL, "should have grown to large hashtable");
+
+      G1CodeRootSet::purge();
+
+      assert(CodeRootSetTable::_purge_list == NULL, "should have purged old small tables");
+
     }
 
-    assert(_num_chunks_handed_out == num_chunks,
-           err_msg("Deletion of the second set must have resulted in giving back "
-                   "those, but there is still "SIZE_FORMAT" handed out, expecting "
-                   SIZE_FORMAT, _num_chunks_handed_out, num_chunks));
-    assert((size_t)_free_list.count() == num_chunks,
-           err_msg("After freeing "SIZE_FORMAT" chunks, they must be on the free list "
-                   "but there are only "SIZE_FORMAT, num_chunks, _free_list.count()));
-
-    size_t const test_percentage = 50;
-    purge_chunks(test_percentage);
-    assert(_num_chunks_handed_out == num_chunks,
-           err_msg("Purging must not hand out chunks but there are "SIZE_FORMAT,
-                   _num_chunks_handed_out));
-    assert((size_t)_free_list.count() == (ssize_t)(num_chunks * test_percentage / 100),
-           err_msg("Must have purged "SIZE_FORMAT" percent of "SIZE_FORMAT" chunks"
-                   "but there are "SSIZE_FORMAT, test_percentage, num_chunks,
-                   _free_list.count()));
-    // Purge the remainder of the chunks on the free list.
-    purge_chunks(0);
-    assert(_free_list.count() == 0, "Free List must be empty");
-    assert(_num_chunks_handed_out == num_chunks,
-           err_msg("Expected to be "SIZE_FORMAT" chunks handed out from the first set "
-                   "but there are "SIZE_FORMAT, num_chunks, _num_chunks_handed_out));
-
-    // Exit of the scope of the set1 object will call the destructor that generates
-    // num_chunks additional elements on the free list.
   }
-
-  assert(_num_chunks_handed_out == 0,
-         err_msg("Deletion of the only set must have resulted in no chunks handed "
-                 "out, but there is still "SIZE_FORMAT" handed out", _num_chunks_handed_out));
-  assert((size_t)_free_list.count() == num_chunks,
-         err_msg("After freeing "SIZE_FORMAT" chunks, they must be on the free list "
-                 "but there are only "SSIZE_FORMAT, num_chunks, _free_list.count()));
-
-  // Restore initial state.
-  purge_chunks(0);
-  assert(_free_list.count() == 0, "Free List must be empty");
-  assert(_num_chunks_handed_out == 0, "No elements must have been handed out yet");
-}
+};
 
 void TestCodeCacheRemSet_test() {
-  G1CodeRootSet::test();
+  G1CodeRootSetTest::test();
 }
+
 #endif

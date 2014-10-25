@@ -28,6 +28,10 @@
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#if INCLUDE_CDS
+#include "classfile/sharedClassUtil.hpp"
+#include "classfile/systemDictionaryShared.hpp"
+#endif
 #include "classfile/vmSymbols.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
@@ -51,6 +55,7 @@
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
@@ -1032,7 +1037,15 @@ JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name)
                                                               h_loader,
                                                               Handle(),
                                                               CHECK_NULL);
-
+#if INCLUDE_CDS
+  if (k == NULL) {
+    // If the class is not already loaded, try to see if it's in the shared
+    // archive for the current classloader (h_loader).
+    instanceKlassHandle ik = SystemDictionaryShared::find_or_load_shared_class(
+        klass_name, h_loader, CHECK_NULL);
+    k = ik();
+  }
+#endif
   return (k == NULL) ? NULL :
             (jclass) JNIHandles::make_local(env, k->java_mirror());
 JVM_END

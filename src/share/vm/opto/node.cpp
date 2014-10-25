@@ -527,6 +527,9 @@ Node *Node::clone() const {
   if (n->is_Call()) {
     n->as_Call()->clone_jvms(C);
   }
+  if (n->is_SafePoint()) {
+    n->as_SafePoint()->clone_replaced_nodes();
+  }
   return n;                     // Return the clone
 }
 
@@ -621,6 +624,9 @@ void Node::destruct() {
   }
   if (is_expensive()) {
     compile->remove_expensive_node(this);
+  }
+  if (is_SafePoint()) {
+    as_SafePoint()->delete_replaced_nodes();
   }
 #ifdef ASSERT
   // We will not actually delete the storage, but we'll make the node unusable.
@@ -1087,6 +1093,9 @@ bool Node::has_special_unique_user() const {
   if( this->is_Store() ) {
     // Condition for back-to-back stores folding.
     return n->Opcode() == op && n->in(MemNode::Memory) == this;
+  } else if (this->is_Load()) {
+    // Condition for removing an unused LoadNode from the MemBarAcquire precedence input
+    return n->Opcode() == Op_MemBarAcquire;
   } else if( op == Op_AddL ) {
     // Condition for convL2I(addL(x,y)) ==> addI(convL2I(x),convL2I(y))
     return n->Opcode() == Op_ConvL2I && n->in(1) == this;

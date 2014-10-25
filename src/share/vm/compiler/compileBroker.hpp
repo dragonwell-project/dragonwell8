@@ -59,6 +59,7 @@ class CompileTask : public CHeapObj<mtCompiler> {
   jobject      _hot_method_holder;
   int          _hot_count;    // information about its invocation counter
   const char*  _comment;      // more info about the task
+  const char*  _failure_reason;
 
  public:
   CompileTask() {
@@ -130,6 +131,10 @@ public:
   void         log_task_queued();
   void         log_task_start(CompileLog* log);
   void         log_task_done(CompileLog* log);
+
+  void         set_failure_reason(const char* reason) {
+    _failure_reason = reason;
+  }
 };
 
 // CompilerCounters
@@ -188,7 +193,11 @@ class CompileQueue : public CHeapObj<mtCompiler> {
   CompileTask* _first;
   CompileTask* _last;
 
+  CompileTask* _first_stale;
+
   int _size;
+
+  void purge_stale_tasks();
  public:
   CompileQueue(const char* name, Monitor* lock) {
     _name = name;
@@ -196,6 +205,7 @@ class CompileQueue : public CHeapObj<mtCompiler> {
     _first = NULL;
     _last = NULL;
     _size = 0;
+    _first_stale = NULL;
   }
 
   const char*  name() const                      { return _name; }
@@ -203,6 +213,7 @@ class CompileQueue : public CHeapObj<mtCompiler> {
 
   void         add(CompileTask* task);
   void         remove(CompileTask* task);
+  void         remove_and_mark_stale(CompileTask* task);
   CompileTask* first()                           { return _first; }
   CompileTask* last()                            { return _last;  }
 
@@ -210,6 +221,7 @@ class CompileQueue : public CHeapObj<mtCompiler> {
 
   bool         is_empty() const                  { return _first == NULL; }
   int          size()     const                  { return _size;          }
+
 
   // Redefine Classes support
   void mark_on_stack();

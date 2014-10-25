@@ -351,10 +351,6 @@ class CompactibleFreeListSpace: public CompactibleSpace {
                      unallocated_block() : end());
   }
 
-  bool is_in(const void* p) const {
-    return used_region().contains(p);
-  }
-
   virtual bool is_free_block(const HeapWord* p) const;
 
   // Resizing support
@@ -364,7 +360,6 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   Mutex* freelistLock() const { return &_freelistLock; }
 
   // Iteration support
-  void oop_iterate(MemRegion mr, ExtendedOopClosure* cl);
   void oop_iterate(ExtendedOopClosure* cl);
 
   void object_iterate(ObjectClosure* blk);
@@ -377,6 +372,12 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // obj_is_alive() to determine whether it is safe to iterate of
   // an object.
   void safe_object_iterate(ObjectClosure* blk);
+
+  // Iterate over all objects that intersect with mr, calling "cl->do_object"
+  // on each.  There is an exception to this: if this closure has already
+  // been invoked on an object, it may skip such objects in some cases.  This is
+  // Most likely to happen in an "upwards" (ascending address) iteration of
+  // MemRegions.
   void object_iterate_mem(MemRegion mr, UpwardsObjectClosure* cl);
 
   // Requires that "mr" be entirely within the space.
@@ -385,11 +386,8 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // terminate the iteration and return the address of the start of the
   // subregion that isn't done.  Return of "NULL" indicates that the
   // interation completed.
-  virtual HeapWord*
-       object_iterate_careful_m(MemRegion mr,
-                                ObjectClosureCareful* cl);
-  virtual HeapWord*
-       object_iterate_careful(ObjectClosureCareful* cl);
+ HeapWord* object_iterate_careful_m(MemRegion mr,
+                                    ObjectClosureCareful* cl);
 
   // Override: provides a DCTO_CL specific to this kind of space.
   DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
