@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,11 +193,13 @@
 # include "runtime/mutexLocker.hpp"
 # include "runtime/objectMonitor.hpp"
 # include "runtime/orderAccess.hpp"
+# include "runtime/orderAccess.inline.hpp"
 # include "runtime/os.hpp"
 # include "runtime/osThread.hpp"
 # include "runtime/perfData.hpp"
 # include "runtime/perfMemory.hpp"
 # include "runtime/prefetch.hpp"
+# include "runtime/prefetch.inline.hpp"
 # include "runtime/reflection.hpp"
 # include "runtime/reflectionUtils.hpp"
 # include "runtime/registerMap.hpp"
@@ -218,10 +220,17 @@
 # include "runtime/vmThread.hpp"
 # include "runtime/vm_operations.hpp"
 # include "runtime/vm_version.hpp"
+# include "services/allocationSite.hpp"
 # include "services/lowMemoryDetector.hpp"
+# include "services/mallocTracker.hpp"
+# include "services/memBaseline.hpp"
 # include "services/memoryPool.hpp"
 # include "services/memoryService.hpp"
 # include "services/memoryUsage.hpp"
+# include "services/memReporter.hpp"
+# include "services/memTracker.hpp"
+# include "services/nmtCommon.hpp"
+# include "services/virtualMemoryTracker.hpp"
 # include "utilities/accessFlags.hpp"
 # include "utilities/array.hpp"
 # include "utilities/bitMap.hpp"
@@ -235,6 +244,7 @@
 # include "utilities/hashtable.hpp"
 # include "utilities/histogram.hpp"
 # include "utilities/macros.hpp"
+# include "utilities/nativeCallStack.hpp"
 # include "utilities/numberSeq.hpp"
 # include "utilities/ostream.hpp"
 # include "utilities/preserveException.hpp"

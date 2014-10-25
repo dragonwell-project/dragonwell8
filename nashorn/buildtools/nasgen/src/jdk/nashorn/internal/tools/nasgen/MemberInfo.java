@@ -28,7 +28,6 @@ import static jdk.nashorn.internal.tools.nasgen.StringConstants.OBJECT_ARRAY_DES
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.OBJECT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.SCRIPTOBJECT_DESC;
 import static jdk.nashorn.internal.tools.nasgen.StringConstants.STRING_DESC;
-
 import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.org.objectweb.asm.Type;
 import jdk.nashorn.internal.objects.annotations.Where;
@@ -75,10 +74,6 @@ public final class MemberInfo implements Cloneable {
          * This is a specialized version of a function
          */
         SPECIALIZED_FUNCTION,
-        /**
-         * This is a specialized version of a constructor
-         */
-        SPECIALIZED_CONSTRUCTOR
     }
 
     // keep in sync with jdk.nashorn.internal.objects.annotations.Attribute
@@ -107,6 +102,12 @@ public final class MemberInfo implements Cloneable {
 
     private Where where;
 
+    private Type linkLogicClass;
+
+    private boolean isSpecializedConstructor;
+
+    private boolean isOptimistic;
+
     /**
      * @return the kind
      */
@@ -133,6 +134,57 @@ public final class MemberInfo implements Cloneable {
      */
     public void setName(final String name) {
         this.name = name;
+    }
+
+    /**
+     * Tag something as specialized constructor or not
+     * @param isSpecializedConstructor boolean, true if specialized constructor
+     */
+    public void setIsSpecializedConstructor(final boolean isSpecializedConstructor) {
+        this.isSpecializedConstructor = isSpecializedConstructor;
+    }
+
+    /**
+     * Check if something is a specialized constructor
+     * @return true if specialized constructor
+     */
+    public boolean isSpecializedConstructor() {
+        return isSpecializedConstructor;
+    }
+
+    /**
+     * Check if this is an optimistic builtin function
+     * @return true if optimistic builtin
+     */
+    public boolean isOptimistic() {
+        return isOptimistic;
+    }
+
+    /**
+     * Tag something as optimitic builtin or not
+     * @param isOptimistic boolean, true if builtin constructor
+     */
+    public void setIsOptimistic(final boolean isOptimistic) {
+        this.isOptimistic = isOptimistic;
+    }
+
+    /**
+     * Get the SpecializedFunction guard for specializations, i.e. optimistic
+     * builtins
+     * @return specialization, null if none
+     */
+    public Type getLinkLogicClass() {
+        return linkLogicClass;
+    }
+
+    /**
+     * Set thre SpecializedFunction link logic class for specializations, i.e. optimistic
+     * builtins
+     * @param linkLogicClass link logic class
+     */
+
+    public void setLinkLogicClass(final Type linkLogicClass) {
+        this.linkLogicClass = linkLogicClass;
     }
 
     /**
@@ -304,22 +356,9 @@ public final class MemberInfo implements Cloneable {
                 }
             }
             break;
-            case SPECIALIZED_CONSTRUCTOR: {
-                final Type returnType = Type.getReturnType(javaDesc);
-                if (!isJSObjectType(returnType)) {
-                    error("return value of a @SpecializedConstructor method should be a valid JS type, found " + returnType);
-                }
-                final Type[] argTypes = Type.getArgumentTypes(javaDesc);
-                for (int i = 0; i < argTypes.length; i++) {
-                    if (!isValidJSType(argTypes[i])) {
-                        error(i + "'th argument of a @SpecializedConstructor method is not valid JS type, found " + argTypes[i]);
-                    }
-                }
-            }
-            break;
             case FUNCTION: {
                 final Type returnType = Type.getReturnType(javaDesc);
-                if (!isValidJSType(returnType)) {
+                if (!(isValidJSType(returnType) || Type.VOID_TYPE == returnType)) {
                     error("return value of a @Function method should be a valid JS type, found " + returnType);
                 }
                 final Type[] argTypes = Type.getArgumentTypes(javaDesc);
@@ -351,7 +390,7 @@ public final class MemberInfo implements Cloneable {
             break;
             case SPECIALIZED_FUNCTION: {
                 final Type returnType = Type.getReturnType(javaDesc);
-                if (!isValidJSType(returnType)) {
+                if (!(isValidJSType(returnType) || (isSpecializedConstructor() && Type.VOID_TYPE == returnType))) {
                     error("return value of a @SpecializedFunction method should be a valid JS type, found " + returnType);
                 }
                 final Type[] argTypes = Type.getArgumentTypes(javaDesc);
@@ -371,9 +410,8 @@ public final class MemberInfo implements Cloneable {
                     error("first argument of a @Getter method should be of Object type, found: " + argTypes[0]);
                 }
 
-                final Type returnType = Type.getReturnType(javaDesc);
-                if (!isJavaLangObject(returnType)) {
-                    error("return type of a @Getter method should be Object, found: " + javaDesc);
+                if (Type.getReturnType(javaDesc).equals(Type.VOID_TYPE)) {
+                    error("return type of getter should not be void");
                 }
             }
             break;
@@ -413,6 +451,10 @@ public final class MemberInfo implements Cloneable {
                     }
                 }
             }
+            break;
+
+            default:
+            break;
         }
     }
 
@@ -451,7 +493,7 @@ public final class MemberInfo implements Cloneable {
 
         if (type.getSort() == Type.OBJECT) {
             try {
-                final Class clazz = Class.forName(type.getClassName(), false, myLoader);
+                final Class<?> clazz = Class.forName(type.getClassName(), false, myLoader);
                 return ScriptObject.class.isAssignableFrom(clazz);
             } catch (final ClassNotFoundException cnfe) {
                 return false;

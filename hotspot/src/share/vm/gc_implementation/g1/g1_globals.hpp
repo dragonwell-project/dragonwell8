@@ -108,9 +108,6 @@
   develop(bool, G1RSBarrierRegionFilter, true,                              \
           "If true, generate region filtering code in RS barrier")          \
                                                                             \
-  develop(bool, G1DeferredRSUpdate, true,                                   \
-          "If true, use deferred RS updates")                               \
-                                                                            \
   develop(bool, G1RSLogCheckCardTable, false,                               \
           "If true, verify that no dirty cards remain after RS log "        \
           "processing.")                                                    \
@@ -273,21 +270,24 @@
           "Percentage (0-100) of the heap size to use as default "          \
           " maximum young gen size.")                                       \
                                                                             \
-  experimental(uintx, G1MixedGCLiveThresholdPercent, 65,                    \
+  experimental(uintx, G1MixedGCLiveThresholdPercent, 85,                    \
           "Threshold for regions to be considered for inclusion in the "    \
           "collection set of mixed GCs. "                                   \
           "Regions with live bytes exceeding this will not be collected.")  \
                                                                             \
-  product(uintx, G1HeapWastePercent, 10,                                    \
+  product(uintx, G1HeapWastePercent, 5,                                     \
           "Amount of space, expressed as a percentage of the heap size, "   \
           "that G1 is willing not to collect to avoid expensive GCs.")      \
                                                                             \
   product(uintx, G1MixedGCCountTarget, 8,                                   \
           "The target number of mixed GCs after a marking cycle.")          \
                                                                             \
-  experimental(uintx, G1CodeRootsChunkCacheKeepPercent, 10,                 \
-          "The amount of code root chunks that should be kept at most "     \
-          "as percentage of already allocated.")                            \
+  experimental(bool, G1ReclaimDeadHumongousObjectsAtYoungGC, true,          \
+          "Try to reclaim dead large objects at every young GC.")           \
+                                                                            \
+  experimental(bool, G1TraceReclaimDeadHumongousObjectsAtYoungGC, false,    \
+          "Print some information about large object liveness "             \
+          "at every young GC.")                                             \
                                                                             \
   experimental(uintx, G1OldCSetRegionThresholdPercent, 10,                  \
           "An upper bound for the number of old CSet regions expressed "    \
@@ -325,11 +325,14 @@
           "evacuation pauses")                                              \
                                                                             \
   diagnostic(bool, G1VerifyRSetsDuringFullGC, false,                        \
-             "If true, perform verification of each heap region's "         \
-             "remembered set when verifying the heap during a full GC.")    \
+          "If true, perform verification of each heap region's "            \
+          "remembered set when verifying the heap during a full GC.")       \
                                                                             \
   diagnostic(bool, G1VerifyHeapRegionCodeRoots, false,                      \
-             "Verify the code root lists attached to each heap region.")
+          "Verify the code root lists attached to each heap region.")       \
+                                                                            \
+  develop(bool, G1VerifyBitmaps, false,                                     \
+          "Verifies the consistency of the marking bitmaps")
 
 G1_FLAGS(DECLARE_DEVELOPER_FLAG, DECLARE_PD_DEVELOPER_FLAG, DECLARE_PRODUCT_FLAG, DECLARE_PD_PRODUCT_FLAG, DECLARE_DIAGNOSTIC_FLAG, DECLARE_EXPERIMENTAL_FLAG, DECLARE_NOTPRODUCT_FLAG, DECLARE_MANAGEABLE_FLAG, DECLARE_PRODUCT_RW_FLAG)
 

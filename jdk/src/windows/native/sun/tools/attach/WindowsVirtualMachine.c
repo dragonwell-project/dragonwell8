@@ -23,6 +23,7 @@
  * questions.
  */
 #include <windows.h>
+#include <Sddl.h>
 #include <string.h>
 
 #include "jni.h"
@@ -258,6 +259,25 @@ JNIEXPORT jlong JNICALL Java_sun_tools_attach_WindowsVirtualMachine_createPipe
     HANDLE hPipe;
     char name[MAX_PIPE_NAME_LENGTH];
 
+    SECURITY_ATTRIBUTES sa;
+    LPSECURITY_ATTRIBUTES lpSA = NULL;
+    // Custom Security Descriptor is required here to "get" Medium Integrity Level.
+    // In order to allow Medium Integrity Level clients to open
+    // and use a NamedPipe created by an High Integrity Level process.
+    TCHAR *szSD = TEXT("D:")                  // Discretionary ACL
+                  TEXT("(A;OICI;GRGW;;;WD)")  // Allow read/write to Everybody
+                  TEXT("(A;OICI;GA;;;SY)")    // Allow full control to System
+                  TEXT("(A;OICI;GA;;;BA)");   // Allow full control to Administrators
+
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = FALSE;
+    sa.lpSecurityDescriptor = NULL;
+
+    if (ConvertStringSecurityDescriptorToSecurityDescriptor
+          (szSD, SDDL_REVISION_1, &(sa.lpSecurityDescriptor), NULL)) {
+        lpSA = &sa;
+    }
+
     jstring_to_cstring(env, pipename, name, MAX_PIPE_NAME_LENGTH);
 
     hPipe = CreateNamedPipe(
@@ -270,7 +290,9 @@ JNIEXPORT jlong JNICALL Java_sun_tools_attach_WindowsVirtualMachine_createPipe
           128,                          // output buffer size
           8192,                         // input buffer size
           NMPWAIT_USE_DEFAULT_WAIT,     // client time-out
-          NULL);                        // default security attribute
+          lpSA);        // security attributes
+
+    LocalFree(sa.lpSecurityDescriptor);
 
     if (hPipe == INVALID_HANDLE_VALUE) {
         JNU_ThrowIOExceptionWithLastError(env, "CreateNamedPipe failed");
@@ -341,7 +363,7 @@ JNIEXPORT jint JNICALL Java_sun_tools_attach_WindowsVirtualMachine_readPipe
         if (nread == 0) {
             return (jint)-1;        // EOF
         } else {
-            (*env)->SetByteArrayRegion(env, ba, off, (jint)nread, (jbyte *)(buf+off));
+            (*env)->SetByteArrayRegion(env, ba, off, (jint)nread, (jbyte *)(buf));
         }
     }
 
@@ -386,6 +408,7 @@ JNIEXPORT void JNICALL Java_sun_tools_attach_WindowsVirtualMachine_enqueue
     if (argsLen > 0) {
         if (argsLen > MAX_ARGS) {
             JNU_ThrowInternalError(env, "Too many arguments");
+            return;
         }
         for (i=0; i<argsLen; i++) {
             jobject obj = (*env)->GetObjectArrayElement(env, args, i);
@@ -420,6 +443,8 @@ JNIEXPORT void JNICALL Java_sun_tools_attach_WindowsVirtualMachine_enqueue
 
     stubLen = (DWORD)(*env)->GetArrayLength(env, stub);
     stubCode = (*env)->GetByteArrayElements(env, stub, &isCopy);
+
+    if ((*env)->ExceptionOccurred(env)) return;
 
     pCode = (PDWORD) VirtualAllocEx( hProcess, 0, stubLen, MEM_COMMIT, PAGE_EXECUTE_READWRITE );
     if (pCode == NULL) {
@@ -590,6 +615,8 @@ static void jstring_to_cstring(JNIEnv* env, jstring jstr, char* cstr, int len) {
         cstr[0] = '\0';
     } else {
         str = JNU_GetStringPlatformChars(env, jstr, &isCopy);
+        if ((*env)->ExceptionOccurred(env)) return;
+
         strncpy(cstr, str, len);
         cstr[len-1] = '\0';
         if (isCopy) {

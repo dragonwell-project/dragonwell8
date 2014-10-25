@@ -29,7 +29,7 @@
 #include "gc_implementation/g1/g1HotCardCache.hpp"
 #include "runtime/java.hpp"
 
-ConcurrentG1Refine::ConcurrentG1Refine(G1CollectedHeap* g1h) :
+ConcurrentG1Refine::ConcurrentG1Refine(G1CollectedHeap* g1h, CardTableEntryClosure* refine_closure) :
   _threads(NULL), _n_threads(0),
   _hot_card_cache(g1h)
 {
@@ -61,7 +61,7 @@ ConcurrentG1Refine::ConcurrentG1Refine(G1CollectedHeap* g1h) :
 
   ConcurrentG1RefineThread *next = NULL;
   for (uint i = _n_threads - 1; i != UINT_MAX; i--) {
-    ConcurrentG1RefineThread* t = new ConcurrentG1RefineThread(this, next, worker_id_offset, i);
+    ConcurrentG1RefineThread* t = new ConcurrentG1RefineThread(this, next, refine_closure, worker_id_offset, i);
     assert(t != NULL, "Conc refine should have been created");
     if (t->osthread() == NULL) {
         vm_shutdown_during_initialization("Could not create ConcurrentG1RefineThread");
@@ -81,8 +81,8 @@ void ConcurrentG1Refine::reset_threshold_step() {
   }
 }
 
-void ConcurrentG1Refine::init() {
-  _hot_card_cache.initialize();
+void ConcurrentG1Refine::init(G1RegionToSpaceMapper* card_counts_storage) {
+  _hot_card_cache.initialize(card_counts_storage);
 }
 
 void ConcurrentG1Refine::stop() {
@@ -128,9 +128,7 @@ void ConcurrentG1Refine::worker_threads_do(ThreadClosure * tc) {
 }
 
 uint ConcurrentG1Refine::thread_num() {
-  uint n_threads = (G1ConcRefinementThreads > 0) ? G1ConcRefinementThreads
-                                                : ParallelGCThreads;
-  return MAX2<uint>(n_threads, 1);
+  return G1ConcRefinementThreads;
 }
 
 void ConcurrentG1Refine::print_worker_threads_on(outputStream* st) const {

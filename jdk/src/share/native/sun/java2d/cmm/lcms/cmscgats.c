@@ -77,7 +77,7 @@
 // Symbols
 typedef enum {
 
-        SNONE,
+        SUNDEFINED,
         SINUM,      // Integer
         SDNUM,      // Real
         SIDENT,     // Identifier
@@ -550,7 +550,7 @@ SYMBOL BinSrchKey(const char *id)
         else l = x + 1;
     }
 
-    return SNONE;
+    return SUNDEFINED;
 }
 
 
@@ -735,7 +735,7 @@ void InSymbol(cmsIT8* it8)
 
 
             key = BinSrchKey(it8->id);
-            if (key == SNONE) it8->sy = SIDENT;
+            if (key == SUNDEFINED) it8->sy = SIDENT;
             else it8->sy = key;
 
         }
@@ -1326,7 +1326,7 @@ cmsHANDLE  CMSEXPORT cmsIT8Alloc(cmsContext ContextID)
     it8->ValidKeywords = NULL;
     it8->ValidSampleID = NULL;
 
-    it8 -> sy = SNONE;
+    it8 -> sy = SUNDEFINED;
     it8 -> ch = ' ';
     it8 -> Source = NULL;
     it8 -> inum = 0;
@@ -2179,9 +2179,9 @@ void CookPointers(cmsIT8* it8)
 
         if (cmsstrcasecmp(Fld, "SAMPLE_ID") == 0) {
 
-                    t -> SampleID = idField;
+            t -> SampleID = idField;
 
-        for (i=0; i < t -> nPatches; i++) {
+            for (i=0; i < t -> nPatches; i++) {
 
                 char *Data = GetData(it8, i, idField);
                 if (Data) {
@@ -2196,7 +2196,7 @@ void CookPointers(cmsIT8* it8)
                         SetData(it8, i, idField, Buffer);
 
                 }
-                }
+            }
 
         }
 

@@ -26,24 +26,24 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.codegen.CompilerConstants.CONSTANTS;
-import static jdk.nashorn.internal.codegen.CompilerConstants.RUN_SCRIPT;
+import static jdk.nashorn.internal.codegen.CompilerConstants.CREATE_PROGRAM_FUNCTION;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.STRICT_MODE;
-import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.CodeStore.newCodeStore;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
 import static jdk.nashorn.internal.runtime.Source.sourceFor;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.invoke.SwitchPoint;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.concurrent.atomic.AtomicLong;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.AccessControlContext;
@@ -55,20 +55,33 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import javax.script.ScriptEngine;
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.util.CheckClassAdapter;
+import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.codegen.Compiler;
+import jdk.nashorn.internal.codegen.Compiler.CompilationPhases;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
 import jdk.nashorn.internal.ir.FunctionNode;
 import jdk.nashorn.internal.ir.debug.ASTWriter;
 import jdk.nashorn.internal.ir.debug.PrintVisitor;
+import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.parser.Parser;
+import jdk.nashorn.internal.runtime.events.RuntimeEvent;
+import jdk.nashorn.internal.runtime.logging.DebugLogger;
+import jdk.nashorn.internal.runtime.logging.Loggable;
+import jdk.nashorn.internal.runtime.logging.Logger;
+import jdk.nashorn.internal.runtime.options.LoggingOption.LoggerInfo;
 import jdk.nashorn.internal.runtime.options.Options;
 
 /**
@@ -111,6 +124,19 @@ public final class Context {
     private static final String LOAD_FX = "fx:";
     private static final String LOAD_NASHORN = "nashorn:";
 
+    private static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+    private static MethodType CREATE_PROGRAM_FUNCTION_TYPE = MethodType.methodType(ScriptFunction.class, ScriptObject.class);
+
+    /**
+     * Keeps track of which builtin prototypes and properties have been relinked
+     * Currently we are conservative and associate the name of a builtin class with all
+     * its properties, so it's enough to invalidate a property to break all assumptions
+     * about a prototype. This can be changed to a more fine grained approach, but no one
+     * ever needs this, given the very rare occurance of swapping out only parts of
+     * a builtin v.s. the entire builtin object
+     */
+    private final Map<String, SwitchPoint> builtinSwitchPoints = new HashMap<>();
+
     /* Force DebuggerSupport to be loaded. */
     static {
         DebuggerSupport.FORCELOAD = true;
@@ -124,6 +150,13 @@ public final class Context {
         private final Context      context;
         private final ScriptLoader loader;
         private final CodeSource   codeSource;
+        private int usageCount = 0;
+        private int bytesDefined = 0;
+
+        // We reuse this installer for 10 compilations or 200000 defined bytes. Usually the first condition
+        // will occur much earlier, the second is a safety measure for very large scripts/functions.
+        private final static int MAX_USAGES = 10;
+        private final static int MAX_BYTES_DEFINED = 200_000;
 
         private ContextCodeInstaller(final Context context, final ScriptLoader loader, final CodeSource codeSource) {
             this.context    = context;
@@ -132,7 +165,7 @@ public final class Context {
         }
 
         /**
-         * Return the context for this installer
+         * Return the script environment for this installer
          * @return ScriptEnvironment
          */
         @Override
@@ -141,32 +174,35 @@ public final class Context {
         }
 
         @Override
-        public Class<?> install(final String className, final byte[] bytecode, final Source source, final Object[] constants) {
-            Compiler.LOG.fine("Installing class ", className);
-
+        public Class<?> install(final String className, final byte[] bytecode) {
+            usageCount++;
+            bytesDefined += bytecode.length;
             final String   binaryName = Compiler.binaryName(className);
-            final Class<?> clazz      = loader.installClass(binaryName, bytecode, codeSource);
+            return loader.installClass(binaryName, bytecode, codeSource);
+        }
 
+        @Override
+        public void initialize(final Collection<Class<?>> classes, final Source source, final Object[] constants) {
             try {
-                // Need doPrivileged because these fields are private
                 AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
                     @Override
                     public Void run() throws Exception {
-                        //use reflection to write source and constants table to installed classes
-                        final Field sourceField    = clazz.getDeclaredField(SOURCE.symbolName());
-                        final Field constantsField = clazz.getDeclaredField(CONSTANTS.symbolName());
-                        sourceField.setAccessible(true);
-                        constantsField.setAccessible(true);
-                        sourceField.set(null, source);
-                        constantsField.set(null, constants);
+                        for (final Class<?> clazz : classes) {
+                            //use reflection to write source and constants table to installed classes
+                            final Field sourceField = clazz.getDeclaredField(SOURCE.symbolName());
+                            sourceField.setAccessible(true);
+                            sourceField.set(null, source);
+
+                            final Field constantsField = clazz.getDeclaredField(CONSTANTS.symbolName());
+                            constantsField.setAccessible(true);
+                            constantsField.set(null, constants);
+                        }
                         return null;
                     }
                 });
             } catch (final PrivilegedActionException e) {
                 throw new RuntimeException(e);
             }
-
-            return clazz;
         }
 
         @Override
@@ -180,20 +216,38 @@ public final class Context {
         }
 
         @Override
-        public long getUniqueEvalId() {
-            return context.getUniqueEvalId();
+        public void storeScript(final String cacheKey, final Source source, final String mainClassName,
+                                final Map<String,byte[]> classBytes, final Map<Integer, FunctionInitializer> initializers,
+                                final Object[] constants, final int compilationId) {
+            if (context.codeStore != null) {
+                context.codeStore.store(cacheKey, source, mainClassName, classBytes, initializers, constants, compilationId);
+            }
         }
 
         @Override
-        public void storeCompiledScript(final Source source, final String mainClassName,
-                                        final Map<String, byte[]> classBytes, final Object[] constants) {
+        public StoredScript loadScript(final Source source, final String functionKey) {
             if (context.codeStore != null) {
-                try {
-                    context.codeStore.putScript(source, mainClassName, classBytes, constants);
-                } catch (final IOException e) {
-                    throw new RuntimeException(e);
-                }
+                return context.codeStore.load(source, functionKey);
             }
+            return null;
+        }
+
+        @Override
+        public CodeInstaller<ScriptEnvironment> withNewLoader() {
+            // Reuse this installer if we're within our limits.
+            if (usageCount < MAX_USAGES && bytesDefined < MAX_BYTES_DEFINED) {
+                return this;
+            }
+            return new ContextCodeInstaller(context, context.createNewLoader(), codeSource);
+        }
+
+        @Override
+        public boolean isCompatibleWith(final CodeInstaller<ScriptEnvironment> other) {
+            if (other instanceof ContextCodeInstaller) {
+                final ContextCodeInstaller cci = (ContextCodeInstaller)other;
+                return cci.context == context && cci.codeSource == codeSource;
+            }
+            return false;
         }
     }
 
@@ -236,6 +290,11 @@ public final class Context {
     public static void setGlobal(final Global global) {
         // This class in a package.access protected package.
         // Trusted code only can call this method.
+        assert getGlobal() != global;
+        //same code can be cached between globals, then we need to invalidate method handle constants
+        if (global != null) {
+            Global.getConstants().invalidateAll();
+        }
         currentGlobal.set(global);
     }
 
@@ -276,7 +335,6 @@ public final class Context {
      * @param str  text to write
      * @param crlf write a carriage return/new line after text
      */
-    @SuppressWarnings("resource")
     public static void err(final String str, final boolean crlf) {
         final PrintWriter err = Context.getCurrentErr();
         if (err != null) {
@@ -309,8 +367,8 @@ public final class Context {
     /** Unique id for script. Used only when --loader-per-compile=false */
     private final AtomicLong uniqueScriptId;
 
-    /** Unique id for 'eval' */
-    private final AtomicLong uniqueEvalId;
+    /** Optional class filter to use for Java classes. Can be null. */
+    private final ClassFilter classFilter;
 
     private static final ClassLoader myLoader = Context.class.getClassLoader();
     private static final StructureLoader sharedLoader;
@@ -366,7 +424,19 @@ public final class Context {
      * @param appLoader application class loader
      */
     public Context(final Options options, final ErrorManager errors, final ClassLoader appLoader) {
-        this(options, errors, new PrintWriter(System.out, true), new PrintWriter(System.err, true), appLoader);
+        this(options, errors, appLoader, (ClassFilter)null);
+    }
+
+    /**
+     * Constructor
+     *
+     * @param options options from command line or Context creator
+     * @param errors  error manger
+     * @param appLoader application class loader
+     * @param classFilter class filter to use
+     */
+    public Context(final Options options, final ErrorManager errors, final ClassLoader appLoader, final ClassFilter classFilter) {
+        this(options, errors, new PrintWriter(System.out, true), new PrintWriter(System.err, true), appLoader, classFilter);
     }
 
     /**
@@ -379,11 +449,26 @@ public final class Context {
      * @param appLoader application class loader
      */
     public Context(final Options options, final ErrorManager errors, final PrintWriter out, final PrintWriter err, final ClassLoader appLoader) {
+        this(options, errors, out, err, appLoader, (ClassFilter)null);
+    }
+
+    /**
+     * Constructor
+     *
+     * @param options options from command line or Context creator
+     * @param errors  error manger
+     * @param out     output writer for this Context
+     * @param err     error writer for this Context
+     * @param appLoader application class loader
+     * @param classFilter class filter to use
+     */
+    public Context(final Options options, final ErrorManager errors, final PrintWriter out, final PrintWriter err, final ClassLoader appLoader, final ClassFilter classFilter) {
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new RuntimePermission(NASHORN_CREATE_CONTEXT));
         }
 
+        this.classFilter = classFilter;
         this.env       = new ScriptEnvironment(options, out, err);
         this._strict   = env._strict;
         this.appLoader = appLoader;
@@ -395,12 +480,11 @@ public final class Context {
             this.uniqueScriptId = new AtomicLong();
         }
         this.errors    = errors;
-        this.uniqueEvalId = new AtomicLong();
 
         // if user passed -classpath option, make a class loader with that and set it as
         // thread context class loader so that script can access classes from that path.
         final String classPath = options.getString("classpath");
-        if (! env._compile_only && classPath != null && !classPath.isEmpty()) {
+        if (!env._compile_only && classPath != null && !classPath.isEmpty()) {
             // make sure that caller can create a class loader.
             if (sm != null) {
                 sm.checkPermission(new RuntimePermission("createClassLoader"));
@@ -416,15 +500,10 @@ public final class Context {
         }
 
         if (env._persistent_cache) {
-            if (env._lazy_compilation || env._specialize_calls != null) {
-                getErr().println("Can not use persistent class caching with lazy compilation or call specialization.");
-            } else {
-                try {
-                    final String cacheDir = Options.getStringProperty("nashorn.persistent.code.cache", "nashorn_code_cache");
-                    codeStore = new CodeStore(cacheDir);
-                } catch (IOException e) {
-                    throw new RuntimeException("Error initializing code cache", e);
-                }
+            try {
+                codeStore = newCodeStore(this);
+            } catch (final IOException e) {
+                throw new RuntimeException("Error initializing code cache", e);
             }
         }
 
@@ -436,6 +515,17 @@ public final class Context {
         if (env._fullversion) {
             getErr().println("nashorn full version " + Version.fullVersion());
         }
+
+        initLoggers();
+    }
+
+
+    /**
+     * Get the class filter for this context
+     * @return class filter
+     */
+    public ClassFilter getClassFilter() {
+        return classFilter;
     }
 
     /**
@@ -512,13 +602,12 @@ public final class Context {
      */
     public MultiGlobalCompiledScript compileScript(final Source source) {
         final Class<?> clazz = compile(source, this.errors, this._strict);
-        final MethodHandle runMethodHandle = getRunScriptHandle(clazz);
-        final boolean strict = isStrict(clazz);
+        final MethodHandle createProgramFunctionHandle = getCreateProgramFunctionHandle(clazz);
 
         return new MultiGlobalCompiledScript() {
             @Override
             public ScriptFunction getFunction(final Global newGlobal) {
-                return Context.getGlobal().newScriptFunction(RUN_SCRIPT.symbolName(), runMethodHandle, newGlobal, strict);
+                return invokeCreateProgramFunctionHandle(createProgramFunctionHandle, newGlobal);
             }
         };
     }
@@ -531,15 +620,31 @@ public final class Context {
      * @param callThis     "this" to be passed to the evaluated code
      * @param location     location of the eval call
      * @param strict       is this {@code eval} call from a strict mode code?
+     * @return the return value of the {@code eval}
+     */
+    public Object eval(final ScriptObject initialScope, final String string,
+            final Object callThis, final Object location, final boolean strict) {
+        return eval(initialScope, string, callThis, location, strict, false);
+    }
+
+    /**
+     * Entry point for {@code eval}
+     *
+     * @param initialScope The scope of this eval call
+     * @param string       Evaluated code as a String
+     * @param callThis     "this" to be passed to the evaluated code
+     * @param location     location of the eval call
+     * @param strict       is this {@code eval} call from a strict mode code?
+     * @param evalCall     is this called from "eval" builtin?
      *
      * @return the return value of the {@code eval}
      */
-    public Object eval(final ScriptObject initialScope, final String string, final Object callThis, final Object location, final boolean strict) {
-        final String  file       = (location == UNDEFINED || location == null) ? "<eval>" : location.toString();
-        final Source  source     = sourceFor(file, string);
+    public Object eval(final ScriptObject initialScope, final String string,
+            final Object callThis, final Object location, final boolean strict, final boolean evalCall) {
+        final String  file       = location == UNDEFINED || location == null ? "<eval>" : location.toString();
+        final Source  source     = sourceFor(file, string, evalCall);
         final boolean directEval = location != UNDEFINED; // is this direct 'eval' call or indirectly invoked eval?
         final Global  global = Context.getGlobal();
-
         ScriptObject scope = initialScope;
 
         // ECMA section 10.1.1 point 2 says eval code is strict if it begins
@@ -581,10 +686,10 @@ public final class Context {
             scope = strictEvalScope;
         }
 
-        ScriptFunction func = getRunScriptFunction(clazz, scope);
+        final ScriptFunction func = getProgramFunction(clazz, scope);
         Object evalThis;
         if (directEval) {
-            evalThis = (callThis instanceof ScriptObject || strictFlag) ? callThis : global;
+            evalThis = callThis instanceof ScriptObject || strictFlag ? callThis : global;
         } else {
             evalThis = global;
         }
@@ -603,7 +708,7 @@ public final class Context {
                         public Source run() {
                             try {
                                 final URL resURL = Context.class.getResource(resource);
-                                return (resURL != null)? sourceFor(srcStr, resURL) : null;
+                                return resURL != null ? sourceFor(srcStr, resURL) : null;
                             } catch (final IOException exp) {
                                 return null;
                             }
@@ -626,7 +731,7 @@ public final class Context {
      * @throws IOException if source cannot be found or loaded
      */
     public Object load(final ScriptObject scope, final Object from) throws IOException {
-        final Object src = (from instanceof ConsString)?  from.toString() : from;
+        final Object src = from instanceof ConsString ? from.toString() : from;
         Source source = null;
 
         // load accepts a String (which could be a URL or a file name), a File, a URL
@@ -634,8 +739,8 @@ public final class Context {
         if (src instanceof String) {
             final String srcStr = (String)src;
             if (srcStr.startsWith(LOAD_CLASSPATH)) {
-                URL url = getResourceURL(srcStr.substring(LOAD_CLASSPATH.length()));
-                source = (url != null)? sourceFor(url.toString(), url) : null;
+                final URL url = getResourceURL(srcStr.substring(LOAD_CLASSPATH.length()));
+                source = url != null ? sourceFor(url.toString(), url) : null;
             } else {
                 final File file = new File(srcStr);
                 if (srcStr.indexOf(':') != -1) {
@@ -739,11 +844,12 @@ public final class Context {
      *
      * @throws ClassNotFoundException if structure class cannot be resolved
      */
-    public static Class<?> forStructureClass(final String fullName) throws ClassNotFoundException {
+    @SuppressWarnings("unchecked")
+    public static Class<? extends ScriptObject> forStructureClass(final String fullName) throws ClassNotFoundException {
         if (System.getSecurityManager() != null && !StructureLoader.isStructureClass(fullName)) {
             throw new ClassNotFoundException(fullName);
         }
-        return Class.forName(fullName, true, sharedLoader);
+        return (Class<? extends ScriptObject>)Class.forName(fullName, true, sharedLoader);
     }
 
     /**
@@ -839,6 +945,11 @@ public final class Context {
             throw new ClassNotFoundException(fullName);
         }
 
+        // give chance to ClassFilter to filter out, if present
+        if (classFilter != null && !classFilter.exposeToScripts(fullName)) {
+            throw new ClassNotFoundException(fullName);
+        }
+
         // check package access as soon as possible!
         final SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -912,16 +1023,17 @@ public final class Context {
      * Initialize given global scope object.
      *
      * @param global the global
+     * @param engine the associated ScriptEngine instance, can be null
      * @return the initialized global scope object.
      */
-    public Global initGlobal(final Global global) {
+    public Global initGlobal(final Global global, final ScriptEngine engine) {
         // Need only minimal global object, if we are just compiling.
         if (!env._compile_only) {
             final Global oldGlobal = Context.getGlobal();
             try {
                 Context.setGlobal(global);
                 // initialize global scope with builtin global objects
-                global.initBuiltinObjects();
+                global.initBuiltinObjects(engine);
             } finally {
                 Context.setGlobal(oldGlobal);
             }
@@ -931,8 +1043,14 @@ public final class Context {
     }
 
     /**
-     * Trusted variant - package-private
+     * Initialize given global scope object.
+     *
+     * @param global the global
+     * @return the initialized global scope object.
      */
+    public Global initGlobal(final Global global) {
+        return initGlobal(global, null);
+    }
 
     /**
      * Return the current global's context
@@ -940,6 +1058,11 @@ public final class Context {
      */
     static Context getContextTrusted() {
         return ((ScriptObject)Context.getGlobal()).getContext();
+    }
+
+    static Context getContextTrustedOrNull() {
+        final Global global = Context.getGlobal();
+        return global == null ? null : ((ScriptObject)global).getContext();
     }
 
     /**
@@ -983,40 +1106,33 @@ public final class Context {
         return ScriptRuntime.apply(script, thiz);
     }
 
-    private static MethodHandle getRunScriptHandle(final Class<?> script) {
-        return MH.findStatic(
-                    MethodHandles.lookup(),
-                    script,
-                    RUN_SCRIPT.symbolName(),
-                    MH.type(
-                        Object.class,
-                        ScriptFunction.class,
-                        Object.class));
-    }
-
-    private static boolean isStrict(final Class<?> script) {
-        try {
-            return script.getField(STRICT_MODE.symbolName()).getBoolean(null);
-        } catch (final NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
-            return false;
-        }
-    }
-
-    private static ScriptFunction getRunScriptFunction(final Class<?> script, final ScriptObject scope) {
+    private static ScriptFunction getProgramFunction(final Class<?> script, final ScriptObject scope) {
         if (script == null) {
             return null;
         }
+        return invokeCreateProgramFunctionHandle(getCreateProgramFunctionHandle(script), scope);
+    }
 
-        // Get run method - the entry point to the script
-        final MethodHandle runMethodHandle = getRunScriptHandle(script);
-        boolean strict = isStrict(script);
+    private static MethodHandle getCreateProgramFunctionHandle(final Class<?> script) {
+        try {
+            return LOOKUP.findStatic(script, CREATE_PROGRAM_FUNCTION.symbolName(), CREATE_PROGRAM_FUNCTION_TYPE);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new AssertionError("Failed to retrieve a handle for the program function for " + script.getName(), e);
+        }
+    }
 
-        // Package as a JavaScript function and pass function back to shell.
-        return Context.getGlobal().newScriptFunction(RUN_SCRIPT.symbolName(), runMethodHandle, scope, strict);
+    private static ScriptFunction invokeCreateProgramFunctionHandle(final MethodHandle createProgramFunctionHandle, final ScriptObject scope) {
+        try {
+            return (ScriptFunction)createProgramFunctionHandle.invokeExact(scope);
+        } catch (final RuntimeException|Error e) {
+            throw e;
+        } catch (final Throwable t) {
+            throw new AssertionError("Failed to create a program function", t);
+        }
     }
 
     private ScriptFunction compileScript(final Source source, final ScriptObject scope, final ErrorManager errMan) {
-        return getRunScriptFunction(compile(source, errMan, this._strict), scope);
+        return getProgramFunction(compile(source, errMan, this._strict), scope);
     }
 
     private synchronized Class<?> compile(final Source source, final ErrorManager errMan, final boolean strict) {
@@ -1025,35 +1141,38 @@ public final class Context {
 
         Class<?> script = findCachedClass(source);
         if (script != null) {
-            Compiler.LOG.fine("Code cache hit for ", source, " avoiding recompile.");
+            final DebugLogger log = getLogger(Compiler.class);
+            if (log.isEnabled()) {
+                log.fine(new RuntimeEvent<>(Level.INFO, source), "Code cache hit for ", source, " avoiding recompile.");
+            }
             return script;
         }
 
-        CompiledScript compiledScript = null;
+        StoredScript storedScript = null;
         FunctionNode functionNode = null;
+        // We only use the code store here if optimistic types are disabled. With optimistic types,
+        // code is stored per function in RecompilableScriptFunctionData.
+        // TODO: This should really be triggered by lazy compilation, not optimistic types.
+        final boolean useCodeStore = env._persistent_cache && !env._parse_only && !env._optimistic_types;
+        final String cacheKey = useCodeStore ? CodeStore.getCacheKey(0, null) : null;
 
-        if (!env._parse_only && codeStore != null) {
-            try {
-                compiledScript = codeStore.getScript(source);
-            } catch (IOException | ClassNotFoundException e) {
-                Compiler.LOG.warning("Error loading ", source, " from cache: ", e);
-                // Fall back to normal compilation
-            }
+        if (useCodeStore) {
+            storedScript = codeStore.load(source, cacheKey);
         }
 
-        if (compiledScript == null) {
-            functionNode = new Parser(env, source, errMan, strict).parse();
+        if (storedScript == null) {
+            functionNode = new Parser(env, source, errMan, strict, getLogger(Parser.class)).parse();
 
-            if (errors.hasErrors()) {
+            if (errMan.hasErrors()) {
                 return null;
             }
 
-            if (env._print_ast) {
+            if (env._print_ast || functionNode.getFlag(FunctionNode.IS_PRINT_AST)) {
                 getErr().println(new ASTWriter(functionNode));
             }
 
-            if (env._print_parse) {
-                getErr().println(new PrintVisitor(functionNode));
+            if (env._print_parse || functionNode.getFlag(FunctionNode.IS_PRINT_PARSE)) {
+                getErr().println(new PrintVisitor(functionNode, true, false));
             }
         }
 
@@ -1066,12 +1185,26 @@ public final class Context {
         final CodeSource   cs     = new CodeSource(url, (CodeSigner[])null);
         final CodeInstaller<ScriptEnvironment> installer = new ContextCodeInstaller(this, loader, cs);
 
-        if (functionNode != null) {
-            final Compiler compiler = new Compiler(installer, strict);
-            final FunctionNode newFunctionNode = compiler.compile(functionNode);
-            script = compiler.install(newFunctionNode);
+        if (storedScript == null) {
+            final CompilationPhases phases = Compiler.CompilationPhases.COMPILE_ALL;
+
+            final Compiler compiler = new Compiler(
+                    this,
+                    env,
+                    installer,
+                    source,
+                    errMan,
+                    strict | functionNode.isStrict());
+
+            final FunctionNode compiledFunction = compiler.compile(functionNode, phases);
+            if (errMan.hasErrors()) {
+                return null;
+            }
+            script = compiledFunction.getRootClass();
+            compiler.persistClassInfo(cacheKey, compiledFunction);
         } else {
-            script = install(compiledScript, installer);
+            Compiler.updateCompilationId(storedScript.getCompilationId());
+            script = install(storedScript, source, installer);
         }
 
         cacheClass(source, script);
@@ -1088,48 +1221,53 @@ public final class Context {
              }, CREATE_LOADER_ACC_CTXT);
     }
 
-    private long getUniqueEvalId() {
-        return uniqueEvalId.getAndIncrement();
-    }
-
     private long getUniqueScriptId() {
         return uniqueScriptId.getAndIncrement();
     }
 
-
     /**
      * Install a previously compiled class from the code cache.
      *
-     * @param compiledScript cached script containing class bytes and constants
+     * @param storedScript cached script containing class bytes and constants
      * @return main script class
      */
-    private Class<?> install(final CompiledScript compiledScript, final CodeInstaller<ScriptEnvironment> installer) {
+    private static Class<?> install(final StoredScript storedScript, final Source source, final CodeInstaller<ScriptEnvironment> installer) {
 
         final Map<String, Class<?>> installedClasses = new HashMap<>();
-        final Source   source        = compiledScript.getSource();
-        final Object[] constants     = compiledScript.getConstants();
-        final String   rootClassName = compiledScript.getMainClassName();
-        final byte[]   rootByteCode  = compiledScript.getClassBytes().get(rootClassName);
-        final Class<?> rootClass     = installer.install(rootClassName, rootByteCode, source, constants);
+        final Map<String, byte[]>   classBytes       = storedScript.getClassBytes();
+        final Object[] constants       = storedScript.getConstants();
+        final String   mainClassName   = storedScript.getMainClassName();
+        final byte[]   mainClassBytes  = classBytes.get(mainClassName);
+        final Class<?> mainClass       = installer.install(mainClassName, mainClassBytes);
+        final Map<Integer, FunctionInitializer> initializers = storedScript.getInitializers();
 
-        installedClasses.put(rootClassName, rootClass);
+        installedClasses.put(mainClassName, mainClass);
 
-        for (final Map.Entry<String, byte[]> entry : compiledScript.getClassBytes().entrySet()) {
+        for (final Map.Entry<String, byte[]> entry : classBytes.entrySet()) {
             final String className = entry.getKey();
-            if (className.equals(rootClassName)) {
+            if (className.equals(mainClassName)) {
                 continue;
             }
             final byte[] code = entry.getValue();
 
-            installedClasses.put(className, installer.install(className, code, source, constants));
+            installedClasses.put(className, installer.install(className, code));
         }
-        for (Object constant : constants) {
+
+        installer.initialize(installedClasses.values(), source, constants);
+
+        for (final Object constant : constants) {
             if (constant instanceof RecompilableScriptFunctionData) {
-                ((RecompilableScriptFunctionData) constant).setCodeAndSource(installedClasses, source);
+                final RecompilableScriptFunctionData data = (RecompilableScriptFunctionData) constant;
+                data.initTransients(source, installer);
+                final FunctionInitializer initializer = initializers.get(data.getFunctionNodeId());
+                if (initializer != null) {
+                    initializer.setCode(installedClasses.get(initializer.getClassName()));
+                    data.initializeCode(initializer);
+                }
             }
         }
 
-        return rootClass;
+        return mainClass;
     }
 
     /**
@@ -1140,7 +1278,7 @@ public final class Context {
         private final int size;
         private final ReferenceQueue<Class<?>> queue;
 
-        ClassCache(int size) {
+        ClassCache(final int size) {
             super(size, 0.75f, true);
             this.size = size;
             this.queue = new ReferenceQueue<>();
@@ -1156,7 +1294,7 @@ public final class Context {
         }
 
         @Override
-        public ClassReference get(Object key) {
+        public ClassReference get(final Object key) {
             for (ClassReference ref; (ref = (ClassReference)queue.poll()) != null; ) {
                 remove(ref.source);
             }
@@ -1176,7 +1314,7 @@ public final class Context {
 
     // Class cache management
     private Class<?> findCachedClass(final Source source) {
-        ClassReference ref = classCache == null ? null : classCache.get(source);
+        final ClassReference ref = classCache == null ? null : classCache.get(source);
         return ref != null ? ref.get() : null;
     }
 
@@ -1186,5 +1324,121 @@ public final class Context {
         }
     }
 
+    // logging
+    private final Map<String, DebugLogger> loggers = new HashMap<>();
+
+    private void initLoggers() {
+        ((Loggable)MethodHandleFactory.getFunctionality()).initLogger(this);
+    }
+
+    /**
+     * Get a logger, given a loggable class
+     * @param clazz a Loggable class
+     * @return debuglogger associated with that class
+     */
+    public DebugLogger getLogger(final Class<? extends Loggable> clazz) {
+        return getLogger(clazz, null);
+    }
+
+    /**
+     * Get a logger, given a loggable class
+     * @param clazz a Loggable class
+     * @param initHook an init hook - if this is the first time the logger is created in the context, run the init hook
+     * @return debuglogger associated with that class
+     */
+    public DebugLogger getLogger(final Class<? extends Loggable> clazz, final Consumer<DebugLogger> initHook) {
+        final String name = getLoggerName(clazz);
+        DebugLogger logger = loggers.get(name);
+        if (logger == null) {
+            if (!env.hasLogger(name)) {
+                return DebugLogger.DISABLED_LOGGER;
+            }
+            final LoggerInfo info = env._loggers.get(name);
+            logger = new DebugLogger(name, info.getLevel(), info.isQuiet());
+            if (initHook != null) {
+                initHook.accept(logger);
+            }
+            loggers.put(name, logger);
+        }
+        return logger;
+    }
+
+    /**
+     * Given a Loggable class, weave debug info info a method handle for that logger.
+     * Level.INFO is used
+     *
+     * @param clazz loggable
+     * @param mh    method handle
+     * @param text  debug printout to add
+     *
+     * @return instrumented method handle, or null if logger not enabled
+     */
+    public MethodHandle addLoggingToHandle(final Class<? extends Loggable> clazz, final MethodHandle mh, final Supplier<String> text) {
+        return addLoggingToHandle(clazz, Level.INFO, mh, Integer.MAX_VALUE, false, text);
+    }
+
+    /**
+     * Given a Loggable class, weave debug info info a method handle for that logger.
+     *
+     * @param clazz            loggable
+     * @param level            log level
+     * @param mh               method handle
+     * @param paramStart       first parameter to print
+     * @param printReturnValue should we print the return vaulue?
+     * @param text             debug printout to add
+     *
+     * @return instrumented method handle, or null if logger not enabled
+     */
+    public MethodHandle addLoggingToHandle(final Class<? extends Loggable> clazz, final Level level, final MethodHandle mh, final int paramStart, final boolean printReturnValue, final Supplier<String> text) {
+        final DebugLogger log = getLogger(clazz);
+        if (log.isEnabled()) {
+            return MethodHandleFactory.addDebugPrintout(log, level, mh, paramStart, printReturnValue, text.get());
+        }
+        return mh;
+    }
+
+    private static String getLoggerName(final Class<?> clazz) {
+        Class<?> current = clazz;
+        while (current != null) {
+            final Logger log = current.getAnnotation(Logger.class);
+            if (log != null) {
+                assert !"".equals(log.name());
+                return log.name();
+            }
+            current = current.getSuperclass();
+        }
+        assert false;
+        return null;
+    }
+
+    /**
+     * This is a special kind of switchpoint used to guard builtin
+     * properties and prototypes. In the future it might contain
+     * logic to e.g. multiple switchpoint classes.
+     */
+    public static final class BuiltinSwitchPoint extends SwitchPoint {
+        //empty
+    }
+
+    /**
+     * Create a new builtin switchpoint and return it
+     * @param name key name
+     * @return new builtin switchpoint
+     */
+    public SwitchPoint newBuiltinSwitchPoint(final String name) {
+        assert builtinSwitchPoints.get(name) == null;
+        final SwitchPoint sp = new BuiltinSwitchPoint();
+        builtinSwitchPoints.put(name, sp);
+        return sp;
+    }
+
+    /**
+     * Return the builtin switchpoint for a particular key name
+     * @param name key name
+     * @return builtin switchpoint or null if none
+     */
+    public SwitchPoint getBuiltinSwitchPoint(final String name) {
+        return builtinSwitchPoints.get(name);
+    }
 
 }

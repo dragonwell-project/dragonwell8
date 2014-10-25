@@ -23,10 +23,12 @@
  */
 
 #include "precompiled.hpp"
+#include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc_implementation/g1/heapRegion.hpp"
 #include "gc_implementation/g1/satbQueue.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/thread.inline.hpp"
 
 G1SATBCardTableModRefBS::G1SATBCardTableModRefBS(MemRegion whole_heap,
@@ -35,7 +37,6 @@ G1SATBCardTableModRefBS::G1SATBCardTableModRefBS(MemRegion whole_heap,
 {
   _kind = G1SATBCT;
 }
-
 
 void G1SATBCardTableModRefBS::enqueue(oop pre_val) {
   // Nulls should have been already filtered.
@@ -61,6 +62,17 @@ G1SATBCardTableModRefBS::write_ref_array_pre_work(T* dst, int count) {
     if (!oopDesc::is_null(heap_oop)) {
       enqueue(oopDesc::decode_heap_oop_not_null(heap_oop));
     }
+  }
+}
+
+void G1SATBCardTableModRefBS::write_ref_array_pre(oop* dst, int count, bool dest_uninitialized) {
+  if (!dest_uninitialized) {
+    write_ref_array_pre_work(dst, count);
+  }
+}
+void G1SATBCardTableModRefBS::write_ref_array_pre(narrowOop* dst, int count, bool dest_uninitialized) {
+  if (!dest_uninitialized) {
+    write_ref_array_pre_work(dst, count);
   }
 }
 
@@ -112,13 +124,53 @@ void G1SATBCardTableModRefBS::verify_g1_young_region(MemRegion mr) {
 }
 #endif
 
+void G1SATBCardTableLoggingModRefBSChangedListener::on_commit(uint start_idx, size_t num_regions, bool zero_filled) {
+  // Default value for a clean card on the card table is -1. So we cannot take advantage of the zero_filled parameter.
+  MemRegion mr(G1CollectedHeap::heap()->bottom_addr_for_region(start_idx), num_regions * HeapRegion::GrainWords);
+  _card_table->clear(mr);
+}
+
 G1SATBCardTableLoggingModRefBS::
 G1SATBCardTableLoggingModRefBS(MemRegion whole_heap,
                                int max_covered_regions) :
   G1SATBCardTableModRefBS(whole_heap, max_covered_regions),
-  _dcqs(JavaThread::dirty_card_queue_set())
+  _dcqs(JavaThread::dirty_card_queue_set()),
+  _listener()
 {
   _kind = G1SATBCTLogging;
+  _listener.set_card_table(this);
+}
+
+void G1SATBCardTableLoggingModRefBS::initialize(G1RegionToSpaceMapper* mapper) {
+  mapper->set_mapping_changed_listener(&_listener);
+
+  _byte_map_size = mapper->reserved().byte_size();
+
+  _guard_index = cards_required(_whole_heap.word_size()) - 1;
+  _last_valid_index = _guard_index - 1;
+
+  HeapWord* low_bound  = _whole_heap.start();
+  HeapWord* high_bound = _whole_heap.end();
+
+  _cur_covered_regions = 1;
+  _covered[0] = _whole_heap;
+
+  _byte_map = (jbyte*) mapper->reserved().start();
+  byte_map_base = _byte_map - (uintptr_t(low_bound) >> card_shift);
+  assert(byte_for(low_bound) == &_byte_map[0], "Checking start of map");
+  assert(byte_for(high_bound-1) <= &_byte_map[_last_valid_index], "Checking end of map");
+
+  if (TraceCardTableModRefBS) {
+    gclog_or_tty->print_cr("G1SATBCardTableModRefBS::G1SATBCardTableModRefBS: ");
+    gclog_or_tty->print_cr("  "
+                  "  &_byte_map[0]: " INTPTR_FORMAT
+                  "  &_byte_map[_last_valid_index]: " INTPTR_FORMAT,
+                  p2i(&_byte_map[0]),
+                  p2i(&_byte_map[_last_valid_index]));
+    gclog_or_tty->print_cr("  "
+                  "  byte_map_base: " INTPTR_FORMAT,
+                  p2i(byte_map_base));
+  }
 }
 
 void

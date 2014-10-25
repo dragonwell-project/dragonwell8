@@ -413,6 +413,23 @@ JNF_COCOA_EXIT(env);
     return active;
 }
 
+/*
+ * Class:     sun_lwawt_macosx_LWCToolkit
+ * Method:    activateApplicationIgnoringOtherApps
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_LWCToolkit_activateApplicationIgnoringOtherApps
+(JNIEnv *env, jclass clazz)
+{
+    JNF_COCOA_ENTER(env);
+    [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
+        if(![NSApp isActive]){
+            [NSApp activateIgnoringOtherApps:YES];
+        }
+    }];
+    JNF_COCOA_EXIT(env);
+}
+
 
 /*
  * Class:     sun_awt_SunToolkit
@@ -450,5 +467,16 @@ Java_sun_font_FontManager_populateFontFileNameMap
 (JNIEnv *env, jclass obj, jobject fontToFileMap, jobject fontToFamilyMap, jobject familyToFontListMap, jobject locale)
 {
 
+}
+
+/*
+ * Class:     sun_lwawt_macosx_LWCToolkit
+ * Method:    isEmbedded
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL
+Java_sun_lwawt_macosx_LWCToolkit_isEmbedded
+(JNIEnv *env, jclass klass) {
+    return [ThreadUtilities isAWTEmbedded] ? JNI_TRUE : JNI_FALSE;
 }
 

@@ -40,14 +40,14 @@ import java.util.List;
 public class BlockLexicalContext extends LexicalContext {
     /** statement stack, each block on the lexical context maintains one of these, which is
      *  committed to the block on pop */
-    private Deque<List<Statement>> sstack = new ArrayDeque<>();
+    private final Deque<List<Statement>> sstack = new ArrayDeque<>();
 
     /** Last non debug statement emitted in this context */
     protected Statement lastStatement;
 
     @Override
     public <T extends LexicalContextNode> T push(final T node) {
-        T pushed = super.push(node);
+        final T pushed = super.push(node);
         if (node instanceof Block) {
             sstack.push(new ArrayList<Statement>());
         }
@@ -68,7 +68,7 @@ public class BlockLexicalContext extends LexicalContext {
      * @param block the block to operate on
      * @return a modified block.
      */
-    protected Block afterSetStatements(Block block) {
+    protected Block afterSetStatements(final Block block) {
         return block;
     }
 
@@ -107,6 +107,16 @@ public class BlockLexicalContext extends LexicalContext {
         sstack.peek().add(0, statement);
         return statement;
     }
+
+    /**
+     * Prepend a list of statement to the block being generated
+     * @param statements a list of statements to prepend
+     */
+    public void prependStatements(final List<Statement> statements) {
+        assert statements != null;
+        sstack.peek().addAll(0, statements);
+    }
+
 
     /**
      * Get the last statement that was emitted into a block

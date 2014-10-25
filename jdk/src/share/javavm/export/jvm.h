@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -386,6 +386,19 @@ JNIEXPORT jclass JNICALL
 JVM_FindClassFromBootLoader(JNIEnv *env, const char *name);
 
 /*
+ * Find a class from a given class loader.  Throws ClassNotFoundException.
+ *  name:   name of class
+ *  init:   whether initialization is done
+ *  loader: class loader to look up the class. This may not be the same as the caller's
+ *          class loader.
+ *  caller: initiating class. The initiating class may be null when a security
+ *          manager is not installed.
+ */
+JNIEXPORT jclass JNICALL
+JVM_FindClassFromCaller(JNIEnv *env, const char *name, jboolean init,
+                        jobject loader, jclass caller);
+
+/*
  * Find a class from a given class loader. Throw ClassNotFoundException
  * or NoClassDefFoundError depending on the value of the last
  * argument.
@@ -425,9 +438,6 @@ JVM_GetClassName(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetClassInterfaces(JNIEnv *env, jclass cls);
-
-JNIEXPORT jobject JNICALL
-JVM_GetClassLoader(JNIEnv *env, jclass cls);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsInterface(JNIEnv *env, jclass cls);
