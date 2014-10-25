@@ -69,7 +69,12 @@ class PcDescCache VALUE_OBJ_CLASS_SPEC {
   friend class VMStructs;
  private:
   enum { cache_size = 4 };
-  PcDesc* _pc_descs[cache_size]; // last cache_size pc_descs found
+  // The array elements MUST be volatile! Several threads may modify
+  // and read from the cache concurrently. find_pc_desc_internal has
+  // returned wrong results. C++ compiler (namely xlC12) may duplicate
+  // C++ field accesses if the elements are not volatile.
+  typedef PcDesc* PcDescPtr;
+  volatile PcDescPtr _pc_descs[cache_size]; // last cache_size pc_descs found
  public:
   PcDescCache() { debug_only(_pc_descs[0] = NULL); }
   void    reset_to(PcDesc* initial_pc_desc);
@@ -111,6 +116,11 @@ class nmethod : public CodeBlob {
   friend class NMethodSweeper;
   friend class CodeCache;  // scavengable oops
  private:
+
+  // GC support to help figure out if an nmethod has been
+  // cleaned/unloaded by the current GC.
+  static unsigned char _global_unloading_clock;
+
   // Shared fields for all nmethod's
   Method*   _method;
   int       _entry_bci;        // != InvocationEntryBci if this nmethod is an on-stack replacement method
@@ -118,7 +128,13 @@ class nmethod : public CodeBlob {
 
   // To support simple linked-list chaining of nmethods:
   nmethod*  _osr_link;         // from InstanceKlass::osr_nmethods_head
-  nmethod*  _scavenge_root_link; // from CodeCache::scavenge_root_nmethods
+
+  union {
+    // Used by G1 to chain nmethods.
+    nmethod* _unloading_next;
+    // Used by non-G1 GCs to chain nmethods.
+    nmethod* _scavenge_root_link; // from CodeCache::scavenge_root_nmethods
+  };
 
   static nmethod* volatile _oops_do_mark_nmethods;
   nmethod*        volatile _oops_do_mark_link;
@@ -179,6 +195,8 @@ class nmethod : public CodeBlob {
 
   // Protected by Patching_lock
   volatile unsigned char _state;             // {alive, not_entrant, zombie, unloaded}
+
+  volatile unsigned char _unloading_clock;   // Incremented after GC unloaded/cleaned the nmethod
 
 #ifdef ASSERT
   bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
@@ -430,12 +448,24 @@ class nmethod : public CodeBlob {
   // alive.  It is used when an uncommon trap happens.  Returns true
   // if this thread changed the state of the nmethod or false if
   // another thread performed the transition.
-  bool  make_not_entrant() { return make_not_entrant_or_zombie(not_entrant); }
+  bool  make_not_entrant() {
+    assert(!method()->is_method_handle_intrinsic(), "Cannot make MH intrinsic not entrant");
+    return make_not_entrant_or_zombie(not_entrant);
+  }
   bool  make_zombie()      { return make_not_entrant_or_zombie(zombie); }
 
   // used by jvmti to track if the unload event has been reported
   bool  unload_reported()                         { return _unload_reported; }
   void  set_unload_reported()                     { _unload_reported = true; }
+
+  void set_unloading_next(nmethod* next)          { _unloading_next = next; }
+  nmethod* unloading_next()                       { return _unloading_next; }
+
+  static unsigned char global_unloading_clock()   { return _global_unloading_clock; }
+  static void increase_unloading_clock();
+
+  void set_unloading_clock(unsigned char unloading_clock);
+  unsigned char unloading_clock();
 
   bool  is_marked_for_deoptimization() const      { return _marked_for_deoptimization; }
   void  mark_for_deoptimization()                 { _marked_for_deoptimization = true; }
@@ -529,7 +559,7 @@ public:
   void set_exception_cache(ExceptionCache *ec)    { _exception_cache = ec; }
   address handler_for_exception_and_pc(Handle exception, address pc);
   void add_handler_for_exception_and_pc(Handle exception, address pc, address handler);
-  void remove_from_exception_cache(ExceptionCache* ec);
+  void clean_exception_cache(BoolObjectClosure* is_alive);
 
   // implicit exceptions support
   address continuation_for_implicit_exception(address pc);
@@ -552,6 +582,10 @@ public:
     return (addr >= code_begin() && addr < verified_entry_point());
   }
 
+  // Verify calls to dead methods have been cleaned.
+  void verify_clean_inline_caches();
+  // Verify and count cached icholder relocations.
+  int  verify_icholder_relocations();
   // Check that all metadata is still alive
   void verify_metadata_loaders(address low_boundary, BoolObjectClosure* is_alive);
 
@@ -577,6 +611,10 @@ public:
 
   // GC support
   void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
+  //  The parallel versions are used by G1.
+  bool do_unloading_parallel(BoolObjectClosure* is_alive, bool unloading_occurred);
+  void do_unloading_parallel_postponed(BoolObjectClosure* is_alive, bool unloading_occurred);
+  //  Unload a nmethod if the *root object is dead.
   bool can_unload(BoolObjectClosure* is_alive, oop* root, bool unloading_occurred);
 
   void preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map,

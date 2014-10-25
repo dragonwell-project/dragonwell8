@@ -115,12 +115,12 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   if (allow_inline && allow_intrinsics) {
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
     if (cg != NULL) {
-      if (cg->is_predicted()) {
+      if (cg->is_predicated()) {
         // Code without intrinsic but, hopefully, inlined.
         CallGenerator* inline_cg = this->call_generator(callee,
               vtable_index, call_does_dispatch, jvms, allow_inline, prof_factor, speculative_receiver_type, false);
         if (inline_cg != NULL) {
-          cg = CallGenerator::for_predicted_intrinsic(cg, inline_cg);
+          cg = CallGenerator::for_predicated_intrinsic(cg, inline_cg);
         }
       }
 
@@ -523,7 +523,7 @@ void Parse::do_call() {
   // because exceptions don't return to the call site.)
   profile_call(receiver);
 
-  JVMState* new_jvms = cg->generate(jvms, this);
+  JVMState* new_jvms = cg->generate(jvms);
   if (new_jvms == NULL) {
     // When inlining attempt fails (e.g., too many arguments),
     // it may contaminate the current compile state, making it
@@ -537,7 +537,7 @@ void Parse::do_call() {
     // intrinsic was expecting to optimize. Should always be possible to
     // get a normal java call that may inline in that case
     cg = C->call_generator(cg->method(), vtable_index, call_does_dispatch, jvms, try_inline, prof_factor(), speculative_receiver_type, /* allow_intrinsics= */ false);
-    if ((new_jvms = cg->generate(jvms, this)) == NULL) {
+    if ((new_jvms = cg->generate(jvms)) == NULL) {
       guarantee(failing(), "call failed to generate:  calls should work");
       return;
     }
@@ -799,10 +799,16 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
     // each arm of the Phi.  If I know something clever about the exceptions
     // I'm loading the class from, I can replace the LoadKlass with the
     // klass constant for the exception oop.
-    if( ex_node->is_Phi() ) {
-      ex_klass_node = new (C) PhiNode( ex_node->in(0), TypeKlassPtr::OBJECT );
-      for( uint i = 1; i < ex_node->req(); i++ ) {
-        Node* p = basic_plus_adr( ex_node->in(i), ex_node->in(i), oopDesc::klass_offset_in_bytes() );
+    if (ex_node->is_Phi()) {
+      ex_klass_node = new (C) PhiNode(ex_node->in(0), TypeKlassPtr::OBJECT);
+      for (uint i = 1; i < ex_node->req(); i++) {
+        Node* ex_in = ex_node->in(i);
+        if (ex_in == top() || ex_in == NULL) {
+          // This path was not taken.
+          ex_klass_node->init_req(i, top());
+          continue;
+        }
+        Node* p = basic_plus_adr(ex_in, ex_in, oopDesc::klass_offset_in_bytes());
         Node* k = _gvn.transform( LoadKlassNode::make(_gvn, immutable_memory(), p, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT) );
         ex_klass_node->init_req( i, k );
       }

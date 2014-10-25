@@ -30,7 +30,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.InvocationHandler;
@@ -39,6 +38,7 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.Callable;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
  */
 public class ScriptEngineTest {
 
-    private void log(String msg) {
+    private void log(final String msg) {
         org.testng.Reporter.log(msg, true);
     }
 
@@ -65,11 +65,11 @@ public class ScriptEngineTest {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
 
-        String[] args = new String[] { "hello", "world" };
+        final String[] args = new String[] { "hello", "world" };
         try {
             e.put("arguments", args);
-            Object arg0 = e.eval("arguments[0]");
-            Object arg1 = e.eval("arguments[1]");
+            final Object arg0 = e.eval("arguments[0]");
+            final Object arg1 = e.eval("arguments[1]");
             assertEquals(args[0], arg0);
             assertEquals(args[1], arg1);
         } catch (final Exception exp) {
@@ -83,12 +83,12 @@ public class ScriptEngineTest {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
 
-        String[] args = new String[] { "hello", "world" };
+        final String[] args = new String[] { "hello", "world" };
         try {
             e.put("arguments", args);
-            Object arg0 = e.eval("var imports = new JavaImporter(java.io); " +
+            final Object arg0 = e.eval("var imports = new JavaImporter(java.io); " +
                     " with(imports) { arguments[0] }");
-            Object arg1 = e.eval("var imports = new JavaImporter(java.util, java.io); " +
+            final Object arg1 = e.eval("var imports = new JavaImporter(java.util, java.io); " +
                     " with(imports) { arguments[1] }");
             assertEquals(args[0], arg0);
             assertEquals(args[1], arg1);
@@ -129,18 +129,18 @@ public class ScriptEngineTest {
         assertEquals(fac.getParameter(ScriptEngine.NAME), "javascript");
 
         boolean seenJS = false;
-        for (String ext : fac.getExtensions()) {
+        for (final String ext : fac.getExtensions()) {
             if (ext.equals("js")) {
                 seenJS = true;
             }
         }
 
         assertEquals(seenJS, true);
-        String str = fac.getMethodCallSyntax("obj", "foo", "x");
+        final String str = fac.getMethodCallSyntax("obj", "foo", "x");
         assertEquals(str, "obj.foo(x)");
 
         boolean seenNashorn = false, seenJavaScript = false, seenECMAScript = false;
-        for (String name : fac.getNames()) {
+        for (final String name : fac.getNames()) {
             switch (name) {
                 case "nashorn": seenNashorn = true; break;
                 case "javascript": seenJavaScript = true; break;
@@ -153,7 +153,7 @@ public class ScriptEngineTest {
         assertTrue(seenECMAScript);
 
         boolean seenAppJS = false, seenAppECMA = false, seenTextJS = false, seenTextECMA = false;
-        for (String mime : fac.getMimeTypes()) {
+        for (final String mime : fac.getMimeTypes()) {
             switch (mime) {
                 case "application/javascript": seenAppJS = true; break;
                 case "application/ecmascript": seenAppECMA = true; break;
@@ -548,7 +548,7 @@ public class ScriptEngineTest {
             new Class[] { Runnable.class },
             new InvocationHandler() {
                 @Override
-                public Object invoke(Object p, Method m, Object[] a) {
+                public Object invoke(final Object p, final Method m, final Object[] a) {
                     reached[0] = true;
                     return null;
                 }
@@ -594,9 +594,79 @@ public class ScriptEngineTest {
         }
     }
 
+    // @bug 8046013: TypeError: Cannot apply "with" to non script object
+    @Test
+    public void withOnMirrorTest() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+
+        final Object obj = e.eval("({ foo: 'hello'})");
+        final Object[] arr = new Object[1];
+        arr[0] = obj;
+        e.put("arr", arr);
+        final Object res = e.eval("var res; with(arr[0]) { res = foo; }; res");
+        assertEquals(res, "hello");
+    }
+
+    // @bug 8054223: Nashorn: AssertionError when use __DIR__ and ScriptEngine.eval()
+    @Test
+    public void check__DIR__Test() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+        e.eval("__DIR__");
+    }
+
+    // @bug 8050432:javax.script.filename variable should not be enumerable
+    // with nashorn engine's ENGINE_SCOPE bindings
+    @Test
+    public void enumerableGlobalsTest() throws ScriptException {
+        final ScriptEngineManager m = new ScriptEngineManager();
+        final ScriptEngine e = m.getEngineByName("nashorn");
+
+        e.put(ScriptEngine.FILENAME, "test");
+        final Object enumerable = e.eval(
+            "Object.getOwnPropertyDescriptor(this, " +
+            " 'javax.script.filename').enumerable");
+        assertEquals(enumerable, Boolean.FALSE);
+    }
+
+    public static class Context {
+        private Object myobj;
+
+        public void set(Object o) {
+            myobj = o;
+        }
+
+        public Object get() {
+            return myobj;
+        }
+    }
+
+    // @bug 8050977: Java8 Javascript Nashorn exception:
+    // no current Global instance for nashorn
+    @Test
+    public void currentGlobalMissingTest() throws Exception {
+        final ScriptEngineManager manager = new ScriptEngineManager();
+        final ScriptEngine e = manager.getEngineByName("nashorn");
+
+        final Context ctx = new Context();
+        e.put("ctx", ctx);
+        e.eval("var obj = { foo: function(str) { return str.toUpperCase() } }");
+        e.eval("ctx.set(obj)");
+        final Invocable inv = (Invocable)e;
+        assertEquals("HELLO", inv.invokeMethod(ctx.get(), "foo", "hello"));
+        // try object literal
+        e.eval("ctx.set({ bar: function(str) { return str.toLowerCase() } })");
+        assertEquals("hello", inv.invokeMethod(ctx.get(), "bar", "HELLO"));
+        // try array literal
+        e.eval("var arr = [ 'hello', 'world' ]");
+        e.eval("ctx.set(arr)");
+        assertEquals("helloworld", inv.invokeMethod(ctx.get(), "join", ""));
+    }
+
     private static void checkProperty(final ScriptEngine e, final String name)
         throws ScriptException {
-        String value = System.getProperty(name);
+        final String value = System.getProperty(name);
         e.put("name", name);
         assertEquals(value, e.eval("java.lang.System.getProperty(name)"));
     }

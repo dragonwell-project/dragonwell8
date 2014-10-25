@@ -62,13 +62,19 @@ public final class ThemeReader {
     private static final Lock writeLock = readWriteLock.writeLock();
     private static volatile boolean valid = false;
 
+    static volatile boolean xpStyleEnabled;
+
     static void flush() {
-        // Could be called on Toolkit thread, so do not try to aquire locks
+        // Could be called on Toolkit thread, so do not try to acquire locks
         // to avoid deadlock with theme initialization
         valid = false;
     }
 
     public static native boolean isThemed();
+
+    public static boolean isXPStyleEnabled() {
+        return xpStyleEnabled;
+    }
 
     // this should be called only with writeLock held
     private static Long getThemeImpl(String widget) {

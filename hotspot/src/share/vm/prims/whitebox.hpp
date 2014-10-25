@@ -29,6 +29,8 @@
 
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/symbol.hpp"
+#include "runtime/interfaceSupport.hpp"
 
 // Entry macro to transition from JNI to VM state.
 
@@ -62,6 +64,11 @@ class WhiteBox : public AllStatic {
     Symbol* signature_symbol);
   static const char* lookup_jstring(const char* field_name, oop object);
   static bool lookup_bool(const char* field_name, oop object);
+
+  static int array_bytes_to_length(size_t bytes);
+  static void register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,
+    JNINativeMethod* method_array, int method_count);
+  static void register_extended(JNIEnv* env, jclass wbclass, JavaThread* thread);
 };
 
 

@@ -25,14 +25,16 @@
 
 package jdk.nashorn.api.scripting;
 
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
+
 import java.lang.invoke.MethodHandle;
 import jdk.internal.dynalink.beans.StaticClass;
 import jdk.internal.dynalink.linker.LinkerServices;
-import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.linker.Bootstrap;
 
 /**
  * Utilities that are to be called from script code.
@@ -69,12 +71,12 @@ public final class ScriptUtils {
      * Create a wrapper function that calls {@code func} synchronized on {@code sync} or, if that is undefined,
      * {@code self}. Used to implement "sync" function in resources/mozilla_compat.js.
      *
-     * @param func the function to invoke
+     * @param func the function to wrap
      * @param sync the object to synchronize on
      * @return a synchronizing wrapper function
      */
     public static Object makeSynchronizedFunction(final ScriptFunction func, final Object sync) {
-        return func.makeSynchronizedFunction(sync);
+        return func.makeSynchronizedFunction(unwrap(sync));
     }
 
     /**
@@ -83,12 +85,8 @@ public final class ScriptUtils {
      * @param obj object to be wrapped
      * @return wrapped object
      */
-    public static Object wrap(final Object obj) {
-        if (obj instanceof ScriptObject) {
-            return ScriptObjectMirror.wrap(obj, Context.getGlobal());
-        }
-
-        return obj;
+    public static ScriptObjectMirror wrap(final ScriptObject obj) {
+        return (ScriptObjectMirror) ScriptObjectMirror.wrap(obj, Context.getGlobal());
     }
 
     /**
@@ -155,14 +153,15 @@ public final class ScriptUtils {
         }
 
         final LinkerServices linker = Bootstrap.getLinkerServices();
-        final MethodHandle converter = linker.getTypeConverter(obj.getClass(),  clazz);
+        final Object objToConvert = unwrap(obj);
+        final MethodHandle converter = linker.getTypeConverter(objToConvert.getClass(),  clazz);
         if (converter == null) {
             // no supported conversion!
             throw new UnsupportedOperationException("conversion not supported");
         }
 
         try {
-            return converter.invoke(obj);
+            return converter.invoke(objToConvert);
         } catch (final RuntimeException | Error e) {
             throw e;
         } catch (final Throwable t) {

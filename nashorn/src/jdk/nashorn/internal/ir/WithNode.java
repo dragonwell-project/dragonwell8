@@ -33,6 +33,8 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  */
 @Immutable
 public final class WithNode extends LexicalContextStatement {
+    private static final long serialVersionUID = 1L;
+
    /** This expression. */
     private final Expression expression;
 
@@ -79,9 +81,9 @@ public final class WithNode extends LexicalContextStatement {
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
+    public void toString(final StringBuilder sb, final boolean printType) {
         sb.append("with (");
-        expression.toString(sb);
+        expression.toString(sb, printType);
         sb.append(')');
     }
 

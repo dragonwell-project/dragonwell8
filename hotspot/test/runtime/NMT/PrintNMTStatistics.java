@@ -45,10 +45,6 @@ public class PrintNMTStatistics {
     // We start a new java process running with an argument and use WB API to ensure
     // we have data for NMT on VM exit
     if (args.length > 0) {
-      // Use WB API to ensure that all data has been merged before we continue
-      if (!WhiteBox.getWhiteBox().NMTWaitForDataMerge()) {
-        throw new Exception("Call to WB API NMTWaitForDataMerge() failed");
-      }
       return;
     }
 

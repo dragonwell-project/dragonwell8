@@ -41,6 +41,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/signature.hpp"
@@ -49,7 +50,6 @@
 #include "runtime/sweeper.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
-#include "services/memTracker.hpp"
 #include "services/runtimeService.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
@@ -75,7 +75,7 @@
 #endif
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/concurrentMarkSweep/concurrentMarkSweepThread.hpp"
-#include "gc_implementation/shared/concurrentGCThread.hpp"
+#include "gc_implementation/shared/suspendibleThreadSet.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
@@ -112,7 +112,7 @@ void SafepointSynchronize::begin() {
     // more-general mechanism below.  DLD (01/05).
     ConcurrentMarkSweepThread::synchronize(false);
   } else if (UseG1GC) {
-    ConcurrentGCThread::safepoint_synchronize();
+    SuspendibleThreadSet::synchronize();
   }
 #endif // INCLUDE_ALL_GCS
 
@@ -488,7 +488,7 @@ void SafepointSynchronize::end() {
   if (UseConcMarkSweepGC) {
     ConcurrentMarkSweepThread::desynchronize(false);
   } else if (UseG1GC) {
-    ConcurrentGCThread::safepoint_desynchronize();
+    SuspendibleThreadSet::desynchronize();
   }
 #endif // INCLUDE_ALL_GCS
   // record this time so VMThread can keep track how much time has elasped
@@ -545,10 +545,6 @@ void SafepointSynchronize::do_cleanup_tasks() {
     // make sure concurrent sweep is done
     TraceTime t7("purging class loader data graph", TraceSafepointCleanupTime);
     ClassLoaderDataGraph::purge_if_needed();
-  }
-
-  if (MemTracker::is_on()) {
-    MemTracker::sync();
   }
 }
 

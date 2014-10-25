@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,63 +63,7 @@
 #define SAFEBUF
 #endif
 
-#include <math.h>
-
-// VM_LITTLE_ENDIAN is #defined appropriately in the Makefiles
-// [jk] this is not 100% correct because the float word order may different
-// from the byte order (e.g. on ARM)
-#ifdef VM_LITTLE_ENDIAN
-# define __HI(x) *(1+(int*)&x)
-# define __LO(x) *(int*)&x
-#else
-# define __HI(x) *(int*)&x
-# define __LO(x) *(1+(int*)&x)
-#endif
-
-static double copysignA(double x, double y) {
-  __HI(x) = (__HI(x)&0x7fffffff)|(__HI(y)&0x80000000);
-  return x;
-}
-
-/*
- * scalbn (double x, int n)
- * scalbn(x,n) returns x* 2**n  computed by  exponent
- * manipulation rather than by actually performing an
- * exponentiation or a multiplication.
- */
-
-static const double
-two54   =  1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
-twom54  =  5.55111512312578270212e-17, /* 0x3C900000, 0x00000000 */
-hugeX  = 1.0e+300,
-tiny   = 1.0e-300;
-
-static double scalbnA (double x, int n) {
-  int  k,hx,lx;
-  hx = __HI(x);
-  lx = __LO(x);
-  k = (hx&0x7ff00000)>>20;              /* extract exponent */
-  if (k==0) {                           /* 0 or subnormal x */
-    if ((lx|(hx&0x7fffffff))==0) return x; /* +-0 */
-    x *= two54;
-    hx = __HI(x);
-    k = ((hx&0x7ff00000)>>20) - 54;
-    if (n< -50000) return tiny*x;       /*underflow*/
-  }
-  if (k==0x7ff) return x+x;             /* NaN or Inf */
-  k = k+n;
-  if (k >  0x7fe) return hugeX*copysignA(hugeX,x); /* overflow  */
-  if (k > 0)                            /* normal result */
-    {__HI(x) = (hx&0x800fffff)|(k<<20); return x;}
-  if (k <= -54) {
-    if (n > 50000)      /* in case integer overflow in n+k */
-      return hugeX*copysignA(hugeX,x);  /*overflow*/
-    else return tiny*copysignA(tiny,x); /*underflow*/
-  }
-  k += 54;                              /* subnormal result */
-  __HI(x) = (hx&0x800fffff)|(k<<20);
-  return x*twom54;
-}
+#include "runtime/sharedRuntimeMath.hpp"
 
 /*
  * __kernel_rem_pio2(x,y,e0,nx,prec,ipio2)
@@ -603,7 +547,7 @@ static double __kernel_sin(double x, double y, int iy)
 {
         double z,r,v;
         int ix;
-        ix = __HI(x)&0x7fffffff;        /* high word of x */
+        ix = high(x)&0x7fffffff;                /* high word of x */
         if(ix<0x3e400000)                       /* |x| < 2**-27 */
            {if((int)x==0) return x;}            /* generate inexact */
         z       =  x*x;
@@ -658,9 +602,9 @@ C6  = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
 
 static double __kernel_cos(double x, double y)
 {
-  double a,h,z,r,qx;
+  double a,h,z,r,qx=0;
   int ix;
-  ix = __HI(x)&0x7fffffff;      /* ix = |x|'s high word*/
+  ix = high(x)&0x7fffffff;              /* ix = |x|'s high word*/
   if(ix<0x3e400000) {                   /* if x < 2**27 */
     if(((int)x)==0) return one;         /* generate inexact */
   }
@@ -672,8 +616,8 @@ static double __kernel_cos(double x, double y)
     if(ix > 0x3fe90000) {               /* x > 0.78125 */
       qx = 0.28125;
     } else {
-      __HI(qx) = ix-0x00200000; /* x/4 */
-      __LO(qx) = 0;
+      set_high(&qx, ix-0x00200000); /* x/4 */
+      set_low(&qx, 0);
     }
     h = 0.5*z-qx;
     a = one-qx;
@@ -738,11 +682,11 @@ static double __kernel_tan(double x, double y, int iy)
 {
   double z,r,v,w,s;
   int ix,hx;
-  hx = __HI(x);   /* high word of x */
+  hx = high(x);           /* high word of x */
   ix = hx&0x7fffffff;     /* high word of |x| */
   if(ix<0x3e300000) {                     /* x < 2**-28 */
     if((int)x==0) {                       /* generate inexact */
-      if (((ix | __LO(x)) | (iy + 1)) == 0)
+      if (((ix | low(x)) | (iy + 1)) == 0)
         return one / fabsd(x);
       else {
         if (iy == 1)
@@ -751,10 +695,10 @@ static double __kernel_tan(double x, double y, int iy)
           double a, t;
 
           z = w = x + y;
-          __LO(z) = 0;
+          set_low(&z, 0);
           v = y - (z - x);
           t = a = -one / w;
-          __LO(t) = 0;
+          set_low(&t, 0);
           s = one + t * z;
           return t + a * (s + t * v);
         }
@@ -789,10 +733,10 @@ static double __kernel_tan(double x, double y, int iy)
     /*  compute -1.0/(x+r) accurately */
     double a,t;
     z  = w;
-    __LO(z) = 0;
+    set_low(&z, 0);
     v  = r-(z - x);     /* z+v = r+x */
     t = a  = -1.0/w;    /* a = -1.0/w */
-    __LO(t) = 0;
+    set_low(&t, 0);
     s  = 1.0+t*z;
     return t+a*(s+t*v);
   }
@@ -841,7 +785,7 @@ JRT_LEAF(jdouble, SharedRuntime::dsin(jdouble x))
   int n, ix;
 
   /* High word of x. */
-  ix = __HI(x);
+  ix = high(x);
 
   /* |x| ~< pi/4 */
   ix &= 0x7fffffff;
@@ -899,7 +843,7 @@ JRT_LEAF(jdouble, SharedRuntime::dcos(jdouble x))
   int n, ix;
 
   /* High word of x. */
-  ix = __HI(x);
+  ix = high(x);
 
   /* |x| ~< pi/4 */
   ix &= 0x7fffffff;
@@ -956,7 +900,7 @@ JRT_LEAF(jdouble, SharedRuntime::dtan(jdouble x))
   int n, ix;
 
   /* High word of x. */
-  ix = __HI(x);
+  ix = high(x);
 
   /* |x| ~< pi/4 */
   ix &= 0x7fffffff;

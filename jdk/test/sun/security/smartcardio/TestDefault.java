@@ -30,10 +30,9 @@
  * @run main/manual TestDefault
  */
 
-import java.io.*;
-import java.util.*;
-
-import javax.smartcardio.*;
+import java.util.List;
+import javax.smartcardio.CardTerminal;
+import javax.smartcardio.TerminalFactory;
 
 public class TestDefault {
 

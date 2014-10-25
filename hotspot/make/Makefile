@@ -95,6 +95,7 @@ MINIMAL1_VM_TARGETS=productminimal1 fastdebugminimal1 debugminimal1
 COMMON_VM_PRODUCT_TARGETS=product product1 docs export_product
 COMMON_VM_FASTDEBUG_TARGETS=fastdebug fastdebug1 docs export_fastdebug
 COMMON_VM_DEBUG_TARGETS=debug debug1 docs export_debug
+COMMON_VM_OPTIMIZED_TARGETS=optimized optimized1 docs export_optimized
 
 # JDK directory list
 JDK_DIRS=bin include jre lib demo
@@ -111,19 +112,20 @@ ifdef BUILD_CLIENT_ONLY
 all_product:   product1 docs export_product
 all_fastdebug: fastdebug1 docs export_fastdebug
 all_debug:     debug1 docs export_debug
+all_optimized: optimized1 docs export_optimized
 else
 ifeq ($(MACOSX_UNIVERSAL),true)
 all_product:   universal_product
 all_fastdebug: universal_fastdebug
 all_debug:     universal_debug
+all_optimized: universal_optimized
 else
 all_product:   $(COMMON_VM_PRODUCT_TARGETS)
 all_fastdebug: $(COMMON_VM_FASTDEBUG_TARGETS)
 all_debug:     $(COMMON_VM_DEBUG_TARGETS)
+all_optimized: $(COMMON_VM_OPTIMIZED_TARGETS)
 endif
 endif
-
-all_optimized: optimized optimized1 docs export_optimized
 
 allzero:           all_productzero all_fastdebugzero
 all_productzero:   productzero docs export_product
@@ -302,7 +304,7 @@ export_optimized:
 export_product_jdk::
 	$(MAKE) BUILD_FLAVOR=$(@:export_%_jdk=%) ALT_EXPORT_PATH=$(JDK_IMAGE_DIR) generic_export
 export_optimized_jdk::
-	$(MAKE) BUILD_FLAVOR=$(@:export_%_jdk=%) ALT_EXPORT_PATH=$(JDK_IMAGE_DIR) generic_export
+	$(MAKE) BUILD_FLAVOR=$(@:export_%_jdk=%) ALT_EXPORT_PATH=$(JDK_IMAGE_DIR)/$(@:export_%_jdk=%) generic_export
 export_fastdebug_jdk::
 	$(MAKE) BUILD_FLAVOR=$(@:export_%_jdk=%) ALT_EXPORT_PATH=$(JDK_IMAGE_DIR)/$(@:export_%_jdk=%) generic_export
 export_debug_jdk::
@@ -684,6 +686,19 @@ copy_debug_jdk::
 	  ($(CD) $(JDK_IMPORT_PATH) && \
 	   $(TAR) -cf - $(JDK_DIRS)) | \
 	   ($(CD) $(JDK_IMAGE_DIR)/debug && $(TAR) -xf -) ; \
+	fi
+
+copy_optimized_jdk::
+	$(RM) -r $(JDK_IMAGE_DIR)/optimized
+	$(MKDIR) -p $(JDK_IMAGE_DIR)/optimized
+	if [ -d $(JDK_IMPORT_PATH)/optimized ] ; then \
+	  ($(CD) $(JDK_IMPORT_PATH)/optimized && \
+	   $(TAR) -cf - $(JDK_DIRS)) | \
+	   ($(CD) $(JDK_IMAGE_DIR)/optimized && $(TAR) -xf -) ; \
+	else \
+	  ($(CD) $(JDK_IMPORT_PATH) && \
+	   $(TAR) -cf - $(JDK_DIRS)) | \
+	   ($(CD) $(JDK_IMAGE_DIR)/optimized && $(TAR) -xf -) ; \
 	fi
 
 #

@@ -25,19 +25,26 @@
 
 package jdk.nashorn.internal.runtime.arrays;
 
+import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
+import jdk.internal.dynalink.CallSiteDescriptor;
+import jdk.internal.dynalink.linker.GuardedInvocation;
+import jdk.internal.dynalink.linker.LinkRequest;
+import jdk.nashorn.internal.codegen.CompilerConstants;
+import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
+import jdk.nashorn.internal.runtime.UnwarrantedOptimismException;
 
 /**
  * ArrayData - abstraction for wrapping array elements
  */
 public abstract class ArrayData {
-
     /** Minimum chunk size for underlying arrays */
-    protected static final int CHUNK_SIZE = 16;
+    protected static final int CHUNK_SIZE = 32;
 
     /** Mask for getting a chunk */
     protected static final int CHUNK_MASK = CHUNK_SIZE - 1;
@@ -50,7 +57,13 @@ public abstract class ArrayData {
     /**
      * Length of the array data. Not necessarily length of the wrapped array.
      */
-    private long length;
+    protected long length;
+
+    /**
+     * Method handle to throw an {@link UnwarrantedOptimismException} when getting an element
+     * of the wrong type
+     */
+    protected static final CompilerConstants.Call THROW_UNWARRANTED = staticCall(MethodHandles.lookup(), ArrayData.class, "throwUnwarranted", void.class, ArrayData.class, int.class, int.class);
 
     /**
      * Constructor
@@ -66,6 +79,37 @@ public abstract class ArrayData {
      */
     public static ArrayData initialArray() {
         return new IntArrayData();
+    }
+
+    /**
+     * Unwarranted thrower
+     *
+     * @param data         array data
+     * @param programPoint program point
+     * @param index        array index
+     */
+    protected static void throwUnwarranted(final ArrayData data, final int programPoint, final int index) {
+        throw new UnwarrantedOptimismException(data.getObject(index), programPoint);
+    }
+
+    private static int alignUp(final int size) {
+        return size + CHUNK_SIZE - 1 & ~(CHUNK_SIZE - 1);
+    }
+
+    /**
+     * Generic invalidation hook for script object to have call sites to this array indexing
+     * relinked, e.g. when a native array is marked as non extensible
+     */
+    public void invalidateGetters() {
+        //subclass responsibility
+    }
+
+    /**
+     * Generic invalidation hook for script object to have call sites to this array indexing
+     * relinked, e.g. when a native array is marked as non extensible
+     */
+    public void invalidateSetters() {
+        //subclass responsibility
     }
 
     /**
@@ -151,7 +195,7 @@ public abstract class ArrayData {
      * @return the ArrayData
      */
     public static ArrayData allocate(final ByteBuffer buf) {
-        return new ByteBufferArrayData((ByteBuffer)buf);
+        return new ByteBufferArrayData(buf);
     }
 
     /**
@@ -336,6 +380,27 @@ public abstract class ArrayData {
     public abstract int getInt(int index);
 
     /**
+     * Returns the optimistic type of this array data. Basically, when an array data object needs to throw an
+     * {@link UnwarrantedOptimismException}, this type is used as the actual type of the return value.
+     * @return the optimistic type of this array data.
+     */
+    public Type getOptimisticType() {
+        return Type.OBJECT;
+    }
+
+    /**
+     * Get optimistic int - default is that it's impossible. Overridden
+     * by arrays that actually represents ints
+     *
+     * @param index        the index
+     * @param programPoint program point
+     * @return the value
+     */
+    public int getIntOptimistic(final int index, final int programPoint) {
+        throw new UnwarrantedOptimismException(getObject(index), programPoint, getOptimisticType());
+    }
+
+    /**
      * Get a long value from a given index
      *
      * @param index the index
@@ -344,12 +409,36 @@ public abstract class ArrayData {
     public abstract long getLong(int index);
 
     /**
+     * Get optimistic long - default is that it's impossible. Overridden
+     * by arrays that actually represents longs or narrower
+     *
+     * @param index        the index
+     * @param programPoint program point
+     * @return the value
+     */
+    public long getLongOptimistic(final int index, final int programPoint) {
+        throw new UnwarrantedOptimismException(getObject(index), programPoint, getOptimisticType());
+    }
+
+    /**
      * Get a double value from a given index
      *
      * @param index the index
      * @return the value
      */
     public abstract double getDouble(int index);
+
+    /**
+     * Get optimistic double - default is that it's impossible. Overridden
+     * by arrays that actually represents doubles or narrower
+     *
+     * @param index        the index
+     * @param programPoint program point
+     * @return the value
+     */
+    public double getDoubleOptimistic(final int index, final int programPoint) {
+        throw new UnwarrantedOptimismException(getObject(index), programPoint, getOptimisticType());
+    }
 
     /**
      * Get an Object value from a given index
@@ -430,7 +519,7 @@ public abstract class ArrayData {
      * @param type new element type
      * @return new array data
      */
-    protected abstract ArrayData convert(Class<?> type);
+    public abstract ArrayData convert(Class<?> type);
 
     /**
      * Push an array of items to the end of the array
@@ -447,12 +536,56 @@ public abstract class ArrayData {
         final Class<?>  widest  = widestType(items);
 
         ArrayData newData = convert(widest);
-        long      pos     = newData.length();
+        long      pos     = newData.length;
         for (final Object item : items) {
             newData = newData.ensure(pos); //avoid sparse array
             newData.set((int)pos++, item, strict);
         }
         return newData;
+    }
+
+    /**
+     * Push an array of items to the end of the array
+     *
+     * @param strict are we in strict mode
+     * @param item   the item
+     * @return new array data (or same)
+     */
+    public ArrayData push(final boolean strict, final Object item) {
+        return push(strict, new Object[] { item });
+    }
+
+    /**
+     * Push an array of items to the end of the array
+     *
+     * @param strict are we in strict mode
+     * @param item   the item
+     * @return new array data (or same)
+     */
+    public ArrayData push(final boolean strict, final double item) {
+        return push(strict, item);
+    }
+
+    /**
+     * Push an array of items to the end of the array
+     *
+     * @param strict are we in strict mode
+     * @param item   the item
+     * @return new array data (or same)
+     */
+    public ArrayData push(final boolean strict, final long item) {
+        return push(strict, item);
+    }
+
+    /**
+     * Push an array of items to the end of the array
+     *
+     * @param strict are we in strict mode
+     * @param item   the item
+     * @return new array data (or same)
+     */
+    public ArrayData push(final boolean strict, final int item) {
+        return push(strict, item);
     }
 
     /**
@@ -482,11 +615,11 @@ public abstract class ArrayData {
      * @param removed number of removed elements
      * @param added number of added elements
      * @throws UnsupportedOperationException if fast splice is not supported for the class or arguments.
+     * @return new arraydata, but this never happens because we always throw an exception
      */
     public ArrayData fastSplice(final int start, final int removed, final int added) throws UnsupportedOperationException {
         throw new UnsupportedOperationException();
     }
-
 
     static Class<?> widestType(final Object... items) {
         assert items.length > 0;
@@ -494,18 +627,20 @@ public abstract class ArrayData {
         Class<?> widest = Integer.class;
 
         for (final Object item : items) {
-            final Class<?> itemClass = item == null ? null : item.getClass();
+            if (item == null) {
+                return Object.class;
+            }
+            final Class<?> itemClass = item.getClass();
             if (itemClass == Long.class) {
                 if (widest == Integer.class) {
                     widest = Long.class;
                 }
-            } else if (itemClass == Double.class) {
+            } else if (itemClass == Double.class || itemClass == Float.class) {
                 if (widest == Integer.class || widest == Long.class) {
                     widest = Double.class;
                 }
-            } else if (!(item instanceof Number)) {
-                widest = Object.class;
-                break;
+            } else if (itemClass != Integer.class && itemClass != Short.class && itemClass != Byte.class) {
+                return Object.class;
             }
         }
 
@@ -519,17 +654,8 @@ public abstract class ArrayData {
      * @param size current size
      * @return next size to allocate for internal array
      */
-    protected static int nextSize(final int size) {
-        if (size == 0) {
-            return CHUNK_SIZE;
-        }
-
-        int i = size;
-        while ((i & CHUNK_MASK) != 0) {
-            i++;
-        }
-
-        return i << 1;
+    public static int nextSize(final int size) {
+        return alignUp(size + 1) * 2;
     }
 
     /**
@@ -553,4 +679,54 @@ public abstract class ArrayData {
             throw new RuntimeException(t);
         }
     }
+
+   /**
+     * Find a fast call if one exists
+     *
+     * @param clazz    array data class
+     * @param desc     callsite descriptor
+     * @param request  link request
+     * @return fast property getter if one is found
+     */
+    public GuardedInvocation findFastCallMethod(final Class<? extends ArrayData> clazz, final CallSiteDescriptor desc, final LinkRequest request) {
+        return null;
+    }
+
+    /**
+     * Find a fast property getter if one exists
+     *
+     * @param clazz    array data class
+     * @param desc     callsite descriptor
+     * @param request  link request
+     * @param operator operator
+     * @return fast property getter if one is found
+     */
+    public GuardedInvocation findFastGetMethod(final Class<? extends ArrayData> clazz, final CallSiteDescriptor desc, final LinkRequest request, final String operator) {
+        return null;
+    }
+
+    /**
+     * Find a fast element getter if one exists
+     *
+     * @param clazz   array data class
+     * @param desc    callsite descriptor
+     * @param request link request
+     * @return fast index getter if one is found
+     */
+    public GuardedInvocation findFastGetIndexMethod(final Class<? extends ArrayData> clazz, final CallSiteDescriptor desc, final LinkRequest request) { // array, index, value
+        return null;
+    }
+
+    /**
+     * Find a fast element setter if one exists
+     *
+     * @param clazz   array data class
+     * @param desc    callsite descriptor
+     * @param request link request
+     * @return fast index getter if one is found
+     */
+    public GuardedInvocation findFastSetIndexMethod(final Class<? extends ArrayData> clazz, final CallSiteDescriptor desc, final LinkRequest request) { // array, index, value
+        return null;
+    }
+
 }
