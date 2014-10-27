@@ -25,6 +25,7 @@
 
 package jdk.nashorn.internal.runtime.arrays;
 
+import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
 import jdk.nashorn.internal.runtime.Undefined;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
@@ -38,7 +39,7 @@ abstract class ArrayFilter extends ArrayData {
     protected ArrayData underlying;
 
     ArrayFilter(final ArrayData underlying) {
-        super(underlying.length());
+        super(underlying.length);
         this.underlying = underlying;
     }
 
@@ -69,13 +70,13 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public void shiftLeft(final int by) {
         underlying.shiftLeft(by);
-        setLength(underlying.length());
+        setLength(underlying.length);
     }
 
     @Override
     public ArrayData shiftRight(final int by) {
         underlying = underlying.shiftRight(by);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -83,7 +84,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData ensure(final long safeIndex) {
         underlying = underlying.ensure(safeIndex);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -91,7 +92,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData shrink(final long newLength) {
         underlying = underlying.shrink(newLength);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -99,7 +100,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
         underlying = underlying.set(index, value, strict);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -107,7 +108,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData set(final int index, final int value, final boolean strict) {
         underlying = underlying.set(index, value, strict);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -115,7 +116,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData set(final int index, final long value, final boolean strict) {
         underlying = underlying.set(index, value, strict);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -123,7 +124,7 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData set(final int index, final double value, final boolean strict) {
         underlying = underlying.set(index, value, strict);
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return this;
     }
@@ -141,8 +142,18 @@ abstract class ArrayFilter extends ArrayData {
     }
 
     @Override
+    public Type getOptimisticType() {
+        return underlying.getOptimisticType();
+    }
+
+    @Override
     public int getInt(final int index) {
         return underlying.getInt(index);
+    }
+
+    @Override
+    public int getIntOptimistic(final int index, final int programPoint) {
+        return underlying.getIntOptimistic(index, programPoint);
     }
 
     @Override
@@ -151,8 +162,18 @@ abstract class ArrayFilter extends ArrayData {
     }
 
     @Override
+    public long getLongOptimistic(final int index, final int programPoint) {
+        return underlying.getLongOptimistic(index, programPoint);
+    }
+
+    @Override
     public double getDouble(final int index) {
         return underlying.getDouble(index);
+    }
+
+    @Override
+    public double getDoubleOptimistic(final int index, final int programPoint) {
+        return underlying.getDoubleOptimistic(index, programPoint);
     }
 
     @Override
@@ -168,28 +189,28 @@ abstract class ArrayFilter extends ArrayData {
     @Override
     public ArrayData delete(final int index) {
         underlying = underlying.delete(index);
-        setLength(underlying.length());
+        setLength(underlying.length);
         return this;
     }
 
     @Override
     public ArrayData delete(final long from, final long to) {
         underlying = underlying.delete(from, to);
-        setLength(underlying.length());
+        setLength(underlying.length);
         return this;
     }
 
     @Override
-    protected ArrayData convert(final Class<?> type) {
+    public ArrayData convert(final Class<?> type) {
         underlying = underlying.convert(type);
-        setLength(underlying.length());
+        setLength(underlying.length);
         return this;
     }
 
     @Override
     public Object pop() {
         final Object value = underlying.pop();
-        setLength(underlying.length());
+        setLength(underlying.length);
 
         return value;
     }

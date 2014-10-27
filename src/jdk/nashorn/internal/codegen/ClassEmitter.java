@@ -49,25 +49,27 @@ import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.STRICT_MODE;
 import static jdk.nashorn.internal.codegen.CompilerConstants.className;
 import static jdk.nashorn.internal.codegen.CompilerConstants.methodDescriptor;
-import static jdk.nashorn.internal.codegen.CompilerConstants.staticCallNoLookup;
 import static jdk.nashorn.internal.codegen.CompilerConstants.typeDescriptor;
-
+import static jdk.nashorn.internal.codegen.CompilerConstants.virtualCallNoLookup;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
-import java.util.Arrays;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
-
-import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.util.TraceClassVisitor;
 import jdk.nashorn.internal.codegen.types.Type;
 import jdk.nashorn.internal.ir.FunctionNode;
 import jdk.nashorn.internal.ir.SplitNode;
+import jdk.nashorn.internal.ir.debug.NashornClassReader;
+import jdk.nashorn.internal.ir.debug.NashornTextifier;
+import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.PropertyMap;
-import jdk.nashorn.internal.runtime.ScriptEnvironment;
+import jdk.nashorn.internal.runtime.RewriteException;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.Source;
 
@@ -106,6 +108,8 @@ import jdk.nashorn.internal.runtime.Source;
  * @see Compiler
  */
 public class ClassEmitter implements Emitter {
+    /** Default flags for class generation - public class */
+    private static final EnumSet<Flag> DEFAULT_METHOD_FLAGS = EnumSet.of(Flag.PUBLIC);
 
     /** Sanity check flag - have we started on a class? */
     private boolean classStarted;
@@ -123,16 +127,23 @@ public class ClassEmitter implements Emitter {
     protected final ClassWriter cw;
 
     /** The script environment */
-    protected final ScriptEnvironment env;
-
-    /** Default flags for class generation - oublic class */
-    private static final EnumSet<Flag> DEFAULT_METHOD_FLAGS = EnumSet.of(Flag.PUBLIC);
+    protected final Context context;
 
     /** Compile unit class name. */
     private String unitClassName;
 
     /** Set of constants access methods required. */
     private Set<Class<?>> constantMethodNeeded;
+
+    private int methodCount;
+
+    private int initCount;
+
+    private int clinitCount;
+
+    private int fieldCount;
+
+    private final Set<String> methodNames;
 
     /**
      * Constructor - only used internally in this class as it breaks
@@ -141,12 +152,19 @@ public class ClassEmitter implements Emitter {
      * @param env script environment
      * @param cw  ASM classwriter
      */
-    private ClassEmitter(final ScriptEnvironment env, final ClassWriter cw) {
-        assert env != null;
-
-        this.env            = env;
+    private ClassEmitter(final Context context, final ClassWriter cw) {
+        this.context        = context;
         this.cw             = cw;
         this.methodsStarted = new HashSet<>();
+        this.methodNames    = new HashSet<>();
+    }
+
+    /**
+     * Return the method names encountered
+     * @return method names
+     */
+    public Set<String> getMethodNames() {
+        return Collections.unmodifiableSet(methodNames);
     }
 
     /**
@@ -157,8 +175,8 @@ public class ClassEmitter implements Emitter {
      * @param superClassName  super class name for class
      * @param interfaceNames  names of interfaces implemented by this class, or null if none
      */
-    ClassEmitter(final ScriptEnvironment env, final String className, final String superClassName, final String... interfaceNames) {
-        this(env, new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS));
+    ClassEmitter(final Context context, final String className, final String superClassName, final String... interfaceNames) {
+        this(context, new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS));
         cw.visit(V1_7, ACC_PUBLIC | ACC_SUPER, className, null, superClassName, interfaceNames);
     }
 
@@ -170,8 +188,8 @@ public class ClassEmitter implements Emitter {
      * @param unitClassName Compile unit class name.
      * @param strictMode    Should we generate this method in strict mode
      */
-    ClassEmitter(final ScriptEnvironment env, final String sourceName, final String unitClassName, final boolean strictMode) {
-        this(env,
+    ClassEmitter(final Context context, final String sourceName, final String unitClassName, final boolean strictMode) {
+        this(context,
              new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
                 private static final String OBJECT_CLASS  = "java/lang/Object";
 
@@ -197,12 +215,48 @@ public class ClassEmitter implements Emitter {
         defineCommonStatics(strictMode);
     }
 
+    Context getContext() {
+        return context;
+    }
+
     /**
      * Returns the name of the compile unit class name.
      * @return the name of the compile unit class name.
      */
     String getUnitClassName() {
         return unitClassName;
+    }
+
+    /**
+     * Get the method count, including init and clinit methods
+     * @return method count
+     */
+    public int getMethodCount() {
+        return methodCount;
+    }
+
+    /**
+     * Get the clinit count
+     * @return clinit count
+     */
+    public int getClinitCount() {
+        return clinitCount;
+    }
+
+    /**
+     * Get the init count
+     * @return init count
+     */
+    public int getInitCount() {
+        return initCount;
+    }
+
+    /**
+     * Get the field count
+     * @return field count
+     */
+    public int getFieldCount() {
+        return fieldCount;
     }
 
     /**
@@ -274,51 +328,51 @@ public class ClassEmitter implements Emitter {
         }
 
         // $getXXXX$array - get the ith entry from the constants table and cast to XXXX[].
-        for (final Class<?> cls : constantMethodNeeded) {
-            if (cls.isArray()) {
-                defineGetArrayMethod(cls);
+        for (final Class<?> clazz : constantMethodNeeded) {
+            if (clazz.isArray()) {
+                defineGetArrayMethod(clazz);
             }
         }
     }
 
     /**
-     * Constructs a primitive specific method for getting the ith entry from the constants table and cast.
-     * @param cls Array class.
+     * Constructs a primitive specific method for getting the ith entry from the constants table as an array.
+     * @param clazz Array class.
      */
-    private void defineGetArrayMethod(final Class<?> cls) {
+    private void defineGetArrayMethod(final Class<?> clazz) {
         assert unitClassName != null;
 
-        final String        methodName     = getArrayMethodName(cls);
-        final MethodEmitter getArrayMethod = method(EnumSet.of(Flag.PRIVATE, Flag.STATIC), methodName, cls, int.class);
+        final String        methodName     = getArrayMethodName(clazz);
+        final MethodEmitter getArrayMethod = method(EnumSet.of(Flag.PRIVATE, Flag.STATIC), methodName, clazz, int.class);
 
         getArrayMethod.begin();
         getArrayMethod.getStatic(unitClassName, CONSTANTS.symbolName(), CONSTANTS.descriptor())
                       .load(Type.INT, 0)
                       .arrayload()
-                      .checkcast(cls)
-                      .dup()
-                      .arraylength()
-                      .invoke(staticCallNoLookup(Arrays.class, "copyOf", cls, cls, int.class))
+                      .checkcast(clazz)
+                      .invoke(virtualCallNoLookup(clazz, "clone", Object.class))
+                      .checkcast(clazz)
                       ._return();
         getArrayMethod.end();
     }
 
+
     /**
      * Generate the name of a get array from constant pool method.
-     * @param cls Name of array class.
+     * @param clazz Name of array class.
      * @return Method name.
      */
-    static String getArrayMethodName(final Class<?> cls) {
-        assert cls.isArray();
-        return GET_ARRAY_PREFIX.symbolName() + cls.getComponentType().getSimpleName() + GET_ARRAY_SUFFIX.symbolName();
+    static String getArrayMethodName(final Class<?> clazz) {
+        assert clazz.isArray();
+        return GET_ARRAY_PREFIX.symbolName() + clazz.getComponentType().getSimpleName() + GET_ARRAY_SUFFIX.symbolName();
     }
 
     /**
      * Ensure a get constant method is issued for the class.
-     * @param cls Class of constant.
+     * @param clazz Class of constant.
      */
-    void needGetConstantMethod(final Class<?> cls) {
-        constantMethodNeeded.add(cls);
+    void needGetConstantMethod(final Class<?> clazz) {
+        constantMethodNeeded.add(clazz);
     }
 
     /**
@@ -356,9 +410,16 @@ public class ClassEmitter implements Emitter {
      */
     @Override
     public void end() {
-        assert classStarted;
+        assert classStarted : "class not started for " + unitClassName;
 
         if (unitClassName != null) {
+            final MethodEmitter initMethod = init(EnumSet.of(Flag.PRIVATE));
+            initMethod.begin();
+            initMethod.load(Type.OBJECT, 0);
+            initMethod.newInstance(jdk.nashorn.internal.scripts.JS.class);
+            initMethod.returnVoid();
+            initMethod.end();
+
             defineCommonUtilities();
         }
 
@@ -376,16 +437,19 @@ public class ClassEmitter implements Emitter {
     static String disassemble(final byte[] bytecode) {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (final PrintWriter pw = new PrintWriter(baos)) {
-            new ClassReader(bytecode).accept(new TraceClassVisitor(pw), 0);
+            final NashornClassReader cr = new NashornClassReader(bytecode);
+            final Context ctx = AccessController.doPrivileged(new PrivilegedAction<Context>() {
+                @Override
+                public Context run() {
+                    return Context.getContext();
+                }
+            });
+            final TraceClassVisitor tcv = new TraceClassVisitor(null, new NashornTextifier(ctx.getEnv(), cr), pw);
+            cr.accept(tcv, 0);
         }
-        return new String(baos.toByteArray());
-    }
 
-    /**
-     * @return env used for class emission
-     */
-    ScriptEnvironment getEnv() {
-        return env;
+        final String str = new String(baos.toByteArray());
+        return str;
     }
 
     /**
@@ -413,6 +477,8 @@ public class ClassEmitter implements Emitter {
     }
 
     SplitMethodEmitter method(final SplitNode splitNode, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
+        methodCount++;
+        methodNames.add(methodName);
         return new SplitMethodEmitter(this, methodVisitor(EnumSet.of(Flag.PUBLIC, Flag.STATIC), methodName, rtype, ptypes), splitNode);
     }
 
@@ -440,6 +506,8 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving this method
      */
     MethodEmitter method(final EnumSet<Flag> methodFlags, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
+        methodCount++;
+        methodNames.add(methodName);
         return new MethodEmitter(this, methodVisitor(methodFlags, methodName, rtype, ptypes));
     }
 
@@ -465,6 +533,8 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving this method
      */
     MethodEmitter method(final EnumSet<Flag> methodFlags, final String methodName, final String descriptor) {
+        methodCount++;
+        methodNames.add(methodName);
         return new MethodEmitter(this, cw.visitMethod(Flag.getValue(methodFlags), methodName, descriptor, null, null));
     }
 
@@ -475,10 +545,13 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving this method
      */
     MethodEmitter method(final FunctionNode functionNode) {
+        methodCount++;
+        methodNames.add(functionNode.getName());
+        final FunctionSignature signature = new FunctionSignature(functionNode);
         final MethodVisitor mv = cw.visitMethod(
             ACC_PUBLIC | ACC_STATIC | (functionNode.isVarArg() ? ACC_VARARGS : 0),
             functionNode.getName(),
-            new FunctionSignature(functionNode).toString(),
+            signature.toString(),
             null,
             null);
 
@@ -486,11 +559,32 @@ public class ClassEmitter implements Emitter {
     }
 
     /**
+     * Add a new method to the class, representing a rest-of version of the function node
+     *
+     * @param functionNode the function node to generate a method for
+     * @return method emitter to use for weaving this method
+     */
+    MethodEmitter restOfMethod(final FunctionNode functionNode) {
+        methodCount++;
+        methodNames.add(functionNode.getName());
+        final MethodVisitor mv = cw.visitMethod(
+            ACC_PUBLIC | ACC_STATIC,
+            functionNode.getName(),
+            Type.getMethodDescriptor(functionNode.getReturnType().getTypeClass(), RewriteException.class),
+            null,
+            null);
+
+        return new MethodEmitter(this, mv, functionNode);
+    }
+
+
+    /**
      * Start generating the <clinit> method in the class
      *
      * @return method emitter to use for weaving <clinit>
      */
     MethodEmitter clinit() {
+        clinitCount++;
         return method(EnumSet.of(Flag.STATIC), CLINIT.symbolName(), void.class);
     }
 
@@ -500,6 +594,7 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving <init>()V
      */
     MethodEmitter init() {
+        initCount++;
         return method(INIT.symbolName(), void.class);
     }
 
@@ -510,6 +605,7 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving <init>()V
      */
     MethodEmitter init(final Class<?>... ptypes) {
+        initCount++;
         return method(INIT.symbolName(), void.class, ptypes);
     }
 
@@ -522,6 +618,7 @@ public class ClassEmitter implements Emitter {
      * @return method emitter to use for weaving <init>(...)V
      */
     MethodEmitter init(final EnumSet<Flag> flags, final Class<?>... ptypes) {
+        initCount++;
         return method(flags, INIT.symbolName(), void.class, ptypes);
     }
 
@@ -536,6 +633,7 @@ public class ClassEmitter implements Emitter {
      * @see ClassEmitter.Flag
      */
     final void field(final EnumSet<Flag> fieldFlags, final String fieldName, final Class<?> fieldType, final Object value) {
+        fieldCount++;
         cw.visitField(Flag.getValue(fieldFlags), fieldName, typeDescriptor(fieldType), null, value).visitEnd();
     }
 
@@ -636,7 +734,7 @@ public class ClassEmitter implements Emitter {
         }
     }
 
-    private MethodVisitor methodVisitor(EnumSet<Flag> flags, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
+    private MethodVisitor methodVisitor(final EnumSet<Flag> flags, final String methodName, final Class<?> rtype, final Class<?>... ptypes) {
         return cw.visitMethod(Flag.getValue(flags), methodName, methodDescriptor(rtype, ptypes), null, null);
     }
 

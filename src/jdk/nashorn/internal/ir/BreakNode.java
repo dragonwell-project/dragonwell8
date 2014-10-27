@@ -25,6 +25,7 @@
 
 package jdk.nashorn.internal.ir;
 
+import jdk.nashorn.internal.codegen.Label;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 
@@ -32,9 +33,7 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  * IR representation for {@code break} statements.
  */
 @Immutable
-public final class BreakNode extends Statement {
-
-    private final IdentNode label;
+public final class BreakNode extends JumpStatement {
 
     /**
      * Constructor
@@ -42,22 +41,16 @@ public final class BreakNode extends Statement {
      * @param lineNumber line number
      * @param token      token
      * @param finish     finish
-     * @param label      label for break or null if none
+     * @param labelName  label name for break or null if none
      */
-    public BreakNode(final int lineNumber, final long token, final int finish, final IdentNode label) {
-        super(lineNumber, token, finish);
-        this.label = label;
+    public BreakNode(final int lineNumber, final long token, final int finish, final String labelName) {
+        super(lineNumber, token, finish, labelName);
     }
 
-    @Override
-    public boolean hasGoto() {
-        return true;
+    private BreakNode(final BreakNode breakNode, final LocalVariableConversion conversion) {
+        super(breakNode, conversion);
     }
 
-    /**
-     * Assist in IR navigation.
-     * @param visitor IR navigating visitor.
-     */
     @Override
     public Node accept(final NodeVisitor<? extends LexicalContext> visitor) {
         if (visitor.enterBreakNode(this)) {
@@ -67,21 +60,23 @@ public final class BreakNode extends Statement {
         return this;
     }
 
-    /**
-     * Get the label for this break node
-     * @return label, or null if none
-     */
-    public IdentNode getLabel() {
-        return label;
+    @Override
+    JumpStatement createNewJumpStatement(final LocalVariableConversion conversion) {
+        return new BreakNode(this, conversion);
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
-        sb.append("break");
+    String getStatementName() {
+        return "break";
+    }
 
-        if (label != null) {
-            sb.append(' ');
-            label.toString(sb);
-        }
+    @Override
+    public BreakableNode getTarget(final LexicalContext lc) {
+        return lc.getBreakable(getLabelName());
+    }
+
+    @Override
+    public Label getTargetLabel(final BreakableNode target) {
+        return target.getBreakLabel();
     }
 }
