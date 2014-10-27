@@ -1953,12 +1953,12 @@ public class Code {
             }
         }
 
-        public void closeRange(char end) {
-            if (isLastRangeInitialized()) {
+        public void closeRange(char length) {
+            if (isLastRangeInitialized() && length > 0) {
                 Range range = lastRange();
                 if (range != null) {
                     if (range.length == Character.MAX_VALUE) {
-                        range.length = end;
+                        range.length = length;
                     }
                 }
             } else {
@@ -2022,7 +2022,7 @@ public class Code {
                 }
                 if (localVar.sym == aliveLocal && localVar.lastRange() != null) {
                     char length = (char)(closingCP - localVar.lastRange().start_pc);
-                    if (length > 0 && length < Character.MAX_VALUE) {
+                    if (length < Character.MAX_VALUE) {
                         localVar.closeRange(length);
                     }
                 }
@@ -2032,12 +2032,11 @@ public class Code {
 
     void adjustAliveRanges(int oldCP, int delta) {
         for (LocalVar localVar: lvar) {
-            if (localVar == null) {
-                return;
-            }
-            for (LocalVar.Range range: localVar.aliveRanges) {
-                if (range.closed() && range.start_pc + range.length >= oldCP) {
-                    range.length += delta;
+            if (localVar != null) {
+                for (LocalVar.Range range: localVar.aliveRanges) {
+                    if (range.closed() && range.start_pc + range.length >= oldCP) {
+                        range.length += delta;
+                    }
                 }
             }
         }
@@ -2093,7 +2092,7 @@ public class Code {
             lvar[adr].isLastRangeInitialized()) {
             LocalVar v = lvar[adr];
             char length = (char)(curCP() - v.lastRange().start_pc);
-            if (length > 0 && length < Character.MAX_VALUE) {
+            if (length < Character.MAX_VALUE) {
                 lvar[adr] = v.dup();
                 v.closeRange(length);
                 putVar(v);
