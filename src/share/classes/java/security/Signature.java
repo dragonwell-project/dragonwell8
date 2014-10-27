@@ -121,6 +121,11 @@ public abstract class Signature extends SignatureSpi {
     private static final Debug debug =
                         Debug.getInstance("jca", "Signature");
 
+    private static final Debug pdebug =
+                        Debug.getInstance("provider", "Provider");
+    private static final boolean skipDebug =
+        Debug.isOn("engine=") && !Debug.isOn("signature");
+
     /*
      * The algorithm for this signature object.
      * This value is used to map an OID to the particular algorithm.
@@ -451,6 +456,11 @@ public abstract class Signature extends SignatureSpi {
             throws InvalidKeyException {
         engineInitVerify(publicKey);
         state = VERIFY;
+
+        if (!skipDebug && pdebug != null) {
+            pdebug.println("Signature." + algorithm +
+                " verification algorithm from: " + this.provider.getName());
+        }
     }
 
     /**
@@ -495,6 +505,11 @@ public abstract class Signature extends SignatureSpi {
         PublicKey publicKey = certificate.getPublicKey();
         engineInitVerify(publicKey);
         state = VERIFY;
+
+        if (!skipDebug && pdebug != null) {
+            pdebug.println("Signature." + algorithm +
+                " verification algorithm from: " + this.provider.getName());
+        }
     }
 
     /**
@@ -511,6 +526,11 @@ public abstract class Signature extends SignatureSpi {
             throws InvalidKeyException {
         engineInitSign(privateKey);
         state = SIGN;
+
+        if (!skipDebug && pdebug != null) {
+            pdebug.println("Signature." + algorithm +
+                " signing algorithm from: " + this.provider.getName());
+        }
     }
 
     /**
@@ -529,6 +549,11 @@ public abstract class Signature extends SignatureSpi {
             throws InvalidKeyException {
         engineInitSign(privateKey, random);
         state = SIGN;
+
+        if (!skipDebug && pdebug != null) {
+            pdebug.println("Signature." + algorithm +
+                " signing algorithm from: " + this.provider.getName());
+        }
     }
 
     /**
