@@ -25,6 +25,8 @@
 
 package jdk.nashorn.internal.runtime;
 
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
+
 import java.lang.invoke.MethodHandle;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
@@ -38,8 +40,6 @@ import jdk.nashorn.internal.parser.JSONParser;
 import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
-
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 /**
  * Utilities used by "JSON" object implementation.
@@ -90,7 +90,7 @@ public final class JSONFunctions {
         }
 
         final Global global = Context.getGlobal();
-        Object unfiltered = convertNode(global, node);
+        final Object unfiltered = convertNode(global, node);
         return applyReviver(global, unfiltered, reviver);
     }
 
@@ -122,7 +122,7 @@ public final class JSONFunctions {
                 if (newElement == ScriptRuntime.UNDEFINED) {
                     valueObj.delete(key, false);
                 } else {
-                    setPropertyValue(valueObj, key, newElement, false);
+                    setPropertyValue(valueObj, key, newElement);
                 }
             }
         }
@@ -139,8 +139,6 @@ public final class JSONFunctions {
 
     // Converts IR node to runtime value
     private static Object convertNode(final Global global, final Node node) {
-        assert global instanceof Global;
-
         if (node instanceof LiteralNode) {
             // check for array literal
             if (node.tokenType() == TokenType.ARRAY) {
@@ -181,28 +179,28 @@ public final class JSONFunctions {
 
                 final String name = pNode.getKeyName();
                 final Object value = convertNode(global, valueNode);
-                setPropertyValue(object, name, value, false);
+                setPropertyValue(object, name, value);
             }
 
             return object;
         } else if (node instanceof UnaryNode) {
             // UnaryNode used only to represent negative number JSON value
             final UnaryNode unaryNode = (UnaryNode)node;
-            return -((LiteralNode<?>)unaryNode.rhs()).getNumber();
+            return -((LiteralNode<?>)unaryNode.getExpression()).getNumber();
         } else {
             return null;
         }
     }
 
     // add a new property if does not exist already, or else set old property
-    private static void setPropertyValue(final ScriptObject sobj, final String name, final Object value, final boolean strict) {
+    private static void setPropertyValue(final ScriptObject sobj, final String name, final Object value) {
         final int index = ArrayIndex.getArrayIndex(name);
         if (ArrayIndex.isValidArrayIndex(index)) {
             // array index key
             sobj.defineOwnProperty(index, value);
         } else if (sobj.getMap().findProperty(name) != null) {
             // pre-existing non-inherited property, call set
-            sobj.set(name, value, strict);
+            sobj.set(name, value, 0);
         } else {
             // add new property
             sobj.addOwnProperty(name, Property.WRITABLE_ENUMERABLE_CONFIGURABLE, value);

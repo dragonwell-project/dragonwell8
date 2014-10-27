@@ -386,7 +386,7 @@ public abstract class SunToolkit extends Toolkit
      * null or the target can't be found, a null with be returned.
      */
     public static AppContext targetToAppContext(Object target) {
-        if (target == null || GraphicsEnvironment.isHeadless()) {
+        if (target == null) {
             return null;
         }
         AppContext context = getAppContext(target);
@@ -460,12 +460,10 @@ public abstract class SunToolkit extends Toolkit
      * via targetToAppContext() above.
      */
     public static void insertTargetMapping(Object target, AppContext appContext) {
-        if (!GraphicsEnvironment.isHeadless()) {
-            if (!setAppContext(target, appContext)) {
-                // Target is not a Component/MenuComponent, use the private Map
-                // instead.
-                appContextMap.put(target, appContext);
-            }
+        if (!setAppContext(target, appContext)) {
+            // Target is not a Component/MenuComponent, use the private Map
+            // instead.
+            appContextMap.put(target, appContext);
         }
     }
 
@@ -2051,6 +2049,19 @@ public abstract class SunToolkit extends Toolkit
             }
         }
         return isInstanceOf(cls.getSuperclass(), type);
+    }
+
+    protected static LightweightFrame getLightweightFrame(Component c) {
+        for (; c != null; c = c.getParent()) {
+            if (c instanceof LightweightFrame) {
+                return (LightweightFrame)c;
+            }
+            if (c instanceof Window) {
+                // Don't traverse owner windows
+                return null;
+            }
+        }
+        return null;
     }
 
     ///////////////////////////////////////////////////////////////////////////

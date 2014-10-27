@@ -34,63 +34,63 @@ package jdk.nashorn.internal.runtime;
 public abstract class DefaultPropertyAccess implements PropertyAccess {
 
     @Override
-    public int getInt(final Object key) {
+    public int getInt(final Object key, final int programPoint) {
         return JSType.toInt32(get(key));
     }
 
     @Override
-    public int getInt(final double key) {
-        return getInt(JSType.toObject(key));
+    public int getInt(final double key, final int programPoint) {
+        return getInt(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public int getInt(final long key) {
-        return getInt(JSType.toObject(key));
+    public int getInt(final long key, final int programPoint) {
+        return getInt(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public int getInt(final int key) {
-        return getInt(JSType.toObject(key));
+    public int getInt(final int key, final int programPoint) {
+        return getInt(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public long getLong(final Object key) {
+    public long getLong(final Object key, final int programPoint) {
         return JSType.toLong(get(key));
     }
 
     @Override
-    public long getLong(final double key) {
-        return getLong(JSType.toObject(key));
+    public long getLong(final double key, final int programPoint) {
+        return getLong(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public long getLong(final long key) {
-        return getLong(JSType.toObject(key));
+    public long getLong(final long key, final int programPoint) {
+        return getLong(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public long getLong(final int key) {
-        return getLong(JSType.toObject(key));
+    public long getLong(final int key, final int programPoint) {
+        return getLong(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public double getDouble(final Object key) {
+    public double getDouble(final Object key, final int programPoint) {
         return JSType.toNumber(get(key));
     }
 
     @Override
-    public double getDouble(final double key) {
-        return getDouble(JSType.toObject(key));
+    public double getDouble(final double key, final int programPoint) {
+        return getDouble(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public double getDouble(final long key) {
-        return getDouble(JSType.toObject(key));
+    public double getDouble(final long key, final int programPoint) {
+        return getDouble(JSType.toObject(key), programPoint);
     }
 
     @Override
-    public double getDouble(final int key) {
-        return getDouble(JSType.toObject(key));
+    public double getDouble(final int key, final int programPoint) {
+        return getDouble(JSType.toObject(key), programPoint);
     }
 
     @Override
@@ -112,82 +112,82 @@ public abstract class DefaultPropertyAccess implements PropertyAccess {
     }
 
     @Override
-    public void set(final double key, final int value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final double key, final int value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final double key, final long value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final double key, final long value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final double key, final double value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final double key, final double value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final double key, final Object value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final double key, final Object value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final long key, final int value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final long key, final int value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final long key, final long value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final long key, final long value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final long key, final double value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final long key, final double value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final long key, final Object value, final boolean strict) {
-        set(JSType.toObject(key), value, strict);
+    public void set(final long key, final Object value, final int flags) {
+        set(JSType.toObject(key), value, flags);
     }
 
     @Override
-    public void set(final int key, final int value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final int key, final int value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final int key, final long value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final int key, final long value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final int key, final double value, final boolean strict) {
-        set(JSType.toObject(key), JSType.toObject(value), strict);
+    public void set(final int key, final double value, final int flags) {
+        set(JSType.toObject(key), JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final int key, final Object value, final boolean strict) {
-        set(JSType.toObject(key), value, strict);
+    public void set(final int key, final Object value, final int flags) {
+        set(JSType.toObject(key), value, flags);
     }
 
     @Override
-    public void set(final Object key, final int value, final boolean strict) {
-        set(key, JSType.toObject(value), strict);
+    public void set(final Object key, final int value, final int flags) {
+        set(key, JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final Object key, final long value, final boolean strict) {
-        set(key, JSType.toObject(value), strict);
+    public void set(final Object key, final long value, final int flags) {
+        set(key, JSType.toObject(value), flags);
     }
 
     @Override
-    public void set(final Object key, final double value, final boolean strict) {
-        set(key, JSType.toObject(value), strict);
+    public void set(final Object key, final double value, final int flags) {
+        set(key, JSType.toObject(value), flags);
     }
 
     @Override
-    public abstract void set(Object key, Object value, boolean strict);
+    public abstract void set(Object key, Object value, int flags);
 
     @Override
     public abstract boolean has(Object key);

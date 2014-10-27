@@ -25,6 +25,7 @@
 
 package jdk.nashorn.internal.ir;
 
+import jdk.nashorn.internal.codegen.Label;
 import jdk.nashorn.internal.ir.annotations.Immutable;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 
@@ -32,26 +33,21 @@ import jdk.nashorn.internal.ir.visitor.NodeVisitor;
  * IR representation for CONTINUE statements.
  */
 @Immutable
-public class ContinueNode extends Statement {
-
-    private IdentNode label;
-
+public class ContinueNode extends JumpStatement {
     /**
      * Constructor
      *
      * @param lineNumber line number
      * @param token      token
      * @param finish     finish
-     * @param label      label for break or null if none
+     * @param labelName  label name for continue or null if none
      */
-    public ContinueNode(final int lineNumber, final long token, final int finish, final IdentNode label) {
-        super(lineNumber, token, finish);
-        this.label = label;
+    public ContinueNode(final int lineNumber, final long token, final int finish, final String labelName) {
+        super(lineNumber, token, finish, labelName);
     }
 
-    @Override
-    public boolean hasGoto() {
-        return true;
+    private ContinueNode(final ContinueNode continueNode, final LocalVariableConversion conversion) {
+        super(continueNode, conversion);
     }
 
     @Override
@@ -63,22 +59,25 @@ public class ContinueNode extends Statement {
         return this;
     }
 
-    /**
-     * Get the label for this break node
-     * @return label, or null if none
-     */
-    public IdentNode getLabel() {
-        return label;
+    @Override
+    JumpStatement createNewJumpStatement(final LocalVariableConversion conversion) {
+        return new ContinueNode(this, conversion);
     }
 
     @Override
-    public void toString(final StringBuilder sb) {
-        sb.append("continue");
+    String getStatementName() {
+        return "continue";
+    }
 
-        if (label != null) {
-            sb.append(' ');
-            label.toString(sb);
-        }
+
+    @Override
+    public BreakableNode getTarget(final LexicalContext lc) {
+        return lc.getContinueTo(getLabelName());
+    }
+
+    @Override
+    public Label getTargetLabel(final BreakableNode target) {
+        return ((LoopNode)target).getContinueLabel();
     }
 }
 

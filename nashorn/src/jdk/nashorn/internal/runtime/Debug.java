@@ -26,7 +26,6 @@
 package jdk.nashorn.internal.runtime;
 
 import static jdk.nashorn.internal.parser.TokenType.EOF;
-
 import jdk.nashorn.internal.parser.Lexer;
 import jdk.nashorn.internal.parser.Token;
 import jdk.nashorn.internal.parser.TokenStream;
@@ -41,6 +40,29 @@ public final class Debug {
     }
 
     /**
+     * Return the topmost JavaScript frame in a stack trace
+     * @param t throwable that contains the stack trace
+     * @return line describing the topmost JavaScript frame
+     */
+    public static String firstJSFrame(final Throwable t) {
+        for (final StackTraceElement ste : t.getStackTrace()) {
+            if (ECMAErrors.isScriptFrame(ste)) {
+                return ste.toString();
+            }
+        }
+        return "<native code>";
+    }
+
+    /**
+     * Return the topmost JavaScript frame from the current
+     * continuation
+     * @return line describing the topmost JavaScript frame
+     */
+    public static String firstJSFrame() {
+        return firstJSFrame(new Throwable());
+    }
+
+    /**
      * Return the system identity hashcode for an object as a human readable
      * string
      *
@@ -48,7 +70,18 @@ public final class Debug {
      * @return system identity hashcode as string
      */
     public static String id(final Object x) {
-        return "0x" + Integer.toHexString(System.identityHashCode(x));
+        return String.format("0x%08x", System.identityHashCode(x));
+    }
+
+    /**
+     * Same as {@link Debug#id} but returns the identity hashcode as
+     * an integer
+     *
+     * @param x object
+     * @return system identity hashcode
+     */
+    public static int intId(final Object x) {
+        return System.identityHashCode(x);
     }
 
     /**

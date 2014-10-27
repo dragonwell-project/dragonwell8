@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,8 +125,17 @@ address StubRoutines::_aescrypt_decryptBlock               = NULL;
 address StubRoutines::_cipherBlockChaining_encryptAESCrypt = NULL;
 address StubRoutines::_cipherBlockChaining_decryptAESCrypt = NULL;
 
+address StubRoutines::_sha1_implCompress     = NULL;
+address StubRoutines::_sha1_implCompressMB   = NULL;
+address StubRoutines::_sha256_implCompress   = NULL;
+address StubRoutines::_sha256_implCompressMB = NULL;
+address StubRoutines::_sha512_implCompress   = NULL;
+address StubRoutines::_sha512_implCompressMB = NULL;
+
 address StubRoutines::_updateBytesCRC32 = NULL;
 address StubRoutines::_crc_table_adr = NULL;
+
+address StubRoutines::_multiplyToLen = NULL;
 
 double (* StubRoutines::_intrinsic_log   )(double) = NULL;
 double (* StubRoutines::_intrinsic_log10 )(double) = NULL;

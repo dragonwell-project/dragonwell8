@@ -56,6 +56,7 @@ import java.io.ObjectInputStream;
 import java.io.IOException;
 import java.io.ObjectInputValidation;
 import java.io.InvalidObjectException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.border.*;
 import javax.swing.event.*;
@@ -63,6 +64,7 @@ import javax.swing.plaf.*;
 import static javax.swing.ClientPropertyKey.*;
 import javax.accessibility.*;
 
+import sun.awt.SunToolkit;
 import sun.swing.SwingUtilities2;
 import sun.swing.UIClientPropertyKey;
 
@@ -351,7 +353,8 @@ public abstract class JComponent extends Container implements Serializable,
     private static final int AUTOSCROLLS_SET                          = 25;
     private static final int FOCUS_TRAVERSAL_KEYS_FORWARD_SET         = 26;
     private static final int FOCUS_TRAVERSAL_KEYS_BACKWARD_SET        = 27;
-    private static final int REVALIDATE_RUNNABLE_SCHEDULED            = 28;
+
+    private transient AtomicBoolean revalidateRunnableScheduled = new AtomicBoolean(false);
 
     /**
      * Temporary rectangles.
@@ -4795,7 +4798,8 @@ public abstract class JComponent extends Container implements Serializable,
      * @see RepaintManager#addDirtyRegion
      */
     public void repaint(long tm, int x, int y, int width, int height) {
-        RepaintManager.currentManager(this).addDirtyRegion(this, x, y, width, height);
+        RepaintManager.currentManager(SunToolkit.targetToAppContext(this))
+                      .addDirtyRegion(this, x, y, width, height);
     }
 
 
@@ -4849,7 +4853,7 @@ public abstract class JComponent extends Container implements Serializable,
             // which was causing some people grief.
             return;
         }
-        if (SwingUtilities.isEventDispatchThread()) {
+        if (SunToolkit.isDispatchThreadForAppContext(this)) {
             invalidate();
             RepaintManager.currentManager(this).addInvalidComponent(this);
         }
@@ -4857,21 +4861,13 @@ public abstract class JComponent extends Container implements Serializable,
             // To avoid a flood of Runnables when constructing GUIs off
             // the EDT, a flag is maintained as to whether or not
             // a Runnable has been scheduled.
-            synchronized(this) {
-                if (getFlag(REVALIDATE_RUNNABLE_SCHEDULED)) {
-                    return;
-                }
-                setFlag(REVALIDATE_RUNNABLE_SCHEDULED, true);
+            if (revalidateRunnableScheduled.getAndSet(true)) {
+                return;
             }
-            Runnable callRevalidate = new Runnable() {
-                public void run() {
-                    synchronized(JComponent.this) {
-                        setFlag(REVALIDATE_RUNNABLE_SCHEDULED, false);
-                    }
-                    revalidate();
-                }
-            };
-            SwingUtilities.invokeLater(callRevalidate);
+            SunToolkit.executeOnEventHandlerThread(this, () -> {
+                revalidateRunnableScheduled.set(false);
+                revalidate();
+            });
         }
     }
 
@@ -5509,6 +5505,7 @@ public abstract class JComponent extends Container implements Serializable,
             ToolTipManager.sharedInstance().registerComponent(this);
         }
         setWriteObjCounter(this, (byte)0);
+        revalidateRunnableScheduled = new AtomicBoolean(false);
     }
 
 
