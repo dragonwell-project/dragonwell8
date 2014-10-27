@@ -96,6 +96,7 @@ public class Resolve {
     public final boolean varargsEnabled;
     public final boolean allowMethodHandles;
     public final boolean allowFunctionalInterfaceMostSpecific;
+    public final boolean checkVarargsAccessAfterResolution;
     private final boolean debugResolve;
     private final boolean compactMethodDiags;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
@@ -137,6 +138,8 @@ public class Resolve {
         Target target = Target.instance(context);
         allowMethodHandles = target.hasMethodHandles();
         allowFunctionalInterfaceMostSpecific = source.allowFunctionalInterfaceMostSpecific();
+        checkVarargsAccessAfterResolution =
+                source.allowPostApplicabilityVarargsAccessCheck();
         polymorphicSignatureScope = new Scope(syms.noSymbol);
 
         inapplicableMethodException = new InapplicableMethodException(diags);
@@ -835,9 +838,15 @@ public class Resolve {
             super.argumentsAcceptable(env, deferredAttrContext, argtypes, formals, warn);
             //should we expand formals?
             if (deferredAttrContext.phase.isVarargsRequired()) {
-                //check varargs element type accessibility
-                varargsAccessible(env, types.elemtype(formals.last()),
-                        deferredAttrContext.inferenceContext);
+                Type typeToCheck = null;
+                if (!checkVarargsAccessAfterResolution) {
+                    typeToCheck = types.elemtype(formals.last());
+                } else if (deferredAttrContext.mode == AttrMode.CHECK) {
+                    typeToCheck = types.erasure(types.elemtype(formals.last()));
+                }
+                if (typeToCheck != null) {
+                    varargsAccessible(env, typeToCheck, deferredAttrContext.inferenceContext);
+                }
             }
         }
 
@@ -948,9 +957,10 @@ public class Resolve {
         }
 
         public boolean compatible(Type found, Type req, Warner warn) {
+            InferenceContext inferenceContext = deferredAttrContext.inferenceContext;
             return strict ?
-                    types.isSubtypeUnchecked(found, deferredAttrContext.inferenceContext.asUndetVar(req), warn) :
-                    types.isConvertible(found, deferredAttrContext.inferenceContext.asUndetVar(req), warn);
+                    types.isSubtypeUnchecked(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn) :
+                    types.isConvertible(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn);
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
@@ -3035,7 +3045,7 @@ public class Resolve {
         /**
          * Should lookup stop at given phase with given result
          */
-        protected boolean shouldStop(Symbol sym, MethodResolutionPhase phase) {
+        final boolean shouldStop(Symbol sym, MethodResolutionPhase phase) {
             return phase.ordinal() > maxPhase.ordinal() ||
                     sym.kind < ERRONEOUS || sym.kind == AMBIGUOUS;
         }
@@ -4218,15 +4228,39 @@ public class Resolve {
         VARARITY(true, true) {
             @Override
             public Symbol mergeResults(Symbol bestSoFar, Symbol sym) {
-                switch (sym.kind) {
-                    case WRONG_MTH:
-                        return (bestSoFar.kind == WRONG_MTH || bestSoFar.kind == WRONG_MTHS) ?
-                            bestSoFar :
-                            sym;
-                    case ABSENT_MTH:
-                        return bestSoFar;
-                    default:
-                        return sym;
+                //Check invariants (see {@code LookupHelper.shouldStop})
+                Assert.check(bestSoFar.kind >= ERRONEOUS && bestSoFar.kind != AMBIGUOUS);
+                if (sym.kind < ERRONEOUS) {
+                    //varargs resolution successful
+                    return sym;
+                } else {
+                    //pick best error
+                    switch (bestSoFar.kind) {
+                        case WRONG_MTH:
+                        case WRONG_MTHS:
+                            //Override previous errors if they were caused by argument mismatch.
+                            //This generally means preferring current symbols - but we need to pay
+                            //attention to the fact that the varargs lookup returns 'less' candidates
+                            //than the previous rounds, and adjust that accordingly.
+                            switch (sym.kind) {
+                                case WRONG_MTH:
+                                    //if the previous round matched more than one method, return that
+                                    //result instead
+                                    return bestSoFar.kind == WRONG_MTHS ?
+                                            bestSoFar : sym;
+                                case ABSENT_MTH:
+                                    //do not override erroneous symbol if the arity lookup did not
+                                    //match any method
+                                    return bestSoFar;
+                                case WRONG_MTHS:
+                                default:
+                                    //safe to override
+                                    return sym;
+                            }
+                        default:
+                            //otherwise, return first error
+                            return bestSoFar;
+                    }
                 }
             }
         };

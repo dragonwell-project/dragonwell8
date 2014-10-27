@@ -84,7 +84,7 @@ class FromCardCache : public AllStatic {
 
   static void initialize(uint n_par_rs, uint max_num_regions);
 
-  static void shrink(uint new_num_regions);
+  static void invalidate(uint start_idx, size_t num_regions);
 
   static void print(outputStream* out = gclog_or_tty) PRODUCT_RETURN;
 
@@ -185,6 +185,9 @@ public:
   // objects.
   void scrub(CardTableModRefBS* ctbs, BitMap* region_bm, BitMap* card_bm);
 
+  // Returns whether this remembered set (and all sub-sets) contain no entries.
+  bool is_empty() const;
+
   size_t occupied() const;
   size_t occ_fine() const;
   size_t occ_coarse() const;
@@ -206,18 +209,15 @@ public:
   // Specifically clear the from_card_cache.
   void clear_fcc();
 
-  // "from_hr" is being cleared; remove any entries from it.
-  void clear_incoming_entry(HeapRegion* from_hr);
-
   void do_cleanup_work(HRRSCleanupTask* hrrs_cleanup_task);
 
   // Declare the heap size (in # of regions) to the OtherRegionsTable.
   // (Uses it to initialize from_card_cache).
-  static void init_from_card_cache(uint max_regions);
+  static void initialize(uint max_regions);
 
-  // Declares that only regions i s.t. 0 <= i < new_n_regs are in use.
-  // Make sure any entries for higher regions are invalid.
-  static void shrink_from_card_cache(uint new_num_regions);
+  // Declares that regions between start_idx <= i < start_idx + num_regions are
+  // not in use. Make sure that any entries for these regions are invalid.
+  static void invalidate(uint start_idx, size_t num_regions);
 
   static void print_from_card_cache();
 };
@@ -270,6 +270,10 @@ public:
 
   HeapRegion* hr() const {
     return _other_regions.hr();
+  }
+
+  bool is_empty() const {
+    return (strong_code_roots_list_length() == 0) && _other_regions.is_empty();
   }
 
   size_t occupied() {
@@ -342,7 +346,7 @@ public:
     return _other_regions.mem_size()
       // This correction is necessary because the above includes the second
       // part.
-      + (sizeof(this) - sizeof(OtherRegionsTable))
+      + (sizeof(HeapRegionRemSet) - sizeof(OtherRegionsTable))
       + strong_code_roots_mem_size();
   }
 
@@ -355,7 +359,7 @@ public:
   // Returns the memory occupancy of all free_list data structures associated
   // with remembered sets.
   static size_t fl_mem_size() {
-    return OtherRegionsTable::fl_mem_size() + G1CodeRootSet::fl_mem_size();
+    return OtherRegionsTable::fl_mem_size();
   }
 
   bool contains_reference(OopOrNarrowOopStar from) const {
@@ -365,20 +369,17 @@ public:
   // Routines for managing the list of code roots that point into
   // the heap region that owns this RSet.
   void add_strong_code_root(nmethod* nm);
+  void add_strong_code_root_locked(nmethod* nm);
   void remove_strong_code_root(nmethod* nm);
-
-  // During a collection, migrate the successfully evacuated strong
-  // code roots that referenced into the region that owns this RSet
-  // to the RSets of the new regions that they now point into.
-  // Unsuccessfully evacuated code roots are not migrated.
-  void migrate_strong_code_roots();
 
   // Applies blk->do_code_blob() to each of the entries in
   // the strong code roots list
   void strong_code_roots_do(CodeBlobClosure* blk) const;
 
+  void clean_strong_code_roots(HeapRegion* hr);
+
   // Returns the number of elements in the strong code roots list
-  size_t strong_code_roots_list_length() {
+  size_t strong_code_roots_list_length() const {
     return _code_roots.length();
   }
 
@@ -400,13 +401,11 @@ public:
   // Declare the heap size (in # of regions) to the HeapRegionRemSet(s).
   // (Uses it to initialize from_card_cache).
   static void init_heap(uint max_regions) {
-    G1CodeRootSet::initialize();
-    OtherRegionsTable::init_from_card_cache(max_regions);
+    OtherRegionsTable::initialize(max_regions);
   }
 
-  // Declares that only regions i s.t. 0 <= i < new_n_regs are in use.
-  static void shrink_heap(uint new_n_regs) {
-    OtherRegionsTable::shrink_from_card_cache(new_n_regs);
+  static void invalidate(uint start_idx, uint num_regions) {
+    OtherRegionsTable::invalidate(start_idx, num_regions);
   }
 
 #ifndef PRODUCT
@@ -433,26 +432,24 @@ public:
 };
 
 class HeapRegionRemSetIterator : public StackObj {
-
-  // The region RSet over which we're iterating.
+ private:
+  // The region RSet over which we are iterating.
   HeapRegionRemSet* _hrrs;
 
   // Local caching of HRRS fields.
   const BitMap*             _coarse_map;
-  PerRegionTable**          _fine_grain_regions;
 
   G1BlockOffsetSharedArray* _bosa;
   G1CollectedHeap*          _g1h;
 
-  // The number yielded since initialization.
+  // The number of cards yielded since initialization.
   size_t _n_yielded_fine;
   size_t _n_yielded_coarse;
   size_t _n_yielded_sparse;
 
-  // Indicates what granularity of table that we're currently iterating over.
+  // Indicates what granularity of table that we are currently iterating over.
   // We start iterating over the sparse table, progress to the fine grain
   // table, and then finish with the coarse table.
-  // See HeapRegionRemSetIterator::has_next().
   enum IterState {
     Sparse,
     Fine,
@@ -460,38 +457,30 @@ class HeapRegionRemSetIterator : public StackObj {
   };
   IterState _is;
 
-  // In both kinds of iteration, heap offset of first card of current
-  // region.
+  // For both Coarse and Fine remembered set iteration this contains the
+  // first card number of the heap region we currently iterate over.
   size_t _cur_region_card_offset;
-  // Card offset within cur region.
-  size_t _cur_region_cur_card;
 
-  // Coarse table iteration fields:
-
-  // Current region index;
+  // Current region index for the Coarse remembered set iteration.
   int    _coarse_cur_region_index;
   size_t _coarse_cur_region_cur_card;
 
   bool coarse_has_next(size_t& card_index);
 
-  // Fine table iteration fields:
-
-  // Index of bucket-list we're working on.
-  int _fine_array_index;
-
-  // Per Region Table we're doing within current bucket list.
+  // The PRT we are currently iterating over.
   PerRegionTable* _fine_cur_prt;
+  // Card offset within the current PRT.
+  size_t _cur_card_in_prt;
 
-  /* SparsePRT::*/ SparsePRTIter _sparse_iter;
-
-  void fine_find_next_non_null_prt();
-
+  // Update internal variables when switching to the given PRT.
+  void switch_to_prt(PerRegionTable* prt);
   bool fine_has_next();
   bool fine_has_next(size_t& card_index);
 
-public:
-  // We require an iterator to be initialized before use, so the
-  // constructor does little.
+  // The Sparse remembered set iterator.
+  SparsePRTIter _sparse_iter;
+
+ public:
   HeapRegionRemSetIterator(HeapRegionRemSet* hrrs);
 
   // If there remains one or more cards to be yielded, returns true and

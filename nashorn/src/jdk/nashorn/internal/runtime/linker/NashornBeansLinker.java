@@ -67,8 +67,7 @@ public class NashornBeansLinker implements GuardingDynamicLinker {
         return delegateLinker.getGuardedInvocation(linkRequest, new NashornBeansLinkerServices(linkerServices));
     }
 
-    @SuppressWarnings("unused")
-    private static Object exportArgument(final Object arg) {
+    static Object exportArgument(final Object arg) {
         return arg instanceof ConsString ? arg.toString() : arg;
     }
 
@@ -100,6 +99,11 @@ public class NashornBeansLinker implements GuardingDynamicLinker {
             return filters != null ? MethodHandles.filterArguments(typed, 0, filters) : typed;
         }
 
+        @Override
+        public MethodHandle asTypeLosslessReturn(final MethodHandle handle, final MethodType fromType) {
+            return Implementation.asTypeLosslessReturn(this, handle, fromType);
+        }
+
         private static boolean shouldConvert(final Class<?> handleType, final Class<?> fromType) {
             return handleType == Object.class && fromType == Object.class;
         }
@@ -121,6 +125,15 @@ public class NashornBeansLinker implements GuardingDynamicLinker {
 
         @Override
         public Comparison compareConversion(final Class<?> sourceType, final Class<?> targetType1, final Class<?> targetType2) {
+            if (sourceType == ConsString.class) {
+                if (String.class == targetType1 || CharSequence.class == targetType1) {
+                    return Comparison.TYPE_1_BETTER;
+                }
+
+                if (String.class == targetType2 || CharSequence.class == targetType2) {
+                    return Comparison.TYPE_2_BETTER;
+                }
+            }
             return linkerServices.compareConversion(sourceType, targetType1, targetType2);
         }
     }

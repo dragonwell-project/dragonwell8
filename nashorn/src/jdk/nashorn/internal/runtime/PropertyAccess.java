@@ -38,86 +38,98 @@ public interface PropertyAccess {
     /**
      * Get the value for a given key and return it as an int
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public int getInt(Object key);
+    public int getInt(Object key, int programPoint);
 
     /**
      * Get the value for a given key and return it as an int
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public int getInt(double key);
+    public int getInt(double key, int programPoint);
 
     /**
      * Get the value for a given key and return it as an int
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public int getInt(final long key);
+    public int getInt(long key, int programPoint);
 
     /**
      * Get the value for a given key and return it as an int
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public int getInt(int key);
+    public int getInt(int key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a long
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public long getLong(Object key);
+    public long getLong(Object key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a long
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public long getLong(double key);
+    public long getLong(double key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a long
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public long getLong(long key);
+    public long getLong(long key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a long
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public long getLong(int key);
+    public long getLong(int key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a double
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public double getDouble(Object key);
+    public double getDouble(Object key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a double
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public double getDouble(double key);
+    public double getDouble(double key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a double
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public double getDouble(long key);
+    public double getDouble(long key, int programPoint);
 
     /**
      * Get the value for a given key and return it as a double
      * @param key the key
+     * @param programPoint or INVALID_PROGRAM_POINT if pessimistic
      * @return the value
      */
-    public double getDouble(int key);
+    public double getDouble(int key, int programPoint);
 
     /**
      * Get the value for a given key and return it as an Object
@@ -151,129 +163,129 @@ public interface PropertyAccess {
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(Object key, int value, boolean strict);
+    public void set(Object key, int value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(Object key, long value, boolean strict);
+    public void set(Object key, long value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(Object key, double value, boolean strict);
+    public void set(Object key, double value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(Object key, Object value, boolean strict);
+    public void set(Object key, Object value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(double key, int value, boolean strict);
+    public void set(double key, int value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(double key, long value, boolean strict);
+    public void set(double key, long value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(double key, double value, boolean strict);
+    public void set(double key, double value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(double key, Object value, boolean strict);
+    public void set(double key, Object value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(long key, int value, boolean strict);
+    public void set(long key, int value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(long key, long value, boolean strict);
+    public void set(long key, long value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(long key, double value, boolean strict);
+    public void set(long key, double value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(long key, Object value, boolean strict);
+    public void set(long key, Object value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(int key, int value, boolean strict);
+    public void set(int key, int value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(int key, long value, boolean strict);
+    public void set(int key, long value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(int key, double value, boolean strict);
+    public void set(int key, double value, int flags);
 
     /**
      * Set the value of a given key
      * @param key     the key
      * @param value   the value
-     * @param strict  are we in strict mode
+     * @param flags   call site flags
      */
-    public void set(int key, Object value, boolean strict);
+    public void set(int key, Object value, int flags);
 
     /**
      * Check if the given key exists anywhere in the proto chain
