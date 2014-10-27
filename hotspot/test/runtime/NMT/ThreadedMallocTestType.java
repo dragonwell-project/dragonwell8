@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,11 +58,6 @@ public class ThreadedMallocTestType {
     allocThread.start();
     allocThread.join();
 
-    // Use WB API to ensure that all data has been merged before we continue
-    if (!wb.NMTWaitForDataMerge()) {
-      throw new Exception("Call to WB API NMTWaitForDataMerge() failed");
-    }
-
     // Run 'jcmd <pid> VM.native_memory summary'
     pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.native_memory", "summary"});
     output = new OutputAnalyzer(pb.start());
@@ -79,11 +74,6 @@ public class ThreadedMallocTestType {
 
     freeThread.start();
     freeThread.join();
-
-    // Use WB API to ensure that all data has been merged before we continue
-    if (!wb.NMTWaitForDataMerge()) {
-      throw new Exception("Call to WB API NMTWaitForDataMerge() failed");
-    }
 
     output = new OutputAnalyzer(pb.start());
     output.shouldNotContain("Test (reserved=");

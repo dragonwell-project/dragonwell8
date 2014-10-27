@@ -287,6 +287,7 @@ void CompileTask::initialize(int compile_id,
   _hot_count = hot_count;
   _time_queued = 0;  // tidy
   _comment = comment;
+  _failure_reason = NULL;
 
   if (LogCompilation) {
     _time_queued = os::elapsed_counter();
@@ -565,6 +566,11 @@ void CompileTask::log_task_done(CompileLog* log) {
   methodHandle method(thread, this->method());
   ResourceMark rm(thread);
 
+  if (!_is_success) {
+    const char* reason = _failure_reason != NULL ? _failure_reason : "unknown";
+    log->elem("failure reason='%s'", reason);
+  }
+
   // <task_done ... stamp='1.234'>  </task>
   nmethod* nm = code();
   log->begin_elem("task_done success='%d' nmsize='%d' count='%d'",
@@ -688,13 +694,40 @@ CompileTask* CompileQueue::get() {
     return NULL;
   }
 
-  CompileTask* task = CompilationPolicy::policy()->select_task(this);
+  CompileTask* task;
+  {
+    No_Safepoint_Verifier nsv;
+    task = CompilationPolicy::policy()->select_task(this);
+  }
   remove(task);
+  purge_stale_tasks(); // may temporarily release MCQ lock
   return task;
 }
 
-void CompileQueue::remove(CompileTask* task)
-{
+// Clean & deallocate stale compile tasks.
+// Temporarily releases MethodCompileQueue lock.
+void CompileQueue::purge_stale_tasks() {
+  assert(lock()->owned_by_self(), "must own lock");
+  if (_first_stale != NULL) {
+    // Stale tasks are purged when MCQ lock is released,
+    // but _first_stale updates are protected by MCQ lock.
+    // Once task processing starts and MCQ lock is released,
+    // other compiler threads can reuse _first_stale.
+    CompileTask* head = _first_stale;
+    _first_stale = NULL;
+    {
+      MutexUnlocker ul(lock());
+      for (CompileTask* task = head; task != NULL; ) {
+        CompileTask* next_task = task->next();
+        CompileTaskWrapper ctw(task); // Frees the task
+        task->set_failure_reason("stale task");
+        task = next_task;
+      }
+    }
+  }
+}
+
+void CompileQueue::remove(CompileTask* task) {
    assert(lock()->owned_by_self(), "must own lock");
   if (task->prev() != NULL) {
     task->prev()->set_next(task->next());
@@ -712,6 +745,16 @@ void CompileQueue::remove(CompileTask* task)
     _last = task->prev();
   }
   --_size;
+}
+
+void CompileQueue::remove_and_mark_stale(CompileTask* task) {
+  assert(lock()->owned_by_self(), "must own lock");
+  remove(task);
+
+  // Enqueue the task for reclamation (should be done outside MCQ lock)
+  task->set_next(_first_stale);
+  task->set_prev(NULL);
+  _first_stale = task;
 }
 
 // methods in the compile queue need to be marked as used on the stack
@@ -1130,6 +1173,12 @@ void CompileBroker::compile_method_base(methodHandle method,
   // by a compiler thread), and compiled method registration.
   if (InstanceRefKlass::owns_pending_list_lock(JavaThread::current())) {
     return;
+  }
+
+  if (TieredCompilation) {
+    // Tiered policy requires MethodCounters to exist before adding a method to
+    // the queue. Create if we don't have them yet.
+    method->get_method_counters(thread);
   }
 
   // Outputs from the following MutexLocker block:
@@ -1752,6 +1801,7 @@ void CompileBroker::compiler_thread_loop() {
       } else {
         // After compilation is disabled, remove remaining methods from queue
         method->clear_queued_for_compilation();
+        task->set_failure_reason("compilation is disabled");
       }
     }
   }
@@ -1939,6 +1989,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     compilable = ci_env.compilable();
 
     if (ci_env.failing()) {
+      task->set_failure_reason(ci_env.failure_reason());
       const char* retry_message = ci_env.retry_message();
       if (_compilation_log != NULL) {
         _compilation_log->log_failure(thread, task, ci_env.failure_reason(), retry_message);
@@ -2011,7 +2062,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
 
   // Note that the queued_for_compilation bits are cleared without
   // protection of a mutex. [They were set by the requester thread,
-  // when adding the task to the complie queue -- at which time the
+  // when adding the task to the compile queue -- at which time the
   // compile queue lock was held. Subsequently, we acquired the compile
   // queue lock to get this task off the compile queue; thus (to belabour
   // the point somewhat) our clearing of the bits must be occurring

@@ -35,6 +35,7 @@
 #include "jvmtifiles/jvmti.h"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/heapInspection.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
 #include "oops/fieldStreams.hpp"
@@ -54,6 +55,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/orderAccess.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
@@ -64,7 +66,7 @@
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/g1/g1OopClosures.inline.hpp"
 #include "gc_implementation/g1/g1RemSet.inline.hpp"
-#include "gc_implementation/g1/heapRegionSeq.inline.hpp"
+#include "gc_implementation/g1/heapRegionManager.inline.hpp"
 #include "gc_implementation/parNew/parOopClosures.inline.hpp"
 #include "gc_implementation/parallelScavenge/parallelScavengeHeap.inline.hpp"
 #include "gc_implementation/parallelScavenge/psPromotionManager.inline.hpp"
@@ -287,6 +289,7 @@ InstanceKlass::InstanceKlass(int vtable_len,
   set_static_oop_field_count(0);
   set_nonstatic_field_size(0);
   set_is_marked_dependent(false);
+  set_has_unloaded_dependent(false);
   set_init_state(InstanceKlass::allocated);
   set_init_thread(NULL);
   set_reference_type(rt);
@@ -501,6 +504,8 @@ objArrayOop InstanceKlass::signers() const {
 oop InstanceKlass::init_lock() const {
   // return the init lock from the mirror
   oop lock = java_lang_Class::init_lock(java_mirror());
+  // Prevent reordering with any access of initialization state
+  OrderAccess::loadload();
   assert((oop)lock != NULL || !is_not_initialized(), // initialized or in_error state
          "only fully initialized state can have a null lock");
   return lock;
@@ -1817,6 +1822,9 @@ jmethodID InstanceKlass::jmethod_id_or_null(Method* method) {
   return id;
 }
 
+int nmethodBucket::decrement() {
+  return Atomic::add(-1, (volatile int *)&_count);
+}
 
 //
 // Walk the list of dependent nmethods searching for nmethods which
@@ -1831,7 +1839,7 @@ int InstanceKlass::mark_dependent_nmethods(DepChange& changes) {
     nmethod* nm = b->get_nmethod();
     // since dependencies aren't removed until an nmethod becomes a zombie,
     // the dependency list may contain nmethods which aren't alive.
-    if (nm->is_alive() && !nm->is_marked_for_deoptimization() && nm->check_dependency_on(changes)) {
+    if (b->count() > 0 && nm->is_alive() && !nm->is_marked_for_deoptimization() && nm->check_dependency_on(changes)) {
       if (TraceDependencies) {
         ResourceMark rm;
         tty->print_cr("Marked for deoptimization");
@@ -1848,6 +1856,43 @@ int InstanceKlass::mark_dependent_nmethods(DepChange& changes) {
   return found;
 }
 
+void InstanceKlass::clean_dependent_nmethods() {
+  assert_locked_or_safepoint(CodeCache_lock);
+
+  if (has_unloaded_dependent()) {
+    nmethodBucket* b = _dependencies;
+    nmethodBucket* last = NULL;
+    while (b != NULL) {
+      assert(b->count() >= 0, err_msg("bucket count: %d", b->count()));
+
+      nmethodBucket* next = b->next();
+
+      if (b->count() == 0) {
+        if (last == NULL) {
+          _dependencies = next;
+        } else {
+          last->set_next(next);
+        }
+        delete b;
+        // last stays the same.
+      } else {
+        last = b;
+      }
+
+      b = next;
+    }
+    set_has_unloaded_dependent(false);
+  }
+#ifdef ASSERT
+  else {
+    // Verification
+    for (nmethodBucket* b = _dependencies; b != NULL; b = b->next()) {
+      assert(b->count() >= 0, err_msg("bucket count: %d", b->count()));
+      assert(b->count() != 0, "empty buckets need to be cleaned");
+    }
+  }
+#endif
+}
 
 //
 // Add an nmethodBucket to the list of dependencies for this nmethod.
@@ -1882,13 +1927,10 @@ void InstanceKlass::remove_dependent_nmethod(nmethod* nm) {
   nmethodBucket* last = NULL;
   while (b != NULL) {
     if (nm == b->get_nmethod()) {
-      if (b->decrement() == 0) {
-        if (last == NULL) {
-          _dependencies = b->next();
-        } else {
-          last->set_next(b->next());
-        }
-        delete b;
+      int val = b->decrement();
+      guarantee(val >= 0, err_msg("Underflow: %d", val));
+      if (val == 0) {
+        set_has_unloaded_dependent(true);
       }
       return;
     }
@@ -1927,6 +1969,10 @@ bool InstanceKlass::is_dependent_nmethod(nmethod* nm) {
   nmethodBucket* b = _dependencies;
   while (b != NULL) {
     if (nm == b->get_nmethod()) {
+#ifdef ASSERT
+      int count = b->count();
+      assert(count >= 0, err_msg("count shouldn't be negative: %d", count));
+#endif
       return true;
     }
     b = b->next();
@@ -2131,12 +2177,6 @@ void InstanceKlass::oop_follow_contents(ParCompactionManager* cm,
 // closure's do_metadata() method dictates whether the given closure should be
 // applied to the klass ptr in the object header.
 
-#define if_do_metadata_checked(closure, nv_suffix)                    \
-  /* Make sure the non-virtual and the virtual versions match. */     \
-  assert(closure->do_metadata##nv_suffix() == closure->do_metadata(), \
-      "Inconsistency in do_metadata");                                \
-  if (closure->do_metadata##nv_suffix())
-
 #define InstanceKlass_OOP_OOP_ITERATE_DEFN(OopClosureType, nv_suffix)        \
                                                                              \
 int InstanceKlass::oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure) { \
@@ -2160,10 +2200,9 @@ int InstanceKlass::oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure) 
 int InstanceKlass::oop_oop_iterate_backwards##nv_suffix(oop obj,                \
                                               OopClosureType* closure) {        \
   SpecializationStats::record_iterate_call##nv_suffix(SpecializationStats::ik); \
-  /* header */                                                                  \
-  if_do_metadata_checked(closure, nv_suffix) {                                  \
-    closure->do_klass##nv_suffix(obj->klass());                                 \
-  }                                                                             \
+                                                                                \
+  assert_should_ignore_metadata(closure, nv_suffix);                            \
+                                                                                \
   /* instance variables */                                                      \
   InstanceKlass_OOP_MAP_REVERSE_ITERATE(                                        \
     obj,                                                                        \
@@ -2232,7 +2271,7 @@ int InstanceKlass::oop_update_pointers(ParCompactionManager* cm, oop obj) {
 #endif // INCLUDE_ALL_GCS
 
 void InstanceKlass::clean_implementors_list(BoolObjectClosure* is_alive) {
-  assert(is_loader_alive(is_alive), "this klass should be live");
+  assert(class_loader_data()->is_alive(is_alive), "this klass should be live");
   if (is_interface()) {
     if (ClassUnloading) {
       Klass* impl = implementor();
@@ -2284,12 +2323,14 @@ void InstanceKlass::remove_unshareable_info() {
   array_klasses_do(remove_unshareable_in_class);
 }
 
-void restore_unshareable_in_class(Klass* k, TRAPS) {
-  k->restore_unshareable_info(CHECK);
+static void restore_unshareable_in_class(Klass* k, TRAPS) {
+  // Array classes have null protection domain.
+  // --> see ArrayKlass::complete_create_array_klass()
+  k->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
 }
 
-void InstanceKlass::restore_unshareable_info(TRAPS) {
-  Klass::restore_unshareable_info(CHECK);
+void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
+  Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
   instanceKlassHandle ik(THREAD, this);
 
   Array<Method*>* methods = ik->methods();
@@ -2313,6 +2354,38 @@ void InstanceKlass::restore_unshareable_info(TRAPS) {
   ik->constants()->restore_unshareable_info(CHECK);
 
   ik->array_klasses_do(restore_unshareable_in_class, CHECK);
+}
+
+// returns true IFF is_in_error_state() has been changed as a result of this call.
+bool InstanceKlass::check_sharing_error_state() {
+  assert(DumpSharedSpaces, "should only be called during dumping");
+  bool old_state = is_in_error_state();
+
+  if (!is_in_error_state()) {
+    bool bad = false;
+    for (InstanceKlass* sup = java_super(); sup; sup = sup->java_super()) {
+      if (sup->is_in_error_state()) {
+        bad = true;
+        break;
+      }
+    }
+    if (!bad) {
+      Array<Klass*>* interfaces = transitive_interfaces();
+      for (int i = 0; i < interfaces->length(); i++) {
+        Klass* iface = interfaces->at(i);
+        if (InstanceKlass::cast(iface)->is_in_error_state()) {
+          bad = true;
+          break;
+        }
+      }
+    }
+
+    if (bad) {
+      set_in_error_state();
+    }
+  }
+
+  return (old_state != is_in_error_state());
 }
 
 static void clear_all_breakpoints(Method* m) {
@@ -3041,8 +3114,7 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
         offset          <= (juint) value->length() &&
         offset + length <= (juint) value->length()) {
       st->print(BULLET"string: ");
-      Handle h_obj(obj);
-      java_lang_String::print(h_obj, st);
+      java_lang_String::print(obj, st);
       st->cr();
       if (!WizardMode)  return;  // that is enough
     }

@@ -25,16 +25,16 @@
 
 package jdk.nashorn.internal.runtime;
 
-import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import jdk.internal.dynalink.CallSiteDescriptor;
 import jdk.internal.dynalink.linker.GuardedInvocation;
 import jdk.internal.dynalink.support.CallSiteDescriptorFactory;
 import jdk.internal.dynalink.support.Guards;
+import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
 
 /**
  * Unique instance of this class is used to represent JavaScript undefined.
@@ -110,13 +110,13 @@ public final class Undefined extends DefaultPropertyAccess {
             if (desc.getNameTokenCount() < 3) {
                 return findGetIndexMethod(desc);
             }
-            throw lookupTypeError("cant.read.property.of.undefined", desc);
+            return findGetMethod(desc);
         case "setProp":
         case "setElem":
             if (desc.getNameTokenCount() < 3) {
                 return findSetIndexMethod(desc);
             }
-            throw lookupTypeError("cant.set.property.of.undefined", desc);
+            return findSetMethod(desc);
         default:
             break;
         }
@@ -128,44 +128,23 @@ public final class Undefined extends DefaultPropertyAccess {
         return typeError(msg, desc.getNameTokenCount() > 2 ? desc.getNameToken(2) : null);
     }
 
-    /**
-     * Find the appropriate GETINDEX method for an invoke dynamic call.
-     * @param desc The invoke dynamic callsite descriptor
-     * @param args arguments
-     * @return GuardedInvocation to be invoked at call site.
-     */
-    private static GuardedInvocation findGetIndexMethod(final CallSiteDescriptor desc, final Object... args) {
-        final MethodType callType  = desc.getMethodType();
-        final Class<?> returnClass = callType.returnType();
-        final Class<?> keyClass    = callType.parameterType(1);
+    private static final MethodHandle GET_METHOD = findOwnMH("get", Object.class, Object.class);
+    private static final MethodHandle SET_METHOD = MH.insertArguments(findOwnMH("set", void.class, Object.class, Object.class, int.class), 3, NashornCallSiteDescriptor.CALLSITE_STRICT);
 
-        String name = "get";
-        if (returnClass.isPrimitive()) {
-            //turn e.g. get with a double into getDouble
-            final String returnTypeName = returnClass.getName();
-            name += Character.toUpperCase(returnTypeName.charAt(0)) + returnTypeName.substring(1, returnTypeName.length());
-        }
-        MethodHandle methodHandle = findOwnMH(name, returnClass, keyClass);
-        methodHandle = MH.asType(methodHandle, methodHandle.type().changeParameterType(0, Object.class));
-
-        return new GuardedInvocation(methodHandle, UNDEFINED_GUARD);
+    private static GuardedInvocation findGetMethod(final CallSiteDescriptor desc) {
+        return new GuardedInvocation(MH.insertArguments(GET_METHOD, 1, desc.getNameToken(2)), UNDEFINED_GUARD).asType(desc);
     }
 
-    /**
-     * Find the appropriate SETINDEX method for an invoke dynamic call.
-     * @param desc The invoke dynamic callsite descriptor
-     * @return GuardedInvocation to be invoked at call site.
-     */
+    private static GuardedInvocation findGetIndexMethod(final CallSiteDescriptor desc) {
+        return new GuardedInvocation(GET_METHOD, UNDEFINED_GUARD).asType(desc);
+    }
+
+    private static GuardedInvocation findSetMethod(final CallSiteDescriptor desc) {
+        return new GuardedInvocation(MH.insertArguments(SET_METHOD, 1, desc.getNameToken(2)), UNDEFINED_GUARD).asType(desc);
+    }
+
     private static GuardedInvocation findSetIndexMethod(final CallSiteDescriptor desc) {
-        final MethodType callType   = desc.getMethodType();
-        final Class<?>   keyClass   = callType.parameterType(1);
-        final Class<?>   valueClass = callType.parameterType(2);
-
-        MethodHandle methodHandle = findOwnMH("set", void.class, keyClass, valueClass, boolean.class);
-        methodHandle = MH.asType(methodHandle, methodHandle.type().changeParameterType(0, Object.class));
-        methodHandle = MH.insertArguments(methodHandle, 3, false);
-
-        return new GuardedInvocation(methodHandle, UNDEFINED_GUARD);
+        return new GuardedInvocation(SET_METHOD, UNDEFINED_GUARD).asType(desc);
     }
 
     @Override
@@ -174,7 +153,7 @@ public final class Undefined extends DefaultPropertyAccess {
     }
 
     @Override
-    public void set(final Object key, final Object value, final boolean strict) {
+    public void set(final Object key, final Object value, final int flags) {
         throw typeError("cant.set.property.of.undefined", ScriptRuntime.safeToString(key));
     }
 

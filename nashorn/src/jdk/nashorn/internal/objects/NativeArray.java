@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,12 @@ import static jdk.nashorn.internal.runtime.ECMAErrors.rangeError;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.VALUE;
 import static jdk.nashorn.internal.runtime.PropertyDescriptor.WRITABLE;
+import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.arrayLikeIterator;
 import static jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator.reverseArrayLikeIterator;
-import static jdk.nashorn.internal.runtime.arrays.ArrayIndex.isValidArrayIndex;
-
+import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_STRICT;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.SwitchPoint;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,7 +42,9 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
-
+import jdk.internal.dynalink.CallSiteDescriptor;
+import jdk.internal.dynalink.linker.GuardedInvocation;
+import jdk.internal.dynalink.linker.LinkRequest;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Constructor;
@@ -49,9 +52,13 @@ import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.Getter;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
 import jdk.nashorn.internal.objects.annotations.Setter;
-import jdk.nashorn.internal.objects.annotations.SpecializedConstructor;
+import jdk.nashorn.internal.objects.annotations.SpecializedFunction;
+import jdk.nashorn.internal.objects.annotations.SpecializedFunction.LinkLogic;
 import jdk.nashorn.internal.objects.annotations.Where;
+import jdk.nashorn.internal.runtime.Context;
+import jdk.nashorn.internal.runtime.Debug;
 import jdk.nashorn.internal.runtime.JSType;
+import jdk.nashorn.internal.runtime.OptimisticBuiltins;
 import jdk.nashorn.internal.runtime.PropertyDescriptor;
 import jdk.nashorn.internal.runtime.PropertyMap;
 import jdk.nashorn.internal.runtime.ScriptFunction;
@@ -61,7 +68,11 @@ import jdk.nashorn.internal.runtime.Undefined;
 import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.arrays.ArrayIndex;
 import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
+import jdk.nashorn.internal.runtime.arrays.ContinuousArrayData;
+import jdk.nashorn.internal.runtime.arrays.IntElements;
+import jdk.nashorn.internal.runtime.arrays.IntOrLongElements;
 import jdk.nashorn.internal.runtime.arrays.IteratorAction;
+import jdk.nashorn.internal.runtime.arrays.NumericElements;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 import jdk.nashorn.internal.runtime.linker.InvokeByName;
 
@@ -70,7 +81,7 @@ import jdk.nashorn.internal.runtime.linker.InvokeByName;
  * keyed values. All other values are stored in spill.
  */
 @ScriptClass("Array")
-public final class NativeArray extends ScriptObject {
+public final class NativeArray extends ScriptObject implements OptimisticBuiltins {
     private static final Object JOIN                     = new Object();
     private static final Object EVERY_CALLBACK_INVOKER   = new Object();
     private static final Object SOME_CALLBACK_INVOKER    = new Object();
@@ -80,6 +91,97 @@ public final class NativeArray extends ScriptObject {
     private static final Object REDUCE_CALLBACK_INVOKER  = new Object();
     private static final Object CALL_CMP                 = new Object();
     private static final Object TO_LOCALE_STRING         = new Object();
+
+    private SwitchPoint   lengthMadeNotWritableSwitchPoint;
+    private PushLinkLogic pushLinkLogic;
+    private PopLinkLogic  popLinkLogic;
+
+    /**
+     * Index for the modification SwitchPoint that triggers when length
+     * becomes not writable
+     */
+    private static final int LENGTH_NOT_WRITABLE_SWITCHPOINT = 0;
+
+    /*
+     * Constructors.
+     */
+    NativeArray() {
+        this(ArrayData.initialArray());
+    }
+
+    NativeArray(final long length) {
+        // TODO assert valid index in long before casting
+        this(ArrayData.allocate((int)length));
+    }
+
+    NativeArray(final int[] array) {
+        this(ArrayData.allocate(array));
+    }
+
+    NativeArray(final long[] array) {
+        this(ArrayData.allocate(array));
+    }
+
+    NativeArray(final double[] array) {
+        this(ArrayData.allocate(array));
+    }
+
+    NativeArray(final Object[] array) {
+        this(ArrayData.allocate(array.length));
+
+        ArrayData arrayData = this.getArray();
+        arrayData.ensure(array.length - 1);
+
+        for (int index = 0; index < array.length; index++) {
+            final Object value = array[index];
+
+            if (value == ScriptRuntime.EMPTY) {
+                arrayData = arrayData.delete(index);
+            } else {
+                arrayData = arrayData.set(index, value, false);
+            }
+        }
+
+        this.setArray(arrayData);
+    }
+
+    NativeArray(final ArrayData arrayData) {
+        this(arrayData, Global.instance());
+    }
+
+    NativeArray(final ArrayData arrayData, final Global global) {
+        super(global.getArrayPrototype(), $nasgenmap$);
+        setArray(arrayData);
+        setIsArray();
+    }
+
+    @Override
+    protected GuardedInvocation findGetMethod(final CallSiteDescriptor desc, final LinkRequest request, final String operator) {
+        final GuardedInvocation inv = getArray().findFastGetMethod(getArray().getClass(), desc, request, operator);
+        if (inv != null) {
+            return inv;
+        }
+        return super.findGetMethod(desc, request, operator);
+    }
+
+    @Override
+    protected GuardedInvocation findGetIndexMethod(final CallSiteDescriptor desc, final LinkRequest request) {
+        final GuardedInvocation inv = getArray().findFastGetIndexMethod(getArray().getClass(), desc, request);
+        if (inv != null) {
+            return inv;
+        }
+        return super.findGetIndexMethod(desc, request);
+    }
+
+    @Override
+    protected GuardedInvocation findSetIndexMethod(final CallSiteDescriptor desc, final LinkRequest request) {
+        final GuardedInvocation inv = getArray().findFastSetIndexMethod(getArray().getClass(), desc, request);
+        if (inv != null) {
+            return inv;
+        }
+
+        return super.findSetIndexMethod(desc, request);
+    }
 
     private static InvokeByName getJOIN() {
         return Global.instance().getInvokeByName(JOIN,
@@ -157,59 +259,6 @@ public final class NativeArray extends ScriptObject {
     // initialized by nasgen
     private static PropertyMap $nasgenmap$;
 
-    /*
-     * Constructors.
-     */
-    NativeArray() {
-        this(ArrayData.initialArray());
-    }
-
-    NativeArray(final long length) {
-        // TODO assert valid index in long before casting
-        this(ArrayData.allocate((int) length));
-    }
-
-    NativeArray(final int[] array) {
-        this(ArrayData.allocate(array));
-    }
-
-    NativeArray(final long[] array) {
-        this(ArrayData.allocate(array));
-    }
-
-    NativeArray(final double[] array) {
-        this(ArrayData.allocate(array));
-    }
-
-    NativeArray(final Object[] array) {
-        this(ArrayData.allocate(array.length));
-
-        ArrayData arrayData = this.getArray();
-        arrayData.ensure(array.length - 1);
-
-        for (int index = 0; index < array.length; index++) {
-            final Object value = array[index];
-
-            if (value == ScriptRuntime.EMPTY) {
-                arrayData = arrayData.delete(index);
-            } else {
-                arrayData = arrayData.set(index, value, false);
-            }
-        }
-
-        this.setArray(arrayData);
-    }
-
-    NativeArray(final ArrayData arrayData) {
-        this(arrayData, Global.instance());
-    }
-
-    NativeArray(final ArrayData arrayData, final Global global) {
-        super(global.getArrayPrototype(), $nasgenmap$);
-        this.setArray(arrayData);
-        this.setIsArray();
-    }
-
     @Override
     public String getClassName() {
         return "Array";
@@ -217,7 +266,11 @@ public final class NativeArray extends ScriptObject {
 
     @Override
     public Object getLength() {
-        return getArray().length() & JSType.MAX_UINT;
+        final long length = getArray().length() & JSType.MAX_UINT;
+        if(length < Integer.MAX_VALUE) {
+            return (int)length;
+        }
+        return length;
     }
 
     /**
@@ -271,7 +324,7 @@ public final class NativeArray extends ScriptObject {
             }
 
             // Step 3h and 3i
-            final boolean newWritable = (!newLenDesc.has(WRITABLE) || newLenDesc.isWritable());
+            final boolean newWritable = !newLenDesc.has(WRITABLE) || newLenDesc.isWritable();
             if (!newWritable) {
                 newLenDesc.setWritable(true);
             }
@@ -304,7 +357,7 @@ public final class NativeArray extends ScriptObject {
             if (!newWritable) {
                 // make 'length' property not writable
                 final ScriptObject newDesc = Global.newEmptyInstance();
-                newDesc.set(WRITABLE, false, false);
+                newDesc.set(WRITABLE, false, 0);
                 return super.defineOwnProperty("length", newDesc, false);
             }
 
@@ -379,6 +432,28 @@ public final class NativeArray extends ScriptObject {
      */
     public Object[] asObjectArray() {
         return getArray().asObjectArray();
+    }
+
+    @Override
+    public void setIsLengthNotWritable() {
+        super.setIsLengthNotWritable();
+        /*
+         * Switchpoints are created lazily. If we link any push or pop site,
+         * we need to create the "length made not writable" switchpoint, if it
+         * doesn't exist.
+         *
+         * If the switchpoint already exists, we will find it here, and invalidate
+         * it, invalidating all previous callsites that use it.
+         *
+         * If the switchpoint doesn't exist, no push/pop has been linked so far,
+         * because that would create it too. We invalidate it immediately and the
+         * check link logic for all future callsites will fail immediately at link
+         * time
+         */
+        if (lengthMadeNotWritableSwitchPoint == null) {
+            lengthMadeNotWritableSwitchPoint = new SwitchPoint();
+        }
+        SwitchPoint.invalidateAll(new SwitchPoint[] { lengthMadeNotWritableSwitchPoint });
     }
 
     /**
@@ -479,6 +554,19 @@ public final class NativeArray extends ScriptObject {
 
         // FIXME: should lookup Object.prototype.toString and call that?
         return ScriptRuntime.builtinObjectToString(self);
+    }
+
+    /**
+     * Assert that an array is numeric, if not throw type error
+     * @param self self array to check
+     * @return true if numeric
+     */
+    @Function(attributes = Attribute.NOT_ENUMERABLE)
+    public static Object assertNumeric(final Object self) {
+        if(!(self instanceof NativeArray && ((NativeArray)self).getArray().getOptimisticType().isNumeric())) {
+            throw typeError("not.a.numeric.array", ScriptRuntime.safeToString(self));
+        }
+        return Boolean.TRUE;
     }
 
     /**
@@ -586,9 +674,24 @@ public final class NativeArray extends ScriptObject {
      * @param self   self reference
      * @return the new NativeArray
      */
-    @SpecializedConstructor
+    @SpecializedFunction(isConstructor=true)
     public static NativeArray construct(final boolean newObj, final Object self) {
         return new NativeArray(0);
+    }
+
+    /**
+     * ECMA 15.4.2.2 new Array (len)
+     *
+     * Specialized constructor for zero arguments - empty array
+     *
+     * @param newObj  was the new operator used to instantiate this array
+     * @param self    self reference
+     * @param element first element
+     * @return the new NativeArray
+     */
+    @SpecializedFunction(isConstructor=true)
+    public static Object construct(final boolean newObj, final Object self, final boolean element) {
+        return new NativeArray(new Object[] { element });
     }
 
     /**
@@ -601,7 +704,7 @@ public final class NativeArray extends ScriptObject {
      * @param length array length
      * @return the new NativeArray
      */
-    @SpecializedConstructor
+    @SpecializedFunction(isConstructor=true)
     public static NativeArray construct(final boolean newObj, final Object self, final int length) {
         if (length >= 0) {
             return new NativeArray(length);
@@ -620,7 +723,7 @@ public final class NativeArray extends ScriptObject {
      * @param length array length
      * @return the new NativeArray
      */
-    @SpecializedConstructor
+    @SpecializedFunction(isConstructor=true)
     public static NativeArray construct(final boolean newObj, final Object self, final long length) {
         if (length >= 0L && length <= JSType.MAX_UINT) {
             return new NativeArray(length);
@@ -639,7 +742,7 @@ public final class NativeArray extends ScriptObject {
      * @param length array length
      * @return the new NativeArray
      */
-    @SpecializedConstructor
+    @SpecializedFunction(isConstructor=true)
     public static NativeArray construct(final boolean newObj, final Object self, final double length) {
         final long uint32length = JSType.toUint32(length);
 
@@ -654,7 +757,7 @@ public final class NativeArray extends ScriptObject {
      * ECMA 15.4.4.4 Array.prototype.concat ( [ item1 [ , item2 [ , ... ] ] ] )
      *
      * @param self self reference
-     * @param args arguments to concat
+     * @param args arguments
      * @return resulting NativeArray
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
@@ -669,16 +772,16 @@ public final class NativeArray extends ScriptObject {
         return new NativeArray(list.toArray());
     }
 
-    @SuppressWarnings("null")
     private static void concatToList(final ArrayList<Object> list, final Object obj) {
-        final boolean isScriptArray = isArray(obj);
+        final boolean isScriptArray  = isArray(obj);
         final boolean isScriptObject = isScriptArray || obj instanceof ScriptObject;
         if (isScriptArray || obj instanceof Iterable || (obj != null && obj.getClass().isArray())) {
             final Iterator<Object> iter = arrayLikeIterator(obj, true);
             if (iter.hasNext()) {
                 for (int i = 0; iter.hasNext(); ++i) {
                     final Object value = iter.next();
-                    if (value == ScriptRuntime.UNDEFINED && isScriptObject && !((ScriptObject)obj).has(i)) {
+                    final boolean lacksIndex = obj != null && !((ScriptObject)obj).has(i);
+                    if (value == ScriptRuntime.UNDEFINED && isScriptObject && lacksIndex) {
                         // TODO: eventually rewrite arrayLikeIterator to use a three-state enum for handling
                         // UNDEFINED instead of an "includeUndefined" boolean with states SKIP, INCLUDE,
                         // RETURN_EMPTY. Until then, this is how we'll make sure that empty elements don't make it
@@ -726,6 +829,68 @@ public final class NativeArray extends ScriptObject {
     }
 
     /**
+     * Specialization of pop for ContinuousArrayData
+     *   The link guard checks that the array is continuous AND not empty.
+     *   The runtime guard checks that the guard is continuous (CCE otherwise)
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @return element popped
+     * @throws ClassCastException if array is empty, facilitating Undefined return value
+     */
+    @SpecializedFunction(name="pop", linkLogic=PopLinkLogic.class)
+    public static int popInt(final Object self) {
+        //must be non empty IntArrayData
+        return getContinuousNonEmptyArrayDataCCE(self, IntElements.class).fastPopInt();
+    }
+
+    /**
+     * Specialization of pop for ContinuousArrayData
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @return element popped
+     * @throws ClassCastException if array is empty, facilitating Undefined return value
+     */
+    @SpecializedFunction(name="pop", linkLogic=PopLinkLogic.class)
+    public static long popLong(final Object self) {
+        //must be non empty Int or LongArrayData
+        return getContinuousNonEmptyArrayDataCCE(self, IntOrLongElements.class).fastPopLong();
+    }
+
+    /**
+     * Specialization of pop for ContinuousArrayData
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @return element popped
+     * @throws ClassCastException if array is empty, facilitating Undefined return value
+     */
+    @SpecializedFunction(name="pop", linkLogic=PopLinkLogic.class)
+    public static double popDouble(final Object self) {
+        //must be non empty int long or double array data
+        return getContinuousNonEmptyArrayDataCCE(self, NumericElements.class).fastPopDouble();
+    }
+
+    /**
+     * Specialization of pop for ContinuousArrayData
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @return element popped
+     * @throws ClassCastException if array is empty, facilitating Undefined return value
+     */
+    @SpecializedFunction(name="pop", linkLogic=PopLinkLogic.class)
+    public static Object popObject(final Object self) {
+        //can be any data, because the numeric ones will throw cce and force relink
+        return getContinuousArrayDataCCE(self, null).fastPopObject();
+    }
+
+    /**
      * ECMA 15.4.4.6 Array.prototype.pop ()
      *
      * @param self self reference
@@ -743,7 +908,7 @@ public final class NativeArray extends ScriptObject {
             final long len = JSType.toUint32(sobj.getLength());
 
             if (len == 0) {
-                sobj.set("length", 0, true);
+                sobj.set("length", 0, CALLSITE_STRICT);
                 return ScriptRuntime.UNDEFINED;
             }
 
@@ -751,7 +916,7 @@ public final class NativeArray extends ScriptObject {
             final Object element = sobj.get(index);
 
             sobj.delete(index, true);
-            sobj.set("length", index, true);
+            sobj.set("length", index, CALLSITE_STRICT);
 
             return element;
         } catch (final ClassCastException | NullPointerException e) {
@@ -762,30 +927,110 @@ public final class NativeArray extends ScriptObject {
     /**
      * ECMA 15.4.4.7 Array.prototype.push (args...)
      *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @param arg a primitive to push
+     * @return array length after push
+     */
+    @SpecializedFunction(linkLogic=PushLinkLogic.class)
+    public static long push(final Object self, final int arg) {
+        return getContinuousArrayDataCCE(self, Integer.class).fastPush(arg);
+    }
+
+    /**
+     * ECMA 15.4.4.7 Array.prototype.push (args...)
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @param arg a primitive to push
+     * @return array length after push
+     */
+    @SpecializedFunction(linkLogic=PushLinkLogic.class)
+    public static long push(final Object self, final long arg) {
+        return getContinuousArrayDataCCE(self, Long.class).fastPush(arg);
+    }
+
+    /**
+     * ECMA 15.4.4.7 Array.prototype.push (args...)
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @param arg a primitive to push
+     * @return array length after push
+     */
+    @SpecializedFunction(linkLogic=PushLinkLogic.class)
+    public static long push(final Object self, final double arg) {
+        return getContinuousArrayDataCCE(self, Double.class).fastPush(arg);
+    }
+
+    /**
+     * ECMA 15.4.4.7 Array.prototype.push (args...)
+     *
+     * Primitive specialization, {@link LinkLogic}
+     *
+     * @param self self reference
+     * @param arg a primitive to push
+     * @return array length after push
+     */
+    @SpecializedFunction(name="push", linkLogic=PushLinkLogic.class)
+    public static long pushObject(final Object self, final Object arg) {
+        return getContinuousArrayDataCCE(self, Object.class).fastPush(arg);
+    }
+
+    /**
+     * ECMA 15.4.4.7 Array.prototype.push (args...)
+     *
      * @param self self reference
      * @param args arguments to push
-     * @return array after pushes
+     * @return array length after pushes
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, arity = 1)
     public static Object push(final Object self, final Object... args) {
         try {
             final ScriptObject sobj   = (ScriptObject)self;
 
-            if (bulkable(sobj)) {
-                if (sobj.getArray().length() + args.length <= JSType.MAX_UINT) {
-                    final ArrayData newData = sobj.getArray().push(true, args);
-                    sobj.setArray(newData);
-                    return newData.length();
-                }
-                //fallthru
+            if (bulkable(sobj) && sobj.getArray().length() + args.length <= JSType.MAX_UINT) {
+                final ArrayData newData = sobj.getArray().push(true, args);
+                sobj.setArray(newData);
+                return newData.length();
             }
 
             long len = JSType.toUint32(sobj.getLength());
             for (final Object element : args) {
-                sobj.set(len++, element, true);
+                sobj.set(len++, element, CALLSITE_STRICT);
             }
-            sobj.set("length", len, true);
+            sobj.set("length", len, CALLSITE_STRICT);
 
+            return len;
+        } catch (final ClassCastException | NullPointerException e) {
+            throw typeError(Context.getGlobal(), e, "not.an.object", ScriptRuntime.safeToString(self));
+        }
+    }
+
+    /**
+     * ECMA 15.4.4.7 Array.prototype.push (args...) specialized for single object argument
+     *
+     * @param self self reference
+     * @param arg argument to push
+     * @return array after pushes
+     */
+    @SpecializedFunction
+    public static long push(final Object self, final Object arg) {
+        try {
+            final ScriptObject sobj = (ScriptObject)self;
+            final ArrayData arrayData = sobj.getArray();
+            final long length = arrayData.length();
+            if (bulkable(sobj) && length < JSType.MAX_UINT) {
+                sobj.setArray(arrayData.push(true, arg));
+                return length + 1;
+            }
+
+            long len = JSType.toUint32(sobj.getLength());
+            sobj.set(len++, arg, CALLSITE_STRICT);
+            sobj.set("length", len, CALLSITE_STRICT);
             return len;
         } catch (final ClassCastException | NullPointerException e) {
             throw typeError("not.an.object", ScriptRuntime.safeToString(self));
@@ -813,14 +1058,14 @@ public final class NativeArray extends ScriptObject {
                 final boolean upperExists = sobj.has(upper);
 
                 if (lowerExists && upperExists) {
-                    sobj.set(lower, upperValue, true);
-                    sobj.set(upper, lowerValue, true);
+                    sobj.set(lower, upperValue, CALLSITE_STRICT);
+                    sobj.set(upper, lowerValue, CALLSITE_STRICT);
                 } else if (!lowerExists && upperExists) {
-                    sobj.set(lower, upperValue, true);
+                    sobj.set(lower, upperValue, CALLSITE_STRICT);
                     sobj.delete(upper, true);
                 } else if (lowerExists && !upperExists) {
                     sobj.delete(lower, true);
-                    sobj.set(upper, lowerValue, true);
+                    sobj.set(upper, lowerValue, CALLSITE_STRICT);
                 }
             }
             return sobj;
@@ -857,9 +1102,9 @@ public final class NativeArray extends ScriptObject {
             } else {
                 boolean hasPrevious = true;
                 for (long k = 1; k < len; k++) {
-                    boolean hasCurrent = sobj.has(k);
+                    final boolean hasCurrent = sobj.has(k);
                     if (hasCurrent) {
-                        sobj.set(k - 1, sobj.get(k), true);
+                        sobj.set(k - 1, sobj.get(k), CALLSITE_STRICT);
                     } else if (hasPrevious) {
                         sobj.delete(k - 1, true);
                     }
@@ -871,7 +1116,7 @@ public final class NativeArray extends ScriptObject {
             len = 0;
         }
 
-        sobj.set("length", len, true);
+        sobj.set("length", len, CALLSITE_STRICT);
 
         return first;
     }
@@ -894,7 +1139,7 @@ public final class NativeArray extends ScriptObject {
         final ScriptObject sobj                = (ScriptObject)obj;
         final long         len                 = JSType.toUint32(sobj.getLength());
         final long         relativeStart       = JSType.toLong(start);
-        final long         relativeEnd         = (end == ScriptRuntime.UNDEFINED) ? len : JSType.toLong(end);
+        final long         relativeEnd         = end == ScriptRuntime.UNDEFINED ? len : JSType.toLong(end);
 
         long k = relativeStart < 0 ? Math.max(len + relativeStart, 0) : Math.min(relativeStart, len);
         final long finale = relativeEnd < 0 ? Math.max(len + relativeEnd, 0) : Math.min(relativeEnd, len);
@@ -1001,7 +1246,7 @@ public final class NativeArray extends ScriptObject {
                 }
 
                 sobj.setArray(array);
-           }
+            }
 
             return sobj;
         } catch (final ClassCastException | NullPointerException e) {
@@ -1024,8 +1269,8 @@ public final class NativeArray extends ScriptObject {
             return ScriptRuntime.UNDEFINED;
         }
 
-        final Object start = (args.length > 0) ? args[0] : ScriptRuntime.UNDEFINED;
-        final Object deleteCount = (args.length > 1) ? args[1] : ScriptRuntime.UNDEFINED;
+        final Object start = args.length > 0 ? args[0] : ScriptRuntime.UNDEFINED;
+        final Object deleteCount = args.length > 1 ? args[1] : ScriptRuntime.UNDEFINED;
 
         Object[] items;
 
@@ -1054,7 +1299,7 @@ public final class NativeArray extends ScriptObject {
                 for (int i = 0; i < items.length; i++, k++) {
                     sobj.defineOwnProperty(k, items[i]);
                 }
-            } catch (UnsupportedOperationException uoe) {
+            } catch (final UnsupportedOperationException uoe) {
                 returnValue = slowSplice(sobj, actualStart, actualDeleteCount, items, len);
             }
         } else {
@@ -1077,18 +1322,18 @@ public final class NativeArray extends ScriptObject {
         }
 
         if (items.length < deleteCount) {
-            for (long k = start; k < (len - deleteCount); k++) {
+            for (long k = start; k < len - deleteCount; k++) {
                 final long from = k + deleteCount;
                 final long to   = k + items.length;
 
                 if (sobj.has(from)) {
-                    sobj.set(to, sobj.get(from), true);
+                    sobj.set(to, sobj.get(from), CALLSITE_STRICT);
                 } else {
                     sobj.delete(to, true);
                 }
             }
 
-            for (long k = len; k > (len - deleteCount + items.length); k--) {
+            for (long k = len; k > len - deleteCount + items.length; k--) {
                 sobj.delete(k - 1, true);
             }
         } else if (items.length > deleteCount) {
@@ -1098,7 +1343,7 @@ public final class NativeArray extends ScriptObject {
 
                 if (sobj.has(from)) {
                     final Object fromValue = sobj.get(from);
-                    sobj.set(to, fromValue, true);
+                    sobj.set(to, fromValue, CALLSITE_STRICT);
                 } else {
                     sobj.delete(to, true);
                 }
@@ -1107,11 +1352,11 @@ public final class NativeArray extends ScriptObject {
 
         long k = start;
         for (int i = 0; i < items.length; i++, k++) {
-            sobj.set(k, items[i], true);
+            sobj.set(k, items[i], CALLSITE_STRICT);
         }
 
         final long newLength = len - deleteCount + items.length;
-        sobj.set("length", newLength, true);
+        sobj.set("length", newLength, CALLSITE_STRICT);
 
         return array;
     }
@@ -1151,19 +1396,19 @@ public final class NativeArray extends ScriptObject {
 
                 if (sobj.has(from)) {
                     final Object fromValue = sobj.get(from);
-                    sobj.set(to, fromValue, true);
+                    sobj.set(to, fromValue, CALLSITE_STRICT);
                 } else {
                     sobj.delete(to, true);
                 }
             }
 
             for (int j = 0; j < items.length; j++) {
-                 sobj.set(j, items[j], true);
+                sobj.set(j, items[j], CALLSITE_STRICT);
             }
         }
 
         final long newLength = len + items.length;
-        sobj.set("length", newLength, true);
+        sobj.set("length", newLength, CALLSITE_STRICT);
 
         return newLength;
     }
@@ -1191,7 +1436,7 @@ public final class NativeArray extends ScriptObject {
             }
 
 
-            for (long k = Math.max(0, (n < 0) ? (len - Math.abs(n)) : n); k < len; k++) {
+            for (long k = Math.max(0, n < 0 ? len - Math.abs(n) : n); k < len; k++) {
                 if (sobj.has(k)) {
                     if (ScriptRuntime.EQ_STRICT(sobj.get(k), searchElement)) {
                         return k;
@@ -1222,10 +1467,10 @@ public final class NativeArray extends ScriptObject {
                 return -1;
             }
 
-            final Object searchElement = (args.length > 0) ? args[0] : ScriptRuntime.UNDEFINED;
-            final long   n             = (args.length > 1) ? JSType.toLong(args[1]) : (len - 1);
+            final Object searchElement = args.length > 0 ? args[0] : ScriptRuntime.UNDEFINED;
+            final long   n             = args.length > 1 ? JSType.toLong(args[1]) : len - 1;
 
-            for (long k = (n < 0) ? (len - Math.abs(n)) : Math.min(n, len - 1); k >= 0; k--) {
+            for (long k = n < 0 ? len - Math.abs(n) : Math.min(n, len - 1); k >= 0; k--) {
                 if (sobj.has(k)) {
                     if (ScriptRuntime.EQ_STRICT(sobj.get(k), searchElement)) {
                         return k;
@@ -1258,7 +1503,7 @@ public final class NativeArray extends ScriptObject {
 
             @Override
             protected boolean forEach(final Object val, final long i) throws Throwable {
-                return (result = (boolean)everyInvoker.invokeExact(callbackfn, thisArg, val, i, self));
+                return result = (boolean)everyInvoker.invokeExact(callbackfn, thisArg, val, i, self);
             }
         }.apply();
     }
@@ -1434,5 +1679,196 @@ public final class NativeArray extends ScriptObject {
         }
 
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return "NativeArray@" + Debug.id(this) + " [" + getArray().getClass().getSimpleName() + ']';
+    }
+
+    @Override
+    public SpecializedFunction.LinkLogic getLinkLogic(final Class<? extends LinkLogic> clazz) {
+        if (clazz == PushLinkLogic.class) {
+            return pushLinkLogic == null ? new PushLinkLogic(this) : pushLinkLogic;
+        } else if (clazz == PopLinkLogic.class) {
+            return popLinkLogic == null ? new PopLinkLogic(this) : pushLinkLogic;
+        }
+        return null;
+    }
+
+    @Override
+    public boolean hasPerInstanceAssumptions() {
+        return true; //length switchpoint
+    }
+
+    /**
+     * This is an abstract super class that contains common functionality for all
+     * specialized optimistic builtins in NativeArray. For example, it handles the
+     * modification switchpoint which is touched when length is written.
+     */
+    private static abstract class ArrayLinkLogic extends SpecializedFunction.LinkLogic {
+        private final NativeArray array;
+
+        protected ArrayLinkLogic(final NativeArray array) {
+            this.array = array;
+        }
+
+        private SwitchPoint getSwitchPoint() {
+            return array.lengthMadeNotWritableSwitchPoint;
+        }
+
+        private SwitchPoint newSwitchPoint() {
+            assert array.lengthMadeNotWritableSwitchPoint == null;
+            final SwitchPoint sp = new SwitchPoint();
+            array.lengthMadeNotWritableSwitchPoint = sp;
+            return sp;
+        }
+
+        protected static ContinuousArrayData getContinuousArrayData(final Object self) {
+            try {
+                //cast to NativeArray, to avoid cases like x = {0:0, 1:1}, x.length = 2, where we can't use the array push/pop
+                return (ContinuousArrayData)((NativeArray)self).getArray();
+            } catch (final Exception e) {
+                return null;
+            }
+        }
+
+        /**
+         * Push and pop callsites can throw ClassCastException as a mechanism to have them
+         * relinked - this enabled fast checks of the kind of ((IntArrayData)arrayData).push(x)
+         * for an IntArrayData only push - if this fails, a CCE will be thrown and we will relink
+         */
+        @Override
+        public Class<? extends Throwable> getRelinkException() {
+            return ClassCastException.class;
+        }
+
+        @Override
+        public boolean hasModificationSwitchPoints() {
+            return getSwitchPoint() != null;
+        }
+
+        @Override
+        public boolean hasModificationSwitchPoint(final int index) {
+            assert index == LENGTH_NOT_WRITABLE_SWITCHPOINT;
+            return hasModificationSwitchPoints();
+        }
+
+        @Override
+        public SwitchPoint getOrCreateModificationSwitchPoint(final int index) {
+            assert index == LENGTH_NOT_WRITABLE_SWITCHPOINT;
+            SwitchPoint sp = getSwitchPoint();
+            if (sp == null) {
+                sp = newSwitchPoint();
+            }
+            return sp;
+        }
+
+        @Override
+        public SwitchPoint[] getOrCreateModificationSwitchPoints() {
+            return new SwitchPoint[] { getOrCreateModificationSwitchPoint(LENGTH_NOT_WRITABLE_SWITCHPOINT) };
+        }
+
+        @Override
+        public void invalidateModificationSwitchPoint(final int index) {
+            assert index == LENGTH_NOT_WRITABLE_SWITCHPOINT;
+            invalidateModificationSwitchPoints();
+        }
+
+        @Override
+        public void invalidateModificationSwitchPoints() {
+            final SwitchPoint sp = getSwitchPoint();
+            assert sp != null : "trying to invalidate non-existant modified SwitchPoint";
+            if (!sp.hasBeenInvalidated()) {
+                SwitchPoint.invalidateAll(new SwitchPoint[] { sp });
+            }
+        }
+
+        @Override
+        public boolean hasInvalidatedModificationSwitchPoint(final int index) {
+            assert index == LENGTH_NOT_WRITABLE_SWITCHPOINT;
+            return hasInvalidatedModificationSwitchPoints();
+        }
+
+        @Override
+        public boolean hasInvalidatedModificationSwitchPoints() {
+            final SwitchPoint sp = getSwitchPoint();
+            return sp != null && !sp.hasBeenInvalidated();
+        }
+    }
+
+    /**
+     * This is linker logic for optimistic pushes
+     */
+    private static final class PushLinkLogic extends ArrayLinkLogic {
+        private PushLinkLogic(final NativeArray array) {
+            super(array);
+        }
+
+        @Override
+        public boolean canLink(final Object self, final CallSiteDescriptor desc, final LinkRequest request) {
+            return getContinuousArrayData(self) != null;
+        }
+    }
+
+    /**
+     * This is linker logic for optimistic pops
+     */
+    private static final class PopLinkLogic extends ArrayLinkLogic {
+        private PopLinkLogic(final NativeArray array) {
+            super(array);
+        }
+
+        /**
+         * We need to check if we are dealing with a continuous non empty array data here,
+         * as pop with a primitive return value returns undefined for arrays with length 0
+         */
+        @Override
+        public boolean canLink(final Object self, final CallSiteDescriptor desc, final LinkRequest request) {
+            final ContinuousArrayData data = getContinuousNonEmptyArrayData(self);
+            if (data != null) {
+                final Class<?> elementType = data.getElementType();
+                final Class<?> returnType  = desc.getMethodType().returnType();
+                final boolean  typeFits    = JSType.getAccessorTypeIndex(returnType) >= JSType.getAccessorTypeIndex(elementType);
+                return typeFits;
+            }
+            return false;
+        }
+
+        private static ContinuousArrayData getContinuousNonEmptyArrayData(final Object self) {
+            final ContinuousArrayData data = getContinuousArrayData(self);
+            if (data != null) {
+                return data.length() == 0 ? null : data;
+            }
+            return null;
+        }
+    }
+
+    //runtime calls for push and pops. they could be used as guards, but they also perform the runtime logic,
+    //so rather than synthesizing them into a guard method handle that would also perform the push on the
+    //retrieved receiver, we use this as runtime logic
+
+    //TODO - fold these into the Link logics, but I'll do that as a later step, as I want to do a checkin
+    //where everything works first
+
+    private static final <T> ContinuousArrayData getContinuousNonEmptyArrayDataCCE(final Object self, final Class<T> clazz) {
+        try {
+            @SuppressWarnings("unchecked")
+            final ContinuousArrayData data = (ContinuousArrayData)(T)((NativeArray)self).getArray();
+            if (data.length() != 0L) {
+                return data; //if length is 0 we cannot pop and have to relink, because then we'd have to return an undefined, which is a wider type than e.g. int
+           }
+        } catch (final NullPointerException e) {
+            //fallthru
+        }
+        throw new ClassCastException();
+    }
+
+    private static final ContinuousArrayData getContinuousArrayDataCCE(final Object self, final Class<?> elementType) {
+        try {
+           return (ContinuousArrayData)((NativeArray)self).getArray(elementType); //ensure element type can fit "elementType"
+        } catch (final NullPointerException e) {
+            throw new ClassCastException();
+        }
     }
 }

@@ -455,7 +455,7 @@ void G1CollectorPolicy::init() {
   } else {
     _young_list_fixed_length = _young_gen_sizer->min_desired_young_length();
   }
-  _free_regions_at_end_of_collection = _g1->free_regions();
+  _free_regions_at_end_of_collection = _g1->num_free_regions();
   update_young_list_target_length();
 
   // We may immediately start allocating regions and placing them on the
@@ -828,7 +828,7 @@ void G1CollectorPolicy::record_full_collection_end() {
 
   record_survivor_regions(0, NULL, NULL);
 
-  _free_regions_at_end_of_collection = _g1->free_regions();
+  _free_regions_at_end_of_collection = _g1->num_free_regions();
   // Reset survivors SurvRateGroup.
   _survivor_surv_rate_group->reset();
   update_young_list_target_length();
@@ -1046,7 +1046,7 @@ void G1CollectorPolicy::record_collection_pause_end(double pause_time_ms, Evacua
 
   bool new_in_marking_window = _in_marking_window;
   bool new_in_marking_window_im = false;
-  if (during_initial_mark_pause()) {
+  if (last_pause_included_initial_mark) {
     new_in_marking_window = true;
     new_in_marking_window_im = true;
   }
@@ -1180,7 +1180,7 @@ void G1CollectorPolicy::record_collection_pause_end(double pause_time_ms, Evacua
 
   _in_marking_window = new_in_marking_window;
   _in_marking_window_im = new_in_marking_window_im;
-  _free_regions_at_end_of_collection = _g1->free_regions();
+  _free_regions_at_end_of_collection = _g1->num_free_regions();
   update_young_list_target_length();
 
   // Note that _mmu_tracker->max_gc_time() returns the time in seconds.
@@ -1202,7 +1202,7 @@ void G1CollectorPolicy::record_heap_size_info_at_start(bool full) {
   _survivor_used_bytes_before_gc = young_list->survivor_used_bytes();
   _heap_capacity_bytes_before_gc = _g1->capacity();
   _heap_used_bytes_before_gc = _g1->used();
-  _cur_collection_pause_used_regions_at_start = _g1->used_regions();
+  _cur_collection_pause_used_regions_at_start = _g1->num_used_regions();
 
   _eden_capacity_bytes_before_gc =
          (_young_list_target_length * HeapRegion::GrainBytes) - _survivor_used_bytes_before_gc;
@@ -1617,7 +1617,7 @@ void
 G1CollectorPolicy::record_concurrent_mark_cleanup_end(int no_of_gc_threads) {
   _collectionSetChooser->clear();
 
-  uint region_num = _g1->n_regions();
+  uint region_num = _g1->num_regions();
   if (G1CollectedHeap::use_parallel_gc_threads()) {
     const uint OverpartitionFactor = 4;
     uint WorkUnit;
@@ -1638,7 +1638,7 @@ G1CollectorPolicy::record_concurrent_mark_cleanup_end(int no_of_gc_threads) {
         MAX2(region_num / (uint) (ParallelGCThreads * OverpartitionFactor),
              MinWorkUnit);
     }
-    _collectionSetChooser->prepare_for_par_region_addition(_g1->n_regions(),
+    _collectionSetChooser->prepare_for_par_region_addition(_g1->num_regions(),
                                                            WorkUnit);
     ParKnownGarbageTask parKnownGarbageTask(_collectionSetChooser,
                                             (int) WorkUnit);
@@ -1664,7 +1664,7 @@ G1CollectorPolicy::record_concurrent_mark_cleanup_end(int no_of_gc_threads) {
 // Add the heap region at the head of the non-incremental collection set
 void G1CollectorPolicy::add_old_region_to_cset(HeapRegion* hr) {
   assert(_inc_cset_build_state == Active, "Precondition");
-  assert(!hr->is_young(), "non-incremental add of young region");
+  assert(hr->is_old(), "the region should be old");
 
   assert(!hr->in_collection_set(), "should not already be in the CSet");
   hr->set_in_collection_set(true);
@@ -1810,7 +1810,7 @@ void G1CollectorPolicy::add_region_to_incremental_cset_common(HeapRegion* hr) {
 // Add the region at the RHS of the incremental cset
 void G1CollectorPolicy::add_region_to_incremental_cset_rhs(HeapRegion* hr) {
   // We should only ever be appending survivors at the end of a pause
-  assert( hr->is_survivor(), "Logic");
+  assert(hr->is_survivor(), "Logic");
 
   // Do the 'common' stuff
   add_region_to_incremental_cset_common(hr);
@@ -1828,7 +1828,7 @@ void G1CollectorPolicy::add_region_to_incremental_cset_rhs(HeapRegion* hr) {
 // Add the region to the LHS of the incremental cset
 void G1CollectorPolicy::add_region_to_incremental_cset_lhs(HeapRegion* hr) {
   // Survivors should be added to the RHS at the end of a pause
-  assert(!hr->is_survivor(), "Logic");
+  assert(hr->is_eden(), "Logic");
 
   // Do the 'common' stuff
   add_region_to_incremental_cset_common(hr);
@@ -1935,7 +1935,7 @@ uint G1CollectorPolicy::calc_max_old_cset_length() {
   // of them are available.
 
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  const size_t region_num = g1h->n_regions();
+  const size_t region_num = g1h->num_regions();
   const size_t perc = (size_t) G1OldCSetRegionThresholdPercent;
   size_t result = region_num * perc / 100;
   // emulate ceiling
@@ -1988,7 +1988,11 @@ void G1CollectorPolicy::finalize_cset(double target_pause_time_ms, EvacuationInf
   HeapRegion* hr = young_list->first_survivor_region();
   while (hr != NULL) {
     assert(hr->is_survivor(), "badly formed young list");
-    hr->set_young();
+    // There is a convention that all the young regions in the CSet
+    // are tagged as "eden", so we do this for the survivors here. We
+    // use the special set_eden_pre_gc() as it doesn't check that the
+    // region is free (which is not the case here).
+    hr->set_eden_pre_gc();
     hr = hr->get_next_young_region();
   }
 

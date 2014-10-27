@@ -25,8 +25,8 @@
 
 package jdk.nashorn.internal.parser;
 
-import static jdk.nashorn.internal.runtime.Source.sourceFor;
 import static jdk.nashorn.internal.runtime.Source.readFully;
+import static jdk.nashorn.internal.runtime.Source.sourceFor;
 
 import java.io.File;
 import jdk.nashorn.internal.runtime.Context;
@@ -53,7 +53,7 @@ public class ParserTest {
         public boolean exclude(File file, String content);
     }
 
-    private void log(String msg) {
+    private static void log(final String msg) {
         org.testng.Reporter.log(msg, true);
     }
 
@@ -67,7 +67,7 @@ public class ParserTest {
         options.set("scripting", true);
         options.set("const.as.var", true);
 
-        ErrorManager errors = new ErrorManager();
+        final ErrorManager errors = new ErrorManager();
         this.context = new Context(options, errors, Thread.currentThread().getContextClassLoader());
     }
 
@@ -82,11 +82,16 @@ public class ParserTest {
             parseTestSet(TEST262_SUITE_DIR, new TestFilter() {
                 @Override
                 public boolean exclude(final File file, final String content) {
-                    return content.indexOf("@negative") != -1;
+                    return content != null && content.contains("@negative");
                 }
             });
         }
-        parseTestSet(TEST_BASIC_DIR, null);
+        parseTestSet(TEST_BASIC_DIR,  new TestFilter() {
+            @Override
+            public boolean exclude(final File file, final String content) {
+                return file.getName().equals("es6");
+            }
+        });
     }
 
     private void parseTestSet(final String testSet, final TestFilter filter) {
@@ -120,6 +125,9 @@ public class ParserTest {
     private int skipped;
 
     private void parseJSDirectory(final File dir, final TestFilter filter) {
+        if (filter != null && filter.exclude(dir, null)) {
+            return;
+        }
         for (final File f : dir.listFiles()) {
             if (f.isDirectory()) {
                 parseJSDirectory(f, filter);
@@ -157,8 +165,8 @@ public class ParserTest {
                 }
             };
             errors.setLimit(0);
-            final Source   source   = sourceFor(file.getAbsolutePath(), buffer);
-            new Parser(context.getEnv(), source, errors).parse();
+            final Source source = sourceFor(file.getAbsolutePath(), buffer);
+            new Parser(context.getEnv(), source, errors, context.getEnv()._strict, null).parse();
             if (errors.getNumberOfErrors() > 0) {
                 log("Parse failed: " + file.getAbsolutePath());
                 failed++;
@@ -166,6 +174,7 @@ public class ParserTest {
                 passed++;
             }
         } catch (final Throwable exp) {
+            exp.printStackTrace();
             log("Parse failed: " + file.getAbsolutePath() + " : " + exp);
             if (VERBOSE) {
                 exp.printStackTrace(System.out);

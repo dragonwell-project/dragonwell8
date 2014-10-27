@@ -171,9 +171,10 @@ class Metaspace : public CHeapObj<mtClass> {
   static const MetaspaceTracer* tracer() { return _tracer; }
 
  private:
-  // This is used by DumpSharedSpaces only, where only _vsm is used. So we will
+  // These 2 methods are used by DumpSharedSpaces only, where only _vsm is used. So we will
   // maintain a single list for now.
   void record_allocation(void* ptr, MetaspaceObj::Type type, size_t word_size);
+  void record_deallocation(void* ptr, size_t word_size);
 
 #ifdef _LP64
   static void set_narrow_klass_base_and_shift(address metaspace_base, address cds_base);
@@ -403,7 +404,9 @@ class MetaspaceGC : AllStatic {
   static void post_initialize();
 
   static size_t capacity_until_GC();
-  static size_t inc_capacity_until_GC(size_t v);
+  static bool inc_capacity_until_GC(size_t v,
+                                    size_t* new_cap_until_GC = NULL,
+                                    size_t* old_cap_until_GC = NULL);
   static size_t dec_capacity_until_GC(size_t v);
 
   static bool should_concurrent_collect() { return _should_concurrent_collect; }

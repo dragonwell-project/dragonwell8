@@ -152,7 +152,7 @@ public class ConstantPool extends Metadata implements ClassConstants {
 
   private long indexOffset(long index) {
     if (Assert.ASSERTS_ENABLED) {
-      Assert.that(index > 0 && index < getLength(),  "invalid cp index " + index + " " + getLength());
+      Assert.that(index >= 0 && index < getLength(),  "invalid cp index " + index + " " + getLength());
     }
     return (index * getElementSize()) + headerSize;
   }

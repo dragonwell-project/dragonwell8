@@ -25,10 +25,14 @@
 #ifndef SHARE_VM_GC_IMPLEMENTATION_G1_CONCURRENTMARK_HPP
 #define SHARE_VM_GC_IMPLEMENTATION_G1_CONCURRENTMARK_HPP
 
+#include "classfile/javaClasses.hpp"
 #include "gc_implementation/g1/heapRegionSet.hpp"
+#include "gc_implementation/g1/g1RegionToSpaceMapper.hpp"
+#include "gc_implementation/shared/gcId.hpp"
 #include "utilities/taskqueue.hpp"
 
 class G1CollectedHeap;
+class CMBitMap;
 class CMTask;
 typedef GenericTaskQueue<oop, mtGC>            CMTaskQueue;
 typedef GenericTaskQueueSet<CMTaskQueue, mtGC> CMTaskQueueSet;
@@ -55,7 +59,6 @@ class CMBitMapRO VALUE_OBJ_CLASS_SPEC {
   HeapWord* _bmStartWord;      // base address of range covered by map
   size_t    _bmWordSize;       // map size (in #HeapWords covered)
   const int _shifter;          // map to char or bit
-  VirtualSpace _virtual_space; // underlying the bit map
   BitMap    _bm;               // the bit map itself
 
  public:
@@ -85,19 +88,19 @@ class CMBitMapRO VALUE_OBJ_CLASS_SPEC {
   // Return the address corresponding to the next marked bit at or after
   // "addr", and before "limit", if "limit" is non-NULL.  If there is no
   // such bit, returns "limit" if that is non-NULL, or else "endWord()".
-  HeapWord* getNextMarkedWordAddress(HeapWord* addr,
-                                     HeapWord* limit = NULL) const;
+  HeapWord* getNextMarkedWordAddress(const HeapWord* addr,
+                                     const HeapWord* limit = NULL) const;
   // Return the address corresponding to the next unmarked bit at or after
   // "addr", and before "limit", if "limit" is non-NULL.  If there is no
   // such bit, returns "limit" if that is non-NULL, or else "endWord()".
-  HeapWord* getNextUnmarkedWordAddress(HeapWord* addr,
-                                       HeapWord* limit = NULL) const;
+  HeapWord* getNextUnmarkedWordAddress(const HeapWord* addr,
+                                       const HeapWord* limit = NULL) const;
 
   // conversion utilities
   HeapWord* offsetToHeapWord(size_t offset) const {
     return _bmStartWord + (offset << _shifter);
   }
-  size_t heapWordToOffset(HeapWord* addr) const {
+  size_t heapWordToOffset(const HeapWord* addr) const {
     return pointer_delta(addr, _bmStartWord) >> _shifter;
   }
   int heapWordDiffToOffsetDiff(size_t diff) const;
@@ -113,42 +116,41 @@ class CMBitMapRO VALUE_OBJ_CLASS_SPEC {
   void print_on_error(outputStream* st, const char* prefix) const;
 
   // debugging
-  NOT_PRODUCT(bool covers(ReservedSpace rs) const;)
+  NOT_PRODUCT(bool covers(MemRegion rs) const;)
+};
+
+class CMBitMapMappingChangedListener : public G1MappingChangedListener {
+ private:
+  CMBitMap* _bm;
+ public:
+  CMBitMapMappingChangedListener() : _bm(NULL) {}
+
+  void set_bitmap(CMBitMap* bm) { _bm = bm; }
+
+  virtual void on_commit(uint start_idx, size_t num_regions, bool zero_filled);
 };
 
 class CMBitMap : public CMBitMapRO {
+ private:
+  CMBitMapMappingChangedListener _listener;
 
  public:
-  // constructor
-  CMBitMap(int shifter) :
-    CMBitMapRO(shifter) {}
+  static size_t compute_size(size_t heap_size);
+  // Returns the amount of bytes on the heap between two marks in the bitmap.
+  static size_t mark_distance();
 
-  // Allocates the back store for the marking bitmap
-  bool allocate(ReservedSpace heap_rs);
+  CMBitMap() : CMBitMapRO(LogMinObjAlignment), _listener() { _listener.set_bitmap(this); }
 
-  // write marks
-  void mark(HeapWord* addr) {
-    assert(_bmStartWord <= addr && addr < (_bmStartWord + _bmWordSize),
-           "outside underlying space?");
-    _bm.set_bit(heapWordToOffset(addr));
-  }
-  void clear(HeapWord* addr) {
-    assert(_bmStartWord <= addr && addr < (_bmStartWord + _bmWordSize),
-           "outside underlying space?");
-    _bm.clear_bit(heapWordToOffset(addr));
-  }
-  bool parMark(HeapWord* addr) {
-    assert(_bmStartWord <= addr && addr < (_bmStartWord + _bmWordSize),
-           "outside underlying space?");
-    return _bm.par_set_bit(heapWordToOffset(addr));
-  }
-  bool parClear(HeapWord* addr) {
-    assert(_bmStartWord <= addr && addr < (_bmStartWord + _bmWordSize),
-           "outside underlying space?");
-    return _bm.par_clear_bit(heapWordToOffset(addr));
-  }
+  // Initializes the underlying BitMap to cover the given area.
+  void initialize(MemRegion heap, G1RegionToSpaceMapper* storage);
+
+  // Write marks.
+  inline void mark(HeapWord* addr);
+  inline void clear(HeapWord* addr);
+  inline bool parMark(HeapWord* addr);
+  inline bool parClear(HeapWord* addr);
+
   void markRange(MemRegion mr);
-  void clearAll();
   void clearRange(MemRegion mr);
 
   // Starting at the bit corresponding to "addr" (inclusive), find the next
@@ -159,6 +161,9 @@ class CMBitMap : public CMBitMapRO {
   // the run.  If there is no "1" bit at or after "addr", return an empty
   // MemRegion.
   MemRegion getAndClearMarkedRegion(HeapWord* addr, HeapWord* end_addr);
+
+  // Clear the whole mark bitmap.
+  void clearAll();
 };
 
 // Represents a marking stack used by ConcurrentMarking in the G1 collector.
@@ -444,6 +449,7 @@ protected:
   volatile bool           _concurrent;
   // set at the end of a Full GC so that marking aborts
   volatile bool           _has_aborted;
+  GCId                    _aborted_gc_id;
 
   // used when remark aborts due to an overflow to indicate that
   // another concurrent marking phase should start
@@ -474,6 +480,7 @@ protected:
   ForceOverflowSettings _force_overflow_conc;
   ForceOverflowSettings _force_overflow_stw;
 
+  void weakRefsWorkParallelPart(BoolObjectClosure* is_alive, bool purged_classes);
   void weakRefsWork(bool clear_all_soft_refs);
 
   void swapMarkBitMaps();
@@ -676,7 +683,9 @@ public:
     return _task_queues->steal(worker_id, hash_seed, obj);
   }
 
-  ConcurrentMark(G1CollectedHeap* g1h, ReservedSpace heap_rs);
+  ConcurrentMark(G1CollectedHeap* g1h,
+                 G1RegionToSpaceMapper* prev_bitmap_storage,
+                 G1RegionToSpaceMapper* next_bitmap_storage);
   ~ConcurrentMark();
 
   ConcurrentMarkThread* cmThread() { return _cmThread; }
@@ -705,8 +714,10 @@ public:
   // inconsistent) and always passing the size. hr is the region that
   // contains the object and it's passed optionally from callers who
   // might already have it (no point in recalculating it).
-  inline void grayRoot(oop obj, size_t word_size,
-                       uint worker_id, HeapRegion* hr = NULL);
+  inline void grayRoot(oop obj,
+                       size_t word_size,
+                       uint worker_id,
+                       HeapRegion* hr = NULL);
 
   // It iterates over the heap and for each object it comes across it
   // will dump the contents of its reference fields, as well as
@@ -727,10 +738,15 @@ public:
   //   AND MARKED : indicates that an object is both explicitly and
   //   implicitly live (it should be one or the other, not both)
   void print_reachable(const char* str,
-                       VerifyOption vo, bool all) PRODUCT_RETURN;
+                       VerifyOption vo,
+                       bool all) PRODUCT_RETURN;
 
   // Clear the next marking bitmap (will be called concurrently).
   void clearNextBitmap();
+
+  // Return whether the next mark bitmap has no marks set. To be used for assertions
+  // only. Will not yield to pause requests.
+  bool nextMarkBitmapIsClear();
 
   // These two do the work that needs to be done before and after the
   // initial root checkpoint. Since this checkpoint can be done at two
@@ -760,12 +776,11 @@ public:
   // this carefully!
   inline void markPrev(oop p);
 
-  // Clears marks for all objects in the given range, for the prev,
-  // next, or both bitmaps.  NB: the previous bitmap is usually
+  // Clears marks for all objects in the given range, for the prev or
+  // next bitmaps.  NB: the previous bitmap is usually
   // read-only, so use this carefully!
   void clearRangePrevBitmap(MemRegion mr);
   void clearRangeNextBitmap(MemRegion mr);
-  void clearRangeBothBitmaps(MemRegion mr);
 
   // Notify data structures that a GC has started.
   void note_start_of_gc() {
@@ -787,27 +802,6 @@ public:
                            bool verify_thread_buffers,
                            bool verify_fingers) PRODUCT_RETURN;
 
-  // It is called at the end of an evacuation pause during marking so
-  // that CM is notified of where the new end of the heap is. It
-  // doesn't do anything if concurrent_marking_in_progress() is false,
-  // unless the force parameter is true.
-  void update_g1_committed(bool force = false);
-
-  bool isMarked(oop p) const {
-    assert(p != NULL && p->is_oop(), "expected an oop");
-    HeapWord* addr = (HeapWord*)p;
-    assert(addr >= _nextMarkBitMap->startWord() ||
-           addr < _nextMarkBitMap->endWord(), "in a region");
-
-    return _nextMarkBitMap->isMarked(addr);
-  }
-
-  inline bool not_yet_marked(oop p) const;
-
-  // XXX Debug code
-  bool containing_card_is_marked(void* p);
-  bool containing_cards_are_marked(void* start, void* last);
-
   bool isPrevMarked(oop p) const {
     assert(p != NULL && p->is_oop(), "expected an oop");
     HeapWord* addr = (HeapWord*)p;
@@ -818,12 +812,13 @@ public:
   }
 
   inline bool do_yield_check(uint worker_i = 0);
-  inline bool should_yield();
 
   // Called to abort the marking cycle after a Full GC takes palce.
   void abort();
 
   bool has_aborted()      { return _has_aborted; }
+
+  const GCId& concurrent_gc_id();
 
   // This prints the global/local fingers. It is used for debugging.
   NOT_PRODUCT(void print_finger();)
@@ -892,7 +887,8 @@ public:
   // marked_bytes array slot for the given HeapRegion.
   // Sets the bits in the given card bitmap that are associated with the
   // cards that are spanned by the memory region.
-  inline void count_region(MemRegion mr, HeapRegion* hr,
+  inline void count_region(MemRegion mr,
+                           HeapRegion* hr,
                            size_t* marked_bytes_array,
                            BitMap* task_card_bm);
 
@@ -900,56 +896,27 @@ public:
   // data structures for the given worker id.
   inline void count_region(MemRegion mr, HeapRegion* hr, uint worker_id);
 
-  // Counts the given memory region in the task/worker counting
-  // data structures for the given worker id.
-  inline void count_region(MemRegion mr, uint worker_id);
-
   // Counts the given object in the given task/worker counting
   // data structures.
-  inline void count_object(oop obj, HeapRegion* hr,
+  inline void count_object(oop obj,
+                           HeapRegion* hr,
                            size_t* marked_bytes_array,
                            BitMap* task_card_bm);
 
-  // Counts the given object in the task/worker counting data
-  // structures for the given worker id.
-  inline void count_object(oop obj, HeapRegion* hr, uint worker_id);
-
   // Attempts to mark the given object and, if successful, counts
   // the object in the given task/worker counting structures.
-  inline bool par_mark_and_count(oop obj, HeapRegion* hr,
+  inline bool par_mark_and_count(oop obj,
+                                 HeapRegion* hr,
                                  size_t* marked_bytes_array,
                                  BitMap* task_card_bm);
 
   // Attempts to mark the given object and, if successful, counts
   // the object in the task/worker counting structures for the
   // given worker id.
-  inline bool par_mark_and_count(oop obj, size_t word_size,
-                                 HeapRegion* hr, uint worker_id);
-
-  // Attempts to mark the given object and, if successful, counts
-  // the object in the task/worker counting structures for the
-  // given worker id.
-  inline bool par_mark_and_count(oop obj, HeapRegion* hr, uint worker_id);
-
-  // Similar to the above routine but we don't know the heap region that
-  // contains the object to be marked/counted, which this routine looks up.
-  inline bool par_mark_and_count(oop obj, uint worker_id);
-
-  // Similar to the above routine but there are times when we cannot
-  // safely calculate the size of obj due to races and we, therefore,
-  // pass the size in as a parameter. It is the caller's reponsibility
-  // to ensure that the size passed in for obj is valid.
-  inline bool par_mark_and_count(oop obj, size_t word_size, uint worker_id);
-
-  // Unconditionally mark the given object, and unconditinally count
-  // the object in the counting structures for worker id 0.
-  // Should *not* be called from parallel code.
-  inline bool mark_and_count(oop obj, HeapRegion* hr);
-
-  // Similar to the above routine but we don't know the heap region that
-  // contains the object to be marked/counted, which this routine looks up.
-  // Should *not* be called from parallel code.
-  inline bool mark_and_count(oop obj);
+  inline bool par_mark_and_count(oop obj,
+                                 size_t word_size,
+                                 HeapRegion* hr,
+                                 uint worker_id);
 
   // Returns true if initialization was successfully completed.
   bool completed_initialization() const {
@@ -1221,9 +1188,12 @@ public:
     _finger = new_finger;
   }
 
-  CMTask(uint worker_id, ConcurrentMark *cm,
-         size_t* marked_bytes, BitMap* card_bm,
-         CMTaskQueue* task_queue, CMTaskQueueSet* task_queues);
+  CMTask(uint worker_id,
+         ConcurrentMark *cm,
+         size_t* marked_bytes,
+         BitMap* card_bm,
+         CMTaskQueue* task_queue,
+         CMTaskQueueSet* task_queues);
 
   // it prints statistics associated with this task
   void print_stats();

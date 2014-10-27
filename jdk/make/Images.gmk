@@ -562,7 +562,7 @@ ifndef OPENJDK
 	$(CAT) $< | $(SED) "s/XXXX/$(shell cat $(JDK_TOPDIR)/src/closed/share/db/COPYRIGHTYEAR)/" > $@
 
   JDK_DB_TARGETS := $(patsubst $(JDK_TOPDIR)/src/closed/share/db/%, $(IMAGES_OUTPUTDIR)/_unzip/%.unzipped, \
-      $(wildcard $(JDK_TOPDIR)/src/closed/share/db/*.zip)) \
+      $(wildcard $(JDK_TOPDIR)/src/closed/share/db/db-derby-*-bin.zip)) \
       $(JDK_IMAGE_DIR)/db/README-JDK.html $(JDK_IMAGE_DIR)/db/3RDPARTY
 
 endif

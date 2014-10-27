@@ -43,13 +43,14 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import javax.script.Bindings;
 import jdk.nashorn.internal.objects.Global;
-import jdk.nashorn.internal.runtime.arrays.ArrayData;
 import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptObject;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
+import jdk.nashorn.internal.runtime.arrays.ArrayData;
+import jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor;
 
 /**
  * Mirror object that wraps a given Nashorn Script object.
@@ -164,11 +165,17 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
                                 return Context.getContext();
                             }
                         }, GET_CONTEXT_ACC_CTXT);
-                return wrap(context.eval(global, s, null, null, false), global);
+                return wrap(context.eval(global, s, sobj, null, false), global);
             }
         });
     }
 
+    /**
+     * Call member function
+     * @param functionName function name
+     * @param args         arguments
+     * @return return value of function
+     */
     public Object callMember(final String functionName, final Object... args) {
         functionName.getClass(); // null check
         final Global oldGlobal = Context.getGlobal();
@@ -255,7 +262,7 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
     public void setSlot(final int index, final Object value) {
         inGlobal(new Callable<Void>() {
             @Override public Void call() {
-                sobj.set(index, unwrap(value, global), strict);
+                sobj.set(index, unwrap(value, global), getCallSiteFlags());
                 return null;
             }
         });
@@ -419,7 +426,7 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
                 for (final Map.Entry<? extends String, ? extends Object> entry : map.entrySet()) {
                     final Object value = entry.getValue();
                     final Object modValue = globalChanged? wrap(value, oldGlobal) : value;
-                    sobj.set(entry.getKey(), unwrap(modValue, global), strict);
+                    sobj.set(entry.getKey(), unwrap(modValue, global), getCallSiteFlags());
                 }
                 return null;
             }
@@ -709,6 +716,23 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
         return newArgs;
     }
 
+    /**
+     * Are the given objects mirrors to same underlying object?
+     *
+     * @param obj1 first object
+     * @param obj2 second object
+     * @return true if obj1 and obj2 are identical script objects or mirrors of it.
+     */
+    public static boolean identical(final Object obj1, final Object obj2) {
+        final Object o1 = (obj1 instanceof ScriptObjectMirror)?
+            ((ScriptObjectMirror)obj1).sobj : obj1;
+
+        final Object o2 = (obj2 instanceof ScriptObjectMirror)?
+            ((ScriptObjectMirror)obj2).sobj : obj2;
+
+        return o1 == o2;
+    }
+
     // package-privates below this.
 
     ScriptObjectMirror(final ScriptObject sobj, final Global global) {
@@ -729,8 +753,12 @@ public final class ScriptObjectMirror extends AbstractJSObject implements Bindin
         return global;
     }
 
-    static Object translateUndefined(Object obj) {
+    static Object translateUndefined(final Object obj) {
         return (obj == ScriptRuntime.UNDEFINED)? null : obj;
+    }
+
+    private int getCallSiteFlags() {
+        return strict ? NashornCallSiteDescriptor.CALLSITE_STRICT : 0;
     }
 
     // internals only below this.

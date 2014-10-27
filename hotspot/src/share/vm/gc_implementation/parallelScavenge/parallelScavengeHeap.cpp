@@ -78,6 +78,7 @@ jint ParallelScavengeHeap::initialize() {
                         (HeapWord*)(heap_rs.base() + heap_rs.size()));
 
   CardTableExtension* const barrier_set = new CardTableExtension(_reserved, 3);
+  barrier_set->initialize();
   _barrier_set = barrier_set;
   oopDesc::set_bs(_barrier_set);
   if (_barrier_set == NULL) {
@@ -482,10 +483,6 @@ HeapWord* ParallelScavengeHeap::failed_mem_allocate(size_t size) {
 void ParallelScavengeHeap::ensure_parsability(bool retire_tlabs) {
   CollectedHeap::ensure_parsability(retire_tlabs);
   young_gen()->eden_space()->ensure_parsability();
-}
-
-size_t ParallelScavengeHeap::unsafe_max_alloc() {
-  return young_gen()->eden_space()->free_in_bytes();
 }
 
 size_t ParallelScavengeHeap::tlab_capacity(Thread* thr) const {
