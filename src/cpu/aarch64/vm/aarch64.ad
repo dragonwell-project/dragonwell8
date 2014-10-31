@@ -4784,17 +4784,14 @@ pipeline %{
 attributes %{
   // ARM instructions are of fixed length
   fixed_size_instructions;        // Fixed size instructions TODO does
-  // TODO does this relate to how many instructions can be scheduled
-  // at once? just guess 8 for now
-  max_instructions_per_bundle = 8;   // Up to 8 instructions per bundle
+  max_instructions_per_bundle = 2;   // A53 = 2, A57 = 4
   // ARM instructions come in 32-bit word units
   instruction_unit_size = 4;         // An instruction is 4 bytes long
-  // TODO identify correct cache line size  just guess 64 for now
   instruction_fetch_unit_size = 64;  // The processor fetches one line
   instruction_fetch_units = 1;       // of 64 bytes
 
   // List of nop instructions
-  //nops( MachNop );
+  nops( MachNop );
 %}
 
 // We don't use an actual pipeline model so don't care about resources
@@ -4804,20 +4801,385 @@ attributes %{
 //----------RESOURCES----------------------------------------------------------
 // Resources are the functional units available to the machine
 
-resources( D0, D1, D2, DECODE = D0 | D1 | D2,
-           MS0, MS1, MS2, MEM = MS0 | MS1 | MS2,
-           BR, FPU,
-           ALU0, ALU1, ALU2, ALU = ALU0 | ALU1 | ALU2);
+resources( INS0, INS1, INS01 = INS0 | INS1,
+           ALU0, ALU1, ALU = ALU0 | ALU1,
+           MAC,
+           DIV,
+           BRANCH,
+           LDST,
+           NEON_FP);
 
 //----------PIPELINE DESCRIPTION-----------------------------------------------
 // Pipeline Description specifies the stages in the machine's pipeline
 
-// Generic P2/P3 pipeline
-pipe_desc(S0, S1, S2, S3, S4, S5);
+pipe_desc(ISS, EX1, EX2, WR);
 
 //----------PIPELINE CLASSES---------------------------------------------------
 // Pipeline Classes describe the stages in which input and output are
 // referenced by the hardware pipeline.
+
+//------- Integer ALU operations --------------------------
+
+// Integer ALU reg-reg operation
+// Operands needed in EX1, result generated in EX2
+// Eg.	ADD	x0, x1, x2
+pipe_class ialu_reg_reg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src1   : EX1(read);
+  src2   : EX1(read);
+  INS01  : ISS; // Dual issue as instruction 0 or 1
+  ALU    : EX2;
+%}
+
+// Integer ALU reg-reg operation with constant shift
+// Shifted register must be available in LATE_ISS instead of EX1
+// Eg.	ADD	x0, x1, x2, LSL #2
+pipe_class ialu_reg_reg_shift(iRegI dst, iRegI src1, iRegI src2, immI shift)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src1   : EX1(read);
+  src2   : ISS(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Integer ALU reg operation with constant shift
+// Eg.	LSL	x0, x1, #shift
+pipe_class ialu_reg_shift(iRegI dst, iRegI src1)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src1   : ISS(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Integer ALU reg-reg operation with variable shift
+// Both operands must be available in LATE_ISS instead of EX1
+// Result is available in EX1 instead of EX2
+// Eg.	LSLV	x0, x1, x2
+pipe_class ialu_reg_reg_vshift(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  dst    : EX1(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS01  : ISS;
+  ALU    : EX1;
+%}
+
+// Integer ALU reg-reg operation with extract
+// As for _vshift above, but result generated in EX2
+// Eg.	EXTR	x0, x1, x2, #N
+pipe_class ialu_reg_reg_extr(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS1   : ISS; // Can only dual issue as Instruction 1
+  ALU    : EX1;
+%}
+
+// Integer ALU reg operation
+// Eg.	NEG	x0, x1
+pipe_class ialu_reg(iRegI dst, iRegI src)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src    : EX1(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Integer ALU reg mmediate operation
+// Eg.	ADD	x0, x1, #N
+pipe_class ialu_reg_imm(iRegI dst, iRegI src1)
+%{
+  single_instruction;
+  dst    : EX2(write);
+  src1   : EX1(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Integer ALU immediate operation (no source operands)
+// Eg.	MOV	x0, #N
+pipe_class ialu_imm(iRegI dst)
+%{
+  single_instruction;
+  dst    : EX1(write);
+  INS01  : ISS;
+  ALU    : EX1;
+%}
+
+//------- Compare operation -------------------------------
+
+// Compare reg-reg
+// Eg.	CMP	x0, x1
+pipe_class icmp_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
+%{
+  single_instruction;
+//  fixed_latency(16);
+  cr     : EX2(write);
+  op1    : EX1(read);
+  op2    : EX1(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Compare reg-reg
+// Eg.	CMP	x0, #N
+pipe_class icmp_reg_imm(rFlagsReg cr, iRegI op1)
+%{
+  single_instruction;
+//  fixed_latency(16);
+  cr     : EX2(write);
+  op1    : EX1(read);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+//------- Conditional instructions ------------------------
+
+// Conditional no operands
+// Eg.	CSINC	x0, zr, zr, <cond>
+pipe_class icond_none(iRegI dst, rFlagsReg cr)
+%{
+  single_instruction;
+  cr     : EX1(read);
+  dst    : EX2(write);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Conditional 2 operand
+// EG.	CSEL	X0, X1, X2, <cond>
+pipe_class icond_reg_reg(iRegI dst, iRegI src1, iRegI src2, rFlagsReg cr)
+%{
+  single_instruction;
+  cr     : EX1(read);
+  src1   : EX1(read);
+  src2   : EX1(read);
+  dst    : EX2(write);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+// Conditional 2 operand
+// EG.	CSEL	X0, X1, X2, <cond>
+pipe_class icond_reg(iRegI dst, iRegI src, rFlagsReg cr)
+%{
+  single_instruction;
+  cr     : EX1(read);
+  src    : EX1(read);
+  dst    : EX2(write);
+  INS01  : ISS;
+  ALU    : EX2;
+%}
+
+//------- Multiply pipeline operations --------------------
+
+// Multiply reg-reg
+// Eg.	MUL	w0, w1, w2
+pipe_class imul_reg_reg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS01  : ISS;
+  MAC    : WR;
+%}
+
+// Multiply accumulate
+// Eg.	MADD	w0, w1, w2, w3
+pipe_class imac_reg_reg(iRegI dst, iRegI src1, iRegI src2, iRegI src3)
+%{
+  single_instruction;
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  src3   : ISS(read);
+  INS01  : ISS;
+  MAC    : WR;
+%}
+
+// Eg.	MUL	w0, w1, w2
+pipe_class lmul_reg_reg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  fixed_latency(3); // Maximum latency for 64 bit mul
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS01  : ISS;
+  MAC    : WR;
+%}
+
+// Multiply accumulate
+// Eg.	MADD	w0, w1, w2, w3
+pipe_class lmac_reg_reg(iRegI dst, iRegI src1, iRegI src2, iRegI src3)
+%{
+  single_instruction;
+  fixed_latency(3); // Maximum latency for 64 bit mul
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  src3   : ISS(read);
+  INS01  : ISS;
+  MAC    : WR;
+%}
+
+//------- Divide pipeline operations --------------------
+
+// Eg.	SDIV	w0, w1, w2
+pipe_class idiv_reg_reg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  fixed_latency(8); // Maximum latency for 32 bit divide
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS0   : ISS; // Can only dual issue as instruction 0
+  DIV    : WR;
+%}
+
+// Eg.	SDIV	x0, x1, x2
+pipe_class ldiv_reg_reg(iRegI dst, iRegI src1, iRegI src2)
+%{
+  single_instruction;
+  fixed_latency(16); // Maximum latency for 64 bit divide
+  dst    : WR(write);
+  src1   : ISS(read);
+  src2   : ISS(read);
+  INS0   : ISS; // Can only dual issue as instruction 0
+  DIV    : WR;
+%}
+
+//------- Load pipeline operations ------------------------
+
+// Load - prefetch
+// Eg.	PFRM	<mem>
+pipe_class iload_prefetch(memory mem)
+%{
+  single_instruction;
+  mem    : ISS(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+// Load - reg, mem
+// Eg.	LDR	x0, <mem>
+pipe_class iload_reg_mem(iRegI dst, memory mem)
+%{
+  single_instruction;
+  dst    : WR(write);
+  mem    : ISS(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+// Load - reg, reg
+// Eg.	LDR	x0, [sp, x1]
+pipe_class iload_reg_reg(iRegI dst, iRegI src)
+%{
+  single_instruction;
+  dst    : WR(write);
+  src    : ISS(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+//------- Store pipeline operations -----------------------
+
+// Store - zr, mem
+// Eg.	STR	zr, <mem>
+pipe_class istore_mem(memory mem)
+%{
+  single_instruction;
+  mem    : ISS(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+// Store - reg, mem
+// Eg.	STR	x0, <mem>
+pipe_class istore_reg_mem(iRegI src, memory mem)
+%{
+  single_instruction;
+  mem    : ISS(read);
+  src    : EX2(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+// Store - reg, reg
+// Eg. STR	x0, [sp, x1]
+pipe_class istore_reg_reg(iRegI dst, iRegI src)
+%{
+  single_instruction;
+  dst    : ISS(read);
+  src    : EX2(read);
+  INS01  : ISS;
+  LDST   : WR;
+%}
+
+//------- Store pipeline operations -----------------------
+
+// Branch
+pipe_class pipe_branch()
+%{
+  single_instruction;
+  INS01  : ISS;
+  BRANCH : EX1;
+%}
+
+// Conditional branch
+pipe_class pipe_branch_cond(rFlagsReg cr)
+%{
+  single_instruction;
+  cr     : EX1(read);
+  INS01  : ISS;
+  BRANCH : EX1;
+%}
+
+// Compare & Branch
+// EG.	CBZ/CBNZ
+pipe_class pipe_cmp_branch(iRegI op1)
+%{
+  single_instruction;
+  op1    : EX1(read);
+  INS01  : ISS;
+  BRANCH : EX1;
+%}
+
+//------- Synchronisation operations ----------------------
+
+// Any operation requiring serialization.
+// EG.	DMB/Atomic Ops/Load Acquire/Str Release
+pipe_class pipe_serial()
+%{
+  single_instruction;
+  force_serialization;
+  fixed_latency(16);
+  INS01  : ISS(2); // Cannot dual issue with any other instruction
+  LDST   : WR;
+%}
+
+// Generic big/slow expanded idiom - also serialized
+pipe_class pipe_slow()
+%{
+  instruction_count(10);
+  multiple_bundles;
+  force_serialization;
+  fixed_latency(16);
+  INS01  : ISS(2); // Cannot dual issue with any other instruction
+  LDST   : WR;
+%}
 
 // Empty pipeline class
 pipe_class pipe_class_empty()
@@ -4840,13 +5202,6 @@ pipe_class pipe_class_compare()
   fixed_latency(16);
 %}
 
-// Pipeline class for traps.
-pipe_class pipe_class_trap()
-%{
-  single_instruction;
-  fixed_latency(100);
-%}
-
 // Pipeline class for memory operations.
 pipe_class pipe_class_memory()
 %{
@@ -4863,7 +5218,7 @@ pipe_class pipe_class_call()
 
 // Define the class for the Nop node.
 define %{
-   MachNop = pipe_class_default;
+   MachNop = pipe_class_empty;
 %}
 
 %}
@@ -4904,7 +5259,7 @@ instruct loadB(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrsbw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Byte (8 bit signed) into long
@@ -4918,7 +5273,7 @@ instruct loadB2L(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrsb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Byte (8 bit unsigned)
@@ -4932,7 +5287,7 @@ instruct loadUB(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Byte (8 bit unsigned) into long
@@ -4946,7 +5301,7 @@ instruct loadUB2L(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Short (16 bit signed)
@@ -4960,7 +5315,7 @@ instruct loadS(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrshw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Short (16 bit signed) into long
@@ -4974,7 +5329,7 @@ instruct loadS2L(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrsh(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Char (16 bit unsigned)
@@ -4988,7 +5343,7 @@ instruct loadUS(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrh(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Short/Char (16 bit unsigned) into long
@@ -5002,7 +5357,7 @@ instruct loadUS2L(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrh(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Integer (32 bit signed)
@@ -5016,7 +5371,7 @@ instruct loadI(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Integer (32 bit signed) into long
@@ -5030,7 +5385,7 @@ instruct loadI2L(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrsw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Integer (32 bit unsigned) into long
@@ -5044,7 +5399,7 @@ instruct loadUI2L(iRegLNoSp dst, memory mem, immL_32bits mask)
 
   ins_encode(aarch64_enc_ldrw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Long (64 bit signed)
@@ -5058,7 +5413,7 @@ instruct loadL(iRegLNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldr(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Range
@@ -5071,7 +5426,7 @@ instruct loadRange(iRegINoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Pointer
@@ -5085,7 +5440,7 @@ instruct loadP(iRegPNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldr(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Compressed Pointer
@@ -5099,7 +5454,7 @@ instruct loadN(iRegNNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Klass Pointer
@@ -5113,7 +5468,7 @@ instruct loadKlass(iRegPNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldr(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Narrow Klass Pointer
@@ -5127,7 +5482,7 @@ instruct loadNKlass(iRegNNoSp dst, memory mem)
 
   ins_encode(aarch64_enc_ldrw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_mem);
 %}
 
 // Load Float
@@ -5169,7 +5524,7 @@ instruct loadConI(iRegINoSp dst, immI src)
 
   ins_encode( aarch64_enc_movw_imm(dst, src) );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Long Constant
@@ -5182,7 +5537,7 @@ instruct loadConL(iRegLNoSp dst, immL src)
 
   ins_encode( aarch64_enc_mov_imm(dst, src) );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Pointer Constant
@@ -5198,7 +5553,7 @@ instruct loadConP(iRegPNoSp dst, immP con)
 
   ins_encode(aarch64_enc_mov_p(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Null Pointer Constant
@@ -5212,7 +5567,7 @@ instruct loadConP0(iRegPNoSp dst, immP0 con)
 
   ins_encode(aarch64_enc_mov_p0(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Pointer Constant One
@@ -5226,7 +5581,7 @@ instruct loadConP1(iRegPNoSp dst, immP_1 con)
 
   ins_encode(aarch64_enc_mov_p1(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Poll Page Constant
@@ -5240,7 +5595,7 @@ instruct loadConPollPage(iRegPNoSp dst, immPollPage con)
 
   ins_encode(aarch64_enc_mov_poll_page(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Byte Map Base Constant
@@ -5254,7 +5609,7 @@ instruct loadByteMapBase(iRegPNoSp dst, immByteMapBase con)
 
   ins_encode(aarch64_enc_mov_byte_map_base(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Narrow Pointer Constant
@@ -5268,7 +5623,7 @@ instruct loadConN(iRegNNoSp dst, immN con)
 
   ins_encode(aarch64_enc_mov_n(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Narrow Null Pointer Constant
@@ -5282,7 +5637,7 @@ instruct loadConN0(iRegNNoSp dst, immN0 con)
 
   ins_encode(aarch64_enc_mov_n0(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Narrow Klass Constant
@@ -5296,7 +5651,7 @@ instruct loadConNKlass(iRegNNoSp dst, immNKlass con)
 
   ins_encode(aarch64_enc_mov_nk(dst, con));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_imm);
 %}
 
 // Load Packed Float Constant
@@ -5372,7 +5727,7 @@ instruct storeimmCM0(immI0 zero, memory mem)
 
   ins_encode(aarch64_enc_strb0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Byte
@@ -5386,7 +5741,7 @@ instruct storeB(iRegI src, memory mem)
 
   ins_encode(aarch64_enc_strb(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 
@@ -5400,7 +5755,7 @@ instruct storeimmB0(immI0 zero, memory mem)
 
   ins_encode(aarch64_enc_strb0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Char/Short
@@ -5414,7 +5769,7 @@ instruct storeC(iRegI src, memory mem)
 
   ins_encode(aarch64_enc_strh(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 instruct storeimmC0(immI0 zero, memory mem)
@@ -5427,7 +5782,7 @@ instruct storeimmC0(immI0 zero, memory mem)
 
   ins_encode(aarch64_enc_strh0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Integer
@@ -5442,7 +5797,7 @@ instruct storeI(iRegIorL2I src, memory mem)
 
   ins_encode(aarch64_enc_strw(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 instruct storeimmI0(immI0 zero, memory mem)
@@ -5455,7 +5810,7 @@ instruct storeimmI0(immI0 zero, memory mem)
 
   ins_encode(aarch64_enc_strw0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Long (64 bit signed)
@@ -5469,7 +5824,7 @@ instruct storeL(iRegL src, memory mem)
 
   ins_encode(aarch64_enc_str(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 // Store Long (64 bit signed)
@@ -5483,7 +5838,7 @@ instruct storeimmL0(immL0 zero, memory mem)
 
   ins_encode(aarch64_enc_str0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Pointer
@@ -5497,7 +5852,7 @@ instruct storeP(iRegP src, memory mem)
 
   ins_encode(aarch64_enc_str(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 // Store Pointer
@@ -5511,7 +5866,7 @@ instruct storeimmP0(immP0 zero, memory mem)
 
   ins_encode(aarch64_enc_str0(mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Save last Java PC to thread anchor
@@ -5541,7 +5896,7 @@ instruct storeLastJavaPC_no_retaddr(thread_anchor_pc mem, immP_M1 dummy_m1)
 
   ins_encode(aarch64_enc_save_pc());
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
@@ -5556,7 +5911,7 @@ instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
 
   ins_encode(aarch64_enc_save_pc());
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_mem);
 %}
 
 // Store Compressed Pointer
@@ -5570,7 +5925,7 @@ instruct storeN(iRegN src, memory mem)
 
   ins_encode(aarch64_enc_strw(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
@@ -5586,7 +5941,7 @@ instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 
   ins_encode(aarch64_enc_strw(heapbase, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 // Store Float
@@ -5631,7 +5986,7 @@ instruct storeNKlass(iRegN src, memory mem)
 
   ins_encode(aarch64_enc_strw(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_mem);
 %}
 
 // TODO
@@ -5648,7 +6003,7 @@ instruct prefetchr( memory mem ) %{
 
   ins_encode( aarch64_enc_prefetchr(mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_prefetch);
 %}
 
 instruct prefetchw( memory mem ) %{
@@ -5659,7 +6014,7 @@ instruct prefetchw( memory mem ) %{
 
   ins_encode( aarch64_enc_prefetchw(mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_prefetch);
 %}
 
 instruct prefetchnta( memory mem ) %{
@@ -5670,7 +6025,7 @@ instruct prefetchnta( memory mem ) %{
 
   ins_encode( aarch64_enc_prefetchnta(mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_prefetch);
 %}
 
 //  ---------------- volatile loads and stores ----------------
@@ -5685,7 +6040,7 @@ instruct loadB_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarsb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Byte (8 bit signed) into long
@@ -5698,7 +6053,7 @@ instruct loadB2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarsb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Byte (8 bit unsigned)
@@ -5711,7 +6066,7 @@ instruct loadUB_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Byte (8 bit unsigned) into long
@@ -5724,7 +6079,7 @@ instruct loadUB2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarb(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Short (16 bit signed)
@@ -5737,7 +6092,7 @@ instruct loadS_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarshw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct loadUS_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
@@ -5749,7 +6104,7 @@ instruct loadUS_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarhw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Short/Char (16 bit unsigned) into long
@@ -5762,7 +6117,7 @@ instruct loadUS2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarh(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Short/Char (16 bit signed) into long
@@ -5775,7 +6130,7 @@ instruct loadS2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarsh(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Integer (32 bit signed)
@@ -5788,7 +6143,7 @@ instruct loadI_volatile(iRegINoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Integer (32 bit unsigned) into long
@@ -5801,7 +6156,7 @@ instruct loadUI2L_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem, immL_32b
 
   ins_encode(aarch64_enc_ldarw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Long (64 bit signed)
@@ -5814,7 +6169,7 @@ instruct loadL_volatile(iRegLNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldar(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Pointer
@@ -5827,7 +6182,7 @@ instruct loadP_volatile(iRegPNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldar(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Compressed Pointer
@@ -5840,7 +6195,7 @@ instruct loadN_volatile(iRegNNoSp dst, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_ldarw(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Float
@@ -5853,7 +6208,7 @@ instruct loadF_volatile(vRegF dst, /* sync_memory*/indirect mem)
 
   ins_encode( aarch64_enc_fldars(dst, mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Load Double
@@ -5866,7 +6221,7 @@ instruct loadD_volatile(vRegD dst, /* sync_memory*/indirect mem)
 
   ins_encode( aarch64_enc_fldard(dst, mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 //  ---------------- end of volatile loads and stores ----------------
@@ -5874,58 +6229,58 @@ instruct loadD_volatile(vRegD dst, /* sync_memory*/indirect mem)
 // ============================================================================
 // BSWAP Instructions
 
-instruct bytes_reverse_int(iRegINoSp dst) %{
-  match(Set dst (ReverseBytesI dst));
+instruct bytes_reverse_int(iRegINoSp dst, iRegI src) %{
+  match(Set dst (ReverseBytesI src));
 
   ins_cost(INSN_COST);
-  format %{ "revw  $dst, $dst" %}
+  format %{ "revw  $dst, $src" %}
 
   ins_encode %{
-    __ revw(as_Register($dst$$reg), as_Register($dst$$reg));
+    __ revw(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_long(iRegLNoSp dst) %{
-  match(Set dst (ReverseBytesL dst));
+instruct bytes_reverse_long(iRegLNoSp dst, iRegI src) %{
+  match(Set dst (ReverseBytesL src));
 
   ins_cost(INSN_COST);
-  format %{ "rev  $dst, $dst" %}
+  format %{ "rev  $dst, $src" %}
 
   ins_encode %{
-    __ rev(as_Register($dst$$reg), as_Register($dst$$reg));
+    __ rev(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_unsigned_short(iRegINoSp dst) %{
-  match(Set dst (ReverseBytesUS dst));
+instruct bytes_reverse_unsigned_short(iRegINoSp dst, iRegI src) %{
+  match(Set dst (ReverseBytesUS src));
 
   ins_cost(INSN_COST);
-  format %{ "rev16w  $dst, $dst" %}
+  format %{ "rev16w  $dst, $src" %}
 
   ins_encode %{
-    __ rev16w(as_Register($dst$$reg), as_Register($dst$$reg));
+    __ rev16w(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_short(iRegINoSp dst) %{
-  match(Set dst (ReverseBytesS dst));
+instruct bytes_reverse_short(iRegINoSp dst, iRegI src) %{
+  match(Set dst (ReverseBytesS src));
 
   ins_cost(INSN_COST);
-  format %{ "rev16w  $dst, $dst\n\t"
+  format %{ "rev16w  $dst, $src\n\t"
             "sbfmw $dst, $dst, #0, #15" %}
 
   ins_encode %{
-    __ rev16w(as_Register($dst$$reg), as_Register($dst$$reg));
+    __ rev16w(as_Register($dst$$reg), as_Register($src$$reg));
     __ sbfmw(as_Register($dst$$reg), as_Register($dst$$reg), 0U, 15U);
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
 // ============================================================================
@@ -5940,7 +6295,7 @@ instruct countLeadingZerosI(iRegI dst, iRegI src) %{
     __ clzw(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
 instruct countLeadingZerosL(iRegI dst, iRegL src) %{
@@ -5952,7 +6307,7 @@ instruct countLeadingZerosL(iRegI dst, iRegL src) %{
     __ clz(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
 instruct countTrailingZerosI(iRegI dst, iRegI src) %{
@@ -5966,7 +6321,7 @@ instruct countTrailingZerosI(iRegI dst, iRegI src) %{
     __ clzw(as_Register($dst$$reg), as_Register($dst$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
 instruct countTrailingZerosL(iRegI dst, iRegL src) %{
@@ -5980,7 +6335,7 @@ instruct countTrailingZerosL(iRegI dst, iRegL src) %{
     __ clz(as_Register($dst$$reg), as_Register($dst$$reg));
   %}
 
-  ins_pipe( pipe_class_default );
+  ins_pipe(ialu_reg);
 %}
 
 // ============================================================================
@@ -5995,7 +6350,7 @@ instruct load_fence() %{
   ins_encode %{
     __ membar(Assembler::LoadLoad|Assembler::LoadStore);
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct unnecessary_membar_acquire() %{
@@ -6009,7 +6364,7 @@ instruct unnecessary_membar_acquire() %{
     __ block_comment("membar_acquire (elided)");
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_class_empty);
 %}
 
 instruct membar_acquire() %{
@@ -6022,7 +6377,7 @@ instruct membar_acquire() %{
     __ membar(Assembler::LoadLoad|Assembler::LoadStore);
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 
@@ -6036,7 +6391,7 @@ instruct membar_acquire_lock() %{
     __ membar(Assembler::LoadLoad|Assembler::LoadStore);
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct store_fence() %{
@@ -6048,7 +6403,7 @@ instruct store_fence() %{
   ins_encode %{
     __ membar(Assembler::LoadStore|Assembler::StoreStore);
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct membar_release() %{
@@ -6060,7 +6415,7 @@ instruct membar_release() %{
   ins_encode %{
     __ membar(Assembler::LoadStore|Assembler::StoreStore);
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct membar_storestore() %{
@@ -6072,7 +6427,7 @@ instruct membar_storestore() %{
   ins_encode %{
     __ membar(Assembler::StoreStore);
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct membar_release_lock() %{
@@ -6085,7 +6440,7 @@ instruct membar_release_lock() %{
     __ membar(Assembler::LoadStore|Assembler::StoreStore);
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct membar_volatile() %{
@@ -6098,7 +6453,7 @@ instruct membar_volatile() %{
     __ membar(Assembler::StoreLoad);
     %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // ============================================================================
@@ -6116,7 +6471,7 @@ instruct castX2P(iRegPNoSp dst, iRegL src) %{
     }
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct castP2X(iRegLNoSp dst, iRegP src) %{
@@ -6131,7 +6486,7 @@ instruct castP2X(iRegLNoSp dst, iRegP src) %{
     }
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Convert oop into int for vectors alignment masking
@@ -6144,7 +6499,7 @@ instruct convP2I(iRegINoSp dst, iRegP src) %{
     __ movw($dst$$Register, $src$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Convert compressed oop into int for vectors alignment masking
@@ -6160,7 +6515,7 @@ instruct convN2I(iRegINoSp dst, iRegN src)
     __ movw($dst$$Register, $src$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 
@@ -6176,7 +6531,7 @@ instruct encodeHeapOop(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
     Register d = $dst$$Register;
     __ encode_heap_oop(d, s);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct encodeHeapOop_not_null(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
@@ -6187,7 +6542,7 @@ instruct encodeHeapOop_not_null(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   ins_encode %{
     __ encode_heap_oop_not_null($dst$$Register, $src$$Register);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct decodeHeapOop(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
@@ -6201,7 +6556,7 @@ instruct decodeHeapOop(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
     Register d = $dst$$Register;
     __ decode_heap_oop(d, s);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
@@ -6215,7 +6570,7 @@ instruct decodeHeapOop_not_null(iRegPNoSp dst, iRegN src, rFlagsReg cr) %{
     Register d = $dst$$Register;
     __ decode_heap_oop_not_null(d, s);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // n.b. AArch64 implementations of encode_klass_not_null and
@@ -6234,7 +6589,7 @@ instruct encodeKlass_not_null(iRegNNoSp dst, iRegP src) %{
     __ encode_klass_not_null(dst_reg, src_reg);
   %}
 
-   ins_pipe(pipe_class_default);
+   ins_pipe(ialu_reg);
 %}
 
 instruct decodeKlass_not_null(iRegPNoSp dst, iRegN src) %{
@@ -6253,7 +6608,7 @@ instruct decodeKlass_not_null(iRegPNoSp dst, iRegN src) %{
     }
   %}
 
-   ins_pipe(pipe_class_default);
+   ins_pipe(ialu_reg);
 %}
 
 instruct checkCastPP(iRegPNoSp dst)
@@ -6325,7 +6680,7 @@ instruct loadPLocked(iRegPNoSp dst, indirect mem)
 
   ins_encode(aarch64_enc_ldaxr(dst, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Conditional-store of the updated heap-top.
@@ -6350,7 +6705,7 @@ instruct storePConditional(memory heap_top_ptr, iRegP oldval, iRegP newval, rFla
 
   ins_encode(aarch64_enc_stlxr(newval, heap_top_ptr));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // this has to be implemented as a CAS
@@ -6367,7 +6722,7 @@ instruct storeLConditional(indirect mem, iRegLNoSp oldval, iRegLNoSp newval, rFl
 
   ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 // this has to be implemented as a CAS
@@ -6384,7 +6739,7 @@ instruct storeIConditional(indirect mem, iRegINoSp oldval, iRegINoSp newval, rFl
 
   ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 // XXX No flag versions for CompareAndSwap{I,L,P,N} because matcher
@@ -6404,7 +6759,7 @@ instruct compareAndSwapI(iRegINoSp res, indirect mem, iRegINoSp oldval, iRegINoS
  ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 instruct compareAndSwapL(iRegINoSp res, indirect mem, iRegLNoSp oldval, iRegLNoSp newval, rFlagsReg cr) %{
@@ -6421,7 +6776,7 @@ instruct compareAndSwapL(iRegINoSp res, indirect mem, iRegLNoSp oldval, iRegLNoS
  ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 instruct compareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
@@ -6438,7 +6793,7 @@ instruct compareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval
  ins_encode(aarch64_enc_cmpxchg(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 instruct compareAndSwapN(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
@@ -6455,7 +6810,7 @@ instruct compareAndSwapN(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoS
  ins_encode(aarch64_enc_cmpxchgw(mem, oldval, newval),
             aarch64_enc_cset_eq(res));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_slow);
 %}
 
 
@@ -6465,7 +6820,7 @@ instruct get_and_setI(indirect mem, iRegINoSp newv, iRegI prev) %{
   ins_encode %{
     __ atomic_xchgw($prev$$Register, $newv$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_setL(indirect mem, iRegLNoSp newv, iRegL prev) %{
@@ -6474,7 +6829,7 @@ instruct get_and_setL(indirect mem, iRegLNoSp newv, iRegL prev) %{
   ins_encode %{
     __ atomic_xchg($prev$$Register, $newv$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_setN(indirect mem, iRegNNoSp newv, iRegI prev) %{
@@ -6483,7 +6838,7 @@ instruct get_and_setN(indirect mem, iRegNNoSp newv, iRegI prev) %{
   ins_encode %{
     __ atomic_xchgw($prev$$Register, $newv$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_setP(indirect mem, iRegPNoSp newv, iRegP prev) %{
@@ -6492,7 +6847,7 @@ instruct get_and_setP(indirect mem, iRegPNoSp newv, iRegP prev) %{
   ins_encode %{
     __ atomic_xchg($prev$$Register, $newv$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 
@@ -6503,7 +6858,7 @@ instruct get_and_addL(indirect mem, iRegLNoSp newval, iRegL incr) %{
   ins_encode %{
     __ atomic_add($newval$$Register, $incr$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addL_no_res(indirect mem, Universe dummy, iRegL incr) %{
@@ -6514,7 +6869,7 @@ instruct get_and_addL_no_res(indirect mem, Universe dummy, iRegL incr) %{
   ins_encode %{
     __ atomic_add(noreg, $incr$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addLi(indirect mem, iRegLNoSp newval, immLAddSub incr) %{
@@ -6524,7 +6879,7 @@ instruct get_and_addLi(indirect mem, iRegLNoSp newval, immLAddSub incr) %{
   ins_encode %{
     __ atomic_add($newval$$Register, $incr$$constant, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addLi_no_res(indirect mem, Universe dummy, immLAddSub incr) %{
@@ -6535,7 +6890,7 @@ instruct get_and_addLi_no_res(indirect mem, Universe dummy, immLAddSub incr) %{
   ins_encode %{
     __ atomic_add(noreg, $incr$$constant, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addI(indirect mem, iRegINoSp newval, iRegIorL2I incr) %{
@@ -6545,7 +6900,7 @@ instruct get_and_addI(indirect mem, iRegINoSp newval, iRegIorL2I incr) %{
   ins_encode %{
     __ atomic_addw($newval$$Register, $incr$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addI_no_res(indirect mem, Universe dummy, iRegIorL2I incr) %{
@@ -6556,7 +6911,7 @@ instruct get_and_addI_no_res(indirect mem, Universe dummy, iRegIorL2I incr) %{
   ins_encode %{
     __ atomic_addw(noreg, $incr$$Register, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addIi(indirect mem, iRegINoSp newval, immIAddSub incr) %{
@@ -6566,7 +6921,7 @@ instruct get_and_addIi(indirect mem, iRegINoSp newval, immIAddSub incr) %{
   ins_encode %{
     __ atomic_addw($newval$$Register, $incr$$constant, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 instruct get_and_addIi_no_res(indirect mem, Universe dummy, immIAddSub incr) %{
@@ -6577,7 +6932,7 @@ instruct get_and_addIi_no_res(indirect mem, Universe dummy, immIAddSub incr) %{
   ins_encode %{
     __ atomic_addw(noreg, $incr$$constant, as_Register($mem$$base));
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // ============================================================================
@@ -6606,7 +6961,7 @@ instruct cmovI_reg_reg(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, iRegI
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, iRegI src2) %{
@@ -6622,7 +6977,7 @@ instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, iR
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 // special cases where one arg is zero
@@ -6634,68 +6989,68 @@ instruct cmovUI_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, iR
 // we ought only to be able to cull one of these variants as the ideal
 // transforms ought always to order the zero consistently (to left/right?)
 
-instruct cmovI_zero_reg(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, iRegI src2) %{
-  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src2)));
+instruct cmovI_zero_reg(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, iRegI src) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, $src2, zr $cmp\t# signed, int"  %}
+  format %{ "cselw $dst, $src, zr $cmp\t# signed, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
-             as_Register($src2$$reg),
+             as_Register($src$$reg),
              zr,
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUI_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zero, iRegI src2) %{
-  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src2)));
+instruct cmovUI_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zero, iRegI src) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, $src2, zr $cmp\t# unsigned, int"  %}
+  format %{ "cselw $dst, $src, zr $cmp\t# unsigned, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
-             as_Register($src2$$reg),
+             as_Register($src$$reg),
              zr,
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovI_reg_zero(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, iRegI src1, immI0 zero) %{
-  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
+instruct cmovI_reg_zero(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, iRegI src, immI0 zero) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, zr, $src1 $cmp\t# signed, int"  %}
+  format %{ "cselw $dst, zr, $src $cmp\t# signed, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
              zr,
-             as_Register($src1$$reg),
+             as_Register($src$$reg),
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUI_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src1, immI0 zero) %{
-  match(Set dst (CMoveI (Binary cmp cr) (Binary src1 zero)));
+instruct cmovUI_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, iRegI src, immI0 zero) %{
+  match(Set dst (CMoveI (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, zr, $src1 $cmp\t# unsigned, int"  %}
+  format %{ "cselw $dst, zr, $src $cmp\t# unsigned, int"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
              zr,
-             as_Register($src1$$reg),
+             as_Register($src$$reg),
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
 // special case for creating a boolean 0 or 1
@@ -6719,7 +7074,7 @@ instruct cmovI_reg_zero_one(cmpOp cmp, rFlagsReg cr, iRegINoSp dst, immI0 zero, 
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_none);
 %}
 
 instruct cmovUI_reg_zero_one(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zero, immI_1 one) %{
@@ -6738,7 +7093,7 @@ instruct cmovUI_reg_zero_one(cmpOpU cmp, rFlagsRegU cr, iRegINoSp dst, immI0 zer
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_none);
 %}
 
 instruct cmovL_reg_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, iRegL src2) %{
@@ -6754,7 +7109,7 @@ instruct cmovL_reg_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, iRegL
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 instruct cmovUL_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src1, iRegL src2) %{
@@ -6770,73 +7125,73 @@ instruct cmovUL_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src1, iR
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 // special cases where one arg is zero
 
-instruct cmovL_reg_zero(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src1, immL0 zero) %{
-  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 zero)));
+instruct cmovL_reg_zero(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, iRegL src, immL0 zero) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, zr, $src1 $cmp\t# signed, long"  %}
+  format %{ "csel $dst, zr, $src $cmp\t# signed, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
             zr,
-            as_Register($src1$$reg),
+            as_Register($src$$reg),
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUL_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src1, immL0 zero) %{
-  match(Set dst (CMoveL (Binary cmp cr) (Binary src1 zero)));
+instruct cmovUL_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, iRegL src, immL0 zero) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, long"  %}
+  format %{ "csel $dst, zr, $src $cmp\t# unsigned, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
             zr,
-            as_Register($src1$$reg),
+            as_Register($src$$reg),
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, immL0 zero, iRegL src2) %{
-  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
+instruct cmovL_zero_reg(cmpOp cmp, rFlagsReg cr, iRegLNoSp dst, immL0 zero, iRegL src) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, $src2, zr $cmp\t# signed, long"  %}
+  format %{ "csel $dst, $src, zr $cmp\t# signed, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
+            as_Register($src$$reg),
             zr,
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUL_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, immL0 zero, iRegL src2) %{
-  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src2)));
+instruct cmovUL_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegLNoSp dst, immL0 zero, iRegL src) %{
+  match(Set dst (CMoveL (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, long"  %}
+  format %{ "csel $dst, $src, zr $cmp\t# unsigned, long"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
+            as_Register($src$$reg),
             zr,
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
 instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, iRegP src2) %{
@@ -6852,7 +7207,7 @@ instruct cmovP_reg_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, iRegP
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, iRegP src2) %{
@@ -6868,73 +7223,73 @@ instruct cmovUP_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, iR
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 // special cases where one arg is zero
 
-instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src1, immP0 zero) %{
-  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
+instruct cmovP_reg_zero(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, iRegP src, immP0 zero) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, zr, $src1 $cmp\t# signed, ptr"  %}
+  format %{ "csel $dst, zr, $src $cmp\t# signed, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
             zr,
-            as_Register($src1$$reg),
+            as_Register($src$$reg),
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src1, immP0 zero) %{
-  match(Set dst (CMoveP (Binary cmp cr) (Binary src1 zero)));
+instruct cmovUP_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, iRegP src, immP0 zero) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, zr, $src1 $cmp\t# unsigned, ptr"  %}
+  format %{ "csel $dst, zr, $src $cmp\t# unsigned, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
             zr,
-            as_Register($src1$$reg),
+            as_Register($src$$reg),
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, immP0 zero, iRegP src2) %{
-  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
+instruct cmovP_zero_reg(cmpOp cmp, rFlagsReg cr, iRegPNoSp dst, immP0 zero, iRegP src) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, $src2, zr $cmp\t# signed, ptr"  %}
+  format %{ "csel $dst, $src, zr $cmp\t# signed, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
+            as_Register($src$$reg),
             zr,
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, immP0 zero, iRegP src2) %{
-  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src2)));
+instruct cmovUP_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegPNoSp dst, immP0 zero, iRegP src) %{
+  match(Set dst (CMoveP (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "csel $dst, $src2, zr $cmp\t# unsigned, ptr"  %}
+  format %{ "csel $dst, $src, zr $cmp\t# unsigned, ptr"  %}
 
   ins_encode %{
     __ csel(as_Register($dst$$reg),
-            as_Register($src2$$reg),
+            as_Register($src$$reg),
             zr,
             (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
 instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, iRegN src1, iRegN src2) %{
@@ -6950,7 +7305,7 @@ instruct cmovN_reg_reg(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, iRegN src1, iRegN
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, iRegN src1, iRegN src2) %{
@@ -6966,73 +7321,73 @@ instruct cmovUN_reg_reg(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, iRegN src1, iR
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg_reg);
 %}
 
 // special cases where one arg is zero
 
-instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, iRegN src1, immN0 zero) %{
-  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
+instruct cmovN_reg_zero(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, iRegN src, immN0 zero) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, zr, $src1 $cmp\t# signed, compressed ptr"  %}
+  format %{ "cselw $dst, zr, $src $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
              zr,
-             as_Register($src1$$reg),
+             as_Register($src$$reg),
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, iRegN src1, immN0 zero) %{
-  match(Set dst (CMoveN (Binary cmp cr) (Binary src1 zero)));
+instruct cmovUN_reg_zero(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, iRegN src, immN0 zero) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary src zero)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, zr, $src1 $cmp\t# unsigned, compressed ptr"  %}
+  format %{ "cselw $dst, zr, $src $cmp\t# unsigned, compressed ptr"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
              zr,
-             as_Register($src1$$reg),
+             as_Register($src$$reg),
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, immN0 zero, iRegN src2) %{
-  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
+instruct cmovN_zero_reg(cmpOp cmp, rFlagsReg cr, iRegNNoSp dst, immN0 zero, iRegN src) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, $src2, zr $cmp\t# signed, compressed ptr"  %}
+  format %{ "cselw $dst, $src, zr $cmp\t# signed, compressed ptr"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
-             as_Register($src2$$reg),
+             as_Register($src$$reg),
              zr,
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
-instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, immN0 zero, iRegN src2) %{
-  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src2)));
+instruct cmovUN_zero_reg(cmpOpU cmp, rFlagsRegU cr, iRegNNoSp dst, immN0 zero, iRegN src) %{
+  match(Set dst (CMoveN (Binary cmp cr) (Binary zero src)));
 
   ins_cost(INSN_COST * 2);
-  format %{ "cselw $dst, $src2, zr $cmp\t# unsigned, compressed ptr"  %}
+  format %{ "cselw $dst, $src, zr $cmp\t# unsigned, compressed ptr"  %}
 
   ins_encode %{
     __ cselw(as_Register($dst$$reg),
-             as_Register($src2$$reg),
+             as_Register($src$$reg),
              zr,
              (Assembler::Condition)$cmp$$cmpcode);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icond_reg);
 %}
 
 instruct cmovF_reg(cmpOp cmp, rFlagsReg cr, vRegF dst, vRegF src1,  vRegF src2)
@@ -7131,7 +7486,7 @@ instruct addI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct addI_reg_imm(iRegINoSp dst, iRegI src1, immIAddSub src2) %{
@@ -7145,7 +7500,7 @@ instruct addI_reg_imm(iRegINoSp dst, iRegI src1, immIAddSub src2) %{
 
   ins_encode(aarch64_enc_addsubw_imm(dst, src1, src2));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 instruct addI_reg_imm_i2l(iRegINoSp dst, iRegL src1, immIAddSub src2) %{
@@ -7159,7 +7514,7 @@ instruct addI_reg_imm_i2l(iRegINoSp dst, iRegL src1, immIAddSub src2) %{
 
   ins_encode(aarch64_enc_addsubw_imm(dst, src1, src2));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Pointer Addition
@@ -7175,7 +7530,7 @@ instruct addP_reg_reg(iRegPNoSp dst, iRegP src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct addP_reg_reg_ext(iRegPNoSp dst, iRegP src1, iRegIorL2I src2) %{
@@ -7190,7 +7545,7 @@ instruct addP_reg_reg_ext(iRegPNoSp dst, iRegP src1, iRegIorL2I src2) %{
            as_Register($src2$$reg), ext::sxtw);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct addP_reg_reg_lsl(iRegPNoSp dst, iRegP src1, iRegL src2, immIScale scale) %{
@@ -7205,7 +7560,7 @@ instruct addP_reg_reg_lsl(iRegPNoSp dst, iRegP src1, iRegL src2, immIScale scale
 		   Address::lsl($scale$$constant)));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegIorL2I src2, immIScale scale) %{
@@ -7220,7 +7575,7 @@ instruct addP_reg_reg_ext_shift(iRegPNoSp dst, iRegP src1, iRegIorL2I src2, immI
 		   Address::sxtw($scale$$constant)));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct lshift_ext(iRegLNoSp dst, iRegIorL2I src, immI scale, rFlagsReg cr) %{
@@ -7235,7 +7590,7 @@ instruct lshift_ext(iRegLNoSp dst, iRegIorL2I src, immI scale, rFlagsReg cr) %{
           $scale$$constant & 63, MIN(32, (-$scale$$constant) & 63));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Pointer Immediate Addition
@@ -7252,7 +7607,7 @@ instruct addP_reg_imm(iRegPNoSp dst, iRegP src1, immLAddSub src2) %{
 
   ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Long Addition
@@ -7269,7 +7624,7 @@ instruct addL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 // No constant pool entries requiredLong Immediate Addition.
@@ -7284,7 +7639,7 @@ instruct addL_reg_imm(iRegLNoSp dst, iRegL src1, immLAddSub src2) %{
 
   ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Integer Subtraction
@@ -7300,7 +7655,7 @@ instruct subI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 // Immediate Subtraction
@@ -7315,7 +7670,7 @@ instruct subI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immIAddSub src2) %{
 
   ins_encode(aarch64_enc_addsubw_imm(dst, src1, src2));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Long Subtraction
@@ -7332,7 +7687,7 @@ instruct subL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 // No constant pool entries requiredLong Immediate Subtraction.
@@ -7347,7 +7702,7 @@ instruct subL_reg_imm(iRegLNoSp dst, iRegL src1, immLAddSub src2) %{
 
   ins_encode( aarch64_enc_addsub_imm(dst, src1, src2) );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Integer Negation (special case for sub)
@@ -7363,7 +7718,7 @@ instruct negI_reg(iRegINoSp dst, iRegIorL2I src, immI0 zero, rFlagsReg cr) %{
 	    as_Register($src$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Long Negation
@@ -7379,7 +7734,7 @@ instruct negL_reg(iRegLNoSp dst, iRegIorL2I src, immL0 zero, rFlagsReg cr) %{
 	   as_Register($src$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Integer Multiply
@@ -7396,7 +7751,7 @@ instruct mulI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(imul_reg_reg);
 %}
 
 instruct smulI(iRegLNoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
@@ -7411,7 +7766,7 @@ instruct smulI(iRegLNoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
 	     as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(imul_reg_reg);
 %}
 
 // Long Multiply
@@ -7428,7 +7783,7 @@ instruct mulL(iRegLNoSp dst, iRegL src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(lmul_reg_reg);
 %}
 
 instruct mulHiL_rReg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr)
@@ -7444,7 +7799,7 @@ instruct mulHiL_rReg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr)
 	     as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(lmul_reg_reg);
 %}
 
 // Combined Integer Multiply & Add/Sub
@@ -7462,7 +7817,7 @@ instruct maddI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3)
              as_Register($src3$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(imac_reg_reg);
 %}
 
 instruct msubI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3) %{
@@ -7478,7 +7833,7 @@ instruct msubI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, iRegIorL2I src3)
              as_Register($src3$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(imac_reg_reg);
 %}
 
 // Combined Long Multiply & Add/Sub
@@ -7496,7 +7851,7 @@ instruct maddL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
             as_Register($src3$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(lmac_reg_reg);
 %}
 
 instruct msubL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
@@ -7512,7 +7867,7 @@ instruct msubL(iRegLNoSp dst, iRegL src1, iRegL src2, iRegL src3) %{
             as_Register($src3$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(lmac_reg_reg);
 %}
 
 // Integer Divide
@@ -7524,17 +7879,17 @@ instruct divI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
   format %{ "sdivw  $dst, $src1, $src2" %}
 
   ins_encode(aarch64_enc_divw(dst, src1, src2));
-  ins_pipe(pipe_class_default);
+  ins_pipe(idiv_reg_reg);
 %}
 
-instruct signExtract(iRegINoSp dst, iRegI src, immI_31 div1, immI_31 div2) %{
-  match(Set dst (URShiftI (RShiftI src div1) div2));
+instruct signExtract(iRegINoSp dst, iRegI src1, immI_31 div1, immI_31 div2) %{
+  match(Set dst (URShiftI (RShiftI src1 div1) div2));
   ins_cost(INSN_COST);
-  format %{ "lsrw $dst, $src, $div1" %}
+  format %{ "lsrw $dst, $src1, $div1" %}
   ins_encode %{
-    __ lsrw(as_Register($dst$$reg), as_Register($src$$reg), 31);
+    __ lsrw(as_Register($dst$$reg), as_Register($src1$$reg), 31);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 instruct div2Round(iRegINoSp dst, iRegI src, immI_31 div1, immI_31 div2) %{
@@ -7548,7 +7903,7 @@ instruct div2Round(iRegINoSp dst, iRegI src, immI_31 div1, immI_31 div2) %{
 	      as_Register($src$$reg),
 	      Assembler::LSR, 31);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Long Divide
@@ -7560,17 +7915,17 @@ instruct divL(iRegLNoSp dst, iRegL src1, iRegL src2) %{
   format %{ "sdiv   $dst, $src1, $src2" %}
 
   ins_encode(aarch64_enc_div(dst, src1, src2));
-  ins_pipe(pipe_class_default);
+  ins_pipe(ldiv_reg_reg);
 %}
 
-instruct signExtractL(iRegLNoSp dst, iRegL src, immL_63 div1, immL_63 div2) %{
-  match(Set dst (URShiftL (RShiftL src div1) div2));
+instruct signExtractL(iRegLNoSp dst, iRegL src1, immL_63 div1, immL_63 div2) %{
+  match(Set dst (URShiftL (RShiftL src1 div1) div2));
   ins_cost(INSN_COST);
-  format %{ "lsr $dst, $src, $div1" %}
+  format %{ "lsr $dst, $src1, $div1" %}
   ins_encode %{
-    __ lsr(as_Register($dst$$reg), as_Register($src$$reg), 63);
+    __ lsr(as_Register($dst$$reg), as_Register($src1$$reg), 63);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 instruct div2RoundL(iRegLNoSp dst, iRegL src, immL_63 div1, immL_63 div2) %{
@@ -7584,7 +7939,7 @@ instruct div2RoundL(iRegLNoSp dst, iRegL src, immL_63 div1, immL_63 div2) %{
 	      as_Register($src$$reg),
 	      Assembler::LSR, 63);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 // Integer Remainder
@@ -7597,7 +7952,7 @@ instruct modI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             "msubw($dst, rscratch1, $src2, $src1" %}
 
   ins_encode(aarch64_enc_modw(dst, src1, src2));
-  ins_pipe(pipe_class_default);
+  ins_pipe(idiv_reg_reg);
 %}
 
 // Long Remainder
@@ -7610,7 +7965,7 @@ instruct modL(iRegLNoSp dst, iRegL src1, iRegL src2) %{
             "msub($dst, rscratch1, $src2, $src1" %}
 
   ins_encode(aarch64_enc_mod(dst, src1, src2));
-  ins_pipe(pipe_class_default);
+  ins_pipe(ldiv_reg_reg);
 %}
 
 // Integer Shifts
@@ -7628,7 +7983,7 @@ instruct lShiftI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
              as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Left Immediate
@@ -7644,7 +7999,7 @@ instruct lShiftI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immI src2) %{
             $src2$$constant & 0x1f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Right Logical Register
@@ -7660,7 +8015,7 @@ instruct urShiftI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
              as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Right Logical Immediate
@@ -7676,7 +8031,7 @@ instruct urShiftI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immI src2) %{
             $src2$$constant & 0x1f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Right Arithmetic Register
@@ -7692,7 +8047,7 @@ instruct rShiftI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
              as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Right Arithmetic Immediate
@@ -7708,7 +8063,7 @@ instruct rShiftI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immI src2) %{
             $src2$$constant & 0x1f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Combined Int Mask and Right Shift (using UBFM)
@@ -7729,7 +8084,7 @@ instruct lShiftL_reg_reg(iRegLNoSp dst, iRegL src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Left Immediate
@@ -7745,7 +8100,7 @@ instruct lShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
             $src2$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Right Logical Register
@@ -7761,7 +8116,7 @@ instruct urShiftL_reg_reg(iRegLNoSp dst, iRegL src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Right Logical Immediate
@@ -7777,7 +8132,7 @@ instruct urShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
            $src2$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // A special-case pattern for card table stores.
@@ -7793,7 +8148,7 @@ instruct urShiftP_reg_imm(iRegLNoSp dst, iRegP src1, immI src2) %{
            $src2$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Right Arithmetic Register
@@ -7809,7 +8164,7 @@ instruct rShiftL_reg_reg(iRegLNoSp dst, iRegL src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // Shift Right Arithmetic Immediate
@@ -7825,7 +8180,7 @@ instruct rShiftL_reg_imm(iRegLNoSp dst, iRegL src1, immI src2) %{
            $src2$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // BEGIN This section of the file is automatically generated. Do not edit --------------
@@ -7844,7 +8199,7 @@ instruct regL_not_reg(iRegLNoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 instruct regI_not_reg(iRegINoSp dst,
                          iRegI src1, immI_M1 m1,
@@ -7860,7 +8215,7 @@ instruct regI_not_reg(iRegINoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct AndI_reg_not_reg(iRegINoSp dst,
@@ -7877,7 +8232,7 @@ instruct AndI_reg_not_reg(iRegINoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AndL_reg_not_reg(iRegLNoSp dst,
@@ -7894,7 +8249,7 @@ instruct AndL_reg_not_reg(iRegLNoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct OrI_reg_not_reg(iRegINoSp dst,
@@ -7911,7 +8266,7 @@ instruct OrI_reg_not_reg(iRegINoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct OrL_reg_not_reg(iRegLNoSp dst,
@@ -7928,7 +8283,7 @@ instruct OrL_reg_not_reg(iRegLNoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct XorI_reg_not_reg(iRegINoSp dst,
@@ -7945,7 +8300,7 @@ instruct XorI_reg_not_reg(iRegINoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct XorL_reg_not_reg(iRegLNoSp dst,
@@ -7962,7 +8317,7 @@ instruct XorL_reg_not_reg(iRegLNoSp dst,
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AndI_reg_URShift_not_reg(iRegINoSp dst,
@@ -7980,7 +8335,7 @@ instruct AndI_reg_URShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_URShift_not_reg(iRegLNoSp dst,
@@ -7998,7 +8353,7 @@ instruct AndL_reg_URShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndI_reg_RShift_not_reg(iRegINoSp dst,
@@ -8016,7 +8371,7 @@ instruct AndI_reg_RShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_RShift_not_reg(iRegLNoSp dst,
@@ -8034,7 +8389,7 @@ instruct AndL_reg_RShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndI_reg_LShift_not_reg(iRegINoSp dst,
@@ -8052,7 +8407,7 @@ instruct AndI_reg_LShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_LShift_not_reg(iRegLNoSp dst,
@@ -8070,7 +8425,7 @@ instruct AndL_reg_LShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_URShift_not_reg(iRegINoSp dst,
@@ -8088,7 +8443,7 @@ instruct XorI_reg_URShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_URShift_not_reg(iRegLNoSp dst,
@@ -8106,7 +8461,7 @@ instruct XorL_reg_URShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_RShift_not_reg(iRegINoSp dst,
@@ -8124,7 +8479,7 @@ instruct XorI_reg_RShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_RShift_not_reg(iRegLNoSp dst,
@@ -8142,7 +8497,7 @@ instruct XorL_reg_RShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_LShift_not_reg(iRegINoSp dst,
@@ -8160,7 +8515,7 @@ instruct XorI_reg_LShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_LShift_not_reg(iRegLNoSp dst,
@@ -8178,7 +8533,7 @@ instruct XorL_reg_LShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_URShift_not_reg(iRegINoSp dst,
@@ -8196,7 +8551,7 @@ instruct OrI_reg_URShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_URShift_not_reg(iRegLNoSp dst,
@@ -8214,7 +8569,7 @@ instruct OrL_reg_URShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_RShift_not_reg(iRegINoSp dst,
@@ -8232,7 +8587,7 @@ instruct OrI_reg_RShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_RShift_not_reg(iRegLNoSp dst,
@@ -8250,7 +8605,7 @@ instruct OrL_reg_RShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_LShift_not_reg(iRegINoSp dst,
@@ -8268,7 +8623,7 @@ instruct OrI_reg_LShift_not_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_LShift_not_reg(iRegLNoSp dst,
@@ -8286,7 +8641,7 @@ instruct OrL_reg_LShift_not_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndI_reg_URShift_reg(iRegINoSp dst,
@@ -8305,7 +8660,7 @@ instruct AndI_reg_URShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_URShift_reg(iRegLNoSp dst,
@@ -8324,7 +8679,7 @@ instruct AndL_reg_URShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndI_reg_RShift_reg(iRegINoSp dst,
@@ -8343,7 +8698,7 @@ instruct AndI_reg_RShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_RShift_reg(iRegLNoSp dst,
@@ -8362,7 +8717,7 @@ instruct AndL_reg_RShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndI_reg_LShift_reg(iRegINoSp dst,
@@ -8381,7 +8736,7 @@ instruct AndI_reg_LShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AndL_reg_LShift_reg(iRegLNoSp dst,
@@ -8400,7 +8755,7 @@ instruct AndL_reg_LShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_URShift_reg(iRegINoSp dst,
@@ -8419,7 +8774,7 @@ instruct XorI_reg_URShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_URShift_reg(iRegLNoSp dst,
@@ -8438,7 +8793,7 @@ instruct XorL_reg_URShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_RShift_reg(iRegINoSp dst,
@@ -8457,7 +8812,7 @@ instruct XorI_reg_RShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_RShift_reg(iRegLNoSp dst,
@@ -8476,7 +8831,7 @@ instruct XorL_reg_RShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorI_reg_LShift_reg(iRegINoSp dst,
@@ -8495,7 +8850,7 @@ instruct XorI_reg_LShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct XorL_reg_LShift_reg(iRegLNoSp dst,
@@ -8514,7 +8869,7 @@ instruct XorL_reg_LShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_URShift_reg(iRegINoSp dst,
@@ -8533,7 +8888,7 @@ instruct OrI_reg_URShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_URShift_reg(iRegLNoSp dst,
@@ -8552,7 +8907,7 @@ instruct OrL_reg_URShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_RShift_reg(iRegINoSp dst,
@@ -8571,7 +8926,7 @@ instruct OrI_reg_RShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_RShift_reg(iRegLNoSp dst,
@@ -8590,7 +8945,7 @@ instruct OrL_reg_RShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrI_reg_LShift_reg(iRegINoSp dst,
@@ -8609,7 +8964,7 @@ instruct OrI_reg_LShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct OrL_reg_LShift_reg(iRegLNoSp dst,
@@ -8628,7 +8983,7 @@ instruct OrL_reg_LShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddI_reg_URShift_reg(iRegINoSp dst,
@@ -8647,7 +9002,7 @@ instruct AddI_reg_URShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddL_reg_URShift_reg(iRegLNoSp dst,
@@ -8666,7 +9021,7 @@ instruct AddL_reg_URShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddI_reg_RShift_reg(iRegINoSp dst,
@@ -8685,7 +9040,7 @@ instruct AddI_reg_RShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddL_reg_RShift_reg(iRegLNoSp dst,
@@ -8704,7 +9059,7 @@ instruct AddL_reg_RShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddI_reg_LShift_reg(iRegINoSp dst,
@@ -8723,7 +9078,7 @@ instruct AddI_reg_LShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct AddL_reg_LShift_reg(iRegLNoSp dst,
@@ -8742,7 +9097,7 @@ instruct AddL_reg_LShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubI_reg_URShift_reg(iRegINoSp dst,
@@ -8761,7 +9116,7 @@ instruct SubI_reg_URShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubL_reg_URShift_reg(iRegLNoSp dst,
@@ -8780,7 +9135,7 @@ instruct SubL_reg_URShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubI_reg_RShift_reg(iRegINoSp dst,
@@ -8799,7 +9154,7 @@ instruct SubI_reg_RShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubL_reg_RShift_reg(iRegLNoSp dst,
@@ -8818,7 +9173,7 @@ instruct SubL_reg_RShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubI_reg_LShift_reg(iRegINoSp dst,
@@ -8837,7 +9192,7 @@ instruct SubI_reg_LShift_reg(iRegINoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 instruct SubL_reg_LShift_reg(iRegLNoSp dst,
@@ -8856,7 +9211,7 @@ instruct SubL_reg_LShift_reg(iRegLNoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}
 
 
@@ -8881,7 +9236,7 @@ instruct sbfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 	    r, s);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Left followed by Shift Right.
@@ -8904,7 +9259,7 @@ instruct sbfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
 	    r, s);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Left followed by Shift Right.
@@ -8927,7 +9282,7 @@ instruct ubfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 	    r, s);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Shift Left followed by Shift Right.
@@ -8950,7 +9305,7 @@ instruct ubfmwI(iRegINoSp dst, iRegI src, immI lshift_count, immI rshift_count)
 	    r, s);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 // Bitfield extract with shift & mask
 
@@ -8967,7 +9322,7 @@ instruct ubfxwI(iRegINoSp dst, iRegI src, immI rshift, immI_bitmask mask)
     __ ubfxw(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 instruct ubfxL(iRegLNoSp dst, iRegL src, immI rshift, immL_bitmask mask)
 %{
@@ -8982,7 +9337,7 @@ instruct ubfxL(iRegLNoSp dst, iRegL src, immI rshift, immL_bitmask mask)
     __ ubfx(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // We can use ubfx when extending an And with a mask when we know mask
@@ -9000,7 +9355,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask m
     __ ubfx(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Rotations
@@ -9017,7 +9372,7 @@ instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift
     __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
             $rshift$$constant & 63);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_extr);
 %}
 
 instruct extrOrI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
@@ -9032,7 +9387,7 @@ instruct extrOrI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift
     __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
             $rshift$$constant & 31);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_extr);
 %}
 
 instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
@@ -9047,7 +9402,7 @@ instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshif
     __ extr(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
             $rshift$$constant & 63);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_extr);
 %}
 
 instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshift, rFlagsReg cr)
@@ -9062,7 +9417,7 @@ instruct extrAddI(iRegINoSp dst, iRegI src1, iRegI src2, immI lshift, immI rshif
     __ extrw(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
             $rshift$$constant & 31);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_extr);
 %}
 
 
@@ -9079,7 +9434,7 @@ instruct rolL_rReg(iRegL dst, iRegL src, iRegI shift, rFlagsReg cr)
     __ rorv(as_Register($dst$$reg), as_Register($src$$reg),
 	    rscratch1);
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // rol expander
@@ -9095,7 +9450,7 @@ instruct rolI_rReg(iRegI dst, iRegI src, iRegI shift, rFlagsReg cr)
     __ rorvw(as_Register($dst$$reg), as_Register($src$$reg),
 	    rscratch1);
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 instruct rolL_rReg_Var_C_64(iRegL dst, iRegL src, iRegI shift, immI_64 c_64, rFlagsReg cr)
@@ -9146,7 +9501,7 @@ instruct rorL_rReg(iRegL dst, iRegL src, iRegI shift, rFlagsReg cr)
     __ rorv(as_Register($dst$$reg), as_Register($src$$reg),
 	    as_Register($shift$$reg));
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 // ror expander
@@ -9161,7 +9516,7 @@ instruct rorI_rReg(iRegI dst, iRegI src, iRegI shift, rFlagsReg cr)
     __ rorvw(as_Register($dst$$reg), as_Register($src$$reg),
 	    as_Register($shift$$reg));
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}
 
 instruct rorL_rReg_Var_C_64(iRegL dst, iRegL src, iRegI shift, immI_64 c_64, rFlagsReg cr)
@@ -9212,7 +9567,7 @@ instruct AddExtI(iRegLNoSp dst, iRegL src1, iRegIorL2I src2, rFlagsReg cr)
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxtw);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %};
 
 instruct SubExtI(iRegLNoSp dst, iRegL src1, iRegIorL2I src2, rFlagsReg cr)
@@ -9225,7 +9580,7 @@ instruct SubExtI(iRegLNoSp dst, iRegL src1, iRegIorL2I src2, rFlagsReg cr)
      __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxtw);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %};
 
 
@@ -9239,7 +9594,7 @@ instruct AddExtI_sxth(iRegINoSp dst, iRegI src1, iRegI src2, immI_16 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtI_sxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
@@ -9252,7 +9607,7 @@ instruct AddExtI_sxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtI_uxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, immI_24 rshift, rFlagsReg cr)
@@ -9265,7 +9620,7 @@ instruct AddExtI_uxtb(iRegINoSp dst, iRegI src1, iRegI src2, immI_24 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_sxth(iRegLNoSp dst, iRegL src1, iRegL src2, immI_48 lshift, immI_48 rshift, rFlagsReg cr)
@@ -9278,7 +9633,7 @@ instruct AddExtL_sxth(iRegLNoSp dst, iRegL src1, iRegL src2, immI_48 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_sxtw(iRegLNoSp dst, iRegL src1, iRegL src2, immI_32 lshift, immI_32 rshift, rFlagsReg cr)
@@ -9291,7 +9646,7 @@ instruct AddExtL_sxtw(iRegLNoSp dst, iRegL src1, iRegL src2, immI_32 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxtw);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_sxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
@@ -9304,7 +9659,7 @@ instruct AddExtL_sxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::sxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_uxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, immI_56 rshift, rFlagsReg cr)
@@ -9317,7 +9672,7 @@ instruct AddExtL_uxtb(iRegLNoSp dst, iRegL src1, iRegL src2, immI_56 lshift, imm
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 
@@ -9331,7 +9686,7 @@ instruct AddExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, 
      __ addw(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
@@ -9344,7 +9699,7 @@ instruct AddExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask
      __ addw(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
@@ -9357,7 +9712,7 @@ instruct AddExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, 
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
@@ -9370,7 +9725,7 @@ instruct AddExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct AddExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
@@ -9383,7 +9738,7 @@ instruct AddExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295
      __ add(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtw);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct SubExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, rFlagsReg cr)
@@ -9396,7 +9751,7 @@ instruct SubExtI_uxtb_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_255 mask, 
      __ subw(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct SubExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask, rFlagsReg cr)
@@ -9409,7 +9764,7 @@ instruct SubExtI_uxth_and(iRegINoSp dst, iRegI src1, iRegI src2, immI_65535 mask
      __ subw(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct SubExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, rFlagsReg cr)
@@ -9422,7 +9777,7 @@ instruct SubExtL_uxtb_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_255 mask, 
      __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtb);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct SubExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask, rFlagsReg cr)
@@ -9435,7 +9790,7 @@ instruct SubExtL_uxth_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_65535 mask
      __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxth);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct SubExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295 mask, rFlagsReg cr)
@@ -9448,11 +9803,10 @@ instruct SubExtL_uxtw_and(iRegLNoSp dst, iRegL src1, iRegL src2, immL_4294967295
      __ sub(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::uxtw);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 // END This section of the file is automatically generated. Do not edit --------------
-
 
 // ============================================================================
 // Floating Point Arithmetic Instructions
@@ -9810,7 +10164,7 @@ instruct andI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, rFlagsReg
 	    as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct andI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2, rFlagsReg cr) %{
@@ -9825,7 +10179,7 @@ instruct andI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2, rFlagsReg cr
 	    (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Or Instructions
@@ -9842,7 +10196,7 @@ instruct orI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct orI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2) %{
@@ -9857,7 +10211,7 @@ instruct orI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2) %{
             (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Xor Instructions
@@ -9874,7 +10228,7 @@ instruct xorI_reg_reg(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2) %{
             as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct xorI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2) %{
@@ -9889,7 +10243,7 @@ instruct xorI_reg_imm(iRegINoSp dst, iRegIorL2I src1, immILog src2) %{
             (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Long Logical Instructions
@@ -9907,7 +10261,7 @@ instruct andL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2, rFlagsReg cr) %{
 	    as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct andL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2, rFlagsReg cr) %{
@@ -9922,7 +10276,7 @@ instruct andL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2, rFlagsReg cr) %{
             (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Or Instructions
@@ -9939,7 +10293,7 @@ instruct orL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct orL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
@@ -9954,7 +10308,7 @@ instruct orL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
            (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 // Xor Instructions
@@ -9971,7 +10325,7 @@ instruct xorL_reg_reg(iRegLNoSp dst, iRegL src1, iRegL src2) %{
            as_Register($src2$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
@@ -9986,7 +10340,7 @@ instruct xorL_reg_imm(iRegLNoSp dst, iRegL src1, immLLog src2) %{
            (unsigned long)($src2$$constant));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_imm);
 %}
 
 instruct convI2L_reg_reg(iRegLNoSp dst, iRegIorL2I src)
@@ -9998,7 +10352,7 @@ instruct convI2L_reg_reg(iRegLNoSp dst, iRegIorL2I src)
   ins_encode %{
     __ sbfm($dst$$Register, $src$$Register, 0, 31);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // this pattern occurs in bigmath arithmetic
@@ -10012,7 +10366,7 @@ instruct convUI2L_reg_reg(iRegLNoSp dst, iRegI src, immL_32bits mask)
     __ ubfm($dst$$Register, $src$$Register, 0, 31);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
@@ -10025,7 +10379,7 @@ instruct convL2I_reg(iRegINoSp dst, iRegL src) %{
     __ movw(as_Register($dst$$reg), as_Register($src$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct convI2B(iRegINoSp dst, iRegI src, rFlagsReg cr)
@@ -10043,7 +10397,7 @@ instruct convI2B(iRegINoSp dst, iRegI src, rFlagsReg cr)
     __ cset(as_Register($dst$$reg), Assembler::NE);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct convP2B(iRegINoSp dst, iRegP src, rFlagsReg cr)
@@ -10061,7 +10415,7 @@ instruct convP2B(iRegINoSp dst, iRegP src, rFlagsReg cr)
     __ cset(as_Register($dst$$reg), Assembler::NE);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}
 
 instruct convD2F_reg(vRegF dst, vRegD src) %{
@@ -10210,7 +10564,7 @@ instruct MoveF2I_stack_reg(iRegINoSp dst, stackSlotF src) %{
     __ ldrw($dst$$Register, Address(sp, $src$$disp));
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_reg);
 
 %}
 
@@ -10246,7 +10600,7 @@ instruct MoveD2L_stack_reg(iRegLNoSp dst, stackSlotD src) %{
     __ ldr($dst$$Register, Address(sp, $src$$disp));
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(iload_reg_reg);
 
 %}
 
@@ -10300,7 +10654,7 @@ instruct MoveI2F_reg_stack(stackSlotF dst, iRegI src) %{
     __ strw($src$$Register, Address(sp, $dst$$disp));
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_reg);
 
 %}
 
@@ -10336,7 +10690,7 @@ instruct MoveL2D_reg_stack(stackSlotD dst, iRegL src) %{
     __ str($src$$Register, Address(sp, $dst$$disp));
   %}
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(istore_reg_reg);
 
 %}
 
@@ -10441,7 +10795,7 @@ instruct overflowAddI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
     __ cmnw($op1$$Register, $op2$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct overflowAddI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
@@ -10454,7 +10808,7 @@ instruct overflowAddI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
     __ cmnw($op1$$Register, $op2$$constant);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct overflowAddL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
@@ -10467,7 +10821,7 @@ instruct overflowAddL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
     __ cmn($op1$$Register, $op2$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct overflowAddL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
@@ -10480,7 +10834,7 @@ instruct overflowAddL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
     __ cmn($op1$$Register, $op2$$constant);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct overflowSubI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
@@ -10493,7 +10847,7 @@ instruct overflowSubI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
     __ cmpw($op1$$Register, $op2$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct overflowSubI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
@@ -10506,7 +10860,7 @@ instruct overflowSubI_reg_imm(rFlagsReg cr, iRegI op1, immIAddSub op2)
     __ cmpw($op1$$Register, $op2$$constant);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct overflowSubL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
@@ -10519,7 +10873,7 @@ instruct overflowSubL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
     __ cmp($op1$$Register, $op2$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct overflowSubL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
@@ -10532,33 +10886,33 @@ instruct overflowSubL_reg_imm(rFlagsReg cr, iRegL op1, immLAddSub op2)
     __ cmp($op1$$Register, $op2$$constant);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
-instruct overflowNegI_reg(rFlagsReg cr, immI0 zero, iRegI op2)
+instruct overflowNegI_reg(rFlagsReg cr, immI0 zero, iRegI op1)
 %{
-  match(Set cr (OverflowSubI zero op2));
+  match(Set cr (OverflowSubI zero op1));
 
-  format %{ "cmpw  zr, $op2\t# overflow check int" %}
+  format %{ "cmpw  zr, $op1\t# overflow check int" %}
   ins_cost(INSN_COST);
   ins_encode %{
-    __ cmpw(zr, $op2$$Register);
+    __ cmpw(zr, $op1$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
-instruct overflowNegL_reg(rFlagsReg cr, immI0 zero, iRegL op2)
+instruct overflowNegL_reg(rFlagsReg cr, immI0 zero, iRegL op1)
 %{
-  match(Set cr (OverflowSubL zero op2));
+  match(Set cr (OverflowSubL zero op1));
 
-  format %{ "cmp   zr, $op2\t# overflow check long" %}
+  format %{ "cmp   zr, $op1\t# overflow check long" %}
   ins_cost(INSN_COST);
   ins_encode %{
-    __ cmp(zr, $op2$$Register);
+    __ cmp(zr, $op1$$Register);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct overflowMulI_reg(rFlagsReg cr, iRegI op1, iRegI op2)
@@ -10579,7 +10933,7 @@ instruct overflowMulI_reg(rFlagsReg cr, iRegI op1, iRegI op2)
     __ cmpw(rscratch1, 1);                             // 0x80000000 - 1 => VS
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_slow);
 %}
 
 instruct overflowMulI_reg_branch(cmpOp cmp, iRegI op1, iRegI op2, label labl, rFlagsReg cr)
@@ -10601,7 +10955,7 @@ instruct overflowMulI_reg_branch(cmpOp cmp, iRegI op1, iRegI op2, label labl, rF
     __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_slow);
 %}
 
 instruct overflowMulL_reg(rFlagsReg cr, iRegL op1, iRegL op2)
@@ -10624,7 +10978,7 @@ instruct overflowMulL_reg(rFlagsReg cr, iRegL op1, iRegL op2)
     __ cmpw(rscratch1, 1);                             // 0x80000000 - 1 => VS
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_slow);
 %}
 
 instruct overflowMulL_reg_branch(cmpOp cmp, iRegL op1, iRegL op2, label labl, rFlagsReg cr)
@@ -10648,7 +11002,7 @@ instruct overflowMulL_reg_branch(cmpOp cmp, iRegL op1, iRegL op2, label labl, rF
     __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_slow);
 %}
 
 // ============================================================================
@@ -10665,7 +11019,7 @@ instruct compI_reg_reg(rFlagsReg cr, iRegI op1, iRegI op2)
 
   ins_encode(aarch64_enc_cmpw(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct compI_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
@@ -10679,7 +11033,7 @@ instruct compI_reg_immI0(rFlagsReg cr, iRegI op1, immI0 zero)
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compI_reg_immIAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
@@ -10693,7 +11047,7 @@ instruct compI_reg_immIAddSub(rFlagsReg cr, iRegI op1, immIAddSub op2)
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compI_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
@@ -10707,7 +11061,7 @@ instruct compI_reg_immI(rFlagsReg cr, iRegI op1, immI op2)
 
   ins_encode(aarch64_enc_cmpw_imm(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 // Unsigned compare Instructions; really, same as signed compare
@@ -10725,7 +11079,7 @@ instruct compU_reg_reg(rFlagsRegU cr, iRegI op1, iRegI op2)
 
   ins_encode(aarch64_enc_cmpw(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct compU_reg_immI0(rFlagsRegU cr, iRegI op1, immI0 zero)
@@ -10739,7 +11093,7 @@ instruct compU_reg_immI0(rFlagsRegU cr, iRegI op1, immI0 zero)
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, zero));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compU_reg_immIAddSub(rFlagsRegU cr, iRegI op1, immIAddSub op2)
@@ -10753,7 +11107,7 @@ instruct compU_reg_immIAddSub(rFlagsRegU cr, iRegI op1, immIAddSub op2)
 
   ins_encode(aarch64_enc_cmpw_imm_addsub(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compU_reg_immI(rFlagsRegU cr, iRegI op1, immI op2)
@@ -10767,7 +11121,7 @@ instruct compU_reg_immI(rFlagsRegU cr, iRegI op1, immI op2)
 
   ins_encode(aarch64_enc_cmpw_imm(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
@@ -10781,7 +11135,7 @@ instruct compL_reg_reg(rFlagsReg cr, iRegL op1, iRegL op2)
 
   ins_encode(aarch64_enc_cmp(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct compL_reg_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
@@ -10795,7 +11149,7 @@ instruct compL_reg_immI0(rFlagsReg cr, iRegL op1, immI0 zero)
 
   ins_encode(aarch64_enc_cmp_imm_addsub(op1, zero));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compL_reg_immLAddSub(rFlagsReg cr, iRegL op1, immLAddSub op2)
@@ -10809,7 +11163,7 @@ instruct compL_reg_immLAddSub(rFlagsReg cr, iRegL op1, immLAddSub op2)
 
   ins_encode(aarch64_enc_cmp_imm_addsub(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compL_reg_immL(rFlagsReg cr, iRegL op1, immL op2)
@@ -10823,7 +11177,7 @@ instruct compL_reg_immL(rFlagsReg cr, iRegL op1, immL op2)
 
   ins_encode(aarch64_enc_cmp_imm(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct compP_reg_reg(rFlagsRegU cr, iRegP op1, iRegP op2)
@@ -10837,7 +11191,7 @@ instruct compP_reg_reg(rFlagsRegU cr, iRegP op1, iRegP op2)
 
   ins_encode(aarch64_enc_cmpp(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct compN_reg_reg(rFlagsRegU cr, iRegN op1, iRegN op2)
@@ -10851,7 +11205,7 @@ instruct compN_reg_reg(rFlagsRegU cr, iRegN op1, iRegN op2)
 
   ins_encode(aarch64_enc_cmpn(op1, op2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_reg);
 %}
 
 instruct testP_reg(rFlagsRegU cr, iRegP op1, immP0 zero)
@@ -10865,7 +11219,7 @@ instruct testP_reg(rFlagsRegU cr, iRegP op1, immP0 zero)
 
   ins_encode(aarch64_enc_testp(op1));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 instruct testN_reg(rFlagsRegU cr, iRegN op1, immN0 zero)
@@ -10879,7 +11233,7 @@ instruct testN_reg(rFlagsRegU cr, iRegN op1, immN0 zero)
 
   ins_encode(aarch64_enc_testn(op1));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(icmp_reg_imm);
 %}
 
 // FP comparisons
@@ -10914,6 +11268,7 @@ instruct compF_reg_zero(rFlagsReg cr, vRegF src1, immF0 src2)
 
   ins_pipe(pipe_class_compare);
 %}
+// FROM HERE
 
 instruct compD_reg_reg(rFlagsReg cr, vRegD src1, vRegD src2)
 %{
@@ -11071,7 +11426,7 @@ instruct cmpL3_reg_reg(iRegINoSp dst, iRegL src1, iRegL src2, rFlagsReg flags)
     __ cnegw($dst$$Register, $dst$$Register, Assembler::LT);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct cmpLTMask_reg_reg(iRegINoSp dst, iRegI p, iRegI q, rFlagsReg cr)
@@ -11092,7 +11447,7 @@ instruct cmpLTMask_reg_reg(iRegINoSp dst, iRegI p, iRegI q, rFlagsReg cr)
     __ subw(as_Register($dst$$reg), zr, as_Register($dst$$reg));
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}
 
 instruct cmpLTMask_reg_zero(iRegINoSp dst, iRegI src, immI0 zero, rFlagsReg cr)
@@ -11108,7 +11463,7 @@ instruct cmpLTMask_reg_zero(iRegINoSp dst, iRegI src, immI0 zero, rFlagsReg cr)
     __ asrw(as_Register($dst$$reg), as_Register($src$$reg), 31);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // ============================================================================
@@ -11136,8 +11491,9 @@ instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
              Assembler::LT);
   %}
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(ialu_reg_reg);
 %}
+// FROM HERE
 
 instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
@@ -11161,7 +11517,7 @@ instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
              Assembler::GT);
   %}
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(ialu_reg_reg);
 %}
 
 // ============================================================================
@@ -11179,7 +11535,7 @@ instruct branch(label lbl)
 
   ins_encode(aarch64_enc_b(lbl));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch);
 %}
 
 // Conditional Near Branch
@@ -11200,7 +11556,7 @@ instruct branchCon(cmpOp cmp, rFlagsReg cr, label lbl)
 
   ins_encode(aarch64_enc_br_con(cmp, lbl));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch_cond);
 %}
 
 // Conditional Near Branch Unsigned
@@ -11221,7 +11577,7 @@ instruct branchConU(cmpOpU cmp, rFlagsRegU cr, label lbl)
 
   ins_encode(aarch64_enc_br_conU(cmp, lbl));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch_cond);
 %}
 
 // Make use of CBZ and CBNZ.  These instructions, as well as being
@@ -11244,7 +11600,7 @@ instruct cmpI_imm0_branch(cmpOp cmp, iRegI op1, immI0 op2, label labl, rFlagsReg
     else
       __ cbnzw($op1$$Register, *L);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_cmp_branch);
 %}
 
 instruct cmpL_imm0_branch(cmpOp cmp, iRegL op1, immL0 op2, label labl, rFlagsReg cr) %{
@@ -11263,7 +11619,7 @@ instruct cmpL_imm0_branch(cmpOp cmp, iRegL op1, immL0 op2, label labl, rFlagsReg
     else
       __ cbnz($op1$$Register, *L);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_cmp_branch);
 %}
 
 instruct cmpP_imm0_branch(cmpOp cmp, iRegP op1, immP0 op2, label labl, rFlagsReg cr) %{
@@ -11282,7 +11638,7 @@ instruct cmpP_imm0_branch(cmpOp cmp, iRegP op1, immP0 op2, label labl, rFlagsReg
     else
       __ cbnz($op1$$Register, *L);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_cmp_branch);
 %}
 
 // Conditional Far Branch
@@ -11303,7 +11659,7 @@ instruct branchLoopEnd(cmpOp cmp, rFlagsReg cr, label lbl)
 
   ins_encode(aarch64_enc_br_con(cmp, lbl));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch);
 %}
 
 // counted loop end branch near Unsigned
@@ -11320,7 +11676,7 @@ instruct branchLoopEndU(cmpOpU cmp, rFlagsRegU cr, label lbl)
 
   ins_encode(aarch64_enc_br_conU(cmp, lbl));
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch);
 %}
 
 // counted loop end branch far
@@ -11342,7 +11698,7 @@ instruct cmpFastLock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegP
 
   ins_encode(aarch64_enc_fast_lock(object, box, tmp, tmp2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(pipe_serial);
 %}
 
 instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRegPNoSp tmp2)
@@ -11355,7 +11711,7 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
 
   ins_encode(aarch64_enc_fast_unlock(object, box, tmp, tmp2));
 
-  ins_pipe(pipe_class_compare);
+  ins_pipe(pipe_serial);
 %}
 
 
@@ -11375,7 +11731,7 @@ instruct safePoint(iRegP poll)
   ins_encode %{
     __ read_polling_page(as_Register($poll$$reg), relocInfo::poll_type);
   %}
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial); // ins_pipe(iload_reg_mem);
 %}
 
 
@@ -11401,6 +11757,8 @@ instruct CallStaticJavaDirect(method meth)
 
   ins_pipe(pipe_class_call);
 %}
+
+// TO HERE
 
 // Call Java Static Instruction (method handle version)
 
@@ -11535,7 +11893,7 @@ instruct CreateException(iRegP_R0 ex_oop)
 
   ins_encode( /*empty*/ );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_class_empty);
 %}
 
 // Rethrow exception: The exception oop will come in the first
@@ -11562,7 +11920,7 @@ instruct Ret()
 
   ins_encode( aarch64_enc_ret() );
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(pipe_branch);
 %}
 
 // Die now.

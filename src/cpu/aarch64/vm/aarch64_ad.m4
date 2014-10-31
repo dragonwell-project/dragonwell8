@@ -18,7 +18,7 @@ instruct $2$1_reg_$4_reg(iReg$1NoSp dst,
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}')dnl
 define(`BASE_INVERTED_INSN',
 `
@@ -40,7 +40,7 @@ dnl into this canonical form.
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}')dnl
 define(`INVERTED_SHIFT_INSN',
 `
@@ -63,7 +63,7 @@ dnl into this canonical form.
               $src3$$constant & 0x3f);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_shift);
 %}')dnl
 define(`NOT_INSN',
 `instruct reg$1_not_reg(iReg$1NoSp dst,
@@ -80,7 +80,7 @@ define(`NOT_INSN',
               Assembler::LSL, 0);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg);
 %}')dnl
 dnl
 define(`BOTH_SHIFT_INSNS',
@@ -142,7 +142,7 @@ instruct $4$1(iReg$1NoSp dst, iReg$1 src, immI lshift_count, immI rshift_count)
 	    r, s);
   %}
 
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}')
 BFM_INSN(L, 63, RShift, sbfm)
 BFM_INSN(I, 31, RShift, sbfmw)
@@ -164,7 +164,7 @@ define(`BFX_INSN',
     __ $3(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}')
 BFX_INSN(I,URShift,ubfxw)
 BFX_INSN(L,URShift,ubfx)
@@ -184,7 +184,7 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask m
     __ ubfx(as_Register($dst$$reg),
 	    as_Register($src$$reg), rshift, width);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_shift);
 %}
 
 // Rotations
@@ -202,7 +202,7 @@ define(`EXTRACT_INSN',
     __ $4(as_Register($dst$$reg), as_Register($src1$$reg), as_Register($src2$$reg),
             $rshift$$constant & $2);
   %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_extr);
 %}
 ')dnl
 EXTRACT_INSN(L, 63, Or, extr)
@@ -223,7 +223,7 @@ instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
     __ $3(as_Register($dst$$reg), as_Register($src$$reg),
 	    rscratch1);
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}')dnl
 define(`ROR_EXPAND', `
 // $2 expander
@@ -238,7 +238,7 @@ instruct $2$1_rReg(iReg$1 dst, iReg$1 src, iRegI shift, rFlagsReg cr)
     __ $3(as_Register($dst$$reg), as_Register($src$$reg),
 	    as_Register($shift$$reg));
     %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg_vshift);
 %}')dnl
 define(ROL_INSN, `
 instruct $3$1_rReg_Var_C$2(iRegL dst, iRegL src, iRegI shift, immI$2 c$2, rFlagsReg cr)
@@ -284,7 +284,7 @@ instruct $3Ext$1(iReg$2NoSp dst, iReg$2 src1, iReg$1orL2I src2, rFlagsReg cr)
      __ $4(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::$5);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}')dnl
 ADD_SUB_CONV(I,L,Add,add,sxtw);
 ADD_SUB_CONV(I,L,Sub,sub,sxtw);
@@ -300,7 +300,7 @@ instruct $3Ext$1_$6(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, immI_`'eval($7-$2)
      __ $5(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::$6);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}')
 ADD_SUB_EXTENDED(I,16,Add,RShift,add,sxth,32)
 ADD_SUB_EXTENDED(I,8,Add,RShift,add,sxtb,32)
@@ -322,7 +322,7 @@ instruct $3Ext$1_$5_and(iReg$1NoSp dst, iReg$1 src1, iReg$1 src2, imm$1_$2 mask,
      __ $4(as_Register($dst$$reg), as_Register($src1$$reg),
             as_Register($src2$$reg), ext::$5);
    %}
-  ins_pipe(pipe_class_default);
+  ins_pipe(ialu_reg_reg);
 %}')
 dnl
 ADD_SUB_ZERO_EXTEND(I,255,Add,addw,uxtb)

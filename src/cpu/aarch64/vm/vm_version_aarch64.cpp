@@ -147,6 +147,11 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
   }
+#ifdef COMPILER2
+  if (FLAG_IS_DEFAULT(OptoScheduling)) {
+    OptoScheduling = true;
+  }
+#endif
 }
 
 void VM_Version::initialize() {
