@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,14 +20,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.nashorn.internal.runtime.arrays;
 
 /**
- * Marker interface for any ContinuousArray with numeric elements
- * (int, long or double)
- * Used for type checks that throw ClassCastExceptions and force relinks
- * for fast NativeArray specializations of builtin methods
+ * JDK-8062024: Issue with date.setFullYear when time other than midnight
+ *
+ * @test
+ * @option -timezone=Asia/Calcutta
+ * @run
  */
-public interface NumericElements extends AnyElements {
-    //empty
-}
+
+var date1 = new Date("January 01, 1950 00:00:00");
+print("Before:", date1);
+date1.setFullYear(1960);
+print("After:", date1);
+
+var date2 = new Date("January 01, 1950 00:00:01");
+print("Before:", date2);
+date2.setFullYear(1960);
+print("After:", date2);
