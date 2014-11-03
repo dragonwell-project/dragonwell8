@@ -25,7 +25,6 @@
 
 package com.sun.management;
 
-import java.util.List;
 import java.lang.management.PlatformManagedObject;
 
 /**
@@ -110,7 +109,7 @@ public interface HotSpotDiagnosticMXBean extends PlatformManagedObject {
      * @throws IllegalArgumentException if the VM option of the given name
      *                                     does not exist.
      * @throws IllegalArgumentException if the new value is invalid.
-     * @throws IllegalArgumentException if the VM option is not writeable.
+     * @throws IllegalArgumentException if the VM option is not writable.
      * @throws NullPointerException if name or value is <tt>null</tt>.
      *
      * @throws  java.lang.SecurityException
