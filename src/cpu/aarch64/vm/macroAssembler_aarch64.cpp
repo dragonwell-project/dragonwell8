@@ -65,7 +65,8 @@
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
-void MacroAssembler::pd_patch_instruction(address branch, address target) {
+int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
+  int size = 1;
   assert((uint64_t)target < (1ul << 48), "48-bit overflow in address constant");
   long offset = (target - branch) >> 2;
   unsigned insn = *(unsigned*)branch;
@@ -119,12 +120,14 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				    21, 10, offset_lo >> size);
 	guarantee(((dest >> size) << size) == dest, "misaligned target");
+	size = 2;
       } else if (Instruction_aarch64::extract(insn2, 31, 22) == 0b1001000100 &&
 		Instruction_aarch64::extract(insn, 4, 0) ==
 			Instruction_aarch64::extract(insn2, 4, 0)) {
 	// add (immediate)
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				   21, 10, offset_lo);
+	size = 2;
       } else {
 	assert((jbyte *)target ==
 		((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base ||
@@ -147,6 +150,7 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
     Instruction_aarch64::patch(branch+4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch+8, 20, 5, (dest >>= 16) & 0xffff);
     assert(pd_call_destination(branch) == target, "should be");
+    size = 3;
   } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
              Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
     // nothing to do
@@ -154,6 +158,7 @@ void MacroAssembler::pd_patch_instruction(address branch, address target) {
   } else {
     ShouldNotReachHere();
   }
+  return size;
 }
 
 void MacroAssembler::patch_oop(address insn_addr, address o) {

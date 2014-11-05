@@ -497,7 +497,10 @@ public:
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
-  static void pd_patch_instruction(address branch, address target);
+  static int pd_patch_instruction_size(address branch, address target);
+  static void pd_patch_instruction(address branch, address target) {
+    pd_patch_instruction_size(branch, target);
+  }
   static address pd_call_destination(address branch) {
     unsigned insn = *(unsigned*)branch;
     return target_addr_for_insn(branch, insn);

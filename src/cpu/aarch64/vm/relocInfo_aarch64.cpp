@@ -33,23 +33,30 @@
 
 
 void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
+  if (verify_only)
+    return;
+
+  int size;
+
   switch(type()) {
   case relocInfo::oop_type:
     {
       oop_Relocation *reloc = (oop_Relocation *)this;
       if (NativeInstruction::is_ldr_literal_at(addr())) {
 	address constptr = (address)code()->oop_addr_at(reloc->oop_index());
-	MacroAssembler::pd_patch_instruction(addr(), constptr);
+	size = MacroAssembler::pd_patch_instruction_size(addr(), constptr);
 	assert(*(address*)constptr == x, "error in oop relocation");
       } else{
 	MacroAssembler::patch_oop(addr(), x);
+	size = NativeMovConstReg::instruction_size;
       }
     }
     break;
   default:
-    MacroAssembler::pd_patch_instruction(addr(), x);
+    int size = MacroAssembler::pd_patch_instruction_size(addr(), x);
     break;
   }
+  ICache::invalidate_range(addr(), size);
 }
 
 address Relocation::pd_call_destination(address orig_addr) {
