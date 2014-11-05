@@ -32,9 +32,9 @@
 
 #define LargeSharedArchiveSize    (300*M)
 #define HugeSharedArchiveSize     (800*M)
-#define ReadOnlyRegionPercentage  0.4
-#define ReadWriteRegionPercentage 0.55
-#define MiscDataRegionPercentage  0.03
+#define ReadOnlyRegionPercentage  0.39
+#define ReadWriteRegionPercentage 0.50
+#define MiscDataRegionPercentage  0.09
 #define MiscCodeRegionPercentage  0.02
 #define LargeThresholdClassCount  5000
 #define HugeThresholdClassCount   40000
@@ -57,11 +57,16 @@ class MetaspaceShared : AllStatic {
   static bool _archive_loading_failed;
  public:
   enum {
-    vtbl_list_size = 17, // number of entries in the shared space vtable list.
-    num_virtuals = 200   // maximum number of virtual functions
-                         // If virtual functions are added to Metadata,
-                         // this number needs to be increased.  Also,
-                         // SharedMiscCodeSize will need to be increased.
+    vtbl_list_size         = 17,   // number of entries in the shared space vtable list.
+    num_virtuals           = 200,  // maximum number of virtual functions
+                                   // If virtual functions are added to Metadata,
+                                   // this number needs to be increased.  Also,
+                                   // SharedMiscCodeSize will need to be increased.
+                                   // The following 2 sizes were based on
+                                   // MetaspaceShared::generate_vtable_methods()
+    vtbl_method_size       = 16,   // conservative size of the mov1 and jmp instructions
+                                   // for the x64 platform
+    vtbl_common_code_size  = (1*K) // conservative size of the "common_code" for the x64 platform
   };
 
   enum {
