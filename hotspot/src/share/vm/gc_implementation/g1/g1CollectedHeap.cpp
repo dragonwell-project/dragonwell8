@@ -27,6 +27,7 @@
 #endif
 
 #include "precompiled.hpp"
+#include "classfile/metadataOnStackMark.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "gc_implementation/g1/bufferingOopClosure.hpp"
@@ -2478,6 +2479,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
 
   unsigned int gc_count_before;
   unsigned int old_marking_count_before;
+  unsigned int full_gc_count_before;
   bool retry_gc;
 
   do {
@@ -2488,6 +2490,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
 
       // Read the GC count while holding the Heap_lock
       gc_count_before = total_collections();
+      full_gc_count_before = total_full_collections();
       old_marking_count_before = _old_marking_cycles_started;
     }
 
@@ -2532,7 +2535,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
         VMThread::execute(&op);
       } else {
         // Schedule a Full GC.
-        VM_G1CollectFull op(gc_count_before, old_marking_count_before, cause);
+        VM_G1CollectFull op(gc_count_before, full_gc_count_before, cause);
         VMThread::execute(&op);
       }
     }
@@ -5131,6 +5134,10 @@ private:
         clean_nmethod(claimed_nmethods[i]);
       }
     }
+
+    // The nmethod cleaning helps out and does the CodeCache part of MetadataOnStackMark.
+    // Need to retire the buffers now that this thread has stopped cleaning nmethods.
+    MetadataOnStackMark::retire_buffer_for_thread(Thread::current());
   }
 
   void work_second_pass(uint worker_id) {
@@ -5183,6 +5190,9 @@ public:
     // G1 specific cleanup work that has
     // been moved here to be done in parallel.
     ik->clean_dependent_nmethods();
+    if (JvmtiExport::has_redefined_a_class()) {
+      InstanceKlass::purge_previous_versions(ik);
+    }
   }
 
   void work() {
@@ -5217,8 +5227,18 @@ public:
       _klass_cleaning_task(is_alive) {
   }
 
+  void pre_work_verification() {
+    assert(!MetadataOnStackMark::has_buffer_for_thread(Thread::current()), "Should be empty");
+  }
+
+  void post_work_verification() {
+    assert(!MetadataOnStackMark::has_buffer_for_thread(Thread::current()), "Should be empty");
+  }
+
   // The parallel work done by all worker threads.
   void work(uint worker_id) {
+    pre_work_verification();
+
     // Do first pass of code cache cleaning.
     _code_cache_task.work_first_pass(worker_id);
 
@@ -5237,6 +5257,8 @@ public:
 
     // Clean all klasses that were not unloaded.
     _klass_cleaning_task.work();
+
+    post_work_verification();
   }
 };
 
