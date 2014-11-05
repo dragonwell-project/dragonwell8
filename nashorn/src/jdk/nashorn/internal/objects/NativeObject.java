@@ -28,7 +28,6 @@ package jdk.nashorn.internal.objects;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ECMAErrors.typeError;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -673,7 +672,7 @@ public final class NativeObject {
             for (final Property prop : properties) {
                 if (prop.isEnumerable()) {
                     final Object value = sourceObj.get(prop.getKey());
-                    prop.setCurrentType(Object.class);
+                    prop.setType(Object.class);
                     prop.setValue(sourceObj, sourceObj, value, false);
                     propList.add(prop);
                 }
