@@ -6229,7 +6229,7 @@ instruct loadD_volatile(vRegD dst, /* sync_memory*/indirect mem)
 // ============================================================================
 // BSWAP Instructions
 
-instruct bytes_reverse_int(iRegINoSp dst, iRegI src) %{
+instruct bytes_reverse_int(iRegINoSp dst, iRegIorL2I src) %{
   match(Set dst (ReverseBytesI src));
 
   ins_cost(INSN_COST);
@@ -6242,7 +6242,7 @@ instruct bytes_reverse_int(iRegINoSp dst, iRegI src) %{
   ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_long(iRegLNoSp dst, iRegI src) %{
+instruct bytes_reverse_long(iRegLNoSp dst, iRegL src) %{
   match(Set dst (ReverseBytesL src));
 
   ins_cost(INSN_COST);
@@ -6255,7 +6255,7 @@ instruct bytes_reverse_long(iRegLNoSp dst, iRegI src) %{
   ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_unsigned_short(iRegINoSp dst, iRegI src) %{
+instruct bytes_reverse_unsigned_short(iRegINoSp dst, iRegIorL2I src) %{
   match(Set dst (ReverseBytesUS src));
 
   ins_cost(INSN_COST);
@@ -6268,7 +6268,7 @@ instruct bytes_reverse_unsigned_short(iRegINoSp dst, iRegI src) %{
   ins_pipe(ialu_reg);
 %}
 
-instruct bytes_reverse_short(iRegINoSp dst, iRegI src) %{
+instruct bytes_reverse_short(iRegINoSp dst, iRegIorL2I src) %{
   match(Set dst (ReverseBytesS src));
 
   ins_cost(INSN_COST);
@@ -10955,7 +10955,7 @@ instruct overflowMulI_reg_branch(cmpOp cmp, iRegI op1, iRegI op2, label labl, rF
     __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
   %}
 
-  ins_pipe(pipe_slow);
+  ins_pipe(pipe_serial);
 %}
 
 instruct overflowMulL_reg(rFlagsReg cr, iRegL op1, iRegL op2)
@@ -11002,7 +11002,7 @@ instruct overflowMulL_reg_branch(cmpOp cmp, iRegL op1, iRegL op2, label labl, rF
     __ br(cond == Assembler::VS ? Assembler::NE : Assembler::EQ, *L);
   %}
 
-  ins_pipe(pipe_slow);
+  ins_pipe(pipe_serial);
 %}
 
 // ============================================================================
