@@ -37,6 +37,11 @@ EXFILES :=
 EXCLUDES :=
 
 ##########################################################################################
+# Include the corresponding custom file, if present.
+
+-include $(CUSTOM_MAKE_DIR)/CompileJavaClasses.gmk
+
+##########################################################################################
 
 EXCLUDES += com/sun/pept \
     com/sun/tools/example/trace \
@@ -53,7 +58,7 @@ endif
 
 ifndef OPENJDK
   # There exists two versions of these files...
-  EXFILES := $(JDK_TOPDIR)/src/share/classes/javax/crypto/JarVerifier.java
+  EXFILES += $(JDK_TOPDIR)/src/share/classes/javax/crypto/JarVerifier.java
   EXFILES += $(JDK_TOPDIR)/src/share/classes/sun/management/ExtendedPlatformComponent.java
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
