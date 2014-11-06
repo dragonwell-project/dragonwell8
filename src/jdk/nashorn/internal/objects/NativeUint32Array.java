@@ -26,6 +26,7 @@
 package jdk.nashorn.internal.objects;
 
 import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
@@ -104,7 +105,7 @@ public final class NativeUint32Array extends ArrayBufferView {
 
         private long getElem(final int index) {
             try {
-                return nb.get(index) & JSType.MAX_UINT;
+                return JSType.toUint32(nb.get(index));
             } catch (final IndexOutOfBoundsException e) {
                 throw new ClassCastException(); //force relink - this works for unoptimistic too
             }
@@ -128,7 +129,12 @@ public final class NativeUint32Array extends ArrayBufferView {
 
         @Override
         public Class<?> getElementType() {
-            return int.class;
+            return long.class;
+        }
+
+        @Override
+        public Class<?> getBoxedElementType() {
+            return Integer.class;
         }
 
         @Override
@@ -142,7 +148,17 @@ public final class NativeUint32Array extends ArrayBufferView {
         }
 
         @Override
+        public long getLongOptimistic(final int index, final int programPoint) {
+            return getElem(index);
+        }
+
+        @Override
         public double getDouble(final int index) {
+            return getLong(index);
+        }
+
+        @Override
+        public double getDoubleOptimistic(final int index, final int programPoint) {
             return getLong(index);
         }
 
