@@ -28,6 +28,7 @@ package jdk.nashorn.internal.objects;
 import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
 import static jdk.nashorn.internal.codegen.CompilerConstants.staticCall;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
@@ -102,6 +103,11 @@ public final class NativeUint8ClampedArray extends ArrayBufferView {
             return int.class;
         }
 
+        @Override
+        public Class<?> getBoxedElementType() {
+            return int.class;
+        }
+
         private int getElem(final int index) {
             try {
                 return nb.get(index) & 0xff;
@@ -158,13 +164,28 @@ public final class NativeUint8ClampedArray extends ArrayBufferView {
         }
 
         @Override
+        public int getIntOptimistic(final int index, final int programPoint) {
+            return getElem(index);
+        }
+
+        @Override
         public long getLong(final int index) {
             return getInt(index);
         }
 
         @Override
+        public long getLongOptimistic(final int index, final int programPoint) {
+            return getElem(index);
+        }
+
+        @Override
         public double getDouble(final int index) {
             return getInt(index);
+        }
+
+        @Override
+        public double getDoubleOptimistic(final int index, final int programPoint) {
+            return getElem(index);
         }
 
         @Override
