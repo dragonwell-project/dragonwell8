@@ -3141,7 +3141,7 @@ void Metaspace::global_initialize() {
   MetaspaceGC::initialize();
 
   // Initialize the alignment for shared spaces.
-  int max_alignment = os::vm_page_size();
+  int max_alignment = os::vm_allocation_granularity();
   size_t cds_total = 0;
 
   MetaspaceShared::set_max_alignment(max_alignment);
@@ -3154,6 +3154,16 @@ void Metaspace::global_initialize() {
     SharedReadWriteSize = align_size_up(SharedReadWriteSize, max_alignment);
     SharedMiscDataSize  = align_size_up(SharedMiscDataSize,  max_alignment);
     SharedMiscCodeSize  = align_size_up(SharedMiscCodeSize,  max_alignment);
+
+    // the min_misc_code_size estimate is based on MetaspaceShared::generate_vtable_methods()
+    uintx min_misc_code_size = align_size_up(
+      (MetaspaceShared::num_virtuals * MetaspaceShared::vtbl_list_size) *
+        (sizeof(void*) + MetaspaceShared::vtbl_method_size) + MetaspaceShared::vtbl_common_code_size,
+          max_alignment);
+
+    if (SharedMiscCodeSize < min_misc_code_size) {
+      report_out_of_shared_space(SharedMiscCode);
+    }
 
     // Initialize with the sum of the shared space sizes.  The read-only
     // and read write metaspace chunks will be allocated out of this and the

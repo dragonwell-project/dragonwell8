@@ -104,6 +104,28 @@ WB_ENTRY(jboolean, WB_IsClassAlive(JNIEnv* env, jobject target, jstring name))
   return closure.found();
 WB_END
 
+WB_ENTRY(jboolean, WB_ClassKnownToNotExist(JNIEnv* env, jobject o, jobject loader, jstring name))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  const char* class_name = env->GetStringUTFChars(name, NULL);
+  jboolean result = JVM_KnownToNotExist(env, loader, class_name);
+  env->ReleaseStringUTFChars(name, class_name);
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetLookupCacheURLs(JNIEnv* env, jobject o, jobject loader))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  return JVM_GetResourceLookupCacheURLs(env, loader);
+WB_END
+
+WB_ENTRY(jintArray, WB_GetLookupCacheMatches(JNIEnv* env, jobject o, jobject loader, jstring name))
+  ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
+  const char* resource_name = env->GetStringUTFChars(name, NULL);
+  jintArray result = JVM_GetResourceLookupCache(env, loader, resource_name);
+
+  env->ReleaseStringUTFChars(name, resource_name);
+  return result;
+WB_END
+
 WB_ENTRY(jlong, WB_GetCompressedOopsMaxHeapSize(JNIEnv* env, jobject o)) {
   return (jlong)Arguments::max_heap_for_compressed_oops();
 }
@@ -331,7 +353,36 @@ WB_ENTRY(void, WB_NMTOverflowHashBucket(JNIEnv* env, jobject o, jlong num))
   }
 WB_END
 
+WB_ENTRY(jboolean, WB_NMTChangeTrackingLevel(JNIEnv* env))
+  // Test that we can downgrade NMT levels but not upgrade them.
+  if (MemTracker::tracking_level() == NMT_off) {
+    MemTracker::transition_to(NMT_off);
+    return MemTracker::tracking_level() == NMT_off;
+  } else {
+    assert(MemTracker::tracking_level() == NMT_detail, "Should start out as detail tracking");
+    MemTracker::transition_to(NMT_summary);
+    assert(MemTracker::tracking_level() == NMT_summary, "Should be summary now");
 
+    // Can't go to detail once NMT is set to summary.
+    MemTracker::transition_to(NMT_detail);
+    assert(MemTracker::tracking_level() == NMT_summary, "Should still be summary now");
+
+    // Shutdown sets tracking level to minimal.
+    MemTracker::shutdown();
+    assert(MemTracker::tracking_level() == NMT_minimal, "Should be minimal now");
+
+    // Once the tracking level is minimal, we cannot increase to summary.
+    // The code ignores this request instead of asserting because if the malloc site
+    // table overflows in another thread, it tries to change the code to summary.
+    MemTracker::transition_to(NMT_summary);
+    assert(MemTracker::tracking_level() == NMT_minimal, "Should still be minimal now");
+
+    // Really can never go up to detail, verify that the code would never do this.
+    MemTracker::transition_to(NMT_detail);
+    assert(MemTracker::tracking_level() == NMT_minimal, "Should still be minimal now");
+    return MemTracker::tracking_level() == NMT_minimal;
+  }
+WB_END
 #endif // INCLUDE_NMT
 
 static jmethodID reflected_method_to_jmid(JavaThread* thread, JNIEnv* env, jobject method) {
@@ -353,19 +404,10 @@ WB_ENTRY(jint, WB_DeoptimizeMethod(JNIEnv* env, jobject o, jobject method, jbool
   CHECK_JNI_EXCEPTION_(env, result);
   MutexLockerEx mu(Compile_lock);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
-  nmethod* code;
   if (is_osr) {
-    int bci = InvocationEntryBci;
-    while ((code = mh->lookup_osr_nmethod_for(bci, CompLevel_none, false)) != NULL) {
-      code->mark_for_deoptimization();
-      ++result;
-      bci = code->osr_entry_bci() + 1;
-    }
-  } else {
-    code = mh->code();
-  }
-  if (code != NULL) {
-    code->mark_for_deoptimization();
+    result += mh->mark_osr_nmethods();
+  } else if (mh->code() != NULL) {
+    mh->code()->mark_for_deoptimization();
     ++result;
   }
   result += CodeCache::mark_for_deoptimization(mh());
@@ -910,6 +952,11 @@ static JNINativeMethod methods[] = {
   {CC"isObjectInOldGen",   CC"(Ljava/lang/Object;)Z", (void*)&WB_isObjectInOldGen  },
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
+  {CC"classKnownToNotExist",
+                           CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
+  {CC"getLookupCacheURLs", CC"(Ljava/lang/ClassLoader;)[Ljava/net/URL;",    (void*)&WB_GetLookupCacheURLs},
+  {CC"getLookupCacheMatches", CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)[I",
+                                                      (void*)&WB_GetLookupCacheMatches},
   {CC"parseCommandLine",
       CC"(Ljava/lang/String;[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
@@ -936,6 +983,7 @@ static JNINativeMethod methods[] = {
   {CC"NMTReleaseMemory",    CC"(JJ)V",                (void*)&WB_NMTReleaseMemory   },
   {CC"NMTOverflowHashBucket", CC"(J)V",               (void*)&WB_NMTOverflowHashBucket},
   {CC"NMTIsDetailSupported",CC"()Z",                  (void*)&WB_NMTIsDetailSupported},
+  {CC"NMTChangeTrackingLevel", CC"()Z",               (void*)&WB_NMTChangeTrackingLevel},
 #endif // INCLUDE_NMT
   {CC"deoptimizeAll",      CC"()V",                   (void*)&WB_DeoptimizeAll     },
   {CC"deoptimizeMethod",   CC"(Ljava/lang/reflect/Executable;Z)I",
