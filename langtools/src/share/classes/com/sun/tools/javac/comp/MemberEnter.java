@@ -575,51 +575,46 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
 
         Env<AttrContext> localEnv = methodEnv(tree, env);
 
-        annotate.enterStart();
+        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
         try {
-            DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
-            try {
-                // Compute the method type
-                m.type = signature(m, tree.typarams, tree.params,
-                                   tree.restype, tree.recvparam,
-                                   tree.thrown,
-                                   localEnv);
-            } finally {
-                deferredLintHandler.setPos(prevLintPos);
-            }
-
-            if (types.isSignaturePolymorphic(m)) {
-                m.flags_field |= SIGNATURE_POLYMORPHIC;
-            }
-
-            // Set m.params
-            ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
-            JCVariableDecl lastParam = null;
-            for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
-                JCVariableDecl param = lastParam = l.head;
-                params.append(Assert.checkNonNull(param.sym));
-            }
-            m.params = params.toList();
-
-            // mark the method varargs, if necessary
-            if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
-                m.flags_field |= Flags.VARARGS;
-
-            localEnv.info.scope.leave();
-            if (chk.checkUnique(tree.pos(), m, enclScope)) {
-            enclScope.enter(m);
-            }
-
-            annotateLater(tree.mods.annotations, localEnv, m, tree.pos());
-            // Visit the signature of the method. Note that
-            // TypeAnnotate doesn't descend into the body.
-            typeAnnotate(tree, localEnv, m, tree.pos());
-
-            if (tree.defaultValue != null)
-                annotateDefaultValueLater(tree.defaultValue, localEnv, m);
+            // Compute the method type
+            m.type = signature(m, tree.typarams, tree.params,
+                               tree.restype, tree.recvparam,
+                               tree.thrown,
+                               localEnv);
         } finally {
-            annotate.enterDone();
+            deferredLintHandler.setPos(prevLintPos);
         }
+
+        if (types.isSignaturePolymorphic(m)) {
+            m.flags_field |= SIGNATURE_POLYMORPHIC;
+        }
+
+        // Set m.params
+        ListBuffer<VarSymbol> params = new ListBuffer<VarSymbol>();
+        JCVariableDecl lastParam = null;
+        for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
+            JCVariableDecl param = lastParam = l.head;
+            params.append(Assert.checkNonNull(param.sym));
+        }
+        m.params = params.toList();
+
+        // mark the method varargs, if necessary
+        if (lastParam != null && (lastParam.mods.flags & Flags.VARARGS) != 0)
+            m.flags_field |= Flags.VARARGS;
+
+        localEnv.info.scope.leave();
+        if (chk.checkUnique(tree.pos(), m, enclScope)) {
+        enclScope.enter(m);
+        }
+
+        annotateLater(tree.mods.annotations, localEnv, m, tree.pos());
+        // Visit the signature of the method. Note that
+        // TypeAnnotate doesn't descend into the body.
+        typeAnnotate(tree, localEnv, m, tree.pos());
+
+        if (tree.defaultValue != null)
+            annotateDefaultValueLater(tree.defaultValue, localEnv, m);
     }
 
     /** Create a fresh environment for method bodies.
@@ -647,54 +642,49 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
             localEnv.info.staticLevel++;
         }
         DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
-        annotate.enterStart();
         try {
-            try {
-                if (TreeInfo.isEnumInit(tree)) {
-                    attr.attribIdentAsEnumType(localEnv, (JCIdent)tree.vartype);
-                } else {
-                    attr.attribType(tree.vartype, localEnv);
-                    if (TreeInfo.isReceiverParam(tree))
-                        checkReceiver(tree, localEnv);
-                }
-            } finally {
-                deferredLintHandler.setPos(prevLintPos);
+            if (TreeInfo.isEnumInit(tree)) {
+                attr.attribIdentAsEnumType(localEnv, (JCIdent)tree.vartype);
+            } else {
+                attr.attribType(tree.vartype, localEnv);
+                if (TreeInfo.isReceiverParam(tree))
+                    checkReceiver(tree, localEnv);
             }
-
-            if ((tree.mods.flags & VARARGS) != 0) {
-                //if we are entering a varargs parameter, we need to
-                //replace its type (a plain array type) with the more
-                //precise VarargsType --- we need to do it this way
-                //because varargs is represented in the tree as a
-                //modifier on the parameter declaration, and not as a
-                //distinct type of array node.
-                ArrayType atype = (ArrayType)tree.vartype.type.unannotatedType();
-                tree.vartype.type = atype.makeVarargs();
-            }
-            Scope enclScope = enter.enterScope(env);
-            VarSymbol v =
-                new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
-            v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
-            tree.sym = v;
-            if (tree.init != null) {
-                v.flags_field |= HASINIT;
-                if ((v.flags_field & FINAL) != 0 &&
-                    needsLazyConstValue(tree.init)) {
-                    Env<AttrContext> initEnv = getInitEnv(tree, env);
-                    initEnv.info.enclVar = v;
-                    v.setLazyConstValue(initEnv(tree, initEnv), attr, tree);
-                }
-            }
-            if (chk.checkUnique(tree.pos(), v, enclScope)) {
-                chk.checkTransparentVar(tree.pos(), v, enclScope);
-                enclScope.enter(v);
-            }
-            annotateLater(tree.mods.annotations, localEnv, v, tree.pos());
-            typeAnnotate(tree.vartype, env, v, tree.pos());
-            v.pos = tree.pos;
         } finally {
-            annotate.enterDone();
+            deferredLintHandler.setPos(prevLintPos);
         }
+
+        if ((tree.mods.flags & VARARGS) != 0) {
+            //if we are entering a varargs parameter, we need to
+            //replace its type (a plain array type) with the more
+            //precise VarargsType --- we need to do it this way
+            //because varargs is represented in the tree as a
+            //modifier on the parameter declaration, and not as a
+            //distinct type of array node.
+            ArrayType atype = (ArrayType)tree.vartype.type.unannotatedType();
+            tree.vartype.type = atype.makeVarargs();
+        }
+        Scope enclScope = enter.enterScope(env);
+        VarSymbol v =
+            new VarSymbol(0, tree.name, tree.vartype.type, enclScope.owner);
+        v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
+        tree.sym = v;
+        if (tree.init != null) {
+            v.flags_field |= HASINIT;
+            if ((v.flags_field & FINAL) != 0 &&
+                needsLazyConstValue(tree.init)) {
+                Env<AttrContext> initEnv = getInitEnv(tree, env);
+                initEnv.info.enclVar = v;
+                v.setLazyConstValue(initEnv(tree, initEnv), attr, tree);
+            }
+        }
+        if (chk.checkUnique(tree.pos(), v, enclScope)) {
+            chk.checkTransparentVar(tree.pos(), v, enclScope);
+            enclScope.enter(v);
+        }
+        annotateLater(tree.mods.annotations, localEnv, v, tree.pos());
+        typeAnnotate(tree.vartype, env, v, tree.pos());
+        v.pos = tree.pos;
     }
     // where
     void checkType(JCTree tree, Type type, String diag) {
@@ -1030,189 +1020,194 @@ public class MemberEnter extends JCTree.Visitor implements Completer {
         JCClassDecl tree = (JCClassDecl)env.tree;
         boolean wasFirst = isFirst;
         isFirst = false;
-
-        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
-        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
         try {
-            // Save class environment for later member enter (2) processing.
-            halfcompleted.append(env);
+            annotate.enterStart();
 
-            // Mark class as not yet attributed.
-            c.flags_field |= UNATTRIBUTED;
-
-            // If this is a toplevel-class, make sure any preceding import
-            // clauses have been seen.
-            if (c.owner.kind == PCK) {
-                memberEnter(env.toplevel, env.enclosing(TOPLEVEL));
-                todo.append(env);
-            }
-
-            if (c.owner.kind == TYP)
-                c.owner.complete();
-
-            // create an environment for evaluating the base clauses
-            Env<AttrContext> baseEnv = baseEnv(tree, env);
-
-            if (tree.extending != null)
-                typeAnnotate(tree.extending, baseEnv, sym, tree.pos());
-            for (JCExpression impl : tree.implementing)
-                typeAnnotate(impl, baseEnv, sym, tree.pos());
-            annotate.flush();
-
-            // Determine supertype.
-            Type supertype =
-                (tree.extending != null)
-                ? attr.attribBase(tree.extending, baseEnv, true, false, true)
-                : ((tree.mods.flags & Flags.ENUM) != 0)
-                ? attr.attribBase(enumBase(tree.pos, c), baseEnv,
-                                  true, false, false)
-                : (c.fullname == names.java_lang_Object)
-                ? Type.noType
-                : syms.objectType;
-            ct.supertype_field = modelMissingTypes(supertype, tree.extending, false);
-
-            // Determine interfaces.
-            ListBuffer<Type> interfaces = new ListBuffer<Type>();
-            ListBuffer<Type> all_interfaces = null; // lazy init
-            Set<Type> interfaceSet = new HashSet<Type>();
-            List<JCExpression> interfaceTrees = tree.implementing;
-            for (JCExpression iface : interfaceTrees) {
-                Type i = attr.attribBase(iface, baseEnv, false, true, true);
-                if (i.hasTag(CLASS)) {
-                    interfaces.append(i);
-                    if (all_interfaces != null) all_interfaces.append(i);
-                    chk.checkNotRepeated(iface.pos(), types.erasure(i), interfaceSet);
-                } else {
-                    if (all_interfaces == null)
-                        all_interfaces = new ListBuffer<Type>().appendList(interfaces);
-                    all_interfaces.append(modelMissingTypes(i, iface, true));
-                }
-            }
-            if ((c.flags_field & ANNOTATION) != 0) {
-                ct.interfaces_field = List.of(syms.annotationType);
-                ct.all_interfaces_field = ct.interfaces_field;
-            }  else {
-                ct.interfaces_field = interfaces.toList();
-                ct.all_interfaces_field = (all_interfaces == null)
-                        ? ct.interfaces_field : all_interfaces.toList();
-            }
-
-            if (c.fullname == names.java_lang_Object) {
-                if (tree.extending != null) {
-                    chk.checkNonCyclic(tree.extending.pos(),
-                                       supertype);
-                    ct.supertype_field = Type.noType;
-                }
-                else if (tree.implementing.nonEmpty()) {
-                    chk.checkNonCyclic(tree.implementing.head.pos(),
-                                       ct.interfaces_field.head);
-                    ct.interfaces_field = List.nil();
-                }
-            }
-
-            // Annotations.
-            // In general, we cannot fully process annotations yet,  but we
-            // can attribute the annotation types and then check to see if the
-            // @Deprecated annotation is present.
-            attr.attribAnnotationTypes(tree.mods.annotations, baseEnv);
-            if (hasDeprecatedAnnotation(tree.mods.annotations))
-                c.flags_field |= DEPRECATED;
-            annotateLater(tree.mods.annotations, baseEnv, c, tree.pos());
-            // class type parameters use baseEnv but everything uses env
-
-            chk.checkNonCyclicDecl(tree);
-
-            attr.attribTypeVariables(tree.typarams, baseEnv);
-            // Do this here, where we have the symbol.
-            for (JCTypeParameter tp : tree.typarams)
-                typeAnnotate(tp, baseEnv, sym, tree.pos());
-
-            // Add default constructor if needed.
-            if ((c.flags() & INTERFACE) == 0 &&
-                !TreeInfo.hasConstructors(tree.defs)) {
-                List<Type> argtypes = List.nil();
-                List<Type> typarams = List.nil();
-                List<Type> thrown = List.nil();
-                long ctorFlags = 0;
-                boolean based = false;
-                boolean addConstructor = true;
-                JCNewClass nc = null;
-                if (c.name.isEmpty()) {
-                    nc = (JCNewClass)env.next.tree;
-                    if (nc.constructor != null) {
-                        addConstructor = nc.constructor.kind != ERR;
-                        Type superConstrType = types.memberType(c.type,
-                                                                nc.constructor);
-                        argtypes = superConstrType.getParameterTypes();
-                        typarams = superConstrType.getTypeArguments();
-                        ctorFlags = nc.constructor.flags() & VARARGS;
-                        if (nc.encl != null) {
-                            argtypes = argtypes.prepend(nc.encl.type);
-                            based = true;
-                        }
-                        thrown = superConstrType.getThrownTypes();
-                    }
-                }
-                if (addConstructor) {
-                    MethodSymbol basedConstructor = nc != null ?
-                            (MethodSymbol)nc.constructor : null;
-                    JCTree constrDef = DefaultConstructor(make.at(tree.pos), c,
-                                                        basedConstructor,
-                                                        typarams, argtypes, thrown,
-                                                        ctorFlags, based);
-                    tree.defs = tree.defs.prepend(constrDef);
-                }
-            }
-
-            // enter symbols for 'this' into current scope.
-            VarSymbol thisSym =
-                new VarSymbol(FINAL | HASINIT, names._this, c.type, c);
-            thisSym.pos = Position.FIRSTPOS;
-            env.info.scope.enter(thisSym);
-            // if this is a class, enter symbol for 'super' into current scope.
-            if ((c.flags_field & INTERFACE) == 0 &&
-                    ct.supertype_field.hasTag(CLASS)) {
-                VarSymbol superSym =
-                    new VarSymbol(FINAL | HASINIT, names._super,
-                                  ct.supertype_field, c);
-                superSym.pos = Position.FIRSTPOS;
-                env.info.scope.enter(superSym);
-            }
-
-            // check that no package exists with same fully qualified name,
-            // but admit classes in the unnamed package which have the same
-            // name as a top-level package.
-            if (checkClash &&
-                c.owner.kind == PCK && c.owner != syms.unnamedPackage &&
-                reader.packageExists(c.fullname)) {
-                log.error(tree.pos, "clash.with.pkg.of.same.name", Kinds.kindName(sym), c);
-            }
-            if (c.owner.kind == PCK && (c.flags_field & PUBLIC) == 0 &&
-                !env.toplevel.sourcefile.isNameCompatible(c.name.toString(),JavaFileObject.Kind.SOURCE)) {
-                c.flags_field |= AUXILIARY;
-            }
-        } catch (CompletionFailure ex) {
-            chk.completionError(tree.pos(), ex);
-        } finally {
-            deferredLintHandler.setPos(prevLintPos);
-            log.useSource(prev);
-        }
-
-        // Enter all member fields and methods of a set of half completed
-        // classes in a second phase.
-        if (wasFirst) {
+            JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+            DiagnosticPosition prevLintPos = deferredLintHandler.setPos(tree.pos());
             try {
-                while (halfcompleted.nonEmpty()) {
-                    Env<AttrContext> toFinish = halfcompleted.next();
-                    finish(toFinish);
-                    if (allowTypeAnnos) {
-                        typeAnnotations.organizeTypeAnnotationsSignatures(toFinish, (JCClassDecl)toFinish.tree);
-                        typeAnnotations.validateTypeAnnotationsSignatures(toFinish, (JCClassDecl)toFinish.tree);
+                // Save class environment for later member enter (2) processing.
+                halfcompleted.append(env);
+
+                // Mark class as not yet attributed.
+                c.flags_field |= UNATTRIBUTED;
+
+                // If this is a toplevel-class, make sure any preceding import
+                // clauses have been seen.
+                if (c.owner.kind == PCK) {
+                    memberEnter(env.toplevel, env.enclosing(TOPLEVEL));
+                    todo.append(env);
+                }
+
+                if (c.owner.kind == TYP)
+                    c.owner.complete();
+
+                // create an environment for evaluating the base clauses
+                Env<AttrContext> baseEnv = baseEnv(tree, env);
+
+                if (tree.extending != null)
+                    typeAnnotate(tree.extending, baseEnv, sym, tree.pos());
+                for (JCExpression impl : tree.implementing)
+                    typeAnnotate(impl, baseEnv, sym, tree.pos());
+                annotate.flush();
+
+                // Determine supertype.
+                Type supertype =
+                    (tree.extending != null)
+                    ? attr.attribBase(tree.extending, baseEnv, true, false, true)
+                    : ((tree.mods.flags & Flags.ENUM) != 0)
+                    ? attr.attribBase(enumBase(tree.pos, c), baseEnv,
+                                      true, false, false)
+                    : (c.fullname == names.java_lang_Object)
+                    ? Type.noType
+                    : syms.objectType;
+                ct.supertype_field = modelMissingTypes(supertype, tree.extending, false);
+
+                // Determine interfaces.
+                ListBuffer<Type> interfaces = new ListBuffer<Type>();
+                ListBuffer<Type> all_interfaces = null; // lazy init
+                Set<Type> interfaceSet = new HashSet<Type>();
+                List<JCExpression> interfaceTrees = tree.implementing;
+                for (JCExpression iface : interfaceTrees) {
+                    Type i = attr.attribBase(iface, baseEnv, false, true, true);
+                    if (i.hasTag(CLASS)) {
+                        interfaces.append(i);
+                        if (all_interfaces != null) all_interfaces.append(i);
+                        chk.checkNotRepeated(iface.pos(), types.erasure(i), interfaceSet);
+                    } else {
+                        if (all_interfaces == null)
+                            all_interfaces = new ListBuffer<Type>().appendList(interfaces);
+                        all_interfaces.append(modelMissingTypes(i, iface, true));
                     }
                 }
+                if ((c.flags_field & ANNOTATION) != 0) {
+                    ct.interfaces_field = List.of(syms.annotationType);
+                    ct.all_interfaces_field = ct.interfaces_field;
+                }  else {
+                    ct.interfaces_field = interfaces.toList();
+                    ct.all_interfaces_field = (all_interfaces == null)
+                            ? ct.interfaces_field : all_interfaces.toList();
+                }
+
+                if (c.fullname == names.java_lang_Object) {
+                    if (tree.extending != null) {
+                        chk.checkNonCyclic(tree.extending.pos(),
+                                           supertype);
+                        ct.supertype_field = Type.noType;
+                    }
+                    else if (tree.implementing.nonEmpty()) {
+                        chk.checkNonCyclic(tree.implementing.head.pos(),
+                                           ct.interfaces_field.head);
+                        ct.interfaces_field = List.nil();
+                    }
+                }
+
+                // Annotations.
+                // In general, we cannot fully process annotations yet,  but we
+                // can attribute the annotation types and then check to see if the
+                // @Deprecated annotation is present.
+                attr.attribAnnotationTypes(tree.mods.annotations, baseEnv);
+                if (hasDeprecatedAnnotation(tree.mods.annotations))
+                    c.flags_field |= DEPRECATED;
+                annotateLater(tree.mods.annotations, baseEnv, c, tree.pos());
+                // class type parameters use baseEnv but everything uses env
+
+                chk.checkNonCyclicDecl(tree);
+
+                attr.attribTypeVariables(tree.typarams, baseEnv);
+                // Do this here, where we have the symbol.
+                for (JCTypeParameter tp : tree.typarams)
+                    typeAnnotate(tp, baseEnv, sym, tree.pos());
+
+                // Add default constructor if needed.
+                if ((c.flags() & INTERFACE) == 0 &&
+                    !TreeInfo.hasConstructors(tree.defs)) {
+                    List<Type> argtypes = List.nil();
+                    List<Type> typarams = List.nil();
+                    List<Type> thrown = List.nil();
+                    long ctorFlags = 0;
+                    boolean based = false;
+                    boolean addConstructor = true;
+                    JCNewClass nc = null;
+                    if (c.name.isEmpty()) {
+                        nc = (JCNewClass)env.next.tree;
+                        if (nc.constructor != null) {
+                            addConstructor = nc.constructor.kind != ERR;
+                            Type superConstrType = types.memberType(c.type,
+                                                                    nc.constructor);
+                            argtypes = superConstrType.getParameterTypes();
+                            typarams = superConstrType.getTypeArguments();
+                            ctorFlags = nc.constructor.flags() & VARARGS;
+                            if (nc.encl != null) {
+                                argtypes = argtypes.prepend(nc.encl.type);
+                                based = true;
+                            }
+                            thrown = superConstrType.getThrownTypes();
+                        }
+                    }
+                    if (addConstructor) {
+                        MethodSymbol basedConstructor = nc != null ?
+                                (MethodSymbol)nc.constructor : null;
+                        JCTree constrDef = DefaultConstructor(make.at(tree.pos), c,
+                                                            basedConstructor,
+                                                            typarams, argtypes, thrown,
+                                                            ctorFlags, based);
+                        tree.defs = tree.defs.prepend(constrDef);
+                    }
+                }
+
+                // enter symbols for 'this' into current scope.
+                VarSymbol thisSym =
+                    new VarSymbol(FINAL | HASINIT, names._this, c.type, c);
+                thisSym.pos = Position.FIRSTPOS;
+                env.info.scope.enter(thisSym);
+                // if this is a class, enter symbol for 'super' into current scope.
+                if ((c.flags_field & INTERFACE) == 0 &&
+                        ct.supertype_field.hasTag(CLASS)) {
+                    VarSymbol superSym =
+                        new VarSymbol(FINAL | HASINIT, names._super,
+                                      ct.supertype_field, c);
+                    superSym.pos = Position.FIRSTPOS;
+                    env.info.scope.enter(superSym);
+                }
+
+                // check that no package exists with same fully qualified name,
+                // but admit classes in the unnamed package which have the same
+                // name as a top-level package.
+                if (checkClash &&
+                    c.owner.kind == PCK && c.owner != syms.unnamedPackage &&
+                    reader.packageExists(c.fullname)) {
+                    log.error(tree.pos, "clash.with.pkg.of.same.name", Kinds.kindName(sym), c);
+                }
+                if (c.owner.kind == PCK && (c.flags_field & PUBLIC) == 0 &&
+                    !env.toplevel.sourcefile.isNameCompatible(c.name.toString(),JavaFileObject.Kind.SOURCE)) {
+                    c.flags_field |= AUXILIARY;
+                }
+            } catch (CompletionFailure ex) {
+                chk.completionError(tree.pos(), ex);
             } finally {
-                isFirst = true;
+                deferredLintHandler.setPos(prevLintPos);
+                log.useSource(prev);
             }
+
+            // Enter all member fields and methods of a set of half completed
+            // classes in a second phase.
+            if (wasFirst) {
+                try {
+                    while (halfcompleted.nonEmpty()) {
+                        Env<AttrContext> toFinish = halfcompleted.next();
+                        finish(toFinish);
+                        if (allowTypeAnnos) {
+                            typeAnnotations.organizeTypeAnnotationsSignatures(toFinish, (JCClassDecl)toFinish.tree);
+                            typeAnnotations.validateTypeAnnotationsSignatures(toFinish, (JCClassDecl)toFinish.tree);
+                        }
+                    }
+                } finally {
+                    isFirst = true;
+                }
+            }
+        } finally {
+            annotate.enterDone();
         }
     }
 

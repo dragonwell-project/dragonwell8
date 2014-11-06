@@ -187,6 +187,9 @@
                 _JVM_IsSupportedJNIVersion
                 _JVM_IsThreadAlive
                 _JVM_IsVMGeneratedMethodIx
+                _JVM_KnownToNotExist
+                _JVM_GetResourceLookupCacheURLs
+                _JVM_GetResourceLookupCache
                 _JVM_LatestUserDefinedLoader
                 _JVM_Listen
                 _JVM_LoadClass0
