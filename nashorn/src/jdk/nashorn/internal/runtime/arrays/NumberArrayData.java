@@ -28,10 +28,10 @@ package jdk.nashorn.internal.runtime.arrays;
 import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import jdk.nashorn.internal.codegen.types.Type;
 
 /**
  * Implementation of {@link ArrayData} as soon as a double has been
@@ -48,30 +48,45 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
      * @param array an int array
      * @param length a length, not necessarily array.length
      */
-    NumberArrayData(final double array[], final int length) {
+    NumberArrayData(final double[] array, final int length) {
         super(length);
         assert array.length >= length;
-        this.array  = array;
+        this.array = array;
     }
 
     @Override
-    public Class<?> getElementType() {
+    public final Class<?> getElementType() {
         return double.class;
     }
 
     @Override
-    public ArrayData copy() {
+    public final Class<?> getBoxedElementType() {
+        return Double.class;
+    }
+
+    @Override
+    public final int getElementWeight() {
+        return 3;
+    }
+
+    @Override
+    public final ContinuousArrayData widest(final ContinuousArrayData otherData) {
+        return otherData instanceof IntOrLongElements ? this : otherData;
+    }
+
+    @Override
+    public NumberArrayData copy() {
         return new NumberArrayData(array.clone(), (int)length);
     }
 
     @Override
     public Object[] asObjectArray() {
-        return toObjectArray(array, (int)length);
+        return toObjectArray(true);
     }
 
-    private static Object[] toObjectArray(final double[] array, final int length) {
+    private Object[] toObjectArray(final boolean trim) {
         assert length <= array.length : "length exceeds internal array size";
-        final Object[] oarray = new Object[array.length];
+        final Object[] oarray = new Object[trim ? (int)length : array.length];
 
         for (int index = 0; index < length; index++) {
             oarray[index] = Double.valueOf(array[index]);
@@ -88,10 +103,10 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
     }
 
     @Override
-    public ArrayData convert(final Class<?> type) {
+    public ContinuousArrayData convert(final Class<?> type) {
         if (type != Double.class && type != Integer.class && type != Long.class) {
             final int len = (int)length;
-            return new ObjectArrayData(NumberArrayData.toObjectArray(array, len), len);
+            return new ObjectArrayData(toObjectArray(false), len);
         }
         return this;
     }
@@ -129,7 +144,7 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
 
     @Override
     public ArrayData shrink(final long newLength) {
-        Arrays.fill(array, (int) newLength, array.length, 0.0);
+        Arrays.fill(array, (int)newLength, array.length, 0.0);
         return this;
     }
 
@@ -164,11 +179,6 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
         array[index] = value;
         setLength(Math.max(index + 1, length));
         return this;
-    }
-
-    @Override
-    public Type getOptimisticType() {
-        return Type.NUMBER;
     }
 
     private static final MethodHandle HAS_GET_ELEM = specialCall(MethodHandles.lookup(), NumberArrayData.class, "getElem", double.class, int.class).methodHandle();
@@ -338,5 +348,27 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
     @Override
     public Object fastPopObject() {
         return fastPopDouble();
+    }
+
+    @Override
+    public ContinuousArrayData fastConcat(final ContinuousArrayData otherData) {
+        final int   otherLength = (int)otherData.length;
+        final int   thisLength  = (int)length;
+        assert otherLength > 0 && thisLength > 0;
+
+        final double[] otherArray = ((NumberArrayData)otherData).array;
+        final int      newLength  = otherLength + thisLength;
+        final double[] newArray   = new double[ArrayData.alignUp(newLength)];
+
+        System.arraycopy(array, 0, newArray, 0, thisLength);
+        System.arraycopy(otherArray, 0, newArray, thisLength, otherLength);
+
+        return new NumberArrayData(newArray, newLength);
+    }
+
+    @Override
+    public String toString() {
+        assert length <= array.length : length + " > " + array.length;
+        return getClass().getSimpleName() + ':' + Arrays.toString(Arrays.copyOf(array, (int)length));
     }
 }

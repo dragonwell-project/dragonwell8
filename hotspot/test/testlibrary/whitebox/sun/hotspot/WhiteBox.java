@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.security.BasicPermission;
+import java.net.URL;
 
 import sun.hotspot.parser.DiagnosticCommand;
 
@@ -84,6 +85,11 @@ public class WhiteBox {
   }
   private native boolean isClassAlive0(String name);
 
+  // Resource/Class Lookup Cache
+  public native boolean classKnownToNotExist(ClassLoader loader, String name);
+  public native URL[] getLookupCacheURLs(ClassLoader loader);
+  public native int[] getLookupCacheMatches(ClassLoader loader, String name);
+
   // G1
   public native boolean g1InConcurrentMark();
   public native boolean g1IsHumongous(Object o);
@@ -101,6 +107,7 @@ public class WhiteBox {
   public native void NMTOverflowHashBucket(long num);
   public native long NMTMallocWithPseudoStack(long size, int index);
   public native boolean NMTIsDetailSupported();
+  public native boolean NMTChangeTrackingLevel();
 
   // Compiler
   public native void    deoptimizeAll();
