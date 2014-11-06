@@ -65,8 +65,10 @@
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
+// Patch any kind of instruction; there may be several instructions.
+// Return the total length (in bytes) of the instructions.
 int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
-  int size = 1;
+  int instructions = 1;
   assert((uint64_t)target < (1ul << 48), "48-bit overflow in address constant");
   long offset = (target - branch) >> 2;
   unsigned insn = *(unsigned*)branch;
@@ -120,14 +122,14 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				    21, 10, offset_lo >> size);
 	guarantee(((dest >> size) << size) == dest, "misaligned target");
-	size = 2;
+	instructions = 2;
       } else if (Instruction_aarch64::extract(insn2, 31, 22) == 0b1001000100 &&
 		Instruction_aarch64::extract(insn, 4, 0) ==
 			Instruction_aarch64::extract(insn2, 4, 0)) {
 	// add (immediate)
 	Instruction_aarch64::patch(branch + sizeof (unsigned),
 				   21, 10, offset_lo);
-	size = 2;
+	instructions = 2;
       } else {
 	assert((jbyte *)target ==
 		((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base ||
@@ -150,7 +152,7 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
     Instruction_aarch64::patch(branch+4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch+8, 20, 5, (dest >>= 16) & 0xffff);
     assert(pd_call_destination(branch) == target, "should be");
-    size = 3;
+    instructions = 3;
   } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
              Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
     // nothing to do
@@ -158,20 +160,33 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
   } else {
     ShouldNotReachHere();
   }
-  return size;
+  return instructions * NativeInstruction::instruction_size;
 }
 
-void MacroAssembler::patch_oop(address insn_addr, address o) {
+int MacroAssembler::patch_oop(address insn_addr, address o) {
+  int instructions;
   unsigned insn = *(unsigned*)insn_addr;
+  assert(nativeInstruction_at(insn_addr+4)->is_movk(), "wrong insns in patch");
+
+  // OOPs are either narrow (32 bits) or wide (48 bits).  We encode
+  // narrow OOPs by setting the upper 16 bits in the first
+  // instruction.
   if (Instruction_aarch64::extract(insn, 31, 21) == 0b11010010101) {
-      // Move narrow constant
-      assert(nativeInstruction_at(insn_addr+4)->is_movk(), "wrong insns in patch");
-      narrowOop n = oopDesc::encode_heap_oop((oop)o);
-      Instruction_aarch64::patch(insn_addr, 20, 5, n >> 16);
-      Instruction_aarch64::patch(insn_addr+4, 20, 5, n & 0xffff);
+    // Move narrow OOP
+    narrowOop n = oopDesc::encode_heap_oop((oop)o);
+    Instruction_aarch64::patch(insn_addr, 20, 5, n >> 16);
+    Instruction_aarch64::patch(insn_addr+4, 20, 5, n & 0xffff);
+    instructions = 2;
   } else {
-    pd_patch_instruction(insn_addr, o);
+    // Move wide OOP
+    assert(nativeInstruction_at(insn_addr+8)->is_movk(), "wrong insns in patch");
+    uintptr_t dest = (uintptr_t)o;
+    Instruction_aarch64::patch(insn_addr, 20, 5, dest & 0xffff);
+    Instruction_aarch64::patch(insn_addr+4, 20, 5, (dest >>= 16) & 0xffff);
+    Instruction_aarch64::patch(insn_addr+8, 20, 5, (dest >>= 16) & 0xffff);
+    instructions = 3;
   }
+  return instructions * NativeInstruction::instruction_size;
 }
 
 address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {

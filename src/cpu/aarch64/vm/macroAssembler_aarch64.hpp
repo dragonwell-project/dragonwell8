@@ -509,7 +509,7 @@ public:
   static void pd_print_patched_instruction(address branch);
 #endif
 
-  static void patch_oop(address insn_addr, address o);
+  static int patch_oop(address insn_addr, address o);
 
   // The following 4 methods return the offset of the appropriate move instruction
 
