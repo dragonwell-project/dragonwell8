@@ -217,6 +217,9 @@ SUNWprivate_1.1 {
                 JVM_RegisterSignal;
                 JVM_ReleaseUTF;
                 JVM_ResolveClass;
+                JVM_KnownToNotExist;
+                JVM_GetResourceLookupCacheURLs;
+                JVM_GetResourceLookupCache;
                 JVM_ResumeThread;
                 JVM_Send;
                 JVM_SendTo;

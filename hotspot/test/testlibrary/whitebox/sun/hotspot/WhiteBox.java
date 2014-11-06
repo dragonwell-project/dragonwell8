@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.security.BasicPermission;
+import java.net.URL;
 
 import sun.hotspot.parser.DiagnosticCommand;
 
@@ -83,6 +84,11 @@ public class WhiteBox {
     return isClassAlive0(name.replace('.', '/'));
   }
   private native boolean isClassAlive0(String name);
+
+  // Resource/Class Lookup Cache
+  public native boolean classKnownToNotExist(ClassLoader loader, String name);
+  public native URL[] getLookupCacheURLs(ClassLoader loader);
+  public native int[] getLookupCacheMatches(ClassLoader loader, String name);
 
   // G1
   public native boolean g1InConcurrentMark();
