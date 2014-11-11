@@ -2409,16 +2409,13 @@ encode %{
     int disp = $mem$$disp;
     if (index == -1) {
       __ prfm(Address(base, disp), PLDL1KEEP);
-      __ nop();
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
-        // __ prfm(Address(base, index_reg, Address::lsl(scale)), PLDL1KEEP);
-        __ nop();
+        __ prfm(Address(base, index_reg, Address::lsl(scale)), PLDL1KEEP);
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ prfm(Address(rscratch1, index_reg, Address::lsl(scale)), PLDL1KEEP);
-        __ nop();
       }
     }
   %}
@@ -2436,11 +2433,9 @@ encode %{
       Register index_reg = as_Register(index);
       if (disp == 0) {
         __ prfm(Address(base, index_reg, Address::lsl(scale)), PSTL1KEEP);
-        __ nop();
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ prfm(Address(rscratch1, index_reg, Address::lsl(scale)), PSTL1KEEP);
-        __ nop();
       }
     }
   %}
@@ -2453,7 +2448,6 @@ encode %{
     int disp = $mem$$disp;
     if (index == -1) {
       __ prfm(Address(base, disp), PSTL1STRM);
-      __ nop();
     } else {
       Register index_reg = as_Register(index);
       if (disp == 0) {
@@ -2462,7 +2456,6 @@ encode %{
       } else {
         __ lea(rscratch1, Address(base, disp));
 	__ prfm(Address(rscratch1, index_reg, Address::lsl(scale)), PSTL1STRM);
-        __ nop();
       }
     }
   %}
