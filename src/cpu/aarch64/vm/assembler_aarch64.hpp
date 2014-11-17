@@ -1187,6 +1187,7 @@ public:
 
   INSN(ldrs, 0b00, 1);
   INSN(ldrd, 0b01, 1);
+  INSN(ldrq, 0x10, 1);
 
 #undef INSN
 
@@ -1248,6 +1249,8 @@ public:
   INSN(ldps, 0b00, 0b101, 1, 1, false);
   INSN(stpd, 0b01, 0b101, 1, 0, false);
   INSN(ldpd, 0b01, 0b101, 1, 1, false);
+  INSN(stpq, 0b10, 0b101, 1, 0, false);
+  INSN(ldpq, 0b10, 0b101, 1, 1, false);
 
 #undef INSN
 
@@ -1320,6 +1323,8 @@ public:
   INSN(strs, 0b10, 0b00);
   INSN(ldrd, 0b11, 0b01);
   INSN(ldrs, 0b10, 0b01);
+  INSN(strq, 0b00, 0b10);
+  INSN(ldrq, 0x00, 0b11);
 
 #undef INSN
 
@@ -1990,6 +1995,49 @@ public:
   INSN(bit, 0b101110101);
   INSN(bsl, 0b101110011);
   INSN(orn, 0b001110111);
+
+#undef INSN
+
+#define INSN(NAME, opc)                                                                 \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm) { \
+    starti;                                                                             \
+    f(0, 31), f((int)T & 1, 30), f(opc, 29), f(0b01110, 28, 24);                        \
+    f((int)T >> 1, 23, 22), f(1, 21), rf(Vm, 16), f(0b100001, 15, 10);                  \
+    rf(Vn, 5), rf(Vd, 0);                                                               \
+  }
+
+  INSN(addv, 0);
+  INSN(subv, 1);
+
+#undef INSN
+
+#define INSN(NAME, opc)                                                                 \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm) { \
+    starti;                                                                             \
+    assert(T == T4S, "arrangement must be T4S");                                        \
+    f(0b01011110000, 31, 21), rf(Vm, 16), f(opc, 15, 10), rf(Vn, 5), rf(Vd, 0);         \
+  }
+
+  INSN(sha1c,     0b000000);
+  INSN(sha1m,     0b001000);
+  INSN(sha1p,     0b000100);
+  INSN(sha1su0,   0b001100);
+  INSN(sha256h2,  0b010100);
+  INSN(sha256h,   0b010000);
+  INSN(sha256su1, 0b011000);
+
+#undef INSN
+
+#define INSN(NAME, opc)                                                                 \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {                   \
+    starti;                                                                             \
+    assert(T == T4S, "arrangement must be T4S");                                        \
+    f(0b0101111000101000, 31, 16), f(opc, 15, 10), rf(Vn, 5), rf(Vd, 0);                \
+  }
+
+  INSN(sha1h,     0b000010);
+  INSN(sha1su1,   0b000110);
+  INSN(sha256su0, 0b001010);
 
 #undef INSN
 

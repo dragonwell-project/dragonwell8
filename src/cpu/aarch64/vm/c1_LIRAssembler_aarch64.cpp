@@ -237,7 +237,7 @@ void LIR_Assembler::osr_entry() {
 
   // build frame
   ciMethod* m = compilation()->method();
-  __ build_frame(initial_frame_size_in_bytes());
+  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
 
   // OSR buffer is
   //
@@ -354,7 +354,7 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
 
 
 // This specifies the rsp decrement needed to build the frame
-int LIR_Assembler::initial_frame_size_in_bytes() {
+int LIR_Assembler::initial_frame_size_in_bytes() const {
   // if rounding, must let FrameMap know!
 
   // The frame_map records size in slots (32bit word)
@@ -558,9 +558,10 @@ int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
     assert(os::is_poll_address(polling_page), "should be");
     unsigned long off;
     __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
+    assert(off == 0, "must be");
     add_debug_info_for_branch(info);  // This isn't just debug info:
                                       // it's the oop map
-    __ ldrw(zr, Address(rscratch1, off));
+    __ read_polling_page(rscratch1, relocInfo::poll_type);
   } else {
     poll_for_safepoint(relocInfo::poll_type, info);
   }
@@ -660,6 +661,11 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
       }
     }
     break;
+  case T_ADDRESS:
+    {
+      const2reg(src, FrameMap::rscratch1_opr, lir_patch_none, NULL);
+      reg2stack(FrameMap::rscratch1_opr, dest, c->type(), false);
+    }
   case T_INT:
   case T_FLOAT:
     {
@@ -3003,6 +3009,7 @@ void LIR_Assembler::get_thread(LIR_Opr result_reg) {
 
 
 void LIR_Assembler::peephole(LIR_List *lir) {
+#if 0
   if (tableswitch_count >= max_tableswitches)
     return;
 
@@ -3127,6 +3134,7 @@ void LIR_Assembler::peephole(LIR_List *lir) {
   next_state:
     ;
   }
+#endif
 }
 
 void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp_op) {

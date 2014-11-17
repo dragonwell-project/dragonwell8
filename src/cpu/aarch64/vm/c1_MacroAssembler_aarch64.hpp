@@ -27,6 +27,8 @@
 #ifndef CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
 #define CPU_AARCH64_VM_C1_MACROASSEMBLER_AARCH64_HPP
 
+using MacroAssembler::build_frame;
+
 // C1_MacroAssembler contains high-level macros for C1
 
  private:

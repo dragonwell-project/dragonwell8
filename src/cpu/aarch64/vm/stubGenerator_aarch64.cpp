@@ -2066,6 +2066,212 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - byte[]  source+offset
+  //   c_rarg1   - int[]   SHA.state
+  //   c_rarg2   - int     offset
+  //   c_rarg3   - int     limit
+  //
+  address generate_sha1_implCompress(bool multi_block, const char *name) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    Register buf   = c_rarg0;
+    Register state = c_rarg1;
+    Register ofs   = c_rarg2;
+    Register limit = c_rarg3;
+
+    Label keys;
+    Label sha1_loop;
+
+    // load the keys into v0..v3
+    __ adr(rscratch1, keys);
+    __ ld4r(v0, v1, v2, v3, __ T4S, Address(rscratch1));
+    // load 5 words state into v6, v7
+    __ ldrq(v6, Address(state, 0));
+    __ ldrs(v7, Address(state, 16));
+
+
+    __ BIND(sha1_loop);
+    // load 64 bytes of data into v16..v19
+    __ ld1(v16, v17, v18, v19, __ T4S, multi_block ? __ post(buf, 64) : buf);
+    __ rev32(v16, __ T16B, v16);
+    __ rev32(v17, __ T16B, v17);
+    __ rev32(v18, __ T16B, v18);
+    __ rev32(v19, __ T16B, v19);
+
+    // do the sha1
+    __ addv(v4, __ T4S, v16, v0);
+    __ orr(v20, __ T16B, v6, v6);
+
+    FloatRegister d0 = v16;
+    FloatRegister d1 = v17;
+    FloatRegister d2 = v18;
+    FloatRegister d3 = v19;
+
+    for (int round = 0; round < 20; round++) {
+      FloatRegister tmp1 = (round & 1) ? v4 : v5;
+      FloatRegister tmp2 = (round & 1) ? v21 : v22;
+      FloatRegister tmp3 = round ? ((round & 1) ? v22 : v21) : v7;
+      FloatRegister tmp4 = (round & 1) ? v5 : v4;
+      FloatRegister key = (round < 4) ? v0 : ((round < 9) ? v1 : ((round < 14) ? v2 : v3));
+
+      if (round < 16) __ sha1su0(d0, __ T4S, d1, d2);
+      if (round < 19) __ addv(tmp1, __ T4S, d1, key);
+      __ sha1h(tmp2, __ T4S, v20);
+      if (round < 5)
+        __ sha1c(v20, __ T4S, tmp3, tmp4);
+      else if (round < 10 || round >= 15)
+        __ sha1p(v20, __ T4S, tmp3, tmp4);
+      else
+        __ sha1m(v20, __ T4S, tmp3, tmp4);
+      if (round < 16) __ sha1su1(d0, __ T4S, d3);
+
+      tmp1 = d0; d0 = d1; d1 = d2; d2 = d3; d3 = tmp1;
+    }
+
+    __ addv(v7, __ T2S, v7, v21);
+    __ addv(v6, __ T4S, v6, v20);
+
+    if (multi_block) {
+      __ add(ofs, ofs, 64);
+      __ cmp(ofs, limit);
+      __ br(Assembler::LE, sha1_loop);
+      __ mov(c_rarg0, ofs); // return ofs
+    }
+
+    __ strq(v6, Address(state, 0));
+    __ strs(v7, Address(state, 16));
+
+    __ ret(lr);
+
+    __ bind(keys);
+    __ emit_int32(0x5a827999);
+    __ emit_int32(0x6ed9eba1);
+    __ emit_int32(0x8f1bbcdc);
+    __ emit_int32(0xca62c1d6);
+
+    return start;
+  }
+
+
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - byte[]  source+offset
+  //   c_rarg1   - int[]   SHA.state
+  //   c_rarg2   - int     offset
+  //   c_rarg3   - int     limit
+  //
+  address generate_sha256_implCompress(bool multi_block, const char *name) {
+    static const uint32_t round_consts[64] = {
+      0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+      0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+      0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+      0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+      0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+      0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+      0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+      0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+      0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+      0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+      0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+      0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+    };
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    Register buf   = c_rarg0;
+    Register state = c_rarg1;
+    Register ofs   = c_rarg2;
+    Register limit = c_rarg3;
+
+    Label sha1_loop;
+
+    __ stpd(v8, v9, __ pre(sp, -32));
+    __ stpd(v10, v11, Address(sp, 16));
+
+// dga == v0
+// dgb == v1
+// dg0 == v2
+// dg1 == v3
+// dg2 == v4
+// t0 == v6
+// t1 == v7
+
+    // load 16 keys to v16..v31
+    __ lea(rscratch1, ExternalAddress((address)round_consts));
+    __ ld1(v16, v17, v18, v19, __ T4S, __ post(rscratch1, 64));
+    __ ld1(v20, v21, v22, v23, __ T4S, __ post(rscratch1, 64));
+    __ ld1(v24, v25, v26, v27, __ T4S, __ post(rscratch1, 64));
+    __ ld1(v28, v29, v30, v31, __ T4S, rscratch1);
+
+    // load 8 words (256 bits) state
+    __ ldpq(v0, v1, state);
+
+    __ BIND(sha1_loop);
+    // load 64 bytes of data into v8..v11
+    __ ld1(v8, v9, v10, v11, __ T4S, multi_block ? __ post(buf, 64) : buf);
+    __ rev32(v8, __ T16B, v8);
+    __ rev32(v9, __ T16B, v9);
+    __ rev32(v10, __ T16B, v10);
+    __ rev32(v11, __ T16B, v11);
+
+    __ addv(v6, __ T4S, v8, v16);
+    __ orr(v2, __ T16B, v0, v0);
+    __ orr(v3, __ T16B, v1, v1);
+
+    FloatRegister d0 = v8;
+    FloatRegister d1 = v9;
+    FloatRegister d2 = v10;
+    FloatRegister d3 = v11;
+
+
+    for (int round = 0; round < 16; round++) {
+      FloatRegister tmp1 = (round & 1) ? v6 : v7;
+      FloatRegister tmp2 = (round & 1) ? v7 : v6;
+      FloatRegister tmp3 = (round & 1) ? v2 : v4;
+      FloatRegister tmp4 = (round & 1) ? v4 : v2;
+
+      if (round < 12) __ sha256su0(d0, __ T4S, d1);
+       __ orr(v4, __ T16B, v2, v2);
+      if (round < 15)
+        __ addv(tmp1, __ T4S, d1, as_FloatRegister(round + 17));
+      __ sha256h(v2, __ T4S, v3, tmp2);
+      __ sha256h2(v3, __ T4S, v4, tmp2);
+      if (round < 12) __ sha256su1(d0, __ T4S, d2, d3);
+
+      tmp1 = d0; d0 = d1; d1 = d2; d2 = d3; d3 = tmp1;
+    }
+
+    __ addv(v0, __ T4S, v0, v2);
+    __ addv(v1, __ T4S, v1, v3);
+
+    if (multi_block) {
+      __ add(ofs, ofs, 64);
+      __ cmp(ofs, limit);
+      __ br(Assembler::LE, sha1_loop);
+      __ mov(c_rarg0, ofs); // return ofs
+    }
+
+    __ ldpd(v10, v11, Address(sp, 16));
+    __ ldpd(v8, v9, __ post(sp, 32));
+
+    __ stpq(v0, v1, state);
+
+    __ ret(lr);
+
+    return start;
+  }
+
 #ifndef BUILTIN_SIM
   // Safefetch stubs.
   void generate_safefetch(const char* name, int size, address* entry,
@@ -2320,6 +2526,15 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_aescrypt_decryptBlock = generate_aescrypt_decryptBlock();
       StubRoutines::_cipherBlockChaining_encryptAESCrypt = generate_cipherBlockChaining_encryptAESCrypt();
       StubRoutines::_cipherBlockChaining_decryptAESCrypt = generate_cipherBlockChaining_decryptAESCrypt();
+    }
+
+    if (UseSHA1Intrinsics) {
+      StubRoutines::_sha1_implCompress     = generate_sha1_implCompress(false,   "sha1_implCompress");
+      StubRoutines::_sha1_implCompressMB   = generate_sha1_implCompress(true,    "sha1_implCompressMB");
+    }
+    if (UseSHA256Intrinsics) {
+      StubRoutines::_sha256_implCompress   = generate_sha256_implCompress(false, "sha256_implCompress");
+      StubRoutines::_sha256_implCompressMB = generate_sha256_implCompress(true,  "sha256_implCompressMB");
     }
 
     // Safefetch stubs.

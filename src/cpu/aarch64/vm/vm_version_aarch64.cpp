@@ -43,6 +43,14 @@
 #define HWCAP_AES   (1<<3)
 #endif
 
+#ifndef HWCAP_SHA1
+#define HWCAP_SHA1  (1<<5)
+#endif
+
+#ifndef HWCAP_SHA2
+#define HWCAP_SHA2  (1<<6)
+#endif
+
 #ifndef HWCAP_CRC32
 #define HWCAP_CRC32 (1<<7)
 #endif
@@ -112,6 +120,17 @@ void VM_Version::get_processor_features() {
 
 #ifndef BUILTIN_SIM
   unsigned long auxv = getauxval(AT_HWCAP);
+
+  char buf[512];
+
+  strcpy(buf, "simd");
+  if (auxv & HWCAP_CRC32) strcat(buf, ", crc");
+  if (auxv & HWCAP_AES)   strcat(buf, ", aes");
+  if (auxv & HWCAP_SHA1)  strcat(buf, ", sha1");
+  if (auxv & HWCAP_SHA2)  strcat(buf, ", sha256");
+
+  _features_str = strdup(buf);
+
   if (FLAG_IS_DEFAULT(UseCRC32)) {
     UseCRC32 = (auxv & HWCAP_CRC32) != 0;
   }
@@ -140,16 +159,48 @@ void VM_Version::get_processor_features() {
     UseCRC32Intrinsics = true;
   }
 
+#ifndef BUILTIN_SIM
+  if (auxv & (HWCAP_SHA1 | HWCAP_SHA2)) {
+    if (FLAG_IS_DEFAULT(UseSHA)) {
+      FLAG_SET_DEFAULT(UseSHA, true);
+    }
+  } else
+#endif
   if (UseSHA) {
-    warning("SHA instructions are not implemented");
+    warning("SHA instructions are not available on this CPU");
     FLAG_SET_DEFAULT(UseSHA, false);
   }
-  if (UseSHA1Intrinsics || UseSHA256Intrinsics || UseSHA512Intrinsics) {
-    warning("SHA intrinsics are not implemented");
+
+  if (!UseSHA) {
     FLAG_SET_DEFAULT(UseSHA1Intrinsics, false);
     FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
   }
+#ifndef BUILTIN_SIM
+  else {
+    if (auxv & HWCAP_SHA1) {
+      if (FLAG_IS_DEFAULT(UseSHA1Intrinsics)) {
+        FLAG_SET_DEFAULT(UseSHA1Intrinsics, true);
+      }
+    } else if (UseSHA1Intrinsics) {
+      warning("SHA1 instruction is not available on this CPU.");
+      FLAG_SET_DEFAULT(UseSHA1Intrinsics, false);
+    }
+    if (auxv & HWCAP_SHA2) {
+      if (FLAG_IS_DEFAULT(UseSHA256Intrinsics)) {
+        FLAG_SET_DEFAULT(UseSHA256Intrinsics, true);
+      }
+    } else if (UseSHA256Intrinsics) {
+      warning("SHA256 instruction (for SHA-224 and SHA-256) is not available on this CPU.");
+      FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
+    }
+    if (UseSHA512Intrinsics) {
+      warning("SHA512 instruction (for SHA-384 and SHA-512) is not available on this CPU.");
+      FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
+    }
+  }
+#endif
+
 #ifdef COMPILER2
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
     OptoScheduling = true;
