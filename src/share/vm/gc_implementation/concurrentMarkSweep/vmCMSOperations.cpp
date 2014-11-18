@@ -50,8 +50,12 @@ HS_DTRACE_PROBE_DECL(hs_private, cms__remark__end);
 void VM_CMS_Operation::acquire_pending_list_lock() {
   // The caller may block while communicating
   // with the SLT thread in order to acquire/release the PLL.
-  ConcurrentMarkSweepThread::slt()->
-    manipulatePLL(SurrogateLockerThread::acquirePLL);
+  SurrogateLockerThread* slt = ConcurrentMarkSweepThread::slt();
+  if (slt != NULL) {
+    slt->manipulatePLL(SurrogateLockerThread::acquirePLL);
+  } else {
+    SurrogateLockerThread::report_missing_slt();
+  }
 }
 
 void VM_CMS_Operation::release_and_notify_pending_list_lock() {
