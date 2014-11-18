@@ -38,6 +38,9 @@
 #ifndef BUILTIN_SIM
 #include <sys/auxv.h>
 #include <asm/hwcap.h>
+#else
+#define getauxval(hwcap) 0
+#endif
 
 #ifndef HWCAP_AES
 #define HWCAP_AES   (1<<3)
@@ -53,8 +56,6 @@
 
 #ifndef HWCAP_CRC32
 #define HWCAP_CRC32 (1<<7)
-#endif
-
 #endif
 
 int VM_Version::_cpu;
@@ -118,7 +119,6 @@ void VM_Version::get_processor_features() {
   FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
   FLAG_SET_DEFAULT(UseSSE42Intrinsics, true);
 
-#ifndef BUILTIN_SIM
   unsigned long auxv = getauxval(AT_HWCAP);
 
   char buf[512];
@@ -153,20 +153,16 @@ void VM_Version::get_processor_features() {
       warning("UseAESIntrinsics specified, but not supported on this CPU");
     }
   }
-#endif
 
   if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
     UseCRC32Intrinsics = true;
   }
 
-#ifndef BUILTIN_SIM
   if (auxv & (HWCAP_SHA1 | HWCAP_SHA2)) {
     if (FLAG_IS_DEFAULT(UseSHA)) {
       FLAG_SET_DEFAULT(UseSHA, true);
     }
-  } else
-#endif
-  if (UseSHA) {
+  } else if (UseSHA) {
     warning("SHA instructions are not available on this CPU");
     FLAG_SET_DEFAULT(UseSHA, false);
   }
@@ -175,9 +171,7 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseSHA1Intrinsics, false);
     FLAG_SET_DEFAULT(UseSHA256Intrinsics, false);
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
-  }
-#ifndef BUILTIN_SIM
-  else {
+  } else {
     if (auxv & HWCAP_SHA1) {
       if (FLAG_IS_DEFAULT(UseSHA1Intrinsics)) {
         FLAG_SET_DEFAULT(UseSHA1Intrinsics, true);
@@ -199,7 +193,6 @@ void VM_Version::get_processor_features() {
       FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
     }
   }
-#endif
 
 #ifdef COMPILER2
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
