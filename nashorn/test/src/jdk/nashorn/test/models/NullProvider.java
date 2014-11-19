@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,30 +23,12 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8055289
- * @library /testlibrary
- * @build UnsafeMallocLimit
- * @run main/othervm -Xmx32m -XX:NativeMemoryTracking=summary UnsafeMallocLimit
- */
+package jdk.nashorn.test.models;
 
-import com.oracle.java.testlibrary.*;
-import sun.misc.Unsafe;
 
-public class UnsafeMallocLimit {
-
-    public static void main(String args[]) throws Exception {
-        if (Platform.is32bit()) {
-            Unsafe unsafe = Utils.getUnsafe();
-            try {
-                unsafe.allocateMemory(1 << 30);
-                throw new RuntimeException("Did not get expected OOME");
-            } catch (OutOfMemoryError e) {
-                // Expected exception
-            }
-        } else {
-            System.out.println("Test only valid on 32-bit platforms");
-        }
-    }
+public class NullProvider {
+    public static Integer getInteger() { return null; }
+    public static Long getLong() { return null; }
+    public static Double getDouble() { return null; }
+    public static Boolean getBoolean() { return null; }
 }
