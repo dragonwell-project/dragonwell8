@@ -176,6 +176,8 @@ class Ticks;
   do_klass(URL_klass,                                   java_net_URL,                              Pre                 ) \
   do_klass(Jar_Manifest_klass,                          java_util_jar_Manifest,                    Pre                 ) \
   do_klass(sun_misc_Launcher_klass,                     sun_misc_Launcher,                         Pre                 ) \
+  do_klass(sun_misc_Launcher_AppClassLoader_klass,      sun_misc_Launcher_AppClassLoader,          Pre                 ) \
+  do_klass(sun_misc_Launcher_ExtClassLoader_klass,      sun_misc_Launcher_ExtClassLoader,          Pre                 ) \
   do_klass(CodeSource_klass,                            java_security_CodeSource,                  Pre                 ) \
                                                                                                                          \
   /* It's NULL in non-1.4 JDKs. */                                                                                       \
@@ -340,7 +342,7 @@ public:
 
   // Unload (that is, break root links to) all unmarked classes and
   // loaders.  Returns "true" iff something was unloaded.
-  static bool do_unloading(BoolObjectClosure* is_alive);
+  static bool do_unloading(BoolObjectClosure* is_alive, bool clean_alive = true);
 
   // Used by DumpSharedSpaces only to remove classes that failed verification
   static void remove_classes_in_error_state();
