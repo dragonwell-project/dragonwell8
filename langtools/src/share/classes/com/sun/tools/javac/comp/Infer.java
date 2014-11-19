@@ -784,7 +784,10 @@ public class Infer {
                     while (tmpTail.nonEmpty()) {
                         Type b1 = boundList.head;
                         Type b2 = tmpTail.head;
-                        if (b1 != b2) {
+                        /* This wildcard check is temporary workaround. This code may need to be
+                         * revisited once spec bug JDK-7034922 is fixed.
+                         */
+                        if (b1 != b2 && !b1.hasTag(WILDCARD) && !b2.hasTag(WILDCARD)) {
                             Pair<Type, Type> commonSupers = infer.getParameterizedSupers(b1, b2);
                             if (commonSupers != null) {
                                 List<Type> allParamsSuperBound1 = commonSupers.fst.allparams();
