@@ -1391,6 +1391,31 @@ JVM_GetThreadStateValues(JNIEnv* env, jint javaThreadState);
 JNIEXPORT jobjectArray JNICALL
 JVM_GetThreadStateNames(JNIEnv* env, jint javaThreadState, jintArray values);
 
+/*
+ * Returns true if the JVM's lookup cache indicates that this class is
+ * known to NOT exist for the given loader.
+ */
+JNIEXPORT jboolean JNICALL
+JVM_KnownToNotExist(JNIEnv *env, jobject loader, const char *classname);
+
+/*
+ * Returns an array of all URLs that are stored in the JVM's lookup cache
+ * for the given loader. NULL if the lookup cache is unavailable.
+ */
+JNIEXPORT jobjectArray JNICALL
+JVM_GetResourceLookupCacheURLs(JNIEnv *env, jobject loader);
+
+/*
+ * Returns an array of all URLs that *may* contain the resource_name for the
+ * given loader. This function returns an integer array, each element
+ * of which can be used to index into the array returned by
+ * JVM_GetResourceLookupCacheURLs of the same loader to determine the
+ * URLs.
+ */
+JNIEXPORT jintArray JNICALL
+JVM_GetResourceLookupCache(JNIEnv *env, jobject loader, const char *resource_name);
+
+
 /* =========================================================================
  * The following defines a private JVM interface that the JDK can query
  * for the JVM version and capabilities.  sun.misc.Version defines
