@@ -5228,7 +5228,9 @@ public:
   }
 
   void pre_work_verification() {
-    assert(!MetadataOnStackMark::has_buffer_for_thread(Thread::current()), "Should be empty");
+    // The VM Thread will have registered Metadata during the single-threaded phase of MetadataStackOnMark.
+    assert(Thread::current()->is_VM_thread()
+           || !MetadataOnStackMark::has_buffer_for_thread(Thread::current()), "Should be empty");
   }
 
   void post_work_verification() {
