@@ -22,30 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
-#define SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
+#ifndef SHARE_VM_GC_IMPLEMENTATION_G1_G1COLLECTORPOLICY_EXT_HPP
+#define SHARE_VM_GC_IMPLEMENTATION_G1_G1COLLECTORPOLICY_EXT_HPP
 
-#include "memory/allocation.hpp"
-#include "runtime/arguments.hpp"
+#include "gc_implementation/g1/g1CollectorPolicy.hpp"
 
-class ArgumentsExt: AllStatic {
-public:
-  static inline void select_gc_ergonomically();
-  static inline void set_gc_specific_flags();
-  static inline bool check_gc_consistency_ergo();
-  static        void process_options(const JavaVMInitArgs* args) {}
-};
+class G1CollectorPolicyExt : public G1CollectorPolicy { };
 
-void ArgumentsExt::select_gc_ergonomically() {
-  Arguments::select_gc_ergonomically();
-}
-
-void ArgumentsExt::set_gc_specific_flags() {
-  Arguments::set_gc_specific_flags();
-}
-
-bool ArgumentsExt::check_gc_consistency_ergo() {
-  return Arguments::check_gc_consistency_ergo();
-}
-
-#endif // SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
+#endif // SHARE_VM_GC_IMPLEMENTATION_G1_G1COLLECTORPOLICY_EXT_HPP
