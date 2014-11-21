@@ -249,3 +249,17 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "\n"
   fi
 ])
+
+AC_DEFUN_ONCE([HELP_REPEAT_WARNINGS],
+[
+if test -e "$OUTPUT_ROOT/config.log"; then
+  $GREP '^configure:.*: WARNING:' "$OUTPUT_ROOT/config.log" > /dev/null 2>&1
+  if test $? -eq 0; then
+    printf "The following warnings were produced. Repeated here for convenience:\n"
+    # We must quote sed expression (using []) to stop m4 from eating the [].
+    $GREP '^configure:.*: WARNING:' "$OUTPUT_ROOT/config.log" | $SED -e [ 's/^configure:[0-9]*: //' ]
+    printf "\n"
+  fi
+fi
+
+])

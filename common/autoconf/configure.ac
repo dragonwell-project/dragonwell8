@@ -274,3 +274,4 @@ $CHMOD +x $OUTPUT_ROOT/compare.sh
 
 # Finally output some useful information to the user
 HELP_PRINT_SUMMARY_AND_WARNINGS
+HELP_REPEAT_WARNINGS
