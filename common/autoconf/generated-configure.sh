@@ -3926,6 +3926,8 @@ pkgadd_help() {
 
 
 
+
+
 #
 # Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -4394,7 +4396,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1625228834
+DATE_WHEN_GENERATED=1625573051
 
 ###############################################################################
 #
@@ -54636,4 +54638,16 @@ $CHMOD +x $OUTPUT_ROOT/compare.sh
     printf "consider using a supported version unless you know what you are doing.\n"
     printf "\n"
   fi
+
+
+if test -e "$OUTPUT_ROOT/config.log"; then
+  $GREP '^configure:.*: WARNING:' "$OUTPUT_ROOT/config.log" > /dev/null 2>&1
+  if test $? -eq 0; then
+    printf "The following warnings were produced. Repeated here for convenience:\n"
+    # We must quote sed expression (using []) to stop m4 from eating the [].
+    $GREP '^configure:.*: WARNING:' "$OUTPUT_ROOT/config.log" | $SED -e  's/^configure:[0-9]*: //'
+    printf "\n"
+  fi
+fi
+
 
