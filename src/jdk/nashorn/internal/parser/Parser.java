@@ -707,20 +707,9 @@ loop:
             FunctionNode.Kind.SCRIPT,
             functionLine);
 
-        // If ES6 block scope is enabled add a per-script block for top-level LET and CONST declarations.
-        final int startLine = start;
-        Block outer = useBlockScope() ? newBlock() : null;
         functionDeclarations = new ArrayList<>();
-
-        try {
-            sourceElements(allowPropertyFunction);
-            addFunctionDeclarations(script);
-        } finally {
-            if (outer != null) {
-                outer = restoreBlock(outer);
-                appendStatement(new BlockStatement(startLine, outer));
-            }
-        }
+        sourceElements(allowPropertyFunction);
+        addFunctionDeclarations(script);
         functionDeclarations = null;
 
         expect(EOF);
