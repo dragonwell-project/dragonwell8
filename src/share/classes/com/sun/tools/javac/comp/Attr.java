@@ -3243,6 +3243,10 @@ public class Attr extends JCTree.Visitor {
         // Determine the symbol represented by the selection.
         env.info.pendingResolutionPhase = null;
         Symbol sym = selectSym(tree, sitesym, site, env, resultInfo);
+        if (sym.kind == VAR && sym.name != names._super && env.info.defaultSuperCallSite != null) {
+            log.error(tree.selected.pos(), "not.encl.class", site.tsym);
+            sym = syms.errSymbol;
+        }
         if (sym.exists() && !isType(sym) && (pkind() & (PCK | TYP)) != 0) {
             site = capture(site);
             sym = selectSym(tree, sitesym, site, env, resultInfo);
