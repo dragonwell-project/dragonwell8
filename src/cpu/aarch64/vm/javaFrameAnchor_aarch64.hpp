@@ -48,20 +48,22 @@ public:
   }
 
   void copy(JavaFrameAnchor* src) {
-    // In order to make sure the transition state is valid for "this"
-    // We must clear _last_Java_sp before copying the rest of the new data
-    //
-    // Hack Alert: Temporary bugfix for 4717480/4721647
-    // To act like previous version (pd_cache_state) don't NULL _last_Java_sp
-    // unless the value is changing
-    //
-    if (_last_Java_sp != src->_last_Java_sp) {
-      _last_Java_sp = NULL;
-      OrderAccess::release();
-    }
+    // n.b. the writes to fp and pc do not require any preceding
+    // release(). when copying into the thread anchor, which only
+    // happens under ~JavaCallWrapper(), sp will have been NULLed by a
+    // call to zap() and the NULL write will have been published by a
+    // fence in the state transition to in_vm. contrariwise, when
+    // copying into the wrapper anchor, which only happens under
+    // JavaCallWrapper(), there is no ordering requirement at all
+    // since that object is thread local until the subsequent entry
+    // into java. JavaCallWrapper() call clear() after copy() thus
+    // ensuring that all 3 writes are visible() before the wrapper is
+    // accessible to other threads.
     _last_Java_fp = src->_last_Java_fp;
     _last_Java_pc = src->_last_Java_pc;
-    // Must be last so profiler will always see valid frame if has_last_frame() is true
+    // Must be last so profiler will always see valid frame if
+    // has_last_frame() is true
+    OrderAccess::release();
     _last_Java_sp = src->_last_Java_sp;
   }
 
@@ -80,10 +82,14 @@ private:
 
 public:
 
-  void set_last_Java_sp(intptr_t* sp)            { _last_Java_sp = sp; OrderAccess::release(); }
+  // n.b. set_last_Java_sp and set_last_Java_fp are never called
+  // (which is good because they would need a preceding or following
+  // call to OrderAccess::release() to make sure the writes are
+  // visible in the correct order).
+void set_last_Java_sp(intptr_t* sp)            { assert(false, "should not be called"); _last_Java_sp = sp; }
 
   intptr_t*   last_Java_fp(void)                     { return _last_Java_fp; }
   // Assert (last_Java_sp == NULL || fp == NULL)
-  void set_last_Java_fp(intptr_t* fp)                { OrderAccess::release(); _last_Java_fp = fp; }
+  void set_last_Java_fp(intptr_t* fp)                { assert(false, "should not be called"); _last_Java_fp = fp; }
 
 #endif // CPU_AARCH64_VM_JAVAFRAMEANCHOR_AARCH64_HPP
