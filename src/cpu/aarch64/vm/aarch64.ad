@@ -6226,7 +6226,7 @@ instruct storeB_volatile(iRegI src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlrb(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Char/Short
@@ -6239,7 +6239,7 @@ instruct storeC_volatile(iRegI src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlrh(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Integer
@@ -6253,7 +6253,7 @@ instruct storeI_volatile(iRegIorL2I src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlrw(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Long (64 bit signed)
@@ -6266,7 +6266,7 @@ instruct storeL_volatile(iRegL src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlr(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Pointer
@@ -6279,7 +6279,7 @@ instruct storeP_volatile(iRegP src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlr(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Compressed Pointer
@@ -6292,7 +6292,7 @@ instruct storeN_volatile(iRegN src, /* sync_memory*/indirect mem)
 
   ins_encode(aarch64_enc_stlrw(src, mem));
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // Store Float
@@ -6305,7 +6305,7 @@ instruct storeF_volatile(vRegF src, /* sync_memory*/indirect mem)
 
   ins_encode( aarch64_enc_fstlrs(src, mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 // TODO
@@ -6321,7 +6321,7 @@ instruct storeD_volatile(vRegD src, /* sync_memory*/indirect mem)
 
   ins_encode( aarch64_enc_fstlrd(src, mem) );
 
-  ins_pipe(pipe_class_memory);
+  ins_pipe(pipe_serial);
 %}
 
 //  ---------------- end of volatile loads and stores ----------------
