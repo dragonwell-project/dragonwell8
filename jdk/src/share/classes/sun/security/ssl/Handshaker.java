@@ -500,7 +500,9 @@ abstract class Handshaker {
 
         if (activeProtocols.collection().isEmpty() ||
                 activeProtocols.max.v == ProtocolVersion.NONE.v) {
-            throw new SSLHandshakeException("No appropriate protocol");
+            throw new SSLHandshakeException(
+                    "No appropriate protocol (protocol is disabled or " +
+                    "cipher suites are inappropriate)");
         }
 
         if (activeCipherSuites == null) {
