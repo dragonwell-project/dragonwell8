@@ -2233,7 +2233,7 @@ bool Arguments::check_vm_args_consistency() {
     FLAG_SET_DEFAULT(UseGCOverheadLimit, false);
   }
 
-  status = status && ArgumentsExt::check_gc_consistency_user();
+  status = status && check_gc_consistency_user();
   status = status && check_stack_pages();
 
   if (CMSIncrementalMode) {
@@ -2962,6 +2962,23 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
 #endif
     // -D
     } else if (match_option(option, "-D", &tail)) {
+      if (CheckEndorsedAndExtDirs) {
+        if (match_option(option, "-Djava.endorsed.dirs=", &tail)) {
+          // abort if -Djava.endorsed.dirs is set
+          jio_fprintf(defaultStream::output_stream(),
+            "-Djava.endorsed.dirs will not be supported in a future release.\n"
+            "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+          return JNI_EINVAL;
+        }
+        if (match_option(option, "-Djava.ext.dirs=", &tail)) {
+          // abort if -Djava.ext.dirs is set
+          jio_fprintf(defaultStream::output_stream(),
+            "-Djava.ext.dirs will not be supported in a future release.\n"
+            "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+          return JNI_EINVAL;
+        }
+      }
+
       if (!add_property(tail)) {
         return JNI_ENOMEM;
       }
@@ -3395,6 +3412,146 @@ void Arguments::fix_appclasspath() {
   }
 }
 
+static bool has_jar_files(const char* directory) {
+  DIR* dir = os::opendir(directory);
+  if (dir == NULL) return false;
+
+  struct dirent *entry;
+  char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(directory), mtInternal);
+  bool hasJarFile = false;
+  while (!hasJarFile && (entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+    const char* name = entry->d_name;
+    const char* ext = name + strlen(name) - 4;
+    hasJarFile = ext > name && (os::file_name_strcmp(ext, ".jar") == 0);
+  }
+  FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
+  os::closedir(dir);
+  return hasJarFile ;
+}
+
+// returns the number of directories in the given path containing JAR files
+// If the skip argument is not NULL, it will skip that directory
+static int check_non_empty_dirs(const char* path, const char* type, const char* skip) {
+  const char separator = *os::path_separator();
+  const char* const end = path + strlen(path);
+  int nonEmptyDirs = 0;
+  while (path < end) {
+    const char* tmp_end = strchr(path, separator);
+    if (tmp_end == NULL) {
+      if ((skip == NULL || strcmp(path, skip) != 0) && has_jar_files(path)) {
+        nonEmptyDirs++;
+        jio_fprintf(defaultStream::output_stream(),
+          "Non-empty %s directory: %s\n", type, path);
+      }
+      path = end;
+    } else {
+      char* dirpath = NEW_C_HEAP_ARRAY(char, tmp_end - path + 1, mtInternal);
+      memcpy(dirpath, path, tmp_end - path);
+      dirpath[tmp_end - path] = '\0';
+      if ((skip == NULL || strcmp(dirpath, skip) != 0) && has_jar_files(dirpath)) {
+        nonEmptyDirs++;
+        jio_fprintf(defaultStream::output_stream(),
+          "Non-empty %s directory: %s\n", type, dirpath);
+      }
+      FREE_C_HEAP_ARRAY(char, dirpath, mtInternal);
+      path = tmp_end + 1;
+    }
+  }
+  return nonEmptyDirs;
+}
+
+// Returns true if endorsed standards override mechanism and extension mechanism
+// are not used.
+static bool check_endorsed_and_ext_dirs() {
+  if (!CheckEndorsedAndExtDirs)
+    return true;
+
+  char endorsedDir[JVM_MAXPATHLEN];
+  char extDir[JVM_MAXPATHLEN];
+  const char* fileSep = os::file_separator();
+  jio_snprintf(endorsedDir, sizeof(endorsedDir), "%s%slib%sendorsed",
+               Arguments::get_java_home(), fileSep, fileSep);
+  jio_snprintf(extDir, sizeof(extDir), "%s%slib%sext",
+               Arguments::get_java_home(), fileSep, fileSep);
+
+  // check endorsed directory
+  int nonEmptyDirs = check_non_empty_dirs(Arguments::get_endorsed_dir(), "endorsed", NULL);
+
+  // check the extension directories but skip the default lib/ext directory
+  nonEmptyDirs += check_non_empty_dirs(Arguments::get_ext_dirs(), "extension", extDir);
+
+  // List of JAR files installed in the default lib/ext directory.
+  // -XX:+CheckEndorsedAndExtDirs checks if any non-JDK file installed
+  static const char* jdk_ext_jars[] = {
+      "access-bridge-32.jar",
+      "access-bridge-64.jar",
+      "access-bridge.jar",
+      "cldrdata.jar",
+      "dnsns.jar",
+      "jaccess.jar",
+      "jfxrt.jar",
+      "localedata.jar",
+      "nashorn.jar",
+      "sunec.jar",
+      "sunjce_provider.jar",
+      "sunmscapi.jar",
+      "sunpkcs11.jar",
+      "ucrypto.jar",
+      "zipfs.jar",
+      NULL
+  };
+
+  // check if the default lib/ext directory has any non-JDK jar files; if so, error
+  DIR* dir = os::opendir(extDir);
+  if (dir != NULL) {
+    int num_ext_jars = 0;
+    struct dirent *entry;
+    char *dbuf = NEW_C_HEAP_ARRAY(char, os::readdir_buf_size(extDir), mtInternal);
+    while ((entry = os::readdir(dir, (dirent *) dbuf)) != NULL) {
+      const char* name = entry->d_name;
+      const char* ext = name + strlen(name) - 4;
+      if (ext > name && (os::file_name_strcmp(ext, ".jar") == 0)) {
+        bool is_jdk_jar = false;
+        const char* jarfile = NULL;
+        for (int i=0; (jarfile = jdk_ext_jars[i]) != NULL; i++) {
+          if (os::file_name_strcmp(name, jarfile) == 0) {
+            is_jdk_jar = true;
+            break;
+          }
+        }
+        if (!is_jdk_jar) {
+          jio_fprintf(defaultStream::output_stream(),
+            "%s installed in <JAVA_HOME>/lib/ext\n", name);
+          num_ext_jars++;
+        }
+      }
+    }
+    FREE_C_HEAP_ARRAY(char, dbuf, mtInternal);
+    os::closedir(dir);
+    if (num_ext_jars > 0) {
+      nonEmptyDirs += 1;
+    }
+  }
+
+  // check if the default lib/endorsed directory exists; if so, error
+  dir = os::opendir(endorsedDir);
+  if (dir != NULL) {
+    jio_fprintf(defaultStream::output_stream(), "<JAVA_HOME>/lib/endorsed exists\n");
+    os::closedir(dir);
+    nonEmptyDirs += 1;
+  }
+
+  if (nonEmptyDirs > 0) {
+    jio_fprintf(defaultStream::output_stream(),
+      "Endorsed standards override mechanism and extension mechanism"
+      "will not be supported in a future release.\n"
+      "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
+    return false;
+  }
+
+  return true;
+}
+
 jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_required) {
   // This must be done after all -D arguments have been processed.
   scp_p->expand_endorsed();
@@ -3402,6 +3559,10 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
   if (scp_assembly_required || scp_p->get_endorsed() != NULL) {
     // Assemble the bootclasspath elements into the final path.
     Arguments::set_sysclasspath(scp_p->combined_path());
+  }
+
+  if (!check_endorsed_and_ext_dirs()) {
+    return JNI_ERR;
   }
 
   // This must be done after all arguments have been processed.
@@ -3464,7 +3625,7 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
     }
   }
 
-  if (!ArgumentsExt::check_vm_args_consistency()) {
+  if (!check_vm_args_consistency()) {
     return JNI_ERR;
   }
 
@@ -3867,7 +4028,7 @@ jint Arguments::apply_ergo() {
   // Set heap size based on available physical memory
   set_heap_size();
 
-  set_gc_specific_flags();
+  ArgumentsExt::set_gc_specific_flags();
 
   // Initialize Metaspace flags and alignments.
   Metaspace::ergo_initialize();
