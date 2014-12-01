@@ -78,7 +78,6 @@ G1RemSet::G1RemSet(G1CollectedHeap* g1, CardTableModRefBS* ct_bs)
     _cards_scanned(NULL), _total_cards_scanned(0),
     _prev_period_summary()
 {
-  _seq_task = new SubTasksDone(NumSeqTasks);
   guarantee(n_workers() > 0, "There should be some workers");
   _cset_rs_update_cl = NEW_C_HEAP_ARRAY(G1ParPushHeapRSClosure*, n_workers(), mtGC);
   for (uint i = 0; i < n_workers(); i++) {
@@ -90,7 +89,6 @@ G1RemSet::G1RemSet(G1CollectedHeap* g1, CardTableModRefBS* ct_bs)
 }
 
 G1RemSet::~G1RemSet() {
-  delete _seq_task;
   for (uint i = 0; i < n_workers(); i++) {
     assert(_cset_rs_update_cl[i] == NULL, "it should be");
   }
