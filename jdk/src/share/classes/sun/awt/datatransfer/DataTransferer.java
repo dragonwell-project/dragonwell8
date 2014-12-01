@@ -77,6 +77,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -273,7 +274,7 @@ public abstract class DataTransferer {
      * instead, null will be returned.
      */
     public static synchronized DataTransferer getInstance() {
-        return ((ComponentFactory) Toolkit.getDefaultToolkit()).getDataTransferer();
+        return ((SunToolkit) Toolkit.getDefaultToolkit()).getDataTransferer();
     }
 
     /**
@@ -1294,6 +1295,15 @@ search:
         // bytes and dump them into a byte array. For text flavors, decode back
         // to a String and recur to reencode according to the requested format.
         } else if (flavor.isRepresentationClassInputStream()) {
+
+            // Workaround to JDK-8024061: Exception thrown when drag and drop
+            //      between two components is executed quickly.
+            // and JDK-8065098:  JColorChooser no longer supports drag and drop
+            //      between two JVM instances
+            if (!(obj instanceof InputStream)) {
+                return new byte[0];
+            }
+
             try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
                 try (InputStream is = (InputStream)obj) {
                     boolean eof = false;
@@ -2424,8 +2434,8 @@ search:
      * If there are no platform-specific mappings for this native, the method
      * returns an empty <code>List</code>.
      */
-    public List getPlatformMappingsForNative(String nat) {
-        return new ArrayList();
+    public LinkedHashSet<DataFlavor> getPlatformMappingsForNative(String nat) {
+       return new LinkedHashSet<>();
     }
 
     /**
@@ -2433,8 +2443,8 @@ search:
      * If there are no platform-specific mappings for this flavor, the method
      * returns an empty <code>List</code>.
      */
-    public List getPlatformMappingsForFlavor(DataFlavor df) {
-        return new ArrayList();
+    public LinkedHashSet<String> getPlatformMappingsForFlavor(DataFlavor df) {
+        return new LinkedHashSet<>();
     }
 
     /**
