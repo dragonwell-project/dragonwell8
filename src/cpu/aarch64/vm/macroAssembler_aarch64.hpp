@@ -407,6 +407,16 @@ class MacroAssembler: public Assembler {
     umaddl(Rd, Rn, Rm, zr);
   }
 
+#define WRAP(INSN)                                                \
+  void INSN(Register Rd, Register Rn, Register Rm, Register Ra) { \
+    if (Ra != zr) nop();                                          \
+    Assembler::INSN(Rd, Rn, Rm, Ra);                              \
+  }
+
+  WRAP(madd) WRAP(msub) WRAP(maddw) WRAP(msubw)
+  WRAP(smaddl) WRAP(smsubl) WRAP(umaddl) WRAP(umsubl)
+#undef WRAP
+
   // macro assembly operations needed for aarch64
 
   // first two private routines for loading 32 bit or 64 bit constants
