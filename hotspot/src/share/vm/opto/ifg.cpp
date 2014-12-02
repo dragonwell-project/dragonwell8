@@ -541,6 +541,22 @@ uint PhaseChaitin::build_ifg_physical( ResourceArea *a ) {
           if( !n->is_Proj() ||
               // Could also be a flags-projection of a dead ADD or such.
               (_lrg_map.live_range_id(def) && !liveout.member(_lrg_map.live_range_id(def)))) {
+            if (n->is_MachProj()) {
+              // Don't remove KILL projections if their "defining" nodes have
+              // memory effects (have SCMemProj projection node) -
+              // they are not dead even when their result is not used.
+              // For example, compareAndSwapL (and other CAS) and EncodeISOArray nodes.
+              // The method add_input_to_liveout() keeps such nodes alive (put them on liveout list)
+              // when it sees SCMemProj node in a block. Unfortunately SCMemProj node could be placed
+              // in block in such order that KILL MachProj nodes are processed first.
+              uint cnt = def->outcnt();
+              for (uint i = 0; i < cnt; i++) {
+                Node* proj = def->raw_out(i);
+                if (proj->Opcode() == Op_SCMemProj) {
+                  return false;
+                }
+              }
+            }
             block->remove_node(j - 1);
             if (lrgs(r)._def == n) {
               lrgs(r)._def = 0;
