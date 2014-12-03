@@ -3103,6 +3103,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             if (isConditionalCatch) {
                 loadExpressionAsBoolean(exceptionCondition);
                 nextCatch = new Label("next_catch");
+                nextCatch.markAsBreakTarget();
                 method.ifeq(nextCatch);
             } else {
                 nextCatch = null;
@@ -3115,7 +3116,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 method._goto(afterCatch);
             }
             if(nextCatch != null) {
-                method.label(nextCatch);
+                method.breakLabel(nextCatch, lc.getUsedSlotCount());
             }
         }
 
