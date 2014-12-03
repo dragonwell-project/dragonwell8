@@ -33,6 +33,7 @@
 
 import com.oracle.java.testlibrary.JDKToolLauncher;
 import com.oracle.java.testlibrary.OutputBuffer;
+import com.oracle.java.testlibrary.Platform;
 import com.oracle.java.testlibrary.ProcessTools;
 
 import java.io.File;
@@ -47,6 +48,10 @@ public class Test8028623 {
     System.out.println(Ã);
 
     try {
+        if (!Platform.shouldSAAttach()) {
+            System.out.println("SA attach not expected to work - test skipped.");
+            return;
+        }
         int pid = ProcessTools.getProcessId();
         JDKToolLauncher jmap = JDKToolLauncher.create("jmap")
                                               .addToolArg("-F")
