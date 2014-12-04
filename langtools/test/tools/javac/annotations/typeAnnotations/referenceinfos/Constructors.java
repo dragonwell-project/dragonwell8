@@ -46,7 +46,7 @@ public class Constructors {
     @TADescriptions({
         @TADescription(annotation = "TA", type = METHOD_RETURN, genericLocation = {1, 0}),
         @TADescription(annotation = "TB", type = METHOD_RETURN, genericLocation = {1, 0}),
-        @TADescription(annotation = "TC", type = METHOD_FORMAL_PARAMETER, paramIndex = 0)
+        @TADescription(annotation = "TC", type = METHOD_FORMAL_PARAMETER, paramIndex = 1)
     })
     @TestClass("Test$Inner")
     public String innerClass() {
@@ -61,7 +61,7 @@ public class Constructors {
         @TADescription(annotation = "TB", type = METHOD_RETURN, genericLocation = {1, 0}),
         @TADescription(annotation = "TC", type = METHOD_RECEIVER),
         @TADescription(annotation = "TD", type = METHOD_RETURN, genericLocation = {1, 0}),
-        @TADescription(annotation = "TE", type = METHOD_FORMAL_PARAMETER, paramIndex = 0)
+        @TADescription(annotation = "TE", type = METHOD_FORMAL_PARAMETER, paramIndex = 1)
     })
     @TestClass("Test$Inner")
     public String innerClass2() {
@@ -77,7 +77,7 @@ public class Constructors {
         @TADescription(annotation = "TC", type = METHOD_RETURN, genericLocation = {1, 0, 1, 0}),
         @TADescription(annotation = "TD", type = METHOD_RECEIVER, genericLocation = {1, 0}),
         @TADescription(annotation = "TE", type = METHOD_RETURN, genericLocation = {1, 0, 1, 0}),
-        @TADescription(annotation = "TF", type = METHOD_FORMAL_PARAMETER, paramIndex = 0)
+        @TADescription(annotation = "TF", type = METHOD_FORMAL_PARAMETER, paramIndex = 1)
     })
     @TestClass("Outer$Middle$Inner")
     public String innerClass3() {
