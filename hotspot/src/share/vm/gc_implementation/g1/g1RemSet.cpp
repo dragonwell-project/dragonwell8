@@ -80,7 +80,7 @@ G1RemSet::G1RemSet(G1CollectedHeap* g1, CardTableModRefBS* ct_bs)
 {
   _seq_task = new SubTasksDone(NumSeqTasks);
   guarantee(n_workers() > 0, "There should be some workers");
-  _cset_rs_update_cl = NEW_C_HEAP_ARRAY(OopsInHeapRegionClosure*, n_workers(), mtGC);
+  _cset_rs_update_cl = NEW_C_HEAP_ARRAY(G1ParPushHeapRSClosure*, n_workers(), mtGC);
   for (uint i = 0; i < n_workers(); i++) {
     _cset_rs_update_cl[i] = NULL;
   }
@@ -94,7 +94,7 @@ G1RemSet::~G1RemSet() {
   for (uint i = 0; i < n_workers(); i++) {
     assert(_cset_rs_update_cl[i] == NULL, "it should be");
   }
-  FREE_C_HEAP_ARRAY(OopsInHeapRegionClosure*, _cset_rs_update_cl, mtGC);
+  FREE_C_HEAP_ARRAY(G1ParPushHeapRSClosure*, _cset_rs_update_cl, mtGC);
 }
 
 void CountNonCleanMemRegionClosure::do_MemRegion(MemRegion mr) {
@@ -108,7 +108,7 @@ class ScanRSClosure : public HeapRegionClosure {
   size_t _cards_done, _cards;
   G1CollectedHeap* _g1h;
 
-  OopsInHeapRegionClosure* _oc;
+  G1ParPushHeapRSClosure* _oc;
   CodeBlobClosure* _code_root_cl;
 
   G1BlockOffsetSharedArray* _bot_shared;
@@ -120,7 +120,7 @@ class ScanRSClosure : public HeapRegionClosure {
   bool   _try_claimed;
 
 public:
-  ScanRSClosure(OopsInHeapRegionClosure* oc,
+  ScanRSClosure(G1ParPushHeapRSClosure* oc,
                 CodeBlobClosure* code_root_cl,
                 uint worker_i) :
     _oc(oc),
@@ -142,8 +142,7 @@ public:
   void scanCard(size_t index, HeapRegion *r) {
     // Stack allocate the DirtyCardToOopClosure instance
     HeapRegionDCTOC cl(_g1h, r, _oc,
-                       CardTableModRefBS::Precise,
-                       HeapRegionDCTOC::IntoCSFilterKind);
+                       CardTableModRefBS::Precise);
 
     // Set the "from" region in the closure.
     _oc->set_region(r);
@@ -240,7 +239,7 @@ public:
   size_t cards_looked_up() { return _cards;}
 };
 
-void G1RemSet::scanRS(OopsInHeapRegionClosure* oc,
+void G1RemSet::scanRS(G1ParPushHeapRSClosure* oc,
                       CodeBlobClosure* code_root_cl,
                       uint worker_i) {
   double rs_time_start = os::elapsedTime();
@@ -319,7 +318,7 @@ void G1RemSet::cleanupHRRS() {
   HeapRegionRemSet::cleanup();
 }
 
-void G1RemSet::oops_into_collection_set_do(OopsInHeapRegionClosure* oc,
+void G1RemSet::oops_into_collection_set_do(G1ParPushHeapRSClosure* oc,
                                            CodeBlobClosure* code_root_cl,
                                            uint worker_i) {
 #if CARD_REPEAT_HISTO
@@ -461,7 +460,7 @@ G1Mux2Closure::G1Mux2Closure(OopClosure *c1, OopClosure *c2) :
 G1UpdateRSOrPushRefOopClosure::
 G1UpdateRSOrPushRefOopClosure(G1CollectedHeap* g1h,
                               G1RemSet* rs,
-                              OopsInHeapRegionClosure* push_ref_cl,
+                              G1ParPushHeapRSClosure* push_ref_cl,
                               bool record_refs_into_cset,
                               uint worker_i) :
   _g1(g1h), _g1_rem_set(rs), _from(NULL),
@@ -562,7 +561,7 @@ bool G1RemSet::refine_card(jbyte* card_ptr, uint worker_i,
   ct_freq_note_card(_ct_bs->index_for(start));
 #endif
 
-  OopsInHeapRegionClosure* oops_in_heap_closure = NULL;
+  G1ParPushHeapRSClosure* oops_in_heap_closure = NULL;
   if (check_for_refs_into_cset) {
     // ConcurrentG1RefineThreads have worker numbers larger than what
     // _cset_rs_update_cl[] is set up to handle. But those threads should
