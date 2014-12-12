@@ -3543,7 +3543,7 @@ static bool check_endorsed_and_ext_dirs() {
 
   if (nonEmptyDirs > 0) {
     jio_fprintf(defaultStream::output_stream(),
-      "Endorsed standards override mechanism and extension mechanism"
+      "Endorsed standards override mechanism and extension mechanism "
       "will not be supported in a future release.\n"
       "Refer to JEP 220 for details (http://openjdk.java.net/jeps/220).\n");
     return false;

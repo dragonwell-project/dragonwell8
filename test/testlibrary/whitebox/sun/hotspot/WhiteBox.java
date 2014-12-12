@@ -90,6 +90,10 @@ public class WhiteBox {
   public native URL[] getLookupCacheURLs(ClassLoader loader);
   public native int[] getLookupCacheMatches(ClassLoader loader, String name);
 
+  // JVMTI
+  public native void addToBootstrapClassLoaderSearch(String segment);
+  public native void addToSystemClassLoaderSearch(String segment);
+
   // G1
   public native boolean g1InConcurrentMark();
   public native boolean g1IsHumongous(Object o);
