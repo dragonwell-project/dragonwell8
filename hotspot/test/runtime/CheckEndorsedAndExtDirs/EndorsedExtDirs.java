@@ -26,10 +26,16 @@
  * @bug 8064667
  * @summary Sanity test for -XX:+CheckEndorsedAndExtDirs
  * @library /testlibrary
- * @run main/othervm -XX:+CheckEndorsedAndExtDirs EndorsedExtDirs
+ * @run main/othervm EndorsedExtDirs
  */
 
 import com.oracle.java.testlibrary.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,9 +44,28 @@ public class EndorsedExtDirs {
     public static void main(String arg[]) throws Exception {
         fatalError("-XX:+CheckEndorsedAndExtDirs", "-Djava.endorsed.dirs=foo");
         fatalError("-XX:+CheckEndorsedAndExtDirs", "-Djava.ext.dirs=bar");
+        testNonEmptySystemExtDirs();
     }
 
-    static void fatalError(String... args) throws Exception {
+    static void testNonEmptySystemExtDirs() throws Exception {
+        String home = System.getProperty("java.home");
+        Path ext = Paths.get(home, "lib", "ext");
+        String extDirs = System.getProperty("java.ext.dirs");
+        String[] dirs = extDirs.split(File.pathSeparator);
+        long count = 0;
+        for (String d : dirs) {
+            Path path = Paths.get(d);
+            if (Files.notExists(path) || path.equals(ext)) continue;
+            count += Files.find(path, 1, (Path p, BasicFileAttributes attr)
+                                       -> p.getFileName().toString().endsWith(".jar"))
+                          .count();
+        }
+        if (count > 0) {
+            fatalError("-XX:+CheckEndorsedAndExtDirs");
+        }
+    }
+
+    static ProcessBuilder newProcessBuilder(String... args) {
         List<String> commands = new ArrayList<>();
         String java = System.getProperty("java.home") + "/bin/java";
         commands.add(java);
@@ -51,8 +76,15 @@ public class EndorsedExtDirs {
         commands.add(cpath);
         commands.add("EndorsedExtDirs");
 
-        System.out.println("Launching " + commands);
-        ProcessBuilder pb = new ProcessBuilder(commands);
+        System.out.println("Process " + commands);
+        return new ProcessBuilder(commands);
+    }
+
+    static void fatalError(String... args) throws Exception {
+        fatalError(newProcessBuilder(args));
+    }
+
+    static void fatalError(ProcessBuilder pb) throws Exception {
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("Could not create the Java Virtual Machine");
         output.shouldHaveExitValue(1);
