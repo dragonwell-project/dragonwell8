@@ -3226,8 +3226,9 @@ public class Attr extends JCTree.Visitor {
                 elt = ((ArrayType)elt.unannotatedType()).elemtype;
             if (elt.hasTag(TYPEVAR)) {
                 log.error(tree.pos(), "type.var.cant.be.deref");
-                result = types.createErrorType(tree.type);
-                return;
+                result = tree.type = types.createErrorType(tree.name, site.tsym, site);
+                tree.sym = tree.type.tsym;
+                return ;
             }
         }
 
@@ -3243,6 +3244,10 @@ public class Attr extends JCTree.Visitor {
         // Determine the symbol represented by the selection.
         env.info.pendingResolutionPhase = null;
         Symbol sym = selectSym(tree, sitesym, site, env, resultInfo);
+        if (sym.kind == VAR && sym.name != names._super && env.info.defaultSuperCallSite != null) {
+            log.error(tree.selected.pos(), "not.encl.class", site.tsym);
+            sym = syms.errSymbol;
+        }
         if (sym.exists() && !isType(sym) && (pkind() & (PCK | TYP)) != 0) {
             site = capture(site);
             sym = selectSym(tree, sitesym, site, env, resultInfo);
@@ -4499,14 +4504,15 @@ public class Attr extends JCTree.Visitor {
             super.visitTypeTest(tree);
         }
         public void visitNewClass(JCNewClass tree) {
-            if (tree.clazz.hasTag(ANNOTATED_TYPE)) {
-                checkForDeclarationAnnotations(((JCAnnotatedType) tree.clazz).annotations,
-                        tree.clazz.type.tsym);
-            }
-            if (tree.def != null) {
-                checkForDeclarationAnnotations(tree.def.mods.annotations, tree.clazz.type.tsym);
-            }
-            if (tree.clazz.type != null) {
+            if (tree.clazz != null && tree.clazz.type != null) {
+                if (tree.clazz.hasTag(ANNOTATED_TYPE)) {
+                    checkForDeclarationAnnotations(((JCAnnotatedType) tree.clazz).annotations,
+                            tree.clazz.type.tsym);
+                }
+                if (tree.def != null) {
+                    checkForDeclarationAnnotations(tree.def.mods.annotations, tree.clazz.type.tsym);
+                }
+
                 validateAnnotatedType(tree.clazz, tree.clazz.type);
             }
             super.visitNewClass(tree);
