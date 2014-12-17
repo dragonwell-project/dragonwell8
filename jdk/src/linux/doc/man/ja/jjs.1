@@ -23,14 +23,15 @@
 .\"
 .\" Title: jjs
 .\" Language: Japanese
-.\" Date: 2013年11月21日
+.\" Date: 2015年3月3日
 .\" SectDesc: 基本ツール
 .\" Software: JDK 8
 .\" Arch: 汎用
-.\" Part Number: E54734-01
+.\" Part Number: E58103-01
+.\" Doc ID: JSSON
 .\"
 .if n .pl 99999
-.TH "jjs" "1" "2013年11月21日" "JDK 8" "基本ツール"
+.TH "jjs" "1" "2015年3月3日" "JDK 8" "基本ツール"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -113,7 +114,7 @@ jjs \- Nashornエンジンを呼び出します。
 .PP
 \-cp \fIpath\fR
 .br
-\-\-classpath \fIpath\fR
+\-classpath \fIpath\fR
 .RS 4
 サポートするクラスへのパスを指定します。複数のパスを設定するには、このオプションを繰り返すか、または各パスをコロン(:)で区切ります。
 .RE
@@ -221,6 +222,11 @@ jjs \- Nashornエンジンを呼び出します。
 このオプションを繰り返し使用すると、複数の\fBjava\fRコマンド・オプションを渡すことができます。
 .RE
 .PP
+\-\-language=[es5]
+.RS 4
+ECMAScript言語バージョンを指定します。デフォルトのバージョンはES5です。
+.RE
+.PP
 \-\-lazy\-compilation
 .RS 4
 レイジー・コード生成戦略(つまり、スクリプト全体が一度にコンパイルされない)を有効にします。このオプションは試験的なものです。
@@ -240,11 +246,15 @@ jjs \- Nashornエンジンを呼び出します。
 .\}
 .nf
 \fB\-\-log=fields:finest,codegen:info\fR
- 
 .fi
 .if n \{\
 .RE
 .\}
+.RE
+.PP
+\-\-optimistic\-types=[true|false]
+.RS 4
+再コンパイルの最適化を解除してオプティミスティック・タイプ仮定を有効または無効にします。オプティミスティック・タイプを使用した実行によって最終的な速度が向上しますが、ウォームアップ時間が増える場合があります。
 .RE
 .PP
 \-\-package=\fIname\fR
@@ -323,7 +333,7 @@ jjs \- Nashornエンジンを呼び出します。
 .br
 \-timezone=\fIzone\fR
 .RS 4
-スクリプトの実行に対し指定したタイム・ゾーンを設定します。OSで設定されたタイム・ゾーンをオーバーライドし、\fBDate\fRオブジェクトで使用されます。
+スクリプトの実行に対し指定したタイムゾーンを設定します。OSで設定されたタイムゾーンをオーバーライドし、\fBDate\fRオブジェクトで使用されます。
 .RE
 .PP
 \-tcs=\fIparameter\fR
@@ -366,9 +376,7 @@ Nashornバージョン文字列を出力します。
 .RE
 .SH "例"
 .PP
-\fB例 1\fR
-.br
-Nashornを使用したスクリプトの実行
+\fB例 1 \fRNashornを使用したスクリプトの実行
 .RS 4
 .sp
 .if n \{\
@@ -383,9 +391,7 @@ Nashornを使用したスクリプトの実行
 .\}
 .RE
 .PP
-\fB例 2\fR
-.br
-対話型モードでのNashornの実行
+\fB例 2 \fR対話型モードでのNashornの実行
 .RS 4
 .sp
 .if n \{\
@@ -404,9 +410,7 @@ Nashornを使用したスクリプトの実行
 .\}
 .RE
 .PP
-\fB例 3\fR
-.br
-Nashornへの引数の渡し
+\fB例 3 \fRNashornへの引数の渡し
 .RS 4
 .sp
 .if n \{\
