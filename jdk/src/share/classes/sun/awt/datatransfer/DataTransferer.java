@@ -274,7 +274,7 @@ public abstract class DataTransferer {
      * instead, null will be returned.
      */
     public static synchronized DataTransferer getInstance() {
-        return ((SunToolkit) Toolkit.getDefaultToolkit()).getDataTransferer();
+        return ((ComponentFactory) Toolkit.getDefaultToolkit()).getDataTransferer();
     }
 
     /**
