@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Common library for various test helper functions.
@@ -66,6 +67,12 @@ public final class Utils {
         String toFactor = System.getProperty("test.timeout.factor", "1.0");
        TIMEOUT_FACTOR = Double.parseDouble(toFactor);
     }
+
+    /**
+    * Returns the value of JTREG default test timeout in milliseconds
+    * converted to {@code long}.
+    */
+    public static final long DEFAULT_TEST_TIMEOUT = TimeUnit.SECONDS.toMillis(120);
 
     private Utils() {
         // Private constructor to prevent class instantiation
@@ -258,5 +265,15 @@ public final class Utils {
             System.out.println(String.format("Utils.findJvmPid(%s) failed: %s", key, t));
             throw t;
         }
+    }
+
+    /**
+     * Adjusts the provided timeout value for the TIMEOUT_FACTOR
+     * @param tOut the timeout value to be adjusted
+     * @return The timeout value adjusted for the value of "test.timeout.factor"
+     *         system property
+     */
+    public static long adjustTimeout(long tOut) {
+        return Math.round(tOut * Utils.TIMEOUT_FACTOR);
     }
 }
