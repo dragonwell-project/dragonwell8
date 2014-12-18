@@ -144,6 +144,9 @@ bool G1PageBasedVirtualSpace::commit(uintptr_t start, size_t size_in_pages) {
   }
   _committed.set_range(start, end);
 
+  if (AlwaysPreTouch) {
+    os::pretouch_memory(page_start(start), page_start(start) + byte_size_for_pages(size_in_pages));
+  }
   return zero_filled;
 }
 
