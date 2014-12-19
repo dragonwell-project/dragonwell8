@@ -305,7 +305,8 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     // pass parameters if any
     __ mov(esp, sp);
-    __ sub(sp, sp, os::vm_page_size()); // Move SP out of the way
+    __ sub(rscratch1, sp, c_rarg6, ext::uxtw, LogBytesPerWord); // Move SP out of the way
+    __ andr(sp, rscratch1, -2 * wordSize);
 
     BLOCK_COMMENT("pass parameters if any");
     Label parameters_done;
