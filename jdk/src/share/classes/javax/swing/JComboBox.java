@@ -1308,8 +1308,8 @@ implements ItemSelectable,ListDataListener,ActionListener, Accessible {
      */
     public void actionPerformed(ActionEvent e) {
         ComboBoxEditor editor = getEditor();
-        if ((editor != null) && (e != null)
-                && (editor.getEditorComponent() == e.getSource())) {
+        if ((editor != null) && (e != null) && (editor == e.getSource()
+                || editor.getEditorComponent() == e.getSource())) {
             setPopupVisible(false);
             getModel().setSelectedItem(editor.getItem());
             String oldCommand = getActionCommand();
