@@ -272,7 +272,4 @@ tools/launcher/FXLauncherTest.java                              linux-all
 # Filed 6772009
 java/util/concurrent/locks/ReentrantLock/CancelledLockLoops.java generic-all
 
-# 8051641
-sun/util/calendar/zi/TestZoneInfo310.java                        generic-all
-
 ############################################################################
