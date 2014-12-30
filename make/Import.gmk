@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -116,6 +116,12 @@ endef
 #
 HOTSPOT_IMPORT_FILES := $(addprefix $(LIBRARY_PREFIX), jvm.* saproc.* jsig.* sawindbg.* jvm_db.* jvm_dtrace.*) \
     Xusage.txt sa-jdi.jar
+
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+    # additional debug file
+    HOTSPOT_IMPORT_FILES += Info.plist
+endif
+
 $(eval $(call CopyDir,HOTSPOT0, $(HOTSPOT_LIB_DIR), $(INSTALL_LIBRARIES_HERE), $(HOTSPOT_IMPORT_FILES)))
 $(eval $(call CopyDir,HOTSPOT1, $(HOTSPOT_DIST)/lib, $(JDK_OUTPUTDIR)/lib, $(HOTSPOT_IMPORT_FILES)))
 
