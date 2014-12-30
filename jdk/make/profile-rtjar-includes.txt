@@ -162,6 +162,8 @@ PROFILE_3_RTJAR_EXCLUDE_TYPES := \
     javax/management/remote/rmi/_RMIServer_Stub.class
 
 FULL_JRE_RTJAR_INCLUDE_PACKAGES := \
+    apple \
+    com/apple \
     com/oracle \
     com/sun/accessibility/internal/resources \
     com/sun/activation/registries \
@@ -213,6 +215,7 @@ FULL_JRE_RTJAR_INCLUDE_PACKAGES := \
     sun/dc \
     sun/font \
     sun/java2d \
+    sun/lwawt \
     sun/net/ftp \
     sun/net/smtp \
     sun/net/www/content/audio \
