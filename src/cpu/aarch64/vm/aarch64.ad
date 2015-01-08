@@ -2968,7 +2968,8 @@ encode %{
       __ ldxr(tmp, oop);
       __ cmp(tmp, disp_hdr);
       __ br(Assembler::NE, cas_failed);
-      __ stxr(tmp, box, oop);
+      // use stlxr to ensure update is immediately visible
+      __ stlxr(tmp, box, oop);
       __ cbzw(tmp, cont);
       __ b(retry_load);
     }
@@ -3017,7 +3018,8 @@ encode %{
 	__ ldxr(rscratch1, tmp);
 	__ cmp(disp_hdr, rscratch1);
 	__ br(Assembler::NE, fail);
-	__ stxr(rscratch1, rthread, tmp);
+        // use stlxr to ensure update is immediately visible
+	__ stlxr(rscratch1, rthread, tmp);
 	__ cbnzw(rscratch1, retry_load);
 	__ bind(fail);
       }
@@ -3105,7 +3107,8 @@ encode %{
 	__ ldxr(tmp, oop);
 	__ cmp(box, tmp);
 	__ br(Assembler::NE, cas_failed);
-	__ stxr(tmp, disp_hdr, oop);
+        // use stlxr to ensure update is immediately visible
+	__ stlxr(tmp, disp_hdr, oop);
 	__ cbzw(tmp, cont);
 	__ b(retry_load);
       }
