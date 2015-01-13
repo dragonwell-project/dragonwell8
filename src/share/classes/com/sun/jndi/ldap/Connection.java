@@ -463,7 +463,7 @@ public final class Connection implements Runnable {
                         } else {
                             // no timeout is set so we wait infinitely until
                             // a response is received
-                            // http://docs.oracle.com/javase/8/docs/technotes/guides/jndi/jndi-ldap.html#PROP
+                            // https://docs.oracle.com/javase/8/docs/technotes/guides/jndi/jndi-ldap.html#PROP
                             ldr.wait();
                         }
                     } else {
