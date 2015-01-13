@@ -1039,7 +1039,7 @@ public class DocCommentParser {
     }
 
     /**
-     * @see <a href="http://docs.oracle.com/javase/7/docs/technotes/tools/solaris/javadoc.html#javadoctags">Javadoc Tags</a>
+     * @see <a href="https://docs.oracle.com/javase/7/docs/technotes/tools/solaris/javadoc.html#javadoctags">Javadoc Tags</a>
      */
     private void initTagParsers() {
         TagParser[] parsers = {
