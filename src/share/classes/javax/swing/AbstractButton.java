@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2197,10 +2197,7 @@ public abstract class AbstractButton extends JComponent implements ItemSelectabl
      */
     public boolean imageUpdate(Image img, int infoflags,
                                int x, int y, int w, int h) {
-        Icon iconDisplayed = getIcon();
-        if (iconDisplayed == null) {
-            return false;
-        }
+        Icon iconDisplayed = null;
 
         if (!model.isEnabled()) {
             if (model.isSelected()) {
@@ -2220,7 +2217,12 @@ public abstract class AbstractButton extends JComponent implements ItemSelectabl
             iconDisplayed = getSelectedIcon();
         }
 
-        if (!SwingUtilities.doesIconReferenceImage(iconDisplayed, img)) {
+        if (iconDisplayed == null) {
+            iconDisplayed = getIcon();
+        }
+
+        if (iconDisplayed == null
+            || !SwingUtilities.doesIconReferenceImage(iconDisplayed, img)) {
             // We don't know about this image, disable the notification so
             // we don't keep repainting.
             return false;
