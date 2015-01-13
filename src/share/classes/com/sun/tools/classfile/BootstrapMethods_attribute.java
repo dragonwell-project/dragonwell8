@@ -29,7 +29,7 @@ import java.io.IOException;
 
 /**
  * See JVMS 4.7.21
- * http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.21
+ * https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.21
  *
  *  <p><b>This is NOT part of any supported API.
  *  If you write code that depends on this, you do so at your own risk.
