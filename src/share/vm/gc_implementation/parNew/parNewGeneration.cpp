@@ -1197,8 +1197,10 @@ oop ParNewGeneration::copy_to_survivor_space_avoiding_promotion_undo(
         return real_forwardee(old);
     }
 
-    new_obj = _next_gen->par_promote(par_scan_state->thread_num(),
-                                       old, m, sz);
+    if (!_promotion_failed) {
+      new_obj = _next_gen->par_promote(par_scan_state->thread_num(),
+                                        old, m, sz);
+    }
 
     if (new_obj == NULL) {
       // promotion failed, forward to self
