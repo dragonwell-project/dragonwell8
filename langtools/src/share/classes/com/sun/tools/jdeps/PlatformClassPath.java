@@ -155,7 +155,7 @@ class PlatformClassPath {
          * Tests if a given package name is exported.
          */
         public boolean isExportedPackage(String pn) {
-            if (Profile.getProfile(pn) != null) {
+            if (Profile.getProfile(pn) != null || "javax.jnlp".equals(pn)) {
                 return true;
             }
             return exportedPackages.containsKey(pn) ? exportedPackages.get(pn) : false;
