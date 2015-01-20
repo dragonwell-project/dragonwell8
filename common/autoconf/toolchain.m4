@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -254,6 +254,86 @@ AC_DEFUN([TOOLCHAIN_SETUP_PATHS],
     PATH=$TOOLS_DIR:$PATH
   fi
 
+  # Before we locate the compilers, we need to sanitize the Xcode build environment
+  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
+    # determine path to Xcode developer directory
+    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    SET_DEVELOPER_DIR=
+
+    if test -n "$XCODE_PATH"; then
+      DEVELOPER_DIR="$XCODE_PATH"/Contents/Developer
+    fi
+
+    # DEVELOPER_DIR could also be provided directly
+    AC_MSG_CHECKING([Determining if we need to set DEVELOPER_DIR])
+    if test -n "$DEVELOPER_DIR"; then
+      if test ! -d "$DEVELOPER_DIR"; then
+        AC_MSG_ERROR([Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path])
+      fi
+      if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
+        AC_MSG_ERROR([Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle])
+      fi
+      # make it visible to all the tools immediately
+      export DEVELOPER_DIR
+      SET_DEVELOPER_DIR="export DEVELOPER_DIR := $DEVELOPER_DIR"
+      AC_MSG_RESULT([yes ($DEVELOPER_DIR)])
+    else
+      AC_MSG_RESULT([no])
+    fi
+    AC_SUBST(SET_DEVELOPER_DIR)
+
+    AC_PATH_PROG(XCODEBUILD, xcodebuild)
+    if test -z "$XCODEBUILD"; then
+      AC_MSG_ERROR([The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X])
+    fi
+
+    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
+    XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
+    if test ! "${XC_VERSION_PARTS[[0]]}" = "4"; then
+      AC_MSG_ERROR([Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select.])
+    fi
+
+    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # clang and clang++, which will break the build. So handle that here if we need to.
+    if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
+      # use xcrun to find the real gcc and add it's directory to PATH
+      # then autoconf magic will find it
+      AC_MSG_NOTICE([Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH])
+      XCODE_BIN_PATH=$(dirname `xcrun -find gcc`)
+      PATH="$XCODE_BIN_PATH":$PATH
+    fi
+
+    # Determine appropriate SDKPATH, don't use SDKROOT as it interferes with the stub tools
+    AC_MSG_CHECKING([Determining Xcode SDK path])
+    # allow SDKNAME to be set to override the default SDK selection
+    SDKPATH=`"$XCODEBUILD" -sdk ${SDKNAME:-macosx} -version | grep '^Path: ' | sed 's/Path: //'`
+    if test -n "$SDKPATH"; then
+      AC_MSG_RESULT([$SDKPATH])
+    else
+      AC_MSG_RESULT([(none, will use system headers and frameworks)])
+    fi
+    AC_SUBST(SDKPATH)
+
+    # Perform a basic sanity test
+    if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
+      AC_MSG_ERROR([Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path])
+    fi
+
+    # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
+    if test -n "$SDKPATH"; then
+      # We need -isysroot <path> and -iframework<path>/System/Library/Frameworks
+      CFLAGS_JDK="${CFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+    fi
+    
+    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
+    # setting this here means it doesn't have to be peppered throughout the forest
+    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+  fi
 
   ### Locate C compiler (CC)
 
@@ -477,6 +557,10 @@ AC_DEFUN([TOOLCHAIN_SETUP_PATHS],
     AC_PATH_PROG(MCS, mcs)
     BASIC_FIXUP_EXECUTABLE(MCS)
   elif test "x$OPENJDK_TARGET_OS" != xwindows; then
+    AC_PATH_PROG(OTOOL, otool)
+    if test "x$OTOOL" = "x"; then
+      OTOOL="true"
+    fi
     AC_CHECK_TOOL(NM, nm)
     BASIC_FIXUP_EXECUTABLE(NM)
     GNM="$NM"
@@ -499,11 +583,6 @@ AC_DEFUN([TOOLCHAIN_SETUP_PATHS],
   if test "x$OBJDUMP" != x; then
     # Only used for compare.sh; we can live without it. BASIC_FIXUP_EXECUTABLE bails if argument is missing.
     BASIC_FIXUP_EXECUTABLE(OBJDUMP)
-  fi
-
-  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    AC_PATH_PROG(LIPO, lipo)
-    BASIC_FIXUP_EXECUTABLE(LIPO)
   fi
 
   TOOLCHAIN_SETUP_JTREG
