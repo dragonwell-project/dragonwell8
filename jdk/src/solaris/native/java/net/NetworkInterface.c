@@ -253,6 +253,7 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByName0
     if (name_utf == NULL) {
        if (!(*env)->ExceptionCheck(env))
            JNU_ThrowOutOfMemoryError(env, NULL);
+       freeif(ifs);
        return NULL;
     }
     /*
@@ -527,9 +528,9 @@ JNIEXPORT jbyteArray JNICALL Java_java_net_NetworkInterface_getMacAddr0(JNIEnv *
            JNU_ThrowOutOfMemoryError(env, NULL);
        return NULL;
     }
-    if ((sock =openSocketWithFallback(env, name_utf)) < 0) {
+    if ((sock = openSocketWithFallback(env, name_utf)) < 0) {
        (*env)->ReleaseStringUTFChars(env, name, name_utf);
-       return JNI_FALSE;
+       return NULL;
     }
 
 
