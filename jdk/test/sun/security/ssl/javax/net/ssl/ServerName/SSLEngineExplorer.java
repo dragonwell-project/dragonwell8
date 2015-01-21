@@ -44,6 +44,7 @@ import java.nio.*;
 import java.net.*;
 import java.util.*;
 import java.nio.channels.*;
+import java.security.Security;
 
 public class SSLEngineExplorer extends SSLEngineService {
 
@@ -231,6 +232,10 @@ public class SSLEngineExplorer extends SSLEngineService {
     volatile int serverPort = 0;
 
     public static void main(String args[]) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         if (debug)
             System.setProperty("javax.net.debug", "all");
 
