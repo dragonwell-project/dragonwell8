@@ -1105,7 +1105,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // Change state to native
   __ mov(rscratch1, _thread_in_native);
-  __ strw(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   // load call format
   __ ldrw(rscratch1, Address(rmethod, Method::call_format_offset()));
@@ -1129,7 +1130,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // change thread state
   __ mov(rscratch1, _thread_in_native_trans);
-  __ strw(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   if (os::is_MP()) {
     if (UseMembar) {
@@ -1178,7 +1180,8 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // change thread state
   __ mov(rscratch1, _thread_in_Java);
-  __ strw(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   // reset_last_Java_frame
   __ reset_last_Java_frame(true, true);

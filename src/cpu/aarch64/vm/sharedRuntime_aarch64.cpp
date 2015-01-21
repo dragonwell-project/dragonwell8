@@ -1869,7 +1869,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // Now set thread in native
   __ mov(rscratch1, _thread_in_native);
-  __ str(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   {
     int return_type = 0;
@@ -1926,7 +1927,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   //     Thread A is resumed to finish this native method, but doesn't block here since it
   //     didn't see any synchronization is progress, and escapes.
   __ mov(rscratch1, _thread_in_native_trans);
-  __ str(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   if(os::is_MP()) {
     if (UseMembar) {
@@ -1990,7 +1992,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // change thread state
   __ mov(rscratch1, _thread_in_Java);
-  __ str(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
   __ bind(after_transition);
 
   Label reguard;
