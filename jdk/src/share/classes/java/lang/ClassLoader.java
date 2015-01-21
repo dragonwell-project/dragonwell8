@@ -1365,7 +1365,10 @@ public abstract class ClassLoader {
             return null;
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            checkClassLoaderPermission(this, Reflection.getCallerClass());
+            // Check access to the parent class loader
+            // If the caller's class loader is same as this class loader,
+            // permission check is performed.
+            checkClassLoaderPermission(parent, Reflection.getCallerClass());
         }
         return parent;
     }
@@ -1508,6 +1511,11 @@ public abstract class ClassLoader {
         return caller.getClassLoader0();
     }
 
+    /*
+     * Checks RuntimePermission("getClassLoader") permission
+     * if caller's class loader is not null and caller's class loader
+     * is not the same as or an ancestor of the given cl argument.
+     */
     static void checkClassLoaderPermission(ClassLoader cl, Class<?> caller) {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
