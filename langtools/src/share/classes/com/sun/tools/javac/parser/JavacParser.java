@@ -2720,7 +2720,7 @@ public class JavacParser implements Parser {
         } else {
             JCExpression t = term(EXPR | TYPE);
             if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.accepts(token.kind)) {
-                return variableDeclarators(modifiersOpt(), t, stats).toList();
+                return variableDeclarators(mods(pos, 0, List.<JCAnnotation>nil()), t, stats).toList();
             } else if ((lastmode & TYPE) != 0 && token.kind == COLON) {
                 error(pos, "bad.initializer", "for-loop");
                 return List.of((JCStatement)F.at(pos).VarDef(null, null, t, null));
@@ -2829,16 +2829,20 @@ public class JavacParser implements Parser {
         default: break;
         }
 
-        /* A modifiers tree with no modifier tokens or annotations
-         * has no text position. */
-        if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
-            pos = Position.NOPOS;
-
-        JCModifiers mods = F.at(pos).Modifiers(flags, annotations.toList());
-        if (pos != Position.NOPOS)
-            storeEnd(mods, S.prevToken().endPos);
-        return mods;
+        return mods(pos, flags, annotations.toList());
     }
+    //where
+        JCModifiers mods(int pos, long flags, List<JCAnnotation> annotations) {
+            /* A modifiers tree with no modifier tokens or annotations
+             * has no text position. */
+            if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
+                pos = Position.NOPOS;
+
+            JCModifiers mods = F.at(pos).Modifiers(flags, annotations);
+            if (pos != Position.NOPOS)
+                storeEnd(mods, S.prevToken().endPos);
+            return mods;
+        }
 
     /** Annotation              = "@" Qualident [ "(" AnnotationFieldValues ")" ]
      *
