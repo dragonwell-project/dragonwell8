@@ -68,6 +68,10 @@ public class TestEC {
     }
 
     public static void main0(String[] args) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         Provider p = Security.getProvider("SunEC");
 
         if (p == null) {
