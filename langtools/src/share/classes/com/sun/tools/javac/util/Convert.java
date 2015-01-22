@@ -36,9 +36,9 @@ package com.sun.tools.javac.util;
  *  <p>
  *  See also:
  *  <ul>
- *  <li><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4.7">
+ *  <li><a href="https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.4.7">
  *    JVMS 4.4.7 </a></li>
- *  <li><a href="http://docs.oracle.com/javase/7/docs/api/java/io/DataInput.html#modified-utf-8">
+ *  <li><a href="https://docs.oracle.com/javase/7/docs/api/java/io/DataInput.html#modified-utf-8">
       java.io.DataInput: Modified UTF-8 </a></li>
     <li><a href="https://en.wikipedia.org/wiki/UTF-8#Modified_UTF-8">
       Modified UTF-8 (wikipedia) </a></li>

@@ -175,7 +175,7 @@ public class SignatureFileVerifier {
             return true;
         } else if (name.startsWith("SIG-")) {
             // check filename extension
-            // see http://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#Digital_Signatures
+            // see https://docs.oracle.com/javase/7/docs/technotes/guides/jar/jar.html#Digital_Signatures
             // for what filename extensions are legal
             int extIndex = name.lastIndexOf('.');
             if (extIndex != -1) {
