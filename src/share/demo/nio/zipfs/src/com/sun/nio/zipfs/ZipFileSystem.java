@@ -1581,6 +1581,7 @@ public class ZipFileSystem extends FileSystem {
         private CRC32 crc;
         private Entry e;
         private long written;
+        private boolean isClosed = false;
 
         EntryOutputStream(Entry e, OutputStream os)
             throws IOException
@@ -1593,9 +1594,14 @@ public class ZipFileSystem extends FileSystem {
         }
 
         @Override
-        public void write(byte b[], int off, int len) throws IOException {
+        public synchronized void write(byte b[], int off, int len)
+            throws IOException
+        {
             if (e.type != Entry.FILECH)    // only from sync
                 ensureOpen();
+            if (isClosed) {
+                throw new IOException("Stream closed");
+            }
             if (off < 0 || len < 0 || off > b.length - len) {
                 throw new IndexOutOfBoundsException();
             } else if (len == 0) {
@@ -1616,7 +1622,11 @@ public class ZipFileSystem extends FileSystem {
         }
 
         @Override
-        public void close() throws IOException {
+        public synchronized void close() throws IOException {
+            if (isClosed) {
+                return;
+            }
+            isClosed = true;
             // TBD ensureOpen();
             switch (e.method) {
             case METHOD_DEFLATED:
