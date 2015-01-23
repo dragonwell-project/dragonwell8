@@ -711,11 +711,11 @@ OBJ_SUFFIX
 COMPILER_NAME
 JT_HOME
 JTREGEXE
-LIPO
 ac_ct_OBJDUMP
 OBJDUMP
 ac_ct_OBJCOPY
 OBJCOPY
+OTOOL
 MCS
 STRIP
 GNM
@@ -762,6 +762,9 @@ ac_ct_PROPER_COMPILER_CC
 PROPER_COMPILER_CC
 POTENTIAL_CC
 TOOLS_DIR_CC
+SDKPATH
+XCODEBUILD
+SET_DEVELOPER_DIR
 BUILD_LD
 BUILD_CXX
 BUILD_CC
@@ -834,7 +837,6 @@ TIME
 STAT
 HG
 READELF
-OTOOL
 LDD
 ZIP
 UNZIP
@@ -1006,6 +1008,7 @@ with_custom_make_dir
 with_target_bits
 with_sys_root
 with_tools_dir
+with_xcode_path
 with_devkit
 enable_openjdk_only
 with_jdk_variant
@@ -1752,6 +1755,8 @@ Optional Packages:
                           cross-compiling)
   --with-tools-dir        search this directory for compilers and tools (for
                           cross-compiling)
+  --with-xcode-path       explicit path to Xcode 4 (generally for building on
+                          10.9 and later)
   --with-devkit           use this directory as base for tools-dir and
                           sys-root (for cross-compiling)
   --with-jdk-variant      JDK variant to build (normal) [normal]
@@ -3108,7 +3113,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
 
 # Include these first...
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -3624,7 +3629,7 @@ fi
 
 
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -3764,7 +3769,7 @@ fi
 
 
 #
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -3872,7 +3877,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1416326200
+DATE_WHEN_GENERATED=1421450260
 
 ###############################################################################
 #
@@ -7603,6 +7608,15 @@ if test "${with_tools_dir+set}" = set; then :
 fi
 
 
+  # Xcode version will be validated later
+
+# Check whether --with-xcode-path was given.
+if test "${with_xcode_path+set}" = set; then :
+  withval=$with_xcode_path; XCODE_PATH=$with_xcode_path
+
+fi
+
+
 
 # Check whether --with-devkit was given.
 if test "${with_devkit+set}" = set; then :
@@ -7960,7 +7974,7 @@ $as_echo "$with_jvm_variants" >&6; }
 
 
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    MACOSX_UNIVERSAL="true"
+    MACOSX_UNIVERSAL="false"
   fi
 
 
@@ -10320,49 +10334,6 @@ fi
     # debug output and checking for forbidden dependencies.
     # We can build without it.
     LDD="true"
-  fi
-  # Extract the first word of "otool", so it can be a program name with args.
-set dummy otool; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_OTOOL+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $OTOOL in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_OTOOL="$OTOOL" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_OTOOL="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-OTOOL=$ac_cv_path_OTOOL
-if test -n "$OTOOL"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $OTOOL" >&5
-$as_echo "$OTOOL" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-  if test "x$OTOOL" = "x"; then
-    OTOOL="true"
   fi
   for ac_prog in readelf greadelf
 do
@@ -19247,6 +19218,132 @@ $as_echo "$as_me: Downloading build dependency devkit from $with_builddeps_serve
     PATH=$TOOLS_DIR:$PATH
   fi
 
+  # Before we locate the compilers, we need to sanitize the Xcode build environment
+  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
+    # determine path to Xcode developer directory
+    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    SET_DEVELOPER_DIR=
+
+    if test -n "$XCODE_PATH"; then
+      DEVELOPER_DIR="$XCODE_PATH"/Contents/Developer
+    fi
+
+    # DEVELOPER_DIR could also be provided directly
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining if we need to set DEVELOPER_DIR" >&5
+$as_echo_n "checking Determining if we need to set DEVELOPER_DIR... " >&6; }
+    if test -n "$DEVELOPER_DIR"; then
+      if test ! -d "$DEVELOPER_DIR"; then
+        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path" "$LINENO" 5
+      fi
+      if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
+        as_fn_error $? "Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle" "$LINENO" 5
+      fi
+      # make it visible to all the tools immediately
+      export DEVELOPER_DIR
+      SET_DEVELOPER_DIR="export DEVELOPER_DIR := $DEVELOPER_DIR"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes ($DEVELOPER_DIR)" >&5
+$as_echo "yes ($DEVELOPER_DIR)" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+
+
+    # Extract the first word of "xcodebuild", so it can be a program name with args.
+set dummy xcodebuild; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_XCODEBUILD+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $XCODEBUILD in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_XCODEBUILD="$XCODEBUILD" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_XCODEBUILD="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+XCODEBUILD=$ac_cv_path_XCODEBUILD
+if test -n "$XCODEBUILD"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $XCODEBUILD" >&5
+$as_echo "$XCODEBUILD" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test -z "$XCODEBUILD"; then
+      as_fn_error $? "The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X" "$LINENO" 5
+    fi
+
+    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
+    XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
+    if test ! "${XC_VERSION_PARTS[0]}" = "4"; then
+      as_fn_error $? "Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select." "$LINENO" 5
+    fi
+
+    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # clang and clang++, which will break the build. So handle that here if we need to.
+    if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
+      # use xcrun to find the real gcc and add it's directory to PATH
+      # then autoconf magic will find it
+      { $as_echo "$as_me:${as_lineno-$LINENO}: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&5
+$as_echo "$as_me: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&6;}
+      XCODE_BIN_PATH=$(dirname `xcrun -find gcc`)
+      PATH="$XCODE_BIN_PATH":$PATH
+    fi
+
+    # Determine appropriate SDKPATH, don't use SDKROOT as it interferes with the stub tools
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining Xcode SDK path" >&5
+$as_echo_n "checking Determining Xcode SDK path... " >&6; }
+    # allow SDKNAME to be set to override the default SDK selection
+    SDKPATH=`"$XCODEBUILD" -sdk ${SDKNAME:-macosx} -version | grep '^Path: ' | sed 's/Path: //'`
+    if test -n "$SDKPATH"; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SDKPATH" >&5
+$as_echo "$SDKPATH" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: (none, will use system headers and frameworks)" >&5
+$as_echo "(none, will use system headers and frameworks)" >&6; }
+    fi
+
+
+    # Perform a basic sanity test
+    if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
+      as_fn_error $? "Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path" "$LINENO" 5
+    fi
+
+    # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
+    if test -n "$SDKPATH"; then
+      # We need -isysroot <path> and -iframework<path>/System/Library/Frameworks
+      CFLAGS_JDK="${CFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+    fi
+
+    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
+    # setting this here means it doesn't have to be peppered throughout the forest
+    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+  fi
 
   ### Locate C compiler (CC)
 
@@ -27066,6 +27163,49 @@ $as_echo "$as_me: Rewriting MCS to \"$new_complete\"" >&6;}
   fi
 
   elif test "x$OPENJDK_TARGET_OS" != xwindows; then
+    # Extract the first word of "otool", so it can be a program name with args.
+set dummy otool; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_OTOOL+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $OTOOL in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_OTOOL="$OTOOL" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_OTOOL="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+OTOOL=$ac_cv_path_OTOOL
+if test -n "$OTOOL"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $OTOOL" >&5
+$as_echo "$OTOOL" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test "x$OTOOL" = "x"; then
+      OTOOL="true"
+    fi
     if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}nm", so it can be a program name with args.
 set dummy ${ac_tool_prefix}nm; ac_word=$2
@@ -28526,315 +28666,6 @@ $as_echo "$as_me: This might be caused by spaces in the path, which is not allow
     OBJDUMP="$new_complete"
     { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting OBJDUMP to \"$new_complete\"" >&5
 $as_echo "$as_me: Rewriting OBJDUMP to \"$new_complete\"" >&6;}
-  fi
-
-  fi
-
-  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    # Extract the first word of "lipo", so it can be a program name with args.
-set dummy lipo; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_LIPO+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $LIPO in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_LIPO="$LIPO" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_LIPO="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-LIPO=$ac_cv_path_LIPO
-if test -n "$LIPO"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LIPO" >&5
-$as_echo "$LIPO" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-
-  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-
-  # First separate the path from the arguments. This will split at the first
-  # space.
-  complete="$LIPO"
-  path="${complete%% *}"
-  tmp="$complete EOL"
-  arguments="${tmp#* }"
-
-  # Input might be given as Windows format, start by converting to
-  # unix format.
-  new_path=`$CYGPATH -u "$path"`
-
-  # Now try to locate executable using which
-  new_path=`$WHICH "$new_path" 2> /dev/null`
-  # bat and cmd files are not always considered executable in cygwin causing which
-  # to not find them
-  if test "x$new_path" = x \
-      && test "x`$ECHO \"$path\" | $GREP -i -e \"\\.bat$\" -e \"\\.cmd$\"`" != x \
-      && test "x`$LS \"$path\" 2>/dev/null`" != x; then
-    new_path=`$CYGPATH -u "$path"`
-  fi
-  if test "x$new_path" = x; then
-    # Oops. Which didn't find the executable.
-    # The splitting of arguments from the executable at a space might have been incorrect,
-    # since paths with space are more likely in Windows. Give it another try with the whole
-    # argument.
-    path="$complete"
-    arguments="EOL"
-    new_path=`$CYGPATH -u "$path"`
-    new_path=`$WHICH "$new_path" 2> /dev/null`
-    # bat and cmd files are not always considered executable in cygwin causing which
-    # to not find them
-    if test "x$new_path" = x \
-        && test "x`$ECHO \"$path\" | $GREP -i -e \"\\.bat$\" -e \"\\.cmd$\"`" != x \
-        && test "x`$LS \"$path\" 2>/dev/null`" != x; then
-      new_path=`$CYGPATH -u "$path"`
-    fi
-    if test "x$new_path" = x; then
-      # It's still not found. Now this is an unrecoverable error.
-      { $as_echo "$as_me:${as_lineno-$LINENO}: The path of LIPO, which resolves as \"$complete\", is not found." >&5
-$as_echo "$as_me: The path of LIPO, which resolves as \"$complete\", is not found." >&6;}
-      has_space=`$ECHO "$complete" | $GREP " "`
-      if test "x$has_space" != x; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: You might be mixing spaces in the path and extra arguments, which is not allowed." >&5
-$as_echo "$as_me: You might be mixing spaces in the path and extra arguments, which is not allowed." >&6;}
-      fi
-      as_fn_error $? "Cannot locate the the path of LIPO" "$LINENO" 5
-    fi
-  fi
-
-  # Cygwin tries to hide some aspects of the Windows file system, such that binaries are
-  # named .exe but called without that suffix. Therefore, "foo" and "foo.exe" are considered
-  # the same file, most of the time (as in "test -f"). But not when running cygpath -s, then
-  # "foo.exe" is OK but "foo" is an error.
-  #
-  # This test is therefore slightly more accurate than "test -f" to check for file presence.
-  # It is also a way to make sure we got the proper file name for the real test later on.
-  test_shortpath=`$CYGPATH -s -m "$new_path" 2> /dev/null`
-  if test "x$test_shortpath" = x; then
-    # Short path failed, file does not exist as specified.
-    # Try adding .exe or .cmd
-    if test -f "${new_path}.exe"; then
-      input_to_shortpath="${new_path}.exe"
-    elif test -f "${new_path}.cmd"; then
-      input_to_shortpath="${new_path}.cmd"
-    else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: The path of LIPO, which resolves as \"$new_path\", is invalid." >&5
-$as_echo "$as_me: The path of LIPO, which resolves as \"$new_path\", is invalid." >&6;}
-      { $as_echo "$as_me:${as_lineno-$LINENO}: Neither \"$new_path\" nor \"$new_path.exe/cmd\" can be found" >&5
-$as_echo "$as_me: Neither \"$new_path\" nor \"$new_path.exe/cmd\" can be found" >&6;}
-      as_fn_error $? "Cannot locate the the path of LIPO" "$LINENO" 5
-    fi
-  else
-    input_to_shortpath="$new_path"
-  fi
-
-  # Call helper function which possibly converts this using DOS-style short mode.
-  # If so, the updated path is stored in $new_path.
-  new_path="$input_to_shortpath"
-
-  input_path="$input_to_shortpath"
-  # Check if we need to convert this using DOS-style short mode. If the path
-  # contains just simple characters, use it. Otherwise (spaces, weird characters),
-  # take no chances and rewrite it.
-  # Note: m4 eats our [], so we need to use [ and ] instead.
-  has_forbidden_chars=`$ECHO "$input_path" | $GREP [^-._/a-zA-Z0-9]`
-  if test "x$has_forbidden_chars" != x; then
-    # Now convert it to mixed DOS-style, short mode (no spaces, and / instead of \)
-    shortmode_path=`$CYGPATH -s -m -a "$input_path"`
-    path_after_shortmode=`$CYGPATH -u "$shortmode_path"`
-    if test "x$path_after_shortmode" != "x$input_to_shortpath"; then
-      # Going to short mode and back again did indeed matter. Since short mode is
-      # case insensitive, let's make it lowercase to improve readability.
-      shortmode_path=`$ECHO "$shortmode_path" | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
-      # Now convert it back to Unix-stile (cygpath)
-      input_path=`$CYGPATH -u "$shortmode_path"`
-      new_path="$input_path"
-    fi
-  fi
-
-  test_cygdrive_prefix=`$ECHO $input_path | $GREP ^/cygdrive/`
-  if test "x$test_cygdrive_prefix" = x; then
-    # As a simple fix, exclude /usr/bin since it's not a real path.
-    if test "x`$ECHO $input_to_shortpath | $GREP ^/usr/bin/`" = x; then
-      # The path is in a Cygwin special directory (e.g. /home). We need this converted to
-      # a path prefixed by /cygdrive for fixpath to work.
-      new_path="$CYGWIN_ROOT_PATH$input_path"
-    fi
-  fi
-
-  # remove trailing .exe if any
-  new_path="${new_path/%.exe/}"
-
-  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-
-  # First separate the path from the arguments. This will split at the first
-  # space.
-  complete="$LIPO"
-  path="${complete%% *}"
-  tmp="$complete EOL"
-  arguments="${tmp#* }"
-
-  # Input might be given as Windows format, start by converting to
-  # unix format.
-  new_path="$path"
-
-  windows_path="$new_path"
-  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-    unix_path=`$CYGPATH -u "$windows_path"`
-    new_path="$unix_path"
-  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-    unix_path=`$ECHO "$windows_path" | $SED -e 's,^\\(.\\):,/\\1,g' -e 's,\\\\,/,g'`
-    new_path="$unix_path"
-  fi
-
-
-  # Now try to locate executable using which
-  new_path=`$WHICH "$new_path" 2> /dev/null`
-
-  if test "x$new_path" = x; then
-    # Oops. Which didn't find the executable.
-    # The splitting of arguments from the executable at a space might have been incorrect,
-    # since paths with space are more likely in Windows. Give it another try with the whole
-    # argument.
-    path="$complete"
-    arguments="EOL"
-    new_path="$path"
-
-  windows_path="$new_path"
-  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-    unix_path=`$CYGPATH -u "$windows_path"`
-    new_path="$unix_path"
-  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-    unix_path=`$ECHO "$windows_path" | $SED -e 's,^\\(.\\):,/\\1,g' -e 's,\\\\,/,g'`
-    new_path="$unix_path"
-  fi
-
-
-    new_path=`$WHICH "$new_path" 2> /dev/null`
-
-    if test "x$new_path" = x; then
-      # It's still not found. Now this is an unrecoverable error.
-      { $as_echo "$as_me:${as_lineno-$LINENO}: The path of LIPO, which resolves as \"$complete\", is not found." >&5
-$as_echo "$as_me: The path of LIPO, which resolves as \"$complete\", is not found." >&6;}
-      has_space=`$ECHO "$complete" | $GREP " "`
-      if test "x$has_space" != x; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: You might be mixing spaces in the path and extra arguments, which is not allowed." >&5
-$as_echo "$as_me: You might be mixing spaces in the path and extra arguments, which is not allowed." >&6;}
-      fi
-      as_fn_error $? "Cannot locate the the path of LIPO" "$LINENO" 5
-    fi
-  fi
-
-  # Now new_path has a complete unix path to the binary
-  if test "x`$ECHO $new_path | $GREP ^/bin/`" != x; then
-    # Keep paths in /bin as-is, but remove trailing .exe if any
-    new_path="${new_path/%.exe/}"
-    # Do not save /bin paths to all_fixpath_prefixes!
-  else
-    # Not in mixed or Windows style, start by that.
-    new_path=`cmd //c echo $new_path`
-
-  input_path="$new_path"
-  # Check if we need to convert this using DOS-style short mode. If the path
-  # contains just simple characters, use it. Otherwise (spaces, weird characters),
-  # take no chances and rewrite it.
-  # Note: m4 eats our [], so we need to use [ and ] instead.
-  has_forbidden_chars=`$ECHO "$input_path" | $GREP [^-_/:a-zA-Z0-9]`
-  if test "x$has_forbidden_chars" != x; then
-    # Now convert it to mixed DOS-style, short mode (no spaces, and / instead of \)
-    new_path=`cmd /c "for %A in (\"$input_path\") do @echo %~sA"|$TR \\\\\\\\ / | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
-  fi
-
-    # Output is in $new_path
-
-  windows_path="$new_path"
-  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-    unix_path=`$CYGPATH -u "$windows_path"`
-    new_path="$unix_path"
-  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-    unix_path=`$ECHO "$windows_path" | $SED -e 's,^\\(.\\):,/\\1,g' -e 's,\\\\,/,g'`
-    new_path="$unix_path"
-  fi
-
-    # remove trailing .exe if any
-    new_path="${new_path/%.exe/}"
-
-    # Save the first 10 bytes of this path to the storage, so fixpath can work.
-    all_fixpath_prefixes=("${all_fixpath_prefixes[@]}" "${new_path:0:10}")
-  fi
-
-  else
-    # We're on a posix platform. Hooray! :)
-    # First separate the path from the arguments. This will split at the first
-    # space.
-    complete="$LIPO"
-    path="${complete%% *}"
-    tmp="$complete EOL"
-    arguments="${tmp#* }"
-
-    # Cannot rely on the command "which" here since it doesn't always work.
-    is_absolute_path=`$ECHO "$path" | $GREP ^/`
-    if test -z "$is_absolute_path"; then
-      # Path to executable is not absolute. Find it.
-      IFS_save="$IFS"
-      IFS=:
-      for p in $PATH; do
-        if test -f "$p/$path" && test -x "$p/$path"; then
-          new_path="$p/$path"
-          break
-        fi
-      done
-      IFS="$IFS_save"
-    else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: Resolving LIPO (as $path) failed, using $path directly." >&5
-$as_echo "$as_me: Resolving LIPO (as $path) failed, using $path directly." >&6;}
-      new_path="$path"
-    fi
-
-    if test "x$new_path" = x; then
-      { $as_echo "$as_me:${as_lineno-$LINENO}: The path of LIPO, which resolves as \"$complete\", is not found." >&5
-$as_echo "$as_me: The path of LIPO, which resolves as \"$complete\", is not found." >&6;}
-      has_space=`$ECHO "$complete" | $GREP " "`
-      if test "x$has_space" != x; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: This might be caused by spaces in the path, which is not allowed." >&5
-$as_echo "$as_me: This might be caused by spaces in the path, which is not allowed." >&6;}
-      fi
-      as_fn_error $? "Cannot locate the the path of LIPO" "$LINENO" 5
-    fi
-  fi
-
-  # Now join together the path and the arguments once again
-  if test "x$arguments" != xEOL; then
-    new_complete="$new_path ${arguments% *}"
-  else
-    new_complete="$new_path"
-  fi
-
-  if test "x$complete" != "x$new_complete"; then
-    LIPO="$new_complete"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting LIPO to \"$new_complete\"" >&5
-$as_echo "$as_me: Rewriting LIPO to \"$new_complete\"" >&6;}
   fi
 
   fi
@@ -30388,8 +30219,6 @@ $as_echo_n "checking what is not needed on MacOSX?... " >&6; }
     ALSA_NOT_NEEDED=yes
     PULSE_NOT_NEEDED=yes
     X11_NOT_NEEDED=yes
-    # If the java runtime framework is disabled, then we need X11.
-    # This will be adjusted below.
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: alsa pulse x11" >&5
 $as_echo "alsa pulse x11" >&6; }
   fi
@@ -30410,11 +30239,7 @@ $as_echo "alsa" >&6; }
     X11_NOT_NEEDED=yes
   fi
 
-  ###############################################################################
-  #
-  # Check for MacOSX support for OpenJDK.
-  #
-
+  # Deprecated and now ignored
 
   # Check whether --enable-macosx-runtime-support was given.
 if test "${enable_macosx_runtime_support+set}" = set; then :
@@ -30426,16 +30251,6 @@ fi
 $as_echo "$as_me: WARNING: Option --enable-macosx-runtime-support is deprecated and will be ignored." >&2;}
   fi
 
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Mac OS X Java Framework" >&5
-$as_echo_n "checking for Mac OS X Java Framework... " >&6; }
-  if test -f /System/Library/Frameworks/JavaVM.framework/Frameworks/JavaRuntimeSupport.framework/Headers/JavaRuntimeSupport.h; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: /System/Library/Frameworks/JavaVM.framework" >&5
-$as_echo "/System/Library/Frameworks/JavaVM.framework" >&6; }
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-  fi
 
 
 
