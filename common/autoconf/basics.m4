@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -386,6 +386,12 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
       [TOOLS_DIR=$with_tools_dir]
   )
 
+  # Xcode version will be validated later
+  AC_ARG_WITH([xcode-path], [AS_HELP_STRING([--with-xcode-path],
+      [explicit path to Xcode 4 (generally for building on 10.9 and later)])],
+      [XCODE_PATH=$with_xcode_path]
+  )
+
   AC_ARG_WITH([devkit], [AS_HELP_STRING([--with-devkit],
       [use this directory as base for tools-dir and sys-root (for cross-compiling)])],
       [
@@ -633,10 +639,6 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
     # debug output and checking for forbidden dependencies.
     # We can build without it.
     LDD="true"
-  fi
-  AC_PATH_PROG(OTOOL, otool)
-  if test "x$OTOOL" = "x"; then
-    OTOOL="true"
   fi
   AC_PATH_PROGS(READELF, [readelf greadelf])
   AC_PATH_PROG(HG, hg)
