@@ -245,8 +245,14 @@ mapfile_reorder : mapfile $(REORDERFILE)
 	rm -f $@
 	cat $^ > $@
 
+VMDEF_PAT  = ^_ZTV
+VMDEF_PAT := ^gHotSpotVM|$(VMDEF_PAT)
+VMDEF_PAT := ^UseSharedSpaces$$|$(VMDEF_PAT)
+VMDEF_PAT := ^_ZN9Arguments17SharedArchivePathE$$|$(VMDEF_PAT)
+
 vm.def: $(Res_Files) $(Obj_Files)
-	sh $(GAMMADIR)/make/linux/makefiles/build_vm_def.sh *.o > $@
+	$(QUIETLY) $(NM) --defined-only $(Obj_Files) | sort -k3 -u | \
+	awk '$$3 ~ /$(VMDEF_PAT)/ { print "\t" $$3 ";" }' > $@
 
 mapfile_ext:
 	rm -f $@
