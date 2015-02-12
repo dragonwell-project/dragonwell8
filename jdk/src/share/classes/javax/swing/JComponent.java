@@ -3738,12 +3738,6 @@ public abstract class JComponent extends Container implements Serializable,
          * @param listener  the PropertyChangeListener to be added
          */
         public void addPropertyChangeListener(PropertyChangeListener listener) {
-            if (accessibleContainerHandler == null) {
-                accessibleContainerHandler = new AccessibleContainerHandler();
-            }
-            if (propertyListenersCount++ == 0) {
-                JComponent.this.addContainerListener(accessibleContainerHandler);
-            }
             super.addPropertyChangeListener(listener);
         }
 
@@ -3755,9 +3749,6 @@ public abstract class JComponent extends Container implements Serializable,
          * @param listener  the PropertyChangeListener to be removed
          */
         public void removePropertyChangeListener(PropertyChangeListener listener) {
-            if (--propertyListenersCount == 0) {
-                JComponent.this.removeContainerListener(accessibleContainerHandler);
-            }
             super.removePropertyChangeListener(listener);
         }
 
