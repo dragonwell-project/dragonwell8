@@ -1027,6 +1027,7 @@ public class ClassWriter extends ClassFile {
              l.nonEmpty();
              l = l.tail) {
             ClassSymbol inner = l.head;
+            inner.markAbstractIfNeeded(types);
             char flags = (char) adjustFlags(inner.flags_field);
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
             if (inner.name.isEmpty()) flags &= ~FINAL; // Anonymous class: unset FINAL flag
