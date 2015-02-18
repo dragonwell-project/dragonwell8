@@ -675,6 +675,41 @@ public class ScriptEngineTest {
         assertEquals("helloworld", inv.invokeMethod(ctx.get(), "join", ""));
     }
 
+    // @bug JDK-8068889: ConsString arguments to a functional interface wasn't converted to string.
+    @Test
+    public void functionalInterfaceStringTest() throws Exception {
+        final ScriptEngineManager manager = new ScriptEngineManager();
+        final ScriptEngine e = manager.getEngineByName("nashorn");
+        final AtomicBoolean invoked = new AtomicBoolean(false);
+        e.put("f", new Function<String, String>() {
+            @Override
+            public String apply(String t) {
+                invoked.set(true);
+                return t;
+            }
+        });
+        assertEquals(e.eval("var x = 'a'; x += 'b'; f(x)"), "ab");
+        assertTrue(invoked.get());
+    }
+
+    // @bug JDK-8068889: ScriptObject arguments to a functional interface wasn't converted to a mirror.
+    @Test
+    public void functionalInterfaceObjectTest() throws Exception {
+        final ScriptEngineManager manager = new ScriptEngineManager();
+        final ScriptEngine e = manager.getEngineByName("nashorn");
+        final AtomicBoolean invoked = new AtomicBoolean(false);
+        e.put("c", new Consumer<Object>() {
+            @Override
+            public void accept(Object t) {
+                assertTrue(t instanceof ScriptObjectMirror);
+                assertEquals(((ScriptObjectMirror)t).get("a"), "xyz");
+                invoked.set(true);
+            }
+        });
+        e.eval("var x = 'xy'; x += 'z';c({a:x})");
+        assertTrue(invoked.get());
+    }
+
     // @bug 8068524: NashornScriptEngineFactory.getParameter() throws IAE
     // for an unknown key, doesn't conform to the general spec
     @Test
