@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,12 @@ public class Universe {
   private static AddressField narrowKlassBaseField;
   private static CIntegerField narrowKlassShiftField;
 
+  public enum NARROW_OOP_MODE {
+    UnscaledNarrowOop,
+    ZeroBasedNarrowOop,
+    HeapBasedNarrowOop
+  }
+
   static {
     VM.registerVMInitializedObserver(new Observer() {
         public void update(Observable o, Object data) {
@@ -94,7 +100,17 @@ public class Universe {
 
   public Universe() {
   }
-
+  public static String narrowOopModeToString(NARROW_OOP_MODE mode) {
+    switch (mode) {
+    case UnscaledNarrowOop:
+      return "32-bits Oops";
+    case ZeroBasedNarrowOop:
+      return "zero based Compressed Oops";
+    case HeapBasedNarrowOop:
+      return "Compressed Oops with base";
+    }
+    return "";
+  }
   public CollectedHeap heap() {
     try {
       return (CollectedHeap) heapConstructor.instantiateWrapperFor(collectedHeapField.getValue());
