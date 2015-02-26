@@ -825,8 +825,8 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBFONTMANAGER, \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_SUFFIX := $(BUILD_LIBFONTMANAGER_FONTLIB), \
     LDFLAGS_SUFFIX_linux := -lawt $(LIBM) $(LIBCXX) -ljava -ljvm -lc, \
-    LDFLAGS_SUFFIX_solaris := -lawt -lawt_xawt -lc $(LIBM) $(LIBCXX) -ljava -ljvm, \
-    LDFLAGS_SUFFIX_aix := -lawt -lawt_xawt $(LIBM) $(LIBCXX) -ljava -ljvm,\
+    LDFLAGS_SUFFIX_solaris := -lawt -lawt_headless -lc $(LIBM) $(LIBCXX) -ljava -ljvm, \
+    LDFLAGS_SUFFIX_aix := -lawt -lawt_headless $(LIBM) $(LIBCXX) -ljava -ljvm,\
     LDFLAGS_SUFFIX_macosx := -lawt $(LIBM) $(LIBCXX) -undefined dynamic_lookup \
         -ljava -ljvm, \
     LDFLAGS_SUFFIX_windows := $(WIN_JAVA_LIB) advapi32.lib user32.lib gdi32.lib \
