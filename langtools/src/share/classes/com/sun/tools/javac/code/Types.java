@@ -47,6 +47,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import static com.sun.tools.javac.code.BoundKind.*;
 import static com.sun.tools.javac.code.Flags.*;
+import static com.sun.tools.javac.code.Kinds.MTH;
 import static com.sun.tools.javac.code.Scope.*;
 import static com.sun.tools.javac.code.Symbol.*;
 import static com.sun.tools.javac.code.Type.*;
@@ -85,6 +86,7 @@ public class Types {
     final boolean allowBoxing;
     final boolean allowCovariantReturns;
     final boolean allowObjectToPrimitiveCast;
+    final boolean allowDefaultMethods;
     final ClassReader reader;
     final Check chk;
     final Enter enter;
@@ -111,6 +113,7 @@ public class Types {
         allowBoxing = source.allowBoxing();
         allowCovariantReturns = source.allowCovariantReturns();
         allowObjectToPrimitiveCast = source.allowObjectToPrimitiveCast();
+        allowDefaultMethods = source.allowDefaultMethods();
         reader = ClassReader.instance(context);
         chk = Check.instance(context);
         enter = Enter.instance(context);
@@ -2761,6 +2764,59 @@ public class Types {
         return membersCache.visit(site, skipInterface);
     }
     // </editor-fold>
+
+
+    /** Return first abstract member of class `sym'.
+     */
+    public MethodSymbol firstUnimplementedAbstract(ClassSymbol sym) {
+        try {
+            return firstUnimplementedAbstractImpl(sym, sym);
+        } catch (CompletionFailure ex) {
+            chk.completionError(enter.getEnv(sym).tree.pos(), ex);
+            return null;
+        }
+    }
+        //where:
+        private MethodSymbol firstUnimplementedAbstractImpl(ClassSymbol impl, ClassSymbol c) {
+            MethodSymbol undef = null;
+            // Do not bother to search in classes that are not abstract,
+            // since they cannot have abstract members.
+            if (c == impl || (c.flags() & (ABSTRACT | INTERFACE)) != 0) {
+                Scope s = c.members();
+                for (Scope.Entry e = s.elems;
+                     undef == null && e != null;
+                     e = e.sibling) {
+                    if (e.sym.kind == MTH &&
+                        (e.sym.flags() & (ABSTRACT|IPROXY|DEFAULT)) == ABSTRACT) {
+                        MethodSymbol absmeth = (MethodSymbol)e.sym;
+                        MethodSymbol implmeth = absmeth.implementation(impl, this, true);
+                        if (implmeth == null || implmeth == absmeth) {
+                            //look for default implementations
+                            if (allowDefaultMethods) {
+                                MethodSymbol prov = interfaceCandidates(impl.type, absmeth).head;
+                                if (prov != null && prov.overrides(absmeth, impl, this, true)) {
+                                    implmeth = prov;
+                                }
+                            }
+                        }
+                        if (implmeth == null || implmeth == absmeth) {
+                            undef = absmeth;
+                        }
+                    }
+                }
+                if (undef == null) {
+                    Type st = supertype(c.type);
+                    if (st.hasTag(CLASS))
+                        undef = firstUnimplementedAbstractImpl(impl, (ClassSymbol)st.tsym);
+                }
+                for (List<Type> l = interfaces(c.type);
+                     undef == null && l.nonEmpty();
+                     l = l.tail) {
+                    undef = firstUnimplementedAbstractImpl(impl, (ClassSymbol)l.head.tsym);
+                }
+            }
+            return undef;
+        }
 
 
     //where
