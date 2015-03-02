@@ -312,7 +312,7 @@ public enum JSType {
             return JSType.BOOLEAN;
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return JSType.STRING;
         }
 
@@ -350,7 +350,7 @@ public enum JSType {
             return JSType.BOOLEAN;
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return JSType.STRING;
         }
 
@@ -456,8 +456,7 @@ public enum JSType {
                obj == ScriptRuntime.UNDEFINED ||
                obj instanceof Boolean ||
                obj instanceof Number ||
-               obj instanceof String ||
-               obj instanceof ConsString;
+               isString(obj);
     }
 
    /**
@@ -578,7 +577,7 @@ public enum JSType {
             return num != 0 && !Double.isNaN(num);
         }
 
-        if (obj instanceof String || obj instanceof ConsString) {
+        if (isString(obj)) {
             return ((CharSequence)obj).length() > 0;
         }
 
@@ -626,6 +625,15 @@ public enum JSType {
         } catch (final NumberFormatException e) {
             return false;
         }
+    }
+
+    /**
+     * Returns true if object represents a primitive JavaScript string value.
+     * @param obj the object
+     * @return true if the object represents a primitive JavaScript string value.
+     */
+    public static boolean isString(final Object obj) {
+        return obj instanceof String || obj instanceof ConsString;
     }
 
     /**
