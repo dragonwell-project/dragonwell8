@@ -209,6 +209,18 @@ void VM_GenCollectFull::doit() {
   gch->do_full_collection(gch->must_clear_all_soft_refs(), _max_level);
 }
 
+VM_CollectForMetadataAllocation::VM_CollectForMetadataAllocation(ClassLoaderData* loader_data,
+                                                                 size_t size,
+                                                                 Metaspace::MetadataType mdtype,
+                                                                 uint gc_count_before,
+                                                                 uint full_gc_count_before,
+                                                                 GCCause::Cause gc_cause)
+    : VM_GC_Operation(gc_count_before, gc_cause, full_gc_count_before, true),
+      _loader_data(loader_data), _size(size), _mdtype(mdtype), _result(NULL) {
+  assert(_size != 0, "An allocation should always be requested with this operation.");
+  AllocTracer::send_allocation_requiring_gc_event(_size * HeapWordSize, GCId::peek());
+}
+
 // Returns true iff concurrent GCs unloads metadata.
 bool VM_CollectForMetadataAllocation::initiate_concurrent_GC() {
 #if INCLUDE_ALL_GCS
@@ -311,5 +323,13 @@ void VM_CollectForMetadataAllocation::doit() {
 
   if (GC_locker::is_active_and_needs_gc()) {
     set_gc_locked();
+  }
+}
+
+VM_CollectForAllocation::VM_CollectForAllocation(size_t word_size, uint gc_count_before, GCCause::Cause cause)
+    : VM_GC_Operation(gc_count_before, cause), _result(NULL), _word_size(word_size) {
+  // Only report if operation was really caused by an allocation.
+  if (_word_size != 0) {
+    AllocTracer::send_allocation_requiring_gc_event(_word_size * HeapWordSize, GCId::peek());
   }
 }

@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_IMPLEMENTATION_SHARED_VMGCOPERATIONS_HPP
 #define SHARE_VM_GC_IMPLEMENTATION_SHARED_VMGCOPERATIONS_HPP
 
+#include "gc_implementation/shared/gcId.hpp"
 #include "memory/heapInspection.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/jniHandles.hpp"
@@ -168,8 +169,7 @@ class VM_CollectForAllocation : public VM_GC_Operation {
   HeapWord* _result;    // Allocation result (NULL if allocation failed)
 
  public:
-  VM_CollectForAllocation(size_t word_size, uint gc_count_before, GCCause::Cause cause)
-    : VM_GC_Operation(gc_count_before, cause), _result(NULL), _word_size(word_size) {}
+  VM_CollectForAllocation(size_t word_size, uint gc_count_before, GCCause::Cause cause);
 
   HeapWord* result() const {
     return _result;
@@ -220,10 +220,7 @@ class VM_CollectForMetadataAllocation: public VM_GC_Operation {
                                   size_t size, Metaspace::MetadataType mdtype,
                                   uint gc_count_before,
                                   uint full_gc_count_before,
-                                  GCCause::Cause gc_cause)
-    : VM_GC_Operation(gc_count_before, gc_cause, full_gc_count_before, true),
-      _loader_data(loader_data), _size(size), _mdtype(mdtype), _result(NULL) {
-  }
+                                  GCCause::Cause gc_cause);
   virtual VMOp_Type type() const { return VMOp_CollectForMetadataAllocation; }
   virtual void doit();
   MetaWord* result() const       { return _result; }
