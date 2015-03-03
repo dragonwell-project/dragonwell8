@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -252,30 +252,7 @@ bool os::have_special_privileges() {
 #endif
 
 // Cpu architecture string
-#if   defined(ZERO)
-static char cpu_arch[] = ZERO_LIBARCH;
-#elif defined(IA64)
-static char cpu_arch[] = "ia64";
-#elif defined(IA32)
-static char cpu_arch[] = "i386";
-#elif defined(AMD64)
-static char cpu_arch[] = "amd64";
-#elif defined(ARM)
-static char cpu_arch[] = "arm";
-#elif defined(PPC32)
-static char cpu_arch[] = "ppc";
-#elif defined(PPC64)
-static char cpu_arch[] = "ppc64";
-#elif defined(SPARC)
-#  ifdef _LP64
-static char cpu_arch[] = "sparcv9";
-#  else
-static char cpu_arch[] = "sparc";
-#  endif
-#else
-#error Add appropriate cpu_arch setting
-#endif
-
+static char cpu_arch[] = HOTSPOT_LIB_ARCH;
 
 // pid_t gettid()
 //
