@@ -852,9 +852,10 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
     // jcc(Assembler::negative, L);
     // addptr(data, (int32_t) DataLayout::counter_increment);
     // so we do this
+    ldr(rscratch1, addr);
     subs(rscratch1, rscratch1, (unsigned)DataLayout::counter_increment);
     Label L;
-    br(Assembler::CS, L); 	// skip store if counter overflow
+    br(Assembler::LO, L); 	// skip store if counter overflow
     str(rscratch1, addr);
     bind(L);
   } else {
