@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,22 +28,15 @@
 #include "interpreter/bytecodes.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/frame.hpp"
-#ifdef TARGET_ARCH_x86
+#if defined INTERP_MASM_MD_HPP
+# include INTERP_MASM_MD_HPP
+#elif defined TARGET_ARCH_x86
 # include "interp_masm_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "interp_masm_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "interp_masm_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "interp_masm_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "interp_masm_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "interp_masm_ppc_64.hpp"
 #endif
 
@@ -358,25 +351,17 @@ class TemplateTable: AllStatic {
   static Template* template_for_wide(Bytecodes::Code code)  { Bytecodes::wide_check(code); return &_template_table_wide[code]; }
 
   // Platform specifics
-#ifdef TARGET_ARCH_MODEL_x86_32
+#if defined TEMPLATETABLE_MD_HPP
+# include TEMPLATETABLE_MD_HPP
+#elif defined TARGET_ARCH_MODEL_x86_32
 # include "templateTable_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
+#elif defined TARGET_ARCH_MODEL_x86_64
 # include "templateTable_x86_64.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "templateTable_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "templateTable_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "templateTable_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "templateTable_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "templateTable_ppc_64.hpp"
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,22 +30,15 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/top.hpp"
-#ifdef TARGET_ARCH_x86
+#if defined INTERP_MASM_MD_HPP
+# include INTERP_MASM_MD_HPP
+#elif defined TARGET_ARCH_x86
 # include "interp_masm_x86.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "interp_masm_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "interp_masm_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "interp_masm_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "interp_masm_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "interp_masm_ppc_64.hpp"
 #endif
 
