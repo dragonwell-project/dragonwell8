@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import javax.net.ssl.*;
 import javax.security.auth.Subject;
 
 import sun.security.util.KeyUtil;
+import sun.security.util.LegacyAlgorithmConstraints;
 import sun.security.action.GetPropertyAction;
 import sun.security.ssl.HandshakeMessage.*;
 import sun.security.ssl.CipherSuite.*;
@@ -105,6 +106,12 @@ final class ServerHandshaker extends Handshaker {
 
     // The customized ephemeral DH key size for non-exportable cipher suites.
     private static final int customizedDHKeySize;
+
+    // legacy algorithm constraints
+    private static final AlgorithmConstraints legacyAlgorithmConstraints =
+            new LegacyAlgorithmConstraints(
+                    LegacyAlgorithmConstraints.PROPERTY_TLS_LEGACY_ALGS,
+                    new SSLAlgorithmDecomposer());
 
     static {
         String property = AccessController.doPrivileged(
@@ -995,6 +1002,7 @@ final class ServerHandshaker extends Handshaker {
             proposed = getActiveCipherSuites();
         }
 
+        List<CipherSuite> legacySuites = new ArrayList<>();
         for (CipherSuite suite : prefered.collection()) {
             if (isNegotiable(proposed, suite) == false) {
                 continue;
@@ -1006,11 +1014,24 @@ final class ServerHandshaker extends Handshaker {
                     continue;
                 }
             }
+
+            if (!legacyAlgorithmConstraints.permits(null, suite.name, null)) {
+                legacySuites.add(suite);
+                continue;
+            }
+
             if (trySetCipherSuite(suite) == false) {
                 continue;
             }
             return;
         }
+
+        for (CipherSuite suite : legacySuites) {
+            if (trySetCipherSuite(suite)) {
+                return;
+            }
+        }
+
         fatalSE(Alerts.alert_handshake_failure, "no cipher suites in common");
     }
 
