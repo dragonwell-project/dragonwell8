@@ -28,6 +28,9 @@ if test "x$BASH_VERSION" = x; then
   exit 1
 fi
 
+# Force autoconf to use bash.
+export CONFIG_SHELL=$BASH
+
 CONFIGURE_COMMAND_LINE="$@"
 conf_script_dir=`dirname $0`
 
