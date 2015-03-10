@@ -337,47 +337,41 @@ else
   # Note: The Itanium gcc compiler crashes when using -gstabs.
   DEBUG_CFLAGS/ia64  = -g
   DEBUG_CFLAGS/amd64 = -g
-  DEBUG_CFLAGS/arm   = -g
-  DEBUG_CFLAGS/ppc   = -g
   DEBUG_CFLAGS/ppc64 = -g
   DEBUG_CFLAGS += $(DEBUG_CFLAGS/$(BUILDARCH))
   ifeq ($(DEBUG_CFLAGS/$(BUILDARCH)),)
       ifeq ($(USE_CLANG), true)
         # Clang doesn't understand -gstabs
-        DEBUG_CFLAGS += -g
+        DEBUG_CFLAGS/$(BUILDARCH) = -g
       else
-        DEBUG_CFLAGS += -gstabs
+        DEBUG_CFLAGS/$(BUILDARCH) = -gstabs
       endif
   endif
   
   ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
     FASTDEBUG_CFLAGS/ia64  = -g
     FASTDEBUG_CFLAGS/amd64 = -g
-    FASTDEBUG_CFLAGS/arm   = -g
-    FASTDEBUG_CFLAGS/ppc   = -g
     FASTDEBUG_CFLAGS/ppc64 = -g
-    FASTDEBUG_CFLAGS += $(DEBUG_CFLAGS/$(BUILDARCH))
+    FASTDEBUG_CFLAGS += $(FASTDEBUG_CFLAGS/$(BUILDARCH))
     ifeq ($(FASTDEBUG_CFLAGS/$(BUILDARCH)),)
       ifeq ($(USE_CLANG), true)
         # Clang doesn't understand -gstabs
-        FASTDEBUG_CFLAGS += -g
+        FASTDEBUG_CFLAGS/$(BUILDARCH) = -g
       else
-        FASTDEBUG_CFLAGS += -gstabs
+        FASTDEBUG_CFLAGS/$(BUILDARCH) = -gstabs
       endif
     endif
   
     OPT_CFLAGS/ia64  = -g
     OPT_CFLAGS/amd64 = -g
-    OPT_CFLAGS/arm   = -g
-    OPT_CFLAGS/ppc   = -g
     OPT_CFLAGS/ppc64 = -g
     OPT_CFLAGS += $(OPT_CFLAGS/$(BUILDARCH))
     ifeq ($(OPT_CFLAGS/$(BUILDARCH)),)
       ifeq ($(USE_CLANG), true)
         # Clang doesn't understand -gstabs
-        OPT_CFLAGS += -g
+        OPT_CFLAGS/$(BUILDARCH) = -g
       else
-        OPT_CFLAGS += -gstabs
+        OPT_CFLAGS/$(BUILDARCH) = -gstabs
       endif
     endif
   endif
