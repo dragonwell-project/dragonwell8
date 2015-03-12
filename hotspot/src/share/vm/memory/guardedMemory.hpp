@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -235,7 +235,7 @@ protected:
    * @return the size of the user data.
    */
   size_t get_user_size() const {
-    assert(_base_addr, "Not wrapping any memory");
+    assert(_base_addr != NULL, "Not wrapping any memory");
     return get_head_guard()->get_user_size();
   }
 
@@ -245,7 +245,7 @@ protected:
    * @return the user data pointer.
    */
   u_char* get_user_ptr() const {
-    assert(_base_addr, "Not wrapping any memory");
+    assert(_base_addr != NULL, "Not wrapping any memory");
     return _base_addr + sizeof(GuardHeader);
   }
 
@@ -281,7 +281,7 @@ protected:
     memset(get_user_ptr(), ch, get_user_size());
   }
 
-public:
+ public:
   /**
    * Return the total size required for wrapping the given user size.
    *
