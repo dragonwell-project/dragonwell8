@@ -25,11 +25,13 @@
 
 package jdk.nashorn.internal.runtime.linker;
 
+import static jdk.nashorn.internal.runtime.JSType.isString;
+import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_CALL;
 import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_GETMEMBER;
 import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_GETSLOT;
 import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_SETMEMBER;
 import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_SETSLOT;
-import static jdk.nashorn.internal.runtime.linker.BrowserJSObjectLinker.JSObjectHandles.JSOBJECT_CALL;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import jdk.internal.dynalink.CallSiteDescriptor;
@@ -170,12 +172,12 @@ final class BrowserJSObjectLinker implements TypeBasedGuardingDynamicLinker {
             if (index > -1) {
                 return JSOBJECT_GETSLOT.invokeExact(jsobj, index);
             }
-        } else if (key instanceof String) {
-            final String name = (String)key;
+        } else if (isString(key)) {
+            final String name = key.toString();
             if (name.indexOf('(') != -1) {
-                return fallback.invokeExact(jsobj, key);
+                return fallback.invokeExact(jsobj, (Object) name);
             }
-            return JSOBJECT_GETMEMBER.invokeExact(jsobj, (String)key);
+            return JSOBJECT_GETMEMBER.invokeExact(jsobj, name);
         }
         return null;
     }
@@ -186,8 +188,8 @@ final class BrowserJSObjectLinker implements TypeBasedGuardingDynamicLinker {
             JSOBJECT_SETSLOT.invokeExact(jsobj, (int)key, value);
         } else if (key instanceof Number) {
             JSOBJECT_SETSLOT.invokeExact(jsobj, getIndex((Number)key), value);
-        } else if (key instanceof String) {
-            JSOBJECT_SETMEMBER.invokeExact(jsobj, (String)key, value);
+        } else if (isString(key)) {
+            JSOBJECT_SETMEMBER.invokeExact(jsobj, key.toString(), value);
         }
     }
 
