@@ -133,6 +133,8 @@ ifneq ($(BUILD_CRYPTO), no)
   endif
 
   ifneq ($(BUILD_LIBKRB5_NAME), )
+    # libosxkrb5 needs to call deprecated krb5 APIs so that java
+    # can use the native credentials cache.
     $(eval $(call SetupNativeCompilation,BUILD_LIBKRB5, \
         LIBRARY := $(BUILD_LIBKRB5_NAME), \
         OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
