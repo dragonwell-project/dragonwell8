@@ -265,6 +265,9 @@ class Method : public Metadata {
   u2 method_idnum() const           { return constMethod()->method_idnum(); }
   void set_method_idnum(u2 idnum)   { constMethod()->set_method_idnum(idnum); }
 
+  u2 orig_method_idnum() const           { return constMethod()->orig_method_idnum(); }
+  void set_orig_method_idnum(u2 idnum)   { constMethod()->set_orig_method_idnum(idnum); }
+
   // code size
   int code_size() const                  { return constMethod()->code_size(); }
 
