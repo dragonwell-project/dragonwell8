@@ -433,7 +433,8 @@ gboolean gtk2_check_version()
             result = TRUE;
         }
 
-        dlclose(lib);
+        // 8048289: workaround for https://bugzilla.gnome.org/show_bug.cgi?id=733065
+        // dlclose(lib);
 
         return result;
     }
