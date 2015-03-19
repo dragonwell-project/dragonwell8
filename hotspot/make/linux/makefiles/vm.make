@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -45,8 +45,9 @@ DEP_DIR       = $(GENERATED)/dependencies
 ifeq ($(findstring true, $(JVM_VARIANT_ZERO) $(JVM_VARIANT_ZEROSHARK)), true)
   include $(MAKEFILES_DIR)/zeroshark.make
 else
-  include $(MAKEFILES_DIR)/$(BUILDARCH).make
-  -include $(HS_ALT_MAKE)/$(Platform_os_family)/makefiles/$(BUILDARCH).make
+  BUILDARCH_MAKE = $(MAKEFILES_DIR)/$(BUILDARCH).make
+  ALT_BUILDARCH_MAKE = $(HS_ALT_MAKE)/$(Platform_os_family)/makefiles/$(BUILDARCH).make
+  include $(if $(wildcard $(ALT_BUILDARCH_MAKE)),$(ALT_BUILDARCH_MAKE),$(BUILDARCH_MAKE))
 endif
 
 # set VPATH so make knows where to look for source files
