@@ -3878,7 +3878,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1426098039
+DATE_WHEN_GENERATED=1426765548
 
 ###############################################################################
 #
@@ -16779,7 +16779,7 @@ $as_echo "$as_me: The path of JT_HOME, which resolves as \"$path\", is invalid."
 
 
       # jtreg win32 script works for everybody
-      JTREGEXE="$JT_HOME/win32/bin/jtreg"
+      JTREGEXE="$JT_HOME/bin/jtreg"
 
       if test ! -f "$JTREGEXE"; then
         as_fn_error $? "JTReg executable does not exist: $JTREGEXE" "$LINENO" 5
