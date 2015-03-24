@@ -349,7 +349,7 @@ ifeq ($(OS_VENDOR), Darwin)
   # The macro takes the version with no dots, ex: 1070
   CFLAGS += -DMAC_OS_X_VERSION_MAX_ALLOWED=$(subst .,,$(MACOSX_VERSION_MIN)) \
             -mmacosx-version-min=$(MACOSX_VERSION_MIN)
-  LDFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN)
+  LFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN)
 endif
 
 
