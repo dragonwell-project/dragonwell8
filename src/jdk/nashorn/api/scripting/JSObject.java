@@ -186,6 +186,8 @@ public interface JSObject {
      * Returns this object's numeric value.
      *
      * @return this object's numeric value.
+     * @deprecated use {@link AbstractJSObject#getDefaultValue(JSObject, Class)} with {@link Number} hint instead.
      */
+    @Deprecated
     public double toNumber();
 }
