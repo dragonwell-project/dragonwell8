@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -959,8 +959,7 @@ class InstanceKlass: public Klass {
   Method* method_at_itable(Klass* holder, int index, TRAPS);
 
 #if INCLUDE_JVMTI
-  void adjust_default_methods(Method** old_methods, Method** new_methods,
-                              int methods_length, bool* trace_name_printed);
+  void adjust_default_methods(InstanceKlass* holder, bool* trace_name_printed);
 #endif // INCLUDE_JVMTI
 
   // Garbage collection
