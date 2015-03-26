@@ -1883,7 +1883,7 @@ public class LambdaToMethod extends TreeTranslator {
              * Translate a symbol of a given kind into something suitable for the
              * synthetic lambda body
              */
-            Symbol translate(Name name, final Symbol sym, LambdaSymbolKind skind) {
+            Symbol translate(final Symbol sym, LambdaSymbolKind skind) {
                 Symbol ret;
                 switch (skind) {
                     case CAPTURED_THIS:
@@ -1891,7 +1891,7 @@ public class LambdaToMethod extends TreeTranslator {
                         break;
                     case TYPE_VAR:
                         // Just erase the type var
-                        ret = new VarSymbol(sym.flags(), name,
+                        ret = new VarSymbol(sym.flags(), sym.name,
                                 types.erasure(sym.type), sym.owner);
 
                         /* this information should also be kept for LVT generation at Gen
@@ -1900,7 +1900,7 @@ public class LambdaToMethod extends TreeTranslator {
                         ((VarSymbol)ret).pos = ((VarSymbol)sym).pos;
                         break;
                     case CAPTURED_VAR:
-                        ret = new VarSymbol(SYNTHETIC | FINAL | PARAMETER, name, types.erasure(sym.type), translatedSym) {
+                        ret = new VarSymbol(SYNTHETIC | FINAL | PARAMETER, sym.name, types.erasure(sym.type), translatedSym) {
                             @Override
                             public Symbol baseSymbol() {
                                 //keep mapping with original captured symbol
@@ -1909,16 +1909,16 @@ public class LambdaToMethod extends TreeTranslator {
                         };
                         break;
                     case LOCAL_VAR:
-                        ret = new VarSymbol(sym.flags() & FINAL, name, sym.type, translatedSym);
+                        ret = new VarSymbol(sym.flags() & FINAL, sym.name, sym.type, translatedSym);
                         ((VarSymbol) ret).pos = ((VarSymbol) sym).pos;
                         break;
                     case PARAM:
-                        ret = new VarSymbol((sym.flags() & FINAL) | PARAMETER, name, types.erasure(sym.type), translatedSym);
+                        ret = new VarSymbol((sym.flags() & FINAL) | PARAMETER, sym.name, types.erasure(sym.type), translatedSym);
                         ((VarSymbol) ret).pos = ((VarSymbol) sym).pos;
                         break;
                     default:
-                        ret = makeSyntheticVar(FINAL, name, types.erasure(sym.type), translatedSym);
-                        ((VarSymbol) ret).pos = ((VarSymbol) sym).pos;
+                        Assert.error(skind.name());
+                        throw new AssertionError();
                 }
                 if (ret != sym) {
                     ret.setDeclarationAttributes(sym.getRawAttributes());
@@ -1929,27 +1929,8 @@ public class LambdaToMethod extends TreeTranslator {
 
             void addSymbol(Symbol sym, LambdaSymbolKind skind) {
                 Map<Symbol, Symbol> transMap = getSymbolMap(skind);
-                Name preferredName;
-                switch (skind) {
-                    case CAPTURED_THIS:
-                        preferredName = names.fromString("encl$" + transMap.size());
-                        break;
-                    case CAPTURED_VAR:
-                        preferredName = names.fromString("cap$" + transMap.size());
-                        break;
-                    case LOCAL_VAR:
-                        preferredName = sym.name;
-                        break;
-                    case PARAM:
-                        preferredName = sym.name;
-                        break;
-                    case TYPE_VAR:
-                        preferredName = sym.name;
-                        break;
-                    default: throw new AssertionError();
-                }
                 if (!transMap.containsKey(sym)) {
-                    transMap.put(sym, translate(preferredName, sym, skind));
+                    transMap.put(sym, translate(sym, skind));
                 }
             }
 
