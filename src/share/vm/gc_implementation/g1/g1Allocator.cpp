@@ -59,7 +59,7 @@ void G1Allocator::reuse_retained_old_region(EvacuationInfo& evacuation_info,
       !(retained_region->top() == retained_region->end()) &&
       !retained_region->is_empty() &&
       !retained_region->isHumongous()) {
-    retained_region->record_top_and_timestamp();
+    retained_region->record_timestamp();
     // The retained region was added to the old region set when it was
     // retired. We have to remove it now, since we don't allow regions
     // we allocate to in the region sets. We'll re-add it later, when
@@ -94,6 +94,9 @@ void G1DefaultAllocator::release_gc_alloc_regions(uint no_of_gc_workers, Evacuat
   // want either way so no reason to check explicitly for either
   // condition.
   _retained_old_gc_alloc_region = old_gc_alloc_region(context)->release();
+  if (_retained_old_gc_alloc_region != NULL) {
+    _retained_old_gc_alloc_region->record_retained_region();
+  }
 
   if (ResizePLAB) {
     _g1h->_survivor_plab_stats.adjust_desired_plab_sz(no_of_gc_workers);
@@ -110,15 +113,16 @@ void G1DefaultAllocator::abandon_gc_alloc_regions() {
 G1ParGCAllocBuffer::G1ParGCAllocBuffer(size_t gclab_word_size) :
   ParGCAllocBuffer(gclab_word_size), _retired(true) { }
 
-HeapWord* G1ParGCAllocator::allocate_slow(GCAllocPurpose purpose, size_t word_sz, AllocationContext_t context) {
-  HeapWord* obj = NULL;
-  size_t gclab_word_size = _g1h->desired_plab_sz(purpose);
+HeapWord* G1ParGCAllocator::allocate_direct_or_new_plab(InCSetState dest,
+                                                        size_t word_sz,
+                                                        AllocationContext_t context) {
+  size_t gclab_word_size = _g1h->desired_plab_sz(dest);
   if (word_sz * 100 < gclab_word_size * ParallelGCBufferWastePct) {
-    G1ParGCAllocBuffer* alloc_buf = alloc_buffer(purpose, context);
+    G1ParGCAllocBuffer* alloc_buf = alloc_buffer(dest, context);
     add_to_alloc_buffer_waste(alloc_buf->words_remaining());
     alloc_buf->retire(false /* end_of_gc */, false /* retain */);
 
-    HeapWord* buf = _g1h->par_allocate_during_gc(purpose, gclab_word_size, context);
+    HeapWord* buf = _g1h->par_allocate_during_gc(dest, gclab_word_size, context);
     if (buf == NULL) {
       return NULL; // Let caller handle allocation failure.
     }
@@ -126,30 +130,33 @@ HeapWord* G1ParGCAllocator::allocate_slow(GCAllocPurpose purpose, size_t word_sz
     alloc_buf->set_word_size(gclab_word_size);
     alloc_buf->set_buf(buf);
 
-    obj = alloc_buf->allocate(word_sz);
+    HeapWord* const obj = alloc_buf->allocate(word_sz);
     assert(obj != NULL, "buffer was definitely big enough...");
+    return obj;
   } else {
-    obj = _g1h->par_allocate_during_gc(purpose, word_sz, context);
+    return _g1h->par_allocate_during_gc(dest, word_sz, context);
   }
-  return obj;
 }
 
 G1DefaultParGCAllocator::G1DefaultParGCAllocator(G1CollectedHeap* g1h) :
-            G1ParGCAllocator(g1h),
-            _surviving_alloc_buffer(g1h->desired_plab_sz(GCAllocForSurvived)),
-            _tenured_alloc_buffer(g1h->desired_plab_sz(GCAllocForTenured)) {
-
-  _alloc_buffers[GCAllocForSurvived] = &_surviving_alloc_buffer;
-  _alloc_buffers[GCAllocForTenured]  = &_tenured_alloc_buffer;
-
+  G1ParGCAllocator(g1h),
+  _surviving_alloc_buffer(g1h->desired_plab_sz(InCSetState::Young)),
+  _tenured_alloc_buffer(g1h->desired_plab_sz(InCSetState::Old)) {
+  for (uint state = 0; state < InCSetState::Num; state++) {
+    _alloc_buffers[state] = NULL;
+  }
+  _alloc_buffers[InCSetState::Young] = &_surviving_alloc_buffer;
+  _alloc_buffers[InCSetState::Old]  = &_tenured_alloc_buffer;
 }
 
 void G1DefaultParGCAllocator::retire_alloc_buffers() {
-  for (int ap = 0; ap < GCAllocPurposeCount; ++ap) {
-    size_t waste = _alloc_buffers[ap]->words_remaining();
-    add_to_alloc_buffer_waste(waste);
-    _alloc_buffers[ap]->flush_stats_and_retire(_g1h->stats_for_purpose((GCAllocPurpose)ap),
-                                               true /* end_of_gc */,
-                                               false /* retain */);
+  for (uint state = 0; state < InCSetState::Num; state++) {
+    G1ParGCAllocBuffer* const buf = _alloc_buffers[state];
+    if (buf != NULL) {
+      add_to_alloc_buffer_waste(buf->words_remaining());
+      buf->flush_stats_and_retire(_g1h->alloc_buffer_stats(state),
+                                  true /* end_of_gc */,
+                                  false /* retain */);
+    }
   }
 }
