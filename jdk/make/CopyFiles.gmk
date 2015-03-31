@@ -282,7 +282,10 @@ endif
 ifeq ($(OPENJDK_TARGET_OS), macosx)
   JVMCFG_SRC := $(JDK_TOPDIR)/src/macosx/bin/$(JVMCFG_ARCH)/jvm.cfg
 else
-  JVMCFG_SRC := $(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/bin/$(JVMCFG_ARCH)/jvm.cfg
+  JVMCFG_BASE := $(OPENJDK_TARGET_OS_API_DIR)/bin/$(JVMCFG_ARCH)/jvm.cfg
+  ALT_JVMCFG_SRC := $(JDK_TOPDIR)/src/closed/$(JVMCFG_BASE)
+  # Use the ALT file if it exists
+  JVMCFG_SRC := $(if $(wildcard $(ALT_JVMCFG_SRC)),$(ALT_JVMCFG_SRC),$(JDK_TOPDIR)/src/$(JVMCFG_BASE))
 endif
 JVMCFG_DIR := $(JDK_OUTPUTDIR)/lib$(OPENJDK_TARGET_CPU_LIBDIR)
 JVMCFG := $(JVMCFG_DIR)/jvm.cfg
