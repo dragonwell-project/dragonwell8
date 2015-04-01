@@ -171,6 +171,8 @@ static CClipboard *sClipboard = nil;
     else [args removeLastObject];
 }
 
+
+
 - (void) checkPasteboard:(id)application {
     AWT_ASSERT_APPKIT_THREAD;
     
@@ -199,6 +201,19 @@ static CClipboard *sClipboard = nil;
                 fClipboardOwner = NULL;
             }
         }
+    }
+}
+
+- (BOOL) checkPasteboardWithoutNotification:(id)application {
+    AWT_ASSERT_APPKIT_THREAD;
+    
+    NSInteger newChangeCount = [[NSPasteboard generalPasteboard] changeCount];
+    
+    if (fChangeCount != newChangeCount) {
+        fChangeCount = newChangeCount;    
+        return YES;
+    } else {
+        return NO;
     }
 }
 
@@ -348,16 +363,17 @@ JNF_COCOA_EXIT(env);
  * Method:    checkPasteboard
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CClipboard_checkPasteboard
-(JNIEnv *env, jobject inObject )
+JNIEXPORT jboolean JNICALL Java_sun_lwawt_macosx_CClipboard_checkPasteboardWithoutNotification
+(JNIEnv *env, jobject inObject)
 {
+    __block BOOL ret = NO;
     JNF_COCOA_ENTER(env);
-
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
-        [[CClipboard sharedClipboard] checkPasteboard:nil];
+        ret = [[CClipboard sharedClipboard] checkPasteboardWithoutNotification:nil];
     }];
-        
+     
     JNF_COCOA_EXIT(env);
+    return ret;
 }
 
 

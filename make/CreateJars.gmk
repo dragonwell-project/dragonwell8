@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -650,7 +650,6 @@ $(eval $(call SetupZipArchive,BUILD_SRC_ZIP, \
 
 ##########################################################################################
 
-ifndef OPENJDK
   ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $(eval $(call SetupArchive,BUILD_JACCESS_JAR, , \
@@ -686,7 +685,6 @@ ifndef OPENJDK
       JARS += $(IMAGES_OUTPUTDIR)/lib/ext/access-bridge-64.jar
     endif
   endif
-endif
 
 ##########################################################################################
 
