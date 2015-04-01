@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,7 +119,6 @@ Monitor* SecondaryFreeList_lock       = NULL;
 Mutex*   OldSets_lock                 = NULL;
 Monitor* RootRegionScan_lock          = NULL;
 Mutex*   MMUTracker_lock              = NULL;
-Mutex*   HotCardCache_lock            = NULL;
 
 Monitor* GCTaskManager_lock           = NULL;
 
@@ -200,7 +199,6 @@ void mutex_init() {
     def(OldSets_lock               , Mutex  , leaf     ,   true );
     def(RootRegionScan_lock        , Monitor, leaf     ,   true );
     def(MMUTracker_lock            , Mutex  , leaf     ,   true );
-    def(HotCardCache_lock          , Mutex  , special  ,   true );
     def(EvacFailureStack_lock      , Mutex  , nonleaf  ,   true );
 
     def(StringDedupQueue_lock      , Monitor, leaf,        true );
