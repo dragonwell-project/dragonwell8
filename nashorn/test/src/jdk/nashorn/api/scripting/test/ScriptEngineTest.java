@@ -58,8 +58,8 @@ import org.testng.annotations.Test;
  * Tests for JSR-223 script engine for Nashorn.
  *
  * @test
- * @build jdk.nashorn.api.scripting.Window jdk.nashorn.api.scripting.WindowEventHandler jdk.nashorn.api.scripting.VariableArityTestInterface jdk.nashorn.api.scripting.ScriptEngineTest
- * @run testng/othervm jdk.nashorn.api.scripting.ScriptEngineTest
+ * @build jdk.nashorn.api.scripting.test.Window jdk.nashorn.api.scripting.test.WindowEventHandler jdk.nashorn.api.scripting.test.VariableArityTestInterface jdk.nashorn.api.scripting.test.ScriptEngineTest
+ * @run testng/othervm jdk.nashorn.api.scripting.test.ScriptEngineTest
  */
 @SuppressWarnings("javadoc")
 public class ScriptEngineTest {
@@ -542,7 +542,7 @@ public class ScriptEngineTest {
         final ScriptEngineManager m = new ScriptEngineManager();
         final ScriptEngine e = m.getEngineByName("nashorn");
         e.eval("obj = { foo: 'hello' }");
-        e.put("Window", e.eval("Packages.jdk.nashorn.api.scripting.Window"));
+        e.put("Window", e.eval("Packages.jdk.nashorn.api.scripting.test.Window"));
         assertEquals(e.eval("Window.funcJSObject(obj)"), "hello");
         assertEquals(e.eval("Window.funcScriptObjectMirror(obj)"), "hello");
         assertEquals(e.eval("Window.funcMap(obj)"), "hello");
