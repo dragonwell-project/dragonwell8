@@ -358,6 +358,8 @@ class InstanceKlass: public Klass {
   Array<Method*>* methods() const          { return _methods; }
   void set_methods(Array<Method*>* a)      { _methods = a; }
   Method* method_with_idnum(int idnum);
+  Method* method_with_orig_idnum(int idnum);
+  Method* method_with_orig_idnum(int idnum, int version);
 
   // method ordering
   Array<int>* method_ordering() const     { return _method_ordering; }
@@ -658,6 +660,7 @@ class InstanceKlass: public Klass {
     return _previous_versions;
   }
 
+  InstanceKlass* get_klass_version(int version);
   static void purge_previous_versions(InstanceKlass* ik);
 
   // JVMTI: Support for caching a class file before it is modified by an agent that can do retransformation

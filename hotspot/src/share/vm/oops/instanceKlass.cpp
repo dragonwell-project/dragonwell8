@@ -3747,6 +3747,22 @@ bool InstanceKlass::has_previous_version() const {
 } // end has_previous_version()
 
 
+InstanceKlass* InstanceKlass::get_klass_version(int version) {
+  if (constants()->version() == version) {
+    return this;
+  }
+  PreviousVersionWalker pvw(Thread::current(), (InstanceKlass*)this);
+  for (PreviousVersionNode * pv_node = pvw.next_previous_version();
+       pv_node != NULL; pv_node = pvw.next_previous_version()) {
+    ConstantPool* prev_cp = pv_node->prev_constant_pool();
+    if (prev_cp->version() == version) {
+      return prev_cp->pool_holder();
+    }
+  }
+  return NULL; // None found
+}
+
+
 Method* InstanceKlass::method_with_idnum(int idnum) {
   Method* m = NULL;
   if (idnum < methods()->length()) {
@@ -3764,6 +3780,37 @@ Method* InstanceKlass::method_with_idnum(int idnum) {
   }
   return m;
 }
+
+
+Method* InstanceKlass::method_with_orig_idnum(int idnum) {
+  if (idnum >= methods()->length()) {
+    return NULL;
+  }
+  Method* m = methods()->at(idnum);
+  if (m != NULL && m->orig_method_idnum() == idnum) {
+    return m;
+  }
+  // Obsolete method idnum does not match the original idnum
+  for (int index = 0; index < methods()->length(); ++index) {
+    m = methods()->at(index);
+    if (m->orig_method_idnum() == idnum) {
+      return m;
+    }
+  }
+  // None found, return null for the caller to handle.
+  return NULL;
+}
+
+
+Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) {
+  InstanceKlass* holder = get_klass_version(version);
+  if (holder == NULL) {
+    return NULL; // The version of klass is gone, no method is found
+  }
+  Method* method = holder->method_with_orig_idnum(idnum);
+  return method;
+}
+
 
 jint InstanceKlass::get_cached_class_file_len() {
   return VM_RedefineClasses::get_cached_class_file_len(_cached_class_file);
