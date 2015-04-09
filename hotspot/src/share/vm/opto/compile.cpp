@@ -679,7 +679,8 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _inlining_incrementally(false),
                   _print_inlining_list(NULL),
                   _print_inlining_idx(0),
-                  _interpreter_frame_size(0) {
+                  _interpreter_frame_size(0),
+                  _max_node_limit(MaxNodeLimit) {
   C = this;
 
   CompileWrapper cw(this);
@@ -990,7 +991,8 @@ Compile::Compile( ciEnv* ci_env,
     _print_inlining_list(NULL),
     _print_inlining_idx(0),
     _allowed_reasons(0),
-    _interpreter_frame_size(0) {
+    _interpreter_frame_size(0),
+    _max_node_limit(MaxNodeLimit) {
   C = this;
 
 #ifndef PRODUCT
@@ -1100,6 +1102,7 @@ void Compile::Init(int aliaslevel) {
   set_do_count_invocations(false);
   set_do_method_data_update(false);
   set_rtm_state(NoRTM); // No RTM lock eliding by default
+  method_has_option_value("MaxNodeLimit", _max_node_limit);
 #if INCLUDE_RTM_OPT
   if (UseRTMLocking && has_method() && (method()->method_data_or_null() != NULL)) {
     int rtm_state = method()->method_data()->rtm_state();
