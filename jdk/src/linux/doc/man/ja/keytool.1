@@ -23,14 +23,15 @@
 .\"
 .\" Title: keytool
 .\" Language: Japanese
-.\" Date: 2013╟п8╖ю6╞№
+.\" Date: 2015╟п3╖ю3╞№
 .\" SectDesc: е╗енехеъе╞егбже─б╝еы
 .\" Software: JDK 8
 .\" Arch: ╚╞═╤
-.\" Part Number: E54734-01
+.\" Part Number: E58103-01
+.\" Doc ID: JSSON
 .\"
 .if n .pl 99999
-.TH "keytool" "1" "2013╟п8╖ю6╞№" "JDK 8" "е╗енехеъе╞егбже─б╝еы"
+.TH "keytool" "1" "2015╟п3╖ю3╞№" "JDK 8" "е╗енехеъе╞егбже─б╝еы"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -375,7 +376,7 @@ keytool \- ░┼╣ц▓╜╕░бвX\&.509╛┌╠└╜ёе┴езб╝еєдкдшд╙┐о═ъд╟днды╛┌╠└╜ёдЄ┤▐дренб╝е╣е╚ев
 .sp -1
 .IP \(bu 2.3
 .\}
-еде┐еъе├еп┬╬д╦д╩д├д╞ддд╩ддд╣д┘д╞д╬╣р╠▄бвд▐д┐д╧├целе├е│дл│╤еле├е│д╟░╧д▐дьд╞дддыд╣д┘д╞д╬╣р╠▄д╧бвд╜д╬д╚дкдъд╦╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣бг
+еде┐еъе├епд╦д╩д├д╞ддд╩ддд╣д┘д╞д╬╣р╠▄бвд▐д┐д╧├целе├е│дл│╤еле├е│д╟░╧д▐дьд╞дддыд╣д┘д╞д╬╣р╠▄д╧бвд╜д╬д╚дкдъд╦╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣бг
 .RE
 .sp
 .RS 4
@@ -408,11 +409,19 @@ keytool \- ░┼╣ц▓╜╕░бвX\&.509╛┌╠└╜ёе┴езб╝еєдкдшд╙┐о═ъд╟днды╛┌╠└╜ёдЄ┤▐дренб╝е╣е╚ев
 .sp -1
 .IP \(bu 2.3
 .\}
-еде┐еъе├еп┬╬д╬╣р╠▄д╬╝┬║▌д╬├═(еке╫е╖ечеєд╬├═)д╧бв╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣бгд┐д╚дид╨бв\fB\-printcert\fRе│е▐еєе╔д╬╖┴╝░д╧╝бд╬д╚дкдъд╟д╣бг
+еде┐еъе├епд╬╣р╠▄д╬╝┬║▌д╬├═(еке╫е╖ечеєд╬├═)д╧бв╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣бгд┐д╚дид╨бв\fB\-printcert\fRе│е▐еєе╔д╬╖┴╝░д╧╝бд╬д╚дкдъд╟д╣бг
 .sp
-\fBkeytool \-printcert {\-file cert_file} {\-v}\fR
+.if n \{\
+.RS 4
+.\}
+.nf
+\fBkeytool \-printcert {\-file \fR\fB\fIcert_file\fR\fR\fB} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
 .sp
-\fB\-printcert\fRе│е▐еєе╔дЄ╗╪─ъд╣ды╛ь╣чд╧бв\fBcert_file\fRдЄ╝┬║▌д╬е╒ебедеы╠╛д╟├╓дн┤╣дид▐д╣бг╬у:
+\fB\-printcert\fRе│е▐еєе╔дЄ╗╪─ъд╣ды╛ь╣чд╧бв\fIcert_file\fRдЄ╝┬║▌д╬е╒ебедеы╠╛д╟├╓дн┤╣дид▐д╣бг╬у:
 \fBkeytool \-printcert \-file VScert\&.cer\fR
 .RE
 .sp
@@ -624,8 +633,7 @@ EKUд▐д┐д╧ExtendedKeyUsage
 SANд▐д┐д╧SubjectAlternativeName
 .RS 4
 \fB├═\fR:
-\fBtype\fR:\fBvalue\fR
-(t\fBype:value\fR)*бв\fBtype\fRд╦д╧\fBEMAIL\fRбв\fBURI\fRбв\fBDNS\fRбв\fBIP\fRд▐д┐д╧\fBOID\fRдЄ╗╪─ъд╟днд▐д╣бг\fBvalue\fR░·┐Їд╧бв\fBtype\fRд╬╩╕╗·╬є╖┴╝░д╬├═д╟д╣бг
+\fBtype\fR:\fBvalue\fR(t\fBype:value\fR)*бв\fBtype\fRд╦д╧\fBEMAIL\fRбв\fBURI\fRбв\fBDNS\fRбв\fBIP\fRд▐д┐д╧\fBOID\fRдЄ╗╪─ъд╟днд▐д╣бг\fBvalue\fR░·┐Їд╧бв\fBtype\fRд╬╩╕╗·╬є╖┴╝░д╬├═д╟д╣бг
 .RE
 .PP
 IANд▐д┐д╧IssuerAlternativeName
@@ -662,8 +670,66 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-gencert
 .RS 4
-\fB{\-rfc} {\-infile infile} {\-outfile outfile} {\-alias alias} {\-sigalg sigalg} {\-dname dname} {\-startdate startdate {\-ext ext}* {\-validity valDays} [\-keypass keypass] {\-keystore keystore} [\-storepass storepass] {\-storetype storetype} {\-providername provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-rfc} {\-infile \fR\fB\fIinfile\fR\fR\fB} {\-outfile \fR\fB\fIoutfile\fR\fR\fB} {\-alias \fR\fB\fIalias\fR\fR\fB} {\-sigalg \fR\fB\fIsigalg\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-dname \fR\fB\fIdname\fR\fR\fB} {\-startdate \fR\fB\fIstartdate\fR\fR\fB {\-ext \fR\fB\fIext\fR\fR\fB}* {\-validity \fR\fB\fIvalDays\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-providername \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 ╛┌╠└╜ёеъепеие╣е╚бже╒ебедеы(\fBkeytool\fR
 \fB\-certreq\fRе│е▐еєе╔д╟║ю└о▓─╟╜)д╦┬╨д╣дыеье╣е▌еєе╣д╚д╖д╞╛┌╠└╜ёдЄ└╕└од╖д▐д╣бгд│д╬е│е▐еєе╔д╧бв\fIinfile\fRдлдщ(╛╩╬мд╖д┐╛ь╣чд╧бв╔╕╜р╞■╬╧длдщ)еъепеие╣е╚дЄ╞╔д▀╣■д▀бв╩╠╠╛д╬╚ы╠й╕░дЄ╗╚═╤д╖д╞д╜д╬еъепеие╣е╚д╦╜Ё╠╛д╖д╞бвX\&.509╛┌╠└╜ёдЄ\fIoutfile\fRд╦(╛╩╬мд╖д┐╛ь╣чд╧бв╔╕╜р╜╨╬╧д╦)╜╨╬╧д╖д▐д╣бг\fB\-rfc\fRдЄ╗╪─ъд╖д┐╛ь╣чбв╜╨╬╧╖┴╝░д╧BASE64╔ф╣ц▓╜д╬PEMд╦д╩дъд▐д╣бгд╜дь░╩│░д╬╛ь╣чд╧бве╨еде╩еъDERдм║ю└од╡дьд▐д╣бг
 .sp
@@ -724,8 +790,66 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-genkeypair
 .RS 4
-\fB{\-alias alias} {\-keyalg keyalg} {\-keysize keysize} {\-sigalg sigalg} [\-dname dname] [\-keypass keypass] {\-startdate value} {\-ext ext}* {\-validity valDays} {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-keyalg \fR\fB\fIkeyalg\fR\fR\fB} {\-keysize \fR\fB\fIkeysize\fR\fR\fB} {\-sigalg \fR\fB\fIsigalg\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-dname \fR\fB\fIdname\fR\fR\fB] [\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-startdate \fR\fB\fIvalue\fR\fR\fB} {\-ext \fR\fB\fIext\fR\fR\fB}*\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-validity \fR\fB\fIvalDays\fR\fR\fB} {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 ╕░д╬е┌ев(╕°│л╕░дкдшд╙┤╪╧вд╣ды╚ы╠й╕░)дЄ└╕└од╖д▐д╣бг╕°│л╕░д╧X\&.509 v3╝л╕╩╜Ё╠╛╛┌╠└╜ёд╟еще├е╫д╡дьд▐д╣бг╛┌╠└╜ёд╧бв├▒░ьд╬═╫┴╟дЄ╗¤д─╛┌╠└╜ёе┴езб╝еєд╚д╖д╞│╩╟╝д╡дьд▐д╣бгд│д╬╛┌╠└╜ёе┴езб╝еєд╚╚ы╠й╕░д╧бвaliasд╟╞├─ъд╡дьды┐╖д╖дденб╝е╣е╚евбжеиеєе╚еъд╦│╩╟╝д╡дьд▐д╣бг
 .sp
 \fBkeyalg\fR├═д╧╕░е┌евд╬└╕└од╦╗╚═╤д╣дыевеые┤еъе║ердЄбв\fBkeysize\fR├═д╧└╕└од╣ды│╞╕░д╬е╡еде║дЄбвд╜дьд╛дь╗╪─ъд╖д▐д╣бг\fBsigalg\fR├═д╧бв╝л╕╩╜Ё╠╛╛┌╠└╜ёд╦╜Ё╠╛дЄ╔╒д▒дыд┐дсд╦╗╚═╤д╣дыевеые┤еъе║ердЄ╗╪─ъд╖д▐д╣бгд│д╬евеые┤еъе║ерд╧\fBkeyalg\fR├═д╚╕▀┤╣└ндмдвды╔м═╫дмдвдъд▐д╣бг
@@ -758,7 +882,7 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .if n \{\
 .RE
 .\}
-2╚╓╠▄д╬╖┴╝░д╟д╧бвецб╝е╢б╝д╧бв╟п/╖ю/╞№д╚╗■┤╓:╩м:╔├д╬2д─д╬╔Ї╩мдлдщд╩ды└╡│╬д╩╚п╣╘╗■╣ядЄ└▀─ъд╖д▐д╣(еэб╝елеыд╬е┐едербже╛б╝еєдЄ╗╚═╤)бгецб╝е╢б╝д╧бв1д─д╬╔Ї╩мд╬д▀дЄ╗╪─ъд╟днд▐д╣бгд│дьд╧бвдтдж1д─д╬╔Ї╩мд╧╕╜║▀д╬╞№╔╒(д▐д┐д╧╗■╣я)д╚╞▒д╕д╦д╩дыд╚ддджд│д╚д╟д╣бгецб╝е╢б╝д╧бв╖┴╝░д╬─ъ╡┴д╦╝ид╡дьд╞дддыдшджд╦бв╖х┐ЇдЄ╕╖╠йд╦╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣(├╗дд╛ь╣чд╧0д╟╦фдсд▐д╣)бг╞№╔╒д╚╗■╣яд╬╬╛╩¤дм╗╪─ъд╡дьд┐╛ї┬╓д╟бв2д─д╬╔Ї╩мд╬┤╓д╦╢ї╟Є╩╕╗·дм1д─(1д─д╬д▀)двдъд▐д╣бг╗■┤╓д╧╛яд╦24╗■┤╓╖┴╝░д╟╗╪─ъд╖д╞дпд└д╡ддбг
+2╚╓╠▄д╬╖┴╝░д╟д╧бвецб╝е╢б╝д╧бв╟п/╖ю/╞№д╚╗■┤╓:╩м:╔├д╬2д─д╬╔Ї╩мд╟╕╖╠йд╩│л╗╧╗■╣ядЄ└▀─ъд╖д▐д╣(├╧╕╡д╬╗■┤╓┬╙дЄ╗╚═╤)бгецб╝е╢б╝д╧бв1д─д╬╔Ї╩мд╬д▀дЄ╗╪─ъд╟днд▐д╣бгд│дьд╧бвдтдж1д─д╬╔Ї╩мд╧╕╜║▀д╬╞№╔╒(д▐д┐д╧╗■╣я)д╚╞▒д╕д╦д╩дыд╚ддджд│д╚д╟д╣бгецб╝е╢б╝д╧бв╖┴╝░д╬─ъ╡┴д╦╝ид╡дьд╞дддыдшджд╦бв╖х┐ЇдЄ╕╖╠йд╦╗╪─ъд╣ды╔м═╫дмдвдъд▐д╣(├╗дд╛ь╣чд╧0д╟╦фдсд▐д╣)бг╞№╔╒д╚╗■╣яд╬╬╛╩¤дм╗╪─ъд╡дьд┐╛ї┬╓д╟бв2д─д╬╔Ї╩мд╬┤╓д╦╢ї╟Є╩╕╗·дм1д─(1д─д╬д▀)двдъд▐д╣бг╗■┤╓д╧╛яд╦24╗■┤╓╖┴╝░д╟╗╪─ъд╖д╞дпд└д╡ддбг
 .sp
 еке╫е╖ечеєдЄ╗╪─ъд╖д╩ддд╚бв│л╗╧╞№╔╒д╧╕╜║▀д╬╗■╣яд╦д╩дъд▐д╣бгеке╫е╖ечеєд╧бв║╟┬чд╟1▓є╗╪─ъд╟днд▐д╣бг
 .sp
@@ -769,8 +893,46 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-genseckey
 .RS 4
-\fB\-genseckey {\-alias alias} {\-keyalg keyalg} {\-keysize keysize} [\-keypass keypass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-keyalg \fR\fB\fIkeyalg\fR\fR\fB} {\-keysize \fR\fB\fIkeysize\fR\fR\fB} [\-keypass \fR\fB\fIkeypass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 ╚ы╠й╕░дЄ└╕└од╖бвд╜дьдЄ┐╖д╖дд\fBKeyStore\&.SecretKeyEntry\fR(\fBalias\fRд╟╞├─ъд╡дьды)╞тд╦│╩╟╝д╖д▐д╣бг
 .sp
 \fBkeyalg\fR├═д╧╕░е┌евд╬└╕└од╦╗╚═╤д╣дыевеые┤еъе║ердЄбв\fBkeysize\fR├═д╧└╕└од╣ды│╞╕░д╬е╡еде║дЄбвд╜дьд╛дь╗╪─ъд╖д▐д╣бг\fBkeypass\fR├═д╧бв╚ы╠й╕░дЄ╩▌╕юд╣дые╤е╣еяб╝е╔д╟д╣бге╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бгд│д╬д╚днбв[Return]енб╝дЄ▓бд╣д╚бв\fBkeystore\fRд╬е╤е╣еяб╝е╔д╚╞▒д╕е╤е╣еяб╝е╔дм╕░д╬е╤е╣еяб╝е╔д╦└▀─ъд╡дьд▐д╣бг\fBkeypass\fR├═д╧бв6╩╕╗·░╩╛хд╦д╣ды╔м═╫дмдвдъд▐д╣бг
@@ -778,8 +940,56 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-importcert
 .RS 4
-\fB\-importcert {\-alias alias} {\-file cert_file} [\-keypass keypass] {\-noprompt} {\-trustcacerts} {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-file \fR\fB\fIcert_file\fR\fR\fB} [\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-noprompt} {\-trustcacerts}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 е╒ебедеы\fBcert_file\fRдлдщ╛┌╠└╜ёд▐д┐д╧╛┌╠└╜ёе┴езб╝еє(╛┌╠└╜ёе┴езб╝еєд╬╛ь╣чд╧бвPKCS#7╖┴╝░д╬▒■┼·д▐д┐д╧░ь╧вд╬X\&.509╛┌╠└╜ёд╟─є╢бд╡дьдыдтд╬)дЄ╞╔д▀╣■д▀бв\fBalias\fRд╦дшд├д╞╞├─ъд╡дьды\fBkeystore\fRеиеєе╚еъд╦│╩╟╝д╖д▐д╣бге╒ебедеыдм╗╪─ъд╡дьд╞ддд╩дд╛ь╣чд╧бв\fBstdin\fRдлдщ╛┌╠└╜ёд▐д┐д╧╛┌╠└╜ёе┴езб╝еєдЄ╞╔д▀╣■д▀д▐д╣бг
 .sp
 \fBkeytool\fRе│е▐еєе╔д╟д╧бвX\&.509 v1бвv2бвv3д╬╛┌╠└╜ёбвдкдшд╙PKCS#7╖┴╝░д╬╛┌╠└╜ёдлдщ╣╜└од╡дьд╞дддыPKCS#7╖┴╝░д╬╛┌╠└╜ёе┴езб╝еєдЄедеєе▌б╝е╚д╟днд▐д╣бгедеєе▌б╝е╚д╣дые╟б╝е┐д╧бве╨еде╩еъ╔ф╣ц▓╜╩¤╝░бвд▐д┐д╧╜╨╬╧▓─╟╜╔ф╣ц▓╜╩¤╝░(Base64╔ф╣ц▓╜д╚дт╕╞д╨дьды)д╬д╔д┴дщдлд╟─є╢бд╣ды╔м═╫дмдвдъд▐д╣бг╜╨╬╧▓─╟╜╔ф╣ц▓╜╩¤╝░д╧бведеєе┐б╝е═е├е╚RFC 1421╛┌╠└╜ё╔ф╣ц▓╜╡м│╩д╟─ъ╡┴д╡дьд╞ддд▐д╣бгд│д╬╔ф╣ц▓╜╩¤╝░д╬╛ь╣чбв╛┌╠└╜ёд╧\fB\-\fR\fB\-\-\-\-BEGIN\fRд╟╗╧д▐ды╩╕╗·╬єд╟│л╗╧д╡дьбв\fB\-\-\-\-\-END\fRд╟╗╧д▐ды╩╕╗·╬єд╟╜к╬╗д╣ды╔м═╫дмдвдъд▐д╣бг
@@ -791,15 +1001,131 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-importpassword
 .RS 4
-\fB{\-alias alias} [\-keypass keypass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} [\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 е╤е╣е╒еьб╝е║дЄедеєе▌б╝е╚д╖бв\fBalias\fRд╟╝▒╩╠д╡дьды┐╖╡м\fBKeyStore\&.SecretKeyEntry\fRд╦│╩╟╝д╖д▐д╣бге╤е╣е╒еьб╝е║д╧бв╔╕╜р╞■╬╧е╣е╚еъб╝ердЄ▓Ёд╖д╞─є╢бд╟днд▐д╣бгд▐д┐д╧бвецб╝е╢б╝д╦д╜д╬е╫еэеєе╫е╚дм╔╜╝ид╡дьд▐д╣бг\fBkeypass\fRд╧бведеєе▌б╝е╚д╡дьдые╤е╣е╒еьб╝е║д╬╩▌╕юд╦╗╚═╤д╡дьдые╤е╣еяб╝е╔д╟д╣бге╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бгд│д╬д╚днбв[Return]енб╝дЄ▓бд╣д╚бв\fBkeystore\fRд╬е╤е╣еяб╝е╔д╚╞▒д╕е╤е╣еяб╝е╔дм╕░д╬е╤е╣еяб╝е╔д╦└▀─ъд╡дьд▐д╣бг\fBkeypass\fRд╧бв6╩╕╗·░╩╛хд╦д╣ды╔м═╫дмдвдъд▐д╣бг
 .RE
 .PP
 \-importkeystore
 .RS 4
-\fB{\-srcstoretype srcstoretype} {\-deststoretype deststoretype} [\-srcstorepass srcstorepass] [\-deststorepass deststorepass] {\-srcprotected} {\-destprotected} {\-srcalias srcalias {\-destalias destalias} [\-srckeypass srckeypass] } [\-destkeypass destkeypass] {\-noprompt} {\-srcProviderName src_provider_name} {\-destProviderName dest_provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-srcstoretype \fR\fB\fIsrcstoretype\fR\fR\fB} {\-deststoretype \fR\fB\fIdeststoretype\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-srcstorepass \fR\fB\fIsrcstorepass\fR\fR\fB] [\-deststorepass \fR\fB\fIdeststorepass\fR\fR\fB] {\-srcprotected}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-destprotected} \fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-srcalias \fR\fB\fIsrcalias\fR\fR\fB {\-destalias \fR\fB\fIdestalias\fR\fR\fB} [\-srckeypass \fR\fB\fIsrckeypass\fR\fR\fB]} \fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-destkeypass \fR\fB\fIdestkeypass\fR\fR\fB] {\-noprompt}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-srcProviderName \fR\fB\fIsrc_provider_name\fR\fR\fB} {\-destProviderName \fR\fB\fIdest_provider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 е╜б╝е╣бженб╝е╣е╚евдлдще┐б╝е▓е├е╚бженб╝е╣е╚евд╪бв├▒░ьд╬еиеєе╚еъд▐д┐д╧д╣д┘д╞д╬еиеєе╚еъдЄедеєе▌б╝е╚д╖д▐д╣бг
 .sp
 \fB\-srcalias\fRеке╫е╖ечеєдм╗╪─ъд╡дьд┐╛ь╣чбвд│д╬е│е▐еєе╔д╧бвд╜д╬╩╠╠╛д╟╞├─ъд╡дьды├▒░ьд╬еиеєе╚еъдЄе┐б╝е▓е├е╚бженб╝е╣е╚евд╦едеєе▌б╝е╚д╖д▐д╣бг\fBdestalias\fR╖╨═│д╟е┐б╝е▓е├е╚╩╠╠╛дм╗╪─ъд╡дьд╩длд├д┐╛ь╣чбв\fBsrcalias\fRдме┐б╝е▓е├е╚╩╠╠╛д╚д╖д╞╗╚═╤д╡дьд▐д╣бге╜б╝е╣д╬еиеєе╚еъдме╤е╣еяб╝е╔д╟╩▌╕юд╡дьд╞ддд┐╛ь╣чбв\fBsrckeypass\fRдЄ╗╚═╤д╖д╞д╜д╬еиеєе╚еъдм▓є╔№д╡дьд▐д╣бг\fIsrckeypass\fRдм╗╪─ъд╡дьд╩длд├д┐╛ь╣чбв\fBkeytool\fRе│е▐еєе╔д╧\fBsrcstorepass\fRдЄ╗╚═╤д╖д╞д╜д╬еиеєе╚еъдЄ▓є╔№д╖дшджд╚д╖д▐д╣бг\fBsrcstorepass\fRдм╗╪─ъд╡дьд╩длд├д┐дл└╡д╖дпд╩длд├д┐╛ь╣чбвецб╝е╢б╝д╧е╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бге┐б╝е▓е├е╚д╬еиеєе╚еъд╧\fBdestkeypass\fRд╦дшд├д╞╩▌╕юд╡дьд▐д╣бг\fBdestkeypass\fRдм╗╪─ъд╡дьд╩длд├д┐╛ь╣чбве┐б╝е▓е├е╚бжеиеєе╚еъд╧е╜б╝е╣бжеиеєе╚еъд╬е╤е╣еяб╝е╔д╦дшд├д╞╩▌╕юд╡дьд▐д╣бгд┐д╚дид╨бвд█д╚дєд╔д╬е╡б╝е╔бже╤б╝е╞егбже─б╝еыд╟д╧бвPKCS #12енб╝е╣е╚евд╟\fBstorepass\fRд╚\fBkeypass\fRдм╞▒д╕д╟двды╔м═╫дмдвдъд▐д╣бгд│дьдщд╬е─б╝еыд╬PKCS #12енб╝е╣е╚евдЄ║ю└од╣ды╛ь╣чд╧бв╛яд╦\fB\-destkeypass\fRд╚\fB\-deststorepass\fRдм╞▒д╕д╦д╩дыдшджд╦╗╪─ъд╖д▐д╣бг
@@ -814,16 +1140,72 @@ AIAд▐д┐д╧AuthorityInfoAccess
 .PP
 \-printcertreq
 .RS 4
-\fB{\-file file}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-file \fR\fB\fIfile\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
 PKCS#10╖┴╝░д╬╛┌╠└╜ёеъепеие╣е╚д╬╞т═╞дЄ╜╨╬╧д╖д▐д╣бгд│д╬еъепеие╣е╚д╧бв\fBkeytool\fR
 \fB\-certreq\fRе│е▐еєе╔д╟└╕└од╟днд▐д╣бгд│д╬е│е▐еєе╔д╧бве╒ебедеыдлдщеъепеие╣е╚дЄ╞╔д▀╝шдъд▐д╣бге╒ебедеыдм┬╕║▀д╖д╩дд╛ь╣чбвеъепеие╣е╚д╧╔╕╜р╞■╬╧длдщ╞╔д▀╝шдщдьд▐д╣бг
 .RE
 .PP
 \-certreq
 .RS 4
-\fB{\-alias alias} {\-dname dname} {\-sigalg sigalg} {\-file certreq_file} [\-keypass keypass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-dname \fR\fB\fIdname\fR\fR\fB} {\-sigalg \fR\fB\fIsigalg\fR\fR\fB} {\-file \fR\fB\fIcertreq_file\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-storepass \fR\fB\fIstorepass\fR\fR\fB] {\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 PKCS#10╖┴╝░дЄ╗╚═╤д╖д╞╛┌╠└╜ё╜Ё╠╛еъепеие╣е╚(CSR)дЄ└╕└од╖д▐д╣бг
 .sp
 CSRд╧бв╛┌╠└╜ё╚п╣╘╢╔(CA)д╦┴ў┐од╣дыд│д╚дЄ╠▄┼кд╚д╖д┐дтд╬д╟д╣бгCAд╧бв╛┌╠└╜ё═╫╡с╝╘дЄ(─╠╛яд╧еке╒ещедеєд╟)╟з╛┌д╖бв╛┌╠└╜ёд▐д┐д╧╛┌╠└╜ёе┴езб╝еєдЄ┴ўдъ╩╓д╖д▐д╣бгд│д╬╛┌╠└╜ёд▐д┐д╧╛┌╠└╜ёе┴езб╝еєд╧бвенб╝е╣е╚ев╞тд╬┤√┬╕д╬╛┌╠└╜ёе┴езб╝еє(║╟╜щд╧1д─д╬╝л╕╩╜Ё╠╛╛┌╠└╜ёдлдщ╣╜└од╡дьды)д╦├╓дн┤╣дид╞╗╚═╤д╖д▐д╣бг
@@ -839,8 +1221,46 @@ CAдлдщд╬еье╣е▌еєе╣дЄедеєе▌б╝е╚д╣дыд╦д╧бв\fBimportcert\fRе│е▐еєе╔дЄ╗╚═╤д╖д▐д╣бг
 .PP
 \-exportcert
 .RS 4
-\fB{\-alias alias} {\-file cert_file} {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-rfc} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-file \fR\fB\fIcert_file\fR\fR\fB} {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-storepass \fR\fB\fIstorepass\fR\fR\fB] {\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-rfc} {\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 \fIalias\fRд╦┤╪╧в╔╒д▒дщдьд┐╛┌╠└╜ёдЄенб╝е╣е╚евдлдщ╞╔д▀╣■д▀бве╒ебедеыcert_fileд╦│╩╟╝д╖д▐д╣бге╒ебедеыдм╗╪─ъд╡дьд╞ддд╩дд╛ь╣чд╧бв\fBstdout\fRд╦╛┌╠└╜ёдм╜╨╬╧д╡дьд▐д╣бг
 .sp
 е╟е╒ейеые╚д╟д╧бв╛┌╠└╜ёд╧е╨еде╩еъ╔ф╣ц▓╜д╟╜╨╬╧д╡дьд▐д╣бг\fB\-rfc\fRеке╫е╖ечеєдм╗╪─ъд╡дьд╞ддды╛ь╣чбв╜╨╬╧▓─╟╜╔ф╣ц▓╜╩¤╝░д╬╜╨╬╧д╧едеєе┐б╝е═е├е╚RFC 1421╛┌╠└╜ё╔ф╣ц▓╜╡м│╩д╟─ъ╡┴д╡дьд▐д╣бг
@@ -852,8 +1272,46 @@ CAдлдщд╬еье╣е▌еєе╣дЄедеєе▌б╝е╚д╣дыд╦д╧бв\fBimportcert\fRе│е▐еєе╔дЄ╗╚═╤д╖д▐д╣бг
 .PP
 \-list
 .RS 4
-\fB{\-alias alias} {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v | \-rfc} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v | \-rfc} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 \fBalias\fRд╟╞├─ъд╡дьдыенб╝е╣е╚евбжеиеєе╚еъд╬╞т═╞дЄ\fBstdout\fRд╦╜╨╬╧д╖д▐д╣бг\fBalias\fRдм╗╪─ъд╡дьд╞ддд╩дд╛ь╣чд╧бвенб╝е╣е╚ев┴┤┬╬д╬╞т═╞дм╔╜╝ид╡дьд▐д╣бг
 .sp
 д│д╬е│е▐еєе╔д╧бве╟е╒ейеые╚д╟д╧╛┌╠└╜ёд╬SHA1е╒егеєемб╝е╫еъеєе╚дЄ╔╜╝ид╖д▐д╣бг
@@ -864,8 +1322,26 @@ CAдлдщд╬еье╣е▌еєе╣дЄедеєе▌б╝е╚д╣дыд╦д╧бв\fBimportcert\fRе│е▐еєе╔дЄ╗╚═╤д╖д▐д╣бг
 .PP
 \-printcert
 .RS 4
-\fB{\-file cert_file | \-sslserver host[:port]} {\-jarfile JAR_file {\-rfc} {\-v} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-file \fR\fB\fIcert_file\fR\fR\fB | \-sslserver \fR\fB\fIhost\fR\fR\fB[:\fR\fB\fIport\fR\fR\fB]} {\-jarfile \fR\fB\fIJAR_file\fR\fR\fB {\-rfc} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 е╒ебедеыcert_fileбвhost:portд╦двдыSSLе╡б╝е╨б╝бвд▐д┐д╧╜Ё╠╛╔╒днJARе╒ебедеы\fBJAR_file\fR(\fB\-jarfile\fRеке╫е╖ечеєдЄ╗╪─ъ)длдщ╛┌╠└╜ёдЄ╞╔д▀╣■д▀бв┐═┤╓дм╞╔дрд│д╚д╬д╟днды╖┴╝░д╟╛┌╠└╜ёд╬╞т═╞дЄ╔╜╝ид╖д▐д╣бге▌б╝е╚дм╗╪─ъд╡дьд╞ддд╩дд╛ь╣чд╧бв╔╕╜рд╬HTTPSе▌б╝е╚443дм┴█─ъд╡дьд▐д╣бг\fB\-sslserver\fRдкдшд╙\-fileеке╫е╖ечеєдЄ╞▒╗■д╦╗╪─ъд╣дыд│д╚д╧д╟днд▐д╗дєбгд╜дь░╩│░д╬╛ь╣чбвеиещб╝дм╩є╣Ёд╡дьд▐д╣бгеке╫е╖ечеєдм╗╪─ъд╡дьд╞ддд╩дд╛ь╣чд╧бв\fBstdin\fRдлдщ╛┌╠└╜ёдЄ╞╔д▀╣■д▀д▐д╣бг
 .sp
 \fB\-rfc\fRдм╗╪─ъд╡дьд╞ддды╛ь╣чбв\fBkeytool\fRе│е▐еєе╔д╧бведеєе┐б╝е═е├е╚RFC 1421╛┌╠└╜ё╔ф╣ц▓╜╔╕╜рд╟─ъ╡┴д╡дьд╞дддыдшджд╦бвPEMетб╝е╔д╟╛┌╠└╜ёдЄ╜╨╬╧д╖д▐д╣бгедеєе┐б╝е═е├е╚RFC 1421╛┌╠└╜ё╔ф╣ц▓╜╡м│╩дЄ╗▓╛╚д╖д╞дпд└д╡ддбг
@@ -881,8 +1357,16 @@ SSLе╡б╝е╨б╝дме╒ебедевежейб╝еыд╬╟╪╕хд╦двды╛ь╣чд╧бв\fB\-J\-Dhttps\&.proxyHost=prox
 .PP
 \-printcrl
 .RS 4
-\fB\-file crl_ {\-v}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB\-file \fR\fB\fIcrl_\fR\fR\fB {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
 е╒ебедеы\fBcrl_\fRдлдщ╛┌╠└╜ё╝║╕·еъе╣е╚(CRL)дЄ╞╔д▀╣■д▀д▐д╣бгCRLд╧бв╚п╣╘д╖д┐CAд╦дшд├д╞╝║╕·д╡дьд┐е╟е╕е┐еы╛┌╠└╜ёд╬еъе╣е╚д╟д╣бгCAд╧бв\fBcrl_\fRдЄ└╕└од╖д▐д╣бг
 .sp
 \fB├э░╒:\fR
@@ -891,15 +1375,91 @@ SSLе╡б╝е╨б╝дме╒ебедевежейб╝еыд╬╟╪╕хд╦двды╛ь╣чд╧бв\fB\-J\-Dhttps\&.proxyHost=prox
 .PP
 \-storepasswd
 .RS 4
-\fB[\-new new_storepass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-new \fR\fB\fInew_storepass\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-storepass \fR\fB\fIstorepass\fR\fR\fB] {\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 енб╝е╣е╚евд╬╞т═╞д╬└░╣ч└ндЄ╩▌╕юд╣дыд┐дсд╦╗╚═╤д╣дые╤е╣еяб╝е╔дЄ╩╤╣╣д╖д▐д╣бг\fBnew_storepass\fRд╦д╧бв┐╖д╖дде╤е╣еяб╝е╔дЄ╗╪─ъд╖д▐д╣бгnew_storepassд╧бв6╩╕╗·░╩╛хд╟двды╔м═╫дмдвдъд▐д╣бг
 .RE
 .PP
 \-keypasswd
 .RS 4
-\fB{\-alias alias} [\-keypass old_keypass] [\-new new_keypass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} [\-keypass \fR\fB\fIold_keypass\fR\fR\fB] [\-new \fR\fB\fInew_keypass\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB] {\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 \fBalias\fRд╦дшд├д╞╞├─ъд╡дьды╚є╕°│л/╚ы╠й╕░дЄ╩▌╕юд╣дыд┐дсд╬е╤е╣еяб╝е╔дЄбв\fBold_keypass\fRдлдщ\fBnew_keypass\fRд╦╩╤╣╣д╖д▐д╣бгnew_keypassд╧бв6╩╕╗·░╩╛хд╟двды╔м═╫дмдвдъд▐д╣бг
 .sp
 е│е▐еєе╔╣╘д╟\fB\-keypass\fRеке╫е╖ечеєдЄ╗╪─ъд╖д╞дкдщд║бв╕░д╬е╤е╣еяб╝е╔дменб╝е╣е╚евд╬е╤е╣еяб╝е╔д╚░█д╩ды╛ь╣чд╧бв╕░д╬е╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
@@ -909,15 +1469,91 @@ SSLе╡б╝е╨б╝дме╒ебедевежейб╝еыд╬╟╪╕хд╦двды╛ь╣чд╧бв\fB\-J\-Dhttps\&.proxyHost=prox
 .PP
 \-delete
 .RS 4
-\fB[\-alias alias] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB[\-alias \fR\fB\fIalias\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB} {\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerName \fR\fB\fIprovider_name\fR\fR\fB}  \fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-v} {\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 \fBalias\fRд╦дшд├д╞╞├─ъд╡дьдыеиеєе╚еъдЄенб╝е╣е╚евдлдщ║я╜№д╖д▐д╣бге│е▐еєе╔╣╘д╟╩╠╠╛дЄ╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бв╩╠╠╛д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
 .RE
 .PP
 \-changealias
 .RS 4
-\fB{\-alias alias} [\-destalias destalias] [\-keypass keypass] {\-storetype storetype} {\-keystore keystore} [\-storepass storepass] {\-providerName provider_name} {\-providerClass provider_class_name {\-providerArg provider_arg}} {\-v} {\-protected} {\-Jjavaoption}\fR
 .sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-alias \fR\fB\fIalias\fR\fR\fB} [\-destalias \fR\fB\fIdestalias\fR\fR\fB] [\-keypass \fR\fB\fIkeypass\fR\fR\fB] {\-storetype \fR\fB\fIstoretype\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-keystore \fR\fB\fIkeystore\fR\fR\fB} [\-storepass \fR\fB\fIstorepass\fR\fR\fB] {\-providerName \fR\fB\fIprovider_name\fR\fR\fB}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-providerClass \fR\fB\fIprovider_class_name\fR\fR\fB {\-providerArg \fR\fB\fIprovider_arg\fR\fR\fB}} {\-v}\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fB{\-protected} {\-Jjavaoption}\fR
+.fi
+.if n \{\
+.RE
+.\}
 ╗╪─ъд╡дьд┐\fBalias\fRдлдщ┐╖д╖дд╩╠╠╛\fBdestalias\fRд╪бв┤√┬╕д╬енб╝е╣е╚евбжеиеєе╚еъдЄ░▄╞░д╖д▐д╣бге┐б╝е▓е├е╚╩╠╠╛дЄ╗╪─ъд╖д╩длд├д┐╛ь╣чбве┐б╝е▓е├е╚╩╠╠╛д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг╕╡д╬еиеєе╚еъдмеиеєе╚еъбже╤е╣еяб╝е╔д╟╩▌╕юд╡дьд╞ддд┐╛ь╣чбв\fB\-keypass\fRеке╫е╖ечеєд╟д╜д╬е╤е╣еяб╝е╔дЄ╗╪─ъд╟днд▐д╣бг╕░е╤е╣еяб╝е╔дм╗╪─ъд╡дьд╩длд├д┐╛ь╣чбв\fBstorepass\fR(╗╪─ъд╡дьд┐╛ь╣ч)дмд▐д║╗юд▀дщдьд▐д╣бгд╜д╬╗юд▀дм╝║╟╘д╣дыд╚бвецб╝е╢б╝д╧е╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
 .RE
 .PP
@@ -971,7 +1607,7 @@ SSLе╡б╝е╨б╝дме╒ебедевежейб╝еыд╬╟╪╕хд╦двды╛ь╣чд╧бв\fB\-J\-Dhttps\&.proxyHost=prox
 ░╩╣▀д╟д╧бвеке╫е╖ечеєдЄ╗╪─ъд╖д╩ддд╟\fB\-genkeypair\fRе│е▐еєе╔дЄ╝┬╣╘д╖д┐дтд╬д╚д╖д╞╬удЄ╝ид╖д▐д╣бг╛Ё╩єд╬╞■╬╧дЄ╡сдсдщдьд┐╛ь╣чд╧бв║╟╜щд╦╝ид╖д┐\fB\-genkeypair\fRе│е▐еєе╔д╬├═дЄ╞■╬╧д╖д┐дтд╬д╚д╖д▐д╣бгд┐д╚дид╨╝▒╩╠╠╛д╦д╧\fBcn=Mark Jones\fRбв\fBou=Java\fRбв\fBo=Oracle\fRбв\fBc=US\fRд╚╗╪─ъд╖д▐д╣бг
 .SS "CAдлдщд╬╜Ё╠╛╔╒дн╛┌╠└╜ёд╬еъепеие╣е╚"
 .PP
-╝л╕╩╜Ё╠╛╛┌╠└╜ёдЄ║ю└од╣ды╕░д╬е┌евд╬└╕└обг╛┌╠└╜ёд╦╛┌╠└╜ё╚п╣╘╢╔(CA)д╬╜Ё╠╛дм╔╒ддд╞дддьд╨бв┬╛д╬ецб╝е╢б╝длдщ╛┌╠└╜ёдм┐о═ъд╡дьды▓─╟╜└ндт╣тдпд╩дъд▐д╣бгCAд╬╜Ё╠╛дЄ╝ш╞└д╣дыд╦д╧бвд▐д║бв╛┌╠└╜ё╜Ё╠╛еъепеие╣е╚(CSR)дЄ└╕└од╖д▐д╣бгд┐д╚дид╨бв╝бд╬дшджд╦д╖д▐д╣бг
+╝л╕╩╜Ё╠╛╛┌╠└╜ёдЄ║ю└од╣ды╕░д╬е┌евд╬└╕└обг╛┌╠└╜ёд╦╟з╛┌╢╔(CA)д╬╜Ё╠╛дм╔╒ддд╞дддьд╨бв┬╛д╬ецб╝е╢б╝длдщ╛┌╠└╜ёдм┐о═ъд╡дьды▓─╟╜└ндт╣тдпд╩дъд▐д╣бгCAд╬╜Ё╠╛дЄ╝ш╞└д╣дыд╦д╧бвд▐д║бв╛┌╠└╜ё╜Ё╠╛еъепеие╣е╚(CSR)дЄ└╕└од╖д▐д╣бгд┐д╚дид╨бв╝бд╬дшджд╦д╖д▐д╣бг
 .sp
 .if n \{\
 .RS 4
@@ -1015,7 +1651,7 @@ CAдлдщд╬╛┌╠└╜ё▒■┼·дЄедеєе▌б╝е╚д╣дыд╦д╧бвенб╝е╣е╚евдлбв\fBcacerts\fRенб╝е╣е╚евбже
 .PP
 \fBcacerts\fRенб╝е╣е╚евбже╒ебедеыд╧бвдддпд─длд╬VeriSignеыб╝е╚CA╛┌╠└╜ёдЄ┤▐дєд└╛ї┬╓д╟╜╨▓┘д╡дьд╞дддыд╬д╟бвVeriSignд╬╛┌╠└╜ёдЄбв┐о═ъд╟днды╛┌╠└╜ёд╚д╖д╞енб╝е╣е╚ев╞тд╦едеєе▌б╝е╚д╣ды╔м═╫дмд╩дд╛ь╣чдмдвдъд▐д╣бгд┐д└д╖бв┬╛д╬CAд╦┬╨д╖д╞╜Ё╠╛╔╒дн╛┌╠└╜ёдЄеъепеие╣е╚д╖д╞ддд╞бвд│д╬CAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёдмбв\fBcacerts\fRд╦д▐д└─╔▓├д╡дьд╞ддд╩дд╛ь╣чд╧бв│║┼Ўд╣дыCAдлдщд╬╛┌╠└╜ёдЄбвб╓┐о═ъд╟днды╛┌╠└╜ёб╫д╚д╖д╞едеєе▌б╝е╚д╣ды╔м═╫дмдвдъд▐д╣бг
 .PP
-─╠╛ябвCAдлдщд╬╛┌╠└╜ёд╧бв╝л╕╩╜Ё╠╛╛┌╠└╜ёбвд▐д┐д╧┬╛д╬CAд╦дшд├д╞╜Ё╠╛д╡дьд┐╛┌╠└╜ёд╟д╣(╕х╝╘д╬╛ь╣чд╧бв│║┼Ўд╣ды┬╛д╬CAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёдм╔м═╫)бгABC, Inc\&.,дмCAд╟бвABCдлдщ╝л╕╩╜Ё╠╛╛┌╠└╜ёд╟двдыA\fBBCCA\&.cer\fRд╚дддж╠╛┴░д╬е╒ебедеыдЄ╝ш╞└д╖д┐д╚д╖д▐д╣(д│д╬╛┌╠└╜ёд╧CAд╬╕°│л╕░дЄ╟з╛┌д╖д▐д╣)бг┐о═ъд╟днды╛┌╠└╜ёд╚д╖д╞╛┌╠└╜ёдЄедеєе▌б╝е╚д╣дыд╚днд╧бв╛┌╠└╜ёдм═н╕·д╟двдыд│д╚дЄ│╬╟зд╣ды╔м═╫дмдвдъд▐д╣бгд▐д║бв\fBkeytool \-printcert\fRе│е▐еєе╔д▐д┐д╧\fB\-noprompt\fRеке╫е╖ечеєд╩д╖д╬\fBkeytool \-importcert\fRе│е▐еєе╔д╟д╜дьдЄ╔╜╝ид╖бв╔╜╝ид╡дьд┐╛┌╠└╜ёд╬е╒егеєемб╝е╫еъеєе╚дм┤№┬╘д╡дьдыдтд╬д╚░ь├╫д╣дыдлд╔дждлдЄ│╬╟зд╖д▐д╣бг╛┌╠└╜ёдЄ┴ў┐од╖д┐┐═╩кд╦╧в═эд╖бвд│д╬┐═╩кдм─є╝ид╖д┐(д▐д┐д╧е╗енехевд╩╕°│л╕░д╬еъе▌е╕е╚еъд╦дшд├д╞─є╝ид╡дьды)е╒егеєемб╝е╫еъеєе╚д╚бв╛хд╬е│е▐еєе╔д╟╔╜╝ид╡дьд┐е╒егеєемб╝е╫еъеєе╚д╚дЄ╚ц│╙д╖д▐д╣бге╒егеєемб╝е╫еъеєе╚дм░ь├╫д╣дьд╨бв┴ў┐о┼╙├цд╟┬╛д╬▓┐╝╘дл(╣╢╖т╝╘д╩д╔)д╦дшды╛┌╠└╜ёд╬д╣дъ┬╪дидм╣╘дядьд╞ддд╩ддд│д╚дЄ│╬╟зд╟днд▐д╣бг┴ў┐о┼╙├цд╟д│д╬╝яд╬╣╢╖тдм╣╘дядьд╞ддд┐╛ь╣чбве┴езе├епдЄ╣╘дяд║д╦╛┌╠└╜ёдЄедеєе▌б╝е╚д╣дыд╚бв╣╢╖т╝╘д╦дшд├д╞╜Ё╠╛д╡дьд┐д╣д┘д╞д╬дтд╬дЄ┐о═ъд╣дыд│д╚д╦д╩дъд▐д╣бг
+─╠╛ябвCAдлдщд╬╛┌╠└╜ёд╧бв╝л╕╩╜Ё╠╛╛┌╠└╜ёбвд▐д┐д╧┬╛д╬CAд╦дшд├д╞╜Ё╠╛д╡дьд┐╛┌╠└╜ёд╟д╣(╕х╝╘д╬╛ь╣чд╧бв│║┼Ўд╣ды┬╛д╬CAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёдм╔м═╫)бгABC, Inc\&.,дмCAд╟бвABCдлдщ╝л╕╩╜Ё╠╛╛┌╠└╜ёд╟двдыA\fBBCCA\&.cer\fRд╚дддж╠╛┴░д╬е╒ебедеыдЄ╝ш╞└д╖д┐д╚д╖д▐д╣(д│д╬╛┌╠└╜ёд╧CAд╬╕°│л╕░дЄ╟з╛┌д╖д▐д╣)бг┐о═ъд╟днды╛┌╠└╜ёд╚д╖д╞╛┌╠└╜ёдЄедеєе▌б╝е╚д╣дыд╚днд╧бв╛┌╠└╜ёдм═н╕·д╟двдыд│д╚дЄ│╬╟зд╣ды╔м═╫дмдвдъд▐д╣бгд▐д║бв╛┌╠└╜ёд╬╞т═╞дЄ╔╜╝ид╖бв\fBkeytool \-printcert\fRе│е▐еєе╔дЄ╗╚═╤д╣дыдлбвд▐д┐д╧\fB\-noprompt\fRеке╫е╖ечеєдЄ╗╪─ъд╖д╩ддд╟\fBkeytool \-importcert\fRе│е▐еєе╔дЄ╗╚═╤д╖бв╔╜╝ид╡дьд┐╛┌╠└╜ёд╬е╒егеєемб╝е╫еъеєе╚дмбв┤№┬╘д╡дьдые╒егеєемб╝е╫еъеєе╚д╚░ь├╫д╣дыдлд╔дждлдЄ│╬╟зд╖д▐д╣бг╛┌╠└╜ёдЄ┴ў┐од╖д┐┐═╩кд╦╧в═эд╖бвд│д╬┐═╩кдм─є╝ид╖д┐(д▐д┐д╧░┬┴┤д╩╕°│л╕░д╬еъе▌е╕е╚еъд╦дшд├д╞─є╝ид╡дьды)е╒егеєемб╝е╫еъеєе╚д╚бв╛хд╬е│е▐еєе╔д╟╔╜╝ид╡дьд┐е╒егеєемб╝е╫еъеєе╚д╚дЄ╚ц│╙д╖д▐д╣бге╒егеєемб╝е╫еъеєе╚дм░ь├╫д╣дьд╨бв┴ў┐о┼╙├цд╟┬╛д╬▓┐╝╘дл(╣╢╖т╝╘д╩д╔)д╦дшды╛┌╠└╜ёд╬д╣дъ┬╪дидм╣╘дядьд╞ддд╩ддд│д╚дЄ│╬╟зд╟днд▐д╣бг┴ў┐о┼╙├цд╟д│д╬╝яд╬╣╢╖тдм╣╘дядьд╞ддд┐╛ь╣чбве┴езе├епдЄ╣╘дяд║д╦╛┌╠└╜ёдЄедеєе▌б╝е╚д╣дыд╚бв╣╢╖т╝╘д╦дшд├д╞╜Ё╠╛д╡дьд┐д╣д┘д╞д╬дтд╬дЄ┐о═ъд╣дыд│д╚д╦д╩дъд▐д╣бг
 .PP
 ╛┌╠└╜ёдм═н╕·д╟двдыд╚┐о═ъд╣ды╛ь╣чд╧бв╝бд╬е│е▐еєе╔д╟енб╝е╣е╚евд╦─╔▓├д╟днд▐д╣бг
 .sp
@@ -1182,7 +1818,7 @@ ABCCA\&.cerе╒ебедеыд╬е╟б╝е┐дЄ┤▐др┐о═ъд╟днды╛┌╠└╜ёд╬еиеєе╚еъдменб╝е╣е╚ев╞тд╦║ю└од
 .if n \{\
 .RE
 .\}
-е╤е╣еяб╝е╔дмбв\fBdukekeypasswd\fRдлдщ\fBnewpass\fRд╦╩╤╣╣д╡дьд▐д╣бге╞е╣е╚дЄ╠▄┼кд╚д╣ды╛ь╣чбвд▐д┐д╧░┬┴┤д╟двдыд│д╚дмдядлд├д╞дддые╖е╣е╞ерд╟╝┬╣╘д╣ды╛ь╣ч░╩│░д╧бве│е▐еєе╔╣╘дфе╣епеъе╫е╚д╟е╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩ддд╟дпд└д╡ддбг╔м═╫д╩е╤е╣еяб╝е╔д╬еке╫е╖ечеєдЄе│е▐еєе╔╣╘д╟╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
+е╤е╣еяб╝е╔дмбв\fBdukekeypasswd\fRдлдщ\fBnewpass\fRд╦╩╤╣╣д╡дьд▐д╣бге╞е╣е╚╠▄┼кд╬╛ь╣чбвд▐д┐д╧е╗енехевд╩е╖е╣е╞ердЄ╗╚═╤д╖д╞ддды╛ь╣ч░╩│░д╧бве│е▐еєе╔╣╘дфе╣епеъе╫е╚д╟е╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩ддд╟дпд└д╡ддбг╔м═╫д╩е╤е╣еяб╝е╔д╬еке╫е╖ечеєдЄе│е▐еєе╔╣╘д╟╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
 .RE
 .PP
 енб╝е╣е╚евд╬╝┬┴ї
@@ -1260,9 +1896,9 @@ Java░┼╣ц▓╜евб╝ене╞епе┴еуд╬е╫еэе╨еде└д╬╝┬┴ї╩¤╦бд╟└т╠└д╖д╞дддыдшджд╦бвепещедевеєе╚
 .sp
 \fBеиеєе╞еге╞ег\fR: еиеєе╞еге╞егд╧бв┐═бв┴╚┐ебве╫еэе░ещербве│еєе╘ехб╝е┐бв┤ы╢╚бв╢ф╣╘д╩д╔бв░ь─ъд╬┼┘╣чддд╟┐о═ъд╬┬╨╛▌д╚д╩ды══б╣д╩дтд╬дЄ╗╪д╖д▐д╣бг
 .sp
-╕°│л╕░░┼╣ц▓╜д╟д╧бвецб╝е╢б╝д╬╕°│л╕░д╦евепе╗е╣д╣ды╔м═╫дмдвдъд▐д╣бг┬ч╡м╠╧д╩е═е├е╚еяб╝еп┤─╢нд╟д╧бв╕▀ддд╦─╠┐од╖д╞дддыеиеєе╞еге╞ег┤╓д╟░╩┴░д╬┤╪╖╕дм░·┬│дн│╬╬йд╡дьд╞дддыд╚▓╛─ъд╖д┐дъбв╗╚═╤д╡дьд╞дддыд╣д┘д╞д╬╕°│л╕░дЄ╝¤дсд┐┐о═ъд╟дндыеъе▌е╕е╚еъдм┬╕║▀д╣дыд╚▓╛─ъд╖д┐дъд╣дыд│д╚д╧╔╘▓─╟╜д╟д╣бгд│д╬дшджд╩╕°│л╕░д╬╟█╔█д╦┤╪д╣ды╠ф┬ъдЄ▓Є╖шд╣дыд┐дсд╦╛┌╠└╜ёдм╣═░╞д╡дьд▐д╖д┐бг╕╜║▀д╟д╧бв╛┌╠└╜ё╚п╣╘╢╔(CA)дм┐о═ъд╟днды┬ш╗░╝╘д╚д╖д╞╡б╟╜д╖д▐д╣бгCAд╧бв┬╛д╬еиеєе╞еге╞егд╬╛┌╠└╜ёд╦╜Ё╠╛д╣ды(╚п╣╘д╣ды)╣╘░┘дЄбв┐о═ъд╖д╞╟дд╡дьд╞дддыеиеєе╞еге╞ег(┤ы╢╚д╩д╔)д╟д╣бгCAд╧╦б╬з╛хд╬╖└╠єд╦╣┤┬лд╡дьдыд╬д╟бв═н╕·длд─┐о═ъд╟днды╛┌╠└╜ёд╬д▀дЄ║ю└од╣дыдтд╬д╚д╖д╞░╖дядьд▐д╣бгVeriSignбвThawteбвEntrustдЄд╧д╕дсбв┬┐дпд╬╕°┼кд╩╛┌╠└╜ё╚п╣╘╢╔дм┬╕║▀д╖д▐д╣бг
+╕°│л╕░░┼╣ц▓╜д╟д╧бвецб╝е╢б╝д╬╕°│л╕░д╦евепе╗е╣д╣ды╔м═╫дмдвдъд▐д╣бг┬ч╡м╠╧д╩е═е├е╚еяб╝еп┤─╢нд╟д╧бв╕▀ддд╦─╠┐од╖д╞дддыеиеєе╞еге╞ег┤╓д╟░╩┴░д╬┤╪╖╕дм░·┬│дн│╬╬йд╡дьд╞дддыд╚▓╛─ъд╖д┐дъбв╗╚═╤д╡дьд╞дддыд╣д┘д╞д╬╕°│л╕░дЄ╝¤дсд┐┐о═ъд╟дндыеъе▌е╕е╚еъдм┬╕║▀д╣дыд╚▓╛─ъд╖д┐дъд╣дыд│д╚д╧╔╘▓─╟╜д╟д╣бгд│д╬дшджд╩╕°│л╕░д╬╟█╔█д╦┤╪д╣ды╠ф┬ъдЄ▓Є╖шд╣дыд┐дсд╦╛┌╠└╜ёдм╣═░╞д╡дьд▐д╖д┐бг╕╜║▀д╟д╧бв╟з╛┌╢╔(CA)дм┐о═ъд╟днды┬ш╗░╝╘д╚д╖д╞╡б╟╜д╖д▐д╣бгCAд╧бв┬╛д╬еиеєе╞еге╞егд╬╛┌╠└╜ёд╦╜Ё╠╛д╣ды(╚п╣╘д╣ды)╣╘░┘дЄбв┐о═ъд╖д╞╟дд╡дьд╞дддыеиеєе╞еге╞ег(┤ы╢╚д╩д╔)д╟д╣бгCAд╧╦б╬з╛хд╬╖└╠єд╦╣┤┬лд╡дьдыд╬д╟бв═н╕·длд─┐о═ъд╟днды╛┌╠└╜ёд╬д▀дЄ║ю└од╣дыдтд╬д╚д╖д╞░╖дядьд▐д╣бгVeriSignбвThawteбвEntrustдЄд╧д╕дсбв┬┐дпд╬╕°┼кд╩╟з╛┌╢╔дм┬╕║▀д╖д▐д╣бг
 .sp
-Microsoftд╬╟з╛┌е╡б╝е╨б╝бвEntrustд╬CA└╜╔╩д╩д╔дЄ╜ъ┬░┴╚┐е╞тд╟═°═╤д╣дьд╨бв╞╚╝лд╬╛┌╠└╜ё╚п╣╘╢╔дЄ▒┐▒─д╣дыд│д╚дт▓─╟╜д╟д╣бг\fBkeytool\fRе│е▐еєе╔дЄ╗╚═╤д╣дыд╚бв╛┌╠└╜ёд╬╔╜╝ибведеєе▌б╝е╚дкдшд╙еиепе╣е▌б╝е╚дЄ╣╘джд│д╚дмд╟днд▐д╣бгд▐д┐бв╝л╕╩╜Ё╠╛╛┌╠└╜ёдЄ└╕└од╣дыд│д╚дтд╟днд▐д╣бг
+Microsoftд╬╟з╛┌е╡б╝е╨б╝бвEntrustд╬CA└╜╔╩д╩д╔дЄ╜ъ┬░┴╚┐е╞тд╟═°═╤д╣дьд╨бв╞╚╝лд╬╟з╛┌╢╔дЄ▒┐▒─д╣дыд│д╚дт▓─╟╜д╟д╣бг\fBkeytool\fRе│е▐еєе╔дЄ╗╚═╤д╣дыд╚бв╛┌╠└╜ёд╬╔╜╝ибведеєе▌б╝е╚дкдшд╙еиепе╣е▌б╝е╚дЄ╣╘джд│д╚дмд╟днд▐д╣бгд▐д┐бв╝л╕╩╜Ё╠╛╛┌╠└╜ёдЄ└╕└од╣дыд│д╚дтд╟днд▐д╣бг
 .sp
 ╕╜║▀бв\fBkeytool\fRе│е▐еєе╔д╧X\&.509╛┌╠└╜ёдЄ┬╨╛▌д╦д╖д╞ддд▐д╣бг
 .RE
@@ -1312,7 +1948,7 @@ X\&.509 Version 3д╧║╟дт┐╖д╖дд(1996╟п)╡м│╩д╟бвеиепе╣е╞еєе╖ечеєд╬│╡╟░дЄе╡е▌б╝е╚д╖д
 .sp
 ╕░дЄ╜щдсд╞║ю└од╣дыд╚бв╝л╕╩╜Ё╠╛╛┌╠└╜ёд╚дддж1д─д╬═╫┴╟д╬д▀дЄ┤▐дре┴езб╝еєдм│л╗╧д╡дьд▐д╣бге│е▐еєе╔д╬\fB\-genkeypair\fRдЄ╗▓╛╚д╖д╞дпд└д╡ддбг╝л╕╩╜Ё╠╛╛┌╠└╜ёд╧╚п╣╘╝╘(╜Ё╠╛╝╘)дм╝ч┬╬д╚╞▒д╕д╟д╣бг╝ч┬╬д╧бвд╜д╬╕°│л╕░дм╛┌╠└╜ёд╦дшд├д╞╟з╛┌д╡дьдыеиеєе╞еге╞егд╟д╣бг\fB\-genkeypair\fRе│е▐еєе╔дЄ╕╞д╙╜╨д╖д╞┐╖д╖дд╕°│л╕░д╚╚ы╠й╕░д╬е┌евдЄ║ю└од╣дыд╚бв╕°│л╕░д╧╛яд╦╝л╕╩╜Ё╠╛╛┌╠└╜ёд╟еще├е╫д╡дьд▐д╣бг
 .sp
-д│д╬╕хбв╛┌╠└╜ё╜Ё╠╛еъепеие╣е╚(CSR)дм\fB\-certreq\fRе│е▐еєе╔д╟└╕└од╡дьд╞бвCSRдм╛┌╠└╜ё╚п╣╘╢╔(CA)д╦┴ў┐од╡дьдыд╚бвCAдлдщд╬еье╣е▌еєе╣дм\fB\-importcert\fRд╟едеєе▌б╝е╚д╡дьбв╕╡д╬╝л╕╩╜Ё╠╛╛┌╠└╜ёд╧╛┌╠└╜ёе┴езб╝еєд╦дшд├д╞├╓дн┤╣дидщдьд▐д╣бг\fBд╬\fR\-certreq\fBдкдшд╙\fR\-importcertе│е▐еєе╔еке╫е╖ечеєдЄ╗▓╛╚д╖д╞дпд└д╡ддбге┴езб╝еєд╬║╟╕хд╦двдыд╬д╧бвSubjectд╬╕°│л╕░дЄ╟з╛┌д╖д┐CAдм╚п╣╘д╖д┐╛┌╠└╜ё(▒■┼·)д╟д╣бге┴езб╝еє╞тд╬д╜д╬┴░д╬╛┌╠└╜ёд╧бвCAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёд╟д╣бг
+д│д╬╕хбв╛┌╠└╜ё╜Ё╠╛еъепеие╣е╚(CSR)дм\fB\-certreq\fRе│е▐еєе╔д╟└╕└од╡дьд╞бвCSRдм╟з╛┌╢╔(CA)д╦┴ў┐од╡дьдыд╚бвCAдлдщд╬еье╣е▌еєе╣дм\fB\-importcert\fRд╟едеєе▌б╝е╚д╡дьбв╕╡д╬╝л╕╩╜Ё╠╛╛┌╠└╜ёд╧╛┌╠└╜ёе┴езб╝еєд╦дшд├д╞├╓дн┤╣дидщдьд▐д╣бг\fBд╬\fR\-certreq\fBдкдшд╙\fR\-importcertе│е▐еєе╔еке╫е╖ечеєдЄ╗▓╛╚д╖д╞дпд└д╡ддбге┴езб╝еєд╬║╟╕хд╦двдыд╬д╧бвSubjectд╬╕°│л╕░дЄ╟з╛┌д╖д┐CAдм╚п╣╘д╖д┐╛┌╠└╜ё(▒■┼·)д╟д╣бге┴езб╝еє╞тд╬д╜д╬┴░д╬╛┌╠└╜ёд╧бвCAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёд╟д╣бг
 .sp
 CAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёд╧бв┬┐дпд╬╛ь╣чбв╝л╕╩╜Ё╠╛╛┌╠└╜ё(д─д▐дъCAдм╝л┐╚д╬╕°│л╕░дЄ╟з╛┌д╖д┐╛┌╠└╜ё)д╟двдъбвд│дьд╧е┴езб╝еєд╬║╟╜щд╬╛┌╠└╜ёд╦д╩дъд▐д╣бг╛ь╣чд╦дшд├д╞д╧бвCAдм╛┌╠└╜ёд╬е┴езб╝еєдЄ╩╓д╣д│д╚дтдвдъд▐д╣бгд│д╬╛ь╣чбве┴езб╝еє╞тд╬║╟╕хд╬╛┌╠└╜ё(CAд╦дшд├д╞╜Ё╠╛д╡дьбв╕░еиеєе╚еъд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ё)д╦╩╤дядъд╧двдъд▐д╗дєдмбве┴езб╝еє╞тд╬д╜д╬┴░д╬╛┌╠└╜ёд╧бвCSRд╬┴ў┐о└шд╬CAд╚д╧╩╠д╬CAд╦дшд├д╞╜Ё╠╛д╡дьбвCSRд╬┴ў┐о└шд╬CAд╬╕°│л╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёд╦д╩дъд▐д╣бге┴езб╝еє╞тд╬д╜д╬┴░д╬╛┌╠└╜ёд╧бв╝бд╬CAд╬╕░дЄ╟з╛┌д╣ды╛┌╠└╜ёд╦д╩дъд▐д╣бг░╩▓╝╞▒══д╦бв╝л╕╩╜Ё╠╛д╡дьд┐б╓еыб╝е╚б╫╛┌╠└╜ёд╦├гд╣дыд▐д╟е┴езб╝еєдм┬│днд▐д╣бгд╖д┐дмд├д╞бве┴езб╝еє╞тд╬(║╟╜щд╬╛┌╠└╜ё░╩╕хд╬)│╞╛┌╠└╜ёд╟д╧бве┴езб╝еє╞тд╬╝бд╬╛┌╠└╜ёд╬╜Ё╠╛╝╘д╬╕°│л╕░дм╟з╛┌д╡дьд╞дддыд│д╚д╦д╩дъд▐д╣бг
 .sp
@@ -1399,7 +2035,7 @@ X\&.500╝▒╩╠╠╛д╧бвеиеєе╞еге╞егдЄ╞├─ъд╣дыд┐дсд╦╗╚═╤д╡дьд▐д╣бгд┐д╚дид╨бвX\&.509╛┌╠└
 .if n \{\
 .RE
 .\}
-еде┐еъе├еп┬╬д╬╣р╠▄д╧бв╝┬║▌д╦╗╪─ъд╣ды├═дЄ╔╜д╖д▐д╣бг├╗╜╠╖┴д╬енб╝еяб╝е╔д╬░╒╠гд╧бв╝бд╬д╚дкдъд╟д╣бг
+еде┐еъе├епд╬╣р╠▄д╧бв╝┬║▌д╦╗╪─ъд╣ды├═дЄ╔╜д╖д▐д╣бг├╗╜╠╖┴д╬енб╝еяб╝е╔д╬░╒╠гд╧бв╝бд╬д╚дкдъд╟д╣бг
 .sp
 .if n \{\
 .RS 4
@@ -1527,7 +2163,7 @@ Oracle Solarisд╬╬у:
 ╛┌╠└╜ёдЄедеєе▌б╝е╚д╣ды┴░д╦\fB\-printcert\fRе│е▐еєе╔дЄ╝┬╣╘д╣ды╔м═╫д╧двдъд▐д╗дєбгенб╝е╣е╚ев╞тд╬┐о═ъд╟днды╛┌╠└╜ёд╬еъе╣е╚д╦╛┌╠└╜ёдЄ─╔▓├д╣ды┴░д╦бв\fB\-importcert\fRе│е▐еєе╔д╦дшд├д╞╛┌╠└╜ёд╬╛Ё╩єдм╔╜╝ид╡дьбв│╬╟здЄ╡сдсдыесе├е╗б╝е╕дм╔╜╝ид╡дьдыд┐дсд╟д╣бгецб╝е╢б╝д╧едеєе▌б╝е╚┴р║юдЄ─ф╗▀д╟днд▐д╣бгд┐д└д╖бвд│дьдЄ╝┬╣╘д╟дндыд╬д╧бв\fB\-noprompt\fRеке╫е╖ечеєдЄ╗╪─ъд╗д║д╦\fB\-importcert\fRе│е▐еєе╔дЄ╕╞д╙╜╨д╣╛ь╣чд╬д▀д╟д╣бг\fB\-noprompt\fRеке╫е╖ечеєдм╗╪─ъд╡дьд╞ддды╛ь╣чбвецб╝е╢б╝д╚д╬┬╨╧├д╧╣╘дядьд▐д╗дєбг
 .SS "е╤е╣еяб╝е╔╖┘╣Ё"
 .PP
-енб╝е╣е╚евд╦┬╨д╣ды┴р║юдЄ╣╘джд█д╚дєд╔д╬е│е▐еєе╔д╟д╧бве╣е╚евд╬е╤е╣еяб╝е╔дм╔м═╫д╟д╣бгд▐д┐бв░ь╔Їд╬е│е▐еєе╔д╟д╧бв╚є╕°│л/╚ы╠й╕░д╬е╤е╣еяб╝е╔дм╔м═╫д╦д╩дыд│д╚дмдвдъд▐д╣бге╤е╣еяб╝е╔д╧е│е▐еєе╔╣╘д╟╗╪─ъд╟днд▐д╣(\fB\-storepass\fRеке╫е╖ечеєд╚\fB\-keypass\fRеке╫е╖ечеєдЄ╗╚═╤)бгд┐д└д╖бве╞е╣е╚дЄ╠▄┼кд╚д╣ды╛ь╣чбвд▐д┐д╧░┬┴┤д╟двдыд│д╚дмдядлд├д╞дддые╖е╣е╞ерд╟╝┬╣╘д╣ды╛ь╣ч░╩│░д╧бве│е▐еєе╔╣╘дфе╣епеъе╫е╚д╟е╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩ддд╟дпд└д╡ддбг╔м═╫д╩е╤е╣еяб╝е╔д╬еке╫е╖ечеєдЄе│е▐еєе╔╣╘д╟╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
+енб╝е╣е╚евд╦┬╨д╣ды┴р║юдЄ╣╘джд█д╚дєд╔д╬е│е▐еєе╔д╟д╧бве╣е╚евд╬е╤е╣еяб╝е╔дм╔м═╫д╟д╣бгд▐д┐бв░ь╔Їд╬е│е▐еєе╔д╟д╧бв╚є╕°│л/╚ы╠й╕░д╬е╤е╣еяб╝е╔дм╔м═╫д╦д╩дыд│д╚дмдвдъд▐д╣бге╤е╣еяб╝е╔д╧е│е▐еєе╔╣╘д╟╗╪─ъд╟днд▐д╣(\fB\-storepass\fRеке╫е╖ечеєд╚\fB\-keypass\fRеке╫е╖ечеєдЄ╗╚═╤)бгд┐д└д╖бве╞е╣е╚╠▄┼кд╬╛ь╣чбвд▐д┐д╧е╗енехевд╩е╖е╣е╞ердЄ╗╚═╤д╖д╞ддды╛ь╣ч░╩│░д╧бве│е▐еєе╔╣╘дфе╣епеъе╫е╚д╟е╤е╣еяб╝е╔дЄ╗╪─ъд╖д╩ддд╟дпд└д╡ддбг╔м═╫д╩е╤е╣еяб╝е╔д╬еке╫е╖ечеєдЄе│е▐еєе╔╣╘д╟╗╪─ъд╖д╩длд├д┐╛ь╣чд╧бве╤е╣еяб╝е╔д╬╞■╬╧дЄ╡сдсдщдьд▐д╣бг
 .SS "╛┌╠└╜ёд╬╜р╡Єд╦┤╪д╣ды╖┘╣Ё"
 .PP
 едеєе┐б╝е═е├е╚╔╕╜рRFC 5280д╟д╧бвX\&.509╛┌╠└╜ёд╬╜р╡Єд╦┤╪д╣дые╫еэе╒ебедеыдм─ъ╡┴д╡дьд╞дкдъбв╛┌╠└╜ёд╬е╒егб╝еые╔дкдшд╙еиепе╣е╞еєе╖ечеєд╦═н╕·д╩├═дкдшд╙├═д╬┴╚╣чд╗дм╡н║▄д╡дьд╞ддд▐д╣бг╔╕╜рд╦д─ддд╞д╧бв

@@ -27,7 +27,8 @@
 .\" SectDesc: Remote Method Invocation (RMI)ツール
 .\" Software: JDK 8
 .\" Arch: 汎用
-.\" Part Number: E54734-01
+.\" Part Number: E58103-01
+.\" Doc ID: JSSON
 .\"
 .if n .pl 99999
 .TH "rmic" "1" "2013年11月21日" "JDK 8" "Remote Method Invocation (RMI)"
@@ -110,8 +111,8 @@ Java Remote Method Protocol (JRMP)スタブおよびスケルトンの静的な生成のサポートは
 .PP
 \-classpath path
 .RS 4
-\fBrmic\fRコマンドがクラスを探すためのパスを指定します。このオプションは、デフォルトや\fBCLASSPATH\fR環境変数設定をオーバーライドします。ディレクトリはコロンで分割します。パスの一般的な形式は\fB\&.;<your_path>\fRです。例:
-\fB\&.;/usr/local/java/classes\fR
+\fBrmic\fRコマンドがクラスを探すためのパスを指定します。このオプションは、デフォルトや\fBCLASSPATH\fR環境変数設定をオーバーライドします。ディレクトリはコロンで分割します。パスの一般的な形式は\fB\&.:<your_path>\fRです。例:
+\fB\&.:/usr/local/java/classes\fR
 .RE
 .PP
 \-d \fIdirectory\fR
@@ -350,7 +351,7 @@ java(1)
 .sp -1
 .IP \(bu 2.3
 .\}
-Setting the Class Path
+クラス・パスの設定
 .RE
 .br
 'pl 8.5i

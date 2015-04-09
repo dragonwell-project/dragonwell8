@@ -27,7 +27,8 @@
 .\" SectDesc: Remote Method Invocation (RMI)ツール
 .\" Software: JDK 8
 .\" Arch: 汎用
-.\" Part Number: E54734-01
+.\" Part Number: E58103-01
+.\" Doc ID: JSSON
 .\"
 .if n .pl 99999
 .TH "rmid" "1" "2013年11月21日" "JDK 8" "Remote Method Invocation (RMI)"
@@ -103,9 +104,7 @@ rmid \- 起動システム・デーモンを開始すると、オブジェクトをJava Virtual Machine(V
 .\}
 .SH "必要に応じてRMIDを開始"
 .PP
-\fBrmid\fRをコマンド行から開始するには、\fBinetd\fR
-(Oracle Solarisの場合)、または\fBxinetd\fR
-(Linuxの場合)を構成して\fBrmid\fRを必要に応じて開始する方法もあります。
+\fBrmid\fRをコマンド行から開始するには、\fBinetd\fR(Oracle Solarisの場合)、または\fBxinetd\fR(Linuxの場合)を構成して\fBrmid\fRを必要に応じて開始する方法もあります。
 .PP
 RMIDを開始すると、\fBSystem\&.inheritedChannel\fRメソッドを呼び出して、継承されたチャンネル(\fBinetd\fR/\fBxinetd\fRから継承)を取得しようとします。継承されたチャンネルがnullであるか、\fBjava\&.nio\&.channels\&.ServerSocketChannel\fRのインスタンスでなかった場合、RMIDはそのチャンネルは\fBinetd\fR/\fBxinetd\fRによって起動されたものではないと判断し、前述のように起動します。
 .PP
@@ -368,7 +367,7 @@ java(1)
 .sp -1
 .IP \(bu 2.3
 .\}
-Setting the Class Path
+クラス・パスの設定
 .RE
 .br
 'pl 8.5i
