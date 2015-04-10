@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,29 +25,22 @@
 
 /*
  * @test
- * @bug 8006582 8037546
- * @summary javac should generate method parameters correctly.
- * @build Tester
- * @compile -parameters LambdaTest.java
- * @run main Tester LambdaTest LambdaTest.out
+ * @bug 8068430
+ * @summary structural most specific and stuckness
  */
 
-/**
- * Post https://bugs.openjdk.java.net/browse/JDK-8037546, this test verifies
- * that MethodParameters attribute for lambdas are emitted properly.
- */
-class LambdaTest {
+import java.util.HashMap;
+import java.util.Map;
 
-    interface I {
-        int m(int x);
-    }
-
-    static int foo(I i) { return i.m(0); }
-
-    static {
-        foo((int x1) -> { return foo((int x2) -> { return x1 + x2; }); });
+public class T8068430 {
+    public static void main(String[] args) {
+        Map<Integer, String> mp = new HashMap<>();
+        mp.put(1, "a");
+        mp.put(2, "b");
+        mp.put(3, "c");
+        mp.put(4, "d");
+        System.out.println(mp.entrySet().stream().reduce(0,
+                (i, e) -> i + e.getKey(),
+                (i1, i2) -> i1 + i2));
     }
 }
-
-
-
