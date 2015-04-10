@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2012,7 +2012,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                         "(MAC algorithm: " + m.getAlgorithm() + ")");
                 }
 
-                if (!Arrays.equals(macData.getDigest(), macResult)) {
+                if (!MessageDigest.isEqual(macData.getDigest(), macResult)) {
                    throw new SecurityException("Failed PKCS12" +
                                         " integrity checking");
                 }
