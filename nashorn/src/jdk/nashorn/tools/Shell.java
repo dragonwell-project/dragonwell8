@@ -109,7 +109,10 @@ public class Shell {
      */
     public static void main(final String[] args) {
         try {
-            System.exit(main(System.in, System.out, System.err, args));
+            final int exitCode = main(System.in, System.out, System.err, args);
+            if (exitCode != SUCCESS) {
+                System.exit(exitCode);
+            }
         } catch (final IOException e) {
             System.err.println(e); //bootstrapping, Context.err may not exist
             System.exit(IO_ERROR);
@@ -414,18 +417,7 @@ public class Shell {
                 Context.setGlobal(global);
             }
 
-            // initialize with "shell.js" script
-            try {
-                final Source source = sourceFor("<shell.js>", Shell.class.getResource("resources/shell.js"));
-                context.eval(global, source.getString(), global, "<shell.js>", false);
-            } catch (final Exception e) {
-                err.println(e);
-                if (env._dump_on_error) {
-                    e.printStackTrace(err);
-                }
-
-                return INTERNAL_ERROR;
-            }
+            global.addShellBuiltins();
 
             while (true) {
                 err.print(prompt);
