@@ -97,6 +97,7 @@ void setDefaultScopeID(JNIEnv *env, struct sockaddr *him)
         CHECK_NULL(c);
         ni_defaultIndexID = (*env)->GetStaticFieldID(
             env, c, "defaultIndex", "I");
+        CHECK_NULL(ni_defaultIndexID);
         ni_class = c;
     }
     int defaultIndex;
@@ -119,6 +120,7 @@ int getDefaultScopeID(JNIEnv *env) {
         CHECK_NULL_RETURN(c, 0);
         ni_defaultIndexID = (*env)->GetStaticFieldID(env, c,
                                                      "defaultIndex", "I");
+        CHECK_NULL_RETURN(ni_defaultIndexID, 0);
         ni_class = c;
     }
     int defaultIndex = 0;
@@ -775,6 +777,11 @@ void parseExclusiveBindProperty(JNIEnv *env) {
         useExclBind = 1;
     }
 #endif
+}
+
+JNIEXPORT jint JNICALL
+NET_EnableFastTcpLoopback(int fd) {
+    return 0;
 }
 
 /* In the case of an IPv4 Inetaddress this method will return an

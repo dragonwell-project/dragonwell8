@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -659,11 +659,10 @@ endif
 ##########################################################################################
 # jabswitch
 
-ifndef OPENJDK
   ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $(eval $(call SetupNativeCompilation,BUILD_JABSWITCH, \
-        SRC := $(JDK_TOPDIR)/src/closed/windows/native/sun/bridge, \
+      SRC := $(JDK_TOPDIR)/src/windows/native/sun/bridge, \
         INCLUDE_FILES := jabswitch.cpp, \
         LANG := C++, \
         CFLAGS := $(filter-out -Zc:wchar_t-, $(CFLAGS_JDKEXE)) -Zc:wchar_t \
@@ -675,17 +674,16 @@ ifndef OPENJDK
         OUTPUT_DIR := $(JDK_OUTPUTDIR)/bin, \
         PROGRAM := jabswitch, \
         DEBUG_SYMBOLS := true, \
-        VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/closed/windows/native/sun/bridge/AccessBridgeStatusWindow.rc, \
+      VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/windows/native/sun/bridge/AccessBridgeStatusWindow.rc, \
         RC_FLAGS := $(RC_FLAGS) \
             -D "JDK_FNAME=jabswitch.exe" \
             -D "JDK_INTERNAL_NAME=jabswitch" \
             -D "JDK_FTYPE=0x01L", \
-        MANIFEST := $(JDK_TOPDIR)/src/closed/windows/native/sun/bridge/jabswitch.manifest))
+      MANIFEST := $(JDK_TOPDIR)/src/windows/native/sun/bridge/jabswitch.manifest))
 
     BUILD_LAUNCHERS += $(BUILD_JABSWITCH)
 
   endif
-endif
 
 ##########################################################################################
 

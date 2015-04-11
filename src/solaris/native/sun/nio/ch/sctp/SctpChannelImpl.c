@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -213,6 +213,7 @@ void handleSendFailed
 
     /* retrieved address from sockaddr */
     isaObj = SockAddrToInetSocketAddress(env, sap);
+    CHECK_NULL(isaObj);
 
     /* data retrieved from sff_data */
     if (dataLength > 0) {
@@ -337,6 +338,7 @@ void handlePeerAddrChange
     }
 
     addressObj = SockAddrToInetSocketAddress(env, (struct sockaddr*)&spc->spc_aaddr);
+    CHECK_NULL(addressObj);
 
     /* create PeerAddressChanged */
     resultObj = (*env)->NewObject(env, spc_class, spc_ctrID, spc->spc_assoc_id,
@@ -393,6 +395,7 @@ void handleMessage
     }
 
     isa = SockAddrToInetSocketAddress(env, sap);
+    CHECK_NULL(isa);
     getControlData(msg, cdata);
 
     /* create MessageInfoImpl */
@@ -460,11 +463,6 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_receive0
             char *bufp = (char*)addr;
             union sctp_notification *snp;
             jboolean allocated = JNI_FALSE;
-
-            if (rv > SCTP_NOTIFICATION_SIZE) {
-                JNU_ThrowInternalError(env, "should not reach here");
-                return -1;
-            }
 
             if (!(msg->msg_flags & MSG_EOR) && length < SCTP_NOTIFICATION_SIZE) {
                 char* newBuf;
@@ -613,4 +611,3 @@ JNIEXPORT jint JNICALL Java_sun_nio_ch_sctp_SctpChannelImpl_checkConnect
     return Java_sun_nio_ch_SocketChannelImpl_checkConnect(env, this,
                                                           fdo, block, ready);
 }
-
