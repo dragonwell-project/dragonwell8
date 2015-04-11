@@ -1,11 +1,12 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+#!/bin/sh
+
+#
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
-# published by the Free Software Foundation.  Oracle designates this
-# particular file as subject to the "Classpath" exception as provided
-# by Oracle in the LICENSE file that accompanied this code.
+# published by the Free Software Foundation.
 #
 # This code is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,15 +22,26 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
-# List of JVMs that can be used as an option to java, javac, etc.
-# Order is important -- first in this list is the default JVM.
-# NOTE that this both this file and its format are UNSUPPORTED and
-# WILL GO AWAY in a future release.
+
 #
-# You may also select a JVM in an arbitrary location with the
-# "-XXaltjvm=<jvm_dir>" option, but that too is unsupported
-# and may not be available in a future release.
+# Portions Copyright (c) 2014 IBM Corporation
 #
--client IF_SERVER_CLASS -server
--server KNOWN
--minimal KNOWN
+
+# @test
+# @bug 8058930
+# @summary java.awt.GraphicsEnvironment.getHeadlessProperty() does not work for AIX
+#
+# @build TestDetectHeadless
+# @run shell TestDetectHeadless.sh
+
+OS=`uname -s`
+case "$OS" in
+    Windows* | CYGWIN* )
+        echo "Passed"; exit 0 ;;
+    * ) unset DISPLAY ;;
+esac
+
+${TESTJAVA}/bin/java ${TESTVMOPTS} \
+    -cp ${TESTCLASSES} TestDetectHeadless
+
+exit $?

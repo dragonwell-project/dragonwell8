@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,10 @@ ifndef OPENJDK
     # This gets built on unix platforms implicitly in the old build even though
     # it's excluded in the closed build.
     EXCLUDES += sun/java2d/pisces
+  endif
+endif
 
+ifeq ($(OPENJDK_TARGET_OS), windows)
     # AccessBridge is compiled separately below.
     EXFILES += AccessBridge.java \
         AccessBridgeLoader.java \
@@ -72,8 +75,6 @@ ifndef OPENJDK
     # This seems to never be built
     EXCLUDES += com/sun/java/accessibility/extensions
   endif
-
-endif
 
 ifneq ($(OPENJDK_TARGET_OS), solaris)
   # Exclude Solaris nio and two security related files in src/share/classes
@@ -272,7 +273,7 @@ include CopyIntoClasses.gmk
 
 ifndef OPENJDK
   CLOSED_SRC_DIRS := $(JDK_TOPDIR)/src/closed/share/classes \
-      $(JDK_TOPDIR)/src/closed/$(OPENJDK_TARGET_OS_API_DIR)/classes
+      $(wildcard $(JDK_TOPDIR)/src/closed/$(OPENJDK_TARGET_OS_API_DIR)/classes)
 endif
 
 MACOSX_SRC_DIRS :=
@@ -379,7 +380,6 @@ $(JDK_OUTPUTDIR)/classes/META-INF/services/com.sun.tools.xjc.Plugin:
 
 ##########################################################################################
 
-ifndef OPENJDK
   ifeq ($(OPENJDK_TARGET_OS), windows)
     ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
       $(eval $(call SetupJavaCompilation,BUILD_ACCESSBRIDGE_32, \
@@ -413,7 +413,6 @@ ifndef OPENJDK
 
     endif
   endif
-endif
 
 ##########################################################################################
 
