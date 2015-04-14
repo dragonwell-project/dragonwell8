@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -353,7 +353,7 @@ void YoungList::print() {
   HeapRegion* lists[] = {_head,   _survivor_head};
   const char* names[] = {"YOUNG", "SURVIVOR"};
 
-  for (unsigned int list = 0; list < ARRAY_SIZE(lists); ++list) {
+  for (uint list = 0; list < ARRAY_SIZE(lists); ++list) {
     gclog_or_tty->print_cr("%s LIST CONTENTS", names[list]);
     HeapRegion *curr = lists[list];
     if (curr == NULL)
@@ -827,8 +827,8 @@ HeapWord* G1CollectedHeap::allocate_new_tlab(size_t word_size) {
   assert_heap_not_locked_and_not_at_safepoint();
   assert(!isHumongous(word_size), "we do not allow humongous TLABs");
 
-  unsigned int dummy_gc_count_before;
-  int dummy_gclocker_retry_count = 0;
+  uint dummy_gc_count_before;
+  uint dummy_gclocker_retry_count = 0;
   return attempt_allocation(word_size, &dummy_gc_count_before, &dummy_gclocker_retry_count);
 }
 
@@ -838,8 +838,8 @@ G1CollectedHeap::mem_allocate(size_t word_size,
   assert_heap_not_locked_and_not_at_safepoint();
 
   // Loop until the allocation is satisfied, or unsatisfied after GC.
-  for (int try_count = 1, gclocker_retry_count = 0; /* we'll return */; try_count += 1) {
-    unsigned int gc_count_before;
+  for (uint try_count = 1, gclocker_retry_count = 0; /* we'll return */; try_count += 1) {
+    uint gc_count_before;
 
     HeapWord* result = NULL;
     if (!isHumongous(word_size)) {
@@ -891,8 +891,8 @@ G1CollectedHeap::mem_allocate(size_t word_size,
 
 HeapWord* G1CollectedHeap::attempt_allocation_slow(size_t word_size,
                                                    AllocationContext_t context,
-                                                   unsigned int *gc_count_before_ret,
-                                                   int* gclocker_retry_count_ret) {
+                                                   uint* gc_count_before_ret,
+                                                   uint* gclocker_retry_count_ret) {
   // Make sure you read the note in attempt_allocation_humongous().
 
   assert_heap_not_locked_and_not_at_safepoint();
@@ -909,7 +909,7 @@ HeapWord* G1CollectedHeap::attempt_allocation_slow(size_t word_size,
   HeapWord* result = NULL;
   for (int try_count = 1; /* we'll return */; try_count += 1) {
     bool should_try_gc;
-    unsigned int gc_count_before;
+    uint gc_count_before;
 
     {
       MutexLockerEx x(Heap_lock);
@@ -953,7 +953,7 @@ HeapWord* G1CollectedHeap::attempt_allocation_slow(size_t word_size,
     if (should_try_gc) {
       bool succeeded;
       result = do_collection_pause(word_size, gc_count_before, &succeeded,
-          GCCause::_g1_inc_collection_pause);
+                                   GCCause::_g1_inc_collection_pause);
       if (result != NULL) {
         assert(succeeded, "only way to get back a non-NULL result");
         return result;
@@ -1007,8 +1007,8 @@ HeapWord* G1CollectedHeap::attempt_allocation_slow(size_t word_size,
 }
 
 HeapWord* G1CollectedHeap::attempt_allocation_humongous(size_t word_size,
-                                                        unsigned int * gc_count_before_ret,
-                                                        int* gclocker_retry_count_ret) {
+                                                        uint* gc_count_before_ret,
+                                                        uint* gclocker_retry_count_ret) {
   // The structure of this method has a lot of similarities to
   // attempt_allocation_slow(). The reason these two were not merged
   // into a single one is that such a method would require several "if
@@ -1041,7 +1041,7 @@ HeapWord* G1CollectedHeap::attempt_allocation_humongous(size_t word_size,
   HeapWord* result = NULL;
   for (int try_count = 1; /* we'll return */; try_count += 1) {
     bool should_try_gc;
-    unsigned int gc_count_before;
+    uint gc_count_before;
 
     {
       MutexLockerEx x(Heap_lock);
@@ -1079,7 +1079,7 @@ HeapWord* G1CollectedHeap::attempt_allocation_humongous(size_t word_size,
 
       bool succeeded;
       result = do_collection_pause(word_size, gc_count_before, &succeeded,
-          GCCause::_g1_humongous_allocation);
+                                   GCCause::_g1_humongous_allocation);
       if (result != NULL) {
         assert(succeeded, "only way to get back a non-NULL result");
         return result;
@@ -1887,7 +1887,7 @@ G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy* policy_) :
   assert(n_rem_sets > 0, "Invariant.");
 
   _worker_cset_start_region = NEW_C_HEAP_ARRAY(HeapRegion*, n_queues, mtGC);
-  _worker_cset_start_region_time_stamp = NEW_C_HEAP_ARRAY(unsigned int, n_queues, mtGC);
+  _worker_cset_start_region_time_stamp = NEW_C_HEAP_ARRAY(uint, n_queues, mtGC);
   _evacuation_failed_info_array = NEW_C_HEAP_ARRAY(EvacuationFailedInfo, n_queues, mtGC);
 
   for (int i = 0; i < n_queues; i++) {
@@ -2473,9 +2473,9 @@ G1YCType G1CollectedHeap::yc_type() {
 void G1CollectedHeap::collect(GCCause::Cause cause) {
   assert_heap_not_locked();
 
-  unsigned int gc_count_before;
-  unsigned int old_marking_count_before;
-  unsigned int full_gc_count_before;
+  uint gc_count_before;
+  uint old_marking_count_before;
+  uint full_gc_count_before;
   bool retry_gc;
 
   do {
@@ -3613,7 +3613,7 @@ void G1CollectedHeap::gc_epilogue(bool full) {
 }
 
 HeapWord* G1CollectedHeap::do_collection_pause(size_t word_size,
-                                               unsigned int gc_count_before,
+                                               uint gc_count_before,
                                                bool* succeeded,
                                                GCCause::Cause gc_cause) {
   assert_heap_not_locked_and_not_at_safepoint();
