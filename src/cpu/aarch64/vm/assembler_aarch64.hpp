@@ -1459,7 +1459,7 @@ public:
     f(op, 31, 29);
     f(0b11010000, 28, 21);
     f(0b000000, 15, 10);
-    rf(Rm, 16), rf(Rn, 5), rf(Rd, 0);
+    zrf(Rm, 16), zrf(Rn, 5), zrf(Rd, 0);
   }
 
   #define INSN(NAME, op)				\
