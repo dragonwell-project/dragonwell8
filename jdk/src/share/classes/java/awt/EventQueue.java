@@ -182,7 +182,14 @@ public class EventQueue {
 
     private FwDispatcher fwDispatcher;
 
-    private static final PlatformLogger eventLog = PlatformLogger.getLogger("java.awt.event.EventQueue");
+    private static volatile PlatformLogger eventLog;
+
+    private static final PlatformLogger getEventLog() {
+        if(eventLog == null) {
+            eventLog = PlatformLogger.getLogger("java.awt.event.EventQueue");
+        }
+        return eventLog;
+    }
 
     static {
         AWTAccessor.setEventQueueAccessor(
@@ -759,8 +766,8 @@ public class EventQueue {
                 dispatchThread.stopDispatching();
             }
         } else {
-            if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-                eventLog.fine("Unable to dispatch event: " + event);
+            if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
+                getEventLog().fine("Unable to dispatch event: " + event);
             }
         }
     }
@@ -857,8 +864,8 @@ public class EventQueue {
      * @since           1.2
      */
     public void push(EventQueue newEventQueue) {
-        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-            eventLog.fine("EventQueue.push(" + newEventQueue + ")");
+        if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
+            getEventLog().fine("EventQueue.push(" + newEventQueue + ")");
         }
 
         pushPopLock.lock();
@@ -883,8 +890,8 @@ public class EventQueue {
                     // Use getNextEventPrivate() as it doesn't call flushPendingEvents()
                     newEventQueue.postEventPrivate(topQueue.getNextEventPrivate());
                 } catch (InterruptedException ie) {
-                    if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-                        eventLog.fine("Interrupted push", ie);
+                    if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
+                        getEventLog().fine("Interrupted push", ie);
                     }
                 }
             }
@@ -922,8 +929,8 @@ public class EventQueue {
      * @since           1.2
      */
     protected void pop() throws EmptyStackException {
-        if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-            eventLog.fine("EventQueue.pop(" + this + ")");
+        if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
+            getEventLog().fine("EventQueue.pop(" + this + ")");
         }
 
         pushPopLock.lock();
@@ -945,8 +952,8 @@ public class EventQueue {
                 try {
                     prevQueue.postEventPrivate(topQueue.getNextEventPrivate());
                 } catch (InterruptedException ie) {
-                    if (eventLog.isLoggable(PlatformLogger.Level.FINE)) {
-                        eventLog.fine("Interrupted pop", ie);
+                    if (getEventLog().isLoggable(PlatformLogger.Level.FINE)) {
+                        getEventLog().fine("Interrupted pop", ie);
                     }
                 }
             }

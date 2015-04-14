@@ -681,6 +681,16 @@ abstract class Handshaker {
             boolean enabledSSL20Hello = false;
             ArrayList<ProtocolVersion> protocols = new ArrayList<>(4);
             for (ProtocolVersion protocol : enabledProtocols.collection()) {
+                if (!algorithmConstraints.permits(
+                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                        protocol.name, null)) {
+                    if (debug != null && Debug.isOn("verbose")) {
+                        System.out.println(
+                            "Ignoring disabled protocol: " + protocol);
+                    }
+
+                    continue;
+                }
                 // Need not to check the SSL20Hello protocol.
                 if (protocol.v == ProtocolVersion.SSL20Hello.v) {
                     enabledSSL20Hello = true;
