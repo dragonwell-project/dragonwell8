@@ -1112,6 +1112,8 @@ private:
   // mark bitmap scan, and so needs to be pushed onto the mark stack.
   bool is_below_finger(HeapWord* objAddr, HeapWord* global_finger) const;
 
+  template<bool scan> void process_grey_object(oop obj);
+
 public:
   // It resets the task; it should be called right at the beginning of
   // a marking phase.
@@ -1164,7 +1166,7 @@ public:
   inline void deal_with_reference(oop obj);
 
   // It scans an object and visits its children.
-  void scan_object(oop obj);
+  void scan_object(oop obj) { process_grey_object<true>(obj); }
 
   // It pushes an object on the local queue.
   inline void push(oop obj);
