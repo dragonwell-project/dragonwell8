@@ -132,7 +132,8 @@ hotspot_compiler = \
   sanity/ExecuteInternalVMTests.java
 
 hotspot_gc = \
-  sanity/ExecuteInternalVMTests.java
+  sanity/ExecuteInternalVMTests.java \
+  -gc/g1/TestGreyReclaimedHumongousObjects.java
 
 hotspot_runtime = \
   sanity/ExecuteInternalVMTests.java
