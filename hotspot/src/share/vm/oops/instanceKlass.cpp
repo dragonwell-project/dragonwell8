@@ -110,7 +110,7 @@ HS_DTRACE_PROBE_DECL5(hotspot, class__initialization__end,
       len = name->utf8_length();                                 \
     }                                                            \
     HS_DTRACE_PROBE4(hotspot, class__initialization__##type,     \
-      data, len, SOLARIS_ONLY((void *))(clss)->class_loader(), thread_type);           \
+      data, len, (void *)(clss)->class_loader(), thread_type);           \
   }
 
 #define DTRACE_CLASSINIT_PROBE_WAIT(type, clss, thread_type, wait) \
@@ -123,7 +123,7 @@ HS_DTRACE_PROBE_DECL5(hotspot, class__initialization__end,
       len = name->utf8_length();                                 \
     }                                                            \
     HS_DTRACE_PROBE5(hotspot, class__initialization__##type,     \
-      data, len, SOLARIS_ONLY((void *))(clss)->class_loader(), thread_type, wait);     \
+      data, len, (void *)(clss)->class_loader(), thread_type, wait);     \
   }
 #else /* USDT2 */
 
