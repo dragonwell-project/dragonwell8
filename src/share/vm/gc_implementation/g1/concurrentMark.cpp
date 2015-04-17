@@ -4003,32 +4003,16 @@ void CMTask::drain_satb_buffers() {
 
   CMObjectClosure oc(this);
   SATBMarkQueueSet& satb_mq_set = JavaThread::satb_mark_queue_set();
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    satb_mq_set.set_par_closure(_worker_id, &oc);
-  } else {
-    satb_mq_set.set_closure(&oc);
-  }
 
   // This keeps claiming and applying the closure to completed buffers
   // until we run out of buffers or we need to abort.
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    while (!has_aborted() &&
-           satb_mq_set.par_apply_closure_to_completed_buffer(_worker_id)) {
-      if (_cm->verbose_medium()) {
-        gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
-      }
-      statsOnly( ++_satb_buffers_processed );
-      regular_clock_call();
+  while (!has_aborted() &&
+         satb_mq_set.apply_closure_to_completed_buffer(&oc)) {
+    if (_cm->verbose_medium()) {
+      gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
     }
-  } else {
-    while (!has_aborted() &&
-           satb_mq_set.apply_closure_to_completed_buffer()) {
-      if (_cm->verbose_medium()) {
-        gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
-      }
-      statsOnly( ++_satb_buffers_processed );
-      regular_clock_call();
-    }
+    statsOnly( ++_satb_buffers_processed );
+    regular_clock_call();
   }
 
   _draining_satb_buffers = false;
@@ -4036,12 +4020,6 @@ void CMTask::drain_satb_buffers() {
   assert(has_aborted() ||
          concurrent() ||
          satb_mq_set.completed_buffers_num() == 0, "invariant");
-
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    satb_mq_set.set_par_closure(_worker_id, NULL);
-  } else {
-    satb_mq_set.set_closure(NULL);
-  }
 
   // again, this was a potentially expensive operation, decrease the
   // limits to get the regular clock call early
