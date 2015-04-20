@@ -1883,10 +1883,9 @@ public class ObjectInputStream
             ObjectStreamClass slotDesc = slots[i].desc;
 
             if (slots[i].hasData) {
-                if (obj != null &&
-                    slotDesc.hasReadObjectMethod() &&
-                    handles.lookupException(passHandle) == null)
-                {
+                if (obj == null || handles.lookupException(passHandle) != null) {
+                    defaultReadFields(null, slotDesc); // skip field values
+                } else if (slotDesc.hasReadObjectMethod()) {
                     SerialCallbackContext oldContext = curContext;
 
                     try {
@@ -1917,6 +1916,7 @@ public class ObjectInputStream
                 } else {
                     defaultReadFields(obj, slotDesc);
                 }
+
                 if (slotDesc.hasWriteObjectData()) {
                     skipCustomData();
                 } else {
