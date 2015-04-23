@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,27 @@
  * questions.
  */
 
-import javax.xml.bind.annotation.XmlEnum;
+import javax.swing.text.html.parser.ContentModel;
+import javax.swing.text.html.parser.DTD;
+import javax.swing.text.html.parser.Element;
 
-@XmlEnum(String.class)
-public enum TestEnumType {
-    FIRST, ONE, TWO, THREE, FOUR, FIVE, SIX, LAST
+/*
+ * @test
+ * @bug 8074956
+ * @author Alexey Ivanov
+ * @summary Tests correct handling of additional HTML elements in ContentModel
+ * @run main bug8074956
+ */
+public class bug8074956 {
+    public static void main(String[] args) throws Exception {
+        final DTD html32 = DTD.getDTD("html32");
+        ContentModel contentModel = new ContentModel('&', new ContentModel());
+
+        Element elem1 = html32.getElement("html-element");
+        contentModel.first(elem1);
+
+        Element elem2 = html32.getElement("test-element");
+        // Shouldn't throw ArrayIndexOutOfBoundsException
+        contentModel.first(elem2);
+    }
 }
