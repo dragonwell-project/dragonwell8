@@ -25,7 +25,7 @@
  * @test TestLargePageUseForAuxMemory.java
  * @bug 8058354
  * @key gc
- * @library /testlibrary /../../test/lib
+ * @library /testlibrary /testlibrary/whitebox
  * @requires (vm.gc=="G1" | vm.gc=="null")
  * @build TestLargePageUseForAuxMemory
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
