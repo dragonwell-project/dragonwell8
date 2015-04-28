@@ -1,13 +1,13 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 2001-2004 The Apache Software Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -24,6 +24,23 @@
 package com.sun.org.apache.xalan.internal.xsltc.runtime;
 
 import com.sun.org.apache.xalan.internal.utils.SecuritySupport;
+import com.sun.org.apache.xalan.internal.xsltc.DOM;
+import com.sun.org.apache.xalan.internal.xsltc.Translet;
+import com.sun.org.apache.xalan.internal.xsltc.dom.AbsoluteIterator;
+import com.sun.org.apache.xalan.internal.xsltc.dom.ArrayNodeListIterator;
+import com.sun.org.apache.xalan.internal.xsltc.dom.DOMAdapter;
+import com.sun.org.apache.xalan.internal.xsltc.dom.MultiDOM;
+import com.sun.org.apache.xalan.internal.xsltc.dom.SingletonIterator;
+import com.sun.org.apache.xalan.internal.xsltc.dom.StepIterator;
+import com.sun.org.apache.xml.internal.dtm.Axis;
+import com.sun.org.apache.xml.internal.dtm.DTM;
+import com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;
+import com.sun.org.apache.xml.internal.dtm.DTMManager;
+import com.sun.org.apache.xml.internal.dtm.ref.DTMDefaultBase;
+import com.sun.org.apache.xml.internal.dtm.ref.DTMNodeProxy;
+import com.sun.org.apache.xml.internal.serializer.NamespaceMappings;
+import com.sun.org.apache.xml.internal.serializer.SerializationHandler;
+import com.sun.org.apache.xml.internal.utils.XML11Char;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.FieldPosition;
@@ -32,31 +49,11 @@ import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import javax.xml.transform.dom.DOMSource;
-
-import com.sun.org.apache.xalan.internal.xsltc.DOM;
-import com.sun.org.apache.xalan.internal.xsltc.Translet;
-import com.sun.org.apache.xalan.internal.xsltc.dom.AbsoluteIterator;
-import com.sun.org.apache.xml.internal.dtm.Axis;
-import com.sun.org.apache.xalan.internal.xsltc.dom.DOMAdapter;
-import com.sun.org.apache.xalan.internal.xsltc.dom.MultiDOM;
-import com.sun.org.apache.xalan.internal.xsltc.dom.SingletonIterator;
-import com.sun.org.apache.xalan.internal.xsltc.dom.StepIterator;
-import com.sun.org.apache.xalan.internal.xsltc.dom.ArrayNodeListIterator;
-import com.sun.org.apache.xml.internal.dtm.DTM;
-import com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;
-import com.sun.org.apache.xml.internal.dtm.DTMManager;
-import com.sun.org.apache.xml.internal.dtm.ref.DTMDefaultBase;
-import com.sun.org.apache.xml.internal.dtm.ref.DTMNodeProxy;
-
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-import com.sun.org.apache.xml.internal.serializer.NamespaceMappings;
-import com.sun.org.apache.xml.internal.serializer.SerializationHandler;
-import com.sun.org.apache.xml.internal.utils.XML11Char;
 
 /**
  * Standard XSLT functions. All standard functions expect the current node
@@ -976,7 +973,7 @@ public final class BasisLibrary {
 
     /**
      * Utility function: used to format/adjust  a double to a string. The
-     * DecimalFormat object comes from the 'formatSymbols' hashtable in
+     * DecimalFormat object comes from the 'formatSymbols' map in
      * AbstractTranslet.
      */
     private static FieldPosition _fieldPosition = new FieldPosition(0);

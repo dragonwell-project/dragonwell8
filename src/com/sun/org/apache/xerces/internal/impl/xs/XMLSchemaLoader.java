@@ -1,15 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 2000-2005 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,26 +20,12 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.Hashtable;
-import java.util.Locale;
-import java.util.StringTokenizer;
-import java.util.Vector;
-
 import com.sun.org.apache.xerces.internal.dom.DOMErrorImpl;
 import com.sun.org.apache.xerces.internal.dom.DOMMessageFormatter;
 import com.sun.org.apache.xerces.internal.dom.DOMStringListImpl;
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.XMLEntityManager;
 import com.sun.org.apache.xerces.internal.impl.XMLErrorReporter;
-import com.sun.org.apache.xerces.internal.impl.dv.DVFactoryException;
 import com.sun.org.apache.xerces.internal.impl.dv.InvalidDatatypeValueException;
 import com.sun.org.apache.xerces.internal.impl.dv.SchemaDVFactory;
 import com.sun.org.apache.xerces.internal.impl.dv.xs.SchemaDVFactoryImpl;
@@ -72,14 +58,25 @@ import com.sun.org.apache.xerces.internal.xs.LSInputList;
 import com.sun.org.apache.xerces.internal.xs.StringList;
 import com.sun.org.apache.xerces.internal.xs.XSLoader;
 import com.sun.org.apache.xerces.internal.xs.XSModel;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.Vector;
 import javax.xml.XMLConstants;
 import org.w3c.dom.DOMConfiguration;
 import org.w3c.dom.DOMError;
 import org.w3c.dom.DOMErrorHandler;
-import org.w3c.dom.DOMStringList;
 import org.w3c.dom.DOMException;
+import org.w3c.dom.DOMStringList;
 import org.w3c.dom.ls.LSInput;
 import org.w3c.dom.ls.LSResourceResolver;
 import org.xml.sax.InputSource;
@@ -596,9 +593,8 @@ XSLoader, DOMConfiguration {
      * @throws IOException
      * @throws XNIException
      */
-    SchemaGrammar loadSchema(XSDDescription desc,
-            XMLInputSource source,
-            Map locationPairs) throws IOException, XNIException {
+    SchemaGrammar loadSchema(XSDDescription desc, XMLInputSource source,
+            Map<String, LocationArray> locationPairs) throws IOException, XNIException {
 
         // this should only be done once per invocation of this object;
         // unless application alters JAXPSource in the mean time.
@@ -620,9 +616,9 @@ XSLoader, DOMConfiguration {
     } // loadSchema(XSDDescription, XMLInputSource):  SchemaGrammar
 
     /** This method tries to resolve location of the given schema.
-     * The loader stores the namespace/location pairs in a hashtable (use "" as the
+     * The loader stores the namespace/location pairs in a map (use "" as the
      * namespace of absent namespace). When resolving an entity, loader first tries
-     * to find in the hashtable whether there is a value for that namespace,
+     * to find in the map whether there is a value for that namespace,
      * if so, pass that location value to the user-defined entity resolver.
      *
      * @param desc
@@ -631,7 +627,8 @@ XSLoader, DOMConfiguration {
      * @return
      * @throws IOException
      */
-    public static XMLInputSource resolveDocument(XSDDescription desc, Map locationPairs,
+    public static XMLInputSource resolveDocument(XSDDescription desc,
+            Map<String, LocationArray> locationPairs,
             XMLEntityResolver entityResolver) throws IOException {
         String loc = null;
         // we consider the schema location properties for import
@@ -641,7 +638,7 @@ XSLoader, DOMConfiguration {
             String namespace = desc.getTargetNamespace();
             String ns = namespace == null ? XMLSymbols.EMPTY_STRING : namespace;
             // get the location hint for that namespace
-            LocationArray tempLA = (LocationArray)locationPairs.get(ns);
+            LocationArray tempLA = locationPairs.get(ns);
             if(tempLA != null)
                 loc = tempLA.getFirstLocation();
         }
@@ -662,7 +659,7 @@ XSLoader, DOMConfiguration {
 
     // add external schema locations to the location pairs
     public static void processExternalHints(String sl, String nsl,
-            Map locations,
+            Map<String, XMLSchemaLoader.LocationArray> locations,
             XMLErrorReporter er) {
         if (sl != null) {
             try {
@@ -715,7 +712,8 @@ XSLoader, DOMConfiguration {
     // @param schemaStr     The schemaLocation string to tokenize
     // @param locations     HashMap mapping namespaces to LocationArray objects holding lists of locaitons
     // @return true if no problems; false if string could not be tokenized
-    public static boolean tokenizeSchemaLocationStr(String schemaStr, Map locations) {
+    public static boolean tokenizeSchemaLocationStr(String schemaStr,
+            Map<String, XMLSchemaLoader.LocationArray> locations) {
         if (schemaStr!= null) {
             StringTokenizer t = new StringTokenizer(schemaStr, " \n\t\r");
             String namespace, location;
@@ -725,7 +723,7 @@ XSLoader, DOMConfiguration {
                     return false; // error!
                 }
                 location = t.nextToken();
-                LocationArray la = ((LocationArray)locations.get(namespace));
+                LocationArray la = locations.get(namespace);
                 if(la == null) {
                     la = new LocationArray();
                     locations.put(namespace, la);
@@ -746,7 +744,8 @@ XSLoader, DOMConfiguration {
      * Note: all JAXP schema files will be checked for full-schema validity if the feature was set up
      *
      */
-    private void processJAXPSchemaSource(Map locationPairs) throws IOException {
+    private void processJAXPSchemaSource(
+            Map<String, LocationArray> locationPairs) throws IOException {
         fJAXPProcessed = true;
         if (fJAXPSource == null) {
             return;
@@ -925,7 +924,7 @@ XSLoader, DOMConfiguration {
         return new XMLInputSource(publicId, systemId, null);
     }
 
-    static class LocationArray{
+    public static class LocationArray{
 
         int length ;
         String [] locations = new String[2];
