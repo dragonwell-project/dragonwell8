@@ -1,15 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 1999-2002,2004,2005 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 // Sep 14, 2000:
 //  Fixed comments to preserve whitespaces and add a line break
@@ -46,23 +45,23 @@
 
 package com.sun.org.apache.xml.internal.serialize;
 
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Writer;
-import java.util.Hashtable;
-import java.util.Vector;
-
 import com.sun.org.apache.xerces.internal.dom.DOMErrorImpl;
 import com.sun.org.apache.xerces.internal.dom.DOMLocatorImpl;
 import com.sun.org.apache.xerces.internal.dom.DOMMessageFormatter;
 import com.sun.org.apache.xerces.internal.util.XMLChar;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Writer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
+
+import org.w3c.dom.DOMError;
+import org.w3c.dom.DOMErrorHandler;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.DocumentType;
-import org.w3c.dom.DOMError;
-import org.w3c.dom.DOMErrorHandler;
 import org.w3c.dom.Element;
 import org.w3c.dom.Entity;
 import org.w3c.dom.NamedNodeMap;
@@ -186,7 +185,7 @@ public abstract class BaseMarkupSerializer
      * Accumulated here prior to starting an element and placing this
      * list in the element state.
      */
-    protected Hashtable     _prefixes;
+    protected Map<String, String>  _prefixes;
 
 
     /**
@@ -821,7 +820,7 @@ public abstract class BaseMarkupSerializer
         throws SAXException
     {
         if ( _prefixes == null )
-            _prefixes = new Hashtable();
+            _prefixes = new HashMap<>();
         _prefixes.put( uri, prefix == null ? "" : prefix );
     }
 
@@ -1909,7 +1908,7 @@ public abstract class BaseMarkupSerializer
         String    prefix;
 
         if ( _prefixes != null ) {
-            prefix = (String) _prefixes.get( namespaceURI );
+            prefix = _prefixes.get( namespaceURI );
             if ( prefix != null )
                 return prefix;
         }

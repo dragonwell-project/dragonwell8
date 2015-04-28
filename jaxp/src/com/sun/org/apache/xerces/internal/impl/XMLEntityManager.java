@@ -1,15 +1,15 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  */
-
 /*
- * Copyright 2005 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,12 +20,10 @@
 
 package com.sun.org.apache.xerces.internal.impl ;
 
-import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.io.ASCIIReader;
 import com.sun.org.apache.xerces.internal.impl.io.UCSReader;
 import com.sun.org.apache.xerces.internal.impl.io.UTF8Reader;
 import com.sun.org.apache.xerces.internal.impl.msg.XMLMessageFormatter;
-import com.sun.org.apache.xerces.internal.impl.XMLEntityHandler;
 import com.sun.org.apache.xerces.internal.impl.validation.ValidationManager;
 import com.sun.org.apache.xerces.internal.util.*;
 import com.sun.org.apache.xerces.internal.util.URI;
@@ -47,12 +45,11 @@ import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
-import javax.xml.XMLConstants;
 import javax.xml.stream.XMLInputFactory;
 
 
@@ -368,7 +365,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
     // entities
 
     /** Entities. */
-    protected Hashtable fEntities = new Hashtable();
+    protected Map<String, Entity> fEntities = new HashMap<>();
 
     /** Entity stack. */
     protected Stack fEntityStack = new Stack();
@@ -855,7 +852,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
      */
     public boolean isExternalEntity(String entityName) {
 
-        Entity entity = (Entity)fEntities.get(entityName);
+        Entity entity = fEntities.get(entityName);
         if (entity == null) {
             return false;
         }
@@ -872,7 +869,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
      */
     public boolean isEntityDeclInExternalSubset(String entityName) {
 
-        Entity entity = (Entity)fEntities.get(entityName);
+        Entity entity = fEntities.get(entityName);
         if (entity == null) {
             return false;
         }
@@ -902,13 +899,13 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
 
     public boolean isDeclaredEntity(String entityName) {
 
-        Entity entity = (Entity)fEntities.get(entityName);
+        Entity entity = fEntities.get(entityName);
         return entity != null;
     }
 
     public boolean isUnparsedEntity(String entityName) {
 
-        Entity entity = (Entity)fEntities.get(entityName);
+        Entity entity = fEntities.get(entityName);
         if (entity == null) {
             return false;
         }
@@ -1114,7 +1111,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
     throws IOException, XNIException {
 
         // was entity declared?
-        Entity entity = (Entity)fEntityStorage.getEntity(entityName);
+        Entity entity = fEntityStorage.getEntity(entityName);
         if (entity == null) {
             if (fEntityHandler != null) {
                 String encoding = null;
