@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 package jdk.testlibrary;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -393,5 +395,24 @@ public final class OutputAnalyzer {
      */
     public int getExitValue() {
         return exitValue;
+    }
+
+    /**
+     * Get the contents of the output buffer (stdout and stderr) as list of strings.
+     * Output will be split by system property 'line.separator'.
+     *
+     * @return Contents of the output buffer as list of strings
+     */
+    public List<String> asLines() {
+        return asLines(getOutput());
+    }
+
+    private List<String> asLines(String buffer) {
+        List<String> l = new ArrayList<>();
+        String[] a = buffer.split(Utils.NEW_LINE);
+        for (String string : a) {
+            l.add(string);
+        }
+        return l;
     }
 }

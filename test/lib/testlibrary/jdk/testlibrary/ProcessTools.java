@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import sun.management.VMManagement;
 
@@ -373,5 +375,41 @@ public final class ProcessTools {
             cmd.append(s).append(" ");
         }
         return cmd.toString().trim();
+    }
+
+    /**
+     * Executes a process, waits for it to finish, prints the process output
+     * to stdout, and returns the process output.
+     *
+     * The process will have exited before this method returns.
+     *
+     * @param cmds The command line to execute.
+     * @return The {@linkplain OutputAnalyzer} instance wrapping the process.
+     */
+    public static OutputAnalyzer executeCommand(String... cmds)
+            throws Throwable {
+        String cmdLine = Arrays.stream(cmds).collect(Collectors.joining(" "));
+        System.out.println("Command line: [" + cmdLine + "]");
+        OutputAnalyzer analyzer = ProcessTools.executeProcess(cmds);
+        System.out.println(analyzer.getOutput());
+        return analyzer;
+    }
+
+    /**
+     * Executes a process, waits for it to finish, prints the process output
+     * to stdout and returns the process output.
+     *
+     * The process will have exited before this method returns.
+     *
+     * @param pb The ProcessBuilder to execute.
+     * @return The {@linkplain OutputAnalyzer} instance wrapping the process.
+     */
+    public static OutputAnalyzer executeCommand(ProcessBuilder pb)
+            throws Throwable {
+        String cmdLine = pb.command().stream().collect(Collectors.joining(" "));
+        System.out.println("Command line: [" + cmdLine + "]");
+        OutputAnalyzer analyzer = ProcessTools.executeProcess(pb);
+        System.out.println(analyzer.getOutput());
+        return analyzer;
     }
 }
