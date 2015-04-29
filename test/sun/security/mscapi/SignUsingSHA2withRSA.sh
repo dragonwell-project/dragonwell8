@@ -29,6 +29,7 @@
 # @requires os.family == "windows"
 # @run shell SignUsingSHA2withRSA.sh
 # @summary Support SHA256 (and higher) in SunMSCAPI
+# @key intermittent
 
 # set a few environment variables so that the shell-script can run stand-alone
 # in the source directory
