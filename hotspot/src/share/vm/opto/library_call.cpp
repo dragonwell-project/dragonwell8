@@ -31,6 +31,7 @@
 #include "opto/addnode.hpp"
 #include "opto/callGenerator.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/connode.hpp"
 #include "opto/idealKit.hpp"
 #include "opto/mathexactnode.hpp"
 #include "opto/mulnode.hpp"
@@ -323,6 +324,8 @@ class LibraryCallKit : public GraphKit {
   bool inline_updateBytesCRC32();
   bool inline_updateByteBufferCRC32();
   bool inline_multiplyToLen();
+
+  bool inline_profileBoolean();
 };
 
 
@@ -933,6 +936,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
     return inline_updateBytesCRC32();
   case vmIntrinsics::_updateByteBufferCRC32:
     return inline_updateByteBufferCRC32();
+
+  case vmIntrinsics::_profileBoolean:
+    return inline_profileBoolean();
 
   default:
     // If you get here, it may be that someone has added a new intrinsic
@@ -6543,4 +6549,82 @@ Node* LibraryCallKit::inline_digestBase_implCompressMB_predicate(int predicate) 
   Node* instof_false = generate_guard(bool_instof, NULL, PROB_MIN);
 
   return instof_false;  // even if it is NULL
+}
+
+bool LibraryCallKit::inline_profileBoolean() {
+  Node* counts = argument(1);
+  const TypeAryPtr* ary = NULL;
+  ciArray* aobj = NULL;
+  if (counts->is_Con()
+      && (ary = counts->bottom_type()->isa_aryptr()) != NULL
+      && (aobj = ary->const_oop()->as_array()) != NULL
+      && (aobj->length() == 2)) {
+    // Profile is int[2] where [0] and [1] correspond to false and true value occurrences respectively.
+    jint false_cnt = aobj->element_value(0).as_int();
+    jint  true_cnt = aobj->element_value(1).as_int();
+
+    method()->set_injected_profile(true);
+
+    if (C->log() != NULL) {
+      C->log()->elem("observe source='profileBoolean' false='%d' true='%d'",
+                     false_cnt, true_cnt);
+    }
+
+    if (false_cnt + true_cnt == 0) {
+      // According to profile, never executed.
+      uncommon_trap_exact(Deoptimization::Reason_intrinsic,
+                          Deoptimization::Action_reinterpret);
+      return true;
+    }
+
+    // result is a boolean (0 or 1) and its profile (false_cnt & true_cnt)
+    // is a number of each value occurrences.
+    Node* result = argument(0);
+    if (false_cnt == 0 || true_cnt == 0) {
+      // According to profile, one value has been never seen.
+      int expected_val = (false_cnt == 0) ? 1 : 0;
+
+      Node* cmp  = _gvn.transform(new (C) CmpINode(result, intcon(expected_val)));
+      Node* test = _gvn.transform(new (C) BoolNode(cmp, BoolTest::eq));
+
+      IfNode* check = create_and_map_if(control(), test, PROB_ALWAYS, COUNT_UNKNOWN);
+      Node* fast_path = _gvn.transform(new (C) IfTrueNode(check));
+      Node* slow_path = _gvn.transform(new (C) IfFalseNode(check));
+
+      { // Slow path: uncommon trap for never seen value and then reexecute
+        // MethodHandleImpl::profileBoolean() to bump the count, so JIT knows
+        // the value has been seen at least once.
+        PreserveJVMState pjvms(this);
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+
+        set_control(slow_path);
+        set_i_o(i_o());
+
+        uncommon_trap_exact(Deoptimization::Reason_intrinsic,
+                            Deoptimization::Action_reinterpret);
+      }
+      // The guard for never seen value enables sharpening of the result and
+      // returning a constant. It allows to eliminate branches on the same value
+      // later on.
+      set_control(fast_path);
+      result = intcon(expected_val);
+    }
+    // Stop profiling.
+    // MethodHandleImpl::profileBoolean() has profiling logic in its bytecode.
+    // By replacing method body with profile data (represented as ProfileBooleanNode
+    // on IR level) we effectively disable profiling.
+    // It enables full speed execution once optimized code is generated.
+    Node* profile = _gvn.transform(new (C) ProfileBooleanNode(result, false_cnt, true_cnt));
+    C->record_for_igvn(profile);
+    set_result(profile);
+    return true;
+  } else {
+    // Continue profiling.
+    // Profile data isn't available at the moment. So, execute method's bytecode version.
+    // Usually, when GWT LambdaForms are profiled it means that a stand-alone nmethod
+    // is compiled and counters aren't available since corresponding MethodHandle
+    // isn't a compile-time constant.
+    return false;
+  }
 }
