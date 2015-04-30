@@ -954,7 +954,7 @@ public class BasicComboBoxUI extends ComboBoxUI {
         getDisplaySize();
         if (sameBaseline) {
             Insets insets = c.getInsets();
-            height = height - insets.top - insets.bottom;
+            height = Math.max(height - insets.top - insets.bottom, 0);
             if (!comboBox.isEditable()) {
                 ListCellRenderer renderer = comboBox.getRenderer();
                 if (renderer == null)  {
