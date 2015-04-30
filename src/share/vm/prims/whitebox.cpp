@@ -73,6 +73,13 @@ WB_ENTRY(jint, WB_GetHeapOopSize(JNIEnv* env, jobject o))
   return heapOopSize;
 WB_END
 
+WB_ENTRY(jint, WB_GetVMPageSize(JNIEnv* env, jobject o))
+  return os::vm_page_size();
+WB_END
+
+WB_ENTRY(jlong, WB_GetVMLargePageSize(JNIEnv* env, jobject o))
+  return os::large_page_size();
+WB_END
 
 class WBIsKlassAliveClosure : public KlassClosure {
     Symbol* _name;
@@ -884,6 +891,16 @@ WB_ENTRY(jlong, WB_MetaspaceCapacityUntilGC(JNIEnv* env, jobject wb))
   return (jlong) MetaspaceGC::capacity_until_GC();
 WB_END
 
+WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
+  oop obj_oop = JNIHandles::resolve(obj);
+  return (jboolean) obj_oop->mark()->has_monitor();
+WB_END
+
+WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
+  VM_ForceSafepoint force_safepoint_op;
+  VMThread::execute(&force_safepoint_op);
+WB_END
+
 //Some convenience methods to deal with objects from java
 int WhiteBox::offset_for_field(const char* field_name, oop object,
     Symbol* signature_symbol) {
@@ -906,7 +923,7 @@ int WhiteBox::offset_for_field(const char* field_name, oop object,
   if (res == NULL) {
     tty->print_cr("Invalid layout of %s at %s", ik->external_name(),
         name_symbol->as_C_string());
-    fatal("Invalid layout of preloaded class");
+    vm_exit_during_initialization("Invalid layout of preloaded class: use -XX:+TraceClassLoading to see the origin of the problem class");
   }
 
   //fetch the field at the offset we've found
@@ -972,6 +989,8 @@ static JNINativeMethod methods[] = {
   {CC"getObjectSize",      CC"(Ljava/lang/Object;)J", (void*)&WB_GetObjectSize     },
   {CC"isObjectInOldGen",   CC"(Ljava/lang/Object;)Z", (void*)&WB_isObjectInOldGen  },
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
+  {CC"getVMPageSize",      CC"()I",                   (void*)&WB_GetVMPageSize     },
+  {CC"getVMLargePageSize", CC"()J",                   (void*)&WB_GetVMLargePageSize},
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
   {CC"classKnownToNotExist",
                            CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
@@ -1067,6 +1086,8 @@ static JNINativeMethod methods[] = {
   {CC"getCPUFeatures",     CC"()Ljava/lang/String;",  (void*)&WB_GetCPUFeatures     },
   {CC"getNMethod",         CC"(Ljava/lang/reflect/Executable;Z)[Ljava/lang/Object;",
                                                       (void*)&WB_GetNMethod         },
+  {CC"isMonitorInflated",  CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
+  {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
 };
 
 #undef CC
