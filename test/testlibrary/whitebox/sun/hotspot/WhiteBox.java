@@ -87,6 +87,8 @@ public class WhiteBox {
     return isClassAlive0(name.replace('.', '/'));
   }
   private native boolean isClassAlive0(String name);
+  public native boolean isMonitorInflated(Object obj);
+  public native void forceSafepoint();
 
   // Resource/Class Lookup Cache
   public native boolean classKnownToNotExist(ClassLoader loader, String name);

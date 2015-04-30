@@ -891,6 +891,16 @@ WB_ENTRY(jlong, WB_MetaspaceCapacityUntilGC(JNIEnv* env, jobject wb))
   return (jlong) MetaspaceGC::capacity_until_GC();
 WB_END
 
+WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
+  oop obj_oop = JNIHandles::resolve(obj);
+  return (jboolean) obj_oop->mark()->has_monitor();
+WB_END
+
+WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
+  VM_ForceSafepoint force_safepoint_op;
+  VMThread::execute(&force_safepoint_op);
+WB_END
+
 //Some convenience methods to deal with objects from java
 int WhiteBox::offset_for_field(const char* field_name, oop object,
     Symbol* signature_symbol) {
@@ -1076,6 +1086,8 @@ static JNINativeMethod methods[] = {
   {CC"getCPUFeatures",     CC"()Ljava/lang/String;",  (void*)&WB_GetCPUFeatures     },
   {CC"getNMethod",         CC"(Ljava/lang/reflect/Executable;Z)[Ljava/lang/Object;",
                                                       (void*)&WB_GetNMethod         },
+  {CC"isMonitorInflated",  CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
+  {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
 };
 
 #undef CC
