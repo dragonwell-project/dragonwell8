@@ -31,7 +31,6 @@ import java.util.Arrays;
 import sun.invoke.util.VerifyAccess;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
 import static java.lang.invoke.LambdaForm.*;
-import static java.lang.invoke.LambdaForm.BasicType.*;
 import static java.lang.invoke.MethodTypeForm.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import java.lang.ref.WeakReference;
