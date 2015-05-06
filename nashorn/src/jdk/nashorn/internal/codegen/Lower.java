@@ -200,7 +200,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> implements Lo
         final String name = getConstantPropertyName(indexNode.getIndex());
         if (name != null) {
             // If index node is a constant property name convert index node to access node.
-            assert Token.descType(indexNode.getToken()) == TokenType.LBRACKET;
+            assert indexNode.isIndex();
             return new AccessNode(indexNode.getToken(), indexNode.getFinish(), indexNode.getBase(), name);
         }
         return super.leaveIndexNode(indexNode);
