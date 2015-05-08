@@ -209,17 +209,23 @@ bool os::have_special_privileges() {
 
 #ifndef SYS_gettid
 // i386: 224, ia64: 1105, amd64: 186, sparc 143
-#ifdef __ia64__
-#define SYS_gettid 1105
-#elif __i386__
-#define SYS_gettid 224
-#elif __amd64__
-#define SYS_gettid 186
-#elif __sparc__
-#define SYS_gettid 143
-#else
-#error define gettid for the arch
-#endif
+  #ifdef __ia64__
+    #define SYS_gettid 1105
+  #else
+    #ifdef __i386__
+      #define SYS_gettid 224
+    #else
+      #ifdef __amd64__
+        #define SYS_gettid 186
+      #else
+        #ifdef __sparc__
+          #define SYS_gettid 143
+        #else
+          #error define gettid for the arch
+        #endif
+      #endif
+    #endif
+  #endif
 #endif
 
 // Cpu architecture string
