@@ -929,3 +929,24 @@ AC_DEFUN_ONCE([BASIC_TEST_USABILITY_ISSUES],
     IS_RECONFIGURE=no
   fi
 ])
+
+# Code to run after AC_OUTPUT
+AC_DEFUN_ONCE([BASIC_POST_CONFIG_OUTPUT],
+[
+  # Rotate our log file (configure.log)
+  if test -e "$OUTPUT_ROOT/configure.log.old"; then
+    $RM -f "$OUTPUT_ROOT/configure.log.old"
+  fi
+  if test -e "$OUTPUT_ROOT/configure.log"; then
+    $MV -f "$OUTPUT_ROOT/configure.log" "$OUTPUT_ROOT/configure.log.old" 2> /dev/null
+  fi
+
+  # Move configure.log from current directory to the build output root
+  if test -e ./configure.log; then
+    echo found it
+    $MV -f ./configure.log "$OUTPUT_ROOT/configure.log" 2> /dev/null
+  fi
+
+  # Make the compare script executable
+  $CHMOD +x $OUTPUT_ROOT/compare.sh
+])
