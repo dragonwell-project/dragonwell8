@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.lang.reflect.Proxy;
 import java.rmi.Remote;
 import java.rmi.UnexpectedException;
 import java.rmi.activation.Activatable;
+import java.security.PrivilegedAction;
 import java.util.Map;
 import java.util.WeakHashMap;
 import sun.rmi.server.Util;
@@ -55,6 +56,25 @@ public class RemoteObjectInvocationHandler
     implements InvocationHandler
 {
     private static final long serialVersionUID = 2L;
+
+    // set to true if invocation handler allows finalize method (legacy behavior)
+    private static final boolean allowFinalizeInvocation;
+
+    static {
+        String propName = "sun.rmi.server.invocationhandler.allowFinalizeInvocation";
+        String allowProp = java.security.AccessController.doPrivileged(
+            new PrivilegedAction<String>() {
+                @Override
+                public String run() {
+                    return System.getProperty(propName);
+                }
+            });
+        if ("".equals(allowProp)) {
+            allowFinalizeInvocation = true;
+        } else {
+            allowFinalizeInvocation = Boolean.parseBoolean(allowProp);
+        }
+    }
 
     /**
      * A weak hash map, mapping classes to weak hash maps that map
@@ -144,6 +164,9 @@ public class RemoteObjectInvocationHandler
     {
         if (method.getDeclaringClass() == Object.class) {
             return invokeObjectMethod(proxy, method, args);
+        } else if ("finalize".equals(method.getName()) && method.getParameterCount() == 0 &&
+            !allowFinalizeInvocation) {
+            return null; // ignore
         } else {
             return invokeRemoteMethod(proxy, method, args);
         }
