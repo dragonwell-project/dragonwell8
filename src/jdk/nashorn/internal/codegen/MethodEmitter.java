@@ -1581,7 +1581,7 @@ public class MethodEmitter {
     /**
      * Abstraction for performing a conditional jump of any type
      *
-     * @see MethodEmitter.Condition
+     * @see Condition
      *
      * @param cond      the condition to test
      * @param trueLabel the destination label is condition is true
@@ -2179,6 +2179,10 @@ public class MethodEmitter {
      * @return the method emitter
      */
     MethodEmitter dynamicGet(final Type valueType, final String name, final int flags, final boolean isMethod, final boolean isIndex) {
+        if (name.length() > LARGE_STRING_THRESHOLD) { // use getIndex for extremely long names
+            return load(name).dynamicGetIndex(valueType, flags, isMethod);
+        }
+
         debug("dynamic_get", name, valueType, getProgramPoint(flags));
 
         Type type = valueType;
@@ -2204,8 +2208,13 @@ public class MethodEmitter {
      * @param isIndex is this an index operation?
      */
     void dynamicSet(final String name, final int flags, final boolean isIndex) {
-         assert !isOptimistic(flags);
-         debug("dynamic_set", name, peekType());
+        if (name.length() > LARGE_STRING_THRESHOLD) { // use setIndex for extremely long names
+            load(name).swap().dynamicSetIndex(flags);
+            return;
+        }
+
+        assert !isOptimistic(flags);
+        debug("dynamic_set", name, peekType());
 
         Type type = peekType();
         if (type.isObject() || type.isBoolean()) { //promote strings to objects etc
