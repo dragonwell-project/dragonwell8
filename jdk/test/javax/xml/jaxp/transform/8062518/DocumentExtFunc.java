@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,13 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
-package sun.util.locale.provider;
+public class DocumentExtFunc {
 
-/**
- * LocaleProviderAdapter implementation for the Unix locale data
- *
- * @author Naoto Sato
- */
-public class HostLocaleProviderAdapterImpl {
-            }
+    public static String test(NodeList list) {
+        Node node = list.item(0);
+        return "["+node.getNodeName() + ":" + node.getNodeValue()+"]";
+    }
+}
