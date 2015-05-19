@@ -6690,7 +6690,7 @@ void MacroAssembler::string_compare(Register str1, Register str2,
     subl(cnt2, stride2);
     jccb(Assembler::notZero, COMPARE_WIDE_VECTORS_LOOP);
     // clean upper bits of YMM registers
-    vzeroupper();
+    vpxor(vec1, vec1);
 
     // compare wide vectors tail
     bind(COMPARE_WIDE_TAIL);
@@ -6705,7 +6705,7 @@ void MacroAssembler::string_compare(Register str1, Register str2,
     // Identifies the mismatching (higher or lower)16-bytes in the 32-byte vectors.
     bind(VECTOR_NOT_EQUAL);
     // clean upper bits of YMM registers
-    vzeroupper();
+    vpxor(vec1, vec1);
     lea(str1, Address(str1, result, scale));
     lea(str2, Address(str2, result, scale));
     jmp(COMPARE_16_CHARS);
@@ -6964,7 +6964,8 @@ void MacroAssembler::char_arrays_equals(bool is_array_equ, Register ary1, Regist
   bind(DONE);
   if (UseAVX >= 2) {
     // clean upper bits of YMM registers
-    vzeroupper();
+    vpxor(vec1, vec1);
+    vpxor(vec2, vec2);
   }
 }
 
@@ -7098,7 +7099,8 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
 
         BIND(L_check_fill_8_bytes);
         // clean upper bits of YMM registers
-        vzeroupper();
+        movdl(xtmp, value);
+        pshufd(xtmp, xtmp, 0);
       } else {
         // Fill 32-byte chunks
         pshufd(xtmp, xtmp, 0);
@@ -7261,7 +7263,11 @@ void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
     bind(L_copy_16_chars_exit);
     if (UseAVX >= 2) {
       // clean upper bits of YMM registers
-      vzeroupper();
+      vpxor(tmp2Reg, tmp2Reg);
+      vpxor(tmp3Reg, tmp3Reg);
+      vpxor(tmp4Reg, tmp4Reg);
+      movdl(tmp1Reg, tmp5);
+      pshufd(tmp1Reg, tmp1Reg, 0);
     }
     subptr(len, 8);
     jccb(Assembler::greater, L_copy_8_chars_exit);
