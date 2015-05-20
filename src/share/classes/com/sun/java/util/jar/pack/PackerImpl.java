@@ -79,18 +79,20 @@ public class PackerImpl  extends TLGlobals implements Pack200.Packer {
      * Takes a JarFile and converts into a pack-stream.
      * <p>
      * Closes its input but not its output.  (Pack200 archives are appendable.)
-     * @param in a JarFile
+     *
+     * @param in  a JarFile
      * @param out an OutputStream
      * @exception IOException if an error is encountered.
      */
     public synchronized void pack(JarFile in, OutputStream out) throws IOException {
-        assert(Utils.currentInstance.get() == null);
-        TimeZone tz = (props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE))
-                      ? null
-                      : TimeZone.getDefault();
+        assert (Utils.currentInstance.get() == null);
+
+        boolean needUTC = !props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE);
         try {
             Utils.currentInstance.set(this);
-            if (tz != null) TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            if (needUTC) {
+                Utils.changeDefaultTimeZoneToUtc();
+            }
 
             if ("0".equals(props.getProperty(Pack200.Packer.EFFORT))) {
                 Utils.copyJarFile(in, out);
@@ -99,7 +101,9 @@ public class PackerImpl  extends TLGlobals implements Pack200.Packer {
             }
         } finally {
             Utils.currentInstance.set(null);
-            if (tz != null) TimeZone.setDefault(tz);
+            if (needUTC) {
+                Utils.restoreDefaultTimeZone();
+            }
             in.close();
         }
     }
@@ -119,12 +123,13 @@ public class PackerImpl  extends TLGlobals implements Pack200.Packer {
      * @exception IOException if an error is encountered.
      */
     public synchronized void pack(JarInputStream in, OutputStream out) throws IOException {
-        assert(Utils.currentInstance.get() == null);
-        TimeZone tz = (props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE)) ? null :
-            TimeZone.getDefault();
+        assert (Utils.currentInstance.get() == null);
+        boolean needUTC = !props.getBoolean(Utils.PACK_DEFAULT_TIMEZONE);
         try {
             Utils.currentInstance.set(this);
-            if (tz != null) TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+            if (needUTC) {
+                Utils.changeDefaultTimeZoneToUtc();
+            }
             if ("0".equals(props.getProperty(Pack200.Packer.EFFORT))) {
                 Utils.copyJarFile(in, out);
             } else {
@@ -132,10 +137,13 @@ public class PackerImpl  extends TLGlobals implements Pack200.Packer {
             }
         } finally {
             Utils.currentInstance.set(null);
-            if (tz != null) TimeZone.setDefault(tz);
+            if (needUTC) {
+                Utils.restoreDefaultTimeZone();
+            }
             in.close();
         }
     }
+
     /**
      * Register a listener for changes to options.
      * @param listener  An object to be invoked when a property is changed.
