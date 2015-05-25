@@ -149,6 +149,8 @@ hotspot_all = \
 # Tests that require compact3 API's
 #
 needs_compact3 = \
+  compiler/jsr292/RedefineMethodUsedByMultipleMethodHandles.java \
+  compiler/rangechecks/TestRangeCheckSmearing.java \
   compiler/whitebox/DeoptimizeMethodTest.java \
   compiler/whitebox/SetForceInlineMethodTest.java \
   compiler/whitebox/SetDontInlineMethodTest.java \
@@ -159,6 +161,7 @@ needs_compact3 = \
   compiler/whitebox/IsMethodCompilableTest.java \
   gc/6581734/Test6581734.java \
   gc/7072527/TestFullGCCount.java \
+  gc/TestGCLogRotationViaJcmd.java \
   gc/g1/TestHumongousAllocInitialMark.java \
   gc/g1/TestHumongousShrinkHeap.java \
   gc/arguments/TestG1HeapRegionSize.java \
@@ -177,6 +180,7 @@ needs_compact3 = \
   serviceability/threads/TestFalseDeadLock.java \
   serviceability/jvmti/GetObjectSizeOverflow.java \
   serviceability/jvmti/TestRedefineWithUnresolvedClass.java \
+  serviceability/sa/jmap-hashcode/Test8028623.java \
   compiler/tiered/NonTieredLevelsTest.java \
   compiler/tiered/TieredLevelsTest.java \
   compiler/intrinsics/bmi/verifycode
