@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,10 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.util.*;
-import sun.misc.IOUtils;
 
+import sun.misc.IOUtils;
 import sun.security.pkcs.EncryptedPrivateKeyInfo;
+import sun.security.pkcs12.PKCS12KeyStore;
 
 /**
  * This class provides the keystore implementation referred to as "JKS".
@@ -62,6 +63,13 @@ abstract class JavaKeyStore extends KeyStoreSpi {
     public static final class CaseExactJKS extends JavaKeyStore {
         String convertAlias(String alias) {
             return alias;
+        }
+    }
+
+    // special JKS that supports JKS and PKCS12 file formats
+    public static final class DualFormatJKS extends KeyStoreDelegator {
+        public DualFormatJKS() {
+            super("JKS", JKS.class, "PKCS12", PKCS12KeyStore.class);
         }
     }
 
