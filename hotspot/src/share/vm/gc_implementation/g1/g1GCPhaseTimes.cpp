@@ -552,11 +552,15 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
   print_stats(2, "Ref Enq", _cur_ref_enq_time_ms);
   print_stats(2, "Redirty Cards", _recorded_redirty_logged_cards_time_ms);
   par_phase_printer.print(RedirtyCards);
-  if (G1ReclaimDeadHumongousObjectsAtYoungGC) {
-    print_stats(2, "Humongous Reclaim", _cur_fast_reclaim_humongous_time_ms);
+
+  if (G1EagerReclaimHumongousObjects) {
+    print_stats(2, "Humongous Register", _cur_fast_reclaim_humongous_register_time_ms);
     if (G1Log::finest()) {
       print_stats(3, "Humongous Total", _cur_fast_reclaim_humongous_total);
       print_stats(3, "Humongous Candidate", _cur_fast_reclaim_humongous_candidates);
+    }
+    print_stats(2, "Humongous Reclaim", _cur_fast_reclaim_humongous_time_ms);
+    if (G1Log::finest()) {
       print_stats(3, "Humongous Reclaimed", _cur_fast_reclaim_humongous_reclaimed);
     }
   }
