@@ -2131,16 +2131,22 @@ encode %{
   enc_class aarch64_enc_stlrb(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrb);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_stlrh(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrh);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_stlrw(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrw);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
 
@@ -2231,6 +2237,8 @@ encode %{
     }
     MOV_VOLATILE(src_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlr);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_fstlrs(vRegF src, memory mem) %{
@@ -2241,6 +2249,8 @@ encode %{
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlrw);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_fstlrd(vRegD src, memory mem) %{
@@ -2251,6 +2261,8 @@ encode %{
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
 		 rscratch1, stlr);
+    if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
+      __ dmb(__ ISH);
   %}
 
   // synchronized read/update encodings

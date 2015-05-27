@@ -60,6 +60,8 @@
 
 int VM_Version::_cpu;
 int VM_Version::_model;
+int VM_Version::_variant;
+int VM_Version::_revision;
 int VM_Version::_stepping;
 int VM_Version::_cpuFeatures;
 const char*           VM_Version::_features_str = "";
@@ -130,6 +132,30 @@ void VM_Version::get_processor_features() {
   if (auxv & HWCAP_SHA2)  strcat(buf, ", sha256");
 
   _features_str = strdup(buf);
+  _cpuFeatures = auxv;
+
+  if (FILE *f = fopen("/proc/cpuinfo", "r")) {
+    char buf[128], *p;
+    while (fgets(buf, sizeof (buf), f) != NULL) {
+      if (p = strchr(buf, ':')) {
+        long v = strtol(p+1, NULL, 0);
+        if (strncmp(buf, "CPU implementer", sizeof "CPU implementer" - 1) == 0) {
+          _cpu = v;
+        } else if (strncmp(buf, "CPU variant", sizeof "CPU variant" - 1) == 0) {
+          _variant = v;
+        } else if (strncmp(buf, "CPU part", sizeof "CPU part" - 1) == 0) {
+          _model = v;
+        } else if (strncmp(buf, "CPU revision", sizeof "CPU revision" - 1) == 0) {
+          _revision = v;
+        }
+      }
+    }
+    fclose(f);
+  }
+
+  // Enable vendor specific features
+  if (_cpu == CPU_CAVIUM) _cpuFeatures |= CPU_DMB_ATOMICS;
+  if (_cpu == CPU_ARM) _cpuFeatures |= CPU_A53MAC;
 
   if (FLAG_IS_DEFAULT(UseCRC32)) {
     UseCRC32 = (auxv & HWCAP_CRC32) != 0;
