@@ -1,3 +1,28 @@
+dnl Copyright (c) 2014, Red Hat Inc. All rights reserved.
+dnl DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+dnl
+dnl This code is free software; you can redistribute it and/or modify it
+dnl under the terms of the GNU General Public License version 2 only, as
+dnl published by the Free Software Foundation.
+dnl
+dnl This code is distributed in the hope that it will be useful, but WITHOUT
+dnl ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+dnl FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+dnl version 2 for more details (a copy is included in the LICENSE file that
+dnl accompanied this code).
+dnl
+dnl You should have received a copy of the GNU General Public License version
+dnl 2 along with this work; if not, write to the Free Software Foundation,
+dnl Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+dnl
+dnl Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+dnl or visit www.oracle.com if you need additional information or have any
+dnl questions.
+dnl
+dnl 
+dnl Process this file with m4 aarch64_ad.m4 to generate the arithmetic
+dnl and shift patterns patterns used in aarch64.ad.
+dnl
 // BEGIN This section of the file is automatically generated. Do not edit --------------
 
 define(`BASE_SHIFT_INSN',
