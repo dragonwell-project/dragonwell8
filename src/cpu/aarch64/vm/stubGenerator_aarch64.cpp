@@ -1892,7 +1892,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
       __ enter();
 
-      __ mov(rscratch1, len_reg);
+      __ mov(rscratch2, len_reg);
       __ ldrw(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
 
       __ ld1(v0, __ T16B, rvec);
@@ -1959,6 +1959,8 @@ class StubGenerator: public StubCodeGenerator {
 
       __ leave();
       __ ret(lr);
+
+      return start;
   }
 
   // Arguments:
