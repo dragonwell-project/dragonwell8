@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,15 +23,19 @@
  * questions.
  */
 
-// key: compiler.err.invalid.mref
-// key: compiler.misc.mref.infer.and.explicit.params
+/**
+ * @test
+ * @bug 8055963
+ * @summary Inference failure with nested invocation
+ * @compile T8055963.java
+ */
+class T8055963 {
 
-public class MrefInferAndExplicitParams {
-    static class Foo<X> {}
+    static class C<T> {}
 
-    interface Supplier<X> {
-        X make();
+    <T> T choose(T first, T second) { return null; }
+
+    void test() {
+        C<String> cs = choose(new C<String>(), new C<>());
     }
-
-    Supplier<Foo<String>> sfs = Foo::<Number>new;
 }
