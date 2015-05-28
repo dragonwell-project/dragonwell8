@@ -650,17 +650,8 @@ $(eval $(call SetupZipArchive,BUILD_SRC_ZIP, \
 
 ##########################################################################################
 
-  ifeq ($(OPENJDK_TARGET_OS), windows)
-
-    $(eval $(call SetupArchive,BUILD_JACCESS_JAR, , \
-        SRCS := $(JDK_OUTPUTDIR)/classes, \
-        INCLUDES := com/sun/java/accessibility/util, \
-        JAR := $(IMAGES_OUTPUTDIR)/lib/ext/jaccess.jar, \
-        SKIP_METAINF := true))
-
-    JARS += $(IMAGES_OUTPUTDIR)/lib/ext/jaccess.jar
-
-    ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
+ifeq ($(OPENJDK_TARGET_OS), windows)
+  ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
       $(eval $(call SetupArchive,BUILD_ACCESSBRIDGE_32_JAR, , \
           SRCS := $(JDK_OUTPUTDIR)/classes_ab/32bit, \
           INCLUDES := com/sun/java/accessibility, \
@@ -675,7 +666,7 @@ $(eval $(call SetupZipArchive,BUILD_SRC_ZIP, \
 
       JARS += $(IMAGES_OUTPUTDIR)/lib/ext/access-bridge-32.jar \
           $(IMAGES_OUTPUTDIR)/lib/ext/access-bridge.jar
-    else
+  else
       $(eval $(call SetupArchive,BUILD_ACCESSBRIDGE_64_JAR, , \
           SRCS := $(JDK_OUTPUTDIR)/classes_ab/64bit, \
           INCLUDES := com/sun/java/accessibility, \
@@ -683,8 +674,16 @@ $(eval $(call SetupZipArchive,BUILD_SRC_ZIP, \
           SKIP_METAINF := true))
 
       JARS += $(IMAGES_OUTPUTDIR)/lib/ext/access-bridge-64.jar
-    endif
   endif
+endif
+
+$(eval $(call SetupArchive,BUILD_JACCESS_JAR, , \
+    SRCS := $(JDK_OUTPUTDIR)/classes, \
+    INCLUDES := com/sun/java/accessibility/util, \
+    JAR := $(IMAGES_OUTPUTDIR)/lib/ext/jaccess.jar, \
+    SKIP_METAINF := true))
+
+JARS += $(IMAGES_OUTPUTDIR)/lib/ext/jaccess.jar
 
 ##########################################################################################
 
