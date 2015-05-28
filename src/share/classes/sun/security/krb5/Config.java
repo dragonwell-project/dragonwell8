@@ -232,6 +232,31 @@ public class Config {
     }
 
     /**
+     * Gets the boolean value for the specified keys. Returns TRUE if the
+     * string value is "yes", or "true", FALSE if "no", or "false", or null
+     * if otherwise or not defined. The comparision is case-insensitive.
+     *
+     * @param keys the keys, see {@link #get(String...)}
+     * @return the boolean value, or null if there is no value defined or the
+     * value does not look like a boolean value.
+     * @throws IllegalArgumentException see {@link #get(String...)}
+     */
+    private Boolean getBooleanObject(String... keys) {
+        String s = get(keys);
+        if (s == null) {
+            return null;
+        }
+        switch (s.toLowerCase(Locale.US)) {
+            case "yes": case "true":
+                return Boolean.TRUE;
+            case "no": case "false":
+                return Boolean.FALSE;
+            default:
+                return null;
+        }
+    }
+
+    /**
      * Gets all values for the specified keys.
      * @throws IllegalArgumentException if any of the keys is illegal
      *         (See {@link #get})
@@ -942,32 +967,30 @@ public class Config {
     /**
      * Check if need to use DNS to locate Kerberos services
      */
-    private boolean useDNS(String name) {
-        String value = get("libdefaults", name);
-        if (value == null) {
-            value = get("libdefaults", "dns_fallback");
-            if ("false".equalsIgnoreCase(value)) {
-                return false;
-            } else {
-                return true;
-            }
-        } else {
-            return value.equalsIgnoreCase("true");
+    private boolean useDNS(String name, boolean defaultValue) {
+        Boolean value = getBooleanObject("libdefaults", name);
+        if (value != null) {
+            return value.booleanValue();
         }
+        value = getBooleanObject("libdefaults", "dns_fallback");
+        if (value != null) {
+            return value.booleanValue();
+        }
+        return defaultValue;
     }
 
     /**
      * Check if need to use DNS to locate the KDC
      */
     private boolean useDNS_KDC() {
-        return useDNS("dns_lookup_kdc");
+        return useDNS("dns_lookup_kdc", true);
     }
 
     /*
      * Check if need to use DNS to locate the Realm
      */
     private boolean useDNS_Realm() {
-        return useDNS("dns_lookup_realm");
+        return useDNS("dns_lookup_realm", false);
     }
 
     /**

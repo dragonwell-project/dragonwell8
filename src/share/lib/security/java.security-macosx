@@ -172,6 +172,15 @@ policy.ignoreIdentityScope=false
 keystore.type=jks
 
 #
+# Controls compatibility mode for the JKS keystore type.
+#
+# When set to 'true', the JKS keystore type supports loading
+# keystore files in either JKS or PKCS12 format. When set to 'false'
+# it supports loading only JKS keystore files.
+#
+keystore.type.compat=true
+
+#
 # List of comma-separated packages that start with or equal this string
 # will cause a security exception to be thrown when
 # passed to checkPackageAccess unless the

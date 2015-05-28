@@ -180,6 +180,8 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
      */
     protected ItemListener             itemListener;
 
+    private MouseWheelListener         scrollerMouseWheelListener;
+
     /**
      * This protected field is implementation specific. Do not access directly
      * or override.
@@ -286,6 +288,7 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
         uninstallComboBoxModelListeners(comboBox.getModel());
         uninstallKeyboardActions();
         uninstallListListeners();
+        uninstallScrollerListeners();
         // We do this, otherwise the listener the ui installs on
         // the model (the combobox model in this case) will keep a
         // reference to the list, causing the list (and us) to never get gced.
@@ -572,6 +575,7 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
         scroller.setFocusable( false );
         scroller.getVerticalScrollBar().setFocusable( false );
         scroller.setBorder( null );
+        installScrollerListeners();
     }
 
     /**
@@ -586,6 +590,20 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
         add( scroller );
         setDoubleBuffered( true );
         setFocusable( false );
+    }
+
+    private void installScrollerListeners() {
+        scrollerMouseWheelListener = getHandler();
+        if (scrollerMouseWheelListener != null) {
+            scroller.addMouseWheelListener(scrollerMouseWheelListener);
+        }
+    }
+
+    private void uninstallScrollerListeners() {
+        if (scrollerMouseWheelListener != null) {
+            scroller.removeMouseWheelListener(scrollerMouseWheelListener);
+            scrollerMouseWheelListener = null;
+        }
     }
 
     /**
@@ -796,8 +814,8 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
 
 
     private class Handler implements ItemListener, MouseListener,
-                          MouseMotionListener, PropertyChangeListener,
-                          Serializable {
+                          MouseMotionListener, MouseWheelListener,
+                          PropertyChangeListener, Serializable {
         //
         // MouseListener
         // NOTE: this is added to both the JList and JComboBox
@@ -980,6 +998,13 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
                 JComboBox comboBox = (JComboBox)e.getSource();
                 setListSelection(comboBox.getSelectedIndex());
             }
+        }
+
+        //
+        // MouseWheelListener
+        //
+        public void mouseWheelMoved(MouseWheelEvent e) {
+            e.consume();
         }
     }
 
