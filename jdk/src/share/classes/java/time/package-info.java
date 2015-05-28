@@ -120,9 +120,10 @@
  *
  * <h3>Duration and Period</h3>
  * <p>
- * Beyond dates and times, the API also allows the storage of period and durations of time.
+ * Beyond dates and times, the API also allows the storage of periods and durations of time.
  * A {@link java.time.Duration} is a simple measure of time along the time-line in nanoseconds.
- * A {@link java.time.Period} expresses an amount of time in units meaningful to humans, such as years or hours.
+ * A {@link java.time.Period} expresses an amount of time in units meaningful
+ * to humans, such as years or days.
  * </p>
  *
  * <h3>Additional value types</h3>
