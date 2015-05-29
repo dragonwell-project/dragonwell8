@@ -26,7 +26,6 @@
  *  @bug 4287992
  *  @author Robert Field
  *
- *  @library scaffold
  *  @run build JDIScaffold VMConnection
  *  @run compile -g HelloWorld.java
  *  @run build ClassesByName
