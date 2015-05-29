@@ -92,6 +92,7 @@ public class LargeBufs {
         createSSLEngines();
 
         System.out.println("Using " + cipher);
+        ssle1.setEnabledCipherSuites(new String [] { cipher });
         ssle2.setEnabledCipherSuites(new String [] { cipher });
 
         createBuffers();
