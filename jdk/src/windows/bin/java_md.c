@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -318,7 +318,11 @@ GetJREPath(char *path, jint pathsize)
             JLI_TraceLauncher("JRE path is %s\n", path);
             return JNI_TRUE;
         }
-
+        /* ensure storage for path + \jre + NULL */
+        if ((JLI_StrLen(path) + 4 + 1) > pathsize) {
+            JLI_TraceLauncher("Insufficient space to store JRE path\n");
+            return JNI_FALSE;
+        }
         /* Does this app ship a private JRE in <apphome>\jre directory? */
         JLI_Snprintf(javadll, sizeof (javadll), "%s\\jre\\bin\\" JAVA_DLL, path);
         if (stat(javadll, &s) == 0) {
