@@ -311,21 +311,26 @@ JNF_COCOA_ENTER(env);
 
     jlong *glyphInfos =
         (*env)->GetPrimitiveArrayCritical(env, glyphInfoLongArray, NULL);
-    if (glyphInfos != NULL) {
+
     jint *rawGlyphCodes =
-        (*env)->GetPrimitiveArrayCritical(env, glyphCodes, NULL);
-
-        if (rawGlyphCodes != NULL) {
-    CGGlyphImages_GetGlyphImagePtrs(glyphInfos, awtStrike,
-                                    rawGlyphCodes, len);
-
-    (*env)->ReleasePrimitiveArrayCritical(env, glyphCodes,
-                                          rawGlyphCodes, JNI_ABORT);
+            (*env)->GetPrimitiveArrayCritical(env, glyphCodes, NULL);
+    @try {
+        if (rawGlyphCodes != NULL && glyphInfos != NULL) {
+            CGGlyphImages_GetGlyphImagePtrs(glyphInfos, awtStrike,
+                    rawGlyphCodes, len);
         }
-    // Do not use JNI_COMMIT, as that will not free the buffer copy
-    // when +ProtectJavaHeap is on.
-    (*env)->ReleasePrimitiveArrayCritical(env, glyphInfoLongArray,
-                                          glyphInfos, 0);
+    }
+    @finally {
+        if (rawGlyphCodes != NULL) {
+            (*env)->ReleasePrimitiveArrayCritical(env, glyphCodes,
+                                                  rawGlyphCodes, JNI_ABORT);
+        }
+        if (glyphInfos != NULL) {
+            // Do not use JNI_COMMIT, as that will not free the buffer copy
+            // when +ProtectJavaHeap is on.
+            (*env)->ReleasePrimitiveArrayCritical(env, glyphInfoLongArray,
+                                                  glyphInfos, 0);
+        }
     }
 
 JNF_COCOA_EXIT(env);
