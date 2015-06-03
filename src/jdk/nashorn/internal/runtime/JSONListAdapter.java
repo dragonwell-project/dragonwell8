@@ -28,6 +28,7 @@ package jdk.nashorn.internal.runtime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import jdk.nashorn.api.scripting.AbstractJSObject;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.objects.Global;
@@ -152,5 +153,17 @@ public final class JSONListAdapter extends ListAdapter implements JSObject {
     @Override @Deprecated
     public double toNumber() {
         return obj.toNumber();
+    }
+
+    /**
+     * Implements this object's {@code [[DefaultValue]]} method by returning its wrapped object's {@code [[DefaultValue]]}.
+     *
+     * @param hint the type hint. Should be either {@code null}, {@code Number.class} or {@code String.class}.
+     * @return the wrapped object's default value.
+     * @throws UnsupportedOperationException if the conversion can't be performed. The engine will convert this
+     * exception into a JavaScript {@code TypeError}.
+     */
+    public Object getDefaultValue(final Class<?> hint) {
+        return AbstractJSObject.getDefaultValue(obj, hint);
     }
 }
