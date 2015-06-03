@@ -840,7 +840,7 @@ void Matcher::init_spill_mask( Node *ret ) {
   MachNode *spillCP = match_tree(new (C) LoadNNode(NULL,mem,fp,atp,TypeInstPtr::BOTTOM,MemNode::unordered));
 #endif
   MachNode *spillI  = match_tree(new (C) LoadINode(NULL,mem,fp,atp,TypeInt::INT,MemNode::unordered));
-  MachNode *spillL  = match_tree(new (C) LoadLNode(NULL,mem,fp,atp,TypeLong::LONG,MemNode::unordered,false));
+  MachNode *spillL  = match_tree(new (C) LoadLNode(NULL,mem,fp,atp,TypeLong::LONG,MemNode::unordered, LoadNode::DependsOnlyOnTest,false));
   MachNode *spillF  = match_tree(new (C) LoadFNode(NULL,mem,fp,atp,Type::FLOAT,MemNode::unordered));
   MachNode *spillD  = match_tree(new (C) LoadDNode(NULL,mem,fp,atp,Type::DOUBLE,MemNode::unordered));
   MachNode *spillP  = match_tree(new (C) LoadPNode(NULL,mem,fp,atp,TypeInstPtr::BOTTOM,MemNode::unordered));
