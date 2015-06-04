@@ -29,4 +29,5 @@ class Gee extends g.G {
     public com.sun.tools.classfile.ClassFile cf;     // @jdk.Exported(false)
     public com.sun.source.tree.BinaryTree tree;      // @jdk.Exported
     public com.sun.management.ThreadMXBean mxbean;   // @jdk.Exported on package-info
+    public org.w3c.dom.css.CSSValue value;           // special case
 }

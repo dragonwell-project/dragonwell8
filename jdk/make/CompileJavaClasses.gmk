@@ -70,10 +70,7 @@ endif
 ifeq ($(OPENJDK_TARGET_OS), windows)
     # AccessBridge is compiled separately below.
     EXFILES += AccessBridge.java \
-        AccessBridgeLoader.java \
-        com/sun/java/accessibility/util/java/awt/ChoiceTranslator.java
-    # This seems to never be built
-    EXCLUDES += com/sun/java/accessibility/extensions
+        AccessBridgeLoader.java
   endif
 
 ifneq ($(OPENJDK_TARGET_OS), solaris)
