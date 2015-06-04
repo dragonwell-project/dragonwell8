@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,8 @@
  * questions.
  */
 
-// key: compiler.err.invalid.mref
-// key: compiler.misc.mref.infer.and.explicit.params
+package p;
 
-public class MrefInferAndExplicitParams {
-    static class Foo<X> {}
-
-    interface Supplier<X> {
-        X make();
-    }
-
-    Supplier<Foo<String>> sfs = Foo::<Number>new;
+// SubClass only references types in package p
+public class SubClass extends C {
 }
