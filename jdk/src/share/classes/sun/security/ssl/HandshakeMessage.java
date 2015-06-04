@@ -243,6 +243,7 @@ static final class ClientHello extends HandshakeMessage {
         protocolVersion = ProtocolVersion.valueOf(s.getInt8(), s.getInt8());
         clnt_random = new RandomCookie(s);
         sessionId = new SessionId(s.getBytes8());
+        sessionId.checkLength(protocolVersion);
         cipherSuites = new CipherSuiteList(s);
         compression_methods = s.getBytes8();
         if (messageLength() != messageLength) {
@@ -355,6 +356,7 @@ class ServerHello extends HandshakeMessage
                                                   input.getInt8());
         svr_random = new RandomCookie(input);
         sessionId = new SessionId(input.getBytes8());
+        sessionId.checkLength(protocolVersion);
         cipherSuite = CipherSuite.valueOf(input.getInt8(), input.getInt8());
         compression_method = (byte)input.getInt8();
         if (messageLength() != messageLength) {
@@ -490,11 +492,14 @@ class CertificateMsg extends HandshakeMessage
     void print(PrintStream s) throws IOException {
         s.println("*** Certificate chain");
 
-        if (debug != null && Debug.isOn("verbose")) {
-            for (int i = 0; i < chain.length; i++)
+        if (chain.length == 0) {
+            s.println("<Empty>");
+        } else if (debug != null && Debug.isOn("verbose")) {
+            for (int i = 0; i < chain.length; i++) {
                 s.println("chain [" + i + "] = " + chain[i]);
-            s.println("***");
+            }
         }
+        s.println("***");
     }
 
     X509Certificate[] getCertificateChain() {

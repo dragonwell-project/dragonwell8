@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,9 @@
 
 
 # include <ctype.h>
+#define __USE_LEGACY_PROTOTYPES__
 # include <dirent.h>
+#undef __USE_LEGACY_PROTOTYPES__
 # include <string.h>
 # include <strings.h>     // for bsd'isms
 # include <stdarg.h>
@@ -46,15 +48,6 @@
 # include <ieeefp.h>
 #endif
 # include <math.h>
-#ifdef LINUX
-#ifndef FP_PZERO
-  // Linux doesn't have positive/negative zero
-  #define FP_PZERO FP_ZERO
-#endif
-#ifndef fpclass
-  #define fpclass fpclassify
-#endif
-#endif
 # include <time.h>
 # include <fcntl.h>
 # include <dlfcn.h>

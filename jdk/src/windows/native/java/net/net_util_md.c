@@ -29,6 +29,9 @@
 #include "net_util.h"
 #include "jni.h"
 
+// Taken from mstcpip.h in Windows SDK 8.0 or newer.
+#define SIO_LOOPBACK_FAST_PATH              _WSAIOW(IOC_VENDOR,16)
+
 #ifndef IPTOS_TOS_MASK
 #define IPTOS_TOS_MASK 0x1e
 #endif
@@ -386,8 +389,8 @@ JNIEXPORT int JNICALL
 NET_SetSockOpt(int s, int level, int optname, const void *optval,
                int optlen)
 {
-    int rv;
-    int parg;
+    int rv = 0;
+    int parg = 0;
     int plen = sizeof(parg);
 
     if (level == IPPROTO_IP && optname == IP_TOS) {
@@ -478,7 +481,7 @@ NET_GetSockOpt(int s, int level, int optname, void *optval,
  * Sets SO_ECLUSIVEADDRUSE if SO_REUSEADDR is not already set.
  */
 void setExclusiveBind(int fd) {
-    int parg;
+    int parg = 0;
     int plen = sizeof(parg);
     int rv = 0;
     rv = NET_GetSockOpt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&parg, &plen);
@@ -499,7 +502,7 @@ void setExclusiveBind(int fd) {
 JNIEXPORT int JNICALL
 NET_Bind(int s, struct sockaddr *him, int len)
 {
-    int rv;
+    int rv = 0;
     rv = bind(s, him, len);
 
     if (rv == SOCKET_ERROR) {
@@ -529,8 +532,8 @@ NET_WinBind(int s, struct sockaddr *him, int len, jboolean exclBind)
 
 JNIEXPORT int JNICALL
 NET_SocketClose(int fd) {
-    struct linger l;
-    int ret;
+    struct linger l = {0, 0};
+    int ret = 0;
     int len = sizeof (l);
     if (getsockopt(fd, SOL_SOCKET, SO_LINGER, (char *)&l, &len) == 0) {
         if (l.l_onoff == 0) {
@@ -842,6 +845,25 @@ jint getDefaultIPv6Interface(JNIEnv *env, struct SOCKADDR_IN6 *target_addr)
         closesocket(fd);
         return route.sin6_scope_id;
     }
+}
+
+/**
+ * Enables SIO_LOOPBACK_FAST_PATH
+ */
+JNIEXPORT jint JNICALL
+NET_EnableFastTcpLoopback(int fd) {
+    int enabled = 1;
+    DWORD result_byte_count = -1;
+    int result = WSAIoctl(fd,
+                          SIO_LOOPBACK_FAST_PATH,
+                          &enabled,
+                          sizeof(enabled),
+                          NULL,
+                          0,
+                          &result_byte_count,
+                          NULL,
+                          NULL);
+    return result == SOCKET_ERROR ? WSAGetLastError() : 0;
 }
 
 /* If address types is IPv6, then IPv6 must be available. Otherwise

@@ -28,6 +28,8 @@ package jdk.nashorn.internal.runtime.arrays;
 import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
 import static jdk.nashorn.internal.lookup.Lookup.MH;
 import static jdk.nashorn.internal.runtime.ScriptRuntime.UNDEFINED;
+
+import jdk.internal.dynalink.support.TypeUtilities;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -103,9 +105,14 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
         return super.asArrayOfType(componentType);
     }
 
+    private static boolean canWiden(final Class<?> type) {
+        return TypeUtilities.isWrapperType(type) &&
+            type != Boolean.class && type != Character.class;
+    }
+
     @Override
     public ContinuousArrayData convert(final Class<?> type) {
-        if (type != Double.class && type != Integer.class && type != Long.class) {
+        if (! canWiden(type)) {
             final int len = (int)length();
             return new ObjectArrayData(toObjectArray(false), len);
         }
@@ -138,7 +145,9 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
             final int newLength = ArrayData.nextSize((int)safeIndex);
             array = Arrays.copyOf(array, newLength); //todo fill with nan or never accessed?
         }
-        setLength(safeIndex + 1);
+        if (safeIndex >= length()) {
+            setLength(safeIndex + 1);
+        }
         return this;
 
     }
@@ -151,7 +160,7 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
 
     @Override
     public ArrayData set(final int index, final Object value, final boolean strict) {
-        if (value instanceof Double || value instanceof Integer || value instanceof Long) {
+        if (value instanceof Double || (value != null && canWiden(value.getClass()))) {
             return set(index, ((Number)value).doubleValue(), strict);
         } else if (value == UNDEFINED) {
             return new UndefinedArrayFilter(this).set(index, value, strict);
@@ -274,17 +283,6 @@ final class NumberArrayData extends ContinuousArrayData implements NumericElemen
         final long start     = from < 0 ? from + length() : from;
         final long newLength = to - start;
         return new NumberArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)newLength);
-    }
-
-    @Override
-    public final ArrayData push(final boolean strict, final double item) {
-        final long      len     = length();
-        final ArrayData newData = ensure(len);
-        if (newData == this) {
-            array[(int)len] = item;
-            return this;
-        }
-        return newData.set((int)len, item, strict);
     }
 
     @Override

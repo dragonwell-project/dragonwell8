@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,25 +38,17 @@
 #include "opto/vectornode.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
-#ifdef TARGET_ARCH_MODEL_x86_32
+#if defined AD_MD_HPP
+# include AD_MD_HPP
+#elif defined TARGET_ARCH_MODEL_x86_32
 # include "adfiles/ad_x86_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_x86_64
+#elif defined TARGET_ARCH_MODEL_x86_64
 # include "adfiles/ad_x86_64.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_sparc
+#elif defined TARGET_ARCH_MODEL_sparc
 # include "adfiles/ad_sparc.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_zero
+#elif defined TARGET_ARCH_MODEL_zero
 # include "adfiles/ad_zero.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_arm
-# include "adfiles/ad_arm.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_32
-# include "adfiles/ad_ppc_32.hpp"
-#endif
-#ifdef TARGET_ARCH_MODEL_ppc_64
+#elif defined TARGET_ARCH_MODEL_ppc_64
 # include "adfiles/ad_ppc_64.hpp"
 #endif
 
@@ -848,7 +840,7 @@ void Matcher::init_spill_mask( Node *ret ) {
   MachNode *spillCP = match_tree(new (C) LoadNNode(NULL,mem,fp,atp,TypeInstPtr::BOTTOM,MemNode::unordered));
 #endif
   MachNode *spillI  = match_tree(new (C) LoadINode(NULL,mem,fp,atp,TypeInt::INT,MemNode::unordered));
-  MachNode *spillL  = match_tree(new (C) LoadLNode(NULL,mem,fp,atp,TypeLong::LONG,MemNode::unordered,false));
+  MachNode *spillL  = match_tree(new (C) LoadLNode(NULL,mem,fp,atp,TypeLong::LONG,MemNode::unordered, LoadNode::DependsOnlyOnTest,false));
   MachNode *spillF  = match_tree(new (C) LoadFNode(NULL,mem,fp,atp,Type::FLOAT,MemNode::unordered));
   MachNode *spillD  = match_tree(new (C) LoadDNode(NULL,mem,fp,atp,Type::DOUBLE,MemNode::unordered));
   MachNode *spillP  = match_tree(new (C) LoadPNode(NULL,mem,fp,atp,TypeInstPtr::BOTTOM,MemNode::unordered));

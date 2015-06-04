@@ -26,6 +26,7 @@
 package jdk.nashorn.internal.runtime.arrays;
 
 import static jdk.nashorn.internal.codegen.CompilerConstants.specialCall;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -181,14 +182,13 @@ final class IntArrayData extends ContinuousArrayData implements IntElements {
 
     @Override
     public ArrayData convert(final Class<?> type) {
-        if (type == Integer.class) {
+        if (type == Integer.class || type == Byte.class || type == Short.class) {
             return this;
         } else if (type == Long.class) {
             return convertToLong();
-        } else if (type == Double.class) {
+        } else if (type == Double.class || type == Float.class) {
             return convertToDouble();
         } else {
-            assert type == null || (!Number.class.isAssignableFrom(type) && !type.isPrimitive());
             return convertToObject();
         }
     }
@@ -220,7 +220,9 @@ final class IntArrayData extends ContinuousArrayData implements IntElements {
             final int newLength = ArrayData.nextSize((int)safeIndex);
             array = Arrays.copyOf(array, newLength);
         }
-        setLength(safeIndex + 1);
+        if (safeIndex >= length()) {
+            setLength(safeIndex + 1);
+        }
         return this;
     }
 
@@ -340,17 +342,6 @@ final class IntArrayData extends ContinuousArrayData implements IntElements {
     @Override
     public ArrayData slice(final long from, final long to) {
         return new IntArrayData(Arrays.copyOfRange(array, (int)from, (int)to), (int)(to - (from < 0 ? from + length() : from)));
-    }
-
-    @Override
-    public final ArrayData push(final boolean strict, final int item) {
-        final long      len     = length();
-        final ArrayData newData = ensure(len);
-        if (newData == this) {
-            array[(int)len] = item;
-            return this;
-        }
-        return newData.set((int)len, item, strict);
     }
 
     @Override

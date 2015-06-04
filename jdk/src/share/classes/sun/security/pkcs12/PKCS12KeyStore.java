@@ -905,7 +905,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     private static ObjectIdentifier mapPBEAlgorithmToOID(String algorithm)
         throws NoSuchAlgorithmException {
         // Check for PBES2 algorithms
-        if (algorithm.toLowerCase().startsWith("pbewithhmacsha")) {
+        if (algorithm.toLowerCase(Locale.ENGLISH).startsWith("pbewithhmacsha")) {
             return pbes2_OID;
         }
         return AlgorithmId.get(algorithm).getOID();
@@ -1058,6 +1058,39 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     }
 
     /**
+     * Determines if the keystore {@code Entry} for the specified
+     * {@code alias} is an instance or subclass of the specified
+     * {@code entryClass}.
+     *
+     * @param alias the alias name
+     * @param entryClass the entry class
+     *
+     * @return true if the keystore {@code Entry} for the specified
+     *          {@code alias} is an instance or subclass of the
+     *          specified {@code entryClass}, false otherwise
+     *
+     * @since 1.5
+     */
+    @Override
+    public boolean
+        engineEntryInstanceOf(String alias,
+                              Class<? extends KeyStore.Entry> entryClass)
+    {
+        if (entryClass == KeyStore.TrustedCertificateEntry.class) {
+            return engineIsCertificateEntry(alias);
+        }
+
+        Entry entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
+        if (entryClass == KeyStore.PrivateKeyEntry.class) {
+            return (entry != null && entry instanceof PrivateKeyEntry);
+        }
+        if (entryClass == KeyStore.SecretKeyEntry.class) {
+            return (entry != null && entry instanceof SecretKeyEntry);
+        }
+        return false;
+    }
+
+    /**
      * Returns the (alias) name of the first keystore entry whose certificate
      * matches the given certificate.
      *
@@ -1089,7 +1122,7 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             } else {
                 continue;
             }
-            if (certElem.equals(cert)) {
+            if (certElem != null && certElem.equals(cert)) {
                 return alias;
             }
         }
@@ -1600,23 +1633,22 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             Entry entry = entries.get(alias);
 
             // certificate chain
-            int chainLen = 1;
-            Certificate[] certs = null;
+            Certificate[] certs;
 
             if (entry instanceof PrivateKeyEntry) {
                 PrivateKeyEntry keyEntry = (PrivateKeyEntry) entry;
-                    if (keyEntry.chain == null) {
-                        chainLen = 0;
-                    } else {
-                        chainLen = keyEntry.chain.length;
-                    }
-                certs = keyEntry.chain;
-
+                if (keyEntry.chain != null) {
+                    certs = keyEntry.chain;
+                } else {
+                    certs = new Certificate[0];
+                }
             } else if (entry instanceof CertEntry) {
-               certs = new Certificate[]{((CertEntry) entry).cert};
+                certs = new Certificate[]{((CertEntry) entry).cert};
+            } else {
+                certs = new Certificate[0];
             }
 
-            for (int i = 0; i < chainLen; i++) {
+            for (int i = 0; i < certs.length; i++) {
                 // create SafeBag of Type CertBag
                 DerOutputStream safeBag = new DerOutputStream();
                 safeBag.putOID(CertBag_OID);
@@ -1933,7 +1965,12 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 safeContentsData = safeContents.getData();
             } else if (contentType.equals((Object)ContentInfo.ENCRYPTED_DATA_OID)) {
                 if (password == null) {
-                   continue;
+
+                    if (debug != null) {
+                        debug.println("Warning: skipping PKCS#7 encryptedData" +
+                            " content-type - no password was supplied");
+                    }
+                    continue;
                 }
 
                 if (debug != null) {
@@ -1975,8 +2012,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                             password = new char[1];
                             continue;
                         }
-                        throw new IOException(
-                            "failed to decrypt safe contents entry: " + e, e);
+                        throw new IOException("keystore password was incorrect",
+                            new UnrecoverableKeyException(
+                                "failed to decrypt safe contents entry: " + e));
                     }
                 }
             } else {
