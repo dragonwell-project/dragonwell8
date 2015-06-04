@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -172,9 +172,24 @@ public final class AccessControlContext {
     public AccessControlContext(AccessControlContext acc,
                                 DomainCombiner combiner) {
 
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(SecurityConstants.CREATE_ACC_PERMISSION);
+        this(acc, combiner, false);
+    }
+
+    /**
+     * package private to allow calls from ProtectionDomain without performing
+     * the security check for {@linkplain SecurityConstants.CREATE_ACC_PERMISSION}
+     * permission
+     */
+    AccessControlContext(AccessControlContext acc,
+                        DomainCombiner combiner,
+                        boolean preauthorized) {
+        if (!preauthorized) {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkPermission(SecurityConstants.CREATE_ACC_PERMISSION);
+                this.isAuthorized = true;
+            }
+        } else {
             this.isAuthorized = true;
         }
 

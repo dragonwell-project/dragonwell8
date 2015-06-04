@@ -35,7 +35,7 @@
  */
 
 import java.io.*;
-import java.net.*;
+import java.security.Security;
 import javax.net.ssl.*;
 import java.util.Arrays;
 
@@ -195,6 +195,10 @@ public class UseCipherSuitesOrder {
     volatile Exception clientException = null;
 
     public static void main(String[] args) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         // parse the arguments
         parseArguments(args);
 

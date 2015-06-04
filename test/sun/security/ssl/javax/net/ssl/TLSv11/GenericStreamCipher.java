@@ -36,7 +36,7 @@
  */
 
 import java.io.*;
-import java.net.*;
+import java.security.Security;
 import javax.net.ssl.*;
 
 public class GenericStreamCipher {
@@ -164,6 +164,10 @@ public class GenericStreamCipher {
     volatile Exception clientException = null;
 
     public static void main(String[] args) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         String keyFilename =
             System.getProperty("test.src", ".") + "/" + pathToStores +
                 "/" + keyStoreFile;

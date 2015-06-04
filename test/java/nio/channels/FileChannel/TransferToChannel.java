@@ -24,6 +24,8 @@
 /* @test
  * @bug 4652496
  * @summary Test transferTo with different target channels
+ * @run main TransferToChannel
+ * @run main/othervm -Djdk.nio.enableFastFileTransfer TransferToChannel
  */
 
 import java.nio.channels.FileChannel;

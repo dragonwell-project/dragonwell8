@@ -93,7 +93,6 @@ public class WindowsFileChooserUI extends BasicFileChooserUI {
 
     private static int MIN_WIDTH = 425;
     private static int MIN_HEIGHT = 245;
-    private static Dimension MIN_SIZE = new Dimension(MIN_WIDTH, MIN_HEIGHT);
 
     private static int LIST_PREF_WIDTH = 444;
     private static int LIST_PREF_HEIGHT = 138;
@@ -631,6 +630,7 @@ public class WindowsFileChooserUI extends BasicFileChooserUI {
      * @return   a <code>Dimension</code> specifying the preferred
      *           width and height of the file chooser
      */
+    @Override
     public Dimension getPreferredSize(JComponent c) {
         int prefWidth = PREF_SIZE.width;
         Dimension d = c.getLayout().preferredLayoutSize(c);
@@ -649,8 +649,9 @@ public class WindowsFileChooserUI extends BasicFileChooserUI {
      * @return   a <code>Dimension</code> specifying the minimum
      *           width and height of the file chooser
      */
+    @Override
     public Dimension getMinimumSize(JComponent c) {
-        return MIN_SIZE;
+        return new Dimension(MIN_WIDTH, MIN_HEIGHT);
     }
 
     /**
@@ -660,6 +661,7 @@ public class WindowsFileChooserUI extends BasicFileChooserUI {
      * @return   a <code>Dimension</code> specifying the maximum
      *           width and height of the file chooser
      */
+    @Override
     public Dimension getMaximumSize(JComponent c) {
         return new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);
     }

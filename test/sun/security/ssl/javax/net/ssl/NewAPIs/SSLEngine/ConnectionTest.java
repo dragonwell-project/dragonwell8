@@ -33,6 +33,8 @@
  * The code could certainly be tightened up a lot.
  *
  * @author Brad Wetmore
+ *
+ * @run main/othervm ConnectionTest
  */
 
 import javax.net.ssl.*;
@@ -672,6 +674,10 @@ public class ConnectionTest {
     }
 
     public static void main(String args[]) throws Exception {
+        // reset the security property to make sure that the algorithms
+        // and keys used in this test are not disabled.
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         ConnectionTest ct = new ConnectionTest();
         ct.test();
     }

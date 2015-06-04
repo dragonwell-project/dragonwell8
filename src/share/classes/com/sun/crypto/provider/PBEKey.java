@@ -28,6 +28,7 @@ package com.sun.crypto.provider;
 import java.security.MessageDigest;
 import java.security.KeyRep;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Locale;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.PBEKeySpec;
 
@@ -92,7 +93,7 @@ final class PBEKey implements SecretKey {
         for (int i = 1; i < this.key.length; i++) {
             retval += this.key[i] * i;
         }
-        return(retval ^= getAlgorithm().toLowerCase().hashCode());
+        return(retval ^= getAlgorithm().toLowerCase(Locale.ENGLISH).hashCode());
     }
 
     public boolean equals(Object obj) {
