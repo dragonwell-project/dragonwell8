@@ -489,9 +489,11 @@ class JdepsTask {
 
         List<Archive> archives = new ArrayList<>();
         Deque<String> roots = new LinkedList<>();
+        List<Path> paths = new ArrayList<>();
         for (String s : classes) {
             Path p = Paths.get(s);
             if (Files.exists(p)) {
+                paths.add(p);
                 archives.add(Archive.getInstance(p));
             } else {
                 if (isValidClassName(s)) {
@@ -504,7 +506,7 @@ class JdepsTask {
         sourceLocations.addAll(archives);
 
         List<Archive> classpaths = new ArrayList<>(); // for class file lookup
-        classpaths.addAll(getClassPathArchives(options.classpath));
+        classpaths.addAll(getClassPathArchives(options.classpath, paths));
         if (options.includePattern != null) {
             archives.addAll(classpaths);
         }
@@ -545,6 +547,9 @@ class JdepsTask {
                             deque.add(cn);
                         }
                         a.addClass(d.getOrigin(), d.getTarget());
+                    } else {
+                        // ensure that the parsed class is added the archive
+                        a.addClass(d.getOrigin());
                     }
                 }
                 for (String name : a.reader().skippedEntries()) {
@@ -592,6 +597,9 @@ class JdepsTask {
                                     if (!doneClasses.contains(cn) && !deque.contains(cn)) {
                                         deque.add(cn);
                                     }
+                                } else {
+                                    // ensure that the parsed class is added the archive
+                                    a.addClass(d.getOrigin());
                                 }
                             }
                         }
@@ -743,34 +751,50 @@ class JdepsTask {
         }
     }
 
-    private List<Archive> getClassPathArchives(String paths) throws IOException {
+    /*
+     * Returns the list of Archive specified in cpaths and not included
+     * initialArchives
+     */
+    private List<Archive> getClassPathArchives(String cpaths, List<Path> initialArchives)
+            throws IOException
+    {
         List<Archive> result = new ArrayList<>();
-        if (paths.isEmpty()) {
+        if (cpaths.isEmpty()) {
             return result;
         }
-        for (String p : paths.split(File.pathSeparator)) {
+
+        List<Path> paths = new ArrayList<>();
+        for (String p : cpaths.split(File.pathSeparator)) {
             if (p.length() > 0) {
-                List<Path> files = new ArrayList<>();
                 // wildcard to parse all JAR files e.g. -classpath dir/*
                 int i = p.lastIndexOf(".*");
                 if (i > 0) {
                     Path dir = Paths.get(p.substring(0, i));
                     try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.jar")) {
                         for (Path entry : stream) {
-                            files.add(entry);
+                            paths.add(entry);
                         }
                     }
                 } else {
-                    files.add(Paths.get(p));
-                }
-                for (Path f : files) {
-                    if (Files.exists(f)) {
-                        result.add(Archive.getInstance(f));
-                    }
+                    paths.add(Paths.get(p));
                 }
             }
         }
+        for (Path p : paths) {
+            if (Files.exists(p) && !hasSameFile(initialArchives, p)) {
+                result.add(Archive.getInstance(p));
+            }
+        }
         return result;
+    }
+
+    private boolean hasSameFile(List<Path> paths, Path p2) throws IOException {
+        for (Path p1 : paths) {
+            if (Files.isSameFile(p1, p2)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     class RawOutputFormatter implements Analyzer.Visitor {

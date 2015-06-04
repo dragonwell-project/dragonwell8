@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,7 +119,6 @@ Monitor* SecondaryFreeList_lock       = NULL;
 Mutex*   OldSets_lock                 = NULL;
 Monitor* RootRegionScan_lock          = NULL;
 Mutex*   MMUTracker_lock              = NULL;
-Mutex*   HotCardCache_lock            = NULL;
 
 Monitor* GCTaskManager_lock           = NULL;
 
@@ -133,6 +132,10 @@ Monitor* JfrMsg_lock                  = NULL;
 Mutex*   JfrBuffer_lock               = NULL;
 Mutex*   JfrStream_lock               = NULL;
 Mutex*   JfrThreadGroups_lock         = NULL;
+#endif
+
+#ifndef SUPPORTS_NATIVE_CX8
+Mutex*   UnsafeJlong_lock             = NULL;
 #endif
 
 #define MAX_NUM_MUTEX 128
@@ -196,7 +199,6 @@ void mutex_init() {
     def(OldSets_lock               , Mutex  , leaf     ,   true );
     def(RootRegionScan_lock        , Monitor, leaf     ,   true );
     def(MMUTracker_lock            , Mutex  , leaf     ,   true );
-    def(HotCardCache_lock          , Mutex  , special  ,   true );
     def(EvacFailureStack_lock      , Mutex  , nonleaf  ,   true );
 
     def(StringDedupQueue_lock      , Monitor, leaf,        true );
@@ -280,12 +282,15 @@ void mutex_init() {
 
 #ifdef INCLUDE_TRACE
   def(JfrMsg_lock                  , Monitor, leaf,        true);
-  def(JfrBuffer_lock               , Mutex,   nonleaf+1,   true);
-  def(JfrThreadGroups_lock         , Mutex,   nonleaf+1,   true);
-  def(JfrStream_lock               , Mutex,   nonleaf+2,   true);
-  def(JfrStacktrace_lock           , Mutex,   special,     true );
+  def(JfrBuffer_lock               , Mutex,   leaf,        true);
+  def(JfrThreadGroups_lock         , Mutex,   leaf,        true);
+  def(JfrStream_lock               , Mutex,   nonleaf,     true);
+  def(JfrStacktrace_lock           , Mutex,   special,     true);
 #endif
 
+#ifndef SUPPORTS_NATIVE_CX8
+  def(UnsafeJlong_lock             , Mutex,   special,     false);
+#endif
 }
 
 GCMutexLocker::GCMutexLocker(Monitor * mutex) {

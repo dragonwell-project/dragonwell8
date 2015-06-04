@@ -238,10 +238,10 @@ public class RTMTestBase {
         String[] filteredVMOpts = Utils.getFilteredTestJavaOpts(filters);
         Collections.addAll(finalVMOpts, filteredVMOpts);
         Collections.addAll(finalVMOpts, "-Xcomp", "-server",
-                "-XX:-TieredCompilation",
+                "-XX:-TieredCompilation", "-XX:+UseRTMLocking",
                 CommandLineOptionTest.UNLOCK_DIAGNOSTIC_VM_OPTIONS,
                 CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS,
-                "-XX:+UseRTMLocking");
+                "-Xbootclasspath/a:.", "-XX:+WhiteBoxAPI");
 
         if (test != null) {
             for (String method : test.getMethodsToCompileNames()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549
+ * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461
  * @summary  Run tests on doclet stylesheet.
  * @author   jamieh
  * @library  ../lib/
@@ -34,7 +34,7 @@
 public class TestStylesheet extends JavadocTester {
 
     //Test information.
-    private static final String BUG_ID = "4494033-7028815-7052425-8007338";
+    private static final String BUG_ID = "4494033-7028815-7052425-8007338-8072461";
 
     //Javadoc arguments.
     private static final String[] ARGS = new String[] {
@@ -123,6 +123,23 @@ public class TestStylesheet extends JavadocTester {
             "}"},
         {BUG_ID + FS + "stylesheet.css",
             "@import url('resources/fonts/dejavu.css');"},
+        // Test the formatting styles for proper content display in use and constant values pages.
+        {BUG_ID + FS + "stylesheet.css",
+            ".overviewSummary td.colFirst, .overviewSummary th.colFirst," + NL +
+            ".useSummary td.colFirst, .useSummary th.colFirst," + NL +
+            ".overviewSummary td.colOne, .overviewSummary th.colOne," + NL +
+            ".memberSummary td.colFirst, .memberSummary th.colFirst," + NL +
+            ".memberSummary td.colOne, .memberSummary th.colOne," + NL +
+            ".typeSummary td.colFirst{" + NL +
+            "    width:25%;" + NL +
+            "    vertical-align:top;" + NL +
+            "}"},
+        {BUG_ID + FS + "stylesheet.css",
+            ".overviewSummary td, .memberSummary td, .typeSummary td," + NL +
+            ".useSummary td, .constantsSummary td, .deprecatedSummary td {" + NL +
+            "    text-align:left;" + NL +
+            "    padding:0px 0px 12px 10px;" + NL +
+            "}"},
         // Test whether a link to the stylesheet file is inserted properly
         // in the class documentation.
         {BUG_ID + FS + "pkg" + FS + "A.html",

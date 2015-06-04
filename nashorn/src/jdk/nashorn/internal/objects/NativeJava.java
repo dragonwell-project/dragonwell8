@@ -33,10 +33,10 @@ import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
+import java.util.Queue;
 import jdk.internal.dynalink.beans.StaticClass;
 import jdk.internal.dynalink.support.TypeUtilities;
 import jdk.nashorn.api.scripting.JSObject;
-import jdk.nashorn.api.scripting.ScriptUtils;
 import jdk.nashorn.internal.objects.annotations.Attribute;
 import jdk.nashorn.internal.objects.annotations.Function;
 import jdk.nashorn.internal.objects.annotations.ScriptClass;
@@ -339,7 +339,8 @@ public final class NativeJava {
 
     /**
      * Given a script object and a Java type, converts the script object into the desired Java type. Currently it
-     * performs shallow creation of Java arrays, as well as wrapping of objects in Lists and Dequeues. Example:
+     * performs shallow creation of Java arrays, as well as wrapping of objects in Lists, Dequeues, Queues,
+     * and Collections. Example:
      * <pre>
      * var anArray = [1, "13", false]
      * var javaIntArray = Java.to(anArray, "int[]")
@@ -353,9 +354,10 @@ public final class NativeJava {
      * object to create. Can not be null. If undefined, a "default" conversion is presumed (allowing the argument to be
      * omitted).
      * @return a Java object whose value corresponds to the original script object's value. Specifically, for array
-     * target types, returns a Java array of the same type with contents converted to the array's component type. Does
-     * not recursively convert for multidimensional arrays. For {@link List} or {@link Deque}, returns a live wrapper
-     * around the object, see {@link ListAdapter} for details. Returns null if obj is null.
+     * target types, returns a Java array of the same type with contents converted to the array's component type.
+     * Converts recursively when the target type is multidimensional array. For {@link List}, {@link Deque},
+     * {@link Queue}, or {@link Collection}, returns a live wrapper around the object, see {@link ListAdapter} for
+     * details. Returns null if obj is null.
      * @throws ClassNotFoundException if the class described by objType is not found
      */
     @Function(attributes = Attribute.NOT_ENUMERABLE, where = Where.CONSTRUCTOR)
@@ -385,7 +387,7 @@ public final class NativeJava {
             return JSType.toJavaArray(obj, targetClass.getComponentType());
         }
 
-        if(targetClass == List.class || targetClass == Deque.class) {
+        if (targetClass == List.class || targetClass == Deque.class || targetClass == Queue.class || targetClass == Collection.class) {
             return ListAdapter.create(obj);
         }
 

@@ -1,5 +1,5 @@
   /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "gc_implementation/g1/g1AllocRegion.hpp"
 #include "gc_implementation/g1/g1BiasedArray.hpp"
 #include "gc_implementation/g1/g1HRPrinter.hpp"
+#include "gc_implementation/g1/g1InCSetState.hpp"
 #include "gc_implementation/g1/g1MonitoringSupport.hpp"
 #include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
@@ -212,6 +213,9 @@ class G1CollectedHeap : public SharedHeap {
   // Other related classes.
   friend class G1MarkSweep;
 
+  // Testing classes.
+  friend class G1CheckCSetFastTableClosure;
+
 private:
   // The one and only G1CollectedHeap, so static functions can find it.
   static G1CollectedHeap* _g1h;
@@ -229,7 +233,6 @@ private:
   // It keeps track of the humongous regions.
   HeapRegionSet _humongous_set;
 
-  void clear_humongous_is_live_table();
   void eagerly_reclaim_humongous_regions();
 
   // The number of regions we could create by expansion.
@@ -299,22 +302,26 @@ private:
   // Helper for monitoring and management support.
   G1MonitoringSupport* _g1mm;
 
-  // Records whether the region at the given index is kept live by roots or
-  // references from the young generation.
-  class HumongousIsLiveBiasedMappedArray : public G1BiasedMappedArray<bool> {
+  // Records whether the region at the given index is (still) a
+  // candidate for eager reclaim.  Only valid for humongous start
+  // regions; other regions have unspecified values.  Humongous start
+  // regions are initialized at start of collection pause, with
+  // candidates removed from the set as they are found reachable from
+  // roots or the young generation.
+  class HumongousReclaimCandidates : public G1BiasedMappedArray<bool> {
    protected:
     bool default_value() const { return false; }
    public:
     void clear() { G1BiasedMappedArray<bool>::clear(); }
-    void set_live(uint region) {
-      set_by_index(region, true);
+    void set_candidate(uint region, bool value) {
+      set_by_index(region, value);
     }
-    bool is_live(uint region) {
+    bool is_candidate(uint region) {
       return get_by_index(region);
     }
   };
 
-  HumongousIsLiveBiasedMappedArray _humongous_is_live;
+  HumongousReclaimCandidates _humongous_reclaim_candidates;
   // Stores whether during humongous object registration we found candidate regions.
   // If not, we can skip a few steps.
   bool _has_humongous_reclaim_candidates;
@@ -339,13 +346,14 @@ private:
 
   // Keeps track of how many "old marking cycles" (i.e., Full GCs or
   // concurrent cycles) we have started.
-  volatile unsigned int _old_marking_cycles_started;
+  volatile uint _old_marking_cycles_started;
 
   // Keeps track of how many "old marking cycles" (i.e., Full GCs or
   // concurrent cycles) we have completed.
-  volatile unsigned int _old_marking_cycles_completed;
+  volatile uint _old_marking_cycles_completed;
 
   bool _concurrent_cycle_started;
+  bool _heap_summary_sent;
 
   // This is a non-product method that is helpful for testing. It is
   // called at the end of a GC and artificially expands the heap by
@@ -361,6 +369,12 @@ private:
   // If the HR printer is active, dump the state of the regions in the
   // heap after a compaction.
   void print_hrm_post_compaction();
+
+  // Create a memory mapper for auxiliary data structures of the given size and
+  // translation factor.
+  static G1RegionToSpaceMapper* create_aux_memory_mapper(const char* description,
+                                                         size_t size,
+                                                         size_t translation_factor);
 
   double verify(bool guard, const char* msg);
   void verify_before_gc();
@@ -510,22 +524,22 @@ protected:
   // the mutator alloc region without taking the Heap_lock. This
   // should only be used for non-humongous allocations.
   inline HeapWord* attempt_allocation(size_t word_size,
-                                      unsigned int* gc_count_before_ret,
-                                      int* gclocker_retry_count_ret);
+                                      uint* gc_count_before_ret,
+                                      uint* gclocker_retry_count_ret);
 
   // Second-level mutator allocation attempt: take the Heap_lock and
   // retry the allocation attempt, potentially scheduling a GC
   // pause. This should only be used for non-humongous allocations.
   HeapWord* attempt_allocation_slow(size_t word_size,
                                     AllocationContext_t context,
-                                    unsigned int* gc_count_before_ret,
-                                    int* gclocker_retry_count_ret);
+                                    uint* gc_count_before_ret,
+                                    uint* gclocker_retry_count_ret);
 
   // Takes the Heap_lock and attempts a humongous allocation. It can
   // potentially schedule a GC pause.
   HeapWord* attempt_allocation_humongous(size_t word_size,
-                                         unsigned int* gc_count_before_ret,
-                                         int* gclocker_retry_count_ret);
+                                         uint* gc_count_before_ret,
+                                         uint* gclocker_retry_count_ret);
 
   // Allocation attempt that should be called during safepoints (e.g.,
   // at the end of a successful GC). expect_null_mutator_alloc_region
@@ -545,15 +559,9 @@ protected:
   // allocation region, either by picking one or expanding the
   // heap, and then allocate a block of the given size. The block
   // may not be a humongous - it must fit into a single heap region.
-  HeapWord* par_allocate_during_gc(GCAllocPurpose purpose,
-                                   size_t word_size,
-                                   AllocationContext_t context);
-
-  HeapWord* allocate_during_gc_slow(GCAllocPurpose purpose,
-                                    HeapRegion*    alloc_region,
-                                    bool           par,
-                                    size_t         word_size);
-
+  inline HeapWord* par_allocate_during_gc(InCSetState dest,
+                                          size_t word_size,
+                                          AllocationContext_t context);
   // Ensure that no further allocations can happen in "r", bearing in mind
   // that parallel threads might be attempting allocations.
   void par_allocate_remaining_space(HeapRegion* r);
@@ -575,9 +583,9 @@ protected:
 
   // For GC alloc regions.
   HeapRegion* new_gc_alloc_region(size_t word_size, uint count,
-                                  GCAllocPurpose ap);
+                                  InCSetState dest);
   void retire_gc_alloc_region(HeapRegion* alloc_region,
-                              size_t allocated_bytes, GCAllocPurpose ap);
+                              size_t allocated_bytes, InCSetState dest);
 
   // - if explicit_gc is true, the GC is for a System.gc() or a heap
   //   inspection request and should collect the entire heap
@@ -638,26 +646,11 @@ public:
   // (Rounds up to a HeapRegion boundary.)
   bool expand(size_t expand_bytes);
 
-  // Returns the PLAB statistics given a purpose.
-  PLABStats* stats_for_purpose(GCAllocPurpose purpose) {
-    PLABStats* stats = NULL;
+  // Returns the PLAB statistics for a given destination.
+  inline PLABStats* alloc_buffer_stats(InCSetState dest);
 
-    switch (purpose) {
-    case GCAllocForSurvived:
-      stats = &_survivor_plab_stats;
-      break;
-    case GCAllocForTenured:
-      stats = &_old_plab_stats;
-      break;
-    default:
-      assert(false, "unrecognized GCAllocPurpose");
-    }
-
-    return stats;
-  }
-
-  // Determines PLAB size for a particular allocation purpose.
-  size_t desired_plab_sz(GCAllocPurpose purpose);
+  // Determines PLAB size for a given destination.
+  inline size_t desired_plab_sz(InCSetState dest);
 
   inline AllocationContextStats& allocation_context_stats();
 
@@ -665,15 +658,15 @@ public:
   virtual void gc_prologue(bool full);
   virtual void gc_epilogue(bool full);
 
+  // Modify the reclaim candidate set and test for presence.
+  // These are only valid for starts_humongous regions.
+  inline void set_humongous_reclaim_candidate(uint region, bool value);
+  inline bool is_humongous_reclaim_candidate(uint region);
+
+  // Remove from the reclaim candidate set.  Also remove from the
+  // collection set so that later encounters avoid the slow path.
   inline void set_humongous_is_live(oop obj);
 
-  bool humongous_is_live(uint region) {
-    return _humongous_is_live.is_live(region);
-  }
-
-  // Returns whether the given region (which must be a humongous (start) region)
-  // is to be considered conservatively live regardless of any other conditions.
-  bool humongous_region_is_always_live(uint index);
   // Register the given region to be part of the collection set.
   inline void register_humongous_region_with_in_cset_fast_test(uint index);
   // Register regions with humongous objects (actually on the start region) in
@@ -681,8 +674,11 @@ public:
   void register_humongous_regions_with_in_cset_fast_test();
   // We register a region with the fast "in collection set" test. We
   // simply set to true the array slot corresponding to this region.
-  void register_region_with_in_cset_fast_test(HeapRegion* r) {
-    _in_cset_fast_test.set_in_cset(r->hrm_index());
+  void register_young_region_with_in_cset_fast_test(HeapRegion* r) {
+    _in_cset_fast_test.set_in_young(r->hrm_index());
+  }
+  void register_old_region_with_in_cset_fast_test(HeapRegion* r) {
+    _in_cset_fast_test.set_in_old(r->hrm_index());
   }
 
   // This is a fast test on whether a reference points into the
@@ -714,7 +710,7 @@ public:
   // +ExplicitGCInvokesConcurrent).
   void increment_old_marking_cycles_completed(bool concurrent);
 
-  unsigned int old_marking_cycles_completed() {
+  uint old_marking_cycles_completed() {
     return _old_marking_cycles_completed;
   }
 
@@ -773,7 +769,7 @@ protected:
   // methods that call do_collection_pause() release the Heap_lock
   // before the call, so it's easy to read gc_count_before just before.
   HeapWord* do_collection_pause(size_t         word_size,
-                                unsigned int   gc_count_before,
+                                uint           gc_count_before,
                                 bool*          succeeded,
                                 GCCause::Cause gc_cause);
 
@@ -811,22 +807,6 @@ protected:
   // Abandon the current collection set without recording policy
   // statistics or updating free lists.
   void abandon_collection_set(HeapRegion* cs_head);
-
-  // Applies "scan_non_heap_roots" to roots outside the heap,
-  // "scan_rs" to roots inside the heap (having done "set_region" to
-  // indicate the region in which the root resides),
-  // and does "scan_metadata" If "scan_rs" is
-  // NULL, then this step is skipped.  The "worker_i"
-  // param is for use with parallel roots processing, and should be
-  // the "i" of the calling parallel worker thread's work(i) function.
-  // In the sequential case this param will be ignored.
-  void g1_process_roots(OopClosure* scan_non_heap_roots,
-                        OopClosure* scan_non_heap_weak_roots,
-                        OopsInHeapRegionClosure* scan_rs,
-                        CLDClosure* scan_strong_clds,
-                        CLDClosure* scan_weak_clds,
-                        CodeBlobClosure* scan_strong_code,
-                        uint worker_i);
 
   // The concurrent marker (and the thread it runs in.)
   ConcurrentMark* _cm;
@@ -1012,22 +992,11 @@ protected:
   // The heap region entry for a given worker is valid iff
   // the associated time stamp value matches the current value
   // of G1CollectedHeap::_gc_time_stamp.
-  unsigned int* _worker_cset_start_region_time_stamp;
-
-  enum G1H_process_roots_tasks {
-    G1H_PS_filter_satb_buffers,
-    G1H_PS_refProcessor_oops_do,
-    // Leave this one last.
-    G1H_PS_NumElements
-  };
-
-  SubTasksDone* _process_strong_tasks;
+  uint* _worker_cset_start_region_time_stamp;
 
   volatile bool _free_regions_coming;
 
 public:
-
-  SubTasksDone* process_strong_tasks() { return _process_strong_tasks; }
 
   void set_refine_cte_cl_concurrency(bool concurrent);
 
@@ -1061,20 +1030,10 @@ public:
   // Initialize weak reference processing.
   virtual void ref_processing_init();
 
-  void set_par_threads(uint t) {
-    SharedHeap::set_par_threads(t);
-    // Done in SharedHeap but oddly there are
-    // two _process_strong_tasks's in a G1CollectedHeap
-    // so do it here too.
-    _process_strong_tasks->set_n_threads(t);
-  }
-
+  // Explicitly import set_par_threads into this scope
+  using SharedHeap::set_par_threads;
   // Set _n_par_threads according to a policy TBD.
   void set_par_threads();
-
-  void set_n_termination(int t) {
-    _process_strong_tasks->set_n_threads(t);
-  }
 
   virtual CollectedHeap::Name kind() const {
     return CollectedHeap::G1CollectedHeap;
@@ -1150,6 +1109,10 @@ public:
   // The number of regions that are completely free.
   uint num_free_regions() const { return _hrm.num_free_regions(); }
 
+  MemoryUsage get_auxiliary_data_memory_usage() const {
+    return _hrm.get_auxiliary_data_memory_usage();
+  }
+
   // The number of regions that are not completely free.
   uint num_used_regions() const { return num_regions() - num_free_regions(); }
 
@@ -1181,6 +1144,9 @@ public:
   // have any spurious marks. If errors are detected, print
   // appropriate error messages and crash.
   void check_bitmaps(const char* caller) PRODUCT_RETURN;
+
+  // Do sanity check on the contents of the in-cset fast test table.
+  bool check_cset_fast_test() PRODUCT_RETURN_( return true; );
 
   // verify_region_sets() performs verification over the region
   // lists. It will be compiled in the product code to be used when
@@ -1277,53 +1243,15 @@ public:
 
   inline bool is_in_cset_or_humongous(const oop obj);
 
-  enum in_cset_state_t {
-   InNeither,           // neither in collection set nor humongous
-   InCSet,              // region is in collection set only
-   IsHumongous          // region is a humongous start region
-  };
  private:
-  // Instances of this class are used for quick tests on whether a reference points
-  // into the collection set or is a humongous object (points into a humongous
-  // object).
-  // Each of the array's elements denotes whether the corresponding region is in
-  // the collection set or a humongous region.
-  // We use this to quickly reclaim humongous objects: by making a humongous region
-  // succeed this test, we sort-of add it to the collection set. During the reference
-  // iteration closures, when we see a humongous region, we simply mark it as
-  // referenced, i.e. live.
-  class G1FastCSetBiasedMappedArray : public G1BiasedMappedArray<char> {
-   protected:
-    char default_value() const { return G1CollectedHeap::InNeither; }
-   public:
-    void set_humongous(uintptr_t index) {
-      assert(get_by_index(index) != InCSet, "Should not overwrite InCSet values");
-      set_by_index(index, G1CollectedHeap::IsHumongous);
-    }
-
-    void clear_humongous(uintptr_t index) {
-      set_by_index(index, G1CollectedHeap::InNeither);
-    }
-
-    void set_in_cset(uintptr_t index) {
-      assert(get_by_index(index) != G1CollectedHeap::IsHumongous, "Should not overwrite IsHumongous value");
-      set_by_index(index, G1CollectedHeap::InCSet);
-    }
-
-    bool is_in_cset_or_humongous(HeapWord* addr) const { return get_by_address(addr) != G1CollectedHeap::InNeither; }
-    bool is_in_cset(HeapWord* addr) const { return get_by_address(addr) == G1CollectedHeap::InCSet; }
-    G1CollectedHeap::in_cset_state_t at(HeapWord* addr) const { return (G1CollectedHeap::in_cset_state_t)get_by_address(addr); }
-    void clear() { G1BiasedMappedArray<char>::clear(); }
-  };
-
   // This array is used for a quick test on whether a reference points into
   // the collection set or not. Each of the array's elements denotes whether the
   // corresponding region is in the collection set or not.
-  G1FastCSetBiasedMappedArray _in_cset_fast_test;
+  G1InCSetStateFastTestBiasedMappedArray _in_cset_fast_test;
 
  public:
 
-  inline in_cset_state_t in_cset_state(const oop obj);
+  inline InCSetState in_cset_state(const oop obj);
 
   // Return "TRUE" iff the given object address is in the reserved
   // region of g1.
