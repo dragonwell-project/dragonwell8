@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,8 @@ public abstract class Path2D implements Shape, Cloneable {
 
     static final int INIT_SIZE = 20;
     static final int EXPAND_MAX = 500;
+    static final int EXPAND_MAX_COORDS = EXPAND_MAX * 2;
+    static final int EXPAND_MIN = 10; // ensure > 6 (cubics)
 
     /**
      * Constructs a new empty {@code Path2D} object.
@@ -140,6 +142,42 @@ public abstract class Path2D implements Shape, Cloneable {
     abstract int pointCrossings(double px, double py);
     abstract int rectCrossings(double rxmin, double rymin,
                                double rxmax, double rymax);
+
+    static byte[] expandPointTypes(byte[] oldPointTypes, int needed) {
+        final int oldSize = oldPointTypes.length;
+        final int newSizeMin = oldSize + needed;
+        if (newSizeMin < oldSize) {
+            // hard overflow failure - we can't even accommodate
+            // new items without overflowing
+            throw new ArrayIndexOutOfBoundsException(
+                          "pointTypes exceeds maximum capacity !");
+        }
+        // growth algorithm computation
+        int grow = oldSize;
+        if (grow > EXPAND_MAX) {
+            grow = Math.max(EXPAND_MAX, oldSize >> 3); // 1/8th min
+        } else if (grow < EXPAND_MIN) {
+            grow = EXPAND_MIN;
+        }
+        assert grow > 0;
+
+        int newSize = oldSize + grow;
+        if (newSize < newSizeMin) {
+            // overflow in growth algorithm computation
+            newSize = Integer.MAX_VALUE;
+        }
+        while (true) {
+            try {
+                // try allocating the larger array
+                return Arrays.copyOf(oldPointTypes, newSize);
+            } catch (OutOfMemoryError oome) {
+                if (newSize == newSizeMin) {
+                    throw oome;
+                }
+            }
+            newSize = newSizeMin + (newSize - newSizeMin) / 2;
+        }
+    }
 
     /**
      * The {@code Float} class defines a geometric path with
@@ -224,8 +262,8 @@ public abstract class Path2D implements Shape, Cloneable {
                 Path2D p2d = (Path2D) s;
                 setWindingRule(p2d.windingRule);
                 this.numTypes = p2d.numTypes;
-                this.pointTypes = Arrays.copyOf(p2d.pointTypes,
-                                                p2d.pointTypes.length);
+                // trim arrays:
+                this.pointTypes = Arrays.copyOf(p2d.pointTypes, p2d.numTypes);
                 this.numCoords = p2d.numCoords;
                 this.floatCoords = p2d.cloneCoordsFloat(at);
             } else {
@@ -237,19 +275,23 @@ public abstract class Path2D implements Shape, Cloneable {
             }
         }
 
+        @Override
         float[] cloneCoordsFloat(AffineTransform at) {
+            // trim arrays:
             float ret[];
             if (at == null) {
-                ret = Arrays.copyOf(this.floatCoords, this.floatCoords.length);
+                ret = Arrays.copyOf(floatCoords, numCoords);
             } else {
-                ret = new float[floatCoords.length];
+                ret = new float[numCoords];
                 at.transform(floatCoords, 0, ret, 0, numCoords / 2);
             }
             return ret;
         }
 
+        @Override
         double[] cloneCoordsDouble(AffineTransform at) {
-            double ret[] = new double[floatCoords.length];
+            // trim arrays:
+            double ret[] = new double[numCoords];
             if (at == null) {
                 for (int i = 0; i < numCoords; i++) {
                     ret[i] = floatCoords[i];
@@ -275,31 +317,53 @@ public abstract class Path2D implements Shape, Cloneable {
                                      floatCoords[coordindex+1]);
         }
 
+        @Override
         void needRoom(boolean needMove, int newCoords) {
-            if (needMove && numTypes == 0) {
+            if ((numTypes == 0) && needMove) {
                 throw new IllegalPathStateException("missing initial moveto "+
                                                     "in path definition");
             }
-            int size = pointTypes.length;
-            if (numTypes >= size) {
-                int grow = size;
-                if (grow > EXPAND_MAX) {
-                    grow = EXPAND_MAX;
-                } else if (grow == 0) {
-                    grow = 1;
-                }
-                pointTypes = Arrays.copyOf(pointTypes, size+grow);
+            if (numTypes >= pointTypes.length) {
+                pointTypes = expandPointTypes(pointTypes, 1);
             }
-            size = floatCoords.length;
-            if (numCoords + newCoords > size) {
-                int grow = size;
-                if (grow > EXPAND_MAX * 2) {
-                    grow = EXPAND_MAX * 2;
+            if (numCoords > (floatCoords.length - newCoords)) {
+                floatCoords = expandCoords(floatCoords, newCoords);
+            }
+        }
+
+        static float[] expandCoords(float[] oldCoords, int needed) {
+            final int oldSize = oldCoords.length;
+            final int newSizeMin = oldSize + needed;
+            if (newSizeMin < oldSize) {
+                // hard overflow failure - we can't even accommodate
+                // new items without overflowing
+                throw new ArrayIndexOutOfBoundsException(
+                              "coords exceeds maximum capacity !");
+            }
+            // growth algorithm computation
+            int grow = oldSize;
+            if (grow > EXPAND_MAX_COORDS) {
+                grow = Math.max(EXPAND_MAX_COORDS, oldSize >> 3); // 1/8th min
+            } else if (grow < EXPAND_MIN) {
+                grow = EXPAND_MIN;
+            }
+            assert grow > needed;
+
+            int newSize = oldSize + grow;
+            if (newSize < newSizeMin) {
+                // overflow in growth algorithm computation
+                newSize = Integer.MAX_VALUE;
+            }
+            while (true) {
+                try {
+                    // try allocating the larger array
+                    return Arrays.copyOf(oldCoords, newSize);
+                } catch (OutOfMemoryError oome) {
+                    if (newSize == newSizeMin) {
+                        throw oome;
+                    }
                 }
-                if (grow < newCoords) {
-                    grow = newCoords;
-                }
-                floatCoords = Arrays.copyOf(floatCoords, size+grow);
+                newSize = newSizeMin + (newSize - newSizeMin) / 2;
             }
         }
 
@@ -475,6 +539,9 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         int pointCrossings(double px, double py) {
+            if (numTypes == 0) {
+                return 0;
+            }
             double movx, movy, curx, cury, endx, endy;
             float coords[] = floatCoords;
             curx = movx = coords[0];
@@ -552,6 +619,9 @@ public abstract class Path2D implements Shape, Cloneable {
         int rectCrossings(double rxmin, double rymin,
                           double rxmax, double rymax)
         {
+            if (numTypes == 0) {
+                return 0;
+            }
             float coords[] = floatCoords;
             double curx, cury, movx, movy, endx, endy;
             curx = movx = coords[0];
@@ -1061,8 +1131,8 @@ public abstract class Path2D implements Shape, Cloneable {
                 Path2D p2d = (Path2D) s;
                 setWindingRule(p2d.windingRule);
                 this.numTypes = p2d.numTypes;
-                this.pointTypes = Arrays.copyOf(p2d.pointTypes,
-                                                p2d.pointTypes.length);
+                // trim arrays:
+                this.pointTypes = Arrays.copyOf(p2d.pointTypes, p2d.numTypes);
                 this.numCoords = p2d.numCoords;
                 this.doubleCoords = p2d.cloneCoordsDouble(at);
             } else {
@@ -1074,8 +1144,10 @@ public abstract class Path2D implements Shape, Cloneable {
             }
         }
 
+        @Override
         float[] cloneCoordsFloat(AffineTransform at) {
-            float ret[] = new float[doubleCoords.length];
+            // trim arrays:
+            float ret[] = new float[numCoords];
             if (at == null) {
                 for (int i = 0; i < numCoords; i++) {
                     ret[i] = (float) doubleCoords[i];
@@ -1086,13 +1158,14 @@ public abstract class Path2D implements Shape, Cloneable {
             return ret;
         }
 
+        @Override
         double[] cloneCoordsDouble(AffineTransform at) {
+            // trim arrays:
             double ret[];
             if (at == null) {
-                ret = Arrays.copyOf(this.doubleCoords,
-                                    this.doubleCoords.length);
+                ret = Arrays.copyOf(doubleCoords, numCoords);
             } else {
-                ret = new double[doubleCoords.length];
+                ret = new double[numCoords];
                 at.transform(doubleCoords, 0, ret, 0, numCoords / 2);
             }
             return ret;
@@ -1113,31 +1186,53 @@ public abstract class Path2D implements Shape, Cloneable {
                                       doubleCoords[coordindex+1]);
         }
 
+        @Override
         void needRoom(boolean needMove, int newCoords) {
-            if (needMove && numTypes == 0) {
+            if ((numTypes == 0) && needMove) {
                 throw new IllegalPathStateException("missing initial moveto "+
                                                     "in path definition");
             }
-            int size = pointTypes.length;
-            if (numTypes >= size) {
-                int grow = size;
-                if (grow > EXPAND_MAX) {
-                    grow = EXPAND_MAX;
-                } else if (grow == 0) {
-                    grow = 1;
-                }
-                pointTypes = Arrays.copyOf(pointTypes, size+grow);
+            if (numTypes >= pointTypes.length) {
+                pointTypes = expandPointTypes(pointTypes, 1);
             }
-            size = doubleCoords.length;
-            if (numCoords + newCoords > size) {
-                int grow = size;
-                if (grow > EXPAND_MAX * 2) {
-                    grow = EXPAND_MAX * 2;
+            if (numCoords > (doubleCoords.length - newCoords)) {
+                doubleCoords = expandCoords(doubleCoords, newCoords);
+            }
+        }
+
+        static double[] expandCoords(double[] oldCoords, int needed) {
+            final int oldSize = oldCoords.length;
+            final int newSizeMin = oldSize + needed;
+            if (newSizeMin < oldSize) {
+                // hard overflow failure - we can't even accommodate
+                // new items without overflowing
+                throw new ArrayIndexOutOfBoundsException(
+                              "coords exceeds maximum capacity !");
+            }
+            // growth algorithm computation
+            int grow = oldSize;
+            if (grow > EXPAND_MAX_COORDS) {
+                grow = Math.max(EXPAND_MAX_COORDS, oldSize >> 3); // 1/8th min
+            } else if (grow < EXPAND_MIN) {
+                grow = EXPAND_MIN;
+            }
+            assert grow > needed;
+
+            int newSize = oldSize + grow;
+            if (newSize < newSizeMin) {
+                // overflow in growth algorithm computation
+                newSize = Integer.MAX_VALUE;
+            }
+            while (true) {
+                try {
+                    // try allocating the larger array
+                    return Arrays.copyOf(oldCoords, newSize);
+                } catch (OutOfMemoryError oome) {
+                    if (newSize == newSizeMin) {
+                        throw oome;
+                    }
                 }
-                if (grow < newCoords) {
-                    grow = newCoords;
-                }
-                doubleCoords = Arrays.copyOf(doubleCoords, size+grow);
+                newSize = newSizeMin + (newSize - newSizeMin) / 2;
             }
         }
 
@@ -1202,6 +1297,9 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         int pointCrossings(double px, double py) {
+            if (numTypes == 0) {
+                return 0;
+            }
             double movx, movy, curx, cury, endx, endy;
             double coords[] = doubleCoords;
             curx = movx = coords[0];
@@ -1279,6 +1377,9 @@ public abstract class Path2D implements Shape, Cloneable {
         int rectCrossings(double rxmin, double rymin,
                           double rxmax, double rymax)
         {
+            if (numTypes == 0) {
+                return 0;
+            }
             double coords[] = doubleCoords;
             double curx, cury, movx, movy, endx, endy;
             curx = movx = coords[0];
