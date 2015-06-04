@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1452,16 +1452,18 @@ void GraphKit::set_all_memory_call(Node* call, bool separate_io_proj) {
 // factory methods in "int adr_idx"
 Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
                           int adr_idx,
-                          MemNode::MemOrd mo, bool require_atomic_access) {
+                          MemNode::MemOrd mo, LoadNode::ControlDependency control_dependency, bool require_atomic_access) {
   assert(adr_idx != Compile::AliasIdxTop, "use other make_load factory" );
   const TypePtr* adr_type = NULL; // debug-mode-only argument
   debug_only(adr_type = C->get_adr_type(adr_idx));
   Node* mem = memory(adr_idx);
   Node* ld;
   if (require_atomic_access && bt == T_LONG) {
-    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo);
+    ld = LoadLNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo, control_dependency);
+  } else if (require_atomic_access && bt == T_DOUBLE) {
+    ld = LoadDNode::make_atomic(C, ctl, mem, adr, adr_type, t, mo, control_dependency);
   } else {
-    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo);
+    ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo, control_dependency);
   }
   ld = _gvn.transform(ld);
   if ((bt == T_OBJECT) && C->do_escape_analysis() || C->eliminate_boxing()) {
@@ -1482,6 +1484,8 @@ Node* GraphKit::store_to_memory(Node* ctl, Node* adr, Node *val, BasicType bt,
   Node* st;
   if (require_atomic_access && bt == T_LONG) {
     st = StoreLNode::make_atomic(C, ctl, mem, adr, adr_type, val, mo);
+  } else if (require_atomic_access && bt == T_DOUBLE) {
+    st = StoreDNode::make_atomic(C, ctl, mem, adr, adr_type, val, mo);
   } else {
     st = StoreNode::make(_gvn, ctl, mem, adr, adr_type, val, bt, mo);
   }
@@ -1980,6 +1984,11 @@ void GraphKit::uncommon_trap(int trap_request,
         Deoptimization::trap_request_index(trap_request) < 0 &&
         too_many_recompiles(reason)) {
       // This BCI is causing too many recompilations.
+      if (C->log() != NULL) {
+        C->log()->elem("observe that='trap_action_change' reason='%s' from='%s' to='none'",
+                Deoptimization::trap_reason_name(reason),
+                Deoptimization::trap_action_name(action));
+      }
       action = Deoptimization::Action_none;
       trap_request = Deoptimization::make_trap_request(reason, action);
     } else {
@@ -2742,7 +2751,7 @@ Node* GraphKit::maybe_cast_profiled_receiver(Node* not_null_obj,
   Deoptimization::DeoptReason reason = spec_klass == NULL ? Deoptimization::Reason_class_check : Deoptimization::Reason_speculate_class_check;
 
   // Make sure we haven't already deoptimized from this tactic.
-  if (too_many_traps(reason))
+  if (too_many_traps(reason) || too_many_recompiles(reason))
     return NULL;
 
   // (No, this isn't a call, but it's enough like a virtual call
@@ -2764,8 +2773,7 @@ Node* GraphKit::maybe_cast_profiled_receiver(Node* not_null_obj,
                                             &exact_obj);
       { PreserveJVMState pjvms(this);
         set_control(slow_ctl);
-        uncommon_trap(reason,
-                      Deoptimization::Action_maybe_recompile);
+        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       if (safe_for_replace) {
         replace_in_map(not_null_obj, exact_obj);
@@ -2793,8 +2801,8 @@ Node* GraphKit::maybe_cast_profiled_obj(Node* obj,
   if (type != NULL) {
     Deoptimization::DeoptReason class_reason = Deoptimization::Reason_speculate_class_check;
     Deoptimization::DeoptReason null_reason = Deoptimization::Reason_null_check;
-    if (!too_many_traps(null_reason) &&
-        !too_many_traps(class_reason)) {
+    if (!too_many_traps(null_reason) && !too_many_recompiles(null_reason) &&
+        !too_many_traps(class_reason) && !too_many_recompiles(class_reason)) {
       Node* not_null_obj = NULL;
       // not_null is true if we know the object is not null and
       // there's no need for a null check
@@ -2813,14 +2821,14 @@ Node* GraphKit::maybe_cast_profiled_obj(Node* obj,
       {
         PreserveJVMState pjvms(this);
         set_control(slow_ctl);
-        uncommon_trap(class_reason,
-                      Deoptimization::Action_maybe_recompile);
+        uncommon_trap_exact(class_reason, Deoptimization::Action_maybe_recompile);
       }
       replace_in_map(not_null_obj, exact_obj);
       obj = exact_obj;
     }
   } else {
-    if (!too_many_traps(Deoptimization::Reason_null_assert)) {
+    if (!too_many_traps(Deoptimization::Reason_null_assert) &&
+        !too_many_recompiles(Deoptimization::Reason_null_assert)) {
       Node* exact_obj = null_assert(obj);
       replace_in_map(obj, exact_obj);
       obj = exact_obj;
@@ -3211,6 +3219,9 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
 
   const TypeFunc *tf = OptoRuntime::complete_monitor_exit_Type();
   UnlockNode *unlock = new (C) UnlockNode(C, tf);
+#ifdef ASSERT
+  unlock->set_dbg_jvms(sync_jvms());
+#endif
   uint raw_idx = Compile::AliasIdxRaw;
   unlock->init_req( TypeFunc::Control, control() );
   unlock->init_req( TypeFunc::Memory , memory(raw_idx) );

@@ -32,7 +32,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -43,7 +42,6 @@ import jdk.nashorn.internal.codegen.Compiler.CompilationPhases;
 import jdk.nashorn.internal.codegen.CompilerConstants;
 import jdk.nashorn.internal.codegen.FunctionSignature;
 import jdk.nashorn.internal.codegen.Namespace;
-import jdk.nashorn.internal.codegen.ObjectClassGenerator.AllocatorDescriptor;
 import jdk.nashorn.internal.codegen.OptimisticTypesPersistence;
 import jdk.nashorn.internal.codegen.TypeMap;
 import jdk.nashorn.internal.codegen.types.Type;
@@ -126,7 +124,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
      *
      * @param functionNode        functionNode that represents this function code
      * @param installer           installer for code regeneration versions of this function
-     * @param allocationDescriptor descriptor for the allocation behavior when this function is used as a constructor
+     * @param allocationStrategy  strategy for the allocation behavior when this function is used as a constructor
      * @param nestedFunctions     nested function map
      * @param externalScopeDepths external scope depths
      * @param internalSymbols     internal symbols to method, defined in its scope
@@ -135,7 +133,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     public RecompilableScriptFunctionData(
         final FunctionNode functionNode,
         final CodeInstaller<ScriptEnvironment> installer,
-        final AllocatorDescriptor allocationDescriptor,
+        final AllocationStrategy allocationStrategy,
         final Map<Integer, RecompilableScriptFunctionData> nestedFunctions,
         final Map<String, Integer> externalScopeDepths,
         final Set<String> internalSymbols,
@@ -153,7 +151,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         this.endParserState      = functionNode.getEndParserState();
         this.token               = tokenFor(functionNode);
         this.installer           = installer;
-        this.allocationStrategy  = AllocationStrategy.get(allocationDescriptor);
+        this.allocationStrategy  = allocationStrategy;
         this.nestedFunctions     = smallMap(nestedFunctions);
         this.externalScopeDepths = smallMap(externalScopeDepths);
         this.internalSymbols     = smallSet(new HashSet<>(internalSymbols));
@@ -493,7 +491,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
             log.info("Parameter type specialization of '", functionName, "' signature: ", actualCallSiteType);
         }
 
-        final boolean persistentCache = usePersistentCodeCache() && persist;
+        final boolean persistentCache = persist && usePersistentCodeCache();
         String cacheKey = null;
         if (persistentCache) {
             final TypeMap typeMap = typeMap(actualCallSiteType);
@@ -504,7 +502,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
 
             if (script != null) {
                 Compiler.updateCompilationId(script.getCompilationId());
-                return installStoredScript(script, newInstaller);
+                return script.installFunction(this, newInstaller);
             }
         }
 
@@ -519,59 +517,8 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         return new FunctionInitializer(compiledFn, compiler.getInvalidatedProgramPoints());
     }
 
-    private static Map<String, Class<?>> installStoredScriptClasses(final StoredScript script, final CodeInstaller<ScriptEnvironment> installer) {
-        final Map<String, Class<?>> installedClasses = new HashMap<>();
-        final Map<String, byte[]>   classBytes       = script.getClassBytes();
-        final String   mainClassName   = script.getMainClassName();
-        final byte[]   mainClassBytes  = classBytes.get(mainClassName);
-
-        final Class<?> mainClass       = installer.install(mainClassName, mainClassBytes);
-
-        installedClasses.put(mainClassName, mainClass);
-
-        for (final Map.Entry<String, byte[]> entry : classBytes.entrySet()) {
-            final String className = entry.getKey();
-            final byte[] bytecode = entry.getValue();
-
-            if (className.equals(mainClassName)) {
-                continue;
-            }
-
-            installedClasses.put(className, installer.install(className, bytecode));
-        }
-        return installedClasses;
-    }
-
-    /**
-     * Install this script using the given {@code installer}.
-     *
-     * @param script the compiled script
-     * @return the function initializer
-     */
-    private FunctionInitializer installStoredScript(final StoredScript script, final CodeInstaller<ScriptEnvironment> newInstaller) {
-        final Map<String, Class<?>> installedClasses = installStoredScriptClasses(script, newInstaller);
-
-        final Map<Integer, FunctionInitializer> initializers = script.getInitializers();
-        assert initializers != null;
-        assert initializers.size() == 1;
-        final FunctionInitializer initializer = initializers.values().iterator().next();
-
-        final Object[] constants = script.getConstants();
-        for (int i = 0; i < constants.length; i++) {
-            if (constants[i] instanceof RecompilableScriptFunctionData) {
-                // replace deserialized function data with the ones we already have
-                constants[i] = getScriptFunctionData(((RecompilableScriptFunctionData) constants[i]).getFunctionNodeId());
-            }
-        }
-
-        newInstaller.initialize(installedClasses.values(), source, constants);
-        initializer.setCode(installedClasses.get(initializer.getClassName()));
-        return initializer;
-    }
-
     boolean usePersistentCodeCache() {
-        final ScriptEnvironment env = installer.getOwner();
-        return env._persistent_cache && env._optimistic_types;
+        return installer != null && installer.getOwner()._persistent_cache;
     }
 
     private MethodType explicitParams(final MethodType callSiteType) {
@@ -646,13 +593,21 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
      * by the compiler internals in Nashorn and is public for implementation reasons only. Attempting to invoke it
      * externally will result in an exception.
      *
-     * @param initializer FunctionInitializer for this data
+     * @param functionNode FunctionNode for this data
      */
-    public void initializeCode(final FunctionInitializer initializer) {
+    public void initializeCode(final FunctionNode functionNode) {
         // Since the method is public, we double-check that we aren't invoked with an inappropriate compile unit.
-        if(!code.isEmpty()) {
+        if (!code.isEmpty() || functionNode.getId() != functionNodeId || !functionNode.getCompileUnit().isInitializing(this, functionNode)) {
             throw new IllegalStateException(name);
         }
+        addCode(lookup(functionNode), null, null, functionNode.getFlags());
+    }
+
+    /**
+     * Initializes this function with the given function code initializer.
+     * @param initializer function code initializer
+     */
+    void initializeCode(final FunctionInitializer initializer) {
         addCode(lookup(initializer, true), null, null, initializer.getFlags());
     }
 

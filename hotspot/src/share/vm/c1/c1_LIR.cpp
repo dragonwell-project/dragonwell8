@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,15 +142,10 @@ LIR_Address::Scale LIR_Address::scale(BasicType type) {
 
 
 #ifndef PRODUCT
-void LIR_Address::verify() const {
+void LIR_Address::verify0() const {
 #if defined(SPARC) || defined(PPC)
   assert(scale() == times_1, "Scaled addressing mode not available on SPARC/PPC and should not be used");
   assert(disp() == 0 || index()->is_illegal(), "can't have both");
-#endif
-#ifdef ARM
-  assert(disp() == 0 || index()->is_illegal(), "can't have both");
-  // Note: offsets higher than 4096 must not be rejected here. They can
-  // be handled by the back-end or will be rejected if not.
 #endif
 #ifdef _LP64
   assert(base()->is_cpu_register(), "wrong base operand");
@@ -459,7 +454,7 @@ void LIR_OpRTCall::verify() const {
 //-------------------visits--------------------------
 
 // complete rework of LIR instruction visitor.
-// The virtual calls for each instruction type is replaced by a big
+// The virtual call for each instruction type is replaced by a big
 // switch that adds the operands for each instruction
 
 void LIR_OpVisitState::visit(LIR_Op* op) {
@@ -828,7 +823,8 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       }
 
       if (opJavaCall->_info)                     do_info(opJavaCall->_info);
-      if (opJavaCall->is_method_handle_invoke()) {
+      if (FrameMap::method_handle_invoke_SP_save_opr() != LIR_OprFact::illegalOpr &&
+          opJavaCall->is_method_handle_invoke()) {
         opJavaCall->_method_handle_invoke_SP_save_opr = FrameMap::method_handle_invoke_SP_save_opr();
         do_temp(opJavaCall->_method_handle_invoke_SP_save_opr);
       }

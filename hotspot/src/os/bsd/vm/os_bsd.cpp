@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1197,12 +1197,18 @@ pid_t os::Bsd::gettid() {
   guarantee(retval != 0, "just checking");
   return retval;
 
-#elif __FreeBSD__
+#else
+  #ifdef __FreeBSD__
   retval = syscall(SYS_thr_self);
-#elif __OpenBSD__
+  #else
+    #ifdef __OpenBSD__
   retval = syscall(SYS_getthrid);
-#elif __NetBSD__
+    #else
+      #ifdef __NetBSD__
   retval = (pid_t) syscall(SYS__lwp_self);
+      #endif
+    #endif
+  #endif
 #endif
 
   if (retval == -1) {
@@ -3545,6 +3551,11 @@ void os::Bsd::check_signal_handler(int sig) {
     tty->print_cr("  found:%s", get_signal_handler_name(thisHandler, buf, O_BUFLEN));
     // No need to check this sig any longer
     sigaddset(&check_signal_done, sig);
+    // Running under non-interactive shell, SHUTDOWN2_SIGNAL will be reassigned SIG_IGN
+    if (sig == SHUTDOWN2_SIGNAL && !isatty(fileno(stdin))) {
+      tty->print_cr("Running in non-interactive shell, %s handler is replaced by shell",
+                    exception_name(sig, buf, O_BUFLEN));
+    }
   } else if(os::Bsd::get_our_sigflags(sig) != 0 && (int)act.sa_flags != os::Bsd::get_our_sigflags(sig)) {
     tty->print("Warning: %s handler flags ", exception_name(sig, buf, O_BUFLEN));
     tty->print("expected:" PTR32_FORMAT, os::Bsd::get_our_sigflags(sig));
@@ -3744,9 +3755,6 @@ jint os::init_2(void)
 
   return JNI_OK;
 }
-
-// this is called at the end of vm_initialization
-void os::init_3(void) { }
 
 // Mark the polling page as unreadable
 void os::make_polling_page_unreadable(void) {

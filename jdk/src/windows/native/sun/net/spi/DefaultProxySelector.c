@@ -169,6 +169,11 @@ Java_sun_net_spi_DefaultProxySelector_getSystemProxy(JNIEnv *env,
            */
           s = strtok(override, "; ");
           urlhost = (*env)->GetStringUTFChars(env, host, &isCopy);
+          if (urlhost == NULL) {
+            if (!(*env)->ExceptionCheck(env))
+              JNU_ThrowOutOfMemoryError(env, NULL);
+            return NULL;
+          }
           while (s != NULL) {
             if (strncmp(s, urlhost, strlen(s)) == 0) {
               /**
@@ -186,8 +191,11 @@ Java_sun_net_spi_DefaultProxySelector_getSystemProxy(JNIEnv *env,
         }
 
         cproto = (*env)->GetStringUTFChars(env, proto, &isCopy);
-        if (cproto == NULL)
-          goto noproxy;
+        if (cproto == NULL) {
+          if (!(*env)->ExceptionCheck(env))
+            JNU_ThrowOutOfMemoryError(env, NULL);
+          return NULL;
+        }
 
         /*
          * Set default port value & proxy type from protocol.
@@ -245,7 +253,9 @@ Java_sun_net_spi_DefaultProxySelector_getSystemProxy(JNIEnv *env,
           if (pport == 0)
             pport = defport;
           jhost = (*env)->NewStringUTF(env, phost);
+          CHECK_NULL_RETURN(jhost, NULL);
           isa = (*env)->CallStaticObjectMethod(env, isaddr_class, isaddr_createUnresolvedID, jhost, pport);
+          CHECK_NULL_RETURN(isa, NULL);
           proxy = (*env)->NewObject(env, proxy_class, proxy_ctrID, type_proxy, isa);
           return proxy;
         }

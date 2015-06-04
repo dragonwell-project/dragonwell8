@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc_implementation/shared/gcId.hpp"
 #include "gc_interface/allocTracer.hpp"
 #include "trace/tracing.hpp"
 #include "runtime/handles.hpp"
@@ -43,6 +44,15 @@ void AllocTracer::send_allocation_in_new_tlab_event(KlassHandle klass, size_t tl
     event.set_class(klass());
     event.set_allocationSize(alloc_size);
     event.set_tlabSize(tlab_size);
+    event.commit();
+  }
+}
+
+void AllocTracer::send_allocation_requiring_gc_event(size_t size, const GCId& gcId) {
+  EventAllocationRequiringGC event;
+  if (event.should_commit()) {
+    event.set_gcId(gcId.id());
+    event.set_size(size);
     event.commit();
   }
 }

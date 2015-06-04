@@ -79,8 +79,7 @@ public:
 
   // Data structure for claiming the (potentially) parallel tasks in
   // (gen-specific) roots processing.
-  SubTasksDone* _gen_process_roots_tasks;
-  SubTasksDone* gen_process_roots_tasks() { return _gen_process_roots_tasks; }
+  SubTasksDone* _process_strong_tasks;
 
   // In block contents verification, the number of header words to skip
   NOT_PRODUCT(static size_t _skip_header_HeapWords;)
@@ -390,6 +389,7 @@ public:
   static GenCollectedHeap* heap();
 
   void set_par_threads(uint t);
+  void set_n_termination(uint t);
 
   // Invoke the "do_oop" method of one of the closures "not_older_gens"
   // or "older_gens" on root locations for the generation at
@@ -403,11 +403,25 @@ public:
   // The "so" argument determines which of the roots
   // the closure is applied to:
   // "SO_None" does none;
+  enum ScanningOption {
+    SO_None                =  0x0,
+    SO_AllCodeCache        =  0x8,
+    SO_ScavengeCodeCache   = 0x10
+  };
+
  private:
+  void process_roots(bool activate_scope,
+                     ScanningOption so,
+                     OopClosure* strong_roots,
+                     OopClosure* weak_roots,
+                     CLDClosure* strong_cld_closure,
+                     CLDClosure* weak_cld_closure,
+                     CodeBlobClosure* code_roots);
+
   void gen_process_roots(int level,
                          bool younger_gens_as_roots,
                          bool activate_scope,
-                         SharedHeap::ScanningOption so,
+                         ScanningOption so,
                          OopsInGenClosure* not_older_gens,
                          OopsInGenClosure* weak_roots,
                          OopsInGenClosure* older_gens,
@@ -422,7 +436,7 @@ public:
   void gen_process_roots(int level,
                          bool younger_gens_as_roots,
                          bool activate_scope,
-                         SharedHeap::ScanningOption so,
+                         ScanningOption so,
                          bool only_strong_roots,
                          OopsInGenClosure* not_older_gens,
                          OopsInGenClosure* older_gens,
