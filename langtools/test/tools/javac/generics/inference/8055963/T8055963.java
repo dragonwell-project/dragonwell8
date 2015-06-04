@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,19 @@
  * questions.
  */
 
-package com.sun.java.accessibility.extensions;
-
-import javax.accessibility.*;
-
 /**
- * <P>Class AccessibleExtendedRole contains extensions to the class
- * AccessibleRole that are currently not in a public API.
- *
- * <P>Class AccessibleRole determines the role of a component.  The role
- * of a component describes its generic function. (E.G.,
- * "push button," "table," or "list.")
- * <p>The constants in this class present a strongly typed enumeration
- * of common object roles.  A public constructor for this class has been
- * purposely omitted and applications should use one of the constants
- * from this class.  If the constants in this class are not sufficient
- * to describe the role of an object, a subclass should be generated
- * from this class and it should provide constants in a similar manner.
- *
+ * @test
+ * @bug 8055963
+ * @summary Inference failure with nested invocation
+ * @compile T8055963.java
  */
+class T8055963 {
 
-public class AccessibleExtendedRole extends AccessibleExtendedRoleConstants {
+    static class C<T> {}
 
-    public AccessibleExtendedRole(String s) {
-        super(s);
+    <T> T choose(T first, T second) { return null; }
+
+    void test() {
+        C<String> cs = choose(new C<String>(), new C<>());
     }
 }
