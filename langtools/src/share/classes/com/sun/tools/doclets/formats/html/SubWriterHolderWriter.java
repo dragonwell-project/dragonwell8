@@ -113,7 +113,7 @@ public abstract class SubWriterHolderWriter extends HtmlDocletWriter {
             Content captionSpan;
             Content span;
             if (type.isDefaultTab()) {
-                captionSpan = HtmlTree.SPAN(new StringContent(type.text()));
+                captionSpan = HtmlTree.SPAN(configuration.getResource(type.resourceKey()));
                 span = HtmlTree.SPAN(type.tabId(),
                         HtmlStyle.activeTableTab, captionSpan);
             } else {
@@ -136,7 +136,7 @@ public abstract class SubWriterHolderWriter extends HtmlDocletWriter {
      */
     public Content getMethodTypeLinks(MethodTypes methodType) {
         String jsShow = "javascript:show(" + methodType.value() +");";
-        HtmlTree link = HtmlTree.A(jsShow, new StringContent(methodType.text()));
+        HtmlTree link = HtmlTree.A(jsShow, configuration.getResource(methodType.resourceKey()));
         return link;
     }
 

@@ -78,6 +78,7 @@ class ciMethod : public ciMetadata {
   bool _is_c1_compilable;
   bool _is_c2_compilable;
   bool _can_be_statically_bound;
+  bool _has_injected_profile;
 
   // Lazy fields, filled in on demand
   address              _code;
@@ -248,11 +249,12 @@ class ciMethod : public ciMetadata {
   // its calling environment.
   ciMethod* find_monomorphic_target(ciInstanceKlass* caller,
                                     ciInstanceKlass* callee_holder,
-                                    ciInstanceKlass* actual_receiver);
+                                    ciInstanceKlass* actual_receiver,
+                                    bool check_access = true);
 
   // Given a known receiver klass, find the target for the call.
   // Return NULL if the call has no target or is abstract.
-  ciMethod* resolve_invoke(ciKlass* caller, ciKlass* exact_receiver);
+  ciMethod* resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, bool check_access = true);
 
   // Find the proper vtable index to invoke this method.
   int resolve_vtable_index(ciKlass* caller, ciKlass* receiver);
@@ -280,6 +282,9 @@ class ciMethod : public ciMetadata {
   MethodCounters* ensure_method_counters();
   int instructions_size();
   int scale_count(int count, float prof_factor = 1.);  // make MDO count commensurate with IIC
+
+  bool has_injected_profile() const { return _has_injected_profile;     }
+  void set_injected_profile(bool x) {        _has_injected_profile = x; }
 
   // Stack walking support
   bool is_ignored_by_security_stack_walk() const;

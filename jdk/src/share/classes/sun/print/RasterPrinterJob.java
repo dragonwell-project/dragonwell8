@@ -560,18 +560,8 @@ public abstract class RasterPrinterJob extends PrinterJob {
         }
 
         Media media = (Media)attSet.get(Media.class);
-        if (media == null) {
-            media =
-                (Media)service.getDefaultAttributeValue(Media.class);
-        }
-        if (!(media instanceof MediaSizeName)) {
-            media = MediaSizeName.NA_LETTER;
-        }
-        MediaSize size =
-            MediaSize.getMediaSizeForName((MediaSizeName)media);
-        if (size == null) {
-            size = MediaSize.NA.LETTER;
-        }
+        MediaSize size = getMediaSize(media, service, page);
+
         Paper paper = new Paper();
         float dim[] = size.getSize(1); //units == 1 to avoid FP error
         double w = Math.rint((dim[0]*72.0)/Size2DSyntax.INCH);
@@ -580,9 +570,11 @@ public abstract class RasterPrinterJob extends PrinterJob {
         MediaPrintableArea area =
              (MediaPrintableArea)
              attSet.get(MediaPrintableArea.class);
-        double ix, iw, iy, ih;
+        if (area == null) {
+            area = getDefaultPrintableArea(page, w, h);
+        }
 
-        if (area != null) {
+        double ix, iw, iy, ih;
             // Should pass in same unit as updatePageAttributes
             // to avoid rounding off errors.
             ix = Math.rint(
@@ -593,8 +585,25 @@ public abstract class RasterPrinterJob extends PrinterJob {
                            area.getWidth(MediaPrintableArea.INCH) * DPI);
             ih = Math.rint(
                            area.getHeight(MediaPrintableArea.INCH) * DPI);
+        paper.setImageableArea(ix, iy, iw, ih);
+        page.setPaper(paper);
+        return page;
         }
-        else {
+    protected MediaSize getMediaSize(Media media, PrintService service,
+            PageFormat page) {
+        if (media == null) {
+            media = (Media)service.getDefaultAttributeValue(Media.class);
+        }
+        if (!(media instanceof MediaSizeName)) {
+            media = MediaSizeName.NA_LETTER;
+        }
+        MediaSize size = MediaSize.getMediaSizeForName((MediaSizeName) media);
+        return size != null ? size : MediaSize.NA.LETTER;
+    }
+
+    protected MediaPrintableArea getDefaultPrintableArea(PageFormat page,
+            double w, double h) {
+        double ix, iw, iy, ih;
             if (w >= 72.0 * 6.0) {
                 ix = 72.0;
                 iw = w - 2 * 72.0;
@@ -609,10 +618,9 @@ public abstract class RasterPrinterJob extends PrinterJob {
                 iy = h / 6.0;
                 ih = h * 0.75;
             }
-        }
-        paper.setImageableArea(ix, iy, iw, ih);
-        page.setPaper(paper);
-        return page;
+
+        return new MediaPrintableArea((float) (ix / DPI), (float) (iy / DPI),
+                (float) (iw / DPI), (float) (ih / DPI), MediaPrintableArea.INCH);
     }
 
     protected void updatePageAttributes(PrintService service,
@@ -811,7 +819,7 @@ public abstract class RasterPrinterJob extends PrinterJob {
    }
 
    protected PageFormat getPageFormatFromAttributes() {
-       if (attributes == null) {
+       if (attributes == null || attributes.isEmpty()) {
             return null;
         }
         return attributeToPageFormat(getPrintService(), this.attributes);

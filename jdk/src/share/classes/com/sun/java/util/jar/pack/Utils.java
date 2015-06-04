@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
@@ -133,6 +134,9 @@ class Utils {
     // to the engine code, especially the native code.
     static final ThreadLocal<TLGlobals> currentInstance = new ThreadLocal<>();
 
+    private static TimeZone tz;
+    private static int workingPackerCount = 0;
+
     // convenience method to access the TL globals
     static TLGlobals getTLGlobals() {
         return currentInstance.get();
@@ -200,6 +204,24 @@ class Utils {
             if (verbose > 0) {
                     System.out.println(msg);
             }
+        }
+    }
+
+    static synchronized void changeDefaultTimeZoneToUtc() {
+        if (workingPackerCount++ == 0) {
+            // only first thread saves default TZ
+            tz = TimeZone.getDefault();
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        }
+    }
+
+    static synchronized void restoreDefaultTimeZone() {
+        if (--workingPackerCount == 0) {
+            // reset timezone when all the packer/unpacker instances have terminated
+            if (tz != null) {
+                TimeZone.setDefault(tz);
+            }
+            tz = null;
         }
     }
 

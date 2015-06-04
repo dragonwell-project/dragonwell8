@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 4759491 6303183 7012868 8015666 8023713
+ * @bug 4759491 6303183 7012868 8015666 8023713 8068790 8074694 8076641
  * @summary Test ZOS and ZIS timestamp in extra field correctly
  */
 
@@ -39,7 +39,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-
 
 public class TestExtraTime {
 
@@ -69,6 +68,10 @@ public class TestExtraTime {
                 test(mtime, atime, ctime, tz, extra);
             }
         }
+
+        testNullHandling();
+        testTagOnlyHandling();
+        testTimeConversions();
     }
 
     static void test(FileTime mtime, FileTime atime, FileTime ctime,
@@ -152,6 +155,95 @@ public class TestExtraTime {
                                extra)) {
                 throw new RuntimeException("Timestamp: storing extra field failed!");
             }
+        }
+    }
+
+    static void testNullHandling() {
+        ZipEntry ze = new ZipEntry("TestExtraTime.java");
+        try {
+            ze.setLastAccessTime(null);
+            throw new RuntimeException("setLastAccessTime(null) should throw NPE");
+        } catch (NullPointerException ignored) {
+            // pass
+        }
+        try {
+            ze.setCreationTime(null);
+            throw new RuntimeException("setCreationTime(null) should throw NPE");
+        } catch (NullPointerException ignored) {
+            // pass
+        }
+        try {
+            ze.setLastModifiedTime(null);
+            throw new RuntimeException("setLastModifiedTime(null) should throw NPE");
+        } catch (NullPointerException ignored) {
+            // pass
+        }
+    }
+
+    // verify that setting and getting any time is possible as per the intent
+    // of 4759491
+    static void testTimeConversions() {
+        // Sample across the entire range
+        long step = Long.MAX_VALUE / 100L;
+        testTimeConversions(Long.MIN_VALUE, Long.MAX_VALUE - step, step);
+
+        // Samples through the near future
+        long currentTime = System.currentTimeMillis();
+        testTimeConversions(currentTime, currentTime + 1_000_000, 10_000);
+    }
+
+    static void testTimeConversions(long from, long to, long step) {
+        ZipEntry ze = new ZipEntry("TestExtraTime.java");
+        for (long time = from; time <= to; time += step) {
+            ze.setTime(time);
+            FileTime lastModifiedTime = ze.getLastModifiedTime();
+            if (lastModifiedTime.toMillis() != time) {
+                throw new RuntimeException("setTime should make getLastModifiedTime " +
+                        "return the specified instant: " + time +
+                        " got: " + lastModifiedTime.toMillis());
+            }
+            if (ze.getTime() != time) {
+                throw new RuntimeException("getTime after setTime, expected: " +
+                        time + " got: " + ze.getTime());
+            }
+        }
+    }
+
+    static void check(ZipEntry ze, byte[] extra) {
+        if (extra != null) {
+            byte[] extra1 = ze.getExtra();
+            if (extra1 == null || extra1.length < extra.length ||
+                !Arrays.equals(Arrays.copyOfRange(extra1,
+                                                  extra1.length - extra.length,
+                                                  extra1.length),
+                               extra)) {
+                throw new RuntimeException("Timestamp: storing extra field failed!");
+            }
+        }
+    }
+
+    static void testTagOnlyHandling() throws Throwable {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] extra = new byte[] { 0x0a, 0, 4, 0, 0, 0, 0, 0 };
+        try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+            ZipEntry ze = new ZipEntry("TestExtraTime.java");
+            ze.setExtra(extra);
+            zos.putNextEntry(ze);
+            zos.write(new byte[] { 1,2 ,3, 4});
+        }
+        try (ZipInputStream zis = new ZipInputStream(
+                 new ByteArrayInputStream(baos.toByteArray()))) {
+            ZipEntry ze = zis.getNextEntry();
+            check(ze, extra);
+        }
+        Path zpath = Paths.get(System.getProperty("test.dir", "."),
+                               "TestExtraTime.zip");
+        Files.copy(new ByteArrayInputStream(baos.toByteArray()), zpath);
+        try (ZipFile zf = new ZipFile(zpath.toFile())) {
+            ZipEntry ze = zf.getEntry("TestExtraTime.java");
+            check(ze, extra);
+        } finally {
+            Files.delete(zpath);
         }
     }
 }

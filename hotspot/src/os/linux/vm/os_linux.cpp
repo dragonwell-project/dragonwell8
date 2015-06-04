@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -160,35 +160,6 @@ static pthread_mutex_t dl_mutex;
 // Declarations
 static void unpackTime(timespec* absTime, bool isAbsolute, jlong time);
 
-#ifdef JAVASE_EMBEDDED
-class MemNotifyThread: public Thread {
-  friend class VMStructs;
- public:
-  virtual void run();
-
- private:
-  static MemNotifyThread* _memnotify_thread;
-  int _fd;
-
- public:
-
-  // Constructor
-  MemNotifyThread(int fd);
-
-  // Tester
-  bool is_memnotify_thread() const { return true; }
-
-  // Printing
-  char* name() const { return (char*)"Linux MemNotify Thread"; }
-
-  // Returns the single instance of the MemNotifyThread
-  static MemNotifyThread* memnotify_thread() { return _memnotify_thread; }
-
-  // Create and start the single instance of MemNotifyThread
-  static void start();
-};
-#endif // JAVASE_EMBEDDED
-
 // utility functions
 
 static int SR_initialize();
@@ -238,44 +209,27 @@ bool os::have_special_privileges() {
 
 #ifndef SYS_gettid
 // i386: 224, ia64: 1105, amd64: 186, sparc 143
-#ifdef __ia64__
-#define SYS_gettid 1105
-#elif __i386__
-#define SYS_gettid 224
-#elif __amd64__
-#define SYS_gettid 186
-#elif __sparc__
-#define SYS_gettid 143
-#else
-#error define gettid for the arch
-#endif
+  #ifdef __ia64__
+    #define SYS_gettid 1105
+  #else
+    #ifdef __i386__
+      #define SYS_gettid 224
+    #else
+      #ifdef __amd64__
+        #define SYS_gettid 186
+      #else
+        #ifdef __sparc__
+          #define SYS_gettid 143
+        #else
+          #error define gettid for the arch
+        #endif
+      #endif
+    #endif
+  #endif
 #endif
 
 // Cpu architecture string
-#if   defined(ZERO)
-static char cpu_arch[] = ZERO_LIBARCH;
-#elif defined(IA64)
-static char cpu_arch[] = "ia64";
-#elif defined(IA32)
-static char cpu_arch[] = "i386";
-#elif defined(AMD64)
-static char cpu_arch[] = "amd64";
-#elif defined(ARM)
-static char cpu_arch[] = "arm";
-#elif defined(PPC32)
-static char cpu_arch[] = "ppc";
-#elif defined(PPC64)
-static char cpu_arch[] = "ppc64";
-#elif defined(SPARC)
-#  ifdef _LP64
-static char cpu_arch[] = "sparcv9";
-#  else
-static char cpu_arch[] = "sparc";
-#  endif
-#else
-#error Add appropriate cpu_arch setting
-#endif
-
+static char cpu_arch[] = HOTSPOT_LIB_ARCH;
 
 // pid_t gettid()
 //
@@ -4681,6 +4635,11 @@ void os::Linux::check_signal_handler(int sig) {
     tty->print_cr("  found:%s", get_signal_handler_name(thisHandler, buf, O_BUFLEN));
     // No need to check this sig any longer
     sigaddset(&check_signal_done, sig);
+    // Running under non-interactive shell, SHUTDOWN2_SIGNAL will be reassigned SIG_IGN
+    if (sig == SHUTDOWN2_SIGNAL && !isatty(fileno(stdin))) {
+      tty->print_cr("Running in non-interactive shell, %s handler is replaced by shell",
+                    exception_name(sig, buf, O_BUFLEN));
+    }
   } else if(os::Linux::get_our_sigflags(sig) != 0 && (int)act.sa_flags != os::Linux::get_our_sigflags(sig)) {
     tty->print("Warning: %s handler flags ", exception_name(sig, buf, O_BUFLEN));
     tty->print("expected:" PTR32_FORMAT, os::Linux::get_our_sigflags(sig));
@@ -4934,17 +4893,6 @@ jint os::init_2(void)
   prio_init();
 
   return JNI_OK;
-}
-
-// this is called at the end of vm_initialization
-void os::init_3(void) {
-#ifdef JAVASE_EMBEDDED
-  // Start the MemNotifyThread
-  if (LowMemoryProtection) {
-    MemNotifyThread::start();
-  }
-  return;
-#endif
 }
 
 // Mark the polling page as unreadable
@@ -5992,14 +5940,6 @@ void Parker::unpark() {
 
 extern char** environ;
 
-#ifndef __NR_fork
-#define __NR_fork IA32_ONLY(2) IA64_ONLY(not defined) AMD64_ONLY(57)
-#endif
-
-#ifndef __NR_execve
-#define __NR_execve IA32_ONLY(11) IA64_ONLY(1033) AMD64_ONLY(59)
-#endif
-
 // Run the specified command in a separate process. Return its exit value,
 // or -1 on failure (e.g. can't fork a new process).
 // Unlike system(), this function can be called from signal handler. It
@@ -6007,13 +5947,7 @@ extern char** environ;
 int os::fork_and_exec(char* cmd) {
   const char * argv[4] = {"sh", "-c", cmd, NULL};
 
-  // fork() in LinuxThreads/NPTL is not async-safe. It needs to run
-  // pthread_atfork handlers and reset pthread library. All we need is a
-  // separate process to execve. Make a direct syscall to fork process.
-  // On IA64 there's no fork syscall, we have to use fork() and hope for
-  // the best...
-  pid_t pid = NOT_IA64(syscall(__NR_fork);)
-              IA64_ONLY(fork();)
+  pid_t pid = fork();
 
   if (pid < 0) {
     // fork failed
@@ -6022,15 +5956,7 @@ int os::fork_and_exec(char* cmd) {
   } else if (pid == 0) {
     // child process
 
-    // execve() in LinuxThreads will call pthread_kill_other_threads_np()
-    // first to kill every thread on the thread list. Because this list is
-    // not reset by fork() (see notes above), execve() will instead kill
-    // every thread in the parent process. We know this is the only thread
-    // in the new process, so make a system call directly.
-    // IA64 should use normal execve() from glibc to match the glibc fork()
-    // above.
-    NOT_IA64(syscall(__NR_execve, "/bin/sh", argv, environ);)
-    IA64_ONLY(execve("/bin/sh", (char* const*)argv, environ);)
+    execve("/bin/sh", (char* const*)argv, environ);
 
     // execve failed
     _exit(-1);
@@ -6122,83 +6048,6 @@ int os::get_core_path(char* buffer, size_t bufferSize) {
 
   return strlen(buffer);
 }
-
-#ifdef JAVASE_EMBEDDED
-//
-// A thread to watch the '/dev/mem_notify' device, which will tell us when the OS is running low on memory.
-//
-MemNotifyThread* MemNotifyThread::_memnotify_thread = NULL;
-
-// ctor
-//
-MemNotifyThread::MemNotifyThread(int fd): Thread() {
-  assert(memnotify_thread() == NULL, "we can only allocate one MemNotifyThread");
-  _fd = fd;
-
-  if (os::create_thread(this, os::os_thread)) {
-    _memnotify_thread = this;
-    os::set_priority(this, NearMaxPriority);
-    os::start_thread(this);
-  }
-}
-
-// Where all the work gets done
-//
-void MemNotifyThread::run() {
-  assert(this == memnotify_thread(), "expected the singleton MemNotifyThread");
-
-  // Set up the select arguments
-  fd_set rfds;
-  if (_fd != -1) {
-    FD_ZERO(&rfds);
-    FD_SET(_fd, &rfds);
-  }
-
-  // Now wait for the mem_notify device to wake up
-  while (1) {
-    // Wait for the mem_notify device to signal us..
-    int rc = select(_fd+1, _fd != -1 ? &rfds : NULL, NULL, NULL, NULL);
-    if (rc == -1) {
-      perror("select!\n");
-      break;
-    } else if (rc) {
-      //ssize_t free_before = os::available_memory();
-      //tty->print ("Notified: Free: %dK \n",os::available_memory()/1024);
-
-      // The kernel is telling us there is not much memory left...
-      // try to do something about that
-
-      // If we are not already in a GC, try one.
-      if (!Universe::heap()->is_gc_active()) {
-        Universe::heap()->collect(GCCause::_allocation_failure);
-
-        //ssize_t free_after = os::available_memory();
-        //tty->print ("Post-Notify: Free: %dK\n",free_after/1024);
-        //tty->print ("GC freed: %dK\n", (free_after - free_before)/1024);
-      }
-      // We might want to do something like the following if we find the GC's are not helping...
-      // Universe::heap()->size_policy()->set_gc_time_limit_exceeded(true);
-    }
-  }
-}
-
-//
-// See if the /dev/mem_notify device exists, and if so, start a thread to monitor it.
-//
-void MemNotifyThread::start() {
-  int    fd;
-  fd = open ("/dev/mem_notify", O_RDONLY, 0);
-  if (fd < 0) {
-      return;
-  }
-
-  if (memnotify_thread() == NULL) {
-    new MemNotifyThread(fd);
-  }
-}
-
-#endif // JAVASE_EMBEDDED
-
 
 /////////////// Unit tests ///////////////
 
