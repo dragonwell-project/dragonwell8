@@ -407,7 +407,11 @@ IRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // during deoptimization so the interpreter needs to skip it when
     // the frame is popped.
     thread->set_do_not_unlock_if_synchronized(true);
+#ifdef CC_INTERP
+    return (address) -1;
+#else
     return Interpreter::remove_activation_entry();
+#endif
   }
 
   // Need to do this check first since when _do_not_unlock_if_synchronized
@@ -1302,6 +1306,8 @@ IRT_ENTRY(void, InterpreterRuntime::member_name_arg_or_null(JavaThread* thread, 
       member_name_oop = java_lang_invoke_DirectMethodHandle::member(member_name_oop);
     }
     thread->set_vm_result(member_name_oop);
+  } else {
+    thread->set_vm_result(NULL);
   }
 IRT_END
 #endif // INCLUDE_JVMTI

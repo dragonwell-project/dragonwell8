@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,10 @@ public class Klass extends Metadata implements ClassConstants {
     layoutHelper = new IntField(type.getJIntField("_layout_helper"), 0);
     name         = type.getAddressField("_name");
     accessFlags  = new CIntField(type.getCIntegerField("_access_flags"), 0);
+    try {
+      traceIDField  = type.getField("_trace_id");
+    } catch(Exception e) {
+    }
     subklass     = new MetadataField(type.getAddressField("_subklass"), 0);
     nextSibling  = new MetadataField(type.getAddressField("_next_sibling"), 0);
 
@@ -86,6 +90,7 @@ public class Klass extends Metadata implements ClassConstants {
   private static CIntField accessFlags;
   private static MetadataField  subklass;
   private static MetadataField  nextSibling;
+  private static sun.jvm.hotspot.types.Field traceIDField;
 
   private Address getValue(AddressField field) {
     return addr.getAddressAt(field.getOffset());
@@ -106,6 +111,11 @@ public class Klass extends Metadata implements ClassConstants {
   public AccessFlags getAccessFlagsObj(){ return new AccessFlags(getAccessFlags());      }
   public Klass    getSubklassKlass()    { return (Klass)    subklass.getValue(this);     }
   public Klass    getNextSiblingKlass() { return (Klass)    nextSibling.getValue(this);  }
+
+  public long traceID() {
+    if (traceIDField == null) return 0;
+    return traceIDField.getJLong(addr);
+  }
 
   // computed access flags - takes care of inner classes etc.
   // This is closer to actual source level than getAccessFlags() etc.

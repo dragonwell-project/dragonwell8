@@ -2264,9 +2264,8 @@ const bool Matcher::clone_shift_expressions = false;
 
 // Do we need to mask the count passed to shift instructions or does
 // the cpu only look at the lower 5/6 bits anyway?
-// Off, as masks are generated in expand rules where required.
-// Constant shift counts are handled in Ideal phase.
-const bool Matcher::need_masked_shift_count = false;
+// PowerPC requires masked shift counts.
+const bool Matcher::need_masked_shift_count = true;
 
 // This affects two different things:
 //  - how Decode nodes are matched
@@ -4418,11 +4417,11 @@ operand immF() %{
   interface(CONST_INTER);
 %}
 
-// constant 'float +0.0'.
+// Float Immediate: +0.0f.
 operand immF_0() %{
-  predicate((n->getf() == 0) &&
-            (fpclassify(n->getf()) == FP_ZERO) && (signbit(n->getf()) == 0));
+  predicate(jint_cast(n->getf()) == 0);
   match(ConF);
+  
   op_cost(0);
   format %{ %}
   interface(CONST_INTER);

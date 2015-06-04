@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,41 @@
 #include "gc_implementation/g1/heapRegionSet.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "utilities/taskqueue.hpp"
+
+PLABStats* G1CollectedHeap::alloc_buffer_stats(InCSetState dest) {
+  switch (dest.value()) {
+    case InCSetState::Young:
+      return &_survivor_plab_stats;
+    case InCSetState::Old:
+      return &_old_plab_stats;
+    default:
+      ShouldNotReachHere();
+      return NULL; // Keep some compilers happy
+  }
+}
+
+size_t G1CollectedHeap::desired_plab_sz(InCSetState dest) {
+  size_t gclab_word_size = alloc_buffer_stats(dest)->desired_plab_sz();
+  // Prevent humongous PLAB sizes for two reasons:
+  // * PLABs are allocated using a similar paths as oops, but should
+  //   never be in a humongous region
+  // * Allowing humongous PLABs needlessly churns the region free lists
+  return MIN2(_humongous_object_threshold_in_words, gclab_word_size);
+}
+
+HeapWord* G1CollectedHeap::par_allocate_during_gc(InCSetState dest,
+                                                  size_t word_size,
+                                                  AllocationContext_t context) {
+  switch (dest.value()) {
+    case InCSetState::Young:
+      return survivor_attempt_allocation(word_size, context);
+    case InCSetState::Old:
+      return old_attempt_allocation(word_size, context);
+    default:
+      ShouldNotReachHere();
+      return NULL; // Keep some compilers happy
+  }
+}
 
 // Inline functions for G1CollectedHeap
 
@@ -96,8 +131,8 @@ inline bool G1CollectedHeap::obj_in_cs(oop obj) {
 }
 
 inline HeapWord* G1CollectedHeap::attempt_allocation(size_t word_size,
-                                                     unsigned int* gc_count_before_ret,
-                                                     int* gclocker_retry_count_ret) {
+                                                     uint* gc_count_before_ret,
+                                                     uint* gclocker_retry_count_ret) {
   assert_heap_not_locked_and_not_at_safepoint();
   assert(!isHumongous(word_size), "attempt_allocation() should not "
          "be called for humongous allocation requests");
@@ -203,7 +238,7 @@ bool G1CollectedHeap::is_in_cset_or_humongous(const oop obj) {
   return _in_cset_fast_test.is_in_cset_or_humongous((HeapWord*)obj);
 }
 
-G1CollectedHeap::in_cset_state_t G1CollectedHeap::in_cset_state(const oop obj) {
+InCSetState G1CollectedHeap::in_cset_state(const oop obj) {
   return _in_cset_fast_test.at((HeapWord*)obj);
 }
 
@@ -313,20 +348,30 @@ inline bool G1CollectedHeap::is_obj_ill(const oop obj) const {
   return is_obj_ill(obj, heap_region_containing(obj));
 }
 
+inline void G1CollectedHeap::set_humongous_reclaim_candidate(uint region, bool value) {
+  assert(_hrm.at(region)->startsHumongous(), "Must start a humongous object");
+  _humongous_reclaim_candidates.set_candidate(region, value);
+}
+
+inline bool G1CollectedHeap::is_humongous_reclaim_candidate(uint region) {
+  assert(_hrm.at(region)->startsHumongous(), "Must start a humongous object");
+  return _humongous_reclaim_candidates.is_candidate(region);
+}
+
 inline void G1CollectedHeap::set_humongous_is_live(oop obj) {
   uint region = addr_to_region((HeapWord*)obj);
-  // We not only set the "live" flag in the humongous_is_live table, but also
+  // Clear the flag in the humongous_reclaim_candidates table.  Also
   // reset the entry in the _in_cset_fast_test table so that subsequent references
   // to the same humongous object do not go into the slow path again.
   // This is racy, as multiple threads may at the same time enter here, but this
   // is benign.
-  // During collection we only ever set the "live" flag, and only ever clear the
+  // During collection we only ever clear the "candidate" flag, and only ever clear the
   // entry in the in_cset_fast_table.
   // We only ever evaluate the contents of these tables (in the VM thread) after
   // having synchronized the worker threads with the VM thread, or in the same
   // thread (i.e. within the VM thread).
-  if (!_humongous_is_live.is_live(region)) {
-    _humongous_is_live.set_live(region);
+  if (is_humongous_reclaim_candidate(region)) {
+    set_humongous_reclaim_candidate(region, false);
     _in_cset_fast_test.clear_humongous(region);
   }
 }

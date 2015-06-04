@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -64,9 +64,22 @@ ifeq ($(OS_VENDOR), FreeBSD)
 else
   ifeq ($(OS_VENDOR), Darwin)
     SASRCFILES = $(DARWIN_NON_STUB_SASRCFILES)
-    SALIBS = -g -framework Foundation -F/System/Library/Frameworks/JavaVM.framework/Frameworks -framework JavaNativeFoundation -framework Security -framework CoreFoundation
+    SALIBS = -g \
+             -framework Foundation \
+             -framework JavaNativeFoundation \
+             -framework Security \
+             -framework CoreFoundation
     #objc compiler blows up on -march=i586, perhaps it should not be included in the macosx intel 32-bit C++ compiles?
     SAARCH = $(subst -march=i586,,$(ARCHFLAG))
+
+    # This is needed to locate JavaNativeFoundation.framework
+    # JDK 8 doesn't have SYSROOT_CFLAGS, so we'll cobble it together here
+    SA_SYSROOT_FLAGS=
+    ifneq ($(SDKPATH),)
+      SA_SYSROOT_FLAGS += -isysroot "$(SDKPATH)" -iframework"$(SDKPATH)/System/Library/Frameworks"
+    endif
+    # always needed, even if SDKPATH is empty
+    SA_SYSROOT_FLAGS += -F"$(SDKPATH)/System/Library/Frameworks/JavaVM.framework/Frameworks"
   else
     SASRCFILES = $(SASRCDIR)/StubDebuggerLocal.c
     SALIBS = 
@@ -97,17 +110,14 @@ endif
 
 ifneq ($(OS_VENDOR), Darwin)
 SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE))
+else
+# bring in minimum version argument or we'll fail on OSX 10.10
+SA_LFLAGS = $(LFLAGS)
 endif
 SA_LFLAGS += $(LDFLAGS_HASH_STYLE)
 
-ifeq ($(OS_VENDOR), Darwin)
-  BOOT_JAVA_INCLUDES = -I$(BOOT_JAVA_HOME)/include \
-    -I$(BOOT_JAVA_HOME)/include/$(shell uname -s | tr "[:upper:]" "[:lower:]") \
-    -I/System/Library/Frameworks/JavaVM.framework/Headers
-else
-  BOOT_JAVA_INCLUDES = -I$(BOOT_JAVA_HOME)/include \
-    -I$(BOOT_JAVA_HOME)/include/$(shell uname -s | tr "[:upper:]" "[:lower:]")
-endif
+BOOT_JAVA_INCLUDES = -I$(BOOT_JAVA_HOME)/include \
+  -I$(BOOT_JAVA_HOME)/include/$(shell uname -s | tr "[:upper:]" "[:lower:]")
 
 $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	$(QUIETLY) if [ "$(BOOT_JAVA_HOME)" = "" ]; then \
@@ -116,6 +126,7 @@ $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	fi
 	@echo Making SA debugger back-end...
 	$(QUIETLY) $(CC) -D$(BUILDARCH) -D_GNU_SOURCE                   \
+	           $(SA_SYSROOT_FLAGS)                                  \
 	           $(SYMFLAG) $(SAARCH) $(SHARED_FLAG) $(PICFLAG)       \
 	           -I$(SASRCDIR)                                        \
 	           -I$(GENERATED)                                       \

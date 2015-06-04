@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,16 +46,19 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
  protected:
   // Backing storage.
   G1PageBasedVirtualSpace _storage;
-  size_t _commit_granularity;
+
   size_t _region_granularity;
   // Mapping management
   BitMap _commit_map;
 
-  G1RegionToSpaceMapper(ReservedSpace rs, size_t commit_granularity, size_t region_granularity, MemoryType type);
+  G1RegionToSpaceMapper(ReservedSpace rs, size_t used_size, size_t page_size, size_t region_granularity, MemoryType type);
 
   void fire_on_commit(uint start_idx, size_t num_regions, bool zero_filled);
  public:
   MemRegion reserved() { return _storage.reserved(); }
+
+  size_t reserved_size() { return _storage.reserved_size(); }
+  size_t committed_size() { return _storage.committed_size(); }
 
   void set_mapping_changed_listener(G1MappingChangedListener* listener) { _listener = listener; }
 
@@ -67,16 +70,20 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
     return _commit_map.at(idx);
   }
 
-  virtual void commit_regions(uintptr_t start_idx, size_t num_regions = 1) = 0;
-  virtual void uncommit_regions(uintptr_t start_idx, size_t num_regions = 1) = 0;
+  virtual void commit_regions(uint start_idx, size_t num_regions = 1) = 0;
+  virtual void uncommit_regions(uint start_idx, size_t num_regions = 1) = 0;
 
   // Creates an appropriate G1RegionToSpaceMapper for the given parameters.
+  // The actual space to be used within the given reservation is given by actual_size.
+  // This is because some OSes need to round up the reservation size to guarantee
+  // alignment of page_size.
   // The byte_translation_factor defines how many bytes in a region correspond to
   // a single byte in the data structure this mapper is for.
   // Eg. in the card table, this value corresponds to the size a single card
-  // table entry corresponds to.
+  // table entry corresponds to in the heap.
   static G1RegionToSpaceMapper* create_mapper(ReservedSpace rs,
-                                              size_t os_commit_granularity,
+                                              size_t actual_size,
+                                              size_t page_size,
                                               size_t region_granularity,
                                               size_t byte_translation_factor,
                                               MemoryType type);

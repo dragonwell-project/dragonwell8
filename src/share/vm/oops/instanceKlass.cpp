@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClassesTrace.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
+#include "prims/jvmtiThreadState.hpp"
 #include "prims/methodComparator.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
@@ -110,7 +111,7 @@ HS_DTRACE_PROBE_DECL5(hotspot, class__initialization__end,
       len = name->utf8_length();                                 \
     }                                                            \
     HS_DTRACE_PROBE4(hotspot, class__initialization__##type,     \
-      data, len, SOLARIS_ONLY((void *))(clss)->class_loader(), thread_type);           \
+      data, len, (void *)(clss)->class_loader(), thread_type);           \
   }
 
 #define DTRACE_CLASSINIT_PROBE_WAIT(type, clss, thread_type, wait) \
@@ -123,7 +124,7 @@ HS_DTRACE_PROBE_DECL5(hotspot, class__initialization__end,
       len = name->utf8_length();                                 \
     }                                                            \
     HS_DTRACE_PROBE5(hotspot, class__initialization__##type,     \
-      data, len, SOLARIS_ONLY((void *))(clss)->class_loader(), thread_type, wait);     \
+      data, len, (void *)(clss)->class_loader(), thread_type, wait);     \
   }
 #else /* USDT2 */
 
@@ -928,10 +929,16 @@ void InstanceKlass::initialize_impl(instanceKlassHandle this_oop, TRAPS) {
     // Step 10 and 11
     Handle e(THREAD, PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
+    // JVMTI has already reported the pending exception
+    // JVMTI internal flag reset is needed in order to report ExceptionInInitializerError
+    JvmtiExport::clear_detected_exception((JavaThread*)THREAD);
     {
       EXCEPTION_MARK;
       this_oop->set_initialization_state_and_notify(initialization_error, THREAD);
       CLEAR_PENDING_EXCEPTION;   // ignore any exception thrown, class initialization error is thrown below
+      // JVMTI has already reported the pending exception
+      // JVMTI internal flag reset is needed in order to report ExceptionInInitializerError
+      JvmtiExport::clear_detected_exception((JavaThread*)THREAD);
     }
     DTRACE_CLASSINIT_PROBE_WAIT(error, InstanceKlass::cast(this_oop()), -1,wait);
     if (e->is_a(SystemDictionary::Error_klass())) {
@@ -2798,30 +2805,33 @@ Method* InstanceKlass::method_at_itable(Klass* holder, int index, TRAPS) {
 // not yet in the vtable due to concurrent subclass define and superinterface
 // redefinition
 // Note: those in the vtable, should have been updated via adjust_method_entries
-void InstanceKlass::adjust_default_methods(Method** old_methods, Method** new_methods,
-                                           int methods_length, bool* trace_name_printed) {
+void InstanceKlass::adjust_default_methods(InstanceKlass* holder, bool* trace_name_printed) {
   // search the default_methods for uses of either obsolete or EMCP methods
   if (default_methods() != NULL) {
-    for (int j = 0; j < methods_length; j++) {
-      Method* old_method = old_methods[j];
-      Method* new_method = new_methods[j];
+    for (int index = 0; index < default_methods()->length(); index ++) {
+      Method* old_method = default_methods()->at(index);
+      if (old_method == NULL || old_method->method_holder() != holder || !old_method->is_old()) {
+        continue; // skip uninteresting entries
+      }
+      assert(!old_method->is_deleted(), "default methods may not be deleted");
 
-      for (int index = 0; index < default_methods()->length(); index ++) {
-        if (default_methods()->at(index) == old_method) {
-          default_methods()->at_put(index, new_method);
-          if (RC_TRACE_IN_RANGE(0x00100000, 0x00400000)) {
-            if (!(*trace_name_printed)) {
-              // RC_TRACE_MESG macro has an embedded ResourceMark
-              RC_TRACE_MESG(("adjust: klassname=%s default methods from name=%s",
-                             external_name(),
-                             old_method->method_holder()->external_name()));
-              *trace_name_printed = true;
-            }
-            RC_TRACE(0x00100000, ("default method update: %s(%s) ",
-                                  new_method->name()->as_C_string(),
-                                  new_method->signature()->as_C_string()));
-          }
+      Method* new_method = holder->method_with_idnum(old_method->orig_method_idnum());
+
+      assert(new_method != NULL, "method_with_idnum() should not be NULL");
+      assert(old_method != new_method, "sanity check");
+
+      default_methods()->at_put(index, new_method);
+      if (RC_TRACE_IN_RANGE(0x00100000, 0x00400000)) {
+        if (!(*trace_name_printed)) {
+          // RC_TRACE_MESG macro has an embedded ResourceMark
+          RC_TRACE_MESG(("adjust: klassname=%s default methods from name=%s",
+                         external_name(),
+                         old_method->method_holder()->external_name()));
+          *trace_name_printed = true;
         }
+        RC_TRACE(0x00100000, ("default method update: %s(%s) ",
+                              new_method->name()->as_C_string(),
+                              new_method->signature()->as_C_string()));
       }
     }
   }
@@ -3744,6 +3754,22 @@ bool InstanceKlass::has_previous_version() const {
 } // end has_previous_version()
 
 
+InstanceKlass* InstanceKlass::get_klass_version(int version) {
+  if (constants()->version() == version) {
+    return this;
+  }
+  PreviousVersionWalker pvw(Thread::current(), (InstanceKlass*)this);
+  for (PreviousVersionNode * pv_node = pvw.next_previous_version();
+       pv_node != NULL; pv_node = pvw.next_previous_version()) {
+    ConstantPool* prev_cp = pv_node->prev_constant_pool();
+    if (prev_cp->version() == version) {
+      return prev_cp->pool_holder();
+    }
+  }
+  return NULL; // None found
+}
+
+
 Method* InstanceKlass::method_with_idnum(int idnum) {
   Method* m = NULL;
   if (idnum < methods()->length()) {
@@ -3761,6 +3787,37 @@ Method* InstanceKlass::method_with_idnum(int idnum) {
   }
   return m;
 }
+
+
+Method* InstanceKlass::method_with_orig_idnum(int idnum) {
+  if (idnum >= methods()->length()) {
+    return NULL;
+  }
+  Method* m = methods()->at(idnum);
+  if (m != NULL && m->orig_method_idnum() == idnum) {
+    return m;
+  }
+  // Obsolete method idnum does not match the original idnum
+  for (int index = 0; index < methods()->length(); ++index) {
+    m = methods()->at(index);
+    if (m->orig_method_idnum() == idnum) {
+      return m;
+    }
+  }
+  // None found, return null for the caller to handle.
+  return NULL;
+}
+
+
+Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) {
+  InstanceKlass* holder = get_klass_version(version);
+  if (holder == NULL) {
+    return NULL; // The version of klass is gone, no method is found
+  }
+  Method* method = holder->method_with_orig_idnum(idnum);
+  return method;
+}
+
 
 jint InstanceKlass::get_cached_class_file_len() {
   return VM_RedefineClasses::get_cached_class_file_len(_cached_class_file);

@@ -401,7 +401,7 @@ PSVirtualSpace*
 ParallelCompactData::create_vspace(size_t count, size_t element_size)
 {
   const size_t raw_bytes = count * element_size;
-  const size_t page_sz = os::page_size_for_region(raw_bytes, raw_bytes, 10);
+  const size_t page_sz = os::page_size_for_region_aligned(raw_bytes, 10);
   const size_t granularity = os::vm_allocation_granularity();
   _reserved_byte_size = align_size_up(raw_bytes, MAX2(page_sz, granularity));
 
@@ -2054,7 +2054,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
     gc_task_manager()->task_idle_workers();
     heap->set_par_threads(gc_task_manager()->active_workers());
 
-    gclog_or_tty->date_stamp(PrintGC && PrintGCDateStamps);
     TraceCPUTime tcpu(PrintGCDetails, true, gclog_or_tty);
     GCTraceTime t1(GCCauseString("Full GC", gc_cause), PrintGC, !PrintGCDetails, NULL, _gc_tracer.gc_id());
     TraceCollectorStats tcs(counters());

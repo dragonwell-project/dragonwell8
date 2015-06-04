@@ -114,7 +114,7 @@ void CMBitMapRO::print_on_error(outputStream* st, const char* prefix) const {
 }
 
 size_t CMBitMap::compute_size(size_t heap_size) {
-  return heap_size / mark_distance();
+  return ReservedSpace::allocation_align_size_up(heap_size / mark_distance());
 }
 
 size_t CMBitMap::mark_distance() {
@@ -2640,24 +2640,41 @@ void ConcurrentMark::swapMarkBitMaps() {
   _nextMarkBitMap  = (CMBitMap*)  temp;
 }
 
-class CMObjectClosure;
-
-// Closure for iterating over objects, currently only used for
-// processing SATB buffers.
-class CMObjectClosure : public ObjectClosure {
+// Closure for marking entries in SATB buffers.
+class CMSATBBufferClosure : public SATBBufferClosure {
 private:
   CMTask* _task;
+  G1CollectedHeap* _g1h;
 
-public:
-  void do_object(oop obj) {
-    _task->deal_with_reference(obj);
+  // This is very similar to CMTask::deal_with_reference, but with
+  // more relaxed requirements for the argument, so this must be more
+  // circumspect about treating the argument as an object.
+  void do_entry(void* entry) const {
+    _task->increment_refs_reached();
+    HeapRegion* hr = _g1h->heap_region_containing_raw(entry);
+    if (entry < hr->next_top_at_mark_start()) {
+      // Until we get here, we don't know whether entry refers to a valid
+      // object; it could instead have been a stale reference.
+      oop obj = static_cast<oop>(entry);
+      assert(obj->is_oop(true /* ignore mark word */),
+             err_msg("Invalid oop in SATB buffer: " PTR_FORMAT, p2i(obj)));
+      _task->make_reference_grey(obj, hr);
+    }
   }
 
-  CMObjectClosure(CMTask* task) : _task(task) { }
+public:
+  CMSATBBufferClosure(CMTask* task, G1CollectedHeap* g1h)
+    : _task(task), _g1h(g1h) { }
+
+  virtual void do_buffer(void** buffer, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+      do_entry(buffer[i]);
+    }
+  }
 };
 
 class G1RemarkThreadsClosure : public ThreadClosure {
-  CMObjectClosure _cm_obj;
+  CMSATBBufferClosure _cm_satb_cl;
   G1CMOopClosure _cm_cl;
   MarkingCodeBlobClosure _code_cl;
   int _thread_parity;
@@ -2665,7 +2682,9 @@ class G1RemarkThreadsClosure : public ThreadClosure {
 
  public:
   G1RemarkThreadsClosure(G1CollectedHeap* g1h, CMTask* task, bool is_par) :
-    _cm_obj(task), _cm_cl(g1h, g1h->concurrent_mark(), task), _code_cl(&_cm_cl, !CodeBlobToOopClosure::FixRelocations),
+    _cm_satb_cl(task, g1h),
+    _cm_cl(g1h, g1h->concurrent_mark(), task),
+    _code_cl(&_cm_cl, !CodeBlobToOopClosure::FixRelocations),
     _thread_parity(SharedHeap::heap()->strong_roots_parity()), _is_par(is_par) {}
 
   void do_thread(Thread* thread) {
@@ -2681,11 +2700,11 @@ class G1RemarkThreadsClosure : public ThreadClosure {
         // live by the SATB invariant but other oops recorded in nmethods may behave differently.
         jt->nmethods_do(&_code_cl);
 
-        jt->satb_mark_queue().apply_closure_and_empty(&_cm_obj);
+        jt->satb_mark_queue().apply_closure_and_empty(&_cm_satb_cl);
       }
     } else if (thread->is_VM_thread()) {
       if (thread->claim_oops_do(_is_par, _thread_parity)) {
-        JavaThread::satb_mark_queue_set().shared_satb_queue()->apply_closure_and_empty(&_cm_obj);
+        JavaThread::satb_mark_queue_set().shared_satb_queue()->apply_closure_and_empty(&_cm_satb_cl);
       }
     }
   }
@@ -3059,9 +3078,7 @@ ConcurrentMark::claim_region(uint worker_id) {
 #ifndef PRODUCT
 enum VerifyNoCSetOopsPhase {
   VerifyNoCSetOopsStack,
-  VerifyNoCSetOopsQueues,
-  VerifyNoCSetOopsSATBCompleted,
-  VerifyNoCSetOopsSATBThread
+  VerifyNoCSetOopsQueues
 };
 
 class VerifyNoCSetOopsClosure : public OopClosure, public ObjectClosure  {
@@ -3074,8 +3091,6 @@ private:
     switch (_phase) {
     case VerifyNoCSetOopsStack:         return "Stack";
     case VerifyNoCSetOopsQueues:        return "Queue";
-    case VerifyNoCSetOopsSATBCompleted: return "Completed SATB Buffers";
-    case VerifyNoCSetOopsSATBThread:    return "Thread SATB Buffers";
     default:                            ShouldNotReachHere();
     }
     return NULL;
@@ -3102,7 +3117,7 @@ public:
 
   virtual void do_oop(narrowOop* p) {
     // We should not come across narrow oops while scanning marking
-    // stacks and SATB buffers.
+    // stacks
     ShouldNotReachHere();
   }
 
@@ -3111,10 +3126,7 @@ public:
   }
 };
 
-void ConcurrentMark::verify_no_cset_oops(bool verify_stacks,
-                                         bool verify_enqueued_buffers,
-                                         bool verify_thread_buffers,
-                                         bool verify_fingers) {
+void ConcurrentMark::verify_no_cset_oops() {
   assert(SafepointSynchronize::is_at_safepoint(), "should be at a safepoint");
   if (!G1CollectedHeap::heap()->mark_in_progress()) {
     return;
@@ -3122,65 +3134,47 @@ void ConcurrentMark::verify_no_cset_oops(bool verify_stacks,
 
   VerifyNoCSetOopsClosure cl;
 
-  if (verify_stacks) {
-    // Verify entries on the global mark stack
-    cl.set_phase(VerifyNoCSetOopsStack);
-    _markStack.oops_do(&cl);
+  // Verify entries on the global mark stack
+  cl.set_phase(VerifyNoCSetOopsStack);
+  _markStack.oops_do(&cl);
 
-    // Verify entries on the task queues
-    for (uint i = 0; i < _max_worker_id; i += 1) {
-      cl.set_phase(VerifyNoCSetOopsQueues, i);
-      CMTaskQueue* queue = _task_queues->queue(i);
-      queue->oops_do(&cl);
-    }
+  // Verify entries on the task queues
+  for (uint i = 0; i < _max_worker_id; i += 1) {
+    cl.set_phase(VerifyNoCSetOopsQueues, i);
+    CMTaskQueue* queue = _task_queues->queue(i);
+    queue->oops_do(&cl);
   }
 
-  SATBMarkQueueSet& satb_qs = JavaThread::satb_mark_queue_set();
-
-  // Verify entries on the enqueued SATB buffers
-  if (verify_enqueued_buffers) {
-    cl.set_phase(VerifyNoCSetOopsSATBCompleted);
-    satb_qs.iterate_completed_buffers_read_only(&cl);
+  // Verify the global finger
+  HeapWord* global_finger = finger();
+  if (global_finger != NULL && global_finger < _heap_end) {
+    // The global finger always points to a heap region boundary. We
+    // use heap_region_containing_raw() to get the containing region
+    // given that the global finger could be pointing to a free region
+    // which subsequently becomes continues humongous. If that
+    // happens, heap_region_containing() will return the bottom of the
+    // corresponding starts humongous region and the check below will
+    // not hold any more.
+    // Since we always iterate over all regions, we might get a NULL HeapRegion
+    // here.
+    HeapRegion* global_hr = _g1h->heap_region_containing_raw(global_finger);
+    guarantee(global_hr == NULL || global_finger == global_hr->bottom(),
+              err_msg("global finger: "PTR_FORMAT" region: "HR_FORMAT,
+                      p2i(global_finger), HR_FORMAT_PARAMS(global_hr)));
   }
 
-  // Verify entries on the per-thread SATB buffers
-  if (verify_thread_buffers) {
-    cl.set_phase(VerifyNoCSetOopsSATBThread);
-    satb_qs.iterate_thread_buffers_read_only(&cl);
-  }
-
-  if (verify_fingers) {
-    // Verify the global finger
-    HeapWord* global_finger = finger();
-    if (global_finger != NULL && global_finger < _heap_end) {
-      // The global finger always points to a heap region boundary. We
-      // use heap_region_containing_raw() to get the containing region
-      // given that the global finger could be pointing to a free region
-      // which subsequently becomes continues humongous. If that
-      // happens, heap_region_containing() will return the bottom of the
-      // corresponding starts humongous region and the check below will
-      // not hold any more.
-      // Since we always iterate over all regions, we might get a NULL HeapRegion
-      // here.
-      HeapRegion* global_hr = _g1h->heap_region_containing_raw(global_finger);
-      guarantee(global_hr == NULL || global_finger == global_hr->bottom(),
-                err_msg("global finger: "PTR_FORMAT" region: "HR_FORMAT,
-                        p2i(global_finger), HR_FORMAT_PARAMS(global_hr)));
-    }
-
-    // Verify the task fingers
-    assert(parallel_marking_threads() <= _max_worker_id, "sanity");
-    for (int i = 0; i < (int) parallel_marking_threads(); i += 1) {
-      CMTask* task = _tasks[i];
-      HeapWord* task_finger = task->finger();
-      if (task_finger != NULL && task_finger < _heap_end) {
-        // See above note on the global finger verification.
-        HeapRegion* task_hr = _g1h->heap_region_containing_raw(task_finger);
-        guarantee(task_hr == NULL || task_finger == task_hr->bottom() ||
-                  !task_hr->in_collection_set(),
-                  err_msg("task finger: "PTR_FORMAT" region: "HR_FORMAT,
-                          p2i(task_finger), HR_FORMAT_PARAMS(task_hr)));
-      }
+  // Verify the task fingers
+  assert(parallel_marking_threads() <= _max_worker_id, "sanity");
+  for (int i = 0; i < (int) parallel_marking_threads(); i += 1) {
+    CMTask* task = _tasks[i];
+    HeapWord* task_finger = task->finger();
+    if (task_finger != NULL && task_finger < _heap_end) {
+      // See above note on the global finger verification.
+      HeapRegion* task_hr = _g1h->heap_region_containing_raw(task_finger);
+      guarantee(task_hr == NULL || task_finger == task_hr->bottom() ||
+                !task_hr->in_collection_set(),
+                err_msg("task finger: "PTR_FORMAT" region: "HR_FORMAT,
+                        p2i(task_finger), HR_FORMAT_PARAMS(task_hr)));
     }
   }
 }
@@ -3510,21 +3504,28 @@ void ConcurrentMark::print_finger() {
 }
 #endif
 
-void CMTask::scan_object(oop obj) {
+template<bool scan>
+inline void CMTask::process_grey_object(oop obj) {
+  assert(scan || obj->is_typeArray(), "Skipping scan of grey non-typeArray");
   assert(_nextMarkBitMap->isMarked((HeapWord*) obj), "invariant");
 
   if (_cm->verbose_high()) {
-    gclog_or_tty->print_cr("[%u] we're scanning object "PTR_FORMAT,
+    gclog_or_tty->print_cr("[%u] processing grey object " PTR_FORMAT,
                            _worker_id, p2i((void*) obj));
   }
 
   size_t obj_size = obj->size();
   _words_scanned += obj_size;
 
-  obj->oop_iterate(_cm_oop_closure);
+  if (scan) {
+    obj->oop_iterate(_cm_oop_closure);
+  }
   statsOnly( ++_objs_scanned );
   check_limits();
 }
+
+template void CMTask::process_grey_object<true>(oop);
+template void CMTask::process_grey_object<false>(oop);
 
 // Closure for iteration over bitmaps
 class CMBitMapClosure : public BitMapClosure {
@@ -3994,34 +3995,18 @@ void CMTask::drain_satb_buffers() {
   // very counter productive if it did that. :-)
   _draining_satb_buffers = true;
 
-  CMObjectClosure oc(this);
+  CMSATBBufferClosure satb_cl(this, _g1h);
   SATBMarkQueueSet& satb_mq_set = JavaThread::satb_mark_queue_set();
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    satb_mq_set.set_par_closure(_worker_id, &oc);
-  } else {
-    satb_mq_set.set_closure(&oc);
-  }
 
   // This keeps claiming and applying the closure to completed buffers
   // until we run out of buffers or we need to abort.
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    while (!has_aborted() &&
-           satb_mq_set.par_apply_closure_to_completed_buffer(_worker_id)) {
-      if (_cm->verbose_medium()) {
-        gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
-      }
-      statsOnly( ++_satb_buffers_processed );
-      regular_clock_call();
+  while (!has_aborted() &&
+         satb_mq_set.apply_closure_to_completed_buffer(&satb_cl)) {
+    if (_cm->verbose_medium()) {
+      gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
     }
-  } else {
-    while (!has_aborted() &&
-           satb_mq_set.apply_closure_to_completed_buffer()) {
-      if (_cm->verbose_medium()) {
-        gclog_or_tty->print_cr("[%u] processed an SATB buffer", _worker_id);
-      }
-      statsOnly( ++_satb_buffers_processed );
-      regular_clock_call();
-    }
+    statsOnly( ++_satb_buffers_processed );
+    regular_clock_call();
   }
 
   _draining_satb_buffers = false;
@@ -4029,12 +4014,6 @@ void CMTask::drain_satb_buffers() {
   assert(has_aborted() ||
          concurrent() ||
          satb_mq_set.completed_buffers_num() == 0, "invariant");
-
-  if (G1CollectedHeap::use_parallel_gc_threads()) {
-    satb_mq_set.set_par_closure(_worker_id, NULL);
-  } else {
-    satb_mq_set.set_closure(NULL);
-  }
 
   // again, this was a potentially expensive operation, decrease the
   // limits to get the regular clock call early

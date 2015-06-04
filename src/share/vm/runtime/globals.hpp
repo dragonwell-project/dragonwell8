@@ -1494,7 +1494,7 @@ class CommandLineFlags {
           "How much the GC can expand the eden by while the GC locker "     \
           "is active (as a percentage)")                                    \
                                                                             \
-  diagnostic(intx, GCLockerRetryAllocationCount, 2,                         \
+  diagnostic(uintx, GCLockerRetryAllocationCount, 2,                        \
           "Number of times to retry allocations when "                      \
           "blocked by the GC locker")                                       \
                                                                             \
@@ -2047,9 +2047,6 @@ class CommandLineFlags {
   product(bool, TLABStats, true,                                            \
           "Provide more detailed and expensive TLAB statistics "            \
           "(with PrintTLAB)")                                               \
-                                                                            \
-  EMBEDDED_ONLY(product(bool, LowMemoryProtection, true,                    \
-          "Enable LowMemoryProtection"))                                    \
                                                                             \
   product_pd(bool, NeverActAsServerClassMachine,                            \
           "Never act like a server-class machine")                          \

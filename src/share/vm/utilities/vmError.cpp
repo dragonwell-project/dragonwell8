@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -576,7 +576,7 @@ void VMError::report(outputStream* st) {
 
   STEP(120, "(printing native stack)" )
 
-     if (_verbose) {
+   if (_verbose) {
      if (os::platform_print_native_stack(st, _context, buf, sizeof(buf))) {
        // We have printed the native stack in platform-specific code
        // Windows/x64 needs special handling.
@@ -584,43 +584,7 @@ void VMError::report(outputStream* st) {
        frame fr = _context ? os::fetch_frame_from_context(_context)
                            : os::current_frame();
 
-       // see if it's a valid frame
-       if (fr.pc()) {
-          st->print_cr("Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)");
-
-
-          int count = 0;
-          while (count++ < StackPrintLimit) {
-             fr.print_on_error(st, buf, sizeof(buf));
-             st->cr();
-             // Compiled code may use EBP register on x86 so it looks like
-             // non-walkable C frame. Use frame.sender() for java frames.
-             if (_thread && _thread->is_Java_thread()) {
-               // Catch very first native frame by using stack address.
-               // For JavaThread stack_base and stack_size should be set.
-               if (!_thread->on_local_stack((address)(fr.sender_sp() + 1))) {
-                 break;
-               }
-               if (fr.is_java_frame()) {
-                 RegisterMap map((JavaThread*)_thread, false); // No update
-                 fr = fr.sender(&map);
-               } else {
-                 fr = os::get_sender_for_C_frame(&fr);
-               }
-             } else {
-               // is_first_C_frame() does only simple checks for frame pointer,
-               // it will pass if java compiled code has a pointer in EBP.
-               if (os::is_first_C_frame(&fr)) break;
-               fr = os::get_sender_for_C_frame(&fr);
-             }
-          }
-
-          if (count > StackPrintLimit) {
-             st->print_cr("...<more frames>...");
-          }
-
-          st->cr();
-       }
+       print_native_stack(st, fr, _thread, buf, sizeof(buf));
      }
    }
 
@@ -1049,7 +1013,9 @@ void VMError::report_and_die() {
       out.print_raw   (cmd);
       out.print_raw_cr("\" ...");
 
-      os::fork_and_exec(cmd);
+      if (os::fork_and_exec(cmd) < 0) {
+        out.print_cr("os::fork_and_exec failed: %s (%d)", strerror(errno), errno);
+      }
     }
 
     // done with OnError
@@ -1134,7 +1100,9 @@ void VM_ReportJavaOutOfMemory::doit() {
 #endif
     tty->print_cr("\"%s\"...", cmd);
 
-    os::fork_and_exec(cmd);
+    if (os::fork_and_exec(cmd) < 0) {
+      tty->print_cr("os::fork_and_exec failed: %s (%d)", strerror(errno), errno);
+    }
   }
 }
 

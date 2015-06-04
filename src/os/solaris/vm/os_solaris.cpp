@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2696,29 +2696,30 @@ void os::pd_commit_memory_or_exit(char* addr, size_t bytes, bool exec,
   }
 }
 
+size_t os::Solaris::page_size_for_alignment(size_t alignment) {
+  assert(is_size_aligned(alignment, (size_t) vm_page_size()),
+         err_msg(SIZE_FORMAT " is not aligned to " SIZE_FORMAT,
+                 alignment, (size_t) vm_page_size()));
+
+  for (int i = 0; _page_sizes[i] != 0; i++) {
+    if (is_size_aligned(alignment, _page_sizes[i])) {
+      return _page_sizes[i];
+    }
+  }
+
+  return (size_t) vm_page_size();
+}
+
 int os::Solaris::commit_memory_impl(char* addr, size_t bytes,
                                     size_t alignment_hint, bool exec) {
   int err = Solaris::commit_memory_impl(addr, bytes, exec);
-  if (err == 0) {
-    if (UseLargePages && (alignment_hint > (size_t)vm_page_size())) {
-      // If the large page size has been set and the VM
-      // is using large pages, use the large page size
-      // if it is smaller than the alignment hint. This is
-      // a case where the VM wants to use a larger alignment size
-      // for its own reasons but still want to use large pages
-      // (which is what matters to setting the mpss range.
-      size_t page_size = 0;
-      if (large_page_size() < alignment_hint) {
-        assert(UseLargePages, "Expected to be here for large page use only");
-        page_size = large_page_size();
-      } else {
-        // If the alignment hint is less than the large page
-        // size, the VM wants a particular alignment (thus the hint)
-        // for internal reasons.  Try to set the mpss range using
-        // the alignment_hint.
-        page_size = alignment_hint;
-      }
-      // Since this is a hint, ignore any failures.
+  if (err == 0 && UseLargePages && alignment_hint > 0) {
+    assert(is_size_aligned(bytes, alignment_hint),
+           err_msg(SIZE_FORMAT " is not aligned to " SIZE_FORMAT, bytes, alignment_hint));
+
+    // The syscall memcntl requires an exact page size (see man memcntl for details).
+    size_t page_size = page_size_for_alignment(alignment_hint);
+    if (page_size > (size_t) vm_page_size()) {
       (void)Solaris::setup_large_pages(addr, bytes, page_size);
     }
   }
@@ -3251,7 +3252,22 @@ void os::large_page_init() {
   }
 }
 
+bool os::Solaris::is_valid_page_size(size_t bytes) {
+  for (int i = 0; _page_sizes[i] != 0; i++) {
+    if (_page_sizes[i] == bytes) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool os::Solaris::setup_large_pages(caddr_t start, size_t bytes, size_t align) {
+  assert(is_valid_page_size(align), err_msg(SIZE_FORMAT " is not a valid page size", align));
+  assert(is_ptr_aligned((void*) start, align),
+         err_msg(PTR_FORMAT " is not aligned to " SIZE_FORMAT, p2i((void*) start), align));
+  assert(is_size_aligned(bytes, align),
+         err_msg(SIZE_FORMAT " is not aligned to " SIZE_FORMAT, bytes, align));
+
   // Signal to OS that we want large pages for addresses
   // from addr, addr + bytes
   struct memcntl_mha mpss_struct;
@@ -4577,6 +4593,11 @@ void os::Solaris::check_signal_handler(int sig) {
     tty->print_cr("  found:%s", get_signal_handler_name(thisHandler, buf, O_BUFLEN));
     // No need to check this sig any longer
     sigaddset(&check_signal_done, sig);
+    // Running under non-interactive shell, SHUTDOWN2_SIGNAL will be reassigned SIG_IGN
+    if (sig == SHUTDOWN2_SIGNAL && !isatty(fileno(stdin))) {
+      tty->print_cr("Running in non-interactive shell, %s handler is replaced by shell",
+                    exception_name(sig, buf, O_BUFLEN));
+    }
   } else if(os::Solaris::get_our_sigflags(sig) != 0 && act.sa_flags != os::Solaris::get_our_sigflags(sig)) {
     tty->print("Warning: %s handler flags ", exception_name(sig, buf, O_BUFLEN));
     tty->print("expected:" PTR32_FORMAT, os::Solaris::get_our_sigflags(sig));
@@ -5192,10 +5213,6 @@ jint os::init_2(void) {
   init_pset_getloadavg_ptr();
 
   return JNI_OK;
-}
-
-void os::init_3(void) {
-  return;
 }
 
 // Mark the polling page as unreadable
