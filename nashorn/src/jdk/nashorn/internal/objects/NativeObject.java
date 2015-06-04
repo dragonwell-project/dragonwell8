@@ -499,7 +499,7 @@ public final class NativeObject {
         final Object obj = JSType.toScriptObject(self);
         if (obj instanceof ScriptObject) {
             final InvokeByName toStringInvoker = getTO_STRING();
-            final ScriptObject sobj = (ScriptObject)self;
+            final ScriptObject sobj = (ScriptObject)obj;
             try {
                 final Object toString = toStringInvoker.getGetter().invokeExact(sobj);
 
@@ -765,7 +765,7 @@ public final class NativeObject {
                 continue;
             }
             properties.add(AccessorProperty.create(methodName, Property.NOT_WRITABLE, getBoundBeanMethodGetter(source,
-                    method), null));
+                    method), Lookup.EMPTY_SETTER));
         }
         for(final String propertyName: propertyNames) {
             MethodHandle getter;

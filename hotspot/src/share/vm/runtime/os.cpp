@@ -1315,29 +1315,30 @@ bool os::stack_shadow_pages_available(Thread *thread, methodHandle method) {
   return (sp > (stack_limit + reserved_area));
 }
 
-size_t os::page_size_for_region(size_t region_min_size, size_t region_max_size,
-                                uint min_pages)
-{
+size_t os::page_size_for_region(size_t region_size, size_t min_pages, bool must_be_aligned) {
   assert(min_pages > 0, "sanity");
   if (UseLargePages) {
-    const size_t max_page_size = region_max_size / min_pages;
+    const size_t max_page_size = region_size / min_pages;
 
-    for (unsigned int i = 0; _page_sizes[i] != 0; ++i) {
-      const size_t sz = _page_sizes[i];
-      const size_t mask = sz - 1;
-      if ((region_min_size & mask) == 0 && (region_max_size & mask) == 0) {
-        // The largest page size with no fragmentation.
-        return sz;
-      }
-
-      if (sz <= max_page_size) {
-        // The largest page size that satisfies the min_pages requirement.
-        return sz;
+    for (size_t i = 0; _page_sizes[i] != 0; ++i) {
+      const size_t page_size = _page_sizes[i];
+      if (page_size <= max_page_size) {
+        if (!must_be_aligned || is_size_aligned(region_size, page_size)) {
+          return page_size;
+        }
       }
     }
   }
 
   return vm_page_size();
+}
+
+size_t os::page_size_for_region_aligned(size_t region_size, size_t min_pages) {
+  return page_size_for_region(region_size, min_pages, true);
+}
+
+size_t os::page_size_for_region_unaligned(size_t region_size, size_t min_pages) {
+  return page_size_for_region(region_size, min_pages, false);
 }
 
 #ifndef PRODUCT
@@ -1513,6 +1514,11 @@ bool os::release_memory(char* addr, size_t bytes) {
   return res;
 }
 
+void os::pretouch_memory(char* start, char* end) {
+  for (volatile char *p = start; p < end; p += os::vm_page_size()) {
+    *p = 0;
+  }
+}
 
 char* os::map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only,
@@ -1569,3 +1575,95 @@ os::SuspendResume::State os::SuspendResume::switch_state(os::SuspendResume::Stat
   return result;
 }
 #endif
+
+/////////////// Unit tests ///////////////
+
+#ifndef PRODUCT
+
+#define assert_eq(a,b) assert(a == b, err_msg(SIZE_FORMAT " != " SIZE_FORMAT, a, b))
+
+class TestOS : AllStatic {
+  static size_t small_page_size() {
+    return os::vm_page_size();
+  }
+
+  static size_t large_page_size() {
+    const size_t large_page_size_example = 4 * M;
+    return os::page_size_for_region_aligned(large_page_size_example, 1);
+  }
+
+  static void test_page_size_for_region_aligned() {
+    if (UseLargePages) {
+      const size_t small_page = small_page_size();
+      const size_t large_page = large_page_size();
+
+      if (large_page > small_page) {
+        size_t num_small_pages_in_large = large_page / small_page;
+        size_t page = os::page_size_for_region_aligned(large_page, num_small_pages_in_large);
+
+        assert_eq(page, small_page);
+      }
+    }
+  }
+
+  static void test_page_size_for_region_alignment() {
+    if (UseLargePages) {
+      const size_t small_page = small_page_size();
+      const size_t large_page = large_page_size();
+      if (large_page > small_page) {
+        const size_t unaligned_region = large_page + 17;
+        size_t page = os::page_size_for_region_aligned(unaligned_region, 1);
+        assert_eq(page, small_page);
+
+        const size_t num_pages = 5;
+        const size_t aligned_region = large_page * num_pages;
+        page = os::page_size_for_region_aligned(aligned_region, num_pages);
+        assert_eq(page, large_page);
+      }
+    }
+  }
+
+  static void test_page_size_for_region_unaligned() {
+    if (UseLargePages) {
+      // Given exact page size, should return that page size.
+      for (size_t i = 0; os::_page_sizes[i] != 0; i++) {
+        size_t expected = os::_page_sizes[i];
+        size_t actual = os::page_size_for_region_unaligned(expected, 1);
+        assert_eq(expected, actual);
+      }
+
+      // Given slightly larger size than a page size, return the page size.
+      for (size_t i = 0; os::_page_sizes[i] != 0; i++) {
+        size_t expected = os::_page_sizes[i];
+        size_t actual = os::page_size_for_region_unaligned(expected + 17, 1);
+        assert_eq(expected, actual);
+      }
+
+      // Given a slightly smaller size than a page size,
+      // return the next smaller page size.
+      if (os::_page_sizes[1] > os::_page_sizes[0]) {
+        size_t expected = os::_page_sizes[0];
+        size_t actual = os::page_size_for_region_unaligned(os::_page_sizes[1] - 17, 1);
+        assert_eq(actual, expected);
+      }
+
+      // Return small page size for values less than a small page.
+      size_t small_page = small_page_size();
+      size_t actual = os::page_size_for_region_unaligned(small_page - 17, 1);
+      assert_eq(small_page, actual);
+    }
+  }
+
+ public:
+  static void run_tests() {
+    test_page_size_for_region_aligned();
+    test_page_size_for_region_alignment();
+    test_page_size_for_region_unaligned();
+  }
+};
+
+void TestOS_test() {
+  TestOS::run_tests();
+}
+
+#endif // PRODUCT

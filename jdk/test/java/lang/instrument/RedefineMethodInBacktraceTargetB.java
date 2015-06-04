@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,18 @@
  */
 public class RedefineMethodInBacktraceTargetB {
     public static void methodToRedefine() {
+        try {
+            // signal that we are here
+            RedefineMethodInBacktraceApp.called.countDown();
+
+            // wait until test is done
+            RedefineMethodInBacktraceApp.stop.await();
+        } catch (InterruptedException ex) {
+            // ignore, test will fail
+        }
+    }
+
+    public static void callMethodToDelete() {
         try {
             // signal that we are here
             RedefineMethodInBacktraceApp.called.countDown();

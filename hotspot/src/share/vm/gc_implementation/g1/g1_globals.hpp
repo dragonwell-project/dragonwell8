@@ -217,14 +217,6 @@
   product(uintx, G1HeapRegionSize, 0,                                       \
           "Size of the G1 regions.")                                        \
                                                                             \
-  experimental(bool, G1UseParallelRSetUpdating, true,                       \
-          "Enables the parallelization of remembered set updating "         \
-          "during evacuation pauses")                                       \
-                                                                            \
-  experimental(bool, G1UseParallelRSetScanning, true,                       \
-          "Enables the parallelization of remembered set scanning "         \
-          "during evacuation pauses")                                       \
-                                                                            \
   product(uintx, G1ConcRefinementThreads, 0,                                \
           "If non-0 is the number of parallel rem set update threads, "     \
           "otherwise the value is determined ergonomically.")               \
@@ -282,10 +274,14 @@
   product(uintx, G1MixedGCCountTarget, 8,                                   \
           "The target number of mixed GCs after a marking cycle.")          \
                                                                             \
-  experimental(bool, G1ReclaimDeadHumongousObjectsAtYoungGC, true,          \
+  experimental(bool, G1EagerReclaimHumongousObjects, true,                  \
           "Try to reclaim dead large objects at every young GC.")           \
                                                                             \
-  experimental(bool, G1TraceReclaimDeadHumongousObjectsAtYoungGC, false,    \
+  experimental(bool, G1EagerReclaimHumongousObjectsWithStaleRefs, true,     \
+          "Try to reclaim dead large objects that have a few stale "        \
+          "references at every young GC.")                                  \
+                                                                            \
+  experimental(bool, G1TraceEagerReclaimHumongousObjects, false,            \
           "Print some information about large object liveness "             \
           "at every young GC.")                                             \
                                                                             \

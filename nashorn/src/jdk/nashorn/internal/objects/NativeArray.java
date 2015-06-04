@@ -120,9 +120,6 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         this(ArrayData.allocate(array.length));
 
         ArrayData arrayData = this.getArray();
-        if (array.length > 0) {
-            arrayData.ensure(array.length - 1);
-        }
 
         for (int index = 0; index < array.length; index++) {
             final Object value = array[index];
@@ -275,7 +272,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         final PropertyDescriptor newLenDesc = desc;
 
         // Step 3c and 3d - get new length and convert to long
-        final long newLen = NativeArray.validLength(newLenDesc.getValue(), true);
+        final long newLen = NativeArray.validLength(newLenDesc.getValue());
 
         // Step 3e
         newLenDesc.setValue(newLen);
@@ -348,8 +345,8 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         final PropertyDescriptor oldLenDesc = (PropertyDescriptor) super.getOwnPropertyDescriptor("length");
 
         // Step 2
-        // get old length and convert to long
-        final long oldLen = NativeArray.validLength(oldLenDesc.getValue(), true);
+        // get old length and convert to long. Always a Long/Uint32 but we take the safe road.
+        final long oldLen = JSType.toUint32(oldLenDesc.getValue());
 
         // Step 3
         if ("length".equals(key)) {
@@ -471,7 +468,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
     @Setter(attributes = Attribute.NOT_ENUMERABLE | Attribute.NOT_CONFIGURABLE)
     public static void length(final Object self, final Object length) {
         if (isArray(self)) {
-            ((ScriptObject)self).setLength(validLength(length, true));
+            ((ScriptObject)self).setLength(validLength(length));
         }
     }
 
@@ -495,18 +492,13 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         length(self, length);  // Same as instance setter but we can't make nasgen use the same method for prototype
     }
 
-    static long validLength(final Object length, final boolean reject) {
+    static long validLength(final Object length) {
+        // ES5 15.4.5.1, steps 3.c and 3.d require two ToNumber conversions here
         final double doubleLength = JSType.toNumber(length);
-        if (!Double.isNaN(doubleLength) && JSType.isRepresentableAsLong(doubleLength)) {
-            final long len = (long) doubleLength;
-            if (len >= 0 && len <= JSType.MAX_UINT) {
-                return len;
-            }
-        }
-        if (reject) {
+        if (doubleLength != JSType.toUint32(length)) {
             throw rangeError("inappropriate.array.length", ScriptRuntime.safeToString(length));
         }
-        return -1;
+        return (long) doubleLength;
     }
 
     /**
@@ -1236,31 +1228,41 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
         final List<Object> list = Arrays.asList(array);
         final Object cmpThis = cmp == null || cmp.isStrict() ? ScriptRuntime.UNDEFINED : Global.instance();
 
-        Collections.sort(list, new Comparator<Object>() {
-            private final MethodHandle call_cmp = getCALL_CMP();
-            @Override
-            public int compare(final Object x, final Object y) {
-                if (x == ScriptRuntime.UNDEFINED && y == ScriptRuntime.UNDEFINED) {
-                    return 0;
-                } else if (x == ScriptRuntime.UNDEFINED) {
-                    return 1;
-                } else if (y == ScriptRuntime.UNDEFINED) {
-                    return -1;
-                }
-
-                if (cmp != null) {
-                    try {
-                        return (int)Math.signum((double)call_cmp.invokeExact(cmp, cmpThis, x, y));
-                    } catch (final RuntimeException | Error e) {
-                        throw e;
-                    } catch (final Throwable t) {
-                        throw new RuntimeException(t);
+        try {
+            Collections.sort(list, new Comparator<Object>() {
+                private final MethodHandle call_cmp = getCALL_CMP();
+                @Override
+                public int compare(final Object x, final Object y) {
+                    if (x == ScriptRuntime.UNDEFINED && y == ScriptRuntime.UNDEFINED) {
+                        return 0;
+                    } else if (x == ScriptRuntime.UNDEFINED) {
+                        return 1;
+                    } else if (y == ScriptRuntime.UNDEFINED) {
+                        return -1;
                     }
-                }
 
-                return JSType.toString(x).compareTo(JSType.toString(y));
-            }
-        });
+                    if (cmp != null) {
+                        try {
+                            return (int)Math.signum((double)call_cmp.invokeExact(cmp, cmpThis, x, y));
+                        } catch (final RuntimeException | Error e) {
+                            throw e;
+                        } catch (final Throwable t) {
+                            throw new RuntimeException(t);
+                        }
+                    }
+
+                    return JSType.toString(x).compareTo(JSType.toString(y));
+                }
+            });
+        } catch (final IllegalArgumentException iae) {
+            // Collections.sort throws IllegalArgumentException when
+            // Comparison method violates its general contract
+
+            // See ECMA spec 15.4.4.11 Array.prototype.sort (comparefn).
+            // If "comparefn" is not undefined and is not a consistent
+            // comparison function for the elements of this array, the
+            // behaviour of sort is implementation-defined.
+        }
 
         return list.toArray(new Object[array.length]);
     }

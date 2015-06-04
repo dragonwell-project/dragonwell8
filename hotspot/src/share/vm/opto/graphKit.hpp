@@ -516,21 +516,24 @@ class GraphKit : public Phase {
   // adapted the `do_put_xxx' and `do_get_xxx' procedures for the case
   // of volatile fields.
   Node* make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
-                  MemNode::MemOrd mo, bool require_atomic_access = false) {
+                  MemNode::MemOrd mo, LoadNode::ControlDependency control_dependency = LoadNode::DependsOnlyOnTest,
+                  bool require_atomic_access = false) {
     // This version computes alias_index from bottom_type
     return make_load(ctl, adr, t, bt, adr->bottom_type()->is_ptr(),
-                     mo, require_atomic_access);
+                     mo, control_dependency, require_atomic_access);
   }
   Node* make_load(Node* ctl, Node* adr, const Type* t, BasicType bt, const TypePtr* adr_type,
-                  MemNode::MemOrd mo, bool require_atomic_access = false) {
+                  MemNode::MemOrd mo, LoadNode::ControlDependency control_dependency = LoadNode::DependsOnlyOnTest,
+                  bool require_atomic_access = false) {
     // This version computes alias_index from an address type
     assert(adr_type != NULL, "use other make_load factory");
     return make_load(ctl, adr, t, bt, C->get_alias_index(adr_type),
-                     mo, require_atomic_access);
+                     mo, control_dependency, require_atomic_access);
   }
   // This is the base version which is given an alias index.
   Node* make_load(Node* ctl, Node* adr, const Type* t, BasicType bt, int adr_idx,
-                  MemNode::MemOrd mo, bool require_atomic_access = false);
+                  MemNode::MemOrd mo, LoadNode::ControlDependency control_dependency = LoadNode::DependsOnlyOnTest,
+                  bool require_atomic_access = false);
 
   // Create & transform a StoreNode and store the effect into the
   // parser's memory state.
@@ -706,6 +709,15 @@ class GraphKit : public Phase {
                      bool must_throw = false, bool keep_exact_action = false) {
     uncommon_trap(Deoptimization::make_trap_request(reason, action),
                   klass, reason_string, must_throw, keep_exact_action);
+  }
+
+  // Bail out to the interpreter and keep exact action (avoid switching to Action_none).
+  void uncommon_trap_exact(Deoptimization::DeoptReason reason,
+                           Deoptimization::DeoptAction action,
+                           ciKlass* klass = NULL, const char* reason_string = NULL,
+                           bool must_throw = false) {
+    uncommon_trap(Deoptimization::make_trap_request(reason, action),
+                  klass, reason_string, must_throw, /*keep_exact_action=*/true);
   }
 
   // SP when bytecode needs to be reexecuted.
