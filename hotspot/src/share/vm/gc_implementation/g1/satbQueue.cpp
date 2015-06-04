@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,36 +29,74 @@
 #include "memory/sharedHeap.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
 void ObjPtrQueue::flush() {
-  // The buffer might contain refs into the CSet. We have to filter it
-  // first before we flush it, otherwise we might end up with an
-  // enqueued buffer with refs into the CSet which breaks our invariants.
+  // Filter now to possibly save work later.  If filtering empties the
+  // buffer then flush_impl can deallocate the buffer.
   filter();
   flush_impl();
 }
 
-// This method removes entries from an SATB buffer that will not be
-// useful to the concurrent marking threads. An entry is removed if it
-// satisfies one of the following conditions:
+// Return true if a SATB buffer entry refers to an object that
+// requires marking.
 //
-// * it points to an object outside the G1 heap (G1's concurrent
-//     marking only visits objects inside the G1 heap),
-// * it points to an object that has been allocated since marking
-//     started (according to SATB those objects do not need to be
-//     visited during marking), or
-// * it points to an object that has already been marked (no need to
-//     process it again).
+// The entry must point into the G1 heap.  In particular, it must not
+// be a NULL pointer.  NULL pointers are pre-filtered and never
+// inserted into a SATB buffer.
 //
-// The rest of the entries will be retained and are compacted towards
-// the top of the buffer. Note that, because we do not allow old
-// regions in the CSet during marking, all objects on the CSet regions
-// are young (eden or survivors) and therefore implicitly live. So any
-// references into the CSet will be removed during filtering.
+// An entry that is below the NTAMS pointer for the containing heap
+// region requires marking. Such an entry must point to a valid object.
+//
+// An entry that is at least the NTAMS pointer for the containing heap
+// region might be any of the following, none of which should be marked.
+//
+// * A reference to an object allocated since marking started.
+//   According to SATB, such objects are implicitly kept live and do
+//   not need to be dealt with via SATB buffer processing.
+//
+// * A reference to a young generation object. Young objects are
+//   handled separately and are not marked by concurrent marking.
+//
+// * A stale reference to a young generation object. If a young
+//   generation object reference is recorded and not filtered out
+//   before being moved by a young collection, the reference becomes
+//   stale.
+//
+// * A stale reference to an eagerly reclaimed humongous object.  If a
+//   humongous object is recorded and then reclaimed, the reference
+//   becomes stale.
+//
+// The stale reference cases are implicitly handled by the NTAMS
+// comparison. Because of the possibility of stale references, buffer
+// processing must be somewhat circumspect and not assume entries
+// in an unfiltered buffer refer to valid objects.
+
+inline bool requires_marking(const void* entry, G1CollectedHeap* heap) {
+  // Includes rejection of NULL pointers.
+  assert(heap->is_in_reserved(entry),
+         err_msg("Non-heap pointer in SATB buffer: " PTR_FORMAT, p2i(entry)));
+
+  HeapRegion* region = heap->heap_region_containing_raw(entry);
+  assert(region != NULL, err_msg("No region for " PTR_FORMAT, p2i(entry)));
+  if (entry >= region->next_top_at_mark_start()) {
+    return false;
+  }
+
+  assert(((oop)entry)->is_oop(true /* ignore mark word */),
+         err_msg("Invalid oop in SATB buffer: " PTR_FORMAT, p2i(entry)));
+
+  return true;
+}
+
+// This method removes entries from a SATB buffer that will not be
+// useful to the concurrent marking threads.  Entries are retained if
+// they require marking and are not already marked. Retained entries
+// are compacted toward the top of the buffer.
 
 void ObjPtrQueue::filter() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
@@ -80,26 +118,25 @@ void ObjPtrQueue::filter() {
     assert(i > 0, "we should have at least one more entry to process");
     i -= oopSize;
     debug_only(entries += 1;)
-    oop* p = (oop*) &buf[byte_index_to_index((int) i)];
-    oop obj = *p;
+    void** p = &buf[byte_index_to_index((int) i)];
+    void* entry = *p;
     // NULL the entry so that unused parts of the buffer contain NULLs
     // at the end. If we are going to retain it we will copy it to its
     // final place. If we have retained all entries we have visited so
     // far, we'll just end up copying it to the same place.
     *p = NULL;
 
-    bool retain = g1h->is_obj_ill(obj);
-    if (retain) {
+    if (requires_marking(entry, g1h) && !g1h->isMarkedNext((oop)entry)) {
       assert(new_index > 0, "we should not have already filled up the buffer");
       new_index -= oopSize;
       assert(new_index >= i,
              "new_index should never be below i, as we alwaysr compact 'up'");
-      oop* new_p = (oop*) &buf[byte_index_to_index((int) new_index)];
+      void** new_p = &buf[byte_index_to_index((int) new_index)];
       assert(new_p >= p, "the destination location should never be below "
              "the source as we always compact 'up'");
       assert(*new_p == NULL,
              "we should have already cleared the destination location");
-      *new_p = obj;
+      *new_p = entry;
       debug_only(retained += 1;)
     }
   }
@@ -126,10 +163,7 @@ bool ObjPtrQueue::should_enqueue_buffer() {
   assert(_lock == NULL || _lock->owned_by_self(),
          "we should have taken the lock before calling this");
 
-  // Even if G1SATBBufferEnqueueingThresholdPercent == 0 we have to
-  // filter the buffer given that this will remove any references into
-  // the CSet as we currently assume that no such refs will appear in
-  // enqueued buffers.
+  // If G1SATBBufferEnqueueingThresholdPercent == 0 we could skip filtering.
 
   // This method should only be called if there is a non-NULL buffer
   // that is full.
@@ -146,28 +180,16 @@ bool ObjPtrQueue::should_enqueue_buffer() {
   return should_enqueue;
 }
 
-void ObjPtrQueue::apply_closure(ObjectClosure* cl) {
+void ObjPtrQueue::apply_closure_and_empty(SATBBufferClosure* cl) {
+  assert(SafepointSynchronize::is_at_safepoint(),
+         "SATB queues must only be processed at safepoints");
   if (_buf != NULL) {
-    apply_closure_to_buffer(cl, _buf, _index, _sz);
-  }
-}
-
-void ObjPtrQueue::apply_closure_and_empty(ObjectClosure* cl) {
-  if (_buf != NULL) {
-    apply_closure_to_buffer(cl, _buf, _index, _sz);
+    assert(_index % sizeof(void*) == 0, "invariant");
+    assert(_sz % sizeof(void*) == 0, "invariant");
+    assert(_index <= _sz, "invariant");
+    cl->do_buffer(_buf + byte_index_to_index((int)_index),
+                  byte_index_to_index((int)(_sz - _index)));
     _index = _sz;
-  }
-}
-
-void ObjPtrQueue::apply_closure_to_buffer(ObjectClosure* cl,
-                                          void** buf, size_t index, size_t sz) {
-  if (cl == NULL) return;
-  for (size_t i = index; i < sz; i += oopSize) {
-    oop obj = (oop)buf[byte_index_to_index((int)i)];
-    // There can be NULL entries because of destructors.
-    if (obj != NULL) {
-      cl->do_object(obj);
-    }
   }
 }
 
@@ -186,23 +208,12 @@ void ObjPtrQueue::print(const char* name,
 }
 #endif // PRODUCT
 
-#ifdef ASSERT
-void ObjPtrQueue::verify_oops_in_buffer() {
-  if (_buf == NULL) return;
-  for (size_t i = _index; i < _sz; i += oopSize) {
-    oop obj = (oop)_buf[byte_index_to_index((int)i)];
-    assert(obj != NULL && obj->is_oop(true /* ignore mark word */),
-           "Not an oop");
-  }
-}
-#endif
-
 #ifdef _MSC_VER // the use of 'this' below gets a warning, make it go away
 #pragma warning( disable:4355 ) // 'this' : used in base member initializer list
 #endif // _MSC_VER
 
 SATBMarkQueueSet::SATBMarkQueueSet() :
-  PtrQueueSet(), _closure(NULL), _par_closures(NULL),
+  PtrQueueSet(),
   _shared_satb_queue(this, true /*perm*/) { }
 
 void SATBMarkQueueSet::initialize(Monitor* cbl_mon, Mutex* fl_lock,
@@ -210,13 +221,9 @@ void SATBMarkQueueSet::initialize(Monitor* cbl_mon, Mutex* fl_lock,
                                   Mutex* lock) {
   PtrQueueSet::initialize(cbl_mon, fl_lock, process_completed_threshold, -1);
   _shared_satb_queue.set_lock(lock);
-  if (ParallelGCThreads > 0) {
-    _par_closures = NEW_C_HEAP_ARRAY(ObjectClosure*, ParallelGCThreads, mtGC);
-  }
 }
 
 void SATBMarkQueueSet::handle_zero_index_for_thread(JavaThread* t) {
-  DEBUG_ONLY(t->satb_mark_queue().verify_oops_in_buffer();)
   t->satb_mark_queue().handle_zero_index();
 }
 
@@ -276,17 +283,7 @@ void SATBMarkQueueSet::filter_thread_buffers() {
   shared_satb_queue()->filter();
 }
 
-void SATBMarkQueueSet::set_closure(ObjectClosure* closure) {
-  _closure = closure;
-}
-
-void SATBMarkQueueSet::set_par_closure(int i, ObjectClosure* par_closure) {
-  assert(ParallelGCThreads > 0 && _par_closures != NULL, "Precondition");
-  _par_closures[i] = par_closure;
-}
-
-bool SATBMarkQueueSet::apply_closure_to_completed_buffer_work(bool par,
-                                                              uint worker) {
+bool SATBMarkQueueSet::apply_closure_to_completed_buffer(SATBBufferClosure* cl) {
   BufferNode* nd = NULL;
   {
     MutexLockerEx x(_cbl_mon, Mutex::_no_safepoint_check_flag);
@@ -298,37 +295,25 @@ bool SATBMarkQueueSet::apply_closure_to_completed_buffer_work(bool par,
       if (_n_completed_buffers == 0) _process_completed = false;
     }
   }
-  ObjectClosure* cl = (par ? _par_closures[worker] : _closure);
   if (nd != NULL) {
     void **buf = BufferNode::make_buffer_from_node(nd);
-    ObjPtrQueue::apply_closure_to_buffer(cl, buf, 0, _sz);
+    // Skip over NULL entries at beginning (e.g. push end) of buffer.
+    // Filtering can result in non-full completed buffers; see
+    // should_enqueue_buffer.
+    assert(_sz % sizeof(void*) == 0, "invariant");
+    size_t limit = ObjPtrQueue::byte_index_to_index((int)_sz);
+    for (size_t i = 0; i < limit; ++i) {
+      if (buf[i] != NULL) {
+        // Found the end of the block of NULLs; process the remainder.
+        cl->do_buffer(buf + i, limit - i);
+        break;
+      }
+    }
     deallocate_buffer(buf);
     return true;
   } else {
     return false;
   }
-}
-
-void SATBMarkQueueSet::iterate_completed_buffers_read_only(ObjectClosure* cl) {
-  assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint.");
-  assert(cl != NULL, "pre-condition");
-
-  BufferNode* nd = _completed_buffers_head;
-  while (nd != NULL) {
-    void** buf = BufferNode::make_buffer_from_node(nd);
-    ObjPtrQueue::apply_closure_to_buffer(cl, buf, 0, _sz);
-    nd = nd->next();
-  }
-}
-
-void SATBMarkQueueSet::iterate_thread_buffers_read_only(ObjectClosure* cl) {
-  assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint.");
-  assert(cl != NULL, "pre-condition");
-
-  for (JavaThread* t = Threads::first(); t; t = t->next()) {
-    t->satb_mark_queue().apply_closure(cl);
-  }
-  shared_satb_queue()->apply_closure(cl);
 }
 
 #ifndef PRODUCT

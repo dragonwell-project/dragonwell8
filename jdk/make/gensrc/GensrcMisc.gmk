@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -174,11 +174,10 @@ endif
 
 ##########################################################################################
 
-ifndef OPENJDK
   ifeq ($(OPENJDK_TARGET_OS), windows)
 
     AB_GENSRC_DIR := $(JDK_OUTPUTDIR)/gensrc_ab
-    AB_SRC_DIR := $(JDK_TOPDIR)/src/closed/windows/classes/com/sun/java/accessibility
+  AB_SRC_DIR := $(JDK_TOPDIR)/src/windows/classes/com/sun/java/accessibility
 
     ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
       $(AB_GENSRC_DIR)/32bit/com/sun/java/accessibility/AccessBridgeLoader.java: \
@@ -216,6 +215,5 @@ ifndef OPENJDK
 
     endif
   endif
-endif
 
 ##########################################################################################

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -350,6 +350,12 @@ Declares a structure type that can be used in other events.
     <event id="GCPhasePauseLevel3" path="vm/gc/phases/pause_level_3" label="GC Phase Pause Level 3">
       <value type="UINT" field="gcId" label="GC ID" relation="GC_ID"/>
       <value type="UTF8" field="name" label="Name" />
+    </event>
+
+    <event id="AllocationRequiringGC" path="vm/gc/detailed/allocation_requiring_gc" label="Allocation Requiring GC"
+           has_thread="true" has_stacktrace="true"  is_instant="true">
+      <value type="UINT" field="gcId"  label="Pending GC ID" relation="GC_ID" />
+      <value type="BYTES64" field="size" label="Allocation Size" />
     </event>
 
     <!-- Compiler events -->

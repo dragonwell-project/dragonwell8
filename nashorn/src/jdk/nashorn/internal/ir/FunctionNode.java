@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Function;
 import jdk.nashorn.internal.AssertsEnabled;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.Compiler;
@@ -1142,8 +1141,17 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         return getFlag(USES_SELF_SYMBOL);
     }
 
+    /**
+     * Returns true if this is a named function expression (that is, it isn't a declared function, it isn't an
+     * anonymous function expression, and it isn't a program).
+     * @return true if this is a named function expression
+     */
+    public boolean isNamedFunctionExpression() {
+        return !getFlag(IS_PROGRAM | IS_ANONYMOUS | IS_DECLARED);
+    }
+
     @Override
-    public Type getType(final Function<Symbol, Type> localVariableTypes) {
+    public Type getType() {
         return FUNCTION_TYPE;
     }
 

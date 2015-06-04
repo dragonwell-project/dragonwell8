@@ -30,12 +30,16 @@ import java.io.IOException;
 import java.io.Reader;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.Objects;
 import jdk.nashorn.internal.runtime.Source;
 
 /**
  * A Reader that reads from a URL. Used to make sure that the reader
  * reads content from given URL and can be trusted to do so.
+ *
+ * @since 1.8u40
  */
+@jdk.Exported
 public final class URLReader extends Reader {
     // underlying URL
     private final URL url;
@@ -74,8 +78,7 @@ public final class URLReader extends Reader {
      * @throws NullPointerException if url is null
      */
     public URLReader(final URL url, final Charset cs) {
-        // null check
-        url.getClass();
+        Objects.requireNonNull(url);
         this.url = url;
         this.cs  = cs;
     }
