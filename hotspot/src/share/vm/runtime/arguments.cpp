@@ -1572,7 +1572,7 @@ void Arguments::select_gc_ergonomically() {
 
 void Arguments::select_gc() {
   if (!gc_selected()) {
-    ArgumentsExt::select_gc_ergonomically();
+    select_gc_ergonomically();
   }
 }
 
@@ -2067,7 +2067,7 @@ bool Arguments::verify_MaxHeapFreeRatio(FormatBuffer<80>& err_msg, uintx max_hea
 }
 
 // Check consistency of GC selection
-bool Arguments::check_gc_consistency_user() {
+bool Arguments::check_gc_consistency() {
   check_gclog_consistency();
   bool status = true;
   // Ensure that the user has not selected conflicting sets
@@ -2233,7 +2233,7 @@ bool Arguments::check_vm_args_consistency() {
     FLAG_SET_DEFAULT(UseGCOverheadLimit, false);
   }
 
-  status = status && check_gc_consistency_user();
+  status = status && check_gc_consistency();
   status = status && check_stack_pages();
 
   if (CMSIncrementalMode) {
@@ -3837,8 +3837,8 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
       CommandLineFlags::printFlags(tty, false);
       vm_exit(0);
     }
-#if INCLUDE_NMT
     if (match_option(option, "-XX:NativeMemoryTracking", &tail)) {
+#if INCLUDE_NMT
       // The launcher did not setup nmt environment variable properly.
       if (!MemTracker::check_launcher_nmt_support(tail)) {
         warning("Native Memory Tracking did not setup properly, using wrong launcher?");
@@ -3853,8 +3853,12 @@ jint Arguments::parse(const JavaVMInitArgs* args) {
       } else {
         vm_exit_during_initialization("Syntax error, expecting -XX:NativeMemoryTracking=[off|summary|detail]", NULL);
       }
-    }
+#else
+      jio_fprintf(defaultStream::error_stream(),
+        "Native Memory Tracking is not supported in this VM\n");
+      return JNI_ERR;
 #endif
+    }
 
 
 #ifndef PRODUCT
@@ -4006,7 +4010,7 @@ jint Arguments::apply_ergo() {
   set_shared_spaces_flags();
 
   // Check the GC selections again.
-  if (!ArgumentsExt::check_gc_consistency_ergo()) {
+  if (!check_gc_consistency()) {
     return JNI_EINVAL;
   }
 

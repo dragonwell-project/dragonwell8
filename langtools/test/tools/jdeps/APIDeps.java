@@ -90,8 +90,9 @@ public class APIDeps {
              new String[] {"-classpath", testDir.getPath(), "-verbose:class", "-filter:none", "-P"});
         test(new File(mDir, "Gee.class"),
              new String[] {"g.G", "sun.misc.Lock", "com.sun.tools.classfile.ClassFile",
-                           "com.sun.management.ThreadMXBean", "com.sun.source.tree.BinaryTree"},
-             new String[] {testDirBasename, "JDK internal API", "compact3", ""},
+                           "com.sun.management.ThreadMXBean", "com.sun.source.tree.BinaryTree",
+                           "org.w3c.dom.css.CSSValue"},
+             new String[] {testDirBasename, "JDK internal API", "compact2", "compact3", ""},
              new String[] {"-classpath", testDir.getPath(), "-verbose", "-P"});
 
         // -jdkinternals

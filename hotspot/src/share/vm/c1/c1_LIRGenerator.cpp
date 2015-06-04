@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "c1/c1_Defs.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_FrameMap.hpp"
 #include "c1/c1_Instruction.hpp"
@@ -46,10 +47,7 @@
 #define __ gen()->lir()->
 #endif
 
-// TODO: ARM - Use some recognizable constant which still fits architectural constraints
-#ifdef ARM
-#define PATCHED_ADDR  (204)
-#else
+#ifndef PATCHED_ADDR
 #define PATCHED_ADDR  (max_jint)
 #endif
 
@@ -1599,25 +1597,9 @@ void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* 
   }
   assert(addr->is_register(), "must be a register at this point");
 
-#ifdef ARM
-  // TODO: ARM - move to platform-dependent code
-  LIR_Opr tmp = FrameMap::R14_opr;
-  if (VM_Version::supports_movw()) {
-    __ move((LIR_Opr)card_table_base, tmp);
-  } else {
-    __ move(new LIR_Address(FrameMap::Rthread_opr, in_bytes(JavaThread::card_table_base_offset()), T_ADDRESS), tmp);
-  }
-
-  CardTableModRefBS* ct = (CardTableModRefBS*)_bs;
-  LIR_Address *card_addr = new LIR_Address(tmp, addr, (LIR_Address::Scale) -CardTableModRefBS::card_shift, 0, T_BYTE);
-  if(((int)ct->byte_map_base & 0xff) == 0) {
-    __ move(tmp, card_addr);
-  } else {
-    LIR_Opr tmp_zero = new_register(T_INT);
-    __ move(LIR_OprFact::intConst(0), tmp_zero);
-    __ move(tmp_zero, card_addr);
-  }
-#else // ARM
+#ifdef CARDTABLEMODREF_POST_BARRIER_HELPER
+  CardTableModRef_post_barrier_helper(addr, card_table_base);
+#else
   LIR_Opr tmp = new_pointer_register();
   if (TwoOperandLIRForm) {
     __ move(addr, tmp);
@@ -1633,7 +1615,7 @@ void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* 
               new LIR_Address(tmp, load_constant(card_table_base),
                               T_BYTE));
   }
-#endif // ARM
+#endif
 }
 
 
@@ -2121,7 +2103,7 @@ void LIRGenerator::do_UnsafeGetRaw(UnsafeGetRaw* x) {
   } else {
 #ifdef X86
     addr = new LIR_Address(base_op, index_op, LIR_Address::Scale(log2_scale), 0, dst_type);
-#elif defined(ARM)
+#elif defined(GENERATE_ADDRESS_IS_PREFERRED)
     addr = generate_address(base_op, index_op, log2_scale, 0, dst_type);
 #else
     if (index_op->is_illegal() || log2_scale == 0) {
@@ -2175,6 +2157,9 @@ void LIRGenerator::do_UnsafePutRaw(UnsafePutRaw* x) {
   LIR_Opr base_op = base.result();
   LIR_Opr index_op = idx.result();
 
+#ifdef GENERATE_ADDRESS_IS_PREFERRED
+  LIR_Address* addr = generate_address(base_op, index_op, log2_scale, 0, x->basic_type());
+#else
 #ifndef _LP64
   if (base_op->type() == T_LONG) {
     base_op = new_register(T_INT);
@@ -2216,6 +2201,7 @@ void LIRGenerator::do_UnsafePutRaw(UnsafePutRaw* x) {
   }
 
   LIR_Address* addr = new LIR_Address(base_op, index_op, x->basic_type());
+#endif // !GENERATE_ADDRESS_IS_PREFERRED
   __ move(value.result(), addr);
 }
 
@@ -2569,7 +2555,7 @@ void LIRGenerator::do_Goto(Goto* x) {
     // need to free up storage used for OSR entry point
     LIR_Opr osrBuffer = block()->next()->operand();
     BasicTypeList signature;
-    signature.append(T_INT);
+    signature.append(NOT_LP64(T_INT) LP64_ONLY(T_LONG)); // pass a pointer to osrBuffer
     CallingConvention* cc = frame_map()->c_calling_convention(&signature);
     __ move(osrBuffer, cc->args()->at(0));
     __ call_runtime_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::OSR_migration_end),

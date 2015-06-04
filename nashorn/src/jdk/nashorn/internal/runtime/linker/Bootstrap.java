@@ -48,7 +48,6 @@ import jdk.internal.dynalink.support.TypeUtilities;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
-import jdk.nashorn.internal.codegen.RuntimeCallSite;
 import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.lookup.MethodHandleFunctionality;
 import jdk.nashorn.internal.objects.ScriptFunctionImpl;
@@ -75,17 +74,16 @@ public final class Bootstrap {
      * of object fields only, it is fine. However, with dual fields, in order to get
      * performance on benchmarks with a lot of object instantiation and then field
      * reassignment, it can take slightly more relinks to become stable with type
-     * changes swapping out an entire proprety map and making a map guard fail.
-     * Therefore the relink threshold is set to 16 for dual fields (now the default).
-     * This doesn't seem to have any other negative performance implication.
+     * changes swapping out an entire property map and making a map guard fail.
+     * Since we need to set this value statically it must work with possibly changing
+     * optimistic types and dual fields settings. A higher value does not seem to have
+     * any other negative performance implication when running with object-only fields,
+     * so we choose a higher value here.
      *
      * See for example octane.gbemu, run with --log=fields:warning to study
      * megamorphic behavior
      */
-    private static final int NASHORN_DEFAULT_UNSTABLE_RELINK_THRESHOLD =
-            ObjectClassGenerator.OBJECT_FIELDS_ONLY ?
-                     8 :
-                    16;
+    private static final int NASHORN_DEFAULT_UNSTABLE_RELINK_THRESHOLD = 16;
 
     // do not create me!!
     private Bootstrap() {
@@ -119,6 +117,7 @@ public final class Bootstrap {
                 return unboxReturnType(target, newType);
             }
         });
+        factory.setInternalObjectsFilter(NashornBeansLinker.createHiddenObjectFilter());
         final int relinkThreshold = Options.getIntProperty("nashorn.unstable.relink.threshold", NASHORN_DEFAULT_UNSTABLE_RELINK_THRESHOLD);
         if (relinkThreshold > -1) {
             factory.setUnstableRelinkThreshold(relinkThreshold);
@@ -206,19 +205,6 @@ public final class Bootstrap {
      */
     public static CallSite bootstrap(final Lookup lookup, final String opDesc, final MethodType type, final int flags) {
         return dynamicLinker.link(LinkerCallSite.newLinkerCallSite(lookup, opDesc, type, flags));
-    }
-
-    /**
-     * Bootstrapper for a specialized Runtime call
-     *
-     * @param lookup       lookup
-     * @param initialName  initial name for callsite
-     * @param type         method type for call site
-     *
-     * @return callsite for a runtime node
-     */
-    public static CallSite runtimeBootstrap(final MethodHandles.Lookup lookup, final String initialName, final MethodType type) {
-        return new RuntimeCallSite(type, initialName);
     }
 
     /**
