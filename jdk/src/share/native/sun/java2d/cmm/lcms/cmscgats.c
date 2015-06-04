@@ -353,7 +353,7 @@ static const char* PredefinedSampleID[] = {
         "XYZ_X",          // X component of tristimulus data
         "XYZ_Y",          // Y component of tristimulus data
         "XYZ_Z",          // Z component of tristimulus data
-        "XYY_X"           // x component of chromaticity data
+        "XYY_X",          // x component of chromaticity data
         "XYY_Y",          // y component of chromaticity data
         "XYY_CAPY",       // Y component of tristimulus data
         "LAB_L",          // L* component of Lab data

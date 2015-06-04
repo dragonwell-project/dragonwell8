@@ -84,6 +84,7 @@ import jdk.nashorn.internal.ir.UnaryNode;
 import jdk.nashorn.internal.ir.VarNode;
 import jdk.nashorn.internal.ir.WithNode;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ECMAErrors;
 import jdk.nashorn.internal.runtime.ErrorManager;
@@ -135,15 +136,11 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
             functionNode.compilerConstant(SCOPE).setNeedsSlot(false);
         }
         // Named function expressions that end up not referencing themselves won't need a local slot for the self symbol.
-        if(!functionNode.isDeclared() && !functionNode.usesSelfSymbol() && !functionNode.isAnonymous()) {
+        if(functionNode.isNamedFunctionExpression() && !functionNode.usesSelfSymbol()) {
             final Symbol selfSymbol = functionNode.getBody().getExistingSymbol(functionNode.getIdent().getName());
-            if(selfSymbol != null) {
-                if(selfSymbol.isFunctionSelf()) {
-                    selfSymbol.setNeedsSlot(false);
-                    selfSymbol.clearFlag(Symbol.IS_VAR);
-                }
-            } else {
-                assert functionNode.isProgram();
+            if(selfSymbol != null && selfSymbol.isFunctionSelf()) {
+                selfSymbol.setNeedsSlot(false);
+                selfSymbol.clearFlag(Symbol.IS_VAR);
             }
         }
         return functionNode;
@@ -490,20 +487,31 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         final Block body = lc.getCurrentBlock();
 
         initFunctionWideVariables(functionNode, body);
+        acceptDeclarations(functionNode, body);
+        defineFunctionSelfSymbol(functionNode, body);
+    }
 
-        if (!functionNode.isProgram() && !functionNode.isDeclared() && !functionNode.isAnonymous()) {
-            // It's neither declared nor program - it's a function expression then; assign it a self-symbol unless it's
-            // anonymous.
-            final String name = functionNode.getIdent().getName();
-            assert name != null;
-            assert body.getExistingSymbol(name) == null;
-            defineSymbol(body, name, functionNode, IS_VAR | IS_FUNCTION_SELF | HAS_OBJECT_VALUE);
-            if(functionNode.allVarsInScope()) { // basically, has deep eval
-                lc.setFlag(functionNode, FunctionNode.USES_SELF_SYMBOL);
-            }
+    private void defineFunctionSelfSymbol(final FunctionNode functionNode, final Block body) {
+        // Function self-symbol is only declared as a local variable for named function expressions. Declared functions
+        // don't need it as they are local variables in their declaring scope.
+        if (!functionNode.isNamedFunctionExpression()) {
+            return;
         }
 
-        acceptDeclarations(functionNode, body);
+        final String name = functionNode.getIdent().getName();
+        assert name != null; // As it's a named function expression.
+
+        if (body.getExistingSymbol(name) != null) {
+            // Body already has a declaration for the name. It's either a parameter "function x(x)" or a
+            // top-level variable "function x() { ... var x; ... }".
+            return;
+        }
+
+        defineSymbol(body, name, functionNode, IS_VAR | IS_FUNCTION_SELF | HAS_OBJECT_VALUE);
+        if(functionNode.allVarsInScope()) { // basically, has deep eval
+            // We must conservatively presume that eval'd code can dynamically use the function symbol.
+            lc.setFlag(functionNode, FunctionNode.USES_SELF_SYMBOL);
+        }
     }
 
     @Override
@@ -705,25 +713,12 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         return definingFn == function;
     }
 
-    private void checkConstAssignment(final IdentNode ident) {
-        // Check for reassignment of constant
-        final Symbol symbol = ident.getSymbol();
-        if (symbol.isConst()) {
-            throwParserException(ECMAErrors.getMessage("syntax.error.assign.constant", symbol.getName()), ident);
-        }
-    }
-
     @Override
     public Node leaveBinaryNode(final BinaryNode binaryNode) {
-        if (binaryNode.isAssignment() && binaryNode.lhs() instanceof IdentNode) {
-            checkConstAssignment((IdentNode) binaryNode.lhs());
-        }
-        switch (binaryNode.tokenType()) {
-        case ASSIGN:
+        if (binaryNode.isTokenType(TokenType.ASSIGN)) {
             return leaveASSIGN(binaryNode);
-        default:
-            return super.leaveBinaryNode(binaryNode);
         }
+        return super.leaveBinaryNode(binaryNode);
     }
 
     private Node leaveASSIGN(final BinaryNode binaryNode) {
@@ -744,9 +739,6 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
 
     @Override
     public Node leaveUnaryNode(final UnaryNode unaryNode) {
-        if (unaryNode.isAssignment() && unaryNode.getExpression() instanceof IdentNode) {
-            checkConstAssignment((IdentNode) unaryNode.getExpression());
-        }
         switch (unaryNode.tokenType()) {
         case DELETE:
             return leaveDELETE(unaryNode);
@@ -919,9 +911,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     @Override
     public Node leaveTryNode(final TryNode tryNode) {
         tryNode.setException(exceptionSymbol());
-        if (tryNode.getFinallyBody() != null) {
-            tryNode.setFinallyCatchAll(exceptionSymbol());
-        }
+        assert tryNode.getFinallyBody() == null;
 
         end(tryNode);
 

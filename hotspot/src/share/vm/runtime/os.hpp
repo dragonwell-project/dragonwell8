@@ -149,6 +149,7 @@ class os: AllStatic {
   static void   pd_free_memory(char *addr, size_t bytes, size_t alignment_hint);
   static void   pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint);
 
+  static size_t page_size_for_region(size_t region_size, size_t min_pages, bool must_be_aligned);
 
  public:
   static void init(void);                      // Called before command line parsing
@@ -159,7 +160,6 @@ class os: AllStatic {
   static void init_globals(void) {             // Called from init_globals() in init.cpp
     init_globals_ext();
   }
-  static void init_3(void);                    // Called at the end of vm init
 
   // File names are case-insensitive on windows only
   // Override me as needed
@@ -266,19 +266,16 @@ class os: AllStatic {
   // Return the default page size.
   static int    vm_page_size();
 
-  // Return the page size to use for a region of memory.  The min_pages argument
-  // is a hint intended to limit fragmentation; it says the returned page size
-  // should be <= region_max_size / min_pages.  Because min_pages is a hint,
-  // this routine may return a size larger than region_max_size / min_pages.
-  //
-  // The current implementation ignores min_pages if a larger page size is an
-  // exact multiple of both region_min_size and region_max_size.  This allows
-  // larger pages to be used when doing so would not cause fragmentation; in
-  // particular, a single page can be used when region_min_size ==
-  // region_max_size == a supported page size.
-  static size_t page_size_for_region(size_t region_min_size,
-                                     size_t region_max_size,
-                                     uint min_pages);
+  // Returns the page size to use for a region of memory.
+  // region_size / min_pages will always be greater than or equal to the
+  // returned value. The returned value will divide region_size.
+  static size_t page_size_for_region_aligned(size_t region_size, size_t min_pages);
+
+  // Returns the page size to use for a region of memory.
+  // region_size / min_pages will always be greater than or equal to the
+  // returned value. The returned value might not divide region_size.
+  static size_t page_size_for_region_unaligned(size_t region_size, size_t min_pages);
+
   // Return the largest page size that can be used
   static size_t max_page_size() {
     // The _page_sizes array is sorted in descending order.
@@ -319,6 +316,12 @@ class os: AllStatic {
                                       bool executable, const char* mesg);
   static bool   uncommit_memory(char* addr, size_t bytes);
   static bool   release_memory(char* addr, size_t bytes);
+
+  // Touch memory pages that cover the memory range from start to end (exclusive)
+  // to make the OS back the memory range with actual memory.
+  // Current implementation may not touch the last page if unaligned addresses
+  // are passed.
+  static void   pretouch_memory(char* start, char* end);
 
   enum ProtType { MEM_PROT_NONE, MEM_PROT_READ, MEM_PROT_RW, MEM_PROT_RWX };
   static bool   protect_memory(char* addr, size_t bytes, ProtType prot,

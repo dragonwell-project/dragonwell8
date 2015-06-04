@@ -70,7 +70,8 @@
 // Loaded method.
 ciMethod::ciMethod(methodHandle h_m, ciInstanceKlass* holder) :
   ciMetadata(h_m()),
-  _holder(holder)
+  _holder(holder),
+  _has_injected_profile(false)
 {
   assert(h_m() != NULL, "no null method");
 
@@ -167,7 +168,8 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   _liveness(               NULL),
   _can_be_statically_bound(false),
   _method_blocks(          NULL),
-  _method_data(            NULL)
+  _method_data(            NULL),
+  _has_injected_profile(   false)
 #if defined(COMPILER2) || defined(SHARK)
   ,
   _flow(                   NULL),
@@ -689,7 +691,8 @@ ciKlass* ciMethod::parameter_profiled_type(int i) {
 // via assert_unique_concrete_method or assert_leaf_type.
 ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
                                             ciInstanceKlass* callee_holder,
-                                            ciInstanceKlass* actual_recv) {
+                                            ciInstanceKlass* actual_recv,
+                                            bool check_access) {
   check_is_loaded();
 
   if (actual_recv->is_interface()) {
@@ -697,7 +700,7 @@ ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
     return NULL;
   }
 
-  ciMethod* root_m = resolve_invoke(caller, actual_recv);
+  ciMethod* root_m = resolve_invoke(caller, actual_recv, check_access);
   if (root_m == NULL) {
     // Something went wrong looking up the actual receiver method.
     return NULL;
@@ -776,7 +779,7 @@ ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
 //
 // Given a known receiver klass, find the target for the call.
 // Return NULL if the call has no target or the target is abstract.
-ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver) {
+ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, bool check_access) {
    check_is_loaded();
    VM_ENTRY_MARK;
 
@@ -793,9 +796,9 @@ ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver) {
         ||
        InstanceKlass::cast(h_recv())->is_linked() && !exact_receiver->is_interface()) {
      if (holder()->is_interface()) {
-       m = LinkResolver::resolve_interface_call_or_null(h_recv, h_resolved, h_name, h_signature, caller_klass);
+       m = LinkResolver::resolve_interface_call_or_null(h_recv, h_resolved, h_name, h_signature, caller_klass, check_access);
      } else {
-       m = LinkResolver::resolve_virtual_call_or_null(h_recv, h_resolved, h_name, h_signature, caller_klass);
+       m = LinkResolver::resolve_virtual_call_or_null(h_recv, h_resolved, h_name, h_signature, caller_klass, check_access);
      }
    }
 
