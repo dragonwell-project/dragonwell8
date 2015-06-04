@@ -46,7 +46,7 @@ import static com.sun.tools.classfile.Attribute.*;
  */
 class PlatformClassPath {
     private static final List<String> NON_PLATFORM_JARFILES =
-        Arrays.asList("alt-rt.jar", "jfxrt.jar", "ant-javafx.jar", "javafx-mx.jar");
+        Arrays.asList("alt-rt.jar", "ant-javafx.jar", "javafx-mx.jar");
     private static final List<Archive> javaHomeArchives = init();
 
     static List<Archive> getArchives() {
@@ -124,6 +124,14 @@ class PlatformClassPath {
      */
     static class JDKArchive extends Archive {
         private static List<String> PROFILE_JARS = Arrays.asList("rt.jar", "jce.jar");
+        // Workaround: The following packages are not annotated as jdk.Exported
+        private static List<String> EXPORTED_PACKAGES = Arrays.asList(
+                "javax.jnlp",
+                "org.w3c.dom.css",
+                "org.w3c.dom.html",
+                "org.w3c.dom.stylesheets",
+                "org.w3c.dom.xpath"
+        );
         public static boolean isProfileArchive(Archive archive) {
             if (archive instanceof JDKArchive) {
                 return PROFILE_JARS.contains(archive.getName());
@@ -155,7 +163,11 @@ class PlatformClassPath {
          * Tests if a given package name is exported.
          */
         public boolean isExportedPackage(String pn) {
-            if (Profile.getProfile(pn) != null || "javax.jnlp".equals(pn)) {
+            if (Profile.getProfile(pn) != null) {
+                return true;
+            }
+            // special case for JavaFX and APIs that are not annotated with @jdk.Exported)
+            if (EXPORTED_PACKAGES.contains(pn) || pn.startsWith("javafx.")) {
                 return true;
             }
             return exportedPackages.containsKey(pn) ? exportedPackages.get(pn) : false;
