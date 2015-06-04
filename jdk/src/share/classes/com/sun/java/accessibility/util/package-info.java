@@ -64,4 +64,6 @@
  *
  * @since JDK1.7
  */
+
+@jdk.Exported
 package com.sun.java.accessibility.util;
