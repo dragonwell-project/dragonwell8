@@ -61,6 +61,8 @@ define_pd_global(uintx, CMSYoungGenPerWorker, 16*M);  // default max size of CMS
 
 define_pd_global(uintx, TypeProfileLevel, 0);
 
+define_pd_global(bool, PreserveFramePointer, false);
+
 #define ARCH_FLAGS(develop, product, diagnostic, experimental, notproduct)
 
 #endif // CPU_ZERO_VM_GLOBALS_ZERO_HPP
