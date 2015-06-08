@@ -25,7 +25,6 @@ import static jdk.testlibrary.Asserts.*;
 
 /* @test
  * @summary Tests the different assertions in the Assert class
- * @library /testlibrary
  */
 public class AssertsTest {
     private static class Foo implements Comparable<Foo> {
