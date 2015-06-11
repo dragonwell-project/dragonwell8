@@ -4017,8 +4017,8 @@ void OptoRuntime::generate_exception_blob() {
 
   // Save callee-saved registers.  See x86_64.ad.
 
-  // rbp is an implicitly saved callee saved register (i.e. the calling
-  // convention will save restore it in prolog/epilog) Other than that
+  // rbp is an implicitly saved callee saved register (i.e., the calling
+  // convention will save/restore it in the prolog/epilog). Other than that
   // there are no callee save registers now that adapter frames are gone.
 
   __ movptr(Address(rsp, SimpleRuntimeFrame::rbp_off << LogBytesPerInt), rbp);
@@ -4060,9 +4060,9 @@ void OptoRuntime::generate_exception_blob() {
 
   // Restore callee-saved registers
 
-  // rbp is an implicitly saved callee saved register (i.e. the calling
+  // rbp is an implicitly saved callee-saved register (i.e., the calling
   // convention will save restore it in prolog/epilog) Other than that
-  // there are no callee save registers no that adapter frames are gone.
+  // there are no callee save registers now that adapter frames are gone.
 
   __ movptr(rbp, Address(rsp, SimpleRuntimeFrame::rbp_off << LogBytesPerInt));
 
@@ -4070,10 +4070,6 @@ void OptoRuntime::generate_exception_blob() {
   __ pop(rdx);                  // No need for exception pc anymore
 
   // rax: exception handler
-
-  // Restore SP from BP if the exception PC is a MethodHandle call site.
-  __ cmpl(Address(r15_thread, JavaThread::is_method_handle_return_offset()), 0);
-  __ cmovptr(Assembler::notEqual, rsp, rbp_mh_SP_save);
 
   // We have a handler in rax (could be deopt blob).
   __ mov(r8, rax);
