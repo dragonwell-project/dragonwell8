@@ -28,7 +28,6 @@
  *
  *  @author Robert Field/Jim Holmlund
  *
- *  @library scaffold
  *  @run build JDIScaffold VMConnection
  *  @run compile -g HelloWorld.java
  *  @run main/othervm FilterMatch
