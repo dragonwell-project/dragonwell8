@@ -369,7 +369,7 @@ public class ErrorMessages_sv extends ListResourceBundle {
          * element of a type that it was not permitted to contain.
          */
         {ErrorMsg.ILLEGAL_CHILD_ERR,
-        "Ogiltigt underordnat element."},
+        "Otill\u00E5tet underordnat element."},
 
         /*
          * Note to translators:  The stylesheet tried to create an element with
