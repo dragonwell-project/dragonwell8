@@ -28,6 +28,7 @@ package com.sun.tools.javac.tree;
 
 
 import com.sun.source.tree.Tree;
+import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
@@ -349,6 +350,18 @@ public class TreeInfo {
             return false;
         JCLiteral lit = (JCLiteral) tree;
         return (lit.typetag == BOT);
+    }
+
+    /** Return true iff this tree is a child of some annotation. */
+    public static boolean isInAnnotation(Env<?> env, JCTree tree) {
+        TreePath tp = TreePath.getPath(env.toplevel, tree);
+        if (tp != null) {
+            for (Tree t : tp) {
+                if (t.getKind() == Tree.Kind.ANNOTATION)
+                    return true;
+            }
+        }
+        return false;
     }
 
     public static String getCommentText(Env<?> env, JCTree tree) {
