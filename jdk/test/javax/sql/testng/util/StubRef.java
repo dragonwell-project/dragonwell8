@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,8 +20,41 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package pkg;
+package util;
 
-public class ClassToBeStaticallyImported {
-    public static final int staticField = 1;
+import java.io.Serializable;
+import java.sql.Ref;
+import java.sql.SQLException;
+import java.util.Map;
+
+public class StubRef implements Ref, Serializable {
+
+    private final String baseTypeName;
+    private Object obj;
+
+    public StubRef(String type, Object o) {
+        baseTypeName = type;
+        obj = o;
+    }
+
+    @Override
+    public String getBaseTypeName() throws SQLException {
+        return baseTypeName;
+    }
+
+    @Override
+    public Object getObject(Map<String, Class<?>> map) throws SQLException {
+        return obj;
+    }
+
+    @Override
+    public Object getObject() throws SQLException {
+        return getObject(null);
+    }
+
+    @Override
+    public void setObject(Object value) throws SQLException {
+        obj = value;
+    }
+
 }
