@@ -271,7 +271,7 @@ public class Resolve {
      *  the one of its outer environment
      */
     protected static boolean isStatic(Env<AttrContext> env) {
-        return env.info.staticLevel > env.outer.info.staticLevel;
+        return env.outer != null && env.info.staticLevel > env.outer.info.staticLevel;
     }
 
     /** An environment is an "initializer" if it is a constructor or

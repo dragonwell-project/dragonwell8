@@ -1012,12 +1012,10 @@ NET_MapSocketOption(jint cmd, int *level, int *optname) {
 
     int i;
 
-    /*
-     * Different multicast options if IPv6 is enabled
-     */
 #ifdef AF_INET6
     if (ipv6_available()) {
         switch (cmd) {
+            // Different multicast options if IPv6 is enabled
             case java_net_SocketOptions_IP_MULTICAST_IF:
             case java_net_SocketOptions_IP_MULTICAST_IF2:
                 *level = IPPROTO_IPV6;
@@ -1028,6 +1026,13 @@ NET_MapSocketOption(jint cmd, int *level, int *optname) {
                 *level = IPPROTO_IPV6;
                 *optname = IPV6_MULTICAST_LOOP;
                 return 0;
+#if (defined(__solaris__) || defined(MACOSX))
+            // Map IP_TOS request to IPV6_TCLASS
+            case java_net_SocketOptions_IP_TOS:
+                *level = IPPROTO_IPV6;
+                *optname = IPV6_TCLASS;
+                return 0;
+#endif
         }
     }
 #endif
@@ -1203,9 +1208,6 @@ int getDefaultIPv6Interface(struct in6_addr *target_addr) {
  * Wrapper for getsockopt system routine - does any necessary
  * pre/post processing to deal with OS specific oddities :-
  *
- * IP_TOS is a no-op with IPv6 sockets as it's setup when
- * the connection is established.
- *
  * On Linux the SO_SNDBUF/SO_RCVBUF values must be post-processed
  * to compensate for an incorrect value returned by the kernel.
  */
@@ -1214,21 +1216,6 @@ NET_GetSockOpt(int fd, int level, int opt, void *result,
                int *len)
 {
     int rv;
-
-#ifdef AF_INET6
-    if ((level == IPPROTO_IP) && (opt == IP_TOS)) {
-        if (ipv6_available()) {
-
-            /*
-             * For IPv6 socket option implemented at Java-level
-             * so return -1.
-             */
-            int *tc = (int *)result;
-            *tc = -1;
-            return 0;
-        }
-    }
-#endif
 
 #ifdef __solaris__
     rv = getsockopt(fd, level, opt, result, len);
@@ -1280,8 +1267,7 @@ NET_GetSockOpt(int fd, int level, int opt, void *result,
  *
  * For IP_TOS socket option need to mask off bits as this
  * aren't automatically masked by the kernel and results in
- * an error. In addition IP_TOS is a NOOP with IPv6 as it
- * should be setup as connection time.
+ * an error.
  */
 int
 NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
@@ -1312,9 +1298,9 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
 
     /*
      * IPPROTO/IP_TOS :-
-     * 1. IPv6 on Solaris/Mac OS: NOOP and will be set
-     *    in flowinfo field when connecting TCP socket,
-     *    or sending UDP packet.
+     * 1. IPv6 on Solaris/Mac OS:
+     *    Set the TOS OR Traffic Class value to cater for
+     *    IPv6 and IPv4 scenarios.
      * 2. IPv6 on Linux: By default Linux ignores flowinfo
      *    field so enable IPV6_FLOWINFO_SEND so that flowinfo
      *    will be examined. We also set the IPv4 TOS option in this case.
@@ -1324,17 +1310,21 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
     if (level == IPPROTO_IP && opt == IP_TOS) {
         int *iptos;
 
-#if defined(AF_INET6) && (defined(__solaris__) || defined(MACOSX))
-        if (ipv6_available()) {
-            return 0;
-        }
-#endif
-
 #if defined(AF_INET6) && defined(__linux__)
         if (ipv6_available()) {
             int optval = 1;
             if (setsockopt(fd, IPPROTO_IPV6, IPV6_FLOWINFO_SEND,
                            (void *)&optval, sizeof(optval)) < 0) {
+                return -1;
+            }
+           /*
+            * Let's also set the IPV6_TCLASS flag.
+            * Linux appears to allow both IP_TOS and IPV6_TCLASS to be set
+            * This helps in mixed environments where IPv4 and IPv6 sockets
+            * are connecting.
+            */
+           if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS,
+                           arg, len) < 0) {
                 return -1;
             }
         }
@@ -1429,7 +1419,7 @@ NET_SetSockOpt(int fd, int level, int  opt, const void *arg,
      * On Linux the receive buffer is used for both socket
      * structures and the the packet payload. The implication
      * is that if SO_RCVBUF is too small then small packets
-     * must be discard.
+     * must be discarded.
      */
 #ifdef __linux__
     if (level == SOL_SOCKET && opt == SO_RCVBUF) {
@@ -1609,7 +1599,7 @@ NET_Bind(int fd, struct sockaddr *him, int len)
  * NET_WAIT_READ, NET_WAIT_WRITE & NET_WAIT_CONNECT.
  *
  * The function will return when either the socket is ready for one
- * of the specified operation or the timeout expired.
+ * of the specified operations or the timeout expired.
  *
  * It returns the time left from the timeout (possibly 0), or -1 if it expired.
  */
