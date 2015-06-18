@@ -514,6 +514,10 @@ public class Gen extends JCTree.Visitor {
                         clinitTAs.addAll(getAndRemoveNonFieldTAs(sym));
                     } else {
                         checkStringConstant(vdef.init.pos(), sym.getConstValue());
+                        /* if the init contains a reference to an external class, add it to the
+                         * constant's pool
+                         */
+                        vdef.init.accept(classReferenceVisitor);
                     }
                 }
                 break;
@@ -2431,9 +2435,12 @@ public class Gen extends JCTree.Visitor {
                 && !allowGenerics // no Miranda methods available with generics
                 )
                 implementInterfaceMethods(c);
-            cdef.defs = normalizeDefs(cdef.defs, c);
             c.pool = pool;
             pool.reset();
+            /* method normalizeDefs() can add references to external classes into the constant pool
+             * so it should be called after pool.reset()
+             */
+            cdef.defs = normalizeDefs(cdef.defs, c);
             generateReferencesToPrunedTree(c, pool);
             Env<GenContext> localEnv =
                 new Env<GenContext>(cdef, new GenContext());
