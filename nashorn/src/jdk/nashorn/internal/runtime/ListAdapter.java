@@ -36,6 +36,7 @@ import java.util.RandomAccess;
 import java.util.concurrent.Callable;
 import jdk.nashorn.api.scripting.JSObject;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.runtime.linker.Bootstrap;
 
 /**
@@ -51,57 +52,43 @@ import jdk.nashorn.internal.runtime.linker.Bootstrap;
  * operations respectively, while {@link #addLast(Object)} and {@link #removeLast()} will translate to {@code push} and
  * {@code pop}.
  */
-public final class ListAdapter extends AbstractList<Object> implements RandomAccess, Deque<Object> {
+public class ListAdapter extends AbstractList<Object> implements RandomAccess, Deque<Object> {
     // Invoker creator for methods that add to the start or end of the list: PUSH and UNSHIFT. Takes fn, this, and value, returns void.
     private static final Callable<MethodHandle> ADD_INVOKER_CREATOR = invokerCreator(void.class, Object.class, JSObject.class, Object.class);
 
-    // PUSH adds to the end of the list
+    // PUSH adds to the start of the list
     private static final Object PUSH = new Object();
-    private static MethodHandle getPushInvoker() {
-        return getDynamicInvoker(PUSH, ADD_INVOKER_CREATOR);
-    }
-
-    // UNSHIFT adds to the start of the list
+    // UNSHIFT adds to the end of the list
     private static final Object UNSHIFT = new Object();
-    private static MethodHandle getUnshiftInvoker() {
-        return getDynamicInvoker(UNSHIFT, ADD_INVOKER_CREATOR);
-    }
 
     // Invoker creator for methods that remove from the tail or head of the list: POP and SHIFT. Takes fn, this, returns Object.
     private static final Callable<MethodHandle> REMOVE_INVOKER_CREATOR = invokerCreator(Object.class, Object.class, JSObject.class);
 
-    // POP removes from the to the end of the list
+    // POP removes from the start of the list
     private static final Object POP = new Object();
-    private static MethodHandle getPopInvoker() {
-        return getDynamicInvoker(POP, REMOVE_INVOKER_CREATOR);
-    }
-
-    // SHIFT removes from the to the start of the list
+    // SHIFT removes from the end of the list
     private static final Object SHIFT = new Object();
-    private static MethodHandle getShiftInvoker() {
-        return getDynamicInvoker(SHIFT, REMOVE_INVOKER_CREATOR);
-    }
 
     // SPLICE can be used to add a value in the middle of the list.
     private static final Object SPLICE_ADD = new Object();
     private static final Callable<MethodHandle> SPLICE_ADD_INVOKER_CREATOR = invokerCreator(void.class, Object.class, JSObject.class, int.class, int.class, Object.class);
-    private static MethodHandle getSpliceAddInvoker() {
-        return getDynamicInvoker(SPLICE_ADD, SPLICE_ADD_INVOKER_CREATOR);
-    }
 
     // SPLICE can also be used to remove values from the middle of the list.
     private static final Object SPLICE_REMOVE = new Object();
     private static final Callable<MethodHandle> SPLICE_REMOVE_INVOKER_CREATOR = invokerCreator(void.class, Object.class, JSObject.class, int.class, int.class);
-    private static MethodHandle getSpliceRemoveInvoker() {
-        return getDynamicInvoker(SPLICE_REMOVE, SPLICE_REMOVE_INVOKER_CREATOR);
-    }
 
     /** wrapped object */
-    protected final JSObject obj;
+    final JSObject obj;
+    private final Global global;
 
     // allow subclasses only in this package
-    ListAdapter(final JSObject obj) {
+    ListAdapter(final JSObject obj, final Global global) {
+        if (global == null) {
+            throw new IllegalStateException(ECMAErrors.getMessage("list.adapter.null.global"));
+        }
+
         this.obj = obj;
+        this.global = global;
     }
 
     /**
@@ -111,12 +98,13 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
      * @return A ListAdapter wrapper object
      */
     public static ListAdapter create(final Object obj) {
-        return new ListAdapter(getJSObject(obj));
+        final Global global = Context.getGlobal();
+        return new ListAdapter(getJSObject(obj, global), global);
     }
 
-    private static JSObject getJSObject(final Object obj) {
+    private static JSObject getJSObject(final Object obj, final Global global) {
         if (obj instanceof ScriptObject) {
-            return (JSObject)ScriptObjectMirror.wrap(obj, Context.getGlobal());
+            return (JSObject)ScriptObjectMirror.wrap(obj, global);
         } else if (obj instanceof JSObject) {
             return (JSObject)obj;
         }
@@ -166,7 +154,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
     @Override
     public final void addFirst(final Object e) {
         try {
-            getUnshiftInvoker().invokeExact(getFunction("unshift"), obj, e);
+            getDynamicInvoker(UNSHIFT, ADD_INVOKER_CREATOR).invokeExact(getFunction("unshift"), obj, e);
         } catch(RuntimeException | Error ex) {
             throw ex;
         } catch(final Throwable t) {
@@ -177,7 +165,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
     @Override
     public final void addLast(final Object e) {
         try {
-            getPushInvoker().invokeExact(getFunction("push"), obj, e);
+            getDynamicInvoker(PUSH, ADD_INVOKER_CREATOR).invokeExact(getFunction("push"), obj, e);
         } catch(RuntimeException | Error ex) {
             throw ex;
         } catch(final Throwable t) {
@@ -195,7 +183,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
             } else {
                 final int size = size();
                 if(index < size) {
-                    getSpliceAddInvoker().invokeExact(obj.getMember("splice"), obj, index, 0, e);
+                    getDynamicInvoker(SPLICE_ADD, SPLICE_ADD_INVOKER_CREATOR).invokeExact(obj.getMember("splice"), obj, index, 0, e);
                 } else if(index == size) {
                     addLast(e);
                 } else {
@@ -287,7 +275,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
 
     private Object invokeShift() {
         try {
-            return getShiftInvoker().invokeExact(getFunction("shift"), obj);
+            return getDynamicInvoker(SHIFT, REMOVE_INVOKER_CREATOR).invokeExact(getFunction("shift"), obj);
         } catch(RuntimeException | Error ex) {
             throw ex;
         } catch(final Throwable t) {
@@ -297,7 +285,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
 
     private Object invokePop() {
         try {
-            return getPopInvoker().invokeExact(getFunction("pop"), obj);
+            return getDynamicInvoker(POP, REMOVE_INVOKER_CREATOR).invokeExact(getFunction("pop"), obj);
         } catch(RuntimeException | Error ex) {
             throw ex;
         } catch(final Throwable t) {
@@ -312,7 +300,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
 
     private void invokeSpliceRemove(final int fromIndex, final int count) {
         try {
-            getSpliceRemoveInvoker().invokeExact(getFunction("splice"), obj, fromIndex, count);
+            getDynamicInvoker(SPLICE_REMOVE, SPLICE_REMOVE_INVOKER_CREATOR).invokeExact(getFunction("splice"), obj, fromIndex, count);
         } catch(RuntimeException | Error ex) {
             throw ex;
         } catch(final Throwable t) {
@@ -417,7 +405,7 @@ public final class ListAdapter extends AbstractList<Object> implements RandomAcc
         };
     }
 
-    private static MethodHandle getDynamicInvoker(final Object key, final Callable<MethodHandle> creator) {
-        return Context.getGlobal().getDynamicInvoker(key, creator);
+    private MethodHandle getDynamicInvoker(final Object key, final Callable<MethodHandle> creator) {
+        return global.getDynamicInvoker(key, creator);
     }
 }
