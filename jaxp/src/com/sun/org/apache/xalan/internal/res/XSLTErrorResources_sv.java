@@ -1283,10 +1283,10 @@ public class XSLTErrorResources_sv extends ListResourceBundle
       "xsl:stylesheet kr\u00E4ver ett 'version'-attribut!"},
 
     { WG_ILLEGAL_ATTRIBUTE_NAME,
-      "Ogiltigt attributnamn: {0}"},
+      "Otill\u00E5tet attributnamn: {0}"},
 
     { WG_ILLEGAL_ATTRIBUTE_VALUE,
-      "Ogiltigt v\u00E4rde anv\u00E4nds f\u00F6r attributet {0}: {1}"},
+      "Otill\u00E5tet v\u00E4rde anv\u00E4nds f\u00F6r attributet {0}: {1}"},
 
     { WG_EMPTY_SECOND_ARG,
       "Resulterande nodupps\u00E4ttning fr\u00E5n dokumentfunktionens andra argumentet \u00E4r tomt. En tom nodupps\u00E4ttning anv\u00E4nds."},
