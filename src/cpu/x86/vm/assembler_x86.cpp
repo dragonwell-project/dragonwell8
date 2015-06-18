@@ -2575,6 +2575,15 @@ void Assembler::psrldq(XMMRegister dst, int shift) {
   emit_int8(shift);
 }
 
+void Assembler::pslldq(XMMRegister dst, int shift) {
+  // Shift left 128 bit value in xmm register by number of bytes.
+  NOT_LP64(assert(VM_Version::supports_sse2(), ""));
+  int encode = simd_prefix_and_encode(xmm7, dst, dst, VEX_SIMD_66);
+  emit_int8(0x73);
+  emit_int8((unsigned char)(0xC0 | encode));
+  emit_int8(shift);
+}
+
 void Assembler::ptest(XMMRegister dst, Address src) {
   assert(VM_Version::supports_sse4_1(), "");
   assert((UseAVX > 0), "SSE mode requires address alignment 16 bytes");
