@@ -210,8 +210,8 @@ void GenMarkSweep::mark_sweep_phase1(int level,
   gch->gen_process_roots(level,
                          false, // Younger gens are not roots.
                          true,  // activate StrongRootsScope
-                         SharedHeap::SO_None,
-                         GenCollectedHeap::StrongRootsOnly,
+                         GenCollectedHeap::SO_None,
+                         ClassUnloading,
                          &follow_root_closure,
                          &follow_root_closure,
                          &follow_cld_closure);
@@ -295,7 +295,7 @@ void GenMarkSweep::mark_sweep_phase3(int level) {
   gch->gen_process_roots(level,
                          false, // Younger gens are not roots.
                          true,  // activate StrongRootsScope
-                         SharedHeap::SO_AllCodeCache,
+                         GenCollectedHeap::SO_AllCodeCache,
                          GenCollectedHeap::StrongAndWeakRoots,
                          &adjust_pointer_closure,
                          &adjust_pointer_closure,
