@@ -211,7 +211,7 @@ void GenMarkSweep::mark_sweep_phase1(int level,
                          false, // Younger gens are not roots.
                          true,  // activate StrongRootsScope
                          GenCollectedHeap::SO_None,
-                         GenCollectedHeap::StrongRootsOnly,
+                         ClassUnloading,
                          &follow_root_closure,
                          &follow_root_closure,
                          &follow_cld_closure);
