@@ -116,7 +116,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
                 byte[] encoded = key.getEncoded();
 
                 try {
-                    key = ECUtil.decodeX509ECPublicKey(encoded);
+                    key = P11ECUtil.decodeX509ECPublicKey(encoded);
                 } catch (InvalidKeySpecException ikse) {
                     throw new InvalidKeyException(ikse);
                 }
@@ -145,7 +145,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
                 byte[] encoded = key.getEncoded();
 
                 try {
-                    key = ECUtil.decodePKCS8ECPrivateKey(encoded);
+                    key = P11ECUtil.decodePKCS8ECPrivateKey(encoded);
                 } catch (InvalidKeySpecException ikse) {
                     throw new InvalidKeyException(ikse);
                 }
@@ -167,7 +167,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
         if (keySpec instanceof X509EncodedKeySpec) {
             try {
                 byte[] encoded = ((X509EncodedKeySpec)keySpec).getEncoded();
-                PublicKey key = ECUtil.decodeX509ECPublicKey(encoded);
+                PublicKey key = P11ECUtil.decodeX509ECPublicKey(encoded);
                 return implTranslatePublicKey(key);
             } catch (InvalidKeyException e) {
                 throw new InvalidKeySpecException
@@ -197,7 +197,7 @@ final class P11ECKeyFactory extends P11KeyFactory {
         if (keySpec instanceof PKCS8EncodedKeySpec) {
             try {
                 byte[] encoded = ((PKCS8EncodedKeySpec)keySpec).getEncoded();
-                PrivateKey key = ECUtil.decodePKCS8ECPrivateKey(encoded);
+                PrivateKey key = P11ECUtil.decodePKCS8ECPrivateKey(encoded);
                 return implTranslatePrivateKey(key);
             } catch (GeneralSecurityException e) {
                 throw new InvalidKeySpecException

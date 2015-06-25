@@ -89,47 +89,6 @@ public class ECUtil {
         return Arrays.copyOfRange(b, i, b.length);
     }
 
-    private static KeyFactory getKeyFactory() {
-        try {
-            return KeyFactory.getInstance("EC", "SunEC");
-        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static ECPublicKey decodeX509ECPublicKey(byte[] encoded)
-            throws InvalidKeySpecException {
-        KeyFactory keyFactory = getKeyFactory();
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-
-        return (ECPublicKey)keyFactory.generatePublic(keySpec);
-    }
-
-    public static byte[] x509EncodeECPublicKey(ECPoint w,
-            ECParameterSpec params) throws InvalidKeySpecException {
-        KeyFactory keyFactory = getKeyFactory();
-        ECPublicKeySpec keySpec = new ECPublicKeySpec(w, params);
-        X509Key key = (X509Key)keyFactory.generatePublic(keySpec);
-
-        return key.getEncoded();
-    }
-
-    public static ECPrivateKey decodePKCS8ECPrivateKey(byte[] encoded)
-            throws InvalidKeySpecException {
-        KeyFactory keyFactory = getKeyFactory();
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-
-        return (ECPrivateKey)keyFactory.generatePrivate(keySpec);
-    }
-
-    public static ECPrivateKey generateECPrivateKey(BigInteger s,
-            ECParameterSpec params) throws InvalidKeySpecException {
-        KeyFactory keyFactory = getKeyFactory();
-        ECPrivateKeySpec keySpec = new ECPrivateKeySpec(s, params);
-
-        return (ECPrivateKey)keyFactory.generatePrivate(keySpec);
-    }
-
     private static AlgorithmParameters getECParameters(Provider p) {
         try {
             if (p != null) {
