@@ -224,6 +224,10 @@ void VM_Version::get_processor_features() {
     UseMultiplyToLenIntrinsic = true;
   }
 
+  if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
+    UsePopCountInstruction = true;
+  }
+
 #ifdef COMPILER2
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
     OptoScheduling = true;
