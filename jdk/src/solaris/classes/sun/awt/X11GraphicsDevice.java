@@ -286,7 +286,6 @@ public class X11GraphicsDevice
      * Returns true only if:
      *   - the Xrandr extension is present
      *   - the necessary Xrandr functions were loaded successfully
-     *   - XINERAMA is not enabled
      */
     private static synchronized boolean isXrandrExtensionSupported() {
         if (xrandrExtSupported == null) {
@@ -318,7 +317,9 @@ public class X11GraphicsDevice
 
     @Override
     public boolean isDisplayChangeSupported() {
-        return (isFullScreenSupported() && (getFullScreenWindow() != null));
+        return (isFullScreenSupported()
+                && !((X11GraphicsEnvironment) GraphicsEnvironment
+                        .getLocalGraphicsEnvironment()).runningXinerama());
     }
 
     private static void enterFullScreenExclusive(Window w) {
@@ -348,7 +349,9 @@ public class X11GraphicsDevice
         if (fsSupported && old != null) {
             // enter windowed mode (and restore original display mode)
             exitFullScreenExclusive(old);
-            setDisplayMode(origDisplayMode);
+            if (isDisplayChangeSupported()) {
+                setDisplayMode(origDisplayMode);
+            }
         }
 
         super.setFullScreenWindow(w);
@@ -431,7 +434,9 @@ public class X11GraphicsDevice
                     Window old = getFullScreenWindow();
                     if (old != null) {
                         exitFullScreenExclusive(old);
-                        setDisplayMode(origDisplayMode);
+                        if (isDisplayChangeSupported()) {
+                            setDisplayMode(origDisplayMode);
+                        }
                     }
                 };
                 Thread t = new Thread(rootTG, r,"Display-Change-Shutdown-Thread-"+screen);
