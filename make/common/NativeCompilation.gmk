@@ -323,6 +323,13 @@ define SetupNativeCompilation
     $1_EXTRA_CXXFLAGS+=$$($1_CXXFLAGS_$(OPENJDK_TARGET_OS)_release)
   endif
 
+  ifeq ($$($1_CXXFLAGS),)
+    $1_CXXFLAGS:=$$($1_CFLAGS)
+  endif
+  ifeq ($$(strip $$($1_EXTRA_CXXFLAGS)),)
+    $1_EXTRA_CXXFLAGS:=$$($1_EXTRA_CFLAGS)
+  endif
+
   ifneq (,$$($1_DEBUG_SYMBOLS))
     ifeq ($(ENABLE_DEBUG_SYMBOLS), true)
       ifdef OPENJDK
@@ -338,13 +345,6 @@ define SetupNativeCompilation
         endif
       endif
     endif
-  endif
-
-  ifeq ($$($1_CXXFLAGS),)
-    $1_CXXFLAGS:=$$($1_CFLAGS)
-  endif
-  ifeq ($$(strip $$($1_EXTRA_CXXFLAGS)),)
-    $1_EXTRA_CXXFLAGS:=$$($1_EXTRA_CFLAGS)
   endif
 
   ifneq (,$$($1_REORDER))
