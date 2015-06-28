@@ -515,7 +515,6 @@ public final class FontPanel extends JPanel implements AdjustmentListener {
 
         /// Sets the font, hints, according to the set parameters
         private void setParams( Graphics2D g2 ) {
-System.out.println("USING FONT " + testFont + " "+testFont.getPSName());
             g2.setFont( testFont );
             g2.setRenderingHint(KEY_TEXT_ANTIALIASING, antiAliasType);
             g2.setRenderingHint(KEY_FRACTIONALMETRICS, fractionalMetricsType);

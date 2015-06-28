@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,8 +117,9 @@ import java.util.Set;
  * {@code parse(CharSequence text, DateTimeFormatter formatter)}.
  * <p>For example:
  * <blockquote><pre>
- *  String text = date.toString(formatter);
- *  LocalDate date = LocalDate.parse(text, formatter);
+ *  LocalDate date = LocalDate.now();
+ *  String text = date.format(formatter);
+ *  LocalDate parsedDate = LocalDate.parse(text, formatter);
  * </pre></blockquote>
  * <p>
  * In addition to the format, formatters can be created with desired Locale,
@@ -265,9 +266,10 @@ import java.util.Set;
  * <p>
  * For example:
  * <blockquote><pre>
+ *  LocalDate date = LocalDate.now();
  *  DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy MM dd");
- *  String text = date.toString(formatter);
- *  LocalDate date = LocalDate.parse(text, formatter);
+ *  String text = date.format(formatter);
+ *  LocalDate parsedDate = LocalDate.parse(text, formatter);
  * </pre></blockquote>
  * <p>
  * All letters 'A' to 'Z' and 'a' to 'z' are reserved as pattern letters. The
@@ -1331,8 +1333,8 @@ public final class DateTimeFormatter {
      * If the time '23:59:60' is received, then a simple conversion is applied,
      * replacing the second-of-minute of 60 with 59. This query can be used
      * on the parse result to determine if the leap-second adjustment was made.
-     * The query will return one second of excess if it did adjust to remove
-     * the leap-second, and zero if not. Note that applying a leap-second
+     * The query will return {@code true} if it did adjust to remove the
+     * leap-second, and {@code false} if not. Note that applying a leap-second
      * smoothing mechanism, such as UTC-SLS, is the responsibility of the
      * application, as follows:
      * <pre>
@@ -1976,7 +1978,7 @@ public final class DateTimeFormatter {
      * Errors are returned using the error index field of the {@code ParsePosition}
      * instead of {@code DateTimeParseException}.
      * The returned error index will be set to an index indicative of the error.
-     * Callers must check for errors before using the context.
+     * Callers must check for errors before using the result.
      * <p>
      * If the formatter parses the same field more than once with different values,
      * the result will be an error.
