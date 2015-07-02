@@ -489,6 +489,7 @@ needs_compact3 = \
   java/lang/invoke/LFCaching/LFMultiThreadCachingTest.java \
   java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java \
   java/lang/System/MacEncoding/TestFileEncoding.java \
+  java/lang/Class/getDeclaredField/FieldSetAccessibleTest.java \
   java/nio/channels/AsynchronousSocketChannel/Leaky.java \
   java/security/PermissionCollection/Concurrent.java \
   java/security/Principal/Implies.java \
