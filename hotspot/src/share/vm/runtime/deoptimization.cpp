@@ -1469,7 +1469,10 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
     //
     // The other actions cause immediate removal of the present code.
 
-    bool update_trap_state = true;
+    // Traps caused by injected profile shouldn't pollute trap counts.
+    bool injected_profile_trap = trap_method->has_injected_profile() &&
+                                 (reason == Reason_intrinsic || reason == Reason_unreached);
+    bool update_trap_state = !injected_profile_trap;
     bool make_not_entrant = false;
     bool make_not_compilable = false;
     bool reprofile = false;
