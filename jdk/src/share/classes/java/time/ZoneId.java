@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -453,7 +453,7 @@ public abstract class ZoneId implements Serializable {
      * zones over offset-based zones using {@link TemporalQueries#zone()}.
      * <p>
      * This method matches the signature of the functional interface {@link TemporalQuery}
-     * allowing it to be used in queries via method reference, {@code ZoneId::from}.
+     * allowing it to be used as a query via method reference, {@code ZoneId::from}.
      *
      * @param temporal  the temporal object to convert, not null
      * @return the zone ID, not null

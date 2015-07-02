@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -131,7 +131,6 @@ public interface ChronoLocalDateTime<D extends ChronoLocalDate>
      * The underlying comparison is equivalent to comparing the epoch-day and nano-of-day.
      *
      * @return a comparator that compares in time-line order ignoring the chronology
-     *
      * @see #isAfter
      * @see #isBefore
      * @see #isEqual
@@ -323,7 +322,7 @@ public interface ChronoLocalDateTime<D extends ChronoLocalDate>
      * what the result of this method will be.
      * <p>
      * The result of this method is obtained by invoking the
-     * {@link java.time.temporal.TemporalQuery#queryFrom(TemporalAccessor)} method on the
+     * {@link TemporalQuery#queryFrom(TemporalAccessor)} method on the
      * specified query passing {@code this} as the argument.
      *
      * @param <R> the type of the result
