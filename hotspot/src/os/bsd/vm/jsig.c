@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,12 +36,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 
 #define MAXSIGNUM 32
 #define MASK(sig) ((unsigned int)1 << sig)
 
 static struct sigaction sact[MAXSIGNUM]; /* saved signal handlers */
 static unsigned int jvmsigs = 0; /* signals used by jvm */
+
+static pthread_key_t reentry_flag_key;
+static pthread_once_t reentry_key_init_once = PTHREAD_ONCE_INIT;
 
 /* used to synchronize the installation of signal handlers */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -59,6 +63,15 @@ static sigaction_t os_sigaction = 0; /* os's version of sigaction() */
 static bool jvm_signal_installing = false;
 static bool jvm_signal_installed = false;
 
+#define check_status(cmd) \
+  do { \
+    int status = (cmd); \
+    if (status != 0) { \
+      printf("error %s (%d) in " #cmd "\n", strerror(status), status); \
+      exit(1); \
+    } \
+  } while (0)
+
 static void signal_lock() {
   pthread_mutex_lock(&mutex);
   /* When the jvm is installing its set of signal handlers, threads
@@ -74,8 +87,15 @@ static void signal_unlock() {
   pthread_mutex_unlock(&mutex);
 }
 
+static void reentry_tls_init() {
+    // value for reentry_flag_key will default to NULL (false)
+    check_status(pthread_key_create(&reentry_flag_key, NULL));
+}
+
 static sa_handler_t call_os_signal(int sig, sa_handler_t disp,
                                    bool is_sigset) {
+  sa_handler_t res;
+
   if (os_signal == NULL) {
     if (!is_sigset) {
       os_signal = (signal_t)dlsym(RTLD_NEXT, "signal");
@@ -87,7 +107,12 @@ static sa_handler_t call_os_signal(int sig, sa_handler_t disp,
       exit(0);
     }
   }
-  return (*os_signal)(sig, disp);
+  check_status(pthread_once(&reentry_key_init_once, reentry_tls_init));
+  // set reentry_flag_key to non-NULL to show reentry
+  check_status(pthread_setspecific(reentry_flag_key, &res));
+  res = (*os_signal)(sig, disp);
+  check_status(pthread_setspecific(reentry_flag_key, NULL));
+  return res;
 }
 
 static void save_signal_handler(int sig, sa_handler_t disp) {
@@ -160,6 +185,11 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
   int res;
   bool sigused;
   struct sigaction oldAct;
+
+  check_status(pthread_once(&reentry_key_init_once, reentry_tls_init));
+  if (pthread_getspecific(reentry_flag_key) != NULL) {
+    return call_os_sigaction(sig, act, oact);
+  }
 
   signal_lock();
 
