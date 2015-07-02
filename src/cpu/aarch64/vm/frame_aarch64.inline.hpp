@@ -42,17 +42,11 @@ inline frame::frame() {
   _deopt_state = unknown;
 }
 
-static int spin;
+//static int spin;
 
-inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
+inline void frame::init(intptr_t* sp, intptr_t* fp, address pc) {
   intptr_t a = intptr_t(sp);
   intptr_t b = intptr_t(fp);
-#ifndef PRODUCT
-  if (fp)
-    if (sp > fp || (fp - sp > 0x100000))
-      for(;;)
-	asm("nop");
-#endif
   _sp = sp;
   _unextended_sp = sp;
   _fp = fp;
@@ -68,6 +62,10 @@ inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
   } else {
     _deopt_state = not_deoptimized;
   }
+}
+
+inline frame::frame(intptr_t* sp, intptr_t* fp, address pc) {
+  init(sp, fp, pc);
 }
 
 inline frame::frame(intptr_t* sp, intptr_t* unextended_sp, intptr_t* fp, address pc) {
