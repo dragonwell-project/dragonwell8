@@ -59,10 +59,10 @@ public final class LFGarbageCollectedTest extends LambdaFormTestCase {
         super(testMethod);
     }
 
-     PhantomReference ph;
-     ReferenceQueue rq = new ReferenceQueue();
-     MethodType mtype;
-     Map<String, Object> data;
+    PhantomReference ph;
+    ReferenceQueue rq = new ReferenceQueue();
+    MethodType mtype;
+    Map<String, Object> data;
 
     @Override
     public void doTest() {
@@ -73,7 +73,7 @@ public final class LFGarbageCollectedTest extends LambdaFormTestCase {
             try {
                 adapter = testCase.getTestCaseMH(data, TestMethods.Kind.ONE);
             } catch (NoSuchMethodException ex) {
-                throw new Error("Unexpected exception: ", ex);
+                throw new Error("Unexpected exception", ex);
             }
             mtype = adapter.type();
             Object lambdaForm = INTERNAL_FORM.invoke(adapter);
@@ -94,12 +94,12 @@ public final class LFGarbageCollectedTest extends LambdaFormTestCase {
             collectLambdaForm();
         } catch (IllegalAccessException | IllegalArgumentException |
                 InvocationTargetException ex) {
-            throw new Error("Unexpected exception: ", ex);
+            throw new Error("Unexpected exception", ex);
         }
     }
 
     private void collectLambdaForm() throws IllegalAccessException {
-       // Usually, 2 System.GCs are necessary to enqueue a SoftReference.
+        // Usually, 2 System.GCs are necessary to enqueue a SoftReference.
         System.gc();
         System.gc();
 
@@ -129,7 +129,7 @@ public final class LFGarbageCollectedTest extends LambdaFormTestCase {
         };
     }
 
-   private void dumpTestData() {
+    private void dumpTestData() {
         System.err.println("Test case: " + getTestMethod());
         for (String s : data.keySet()) {
             System.err.printf("\t%20s => %s\n", s, data.get(s));
