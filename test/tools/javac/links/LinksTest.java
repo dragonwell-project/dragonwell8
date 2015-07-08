@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
  * @run main LinksTest
  */
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -48,19 +49,26 @@ public class LinksTest {
             throws Exception {
 //      mkdir tmp
 //      cp ${TESTSRC}/b/B.java tmp
-        ToolBox.writeFile(Paths.get("tmp", "B.java"), BSrc);
+        ToolBox.writeFile(Paths.get("tmp/B.java"), BSrc);
 
-        try {
+        // Try to set up a symbolic link for the test.
 //        ln -s `pwd`/tmp "${TESTCLASSES}/a"
+        try {
             Files.createSymbolicLink(Paths.get("a"), Paths.get("tmp"));
-            ////"${TESTJAVA}/bin/javac" ${TESTTOOLVMOPTS} -sourcepath "${TESTCLASSES}" -d "${TESTCLASSES}/classes" "${TESTSRC}/T.java" 2>&1
-            ToolBox.JavaToolArgs javacArgs =
-                    new ToolBox.JavaToolArgs()
-                    .setOptions("-sourcepath", ".", "-d", ".").setSources(TSrc);
-            ToolBox.javac(javacArgs);
-        } catch (UnsupportedOperationException e) {
-            System.err.println("Symbolic links not supported on this system. The test can't finish");
+            System.err.println("Created symbolic link");
+        } catch (UnsupportedOperationException | IOException e) {
+            System.err.println("Problem creating symbolic link: " + e);
+            System.err.println("Test cannot continue; test passed by default");
+            return;
         }
+
+        // If symbolic link was successfully created,
+        // try a compilation that will use it.
+        ////"${TESTJAVA}/bin/javac" ${TESTTOOLVMOPTS} -sourcepath "${TESTCLASSES}" -d "${TESTCLASSES}/classes" "${TESTSRC}/T.java" 2>&1
+        ToolBox.JavaToolArgs javacArgs =
+                new ToolBox.JavaToolArgs()
+                .setOptions("-sourcepath", ".", "-d", ".").setSources(TSrc);
+        ToolBox.javac(javacArgs);
     }
 
 }
