@@ -27,7 +27,6 @@
  *
  *  @author Robert Field
  *
- *  @library scaffold
  *  @run build JDIScaffold VMConnection
  *  @run compile -g Vars.java
  *  @run main/othervm Vars
