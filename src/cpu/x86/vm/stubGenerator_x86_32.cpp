@@ -2772,6 +2772,7 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_temp7 = xmm7;
 
     __ enter();
+    handleSOERegisters(true);  // Save registers
 
     __ movptr(state, state_param);
     __ movptr(subkeyH, subkeyH_param);
@@ -2875,6 +2876,7 @@ class StubGenerator: public StubCodeGenerator {
     __ pshufb(xmm_temp6, ExternalAddress(StubRoutines::x86::ghash_long_swap_mask_addr()));
     __ movdqu(Address(state, 0), xmm_temp6);   // store the result
 
+    handleSOERegisters(false);  // restore registers
     __ leave();
     __ ret(0);
     return start;
