@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,10 @@
 package test.java.lang.invoke.MethodHandles;
 
 import com.oracle.testlibrary.jsr292.Helper;
+import com.oracle.testlibrary.jsr292.CodeCacheOverflowProcessor;
 import jdk.testlibrary.Asserts;
+import jdk.testlibrary.TimeLimitedRunner;
+import jdk.testlibrary.Utils;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -37,10 +40,10 @@ import java.util.function.Supplier;
 /* @test
  * @library /lib/testlibrary/jsr292 /lib/testlibrary/
  * @compile CatchExceptionTest.java
- * @build jdk.testlibrary.*
  * @run main/othervm -esa test.java.lang.invoke.MethodHandles.CatchExceptionTest
  */
 public class CatchExceptionTest {
+
     private static final List<Class<?>> ARGS_CLASSES;
     protected static final int MAX_ARITY = Helper.MAX_ARITY - 1;
 
@@ -69,12 +72,6 @@ public class CatchExceptionTest {
             final int catchDrops) {
         this.testCase = testCase;
         this.dropped = catchDrops;
-        if (Helper.IS_VERBOSE) {
-            System.out.printf("CatchException::CatchException(%s, isVararg=%b " +
-                            "argsCount=%d catchDrops=%d)%n",
-                    testCase, isVararg, argsCount, catchDrops
-            );
-        }
         MethodHandle thrower = testCase.thrower;
         int throwerLen = thrower.type().parameterCount();
         List<Class<?>> classes;
@@ -94,20 +91,33 @@ public class CatchExceptionTest {
     }
 
     public static void main(String[] args) throws Throwable {
+        CodeCacheOverflowProcessor.runMHTest(CatchExceptionTest::test);
+    }
+
+    public static void test() throws Throwable {
+        System.out.println("classes = " + ARGS_CLASSES);
+        TestFactory factory = new TestFactory();
+        long timeout = Helper.IS_THOROUGH ? 0L : Utils.adjustTimeout(Utils.DEFAULT_TEST_TIMEOUT);
+        // subtract vm init time and reserve time for vm exit
+        timeout *= 0.9;
+        TimeLimitedRunner runner = new TimeLimitedRunner(timeout, 2.0d,
+                () -> {
+                    CatchExceptionTest test = factory.nextTest();
+                    if (test != null) {
+                        test.runTest();
+                        return true;
+                    }
+                    return false;
+                });
         for (CatchExceptionTest test : TestFactory.MANDATORY_TEST_CASES) {
             test.runTest();
         }
-        TestFactory factory = new TestFactory();
-        CatchExceptionTest test;
-        while ((test = factory.nextTest()) != null ) {
-            test.runTest();
-        }
+        runner.call();
     }
 
     private List<Class<?>> getThrowerParams(boolean isVararg, int argsCount) {
         return Helper.getParams(ARGS_CLASSES, isVararg, argsCount);
     }
-
 
     private List<Class<?>> getCatcherParams() {
         int catchArgc = 1 + this.argsCount - dropped;
@@ -119,6 +129,13 @@ public class CatchExceptionTest {
     }
 
     private void runTest() {
+        if (Helper.IS_VERBOSE) {
+            System.out.printf("CatchException(%s, isVararg=%b argsCount=%d "
+                    + "dropped=%d)%n",
+                    testCase, thrower.isVarargsCollector(),
+                    argsCount, dropped);
+        }
+
         Helper.clear();
 
         Object[] args = Helper.randomArgs(
@@ -172,7 +189,7 @@ class TestFactory {
                 {CatchExceptionTest.MAX_ARITY, 0},
                 {CatchExceptionTest.MAX_ARITY, CatchExceptionTest.MAX_ARITY},
         }) {
-                MANDATORY_TEST_CASES.addAll(createTests(args[0], args[1]));
+            MANDATORY_TEST_CASES.addAll(createTests(args[0], args[1]));
         }
     }
 
@@ -200,10 +217,7 @@ class TestFactory {
             args = 1;
         }
 
-        if (Helper.IS_VERBOSE) {
-            System.out.printf("maxArgs = %d%nmaxDrops = %d%n",
-                    maxArgs, maxDrops);
-        }
+        System.out.printf("maxArgs = %d%nmaxDrops = %d%n", maxArgs, maxDrops);
         constructorSize = TestCase.CONSTRUCTORS.size();
     }
 
@@ -230,8 +244,9 @@ class TestFactory {
     }
 
     /**
-     * @return next test from test matrix:
-     * {varArgs, noVarArgs} x TestCase.rtypes x TestCase.THROWABLES x {1, .., maxArgs } x {1, .., maxDrops}
+     * @return next test from test matrix: {varArgs, noVarArgs} x
+     * TestCase.rtypes x TestCase.THROWABLES x {1, .., maxArgs } x
+     * {0, .., maxDrops}
      */
     public CatchExceptionTest nextTest() {
         if (constructor < constructorSize) {
@@ -244,7 +259,7 @@ class TestFactory {
             return null;
         }
         if (dropArgs <= currentMaxDrops) {
-            if (dropArgs == 1) {
+            if (dropArgs == 0) {
                 if (Helper.IS_THOROUGH || Helper.RNG.nextBoolean()) {
                     ++dropArgs;
                     return createTest();
@@ -259,8 +274,8 @@ class TestFactory {
             }
         }
 
-        if (args <= maxArgs) {
-            dropArgs = 1;
+        if (args < maxArgs) {
+            dropArgs = 0;
             currentMaxDrops = Math.min(args, maxDrops);
             ++args;
             return createTest();
@@ -274,17 +289,17 @@ class TestFactory {
                     TestCase.CONSTRUCTORS.get(constructor++).get(),
                     Helper.RNG.nextBoolean(), args, dropArgs);
         } else {
-           if (isVararg) {
-               isVararg = false;
-               return new CatchExceptionTest(
-                       TestCase.CONSTRUCTORS.get(constructor++).get(),
-                       isVararg, args, dropArgs);
-           } else {
-               isVararg = true;
-               return new CatchExceptionTest(
-                       TestCase.CONSTRUCTORS.get(constructor).get(),
-                       isVararg, args, dropArgs);
-           }
+            if (isVararg) {
+                isVararg = false;
+                return new CatchExceptionTest(
+                        TestCase.CONSTRUCTORS.get(constructor++).get(),
+                        isVararg, args, dropArgs);
+            } else {
+                isVararg = true;
+                return new CatchExceptionTest(
+                        TestCase.CONSTRUCTORS.get(constructor).get(),
+                        isVararg, args, dropArgs);
+            }
         }
     }
 }
@@ -412,7 +427,7 @@ class TestCase<T> {
     }
 
     private static <T extends Throwable>
-    Object throwOrReturn(Object normal, T exception) throws T {
+            Object throwOrReturn(Object normal, T exception) throws T {
         if (exception != null) {
             Helper.called("throwOrReturn/throw", normal, exception);
             throw exception;
@@ -421,8 +436,7 @@ class TestCase<T> {
         return normal;
     }
 
-    private static <T extends Throwable>
-    Object catcher(Object o) {
+    private static <T extends Throwable> Object catcher(Object o) {
         Helper.called("catcher", o);
         return o;
     }
@@ -433,7 +447,7 @@ class TestCase<T> {
 
     public MethodHandle getCatcher(List<Class<?>> classes) {
         return MethodHandles.filterReturnValue(Helper.AS_LIST.asType(
-                        MethodType.methodType(Object.class, classes)),
+                MethodType.methodType(Object.class, classes)),
                 CATCHER
         );
     }
