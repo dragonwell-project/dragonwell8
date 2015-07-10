@@ -28,7 +28,7 @@
 
 /*
  * @test
- * @bug 6405536
+ * @bug 6405536 8080102
  * @summary Verify that all ciphersuites work (incl. ECC using NSS crypto)
  * @author Andreas Sterbenz
  * @library ..
@@ -50,9 +50,14 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
         cmdArgs = args;
         main(new ClientJSSEServerJSSE());
+        // now test without SunEC Provider
+        System.setProperty("testWithoutSunEC", "true");
+        main(new ClientJSSEServerJSSE());
+
     }
 
     public void main(Provider p) throws Exception {
+        String testWithoutSunEC = System.getProperty("testWithoutSunEC");
         // MD5 is used in this test case, don't disable MD5 algorithm.
         Security.setProperty(
                 "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
@@ -61,6 +66,17 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
             System.out.println("Provider does not support EC, skipping");
             return;
         }
+
+
+        if (testWithoutSunEC != null) {
+            Provider sunec = Security.getProvider("SunEC");
+            if (sunec == null) {
+                System.out.println("SunEC provider not present. Skipping test");
+                 return;
+            }
+            Security.removeProvider(sunec.getName());
+        }
+
         Providers.setAt(p, 1);
         CipherTest.main(new JSSEFactory(), cmdArgs);
         Security.removeProvider(p.getName());

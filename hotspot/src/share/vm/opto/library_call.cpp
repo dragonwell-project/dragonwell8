@@ -6565,8 +6565,6 @@ bool LibraryCallKit::inline_profileBoolean() {
     jint false_cnt = aobj->element_value(0).as_int();
     jint  true_cnt = aobj->element_value(1).as_int();
 
-    method()->set_injected_profile(true);
-
     if (C->log() != NULL) {
       C->log()->elem("observe source='profileBoolean' false='%d' true='%d'",
                      false_cnt, true_cnt);
