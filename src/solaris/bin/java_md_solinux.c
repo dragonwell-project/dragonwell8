@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -613,13 +613,14 @@ CreateExecutionEnvironment(int *pargc, char ***pargv,
             /* runpath contains current effective LD_LIBRARY_PATH setting */
 
             jvmpath = JLI_StringDup(jvmpath);
-            new_runpath = JLI_MemAlloc(((runpath != NULL) ? JLI_StrLen(runpath) : 0) +
+            size_t new_runpath_size = ((runpath != NULL) ? JLI_StrLen(runpath) : 0) +
                     2 * JLI_StrLen(jrepath) + 2 * JLI_StrLen(arch) +
 #ifdef AIX
                     /* On AIX we additionally need 'jli' in the path because ld doesn't support $ORIGIN. */
                     JLI_StrLen(jrepath) + JLI_StrLen(arch) + JLI_StrLen("/lib//jli:") +
 #endif
-                    JLI_StrLen(jvmpath) + 52);
+                    JLI_StrLen(jvmpath) + 52;
+            new_runpath = JLI_MemAlloc(new_runpath_size);
             newpath = new_runpath + JLI_StrLen(LD_LIBRARY_PATH "=");
 
 
@@ -679,6 +680,11 @@ CreateExecutionEnvironment(int *pargc, char ***pargv,
              * loop of execv() because we test for the prefix, above.
              */
             if (runpath != 0) {
+                /* ensure storage for runpath + colon + NULL */
+                if ((JLI_StrLen(runpath) + 1 + 1) > new_runpath_size) {
+                    JLI_ReportErrorMessageSys(JRE_ERROR11);
+                    exit(1);
+                }
                 JLI_StrCat(new_runpath, ":");
                 JLI_StrCat(new_runpath, runpath);
             }
@@ -811,7 +817,11 @@ GetJREPath(char *path, jint pathsize, const char * arch, jboolean speculative)
             JLI_TraceLauncher("JRE path is %s\n", path);
             return JNI_TRUE;
         }
-
+        /* ensure storage for path + /jre + NULL */
+        if ((JLI_StrLen(path) + 4  + 1) > pathsize) {
+            JLI_TraceLauncher("Insufficient space to store JRE path\n");
+            return JNI_FALSE;
+        }
         /* Does the app ship a private JRE in <apphome>/jre directory? */
         JLI_Snprintf(libjava, sizeof(libjava), "%s/jre/lib/%s/" JAVA_DLL, path, arch);
         if (access(libjava, F_OK) == 0) {
