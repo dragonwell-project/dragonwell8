@@ -30,7 +30,7 @@
  *          java.base/jdk.internal.org.objectweb.asm
  * @build RedefineClassHelper
  * @run main RedefineClassHelper
- * @run main/othervm -javaagent:redefineagent.jar -XX:TraceRedefineClasses=0x600 RedefineRunningMethodsWithResolutionErrors
+ * @run main/othervm -javaagent:redefineagent.jar RedefineRunningMethodsWithResolutionErrors
  */
 
 import jdk.internal.org.objectweb.asm.ClassWriter;
