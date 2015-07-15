@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Test the OutputAnalyzer utility class
- * @library /testlibrary
  */
 
 import jdk.testlibrary.OutputAnalyzer;
