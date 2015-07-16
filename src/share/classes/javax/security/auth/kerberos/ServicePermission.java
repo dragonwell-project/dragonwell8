@@ -50,7 +50,7 @@ import java.io.IOException;
  * used within.
  * <p>
  * The service principal name is the canonical name of the
- * {@code KereberosPrincipal} supplying the service, that is
+ * {@code KerberosPrincipal} supplying the service, that is
  * the KerberosPrincipal represents a Kerberos service
  * principal. This name is treated in a case sensitive manner.
  * An asterisk may appear by itself, to signify any service principal.
@@ -145,6 +145,9 @@ public final class ServicePermission extends Permission
      * @param action the action string
      */
     public ServicePermission(String servicePrincipal, String action) {
+        // Note: servicePrincipal can be "@REALM" which means any principal in
+        // this realm implies it. action can be "-" which means any
+        // action implies it.
         super(servicePrincipal);
         init(servicePrincipal, getMask(action));
     }
@@ -188,7 +191,9 @@ public final class ServicePermission extends Permission
 
     boolean impliesIgnoreMask(ServicePermission p) {
         return ((this.getName().equals("*")) ||
-                this.getName().equals(p.getName()));
+                this.getName().equals(p.getName()) ||
+                (p.getName().startsWith("@") &&
+                        this.getName().endsWith(p.getName())));
     }
 
     /**
@@ -295,7 +300,10 @@ public final class ServicePermission extends Permission
     /**
      * Convert an action string to an integer actions mask.
      *
-     * @param action the action string
+     * Note: if action is "-", action will be NONE, which means any
+     * action implies it.
+     *
+     * @param action the action string.
      * @return the action mask
      */
     private static int getMask(String action) {
@@ -312,9 +320,11 @@ public final class ServicePermission extends Permission
 
         char[] a = action.toCharArray();
 
-        int i = a.length - 1;
-        if (i < 0)
+        if (a.length == 1 && a[0] == '-') {
             return mask;
+        }
+
+        int i = a.length - 1;
 
         while (i != -1) {
             char c;
@@ -475,6 +485,17 @@ final class KrbServicePermissionCollection extends PermissionCollection
 
         ServicePermission np = (ServicePermission) permission;
         int desired = np.getMask();
+
+        if (desired == 0) {
+            for (Permission p: perms) {
+                ServicePermission sp = (ServicePermission)p;
+                if (sp.impliesIgnoreMask(np)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         int effective = 0;
         int needed = desired;
 
