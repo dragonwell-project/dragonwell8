@@ -1,18 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  */
-// Catalog.java - Represents OASIS Open Catalog files.
-
 /*
- * Copyright 2001-2004 The Apache Software Foundation or its licensors,
- * as applicable.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,33 +17,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+// Catalog.java - Represents OASIS Open Catalog files.
 package com.sun.org.apache.xml.internal.resolver;
 
 import com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl;
 import com.sun.org.apache.xerces.internal.utils.SecuritySupport;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.io.DataInputStream;
-
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Vector;
-
-import java.net.URL;
-import java.net.MalformedURLException;
-
-import javax.xml.parsers.SAXParserFactory;
-
-import com.sun.org.apache.xml.internal.resolver.CatalogManager;
+import com.sun.org.apache.xml.internal.resolver.helpers.FileURL;
 import com.sun.org.apache.xml.internal.resolver.helpers.PublicId;
 import com.sun.org.apache.xml.internal.resolver.readers.CatalogReader;
+import com.sun.org.apache.xml.internal.resolver.readers.OASISXMLCatalogReader;
 import com.sun.org.apache.xml.internal.resolver.readers.SAXCatalogReader;
 import com.sun.org.apache.xml.internal.resolver.readers.TR9401CatalogReader;
-import com.sun.org.apache.xml.internal.resolver.readers.OASISXMLCatalogReader;
-import com.sun.org.apache.xml.internal.resolver.helpers.FileURL;
+
+import java.io.DataInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
+import javax.xml.parsers.SAXParserFactory;
 
 /**
  * Represents OASIS Open Catalog files.
@@ -347,7 +341,7 @@ public class Catalog {
    * vector. This allows the Catalog to quickly locate the reader
    * for a particular MIME type.</p>
    */
-  protected Hashtable readerMap = new Hashtable();
+  protected Map<String, Integer> readerMap = new HashMap<>();
 
   /**
    * A vector of CatalogReaders.
@@ -443,11 +437,11 @@ public class Catalog {
    */
   public void addReader(String mimeType, CatalogReader reader) {
     if (readerMap.containsKey(mimeType)) {
-      Integer pos = (Integer) readerMap.get(mimeType);
-      readerArr.set(pos.intValue(), reader);
+      Integer pos = readerMap.get(mimeType);
+      readerArr.set(pos, reader);
     } else {
       readerArr.add(reader);
-      Integer pos = new Integer(readerArr.size()-1);
+      Integer pos = readerArr.size()-1;
       readerMap.put(mimeType, pos);
     }
   }
@@ -470,19 +464,16 @@ public class Catalog {
       mapArr.add(null);
     }
 
-    Enumeration en = readerMap.keys();
-    while (en.hasMoreElements()) {
-      String mimeType = (String) en.nextElement();
-      Integer pos = (Integer) readerMap.get(mimeType);
-      mapArr.set(pos.intValue(), mimeType);
+    for (Map.Entry<String, Integer> entry : readerMap.entrySet()) {
+        mapArr.set(entry.getValue(), entry.getKey());
     }
 
     for (int count = 0; count < mapArr.size(); count++) {
       String mimeType = (String) mapArr.get(count);
-      Integer pos = (Integer) readerMap.get(mimeType);
+      Integer pos = readerMap.get(mimeType);
       newCatalog.addReader(mimeType,
                            (CatalogReader)
-                           readerArr.get(pos.intValue()));
+                           readerArr.get(pos));
     }
   }
 
@@ -822,9 +813,7 @@ public class Catalog {
       // tack on a basename because URLs point to files not dirs
       catalogCwd = FileURL.makeURL("basename");
     } catch (MalformedURLException e) {
-      String userdir = SecuritySupport.getSystemProperty("user.dir");
-      userdir.replace('\\', '/');
-      catalogManager.debug.message(1, "Malformed URL on cwd", userdir);
+      catalogManager.debug.message(1, "Malformed URL on cwd", "user.dir");
       catalogCwd = null;
     }
 
