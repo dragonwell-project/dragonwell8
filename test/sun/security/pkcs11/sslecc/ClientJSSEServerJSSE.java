@@ -58,15 +58,11 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
     public void main(Provider p) throws Exception {
         String testWithoutSunEC = System.getProperty("testWithoutSunEC");
-        // MD5 is used in this test case, don't disable MD5 algorithm.
-        Security.setProperty(
-                "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
 
         if (p.getService("KeyFactory", "EC") == null) {
             System.out.println("Provider does not support EC, skipping");
             return;
         }
-
 
         if (testWithoutSunEC != null) {
             Provider sunec = Security.getProvider("SunEC");
