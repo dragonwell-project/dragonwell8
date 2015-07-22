@@ -983,7 +983,7 @@ ifndef OPENJDK
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LDFLAGS_windows := user32.lib $(JDK_OUTPUTDIR)/objs/libfontmanager/fontmanager.lib, \
       LDFLAGS_SUFFIX_posix := $(LIBM) $(LIBCXX) -lfontmanager -ljava -ljvm -lc, \
-      LDFLAGS_SUFFIX_solaris := -lawt -lawt_xawt, \
+      LDFLAGS_SUFFIX_solaris := -lawt -lawt_headless, \
       VERSIONINFO_RESOURCE := $(JDK_TOPDIR)/src/windows/resource/version.rc, \
       RC_FLAGS := $(RC_FLAGS) \
           -D "JDK_FNAME=t2k.dll" \
