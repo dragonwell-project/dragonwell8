@@ -318,6 +318,7 @@ public class X11GraphicsDevice
     @Override
     public boolean isDisplayChangeSupported() {
         return (isFullScreenSupported()
+                && (getFullScreenWindow() != null)
                 && !((X11GraphicsEnvironment) GraphicsEnvironment
                         .getLocalGraphicsEnvironment()).runningXinerama());
     }
