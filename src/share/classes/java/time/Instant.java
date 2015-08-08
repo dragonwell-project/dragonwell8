@@ -1229,8 +1229,14 @@ public final class Instant
      * @throws ArithmeticException if numeric overflow occurs
      */
     public long toEpochMilli() {
-        long millis = Math.multiplyExact(seconds, 1000);
-        return millis + nanos / 1000_000;
+        if (seconds < 0 && nanos > 0) {
+            long millis = Math.multiplyExact(seconds+1, 1000);
+            long adjustment = nanos / 1000_000 - 1000;
+            return millis + adjustment;
+        } else {
+            long millis = Math.multiplyExact(seconds, 1000);
+            return millis + nanos / 1000_000;
+        }
     }
 
     //-----------------------------------------------------------------------
