@@ -1,15 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 1999-2002,2004,2005 The Apache Software Foundation.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,18 +36,16 @@
 
 package com.sun.org.apache.xml.internal.serialize;
 
-
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.Writer;
-import java.util.Enumeration;
-
 import com.sun.org.apache.xerces.internal.dom.DOMMessageFormatter;
 import com.sun.org.apache.xerces.internal.util.NamespaceSupport;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.org.apache.xerces.internal.util.XMLChar;
 import com.sun.org.apache.xerces.internal.util.XMLSymbols;
 import com.sun.org.apache.xerces.internal.xni.NamespaceContext;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Writer;
+import java.util.Map;
 import org.w3c.dom.Attr;
 import org.w3c.dom.DOMError;
 import org.w3c.dom.Element;
@@ -334,13 +332,10 @@ extends BaseMarkupSerializer {
             }
 
             if (_prefixes != null) {
-                Enumeration keys;
-
-                keys = _prefixes.keys();
-                while (keys.hasMoreElements()) {
+                for (Map.Entry<String, String> entry : _prefixes.entrySet()) {
                     _printer.printSpace();
-                    value = (String) keys.nextElement();
-                    name = (String) _prefixes.get( value );
+                    value = entry.getKey(); //The prefixes map uses the URI value as key.
+                    name = entry.getValue(); //and prefix name as value
                     if (name.length() == 0) {
                         _printer.printText( "xmlns=\"" );
                         printEscaped( value );
