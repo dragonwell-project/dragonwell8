@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2001-2005 The Apache Software Foundation.
@@ -20,12 +19,13 @@
 
 package com.sun.org.apache.xerces.internal.impl.xs;
 
+import com.sun.org.apache.xerces.internal.xni.QName;
 import com.sun.org.apache.xerces.internal.xs.XSConstants;
 import com.sun.org.apache.xerces.internal.xs.XSObjectList;
 import com.sun.org.apache.xerces.internal.xs.XSSimpleTypeDefinition;
 import com.sun.org.apache.xerces.internal.xs.XSTypeDefinition;
-import com.sun.org.apache.xerces.internal.xni.QName;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 /**
@@ -172,14 +172,14 @@ public class SubstitutionGroupHandler {
     }
 
     // to store substitution group information
-    // the key to the hashtable is an element decl, and the value is
+    // the key to the map is an element decl, and the value is
     // - a Vector, which contains all elements that has this element as their
     //   substitution group affilication
     // - an array of OneSubGroup, which contains its substitution group before block.
-    Hashtable fSubGroupsB = new Hashtable();
+    Map<XSElementDecl, Object> fSubGroupsB = new HashMap<>();
     private static final OneSubGroup[] EMPTY_VECTOR = new OneSubGroup[0];
     // The real substitution groups (after "block")
-    Hashtable fSubGroups = new Hashtable();
+    Map<XSElementDecl, XSElementDecl[]> fSubGroups = new HashMap<>();
 
     /**
      * clear the internal registry of substitutionGroup information
@@ -221,9 +221,9 @@ public class SubstitutionGroupHandler {
      */
     public XSElementDecl[] getSubstitutionGroup(XSElementDecl element) {
         // If we already have sub group for this element, just return it.
-        Object subGroup = fSubGroups.get(element);
+        XSElementDecl[] subGroup = fSubGroups.get(element);
         if (subGroup != null)
-            return (XSElementDecl[])subGroup;
+            return subGroup;
 
         if ((element.fBlock & XSConstants.DERIVATION_SUBSTITUTION) != 0) {
             fSubGroups.put(element, EMPTY_GROUP);
