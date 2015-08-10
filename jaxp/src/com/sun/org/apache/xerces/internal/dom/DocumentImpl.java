@@ -1,13 +1,13 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * Copyright 2001,2002,2004,2005 The Apache Software Foundation.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -20,13 +20,19 @@
 
 package com.sun.org.apache.xerces.internal.dom;
 
-import java.io.Serializable;
-import java.util.Hashtable;
-import java.util.Vector;
-
 import com.sun.org.apache.xerces.internal.dom.events.EventImpl;
 import com.sun.org.apache.xerces.internal.dom.events.MutationEventImpl;
-import org.w3c.dom.UserDataHandler;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamField;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.Vector;
 import org.w3c.dom.Attr;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.DOMImplementation;
@@ -34,6 +40,7 @@ import org.w3c.dom.DocumentType;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
+import org.w3c.dom.UserDataHandler;
 import org.w3c.dom.events.DocumentEvent;
 import org.w3c.dom.events.Event;
 import org.w3c.dom.events.EventException;
@@ -96,17 +103,32 @@ public class DocumentImpl
 
     /** Iterators */
     // REVISIT: Should this be transient? -Ac
-    protected Vector iterators;
+    protected List<NodeIterator> iterators;
 
      /** Ranges */
     // REVISIT: Should this be transient? -Ac
-    protected Vector ranges;
+    protected List<Range> ranges;
 
     /** Table for event listeners registered to this document nodes. */
-    protected Hashtable eventListeners;
+    protected Map<NodeImpl, List<LEntry>> eventListeners;
 
     /** Bypass mutation events firing. */
     protected boolean mutationEvents = false;
+
+
+    /**
+     * @serialField iterators Vector Node iterators
+     * @serialField ranges Vector ranges
+     * @serialField eventListeners Hashtable Event listeners
+     * @serialField mutationEvents boolean Bypass mutation events firing
+     */
+    private static final ObjectStreamField[] serialPersistentFields =
+        new ObjectStreamField[] {
+            new ObjectStreamField("iterators", Vector.class),
+            new ObjectStreamField("ranges", Vector.class),
+            new ObjectStreamField("eventListeners", Hashtable.class),
+            new ObjectStreamField("mutationEvents", boolean.class),
+        };
 
     //
     // Constructors
@@ -227,10 +249,10 @@ public class DocumentImpl
                                                      filter,
                                                      entityReferenceExpansion);
         if (iterators == null) {
-            iterators = new Vector();
+            iterators = new ArrayList<>();
         }
 
-        iterators.addElement(iterator);
+        iterators.add(iterator);
 
         return iterator;
     }
@@ -287,7 +309,7 @@ public class DocumentImpl
         if (nodeIterator == null) return;
         if (iterators == null) return;
 
-        iterators.removeElement(nodeIterator);
+        iterators.remove(nodeIterator);
     }
 
     //
@@ -298,12 +320,11 @@ public class DocumentImpl
     public Range createRange() {
 
         if (ranges == null) {
-            ranges = new Vector();
+            ranges = new ArrayList<>();
         }
 
         Range range = new RangeImpl(this);
-
-        ranges.addElement(range);
+        ranges.add(range);
 
         return range;
 
@@ -318,7 +339,7 @@ public class DocumentImpl
         if (range == null) return;
         if (ranges == null) return;
 
-        ranges.removeElement(range);
+        ranges.remove(range);
     }
 
     /**
@@ -330,7 +351,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).receiveReplacedText(node);
+                ((RangeImpl)ranges.get(i)).receiveReplacedText(node);
             }
         }
     }
@@ -344,7 +365,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).receiveDeletedText(node,
+                ((RangeImpl)ranges.get(i)).receiveDeletedText(node,
                                                                 offset, count);
             }
         }
@@ -359,7 +380,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).receiveInsertedText(node,
+                ((RangeImpl)ranges.get(i)).receiveInsertedText(node,
                                                                 offset, count);
             }
         }
@@ -374,7 +395,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).receiveSplitData(node,
+                ((RangeImpl)ranges.get(i)).receiveSplitData(node,
                                                               newNode, offset);
             }
         }
@@ -437,9 +458,9 @@ public class DocumentImpl
      * node here won't be GC'ed as long as some listener is registered on it,
      * since the eventsListeners table will have a reference to the node.
      */
-    protected void setEventListeners(NodeImpl n, Vector listeners) {
+    private void setEventListeners(NodeImpl n, List<LEntry> listeners) {
         if (eventListeners == null) {
-            eventListeners = new Hashtable();
+            eventListeners = new HashMap<>();
         }
         if (listeners == null) {
             eventListeners.remove(n);
@@ -457,11 +478,11 @@ public class DocumentImpl
     /**
      * Retreive event listener registered on a given node
      */
-    protected Vector getEventListeners(NodeImpl n) {
+    private List<LEntry> getEventListeners(NodeImpl n) {
         if (eventListeners == null) {
             return null;
         }
-        return (Vector) eventListeners.get(n);
+        return eventListeners.get(n);
     }
 
     //
@@ -515,6 +536,7 @@ public class DocumentImpl
      * @param useCapture True iff listener is registered on
      *  capturing phase rather than at-target or bubbling
      */
+    @Override
     protected void addEventListener(NodeImpl node, String type,
                                     EventListener listener, boolean useCapture)
     {
@@ -527,12 +549,12 @@ public class DocumentImpl
         // Simplest way to code that is to zap the previous entry, if any.
         removeEventListener(node, type, listener, useCapture);
 
-        Vector nodeListeners = getEventListeners(node);
+        List<LEntry> nodeListeners = getEventListeners(node);
         if(nodeListeners == null) {
-            nodeListeners = new Vector();
+            nodeListeners = new ArrayList<>();
             setEventListeners(node, nodeListeners);
         }
-        nodeListeners.addElement(new LEntry(type, listener, useCapture));
+        nodeListeners.add(new LEntry(type, listener, useCapture));
 
         // Record active listener
         LCount lc = LCount.lookup(type);
@@ -558,6 +580,7 @@ public class DocumentImpl
      * @param useCapture True iff listener is registered on
      *  capturing phase rather than at-target or bubbling
      */
+    @Override
     protected void removeEventListener(NodeImpl node, String type,
                                        EventListener listener,
                                        boolean useCapture)
@@ -565,7 +588,7 @@ public class DocumentImpl
         // If this couldn't be a valid listener registration, ignore request
         if (type == null || type.equals("") || listener == null)
             return;
-        Vector nodeListeners = getEventListeners(node);
+        List<LEntry> nodeListeners = getEventListeners(node);
         if (nodeListeners == null)
             return;
 
@@ -573,12 +596,12 @@ public class DocumentImpl
         // each listener may be registered only once per type per phase.
         // count-down is OK for deletions!
         for (int i = nodeListeners.size() - 1; i >= 0; --i) {
-            LEntry le = (LEntry) nodeListeners.elementAt(i);
+            LEntry le = nodeListeners.get(i);
             if (le.useCapture == useCapture && le.listener == listener &&
                 le.type.equals(type)) {
-                nodeListeners.removeElementAt(i);
+                nodeListeners.remove(i);
                 // Storage management: Discard empty listener lists
-                if (nodeListeners.size() == 0)
+                if (nodeListeners.isEmpty())
                     setEventListeners(node, null);
 
                 // Remove active listener
@@ -597,12 +620,13 @@ public class DocumentImpl
         }
     } // removeEventListener(NodeImpl,String,EventListener,boolean) :void
 
+    @Override
     protected void copyEventListeners(NodeImpl src, NodeImpl tgt) {
-        Vector nodeListeners = getEventListeners(src);
+        List<LEntry> nodeListeners = getEventListeners(src);
         if (nodeListeners == null) {
             return;
         }
-        setEventListeners(tgt, (Vector) nodeListeners.clone());
+        setEventListeners(tgt, new ArrayList<>(nodeListeners));
     }
 
     /**
@@ -655,6 +679,7 @@ public class DocumentImpl
      * @return true if the event's <code>preventDefault()</code>
      *              method was invoked by an EventListener; otherwise false.
     */
+    @Override
     protected boolean dispatchEvent(NodeImpl node, Event event) {
         if (event == null) return false;
 
@@ -691,11 +716,11 @@ public class DocumentImpl
         // is issued to the Element rather than the Attr
         // and causes a _second_ DOMSubtreeModified in the Element's
         // tree.
-        Vector pv = new Vector(10,10);
+        List<Node> pv = new ArrayList<>(10);
         Node p = node;
         Node n = p.getParentNode();
         while (n != null) {
-            pv.addElement(n);
+            pv.add(n);
             p = n;
             n = n.getParentNode();
         }
@@ -710,15 +735,15 @@ public class DocumentImpl
                     break;  // Someone set the flag. Phase ends.
 
                 // Handle all capturing listeners on this node
-                NodeImpl nn = (NodeImpl) pv.elementAt(j);
+                NodeImpl nn = (NodeImpl) pv.get(j);
                 evt.currentTarget = nn;
-                Vector nodeListeners = getEventListeners(nn);
+                List<LEntry> nodeListeners = getEventListeners(nn);
                 if (nodeListeners != null) {
-                    Vector nl = (Vector) nodeListeners.clone();
+                    List<LEntry> nl = (List)((ArrayList)nodeListeners).clone();
                     // call listeners in the order in which they got registered
                     int nlsize = nl.size();
                     for (int i = 0; i < nlsize; i++) {
-                        LEntry le = (LEntry) nl.elementAt(i);
+                        LEntry le = nl.get(i);
                         if (le.useCapture && le.type.equals(evt.type) &&
                             nodeListeners.contains(le)) {
                             try {
@@ -741,13 +766,13 @@ public class DocumentImpl
             // node are _not_ invoked, even during the capture phase.
             evt.eventPhase = Event.AT_TARGET;
             evt.currentTarget = node;
-            Vector nodeListeners = getEventListeners(node);
+            List<LEntry> nodeListeners = getEventListeners(node);
             if (!evt.stopPropagation && nodeListeners != null) {
-                Vector nl = (Vector) nodeListeners.clone();
+                List<LEntry> nl = (List)((ArrayList)nodeListeners).clone();
                 // call listeners in the order in which they got registered
                 int nlsize = nl.size();
                 for (int i = 0; i < nlsize; i++) {
-                    LEntry le = (LEntry) nl.elementAt(i);
+                    LEntry le = (LEntry) nl.get(i);
                     if (!le.useCapture && le.type.equals(evt.type) &&
                         nodeListeners.contains(le)) {
                         try {
@@ -772,16 +797,16 @@ public class DocumentImpl
                         break;  // Someone set the flag. Phase ends.
 
                     // Handle all bubbling listeners on this node
-                    NodeImpl nn = (NodeImpl) pv.elementAt(j);
+                    NodeImpl nn = (NodeImpl) pv.get(j);
                     evt.currentTarget = nn;
                     nodeListeners = getEventListeners(nn);
                     if (nodeListeners != null) {
-                        Vector nl = (Vector) nodeListeners.clone();
+                        List<LEntry> nl = (List)((ArrayList)nodeListeners).clone();
                         // call listeners in the order in which they got
                         // registered
                         int nlsize = nl.size();
                         for (int i = 0; i < nlsize; i++) {
-                            LEntry le = (LEntry) nl.elementAt(i);
+                            LEntry le = nl.get(i);
                             if (!le.useCapture && le.type.equals(evt.type) &&
                                 nodeListeners.contains(le)) {
                                 try {
@@ -1118,7 +1143,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).insertedNodeFromDOM(newInternal);
+                ((RangeImpl)ranges.get(i)).insertedNodeFromDOM(newInternal);
             }
         }
     }
@@ -1132,7 +1157,7 @@ public class DocumentImpl
         if (iterators != null) {
             int size = iterators.size();
             for (int i = 0; i != size; i++) {
-               ((NodeIteratorImpl)iterators.elementAt(i)).removeNode(oldChild);
+               ((NodeIteratorImpl)iterators.get(i)).removeNode(oldChild);
             }
         }
 
@@ -1140,7 +1165,7 @@ public class DocumentImpl
         if (ranges != null) {
             int size = ranges.size();
             for (int i = 0; i != size; i++) {
-                ((RangeImpl)ranges.elementAt(i)).removeNode(oldChild);
+                ((RangeImpl)ranges.get(i)).removeNode(oldChild);
             }
         }
 
@@ -1302,4 +1327,53 @@ public class DocumentImpl
         // REVISIT: To be implemented!!!
     }
 
+
+    /**
+     * @serialData Serialized fields. Convert Maps to Hashtables and Lists
+     * to Vectors for backward compatibility.
+     */
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        // Convert Maps to Hashtables, Lists to Vectors
+        Vector<NodeIterator> it = (iterators == null)? null : new Vector<>(iterators);
+        Vector<Range> r = (ranges == null)? null : new Vector<>(ranges);
+
+        Hashtable<NodeImpl, Vector<LEntry>> el = null;
+        if (eventListeners != null) {
+            el = new Hashtable<>();
+            for (Map.Entry<NodeImpl, List<LEntry>> e : eventListeners.entrySet()) {
+                 el.put(e.getKey(), new Vector<>(e.getValue()));
+            }
+        }
+
+        // Write serialized fields
+        ObjectOutputStream.PutField pf = out.putFields();
+        pf.put("iterators", it);
+        pf.put("ranges", r);
+        pf.put("eventListeners", el);
+        pf.put("mutationEvents", mutationEvents);
+        out.writeFields();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void readObject(ObjectInputStream in)
+                        throws IOException, ClassNotFoundException {
+        // We have to read serialized fields first.
+        ObjectInputStream.GetField gf = in.readFields();
+        Vector<NodeIterator> it = (Vector<NodeIterator>)gf.get("iterators", null);
+        Vector<Range> r = (Vector<Range>)gf.get("ranges", null);
+        Hashtable<NodeImpl, Vector<LEntry>> el =
+                (Hashtable<NodeImpl, Vector<LEntry>>)gf.get("eventListeners", null);
+
+        mutationEvents = gf.get("mutationEvents", false);
+
+        //convert Hashtables back to HashMaps and Vectors to Lists
+        if (it != null) iterators = new ArrayList<>(it);
+        if (r != null) ranges = new ArrayList<>(r);
+        if (el != null) {
+            eventListeners = new HashMap<>();
+            for (Map.Entry<NodeImpl, Vector<LEntry>> e : el.entrySet()) {
+                 eventListeners.put(e.getKey(), new ArrayList<>(e.getValue()));
+            }
+        }
+    }
 } // class DocumentImpl
