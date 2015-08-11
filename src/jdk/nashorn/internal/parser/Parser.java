@@ -2720,6 +2720,11 @@ loop:
         }
 
         if (isStatement) {
+            if (isAnonymous) {
+                appendStatement(new ExpressionStatement(functionLine, functionToken, finish, functionNode));
+                return functionNode;
+            }
+
             final int     varFlags = (topLevel || !useBlockScope()) ? 0 : VarNode.IS_LET;
             final VarNode varNode = new VarNode(functionLine, functionToken, finish, name, functionNode, varFlags);
             if (topLevel) {
