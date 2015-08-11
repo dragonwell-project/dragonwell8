@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,21 +22,28 @@
  */
 
 /**
- * JDK-8068580: make JavaAdapterFactory.isAutoConvertibleFromFunction more robust
+ * JDK-8073733: TypeError messages with "call" and "new" could be improved
  *
  * @test
  * @run
  */
 
-var BigAbstract = Java.type("jdk.nashorn.test.models.BigAbstract")
+var func = undefined;
 try {
-    new BigAbstract({});
+    func();
 } catch (e) {
-    Assert.assertTrue(e instanceof TypeError);
-    Assert.assertEquals(e.message, "Can not extend/implement [class jdk.nashorn.test.models.BigAbstract] because of java.lang.RuntimeException: Method code too large!");
+    print(e);
 }
+
+var obj = {};
 try {
-    BigAbstract.accept(function() { });
+    obj.foo();
 } catch (e) {
-    Assert.assertSame(e.class, java.lang.ClassCastException.class);
+    print(e);
+}
+
+try {
+    new func();
+} catch (e) {
+    print(e);
 }
