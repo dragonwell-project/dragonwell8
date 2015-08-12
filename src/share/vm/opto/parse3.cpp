@@ -281,10 +281,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   // If reference is volatile, prevent following memory ops from
   // floating down past the volatile write.  Also prevents commoning
   // another volatile read.
-  // AArch64 uses store release (which does everything we need to keep
-  // the machine in order) but we still need a compiler barrier here.
-  if (is_vol)
-    insert_mem_bar(NOT_AARCH64(Op_MemBarRelease) AARCH64_ONLY(Op_MemBarCPUOrder));
+  if (is_vol)  insert_mem_bar(Op_MemBarRelease);
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -325,7 +322,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   if (is_vol) {
     // If not multiple copy atomic, we do the MemBarVolatile before the load.
     if (!support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      insert_mem_bar(NOT_AARCH64(Op_MemBarVolatile) AARCH64_ONLY(Op_MemBarCPUOrder)); // Use fat membar
+      insert_mem_bar(Op_MemBarVolatile); // Use fat membar
     }
     // Remember we wrote a volatile field.
     // For not multiple copy atomic cpu (ppc64) a barrier should be issued
