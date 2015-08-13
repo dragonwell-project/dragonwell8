@@ -27,13 +27,13 @@ package sun.lwawt.macosx;
 
 import java.awt.*;
 import java.awt.image.*;
-import sun.awt.image.ImageRepresentation;
 
 import java.io.*;
 import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.*;
+import java.util.regex.*;
 
 import java.awt.datatransfer.*;
 import sun.awt.datatransfer.*;
@@ -122,26 +122,52 @@ public class CDataTransferer extends DataTransferer {
 
     @Override
     public Object translateBytes(byte[] bytes, DataFlavor flavor,
-                                    long format, Transferable transferable) throws IOException {
+                                 long format, Transferable transferable) throws IOException {
 
-            if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass()))
-            {
-                String charset = getDefaultTextCharset();
-                if (transferable != null && transferable.isDataFlavorSupported(javaTextEncodingFlavor)) {
-                    try {
-                        charset = new String((byte[])transferable.getTransferData(javaTextEncodingFlavor), "UTF-8");
-                    } catch (UnsupportedFlavorException cannotHappen) {
-                    }
+
+        if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass())) {
+            String charset = getDefaultTextCharset();
+            if (transferable != null && transferable.isDataFlavorSupported(javaTextEncodingFlavor)) {
+                try {
+                    charset = new String((byte[]) transferable.getTransferData(javaTextEncodingFlavor), "UTF-8");
+                } catch (UnsupportedFlavorException cannotHappen) {
                 }
-
-                return new URL(new String(bytes, charset));
             }
 
-            if (format == CF_STRING) {
-                bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
-            }
+            String xml = new String(bytes, charset);
+            // macosx pastboard returns a propery list that contins of one URL
+            // let's extract it.
+            return new URL(extractURL(xml));
+        } else if (format == CF_STRING) {
+            bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
+        }
 
-            return super.translateBytes(bytes, flavor, format, transferable);
+        return super.translateBytes(bytes, flavor, format, transferable);
+    }
+
+    /**
+     * Macosx pastboard returns xml document that contains one URL, for exmple:
+     * <pre>
+     *     {@code
+     *      <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+     *      <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+     *      <plist version=\"1.0\">
+     *          <array>
+     *              <string>file:///Users/mcherkas/Downloads/Version.jpg</string>
+     *              <string></string>
+     *          </array>
+     *      </plist>
+     *     }
+     * </pre>
+     */
+    private String extractURL(String xml) {
+        Pattern urlExtractorPattern = Pattern.compile("<string>(.*)</string>");
+        Matcher matcher = urlExtractorPattern.matcher(xml);
+        if(matcher.find()){
+            return matcher.group(1);
+        } else {
+            return null;
+        }
     }
 
     @Override
