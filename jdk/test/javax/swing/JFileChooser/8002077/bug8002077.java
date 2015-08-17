@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,8 @@ public class bug8002077 {
         for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
             if ("Nimbus".equals(info.getName())) {
                 UIManager.setLookAndFeel(info.getClassName());
+                UIManager.put("FileChooser.openButtonMnemonic", KeyEvent.VK_O);
+                UIManager.put("FileChooser.saveButtonMnemonic", KeyEvent.VK_S);
                 runTest();
                 break;
             }
@@ -58,24 +60,24 @@ public class bug8002077 {
         Robot robot = new Robot();
         robot.setAutoDelay(50);
 
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                fileChooserState = new JFileChooser().showSaveDialog(null);
-            }
-        });
+        SwingUtilities.invokeLater(() ->
+                fileChooserState = new JFileChooser().showSaveDialog(null));
         toolkit.realSync();
 
         Util.hitMnemonics(robot, KeyEvent.VK_N);
         toolkit.realSync();
 
-        robot.keyPress(KeyEvent.VK_A);
-        robot.keyRelease(KeyEvent.VK_A);
+        Util.hitKeys(robot, KeyEvent.VK_A);
         toolkit.realSync();
 
         Util.hitMnemonics(robot, KeyEvent.VK_S);
         toolkit.realSync();
 
         if (fileChooserState != JFileChooser.APPROVE_OPTION) {
+            // Close the dialog
+            Util.hitKeys(robot, KeyEvent.VK_ESCAPE);
+            toolkit.realSync();
+
             throw new RuntimeException("Save button is not pressed!");
         }
     }
