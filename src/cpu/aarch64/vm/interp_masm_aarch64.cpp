@@ -612,6 +612,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     Label done;
 
     const Register swap_reg = r0;
+    const Register tmp = c_rarg2;
     const Register obj_reg = c_rarg3; // Will contain the oop
 
     const int obj_offset = BasicObjectLock::obj_offset_in_bytes();
@@ -625,7 +626,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     ldr(obj_reg, Address(lock_reg, obj_offset));
 
     if (UseBiasedLocking) {
-      biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch2, false, done, &slow_case);
+      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, done, &slow_case);
     }
 
     // Load (object->mark() | 1) into swap_reg
@@ -644,7 +645,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
       cmpxchgptr(swap_reg, lock_reg, obj_reg, rscratch1, fast, &fail);
       bind(fast);
       atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
-		  rscratch2, rscratch1);
+                  rscratch2, rscratch1, tmp);
       b(done);
       bind(fail);
     } else {
@@ -672,7 +673,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     if (PrintBiasedLockingStatistics) {
       br(Assembler::NE, slow_case);
       atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
-		  rscratch2, rscratch1);
+                  rscratch2, rscratch1, tmp);
     }
     br(Assembler::EQ, done);
 
