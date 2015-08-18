@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,14 +76,17 @@ static void next_line(FILE *f) {
 static int get_totalticks(int which, ticks *pticks) {
     FILE         *fh;
     uint64_t        userTicks, niceTicks, systemTicks, idleTicks;
+    uint64_t        iowTicks = 0, irqTicks = 0, sirqTicks= 0;
     int             n;
 
     if((fh = fopen("/proc/stat", "r")) == NULL) {
         return -1;
     }
 
-    n = fscanf(fh, "cpu " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64,
-           &userTicks, &niceTicks, &systemTicks, &idleTicks);
+    n = fscanf(fh, "cpu " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64 " "
+                   DEC_64 " " DEC_64,
+           &userTicks, &niceTicks, &systemTicks, &idleTicks,
+           &iowTicks, &irqTicks, &sirqTicks);
 
     // Move to next line
     next_line(fh);
@@ -92,24 +95,30 @@ static int get_totalticks(int which, ticks *pticks) {
     if (which != -1) {
         int i;
         for (i = 0; i < which; i++) {
-            if (fscanf(fh, "cpu%*d " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64, &userTicks, &niceTicks, &systemTicks, &idleTicks) != 4) {
+            if (fscanf(fh, "cpu%*d " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64 " "
+                            DEC_64 " " DEC_64 " " DEC_64,
+                   &userTicks, &niceTicks, &systemTicks, &idleTicks,
+                   &iowTicks, &irqTicks, &sirqTicks) < 4) {
                 fclose(fh);
                 return -2;
             }
             next_line(fh);
         }
-        n = fscanf(fh, "cpu%*d " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64 "\n",
-           &userTicks, &niceTicks, &systemTicks, &idleTicks);
+        n = fscanf(fh, "cpu%*d " DEC_64 " " DEC_64 " " DEC_64 " " DEC_64 " "
+                       DEC_64 " " DEC_64 " " DEC_64 "\n",
+           &userTicks, &niceTicks, &systemTicks, &idleTicks,
+           &iowTicks, &irqTicks, &sirqTicks);
     }
 
     fclose(fh);
-    if (n != 4) {
+    if (n < 4) {
         return -2;
     }
 
     pticks->used       = userTicks + niceTicks;
-    pticks->usedKernel = systemTicks;
-    pticks->total      = userTicks + niceTicks + systemTicks + idleTicks;
+    pticks->usedKernel = systemTicks + irqTicks + sirqTicks;
+    pticks->total      = userTicks + niceTicks + systemTicks + idleTicks +
+                         iowTicks + irqTicks + sirqTicks;
 
     return 0;
 }
