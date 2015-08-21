@@ -750,7 +750,7 @@ public class TransTypes extends TreeTranslator {
         Type originalTarget = tree.type;
         tree.type = erasure(tree.type);
         tree.expr = translate(tree.expr, tree.type);
-        if (originalTarget.isCompound()) {
+        if (originalTarget.isIntersection()) {
             Type.IntersectionClassType ict = (Type.IntersectionClassType)originalTarget;
             for (Type c : ict.getExplicitComponents()) {
                 Type ec = erasure(c);

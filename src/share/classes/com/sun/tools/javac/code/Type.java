@@ -421,6 +421,14 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
             && (tsym.flags() & COMPOUND) != 0;
     }
 
+    public boolean isIntersection() {
+        return false;
+    }
+
+    public boolean isUnion() {
+        return false;
+    }
+
     public boolean isInterface() {
         return (tsym.flags() & INTERFACE) != 0;
     }
@@ -970,6 +978,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         }
 
         @Override
+        public boolean isUnion() {
+            return true;
+        }
+
+        @Override
         public TypeKind getKind() {
             return TypeKind.UNION;
         }
@@ -1001,6 +1014,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
 
         public List<Type> getComponents() {
             return interfaces_field.prepend(supertype_field);
+        }
+
+        @Override
+        public boolean isIntersection() {
+            return true;
         }
 
         public List<Type> getExplicitComponents() {
