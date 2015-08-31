@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -175,7 +175,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"validity.number.of.days",
                 "antal dagar f\u00F6r giltighet"}, //-validity
         {"Serial.ID.of.cert.to.revoke",
-                 "Seriellt ID f\u00F6r certifikat som ska \u00E5terkallas"}, //-id
+                 "Seriellt id f\u00F6r certifikat som ska \u00E5terkallas"}, //-id
         // keytool: Running part
         {"keytool.error.", "nyckelverktygsfel: "},
         {"Illegal.option.", "Otill\u00E5tet alternativ:  "},
@@ -373,7 +373,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
             "*****************  WARNING WARNING WARNING  *****************"},
         {"Signer.d.", "Signerare #%d:"},
         {"Timestamp.", "Tidsst\u00E4mpel:"},
-        {"Signature.", "Underskrift:"},
+        {"Signature.", "Signatur:"},
         {"CRLs.", "CRL:er:"},
         {"Certificate.owner.", "Certifikat\u00E4gare: "},
         {"Not.a.signed.jar.file", "Ingen signerad jar-fil"},
