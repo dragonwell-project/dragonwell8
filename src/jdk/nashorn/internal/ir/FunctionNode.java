@@ -223,6 +223,11 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      */
     public static final int NEEDS_CALLEE       = 1 << 26;
 
+    /**
+     * Is the function node cached?
+     */
+    public static final int IS_CACHED = 1 << 27;
+
     /** extension callsite flags mask */
     public static final int EXTENSION_CALLSITE_FLAGS = IS_PRINT_PARSE |
         IS_PRINT_LOWER_PARSE | IS_PRINT_AST | IS_PRINT_LOWER_AST |
@@ -302,7 +307,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final List<IdentNode> parameters,
         final int thisProperties,
         final Class<?> rootClass,
-        final Source source, Namespace namespace) {
+        final Source source, final Namespace namespace) {
         super(functionNode);
 
         this.endParserState    = endParserState;
@@ -629,7 +634,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      */
     public boolean needsCallee() {
         // NOTE: we only need isSplit() here to ensure that :scope can never drop below slot 2 for splitting array units.
-        return needsParentScope() || usesSelfSymbol() || isSplit() || (needsArguments() && !isStrict()) || hasOptimisticApplyToCall();
+        return needsParentScope() || usesSelfSymbol() || isSplit() || (needsArguments() && !isStrict()) || hasApplyToCallSpecialization();
     }
 
     /**
@@ -646,7 +651,7 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
      * Return true if function contains an apply to call transform
      * @return true if this function has transformed apply to call
      */
-    public boolean hasOptimisticApplyToCall() {
+    public boolean hasApplyToCallSpecialization() {
         return getFlag(HAS_APPLY_TO_CALL_SPECIALIZATION);
     }
 
@@ -1093,6 +1098,24 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     public boolean isStrict() {
         return getFlag(IS_STRICT);
     }
+
+    /**
+     * Returns true if this function node has been cached.
+     * @return true if this function node has been cached.
+     */
+    public boolean isCached() {
+        return getFlag(IS_CACHED);
+    }
+
+    /**
+     * Mark this function node as having been cached.
+     * @param lc the current lexical context
+     * @return a function node equivalent to this one, with the flag set.
+     */
+    public FunctionNode setCached(final LexicalContext lc) {
+        return setFlag(lc, IS_CACHED);
+    }
+
 
     /**
      * Get the compile unit used to compile this function
