@@ -217,7 +217,7 @@ class InetAddress implements java.io.Serializable {
          *
          * Note: May define a new public method in the future if necessary.
          */
-        private String originalHostName;
+        String originalHostName;
 
         InetAddressHolder() {}
 
