@@ -1288,7 +1288,7 @@ public:
 
   INSN(ldrs, 0b00, 1);
   INSN(ldrd, 0b01, 1);
-  INSN(ldrq, 0x10, 1);
+  INSN(ldrq, 0b10, 1);
 
 #undef INSN
 
@@ -2361,13 +2361,13 @@ public:
 #undef INSN
 
    // Table vector lookup
-#define INSN(NAME, op)                                                                                       \
-  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, unsigned registers, FloatRegister Vm) {  \
-    starti;                                                                                                  \
-    assert(T == T8B || T == T16B, "invalid arrangement");                                                    \
-    assert(0 < registers && registers <= 4, "invalid number of registers");                                  \
-    f(0, 31), f((int)T & 1, 30), f(0b001110000, 29, 21), rf(Vm, 16), f(0, 15);                               \
-    f(registers - 1, 14, 13), f(op, 12),f(0b00, 11, 10), rf(Vn, 5), rf(Vd, 0);                               \
+#define INSN(NAME, op)                                                  \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, unsigned registers, FloatRegister Vm) { \
+    starti;                                                             \
+    assert(T == T8B || T == T16B, "invalid arrangement");               \
+    assert(0 < registers && registers <= 4, "invalid number of registers"); \
+    f(0, 31), f((int)T & 1, 30), f(0b001110000, 29, 21), rf(Vm, 16), f(0, 15); \
+    f(registers - 1, 14, 13), f(op, 12),f(0b00, 11, 10), rf(Vn, 5), rf(Vd, 0); \
   }
 
   INSN(tbl, 0);
@@ -2375,6 +2375,7 @@ public:
 
 #undef INSN
 
+  // AdvSIMD two-reg misc
 #define INSN(NAME, U, opcode)                                                       \
   void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {               \
        starti;                                                                      \
@@ -2392,10 +2393,19 @@ public:
 
 #define ASSERTION (T == T8B || T == T16B || T == T4H || T == T8H)
   INSN(rev32, 1, 0b00000);
+private:
+  INSN(_rbit, 1, 0b00101);
+public:
+
 #undef ASSERTION
 
 #define ASSERTION (T == T8B || T == T16B)
   INSN(rev16, 0, 0b00001);
+  // RBIT only allows T8B and T16B but encodes them oddly.  Argh...
+  void rbit(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {
+    assert((ASSERTION), MSG);
+    _rbit(Vd, SIMD_Arrangement(T & 1 | 0b010), Vn);
+  }
 #undef ASSERTION
 
 #undef MSG
