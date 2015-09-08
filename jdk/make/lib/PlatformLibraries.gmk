@@ -219,7 +219,7 @@ endif
 
     ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
       $(eval $(call SetupAccessBridge,-32,I386,32))
-      $(eval $(call SetupAccessBridge,,I386,legacy))
+      $(eval $(call SetupAccessBridge,,I386,LEGACY))
     else
       $(eval $(call SetupAccessBridge,-64,X64,64))
     endif
