@@ -1,18 +1,15 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  */
-// BootstrapResolver.java - Resolve entities and URIs internally
-
 /*
- * Copyright 2001-2004 The Apache Software Foundation or its licensors,
- * as applicable.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,19 +17,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// BootstrapResolver.java - Resolve entities and URIs internally
 
 package com.sun.org.apache.xml.internal.resolver.helpers;
 
-import java.util.Hashtable;
-import java.net.URL;
-import java.net.MalformedURLException;
 import java.io.InputStream;
-
-import javax.xml.transform.URIResolver;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import javax.xml.transform.Source;
-import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.TransformerException;
-
+import javax.xml.transform.URIResolver;
+import javax.xml.transform.sax.SAXSource;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 
@@ -66,13 +63,13 @@ public class BootstrapResolver implements EntityResolver, URIResolver {
   public static final String xmlCatalogSysId = "http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd";
 
   /** Private hash used for public identifiers. */
-  private Hashtable publicMap = new Hashtable();
+  private final Map<String, String> publicMap = new HashMap<>();
 
   /** Private hash used for system identifiers. */
-  private Hashtable systemMap = new Hashtable();
+  private final Map<String, String> systemMap = new HashMap<>();
 
   /** Private hash used for URIs. */
-  private Hashtable uriMap = new Hashtable();
+  private final Map<String, String> uriMap = new HashMap<>();
 
   /** Constructor. */
   public BootstrapResolver() {
@@ -98,9 +95,9 @@ public class BootstrapResolver implements EntityResolver, URIResolver {
     String resolved = null;
 
     if (systemId != null && systemMap.containsKey(systemId)) {
-      resolved = (String) systemMap.get(systemId);
+      resolved = systemMap.get(systemId);
     } else if (publicId != null && publicMap.containsKey(publicId)) {
-      resolved = (String) publicMap.get(publicId);
+      resolved = publicMap.get(publicId);
     }
 
     if (resolved != null) {
@@ -147,7 +144,7 @@ public class BootstrapResolver implements EntityResolver, URIResolver {
 
     String result = null;
     if (href != null && uriMap.containsKey(href)) {
-      result = (String) uriMap.get(href);
+      result = uriMap.get(href);
     }
 
     if (result == null) {
