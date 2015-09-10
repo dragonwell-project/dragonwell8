@@ -171,7 +171,7 @@ public class NashornBeansLinker implements GuardingDynamicLinker {
         }
 
         for (final Class<?> iface : clazz.getInterfaces()) {
-            // check accessiblity up-front
+            // check accessibility up-front
             if (! Context.isAccessibleClass(iface)) {
                 continue;
             }
