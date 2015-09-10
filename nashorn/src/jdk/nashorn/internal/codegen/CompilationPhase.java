@@ -483,8 +483,8 @@ abstract class CompilationPhase {
             Class<?> rootClass = null;
             long length = 0L;
 
-            final CodeInstaller<ScriptEnvironment> codeInstaller = compiler.getCodeInstaller();
-            final Map<String, byte[]>              bytecode      = compiler.getBytecode();
+            final CodeInstaller       codeInstaller = compiler.getCodeInstaller();
+            final Map<String, byte[]> bytecode      = compiler.getBytecode();
 
             for (final Entry<String, byte[]> entry : bytecode.entrySet()) {
                 final String className = entry.getKey();

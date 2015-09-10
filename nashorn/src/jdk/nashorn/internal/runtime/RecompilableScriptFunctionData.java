@@ -120,7 +120,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     private final Object endParserState;
 
     /** Code installer used for all further recompilation/specialization of this ScriptFunction */
-    private transient CodeInstaller<ScriptEnvironment> installer;
+    private transient CodeInstaller installer;
 
     private final Map<Integer, RecompilableScriptFunctionData> nestedFunctions;
 
@@ -154,7 +154,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
      */
     public RecompilableScriptFunctionData(
         final FunctionNode functionNode,
-        final CodeInstaller<ScriptEnvironment> installer,
+        final CodeInstaller installer,
         final AllocationStrategy allocationStrategy,
         final Map<Integer, RecompilableScriptFunctionData> nestedFunctions,
         final Map<String, Integer> externalScopeDepths,
@@ -286,7 +286,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
      * @param src source
      * @param inst code installer
      */
-    public void initTransients(final Source src, final CodeInstaller<ScriptEnvironment> inst) {
+    public void initTransients(final Source src, final CodeInstaller inst) {
         if (this.source == null && this.installer == null) {
             this.source    = src;
             this.installer = inst;
@@ -507,7 +507,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     }
 
     private FunctionNode deserialize(final byte[] serializedAst) {
-        final ScriptEnvironment env = installer.getOwner();
+        final ScriptEnvironment env = installer.getContext().getEnv();
         final Timing timing = env._timing;
         final long t1 = System.nanoTime();
         try {
@@ -654,8 +654,8 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
      * a new class loader with optimistic typing so that deoptimized code can get reclaimed by GC.
      * @return a code installer for installing new code.
      */
-    private CodeInstaller<ScriptEnvironment> getInstallerForNewCode() {
-        final ScriptEnvironment env = installer.getOwner();
+    private CodeInstaller getInstallerForNewCode() {
+        final ScriptEnvironment env = installer.getContext().getEnv();
         return env._optimistic_types || env._loader_per_compile ? installer.withNewLoader() : installer;
     }
 
@@ -665,15 +665,10 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         final TypeMap typeMap = typeMap(actualCallSiteType);
         final Type[] paramTypes = typeMap == null ? null : typeMap.getParameterTypes(functionNodeId);
         final Object typeInformationFile = OptimisticTypesPersistence.getLocationDescriptor(source, functionNodeId, paramTypes);
-        final Context context = Context.getContextTrusted();
-        return new Compiler(
-                context,
-                context.getEnv(),
+        return Compiler.forOnDemandCompilation(
                 getInstallerForNewCode(),
                 functionNode.getSource(),  // source
-                context.getErrorManager(),
                 isStrict() | functionNode.isStrict(), // is strict
-                true,       // is on demand
                 this,       // compiledFunction, i.e. this RecompilableScriptFunctionData
                 typeMap,    // type map
                 getEffectiveInvalidatedProgramPoints(invalidatedProgramPoints, typeInformationFile), // invalidated program points
@@ -716,7 +711,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
             final TypeMap typeMap = typeMap(actualCallSiteType);
             final Type[] paramTypes = typeMap == null ? null : typeMap.getParameterTypes(functionNodeId);
             cacheKey = CodeStore.getCacheKey(functionNodeId, paramTypes);
-            final CodeInstaller<ScriptEnvironment> newInstaller = getInstallerForNewCode();
+            final CodeInstaller newInstaller = getInstallerForNewCode();
             final StoredScript script = newInstaller.loadScript(source, cacheKey);
 
             if (script != null) {
@@ -737,7 +732,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
     }
 
     boolean usePersistentCodeCache() {
-        return installer != null && installer.getOwner()._persistent_cache;
+        return installer != null && installer.getContext().getEnv()._persistent_cache;
     }
 
     private MethodType explicitParams(final MethodType callSiteType) {
