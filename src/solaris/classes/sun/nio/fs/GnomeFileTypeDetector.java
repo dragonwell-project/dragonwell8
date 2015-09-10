@@ -86,7 +86,7 @@ public class GnomeFileTypeDetector
 
     // GIO
     private static native boolean initializeGio();
-    private static native byte[] probeUsingGio(long pathAddress);
+    private static synchronized native byte[] probeUsingGio(long pathAddress);
 
     // GNOME VFS
     private static native boolean initializeGnomeVfs();
