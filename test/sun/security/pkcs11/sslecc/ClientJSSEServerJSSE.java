@@ -58,11 +58,11 @@ public class ClientJSSEServerJSSE extends PKCS11Test {
 
     public void main(Provider p) throws Exception {
         String testWithoutSunEC = System.getProperty("testWithoutSunEC");
+
         if (p.getService("KeyFactory", "EC") == null) {
             System.out.println("Provider does not support EC, skipping");
             return;
         }
-
 
         if (testWithoutSunEC != null) {
             Provider sunec = Security.getProvider("SunEC");
