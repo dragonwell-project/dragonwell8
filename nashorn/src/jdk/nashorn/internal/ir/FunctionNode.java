@@ -33,10 +33,8 @@ import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALL
 import static jdk.nashorn.internal.runtime.linker.NashornCallSiteDescriptor.CALLSITE_TRACE_VALUES;
 
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
-import jdk.nashorn.internal.AssertsEnabled;
 import jdk.nashorn.internal.codegen.CompileUnit;
 import jdk.nashorn.internal.codegen.Compiler;
 import jdk.nashorn.internal.codegen.CompilerConstants;
@@ -71,40 +69,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         GETTER,
         /** a setter, @see {@link UserAccessorProperty} */
         SETTER
-    }
-
-    /** Compilation states available */
-    public enum CompilationState {
-        /** compiler is ready */
-        INITIALIZED,
-        /** method has been parsed */
-        PARSED,
-        /** method has been parsed */
-        PARSE_ERROR,
-        /** constant folding pass */
-        CONSTANT_FOLDED,
-        /** method has been lowered */
-        LOWERED,
-        /** program points have been assigned to unique locations */
-        PROGRAM_POINTS_ASSIGNED,
-        /** any transformations of builtins have taken place, e.g. apply=&gt;call */
-        BUILTINS_TRANSFORMED,
-        /** method has been split */
-        SPLIT,
-        /** method has had symbols assigned */
-        SYMBOLS_ASSIGNED,
-        /** computed scope depths for symbols */
-        SCOPE_DEPTHS_COMPUTED,
-        /** method has had types calculated*/
-        OPTIMISTIC_TYPES_ASSIGNED,
-        /** method has had types calculated */
-        LOCAL_VARIABLE_TYPES_CALCULATED,
-        /** compile units reused (optional) */
-        COMPILE_UNITS_REUSED,
-        /** method has been emitted to bytecode */
-        BYTECODE_GENERATED,
-        /** method has been installed */
-        BYTECODE_INSTALLED
     }
 
     /** Source of entity. */
@@ -143,10 +107,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
 
     /** Method's namespace. */
     private transient final Namespace namespace;
-
-    /** Current compilation state */
-    @Ignore
-    private final EnumSet<CompilationState> compilationState;
 
     /** Number of properties of "this" object assigned in this function */
     @Ignore
@@ -322,7 +282,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         this.firstToken       = firstToken;
         this.lastToken        = token;
         this.namespace        = namespace;
-        this.compilationState = EnumSet.of(CompilationState.INITIALIZED);
         this.flags            = flags;
         this.compileUnit      = null;
         this.body             = null;
@@ -339,7 +298,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         final String name,
         final Type returnType,
         final CompileUnit compileUnit,
-        final EnumSet<CompilationState> compilationState,
         final Block body,
         final List<IdentNode> parameters,
         final int thisProperties,
@@ -354,7 +312,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
         this.returnType       = returnType;
         this.compileUnit      = compileUnit;
         this.lastToken        = lastToken;
-        this.compilationState = compilationState;
         this.body             = body;
         this.parameters       = parameters;
         this.thisProperties   = thisProperties;
@@ -454,7 +411,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
             name,
             returnType,
             compileUnit,
-            compilationState,
             body,
             parameters,
             thisProperties,
@@ -530,80 +486,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
     }
 
     /**
-     * Get the compilation state of this function
-     * @return the compilation state
-     */
-    public EnumSet<CompilationState> getState() {
-        return compilationState;
-    }
-
-    /**
-     * Check whether this FunctionNode has reached a give CompilationState.
-     *
-     * @param state the state to check for
-     * @return true of the node is in the given state
-     */
-    public boolean hasState(final EnumSet<CompilationState> state) {
-        return !AssertsEnabled.assertsEnabled() || compilationState.containsAll(state);
-    }
-
-    /**
-     * Add a state to the total CompilationState of this node, e.g. if
-     * FunctionNode has been lowered, the compiler will add
-     * {@code CompilationState#LOWERED} to the state vector
-     *
-     * @param lc lexical context
-     * @param state {@link CompilationState} to add
-     * @return function node or a new one if state was changed
-     */
-    public FunctionNode setState(final LexicalContext lc, final CompilationState state) {
-        if (!AssertsEnabled.assertsEnabled() || this.compilationState.contains(state)) {
-            return this;
-        }
-        final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
-        newState.add(state);
-        return setCompilationState(lc, newState);
-    }
-
-    /**
-     * Copy a compilation state from an original function to this function. Used when creating synthetic
-     * function nodes by the splitter.
-     *
-     * @param lc lexical context
-     * @param original the original function node to copy compilation state from
-     * @return function node or a new one if state was changed
-     */
-    public FunctionNode copyCompilationState(final LexicalContext lc, final FunctionNode original) {
-        final EnumSet<CompilationState> origState = original.compilationState;
-        if (!AssertsEnabled.assertsEnabled() || this.compilationState.containsAll(origState)) {
-            return this;
-        }
-        final EnumSet<CompilationState> newState = EnumSet.copyOf(this.compilationState);
-        newState.addAll(origState);
-        return setCompilationState(lc, newState);
-    }
-
-    private FunctionNode setCompilationState(final LexicalContext lc, final EnumSet<CompilationState> compilationState) {
-        return Node.replaceInLexicalContext(
-                lc,
-                this,
-                new FunctionNode(
-                        this,
-                        lastToken,
-                        endParserState,
-                        flags,
-                        name,
-                        returnType,
-                        compileUnit,
-                        compilationState,
-                        body,
-                        parameters,
-                        thisProperties,
-                        rootClass, source, namespace));
-    }
-
-
-    /**
      * Create a unique name in the namespace of this FunctionNode
      * @param base prefix for name
      * @return base if no collision exists, otherwise a name prefix with base
@@ -668,7 +550,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -809,7 +690,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -905,7 +785,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -966,7 +845,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -1002,7 +880,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -1040,7 +917,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -1116,7 +992,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -1204,7 +1079,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                 name,
                 type,
                 compileUnit,
-                compilationState,
                 body,
                 parameters,
                 thisProperties,
@@ -1252,7 +1126,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
@@ -1308,7 +1181,6 @@ public final class FunctionNode extends LexicalContextExpression implements Flag
                         name,
                         returnType,
                         compileUnit,
-                        compilationState,
                         body,
                         parameters,
                         thisProperties,
