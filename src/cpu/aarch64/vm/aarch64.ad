@@ -1002,15 +1002,17 @@ int MachCallDynamicJavaNode::ret_addr_offset()
 int MachCallRuntimeNode::ret_addr_offset() {
   // for generated stubs the call will be
   //   bl(addr)
-  // for real runtime callouts it iwll be
-  //   mov(rscratch1, RuntimeAddress(addr)
+  // for real runtime callouts it will be six instructions
+  // see aarch64_enc_java_to_runtime
+  //   adr(rscratch2, retaddr)
+  //   lea(rscratch1, RuntimeAddress(addr)
+  //   stp(zr, rscratch2, Address(__ pre(sp, -2 * wordSize)))
   //   blrt rscratch1
   CodeBlob *cb = CodeCache::find_blob(_entry_point);
   if (cb) {
     return 4;
   } else {
-    // A 48-bit address.  See movptr().
-    return 16;
+    return 6 * NativeInstruction::instruction_size;
   }
 }
 
@@ -2962,8 +2964,14 @@ encode %{
       int fpcnt;
       int rtype;
       getCallInfo(tf(), gpcnt, fpcnt, rtype);
+      Label retaddr;
+      __ adr(rscratch2, retaddr);
       __ lea(rscratch1, RuntimeAddress(entry));
+      // Leave a breadcrumb for JavaThread::pd_last_frame().
+      __ stp(zr, rscratch2, Address(__ pre(sp, -2 * wordSize)));
       __ blrt(rscratch1, gpcnt, fpcnt, rtype);
+      __ bind(retaddr);
+      __ add(sp, sp, 2 * wordSize);
     }
   %}
 
@@ -5993,51 +6001,6 @@ instruct storeimmP0(immP0 zero, memory mem)
   format %{ "str zr, $mem\t# ptr" %}
 
   ins_encode(aarch64_enc_str0(mem));
-
-  ins_pipe(istore_mem);
-%}
-
-// Save last Java PC to thread anchor
-
-// the ideal code cannot directly encode a reference to the current
-// PC, never mind the PC of the return address which follows the
-// runtime call whcih wil be generated at a later point. so this
-// operation is encoded in the ideal code as a write of either -1 or
-// -2 via the thread register with an offset which locates the last
-// Java pc slot in the thread anchor. the encoding computes the
-// correct Java pc to write by offsetting form the current pc to allwo
-// for the intervening instructions which will precede the runtime
-// call. Note that the constant is supplied as -2 when the stub caller
-// return address is passed to the C function and -1 when no return
-// address is required. we set the primary opcode to 1 or 0
-// accordingly as this affects the offset calculation.
-
-instruct storeLastJavaPC_no_retaddr(thread_anchor_pc mem, immP_M1 dummy_m1)
-%{
-  match(Set mem (StoreP mem dummy_m1));
-
-  ins_cost(INSN_COST);
-  format %{ "str  ., $mem\t# save pc to thread (no ret addr)" %}
-
-  // use opcode to indicate that we have no return address argument
-  opcode(0x0);
-
-  ins_encode(aarch64_enc_save_pc());
-
-  ins_pipe(istore_mem);
-%}
-
-instruct storeLastJavaPC_with_retaddr(thread_anchor_pc mem, immP_M2 dummy_m2)
-%{
-  match(Set mem (StoreP mem dummy_m2));
-
-  ins_cost(INSN_COST);
-  format %{ "str  ., $mem\t# save pc to thread (w ret addr)" %}
-
-  // use opcode to indicate that we have a return address argument
-  opcode(0x1);
-
-  ins_encode(aarch64_enc_save_pc());
 
   ins_pipe(istore_mem);
 %}

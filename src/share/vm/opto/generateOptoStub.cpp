@@ -96,54 +96,6 @@ void GraphKit::gen_stub(address C_function,
                                    in_bytes(JavaFrameAnchor::flags_offset()));
 #endif /* defined(SPARC) */
 
-#if defined(AARCH64)
-  // the x86 code does not need to write return pc which follows the
-  // VM callout to the thread anchor pc slot. the frame walking code
-  // can safely compute that a called the stub's return pc by
-  // evaluating sp[-1] where sp is the top of the stub frame saved in
-  // the anchor sp field. AArch64 cannot make this assumption because
-  // the C compiler does not have to push the link register and, even
-  // if it does, can locate it somewhere other than at the bottom of
-  // the frame.
-
-  // this poses a problem when we come to generate the opto runtime
-  // stubs. we cannot actually refer to generated code addresses in
-  // ideal code and, worse, we need to get the memory write to write a
-  // constant value derived form the code address of the instruction
-  // following the runtime callout i.e. the constant we need is only
-  // determined when we plant a separate instruction later in the
-  // instruction stream.
-  // 
-  // rather than introduce a mechanism into the opto compiler to allow
-  // us to provide some sort of label and label resolve mechanism and
-  // then backpatch the required address we can actually do this with
-  // a minor hack. we generate a store to the anchor pc field but
-  // supply a small negative constant address (-1 or -2) as the value
-  // for the memory store. in the back end we detect this type of
-  // store and compute the desired address, substituting it in place
-  // of the supplied constant.
-  // 
-  // the back end employs a special lowering rule to do this. it
-  // matches a write via the thread register with an offset which
-  // equals the thread anchor's pc slot. of course, those sort of
-  // writes only happen in these stubs! the encodign for this rule
-  // substitutes the supplied value with the current code buffer
-  // address plus an offset to the instruction following the VM
-  // callout. Of course, the offset varies according to what arguments
-  // are passed to the callout. For any given stub the arguments
-  // passed to the VM include the stub arguments, the thread and,
-  // optionally, the stub's caller's return pc. We supply -1 in the
-  // store if the call will not include the caller ret pc or -2 if it
-  // does. The back end can use this to work out exactly what the
-  // required offset is.
-
-  const TypeRawPtr *t = TypeRawPtr::make((address)(return_pc ? -2L : -1L));
-
-  Node *last_pc = new (C) ConPNode(t);
-  _gvn.set_type(last_pc, t);
-  store_to_memory(NULL, adr_last_Java_pc, last_pc, T_ADDRESS, NoAlias, MemNode::unordered);
-
-#endif /* defined(AARCH64) */
 
   // Drop in the last_Java_sp.  last_Java_fp is not touched.
   // Always do this after the other "last_Java_frame" fields are set since
