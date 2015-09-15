@@ -17,5 +17,8 @@ othervm.dirs=java/awt java/beans java/rmi javax/accessibility javax/imageio java
 # Tests that cannot run concurrently
 exclusiveAccess.dirs=java/rmi/Naming java/util/Currency java/util/prefs sun/management/jmxremote sun/tools/jstatd sun/security/mscapi javax/rmi
 
+# Allow querying of sun.arch.data.model in @requires clauses
+requires.properties=sun.arch.data.model 
+
 # Group definitions
 groups=TEST.groups [closed/TEST.groups]
