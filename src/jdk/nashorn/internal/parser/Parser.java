@@ -84,7 +84,6 @@ import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.ExpressionStatement;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
@@ -513,8 +512,7 @@ loop:
 
         return lc.pop(functionNode).
             setBody(lc, newBody).
-            setLastToken(lc, lastToken).
-            setState(lc, errors.hasErrors() ? CompilationState.PARSE_ERROR : CompilationState.PARSED);
+            setLastToken(lc, lastToken);
     }
 
     /**

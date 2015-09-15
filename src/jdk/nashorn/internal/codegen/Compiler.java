@@ -174,7 +174,7 @@ public final class Compiler implements Loggable {
                 "Common initial phases",
                 CompilationPhase.CONSTANT_FOLDING_PHASE,
                 CompilationPhase.LOWERING_PHASE,
-                CompilationPhase.TRANSFORM_BUILTINS_PHASE,
+                CompilationPhase.APPLY_SPECIALIZATION_PHASE,
                 CompilationPhase.SPLITTING_PHASE,
                 CompilationPhase.PROGRAM_POINT_PHASE,
                 CompilationPhase.SERIALIZE_SPLIT_PHASE
