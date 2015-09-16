@@ -394,9 +394,7 @@ class LIR_OprDesc: public CompilationResourceObj {
   bool is_fpu_register() const { validate_type(); return check_value_mask(kind_mask,                fpu_register);                }
   bool is_virtual_fpu() const  { validate_type(); return check_value_mask(kind_mask | virtual_mask, fpu_register | virtual_mask); }
   bool is_fixed_fpu() const    { validate_type(); return check_value_mask(kind_mask | virtual_mask, fpu_register);                }
-  bool is_single_fpu() const   { 
-    validate_type();
-    return check_value_mask(kind_mask | size_mask,    fpu_register | single_size);  }
+  bool is_single_fpu() const   { validate_type(); return check_value_mask(kind_mask | size_mask,    fpu_register | single_size);  }
   bool is_double_fpu() const   { validate_type(); return check_value_mask(kind_mask | size_mask,    fpu_register | double_size);  }
 
   bool is_xmm_register() const { validate_type(); return check_value_mask(kind_mask | is_xmm_mask,             fpu_register | is_xmm_mask); }

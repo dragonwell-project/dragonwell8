@@ -3161,18 +3161,10 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
     break;
 
   case vmIntrinsics::_loadFence :
-#ifndef AARCH64
     if (os::is_MP()) __ membar_acquire();
-#else
-    if (os::is_MP()) __ membar_loadstore();
-#endif
     break;
   case vmIntrinsics::_storeFence:
-#ifndef AARCH64
     if (os::is_MP()) __ membar_release();
-#else
-    if (os::is_MP()) __ membar_storeload();
-#endif
     break;
   case vmIntrinsics::_fullFence :
     if (os::is_MP()) __ membar();
