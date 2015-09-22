@@ -56,8 +56,12 @@ TraceGeneratedNames =     \
 ifeq ($(HAS_ALT_SRC), true)
 TraceGeneratedNames +=  \
 	traceRequestables.hpp \
-    traceEventControl.hpp \
-    traceProducer.cpp
+    traceEventControl.hpp
+
+ifneq ($(INCLUDE_TRACE), false)
+  TraceGeneratedNames += traceProducer.cpp
+endif
+
 endif
 
 TraceGeneratedFiles = $(TraceGeneratedNames:%=$(TraceOutDir)/%)
