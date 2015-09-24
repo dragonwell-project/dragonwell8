@@ -93,7 +93,6 @@ import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.ExpressionStatement;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.GetSplitState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
@@ -132,7 +131,6 @@ import jdk.nashorn.internal.ir.WithNode;
 import jdk.nashorn.internal.ir.visitor.NodeOperatorVisitor;
 import jdk.nashorn.internal.ir.visitor.NodeVisitor;
 import jdk.nashorn.internal.objects.Global;
-import jdk.nashorn.internal.objects.ScriptFunctionImpl;
 import jdk.nashorn.internal.parser.Lexer.RegexToken;
 import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.Context;
@@ -195,9 +193,9 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     private static final Call ENSURE_NUMBER = CompilerConstants.staticCallNoLookup(OptimisticReturnFilters.class,
             "ensureNumber", double.class, Object.class, int.class);
 
-    private static final Call CREATE_FUNCTION_OBJECT = CompilerConstants.staticCallNoLookup(ScriptFunctionImpl.class,
+    private static final Call CREATE_FUNCTION_OBJECT = CompilerConstants.staticCallNoLookup(ScriptFunction.class,
             "create", ScriptFunction.class, Object[].class, int.class, ScriptObject.class);
-    private static final Call CREATE_FUNCTION_OBJECT_NO_SCOPE = CompilerConstants.staticCallNoLookup(ScriptFunctionImpl.class,
+    private static final Call CREATE_FUNCTION_OBJECT_NO_SCOPE = CompilerConstants.staticCallNoLookup(ScriptFunction.class,
             "create", ScriptFunction.class, Object[].class, int.class);
 
     private static final Call TO_NUMBER_FOR_EQ = CompilerConstants.staticCallNoLookup(JSType.class,
@@ -249,7 +247,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     private final Set<String> emittedMethods = new HashSet<>();
 
     // Function Id -> ContinuationInfo. Used by compilation of rest-of function only.
-    private final Map<Integer, ContinuationInfo> fnIdToContinuationInfo = new HashMap<>();
+    private ContinuationInfo continuationInfo;
 
     private final Deque<Label> scopeEntryLabels = new ArrayDeque<>();
 
@@ -349,11 +347,20 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         final int flags = getScopeCallSiteFlags(symbol);
         if (isFastScope(symbol)) {
             // Only generate shared scope getter for fast-scope symbols so we know we can dial in correct scope.
-            if (symbol.getUseCount() > SharedScopeCall.FAST_SCOPE_GET_THRESHOLD && !isOptimisticOrRestOf()) {
-                method.loadCompilerConstant(SCOPE);
-                // As shared scope vars are only used in non-optimistic compilation, we switch from using TypeBounds to
+            if (symbol.getUseCount() > SharedScopeCall.FAST_SCOPE_GET_THRESHOLD && !identNode.isOptimistic()) {
+                // As shared scope vars are only used with non-optimistic identifiers, we switch from using TypeBounds to
                 // just a single definitive type, resultBounds.widest.
-                loadSharedScopeVar(resultBounds.widest, symbol, flags);
+                new OptimisticOperation(identNode, TypeBounds.OBJECT) {
+                    @Override
+                    void loadStack() {
+                        method.loadCompilerConstant(SCOPE);
+                    }
+
+                    @Override
+                    void consumeStack() {
+                        loadSharedScopeVar(resultBounds.widest, symbol, flags);
+                    }
+                }.emit();
             } else {
                 new LoadFastScopeVar(identNode, resultBounds, flags).emit();
             }
@@ -382,10 +389,6 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
     private boolean isRestOf() {
         return continuationEntryPoints != null;
-    }
-
-    private boolean isOptimisticOrRestOf() {
-        return useOptimisticTypes() || isRestOf();
     }
 
     private boolean isCurrentContinuationEntryPoint(final int programPoint) {
@@ -464,12 +467,8 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     }
 
     private MethodEmitter loadSharedScopeVar(final Type valueType, final Symbol symbol, final int flags) {
-        assert !isOptimisticOrRestOf();
-        if (isFastScope(symbol)) {
-            method.load(getScopeProtoDepth(lc.getCurrentBlock(), symbol));
-        } else {
-            method.load(-1);
-        }
+        assert isFastScope(symbol);
+        method.load(getScopeProtoDepth(lc.getCurrentBlock(), symbol));
         return lc.getScopeGet(unit, symbol, valueType, flags).generateInvoke(method);
     }
 
@@ -1494,7 +1493,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                     int argsCount;
                     @Override
                     void loadStack() {
-                        /**
+                        /*
                          * We want to load 'eval' to check if it is indeed global builtin eval.
                          * If this eval call is inside a 'with' statement, dyn:getMethod|getProp|getElem
                          * would be generated if ident is a "isFunction". But, that would result in a
@@ -1573,7 +1572,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                     } else if (useCount <= SharedScopeCall.FAST_SCOPE_CALL_THRESHOLD
                             || !isFastScope(symbol) && useCount <= SharedScopeCall.SLOW_SCOPE_CALL_THRESHOLD
                             || CodeGenerator.this.lc.inDynamicScope()
-                            || isOptimisticOrRestOf()) {
+                            || callNode.isOptimistic()) {
                         scopeCall(node, flags);
                     } else {
                         sharedScopeCall(node, flags);
@@ -2070,8 +2069,6 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
 
     @Override
     public boolean enterFunctionNode(final FunctionNode functionNode) {
-        final int fnId = functionNode.getId();
-
         if (skipFunction(functionNode)) {
             // In case we are not generating code for the function, we must create or retrieve the function object and
             // load it on the stack here.
@@ -2109,9 +2106,9 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
             method.begin();
 
             if (isRestOf()) {
-                final ContinuationInfo ci = new ContinuationInfo();
-                fnIdToContinuationInfo.put(fnId, ci);
-                method.gotoLoopStart(ci.getHandlerLabel());
+                assert continuationInfo == null;
+                continuationInfo = new ContinuationInfo();
+                method.gotoLoopStart(continuationInfo.getHandlerLabel());
             }
         }
 
@@ -2144,7 +2141,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 markOptimistic = false;
             }
 
-            FunctionNode newFunctionNode = functionNode.setState(lc, CompilationState.BYTECODE_GENERATED);
+            FunctionNode newFunctionNode = functionNode;
             if (markOptimistic) {
                 newFunctionNode = newFunctionNode.setFlag(lc, FunctionNode.IS_DEOPTIMIZABLE);
             }
@@ -4331,7 +4328,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         }
 
         private void prologue() {
-            /**
+            /*
              * This loads the parts of the target, e.g base and index. they are kept
              * on the stack throughout the store and used at the end to execute it
              */
@@ -4799,7 +4796,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
          * conversion has no side effects.
          * @param name the name of the property being get
          * @param flags call site flags
-         * @param isMethod whether we're preferrably retrieving a function
+         * @param isMethod whether we're preferably retrieving a function
          * @return the current method emitter
          */
         MethodEmitter dynamicGet(final String name, final int flags, final boolean isMethod, final boolean isIndex) {
@@ -5231,7 +5228,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
         private Type returnValueType;
         // If we are in the middle of an object literal initialization, we need to update the map
         private PropertyMap objectLiteralMap;
-        // Object literal stack depth for object literal - not necessarly top if property is a tree
+        // Object literal stack depth for object literal - not necessarily top if property is a tree
         private int objectLiteralStackDepth = -1;
         // The line number at the continuation point
         private int lineNumber;
@@ -5308,7 +5305,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
     }
 
     private ContinuationInfo getContinuationInfo() {
-        return fnIdToContinuationInfo.get(lc.getCurrentFunction().getId());
+        return continuationInfo;
     }
 
     private void generateContinuationHandler() {
@@ -5396,7 +5393,7 @@ final class CodeGenerator extends NodeOperatorVisitor<CodeGeneratorLexicalContex
                 method.load(lvarTypes.get(slot), slot);
                 method.convert(stackTypes[i]);
                 // stack: s0=object literal being initialized
-                // change map of s0 so that the property we are initilizing when we failed
+                // change map of s0 so that the property we are initializing when we failed
                 // is now ci.returnValueType
                 if (i == objectLiteralStackDepth) {
                     method.dup();

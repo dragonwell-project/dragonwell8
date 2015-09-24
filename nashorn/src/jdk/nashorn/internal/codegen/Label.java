@@ -447,7 +447,7 @@ public final class Label implements Serializable {
             undefineLocalVariables(liveLocalCount, true);
             // Temporaries are promoted
             firstTemp = liveLocalCount;
-            // No trailing undefineds
+            // No trailing undefined values
             localVariableTypes.subList(firstTemp, localVariableTypes.size()).clear();
             assert symbolBoundary.length() == firstTemp;
             // Generalize all reference types to Object, and promote boolean to int
@@ -497,7 +497,7 @@ public final class Label implements Serializable {
     private transient Label.Stack stack;
 
     /** ASM representation of this label */
-    private jdk.internal.org.objectweb.asm.Label label;
+    private transient jdk.internal.org.objectweb.asm.Label label;
 
     /** Id for debugging purposes, remove if footprint becomes unmanageable */
     private final int id;
