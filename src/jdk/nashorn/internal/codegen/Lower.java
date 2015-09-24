@@ -51,7 +51,6 @@ import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.ExpressionStatement;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
@@ -266,7 +265,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> implements Lo
     @Override
     public Node leaveFunctionNode(final FunctionNode functionNode) {
         log.info("END FunctionNode: ", functionNode.getName());
-        return functionNode.setState(lc, CompilationState.LOWERED);
+        return functionNode;
     }
 
     @Override
@@ -511,7 +510,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> implements Lo
         }
 
         /*
-         * create a new trynode
+         * create a new try node
          *    if we have catches:
          *
          *    try            try
@@ -522,7 +521,7 @@ final class Lower extends NodeOperatorVisitor<BlockLexicalContext> implements Lo
          *                   catchall
          *                        rethrow
          *
-         *   otheriwse
+         *   otherwise
          *
          *   try              try
          *      x               x
