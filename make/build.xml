@@ -280,8 +280,8 @@
     <javac srcdir="${test.src.dir}"
            destdir="${build.test.classes.dir}"
            classpath="${javac.test.classpath}"
-           source="${javac.source}"
-           target="${javac.target}"
+           source="${test.javac.source}"
+           target="${test.javac.target}"
            debug="${javac.debug}"
            encoding="${javac.encoding}"
            includeantruntime="false" fork="true">
