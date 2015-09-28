@@ -63,7 +63,7 @@ import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.SwitchNode;
 import jdk.nashorn.internal.ir.Symbol;
 import jdk.nashorn.internal.ir.TryNode;
-import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.ir.visitor.SimpleNodeVisitor;
 import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.parser.Parser;
 import jdk.nashorn.internal.parser.Token;
@@ -525,7 +525,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
         // don't cache non-split functions from the eager pass); those already cached, or those not split
         // don't need this step.
         final Set<Symbol> blockDefinedSymbols = fn.isSplit() && !cached ? Collections.newSetFromMap(new IdentityHashMap<Symbol, Boolean>()) : null;
-        FunctionNode newFn = (FunctionNode)fn.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+        FunctionNode newFn = (FunctionNode)fn.accept(new SimpleNodeVisitor() {
 
             private Symbol getReplacement(final Symbol original) {
                 if (original == null) {
@@ -764,7 +764,7 @@ public final class RecompilableScriptFunctionData extends ScriptFunctionData imp
 
     private FunctionNode extractFunctionFromScript(final FunctionNode script) {
         final Set<FunctionNode> fns = new HashSet<>();
-        script.getBody().accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+        script.getBody().accept(new SimpleNodeVisitor() {
             @Override
             public boolean enterFunctionNode(final FunctionNode fn) {
                 fns.add(fn);
