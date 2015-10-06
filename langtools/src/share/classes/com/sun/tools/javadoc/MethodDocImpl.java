@@ -128,7 +128,7 @@ public class MethodDocImpl
              t.hasTag(CLASS);
              t = env.types.supertype(t)) {
             ClassSymbol c = (ClassSymbol)t.tsym;
-            for (Scope.Entry e = c.members().lookup(sym.name); e.scope != null; e = e.next()) {
+            for (Scope.Entry e = membersOf(c).lookup(sym.name); e.scope != null; e = e.next()) {
                 if (sym.overrides(e.sym, origin, env.types, true)) {
                     return TypeMaker.getType(env, t);
                 }
@@ -160,13 +160,26 @@ public class MethodDocImpl
              t.hasTag(CLASS);
              t = env.types.supertype(t)) {
             ClassSymbol c = (ClassSymbol)t.tsym;
-            for (Scope.Entry e = c.members().lookup(sym.name); e.scope != null; e = e.next()) {
+            for (Scope.Entry e = membersOf(c).lookup(sym.name); e.scope != null; e = e.next()) {
                 if (sym.overrides(e.sym, origin, env.types, true)) {
                     return env.getMethodDoc((MethodSymbol)e.sym);
                 }
             }
         }
         return null;
+    }
+
+    /**Retrieve members of c, ignoring any CompletionFailures that occur. */
+    private Scope membersOf(ClassSymbol c) {
+        try {
+            return c.members();
+        } catch (CompletionFailure cf) {
+            /* Quietly ignore completion failures and try again - the type
+             * for which the CompletionFailure was thrown shouldn't be completed
+             * again by the completer that threw the CompletionFailure.
+             */
+            return membersOf(c);
+        }
     }
 
     /**
