@@ -710,8 +710,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         final long longIndex = ArrayIndex.toLongIndex(index);
         final long oldLength = getArray().length();
         if (longIndex >= oldLength) {
-            setArray(getArray().ensure(longIndex));
-            doesNotHaveEnsureDelete(longIndex, oldLength, false);
+            setArray(getArray().ensure(longIndex).safeDelete(oldLength, longIndex - 1, false));
         }
         setArray(getArray().set(index, value, false));
     }
@@ -809,9 +808,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
 
         if (deep) {
             final ScriptObject myProto = getProto();
-            if (myProto != null) {
-                return myProto.findProperty(key, deep, start);
-            }
+            final FindProperty find = myProto == null ? null : myProto.findProperty(key, true, start);
+            // checkSharedProtoMap must be invoked after myProto.checkSharedProtoMap to propagate
+            // shared proto invalidation up the prototype chain. It also must be invoked when prototype is null.
+            checkSharedProtoMap();
+            return find;
         }
 
         return null;
@@ -832,7 +833,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         if (deep) {
             final ScriptObject myProto = getProto();
             if (myProto != null) {
-                return myProto.hasProperty(key, deep);
+                return myProto.hasProperty(key, true);
             }
         }
 
@@ -1258,11 +1259,8 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         if (oldProto != newProto) {
             proto = newProto;
 
-            // Let current listeners know that the prototype has changed and set our map
-            final PropertyListeners listeners = getMap().getListeners();
-            if (listeners != null) {
-                listeners.protoChanged();
-            }
+            // Let current listeners know that the prototype has changed
+            getMap().protoChanged(true);
             // Replace our current allocator map with one that is associated with the new prototype.
             setMap(getMap().changeProto(newProto));
         }
@@ -1314,7 +1312,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
                 }
                 p = p.getProto();
             }
-            setProto((ScriptObject)newProto);
+            setProto((ScriptObject) newProto);
         } else {
             throw typeError("cant.set.proto.to.non.object", ScriptRuntime.safeToString(this), ScriptRuntime.safeToString(newProto));
         }
@@ -1997,11 +1995,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         final ScriptObject owner = find.getOwner();
         final Class<ClassCastException> exception = explicitInstanceOfCheck ? null : ClassCastException.class;
 
-        final SwitchPoint protoSwitchPoint;
+        final SwitchPoint[] protoSwitchPoints;
 
         if (mh == null) {
             mh = Lookup.emptyGetter(returnType);
-            protoSwitchPoint = getProtoSwitchPoint(name, owner);
+            protoSwitchPoints = getProtoSwitchPoints(name, owner);
         } else if (!find.isSelf()) {
             assert mh.type().returnType().equals(returnType) :
                     "return type mismatch for getter " + mh.type().returnType() + " != " + returnType;
@@ -2009,12 +2007,12 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
                 // Add a filter that replaces the self object with the prototype owning the property.
                 mh = addProtoFilter(mh, find.getProtoChainLength());
             }
-            protoSwitchPoint = getProtoSwitchPoint(name, owner);
+            protoSwitchPoints = getProtoSwitchPoints(name, owner);
         } else {
-            protoSwitchPoint = null;
+            protoSwitchPoints = null;
         }
 
-        final GuardedInvocation inv = new GuardedInvocation(mh, guard, protoSwitchPoint, exception);
+        final GuardedInvocation inv = new GuardedInvocation(mh, guard, protoSwitchPoints, exception);
         return inv.addSwitchPoint(findBuiltinSwitchPoint(name));
     }
 
@@ -2113,17 +2111,32 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
      * @param owner the property owner, null if property is not defined
      * @return a SwitchPoint or null
      */
-    public final SwitchPoint getProtoSwitchPoint(final String name, final ScriptObject owner) {
+    public final SwitchPoint[] getProtoSwitchPoints(final String name, final ScriptObject owner) {
         if (owner == this || getProto() == null) {
             return null;
         }
 
+        final List<SwitchPoint> switchPoints = new ArrayList<>();
         for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
             final ScriptObject parent = obj.getProto();
             parent.getMap().addListener(name, obj.getMap());
+            final SwitchPoint sp = parent.getMap().getSharedProtoSwitchPoint();
+            if (sp != null && !sp.hasBeenInvalidated()) {
+                switchPoints.add(sp);
+            }
         }
 
-        return getMap().getSwitchPoint(name);
+        switchPoints.add(getMap().getSwitchPoint(name));
+        return switchPoints.toArray(new SwitchPoint[switchPoints.size()]);
+    }
+
+    private void checkSharedProtoMap() {
+        // Check if our map has an expected shared prototype property map. If it has, make sure that
+        // the prototype map has not been invalidated, and that it does match the actual map of the prototype.
+        if (getMap().isInvalidSharedMapFor(getProto())) {
+            // Change our own map to one that does not assume a shared prototype map.
+            setMap(getMap().makeUnsharedCopy());
+        }
     }
 
     /**
@@ -2205,7 +2218,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         return new GuardedInvocation(
                 Lookup.EMPTY_SETTER,
                 NashornGuards.getMapGuard(getMap(), explicitInstanceOfCheck),
-                getProtoSwitchPoint(name, null),
+                getProtoSwitchPoints(name, null),
                 explicitInstanceOfCheck ? null : ClassCastException.class);
     }
 
@@ -2351,7 +2364,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
                                 find.getGetter(Object.class, INVALID_PROGRAM_POINT, request),
                                 find.getProtoChainLength(),
                                 func),
-                        getProtoSwitchPoint(NO_SUCH_PROPERTY_NAME, find.getOwner()),
+                        getProtoSwitchPoints(NO_SUCH_PROPERTY_NAME, find.getOwner()),
                         //TODO this doesn't need a ClassCastException as guard always checks script object
                         null);
             }
@@ -2424,7 +2437,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         }
 
         return new GuardedInvocation(Lookup.emptyGetter(desc.getMethodType().returnType()),
-                NashornGuards.getMapGuard(getMap(), explicitInstanceOfCheck), getProtoSwitchPoint(name, null),
+                NashornGuards.getMapGuard(getMap(), explicitInstanceOfCheck), getProtoSwitchPoints(name, null),
                 explicitInstanceOfCheck ? null : ClassCastException.class);
     }
 
@@ -2664,11 +2677,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         }
 
         if (newLength > arrayLength) {
-            data = data.ensure(newLength - 1);
-            if (data.canDelete(arrayLength, newLength - 1, false)) {
-               data = data.delete(arrayLength, newLength - 1);
-            }
-            setArray(data);
+            setArray(data.ensure(newLength - 1).safeDelete(arrayLength, newLength - 1, false));
             return;
         }
 
@@ -3089,23 +3098,12 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         return false;
     }
 
-    private void doesNotHaveEnsureDelete(final long longIndex, final long oldLength, final boolean strict) {
-        if (longIndex > oldLength) {
-            ArrayData array = getArray();
-            if (array.canDelete(oldLength, longIndex - 1, strict)) {
-                array = array.delete(oldLength, longIndex - 1);
-            }
-            setArray(array);
-        }
-    }
-
     private void doesNotHave(final int index, final int value, final int callSiteFlags) {
         final long oldLength = getArray().length();
         final long longIndex = ArrayIndex.toLongIndex(index);
         if (!doesNotHaveCheckArrayKeys(longIndex, value, callSiteFlags) && !doesNotHaveEnsureLength(longIndex, oldLength, callSiteFlags)) {
             final boolean strict = isStrictFlag(callSiteFlags);
-            setArray(getArray().set(index, value, strict));
-            doesNotHaveEnsureDelete(longIndex, oldLength, strict);
+            setArray(getArray().set(index, value, strict).safeDelete(oldLength, longIndex - 1, strict));
         }
     }
 
@@ -3114,8 +3112,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         final long longIndex = ArrayIndex.toLongIndex(index);
         if (!doesNotHaveCheckArrayKeys(longIndex, value, callSiteFlags) && !doesNotHaveEnsureLength(longIndex, oldLength, callSiteFlags)) {
             final boolean strict = isStrictFlag(callSiteFlags);
-            setArray(getArray().set(index, value, strict));
-            doesNotHaveEnsureDelete(longIndex, oldLength, strict);
+            setArray(getArray().set(index, value, strict).safeDelete(oldLength, longIndex - 1, strict));
         }
     }
 
@@ -3124,8 +3121,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         final long longIndex = ArrayIndex.toLongIndex(index);
         if (!doesNotHaveCheckArrayKeys(longIndex, value, callSiteFlags) && !doesNotHaveEnsureLength(longIndex, oldLength, callSiteFlags)) {
             final boolean strict = isStrictFlag(callSiteFlags);
-            setArray(getArray().set(index, value, strict));
-            doesNotHaveEnsureDelete(longIndex, oldLength, strict);
+            setArray(getArray().set(index, value, strict).safeDelete(oldLength, longIndex - 1, strict));
         }
     }
 
@@ -3134,8 +3130,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         final long longIndex = ArrayIndex.toLongIndex(index);
         if (!doesNotHaveCheckArrayKeys(longIndex, value, callSiteFlags) && !doesNotHaveEnsureLength(longIndex, oldLength, callSiteFlags)) {
             final boolean strict = isStrictFlag(callSiteFlags);
-            setArray(getArray().set(index, value, strict));
-            doesNotHaveEnsureDelete(longIndex, oldLength, strict);
+            setArray(getArray().set(index, value, strict).safeDelete(oldLength, longIndex - 1, strict));
         }
     }
 
