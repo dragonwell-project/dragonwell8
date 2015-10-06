@@ -54,7 +54,6 @@ import jdk.nashorn.internal.runtime.Property;
 import jdk.nashorn.internal.runtime.ScriptEnvironment;
 import jdk.nashorn.internal.runtime.ScriptFunction;
 import jdk.nashorn.internal.runtime.ScriptRuntime;
-import jdk.nashorn.internal.runtime.Source;
 import jdk.nashorn.internal.runtime.options.Options;
 
 /**
@@ -255,12 +254,9 @@ public class Shell {
                     return COMPILATION_ERROR;
                 }
 
-                new Compiler(
+                Compiler.forNoInstallerCompilation(
                        context,
-                       env,
-                       null, //null - pass no code installer - this is compile only
                        functionNode.getSource(),
-                       context.getErrorManager(),
                        env._strict | functionNode.isStrict()).
                        compile(functionNode, CompilationPhases.COMPILE_ALL_NO_INSTALL);
 
