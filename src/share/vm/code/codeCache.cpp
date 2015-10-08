@@ -521,13 +521,12 @@ void CodeCache::gc_prologue() {
 
 void CodeCache::gc_epilogue() {
   assert_locked_or_safepoint(CodeCache_lock);
-  FOR_ALL_ALIVE_BLOBS(cb) {
-    if (cb->is_nmethod()) {
-      nmethod *nm = (nmethod*)cb;
-      if (!nm->is_zombie()) {
-        if (needs_cache_clean()) {
-          // Clean ICs of unloaded nmethods as well because they may reference other
-          // unloaded nmethods that may be flushed earlier in the sweeper cycle.
+  NOT_DEBUG(if (needs_cache_clean())) {
+    FOR_ALL_ALIVE_BLOBS(cb) {
+      if (cb->is_nmethod()) {
+        nmethod *nm = (nmethod*)cb;
+        assert(!nm->is_unloaded(), "Tautology");
+        DEBUG_ONLY(if (needs_cache_clean())) {
           nm->cleanup_inline_caches();
         }
         DEBUG_ONLY(nm->verify());
