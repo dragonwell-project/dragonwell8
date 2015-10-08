@@ -923,6 +923,23 @@ public:
     str(rscratch2, adr);
   }
 
+  // A generic CAS; success or failure is in the EQ flag.
+  template <typename T1, typename T2>
+  void cmpxchg(Register addr, Register expected, Register new_val,
+               T1 load_insn,
+               void (MacroAssembler::*cmp_insn)(Register, Register),
+               T2 store_insn,
+               Register tmp = rscratch1) {
+    Label retry_load, done;
+    bind(retry_load);
+    (this->*load_insn)(tmp, addr);
+    (this->*cmp_insn)(tmp, expected);
+    br(Assembler::NE, done);
+    (this->*store_insn)(tmp, new_val, addr);
+    cbnzw(tmp, retry_load);
+    bind(done);
+  }
+
   // Calls
 
   // void call(Label& L, relocInfo::relocType rtype);
@@ -1090,9 +1107,6 @@ public:
   address read_polling_page(Register r, address page, relocInfo::relocType rtype);
   address read_polling_page(Register r, relocInfo::relocType rtype);
 
-  // Used by aarch64.ad to control code generation
-  static bool use_acq_rel_for_volatile_fields();
-
   // CRC32 code for java.util.zip.CRC32::updateBytes() instrinsic.
   void update_byte_crc32(Register crc, Register val, Register table);
   void update_word_crc32(Register crc, Register v, Register tmp,
@@ -1185,10 +1199,6 @@ public:
     }
   }
 };
-
-// Used by aarch64.ad to control code generation
-#define treat_as_volatile(MEM_NODE)					\
-  (MacroAssembler::use_acq_rel_for_volatile_fields() ? (MEM_NODE)->is_volatile() : false)
 
 #ifdef ASSERT
 inline bool AbstractAssembler::pd_check_instruction_mark() { return false; }

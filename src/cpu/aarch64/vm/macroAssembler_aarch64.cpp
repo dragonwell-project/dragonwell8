@@ -3811,14 +3811,6 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   }
 }
 
-  bool MacroAssembler::use_acq_rel_for_volatile_fields() {
-#ifdef PRODUCT
-    return false;
-#else
-    return UseAcqRelForVolatileFields;
-#endif
-  }
-
 void MacroAssembler::build_frame(int framesize) {
   if (framesize == 0) {
     // Is this even possible?

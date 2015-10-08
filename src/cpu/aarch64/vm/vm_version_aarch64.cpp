@@ -224,6 +224,10 @@ void VM_Version::get_processor_features() {
     UseMultiplyToLenIntrinsic = true;
   }
 
+  if (FLAG_IS_DEFAULT(UseBarriersForVolatile)) {
+    UseBarriersForVolatile = (_cpuFeatures & CPU_DMB_ATOMICS) != 0;
+  }
+
   if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
     UsePopCountInstruction = true;
   }
