@@ -265,9 +265,12 @@ flags.make: $(BUILDTREE_MAKE) ../shared_dirs.lst
 	    echo "HOTSPOT_EXTRA_SYSDEFS\$$(HOTSPOT_EXTRA_SYSDEFS) = $(HOTSPOT_EXTRA_SYSDEFS)" && \
 	    echo "SYSDEFS += \$$(HOTSPOT_EXTRA_SYSDEFS)"; \
 	echo; \
+	[ -n "$(INCLUDE_TRACE)" ] && \
+	    echo && echo "INCLUDE_TRACE = $(INCLUDE_TRACE)"; \
 	[ -n "$(SPEC)" ] && \
 	    echo "include $(SPEC)"; \
 	echo "include \$$(GAMMADIR)/make/$(OS_FAMILY)/makefiles/$(VARIANT).make"; \
+	echo "include \$$(GAMMADIR)/make/excludeSrc.make"; \
 	echo "include \$$(GAMMADIR)/make/$(OS_FAMILY)/makefiles/$(COMPILER).make"; \
 	) > $@
 
