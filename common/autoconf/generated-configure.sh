@@ -3879,7 +3879,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1433258489
+DATE_WHEN_GENERATED=1444076935
 
 ###############################################################################
 #
@@ -11295,7 +11295,7 @@ fi
   fi
 
 
-# The cooked update version used to encode trailing letters in the update
+  # The cooked update version used to encode trailing letters in the update
   # version into a trailing number. That is no longer needed, but need to
   # keep the format in 8u for compatibility.
   COOKED_JDK_UPDATE_VERSION="${JDK_UPDATE_VERSION}0"
