@@ -954,6 +954,7 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
                                                            jobject this) {
     jobject fdObj = (*env)->GetObjectField(env, this, pdsi_fdID);
     int arg, fd, t = 1;
+    char tmpbuf[1024];
 #ifdef AF_INET6
     int domain = ipv6_available() ? AF_INET6 : AF_INET;
 #else
@@ -989,14 +990,14 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
     arg = 65507;
     if (JVM_SetSockOpt(fd, SOL_SOCKET, SO_SNDBUF,
                        (char *)&arg, sizeof(arg)) < 0) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
-                        strerror(errno));
+        getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
         return;
     }
     if (JVM_SetSockOpt(fd, SOL_SOCKET, SO_RCVBUF,
                        (char *)&arg, sizeof(arg)) < 0) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
-                        strerror(errno));
+        getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
         return;
     }
 #endif /* __APPLE__ */
@@ -1004,15 +1005,16 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
      setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (char*) &t, sizeof(int));
 
 #if defined(__linux__)
-     arg = 0;
-     int level = (domain == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
-     if ((setsockopt(fd, level, IP_MULTICAST_ALL, (char*)&arg, sizeof(arg)) < 0) &&
-         (errno != ENOPROTOOPT)) {
-         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
-                         strerror(errno));
-         close(fd);
-         return;
-     }
+    arg = 0;
+    int level = (domain == AF_INET6) ? IPPROTO_IPV6 : IPPROTO_IP;
+    if ((setsockopt(fd, level, IP_MULTICAST_ALL, (char*)&arg, sizeof(arg)) < 0) &&
+          (errno != ENOPROTOOPT))
+    {
+        getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
+        close(fd);
+        return;
+    }
 #endif
 
 #if defined (__linux__) && defined (AF_INET6)
