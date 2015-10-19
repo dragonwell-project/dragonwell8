@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,28 +21,29 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 4639861 8133015
- * @summary API to test reachability of a host
+ * @bug 8136534
+ * @summary The input stream supplied to KeyStore.load should remain open.
  */
-import java.net.InetAddress;
-import java.io.IOException;
-import java.net.NetworkInterface;
-public class IsReachable {
-    public static void main(String[] args) {
-        try {
-            InetAddress addr = InetAddress.getByName("localhost");
-            if (!addr.isReachable(10000))
-                throw new RuntimeException("Localhost should always be reachable");
-            NetworkInterface inf = NetworkInterface.getByInetAddress(addr);
-            if (inf != null) {
-                if (!addr.isReachable(inf, 20, 10000))
-                throw new RuntimeException("Localhost should always be reachable");
-            }
 
-        } catch (IOException e) {
-            throw new RuntimeException("Unexpected exception:" + e);
+import java.io.*;
+import java.security.*;
+
+public class CheckInputStream {
+    private final static String DIR = System.getProperty("test.src", ".");
+    private static final char[] PASSWORD = "passphrase".toCharArray();
+    private static final String KEYSTORE = DIR + "/keystore.jks";
+
+    public static final void main(String[] args) throws Exception {
+
+        KeyStore keystore = KeyStore.getInstance("JKS");
+        try (FileInputStream inStream = new FileInputStream(KEYSTORE)) {
+            System.out.println("Loading JKS keystore: " + KEYSTORE);
+            keystore.load(inStream, PASSWORD);
+            // check that the stream is still open
+            inStream.available();
+            System.out.println("OK");
         }
     }
 }
