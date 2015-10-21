@@ -312,7 +312,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @see GraphicsConfiguration
      * @see #getGraphicsConfiguration
      */
-    private transient GraphicsConfiguration graphicsConfig = null;
+    private transient volatile GraphicsConfiguration graphicsConfig;
 
     /**
      * A reference to a <code>BufferStrategy</code> object
@@ -1141,9 +1141,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * @since 1.3
      */
     public GraphicsConfiguration getGraphicsConfiguration() {
-        synchronized(getTreeLock()) {
-            return getGraphicsConfiguration_NoClientCode();
-        }
+        return getGraphicsConfiguration_NoClientCode();
     }
 
     final GraphicsConfiguration getGraphicsConfiguration_NoClientCode() {
