@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,25 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+import javax.xml.bind.annotation.XmlType;
 
-package java.util.zip;
-
-/**
- * A reference to the native zlib's z_stream structure.
- */
-
-class ZStreamRef {
-
-    private volatile long address;
-    ZStreamRef (long address) {
-        this.address = address;
-    }
-
-    long address() {
-        return address;
-    }
-
-    void clear() {
-        address = 0;
-    }
+@XmlType
+public class InputWithError {
+     public int a;
+     int compile-error;
 }
+
