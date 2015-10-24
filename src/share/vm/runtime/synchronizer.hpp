@@ -131,7 +131,7 @@ class ObjectSynchronizer : AllStatic {
 
  private:
   enum { _BLOCKSIZE = 128 };
-  static ObjectMonitor* gBlockList;
+  static ObjectMonitor * volatile gBlockList;
   static ObjectMonitor * volatile gFreeList;
   static ObjectMonitor * volatile gOmInUseList; // for moribund thread, so monitors they inflated still get scanned
   static int gOmInUseCount;
