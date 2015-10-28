@@ -102,7 +102,7 @@ implements CertAttrSet<String> {
     public PolicyMappingsExtension() {
         extensionId = PKIXExtensions.KeyUsage_Id;
         critical = false;
-        maps = new ArrayList<CertificatePolicyMap>();
+        maps = Collections.<CertificatePolicyMap>emptyList();
     }
 
     /**
