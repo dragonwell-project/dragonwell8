@@ -577,6 +577,7 @@ public:
 
   // Inline cache support
   void clear_inline_caches();
+  void clear_ic_stubs();
   void cleanup_inline_caches();
   bool inlinecache_check_contains(address addr) const {
     return (addr >= code_begin() && addr < verified_entry_point());
@@ -604,7 +605,7 @@ public:
 
   // See comment at definition of _last_seen_on_stack
   void mark_as_seen_on_stack();
-  bool can_not_entrant_be_converted();
+  bool can_convert_to_zombie();
 
   // Evolution support. We make old (discarded) compiled methods point to new Method*s.
   void set_method(Method* method) { _method = method; }

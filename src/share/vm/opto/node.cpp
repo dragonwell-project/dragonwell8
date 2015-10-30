@@ -1749,7 +1749,7 @@ static void dump_nodes(const Node* start, int d, bool only_ctrl) {
   uint depth = (uint)ABS(d);
   int direction = d;
   Compile* C = Compile::current();
-  GrowableArray <Node *> nstack(C->unique());
+  GrowableArray <Node *> nstack(C->live_nodes());
 
   nstack.append(s);
   int begin = 0;
