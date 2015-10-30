@@ -34,13 +34,12 @@ import java.util.Map;
 import java.util.Set;
 import jdk.nashorn.internal.ir.Block;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.Symbol;
 import jdk.nashorn.internal.ir.WithNode;
-import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.ir.visitor.SimpleNodeVisitor;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.RecompilableScriptFunctionData;
 import jdk.nashorn.internal.runtime.logging.DebugLogger;
@@ -54,7 +53,7 @@ import jdk.nashorn.internal.runtime.logging.Logger;
  * FunctionNode being compiled
  */
 @Logger(name="scopedepths")
-final class FindScopeDepths extends NodeVisitor<LexicalContext> implements Loggable {
+final class FindScopeDepths extends SimpleNodeVisitor implements Loggable {
 
     private final Compiler compiler;
     private final Map<Integer, Map<Integer, RecompilableScriptFunctionData>> fnIdToNestedFunctions = new HashMap<>();
@@ -67,7 +66,6 @@ final class FindScopeDepths extends NodeVisitor<LexicalContext> implements Logga
     private int dynamicScopeCount;
 
     FindScopeDepths(final Compiler compiler) {
-        super(new LexicalContext());
         this.compiler = compiler;
         this.log      = initLogger(compiler.getContext());
     }
@@ -182,13 +180,15 @@ final class FindScopeDepths extends NodeVisitor<LexicalContext> implements Logga
     @Override
     public Node leaveFunctionNode(final FunctionNode functionNode) {
         final String name = functionNode.getName();
-        FunctionNode newFunctionNode = functionNode.setState(lc, CompilationState.SCOPE_DEPTHS_COMPUTED);
-
+        FunctionNode newFunctionNode = functionNode;
         if (compiler.isOnDemandCompilation()) {
             final RecompilableScriptFunctionData data = compiler.getScriptFunctionData(newFunctionNode.getId());
             if (data.inDynamicContext()) {
                 log.fine("Reviving scriptfunction ", quote(name), " as defined in previous (now lost) dynamic scope.");
                 newFunctionNode = newFunctionNode.setInDynamicContext(lc);
+            }
+            if (newFunctionNode == lc.getOutermostFunction() && !newFunctionNode.hasApplyToCallSpecialization()) {
+                data.setCachedAst(newFunctionNode);
             }
             return newFunctionNode;
         }
@@ -210,8 +210,7 @@ final class FindScopeDepths extends NodeVisitor<LexicalContext> implements Logga
                 ObjectClassGenerator.createAllocationStrategy(newFunctionNode.getThisProperties(), compiler.getContext().useDualFields()),
                 nestedFunctions,
                 externalSymbolDepths.get(fnId),
-                internalSymbols.get(fnId),
-                compiler.removeSerializedAst(fnId));
+                internalSymbols.get(fnId));
 
         if (lc.getOutermostFunction() != newFunctionNode) {
             final FunctionNode parentFn = lc.getParentFunction(newFunctionNode);
@@ -275,17 +274,13 @@ final class FindScopeDepths extends NodeVisitor<LexicalContext> implements Logga
 
         //get all symbols that are referenced inside this function body
         final Set<Symbol> symbols = new HashSet<>();
-        block.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+        block.accept(new SimpleNodeVisitor() {
             @Override
-            public final boolean enterDefault(final Node node) {
-                if (!compiler.isOnDemandCompilation()) {
-                    if (node instanceof IdentNode) {
-                        final Symbol symbol = ((IdentNode)node).getSymbol();
-                        if (symbol != null && symbol.isScope()) {
-                            //if this is an internal symbol, skip it.
-                            symbols.add(symbol);
-                        }
-                    }
+            public boolean enterIdentNode(final IdentNode identNode) {
+                final Symbol symbol = identNode.getSymbol();
+                if (symbol != null && symbol.isScope()) {
+                    //if this is an internal symbol, skip it.
+                    symbols.add(symbol);
                 }
                 return true;
             }

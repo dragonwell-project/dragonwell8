@@ -50,7 +50,6 @@ import jdk.nashorn.internal.codegen.CompilerConstants.Call;
 import jdk.nashorn.internal.codegen.ObjectClassGenerator;
 import jdk.nashorn.internal.lookup.MethodHandleFactory;
 import jdk.nashorn.internal.lookup.MethodHandleFunctionality;
-import jdk.nashorn.internal.objects.ScriptFunctionImpl;
 import jdk.nashorn.internal.runtime.ECMAException;
 import jdk.nashorn.internal.runtime.JSType;
 import jdk.nashorn.internal.runtime.OptimisticReturnFilters;
@@ -70,7 +69,7 @@ public final class Bootstrap {
     private static final MethodHandle VOID_TO_OBJECT = MH.constant(Object.class, ScriptRuntime.UNDEFINED);
 
     /**
-     * The default dynalink relink threshold for megamorphisism is 8. In the case
+     * The default dynalink relink threshold for megamorphism is 8. In the case
      * of object fields only, it is fine. However, with dual fields, in order to get
      * performance on benchmarks with a lot of object instantiation and then field
      * reassignment, it can take slightly more relinks to become stable with type
@@ -190,7 +189,7 @@ public final class Bootstrap {
      * @return true if the obj is an instance of @FunctionalInterface interface
      */
     public static boolean isFunctionalInterfaceObject(final Object obj) {
-        return !JSType.isPrimitive(obj) && (NashornBeansLinker.getFunctionalInterfaceMethod(obj.getClass()) != null);
+        return !JSType.isPrimitive(obj) && (NashornBeansLinker.getFunctionalInterfaceMethodName(obj.getClass()) != null);
     }
 
     /**
@@ -214,7 +213,7 @@ public final class Bootstrap {
      * @param type           method type
      * @param programPoint   program point to bind to callsite
      *
-     * @return callsite for a math instrinic node
+     * @return callsite for a math intrinsic node
      */
     public static CallSite mathBootstrap(final MethodHandles.Lookup lookup, final String name, final MethodType type, final int programPoint) {
         final MethodHandle mh;
@@ -397,8 +396,8 @@ public final class Bootstrap {
      * @throws ECMAException with {@code TypeError} if the object is not a callable.
      */
     public static Object bindCallable(final Object callable, final Object boundThis, final Object[] boundArgs) {
-        if (callable instanceof ScriptFunctionImpl) {
-            return ((ScriptFunctionImpl)callable).makeBoundFunction(boundThis, boundArgs);
+        if (callable instanceof ScriptFunction) {
+            return ((ScriptFunction)callable).createBound(boundThis, boundArgs);
         } else if (callable instanceof BoundCallable) {
             return ((BoundCallable)callable).bind(boundArgs);
         } else if (isCallable(callable)) {

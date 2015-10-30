@@ -245,7 +245,6 @@ public abstract class Executable extends AccessibleObject
      * declared or implicitly declared or neither) for the executable
      * represented by this object.
      *
-     * @since 1.8
      * @return The number of formal parameters for the executable this
      * object represents
      */
@@ -343,7 +342,6 @@ public abstract class Executable extends AccessibleObject
      * have unique names, or names that are legal identifiers in the
      * Java programming language (JLS 3.8).
      *
-     * @since 1.8
      * @throws MalformedParametersException if the class file contains
      * a MethodParameters attribute that is improperly formatted.
      * @return an array of {@code Parameter} objects representing all
@@ -575,7 +573,6 @@ public abstract class Executable extends AccessibleObject
     /**
      * {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
-     * @since 1.8
      */
     @Override
     public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
@@ -623,8 +620,6 @@ public abstract class Executable extends AccessibleObject
      *
      * @return an object representing the return type of the method
      * or constructor represented by this {@code Executable}
-     *
-     * @since 1.8
      */
     public abstract AnnotatedType getAnnotatedReturnType();
 
@@ -633,8 +628,6 @@ public abstract class Executable extends AccessibleObject
      * Returns an AnnotatedType object that represents the use of a type to
      * specify the return type of the method/constructor represented by this
      * Executable.
-     *
-     * @since 1.8
      */
     AnnotatedType getAnnotatedReturnType0(Type returnType) {
         return TypeAnnotationParser.buildAnnotatedType(getTypeAnnotationBytes0(),
@@ -664,8 +657,6 @@ public abstract class Executable extends AccessibleObject
      *
      * @return an object representing the receiver type of the method or
      * constructor represented by this {@code Executable}
-     *
-     * @since 1.8
      */
     public AnnotatedType getAnnotatedReceiverType() {
         if (Modifier.isStatic(this.getModifiers()))
@@ -692,8 +683,6 @@ public abstract class Executable extends AccessibleObject
      * @return an array of objects representing the types of the
      * formal parameters of the method or constructor represented by this
      * {@code Executable}
-     *
-     * @since 1.8
      */
     public AnnotatedType[] getAnnotatedParameterTypes() {
         return TypeAnnotationParser.buildAnnotatedTypes(getTypeAnnotationBytes0(),
@@ -718,8 +707,6 @@ public abstract class Executable extends AccessibleObject
      * @return an array of objects representing the declared
      * exceptions of the method or constructor represented by this {@code
      * Executable}
-     *
-     * @since 1.8
      */
     public AnnotatedType[] getAnnotatedExceptionTypes() {
         return TypeAnnotationParser.buildAnnotatedTypes(getTypeAnnotationBytes0(),
