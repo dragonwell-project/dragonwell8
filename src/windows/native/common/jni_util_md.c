@@ -142,6 +142,15 @@ void* getProcessHandle() {
     return (void*)GetModuleHandle(NULL);
 }
 
+int
+getErrorString(int err, char *buf, size_t len)
+{
+    int ret = 0;
+    if (err == 0 || len < 1) return 0;
+    ret = strerror_s(buf, len, err);
+    return ret;
+}
+
 /*
  * Windows symbols can be simple like JNI_OnLoad or __stdcall format
  * like _JNI_OnLoad@8. We need to handle both.

@@ -1314,11 +1314,22 @@ ZIP_GetEntryDataOffset(jzfile *zip, jzentry *entry)
 jint
 ZIP_Read(jzfile *zip, jzentry *entry, jlong pos, void *buf, jint len)
 {
-    jlong entry_size = (entry->csize != 0) ? entry->csize : entry->size;
+    jlong entry_size;
     jlong start;
+
+    if (zip == 0) {
+        return -1;
+    }
 
     /* Clear previous zip error */
     zip->msg = NULL;
+
+    if (entry == 0) {
+        zip->msg = "ZIP_Read: jzentry is NULL";
+        return -1;
+    }
+
+    entry_size = (entry->csize != 0) ? entry->csize : entry->size;
 
     /* Check specified position */
     if (pos < 0 || pos > entry_size - 1) {
@@ -1449,6 +1460,12 @@ jboolean JNICALL
 ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entryname)
 {
     char *msg;
+    char tmpbuf[1024];
+
+    if (entry == 0) {
+        jio_fprintf(stderr, "jzentry was invalid");
+        return JNI_FALSE;
+    }
 
     strcpy(entryname, entry->name);
     if (entry->csize == 0) {
@@ -1467,8 +1484,11 @@ ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entryname)
             msg = zip->msg;
             ZIP_Unlock(zip);
             if (n == -1) {
-                jio_fprintf(stderr, "%s: %s\n", zip->name,
-                            msg != 0 ? msg : strerror(errno));
+                if (msg == 0) {
+                    getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+                    msg = tmpbuf;
+                }
+                jio_fprintf(stderr, "%s: %s\n", zip->name, msg);
                 return JNI_FALSE;
             }
             buf += n;
@@ -1481,8 +1501,11 @@ ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entryname)
             if ((msg == NULL) || (*msg == 0)) {
                 msg = zip->msg;
             }
-            jio_fprintf(stderr, "%s: %s\n", zip->name,
-                        msg != 0 ? msg : strerror(errno));
+            if (msg == 0) {
+                getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+                msg = tmpbuf;
+            }
+            jio_fprintf(stderr, "%s: %s\n", zip->name, msg);
             return JNI_FALSE;
         }
     }
