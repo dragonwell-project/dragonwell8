@@ -792,6 +792,7 @@ LANGTOOLS_TOPDIR
 JAVA_FLAGS_SMALL
 JAVA_FLAGS_BIG
 JAVA_FLAGS
+BOOT_JDK_BITS
 JAVAC_FLAGS
 BOOT_JDK_SOURCETARGET
 BOOT_JDK
@@ -3879,7 +3880,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1444076935
+DATE_WHEN_GENERATED=1445418840
 
 ###############################################################################
 #
@@ -16071,6 +16072,18 @@ $as_echo "ok" >&6; }
 
 
 
+  # Check if the boot jdk is 32 or 64 bit
+  if "$JAVA" -d64 -version > /dev/null 2>&1; then
+    BOOT_JDK_BITS="64"
+  else
+    BOOT_JDK_BITS="32"
+  fi
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if Boot JDK is 32 or 64 bits" >&5
+$as_echo_n "checking if Boot JDK is 32 or 64 bits... " >&6; }
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BOOT_JDK_BITS" >&5
+$as_echo "$BOOT_JDK_BITS" >&6; }
+
+
 
   ##############################################################################
   #
@@ -16150,7 +16163,7 @@ $as_echo_n "checking flags for boot jdk java command for big workloads... " >&6;
 
   # Maximum amount of heap memory.
   # Maximum stack size.
-  if test "x$BUILD_NUM_BITS" = x32; then
+  if test "x$BOOT_JDK_BITS" = x32; then
     JVM_MAX_HEAP=1100M
     STACK_SIZE=768
   else
