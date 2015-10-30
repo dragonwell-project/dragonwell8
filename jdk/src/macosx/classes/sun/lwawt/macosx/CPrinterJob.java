@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,6 +234,11 @@ public final class CPrinterJob extends RasterPrinterJob {
         // this will not work if the user clicks on the "Preview" button
         // However if the printer is a StreamPrintService, its the right path.
         PrintService psvc = getPrintService();
+
+        if (psvc == null) {
+            throw new PrinterException("No print service found.");
+        }
+
         if (psvc instanceof StreamPrintService) {
             spoolToService(psvc, attributes);
             return;

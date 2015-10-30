@@ -1179,12 +1179,14 @@ public class LambdaToMethod extends TreeTranslator {
         @Override
         public void visitClassDef(JCClassDecl tree) {
             List<Frame> prevStack = frameStack;
+            int prevLambdaCount = lambdaCount;
             SyntheticMethodNameCounter prevSyntheticMethodNameCounts =
                     syntheticMethodNameCounts;
             Map<ClassSymbol, Symbol> prevClinits = clinits;
             DiagnosticSource prevSource = log.currentSource();
             try {
                 log.useSource(tree.sym.sourcefile);
+                lambdaCount = 0;
                 syntheticMethodNameCounts = new SyntheticMethodNameCounter();
                 prevClinits = new HashMap<ClassSymbol, Symbol>();
                 if (tree.sym.owner.kind == MTH) {
@@ -1211,6 +1213,7 @@ public class LambdaToMethod extends TreeTranslator {
             finally {
                 log.useSource(prevSource.getFile());
                 frameStack = prevStack;
+                lambdaCount = prevLambdaCount;
                 syntheticMethodNameCounts = prevSyntheticMethodNameCounts;
                 clinits = prevClinits;
             }
