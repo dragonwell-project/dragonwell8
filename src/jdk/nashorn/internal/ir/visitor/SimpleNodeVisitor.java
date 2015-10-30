@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,19 @@
  * questions.
  */
 
-package jdk.nashorn.internal.runtime.arrays;
+package jdk.nashorn.internal.ir.visitor;
+
+import jdk.nashorn.internal.ir.LexicalContext;
 
 /**
- * Mechanism for communicating that something isn't a plain
- * numeric integer array index. This enables things like
- * array getters for the fast case in a try, basically
- * just consisting of an "array[index]" access without
- * any checks of boundary conditions that rarely happen
+ * Convenience base class for a {@link NodeVisitor} with a plain {@link LexicalContext}.
  */
-@SuppressWarnings("serial")
-class InvalidArrayIndexException extends Exception {
+public abstract class SimpleNodeVisitor extends NodeVisitor<LexicalContext> {
 
-    private final Object index;
-
-    InvalidArrayIndexException(final Object index) {
-        super(index == null ? "null" : index.toString());
-        this.index = index;
+    /**
+     * Creates a new simple node visitor.
+     */
+    public SimpleNodeVisitor() {
+        super(new LexicalContext());
     }
-
-    InvalidArrayIndexException(final int index) {
-        this(Integer.valueOf(index));
-    }
-
-    InvalidArrayIndexException(final long index) {
-        this(Long.valueOf(index));
-    }
-
-    InvalidArrayIndexException(final double index) {
-        this(Double.valueOf(index));
-    }
-
-    @Override
-    public String toString() {
-        return index.toString();
-    }
-
-    Object getIndex() {
-        return index;
-    }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,10 @@
  * questions.
  */
 
-package jdk.nashorn.internal.objects;
+package jdk.nashorn.test.models;
 
-import jdk.nashorn.internal.runtime.ScriptFunction;
-import jdk.nashorn.internal.runtime.ScriptFunctionData;
-import jdk.nashorn.internal.runtime.ScriptObject;
-import jdk.nashorn.internal.runtime.ScriptRuntime;
-
-/**
- * A {@code ScriptFunctionImpl} subclass for functions created using {@code Function.prototype.bind}. Such functions
- * must track their {@code [[TargetFunction]]} property for purposes of correctly implementing {@code [[HasInstance]]};
- * see {@link ScriptFunction#isInstance(ScriptObject)}.
- */
-final class BoundScriptFunctionImpl extends ScriptFunctionImpl {
-    private final ScriptFunction targetFunction;
-
-    BoundScriptFunctionImpl(final ScriptFunctionData data, final ScriptFunction targetFunction) {
-        super(data, Global.instance());
-        setPrototype(ScriptRuntime.UNDEFINED);
-        this.targetFunction = targetFunction;
-    }
-
-    @Override
-    protected ScriptFunction getTargetFunction() {
-        return targetFunction;
+public interface A {
+    default String a() {
+        return "from A.a";
     }
 }
