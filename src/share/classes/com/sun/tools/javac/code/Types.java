@@ -1539,8 +1539,8 @@ public class Types {
                     }
                 }
 
-                if (t.isCompound() || s.isCompound()) {
-                    return !t.isCompound() ?
+                if (t.isIntersection() || s.isIntersection()) {
+                    return !t.isIntersection() ?
                             visitIntersectionType((IntersectionClassType)s.unannotatedType(), t, true) :
                             visitIntersectionType((IntersectionClassType)t.unannotatedType(), s, false);
                 }
@@ -2255,19 +2255,28 @@ public class Types {
     }
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="makeCompoundType">
+    // <editor-fold defaultstate="collapsed" desc="makeIntersectionType">
     /**
-     * Make a compound type from non-empty list of types.  The list should be
-     * ordered according to {@link Symbol#precedes(TypeSymbol,Types)}.
+     * Make an intersection type from non-empty list of types.  The list should be ordered according to
+     * {@link TypeSymbol#precedes(TypeSymbol, Types)}. Note that this might cause a symbol completion.
+     * Hence, this version of makeIntersectionType may not be called during a classfile read.
      *
-     * @param bounds            the types from which the compound type is formed
-     * @param supertype         is objectType if all bounds are interfaces,
-     *                          null otherwise.
+     * @param bounds    the types from which the intersection type is formed
      */
-    public Type makeCompoundType(List<Type> bounds) {
-        return makeCompoundType(bounds, bounds.head.tsym.isInterface());
+    public IntersectionClassType makeIntersectionType(List<Type> bounds) {
+        return makeIntersectionType(bounds, bounds.head.tsym.isInterface());
     }
-    public Type makeCompoundType(List<Type> bounds, boolean allInterfaces) {
+
+    /**
+     * Make an intersection type from non-empty list of types.  The list should be ordered according to
+     * {@link TypeSymbol#precedes(TypeSymbol, Types)}. This does not cause symbol completion as
+     * an extra parameter indicates as to whether all bounds are interfaces - in which case the
+     * supertype is implicitly assumed to be 'Object'.
+     *
+     * @param bounds        the types from which the intersection type is formed
+     * @param allInterfaces are all bounds interface types?
+     */
+    public IntersectionClassType makeIntersectionType(List<Type> bounds, boolean allInterfaces) {
         Assert.check(bounds.nonEmpty());
         Type firstExplicitBound = bounds.head;
         if (allInterfaces) {
@@ -2280,23 +2289,24 @@ public class Types {
                                 : names.empty,
                             null,
                             syms.noSymbol);
-        bc.type = new IntersectionClassType(bounds, bc, allInterfaces);
+        IntersectionClassType intersectionType = new IntersectionClassType(bounds, bc, allInterfaces);
+        bc.type = intersectionType;
         bc.erasure_field = (bounds.head.hasTag(TYPEVAR)) ?
                 syms.objectType : // error condition, recover
                 erasure(firstExplicitBound);
         bc.members_field = new Scope(bc);
-        return bc.type;
+        return intersectionType;
     }
 
     /**
-     * A convenience wrapper for {@link #makeCompoundType(List)}; the
+     * A convenience wrapper for {@link #makeIntersectionType(List)}; the
      * arguments are converted to a list and passed to the other
      * method.  Note that this might cause a symbol completion.
-     * Hence, this version of makeCompoundType may not be called
+     * Hence, this version of makeIntersectionType may not be called
      * during a classfile read.
      */
-    public Type makeCompoundType(Type bound1, Type bound2) {
-        return makeCompoundType(List.of(bound1, bound2));
+    public Type makeIntersectionType(Type bound1, Type bound2) {
+        return makeIntersectionType(List.of(bound1, bound2));
     }
     // </editor-fold>
 
@@ -2436,7 +2446,7 @@ public class Types {
         private final UnaryVisitor<List<Type>> directSupertypes = new UnaryVisitor<List<Type>>() {
 
             public List<Type> visitType(final Type type, final Void ignored) {
-                if (!type.isCompound()) {
+                if (!type.isIntersection()) {
                     final Type sup = supertype(type);
                     return (sup == Type.noType || sup == type || sup == null)
                         ? interfaces(type)
@@ -2490,30 +2500,32 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="setBounds">
     /**
-     * Set the bounds field of the given type variable to reflect a
-     * (possibly multiple) list of bounds.
-     * @param t                 a type variable
-     * @param bounds            the bounds, must be nonempty
-     * @param supertype         is objectType if all bounds are interfaces,
-     *                          null otherwise.
+     * Same as {@link Types#setBounds(TypeVar, List, boolean)}, except that third parameter is computed directly,
+     * as follows: if all all bounds are interface types, the computed supertype is Object,otherwise
+     * the supertype is simply left null (in this case, the supertype is assumed to be the head of
+     * the bound list passed as second argument). Note that this check might cause a symbol completion.
+     * Hence, this version of setBounds may not be called during a classfile read.
+     *
+     * @param t         a type variable
+     * @param bounds    the bounds, must be nonempty
      */
     public void setBounds(TypeVar t, List<Type> bounds) {
         setBounds(t, bounds, bounds.head.tsym.isInterface());
     }
 
     /**
-     * Same as {@link #setBounds(Type.TypeVar,List,Type)}, except that
-     * third parameter is computed directly, as follows: if all
-     * all bounds are interface types, the computed supertype is Object,
-     * otherwise the supertype is simply left null (in this case, the supertype
-     * is assumed to be the head of the bound list passed as second argument).
-     * Note that this check might cause a symbol completion. Hence, this version of
-     * setBounds may not be called during a classfile read.
+     * Set the bounds field of the given type variable to reflect a (possibly multiple) list of bounds.
+     * This does not cause symbol completion as an extra parameter indicates as to whether all bounds
+     * are interfaces - in which case the supertype is implicitly assumed to be 'Object'.
+     *
+     * @param t             a type variable
+     * @param bounds        the bounds, must be nonempty
+     * @param allInterfaces are all bounds interface types?
      */
     public void setBounds(TypeVar t, List<Type> bounds, boolean allInterfaces) {
         t.bound = bounds.tail.isEmpty() ?
                 bounds.head :
-                makeCompoundType(bounds, allInterfaces);
+                makeIntersectionType(bounds, allInterfaces);
         t.rank_field = -1;
     }
     // </editor-fold>
@@ -3063,7 +3075,7 @@ public class Types {
                 if (st == supertype(t) && is == interfaces(t))
                     return t;
                 else
-                    return makeCompoundType(is.prepend(st));
+                    return makeIntersectionType(is.prepend(st));
             }
         }
 
@@ -3566,7 +3578,7 @@ public class Types {
         else if (compound.tail.isEmpty())
             return compound.head;
         else
-            return makeCompoundType(compound);
+            return makeIntersectionType(compound);
     }
 
     /**
@@ -3744,8 +3756,8 @@ public class Types {
                 synchronized (this) {
                     if (arraySuperType == null) {
                         // JLS 10.8: all arrays implement Cloneable and Serializable.
-                        arraySuperType = makeCompoundType(List.of(syms.serializableType,
-                                                                  syms.cloneableType), true);
+                        arraySuperType = makeIntersectionType(List.of(syms.serializableType,
+                                syms.cloneableType), true);
                     }
                 }
             }
@@ -3811,7 +3823,7 @@ public class Types {
                     return glbFlattened(union(bounds, lowers), errT);
             }
         }
-        return makeCompoundType(bounds);
+        return makeIntersectionType(bounds);
     }
     // </editor-fold>
 
