@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -27,9 +28,10 @@ package sun.lwawt.macosx;
 
 import java.awt.*;
 import java.awt.image.*;
-import sun.awt.image.ImageRepresentation;
 
 import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -54,7 +56,8 @@ public class CDataTransferer extends DataTransferer {
         "PDF",
         "URL",
         "PNG",
-        "JFIF"
+        "JFIF",
+        "XPICT"
     };
 
     static {
@@ -78,6 +81,7 @@ public class CDataTransferer extends DataTransferer {
     public static final int CF_URL         = 7;
     public static final int CF_PNG         = 8;
     public static final int CF_JPEG        = 9;
+    public static final int CF_XPICT       = 10;
 
     private CDataTransferer() {}
 
@@ -122,26 +126,43 @@ public class CDataTransferer extends DataTransferer {
 
     @Override
     public Object translateBytes(byte[] bytes, DataFlavor flavor,
-                                    long format, Transferable transferable) throws IOException {
+                                 long format, Transferable transferable) throws IOException {
 
-            if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass()))
-            {
-                String charset = getDefaultTextCharset();
-                if (transferable != null && transferable.isDataFlavorSupported(javaTextEncodingFlavor)) {
-                    try {
-                        charset = new String((byte[])transferable.getTransferData(javaTextEncodingFlavor), "UTF-8");
-                    } catch (UnsupportedFlavorException cannotHappen) {
-                    }
+
+        if (format == CF_URL && URL.class.equals(flavor.getRepresentationClass())) {
+            String[] strings = dragQueryFile(bytes);
+            if(strings == null || strings.length == 0) {
+                return null;
+            }
+            return new URL(strings[0]);
+        } else if(isUriListFlavor(flavor)) {
+            // dragQueryFile works fine with files and url,
+            // it parses and extracts values from property list.
+            // maxosx always returns property list for
+            // CF_URL and CF_FILE
+            String[] strings = dragQueryFile(bytes);
+            if(strings == null) {
+                return null;
+            }
+            String separator = System.getProperty("line.separator");
+            StringBuilder sb = new StringBuilder();
+            if(strings.length > 0) {
+                sb.append(strings[0]);
+                for(int i = 1; i < strings.length; i++) {
+                    sb.append(strings[i]);
+                    sb.append(separator);
                 }
-
-                return new URL(new String(bytes, charset));
             }
+            bytes = sb.toString().getBytes();
+            // now we extracted uri from xml, now we should treat it as
+            // regular string that allows to translate data to target represantation
+            // class by base method
+            format = CF_STRING;
+        } else if (format == CF_STRING) {
+            bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
+        }
 
-            if (format == CF_STRING) {
-                bytes = Normalizer.normalize(new String(bytes, "UTF8"), Form.NFC).getBytes("UTF8");
-            }
-
-            return super.translateBytes(bytes, flavor, format, transferable);
+        return super.translateBytes(bytes, flavor, format, transferable);
     }
 
     @Override
@@ -219,6 +240,7 @@ public class CDataTransferer extends DataTransferer {
         return nativeDragQueryFile(bytes);
     }
 
+
     @Override
     protected Image platformImageBytesToImage(byte[] bytes, long format) throws IOException {
         return CImage.getCreator().createImageFromPlatformImageBytes(bytes);
@@ -243,11 +265,18 @@ public class CDataTransferer extends DataTransferer {
         }
         try {
             DataFlavor df = new DataFlavor(nat);
-            if (df.getPrimaryType().equals("text") && df.getSubType().equals("uri-list")) {
+            if (isUriListFlavor(df)) {
                 return true;
             }
         } catch (Exception e) {
             // Not a MIME format.
+        }
+        return false;
+    }
+
+    private boolean isUriListFlavor(DataFlavor df) {
+        if (df.getPrimaryType().equals("text") && df.getSubType().equals("uri-list")) {
+            return true;
         }
         return false;
     }

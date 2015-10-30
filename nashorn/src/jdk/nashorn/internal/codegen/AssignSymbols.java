@@ -65,17 +65,14 @@ import jdk.nashorn.internal.ir.CatchNode;
 import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IndexNode;
-import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.LexicalContextNode;
 import jdk.nashorn.internal.ir.LiteralNode;
-import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode;
-import jdk.nashorn.internal.ir.LiteralNode.ArrayLiteralNode.ArrayUnit;
 import jdk.nashorn.internal.ir.Node;
 import jdk.nashorn.internal.ir.RuntimeNode;
 import jdk.nashorn.internal.ir.RuntimeNode.Request;
+import jdk.nashorn.internal.ir.Splittable;
 import jdk.nashorn.internal.ir.Statement;
 import jdk.nashorn.internal.ir.SwitchNode;
 import jdk.nashorn.internal.ir.Symbol;
@@ -83,7 +80,7 @@ import jdk.nashorn.internal.ir.TryNode;
 import jdk.nashorn.internal.ir.UnaryNode;
 import jdk.nashorn.internal.ir.VarNode;
 import jdk.nashorn.internal.ir.WithNode;
-import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.ir.visitor.SimpleNodeVisitor;
 import jdk.nashorn.internal.parser.TokenType;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.ECMAErrors;
@@ -104,7 +101,7 @@ import jdk.nashorn.internal.runtime.logging.Logger;
  * visitor.
  */
 @Logger(name="symbols")
-final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggable {
+final class AssignSymbols extends SimpleNodeVisitor implements Loggable {
     private final DebugLogger log;
     private final boolean     debug;
 
@@ -149,12 +146,13 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     private final Deque<Set<String>> thisProperties = new ArrayDeque<>();
     private final Map<String, Symbol> globalSymbols = new HashMap<>(); //reuse the same global symbol
     private final Compiler compiler;
+    private final boolean isOnDemand;
 
     public AssignSymbols(final Compiler compiler) {
-        super(new LexicalContext());
         this.compiler = compiler;
         this.log   = initLogger(compiler.getContext());
         this.debug = log.isEnabled();
+        this.isOnDemand = compiler.isOnDemandCompilation();
     }
 
     @Override
@@ -187,7 +185,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
      */
     private void acceptDeclarations(final FunctionNode functionNode, final Block body) {
         // This visitor will assign symbol to all declared variables.
-        body.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+        body.accept(new SimpleNodeVisitor() {
             @Override
             protected boolean enterDefault(final Node node) {
                 // Don't bother visiting expressions; var is a statement, it can't be inside an expression.
@@ -242,7 +240,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
 
     /**
      * Creates a synthetic initializer for a variable (a var statement that doesn't occur in the source code). Typically
-     * used to create assignmnent of {@code :callee} to the function name symbol in self-referential function
+     * used to create assignment of {@code :callee} to the function name symbol in self-referential function
      * expressions as well as for assignment of {@code :arguments} to {@code arguments}.
      *
      * @param name the ident node identifying the variable to initialize
@@ -390,7 +388,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
 
             // Create and add to appropriate block.
             symbol = createSymbol(name, flags);
-            symbolBlock.putSymbol(lc, symbol);
+            symbolBlock.putSymbol(symbol);
 
             if ((flags & IS_SCOPE) == 0) {
                 // Initial assumption; symbol can lose its slot later
@@ -440,7 +438,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         start(block);
 
         if (lc.isFunctionBody()) {
-            block.clearSymbols();
+            assert !block.hasSymbols();
             final FunctionNode fn = lc.getCurrentFunction();
             if (isUnparsedFunction(fn)) {
                 // It's a skipped nested function. Just mark the symbols being used by it as being in use.
@@ -459,7 +457,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     }
 
     private boolean isUnparsedFunction(final FunctionNode fn) {
-        return compiler.isOnDemandCompilation() && fn != lc.getOutermostFunction();
+        return isOnDemand && fn != lc.getOutermostFunction();
     }
 
     @Override
@@ -551,9 +549,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     private void defineVarIdent(final VarNode varNode) {
         final IdentNode ident = varNode.getName();
         final int flags;
-        if (varNode.isAnonymousFunctionDeclaration()) {
-            flags = IS_INTERNAL;
-        } else if (!varNode.isBlockScoped() && lc.getCurrentFunction().isProgram()) {
+        if (!varNode.isBlockScoped() && lc.getCurrentFunction().isProgram()) {
             flags = IS_SCOPE;
         } else {
             flags = 0;
@@ -749,28 +745,6 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         }
     }
 
-    @Override
-    public Node leaveBlock(final Block block) {
-        // It's not necessary to guard the marking of symbols as locals with this "if" condition for
-        // correctness, it's just an optimization -- runtime type calculation is not used when the compilation
-        // is not an on-demand optimistic compilation, so we can skip locals marking then.
-        if (compiler.useOptimisticTypes() && compiler.isOnDemandCompilation()) {
-            // OTOH, we must not declare symbols from nested functions to be locals. As we're doing on-demand
-            // compilation, and we're skipping parsing the function bodies for nested functions, this
-            // basically only means their parameters. It'd be enough to mistakenly declare to be a local a
-            // symbol in the outer function named the same as one of the parameters, though.
-            if (lc.getFunction(block) == lc.getOutermostFunction()) {
-                for (final Symbol symbol: block.getSymbols()) {
-                    if (!symbol.isScope()) {
-                        assert symbol.isVar() || symbol.isParam();
-                        compiler.declareLocalSymbol(symbol.getName());
-                    }
-                }
-            }
-        }
-        return block;
-    }
-
     private Node leaveDELETE(final UnaryNode unaryNode) {
         final FunctionNode currentFunctionNode = lc.getCurrentFunction();
         final boolean      strictMode          = currentFunctionNode.isStrict();
@@ -785,12 +759,13 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
             // If this is a declared variable or a function parameter, delete always fails (except for globals).
             final String name = ident.getName();
             final Symbol symbol = ident.getSymbol();
-            final boolean failDelete = strictMode || (!symbol.isScope() && (symbol.isParam() || (symbol.isVar() && !symbol.isProgramLevel())));
 
-            if (failDelete && symbol.isThis()) {
-                return LiteralNode.newInstance(unaryNode, true).accept(this);
+            if (symbol.isThis()) {
+                // Can't delete "this", ignore and return true
+                return LiteralNode.newInstance(unaryNode, true);
             }
-            final Expression literalNode = (Expression)LiteralNode.newInstance(unaryNode, name).accept(this);
+            final Expression literalNode = LiteralNode.newInstance(unaryNode, name);
+            final boolean failDelete = strictMode || (!symbol.isScope() && (symbol.isParam() || (symbol.isVar() && !symbol.isProgramLevel())));
 
             if (!failDelete) {
                 args.add(compilerConstantIdentifier(SCOPE));
@@ -800,13 +775,15 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
 
             if (failDelete) {
                 request = Request.FAIL_DELETE;
+            } else if ((symbol.isGlobal() && !symbol.isFunctionDeclaration()) || symbol.isProgramLevel()) {
+                request = Request.SLOW_DELETE;
             }
         } else if (rhs instanceof AccessNode) {
             final Expression base     = ((AccessNode)rhs).getBase();
             final String     property = ((AccessNode)rhs).getProperty();
 
             args.add(base);
-            args.add((Expression)LiteralNode.newInstance(unaryNode, property).accept(this));
+            args.add(LiteralNode.newInstance(unaryNode, property));
             args.add(strictFlagNode);
 
         } else if (rhs instanceof IndexNode) {
@@ -819,15 +796,15 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
             args.add(strictFlagNode);
 
         } else {
-            return LiteralNode.newInstance(unaryNode, true).accept(this);
+            return LiteralNode.newInstance(unaryNode, true);
         }
-        return new RuntimeNode(unaryNode, request, args).accept(this);
+        return new RuntimeNode(unaryNode, request, args);
     }
 
     @Override
     public Node leaveForNode(final ForNode forNode) {
         if (forNode.isForIn()) {
-            forNode.setIterator(newObjectInternal(ITERATOR_PREFIX)); //NASHORN-73
+            return forNode.setIterator(lc, newObjectInternal(ITERATOR_PREFIX)); //NASHORN-73
         }
 
         return end(forNode);
@@ -847,7 +824,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
                        lc.applyTopFlags(functionNode))))
                        .setThisProperties(lc, thisProperties.pop().size()));
         }
-        return finalizedFunction.setState(lc, CompilationState.SYMBOLS_ASSIGNED);
+        return finalizedFunction;
     }
 
     @Override
@@ -903,19 +880,18 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     public Node leaveSwitchNode(final SwitchNode switchNode) {
         // We only need a symbol for the tag if it's not an integer switch node
         if(!switchNode.isUniqueInteger()) {
-            switchNode.setTag(newObjectInternal(SWITCH_TAG_PREFIX));
+            return switchNode.setTag(lc, newObjectInternal(SWITCH_TAG_PREFIX));
         }
         return switchNode;
     }
 
     @Override
     public Node leaveTryNode(final TryNode tryNode) {
-        tryNode.setException(exceptionSymbol());
         assert tryNode.getFinallyBody() == null;
 
         end(tryNode);
 
-        return tryNode;
+        return tryNode.setException(lc, exceptionSymbol());
     }
 
     private Node leaveTYPEOF(final UnaryNode unaryNode) {
@@ -924,13 +900,13 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         final List<Expression> args = new ArrayList<>();
         if (rhs instanceof IdentNode && !isParamOrVar((IdentNode)rhs)) {
             args.add(compilerConstantIdentifier(SCOPE));
-            args.add((Expression)LiteralNode.newInstance(rhs, ((IdentNode)rhs).getName()).accept(this)); //null
+            args.add(LiteralNode.newInstance(rhs, ((IdentNode)rhs).getName())); //null
         } else {
             args.add(rhs);
-            args.add((Expression)LiteralNode.newInstance(unaryNode).accept(this)); //null, do not reuse token of identifier rhs, it can be e.g. 'this'
+            args.add(LiteralNode.newInstance(unaryNode)); //null, do not reuse token of identifier rhs, it can be e.g. 'this'
         }
 
-        final Node runtimeNode = new RuntimeNode(unaryNode, Request.TYPEOF, args).accept(this);
+        final Node runtimeNode = new RuntimeNode(unaryNode, Request.TYPEOF, args);
 
         end(unaryNode);
 
@@ -938,7 +914,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
     }
 
     private FunctionNode markProgramBlock(final FunctionNode functionNode) {
-        if (compiler.isOnDemandCompilation() || !functionNode.isProgram()) {
+        if (isOnDemand || !functionNode.isProgram()) {
             return functionNode;
         }
 
@@ -1005,7 +981,7 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         boolean previousWasBlock = false;
         for (final Iterator<LexicalContextNode> it = lc.getAllNodes(); it.hasNext();) {
             final LexicalContextNode node = it.next();
-            if (node instanceof FunctionNode || isSplitArray(node)) {
+            if (node instanceof FunctionNode || isSplitLiteral(node)) {
                 // We reached the function boundary or a splitting boundary without seeing a definition for the symbol.
                 // It needs to be in scope.
                 return true;
@@ -1031,12 +1007,8 @@ final class AssignSymbols extends NodeVisitor<LexicalContext> implements Loggabl
         throw new AssertionError();
     }
 
-    private static boolean isSplitArray(final LexicalContextNode expr) {
-        if(!(expr instanceof ArrayLiteralNode)) {
-            return false;
-        }
-        final List<ArrayUnit> units = ((ArrayLiteralNode)expr).getUnits();
-        return !(units == null || units.isEmpty());
+    private static boolean isSplitLiteral(final LexicalContextNode expr) {
+        return expr instanceof Splittable && ((Splittable) expr).getSplitRanges() != null;
     }
 
     private void throwUnprotectedSwitchError(final VarNode varNode) {

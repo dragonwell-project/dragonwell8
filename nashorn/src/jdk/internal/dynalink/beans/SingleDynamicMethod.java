@@ -98,7 +98,6 @@ import jdk.internal.dynalink.support.Lookup;
  * target method to a call site type (including mapping variable arity methods to a call site signature with different
  * arity).
  * @author Attila Szegedi
- * @version $Id: $
  */
 abstract class SingleDynamicMethod extends DynamicMethod {
 
@@ -143,14 +142,18 @@ abstract class SingleDynamicMethod extends DynamicMethod {
         return getMethodType().parameterList().equals(method.getMethodType().parameterList());
     }
 
-    static String getMethodNameWithSignature(final MethodType type, final String methodName) {
+    static String getMethodNameWithSignature(final MethodType type, final String methodName, final boolean withReturnType) {
         final String typeStr = type.toString();
         final int retTypeIndex = typeStr.lastIndexOf(')') + 1;
         int secondParamIndex = typeStr.indexOf(',') + 1;
         if(secondParamIndex == 0) {
             secondParamIndex = retTypeIndex - 1;
         }
-        return typeStr.substring(retTypeIndex) + " " + methodName + "(" + typeStr.substring(secondParamIndex, retTypeIndex);
+        final StringBuilder b = new StringBuilder();
+        if (withReturnType) {
+            b.append(typeStr, retTypeIndex, typeStr.length()).append(' ');
+        }
+        return b.append(methodName).append('(').append(typeStr, secondParamIndex, retTypeIndex).toString();
     }
 
     /**
