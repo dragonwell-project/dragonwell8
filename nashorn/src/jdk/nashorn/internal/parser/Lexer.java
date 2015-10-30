@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1451,9 +1451,22 @@ public class Lexer extends Scanner {
                 skip(3);
             }
 
-            // Scan identifier.
+            // Scan identifier. It might be quoted, indicating that no string editing should take place.
+            final char quoteChar = ch0;
+            final boolean noStringEditing = quoteChar == '"' || quoteChar == '\'';
+            if (noStringEditing) {
+                skip(1);
+            }
             final int identStart = position;
             final int identLength = scanIdentifier();
+            if (noStringEditing) {
+                if (ch0 != quoteChar) {
+                    error(Lexer.message("here.non.matching.delimiter"), last, position, position);
+                    restoreState(saved);
+                    return false;
+                }
+                skip(1);
+            }
 
             // Check for identifier.
             if (identLength == 0) {
@@ -1523,7 +1536,7 @@ public class Lexer extends Scanner {
             }
 
             // Edit string if appropriate.
-            if (scripting && !stringState.isEmpty()) {
+            if (!noStringEditing && !stringState.isEmpty()) {
                 editString(STRING, stringState);
             } else {
                 // Add here string.
@@ -1640,9 +1653,9 @@ public class Lexer extends Scanner {
             //and new Color(float, float, float) will get ambiguous for cases like
             //new Color(1.0, 1.5, 1.5) if we don't respect the decimal point.
             //yet we don't want e.g. 1e6 to be a double unnecessarily
-            if (JSType.isRepresentableAsInt(value) && !JSType.isNegativeZero(value)) {
+            if (JSType.isStrictlyRepresentableAsInt(value)) {
                 return (int)value;
-            } else if (JSType.isRepresentableAsLong(value) && !JSType.isNegativeZero(value)) {
+            } else if (JSType.isStrictlyRepresentableAsLong(value)) {
                 return (long)value;
             }
             return value;

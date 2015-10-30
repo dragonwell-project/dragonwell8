@@ -327,6 +327,7 @@ needs_jdk = \
   java/lang/invoke/lambda/LambdaAccessControlDoPrivilegedTest.java \
   java/lang/invoke/lambda/LambdaAccessControlTest.java \
   java/lang/invoke/lambda/LambdaAsm.java \
+  java/lang/Class/getDeclaredField/FieldSetAccessibleTest.java \
   java/lang/System/MacEncoding/TestFileEncoding.java \
   java/net/URLClassLoader/closetest/GetResourceAsStream.java \
   java/util/Collections/EmptyIterator.java \
@@ -489,7 +490,6 @@ needs_compact3 = \
   java/lang/invoke/LFCaching/LFMultiThreadCachingTest.java \
   java/lang/invoke/LFCaching/LFSingleThreadCachingTest.java \
   java/lang/System/MacEncoding/TestFileEncoding.java \
-  java/lang/Class/getDeclaredField/FieldSetAccessibleTest.java \
   java/nio/channels/AsynchronousSocketChannel/Leaky.java \
   java/security/PermissionCollection/Concurrent.java \
   java/security/Principal/Implies.java \

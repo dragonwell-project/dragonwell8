@@ -248,14 +248,6 @@ public class WEmbeddedFrame extends EmbeddedFrame {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    public boolean requestFocusToEmbedder() {
-        if (isEmbeddedInIE) {
-            return ((WEmbeddedFramePeer) getPeer()).requestFocusToEmbedder();
-        }
-        return false;
-    }
-
     public void registerAccelerator(AWTKeyStroke stroke) {}
     public void unregisterAccelerator(AWTKeyStroke stroke) {}
 
