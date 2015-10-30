@@ -521,15 +521,17 @@ void CodeCache::gc_prologue() {
 
 void CodeCache::gc_epilogue() {
   assert_locked_or_safepoint(CodeCache_lock);
-  FOR_ALL_ALIVE_BLOBS(cb) {
-    if (cb->is_nmethod()) {
-      nmethod *nm = (nmethod*)cb;
-      assert(!nm->is_unloaded(), "Tautology");
-      if (needs_cache_clean()) {
-        nm->cleanup_inline_caches();
+  NOT_DEBUG(if (needs_cache_clean())) {
+    FOR_ALL_ALIVE_BLOBS(cb) {
+      if (cb->is_nmethod()) {
+        nmethod *nm = (nmethod*)cb;
+        assert(!nm->is_unloaded(), "Tautology");
+        DEBUG_ONLY(if (needs_cache_clean())) {
+          nm->cleanup_inline_caches();
+        }
+        DEBUG_ONLY(nm->verify());
+        DEBUG_ONLY(nm->verify_oop_relocations());
       }
-      DEBUG_ONLY(nm->verify());
-      DEBUG_ONLY(nm->verify_oop_relocations());
     }
   }
   set_needs_cache_clean(false);
@@ -732,27 +734,6 @@ int CodeCache::mark_for_deoptimization(Method* dependee) {
   }
 
   return number_of_marked_CodeBlobs;
-}
-
-void CodeCache::make_marked_nmethods_zombies() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
-  FOR_ALL_ALIVE_NMETHODS(nm) {
-    if (nm->is_marked_for_deoptimization()) {
-
-      // If the nmethod has already been made non-entrant and it can be converted
-      // then zombie it now. Otherwise make it non-entrant and it will eventually
-      // be zombied when it is no longer seen on the stack. Note that the nmethod
-      // might be "entrant" and not on the stack and so could be zombied immediately
-      // but we can't tell because we don't track it on stack until it becomes
-      // non-entrant.
-
-      if (nm->is_not_entrant() && nm->can_not_entrant_be_converted()) {
-        nm->make_zombie();
-      } else {
-        nm->make_not_entrant();
-      }
-    }
-  }
 }
 
 void CodeCache::make_marked_nmethods_not_entrant() {
