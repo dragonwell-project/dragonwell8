@@ -40,11 +40,9 @@ import jdk.nashorn.internal.ir.AccessNode;
 import jdk.nashorn.internal.ir.CallNode;
 import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
-import jdk.nashorn.internal.ir.LexicalContext;
 import jdk.nashorn.internal.ir.Node;
-import jdk.nashorn.internal.ir.visitor.NodeVisitor;
+import jdk.nashorn.internal.ir.visitor.SimpleNodeVisitor;
 import jdk.nashorn.internal.objects.Global;
 import jdk.nashorn.internal.runtime.Context;
 import jdk.nashorn.internal.runtime.logging.DebugLogger;
@@ -82,7 +80,7 @@ import jdk.nashorn.internal.runtime.options.Options;
  */
 
 @Logger(name="apply2call")
-public final class ApplySpecialization extends NodeVisitor<LexicalContext> implements Loggable {
+public final class ApplySpecialization extends SimpleNodeVisitor implements Loggable {
 
     private static final boolean USE_APPLY2CALL = Options.getBooleanProperty("nashorn.apply2call", true);
 
@@ -106,7 +104,6 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
      * @param compiler compiler
      */
     public ApplySpecialization(final Compiler compiler) {
-        super(new LexicalContext());
         this.compiler = compiler;
         this.log = initLogger(compiler.getContext());
     }
@@ -139,7 +136,7 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
 
     private boolean hasApplies(final FunctionNode functionNode) {
         try {
-            functionNode.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+            functionNode.accept(new SimpleNodeVisitor() {
                 @Override
                 public boolean enterFunctionNode(final FunctionNode fn) {
                     return fn == functionNode;
@@ -173,7 +170,7 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
         final Deque<Set<Expression>> stack = new ArrayDeque<>();
 
         //ensure that arguments is only passed as arg to apply
-        functionNode.accept(new NodeVisitor<LexicalContext>(new LexicalContext()) {
+        functionNode.accept(new SimpleNodeVisitor() {
 
             private boolean isCurrentArg(final Expression expr) {
                 return !stack.isEmpty() && stack.peek().contains(expr); //args to current apply call
@@ -283,17 +280,13 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
             start++;
         }
 
-        start++; //we always uses this
+        start++; // we always use this
 
-        final List<IdentNode> params    = functionNode.getParameters();
+        assert functionNode.getNumOfParams() == 0 : "apply2call on function with named paramaters!";
         final List<IdentNode> newParams = new ArrayList<>();
-        final long to = Math.max(params.size(), actualCallSiteType.parameterCount() - start);
+        final long to = actualCallSiteType.parameterCount() - start;
         for (int i = 0; i < to; i++) {
-            if (i >= params.size()) {
-                newParams.add(new IdentNode(functionNode.getToken(), functionNode.getFinish(), EXPLODED_ARGUMENT_PREFIX.symbolName() + (i)));
-            } else {
-                newParams.add(params.get(i));
-            }
+            newParams.add(new IdentNode(functionNode.getToken(), functionNode.getFinish(), EXPLODED_ARGUMENT_PREFIX.symbolName() + (i)));
         }
 
         callSiteTypes.push(actualCallSiteType);
@@ -302,21 +295,34 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
 
     @Override
     public boolean enterFunctionNode(final FunctionNode functionNode) {
-        if (!USE_APPLY2CALL) {
+        // Cheap tests first
+        if (!(
+                // is the transform globally enabled?
+                USE_APPLY2CALL
+
+                // Are we compiling lazily? We can't known the number and types of the actual parameters at
+                // the caller when compiling eagerly, so this only works with on-demand compilation.
+                && compiler.isOnDemandCompilation()
+
+                // Does the function even reference the "arguments" identifier (without redefining it)? If not,
+                // it trivially can't have an expression of form "f.apply(self, arguments)" that this transform
+                // is targeting.
+                && functionNode.needsArguments()
+
+                // Does the function have eval? If so, it can arbitrarily modify arguments so we can't touch it.
+                && !functionNode.hasEval()
+
+                // Finally, does the function declare any parameters explicitly? We don't support that. It could
+                // be done, but has some complications. Therefore only a function with no explicit parameters
+                // is considered.
+                && functionNode.getNumOfParams() == 0))
+        {
             return false;
         }
 
         if (!Global.isBuiltinFunctionPrototypeApply()) {
             log.fine("Apply transform disabled: apply/call overridden");
             assert !Global.isBuiltinFunctionPrototypeCall() : "call and apply should have the same SwitchPoint";
-            return false;
-        }
-
-        if (!compiler.isOnDemandCompilation()) {
-            return false;
-        }
-
-        if (functionNode.hasEval()) {
             return false;
         }
 
@@ -375,7 +381,7 @@ public final class ApplySpecialization extends NodeVisitor<LexicalContext> imple
         callSiteTypes.pop();
         explodedArguments.pop();
 
-        return newFunctionNode.setState(lc, CompilationState.BUILTINS_TRANSFORMED);
+        return newFunctionNode;
     }
 
     private static boolean isApply(final CallNode callNode) {

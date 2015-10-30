@@ -1813,7 +1813,7 @@ public class Check {
                                             Type t1,
                                             Type t2) {
         return checkCompatibleAbstracts(pos, t1, t2,
-                                        types.makeCompoundType(t1, t2));
+                                        types.makeIntersectionType(t1, t2));
     }
 
     public boolean checkCompatibleAbstracts(DiagnosticPosition pos,

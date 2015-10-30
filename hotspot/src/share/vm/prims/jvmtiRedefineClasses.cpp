@@ -3751,7 +3751,7 @@ void VM_RedefineClasses::flush_dependent_code(instanceKlassHandle k_h, TRAPS) {
     // Deoptimize all activations depending on marked nmethods
     Deoptimization::deoptimize_dependents();
 
-    // Make the dependent methods not entrant (in VM_Deoptimize they are made zombies)
+    // Make the dependent methods not entrant
     CodeCache::make_marked_nmethods_not_entrant();
 
     // From now on we know that the dependency information is complete
@@ -4070,9 +4070,6 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
     bool trace_name_printed = false;
     mnt->adjust_method_entries(the_class(), &trace_name_printed);
   }
-
-  // Fix Resolution Error table also to remove old constant pools
-  SystemDictionary::delete_resolution_error(old_constants);
 
   if (the_class->oop_map_cache() != NULL) {
     // Flush references to any obsolete methods from the oop map cache

@@ -84,7 +84,6 @@ import jdk.nashorn.internal.ir.Expression;
 import jdk.nashorn.internal.ir.ExpressionStatement;
 import jdk.nashorn.internal.ir.ForNode;
 import jdk.nashorn.internal.ir.FunctionNode;
-import jdk.nashorn.internal.ir.FunctionNode.CompilationState;
 import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
@@ -513,8 +512,7 @@ loop:
 
         return lc.pop(functionNode).
             setBody(lc, newBody).
-            setLastToken(lc, lastToken).
-            setState(lc, errors.hasErrors() ? CompilationState.PARSE_ERROR : CompilationState.PARSED);
+            setLastToken(lc, lastToken);
     }
 
     /**
@@ -805,7 +803,7 @@ loop:
                                 if (!oldStrictMode && directiveStmts != null) {
                                     // check that directives preceding this one do not violate strictness
                                     for (final Node statement : directiveStmts) {
-                                        // the get value will force unescape of preceeding
+                                        // the get value will force unescape of preceding
                                         // escaped string directives
                                         getValue(statement.getToken());
                                     }
@@ -2469,7 +2467,7 @@ loop:
         //         run: function() { println("run"); }
         //     };
         //
-        // The object literal following the "new Constructor()" expresssion
+        // The object literal following the "new Constructor()" expression
         // is passed as an additional (last) argument to the constructor.
         if (!env._no_syntax_extensions && type == LBRACE) {
             arguments.add(objectLiteral());
@@ -2720,6 +2718,11 @@ loop:
         }
 
         if (isStatement) {
+            if (isAnonymous) {
+                appendStatement(new ExpressionStatement(functionLine, functionToken, finish, functionNode));
+                return functionNode;
+            }
+
             final int     varFlags = (topLevel || !useBlockScope()) ? 0 : VarNode.IS_LET;
             final VarNode varNode = new VarNode(functionLine, functionToken, finish, name, functionNode, varFlags);
             if (topLevel) {

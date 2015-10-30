@@ -216,57 +216,55 @@ class KeyStoreDelegator extends KeyStoreSpi {
 
         } else {
             // First try the primary keystore then try the secondary keystore
-            try (InputStream bufferedStream = new BufferedInputStream(stream)) {
-                bufferedStream.mark(Integer.MAX_VALUE);
+            InputStream bufferedStream = new BufferedInputStream(stream);
+            bufferedStream.mark(Integer.MAX_VALUE);
+            try {
+                keystore = primaryKeyStore.newInstance();
+                type = primaryType;
+                keystore.engineLoad(bufferedStream, password);
+
+            } catch (Exception e) {
+
+                // incorrect password
+                if (e instanceof IOException &&
+                    e.getCause() instanceof UnrecoverableKeyException) {
+                    throw (IOException)e;
+                }
 
                 try {
-                    keystore = primaryKeyStore.newInstance();
-                    type = primaryType;
+                    keystore = secondaryKeyStore.newInstance();
+                    type = secondaryType;
+                    bufferedStream.reset();
                     keystore.engineLoad(bufferedStream, password);
 
-                } catch (Exception e) {
-
-                    // incorrect password
-                    if (e instanceof IOException &&
-                        e.getCause() instanceof UnrecoverableKeyException) {
-                        throw (IOException)e;
+                    if (debug != null) {
+                        debug.println("WARNING: switching from " +
+                          primaryType + " to " + secondaryType +
+                          " keystore file format has altered the " +
+                          "keystore security level");
                     }
 
-                    try {
-                        keystore = secondaryKeyStore.newInstance();
-                        type = secondaryType;
-                        bufferedStream.reset();
-                        keystore.engineLoad(bufferedStream, password);
+                } catch (InstantiationException |
+                    IllegalAccessException e2) {
+                    // can safely ignore
 
-                        if (debug != null) {
-                            debug.println("WARNING: switching from " +
-                              primaryType + " to " + secondaryType +
-                              " keystore file format has altered the " +
-                              "keystore security level");
-                        }
+                } catch (IOException |
+                    NoSuchAlgorithmException |
+                    CertificateException e3) {
 
-                    } catch (InstantiationException |
-                        IllegalAccessException e2) {
-                        // can safely ignore
-
-                    } catch (IOException |
-                        NoSuchAlgorithmException |
-                        CertificateException e3) {
-
-                        // incorrect password
-                        if (e3 instanceof IOException &&
-                            e3.getCause() instanceof
-                                UnrecoverableKeyException) {
-                            throw (IOException)e3;
-                        }
-                        // rethrow the outer exception
-                        if (e instanceof IOException) {
-                            throw (IOException)e;
-                        } else if (e instanceof CertificateException) {
-                            throw (CertificateException)e;
-                        } else if (e instanceof NoSuchAlgorithmException) {
-                            throw (NoSuchAlgorithmException)e;
-                        }
+                    // incorrect password
+                    if (e3 instanceof IOException &&
+                        e3.getCause() instanceof
+                            UnrecoverableKeyException) {
+                        throw (IOException)e3;
+                    }
+                    // rethrow the outer exception
+                    if (e instanceof IOException) {
+                        throw (IOException)e;
+                    } else if (e instanceof CertificateException) {
+                        throw (CertificateException)e;
+                    } else if (e instanceof NoSuchAlgorithmException) {
+                        throw (NoSuchAlgorithmException)e;
                     }
                 }
             }
