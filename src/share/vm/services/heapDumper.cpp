@@ -941,8 +941,14 @@ void DumperSupport::dump_instance(DumpWriter* writer, oop o) {
 // its array classes
 void DumperSupport::dump_class_and_array_classes(DumpWriter* writer, Klass* k) {
   Klass* klass = k;
-  assert(klass->oop_is_instance(), "not an InstanceKlass");
-  InstanceKlass* ik = (InstanceKlass*)klass;
+  InstanceKlass* ik = InstanceKlass::cast(k);
+
+  // We can safepoint and do a heap dump at a point where we have a Klass,
+  // but no java mirror class has been setup for it. So we need to check
+  // that the class is at least loaded, to avoid crash from a null mirror.
+  if (!ik->is_loaded()) {
+    return;
+  }
 
   writer->write_u1(HPROF_GC_CLASS_DUMP);
 
