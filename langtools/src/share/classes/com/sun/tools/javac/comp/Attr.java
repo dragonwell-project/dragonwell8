@@ -156,6 +156,8 @@ public class Attr extends JCTree.Visitor {
         unknownTypeInfo = new ResultInfo(TYP, Type.noType);
         unknownTypeExprInfo = new ResultInfo(Kinds.TYP | Kinds.VAL, Type.noType);
         recoveryInfo = new RecoveryInfo(deferredAttr.emptyDeferredAttrContext);
+
+        noCheckTree = make.at(-1).Skip();
     }
 
     /** Switch: relax some constraints for retrofit mode.
@@ -253,31 +255,34 @@ public class Attr extends JCTree.Visitor {
     Type check(final JCTree tree, final Type found, final int ownkind, final ResultInfo resultInfo) {
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
         Type owntype;
-        if (!found.hasTag(ERROR) && !resultInfo.pt.hasTag(METHOD) && !resultInfo.pt.hasTag(FORALL)) {
-            if ((ownkind & ~resultInfo.pkind) != 0) {
-                log.error(tree.pos(), "unexpected.type",
+        boolean shouldCheck = !found.hasTag(ERROR) &&
+                !resultInfo.pt.hasTag(METHOD) &&
+                !resultInfo.pt.hasTag(FORALL);
+        if (shouldCheck && (ownkind & ~resultInfo.pkind) != 0) {
+            log.error(tree.pos(), "unexpected.type",
                         kindNames(resultInfo.pkind),
                         kindName(ownkind));
-                owntype = types.createErrorType(found);
-            } else if (allowPoly && inferenceContext.free(found)) {
-                //delay the check if there are inference variables in the found type
-                //this means we are dealing with a partially inferred poly expression
-                owntype = resultInfo.pt;
-                inferenceContext.addFreeTypeListener(List.of(found, resultInfo.pt), new FreeTypeListener() {
+            owntype = types.createErrorType(found);
+        } else if (allowPoly && inferenceContext.free(found)) {
+            //delay the check if there are inference variables in the found type
+            //this means we are dealing with a partially inferred poly expression
+            owntype = shouldCheck ? resultInfo.pt : found;
+            inferenceContext.addFreeTypeListener(List.of(found, resultInfo.pt), new FreeTypeListener() {
                     @Override
                     public void typesInferred(InferenceContext inferenceContext) {
                         ResultInfo pendingResult =
                                 resultInfo.dup(inferenceContext.asInstType(resultInfo.pt));
                         check(tree, inferenceContext.asInstType(found), ownkind, pendingResult);
                     }
-                });
-            } else {
-                owntype = resultInfo.check(tree, found);
-            }
+            });
         } else {
-            owntype = found;
+            owntype = shouldCheck ?
+            resultInfo.check(tree, found) :
+            found;
         }
-        tree.type = owntype;
+        if (tree != noCheckTree) {
+            tree.type = owntype;
+        }
         return owntype;
     }
 
@@ -549,6 +554,10 @@ public class Attr extends JCTree.Visitor {
     /** Visitor result: the computed type.
      */
     Type result;
+
+    /** Synthetic tree to be used during 'fake' checks.
+     */
+    JCTree noCheckTree;
 
     /** Visitor method: attribute a tree, catching any completion failure
      *  exceptions. Return the tree's type.
@@ -2043,7 +2052,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 });
                 Type constructorType = tree.constructorType = types.createErrorType(clazztype);
-                constructorType = checkId(tree, site,
+                constructorType = checkId(noCheckTree, site,
                         constructor,
                         diamondEnv,
                         diamondResult);
@@ -2069,7 +2078,7 @@ public class Attr extends JCTree.Visitor {
                 tree.constructor = rs.resolveConstructor(
                     tree.pos(), rsEnv, clazztype, argtypes, typeargtypes);
                 if (cdef == null) { //do not check twice!
-                    tree.constructorType = checkId(tree,
+                    tree.constructorType = checkId(noCheckTree,
                             clazztype,
                             tree.constructor,
                             rsEnv,
@@ -2150,7 +2159,7 @@ public class Attr extends JCTree.Visitor {
                     tree.pos(), localEnv, clazztype, argtypes, typeargtypes);
                 Assert.check(sym.kind < AMBIGUOUS);
                 tree.constructor = sym;
-                tree.constructorType = checkId(tree,
+                tree.constructorType = checkId(noCheckTree,
                     clazztype,
                     tree.constructor,
                     localEnv,
@@ -2161,6 +2170,17 @@ public class Attr extends JCTree.Visitor {
                 owntype = clazztype;
         }
         result = check(tree, owntype, VAL, resultInfo);
+        InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
+        if (tree.constructorType != null && inferenceContext.free(tree.constructorType)) {
+            //we need to wait for inference to finish and then replace inference vars in the constructor type
+            inferenceContext.addFreeTypeListener(List.of(tree.constructorType),
+                    new FreeTypeListener() {
+                        @Override
+                        public void typesInferred(InferenceContext instantiatedContext) {
+                            tree.constructorType = instantiatedContext.asInstType(tree.constructorType);
+                        }
+                    });
+        }
         chk.validate(tree.typeargs, localEnv);
     }
     //where
@@ -2388,6 +2408,7 @@ public class Attr extends JCTree.Visitor {
             preFlow(that);
             flow.analyzeLambda(env, that, make, isSpeculativeRound);
 
+            that.type = currentTarget; //avoids recovery at this stage
             checkLambdaCompatible(that, lambdaType, resultInfo.checkContext);
 
             if (!isSpeculativeRound) {
@@ -2826,7 +2847,7 @@ public class Attr extends JCTree.Visitor {
                         that.kind.isUnbound() ? argtypes.tail : argtypes, typeargtypes),
                         new FunctionalReturnContext(resultInfo.checkContext));
 
-            Type refType = checkId(that, lookupHelper.site, refSym, localEnv, checkInfo);
+            Type refType = checkId(noCheckTree, lookupHelper.site, refSym, localEnv, checkInfo);
 
             if (that.kind.isUnbound() &&
                     resultInfo.checkContext.inferenceContext().free(argtypes.head)) {
@@ -2848,6 +2869,8 @@ public class Attr extends JCTree.Visitor {
             //is a no-op (as this has been taken care during method applicability)
             boolean isSpeculativeRound =
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
+
+            that.type = currentTarget; //avoids recovery at this stage
             checkReferenceCompatible(that, desc, refType, resultInfo.checkContext, isSpeculativeRound);
             if (!isSpeculativeRound) {
                 checkAccessibleTypes(that, localEnv, resultInfo.checkContext.inferenceContext(), desc, currentTarget);
@@ -3968,7 +3991,7 @@ public class Attr extends JCTree.Visitor {
                 all_multicatchTypes.append(ctype);
             }
         }
-        Type t = check(tree, types.lub(multicatchTypes.toList()), TYP, resultInfo);
+        Type t = check(noCheckTree, types.lub(multicatchTypes.toList()), TYP, resultInfo);
         if (t.hasTag(CLASS)) {
             List<Type> alternatives =
                 ((all_multicatchTypes == null) ? multicatchTypes : all_multicatchTypes).toList();
