@@ -662,8 +662,8 @@ public class Attr extends JCTree.Visitor {
 
     /** Attribute the arguments in a method call, returning the method kind.
      */
-    int attribArgs(List<JCExpression> trees, Env<AttrContext> env, ListBuffer<Type> argtypes) {
-        int kind = VAL;
+    int attribArgs(int initialKind, List<JCExpression> trees, Env<AttrContext> env, ListBuffer<Type> argtypes) {
+        int kind = initialKind;
         for (JCExpression arg : trees) {
             Type argtype;
             if (allowPoly && deferredAttr.isDeferred(env, arg)) {
@@ -1739,7 +1739,7 @@ public class Attr extends JCTree.Visitor {
                 localEnv.info.isSelfCall = true;
 
                 // Attribute arguments, yielding list of argument types.
-                attribArgs(tree.args, localEnv, argtypesBuf);
+                int kind = attribArgs(MTH, tree.args, localEnv, argtypesBuf);
                 argtypes = argtypesBuf.toList();
                 typeargtypes = attribTypes(tree.typeargs, localEnv);
 
@@ -1804,7 +1804,7 @@ public class Attr extends JCTree.Visitor {
                     // ...and check that it is legal in the current context.
                     // (this will also set the tree's type)
                     Type mpt = newMethodTemplate(resultInfo.pt, argtypes, typeargtypes);
-                    checkId(tree.meth, site, sym, localEnv, new ResultInfo(MTH, mpt));
+                    checkId(tree.meth, site, sym, localEnv, new ResultInfo(kind, mpt));
                 }
                 // Otherwise, `site' is an error type and we do nothing
             }
@@ -1812,7 +1812,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             // Otherwise, we are seeing a regular method call.
             // Attribute the arguments, yielding list of argument types, ...
-            int kind = attribArgs(tree.args, localEnv, argtypesBuf);
+            int kind = attribArgs(VAL, tree.args, localEnv, argtypesBuf);
             argtypes = argtypesBuf.toList();
             typeargtypes = attribAnyTypes(tree.typeargs, localEnv);
 
@@ -1994,7 +1994,7 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute constructor arguments.
         ListBuffer<Type> argtypesBuf = new ListBuffer<>();
-        int pkind = attribArgs(tree.args, localEnv, argtypesBuf);
+        int pkind = attribArgs(VAL, tree.args, localEnv, argtypesBuf);
         List<Type> argtypes = argtypesBuf.toList();
         List<Type> typeargtypes = attribTypes(tree.typeargs, localEnv);
 
