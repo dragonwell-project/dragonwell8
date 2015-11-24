@@ -26,6 +26,7 @@
  * @bug 7167988
  * @summary PKIX CertPathBuilder in reverse mode doesn't work if more than
  *          one trust anchor is specified
+ * @run main/othervm ReverseBuild
  */
 import java.io.*;
 import java.util.*;
@@ -279,6 +280,9 @@ public class ReverseBuild {
 
 
     public static void main(String args[]) throws Exception {
+        // MD5 is used in this test case, don't disable MD5 algorithm.
+        java.security.Security.setProperty(
+                "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
 
         // generate certificate from cert string
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
