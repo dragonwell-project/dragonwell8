@@ -292,6 +292,175 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
 }
 
 
+
+static BOOL
+WindowsVersionCheck(WORD wMajorVersion, WORD wMinorVersion, WORD wServicePackMajor) {
+    OSVERSIONINFOEXW osvi = { sizeof(osvi), 0, 0, 0, 0, {0}, 0, 0 };
+    DWORDLONG const dwlConditionMask = VerSetConditionMask(
+        VerSetConditionMask(
+        VerSetConditionMask(
+                0, VER_MAJORVERSION, VER_GREATER_EQUAL),
+                   VER_MINORVERSION, VER_GREATER_EQUAL),
+                   VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
+
+    osvi.dwMajorVersion = wMajorVersion;
+    osvi.dwMinorVersion = wMinorVersion;
+    osvi.wServicePackMajor = wServicePackMajor;
+
+    return VerifyVersionInfoW(&osvi, VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR, dwlConditionMask) != FALSE;
+}
+
+static BOOL
+isVistaSP1OrGreater() {
+    return WindowsVersionCheck(HIBYTE(_WIN32_WINNT_VISTA), LOBYTE(_WIN32_WINNT_VISTA), 1);
+}
+
+static jboolean
+wxp_ping4(JNIEnv *env,
+          jbyteArray addrArray,
+          jint timeout,
+          jbyteArray ifArray,
+          jint ttl)
+{
+    jint addr;
+    jbyte caddr[4];
+    jint fd;
+    struct sockaddr_in him;
+    struct sockaddr_in* netif = NULL;
+    struct sockaddr_in inf;
+    int len = 0;
+    WSAEVENT hEvent;
+    int connect_rv = -1;
+    int sz;
+
+    /**
+     * Convert IP address from byte array to integer
+     */
+    sz = (*env)->GetArrayLength(env, addrArray);
+    if (sz != 4) {
+        return JNI_FALSE;
+    }
+    memset((char *) &him, 0, sizeof(him));
+    memset((char *) caddr, 0, sizeof(caddr));
+    (*env)->GetByteArrayRegion(env, addrArray, 0, 4, caddr);
+    addr = ((caddr[0]<<24) & 0xff000000);
+    addr |= ((caddr[1] <<16) & 0xff0000);
+    addr |= ((caddr[2] <<8) & 0xff00);
+    addr |= (caddr[3] & 0xff);
+    addr = htonl(addr);
+    /**
+     * Socket address
+     */
+    him.sin_addr.s_addr = addr;
+    him.sin_family = AF_INET;
+    len = sizeof(him);
+
+    /**
+     * If a network interface was specified, let's convert its address
+     * as well.
+     */
+    if (!(IS_NULL(ifArray))) {
+        memset((char *) caddr, 0, sizeof(caddr));
+        (*env)->GetByteArrayRegion(env, ifArray, 0, 4, caddr);
+        addr = ((caddr[0]<<24) & 0xff000000);
+        addr |= ((caddr[1] <<16) & 0xff0000);
+        addr |= ((caddr[2] <<8) & 0xff00);
+        addr |= (caddr[3] & 0xff);
+        addr = htonl(addr);
+        inf.sin_addr.s_addr = addr;
+        inf.sin_family = AF_INET;
+        inf.sin_port = 0;
+        netif = &inf;
+    }
+
+    /*
+     * Can't create a raw socket, so let's try a TCP socket
+     */
+    fd = NET_Socket(AF_INET, SOCK_STREAM, 0);
+    if (fd == JVM_IO_ERR) {
+        /* note: if you run out of fds, you may not be able to load
+         * the exception class, and get a NoClassDefFoundError
+         * instead.
+         */
+        NET_ThrowNew(env, WSAGetLastError(), "Can't create socket");
+        return JNI_FALSE;
+    }
+    if (ttl > 0) {
+        setsockopt(fd, IPPROTO_IP, IP_TTL, (const char *)&ttl, sizeof(ttl));
+    }
+    /*
+     * A network interface was specified, so let's bind to it.
+     */
+    if (netif != NULL) {
+        if (bind(fd, (struct sockaddr*)netif, sizeof(struct sockaddr_in)) < 0) {
+            NET_ThrowNew(env, WSAGetLastError(), "Can't bind socket");
+            closesocket(fd);
+            return JNI_FALSE;
+        }
+    }
+
+    /*
+     * Make the socket non blocking so we can use select/poll.
+     */
+    hEvent = WSACreateEvent();
+    WSAEventSelect(fd, hEvent, FD_READ|FD_CONNECT|FD_CLOSE);
+
+    /* no need to use NET_Connect as non-blocking */
+    him.sin_port = htons(7);    /* Echo */
+    connect_rv = connect(fd, (struct sockaddr *)&him, len);
+
+    /**
+     * connection established or refused immediately, either way it means
+     * we were able to reach the host!
+     */
+    if (connect_rv == 0 || WSAGetLastError() == WSAECONNREFUSED) {
+        WSACloseEvent(hEvent);
+        closesocket(fd);
+        return JNI_TRUE;
+    } else {
+        int optlen;
+
+        switch (WSAGetLastError()) {
+        case WSAEHOSTUNREACH:   /* Host Unreachable */
+        case WSAENETUNREACH:    /* Network Unreachable */
+        case WSAENETDOWN:       /* Network is down */
+        case WSAEPFNOSUPPORT:   /* Protocol Family unsupported */
+            WSACloseEvent(hEvent);
+            closesocket(fd);
+            return JNI_FALSE;
+        }
+
+        if (WSAGetLastError() != WSAEWOULDBLOCK) {
+            NET_ThrowByNameWithLastError(env, JNU_JAVANETPKG "ConnectException",
+                                         "connect failed");
+            WSACloseEvent(hEvent);
+            closesocket(fd);
+            return JNI_FALSE;
+        }
+
+        timeout = NET_Wait(env, fd, NET_WAIT_CONNECT, timeout);
+
+        /* has connection been established */
+
+        if (timeout >= 0) {
+            optlen = sizeof(connect_rv);
+            if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)&connect_rv,
+                           &optlen) <0) {
+                connect_rv = WSAGetLastError();
+            }
+
+            if (connect_rv == 0 || connect_rv == WSAECONNREFUSED) {
+                WSACloseEvent(hEvent);
+                closesocket(fd);
+                return JNI_TRUE;
+            }
+        }
+    }
+    WSACloseEvent(hEvent);
+    closesocket(fd);
+    return JNI_FALSE;
+}
+
 /**
  * ping implementation.
  * Send a ICMP_ECHO_REQUEST packet every second until either the timeout
@@ -367,43 +536,48 @@ ping4(JNIEnv *env,
  */
 JNIEXPORT jboolean JNICALL
 Java_java_net_Inet4AddressImpl_isReachable0(JNIEnv *env, jobject this,
-                                           jbyteArray addrArray,
-                                           jint timeout,
-                                           jbyteArray ifArray,
-                                           jint ttl) {
-    jint src_addr = 0;
-    jint dest_addr = 0;
-    jbyte caddr[4];
-    int sz;
+                                            jbyteArray addrArray,
+                                            jint timeout,
+                                            jbyteArray ifArray,
+                                            jint ttl) {
 
-    /**
-     * Convert IP address from byte array to integer
-     */
-    sz = (*env)->GetArrayLength(env, addrArray);
-    if (sz != 4) {
-      return JNI_FALSE;
-    }
-    memset((char *) caddr, 0, sizeof(caddr));
-    (*env)->GetByteArrayRegion(env, addrArray, 0, 4, caddr);
-    dest_addr = ((caddr[0]<<24) & 0xff000000);
-    dest_addr |= ((caddr[1] <<16) & 0xff0000);
-    dest_addr |= ((caddr[2] <<8) & 0xff00);
-    dest_addr |= (caddr[3] & 0xff);
-    dest_addr = htonl(dest_addr);
+    if (isVistaSP1OrGreater()) {
+        jint src_addr = 0;
+        jint dest_addr = 0;
+        jbyte caddr[4];
+        int sz;
 
-    /**
-     * If a network interface was specified, let's convert its address
-     * as well.
-     */
-    if (!(IS_NULL(ifArray))) {
+        /**
+         * Convert IP address from byte array to integer
+         */
+        sz = (*env)->GetArrayLength(env, addrArray);
+        if (sz != 4) {
+          return JNI_FALSE;
+        }
         memset((char *) caddr, 0, sizeof(caddr));
-        (*env)->GetByteArrayRegion(env, ifArray, 0, 4, caddr);
-        src_addr = ((caddr[0]<<24) & 0xff000000);
-        src_addr |= ((caddr[1] <<16) & 0xff0000);
-        src_addr |= ((caddr[2] <<8) & 0xff00);
-        src_addr |= (caddr[3] & 0xff);
-        src_addr = htonl(src_addr);
-    }
+        (*env)->GetByteArrayRegion(env, addrArray, 0, 4, caddr);
+        dest_addr = ((caddr[0]<<24) & 0xff000000);
+        dest_addr |= ((caddr[1] <<16) & 0xff0000);
+        dest_addr |= ((caddr[2] <<8) & 0xff00);
+        dest_addr |= (caddr[3] & 0xff);
+        dest_addr = htonl(dest_addr);
 
-    return ping4(env, src_addr, dest_addr, timeout);
+        /**
+         * If a network interface was specified, let's convert its address
+         * as well.
+         */
+        if (!(IS_NULL(ifArray))) {
+            memset((char *) caddr, 0, sizeof(caddr));
+            (*env)->GetByteArrayRegion(env, ifArray, 0, 4, caddr);
+            src_addr = ((caddr[0]<<24) & 0xff000000);
+            src_addr |= ((caddr[1] <<16) & 0xff0000);
+            src_addr |= ((caddr[2] <<8) & 0xff00);
+            src_addr |= (caddr[3] & 0xff);
+            src_addr = htonl(src_addr);
+        }
+
+        return ping4(env, src_addr, dest_addr, timeout);
+    } else {
+        wxp_ping4(env, addrArray, timeout, ifArray, ttl);
+    }
 }
