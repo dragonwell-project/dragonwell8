@@ -52,6 +52,7 @@ JDK_GetVersionInfo0(jdk_version_info* info, size_t info_size) {
 
     const char* jdk_update_string = JDK_UPDATE_VERSION;
     unsigned int jdk_update_version = 0;
+    int len_update_ver = 0;
     char update_ver[3];
     char jdk_special_version = '\0';
 
@@ -78,16 +79,17 @@ JDK_GetVersionInfo0(jdk_version_info* info, size_t info_size) {
 
     assert(jdk_build_number >= 0 && jdk_build_number <= 255);
 
-    if (strlen(jdk_update_string) == 2 || strlen(jdk_update_string) == 3) {
-        if (isdigit(jdk_update_string[0]) && isdigit(jdk_update_string[1])) {
-            update_ver[0] = jdk_update_string[0];
-            update_ver[1] = jdk_update_string[1];
-            update_ver[2] = '\0';
-            jdk_update_version = (unsigned int) atoi(update_ver);
-            if (strlen(jdk_update_string) == 3) {
-                jdk_special_version = jdk_update_string[2];
-            }
+    len_update_ver = strlen(jdk_update_string);
+    if (len_update_ver >= 2 && len_update_ver <= 4) {
+        int update_digits = len_update_ver;
+
+        if (!isdigit(jdk_update_string[len_update_ver - 1])) {
+            jdk_special_version = jdk_update_string[len_update_ver -1];
+            update_digits = len_update_ver - 1;
         }
+        strncpy(update_ver, jdk_update_string, update_digits);
+        update_ver[update_digits] = '\0';
+        jdk_update_version = (unsigned int) atoi(update_ver);
     }
 
     memset(info, 0, info_size);
