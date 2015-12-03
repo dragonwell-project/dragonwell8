@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,52 +21,83 @@
  * questions.
  */
 
-//
-// SunJSSE does not support dynamic system properties, no way to re-use
-// system properties in samevm/agentvm mode.
-//
-
 /*
  * @test
- * @bug 7166570
- * @summary JSSE certificate validation has started to fail for
- *     certificate chains
- * @run main/othervm BasicConstraints PKIX
- * @run main/othervm BasicConstraints SunX509
+ * @bug 7167988
+ * @summary PKIX CertPathBuilder in reverse mode doesn't work if more than
+ *          one trust anchor is specified
+ * @run main/othervm ReverseBuild
  */
-
-import java.net.*;
-import java.util.*;
 import java.io.*;
-import javax.net.ssl.*;
-import java.security.Security;
-import java.security.KeyStore;
-import java.security.KeyFactory;
+import java.util.*;
 import java.security.cert.*;
-import java.security.spec.*;
-import java.security.interfaces.*;
-import java.math.BigInteger;
 
-import java.util.Base64;
+import sun.security.provider.certpath.SunCertPathBuilderParameters;
 
-public class BasicConstraints {
+public class ReverseBuild {
+    // Certificate information:
+    // Issuer: C=US, ST=Some-State, L=Some-City, O=Some-Org
+    // Validity
+    //     Not Before: Dec  8 02:43:36 2008 GMT
+    //     Not After : Aug 25 02:43:36 2028 GMT
+    // Subject: C=US, ST=Some-State, L=Some-City, O=Some-Org
+    // X509v3 Subject Key Identifier:
+    //     FA:B9:51:BF:4C:E7:D9:86:98:33:F9:E7:CB:1E:F1:33:49:F7:A8:14
+    // X509v3 Authority Key Identifier:
+    //     keyid:FA:B9:51:BF:4C:E7:D9:86:98:33:F9:E7:CB:1E:F1:33:49:F7:A8:14
+    //     DirName:/C=US/ST=Some-State/L=Some-City/O=Some-Org
+    //     serial:00
+    static String NoiceTrusedCertStr =
+        "-----BEGIN CERTIFICATE-----\n" +
+        "MIICrDCCAhWgAwIBAgIBADANBgkqhkiG9w0BAQQFADBJMQswCQYDVQQGEwJVUzET\n" +
+        "MBEGA1UECBMKU29tZS1TdGF0ZTESMBAGA1UEBxMJU29tZS1DaXR5MREwDwYDVQQK\n" +
+        "EwhTb21lLU9yZzAeFw0wODEyMDgwMjQzMzZaFw0yODA4MjUwMjQzMzZaMEkxCzAJ\n" +
+        "BgNVBAYTAlVTMRMwEQYDVQQIEwpTb21lLVN0YXRlMRIwEAYDVQQHEwlTb21lLUNp\n" +
+        "dHkxETAPBgNVBAoTCFNvbWUtT3JnMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKB\n" +
+        "gQDLxDggB76Ip5OwoUNRLdeOha9U3a2ieyNbz5kTU5lFfe5tui2/461uPZ8a+QOX\n" +
+        "4BdVrhEmV94BKY4FPyH35zboLjfXSKxT1mAOx1Bt9sWF94umxZE1cjyU7vEX8HHj\n" +
+        "7BvOyk5AQrBt7moO1uWtPA/JuoJPePiJl4kqlRJM2Akq6QIDAQABo4GjMIGgMB0G\n" +
+        "A1UdDgQWBBT6uVG/TOfZhpgz+efLHvEzSfeoFDBxBgNVHSMEajBogBT6uVG/TOfZ\n" +
+        "hpgz+efLHvEzSfeoFKFNpEswSTELMAkGA1UEBhMCVVMxEzARBgNVBAgTClNvbWUt\n" +
+        "U3RhdGUxEjAQBgNVBAcTCVNvbWUtQ2l0eTERMA8GA1UEChMIU29tZS1PcmeCAQAw\n" +
+        "DAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQQFAAOBgQBcIm534U123Hz+rtyYO5uA\n" +
+        "ofd81G6FnTfEAV8Kw9fGyyEbQZclBv34A9JsFKeMvU4OFIaixD7nLZ/NZ+IWbhmZ\n" +
+        "LovmJXyCkOufea73pNiZ+f/4/ScZaIlM/PRycQSqbFNd4j9Wott+08qxHPLpsf3P\n" +
+        "6Mvf0r1PNTY2hwTJLJmKtg==\n" +
+        "-----END CERTIFICATE-----";
 
-    /*
-     * =============================================================
-     * Set the various variables needed for the tests, then
-     * specify what tests to run on each side.
-     */
+    // Certificate information:
+    // Issuer: C=US, O=Java, OU=SunJSSE Test Serivce
+    // Validity
+    //     Not Before: Aug 19 01:52:19 2011 GMT
+    //     Not After : Jul 29 01:52:19 2032 GMT
+    // Subject: C=US, O=Java, OU=SunJSSE Test Serivce
 
-    /*
-     * Should we run the client or server in a separate thread?
-     * Both sides can throw exceptions, but do you have a preference
-     * as to which side should be the main thread.
-     */
-    static boolean separateServerThread = true;
+    // X509v3 Subject Key Identifier:
+    //     B9:7C:D5:D9:DF:A7:4C:03:AE:FD:0E:27:5B:31:95:6C:C7:F3:75:E1
+    // X509v3 Authority Key Identifier:
+    //     keyid:B9:7C:D5:D9:DF:A7:4C:03:AE:FD:0E:27:5B:31:95:6C:C7:F3:75:E1
+    //     DirName:/C=US/O=Java/OU=SunJSSE Test Serivce
+    //     serial:00
+    static String NoiceTrusedCertStr_2nd =
+        "-----BEGIN CERTIFICATE-----\n" +
+        "MIICkjCCAfugAwIBAgIBADANBgkqhkiG9w0BAQQFADA7MQswCQYDVQQGEwJVUzEN\n" +
+        "MAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2Y2UwHhcN\n" +
+        "MTEwODE5MDE1MjE5WhcNMzIwNzI5MDE1MjE5WjA7MQswCQYDVQQGEwJVUzENMAsG\n" +
+        "A1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2Y2UwgZ8wDQYJ\n" +
+        "KoZIhvcNAQEBBQADgY0AMIGJAoGBAM8orG08DtF98TMSscjGsidd1ZoN4jiDpi8U\n" +
+        "ICz+9dMm1qM1d7O2T+KH3/mxyox7Rc2ZVSCaUD0a3CkhPMnlAx8V4u0H+E9sqso6\n" +
+        "iDW3JpOyzMExvZiRgRG/3nvp55RMIUV4vEHOZ1QbhuqG4ebN0Vz2DkRft7+flthf\n" +
+        "vDld6f5JAgMBAAGjgaUwgaIwHQYDVR0OBBYEFLl81dnfp0wDrv0OJ1sxlWzH83Xh\n" +
+        "MGMGA1UdIwRcMFqAFLl81dnfp0wDrv0OJ1sxlWzH83XhoT+kPTA7MQswCQYDVQQG\n" +
+        "EwJVUzENMAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2\n" +
+        "Y2WCAQAwDwYDVR0TAQH/BAUwAwEB/zALBgNVHQ8EBAMCAQYwDQYJKoZIhvcNAQEE\n" +
+        "BQADgYEALlgaH1gWtoBZ84EW8Hu6YtGLQ/L9zIFmHonUPZwn3Pr//icR9Sqhc3/l\n" +
+        "pVTxOINuFHLRz4BBtEylzRIOPzK3tg8XwuLb1zd0db90x3KBCiAL6E6cklGEPwLe\n" +
+        "XYMHDn9eDsaq861Tzn6ZwzMgw04zotPMoZN0mVd/3Qca8UJFucE=\n" +
+        "-----END CERTIFICATE-----";
 
-    /*
-     * Where do we find the keystores?
-     */
+
     // Certificate information:
     // Issuer: C=US, O=Java, OU=SunJSSE Test Serivce
     // Validity
@@ -79,7 +110,7 @@ public class BasicConstraints {
     //     keyid:DD:4E:8D:2A:11:C0:83:03:F0:AC:EB:A2:BF:F9:F2:7D:C8:69:1F:9B
     //     DirName:/C=US/O=Java/OU=SunJSSE Test Serivce
     //     serial:00
-    static String trusedCertStr =
+    static String trustedCertStr =
         "-----BEGIN CERTIFICATE-----\n" +
         "MIICkjCCAfugAwIBAgIBADANBgkqhkiG9w0BAQIFADA7MQswCQYDVQQGEwJVUzEN\n" +
         "MAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2Y2UwHhcN\n" +
@@ -214,7 +245,7 @@ public class BasicConstraints {
     //     AD:C0:2C:4C:E4:C2:2E:A1:BB:5D:92:BE:66:E0:4E:E0:0D:2F:11:EF
     // X509v3 Authority Key Identifier:
     //     keyid:39:0E:C6:33:B1:50:BC:73:07:31:E5:D8:04:F7:BB:97:55:CF:9B:C8
-    static String serverCertStr =
+    static String targetCertStr =
         "-----BEGIN CERTIFICATE-----\n" +
         "MIICjTCCAfagAwIBAgIBBDANBgkqhkiG9w0BAQQFADBQMQswCQYDVQQGEwJVUzEN\n" +
         "MAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2Y2UxEzAR\n" +
@@ -231,7 +262,7 @@ public class BasicConstraints {
         "IDDCwhJvvc0vUyL2kTx7sqVaFTq3mDs+ktlB/FfH0Pb+i8FE+g+7T42Iw/j0qxHL\n" +
         "YmgbrjBQf5WYN1AvBE/rrPt9aOtS3UsqtVGW574b0shW\n" +
         "-----END CERTIFICATE-----";
-    static String serverPrivateKey = // Private key in the format of PKCS#8
+    static String targetPrivateKey = // Private key in the format of PKCS#8
         "MIICdAIBADANBgkqhkiG9w0BAQEFAASCAl4wggJaAgEAAoGBAL8GlHe8JgUiqsnB\n" +
         "LLWC1g9ur5FNPAzN/RLWk/MC/R50NH4D25cARSOM3S2tnLmF0WXBVG9ODfJ65HKU\n" +
         "dA+pJBPgJRQKEVq62RfNAeyU27RCuNTyHrq4oV71E/uDKcxizqIyIoTH7zOLn3pW\n" +
@@ -247,316 +278,72 @@ public class BasicConstraints {
         "j6JTa2KAdqyvLOx0XF9zcc1gA069uNQI2gPUHS8V215z57f/gMGnDNhVfLs/vMKz\n" +
         "sFkVZ3zg7As=";
 
-    // Certificate information:
-    // Issuer: C=US, O=Java, OU=SunJSSE Test Serivce, CN=certissuer
-    // Validity
-    //     Not Before: May  5 02:41:02 2012 GMT
-    //     Not After : Jan 21 02:41:02 2032 GMT
-    // Subject: C=US, O=Java, OU=SunJSSE Test Serivce, CN=InterOp Tester
-    // X509v3 Subject Key Identifier:
-    //     57:7D:E2:33:33:60:DF:DD:5E:ED:81:3F:EB:F2:1B:59:7F:50:9C:99
-    // X509v3 Authority Key Identifier:
-    //     keyid:39:0E:C6:33:B1:50:BC:73:07:31:E5:D8:04:F7:BB:97:55:CF:9B:C8
-    static String clientCertStr =
-        "-----BEGIN CERTIFICATE-----\n" +
-        "MIICaTCCAdKgAwIBAgIBBTANBgkqhkiG9w0BAQQFADBQMQswCQYDVQQGEwJVUzEN\n" +
-        "MAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNTRSBUZXN0IFNlcml2Y2UxEzAR\n" +
-        "BgNVBAMTCmNlcnRpc3N1ZXIwHhcNMTIwNTA1MDI0MTAyWhcNMzIwMTIxMDI0MTAy\n" +
-        "WjBUMQswCQYDVQQGEwJVUzENMAsGA1UEChMESmF2YTEdMBsGA1UECxMUU3VuSlNT\n" +
-        "RSBUZXN0IFNlcml2Y2UxFzAVBgNVBAMTDkludGVyT3AgVGVzdGVyMIGfMA0GCSqG\n" +
-        "SIb3DQEBAQUAA4GNADCBiQKBgQC1pA71nDg1KhhnHjRdi/eVDUa7uFZAtN8R9huu\n" +
-        "pTwFoyqSX8lDMz8jDawOMmaI9dVZLjTh3hnf4KBEqQOearFVz45yBOjlgPLBuI4F\n" +
-        "D/ORhgmDaIu2NK+c1yj6YQlyiO0DPwh55GtPLVG3iuEpejU7gQyaMuTaddoXrO7s\n" +
-        "xwzanQIDAQABo08wTTALBgNVHQ8EBAMCA+gwHQYDVR0OBBYEFFd94jMzYN/dXu2B\n" +
-        "P+vyG1l/UJyZMB8GA1UdIwQYMBaAFDkOxjOxULxzBzHl2AT3u5dVz5vIMA0GCSqG\n" +
-        "SIb3DQEBBAUAA4GBAHTgB5W7wnl7Jnb4wNQcb6JdR8FRHIdslcRfnReFfZBHZZux\n" +
-        "ChpA1lf62KIzYohKoxQXXMul86vnVSHnXq5xctHEmxCBnALEnoAcCOv6wfWqEA7g\n" +
-        "2rX+ydmu+0ArbqKhSOypZ7K3ame0UOJJ6HDxdsgBYJuotmSou4KKq9e8GF+d\n" +
-        "-----END CERTIFICATE-----";
-    static String clientPrivateKey = // Private key in the format of PKCS#8
-        "MIICeAIBADANBgkqhkiG9w0BAQEFAASCAmIwggJeAgEAAoGBALWkDvWcODUqGGce\n" +
-        "NF2L95UNRru4VkC03xH2G66lPAWjKpJfyUMzPyMNrA4yZoj11VkuNOHeGd/goESp\n" +
-        "A55qsVXPjnIE6OWA8sG4jgUP85GGCYNoi7Y0r5zXKPphCXKI7QM/CHnka08tUbeK\n" +
-        "4Sl6NTuBDJoy5Np12hes7uzHDNqdAgMBAAECgYEAjLwygwapXjfhdHQoqpp6F9iT\n" +
-        "h3sKCVSaybXgOO75lHyZzZO9wv1/288KEm3mmBOxXEm6245UievnAYvaq/GKt93O\n" +
-        "pj2zRefBzZjGbz0v84fmna/MN6zUUYX1PcVRMKWLx9HKKmQihzwoXdBX0o9PPXdi\n" +
-        "LfzujNa/q8/mpI5PmEECQQDZwLSaL7OReWZTY4NoQuNzwhx5IKJUOtCFQfmHKZSW\n" +
-        "wtXntZf+E5W9tGaDY5wjpq5cilKDAHdEAlFWxDe1PoE1AkEA1YuTBpctOLBfquFn\n" +
-        "Y/S3lzGVlnIHDk3dj4bFglkoJ2bCdlwRNUyBSjAjBDcbYhper8S7GlEN5SiEdz9I\n" +
-        "3OjIyQJBAKEPMgYhZjYhjxf6sQV7A/VpC9pj0u1uGzGVXNUmYisorUKXRHa/UbBh\n" +
-        "MLnaAXE1Jh54iRMwUwbQmA0PUQ0T0EkCQQCcr6/umwhkWw2nHYK2Vf5LoudGn15M\n" +
-        "AZg7UsEjVnXfC0hOfllmCT+ohs96rVCbWAv33lsHAUg3x9YChV3aMbf5AkAj1kuV\n" +
-        "jUTgFKjediyQC6uof7YdLn+gQGiXK1XE0GBN4WMkzcLiS0jC+MFTgKfFnFdh9K0y\n" +
-        "fswYKdTA/o8RKaa5";
 
-    static char passphrase[] = "passphrase".toCharArray();
-
-    /*
-     * Is the server ready to serve?
-     */
-    volatile static boolean serverReady = false;
-
-    /*
-     * Turn on SSL debugging?
-     */
-    static boolean debug = false;
-
-    /*
-     * Define the server side of the test.
-     *
-     * If the server prematurely exits, serverReady will be set to true
-     * to avoid infinite hangs.
-     */
-    void doServerSide() throws Exception {
-        SSLContext context = getSSLContext(true);
-        SSLServerSocketFactory sslssf = context.getServerSocketFactory();
-
-        SSLServerSocket sslServerSocket =
-            (SSLServerSocket)sslssf.createServerSocket(serverPort);
-        serverPort = sslServerSocket.getLocalPort();
-        SSLSocket sslSocket = null;
-        try {
-            /*
-             * Signal Client, we're ready for his connect.
-             */
-            serverReady = true;
-
-            sslSocket = (SSLSocket) sslServerSocket.accept();
-            sslSocket.setNeedClientAuth(true);
-
-            InputStream sslIS = sslSocket.getInputStream();
-            OutputStream sslOS = sslSocket.getOutputStream();
-
-            sslIS.read();
-            sslOS.write(85);
-            sslOS.flush();
-        } finally {
-            if (sslSocket != null) {
-                sslSocket.close();
-            }
-            sslServerSocket.close();
-        }
-    }
-
-    /*
-     * Define the client side of the test.
-     *
-     * If the server prematurely exits, serverReady will be set to true
-     * to avoid infinite hangs.
-     */
-    void doClientSide() throws Exception {
-        /*
-         * Wait for server to get started.
-         */
-        while (!serverReady) {
-            Thread.sleep(50);
-        }
-
-        SSLContext context = getSSLContext(false);
-        SSLSocketFactory sslsf = context.getSocketFactory();
-
-        SSLSocket sslSocket =
-            (SSLSocket)sslsf.createSocket("localhost", serverPort);
-        try {
-            InputStream sslIS = sslSocket.getInputStream();
-            OutputStream sslOS = sslSocket.getOutputStream();
-
-            sslOS.write(280);
-            sslOS.flush();
-            sslIS.read();
-        } finally {
-            sslSocket.close();
-        }
-    }
-
-    // get the ssl context
-    private static SSLContext getSSLContext(boolean isServer) throws Exception {
+    public static void main(String args[]) throws Exception {
+        // MD5 is used in this test case, don't disable MD5 algorithm.
+        java.security.Security.setProperty(
+                "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
 
         // generate certificate from cert string
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
 
-        // create a key store
-        KeyStore ks = KeyStore.getInstance("JKS");
-        ks.load(null, null);
+        // create a set of trust anchors
+        LinkedHashSet<TrustAnchor> trustAnchors = new LinkedHashSet<>();
 
-        // import the trused cert
         ByteArrayInputStream is =
-            new ByteArrayInputStream(trusedCertStr.getBytes());
-        Certificate trusedCert = cf.generateCertificate(is);
+            new ByteArrayInputStream(NoiceTrusedCertStr.getBytes());
+        Certificate trustedCert = cf.generateCertificate(is);
         is.close();
+        TrustAnchor anchor =
+            new TrustAnchor((X509Certificate)trustedCert, null);
+        trustAnchors.add(anchor);
 
-        ks.setCertificateEntry("SunJSSE Test Serivce", trusedCert);
-
-        // import the certificate chain and key
-        Certificate[] chain = new Certificate[3];
-
-        is = new ByteArrayInputStream(caSignerStr.getBytes());
-        Certificate caSignerCert = cf.generateCertificate(is);
+        is = new ByteArrayInputStream(trustedCertStr.getBytes());
+        trustedCert = cf.generateCertificate(is);
         is.close();
-        chain[2] = caSignerCert;
+        anchor = new TrustAnchor((X509Certificate)trustedCert, null);
+        trustAnchors.add(anchor);
+
+        is = new ByteArrayInputStream(NoiceTrusedCertStr_2nd.getBytes());
+        trustedCert = cf.generateCertificate(is);
+        is.close();
+        anchor = new TrustAnchor((X509Certificate)trustedCert, null);
+        trustAnchors.add(anchor);
+
+        // create a list of certificates
+        List<Certificate> chainList = new ArrayList<>();
+
+        is = new ByteArrayInputStream(targetCertStr.getBytes());
+        Certificate cert = cf.generateCertificate(is);
+        is.close();
+        chainList.add(cert);
 
         is = new ByteArrayInputStream(certIssuerStr.getBytes());
-        Certificate certIssuerCert = cf.generateCertificate(is);
+        cert = cf.generateCertificate(is);
         is.close();
-        chain[1] = certIssuerCert;
+        chainList.add(cert);
 
-        PKCS8EncodedKeySpec priKeySpec = null;
-        if (isServer) {
-            priKeySpec = new PKCS8EncodedKeySpec(
-                            Base64.getMimeDecoder().decode(serverPrivateKey));
-            is = new ByteArrayInputStream(serverCertStr.getBytes());
-        } else {
-            priKeySpec = new PKCS8EncodedKeySpec(
-                            Base64.getMimeDecoder().decode(clientPrivateKey));
-            is = new ByteArrayInputStream(clientCertStr.getBytes());
-        }
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        RSAPrivateKey priKey = (RSAPrivateKey)kf.generatePrivate(priKeySpec);
-        Certificate keyCert = cf.generateCertificate(is);
+        is = new ByteArrayInputStream(caSignerStr.getBytes());
+        cert = cf.generateCertificate(is);
         is.close();
-        chain[0] = keyCert;
+        chainList.add(cert);
 
-        ks.setKeyEntry("End Entity", priKey, passphrase, chain);
+        // create a certificate selector
+        X509CertSelector xcs = new X509CertSelector();
+        X509Certificate eeCert = (X509Certificate)chainList.get(0);
+        xcs.setSubject(eeCert.getSubjectX500Principal());
 
-        // check the certification path
-        PKIXParameters paras = new PKIXParameters(ks);
-        paras.setRevocationEnabled(false);
-        CertPath path = cf.generateCertPath(Arrays.asList(chain));
-        CertPathValidator cv = CertPathValidator.getInstance("PKIX");
-        cv.validate(path, paras);
+        // reverse build
+        SunCertPathBuilderParameters params =
+            new SunCertPathBuilderParameters(trustAnchors, xcs);
+        params.setBuildForward(false);
+        params.setRevocationEnabled(false);
 
-        // create SSL context
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmAlgorithm);
-        tmf.init(ks);
+        CollectionCertStoreParameters ccsp =
+            new CollectionCertStoreParameters(chainList);
+        params.addCertStore(CertStore.getInstance("Collection", ccsp));
 
-        SSLContext ctx = SSLContext.getInstance("TLS");
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance("NewSunX509");
-        kmf.init(ks, passphrase);
-
-        ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
-        ks = null;
-
-        return ctx;
+        CertPathBuilder cpb = CertPathBuilder.getInstance("PKIX");
+        CertPathBuilderResult res = cpb.build(params);
     }
-
-    private static String tmAlgorithm;        // trust manager
-
-    private static void parseArguments(String[] args) {
-        tmAlgorithm = args[0];
-    }
-
-    /*
-     * =============================================================
-     * The remainder is just support stuff
-     */
-
-    // use any free port by default
-    volatile int serverPort = 0;
-
-    volatile Exception serverException = null;
-    volatile Exception clientException = null;
-
-    public static void main(String args[]) throws Exception {
-        // MD5 is used in this test case, don't disable MD5 algorithm.
-        Security.setProperty(
-                "jdk.certpath.disabledAlgorithms", "MD2, RSA keySize < 1024");
-
-        if (debug)
-            System.setProperty("javax.net.debug", "all");
-
-
-        /*
-         * Get the customized arguments.
-         */
-        parseArguments(args);
-
-        /*
-         * Start the tests.
-         */
-        new BasicConstraints();
-    }
-
-    Thread clientThread = null;
-    Thread serverThread = null;
-    /*
-     * Primary constructor, used to drive remainder of the test.
-     *
-     * Fork off the other side, then do your work.
-     */
-    BasicConstraints() throws Exception {
-        if (separateServerThread) {
-            startServer(true);
-            startClient(false);
-        } else {
-            startClient(true);
-            startServer(false);
-        }
-
-        /*
-         * Wait for other side to close down.
-         */
-        if (separateServerThread) {
-            serverThread.join();
-        } else {
-            clientThread.join();
-        }
-
-        /*
-         * When we get here, the test is pretty much over.
-         *
-         * If the main thread excepted, that propagates back
-         * immediately.  If the other thread threw an exception, we
-         * should report back.
-         */
-        if (serverException != null)
-            throw serverException;
-        if (clientException != null)
-            throw clientException;
-    }
-
-    void startServer(boolean newThread) throws Exception {
-        if (newThread) {
-            serverThread = new Thread() {
-                public void run() {
-                    try {
-                        doServerSide();
-                    } catch (Exception e) {
-                        /*
-                         * Our server thread just died.
-                         *
-                         * Release the client, if not active already...
-                         */
-                        System.err.println("Server died...");
-                        serverReady = true;
-                        serverException = e;
-                    }
-                }
-            };
-            serverThread.start();
-        } else {
-            doServerSide();
-        }
-    }
-
-    void startClient(boolean newThread) throws Exception {
-        if (newThread) {
-            clientThread = new Thread() {
-                public void run() {
-                    try {
-                        doClientSide();
-                    } catch (Exception e) {
-                        /*
-                         * Our client thread just died.
-                         */
-                        System.err.println("Client died...");
-                        clientException = e;
-                    }
-                }
-            };
-            clientThread.start();
-        } else {
-            doClientSide();
-        }
-    }
-
 }
