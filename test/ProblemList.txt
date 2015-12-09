@@ -289,3 +289,10 @@ sun/tools/jcmd/TestJcmdSanity.java				windows-all
 sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 ############################################################################
+
+# jdk_other
+
+############################################################################
+
+# 8141370
+com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java			linux-i586,macosx-all
