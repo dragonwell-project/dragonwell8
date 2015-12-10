@@ -53,7 +53,7 @@ JDK_GetVersionInfo0(jdk_version_info* info, size_t info_size) {
     const char* jdk_update_string = JDK_UPDATE_VERSION;
     unsigned int jdk_update_version = 0;
     int len_update_ver = 0;
-    char update_ver[3];
+    char update_ver[5];
     char jdk_special_version = '\0';
 
     /* If the JDK_BUILD_NUMBER is of format bXX and XX is an integer
