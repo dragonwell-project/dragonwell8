@@ -146,7 +146,7 @@ public class Version {
 
             String regex = "^([0-9]{1,2})";     // major
             regex += "\\.";                     // separator
-            regex += "([0-9]{1,2})";            // minor
+            regex += "([0-9]{1,3})";            // minor
             regex += "(\\-b([0-9]{1,3}))";      // JVM -bxx
             regex += ".*";
 
