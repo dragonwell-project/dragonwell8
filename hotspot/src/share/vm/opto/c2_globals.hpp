@@ -669,6 +669,9 @@
   product_pd(bool, TrapBasedRangeChecks,                                    \
           "Generate code for range checks that uses a cmp and trap "        \
           "instruction raising SIGTRAP. Used on PPC64.")                    \
+                                                                            \
+  develop(bool, RenumberLiveNodes, true,                                    \
+          "Renumber live nodes")                                            \
 
 C2_FLAGS(DECLARE_DEVELOPER_FLAG, DECLARE_PD_DEVELOPER_FLAG, DECLARE_PRODUCT_FLAG, DECLARE_PD_PRODUCT_FLAG, DECLARE_DIAGNOSTIC_FLAG, DECLARE_EXPERIMENTAL_FLAG, DECLARE_NOTPRODUCT_FLAG)
 
