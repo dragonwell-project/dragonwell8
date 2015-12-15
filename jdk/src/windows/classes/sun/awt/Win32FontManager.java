@@ -63,7 +63,7 @@ public final class Win32FontManager extends SunFontManager {
                              * enumerate (allow direct use) of EUDC fonts.
                              */
                             eudcFont = new TrueTypeFont(eudcFile, null, 0,
-                                                        true);
+                                                        true, false);
                         } catch (FontFormatException e) {
                         }
                     }
