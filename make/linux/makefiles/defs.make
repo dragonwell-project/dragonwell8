@@ -99,7 +99,9 @@ ifneq (,$(findstring $(ARCH), amd64 x86_64 i686 i586))
 endif
 
 # PPC
-ifneq (,$(findstring $(ARCH), ppc))
+# Notice: after 8046471 ARCH will be 'ppc' for top-level ppc64 builds but
+# 'ppc64' for HotSpot-only ppc64 builds. Need to detect both variants here!
+ifneq (,$(findstring $(ARCH), ppc ppc64))
   ifeq ($(ARCH_DATA_MODEL), 64)
     MAKE_ARGS        += LP64=1
     PLATFORM         = linux-ppc64
