@@ -197,6 +197,11 @@ event_call(JNIEnv *env, jthread thread, ClassIndex cnum, MethodIndex mnum)
     HPROF_ASSERT(thread!=NULL);
     if (cnum == 0 || cnum == gdata->tracker_cnum) {
         jclass newExcCls = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        if ((*env)->ExceptionCheck(env)) {
+            (*env)->ExceptionClear(env);
+            HPROF_ERROR(JNI_TRUE,
+                        "Could not find the java/lang/IllegalArgumentException class");
+        }
         (*env)->ThrowNew(env, newExcCls, "Illegal cnum.");
 
         return;
@@ -258,6 +263,11 @@ event_return(JNIEnv *env, jthread thread, ClassIndex cnum, MethodIndex mnum)
 
     if (cnum == 0 || cnum == gdata->tracker_cnum) {
         jclass newExcCls = (*env)->FindClass(env, "java/lang/IllegalArgumentException");
+        if ((*env)->ExceptionCheck(env)) {
+            (*env)->ExceptionClear(env);
+            HPROF_ERROR(JNI_TRUE,
+                        "Could not find the java/lang/IllegalArgumentException class");
+        }
         (*env)->ThrowNew(env, newExcCls, "Illegal cnum.");
 
         return;
