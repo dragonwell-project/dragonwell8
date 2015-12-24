@@ -1162,12 +1162,12 @@ void InterpreterMacroAssembler::record_klass_in_profile_helper(
           b(done);
           bind(found_null);
         } else {
-	  cbz(reg2, done);
+	  cbnz(reg2, done);
         }
         break;
       }
       // Since null is rare, make it be the branch-taken case.
-      cbz(reg2,found_null);
+      cbz(reg2, found_null);
 
       // Put all the "Case 3" tests here.
       record_klass_in_profile_helper(receiver, mdp, reg2, start_row + 1, done, is_virtual_call);
