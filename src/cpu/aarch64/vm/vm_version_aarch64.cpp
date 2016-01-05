@@ -236,6 +236,10 @@ void VM_Version::get_processor_features() {
   if (FLAG_IS_DEFAULT(OptoScheduling)) {
     OptoScheduling = true;
   }
+#else
+  if (ReservedCodeCacheSize > 128*M) {
+    vm_exit_during_initialization("client compiler does not support ReservedCodeCacheSize > 128M");
+  }
 #endif
 }
 

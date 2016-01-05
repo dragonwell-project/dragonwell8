@@ -675,17 +675,23 @@ void MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
          || entry.rspec().type() == relocInfo::virtual_call_type, "wrong reloc type");
 
   unsigned int start_offset = offset();
+#ifdef COMPILER2
   if (far_branches() && !Compile::current()->in_scratch_emit_size()) {
     emit_trampoline_stub(offset(), entry.target());
   }
+#endif
 
   if (cbuf) cbuf->set_insts_mark();
   relocate(entry.rspec());
+#ifdef COMPILER2
   if (Assembler::reachable_from_branch_at(pc(), entry.target())) {
     bl(entry.target());
   } else {
     bl(pc());
   }
+#else
+    bl(entry.target());
+#endif
 }
 
 
@@ -702,6 +708,7 @@ void MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
 
 void MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
                                              address dest) {
+#ifdef COMPILER2
   address stub = start_a_stub(Compile::MAX_stubs_size/2);
   if (stub == NULL) {
     start_a_stub(Compile::MAX_stubs_size/2);
@@ -733,6 +740,9 @@ void MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
   assert(is_NativeCallTrampolineStub_at(stub_start_addr), "doesn't look like a trampoline");
 
   end_a_stub();
+#else
+  ShouldNotReachHere();
+#endif
 }
 
 void MacroAssembler::ic_call(address entry) {
