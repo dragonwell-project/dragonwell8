@@ -2041,7 +2041,9 @@ void os::print_memory_info(outputStream* st) {
   st->print(", physical " UINT64_FORMAT "k", os::physical_memory()>>10);
   st->print("(" UINT64_FORMAT "k free)", os::available_memory() >> 10);
   st->cr();
-  (void) check_addr0(st);
+  if (VMError::fatal_error_in_progress()) {
+     (void) check_addr0(st);
+  }
 }
 
 void os::print_siginfo(outputStream* st, void* siginfo) {
