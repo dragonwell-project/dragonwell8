@@ -41,43 +41,7 @@
 #include "runtime/thread.inline.hpp"
 
 
-void InterpreterMacroAssembler::narrow(Register result) {
-
-  // Get method->_constMethod->_result_type
-  ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-  ldr(rscratch1, Address(rscratch1, Method::const_offset()));
-  ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
-
-  Label done, notBool, notByte, notChar;
-
-  // common case first
-  cmpw(rscratch1, T_INT);
-  br(Assembler::EQ, done);
-
-  // mask integer result to narrower return type.
-  cmpw(rscratch1, T_BOOLEAN);
-  br(Assembler::NE, notBool);
-  andw(result, result, 0x1);
-  b(done);
-
-  bind(notBool);
-  cmpw(rscratch1, T_BYTE);
-  br(Assembler::NE, notByte);
-  sbfx(result, result, 0, 8);
-  b(done);
-
-  bind(notByte);
-  cmpw(rscratch1, T_CHAR);
-  br(Assembler::NE, notChar);
-  ubfx(result, result, 0, 16);  // truncate upper 16 bits
-  b(done);
-
-  bind(notChar);
-  sbfx(result, result, 0, 16);     // sign-extend short
-
-  // Nothing to do for T_INT
-  bind(done);
-}
+// Implementation of InterpreterMacroAssembler
 
 #ifndef CC_INTERP
 
@@ -115,7 +79,6 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
                verify_oop(r0, state);               break;
     case ltos: ldr(r0, val_addr);                   break;
     case btos:                                   // fall through
-    case ztos:                                   // fall through
     case ctos:                                   // fall through
     case stos:                                   // fall through
     case itos: ldrw(r0, val_addr);                  break;
@@ -349,7 +312,6 @@ void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
   case atos: pop_ptr();                 break;
   case btos:
-  case ztos:
   case ctos:
   case stos:
   case itos: pop_i();                   break;
@@ -367,7 +329,6 @@ void InterpreterMacroAssembler::push(TosState state) {
   switch (state) {
   case atos: push_ptr();                break;
   case btos:
-  case ztos:
   case ctos:
   case stos:
   case itos: push_i();                  break;
@@ -1162,12 +1123,12 @@ void InterpreterMacroAssembler::record_klass_in_profile_helper(
           b(done);
           bind(found_null);
         } else {
-	  cbnz(reg2, done);
+	  cbz(reg2, done);
         }
         break;
       }
       // Since null is rare, make it be the branch-taken case.
-      cbz(reg2, found_null);
+      cbz(reg2,found_null);
 
       // Put all the "Case 3" tests here.
       record_klass_in_profile_helper(receiver, mdp, reg2, start_row + 1, done, is_virtual_call);

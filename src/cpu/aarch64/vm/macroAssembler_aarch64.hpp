@@ -409,11 +409,10 @@ class MacroAssembler: public Assembler {
     umaddl(Rd, Rn, Rm, zr);
   }
 
-#define WRAP(INSN)                                                            \
-  void INSN(Register Rd, Register Rn, Register Rm, Register Ra) {             \
-    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_A53MAC) && Ra != zr) \
-      nop();                                                                  \
-    Assembler::INSN(Rd, Rn, Rm, Ra);                                          \
+#define WRAP(INSN)                                                \
+  void INSN(Register Rd, Register Rn, Register Rm, Register Ra) { \
+    if (Ra != zr) nop();                                          \
+    Assembler::INSN(Rd, Rn, Rm, Ra);                              \
   }
 
   WRAP(madd) WRAP(msub) WRAP(maddw) WRAP(msubw)
@@ -436,13 +435,6 @@ private:
 public:
   int push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
   int pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
-
-  // Push and pop everything that might be clobbered by a native
-  // runtime call except rscratch1 and rscratch2.  (They are always
-  // scratch, so we don't have to protect them.)  Only save the lower
-  // 64 bits of each vector register.
-  void push_call_clobbered_registers();
-  void pop_call_clobbered_registers();
 
   // now mov instructions for loading absolute addresses and 32 or
   // 64 bit integers
@@ -527,24 +519,6 @@ public:
   inline void clear_fpsr()
   {
     msr(0b011, 0b0100, 0b0100, 0b001, zr);
-  }
-
-  // DCZID_EL0: op1 == 011
-  //            CRn == 0000
-  //            CRm == 0000
-  //            op2 == 111
-  inline void get_dczid_el0(Register reg)
-  {
-    mrs(0b011, 0b0000, 0b0000, 0b111, reg);
-  }
-
-  // CTR_EL0:   op1 == 011
-  //            CRn == 0000
-  //            CRm == 0000
-  //            op2 == 001
-  inline void get_ctr_el0(Register reg)
-  {
-    mrs(0b011, 0b0000, 0b0000, 0b001, reg);
   }
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor
@@ -984,10 +958,21 @@ public:
   }
 
   // A generic CAS; success or failure is in the EQ flag.
+  template <typename T1, typename T2>
   void cmpxchg(Register addr, Register expected, Register new_val,
-               enum operand_size size,
-               bool acquire, bool release,
-               Register tmp = rscratch1);
+               T1 load_insn,
+               void (MacroAssembler::*cmp_insn)(Register, Register),
+               T2 store_insn,
+               Register tmp = rscratch1) {
+    Label retry_load, done;
+    bind(retry_load);
+    (this->*load_insn)(tmp, addr);
+    (this->*cmp_insn)(tmp, expected);
+    br(Assembler::NE, done);
+    (this->*store_insn)(tmp, new_val, addr);
+    cbnzw(tmp, retry_load);
+    bind(done);
+  }
 
   // Calls
 
@@ -1123,15 +1108,6 @@ public:
   // of your data.
   Address form_address(Register Rd, Register base, long byte_offset, int shift);
 
-  // Return true iff an address is within the 48-bit AArch64 address
-  // space.
-  bool is_valid_AArch64_address(address a) {
-    return ((uint64_t)a >> 48) == 0;
-  }
-
-  // Load the base of the cardtable byte map into reg.
-  void load_byte_map_base(Register reg);
-
   // Prolog generator routines to support switch between x86 code and
   // generated ARM code
 
@@ -1191,11 +1167,6 @@ public:
 		     Register tmp1);
   void char_arrays_equals(Register ary1, Register ary2,
                           Register result, Register tmp1);
-  void fill_words(Register base, Register cnt, Register value);
-  void zero_words(Register base, u_int64_t cnt);
-  void zero_words(Register base, Register cnt);
-  void block_zero(Register base, Register cnt, bool is_large = false);
-
   void encode_iso_array(Register src, Register dst,
                         Register len, Register result,
                         FloatRegister Vtmp1, FloatRegister Vtmp2,

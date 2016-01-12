@@ -55,11 +55,6 @@
 #include "gc_implementation/g1/heapRegion.hpp"
 #endif
 
-#ifdef COMPILER2
-#include "opto/node.hpp"
-#include "opto/compile.hpp"
-#endif
-
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
 #define STOP(error) stop(error)
@@ -138,10 +133,7 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
                      Instruction_aarch64::extract(insn2, 4, 0)) {
         // movk #imm16<<32
         Instruction_aarch64::patch(branch + 4, 20, 5, (uint64_t)target >> 32);
-        long dest = ((long)target & 0xffffffffL) | ((long)branch & 0xffff00000000L);
-        long pc_page = (long)branch >> 12;
-        long adr_page = (long)dest >> 12;
-        offset = adr_page - pc_page;
+        offset &= (1<<20)-1;
         instructions = 2;
       }
     }
@@ -1660,14 +1652,7 @@ Address MacroAssembler::form_address(Register Rd, Register base, long byte_offse
 }
 
 void MacroAssembler::atomic_incw(Register counter_addr, Register tmp, Register tmp2) {
-  if (UseLSE) {
-    mov(tmp, 1);
-    ldadd(Assembler::word, tmp, zr, counter_addr);
-    return;
-  }
   Label retry_load;
-  if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
-    prfm(Address(counter_addr), PSTL1STRM);
   bind(retry_load);
   // flush and load exclusive from the memory location
   ldxrw(tmp, counter_addr);
@@ -2086,33 +2071,25 @@ void MacroAssembler::cmpxchgptr(Register oldv, Register newv, Register addr, Reg
   // oldv holds comparison value
   // newv holds value to write in exchange
   // addr identifies memory word to compare against/update
-  if (UseLSE) {
-    mov(tmp, oldv);
-    casal(Assembler::xword, oldv, newv, addr);
-    cmp(tmp, oldv);
-    br(Assembler::EQ, succeed);
-    membar(AnyAny);
-  } else {
-    Label retry_load, nope;
-    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
-      prfm(Address(addr), PSTL1STRM);
-    bind(retry_load);
-    // flush and load exclusive from the memory location
-    // and fail if it is not what we expect
-    ldaxr(tmp, addr);
-    cmp(tmp, oldv);
-    br(Assembler::NE, nope);
-    // if we store+flush with no intervening write tmp wil be zero
-    stlxr(tmp, newv, addr);
-    cbzw(tmp, succeed);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    b(retry_load);
-    // if the memory word differs we return it in oldv and signal a fail
-    bind(nope);
-    membar(AnyAny);
-    mov(oldv, tmp);
-  }
+  // tmp returns 0/1 for success/failure
+  Label retry_load, nope;
+  
+  bind(retry_load);
+  // flush and load exclusive from the memory location
+  // and fail if it is not what we expect
+  ldaxr(tmp, addr);
+  cmp(tmp, oldv);
+  br(Assembler::NE, nope);
+  // if we store+flush with no intervening write tmp wil be zero
+  stlxr(tmp, newv, addr);
+  cbzw(tmp, succeed);
+  // retry so we only ever return after a load fails to compare
+  // ensures we don't return a stale value after a failed write.
+  b(retry_load);
+  // if the memory word differs we return it in oldv and signal a fail
+  bind(nope);
+  membar(AnyAny);
+  mov(oldv, tmp);
   if (fail)
     b(*fail);
 }
@@ -2123,64 +2100,26 @@ void MacroAssembler::cmpxchgw(Register oldv, Register newv, Register addr, Regis
   // newv holds value to write in exchange
   // addr identifies memory word to compare against/update
   // tmp returns 0/1 for success/failure
-  if (UseLSE) {
-    mov(tmp, oldv);
-    casal(Assembler::word, oldv, newv, addr);
-    cmp(tmp, oldv);
-    br(Assembler::EQ, succeed);
-    membar(AnyAny);
-  } else {
-    Label retry_load, nope;
-    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
-      prfm(Address(addr), PSTL1STRM);
-    bind(retry_load);
-    // flush and load exclusive from the memory location
-    // and fail if it is not what we expect
-    ldaxrw(tmp, addr);
-    cmp(tmp, oldv);
-    br(Assembler::NE, nope);
-    // if we store+flush with no intervening write tmp wil be zero
-    stlxrw(tmp, newv, addr);
-    cbzw(tmp, succeed);
-    // retry so we only ever return after a load fails to compare
-    // ensures we don't return a stale value after a failed write.
-    b(retry_load);
-    // if the memory word differs we return it in oldv and signal a fail
-    bind(nope);
-    membar(AnyAny);
-    mov(oldv, tmp);
-  }
+  Label retry_load, nope;
+  
+  bind(retry_load);
+  // flush and load exclusive from the memory location
+  // and fail if it is not what we expect
+  ldaxrw(tmp, addr);
+  cmp(tmp, oldv);
+  br(Assembler::NE, nope);
+  // if we store+flush with no intervening write tmp wil be zero
+  stlxrw(tmp, newv, addr);
+  cbzw(tmp, succeed);
+  // retry so we only ever return after a load fails to compare
+  // ensures we don't return a stale value after a failed write.
+  b(retry_load);
+  // if the memory word differs we return it in oldv and signal a fail
+  bind(nope);
+  membar(AnyAny);
+  mov(oldv, tmp);
   if (fail)
     b(*fail);
-}
-
-// A generic CAS; success or failure is in the EQ flag.
-void MacroAssembler::cmpxchg(Register addr, Register expected,
-                             Register new_val,
-                             enum operand_size size,
-                             bool acquire, bool release,
-                             Register tmp) {
-  if (UseLSE) {
-    mov(tmp, expected);
-    lse_cas(tmp, new_val, addr, size, acquire, release, /*not_pair*/ true);
-    cmp(tmp, expected);
-  } else {
-    BLOCK_COMMENT("cmpxchg {");
-    Label retry_load, done;
-    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
-      prfm(Address(addr), PSTL1STRM);
-    bind(retry_load);
-    load_exclusive(tmp, addr, size, acquire);
-    if (size == xword)
-      cmp(tmp, expected);
-    else
-      cmpw(tmp, expected);
-    br(Assembler::NE, done);
-    store_exclusive(tmp, new_val, addr, size, release);
-    cbnzw(tmp, retry_load);
-    bind(done);
-    BLOCK_COMMENT("} cmpxchg");
-  }
 }
 
 static bool different(Register a, RegisterOrConstant b, Register c) {
@@ -2190,25 +2129,13 @@ static bool different(Register a, RegisterOrConstant b, Register c) {
     return a != b.as_register() && a != c && b.as_register() != c;
 }
 
-#define ATOMIC_OP(LDXR, OP, IOP, AOP, STXR, sz)                         \
+#define ATOMIC_OP(LDXR, OP, IOP, STXR)                                       \
 void MacroAssembler::atomic_##OP(Register prev, RegisterOrConstant incr, Register addr) { \
-  if (UseLSE) {                                                         \
-    prev = prev->is_valid() ? prev : zr;                                \
-    if (incr.is_register()) {                                           \
-      AOP(sz, incr.as_register(), prev, addr);                          \
-    } else {                                                            \
-      mov(rscratch2, incr.as_constant());                               \
-      AOP(sz, rscratch2, prev, addr);                                   \
-    }                                                                   \
-    return;                                                             \
-  }                                                                     \
   Register result = rscratch2;						\
   if (prev->is_valid())							\
     result = different(prev, incr, addr) ? prev : rscratch2;		\
 									\
   Label retry_load;							\
-  if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))         \
-    prfm(Address(addr), PSTL1STRM);                                     \
   bind(retry_load);							\
   LDXR(result, addr);							\
   OP(rscratch1, result, incr);						\
@@ -2219,25 +2146,18 @@ void MacroAssembler::atomic_##OP(Register prev, RegisterOrConstant incr, Registe
   }                                                                     \
 }
 
-ATOMIC_OP(ldxr, add, sub, ldadd, stxr, Assembler::xword)
-ATOMIC_OP(ldxrw, addw, subw, ldadd, stxrw, Assembler::word)
+ATOMIC_OP(ldxr, add, sub, stxr)
+ATOMIC_OP(ldxrw, addw, subw, stxrw)
 
 #undef ATOMIC_OP
 
-#define ATOMIC_XCHG(OP, LDXR, STXR, sz)                                 \
+#define ATOMIC_XCHG(OP, LDXR, STXR)					\
 void MacroAssembler::atomic_##OP(Register prev, Register newv, Register addr) {	\
-  if (UseLSE) {                                                         \
-    prev = prev->is_valid() ? prev : zr;                                \
-    swp(sz, newv, prev, addr);                                          \
-    return;                                                             \
-  }                                                                     \
   Register result = rscratch2;						\
   if (prev->is_valid())							\
     result = different(prev, newv, addr) ? prev : rscratch2;		\
 									\
   Label retry_load;							\
-  if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))         \
-    prfm(Address(addr), PSTL1STRM);                                     \
   bind(retry_load);							\
   LDXR(result, addr);							\
   STXR(rscratch1, newv, addr);						\
@@ -2246,8 +2166,8 @@ void MacroAssembler::atomic_##OP(Register prev, Register newv, Register addr) {	
     mov(prev, result);							\
 }
 
-ATOMIC_XCHG(xchg, ldxr, stxr, Assembler::xword)
-ATOMIC_XCHG(xchgw, ldxrw, stxrw, Assembler::word)
+ATOMIC_XCHG(xchg, ldxr, stxr)
+ATOMIC_XCHG(xchgw, ldxrw, stxrw)
 
 #undef ATOMIC_XCHG
 
@@ -2379,30 +2299,6 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
   patch_end[-1] = calltype;
 }
 #endif
-
-void MacroAssembler::push_call_clobbered_registers() {
-  push(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
-
-  // Push v0-v7, v16-v31.
-  for (int i = 30; i >= 0; i -= 2) {
-    if (i <= v7->encoding() || i >= v16->encoding()) {
-        stpd(as_FloatRegister(i), as_FloatRegister(i+1),
-             Address(pre(sp, -2 * wordSize)));
-    }
-  }
-}
-
-void MacroAssembler::pop_call_clobbered_registers() {
-
-  for (int i = 0; i < 32; i += 2) {
-    if (i <= v7->encoding() || i >= v16->encoding()) {
-      ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
-           Address(post(sp, 2 * wordSize)));
-    }
-  }
-
-  pop(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
-}
 
 void MacroAssembler::push_CPU_state(bool save_vectors) {
   push(0x3fffffff, sp);         // integer registers except lr & sp
@@ -3156,7 +3052,7 @@ void MacroAssembler::store_check_part_2(Register obj) {
   // FIXME: It's not likely that disp will fit into an offset so we
   // don't bother to check, but it could save an instruction.
   intptr_t disp = (intptr_t) ct->byte_map_base;
-  load_byte_map_base(rscratch1);
+  mov(rscratch1, disp);
   strb(zr, Address(obj, rscratch1));
 }
 
@@ -3639,10 +3535,12 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
 
   lsr(card_addr, store_addr, CardTableModRefBS::card_shift);
 
+  unsigned long offset;
+  adrp(tmp2, cardtable, offset);
+
   // get the address of the card
-  load_byte_map_base(tmp2);
   add(card_addr, card_addr, tmp2);
-  ldrb(tmp2, Address(card_addr));
+  ldrb(tmp2, Address(card_addr, offset));
   cmpw(tmp2, (int)G1SATBCardTableModRefBS::g1_young_card_val());
   br(Assembler::EQ, done);
 
@@ -3650,13 +3548,13 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
 
   membar(Assembler::Assembler::StoreLoad);
 
-  ldrb(tmp2, Address(card_addr));
+  ldrb(tmp2, Address(card_addr, offset));
   cbzw(tmp2, done);
 
   // storing a region crossing, non-NULL oop, card is clean.
   // dirty card and log.
 
-  strb(zr, Address(card_addr));
+  strb(zr, Address(card_addr, offset));
 
   ldr(rscratch1, queue_index);
   cbz(rscratch1, runtime);
@@ -4008,9 +3906,6 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   long offset_low = dest_page - low_page;
   long offset_high = dest_page - high_page;
 
-  assert(is_valid_AArch64_address(dest.target()), "bad address");
-  assert(dest.getMode() == Address::literal, "ADRP must be applied to a literal address");
-
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   // 8143067: Ensure that the adrp can reach the dest from anywhere within
@@ -4018,32 +3913,13 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   if (offset_high >= -(1<<20) && offset_low < (1<<20)) {
     _adrp(reg1, dest.target());
   } else {
-    unsigned long target = (unsigned long)dest.target();
-    unsigned long adrp_target
-      = (target & 0xffffffffUL) | ((unsigned long)pc() & 0xffff00000000UL);
-
-    _adrp(reg1, (address)adrp_target);
-    movk(reg1, target >> 32, 32);
+    unsigned long pc_page = (unsigned long)pc() >> 12;
+    long offset = dest_page - pc_page;
+    offset = (offset & ((1<<20)-1)) << 12;
+    _adrp(reg1, pc()+offset);
+    movk(reg1, ((unsigned long)dest.target() >> 32) & 0xffff, 32);
   }
   byte_offset = (unsigned long)dest.target() & 0xfff;
-}
-
-void MacroAssembler::load_byte_map_base(Register reg) {
-  jbyte *byte_map_base =
-    ((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base;
-
-  if (is_valid_AArch64_address((address)byte_map_base)) {
-    // Strictly speaking the byte_map_base isn't an address at all,
-    // and it might even be negative.
-    unsigned long offset;
-    adrp(reg, ExternalAddress((address)byte_map_base), offset);
-    // We expect offset to be zero with most collectors.
-    if (offset != 0) {
-      add(reg, reg, offset);
-    }
-  } else {
-    mov(reg, (uint64_t)byte_map_base);
-  }
 }
 
 void MacroAssembler::build_frame(int framesize) {
@@ -4506,177 +4382,6 @@ void MacroAssembler::string_compare(Register str1, Register str2,
   BLOCK_COMMENT("} string_compare");
 }
 
-
-// base:     Address of a buffer to be zeroed, 8 bytes aligned.
-// cnt:      Count in HeapWords.
-// is_large: True when 'cnt' is known to be >= BlockZeroingLowLimit.
-void MacroAssembler::zero_words(Register base, Register cnt)
-{
-  if (UseBlockZeroing) {
-    block_zero(base, cnt);
-  } else {
-    fill_words(base, cnt, zr);
-  }
-}
-
-// r10 = base:   Address of a buffer to be zeroed, 8 bytes aligned.
-// cnt:          Immediate count in HeapWords.
-// r11 = tmp:    For use as cnt if we need to call out
-#define ShortArraySize (18 * BytesPerLong)
-void MacroAssembler::zero_words(Register base, u_int64_t cnt)
-{
-  Register tmp = r11;
-  int i = cnt & 1;  // store any odd word to start
-  if (i) str(zr, Address(base));
-
-  if (cnt <= ShortArraySize / BytesPerLong) {
-    for (; i < (int)cnt; i += 2)
-      stp(zr, zr, Address(base, i * wordSize));
-  } else if (UseBlockZeroing && cnt >= (u_int64_t)(BlockZeroingLowLimit >> LogBytesPerWord)) {
-    mov(tmp, cnt);
-    block_zero(base, tmp, true);
-  } else {
-    const int unroll = 4; // Number of stp(zr, zr) instructions we'll unroll
-    int remainder = cnt % (2 * unroll);
-    for (; i < remainder; i += 2)
-      stp(zr, zr, Address(base, i * wordSize));
-
-    Label loop;
-    Register cnt_reg = rscratch1;
-    Register loop_base = rscratch2;
-    cnt = cnt - remainder;
-    mov(cnt_reg, cnt);
-    // adjust base and prebias by -2 * wordSize so we can pre-increment
-    add(loop_base, base, (remainder - 2) * wordSize);
-    bind(loop);
-    sub(cnt_reg, cnt_reg, 2 * unroll);
-    for (i = 1; i < unroll; i++)
-      stp(zr, zr, Address(loop_base, 2 * i * wordSize));
-    stp(zr, zr, Address(pre(loop_base, 2 * unroll * wordSize)));
-    cbnz(cnt_reg, loop);
-  }
-}
-
-// base:   Address of a buffer to be filled, 8 bytes aligned.
-// cnt:    Count in 8-byte unit.
-// value:  Value to be filled with.
-// base will point to the end of the buffer after filling.
-void MacroAssembler::fill_words(Register base, Register cnt, Register value)
-{
-//  Algorithm:
-//
-//    scratch1 = cnt & 7;
-//    cnt -= scratch1;
-//    p += scratch1;
-//    switch (scratch1) {
-//      do {
-//        cnt -= 8;
-//          p[-8] = v;
-//        case 7:
-//          p[-7] = v;
-//        case 6:
-//          p[-6] = v;
-//          // ...
-//        case 1:
-//          p[-1] = v;
-//        case 0:
-//          p += 8;
-//      } while (cnt);
-//    }
-
-  assert_different_registers(base, cnt, value, rscratch1, rscratch2);
-
-  Label fini, skip, entry, loop;
-  const int unroll = 8; // Number of stp instructions we'll unroll
-
-  cbz(cnt, fini);
-  tbz(base, 3, skip);
-  str(value, Address(post(base, 8)));
-  sub(cnt, cnt, 1);
-  bind(skip);
-
-  andr(rscratch1, cnt, (unroll-1) * 2);
-  sub(cnt, cnt, rscratch1);
-  add(base, base, rscratch1, Assembler::LSL, 3);
-  adr(rscratch2, entry);
-  sub(rscratch2, rscratch2, rscratch1, Assembler::LSL, 1);
-  br(rscratch2);
-
-  bind(loop);
-  add(base, base, unroll * 16);
-  for (int i = -unroll; i < 0; i++)
-    stp(value, value, Address(base, i * 16));
-  bind(entry);
-  subs(cnt, cnt, unroll * 2);
-  br(Assembler::GE, loop);
-
-  tbz(cnt, 0, fini);
-  str(value, Address(post(base, 8)));
-  bind(fini);
-}
-
-// Use DC ZVA to do fast zeroing.
-// base:   Address of a buffer to be zeroed, 8 bytes aligned.
-// cnt:    Count in HeapWords.
-// is_large: True when 'cnt' is known to be >= BlockZeroingLowLimit.
-void MacroAssembler::block_zero(Register base, Register cnt, bool is_large)
-{
-  Label small;
-  Label store_pair, loop_store_pair, done;
-  Label base_aligned;
-
-  assert_different_registers(base, cnt, rscratch1);
-  guarantee(base == r10 && cnt == r11, "fix register usage");
-
-  Register tmp = rscratch1;
-  Register tmp2 = rscratch2;
-  int zva_length = VM_Version::zva_length();
-
-  // Ensure ZVA length can be divided by 16. This is required by
-  // the subsequent operations.
-  assert (zva_length % 16 == 0, "Unexpected ZVA Length");
-
-  if (!is_large) cbz(cnt, done);
-  tbz(base, 3, base_aligned);
-  str(zr, Address(post(base, 8)));
-  sub(cnt, cnt, 1);
-  bind(base_aligned);
-
-  // Ensure count >= zva_length * 2 so that it still deserves a zva after
-  // alignment.
-  if (!is_large || !(BlockZeroingLowLimit >= zva_length * 2)) {
-    int low_limit = MAX2(zva_length * 2, (int)BlockZeroingLowLimit);
-    cmp(cnt, low_limit >> 3);
-    br(Assembler::LT, small);
-  }
-
-  far_call(StubRoutines::aarch64::get_zero_longs());
-
-  bind(small);
-
-  const int unroll = 8; // Number of stp instructions we'll unroll
-  Label small_loop, small_table_end;
-
-  andr(tmp, cnt, (unroll-1) * 2);
-  sub(cnt, cnt, tmp);
-  add(base, base, tmp, Assembler::LSL, 3);
-  adr(tmp2, small_table_end);
-  sub(tmp2, tmp2, tmp, Assembler::LSL, 1);
-  br(tmp2);
-
-  bind(small_loop);
-  add(base, base, unroll * 16);
-  for (int i = -unroll; i < 0; i++)
-    stp(zr, zr, Address(base, i * 16));
-  bind(small_table_end);
-  subs(cnt, cnt, unroll * 2);
-  br(Assembler::GE, small_loop);
-
-  tbz(cnt, 0, done);
-  str(zr, Address(post(base, 8)));
-
-  bind(done);
-}
 
 void MacroAssembler::string_equals(Register str1, Register str2,
 				   Register cnt, Register result,
