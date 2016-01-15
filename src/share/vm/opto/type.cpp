@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1767,13 +1767,15 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig)
       break;
     case T_OBJECT:
     case T_ARRAY:
-    case T_BOOLEAN:
-    case T_CHAR:
     case T_FLOAT:
-    case T_BYTE:
-    case T_SHORT:
     case T_INT:
       field_array[pos++] = get_const_type(type);
+      break;
+    case T_BOOLEAN:
+    case T_CHAR:
+    case T_BYTE:
+    case T_SHORT:
+      field_array[pos++] = TypeInt::INT;
       break;
     default:
       ShouldNotReachHere();
