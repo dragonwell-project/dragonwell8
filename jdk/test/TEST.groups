@@ -287,7 +287,7 @@ jdk_desktop = \
 # - compact1, compact2, compact3, full JRE, JDK
 #
 # In addition they support testing of the minimal VM on compact1 and compact2.
-# Essentially this defines groups based around the specified API's and VM 
+# Essentially this defines groups based around the specified API's and VM
 # services available in the runtime.
 #
 # The groups are defined hierarchically in two forms:
@@ -342,13 +342,17 @@ needs_jdk = \
   sun/management/jmxremote/bootstrap/JvmstatCountersTest.java \
   sun/management/jmxremote/bootstrap/LocalManagementTest.java \
   sun/management/jmxremote/bootstrap/CustomLauncherTest.java \
+  sun/management/jmxremote/startstop \
   sun/misc/JarIndex/metaInfFilenames/Basic.java \
   sun/misc/JarIndex/JarIndexMergeForClassLoaderTest.java \
   sun/reflect/CallerSensitive/CallerSensitiveFinder.java \
   sun/reflect/CallerSensitive/MissingCallerSensitive.java \
   sun/security/util/Resources/NewNamesFormat.java \
   vm/verifier/defaultMethods/DefaultMethodRegressionTestsRun.java \
-  javax/xml/ws/clientjar/TestWsImport.java 
+  javax/xml/bind/jxc \
+  javax/xml/ws/8033113 \
+  javax/xml/ws/clientjar/TestWsImport.java \
+  javax/xml/ws/ebcdic
 
 # JRE adds further tests to compact3
 #
@@ -389,8 +393,10 @@ needs_jre = \
   javax/management/mxbean/LeakTest.java \
   javax/management/mxbean/MXBeanTest.java \
   javax/management/mxbean/PropertyNamesTest.java \
+  javax/xml/ws/8043129 \
   jdk/lambda/vm/InterfaceAccessFlagsTest.java \
-  sun/misc/URLClassPath/ClassnameCharTest.java
+  sun/misc/URLClassPath/ClassnameCharTest.java \
+  sun/security/pkcs11/Provider/Login.sh
 
 # Tests dependent on the optional charsets.jar
 # These are isolated for easy exclusions
@@ -517,7 +523,7 @@ compact2 = \
  -:needs_jdk
 
 # Tests that require compact2 API's and a full VM
-#  
+#
 needs_full_vm_compact2 =
 
 # Minimal VM on Compact 2 adds in some compact2 tests
@@ -538,7 +544,9 @@ needs_compact2 = \
   com/sun/net/httpserver \
   java/sql \
   javax/sql \
-  javax/xml \
+  javax/xml/bind \
+  javax/xml/jaxp \
+  javax/xml/ws/xsanymixed \
   jdk/lambda \
   sun/net/www/http \
   sun/net/www/protocol/http \
@@ -601,7 +609,7 @@ needs_compact2 = \
   java/util/zip/ZipFile/DeleteTempJar.java \
   javax/crypto/Cipher/CipherStreamClose.java \
   sun/security/ssl/sun/net/www/protocol/https/HttpsURLConnection/HttpsCreateSockTest.java \
-  sun/security/ssl/sun/net/www/protocol/https/HttpsURLConnection/HttpsSocketFacTest.java 
+  sun/security/ssl/sun/net/www/protocol/https/HttpsURLConnection/HttpsSocketFacTest.java
 
 # Compact 1 adds full VM tests
 #
