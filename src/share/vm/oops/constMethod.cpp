@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ ConstMethod::ConstMethod(int byte_code_size,
   set_max_locals(0);
   set_method_idnum(0);
   set_size_of_parameters(0);
+  set_result_type(T_VOID);
 }
 
 // Accessor that copies to metadata.

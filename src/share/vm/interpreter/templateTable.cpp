@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -488,6 +488,7 @@ void TemplateTable::initialize() {
 
   def(Bytecodes::_fast_aputfield      , ubcp|____|____|____, atos, vtos, fast_storefield ,   atos        );
   def(Bytecodes::_fast_bputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );
+  def(Bytecodes::_fast_zputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );
   def(Bytecodes::_fast_cputfield      , ubcp|____|____|____, itos, vtos, fast_storefield  ,  itos        );
   def(Bytecodes::_fast_dputfield      , ubcp|____|____|____, dtos, vtos, fast_storefield  ,  dtos        );
   def(Bytecodes::_fast_fputfield      , ubcp|____|____|____, ftos, vtos, fast_storefield  ,  ftos        );

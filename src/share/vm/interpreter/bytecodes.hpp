@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -256,6 +256,7 @@ class Bytecodes: AllStatic {
 
     _fast_aputfield       ,
     _fast_bputfield       ,
+    _fast_zputfield       ,
     _fast_cputfield       ,
     _fast_dputfield       ,
     _fast_fputfield       ,

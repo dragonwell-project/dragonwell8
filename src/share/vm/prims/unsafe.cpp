@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -156,13 +156,22 @@ jint Unsafe_invocation_key_to_method_slot(jint key) {
 
 ///// Data in the Java heap.
 
+#define truncate_jboolean(x) ((x) & 1)
+#define truncate_jbyte(x) (x)
+#define truncate_jshort(x) (x)
+#define truncate_jchar(x) (x)
+#define truncate_jint(x) (x)
+#define truncate_jlong(x) (x)
+#define truncate_jfloat(x) (x)
+#define truncate_jdouble(x) (x)
+
 #define GET_FIELD(obj, offset, type_name, v) \
   oop p = JNIHandles::resolve(obj); \
   type_name v = *(type_name*)index_oop_from_field_offset_long(p, offset)
 
 #define SET_FIELD(obj, offset, type_name, x) \
   oop p = JNIHandles::resolve(obj); \
-  *(type_name*)index_oop_from_field_offset_long(p, offset) = x
+  *(type_name*)index_oop_from_field_offset_long(p, offset) = truncate_##type_name(x)
 
 #define GET_FIELD_VOLATILE(obj, offset, type_name, v) \
   oop p = JNIHandles::resolve(obj); \
@@ -173,7 +182,7 @@ jint Unsafe_invocation_key_to_method_slot(jint key) {
 
 #define SET_FIELD_VOLATILE(obj, offset, type_name, x) \
   oop p = JNIHandles::resolve(obj); \
-  OrderAccess::release_store_fence((volatile type_name*)index_oop_from_field_offset_long(p, offset), x);
+  OrderAccess::release_store_fence((volatile type_name*)index_oop_from_field_offset_long(p, offset), truncate_##type_name(x));
 
 // Macros for oops that check UseCompressedOops
 
