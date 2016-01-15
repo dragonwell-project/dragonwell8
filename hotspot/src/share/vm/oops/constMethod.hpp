@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -211,6 +211,7 @@ private:
 
   int               _constMethod_size;
   u2                _flags;
+  u1                _result_type;                 // BasicType of result
 
   // Size of Java bytecodes allocated immediately after Method*.
   u2                _code_size;
@@ -469,6 +470,8 @@ public:
   static ByteSize size_of_parameters_offset()
                             { return byte_offset_of(ConstMethod, _size_of_parameters); }
 
+  static ByteSize result_type_offset()
+                            { return byte_offset_of(ConstMethod, _result_type); }
 
   // Unique id for the method
   static const u2 MAX_IDNUM;
@@ -491,6 +494,8 @@ public:
   int  size_of_parameters() const                { return _size_of_parameters; }
   void set_size_of_parameters(int size)          { _size_of_parameters = size; }
 
+  void set_result_type(BasicType rt)             { assert(rt < 16, "result type too large");
+                                                   _result_type = (u1)rt; }
   // Deallocation for RedefineClasses
   void deallocate_contents(ClassLoaderData* loader_data);
   bool is_klass() const { return false; }
