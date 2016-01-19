@@ -749,7 +749,7 @@ class StubGenerator: public StubCodeGenerator {
            __ sub(end, end, start); // number of bytes to copy
 
           const Register count = end; // 'end' register contains bytes count now
-	  __ mov(scratch, (address)ct->byte_map_base);
+          __ load_byte_map_base(scratch);
           __ add(start, start, scratch);
 	  __ BIND(L_loop);
 	  __ strb(zr, Address(start, count));
