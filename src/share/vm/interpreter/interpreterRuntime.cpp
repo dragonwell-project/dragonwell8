@@ -1011,6 +1011,7 @@ ConstantPoolCacheEntry *cp_entry))
 
   switch(cp_entry->flag_state()) {
     case btos:    // fall through
+    case ztos:    // fall through
     case ctos:    // fall through
     case stos:    // fall through
     case itos:    // fall through
