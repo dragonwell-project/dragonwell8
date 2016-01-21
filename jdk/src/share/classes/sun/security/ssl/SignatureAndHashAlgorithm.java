@@ -28,6 +28,7 @@ package sun.security.ssl;
 import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
 import java.security.PrivateKey;
+import java.security.Security;
 
 import java.util.Set;
 import java.util.HashSet;
@@ -413,10 +414,14 @@ final class SignatureAndHashAlgorithm {
                     "SHA1withRSA",          --p);
             supports(HashAlgorithm.SHA1,        SignatureAlgorithm.ECDSA,
                     "SHA1withECDSA",        --p);
-            supports(HashAlgorithm.SHA224,      SignatureAlgorithm.RSA,
-                    "SHA224withRSA",        --p);
-            supports(HashAlgorithm.SHA224,      SignatureAlgorithm.ECDSA,
-                    "SHA224withECDSA",      --p);
+
+            if (Security.getProvider("SunMSCAPI") == null) {
+                supports(HashAlgorithm.SHA224,      SignatureAlgorithm.RSA,
+                        "SHA224withRSA",        --p);
+                supports(HashAlgorithm.SHA224,      SignatureAlgorithm.ECDSA,
+                        "SHA224withECDSA",      --p);
+            }
+
             supports(HashAlgorithm.SHA256,      SignatureAlgorithm.RSA,
                     "SHA256withRSA",        --p);
             supports(HashAlgorithm.SHA256,      SignatureAlgorithm.ECDSA,
