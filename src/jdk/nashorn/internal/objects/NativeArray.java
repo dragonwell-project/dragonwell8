@@ -100,20 +100,38 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
     }
 
     NativeArray(final long length) {
-        // TODO assert valid index in long before casting
-        this(ArrayData.allocate((int)length));
+        this(ArrayData.allocate(length));
     }
 
     NativeArray(final int[] array) {
         this(ArrayData.allocate(array));
     }
 
-    NativeArray(final long[] array) {
+    NativeArray(final double[] array) {
         this(ArrayData.allocate(array));
     }
 
-    NativeArray(final double[] array) {
-        this(ArrayData.allocate(array));
+    NativeArray(final long[] array) {
+        this(ArrayData.allocate(array.length));
+
+        ArrayData arrayData = this.getArray();
+        Class<?> widest = int.class;
+
+        for (int index = 0; index < array.length; index++) {
+            final long value = array[index];
+
+            if (widest == int.class && JSType.isRepresentableAsInt(value)) {
+                arrayData = arrayData.set(index, (int) value, false);
+            } else if (widest != Object.class && JSType.isRepresentableAsDouble(value)) {
+                arrayData = arrayData.set(index, (double) value, false);
+                widest = double.class;
+            } else {
+                arrayData = arrayData.set(index, (Object) value, false);
+                widest = Object.class;
+            }
+        }
+
+        this.setArray(arrayData);
     }
 
     NativeArray(final Object[] array) {
@@ -188,7 +206,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
                 @Override
                 public MethodHandle call() {
                     return Bootstrap.createDynamicInvoker("dyn:call", rtype, Object.class, Object.class, Object.class,
-                        long.class, Object.class);
+                        double.class, Object.class);
                 }
             });
     }
@@ -219,7 +237,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
                     @Override
                     public MethodHandle call() {
                         return Bootstrap.createDynamicInvoker("dyn:call", Object.class, Object.class,
-                             Undefined.class, Object.class, Object.class, long.class, Object.class);
+                             Undefined.class, Object.class, Object.class, double.class, Object.class);
                     }
                 });
     }
@@ -255,8 +273,9 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
 
     @Override
     public Object getLength() {
-        final long length = JSType.toUint32(getArray().length());
-        if (length < Integer.MAX_VALUE) {
+        final long length = getArray().length();
+        assert length >= 0L;
+        if (length <= Integer.MAX_VALUE) {
             return (int)length;
         }
         return length;
@@ -454,7 +473,13 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
     @Getter(attributes = Attribute.NOT_ENUMERABLE | Attribute.NOT_CONFIGURABLE)
     public static Object length(final Object self) {
         if (isArray(self)) {
-            return JSType.toUint32(((ScriptObject) self).getArray().length());
+            final long length = ((ScriptObject) self).getArray().length();
+            assert length >= 0L;
+            // Cast to the narrowest supported numeric type to help optimistic type calculator
+            if (length <= Integer.MAX_VALUE) {
+                return (int) length;
+            }
+            return (double) length;
         }
 
         return 0;
@@ -1562,7 +1587,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle everyInvoker = getEVERY_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 return result = (boolean)everyInvoker.invokeExact(callbackfn, thisArg, val, i, self);
             }
         }.apply();
@@ -1582,7 +1607,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle someInvoker = getSOME_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 return !(result = (boolean)someInvoker.invokeExact(callbackfn, thisArg, val, i, self));
             }
         }.apply();
@@ -1602,7 +1627,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle forEachInvoker = getFOREACH_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 forEachInvoker.invokeExact(callbackfn, thisArg, val, i, self);
                 return true;
             }
@@ -1623,7 +1648,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle mapInvoker = getMAP_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 final Object r = mapInvoker.invokeExact(callbackfn, thisArg, val, i, self);
                 result.defineOwnProperty(ArrayIndex.getArrayIndex(index), r);
                 return true;
@@ -1653,7 +1678,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle filterInvoker = getFILTER_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 if ((boolean)filterInvoker.invokeExact(callbackfn, thisArg, val, i, self)) {
                     result.defineOwnProperty(ArrayIndex.getArrayIndex(to++), val);
                 }
@@ -1685,7 +1710,7 @@ public final class NativeArray extends ScriptObject implements OptimisticBuiltin
             private final MethodHandle reduceInvoker = getREDUCE_CALLBACK_INVOKER();
 
             @Override
-            protected boolean forEach(final Object val, final long i) throws Throwable {
+            protected boolean forEach(final Object val, final double i) throws Throwable {
                 // TODO: why can't I declare the second arg as Undefined.class?
                 result = reduceInvoker.invokeExact(callbackfn, ScriptRuntime.UNDEFINED, result, val, i, self);
                 return true;
