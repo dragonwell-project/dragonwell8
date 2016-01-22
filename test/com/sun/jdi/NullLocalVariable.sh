@@ -40,10 +40,10 @@ public class badscope {
     public static final void main(String args[]) {
         try {
             System.out.println("hi!");               // @1 breakpoint
-        } catch (Exception e) {         
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            System.out.println("done"); 
+            System.out.println("done");
         }
     }
 }
@@ -54,11 +54,11 @@ EOF
 dojdbCmds()
 {
    #set -x
-   cmd stop at badscope:4	; $sleepcmd
-   runToBkpt			; $sleepcmd
-   cmd next			; $sleepcmd
-   cmd next			; $sleepcmd
-   cmd locals			; $sleepcmd
+   cmd stop at badscope:4   ; $sleepcmd
+   runToBkpt                ; $sleepcmd
+   cmd next                 ; $sleepcmd
+   cmd next                 ; $sleepcmd
+   cmd locals               ; $sleepcmd
    cmd cont
 }
 
@@ -71,7 +71,7 @@ mysetup()
 
     for ii in . $TESTSRC $TESTSRC/.. ; do
         if [ -r "$ii/ShellScaffold.sh" ] ; then
-            . $ii/ShellScaffold.sh 
+            . $ii/ShellScaffold.sh
             break
         fi
     done
