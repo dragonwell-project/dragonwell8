@@ -258,6 +258,8 @@ That documentation contains more detailed, developer-targeted descriptions, \
 with conceptual overviews, definitions of terms, workarounds, \
 and working code examples.<br>\
 $(call CopyrightLine,$(COPYRIGHT_URL),$(FIRST_COPYRIGHT_YEAR),)\
+Use is subject to <a href="http://download.oracle.com/otndocs/jcp/java_se-8-mrel-spec/license.html">license terms</a>. \
+Also see the <a target="_blank" href="http://www.oracle.com/technetwork/java/redist-137594.html">documentation redistribution policy</a>.\
 </font>
 
 # Common javadoc options used by all

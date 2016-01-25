@@ -35,6 +35,7 @@ import javax.crypto.*;
 import javax.crypto.spec.*;
 
 import sun.nio.ch.DirectBuffer;
+import sun.security.jca.JCAUtil;
 import sun.security.pkcs11.wrapper.*;
 import static sun.security.pkcs11.wrapper.PKCS11Constants.*;
 
@@ -379,7 +380,7 @@ final class P11Cipher extends CipherSpi {
                 }
                 // generate random IV
                 if (random == null) {
-                    random = new SecureRandom();
+                    random = JCAUtil.getSecureRandom();
                 }
                 iv = new byte[blockSize];
                 random.nextBytes(iv);
