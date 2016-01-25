@@ -50,7 +50,7 @@ public class TestDSA2 {
     public static void main(String[] args) throws Exception {
         boolean[] expectedToPass = { true, true, true };
         test(1024, expectedToPass);
-        boolean[] expectedToPass2 = { true, true, true };
+        boolean[] expectedToPass2 = { false, true, true };
         test(2048, expectedToPass2);
     }
 
