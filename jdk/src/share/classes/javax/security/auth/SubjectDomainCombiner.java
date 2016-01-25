@@ -37,6 +37,8 @@ import java.security.Security;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.lang.ref.WeakReference;
+import sun.misc.SharedSecrets;
+import sun.misc.JavaSecurityProtectionDomainAccess;
 
 /**
  * A {@code SubjectDomainCombiner} updates ProtectionDomains
@@ -64,6 +66,9 @@ public class SubjectDomainCombiner implements java.security.DomainCombiner {
     // Relevant only when useJavaxPolicy is true
     private static final boolean allowCaching =
                                         (useJavaxPolicy && cachePolicy());
+
+    private static final JavaSecurityProtectionDomainAccess pdAccess =
+        SharedSecrets.getJavaSecurityProtectionDomainAccess();
 
     /**
      * Associate the provided {@code Subject} with this
@@ -239,10 +244,15 @@ public class SubjectDomainCombiner implements java.security.DomainCombiner {
                 subjectPd = cachedPDs.getValue(pd);
 
                 if (subjectPd == null) {
-                    subjectPd = new ProtectionDomain(pd.getCodeSource(),
+                    if (pdAccess.getStaticPermissionsField(pd)) {
+                        // Need to keep static ProtectionDomain objects static
+                        subjectPd = pd;
+                    } else {
+                        subjectPd = new ProtectionDomain(pd.getCodeSource(),
                                                 pd.getPermissions(),
                                                 pd.getClassLoader(),
                                                 principals);
+                    }
                     cachedPDs.putValue(pd, subjectPd);
                 } else {
                     allNew = false;
