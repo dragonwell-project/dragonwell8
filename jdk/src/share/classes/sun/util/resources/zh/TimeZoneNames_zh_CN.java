@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -308,6 +308,7 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"Europe/Bucharest", EET},
             {"Asia/Shanghai", CTT},
             {"CTT", CTT},
+            {"UTC", UTC},
             /* Don't change the order of the above zones
              * to keep compatibility with the previous version.
              */
@@ -1034,7 +1035,6 @@ public final class TimeZoneNames_zh_CN extends TimeZoneNamesBundle {
             {"US/Pacific", PST},
             {"US/Pacific-New", PST},
             {"US/Samoa", SAMOA},
-            {"UTC", UTC},
             {"VST", ICT},
             {"W-SU", MSK},
             {"WET", WET},
