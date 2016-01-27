@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,37 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Formatter;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
 class ResourceBundleGenerator implements BundleGenerator {
+    // preferred timezones - keeping compatibility with JDK1.1 3 letter abbreviations
+    private static final String[] preferredTZIDs = {
+        "America/Los_Angeles",
+        "America/Denver",
+        "America/Phoenix",
+        "America/Chicago",
+        "America/New_York",
+        "America/Indianapolis",
+        "Pacific/Honolulu",
+        "America/Anchorage",
+        "America/Halifax",
+        "America/Sitka",
+        "America/St_Johns",
+        "Europe/Paris",
+        // Although CLDR does not support abbreviated zones, handle "GMT" as a
+        // special case here, as it is specified in the javadoc.
+        "GMT",
+        "Africa/Casablanca",
+        "Asia/Jerusalem",
+        "Asia/Tokyo",
+        "Europe/Bucharest",
+        "Asia/Shanghai",
+        "UTC",
+    };
+
     @Override
     public void generateBundle(String packageName, String baseName, String localeID, boolean useJava,
                                Map<String, ?> map, BundleType type) throws IOException {
@@ -89,6 +115,19 @@ class ResourceBundleGenerator implements BundleGenerator {
             for (String key : metaKeys) {
                 map.remove(key);
             }
+
+            // Make it preferred ordered
+            LinkedHashMap<String, Object> newMap = new LinkedHashMap<>();
+            for (String preferred : preferredTZIDs) {
+                if (map.containsKey(preferred)) {
+                    newMap.put(preferred, map.remove(preferred));
+                } else if (("GMT".equals(preferred) || "UTC".equals(preferred)) &&
+                           metaKeys.contains(CLDRConverter.METAZONE_ID_PREFIX+preferred)) {
+                    newMap.put(preferred, preferred);
+                }
+            }
+            newMap.putAll(map);
+            map = newMap;
         }
 
         try (PrintWriter out = new PrintWriter(file, encoding)) {
