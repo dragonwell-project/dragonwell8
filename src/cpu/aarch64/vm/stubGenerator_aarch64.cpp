@@ -1079,7 +1079,8 @@ class StubGenerator: public StubCodeGenerator {
       }
       // rscratch2 is the byte adjustment needed to align s.
       __ cbz(rscratch2, aligned);
-      __ lsr(rscratch2, rscratch2, exact_log2(granularity));
+      int shift = exact_log2(granularity);
+      if (shift)  __ lsr(rscratch2, rscratch2, shift);
       __ sub(count, count, rscratch2);
 
 #if 0
