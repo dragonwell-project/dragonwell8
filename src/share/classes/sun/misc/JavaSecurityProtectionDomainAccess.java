@@ -36,9 +36,4 @@ public interface JavaSecurityProtectionDomainAccess {
      * Returns the ProtectionDomainCache.
      */
     ProtectionDomainCache getProtectionDomainCache();
-
-    /**
-     * Returns the staticPermissions field of the specified object
-     */
-    boolean getStaticPermissionsField(ProtectionDomain pd);
 }
