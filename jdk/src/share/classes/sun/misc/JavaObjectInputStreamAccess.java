@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +22,20 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package sun.misc;
 
-import java.security.PermissionCollection;
-import java.security.ProtectionDomain;
+import java.io.ObjectInputStream;
 
-public interface JavaSecurityProtectionDomainAccess {
-    interface ProtectionDomainCache {
-        void put(ProtectionDomain pd, PermissionCollection pc);
-        PermissionCollection get(ProtectionDomain pd);
-    }
+/**
+ * The interface to specify methods for accessing {@code ObjectInputStream}
+ * @author sjiang
+ */
+public interface JavaObjectInputStreamAccess {
     /**
-     * Returns the ProtectionDomainCache.
+     * Sets a descriptor validating.
+     * @param ois stream to have the descriptors validated
+     * @param validator validator used to validate a descriptor.
      */
-    ProtectionDomainCache getProtectionDomainCache();
+    public void setValidator(ObjectInputStream ois, ObjectStreamClassValidator validator);
 }
