@@ -838,3 +838,10 @@ extern "C" void pm(unsigned long fp, unsigned long bcx) {
   Method* m = (Method*)p[frame::interpreter_frame_method_offset];
   printbc(m, bcx);
 }
+
+#ifndef PRODUCT
+// This is a generic constructor which is only used by pns() in debug.cpp.
+frame::frame(void* sp, void* fp, void* pc) {
+  init((intptr_t*)sp, (intptr_t*)fp, (address)pc);
+}
+#endif

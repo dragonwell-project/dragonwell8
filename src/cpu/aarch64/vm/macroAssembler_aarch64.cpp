@@ -55,6 +55,11 @@
 #include "gc_implementation/g1/heapRegion.hpp"
 #endif
 
+#ifdef COMPILER2
+#include "opto/node.hpp"
+#include "opto/compile.hpp"
+#endif
+
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
 #define STOP(error) stop(error)
@@ -133,7 +138,10 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
                      Instruction_aarch64::extract(insn2, 4, 0)) {
         // movk #imm16<<32
         Instruction_aarch64::patch(branch + 4, 20, 5, (uint64_t)target >> 32);
-        offset &= (1<<20)-1;
+        long dest = ((long)target & 0xffffffffL) | ((long)branch & 0xffff00000000L);
+        long pc_page = (long)branch >> 12;
+        long adr_page = (long)dest >> 12;
+        offset = adr_page - pc_page;
         instructions = 2;
       }
     }
@@ -2300,6 +2308,30 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
 }
 #endif
 
+void MacroAssembler::push_call_clobbered_registers() {
+  push(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
+
+  // Push v0-v7, v16-v31.
+  for (int i = 30; i >= 0; i -= 2) {
+    if (i <= v7->encoding() || i >= v16->encoding()) {
+        stpd(as_FloatRegister(i), as_FloatRegister(i+1),
+             Address(pre(sp, -2 * wordSize)));
+    }
+  }
+}
+
+void MacroAssembler::pop_call_clobbered_registers() {
+
+  for (int i = 0; i < 32; i += 2) {
+    if (i <= v7->encoding() || i >= v16->encoding()) {
+      ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
+           Address(post(sp, 2 * wordSize)));
+    }
+  }
+
+  pop(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
+}
+
 void MacroAssembler::push_CPU_state(bool save_vectors) {
   push(0x3fffffff, sp);         // integer registers except lr & sp
 
@@ -3052,7 +3084,7 @@ void MacroAssembler::store_check_part_2(Register obj) {
   // FIXME: It's not likely that disp will fit into an offset so we
   // don't bother to check, but it could save an instruction.
   intptr_t disp = (intptr_t) ct->byte_map_base;
-  mov(rscratch1, disp);
+  load_byte_map_base(rscratch1);
   strb(zr, Address(obj, rscratch1));
 }
 
@@ -3535,12 +3567,10 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
 
   lsr(card_addr, store_addr, CardTableModRefBS::card_shift);
 
-  unsigned long offset;
-  adrp(tmp2, cardtable, offset);
-
   // get the address of the card
+  load_byte_map_base(tmp2);
   add(card_addr, card_addr, tmp2);
-  ldrb(tmp2, Address(card_addr, offset));
+  ldrb(tmp2, Address(card_addr));
   cmpw(tmp2, (int)G1SATBCardTableModRefBS::g1_young_card_val());
   br(Assembler::EQ, done);
 
@@ -3548,13 +3578,13 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
 
   membar(Assembler::Assembler::StoreLoad);
 
-  ldrb(tmp2, Address(card_addr, offset));
+  ldrb(tmp2, Address(card_addr));
   cbzw(tmp2, done);
 
   // storing a region crossing, non-NULL oop, card is clean.
   // dirty card and log.
 
-  strb(zr, Address(card_addr, offset));
+  strb(zr, Address(card_addr));
 
   ldr(rscratch1, queue_index);
   cbz(rscratch1, runtime);
@@ -3906,6 +3936,9 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   long offset_low = dest_page - low_page;
   long offset_high = dest_page - high_page;
 
+  assert(is_valid_AArch64_address(dest.target()), "bad address");
+  assert(dest.getMode() == Address::literal, "ADRP must be applied to a literal address");
+
   InstructionMark im(this);
   code_section()->relocate(inst_mark(), dest.rspec());
   // 8143067: Ensure that the adrp can reach the dest from anywhere within
@@ -3913,13 +3946,32 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
   if (offset_high >= -(1<<20) && offset_low < (1<<20)) {
     _adrp(reg1, dest.target());
   } else {
-    unsigned long pc_page = (unsigned long)pc() >> 12;
-    long offset = dest_page - pc_page;
-    offset = (offset & ((1<<20)-1)) << 12;
-    _adrp(reg1, pc()+offset);
-    movk(reg1, ((unsigned long)dest.target() >> 32) & 0xffff, 32);
+    unsigned long target = (unsigned long)dest.target();
+    unsigned long adrp_target
+      = (target & 0xffffffffUL) | ((unsigned long)pc() & 0xffff00000000UL);
+
+    _adrp(reg1, (address)adrp_target);
+    movk(reg1, target >> 32, 32);
   }
   byte_offset = (unsigned long)dest.target() & 0xfff;
+}
+
+void MacroAssembler::load_byte_map_base(Register reg) {
+  jbyte *byte_map_base =
+    ((CardTableModRefBS*)(Universe::heap()->barrier_set()))->byte_map_base;
+
+  if (is_valid_AArch64_address((address)byte_map_base)) {
+    // Strictly speaking the byte_map_base isn't an address at all,
+    // and it might even be negative.
+    unsigned long offset;
+    adrp(reg, ExternalAddress((address)byte_map_base), offset);
+    // We expect offset to be zero with most collectors.
+    if (offset != 0) {
+      add(reg, reg, offset);
+    }
+  } else {
+    mov(reg, (uint64_t)byte_map_base);
+  }
 }
 
 void MacroAssembler::build_frame(int framesize) {
