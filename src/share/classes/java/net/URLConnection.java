@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1515,7 +1515,7 @@ public abstract class URLConnection {
         }
 
         if (c1 == 0xFF && c2 == 0xD8 && c3 == 0xFF) {
-            if (c4 == 0xE0) {
+            if (c4 == 0xE0 || c4 == 0xEE) {
                 return "image/jpeg";
             }
 
@@ -1529,10 +1529,6 @@ public abstract class URLConnection {
                 (c7 == 'E' && c8 == 'x' && c9 == 'i' && c10 =='f' &&
                  c11 == 0)) {
                 return "image/jpeg";
-            }
-
-            if (c4 == 0xEE) {
-                return "image/jpg";
             }
         }
 
