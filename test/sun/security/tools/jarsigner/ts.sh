@@ -86,6 +86,6 @@ $KT -alias tsbad3 -certreq | \
         $KT -alias ca -gencert -ext eku:critical=cs | \
         $KT -alias tsbad3 -importcert
 
-$JAVAC -d . ${TESTSRC}/TimestampCheck.java
+$JAVAC -XDignore.symbol.file -d . ${TESTSRC}/TimestampCheck.java
 $JAVA ${TESTVMOPTS} TimestampCheck
 
