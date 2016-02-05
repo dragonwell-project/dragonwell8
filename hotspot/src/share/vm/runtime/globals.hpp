@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1278,6 +1278,13 @@ class CommandLineFlags {
   product(intx, BiasedLockingDecayTime, 25000,                              \
           "Decay time (in milliseconds) to re-enable bulk rebiasing of a "  \
           "type after previous bulk rebias")                                \
+                                                                            \
+  product(bool, ExitOnOutOfMemoryError, false,                              \
+          "JVM exits on the first occurrence of an out-of-memory error")    \
+                                                                            \
+  product(bool, CrashOnOutOfMemoryError, false,                             \
+          "JVM aborts, producing an error log and core/mini dump, on the "  \
+          "first occurrence of an out-of-memory error")                     \
                                                                             \
   /* tracing */                                                             \
                                                                             \

@@ -236,6 +236,7 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
         }
 
         NSOpenGLPixelFormatAttribute attrs[] = {
+            NSOpenGLPFAAllowOfflineRenderers,
             NSOpenGLPFAClosestPolicy,
             NSOpenGLPFAWindow,
             NSOpenGLPFAPixelBuffer,

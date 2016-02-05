@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ protected:
   bool read(void* ptr, size_t size);
 
   static void trace_class_path(const char* msg, const char* name = NULL) {
-    ClassLoader::trace_class_path(msg, name);
+    ClassLoader::trace_class_path(tty, msg, name);
   }
 protected:
   static bool fail(const char* msg, const char* name = NULL);

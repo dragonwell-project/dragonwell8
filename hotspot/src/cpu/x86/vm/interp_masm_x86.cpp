@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,54 @@
 #include "interp_masm_x86.hpp"
 #include "interpreter/interpreter.hpp"
 #include "oops/methodData.hpp"
+
+
+// 8u does not have InterpreterMacroAssembler::load_earlyret_value here
+
+void InterpreterMacroAssembler::narrow(Register result) {
+
+  // Get method->_constMethod->_result_type
+  movptr(rcx, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
+  movptr(rcx, Address(rcx, Method::const_offset()));
+  load_unsigned_byte(rcx, Address(rcx, ConstMethod::result_type_offset()));
+
+  Label done, notBool, notByte, notChar;
+
+  // common case first
+  cmpl(rcx, T_INT);
+  jcc(Assembler::equal, done);
+
+  // mask integer result to narrower return type.
+  cmpl(rcx, T_BOOLEAN);
+  jcc(Assembler::notEqual, notBool);
+  andl(result, 0x1);
+  jmp(done);
+
+  bind(notBool);
+  cmpl(rcx, T_BYTE);
+  jcc(Assembler::notEqual, notByte);
+  LP64_ONLY(movsbl(result, result);)
+  NOT_LP64(shll(result, 24);)      // truncate upper 24 bits
+  NOT_LP64(sarl(result, 24);)      // and sign-extend byte
+  jmp(done);
+
+  bind(notByte);
+  cmpl(rcx, T_CHAR);
+  jcc(Assembler::notEqual, notChar);
+  LP64_ONLY(movzwl(result, result);)
+  NOT_LP64(andl(result, 0xFFFF);)  // truncate upper 16 bits
+  jmp(done);
+
+  bind(notChar);
+  // cmpl(rcx, T_SHORT);  // all that's left
+  // jcc(Assembler::notEqual, done);
+  LP64_ONLY(movswl(result, result);)
+  NOT_LP64(shll(result, 16);)      // truncate upper 16 bits
+  NOT_LP64(sarl(result, 16);)      // and sign-extend short
+
+  // Nothing to do for T_INT
+  bind(done);
+}
 
 #ifndef CC_INTERP
 void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& mdo_addr) {
