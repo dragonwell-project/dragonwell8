@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -709,6 +709,9 @@ address InterpreterGenerator::generate_accessor_entry(void) {
     __ delayed()->lduh(Otos_i, G3_scratch, Otos_i);
 #ifdef ASSERT
     __ cmp(G1_scratch, btos);
+    __ br(Assembler::equal, true, Assembler::pt, xreturn_path);
+    __ delayed()->ldsb(Otos_i, G3_scratch, Otos_i);
+    __ cmp(G1_scratch, ztos);
     __ br(Assembler::equal, true, Assembler::pt, xreturn_path);
     __ delayed()->ldsb(Otos_i, G3_scratch, Otos_i);
     __ should_not_reach_here();
