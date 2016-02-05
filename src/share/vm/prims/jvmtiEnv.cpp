@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -946,7 +946,7 @@ JvmtiEnv::GetThreadInfo(jthread thread, jvmtiThreadInfo* info_ptr) {
     return JVMTI_ERROR_INVALID_THREAD;
 
   Handle thread_obj(current_thread, thread_oop);
-  typeArrayHandle    name;
+  Handle name;
   ThreadPriority priority;
   Handle     thread_group;
   Handle context_class_loader;
@@ -954,7 +954,7 @@ JvmtiEnv::GetThreadInfo(jthread thread, jvmtiThreadInfo* info_ptr) {
 
   { MutexLocker mu(Threads_lock);
 
-    name = typeArrayHandle(current_thread, java_lang_Thread::name(thread_obj()));
+    name = Handle(current_thread, java_lang_Thread::name(thread_obj()));
     priority = java_lang_Thread::priority(thread_obj());
     thread_group = Handle(current_thread, java_lang_Thread::threadGroup(thread_obj()));
     is_daemon = java_lang_Thread::is_daemon(thread_obj());
@@ -965,7 +965,7 @@ JvmtiEnv::GetThreadInfo(jthread thread, jvmtiThreadInfo* info_ptr) {
   { const char *n;
 
     if (name() != NULL) {
-      n = UNICODE::as_utf8((jchar*) name->base(T_CHAR), name->length());
+      n = java_lang_String::as_utf8_string(name());
     } else {
       n = UNICODE::as_utf8(NULL, 0);
     }
