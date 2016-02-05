@@ -795,6 +795,12 @@ class StubGenerator: public StubCodeGenerator {
     assert_different_registers(s, d, count, rscratch1);
 
     Label again, large, small;
+    const char *stub_name;
+    if (direction == copy_forwards)
+      stub_name = "foward_copy_longs";
+    else
+      stub_name = "backward_copy_longs";
+    StubCodeMark mark(this, "StubRoutines", stub_name);
     __ align(CodeEntryAlignment);
     __ bind(start);
     __ cmp(count, 8);
@@ -1153,8 +1159,10 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", name);
     address start = __ pc();
 
-    __ cmp(d, s);
-    __ br(Assembler::LS, nooverlap_target);
+    // use fwd copy when (d-s) above_equal (count*size)
+    __ sub(rscratch1, d, s);
+    __ cmp(rscratch1, count, Assembler::LSL, exact_log2(size));
+    __ br(Assembler::HS, nooverlap_target);
 
     __ enter();
     if (is_oop) {
