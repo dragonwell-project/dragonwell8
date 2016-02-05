@@ -3839,6 +3839,16 @@ G1CollectedHeap::cleanup_surviving_young_words() {
   _surviving_young_words = NULL;
 }
 
+class VerifyRegionRemSetClosure : public HeapRegionClosure {
+  public:
+    bool doHeapRegion(HeapRegion* hr) {
+      if (!hr->continuesHumongous()) {
+        hr->verify_rem_set();
+      }
+      return false;
+    }
+};
+
 #ifdef ASSERT
 class VerifyCSetClosure: public HeapRegionClosure {
 public:
@@ -4014,6 +4024,14 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
       gc_prologue(false);
       increment_total_collections(false /* full gc */);
       increment_gc_time_stamp();
+
+      if (VerifyRememberedSets) {
+        if (!VerifySilently) {
+          gclog_or_tty->print_cr("[Verifying RemSets before GC]");
+        }
+        VerifyRegionRemSetClosure v_cl;
+        heap_region_iterate(&v_cl);
+      }
 
       verify_before_gc();
       check_bitmaps("GC Start");
@@ -4245,6 +4263,14 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
         // is_gc_active() check to decided which top to use when
         // scanning cards (see CR 7039627).
         increment_gc_time_stamp();
+
+        if (VerifyRememberedSets) {
+          if (!VerifySilently) {
+            gclog_or_tty->print_cr("[Verifying RemSets after GC]");
+          }
+          VerifyRegionRemSetClosure v_cl;
+          heap_region_iterate(&v_cl);
+        }
 
         verify_after_gc();
         check_bitmaps("GC End");
