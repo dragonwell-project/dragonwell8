@@ -187,6 +187,14 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   // Even if general trusting is disabled, trust system-built closures in these packages.
   if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke"))
     return true;
+  // Trust Atomic*FieldUpdaters: they are very important for performance, and make up one
+  // more reason not to use Unsafe, if their final fields are trusted. See more in JDK-8140483.
+  if (holder->name() == ciSymbol::java_util_concurrent_atomic_AtomicIntegerFieldUpdater_Impl() ||
+      holder->name() == ciSymbol::java_util_concurrent_atomic_AtomicLongFieldUpdater_CASUpdater() ||
+      holder->name() == ciSymbol::java_util_concurrent_atomic_AtomicLongFieldUpdater_LockedUpdater() ||
+      holder->name() == ciSymbol::java_util_concurrent_atomic_AtomicReferenceFieldUpdater_Impl()) {
+    return true;
+  }
   return TrustFinalNonStaticFields;
 }
 

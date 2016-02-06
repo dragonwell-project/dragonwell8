@@ -2331,6 +2331,7 @@ bool G1CollectedHeap::should_do_concurrent_full_gc(GCCause::Cause cause) {
     case GCCause::_java_lang_system_gc:     return ExplicitGCInvokesConcurrent;
     case GCCause::_g1_humongous_allocation: return true;
     case GCCause::_update_allocation_context_stats_inc: return true;
+    case GCCause::_wb_conc_mark:            return true;
     default:                                return false;
   }
 }
@@ -3766,6 +3767,9 @@ class RegisterHumongousWithInCSetFastTestClosure : public HeapRegionClosure {
             _dcq.enqueue(card_ptr);
           }
         }
+        assert(hrrs.n_yielded() == r->rem_set()->occupied(),
+               err_msg("Remembered set hash maps out of sync, cur: " SIZE_FORMAT " entries, next: " SIZE_FORMAT " entries",
+               hrrs.n_yielded(), r->rem_set()->occupied()));
         r->rem_set()->clear_locked();
       }
       assert(r->rem_set()->is_empty(), "At this point any humongous candidate remembered set must be empty.");
@@ -4087,6 +4091,13 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
 #endif // YOUNG_LIST_VERBOSE
 
         g1_policy()->finalize_cset(target_pause_time_ms, evacuation_info);
+
+        // Make sure the remembered sets are up to date. This needs to be
+        // done before register_humongous_regions_with_cset(), because the
+        // remembered sets are used there to choose eager reclaim candidates.
+        // If the remembered sets are not up to date we might miss some
+        // entries that need to be handled.
+        g1_rem_set()->cleanupHRRS();
 
         register_humongous_regions_with_in_cset_fast_test();
 
@@ -5045,12 +5056,8 @@ class G1KlassCleaningTask : public StackObj {
 public:
 
   void clean_klass(InstanceKlass* ik) {
-    ik->clean_implementors_list(_is_alive);
-    ik->clean_method_data(_is_alive);
+    ik->clean_weak_instanceklass_links(_is_alive);
 
-    // G1 specific cleanup work that has
-    // been moved here to be done in parallel.
-    ik->clean_dependent_nmethods();
     if (JvmtiExport::has_redefined_a_class()) {
       InstanceKlass::purge_previous_versions(ik);
     }
