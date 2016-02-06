@@ -67,6 +67,8 @@ elapsedTimer Phase::_t_idealLoopVerify;
 elapsedTimer   Phase::_t_iterGVN;
 elapsedTimer   Phase::_t_iterGVN2;
 elapsedTimer   Phase::_t_incrInline;
+elapsedTimer   Phase::_t_renumberLive;
+
 
 // Subtimers for _t_registerAllocation
 elapsedTimer   Phase::_t_ctorChaitin;
@@ -115,13 +117,14 @@ void Phase::print_timers() {
     }
     tty->print_cr ("      iterGVN        : %3.3f sec", Phase::_t_iterGVN.seconds());
     tty->print_cr ("      incrInline     : %3.3f sec", Phase::_t_incrInline.seconds());
+    tty->print_cr ("      renumberLive   : %3.3f sec", Phase::_t_renumberLive.seconds());
     tty->print_cr ("      idealLoop      : %3.3f sec", Phase::_t_idealLoop.seconds());
     tty->print_cr ("      idealLoopVerify: %3.3f sec", Phase::_t_idealLoopVerify.seconds());
     tty->print_cr ("      ccp            : %3.3f sec", Phase::_t_ccp.seconds());
     tty->print_cr ("      iterGVN2       : %3.3f sec", Phase::_t_iterGVN2.seconds());
     tty->print_cr ("      macroExpand    : %3.3f sec", Phase::_t_macroExpand.seconds());
     tty->print_cr ("      graphReshape   : %3.3f sec", Phase::_t_graphReshaping.seconds());
-    double optimizer_subtotal = Phase::_t_iterGVN.seconds() + Phase::_t_iterGVN2.seconds() +
+    double optimizer_subtotal = Phase::_t_iterGVN.seconds() + Phase::_t_iterGVN2.seconds() + Phase::_t_renumberLive.seconds() +
       Phase::_t_escapeAnalysis.seconds() + Phase::_t_macroEliminate.seconds() +
       Phase::_t_idealLoop.seconds() + Phase::_t_ccp.seconds() +
       Phase::_t_macroExpand.seconds() + Phase::_t_graphReshaping.seconds();

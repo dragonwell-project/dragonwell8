@@ -46,6 +46,7 @@
 -(void) deliverResize: (NSRect) rect;
 -(void) resetTrackingArea;
 -(void) deliverJavaKeyEventHelper: (NSEvent*) event;
+-(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint;
 @end
 
 // Uncomment this line to see fprintfs of each InputMethod API being called on this View
@@ -513,6 +514,14 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 }
 
+-(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint {
+    if ((codePoint >= 0x3000) && (codePoint <= 0x303F)) {
+        // Code point is in 'CJK Symbols and Punctuation' Unicode block.
+        return YES;
+    }
+    return NO;
+}
+
 // NSAccessibility support
 - (jobject)awtComponent:(JNIEnv*)env
 {
@@ -893,8 +902,14 @@ JNF_CLASS_CACHE(jc_CInputMethod, "sun/lwawt/macosx/CInputMethod");
     // (i.e., when the user uses the Character palette or Inkwell), or when the string to insert is a complex
     // Unicode value.
     NSUInteger utf16Length = [aString lengthOfBytesUsingEncoding:NSUTF16StringEncoding];
+    NSUInteger utf8Length = [aString lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+    BOOL aStringIsComplex = NO;
+    if ((utf16Length > 2) ||
+        ((utf8Length > 1) && [self isCodePointInUnicodeBlockNeedingIMEvent:[aString characterAtIndex:0]])) {
+        aStringIsComplex = YES;
+    }
 
-    if ([self hasMarkedText] || !fProcessingKeystroke || (utf16Length > 2)) {
+    if ([self hasMarkedText] || !fProcessingKeystroke || aStringIsComplex) {
         JNIEnv *env = [ThreadUtilities getJNIEnv];
 
         static JNF_MEMBER_CACHE(jm_selectPreviousGlyph, jc_CInputMethod, "selectPreviousGlyph", "()V");

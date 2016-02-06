@@ -1969,7 +1969,7 @@ void InstanceKlass::add_dependent_nmethod(nmethod* nm) {
 // find a corresponding bucket otherwise there's a bug in the
 // recording of dependecies.
 //
-void InstanceKlass::remove_dependent_nmethod(nmethod* nm) {
+void InstanceKlass::remove_dependent_nmethod(nmethod* nm, bool delete_immediately) {
   assert_locked_or_safepoint(CodeCache_lock);
   nmethodBucket* b = _dependencies;
   nmethodBucket* last = NULL;
@@ -1978,7 +1978,17 @@ void InstanceKlass::remove_dependent_nmethod(nmethod* nm) {
       int val = b->decrement();
       guarantee(val >= 0, err_msg("Underflow: %d", val));
       if (val == 0) {
-        set_has_unloaded_dependent(true);
+        if (delete_immediately) {
+          if (last == NULL) {
+            _dependencies = b->next();
+          } else {
+            last->set_next(b->next());
+          }
+          delete b;
+        } else {
+          // The deletion of this entry is deferred until a later, potentially parallel GC phase.
+          set_has_unloaded_dependent(true);
+        }
       }
       return;
     }
@@ -2317,6 +2327,13 @@ int InstanceKlass::oop_update_pointers(ParCompactionManager* cm, oop obj) {
 }
 
 #endif // INCLUDE_ALL_GCS
+
+void InstanceKlass::clean_weak_instanceklass_links(BoolObjectClosure* is_alive) {
+  clean_implementors_list(is_alive);
+  clean_method_data(is_alive);
+
+  clean_dependent_nmethods();
+}
 
 void InstanceKlass::clean_implementors_list(BoolObjectClosure* is_alive) {
   assert(class_loader_data()->is_alive(is_alive), "this klass should be live");
