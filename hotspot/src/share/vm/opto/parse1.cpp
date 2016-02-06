@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -717,6 +717,27 @@ void Parse::do_all_blocks() {
 #endif
 }
 
+static Node* mask_int_value(Node* v, BasicType bt, PhaseGVN* gvn) {
+  Compile* C = gvn->C;
+  switch (bt) {
+  case T_BYTE:
+    v = gvn->transform(new (C) LShiftINode(v, gvn->intcon(24)));
+    v = gvn->transform(new (C) RShiftINode(v, gvn->intcon(24)));
+    break;
+  case T_SHORT:
+    v = gvn->transform(new (C) LShiftINode(v, gvn->intcon(16)));
+    v = gvn->transform(new (C) RShiftINode(v, gvn->intcon(16)));
+    break;
+  case T_CHAR:
+    v = gvn->transform(new (C) AndINode(v, gvn->intcon(0xFFFF)));
+    break;
+  case T_BOOLEAN:
+    v = gvn->transform(new (C) AndINode(v, gvn->intcon(0x1)));
+    break;
+  }
+  return v;
+}
+
 //-------------------------------build_exits----------------------------------
 // Build normal and exceptional exit merge points.
 void Parse::build_exits() {
@@ -741,6 +762,16 @@ void Parse::build_exits() {
   // Add a return value to the exit state.  (Do not push it yet.)
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
+    if (ret_type->isa_int()) {
+      BasicType ret_bt = method()->return_type()->basic_type();
+      if (ret_bt == T_BOOLEAN ||
+          ret_bt == T_CHAR ||
+          ret_bt == T_BYTE ||
+          ret_bt == T_SHORT) {
+        ret_type = TypeInt::INT;
+      }
+    }
+
     // Don't "bind" an unloaded return klass to the ret_phi. If the klass
     // becomes loaded during the subsequent parsing, the loaded and unloaded
     // types will not join when we transform and push in do_exits().
@@ -958,6 +989,10 @@ void Parse::do_exits() {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
     assert(_exits.control()->is_top() || !_gvn.type(ret_phi)->empty(), "return value must be well defined");
+    if (ret_type->isa_int()) {
+      BasicType ret_bt = method()->return_type()->basic_type();
+      ret_phi = mask_int_value(ret_phi, ret_bt, &_gvn);
+    }
     _exits.push_node(ret_type->basic_type(), ret_phi);
   }
 

@@ -290,7 +290,7 @@ public abstract class ContinuousArrayData extends ArrayData {
      * @param arg argument
      * @return new array length
      */
-    public long fastPush(final int arg) {
+    public double fastPush(final int arg) {
         throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
     }
 
@@ -299,7 +299,7 @@ public abstract class ContinuousArrayData extends ArrayData {
      * @param arg argument
      * @return new array length
      */
-    public long fastPush(final long arg) {
+    public double fastPush(final long arg) {
         throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
     }
 
@@ -308,7 +308,7 @@ public abstract class ContinuousArrayData extends ArrayData {
      * @param arg argument
      * @return new array length
      */
-    public long fastPush(final double arg) {
+    public double fastPush(final double arg) {
         throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
     }
 
@@ -317,7 +317,7 @@ public abstract class ContinuousArrayData extends ArrayData {
      * @param arg argument
      * @return new array length
      */
-    public long fastPush(final Object arg) {
+    public double fastPush(final Object arg) {
         throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
     }
 
@@ -326,14 +326,6 @@ public abstract class ContinuousArrayData extends ArrayData {
      * @return element value
      */
     public int fastPopInt() {
-        throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
-    }
-
-    /**
-     * Specialization - fast pop implementation
-     * @return element value
-     */
-    public long fastPopLong() {
         throw new ClassCastException(String.valueOf(getClass())); //type is wrong, relink
     }
 

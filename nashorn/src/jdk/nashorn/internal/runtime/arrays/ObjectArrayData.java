@@ -150,13 +150,6 @@ final class ObjectArrayData extends ContinuousArrayData implements AnyElements {
     }
 
     @Override
-    public ArrayData set(final int index, final long value, final boolean strict) {
-        array[index] = value;
-        setLength(Math.max(index + 1, length()));
-        return this;
-    }
-
-    @Override
     public ArrayData set(final int index, final double value, final boolean strict) {
         array[index] = value;
         setLength(Math.max(index + 1, length()));
@@ -216,11 +209,6 @@ final class ObjectArrayData extends ContinuousArrayData implements AnyElements {
     }
 
     @Override
-    public long getLong(final int index) {
-        return JSType.toLong(array[index]);
-    }
-
-    @Override
     public double getDouble(final int index) {
         return JSType.toNumber(array[index]);
     }
@@ -248,22 +236,22 @@ final class ObjectArrayData extends ContinuousArrayData implements AnyElements {
     }
 
     @Override
-    public long fastPush(final int arg) {
+    public double fastPush(final int arg) {
         return fastPush((Object)arg);
     }
 
     @Override
-    public long fastPush(final long arg) {
+    public double fastPush(final long arg) {
         return fastPush((Object)arg);
     }
 
     @Override
-    public long fastPush(final double arg) {
+    public double fastPush(final double arg) {
         return fastPush((Object)arg);
     }
 
     @Override
-    public long fastPush(final Object arg) {
+    public double fastPush(final Object arg) {
         final int len = (int)length();
         if (len == array.length) {
             array = Arrays.copyOf(array, nextSize(len));
