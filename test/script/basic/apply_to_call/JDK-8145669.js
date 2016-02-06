@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* 
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,25 +21,13 @@
  * questions.
  */
 
-/**
- * Tests with -0
+/* 
+ * JDK-8145669: apply2call optimized callsite fails after becoming megamorphic
  *
  * @test
+ * @option -Dnashorn.unstable.relink.threshold=1
+ * @fork
  * @run
  */
 
-var mz = -0;
-print(mz);
-print(mz === -0);
-print(1/mz);
-
-var obj = {};
-obj.length = -0;
-print(obj.length);
-print(obj.length === -0);
-print(1/obj.length);
-
-var mzl = -(0x7fffffffffffffff - 0x7fffffffffffffff);
-print(mzl);
-print(mzl === -0);
-print(1/mzl);
+load(__DIR__ + "apply_to_call2.js");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,28 @@
  */
 
 /**
- * Tests with -0
+ * JDK-8146147: Java linker indexed property getter does not work for computed nashorn string
  *
  * @test
  * @run
  */
 
-var mz = -0;
-print(mz);
-print(mz === -0);
-print(1/mz);
+var locale = java.util.Locale.ENGLISH;
+var prop = 'ISO3Language';
+var prop1 = 'ISO3';
+var prop2 = prop1 + 'Language';
+var prop3 = String(prop2);
 
-var obj = {};
-obj.length = -0;
-print(obj.length);
-print(obj.length === -0);
-print(1/obj.length);
+function checkLang(obj) {
+    if (obj != "eng") {
+        throw new Error("FAILED: expected 'eng', got " + obj);
+    }
+}
 
-var mzl = -(0x7fffffffffffffff - 0x7fffffffffffffff);
-print(mzl);
-print(mzl === -0);
-print(1/mzl);
+checkLang(locale.ISO3Language);
+checkLang(locale['ISO3Language']);
+checkLang(locale[prop]);
+checkLang(locale[prop1 + 'Language']);
+checkLang(locale[prop2]);
+checkLang(locale[prop3]);
+checkLang(locale[String(prop1 + 'Language')]);
