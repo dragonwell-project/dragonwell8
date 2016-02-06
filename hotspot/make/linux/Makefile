@@ -67,8 +67,12 @@ ifndef CC_INTERP
   endif
 endif
 # C1 is not ported on ppc64, so we cannot build a tiered VM:
-ifeq ($(ARCH),ppc64)
-  FORCE_TIERED=0
+# Notice: after 8046471 ARCH will be 'ppc' for top-level ppc64 builds but
+# 'ppc64' for HotSpot-only ppc64 builds. Need to detect both variants here!
+ifneq (,$(findstring $(ARCH), ppc ppc64))
+  ifeq ($(ARCH_DATA_MODEL), 64)
+    FORCE_TIERED=0
+  endif
 endif
 
 ifdef LP64

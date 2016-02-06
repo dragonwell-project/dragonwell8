@@ -22,7 +22,7 @@
  */
 
 /* @test
- * @bug 8062518
+ * @bug 8062518 8133924
  * @summary This class contains tests for XSLT functions
  * @compile DocumentExtFunc.java
  * @run testng/othervm XSLTFunctionsTest
@@ -102,9 +102,26 @@ public class XSLTFunctionsTest {
     @DataProvider(name = "document")
     public static Object[][] documentTestData() {
         return new Object[][] {
+            // 8062518
             {documentTestXml, documentTestXsl, documentTestExternalDoc, documentTesteExpectedResult},
+            // 8133924
+            {documentTestXml, nonExistingNodeXsl, documentTestExternalDoc, nonExistNodeExpectedResult},
         };
     }
+
+    // bug 8133924 xsl: test data to trigger the NPE when non-existing node is specified in xsl
+    static final String nonExistingNodeXsl = "<?xml version='1.0' encoding=\"UTF-8\"?>"
+            + "<xsl:transform xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\""
+            + " xmlns:set=\"http://exslt.org/sets\""
+            + " exclude-result-prefixes=\"set\">"
+            + " <xsl:template match=\"/\">"
+            + " <xsl:copy-of select=\"set:leading(/Test, /Test/non-existing)\"/>"
+            + "</xsl:template>"
+            + "</xsl:transform>";
+
+    //For bug 8133924 xsl the empty transformation result is expected instead of NPE
+    static final String nonExistNodeExpectedResult = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+                                                    + "<Test>Doc</Test>";
 
     static final String documentTestXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Test>Doc</Test>";
 
@@ -112,7 +129,7 @@ public class XSLTFunctionsTest {
 
     static final String documentTestXsl = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<xsl:transform version=\"1.0\""
-            + " xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" "
+            + " xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\""
             + " xmlns:cfunc=\"http://xml.apache.org/xalan/java/\">"
             + "<xsl:template match=\"/\">"
             + "<xsl:element name=\"root\">"

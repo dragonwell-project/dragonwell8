@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -301,6 +301,16 @@ void report_java_out_of_memory(const char* message) {
     if (OnOutOfMemoryError && OnOutOfMemoryError[0]) {
       VMError err(message);
       err.report_java_out_of_memory();
+    }
+
+    if (CrashOnOutOfMemoryError) {
+      tty->print_cr("Aborting due to java.lang.OutOfMemoryError: %s", message);
+      fatal(err_msg("OutOfMemory encountered: %s", message));
+    }
+
+    if (ExitOnOutOfMemoryError) {
+      tty->print_cr("Terminating due to java.lang.OutOfMemoryError: %s", message);
+      exit(3);
     }
   }
 }
