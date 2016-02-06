@@ -291,15 +291,24 @@ public class Version {
                 jvm_minor_version = Character.digit(cs.charAt(2), 10);
                 jvm_micro_version = Character.digit(cs.charAt(4), 10);
                 cs = cs.subSequence(5, cs.length());
-                if (cs.charAt(0) == '_' && cs.length() >= 3 &&
-                    Character.isDigit(cs.charAt(1)) &&
-                    Character.isDigit(cs.charAt(2))) {
-                    int nextChar = 3;
+                if (cs.charAt(0) == '_' && cs.length() >= 3) {
+                    int nextChar = 0;
+                    if (Character.isDigit(cs.charAt(1)) &&
+                        Character.isDigit(cs.charAt(2)) &&
+                        Character.isDigit(cs.charAt(3)))
+                    {
+                        nextChar = 4;
+                    } else if (Character.isDigit(cs.charAt(1)) &&
+                        Character.isDigit(cs.charAt(2)))
+                    {
+                        nextChar = 3;
+                    }
+
                     try {
-                        String uu = cs.subSequence(1, 3).toString();
+                        String uu = cs.subSequence(1, nextChar).toString();
                         jvm_update_version = Integer.valueOf(uu).intValue();
-                        if (cs.length() >= 4) {
-                            char c = cs.charAt(3);
+                        if (cs.length() >= nextChar + 1) {
+                            char c = cs.charAt(nextChar);
                             if (c >= 'a' && c <= 'z') {
                                 jvm_special_version = Character.toString(c);
                                 nextChar++;

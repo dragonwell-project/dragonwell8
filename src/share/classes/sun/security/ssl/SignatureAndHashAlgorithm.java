@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package sun.security.ssl;
 import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
 import java.security.PrivateKey;
+import java.security.Security;
 
 import java.util.Set;
 import java.util.HashSet;
@@ -152,13 +153,11 @@ final class SignatureAndHashAlgorithm {
             getSupportedAlgorithms(AlgorithmConstraints constraints) {
 
         Collection<SignatureAndHashAlgorithm> supported = new ArrayList<>();
-        synchronized (priorityMap) {
-            for (SignatureAndHashAlgorithm sigAlg : priorityMap.values()) {
-                if (sigAlg.priority <= SUPPORTED_ALG_PRIORITY_MAX_NUM &&
-                        constraints.permits(SIGNATURE_PRIMITIVE_SET,
-                                sigAlg.algorithm, null)) {
-                    supported.add(sigAlg);
-                }
+        for (SignatureAndHashAlgorithm sigAlg : priorityMap.values()) {
+            if (sigAlg.priority <= SUPPORTED_ALG_PRIORITY_MAX_NUM &&
+                    constraints.permits(SIGNATURE_PRIMITIVE_SET,
+                            sigAlg.algorithm, null)) {
+                supported.add(sigAlg);
             }
         }
 
@@ -412,10 +411,14 @@ final class SignatureAndHashAlgorithm {
                     "SHA1withRSA",          --p);
             supports(HashAlgorithm.SHA1,        SignatureAlgorithm.ECDSA,
                     "SHA1withECDSA",        --p);
-            supports(HashAlgorithm.SHA224,      SignatureAlgorithm.RSA,
-                    "SHA224withRSA",        --p);
-            supports(HashAlgorithm.SHA224,      SignatureAlgorithm.ECDSA,
-                    "SHA224withECDSA",      --p);
+
+            if (Security.getProvider("SunMSCAPI") == null) {
+                supports(HashAlgorithm.SHA224,      SignatureAlgorithm.RSA,
+                        "SHA224withRSA",        --p);
+                supports(HashAlgorithm.SHA224,      SignatureAlgorithm.ECDSA,
+                        "SHA224withECDSA",      --p);
+            }
+
             supports(HashAlgorithm.SHA256,      SignatureAlgorithm.RSA,
                     "SHA256withRSA",        --p);
             supports(HashAlgorithm.SHA256,      SignatureAlgorithm.ECDSA,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1068,6 +1068,7 @@ JVMInit(InvocationFunctions* ifn, jlong threadStackSize,
 void PostJVMInit(JNIEnv *env, jstring mainClass, JavaVM *vm) {
     jvmInstance = vm;
     SetMainClassForAWT(env, mainClass);
+    CHECK_EXCEPTION_RETURN();
     ShowSplashScreen();
 }
 
