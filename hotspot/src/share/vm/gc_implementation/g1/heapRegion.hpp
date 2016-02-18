@@ -779,6 +779,9 @@ class HeapRegion: public G1OffsetTableContigSpace {
 
   // Override; it uses the "prev" marking information
   virtual void verify() const;
+
+  void verify_rem_set(VerifyOption vo, bool *failures) const;
+  void verify_rem_set() const;
 };
 
 // HeapRegionClosure is used for iterating over regions.
