@@ -43,11 +43,11 @@
 #                             in your java file
 #    classname=<classnam>     Omit this to use the default class name, 'shtest'.
 
-#    compileOptions=<string>  compile options for at least the first compile, 
+#    compileOptions=<string>  compile options for at least the first compile,
 #                             eg, compileOptions=-g
 #    compileOptions2=<string> Options for the 2nd, ..., compile. compileOptions1
 #                             is used if this is not set.  To use no compile
-#                             options for the 2nd ... compiles, do 
+#                             options for the 2nd ... compiles, do
 #                             compileOptions2=none
 #
 #    mode=-Xcomp or mode=-Xint to run in these modes.  These should not
@@ -88,12 +88,12 @@
 #
 # The only other tag supported is @1 breakpoint.  The setbkpts function
 # sets bkpts at all lines that contain this string.
-# 
+#
 # Currently, all these tags are start with @1.  It is envisioned that this script
 # could be ehanced to allow multiple cycles of redefines by allowing
 # @2, @3, ... tags.  IE, processing the @i tags in the ith version of
 # the file will produce the i+1th version of the file.
-# 
+#
 # There are problem with jtreg leaving behind orphan java and jdb processes
 # when this script is run.  Sometimes, on some platforms, it just doesn't
 # get them all killed properly.
@@ -110,7 +110,7 @@
 #
 # mks 6.2a on win 98 presents two problems:
 #   $! returns the PID as a negative number whereas ps returns
-#      it in the form 0xFFF....  This means our trick of 
+#      it in the form 0xFFF....  This means our trick of
 #      of using $! to get the PIDs of the jdb and debuggee processes
 #      doesn't work.  This will cause some error cases to fail
 #      with a jtreg timeout instead of failing more gracefully.
@@ -167,7 +167,7 @@ killOrphans()
         # then use ps to find the cygwin pid to be killed.
         # The form of a ps output line is
         # ^   ddddd    dddd    dddd    dddd.*
-        # where the 4th digits are the win pid and the first 
+        # where the 4th digits are the win pid and the first
         # are the cygwin pid.
         if [ -r "$jdk/bin/$jstack" ] ; then
             winPid=`$jdk/bin/jps -v | $grep -i $str | sed -e 's@ .*@@'`
@@ -181,7 +181,7 @@ killOrphans()
                             awk '{print $1}' | tr '\n\r' '  '`
             fi
         else
-            # Well, too bad - we can't find what to kill.  
+            # Well, too bad - we can't find what to kill.
             toBeKilled=
         fi
     fi
@@ -190,35 +190,31 @@ killOrphans()
         echo "$1: kill -9 $toBeKilled"  >& 2
         kill -9 $toBeKilled
     fi
-}    
+}
 
 findPid()
 {
     # Return 0 if $1 is the pid of a running process.
-    if [ -z "$isWin98" ] ; then
-        if [ "$osname" = SunOS ] ; then
-            # Solaris and OpenSolaris use pgrep and not ps in psCmd
-            findPidCmd="$psCmd"
-        elif [ "$osname" = AIX ] ; then
-            findPidCmd="$psCmd"
-        else
+    case "$osname" in
+        SunOS | AIX)
+            $psCmd | $grep '^ *'"$1 " > $devnull 2>&1
+            res=$?
+            ;;
+        Windows* | CYGWIN*)
+            # Don't use ps on cygwin since it sometimes misses
+            # some processes (!).
+            tasklist /NH | $grep " $1 " > $devnull 2>&1
+            res=$?
+            ;;
+       *)
             #   Never use plain 'ps', which requires a "controlling terminal"
             #     and will fail  with a "ps: no controlling terminal" error.
             #     Running under 'rsh' will cause this ps error.
-            # cygwin ps puts an I in column 1 for some reason.
-            findPidCmd="$psCmd -e"
-        fi
-	$findPidCmd | $grep '^I* *'"$1 " > $devnull 2>&1
-        return $?
-    fi
-
-    # mks 6.2a on win98 has $! getting a negative
-    # number and in ps, it shows up as 0x...
-    # Thus, we can't search in ps output for 
-    # PIDs gotten via $!
-    # We don't know if it is running or not - assume it is.
-    # We don't really care about win98 anymore.
-    return 0
+            $psCmd -e | $grep '^ *'"$1 " > $devnull 2>&1
+            res=$?
+            ;;
+    esac
+    return $res
 }
 
 setup()
@@ -245,20 +241,13 @@ setup()
         echo "--Error: TESTJAVA must be defined as the pathname of a jdk to test."
         exit 1
     fi
-    
+
     ulimitCmd=
     osname=`uname -s`
-    isWin98=
     isCygwin=
     case "$osname" in
-       Windows* | CYGWIN*)	   
+       Windows* | CYGWIN*)
          devnull=NUL
-	 if [ "$osname" = Windows_98 -o "$osname" = Windows_ME ]; then
-             isWin98=1
-             debuggeeKeyword='we_cant_kill_debuggees_on_win98'
-             jdbKeyword='jdb\.exe'
-	 fi
-
          case "$osname" in
            CYGWIN*)
              isCygwin=1
@@ -373,12 +362,12 @@ EOF
 ####################################################3
 ####################################################3
 ####################################################3
-#  sol:  this gets all processes killed but 
+#  sol:  this gets all processes killed but
 #        no jstack
 #  linux same as above
 #  win mks:  No dice; processes still running
     trap "cleanup" 0 1 2 3 4 6 9 10 15
-    
+
     jdbOptions="$jdbOptions -J-D${jdbKeyword}"
 }
 
@@ -397,7 +386,7 @@ docompile()
     cp $classname.java.1 $classname.java
     echo "--Compiling first version of `pwd`/$classname.java with options: $compileOptions"
     # Result is in $pkgSlash$classname.class
-    
+
     if [ -z "$javacCmd" ] ; then
         javacCmd=$jdk/bin/javac
     fi
@@ -435,7 +424,7 @@ docompile()
         if [ $? = 0 ] ; then
             break
         fi
-        echo 
+        echo
         echo "--Compiling second version of `pwd`/$classname.java with $compileOptions"
         $javacCmd $compileOptions -d . $classname.java
         if [ $? != 0 ] ; then
@@ -464,7 +453,7 @@ docompile()
         if [ $? = 0 ] ; then
             break
         fi
-        echo 
+        echo
         echo "--Compiling third version of `pwd`/$classname.java with $compileOptions"
         $javacCmd $compileOptions -d . $classname.java
         if [ $? != 0 ] ; then
@@ -490,7 +479,7 @@ docompile()
         if [ $? = 0 ] ; then
             break
         fi
-        echo 
+        echo
         echo "--Compiling fourth version of `pwd`/$classname.java with $compileOptions"
         $javacCmd $compileOptions -d . $classname.java
         if [ $? != 0 ] ; then
@@ -523,7 +512,7 @@ docompile()
 # If it ever becomes necessary to send a jdb command before
 # a  main[10] form of prompt appears, then this
 # code will have to be modified.
-cmd() 
+cmd()
 {
     if [ $1 = quit -o -r "$failFile" ] ; then
         # if jdb got a cont cmd that caused the debuggee
@@ -540,21 +529,21 @@ cmd()
         # in the pipeline.
         exit 1
     fi
-    
+
     # $jdbOutFile always exists here and is non empty
-    # because after starting jdb, we waited 
+    # because after starting jdb, we waited
     # for the prompt.
     fileSize=`wc -c $jdbOutFile | awk '{ print $1 }'`
     echo "--Sending cmd: " $* >&2
 
     # jjh: We have a few intermittent failures here.
     # It is as if every so often, jdb doesn't
-    # get the first cmd that is sent to it here.  
+    # get the first cmd that is sent to it here.
     # (actually, I have seen it get the first cmd ok,
     # but then not get some subsequent cmd).
     # It seems like jdb really doesn't get the cmd; jdb's response
     # does not appear in the jxdboutput file. It contains:
-    # main[1] 
+    # main[1]
     # The application has been disconnected
 
     # Is it possible
@@ -569,7 +558,7 @@ cmd()
     # msg output below after the timeout.
     # And, we know jdb is started because the main[1] output is in the .jtr
     # file.  And, we wouldn't have gotten here if mydojdbcmds hadn't
-    # seen the ].  
+    # seen the ].
     echo $*
 
     # Now we have to wait for the next jdb prompt.  We wait for a pattern
@@ -605,7 +594,7 @@ cmd()
     # i.e., the > prompt comes out AFTER the prompt we we need to wait for.
     #
     # So, how do we know when the next prompt has appeared??
-    # 1.  Search for 
+    # 1.  Search for
     #         main[89] $
     #     This will handle cases 1, 2, 3
     # 2.  This leaves cases 4 and 5.
@@ -715,7 +704,7 @@ waitForJdbMsg()
     allowExit="$3"
     myCount=0
     timeLimit=40  # wait a max of this many secs for a response from a jdb command
-    while [ 1 = 1 ] ; do 
+    while [ 1 = 1 ] ; do
         if [  -r $jdbOutFile ] ; then
             # Something here causes jdb to complain about Unrecognized cmd on x86.
             tail -$nlines $jdbOutFile | $grep -s "$1" > $devnull 2>&1
@@ -723,27 +712,27 @@ waitForJdbMsg()
                 # Found desired string
                 break
             fi
-	fi
-	tail -2 $jdbOutFile | $grep -s "The application exited" > $devnull 2>&1
-	if [ $? = 0 ] ; then
+    fi
+    tail -2 $jdbOutFile | $grep -s "The application exited" > $devnull 2>&1
+    if [ $? = 0 ] ; then
             # Found 'The application exited'
             if [ ! -z "$allowExit" ] ; then
                 break
             fi
             # Otherwise, it is an error if we don't find $1
-	    if [  -r $jdbOutFile ] ; then 
-		tail -$nlines $jdbOutFile | $grep -s "$1" > $devnull 2>&1		
+        if [  -r $jdbOutFile ] ; then
+        tail -$nlines $jdbOutFile | $grep -s "$1" > $devnull 2>&1
                 if [ $? = 0 ] ; then
-		   break
-		fi
-	    fi
-            dofail "Waited for jdb msg $1, but it never appeared"	            
-	fi
+           break
+        fi
+        fi
+            dofail "Waited for jdb msg $1, but it never appeared"
+    fi
 
         sleep ${sleep_seconds}
         findPid $topPid
         if [ $? != 0 ] ; then
-            # Top process is dead.  We better die too
+            echo "--Top process ($topPid) is dead.  We better die too" >&2
             dojstack
             exit 1
         fi
@@ -788,7 +777,7 @@ dofail()
 }
 
 
-redefineClass() 
+redefineClass()
 {
     if [ -z "$1" ] ; then
         vers=2
@@ -796,7 +785,7 @@ redefineClass()
         vers=`echo $1 | sed -e 's/@//'`
         vers=`expr $vers + 1`
     fi
-        
+
     cmd redefine $pkgDot$classname $tmpFileDir/vers$vers/$classname.class
 
     cp $tmpFileDir/$classname.java.$vers \
@@ -853,7 +842,7 @@ startDebuggee()
     if [ -r $TESTCLASSES/../@debuggeeVMOptions ] ; then
        args=`cat $TESTCLASSES/../@debuggeeVMOptions`
     fi
-    
+
     if [ ! -z "$args" ] ; then
        echo "--Starting debuggee with args from @debuggeeVMOptions: $args"
     else
@@ -931,12 +920,6 @@ waitForFinish()
         if [ $? != 0 ] ; then
             break
         fi
-        if [ ! -z "$isWin98" ] ; then
-           $psCmd | $grep -i 'JDB\.EXE' >$devnull 2>&1 
-           if [ $? != 0 ] ; then
-               break;
-           fi
-        fi
         $grep -s 'Input stream closed' $jdbOutFile > $devnull 2>&1
         if [ $? = 0 ] ; then
             #something went wrong
@@ -970,7 +953,7 @@ grepForString()
         theCmd="tail -$3"
     fi
 
-    case "$2" in 
+    case "$2" in
     *\>*)
         # Target string contains a '>' so we better not ignore it
         $theCmd $1 | $grep -s "$2"  > $devnull 2>&1
@@ -1016,7 +999,7 @@ matchRegexp()
         theCmd="tail -$3"
     fi
 
-    case "$2" in 
+    case "$2" in
     *\>*)
         # Target string contains a '>' so we better not ignore it
         res=`$theCmd $1 | sed -e "$2"`
@@ -1136,7 +1119,7 @@ runit()
 runitAfterSetup()
 {
     docompile
-    startJdb 
+    startJdb
     startDebuggee
     waitForFinish
 
