@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -1440,7 +1440,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
             // AttValue
             boolean isVC = !fStandalone  &&  (fSeenExternalDTD || fSeenExternalPE) ;
             scanAttributeValue(defaultVal, nonNormalizedDefaultVal, atName,
-            fAttributes, 0, isVC, elName);
+            fAttributes, 0, isVC, elName, false);
         }
         return defaultType;
 
@@ -1658,7 +1658,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
          }
         fLimitAnalyzer.startEntity(entityName);
 
-        if (fEntityScanner.scanLiteral(quote, fString) != quote) {
+        if (fEntityScanner.scanLiteral(quote, fString, false) != quote) {
             fStringBuffer.clear();
             fStringBuffer2.clear();
             do {
@@ -1742,7 +1742,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
                         fEntityScanner.scanChar();
                     }
                 }
-            } while (fEntityScanner.scanLiteral(quote, fString) != quote);
+            } while (fEntityScanner.scanLiteral(quote, fString, false) != quote);
             fStringBuffer.append(fString);
             fStringBuffer2.append(fString);
             literal = fStringBuffer;
