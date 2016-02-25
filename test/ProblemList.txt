@@ -273,3 +273,10 @@ tools/launcher/FXLauncherTest.java                              linux-all
 java/util/concurrent/locks/ReentrantLock/CancelledLockLoops.java generic-all
 
 ############################################################################
+
+# svc_tools
+
+# 8031482
+sun/tools/jcmd/TestJcmdSanity.java				windows-all
+
+############################################################################
