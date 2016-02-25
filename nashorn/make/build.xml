@@ -222,6 +222,7 @@
     <javadoc destdir="${dist.javadoc.dir}" use="yes" overview="${src.dir}/overview.html" 
         extdirs="${nashorn.ext.path}" windowtitle="${nashorn.product.name} ${nashorn.version}"
         additionalparam="-quiet" failonerror="true" useexternalfile="true">
+      <arg value="${javadoc.option}"/>
       <classpath>
         <pathelement location="${build.classes.dir}"/>
       </classpath>
@@ -240,6 +241,7 @@
     <javadoc destdir="${dist.javadoc.dir}" use="yes" overview="${src.dir}/overview.html"
         extdirs="${nashorn.ext.path}" windowtitle="${nashorn.product.name} ${nashorn.version}"
         additionalparam="-quiet" failonerror="true" useexternalfile="true">
+      <arg value="${javadoc.option}"/>
       <classpath>
         <pathelement location="${build.classes.dir}"/>
       </classpath>
@@ -252,6 +254,7 @@
   <target name="javadocapi" depends="jar">
     <javadoc destdir="${dist.javadoc.dir}" use="yes" extdirs="${nashorn.ext.path}" 
         windowtitle="${nashorn.product.name}" additionalparam="-quiet" failonerror="true" useexternalfile="true">
+      <arg value="${javadoc.option}"/>
       <classpath>
         <pathelement location="${build.classes.dir}"/>
       </classpath>
