@@ -1385,7 +1385,13 @@ void PhaseMacroExpand::expand_allocate_common(
     // MemBarStoreStore so that stores that initialize this object
     // can't be reordered with a subsequent store that makes this
     // object accessible by other threads.
-    if (init == NULL || (!init->is_complete_with_arraycopy() && !init->does_not_escape())) {
+    if ( AARCH64_ONLY ( !alloc->does_not_escape_thread() &&
+	                (init == NULL ||
+			 !init->is_complete_with_arraycopy()) )
+         NOT_AARCH64  ( init == NULL ||
+			(!init->is_complete_with_arraycopy() &&
+			 !init->does_not_escape()) )
+       ) {
       if (init == NULL || init->req() < InitializeNode::RawStores) {
         // No InitializeNode or no stores captured by zeroing
         // elimination. Simply add the MemBarStoreStore after object

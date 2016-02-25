@@ -3093,7 +3093,9 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // Final field stores.
       Node* alloc = AllocateNode::Ideal_allocation(in(MemBarNode::Precedent), phase);
       if ((alloc != NULL) && alloc->is_Allocate() &&
-          alloc->as_Allocate()->_is_non_escaping) {
+          AARCH64_ONLY ( alloc->as_Allocate()->does_not_escape_thread() )
+	  NOT_AARCH64  ( alloc->as_Allocate()->_is_non_escaping )
+         ) {
         // The allocated object does not escape.
         eliminate = true;
       }
