@@ -279,4 +279,7 @@ java/util/concurrent/locks/ReentrantLock/CancelledLockLoops.java generic-all
 # 8031482
 sun/tools/jcmd/TestJcmdSanity.java				windows-all
 
+# 6456333
+sun/tools/jps/TestJpsJarRelative.java				generic-all
+
 ############################################################################
