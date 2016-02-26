@@ -752,7 +752,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     __ cmp(rscratch1, tmp);
     __ ldr(rmethod, Address(holder, CompiledICHolder::holder_method_offset()));
     __ br(Assembler::EQ, ok);
-    __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 
     __ bind(ok);
     // Method might have been compiled since the call site was patched to
@@ -760,7 +760,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     // the call site corrected.
     __ ldr(rscratch1, Address(rmethod, in_bytes(Method::code_offset())));
     __ cbz(rscratch1, skip_fixup);
-    __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
     __ block_comment("} c2i_unverified_entry");
   }
 
@@ -1178,7 +1178,7 @@ class ComputeMoveOrder: public StackObj {
 static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, int type) {
   CodeBlob *cb = CodeCache::find_blob(dest);
   if (cb) {
-    __ bl(RuntimeAddress(dest));
+    __ far_call(RuntimeAddress(dest));
   } else {
     assert((unsigned)gpargs < 256, "eek!");
     assert((unsigned)fpargs < 32, "eek!");
@@ -1549,7 +1549,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ cmp_klass(receiver, ic_reg, rscratch1);
   __ br(Assembler::EQ, hit);
 
-  __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
 
   // Verified entry point must be aligned
   __ align(8);
@@ -2072,7 +2072,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ bind(exception_pending);
 
     // and forward the exception
-    __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+    __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
   }
 
   // Slow path locking & unlocking
@@ -2865,7 +2865,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   RegisterSaver::restore_live_registers(masm);
 
-  __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+  __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
   // No exception case
   __ bind(noException);
@@ -2961,7 +2961,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
 
   __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
-  __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+  __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
   // -------------
   // make sure all code is generated

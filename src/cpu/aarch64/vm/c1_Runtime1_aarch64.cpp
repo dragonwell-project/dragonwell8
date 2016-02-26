@@ -97,11 +97,11 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
     }
     if (frame_size() == no_frame_size) {
       leave();
-      b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+      far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
     } else if (_stub_id == Runtime1::forward_exception_id) {
       should_not_reach_here();
     } else {
-      b(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
+      far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
     }
     bind(L);
   }
@@ -324,7 +324,7 @@ void Runtime1::initialize_pd() {
 
 
 // target: the entry point of the method that creates and posts the exception oop
-// has_argument: true if the exception needs an argument (passed on stack because registers must be preserved)
+// has_argument: true if the exception needs an argument (passed in rscratch1)
 
 OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {
   // make a frame and preserve the caller's caller-save registers
@@ -580,7 +580,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
 
     { Label L1;
       __ cbnz(r0, L1);                                  // have we deoptimized?
-      __ b(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
+      __ far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::forward_exception_id)));
       __ bind(L1);
     }
 
@@ -624,7 +624,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
     // registers and must leave throwing pc on the stack.  A patch may
     // have values live in registers so the entry point with the
     // exception in tls.
-    __ b(RuntimeAddress(deopt_blob->unpack_with_exception_in_tls()));
+    __ far_jump(RuntimeAddress(deopt_blob->unpack_with_exception_in_tls()));
 
     __ bind(L);
   }
@@ -641,7 +641,7 @@ OopMapSet* Runtime1::generate_patching(StubAssembler* sasm, address target) {
   // registers, pop all of our frame but the return address and jump to the deopt blob
   restore_live_registers(sasm);
   __ leave();
-  __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
+  __ far_jump(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
 
   __ bind(cont);
   restore_live_registers(sasm);
@@ -1095,7 +1095,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
         assert(deopt_blob != NULL, "deoptimization blob must have been created");
         __ leave();
-        __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
+        __ far_jump(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
       }
       break;
 
@@ -1304,7 +1304,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         DeoptimizationBlob* deopt_blob = SharedRuntime::deopt_blob();
         assert(deopt_blob != NULL, "deoptimization blob must have been created");
 
-        __ b(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
+        __ far_jump(RuntimeAddress(deopt_blob->unpack_with_reexecution()));
       }
       break;
 

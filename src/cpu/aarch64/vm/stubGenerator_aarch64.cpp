@@ -2495,7 +2495,7 @@ class StubGenerator: public StubCodeGenerator {
     __ should_not_reach_here();
     __ bind(L);
 #endif // ASSERT
-    __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+    __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
 
     // codeBlob framesize is in words (not VMRegImpl::slot_size)

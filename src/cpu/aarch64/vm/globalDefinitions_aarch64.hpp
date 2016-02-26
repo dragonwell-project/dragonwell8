@@ -37,4 +37,8 @@ const bool CCallingConventionRequiresIntsAsLongs = false;
 
 #define SUPPORTS_NATIVE_CX8
 
+// The maximum B/BL offset range on AArch64 is 128MB.
+#undef CODE_CACHE_DEFAULT_LIMIT
+#define CODE_CACHE_DEFAULT_LIMIT (128*M)
+
 #endif // CPU_AARCH64_VM_GLOBALDEFINITIONS_AARCH64_HPP

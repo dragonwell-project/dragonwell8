@@ -509,7 +509,11 @@ public:
   static bool needs_explicit_null_check(intptr_t offset);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
-
+  static address target_addr_for_insn(address insn_addr) {
+    unsigned insn = *(unsigned*)insn_addr;
+    return target_addr_for_insn(insn_addr, insn);
+  }
+  
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   static int pd_patch_instruction_size(address branch, address target);
@@ -517,14 +521,15 @@ public:
     pd_patch_instruction_size(branch, target);
   }
   static address pd_call_destination(address branch) {
-    unsigned insn = *(unsigned*)branch;
-    return target_addr_for_insn(branch, insn);
+    return target_addr_for_insn(branch);
   }
 #ifndef PRODUCT
   static void pd_print_patched_instruction(address branch);
 #endif
 
   static int patch_oop(address insn_addr, address o);
+
+  void emit_trampoline_stub(int insts_call_instruction_offset, address target);
 
   // The following 4 methods return the offset of the appropriate move instruction
 
@@ -942,12 +947,24 @@ public:
 
   // Calls
 
-  // void call(Label& L, relocInfo::relocType rtype);
+  void trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
 
-  // NOTE: this call tranfers to the effective address of entry NOT
-  // the address contained by entry. This is because this is more natural
-  // for jumps/calls.
-  void call(Address entry);
+  static bool far_branches() {
+    return ReservedCodeCacheSize > branch_range;
+  }
+
+  // Jumps that can reach anywhere in the code cache.
+  // Trashes tmp.
+  void far_call(Address entry, CodeBuffer *cbuf = NULL, Register tmp = rscratch1);
+  void far_jump(Address entry, CodeBuffer *cbuf = NULL, Register tmp = rscratch1);
+
+  static int far_branch_size() {
+    if (far_branches()) {
+      return 3 * 4;  // adrp, add, br
+    } else {
+      return 4;
+    }
+  }
 
   // Emit the CompiledIC call idiom
   void ic_call(address entry);

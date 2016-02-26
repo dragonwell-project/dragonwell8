@@ -180,7 +180,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   __ br(rscratch1);
 
   __ bind(throw_icce);
-  __ b(RuntimeAddress(StubRoutines::throw_IncompatibleClassChangeError_entry()));
+  __ far_jump(RuntimeAddress(StubRoutines::throw_IncompatibleClassChangeError_entry()));
 
   __ flush();
 

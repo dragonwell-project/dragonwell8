@@ -1365,7 +1365,6 @@ void Assembler::br(Condition cc, Label &L) {
   if (L.is_bound()) {
     br(cc, target(L));
   } else {
-    InstructionMark im(this);
     L.add_patch_at(code(), locator());
     br(cc, pc());
   }
@@ -1376,7 +1375,6 @@ void Assembler::wrap_label(Label &L,
   if (L.is_bound()) {
     (this->*insn)(target(L));
   } else {
-    InstructionMark im(this);
     L.add_patch_at(code(), locator());
     (this->*insn)(pc());
   }
@@ -1387,7 +1385,6 @@ void Assembler::wrap_label(Register r, Label &L,
   if (L.is_bound()) {
     (this->*insn)(r, target(L));
   } else {
-    InstructionMark im(this);
     L.add_patch_at(code(), locator());
     (this->*insn)(r, pc());
   }
@@ -1398,7 +1395,6 @@ void Assembler::wrap_label(Register r, int bitpos, Label &L,
   if (L.is_bound()) {
     (this->*insn)(r, bitpos, target(L));
   } else {
-    InstructionMark im(this);
     L.add_patch_at(code(), locator());
     (this->*insn)(r, bitpos, pc());
   }
@@ -1408,7 +1404,6 @@ void Assembler::wrap_label(Label &L, prfop op, prefetch_insn insn) {
   if (L.is_bound()) {
     (this->*insn)(target(L), op);
   } else {
-    InstructionMark im(this);
     L.add_patch_at(code(), locator());
     (this->*insn)(pc(), op);
   }

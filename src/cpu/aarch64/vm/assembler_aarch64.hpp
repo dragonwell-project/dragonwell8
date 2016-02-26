@@ -849,16 +849,28 @@ public:
 
 #undef INSN
 
+  // The maximum range of a branch is fixed for the AArch64
+  // architecture.  In debug mode we shrink it in order to test
+  // trampolines, but not so small that branches in the interpreter
+  // are out of range.
+  static const unsigned long branch_range = NOT_DEBUG(128 * M) DEBUG_ONLY(2 * M);
+
+  static bool reachable_from_branch_at(address branch, address target) {
+    return uabs(target - branch) < branch_range;
+  }
+
   // Unconditional branch (immediate)
-#define INSN(NAME, opcode)					\
-  void NAME(address dest) {					\
-    starti;							\
-    long offset = (dest - pc()) >> 2;				\
-    f(opcode, 31), f(0b00101, 30, 26), sf(offset, 25, 0);	\
-  }								\
-  void NAME(Label &L) {						\
-    wrap_label(L, &Assembler::NAME);				\
-  }								\
+
+#define INSN(NAME, opcode)                                              \
+  void NAME(address dest) {                                             \
+    starti;                                                             \
+    long offset = (dest - pc()) >> 2;                                   \
+    DEBUG_ONLY(assert(reachable_from_branch_at(pc(), dest), "debug only")); \
+    f(opcode, 31), f(0b00101, 30, 26), sf(offset, 25, 0);               \
+  }                                                                     \
+  void NAME(Label &L) {                                                 \
+    wrap_label(L, &Assembler::NAME);                                    \
+  }                                                                     \
   void NAME(const Address &dest);
 
   INSN(b, 0);

@@ -149,7 +149,7 @@ int MacroAssembler::pd_patch_instruction_size(address branch, address target) {
     Instruction_aarch64::patch(branch, 20, 5, dest & 0xffff);
     Instruction_aarch64::patch(branch+4, 20, 5, (dest >>= 16) & 0xffff);
     Instruction_aarch64::patch(branch+8, 20, 5, (dest >>= 16) & 0xffff);
-    assert(pd_call_destination(branch) == target, "should be");
+    assert(target_addr_for_insn(branch) == target, "should be");
     instructions = 3;
   } else if (Instruction_aarch64::extract(insn, 31, 22) == 0b1011100101 &&
              Instruction_aarch64::extract(insn, 4, 0) == 0b11111) {
@@ -353,6 +353,42 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
     InstructionMark im(this);
     L.add_patch_at(code(), locator());
     set_last_Java_frame(last_java_sp, last_java_fp, (address)NULL, scratch);
+  }
+}
+
+void MacroAssembler::far_call(Address entry, CodeBuffer *cbuf, Register tmp) {
+  assert(ReservedCodeCacheSize < 4*G, "branch out of range");
+  assert(CodeCache::find_blob(entry.target()) != NULL,
+         "destination of far call not found in code cache");
+  if (far_branches()) {
+    unsigned long offset;
+    // We can use ADRP here because we know that the total size of
+    // the code cache cannot exceed 2Gb.
+    adrp(tmp, entry, offset);
+    add(tmp, tmp, offset);
+    if (cbuf) cbuf->set_insts_mark();
+    blr(tmp);
+  } else {
+    if (cbuf) cbuf->set_insts_mark();
+    bl(entry);
+  }
+}
+
+void MacroAssembler::far_jump(Address entry, CodeBuffer *cbuf, Register tmp) {
+  assert(ReservedCodeCacheSize < 4*G, "branch out of range");
+  assert(CodeCache::find_blob(entry.target()) != NULL,
+         "destination of far call not found in code cache");
+  if (far_branches()) {
+    unsigned long offset;
+    // We can use ADRP here because we know that the total size of
+    // the code cache cannot exceed 2Gb.
+    adrp(tmp, entry, offset);
+    add(tmp, tmp, offset);
+    if (cbuf) cbuf->set_insts_mark();
+    br(tmp);
+  } else {
+    if (cbuf) cbuf->set_insts_mark();
+    b(entry);
   }
 }
 
@@ -629,14 +665,74 @@ void MacroAssembler::call_VM_helper(Register oop_result, address entry_point, in
   call_VM_base(oop_result, noreg, noreg, entry_point, number_of_arguments, check_exceptions);
 }
 
-void MacroAssembler::call(Address entry) {
-  if (true // reachable(entry)
-      ) {
-    bl(entry);
-  } else {
-    lea(rscratch1, entry);
-    blr(rscratch1);
+// Maybe emit a call via a trampoline.  If the code cache is small
+// trampolines won't be emitted.
+
+void MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
+  assert(entry.rspec().type() == relocInfo::runtime_call_type
+         || entry.rspec().type() == relocInfo::opt_virtual_call_type
+         || entry.rspec().type() == relocInfo::static_call_type
+         || entry.rspec().type() == relocInfo::virtual_call_type, "wrong reloc type");
+
+  unsigned int start_offset = offset();
+  if (far_branches() && !Compile::current()->in_scratch_emit_size()) {
+    emit_trampoline_stub(offset(), entry.target());
   }
+
+  if (cbuf) cbuf->set_insts_mark();
+  relocate(entry.rspec());
+  if (Assembler::reachable_from_branch_at(pc(), entry.target())) {
+    bl(entry.target());
+  } else {
+    bl(pc());
+  }
+}
+
+
+// Emit a trampoline stub for a call to a target which is too far away.
+//
+// code sequences:
+//
+// call-site:
+//   branch-and-link to <destination> or <trampoline stub>
+//
+// Related trampoline stub for this call site in the stub section:
+//   load the call target from the constant pool
+//   branch (LR still points to the call site above)
+
+void MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
+                                             address dest) {
+  address stub = start_a_stub(Compile::MAX_stubs_size/2);
+  if (stub == NULL) {
+    start_a_stub(Compile::MAX_stubs_size/2);
+    Compile::current()->env()->record_out_of_memory_failure();
+    return;
+  }
+
+  // Create a trampoline stub relocation which relates this trampoline stub
+  // with the call instruction at insts_call_instruction_offset in the
+  // instructions code-section.
+  align(wordSize);
+  relocate(trampoline_stub_Relocation::spec(code()->insts()->start()
+                                            + insts_call_instruction_offset));
+  const int stub_start_offset = offset();
+
+  // Now, create the trampoline stub's code:
+  // - load the call
+  // - call
+  Label target;
+  ldr(rscratch1, target);
+  br(rscratch1);
+  bind(target);
+  assert(offset() - stub_start_offset == NativeCallTrampolineStub::data_offset,
+         "should be");
+  emit_int64((int64_t)dest);
+
+  const address stub_start_addr = addr_at(stub_start_offset);
+
+  assert(is_NativeCallTrampolineStub_at(stub_start_addr), "doesn't look like a trampoline");
+
+  end_a_stub();
 }
 
 void MacroAssembler::ic_call(address entry) {
@@ -645,7 +741,7 @@ void MacroAssembler::ic_call(address entry) {
   // unsigned long offset;
   // ldr_constant(rscratch2, const_ptr);
   movptr(rscratch2, (uintptr_t)Universe::non_oop_word());
-  call(Address(entry, rh));
+  trampoline_call(Address(entry, rh));
 }
 
 // Implementation of call_VM versions
@@ -1293,8 +1389,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 // public methods
 
 void MacroAssembler::mov(Register r, Address dest) {
-  InstructionMark im(this);
-  code_section()->relocate(inst_mark(), dest.rspec());
+  code_section()->relocate(pc(), dest.rspec());
   u_int64_t imm64 = (u_int64_t)dest.target();
   movptr(r, imm64);
 }

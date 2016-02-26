@@ -53,6 +53,7 @@
 
 class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   friend class Relocation;
+  friend bool is_NativeCallTrampolineStub_at(address);
  public:
   enum { instruction_size = 4 };
   inline bool is_nop();
@@ -66,6 +67,7 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   inline bool is_mov_literal64();
   bool is_movz();
   bool is_movk();
+  bool is_sigill_zombie_not_entrant();
 
  protected:
   address addr_at(int offset) const    { return address(this) + offset; }
@@ -73,16 +75,18 @@ class NativeInstruction VALUE_OBJ_CLASS_SPEC {
   s_char sbyte_at(int offset) const    { return *(s_char*) addr_at(offset); }
   u_char ubyte_at(int offset) const    { return *(u_char*) addr_at(offset); }
 
-  jint int_at(int offset) const         { return *(jint*) addr_at(offset); }
+  jint int_at(int offset) const        { return *(jint*) addr_at(offset); }
+  juint uint_at(int offset) const      { return *(juint*) addr_at(offset); }
 
-  intptr_t ptr_at(int offset) const    { return *(intptr_t*) addr_at(offset); }
+  address ptr_at(int offset) const    { return *(address*) addr_at(offset); }
 
   oop  oop_at (int offset) const       { return *(oop*) addr_at(offset); }
 
 
   void set_char_at(int offset, char c)        { *addr_at(offset) = (u_char)c; }
   void set_int_at(int offset, jint  i)        { *(jint*)addr_at(offset) = i; }
-  void set_ptr_at (int offset, intptr_t  ptr) { *(intptr_t*) addr_at(offset) = ptr; }
+  void set_uint_at(int offset, jint  i)       { *(juint*)addr_at(offset) = i; }
+  void set_ptr_at (int offset, address  ptr)  { *(address*) addr_at(offset) = ptr; }
   void set_oop_at (int offset, oop  o)        { *(oop*) addr_at(offset) = o; }
 
  public:
@@ -138,21 +142,7 @@ class NativeCall: public NativeInstruction {
     offset &= (1 << 26) - 1; // mask off insn part
     insn |= offset;
     set_int_at(displacement_offset, insn);
-    ICache::invalidate_range(instruction_address(), instruction_size);
   }
-
-  // Similar to replace_mt_safe, but just changes the destination.  The
-  // important thing is that free-running threads are able to execute
-  // this call instruction at all times.  If the call is an immediate BL
-  // instruction we can simply rely on atomicity of 32-bit writes to
-  // make sure other threads will see no intermediate states.
-
-  // We cannot rely on locks here, since the free-running threads must run at
-  // full speed.
-  //
-  // Used in the runtime linkage of calls; see class CompiledIC.
-  // (Cf. 4506997 and 4479829, where threads witnessed garbage displacements.)
-  void  set_destination_mt_safe(address dest) { set_destination(dest); }
 
   void  verify_alignment()                       { ; }
   void  verify();
@@ -175,6 +165,23 @@ class NativeCall: public NativeInstruction {
   static void insert(address code_pos, address entry);
 
   static void replace_mt_safe(address instr_addr, address code_buffer);
+  
+  // Similar to replace_mt_safe, but just changes the destination.  The
+  // important thing is that free-running threads are able to execute
+  // this call instruction at all times.  If the call is an immediate BL
+  // instruction we can simply rely on atomicity of 32-bit writes to
+  // make sure other threads will see no intermediate states.
+
+  // We cannot rely on locks here, since the free-running threads must run at
+  // full speed.
+  //
+  // Used in the runtime linkage of calls; see class CompiledIC.
+  // (Cf. 4506997 and 4479829, where threads witnessed garbage displacements.)
+
+  // The parameter assert_lock disables the assertion during code generation.
+  void set_destination_mt_safe(address dest, bool assert_lock = true);
+
+  address get_trampoline();
 };
 
 inline NativeCall* nativeCall_at(address address) {
@@ -378,10 +385,10 @@ inline NativeJump* nativeJump_at(address address) {
 class NativeGeneralJump: public NativeJump {
 public:
   enum AArch64_specific_constants {
-    instruction_size            =    4,
+    instruction_size            =    4 * 4,
     instruction_offset          =    0,
     data_offset                 =    0,
-    next_instruction_offset     =    4
+    next_instruction_offset     =    4 * 4
   };
   static void insert_unconditional(address code_pos, address entry);
   static void replace_mt_safe(address instr_addr, address code_buffer);
@@ -448,6 +455,36 @@ inline bool NativeInstruction::is_jump() {
 
 inline bool NativeInstruction::is_jump_or_nop() {
   return is_nop() || is_jump();
+}
+
+// Call trampoline stubs.
+class NativeCallTrampolineStub : public NativeInstruction {
+ public:
+
+  enum AArch64_specific_constants {
+    instruction_size            =    4 * 4,
+    instruction_offset          =    0,
+    data_offset                 =    2 * 4,
+    next_instruction_offset     =    4 * 4
+  };
+
+  address destination(nmethod *nm = NULL) const;
+  void set_destination(address new_destination);
+  ptrdiff_t destination_offset() const;
+};
+
+inline bool is_NativeCallTrampolineStub_at(address addr) {
+  // Ensure that the stub is exactly
+  //      ldr   xscratch1, L
+  //      br    xscratch1
+  // L:
+  uint32_t *i = (uint32_t *)addr;
+  return i[0] == 0x58000048 && i[1] == 0xd61f0100;
+}
+
+inline NativeCallTrampolineStub* nativeCallTrampolineStub_at(address addr) {
+  assert(is_NativeCallTrampolineStub_at(addr), "no call trampoline found");
+  return (NativeCallTrampolineStub*)addr;
 }
 
 #endif // CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP

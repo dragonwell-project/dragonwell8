@@ -952,13 +952,13 @@ class HandlerImpl {
   static int emit_deopt_handler(CodeBuffer& cbuf);
 
   static uint size_exception_handler() {
-    // count up to 4 movz/n/k instructions and one branch instruction
-    return 5 * NativeInstruction::instruction_size;
+    return MacroAssembler::far_branch_size();
   }
 
   static uint size_deopt_handler() {
-    // count one adr and one branch instruction
-    return 2 * NativeInstruction::instruction_size;
+    // count one adr and one far branch instruction
+    // return 4 * NativeInstruction::instruction_size;
+    return NativeInstruction::instruction_size + MacroAssembler::far_branch_size();
   }
 };
 
@@ -2854,7 +2854,7 @@ int MachCallRuntimeNode::ret_addr_offset() {
   //   blrt rscratch1
   CodeBlob *cb = CodeCache::find_blob(_entry_point);
   if (cb) {
-    return 4;
+    return MacroAssembler::far_branch_size();
   } else {
     return 6 * NativeInstruction::instruction_size;
   }
@@ -3323,13 +3323,12 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   // This is the unverified entry point.
   MacroAssembler _masm(&cbuf);
 
-  // no need to worry about 4-byte of br alignment on AArch64
   __ cmp_klass(j_rarg0, rscratch2, rscratch1);
   Label skip;
   // TODO
   // can we avoid this skip and still use a reloc?
   __ br(Assembler::EQ, skip);
-  __ b(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   __ bind(skip);
 }
 
@@ -3354,7 +3353,7 @@ int HandlerImpl::emit_exception_handler(CodeBuffer& cbuf)
   __ start_a_stub(size_exception_handler());
   if (base == NULL)  return 0;  // CodeBuffer::expand failed
   int offset = __ offset();
-  __ b(RuntimeAddress(OptoRuntime::exception_blob()->entry_point()));
+  __ far_jump(RuntimeAddress(OptoRuntime::exception_blob()->entry_point()));
   assert(__ offset() - offset <= (int) size_exception_handler(), "overflow");
   __ end_a_stub();
   return offset;
@@ -3372,8 +3371,7 @@ int HandlerImpl::emit_deopt_handler(CodeBuffer& cbuf)
   int offset = __ offset();
 
   __ adr(lr, __ pc());
-  // should we load this into rscratch1 and use a br?
-  __ b(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
+  __ far_jump(RuntimeAddress(SharedRuntime::deopt_blob()->unpack()));
 
   assert(__ offset() - offset <= (int) size_deopt_handler(), "overflow");
   __ end_a_stub();
@@ -4697,11 +4695,11 @@ encode %{
     address addr = (address)$meth$$method;
     if (!_method) {
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
-      __ bl(Address(addr, relocInfo::runtime_call_type));
+      __ trampoline_call(Address(addr, relocInfo::runtime_call_type), &cbuf);
     } else if (_optimized_virtual) {
-      __ bl(Address(addr, relocInfo::opt_virtual_call_type));
+      __ trampoline_call(Address(addr, relocInfo::opt_virtual_call_type), &cbuf);
     } else {
-      __ bl(Address(addr, relocInfo::static_call_type));
+      __ trampoline_call(Address(addr, relocInfo::static_call_type), &cbuf);
     }
 
     if (_method) {
@@ -4714,22 +4712,19 @@ encode %{
     MacroAssembler _masm(&cbuf);
     relocInfo::relocType reloc;
 
-    // TODO fixme
-    // this is supposed to preserve and restore SP around the call
-    // need to check it works
+    // RFP is preserved across all calls, even compiled calls.
+    // Use it to preserve SP.
     __ mov(rfp, sp);
 
     address mark = __ pc();
     address addr = (address)$meth$$method;
     if (!_method) {
-      // TODO check this
-      // think we are calling generated Java here not x86
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
-      __ bl(Address(addr, relocInfo::runtime_call_type));
+      __ trampoline_call(Address(addr, relocInfo::runtime_call_type), &cbuf);
     } else if (_optimized_virtual) {
-      __ bl(Address(addr, relocInfo::opt_virtual_call_type));
+      __ trampoline_call(Address(addr, relocInfo::opt_virtual_call_type), &cbuf);
     } else {
-      __ bl(Address(addr, relocInfo::static_call_type));
+      __ trampoline_call(Address(addr, relocInfo::static_call_type), &cbuf);
     }
 
     if (_method) {
@@ -4764,7 +4759,7 @@ encode %{
     address entry = (address)$meth$$method;
     CodeBlob *cb = CodeCache::find_blob(entry);
     if (cb) {
-      __ bl(Address(entry));
+      __ trampoline_call(Address(entry, relocInfo::runtime_call_type));
     } else {
       int gpcnt;
       int fpcnt;
@@ -4783,7 +4778,7 @@ encode %{
 
   enc_class aarch64_enc_rethrow() %{
     MacroAssembler _masm(&cbuf);
-    __ b(RuntimeAddress(OptoRuntime::rethrow_stub()));
+    __ far_jump(RuntimeAddress(OptoRuntime::rethrow_stub()));
   %}
 
   enc_class aarch64_enc_ret() %{

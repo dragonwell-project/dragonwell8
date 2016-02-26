@@ -115,7 +115,7 @@ void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   ce->store_parameter(_method->as_register(), 1);
   ce->store_parameter(_bci, 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::counter_overflow_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::counter_overflow_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
@@ -134,7 +134,7 @@ void RangeCheckStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   if (_info->deoptimize_on_exception()) {
     address a = Runtime1::entry_for(Runtime1::predicate_failed_trap_id);
-    __ call(RuntimeAddress(a));
+    __ far_call(RuntimeAddress(a));
     ce->add_call_info_here(_info);
     ce->verify_oop_map(_info);
     debug_only(__ should_not_reach_here());
@@ -152,7 +152,7 @@ void RangeCheckStub::emit_code(LIR_Assembler* ce) {
   } else {
     stub_id = Runtime1::throw_range_check_failed_id;
   }
-  __ call(RuntimeAddress(Runtime1::entry_for(stub_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(stub_id)), NULL, rscratch2);
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   debug_only(__ should_not_reach_here());
@@ -165,7 +165,7 @@ PredicateFailedStub::PredicateFailedStub(CodeEmitInfo* info) {
 void PredicateFailedStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   address a = Runtime1::entry_for(Runtime1::predicate_failed_trap_id);
-  __ call(RuntimeAddress(a));
+  __ far_call(RuntimeAddress(a));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   debug_only(__ should_not_reach_here());
@@ -176,7 +176,7 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
     ce->compilation()->implicit_exception_table()->append(_offset, __ offset());
   }
   __ bind(_entry);
-  __ bl(Address(Runtime1::entry_for(Runtime1::throw_div0_exception_id), relocInfo::runtime_call_type));
+  __ far_call(Address(Runtime1::entry_for(Runtime1::throw_div0_exception_id), relocInfo::runtime_call_type));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
 #ifdef ASSERT
@@ -206,7 +206,7 @@ void NewInstanceStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
   __ mov(r3, _klass_reg->as_register());
-  __ bl(RuntimeAddress(Runtime1::entry_for(_stub_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(_stub_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   assert(_result->as_register() == r0, "result must in r0,");
@@ -231,7 +231,7 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   assert(_length->as_register() == r19, "length must in r19,");
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
-  __ bl(RuntimeAddress(Runtime1::entry_for(Runtime1::new_type_array_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_type_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   assert(_result->as_register() == r0, "result must in r0");
@@ -254,7 +254,7 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   assert(_length->as_register() == r19, "length must in r19,");
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
-  __ bl(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   assert(_result->as_register() == r0, "result must in r0");
@@ -280,7 +280,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   } else {
     enter_id = Runtime1::monitorenter_nofpu_id;
   }
-  __ bl(RuntimeAddress(Runtime1::entry_for(enter_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(enter_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
@@ -302,7 +302,7 @@ void MonitorExitStub::emit_code(LIR_Assembler* ce) {
     exit_id = Runtime1::monitorexit_nofpu_id;
   }
   __ adr(lr, _continuation);
-  __ b(RuntimeAddress(Runtime1::entry_for(exit_id)));
+  __ far_jump(RuntimeAddress(Runtime1::entry_for(exit_id)));
 }
 
 
@@ -326,7 +326,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
 
 void DeoptimizeStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::deoptimize_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::deoptimize_id)));
   ce->add_call_info_here(_info);
   DEBUG_ONLY(__ should_not_reach_here());
 }
@@ -343,7 +343,7 @@ void ImplicitNullCheckStub::emit_code(LIR_Assembler* ce) {
 
   ce->compilation()->implicit_exception_table()->append(_offset, __ offset());
   __ bind(_entry);
-  __ call(RuntimeAddress(a));
+  __ far_call(RuntimeAddress(a));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   debug_only(__ should_not_reach_here());
@@ -359,7 +359,7 @@ void SimpleExceptionStub::emit_code(LIR_Assembler* ce) {
   if (_obj->is_cpu_register()) {
     __ mov(rscratch1, _obj->as_register());
   }
-  __ call(RuntimeAddress(Runtime1::entry_for(_stub)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(_stub)), NULL, rscratch2);
   ce->add_call_info_here(_info);
   debug_only(__ should_not_reach_here());
 }
@@ -401,7 +401,7 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
   ce->emit_static_call_stub();
   Address resolve(SharedRuntime::get_resolve_static_call_stub(),
 		  relocInfo::static_call_type);
-  __ bl(resolve);
+  __ trampoline_call(resolve);
   ce->add_call_info_here(info());
 
 #ifndef PRODUCT
@@ -432,7 +432,7 @@ void G1PreBarrierStub::emit_code(LIR_Assembler* ce) {
   }
   __ cbz(pre_val_reg, _continuation);
   ce->store_parameter(pre_val()->as_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_pre_barrier_slow_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_pre_barrier_slow_id)));
   __ b(_continuation);
 }
 
@@ -453,7 +453,7 @@ void G1PostBarrierStub::emit_code(LIR_Assembler* ce) {
   Register new_val_reg = new_val()->as_register();
   __ cbz(new_val_reg, _continuation);
   ce->store_parameter(addr()->as_pointer_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_post_barrier_slow_id)));
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_post_barrier_slow_id)));
   __ b(_continuation);
 }
 

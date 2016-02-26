@@ -70,7 +70,8 @@ void CompiledStaticCall::emit_to_interp_stub(CodeBuffer &cbuf, address mark) {
   __ relocate(static_stub_Relocation::spec(mark));
   // static stub relocation also tags the Method* in the code-stream.
   __ mov_metadata(rmethod, (Metadata*)NULL);
-  __ b(__ pc());
+  __ movptr(rscratch1, 0);
+  __ br(rscratch1);
 
   assert((__ offset() - offset) <= (int)to_interp_stub_size(), "stub too big");
   __ end_a_stub();
@@ -78,8 +79,7 @@ void CompiledStaticCall::emit_to_interp_stub(CodeBuffer &cbuf, address mark) {
 #undef __
 
 int CompiledStaticCall::to_interp_stub_size() {
-  // count a mov mem --> to 3 movz/k and a branch
-  return 4 * NativeInstruction::instruction_size;
+  return 7 * NativeInstruction::instruction_size;
 }
 
 // Relocation entries for call stub, compiled java to interpreter.

@@ -36,9 +36,10 @@
 #include "oops/oop.inline2.hpp"
 
 int InlineCacheBuffer::ic_stub_code_size() {
-  return NativeInstruction::instruction_size * 5;
+  return (MacroAssembler::far_branches() ? 6 : 4) * NativeInstruction::instruction_size;
 }
 
+#define __ masm->
 
 void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached_value, address entry_point) {
   ResourceMark rm;
@@ -50,13 +51,15 @@ void InlineCacheBuffer::assemble_ic_buffer_code(address code_begin, void* cached
   // (2) these ICStubs are removed *before* a GC happens, so the roots disappear
   // assert(cached_value == NULL || cached_oop->is_perm(), "must be perm oop");
 
+  address start = __ pc();
   Label l;
-  masm->ldr(rscratch2, l);
-  masm->b(ExternalAddress(entry_point));
-  masm->bind(l);
-  masm->emit_int64((int64_t)cached_value);
-  // Only need to invalidate the 1st two instructions - not the whole ic stub
-  ICache::invalidate_range(code_begin, NativeInstruction::instruction_size * 2);
+
+  __ ldr(rscratch2, l);
+  __ far_jump(ExternalAddress(entry_point));
+  __ bind(l);
+  __ emit_int64((int64_t)cached_value);
+  ICache::invalidate_range(code_begin, InlineCacheBuffer::ic_stub_code_size());
+  assert(__ pc() - start == ic_stub_code_size(), "must be");
 }
 
 address InlineCacheBuffer::ic_buffer_entry_point(address code_begin) {
@@ -67,8 +70,8 @@ address InlineCacheBuffer::ic_buffer_entry_point(address code_begin) {
 
 
 void* InlineCacheBuffer::ic_buffer_cached_value(address code_begin) {
-  // creation also verifies the object
-  uintptr_t *p = (uintptr_t *)(code_begin + 8);
+  // The word containing the cached value is at the end of this IC buffer
+  uintptr_t *p = (uintptr_t *)(code_begin + ic_stub_code_size() - wordSize);
   void* o = (void*)*p;
   return o;
 }
