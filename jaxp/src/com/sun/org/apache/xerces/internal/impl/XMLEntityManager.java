@@ -2914,7 +2914,7 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
                     if (!fCurrentEntity.xmlDeclChunkRead)
                     {
                         fCurrentEntity.xmlDeclChunkRead = true;
-                        len = DEFAULT_XMLDECL_BUFFER_SIZE;
+                        len = Entity.ScannedEntity.DEFAULT_XMLDECL_BUFFER_SIZE;
                     }
                     return fInputStream.read(b, off, len);
                 }
