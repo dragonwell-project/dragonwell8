@@ -3010,7 +3010,7 @@ JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
     // in thread.cpp.
     JvmtiPendingMonitors::enter(rmonitor);
   } else {
-    int r;
+    int r = 0;
     Thread* thread = Thread::current();
 
     if (thread->is_Java_thread()) {
@@ -3073,7 +3073,7 @@ JvmtiEnv::RawMonitorExit(JvmtiRawMonitor * rmonitor) {
       err = JVMTI_ERROR_NOT_MONITOR_OWNER;
     }
   } else {
-    int r;
+    int r = 0;
     Thread* thread = Thread::current();
 
     if (thread->is_Java_thread()) {
@@ -3107,7 +3107,7 @@ JvmtiEnv::RawMonitorExit(JvmtiRawMonitor * rmonitor) {
 // rmonitor - pre-checked for validity
 jvmtiError
 JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
-  int r;
+  int r = 0;
   Thread* thread = Thread::current();
 
   if (thread->is_Java_thread()) {
@@ -3166,7 +3166,7 @@ JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
 // rmonitor - pre-checked for validity
 jvmtiError
 JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
-  int r;
+  int r = 0;
   Thread* thread = Thread::current();
 
   if (thread->is_Java_thread()) {
@@ -3197,7 +3197,7 @@ JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
 // rmonitor - pre-checked for validity
 jvmtiError
 JvmtiEnv::RawMonitorNotifyAll(JvmtiRawMonitor * rmonitor) {
-  int r;
+  int r = 0;
   Thread* thread = Thread::current();
 
   if (thread->is_Java_thread()) {
