@@ -96,7 +96,8 @@ needs_jdk = \
   runtime/Thread/TestThreadDumpMonitorContention.java \
   runtime/XCheckJniJsig/XCheckJSig.java \
   serviceability/attach/AttachWithStalePidFile.java \
-  serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java
+  serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java \
+  testlibrary_tests/
 
 
 # JRE adds further tests to compact3
@@ -251,7 +252,6 @@ compact1_minimal = \
   serviceability/ \
   compiler/ \
   testlibrary/ \
-  testlibrary_tests/ \
   sanity/ \
   runtime/ \
   gc/ \

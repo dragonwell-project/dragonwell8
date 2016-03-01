@@ -17,9 +17,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * $Id: MultiDOM.java,v 1.5 2005/09/28 13:48:36 pvedula Exp $
- */
 
 package com.sun.org.apache.xalan.internal.xsltc.dom;
 
@@ -32,6 +29,7 @@ import com.sun.org.apache.xml.internal.dtm.DTM;
 import com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;
 import com.sun.org.apache.xml.internal.dtm.DTMManager;
 import com.sun.org.apache.xml.internal.dtm.ref.DTMAxisIteratorBase;
+import com.sun.org.apache.xml.internal.dtm.ref.DTMAxisIterNodeList;
 import com.sun.org.apache.xml.internal.dtm.ref.DTMDefaultBase;
 import com.sun.org.apache.xml.internal.serializer.SerializationHandler;
 import com.sun.org.apache.xml.internal.utils.SuballocatedIntVector;
@@ -569,7 +567,7 @@ public final class MultiDOM implements DOM {
     public NodeList makeNodeList(DTMAxisIterator iter) {
         int index = iter.next();
         if (index == DTM.NULL) {
-            return null;
+            return new DTMAxisIterNodeList(null, null);
         }
         iter.reset();
         return _adapters[getDTMId(index)].makeNodeList(iter);

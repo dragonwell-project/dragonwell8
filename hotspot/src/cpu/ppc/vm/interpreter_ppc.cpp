@@ -296,8 +296,16 @@ address AbstractInterpreterGenerator::generate_slow_signature_handler() {
   __ bind(do_float);
   __ lfs(floatSlot, 0, arg_java);
 #if defined(LINUX)
+  // Linux uses ELF ABI. Both original ELF and ELFv2 ABIs have float
+  // in the least significant word of an argument slot.
+#if defined(VM_LITTLE_ENDIAN)
+  __ stfs(floatSlot, 0, arg_c);
+#else
   __ stfs(floatSlot, 4, arg_c);
+#endif
 #elif defined(AIX)
+  // Although AIX runs on big endian CPU, float is in most significant
+  // word of an argument slot.
   __ stfs(floatSlot, 0, arg_c);
 #else
 #error "unknown OS"
@@ -626,6 +634,16 @@ address InterpreterGenerator::generate_accessor_entry(void) {
     __ align(32, 28, 28); // align load
     __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
     branch_table[btos] = __ pc(); // non-volatile_entry point
+    __ lbzx(R3_RET, Rclass_or_obj, Roffset);
+    __ extsb(R3_RET, R3_RET);
+    __ beq(CCR6, Lacquire);
+    __ blr();
+  }
+
+  if (branch_table[ztos] == 0) { // generate only once
+    __ align(32, 28, 28); // align load
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
+    branch_table[ztos] = __ pc(); // non-volatile_entry point
     __ lbzx(R3_RET, Rclass_or_obj, Roffset);
     __ extsb(R3_RET, R3_RET);
     __ beq(CCR6, Lacquire);
