@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -249,6 +249,7 @@ public class Attr extends JCTree.Visitor {
      *  are correct.
      *
      *  @param tree     The tree whose kind and type is checked
+     *  @param found    The computed type of the tree
      *  @param ownkind  The computed kind of the tree
      *  @param resultInfo  The expected result of the tree
      */
