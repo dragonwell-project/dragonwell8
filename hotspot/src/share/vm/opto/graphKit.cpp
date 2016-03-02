@@ -1645,7 +1645,7 @@ Node* GraphKit::store_oop_to_unknown(Node* ctl,
 
 //-------------------------array_element_address-------------------------
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
-                                      const TypeInt* sizetype) {
+                                      const TypeInt* sizetype, Node* ctrl) {
   uint shift  = exact_log2(type2aelembytes(elembt));
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
@@ -1670,9 +1670,9 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
   // number.  (The prior range check has ensured this.)
   // This assertion is used by ConvI2LNode::Ideal.
   int index_max = max_jint - 1;  // array size is max_jint, index is one less
-  if (sizetype != NULL)  index_max = sizetype->_hi - 1;
-  const TypeLong* lidxtype = TypeLong::make(CONST64(0), index_max, Type::WidenMax);
-  idx = _gvn.transform( new (C) ConvI2LNode(idx, lidxtype) );
+  if (sizetype != NULL) index_max = sizetype->_hi - 1;
+  const TypeInt* iidxtype = TypeInt::make(0, index_max, Type::WidenMax);
+  idx = C->constrained_convI2L(&_gvn, idx, iidxtype, ctrl);
 #endif
   Node* scale = _gvn.transform( new (C) LShiftXNode(idx, intcon(shift)) );
   return basic_plus_adr(ary, base, scale);
@@ -3491,10 +3491,6 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   Node* initial_slow_cmp  = _gvn.transform( new (C) CmpUNode( length, intcon( fast_size_limit ) ) );
   Node* initial_slow_test = _gvn.transform( new (C) BoolNode( initial_slow_cmp, BoolTest::gt ) );
-  if (initial_slow_test->is_Bool()) {
-    // Hide it behind a CMoveI, or else PhaseIdealLoop::split_up will get sick.
-    initial_slow_test = initial_slow_test->as_Bool()->as_int_value(&_gvn);
-  }
 
   // --- Size Computation ---
   // array_size = round_to_heap(array_header + (length << elem_shift));
@@ -3540,13 +3536,35 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   Node* lengthx = ConvI2X(length);
   Node* headerx = ConvI2X(header_size);
 #ifdef _LP64
-  { const TypeLong* tllen = _gvn.find_long_type(lengthx);
-    if (tllen != NULL && tllen->_lo < 0) {
+  { const TypeInt* tilen = _gvn.find_int_type(length);
+    if (tilen != NULL && tilen->_lo < 0) {
       // Add a manual constraint to a positive range.  Cf. array_element_address.
-      jlong size_max = arrayOopDesc::max_array_length(T_BYTE);
-      if (size_max > tllen->_hi)  size_max = tllen->_hi;
-      const TypeLong* tlcon = TypeLong::make(CONST64(0), size_max, Type::WidenMin);
-      lengthx = _gvn.transform( new (C) ConvI2LNode(length, tlcon));
+      jlong size_max = fast_size_limit;
+      if (size_max > tilen->_hi)  size_max = tilen->_hi;
+      const TypeInt* tlcon = TypeInt::make(0, size_max, Type::WidenMin);
+
+      // Only do a narrow I2L conversion if the range check passed.
+      IfNode* iff = new (C) IfNode(control(), initial_slow_test, PROB_MIN, COUNT_UNKNOWN);
+      _gvn.transform(iff);
+      RegionNode* region = new (C) RegionNode(3);
+      _gvn.set_type(region, Type::CONTROL);
+      lengthx = new (C) PhiNode(region, TypeLong::LONG);
+      _gvn.set_type(lengthx, TypeLong::LONG);
+
+      // Range check passed. Use ConvI2L node with narrow type.
+      Node* passed = IfFalse(iff);
+      region->init_req(1, passed);
+      // Make I2L conversion control dependent to prevent it from
+      // floating above the range check during loop optimizations.
+      lengthx->init_req(1, C->constrained_convI2L(&_gvn, length, tlcon, passed));
+
+      // Range check failed. Use ConvI2L with wide type because length may be invalid.
+      region->init_req(2, IfTrue(iff));
+      lengthx->init_req(2, ConvI2X(length));
+
+      set_control(region);
+      record_for_igvn(region);
+      record_for_igvn(lengthx);
     }
   }
 #endif
@@ -3576,6 +3594,11 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   // since GC and deoptimization can happened.
   Node *mem = reset_memory();
   set_all_memory(mem); // Create new memory state
+
+  if (initial_slow_test->is_Bool()) {
+    // Hide it behind a CMoveI, or else PhaseIdealLoop::split_up will get sick.
+    initial_slow_test = initial_slow_test->as_Bool()->as_int_value(&_gvn);
+  }
 
   // Create the AllocateArrayNode and its result projections
   AllocateArrayNode* alloc
