@@ -132,9 +132,14 @@ public final class TimestampedSigner extends ContentSigner {
                 }
             }
         }
+        String tSADigestAlg = "SHA-256";
+        if (params instanceof JarSignerParameters) {
+            tSADigestAlg = ((JarSignerParameters)params).getTSADigestAlg();
+        }
         return PKCS7.generateSignedData(signature, signerChain, content,
                                         params.getSignatureAlgorithm(), tsaURI,
-                                        params.getTSAPolicyID());
+                                        params.getTSAPolicyID(),
+                                        tSADigestAlg);
     }
 
     /**
