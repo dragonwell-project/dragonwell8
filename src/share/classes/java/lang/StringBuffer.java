@@ -171,9 +171,7 @@ import java.util.Arrays;
 
     @Override
     public synchronized void ensureCapacity(int minimumCapacity) {
-        if (minimumCapacity > value.length) {
-            expandCapacity(minimumCapacity);
-        }
+        super.ensureCapacity(minimumCapacity);
     }
 
     /**
