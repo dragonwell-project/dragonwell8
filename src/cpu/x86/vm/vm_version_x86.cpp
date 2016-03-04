@@ -709,6 +709,12 @@ void VM_Version::get_processor_features() {
   if (FLAG_IS_DEFAULT(UseMulAddIntrinsic)) {
     UseMulAddIntrinsic = true;
   }
+  if (FLAG_IS_DEFAULT(UseMontgomeryMultiplyIntrinsic)) {
+    UseMontgomeryMultiplyIntrinsic = true;
+  }
+  if (FLAG_IS_DEFAULT(UseMontgomerySquareIntrinsic)) {
+    UseMontgomerySquareIntrinsic = true;
+  }
 #else
   if (UseMultiplyToLenIntrinsic) {
     if (!FLAG_IS_DEFAULT(UseMultiplyToLenIntrinsic)) {
@@ -727,6 +733,18 @@ void VM_Version::get_processor_features() {
       warning("mulAdd intrinsic is not available in 32-bit VM");
     }
     FLAG_SET_DEFAULT(UseMulAddIntrinsic, false);
+  }
+  if (UseMontgomeryMultiplyIntrinsic) {
+    if (!FLAG_IS_DEFAULT(UseMontgomeryMultiplyIntrinsic)) {
+      warning("montgomeryMultiply intrinsic is not available in 32-bit VM");
+    }
+    FLAG_SET_DEFAULT(UseMontgomeryMultiplyIntrinsic, false);
+  }
+  if (UseMontgomerySquareIntrinsic) {
+    if (!FLAG_IS_DEFAULT(UseMontgomerySquareIntrinsic)) {
+      warning("montgomerySquare intrinsic is not available in 32-bit VM");
+    }
+    FLAG_SET_DEFAULT(UseMontgomerySquareIntrinsic, false);
   }
 #endif
 #endif // COMPILER2

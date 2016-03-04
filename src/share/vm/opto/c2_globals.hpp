@@ -665,6 +665,12 @@
   product(bool, UseMulAddIntrinsic, false,                                  \
           "Enables intrinsification of BigInteger.mulAdd()")                \
                                                                             \
+  product(bool, UseMontgomeryMultiplyIntrinsic, false,                      \
+          "Enables intrinsification of BigInteger.montgomeryMultiply()")    \
+                                                                            \
+  product(bool, UseMontgomerySquareIntrinsic, false,                        \
+          "Enables intrinsification of BigInteger.montgomerySquare()")      \
+                                                                            \
   product(bool, UseTypeSpeculation, true,                                   \
           "Speculatively propagate types from profiles")                    \
                                                                             \
