@@ -97,6 +97,8 @@ define_pd_global(intx, InlineSmallCode,          1000);
                                                                         \
   product(bool, UseCRC32, false,                                        \
           "Use CRC32 instructions for CRC32 computation")               \
+  product(bool, UseLSE, false,                                          \
+          "Use LSE instructions")                                       \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")
 
 // Don't attempt to use Neon on builtin sim until builtin sim supports it
@@ -119,6 +121,8 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use Neon for CRC32 computation")                             \
   product(bool, UseCRC32, false,                                        \
           "Use CRC32 instructions for CRC32 computation")               \
+  product(bool, UseLSE, false,                                          \
+          "Use LSE instructions")                                       \
   product(bool, UseSIMDForMemoryOps, false,                            \
           "Use SIMD instructions in generated memory move code")        \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")
