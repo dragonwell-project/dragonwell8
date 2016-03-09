@@ -29,6 +29,7 @@
  *
  * @run main/othervm/timeout=600 -XX:-TieredCompilation -Xbatch
  *      -XX:+IgnoreUnrecognizedVMOptions -XX:-UseSquareToLenIntrinsic -XX:-UseMultiplyToLenIntrinsic
+ *      -XX:+UseMulAddIntrinsic
  *      -XX:CompileCommand=dontinline,TestMulAdd::main
  *      -XX:CompileCommand=option,TestMulAdd::base_multiply,ccstr,DisableIntrinsic,_mulAdd
  *      -XX:CompileCommand=option,java.math.BigInteger::multiply,ccstr,DisableIntrinsic,_mulAdd
