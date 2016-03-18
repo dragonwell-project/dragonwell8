@@ -28,6 +28,7 @@
  * @summary Add C2 x86 intrinsic for BigInteger::squareToLen() method
  *
  * @run main/othervm/timeout=600 -XX:-TieredCompilation -Xbatch
+ *      -XX:+IgnoreUnrecognizedVMOptions
  *      -XX:+UseSquareToLenIntrinsic
  *      -XX:CompileCommand=exclude,TestSquareToLen::main
  *      -XX:CompileCommand=option,TestSquareToLen::base_multiply,ccstr,DisableIntrinsic,_squareToLen
