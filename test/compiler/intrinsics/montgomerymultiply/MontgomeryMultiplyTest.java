@@ -39,12 +39,12 @@ import java.util.Random;
  * @library /testlibrary
  * @requires (os.simpleArch == "x64") & (os.family != "windows")
  * @summary Verify that the Montgomery multiply intrinsic works and correctly checks its arguments.
- * @run main/othervm -XX:+UseMontgomerySquareIntrinsic -XX:+UseMontgomeryMultiplyIntrinsic
- *      MontgomeryMultiplyTest
- * @run main/othervm -XX:+UseMontgomerySquareIntrinsic -XX:-UseMontgomeryMultiplyIntrinsic
- *      MontgomeryMultiplyTest
- * @run main/othervm -XX:-UseMontgomerySquareIntrinsic -XX:+UseMontgomeryMultiplyIntrinsic
- *      MontgomeryMultiplyTest
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UseMontgomerySquareIntrinsic
+ *      -XX:+UseMontgomeryMultiplyIntrinsic MontgomeryMultiplyTest
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UseMontgomerySquareIntrinsic
+ *      -XX:-UseMontgomeryMultiplyIntrinsic MontgomeryMultiplyTest
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:-UseMontgomerySquareIntrinsic
+ *      -XX:+UseMontgomeryMultiplyIntrinsic MontgomeryMultiplyTest
  */
 
 public class MontgomeryMultiplyTest {
