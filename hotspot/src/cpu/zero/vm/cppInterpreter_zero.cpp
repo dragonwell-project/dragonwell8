@@ -93,6 +93,7 @@ intptr_t narrow(BasicType type, intptr_t result) {
     case T_SHORT:
       return (intptr_t)(jshort)result;
     case T_OBJECT:  // nothing to do fall through
+    case T_ARRAY:
     case T_LONG:
     case T_INT:
     case T_FLOAT:
@@ -183,7 +184,7 @@ void CppInterpreter::main_loop(int recurse, TRAPS) {
     }
     else if (istate->msg() == BytecodeInterpreter::return_from_method) {
       // Copy the result into the caller's frame
-      result_slots = type2size[result_type_of(method)];
+      result_slots = type2size[method->result_type()];
       assert(result_slots >= 0 && result_slots <= 2, "what?");
       result = istate->stack() + result_slots;
       break;
@@ -221,7 +222,7 @@ void CppInterpreter::main_loop(int recurse, TRAPS) {
     // Adjust result to smaller
     intptr_t res = result[-i];
     if (result_slots == 1) {
-      res = narrow(result_type_of(method), res);
+      res = narrow(method->result_type(), res);
     }
     stack->push(res);
   }
@@ -435,7 +436,7 @@ int CppInterpreter::native_entry(Method* method, intptr_t UNUSED, TRAPS) {
 
   // Push our result
   if (!HAS_PENDING_EXCEPTION) {
-    BasicType type = result_type_of(method);
+    BasicType type = method->result_type();
     stack->set_sp(stack->sp() - type2size[type]);
 
     switch (type) {
@@ -793,26 +794,6 @@ int AbstractInterpreter::BasicType_as_index(BasicType type) {
   assert(0 <= i && i < AbstractInterpreter::number_of_result_handlers,
          "index out of bounds");
   return i;
-}
-
-BasicType CppInterpreter::result_type_of(Method* method) {
-  BasicType t;
-  switch (method->result_index()) {
-    case 0 : t = T_BOOLEAN; break;
-    case 1 : t = T_CHAR;    break;
-    case 2 : t = T_BYTE;    break;
-    case 3 : t = T_SHORT;   break;
-    case 4 : t = T_INT;     break;
-    case 5 : t = T_LONG;    break;
-    case 6 : t = T_VOID;    break;
-    case 7 : t = T_FLOAT;   break;
-    case 8 : t = T_DOUBLE;  break;
-    case 9 : t = T_OBJECT;  break;
-    default: ShouldNotReachHere();
-  }
-  assert(AbstractInterpreter::BasicType_as_index(t) == method->result_index(),
-         "out of step with AbstractInterpreter::BasicType_as_index");
-  return t;
 }
 
 address InterpreterGenerator::generate_empty_entry() {
