@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,11 +116,11 @@ public class Resources_ko extends java.util.ListResourceBundle {
         {"Policy.successfully.written.to.filename",
                 "{0}\uC5D0 \uC131\uACF5\uC801\uC73C\uB85C \uC815\uCC45\uC744 \uC37C\uC2B5\uB2C8\uB2E4."},
         {"null.filename", "\uB110 \uD30C\uC77C \uC774\uB984"},
-        {"Save.changes.", "\uBCC0\uACBD \uC0AC\uD56D\uC744 \uC800\uC7A5\uD558\uACA0\uC2B5\uB2C8\uAE4C?"},
+        {"Save.changes.", "\uBCC0\uACBD\uC0AC\uD56D\uC744 \uC800\uC7A5\uD558\uACA0\uC2B5\uB2C8\uAE4C?"},
         {"Yes", "\uC608(&Y)"},
         {"No", "\uC544\uB2C8\uC624(&N)"},
         {"Policy.Entry", "\uC815\uCC45 \uD56D\uBAA9"},
-        {"Save.Changes", "\uBCC0\uACBD \uC0AC\uD56D \uC800\uC7A5"},
+        {"Save.Changes", "\uBCC0\uACBD\uC0AC\uD56D \uC800\uC7A5"},
         {"No.Policy.Entry.selected", "\uC120\uD0DD\uB41C \uC815\uCC45 \uD56D\uBAA9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."},
         {"Unable.to.open.KeyStore.ex.toString.",
                 "\uD0A4 \uC800\uC7A5\uC18C\uB97C \uC5F4 \uC218 \uC5C6\uC74C: {0}"},
