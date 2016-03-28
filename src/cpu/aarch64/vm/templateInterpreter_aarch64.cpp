@@ -2029,15 +2029,22 @@ void TemplateInterpreterGenerator::count_bytecode() {
   Register rscratch3 = r0;
   __ push(rscratch1);
   __ push(rscratch2);
-  __ push(rscratch3);
-  Label L;
   __ mov(rscratch2, (address) &BytecodeCounter::_counter_value);
-  __ bind(L);
-  __ ldxr(rscratch1, rscratch2);
-  __ add(rscratch1, rscratch1, 1);
-  __ stxr(rscratch3, rscratch1, rscratch2);
-  __ cbnzw(rscratch3, L);
-  __ pop(rscratch3);
+  if (UseLSE) {
+    __ mov(rscratch1, 1);
+    __ ldadd(Assembler::xword, rscratch1, zr, rscratch2);
+  } else {
+    __ push(rscratch3);
+    Label L;
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(rscratch2), PSTL1STRM);
+    __ bind(L);
+    __ ldxr(rscratch1, rscratch2);
+    __ add(rscratch1, rscratch1, 1);
+    __ stxr(rscratch3, rscratch1, rscratch2);
+    __ cbnzw(rscratch3, L);
+    __ pop(rscratch3);
+  }
   __ pop(rscratch2);
   __ pop(rscratch1);
 }

@@ -49,11 +49,7 @@ define_pd_global(bool, UncommonNullCast,         true);  // Uncommon-trap NULLs 
 // the the vep is aligned at CodeEntryAlignment whereas c2 only aligns
 // the uep and the vep doesn't get real alignment but just slops on by
 // only assured that the entry instruction meets the 5 byte size requirement.
-#ifdef COMPILER2
 define_pd_global(intx, CodeEntryAlignment,       64);
-#else
-define_pd_global(intx, CodeEntryAlignment,       16);
-#endif // COMPILER2
 define_pd_global(intx, OptoLoopAlignment,        16);
 define_pd_global(intx, InlineFrequencyCount,     100);
 
@@ -101,10 +97,13 @@ define_pd_global(intx, InlineSmallCode,          1000);
                                                                         \
   product(bool, UseCRC32, false,                                        \
           "Use CRC32 instructions for CRC32 computation")               \
+  product(bool, UseLSE, false,                                          \
+          "Use LSE instructions")                                       \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")
 
 // Don't attempt to use Neon on builtin sim until builtin sim supports it
 #define UseNeon false
+#define UseSIMDForMemoryOps false
 
 #else
 #define UseBuiltinSim		false
@@ -122,6 +121,14 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use Neon for CRC32 computation")                             \
   product(bool, UseCRC32, false,                                        \
           "Use CRC32 instructions for CRC32 computation")               \
+  product(bool, UseLSE, false,                                          \
+          "Use LSE instructions")                                       \
+  product(bool, UseSIMDForMemoryOps, false,                            \
+          "Use SIMD instructions in generated memory move code")        \
+  product(bool, UseBlockZeroing, true,                                  \
+          "Use DC ZVA for block zeroing")                               \
+  product(intx, BlockZeroingLowLimit, 256,                              \
+          "Minimum size in bytes when block zeroing will be used")      \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")
 
 #endif

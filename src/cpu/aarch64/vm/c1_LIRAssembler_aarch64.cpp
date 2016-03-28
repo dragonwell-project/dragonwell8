@@ -1601,38 +1601,56 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 }
 
 void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
-  Label retry_load, nope;
-  // flush and load exclusive from the memory location
-  // and fail if it is not what we expect
-  __ bind(retry_load);
-  __ ldaxrw(rscratch1, addr);
-  __ cmpw(rscratch1, cmpval);
-  __ cset(rscratch1, Assembler::NE);
-  __ br(Assembler::NE, nope);
-  // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stlxrw(rscratch1, newval, addr);
-  // retry so we only ever return after a load fails to compare
-  // ensures we don't return a stale value after a failed write.
-  __ cbnzw(rscratch1, retry_load);
-  __ bind(nope);
+  if (UseLSE) {
+    __ mov(rscratch1, cmpval);
+    __ casal(Assembler::word, rscratch1, newval, addr);
+    __ cmpw(rscratch1, cmpval);
+    __ cset(rscratch1, Assembler::NE);
+  } else {
+    Label retry_load, nope;
+    // flush and load exclusive from the memory location
+    // and fail if it is not what we expect
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(addr), PSTL1STRM);
+    __ bind(retry_load);
+    __ ldaxrw(rscratch1, addr);
+    __ cmpw(rscratch1, cmpval);
+    __ cset(rscratch1, Assembler::NE);
+    __ br(Assembler::NE, nope);
+    // if we store+flush with no intervening write rscratch1 wil be zero
+    __ stlxrw(rscratch1, newval, addr);
+    // retry so we only ever return after a load fails to compare
+    // ensures we don't return a stale value after a failed write.
+    __ cbnzw(rscratch1, retry_load);
+    __ bind(nope);
+  }
   __ membar(__ AnyAny);
 }
 
 void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
-  Label retry_load, nope;
-  // flush and load exclusive from the memory location
-  // and fail if it is not what we expect
-  __ bind(retry_load);
-  __ ldaxr(rscratch1, addr);
-  __ cmp(rscratch1, cmpval);
-  __ cset(rscratch1, Assembler::NE);
-  __ br(Assembler::NE, nope);
-  // if we store+flush with no intervening write rscratch1 wil be zero
-  __ stlxr(rscratch1, newval, addr);
-  // retry so we only ever return after a load fails to compare
-  // ensures we don't return a stale value after a failed write.
-  __ cbnz(rscratch1, retry_load);
-  __ bind(nope);
+  if (UseLSE) {
+    __ mov(rscratch1, cmpval);
+    __ casal(Assembler::xword, rscratch1, newval, addr);
+    __ cmp(rscratch1, cmpval);
+    __ cset(rscratch1, Assembler::NE);
+  } else {
+    Label retry_load, nope;
+    // flush and load exclusive from the memory location
+    // and fail if it is not what we expect
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(addr), PSTL1STRM);
+    __ bind(retry_load);
+    __ ldaxr(rscratch1, addr);
+    __ cmp(rscratch1, cmpval);
+    __ cset(rscratch1, Assembler::NE);
+    __ br(Assembler::NE, nope);
+    // if we store+flush with no intervening write rscratch1 wil be zero
+    __ stlxr(rscratch1, newval, addr);
+    // retry so we only ever return after a load fails to compare
+    // ensures we don't return a stale value after a failed write.
+    __ cbnz(rscratch1, retry_load);
+    __ bind(nope);
+  }
   __ membar(__ AnyAny);
 }
 
@@ -3140,6 +3158,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   Address addr = as_Address(src->as_address_ptr(), noreg);
   BasicType type = src->type();
   bool is_oop = type == T_OBJECT || type == T_ARRAY;
+  Assembler::operand_size sz = Assembler::xword;
 
   void (MacroAssembler::* lda)(Register Rd, Register Ra);
   void (MacroAssembler::* add)(Register Rd, Register Rn, RegisterOrConstant increment);
@@ -3150,6 +3169,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     lda = &MacroAssembler::ldaxrw;
     add = &MacroAssembler::addw;
     stl = &MacroAssembler::stlxrw;
+    sz = Assembler::word;
     break;
   case T_LONG:
     lda = &MacroAssembler::ldaxr;
@@ -3162,6 +3182,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
       lda = &MacroAssembler::ldaxrw;
       add = &MacroAssembler::addw;
       stl = &MacroAssembler::stlxrw;
+      sz = Assembler::word;
     } else {
       lda = &MacroAssembler::ldaxr;
       add = &MacroAssembler::add;
@@ -3187,13 +3208,24 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
 	assert_different_registers(inc.as_register(), dst, addr.base(), tmp,
 				   rscratch1, rscratch2);
       }
-      Label again;
       __ lea(tmp, addr);
-      __ bind(again);
-      (_masm->*lda)(dst, tmp);
-      (_masm->*add)(rscratch1, dst, inc);
-      (_masm->*stl)(rscratch2, rscratch1, tmp);
-      __ cbnzw(rscratch2, again);
+      if (UseLSE) {
+        if (inc.is_register()) {
+          __ ldaddal(sz, inc.as_register(), dst, tmp);
+        } else {
+          __ mov(rscratch2, inc.as_constant());
+          __ ldaddal(sz, rscratch2, dst, tmp);
+        }
+      } else {
+        Label again;
+        if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+          __ prfm(Address(tmp), PSTL1STRM);
+        __ bind(again);
+        (_masm->*lda)(dst, tmp);
+        (_masm->*add)(rscratch1, dst, inc);
+        (_masm->*stl)(rscratch2, rscratch1, tmp);
+        __ cbnzw(rscratch2, again);
+      }
       break;
     }
   case lir_xchg:
@@ -3206,12 +3238,18 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
         obj = rscratch1;
       }
       assert_different_registers(obj, addr.base(), tmp, rscratch2, dst);
-      Label again;
       __ lea(tmp, addr);
-      __ bind(again);
-      (_masm->*lda)(dst, tmp);
-      (_masm->*stl)(rscratch2, obj, tmp);
-      __ cbnzw(rscratch2, again);
+      if (UseLSE) {
+        __ swp(sz, obj, dst, tmp);
+      } else {
+        Label again;
+        if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+          __ prfm(Address(tmp), PSTL1STRM);
+        __ bind(again);
+        (_masm->*lda)(dst, tmp);
+        (_masm->*stl)(rscratch2, obj, tmp);
+        __ cbnzw(rscratch2, again);
+      }
       if (is_oop && UseCompressedOops) {
 	__ decode_heap_oop(dst);
       }
