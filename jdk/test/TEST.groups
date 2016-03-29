@@ -352,7 +352,8 @@ needs_jdk = \
   javax/xml/bind/jxc \
   javax/xml/ws/8033113 \
   javax/xml/ws/clientjar/TestWsImport.java \
-  javax/xml/ws/ebcdic
+  javax/xml/ws/ebcdic \
+  javax/xml/bind/xjc/8145039/JaxbMarshallTest.java
 
 # JRE adds further tests to compact3
 #
