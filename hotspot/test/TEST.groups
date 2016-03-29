@@ -61,7 +61,6 @@ jdk = \
 # can be resolved in some cases by using tools from the compile-jdk.
 #
 needs_jdk = \
-  gc/TestG1ZeroPGCTJcmdThreadPrint.java \
   gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java \
   gc/metaspace/TestMetaspacePerfCounters.java \
   gc/metaspace/TestPerfCountersAndMemoryPools.java \
