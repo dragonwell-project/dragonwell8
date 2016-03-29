@@ -3154,6 +3154,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
   Address addr = as_Address(src->as_address_ptr(), noreg);
   BasicType type = src->type();
   bool is_oop = type == T_OBJECT || type == T_ARRAY;
+  Assembler::operand_size sz = Assembler::xword;
 
   void (MacroAssembler::* lda)(Register Rd, Register Ra);
   void (MacroAssembler::* add)(Register Rd, Register Rn, RegisterOrConstant increment);
@@ -3164,6 +3165,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     lda = &MacroAssembler::ldaxrw;
     add = &MacroAssembler::addw;
     stl = &MacroAssembler::stlxrw;
+    sz = Assembler::word;
     break;
   case T_LONG:
     lda = &MacroAssembler::ldaxr;
@@ -3176,6 +3178,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
       lda = &MacroAssembler::ldaxrw;
       add = &MacroAssembler::addw;
       stl = &MacroAssembler::stlxrw;
+      sz = Assembler::word;
     } else {
       lda = &MacroAssembler::ldaxr;
       add = &MacroAssembler::add;
@@ -3201,13 +3204,23 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
 	assert_different_registers(inc.as_register(), dst, addr.base(), tmp,
 				   rscratch1, rscratch2);
       }
-      Label again;
       __ lea(tmp, addr);
-      __ bind(again);
-      (_masm->*lda)(dst, tmp);
-      (_masm->*add)(rscratch1, dst, inc);
-      (_masm->*stl)(rscratch2, rscratch1, tmp);
-      __ cbnzw(rscratch2, again);
+      if (UseLSE) {
+        if (inc.is_register()) {
+          __ ldaddal(sz, inc.as_register(), dst, tmp);
+        } else {
+          __ mov(rscratch2, inc.as_constant());
+          __ ldaddal(sz, rscratch2, dst, tmp);
+        }
+      } else {
+        Label again;
+        __ prfm(Address(tmp), PSTL1STRM);
+        __ bind(again);
+        (_masm->*lda)(dst, tmp);
+        (_masm->*add)(rscratch1, dst, inc);
+        (_masm->*stl)(rscratch2, rscratch1, tmp);
+        __ cbnzw(rscratch2, again);
+      }
       break;
     }
   case lir_xchg:
@@ -3220,12 +3233,17 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
         obj = rscratch1;
       }
       assert_different_registers(obj, addr.base(), tmp, rscratch2, dst);
-      Label again;
       __ lea(tmp, addr);
-      __ bind(again);
-      (_masm->*lda)(dst, tmp);
-      (_masm->*stl)(rscratch2, obj, tmp);
-      __ cbnzw(rscratch2, again);
+      if (UseLSE) {
+        __ swp(sz, obj, dst, tmp);
+      } else {
+        Label again;
+        __ prfm(Address(tmp), PSTL1STRM);
+        __ bind(again);
+        (_masm->*lda)(dst, tmp);
+        (_masm->*stl)(rscratch2, obj, tmp);
+        __ cbnzw(rscratch2, again);
+      }
       if (is_oop && UseCompressedOops) {
 	__ decode_heap_oop(dst);
       }
