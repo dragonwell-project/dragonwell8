@@ -2388,6 +2388,11 @@ bool SWPointer::scaled_iv(Node* n) {
       return true;
     }
   } else if (opc == Op_ConvI2L) {
+    if (n->in(1)->Opcode() == Op_CastII &&
+        n->in(1)->as_CastII()->has_range_check()) {
+      // Skip range check dependent CastII nodes
+      n = n->in(1);
+    }
     if (scaled_iv_plus_offset(n->in(1))) {
       return true;
     }
