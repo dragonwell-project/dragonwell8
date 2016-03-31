@@ -158,7 +158,9 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
 
-  Node* ptr = array_element_address(ary, idx, type, sizetype);
+  // Make array address computation control dependent to prevent it
+  // from floating above the range check during loop optimizations.
+  Node* ptr = array_element_address(ary, idx, type, sizetype, control());
 
   if (result2 != NULL)  *result2 = elemtype;
 
@@ -461,9 +463,12 @@ bool Parse::create_jump_tables(Node* key_val, SwitchRange* lo, SwitchRange* hi) 
 #ifdef _LP64
   // Clean the 32-bit int into a real 64-bit offset.
   // Otherwise, the jint value 0 might turn into an offset of 0x0800000000.
-  const TypeLong* lkeytype = TypeLong::make(CONST64(0), num_cases-1, Type::WidenMin);
-  key_val       = _gvn.transform( new (C) ConvI2LNode(key_val, lkeytype) );
+  const TypeInt* ikeytype = TypeInt::make(0, num_cases-1, Type::WidenMin);
+  // Make I2L conversion control dependent to prevent it from
+  // floating above the range check during loop optimizations.
+  key_val = C->constrained_convI2L(&_gvn, key_val, ikeytype, control());
 #endif
+
   // Shift the value by wordsize so we have an index into the table, rather
   // than a switch value
   Node *shiftWord = _gvn.MakeConX(wordSize);

@@ -75,6 +75,7 @@ class SafePointNode;
 class JVMState;
 class Type;
 class TypeData;
+class TypeInt;
 class TypePtr;
 class TypeOopPtr;
 class TypeFunc;
@@ -334,6 +335,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _macro_nodes;           // List of nodes which need to be expanded before matching.
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
+  GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -669,7 +671,7 @@ class Compile : public Phase {
   void set_congraph(ConnectionGraph* congraph)  { _congraph = congraph;}
   void add_macro_node(Node * n) {
     //assert(n->is_macro(), "must be a macro node");
-    assert(!_macro_nodes->contains(n), " duplicate entry in expand list");
+    assert(!_macro_nodes->contains(n), "duplicate entry in expand list");
     _macro_nodes->append(n);
   }
   void remove_macro_node(Node * n) {
@@ -689,10 +691,23 @@ class Compile : public Phase {
     }
   }
   void add_predicate_opaq(Node * n) {
-    assert(!_predicate_opaqs->contains(n), " duplicate entry in predicate opaque1");
+    assert(!_predicate_opaqs->contains(n), "duplicate entry in predicate opaque1");
     assert(_macro_nodes->contains(n), "should have already been in macro list");
     _predicate_opaqs->append(n);
   }
+
+  // Range check dependent CastII nodes that can be removed after loop optimizations
+  void add_range_check_cast(Node* n);
+  void remove_range_check_cast(Node* n) {
+    if (_range_check_casts->contains(n)) {
+      _range_check_casts->remove(n);
+    }
+  }
+  Node* range_check_cast_node(int idx) const { return _range_check_casts->at(idx);  }
+  int   range_check_cast_count()       const { return _range_check_casts->length(); }
+  // Remove all range check dependent CastIINodes.
+  void  remove_range_check_casts(PhaseIterGVN &igvn);
+
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
   void cleanup_loop_predicates(PhaseIterGVN &igvn);
@@ -1200,6 +1215,9 @@ class Compile : public Phase {
 
   // Definitions of pd methods
   static void pd_compiler2_init();
+
+  // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
+  static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl);
 
   // Auxiliary method for randomized fuzzing/stressing
   static bool randomized_select(int count);

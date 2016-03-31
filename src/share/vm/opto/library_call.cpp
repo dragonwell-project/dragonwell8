@@ -324,6 +324,10 @@ class LibraryCallKit : public GraphKit {
   bool inline_updateBytesCRC32();
   bool inline_updateByteBufferCRC32();
   bool inline_multiplyToLen();
+  bool inline_squareToLen();
+  bool inline_mulAdd();
+  bool inline_montgomeryMultiply();
+  bool inline_montgomerySquare();
 
   bool inline_profileBoolean();
 };
@@ -525,6 +529,21 @@ CallGenerator* Compile::make_vm_intrinsic(ciMethod* m, bool is_virtual) {
 
   case vmIntrinsics::_multiplyToLen:
     if (!UseMultiplyToLenIntrinsic) return NULL;
+    break;
+
+  case vmIntrinsics::_squareToLen:
+    if (!UseSquareToLenIntrinsic) return NULL;
+    break;
+
+  case vmIntrinsics::_mulAdd:
+    if (!UseMulAddIntrinsic) return NULL;
+    break;
+
+  case vmIntrinsics::_montgomeryMultiply:
+     if (!UseMontgomeryMultiplyIntrinsic) return NULL;
+    break;
+  case vmIntrinsics::_montgomerySquare:
+     if (!UseMontgomerySquareIntrinsic) return NULL;
     break;
 
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:
@@ -926,6 +945,17 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_multiplyToLen:
     return inline_multiplyToLen();
+
+  case vmIntrinsics::_squareToLen:
+    return inline_squareToLen();
+
+  case vmIntrinsics::_mulAdd:
+    return inline_mulAdd();
+
+  case vmIntrinsics::_montgomeryMultiply:
+    return inline_montgomeryMultiply();
+  case vmIntrinsics::_montgomerySquare:
+    return inline_montgomerySquare();
 
   case vmIntrinsics::_encodeISOArray:
     return inline_encodeISOArray();
@@ -5767,11 +5797,12 @@ bool LibraryCallKit::inline_multiplyToLen() {
 
   assert(callee()->signature()->size() == 5, "multiplyToLen has 5 parameters");
 
-  Node* x    = argument(1);
-  Node* xlen = argument(2);
-  Node* y    = argument(3);
-  Node* ylen = argument(4);
-  Node* z    = argument(5);
+  // no receiver because it is a static method
+  Node* x    = argument(0);
+  Node* xlen = argument(1);
+  Node* y    = argument(2);
+  Node* ylen = argument(3);
+  Node* z    = argument(4);
 
   const Type* x_type = x->Value(&_gvn);
   const Type* y_type = y->Value(&_gvn);
@@ -5853,6 +5884,215 @@ bool LibraryCallKit::inline_multiplyToLen() {
 
   C->set_has_split_ifs(true); // Has chance for split-if optimization
   set_result(z);
+  return true;
+}
+
+//-------------inline_squareToLen------------------------------------
+bool LibraryCallKit::inline_squareToLen() {
+  assert(UseSquareToLenIntrinsic, "not implementated on this platform");
+
+  address stubAddr = StubRoutines::squareToLen();
+  if (stubAddr == NULL) {
+    return false; // Intrinsic's stub is not implemented on this platform
+  }
+  const char* stubName = "squareToLen";
+
+  assert(callee()->signature()->size() == 4, "implSquareToLen has 4 parameters");
+
+  Node* x    = argument(0);
+  Node* len  = argument(1);
+  Node* z    = argument(2);
+  Node* zlen = argument(3);
+
+  const Type* x_type = x->Value(&_gvn);
+  const Type* z_type = z->Value(&_gvn);
+  const TypeAryPtr* top_x = x_type->isa_aryptr();
+  const TypeAryPtr* top_z = z_type->isa_aryptr();
+  if (top_x  == NULL || top_x->klass()  == NULL ||
+      top_z  == NULL || top_z->klass()  == NULL) {
+    // failed array check
+    return false;
+  }
+
+  BasicType x_elem = x_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType z_elem = z_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  if (x_elem != T_INT || z_elem != T_INT) {
+    return false;
+  }
+
+
+  Node* x_start = array_element_address(x, intcon(0), x_elem);
+  Node* z_start = array_element_address(z, intcon(0), z_elem);
+
+  Node*  call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                  OptoRuntime::squareToLen_Type(),
+                                  stubAddr, stubName, TypePtr::BOTTOM,
+                                  x_start, len, z_start, zlen);
+
+  set_result(z);
+  return true;
+}
+
+//-------------inline_mulAdd------------------------------------------
+bool LibraryCallKit::inline_mulAdd() {
+  assert(UseMulAddIntrinsic, "not implementated on this platform");
+
+  address stubAddr = StubRoutines::mulAdd();
+  if (stubAddr == NULL) {
+    return false; // Intrinsic's stub is not implemented on this platform
+  }
+  const char* stubName = "mulAdd";
+
+  assert(callee()->signature()->size() == 5, "mulAdd has 5 parameters");
+
+  Node* out      = argument(0);
+  Node* in       = argument(1);
+  Node* offset   = argument(2);
+  Node* len      = argument(3);
+  Node* k        = argument(4);
+
+  const Type* out_type = out->Value(&_gvn);
+  const Type* in_type = in->Value(&_gvn);
+  const TypeAryPtr* top_out = out_type->isa_aryptr();
+  const TypeAryPtr* top_in = in_type->isa_aryptr();
+  if (top_out  == NULL || top_out->klass()  == NULL ||
+      top_in == NULL || top_in->klass() == NULL) {
+    // failed array check
+    return false;
+  }
+
+  BasicType out_elem = out_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType in_elem = in_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  if (out_elem != T_INT || in_elem != T_INT) {
+    return false;
+  }
+
+  Node* outlen = load_array_length(out);
+  Node* new_offset = _gvn.transform(new (C) SubINode(outlen, offset));
+  Node* out_start = array_element_address(out, intcon(0), out_elem);
+  Node* in_start = array_element_address(in, intcon(0), in_elem);
+
+  Node*  call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                  OptoRuntime::mulAdd_Type(),
+                                  stubAddr, stubName, TypePtr::BOTTOM,
+                                  out_start,in_start, new_offset, len, k);
+  Node* result = _gvn.transform(new (C) ProjNode(call, TypeFunc::Parms));
+  set_result(result);
+  return true;
+}
+
+//-------------inline_montgomeryMultiply-----------------------------------
+bool LibraryCallKit::inline_montgomeryMultiply() {
+  address stubAddr = StubRoutines::montgomeryMultiply();
+  if (stubAddr == NULL) {
+    return false; // Intrinsic's stub is not implemented on this platform
+  }
+
+  assert(UseMontgomeryMultiplyIntrinsic, "not implemented on this platform");
+  const char* stubName = "montgomery_square";
+
+  assert(callee()->signature()->size() == 7, "montgomeryMultiply has 7 parameters");
+
+  Node* a    = argument(0);
+  Node* b    = argument(1);
+  Node* n    = argument(2);
+  Node* len  = argument(3);
+  Node* inv  = argument(4);
+  Node* m    = argument(6);
+
+  const Type* a_type = a->Value(&_gvn);
+  const TypeAryPtr* top_a = a_type->isa_aryptr();
+  const Type* b_type = b->Value(&_gvn);
+  const TypeAryPtr* top_b = b_type->isa_aryptr();
+  const Type* n_type = a->Value(&_gvn);
+  const TypeAryPtr* top_n = n_type->isa_aryptr();
+  const Type* m_type = a->Value(&_gvn);
+  const TypeAryPtr* top_m = m_type->isa_aryptr();
+  if (top_a  == NULL || top_a->klass()  == NULL ||
+      top_b == NULL || top_b->klass()  == NULL ||
+      top_n == NULL || top_n->klass()  == NULL ||
+      top_m == NULL || top_m->klass()  == NULL) {
+    // failed array check
+    return false;
+  }
+
+  BasicType a_elem = a_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType b_elem = b_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType n_elem = n_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType m_elem = m_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  if (a_elem != T_INT || b_elem != T_INT || n_elem != T_INT || m_elem != T_INT) {
+    return false;
+  }
+
+  // Make the call
+  {
+    Node* a_start = array_element_address(a, intcon(0), a_elem);
+    Node* b_start = array_element_address(b, intcon(0), b_elem);
+    Node* n_start = array_element_address(n, intcon(0), n_elem);
+    Node* m_start = array_element_address(m, intcon(0), m_elem);
+
+    Node* call = make_runtime_call(RC_LEAF,
+                                   OptoRuntime::montgomeryMultiply_Type(),
+                                   stubAddr, stubName, TypePtr::BOTTOM,
+                                   a_start, b_start, n_start, len, inv, top(),
+                                   m_start);
+    set_result(m);
+  }
+
+  return true;
+}
+
+bool LibraryCallKit::inline_montgomerySquare() {
+  address stubAddr = StubRoutines::montgomerySquare();
+  if (stubAddr == NULL) {
+    return false; // Intrinsic's stub is not implemented on this platform
+  }
+
+  assert(UseMontgomerySquareIntrinsic, "not implemented on this platform");
+  const char* stubName = "montgomery_square";
+
+  assert(callee()->signature()->size() == 6, "montgomerySquare has 6 parameters");
+
+  Node* a    = argument(0);
+  Node* n    = argument(1);
+  Node* len  = argument(2);
+  Node* inv  = argument(3);
+  Node* m    = argument(5);
+
+  const Type* a_type = a->Value(&_gvn);
+  const TypeAryPtr* top_a = a_type->isa_aryptr();
+  const Type* n_type = a->Value(&_gvn);
+  const TypeAryPtr* top_n = n_type->isa_aryptr();
+  const Type* m_type = a->Value(&_gvn);
+  const TypeAryPtr* top_m = m_type->isa_aryptr();
+  if (top_a  == NULL || top_a->klass()  == NULL ||
+      top_n == NULL || top_n->klass()  == NULL ||
+      top_m == NULL || top_m->klass()  == NULL) {
+    // failed array check
+    return false;
+  }
+
+  BasicType a_elem = a_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType n_elem = n_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  BasicType m_elem = m_type->isa_aryptr()->klass()->as_array_klass()->element_type()->basic_type();
+  if (a_elem != T_INT || n_elem != T_INT || m_elem != T_INT) {
+    return false;
+  }
+
+  // Make the call
+  {
+    Node* a_start = array_element_address(a, intcon(0), a_elem);
+    Node* n_start = array_element_address(n, intcon(0), n_elem);
+    Node* m_start = array_element_address(m, intcon(0), m_elem);
+
+    Node* call = make_runtime_call(RC_LEAF,
+                                   OptoRuntime::montgomerySquare_Type(),
+                                   stubAddr, stubName, TypePtr::BOTTOM,
+                                   a_start, n_start, len, inv, top(),
+                                   m_start);
+    set_result(m);
+  }
+
   return true;
 }
 
