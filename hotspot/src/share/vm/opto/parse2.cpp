@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,11 +57,15 @@ void Parse::array_load(BasicType elem_type) {
 
 //--------------------------------array_store----------------------------------
 void Parse::array_store(BasicType elem_type) {
-  Node* adr = array_addressing(elem_type, 1);
+  const Type* elem = Type::TOP;
+  Node* adr = array_addressing(elem_type, 1, &elem);
   if (stopped())  return;     // guaranteed null or range check
   Node* val = pop();
   dec_sp(2);                  // Pop array and index
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
+  if (elem == TypeInt::BOOL) {
+    elem_type = T_BOOLEAN;
+  }
   store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
 }
 
