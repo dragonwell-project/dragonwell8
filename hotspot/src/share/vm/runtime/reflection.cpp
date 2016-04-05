@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1101,7 +1101,7 @@ oop Reflection::invoke(instanceKlassHandle klass, methodHandle reflected_method,
 void Reflection::narrow(jvalue* value, BasicType narrow_type, TRAPS) {
   switch (narrow_type) {
     case T_BOOLEAN:
-     value->z = (jboolean) value->i;
+     value->z = (jboolean) (value->i & 1);
      return;
     case T_BYTE:
      value->b = (jbyte) value->i;
