@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,6 +151,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
     case ltos:
                movl(rdx, val_addr1);               // fall through
     case btos:                                     // fall through
+    case ztos:                                     // fall through
     case ctos:                                     // fall through
     case stos:                                     // fall through
     case itos: movl(rax, val_addr);                   break;
@@ -362,6 +363,7 @@ void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
     case atos: pop_ptr(rax);                                 break;
     case btos:                                               // fall through
+    case ztos:                                               // fall through
     case ctos:                                               // fall through
     case stos:                                               // fall through
     case itos: pop_i(rax);                                   break;
@@ -405,6 +407,7 @@ void InterpreterMacroAssembler::push(TosState state) {
   switch (state) {
     case atos: push_ptr(rax); break;
     case btos:                                               // fall through
+    case ztos:                                               // fall through
     case ctos:                                               // fall through
     case stos:                                               // fall through
     case itos: push_i(rax);                                    break;
