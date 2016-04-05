@@ -640,6 +640,16 @@ address InterpreterGenerator::generate_accessor_entry(void) {
     __ blr();
   }
 
+  if (branch_table[ztos] == 0) { // generate only once
+    __ align(32, 28, 28); // align load
+    __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
+    branch_table[ztos] = __ pc(); // non-volatile_entry point
+    __ lbzx(R3_RET, Rclass_or_obj, Roffset);
+    __ extsb(R3_RET, R3_RET);
+    __ beq(CCR6, Lacquire);
+    __ blr();
+  }
+
   if (branch_table[ctos] == 0) { // generate only once
     __ align(32, 28, 28); // align load
     __ fence(); // volatile entry point (one instruction before non-volatile_entry point)
