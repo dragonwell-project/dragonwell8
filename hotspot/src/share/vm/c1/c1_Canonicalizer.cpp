@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -265,7 +265,8 @@ void Canonicalizer::do_StoreIndexed   (StoreIndexed*    x) {
     // limit this optimization to current block
     if (value != NULL && in_current_block(conv)) {
       set_canonical(new StoreIndexed(x->array(), x->index(), x->length(),
-                                     x->elt_type(), value, x->state_before()));
+                                     x->elt_type(), value, x->state_before(),
+                                     x->check_boolean()));
       return;
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,6 +104,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void dispatch_next_noverify_oop(TosState state, int step = 0);
   void dispatch_via (TosState state, address* table);
 
+
+  void narrow(Register result);
 
   // Removes the current activation (incl. unlocking of monitors).
   // Additionally this code is used for earlyReturn in which case we

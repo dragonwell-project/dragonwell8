@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1586,7 +1586,7 @@ void JvmtiExport::post_raw_field_modification(JavaThread *thread, Method* method
   address location, KlassHandle field_klass, Handle object, jfieldID field,
   char sig_type, jvalue *value) {
 
-  if (sig_type == 'I' || sig_type == 'Z' || sig_type == 'C' || sig_type == 'S') {
+  if (sig_type == 'I' || sig_type == 'Z' || sig_type == 'B' || sig_type == 'C' || sig_type == 'S') {
     // 'I' instructions are used for byte, char, short and int.
     // determine which it really is, and convert
     fieldDescriptor fd;
