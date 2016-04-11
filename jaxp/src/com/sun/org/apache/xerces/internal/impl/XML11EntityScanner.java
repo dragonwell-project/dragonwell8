@@ -20,6 +20,7 @@
 
 package com.sun.org.apache.xerces.internal.impl;
 
+import com.sun.org.apache.xerces.internal.impl.XMLScanner.NameType;
 import com.sun.org.apache.xerces.internal.impl.msg.XMLMessageFormatter;
 import com.sun.org.apache.xerces.internal.util.XML11Char;
 import com.sun.org.apache.xerces.internal.util.XMLChar;
@@ -93,7 +94,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public int scanChar() throws IOException {
+    protected int scanChar(NameType nt) throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -101,6 +102,7 @@ public class XML11EntityScanner
         }
 
         // scan character
+        int offset = fCurrentEntity.position;
         int c = fCurrentEntity.ch[fCurrentEntity.position++];
         boolean external = false;
         if (c == '\n' ||
@@ -111,6 +113,7 @@ public class XML11EntityScanner
                 invokeListeners(1);
                 fCurrentEntity.ch[0] = (char)c;
                 load(1, false, false);
+                offset = 0;
             }
             if (c == '\r' && external) {
                 int cc = fCurrentEntity.ch[fCurrentEntity.position++];
@@ -123,6 +126,9 @@ public class XML11EntityScanner
 
         // return character that was scanned
         fCurrentEntity.columnNumber++;
+        if (!detectingVersion) {
+            checkEntityLimit(nt, fCurrentEntity, offset, fCurrentEntity.position - offset);
+        }
         return c;
 
     } // scanChar():int
@@ -142,7 +148,7 @@ public class XML11EntityScanner
      * @see com.sun.org.apache.xerces.internal.util.SymbolTable
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11Name
      */
-    public String scanNmtoken() throws IOException {
+    protected String scanNmtoken() throws IOException {
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
             load(0, true, true);
@@ -249,6 +255,8 @@ public class XML11EntityScanner
      * <strong>Note:</strong> The string returned must be a symbol. The
      * SymbolTable can be used for this purpose.
      *
+     * @param nt The type of the name (element or attribute)
+     *
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      *
@@ -256,7 +264,7 @@ public class XML11EntityScanner
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11Name
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11NameStart
      */
-    public String scanName() throws IOException {
+    protected String scanName(NameType nt) throws IOException {
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
             load(0, true, true);
@@ -357,6 +365,7 @@ public class XML11EntityScanner
         String symbol = null;
         if (length > 0) {
             checkLimit(Limit.MAX_NAME_LIMIT, fCurrentEntity, offset, length);
+            checkEntityLimit(nt, fCurrentEntity, offset, length);
             symbol = fSymbolTable.addSymbol(fCurrentEntity.ch, offset, length);
         }
         return symbol;
@@ -379,7 +388,7 @@ public class XML11EntityScanner
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11NCName
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11NCNameStart
      */
-    public String scanNCName() throws IOException {
+    protected String scanNCName() throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -535,6 +544,7 @@ public class XML11EntityScanner
      * this purpose.
      *
      * @param qname The qualified name structure to fill.
+     * @param nt The type of the name (element or attribute)
      *
      * @return Returns true if a qualified name appeared immediately on
      *         the input and was scanned, false otherwise.
@@ -546,7 +556,7 @@ public class XML11EntityScanner
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11Name
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11NameStart
      */
-    public boolean scanQName(QName qname) throws IOException {
+    protected boolean scanQName(QName qname, XMLScanner.NameType nt) throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -566,6 +576,7 @@ public class XML11EntityScanner
                     fCurrentEntity.columnNumber++;
                     String name = fSymbolTable.addSymbol(fCurrentEntity.ch, 0, 1);
                     qname.setValues(null, name, name, null);
+                    checkEntityLimit(nt, fCurrentEntity, 0, 1);
                     return true;
                 }
             }
@@ -596,6 +607,7 @@ public class XML11EntityScanner
                     fCurrentEntity.columnNumber += 2;
                     String name = fSymbolTable.addSymbol(fCurrentEntity.ch, 0, 2);
                     qname.setValues(null, name, name, null);
+                    checkEntityLimit(nt, fCurrentEntity, 0, 2);
                     return true;
                 }
             }
@@ -700,6 +712,7 @@ public class XML11EntityScanner
                 checkLimit(Limit.MAX_NAME_LIMIT, fCurrentEntity, offset, length);
             }
             qname.setValues(prefix, localpart, rawname, null);
+            checkEntityLimit(nt, fCurrentEntity, offset, length);
             return true;
         }
         return false;
@@ -732,7 +745,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public int scanContent(XMLString content) throws IOException {
+    protected int scanContent(XMLString content) throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -750,6 +763,7 @@ public class XML11EntityScanner
         int offset = fCurrentEntity.position;
         int c = fCurrentEntity.ch[offset];
         int newlines = 0;
+        boolean counted = false;
         boolean external = fCurrentEntity.isExternal();
         if (c == '\n' || ((c == '\r' || c == 0x85 || c == 0x2028) && external)) {
             do {
@@ -759,11 +773,13 @@ public class XML11EntityScanner
                     fCurrentEntity.lineNumber++;
                     fCurrentEntity.columnNumber = 1;
                     if (fCurrentEntity.position == fCurrentEntity.count) {
+                        checkEntityLimit(null, fCurrentEntity, offset, newlines);
                         offset = 0;
                         fCurrentEntity.baseCharOffset += (fCurrentEntity.position - fCurrentEntity.startPosition);
                         fCurrentEntity.position = newlines;
                         fCurrentEntity.startPosition = newlines;
                         if (load(newlines, false, true)) {
+                            counted = true;
                             break;
                         }
                     }
@@ -782,11 +798,13 @@ public class XML11EntityScanner
                     fCurrentEntity.lineNumber++;
                     fCurrentEntity.columnNumber = 1;
                     if (fCurrentEntity.position == fCurrentEntity.count) {
+                        checkEntityLimit(null, fCurrentEntity, offset, newlines);
                         offset = 0;
                         fCurrentEntity.baseCharOffset += (fCurrentEntity.position - fCurrentEntity.startPosition);
                         fCurrentEntity.position = newlines;
                         fCurrentEntity.startPosition = newlines;
                         if (load(newlines, false, true)) {
+                            counted = true;
                             break;
                         }
                     }
@@ -801,6 +819,7 @@ public class XML11EntityScanner
             }
             int length = fCurrentEntity.position - offset;
             if (fCurrentEntity.position == fCurrentEntity.count - 1) {
+                checkEntityLimit(null, fCurrentEntity, offset, length);
                 content.setValues(fCurrentEntity.ch, offset, length);
                 return -1;
             }
@@ -828,8 +847,8 @@ public class XML11EntityScanner
         }
         int length = fCurrentEntity.position - offset;
         fCurrentEntity.columnNumber += length - newlines;
-        if (fCurrentEntity.isGE) {
-            checkLimit(Limit.TOTAL_ENTITY_SIZE_LIMIT, fCurrentEntity, offset, length);
+        if (!counted) {
+            checkEntityLimit(null, fCurrentEntity, offset, length);
         }
         content.setValues(fCurrentEntity.ch, offset, length);
 
@@ -878,7 +897,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public int scanLiteral(int quote, XMLString content, boolean isNSURI)
+    protected int scanLiteral(int quote, XMLString content, boolean isNSURI)
         throws IOException {
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -976,9 +995,8 @@ public class XML11EntityScanner
         }
         int length = fCurrentEntity.position - offset;
         fCurrentEntity.columnNumber += length - newlines;
-        if (fCurrentEntity.isGE) {
-            checkLimit(Limit.TOTAL_ENTITY_SIZE_LIMIT, fCurrentEntity, offset, length);
-        }
+
+        checkEntityLimit(null, fCurrentEntity, offset, length);
         if (isNSURI) {
             checkLimit(Limit.MAX_NAME_LIMIT, fCurrentEntity, offset, length);
         }
@@ -1031,7 +1049,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public boolean scanData(String delimiter, XMLStringBuffer buffer)
+    protected boolean scanData(String delimiter, XMLStringBuffer buffer)
         throws IOException {
 
         boolean done = false;
@@ -1063,6 +1081,7 @@ public class XML11EntityScanner
             if (fCurrentEntity.position >= fCurrentEntity.count - delimLen) {
                 // something must be wrong with the input:  e.g., file ends  an unterminated comment
                 int length = fCurrentEntity.count - fCurrentEntity.position;
+                checkEntityLimit(NameType.COMMENT, fCurrentEntity, fCurrentEntity.position, length);
                 buffer.append (fCurrentEntity.ch, fCurrentEntity.position, length);
                 fCurrentEntity.columnNumber += fCurrentEntity.count;
                 fCurrentEntity.baseCharOffset += (fCurrentEntity.position - fCurrentEntity.startPosition);
@@ -1127,6 +1146,7 @@ public class XML11EntityScanner
                 }
                 int length = fCurrentEntity.position - offset;
                 if (fCurrentEntity.position == fCurrentEntity.count - 1) {
+                    checkEntityLimit(NameType.COMMENT, fCurrentEntity, offset, length);
                     buffer.append(fCurrentEntity.ch, offset, length);
                     return true;
                 }
@@ -1165,6 +1185,7 @@ public class XML11EntityScanner
                         fCurrentEntity.position--;
                         int length = fCurrentEntity.position - offset;
                         fCurrentEntity.columnNumber += length - newlines;
+                        checkEntityLimit(NameType.COMMENT, fCurrentEntity, offset, length);
                         buffer.append(fCurrentEntity.ch, offset, length);
                         return true;
                     }
@@ -1202,6 +1223,7 @@ public class XML11EntityScanner
                         fCurrentEntity.position--;
                         int length = fCurrentEntity.position - offset;
                         fCurrentEntity.columnNumber += length - newlines;
+                        checkEntityLimit(NameType.COMMENT, fCurrentEntity, offset, length);
                         buffer.append(fCurrentEntity.ch, offset, length);
                         return true;
                     }
@@ -1209,6 +1231,7 @@ public class XML11EntityScanner
             }
             int length = fCurrentEntity.position - offset;
             fCurrentEntity.columnNumber += length - newlines;
+            checkEntityLimit(NameType.COMMENT, fCurrentEntity, offset, length);
             if (done) {
                 length -= delimLen;
             }
@@ -1233,7 +1256,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public boolean skipChar(int c) throws IOException {
+    protected boolean skipChar(int c, NameType nt) throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -1241,6 +1264,7 @@ public class XML11EntityScanner
         }
 
         // skip character
+        int offset = fCurrentEntity.position;
         int cc = fCurrentEntity.ch[fCurrentEntity.position];
         if (cc == c) {
             fCurrentEntity.position++;
@@ -1251,12 +1275,14 @@ public class XML11EntityScanner
             else {
                 fCurrentEntity.columnNumber++;
             }
+            checkEntityLimit(nt, fCurrentEntity, offset, fCurrentEntity.position - offset);
             return true;
         }
         else if (c == '\n' && ((cc == 0x2028 || cc == 0x85) && fCurrentEntity.isExternal())) {
             fCurrentEntity.position++;
             fCurrentEntity.lineNumber++;
             fCurrentEntity.columnNumber = 1;
+            checkEntityLimit(nt, fCurrentEntity, offset, fCurrentEntity.position - offset);
             return true;
         }
         else if (c == '\n' && (cc == '\r' ) && fCurrentEntity.isExternal()) {
@@ -1272,6 +1298,7 @@ public class XML11EntityScanner
             }
             fCurrentEntity.lineNumber++;
             fCurrentEntity.columnNumber = 1;
+            checkEntityLimit(nt, fCurrentEntity, offset, fCurrentEntity.position - offset);
             return true;
         }
 
@@ -1294,7 +1321,7 @@ public class XML11EntityScanner
      * @see com.sun.org.apache.xerces.internal.util.XMLChar#isSpace
      * @see com.sun.org.apache.xerces.internal.util.XML11Char#isXML11Space
      */
-    public boolean skipSpaces() throws IOException {
+    protected boolean skipSpaces() throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -1314,7 +1341,7 @@ public class XML11EntityScanner
 
         // skip spaces
         int c = fCurrentEntity.ch[fCurrentEntity.position];
-
+        int offset = fCurrentEntity.position - 1;
         // External --  Match: S + 0x85 + 0x2028, and perform end of line normalization
         if (fCurrentEntity.isExternal()) {
             if (XML11Char.isXML11Space(c)) {
@@ -1350,6 +1377,11 @@ public class XML11EntityScanner
                     else {
                         fCurrentEntity.columnNumber++;
                     }
+
+                    //If this is a general entity, spaces within a start element should be counted
+                    checkEntityLimit(null, fCurrentEntity, offset, fCurrentEntity.position - offset);
+                    offset = fCurrentEntity.position;
+
                     // load more characters, if needed
                     if (!entityChanged)
                         fCurrentEntity.position++;
@@ -1389,6 +1421,11 @@ public class XML11EntityScanner
                 else {
                     fCurrentEntity.columnNumber++;
                 }
+
+                //If this is a general entity, spaces within a start element should be counted
+                checkEntityLimit(null, fCurrentEntity, offset, fCurrentEntity.position - offset);
+                offset = fCurrentEntity.position;
+
                 // load more characters, if needed
                 if (!entityChanged)
                     fCurrentEntity.position++;
@@ -1422,7 +1459,7 @@ public class XML11EntityScanner
      * @throws IOException  Thrown if i/o error occurs.
      * @throws EOFException Thrown on end of file.
      */
-    public boolean skipString(String s) throws IOException {
+    protected boolean skipString(String s) throws IOException {
 
         // load more characters, if needed
         if (fCurrentEntity.position == fCurrentEntity.count) {
@@ -1431,6 +1468,7 @@ public class XML11EntityScanner
 
         // skip string
         final int length = s.length();
+        final int beforeSkip = fCurrentEntity.position ;
         for (int i = 0; i < length; i++) {
             char c = fCurrentEntity.ch[fCurrentEntity.position++];
             if (c != s.charAt(i)) {
@@ -1450,6 +1488,9 @@ public class XML11EntityScanner
             }
         }
         fCurrentEntity.columnNumber += length;
+        if (!detectingVersion) {
+            checkEntityLimit(null, fCurrentEntity, beforeSkip, length);
+        }
         return true;
 
     } // skipString(String):boolean

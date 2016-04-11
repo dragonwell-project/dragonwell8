@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -242,6 +242,14 @@ public final class Constants {
      */
     public static final String JDK_GENERAL_ENTITY_SIZE_LIMIT =
             ORACLE_JAXP_PROPERTY_PREFIX + "maxGeneralEntitySizeLimit";
+
+    /**
+     * JDK node count limit in entities that limits the total number of nodes
+     * in all of entity references.
+     */
+    public static final String JDK_ENTITY_REPLACEMENT_LIMIT =
+            ORACLE_JAXP_PROPERTY_PREFIX + "entityReplacementLimit";
+
     /**
      * JDK maximum parameter entity size limit
      */
@@ -295,6 +303,13 @@ public final class Constants {
      * JDK maximum general entity size limit
      */
     public static final String SP_GENERAL_ENTITY_SIZE_LIMIT = "jdk.xml.maxGeneralEntitySizeLimit";
+
+    /**
+     * JDK node count limit in entities that limits the total number of nodes
+     * in all of entity references.
+     */
+    public static final String SP_ENTITY_REPLACEMENT_LIMIT = "jdk.xml.entityReplacementLimit";
+
     /**
      * JDK maximum parameter entity size limit
      */
