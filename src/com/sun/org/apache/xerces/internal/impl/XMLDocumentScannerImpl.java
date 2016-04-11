@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -636,7 +636,7 @@ public class XMLDocumentScannerImpl
         }
 
         // root element name
-        fDoctypeName = fEntityScanner.scanName();
+        fDoctypeName = fEntityScanner.scanName(NameType.DOCTYPE);
         if (fDoctypeName == null) {
             reportFatalError("MSG_ROOT_ELEMENT_TYPE_REQUIRED", null);
         }
@@ -676,10 +676,10 @@ public class XMLDocumentScannerImpl
 
         // is there an internal subset?
         boolean internalSubset = true;
-        if (!fEntityScanner.skipChar('[')) {
+        if (!fEntityScanner.skipChar('[', null)) {
             internalSubset = false;
             fEntityScanner.skipSpaces();
-            if (!fEntityScanner.skipChar('>')) {
+            if (!fEntityScanner.skipChar('>', null)) {
                 reportFatalError("DoctypedeclUnterminated", new Object[]{fDoctypeName});
             }
             fMarkupDepth--;
@@ -758,7 +758,7 @@ public class XMLDocumentScannerImpl
                         fStringBuffer.clear();
                         fStringBuffer.append("xml");
                         while (XMLChar.isName(fEntityScanner.peekChar())) {
-                            fStringBuffer.append((char)fEntityScanner.scanChar());
+                            fStringBuffer.append((char)fEntityScanner.scanChar(null));
                         }
                         String target = fSymbolTable.addSymbol(fStringBuffer.ch, fStringBuffer.offset, fStringBuffer.length);
                         //this function should fill the data.. and set the fEvent object to this event.
@@ -836,9 +836,9 @@ public class XMLDocumentScannerImpl
                     switch (fScannerState) {
                         case SCANNER_STATE_PROLOG: {
                             fEntityScanner.skipSpaces();
-                            if (fEntityScanner.skipChar('<')) {
+                            if (fEntityScanner.skipChar('<', null)) {
                                 setScannerState(SCANNER_STATE_START_OF_MARKUP);
-                            } else if (fEntityScanner.skipChar('&')) {
+                            } else if (fEntityScanner.skipChar('&', NameType.REFERENCE)) {
                                 setScannerState(SCANNER_STATE_REFERENCE);
                             } else {
                                 setScannerState(SCANNER_STATE_CONTENT);
@@ -849,11 +849,11 @@ public class XMLDocumentScannerImpl
                         case SCANNER_STATE_START_OF_MARKUP: {
                             fMarkupDepth++;
 
-                            if (fEntityScanner.skipChar('?')) {
+                            if (fEntityScanner.skipChar('?', null)) {
                                 setScannerState(SCANNER_STATE_PI);
-                            } else if (fEntityScanner.skipChar('!')) {
-                                if (fEntityScanner.skipChar('-')) {
-                                    if (!fEntityScanner.skipChar('-')) {
+                            } else if (fEntityScanner.skipChar('!', null)) {
+                                if (fEntityScanner.skipChar('-', null)) {
+                                    if (!fEntityScanner.skipChar('-', null)) {
                                         reportFatalError("InvalidCommentStart",
                                                 null);
                                     }
@@ -997,7 +997,7 @@ public class XMLDocumentScannerImpl
 
                     case SCANNER_STATE_CONTENT: {
                         reportFatalError("ContentIllegalInProlog", null);
-                        fEntityScanner.scanChar();
+                        fEntityScanner.scanChar(null);
                     }
                     case SCANNER_STATE_REFERENCE: {
                         reportFatalError("ReferenceIllegalInProlog", null);
@@ -1111,12 +1111,12 @@ public class XMLDocumentScannerImpl
                             fReadingDTD=false;
                             if (!moreToScan) {
                                 // end doctype declaration
-                                if (!fEntityScanner.skipChar(']')) {
+                                if (!fEntityScanner.skipChar(']', null)) {
                                     reportFatalError("EXPECTED_SQUARE_BRACKET_TO_CLOSE_INTERNAL_SUBSET",
                                             null);
                                 }
                                 fEntityScanner.skipSpaces();
-                                if (!fEntityScanner.skipChar('>')) {
+                                if (!fEntityScanner.skipChar('>', null)) {
                                     reportFatalError("DoctypedeclUnterminated", new Object[]{fDoctypeName});
                                 }
                                 fMarkupDepth--;
@@ -1380,7 +1380,7 @@ public class XMLDocumentScannerImpl
                             if(fScannerState == SCANNER_STATE_TERMINATED ){
                                 return XMLEvent.END_DOCUMENT ;
                             }
-                            if (fEntityScanner.skipChar('<')) {
+                            if (fEntityScanner.skipChar('<', null)) {
                                 setScannerState(SCANNER_STATE_START_OF_MARKUP);
                             } else {
                                 setScannerState(SCANNER_STATE_CONTENT);
@@ -1389,11 +1389,11 @@ public class XMLDocumentScannerImpl
                         }
                         case SCANNER_STATE_START_OF_MARKUP: {
                             fMarkupDepth++;
-                            if (fEntityScanner.skipChar('?')) {
+                            if (fEntityScanner.skipChar('?', null)) {
                                 setScannerState(SCANNER_STATE_PI);
-                            } else if (fEntityScanner.skipChar('!')) {
+                            } else if (fEntityScanner.skipChar('!', null)) {
                                 setScannerState(SCANNER_STATE_COMMENT);
-                            } else if (fEntityScanner.skipChar('/')) {
+                            } else if (fEntityScanner.skipChar('/', null)) {
                                 reportFatalError("MarkupNotRecognizedInMisc",
                                         null);
                             } else if (XMLChar.isNameStart(fEntityScanner.peekChar())) {
@@ -1435,7 +1435,7 @@ public class XMLDocumentScannerImpl
                         } else{
                             reportFatalError("ContentIllegalInTrailingMisc",
                                     null);
-                            fEntityScanner.scanChar();
+                            fEntityScanner.scanChar(null);
                             setScannerState(SCANNER_STATE_TRAILING_MISC);
                             return XMLEvent.CHARACTERS;
                         }
