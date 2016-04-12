@@ -1174,6 +1174,7 @@ public:
                           Register result, Register tmp1);
   void fill_words(Register base, Register cnt, Register value);
   void zero_words(Register base, Register cnt);
+  void zero_words(Register base, u_int64_t cnt);
 
   void encode_iso_array(Register src, Register dst,
                         Register len, Register result,
