@@ -25,8 +25,14 @@
  * @test
  * @bug 8048357
  * @summary PKCS8 Standards Conformance Tests
+ * @requires (os.family != "solaris")
  * @compile -XDignore.symbol.file PKCS8Test.java
  * @run main PKCS8Test
+ */
+
+/*
+ * Skip Solaris since the DSAPrivateKeys returned by
+ * SunPKCS11 Provider are not subclasses of PKCS8Key
  */
 import java.io.IOException;
 import java.math.BigInteger;
@@ -38,7 +44,6 @@ import sun.security.provider.DSAPrivateKey;
 import sun.security.util.DerOutputStream;
 import sun.security.util.DerValue;
 import sun.security.x509.AlgorithmId;
-
 import static java.lang.System.out;
 
 public class PKCS8Test {
@@ -186,7 +191,14 @@ public class PKCS8Test {
     public static void main(String[] args)
             throws IOException, InvalidKeyException {
 
-        byte[] encodedKey = getEncodedKey();
+        BigInteger p = BigInteger.valueOf(1);
+        BigInteger q = BigInteger.valueOf(2);
+        BigInteger g = BigInteger.valueOf(3);
+        BigInteger x = BigInteger.valueOf(4);
+
+        DSAPrivateKey priv = new DSAPrivateKey(p, q, g, x);
+
+        byte[] encodedKey = priv.getEncoded();
         byte[] expectedBytes = new byte[EXPECTED.length];
         for (int i = 0; i < EXPECTED.length; i++) {
             expectedBytes[i] = (byte) EXPECTED[i];
@@ -198,6 +210,7 @@ public class PKCS8Test {
         }
 
         PKCS8Key decodedKey = PKCS8Key.parse(new DerValue(encodedKey));
+
         String alg = decodedKey.getAlgorithm();
         AlgorithmId algId = decodedKey.getAlgorithmId();
         out.println("Algorithm :" + alg);
@@ -260,30 +273,10 @@ public class PKCS8Test {
                         + EXCEPTION_MESSAGE + " get: " + e.getMessage());
             }
         }
-
-    }
-
-    // get a byte array from somewhere
-    static byte[] getEncodedKey() throws InvalidKeyException {
-        BigInteger p = BigInteger.valueOf(1);
-        BigInteger q = BigInteger.valueOf(2);
-        BigInteger g = BigInteger.valueOf(3);
-        BigInteger x = BigInteger.valueOf(4);
-
-        DSAPrivateKey priv = new DSAPrivateKey(p, q, g, x);
-        return priv.getEncoded();
     }
 
     static void dumpByteArray(String nm, byte[] bytes) throws IOException {
         out.println(nm + " length: " + bytes.length);
         hexDump.encodeBuffer(bytes, out);
     }
-
-    static String toString(PKCS8Key key) {
-        StringBuilder builder = new StringBuilder(key.getAlgorithm());
-        builder.append('\n').append("parameters:")
-                .append(key.getAlgorithmId().toString());
-        return builder.toString();
-    }
-
 }
