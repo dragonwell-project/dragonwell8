@@ -468,7 +468,7 @@ void DumpWriter::close() {
   // flush and close dump file
   if (is_open()) {
     flush();
-    os::close(file_descriptor());
+    ::close(file_descriptor());
     set_file_descriptor(-1);
   }
 }
@@ -480,12 +480,11 @@ void DumpWriter::write_internal(void* s, size_t len) {
     ssize_t n = 0;
     while (len > 0) {
       uint tmp = (uint)MIN2(len, (size_t)UINT_MAX);
-      n = os::write(file_descriptor(), pos, tmp);
+      n = ::write(file_descriptor(), pos, tmp);
 
       if (n < 0) {
-        // EINTR cannot happen here, os::write will take care of that
         set_error(strerror(errno));
-        os::close(file_descriptor());
+        ::close(file_descriptor());
         set_file_descriptor(-1);
         return;
       }

@@ -6248,14 +6248,7 @@ bool os::is_headless_jre() {
 }
 
 size_t os::write(int fd, const void *buf, unsigned int nBytes) {
-  Thread* t = ThreadLocalStorage::thread();
-  if (t->is_Java_thread()) {
-    INTERRUPTIBLE_RETURN_INT(::write(fd, buf, nBytes), os::Solaris::clear_interrupted);
-  } else {
-    size_t res;
-    RESTARTABLE((size_t) ::write(fd, buf, (size_t) nBytes), res);
-    return res;
-  }
+  INTERRUPTIBLE_RETURN_INT(::write(fd, buf, nBytes), os::Solaris::clear_interrupted);
 }
 
 int os::close(int fd) {

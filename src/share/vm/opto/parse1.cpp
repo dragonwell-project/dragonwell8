@@ -27,6 +27,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "oops/method.hpp"
 #include "opto/addnode.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/locknode.hpp"
 #include "opto/memnode.hpp"
@@ -988,7 +989,23 @@ void Parse::do_exits() {
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
-    assert(_exits.control()->is_top() || !_gvn.type(ret_phi)->empty(), "return value must be well defined");
+    if (!_exits.control()->is_top() && _gvn.type(ret_phi)->empty()) {
+      // In case of concurrent class loading, the type we set for the
+      // ret_phi in build_exits() may have been too optimistic and the
+      // ret_phi may be top now.
+      // Otherwise, we've encountered an error and have to mark the method as
+      // not compilable. Just using an assertion instead would be dangerous
+      // as this could lead to an infinite compile loop in non-debug builds.
+      {
+        MutexLockerEx ml(Compile_lock, Mutex::_no_safepoint_check_flag);
+        if (C->env()->system_dictionary_modification_counter_changed()) {
+          C->record_failure(C2Compiler::retry_class_loading_during_parsing());
+        } else {
+          C->record_method_not_compilable("Can't determine return type.");
+        }
+      }
+      return;
+    }
     if (ret_type->isa_int()) {
       BasicType ret_bt = method()->return_type()->basic_type();
       ret_phi = mask_int_value(ret_phi, ret_bt, &_gvn);
@@ -2116,15 +2133,24 @@ void Parse::return_current(Node* value) {
     // here.
     Node* phi = _exits.argument(0);
     const TypeInstPtr *tr = phi->bottom_type()->isa_instptr();
-    if( tr && tr->klass()->is_loaded() &&
-        tr->klass()->is_interface() ) {
+    if (tr && tr->klass()->is_loaded() &&
+        tr->klass()->is_interface()) {
       const TypeInstPtr *tp = value->bottom_type()->isa_instptr();
       if (tp && tp->klass()->is_loaded() &&
           !tp->klass()->is_interface()) {
         // sharpen the type eagerly; this eases certain assert checking
         if (tp->higher_equal(TypeInstPtr::NOTNULL))
           tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        value = _gvn.transform(new (C) CheckCastPPNode(0,value,tr));
+        value = _gvn.transform(new (C) CheckCastPPNode(0, value, tr));
+      }
+    } else {
+      // Also handle returns of oop-arrays to an arrays-of-interface return
+      const TypeInstPtr* phi_tip;
+      const TypeInstPtr* val_tip;
+      Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);
+      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
+          val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
+         value = _gvn.transform(new (C) CheckCastPPNode(0, value, phi->bottom_type()));
       }
     }
     phi->add_req(value);
