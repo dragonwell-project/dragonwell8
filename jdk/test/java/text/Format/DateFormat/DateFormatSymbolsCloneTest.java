@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,23 +21,30 @@
  * questions.
  */
 
-package sun.invoke.anon;
-
-/** Exception used when there is an error in the constant pool
- *  format.
+/*
+ * @test
+ * @bug 8151431
+ * @summary Make sure that clone() of a DateFormatSymbols subclass is not
+ *          called from DateFormatSymbols constructor.
  */
-public class InvalidConstantPoolFormatException extends Exception {
-    private static final long serialVersionUID=-6103888330523770949L;
+import java.text.DateFormatSymbols;
 
-    public InvalidConstantPoolFormatException(String message,Throwable cause) {
-        super(message,cause);
+public class DateFormatSymbolsCloneTest extends DateFormatSymbols {
+    private int value;
+
+    public DateFormatSymbolsCloneTest() {
+        value = 1;
     }
 
-    public InvalidConstantPoolFormatException(String message) {
-        super(message);
+    @Override
+    public Object clone() {
+        if (this.value == 0) {
+            throw new RuntimeException("clone() should not be called from a DateFormatSymbols constructor");
+        }
+        return super.clone();
     }
 
-    public InvalidConstantPoolFormatException(Throwable cause) {
-        super(cause);
+    public static void main(String[] args) {
+        new DateFormatSymbolsCloneTest();
     }
 }
