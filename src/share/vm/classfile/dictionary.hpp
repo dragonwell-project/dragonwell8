@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,7 @@ private:
   DictionaryEntry* get_entry(int index, unsigned int hash,
                              Symbol* name, ClassLoaderData* loader_data);
 
+protected:
   DictionaryEntry* bucket(int i) {
     return (DictionaryEntry*)Hashtable<Klass*, mtClass>::bucket(i);
   }
@@ -65,6 +66,8 @@ private:
   void add_entry(int index, DictionaryEntry* new_entry) {
     Hashtable<Klass*, mtClass>::add_entry(index, (HashtableEntry<Klass*, mtClass>*)new_entry);
   }
+
+  static size_t entry_size();
 
 public:
   Dictionary(int table_size);
