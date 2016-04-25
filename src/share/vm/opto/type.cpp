@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -147,6 +147,33 @@ BasicType Type::array_element_basic_type() const {
     return T_VOID;
   }
   return bt;
+}
+
+// For two instance arrays of same dimension, return the base element types.
+// Otherwise or if the arrays have different dimensions, return NULL.
+void Type::get_arrays_base_elements(const Type *a1, const Type *a2,
+                                    const TypeInstPtr **e1, const TypeInstPtr **e2) {
+
+  if (e1) *e1 = NULL;
+  if (e2) *e2 = NULL;
+  const TypeAryPtr* a1tap = (a1 == NULL) ? NULL : a1->isa_aryptr();
+  const TypeAryPtr* a2tap = (a2 == NULL) ? NULL : a2->isa_aryptr();
+
+  if (a1tap != NULL && a2tap != NULL) {
+    // Handle multidimensional arrays
+    const TypePtr* a1tp = a1tap->elem()->make_ptr();
+    const TypePtr* a2tp = a2tap->elem()->make_ptr();
+    while (a1tp && a1tp->isa_aryptr() && a2tp && a2tp->isa_aryptr()) {
+      a1tap = a1tp->is_aryptr();
+      a2tap = a2tp->is_aryptr();
+      a1tp = a1tap->elem()->make_ptr();
+      a2tp = a2tap->elem()->make_ptr();
+    }
+    if (a1tp && a1tp->isa_instptr() && a2tp && a2tp->isa_instptr()) {
+      if (e1) *e1 = a1tp->is_instptr();
+      if (e2) *e2 = a2tp->is_instptr();
+    }
+  }
 }
 
 //---------------------------get_typeflow_type---------------------------------
@@ -1767,13 +1794,15 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig)
       break;
     case T_OBJECT:
     case T_ARRAY:
-    case T_BOOLEAN:
-    case T_CHAR:
     case T_FLOAT:
-    case T_BYTE:
-    case T_SHORT:
     case T_INT:
       field_array[pos++] = get_const_type(type);
+      break;
+    case T_BOOLEAN:
+    case T_CHAR:
+    case T_BYTE:
+    case T_SHORT:
+      field_array[pos++] = TypeInt::INT;
       break;
     default:
       ShouldNotReachHere();
@@ -1982,7 +2011,11 @@ const Type* TypeAry::remove_speculative() const {
 bool TypeAry::interface_vs_oop(const Type *t) const {
   const TypeAry* t_ary = t->is_ary();
   if (t_ary) {
-    return _elem->interface_vs_oop(t_ary->_elem);
+    const TypePtr* this_ptr = _elem->make_ptr(); // In case we have narrow_oops
+    const TypePtr*    t_ptr = t_ary->_elem->make_ptr();
+    if(this_ptr != NULL && t_ptr != NULL) {
+      return this_ptr->interface_vs_oop(t_ptr);
+    }
   }
   return false;
 }
@@ -2834,8 +2867,17 @@ const Type *TypeOopPtr::filter_helper(const Type *kills, bool include_speculativ
     // be 'I' or 'j/l/O'.  Thus we'll pick 'j/l/O'.  If this then flows
     // into a Phi which "knows" it's an Interface type we'll have to
     // uplift the type.
-    if (!empty() && ktip != NULL && ktip->is_loaded() && ktip->klass()->is_interface())
-      return kills;             // Uplift to interface
+    if (!empty()) {
+      if (ktip != NULL && ktip->is_loaded() && ktip->klass()->is_interface()) {
+        return kills;           // Uplift to interface
+      }
+      // Also check for evil cases of 'this' being a class array
+      // and 'kills' expecting an array of interfaces.
+      Type::get_arrays_base_elements(ft, kills, NULL, &ktip);
+      if (ktip != NULL && ktip->is_loaded() && ktip->klass()->is_interface()) {
+        return kills;           // Uplift to array of interface
+      }
+    }
 
     return Type::TOP;           // Canonical empty value
   }
