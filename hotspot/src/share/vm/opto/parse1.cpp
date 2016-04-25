@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "oops/method.hpp"
 #include "opto/addnode.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/locknode.hpp"
 #include "opto/memnode.hpp"
@@ -717,6 +718,27 @@ void Parse::do_all_blocks() {
 #endif
 }
 
+static Node* mask_int_value(Node* v, BasicType bt, PhaseGVN* gvn) {
+  Compile* C = gvn->C;
+  switch (bt) {
+  case T_BYTE:
+    v = gvn->transform(new (C) LShiftINode(v, gvn->intcon(24)));
+    v = gvn->transform(new (C) RShiftINode(v, gvn->intcon(24)));
+    break;
+  case T_SHORT:
+    v = gvn->transform(new (C) LShiftINode(v, gvn->intcon(16)));
+    v = gvn->transform(new (C) RShiftINode(v, gvn->intcon(16)));
+    break;
+  case T_CHAR:
+    v = gvn->transform(new (C) AndINode(v, gvn->intcon(0xFFFF)));
+    break;
+  case T_BOOLEAN:
+    v = gvn->transform(new (C) AndINode(v, gvn->intcon(0x1)));
+    break;
+  }
+  return v;
+}
+
 //-------------------------------build_exits----------------------------------
 // Build normal and exceptional exit merge points.
 void Parse::build_exits() {
@@ -741,6 +763,16 @@ void Parse::build_exits() {
   // Add a return value to the exit state.  (Do not push it yet.)
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
+    if (ret_type->isa_int()) {
+      BasicType ret_bt = method()->return_type()->basic_type();
+      if (ret_bt == T_BOOLEAN ||
+          ret_bt == T_CHAR ||
+          ret_bt == T_BYTE ||
+          ret_bt == T_SHORT) {
+        ret_type = TypeInt::INT;
+      }
+    }
+
     // Don't "bind" an unloaded return klass to the ret_phi. If the klass
     // becomes loaded during the subsequent parsing, the loaded and unloaded
     // types will not join when we transform and push in do_exits().
@@ -957,7 +989,27 @@ void Parse::do_exits() {
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
-    assert(_exits.control()->is_top() || !_gvn.type(ret_phi)->empty(), "return value must be well defined");
+    if (!_exits.control()->is_top() && _gvn.type(ret_phi)->empty()) {
+      // In case of concurrent class loading, the type we set for the
+      // ret_phi in build_exits() may have been too optimistic and the
+      // ret_phi may be top now.
+      // Otherwise, we've encountered an error and have to mark the method as
+      // not compilable. Just using an assertion instead would be dangerous
+      // as this could lead to an infinite compile loop in non-debug builds.
+      {
+        MutexLockerEx ml(Compile_lock, Mutex::_no_safepoint_check_flag);
+        if (C->env()->system_dictionary_modification_counter_changed()) {
+          C->record_failure(C2Compiler::retry_class_loading_during_parsing());
+        } else {
+          C->record_method_not_compilable("Can't determine return type.");
+        }
+      }
+      return;
+    }
+    if (ret_type->isa_int()) {
+      BasicType ret_bt = method()->return_type()->basic_type();
+      ret_phi = mask_int_value(ret_phi, ret_bt, &_gvn);
+    }
     _exits.push_node(ret_type->basic_type(), ret_phi);
   }
 
@@ -2081,15 +2133,24 @@ void Parse::return_current(Node* value) {
     // here.
     Node* phi = _exits.argument(0);
     const TypeInstPtr *tr = phi->bottom_type()->isa_instptr();
-    if( tr && tr->klass()->is_loaded() &&
-        tr->klass()->is_interface() ) {
+    if (tr && tr->klass()->is_loaded() &&
+        tr->klass()->is_interface()) {
       const TypeInstPtr *tp = value->bottom_type()->isa_instptr();
       if (tp && tp->klass()->is_loaded() &&
           !tp->klass()->is_interface()) {
         // sharpen the type eagerly; this eases certain assert checking
         if (tp->higher_equal(TypeInstPtr::NOTNULL))
           tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        value = _gvn.transform(new (C) CheckCastPPNode(0,value,tr));
+        value = _gvn.transform(new (C) CheckCastPPNode(0, value, tr));
+      }
+    } else {
+      // Also handle returns of oop-arrays to an arrays-of-interface return
+      const TypeInstPtr* phi_tip;
+      const TypeInstPtr* val_tip;
+      Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);
+      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
+          val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
+         value = _gvn.transform(new (C) CheckCastPPNode(0, value, phi->bottom_type()));
       }
     }
     phi->add_req(value);

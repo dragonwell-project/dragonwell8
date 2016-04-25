@@ -92,7 +92,12 @@ final class LdapReferralContext implements DirContext, LdapContext {
             try {
                 referral = refEx.getNextReferral();
                 if (referral == null) {
-                    throw (NamingException)(previousEx.fillInStackTrace());
+                    if (previousEx != null) {
+                        throw (NamingException)(previousEx.fillInStackTrace());
+                    } else {
+                        throw new NamingException(
+                            "Illegal encoding: referral is empty");
+                    }
                 }
 
             } catch (LdapReferralException e) {

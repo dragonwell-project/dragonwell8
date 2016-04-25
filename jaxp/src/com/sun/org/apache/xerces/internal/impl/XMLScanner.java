@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -25,7 +25,6 @@ import com.sun.org.apache.xerces.internal.util.Status;
 import com.sun.xml.internal.stream.XMLEntityStorage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import javax.xml.stream.events.XMLEvent;
 import com.sun.org.apache.xerces.internal.impl.msg.XMLMessageFormatter;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
@@ -121,8 +120,8 @@ public abstract class XMLScanner
     //we should have a feature when set to true computes this value
     private boolean fNeedNonNormalizedValue = false;
 
-    protected ArrayList attributeValueCache = new ArrayList();
-    protected ArrayList stringBufferCache = new ArrayList();
+    protected ArrayList<XMLString> attributeValueCache = new ArrayList<>();
+    protected ArrayList<XMLStringBuffer> stringBufferCache = new ArrayList<>();
     protected int fStringBufferIndex = 0;
     protected boolean fAttributeCacheInitDone = false;
     protected int fAttributeCacheUsedCount = 0;
@@ -785,7 +784,7 @@ public abstract class XMLScanner
                 if (XMLChar.isHighSurrogate(c)) {
                     scanSurrogates(text);
                 }
-                if (isInvalidLiteral(c)) {
+                else if (isInvalidLiteral(c)) {
                     reportFatalError("InvalidCharInComment",
                             new Object[] { Integer.toHexString(c) });
                             fEntityScanner.scanChar();
@@ -975,6 +974,7 @@ public abstract class XMLScanner
                         fStringBuffer2.append('\n');
                     }
                 } else if (c != -1 && XMLChar.isHighSurrogate(c)) {
+                    fStringBuffer3.clear();
                     if (scanSurrogates(fStringBuffer3)) {
                         stringBuffer.append(fStringBuffer3);
                         if (entityDepth == fEntityDepth && fNeedNonNormalizedValue) {
@@ -1385,6 +1385,14 @@ public abstract class XMLScanner
         return (XMLChar.isNameStart(value));
     } // isValidNameStartChar(int):  boolean
 
+    // returns true if the given character is
+    // a valid high surrogate for a nameStartChar
+    // with respect to the version of XML understood
+    // by this scanner.
+    protected boolean isValidNameStartHighSurrogate(int value) {
+        return false;
+    } // isValidNameStartHighSurrogate(int):  boolean
+
     protected boolean versionSupported(String version ) {
         return version.equals("1.0") || version.equals("1.1");
     } // version Supported
@@ -1462,7 +1470,7 @@ public abstract class XMLScanner
 
     XMLStringBuffer getStringBuffer(){
         if((fStringBufferIndex < initialCacheCount )|| (fStringBufferIndex < stringBufferCache.size())){
-            return (XMLStringBuffer)stringBufferCache.get(fStringBufferIndex++);
+            return stringBufferCache.get(fStringBufferIndex++);
         }else{
             XMLStringBuffer tmpObj = new XMLStringBuffer();
             fStringBufferIndex++;

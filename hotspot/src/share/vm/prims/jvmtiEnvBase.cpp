@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1348,7 +1348,7 @@ JvmtiEnvBase::check_top_frame(JavaThread* current_thread, JavaThread* java_threa
   ResultTypeFinder rtf(signature);
   TosState fr_tos = as_TosState(rtf.type());
   if (fr_tos != tos) {
-    if (tos != itos || (fr_tos != btos && fr_tos != ctos && fr_tos != stos)) {
+    if (tos != itos || (fr_tos != btos && fr_tos != ztos && fr_tos != ctos && fr_tos != stos)) {
       return JVMTI_ERROR_TYPE_MISMATCH;
     }
   }
