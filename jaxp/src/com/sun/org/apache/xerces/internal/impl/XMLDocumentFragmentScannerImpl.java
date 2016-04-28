@@ -52,6 +52,7 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.events.XMLEvent;
 
+
 /**
  *
  * This class is responsible for scanning the structure and content
@@ -201,12 +202,12 @@ public class XMLDocumentFragmentScannerImpl
                 null,
                 null,
                 null,
-                EXTERNAL_ACCESS_DEFAULT
+                null
     };
 
     private static final char [] cdata = {'[','C','D','A','T','A','['};
     static final char [] xmlDecl = {'<','?','x','m','l'};
-    private static final char [] endTag = {'<','/'};
+    // private static final char [] endTag = {'<','/'};
     // debugging
 
     /** Debug scanner state. */
@@ -1387,7 +1388,12 @@ public class XMLDocumentFragmentScannerImpl
             fEmptyElement = true;
             return true;
         } else if (!isValidNameStartChar(c) || !sawSpace) {
-            reportFatalError("ElementUnterminated", new Object[]{fElementQName.rawname});
+            // Second chance. Check if this character is a high
+            // surrogate of a valid name start character.
+            if (!isValidNameStartHighSurrogate(c) || !sawSpace) {
+                reportFatalError("ElementUnterminated",
+                        new Object[]{fElementQName.rawname});
+            }
         }
 
         return false;
@@ -2051,7 +2057,7 @@ public class XMLDocumentFragmentScannerImpl
      */
     String checkAccess(String systemId, String allowedProtocols) throws IOException {
         String baseSystemId = fEntityScanner.getBaseSystemId();
-        String expandedSystemId = fEntityManager.expandSystemId(systemId, baseSystemId,fStrictURI);
+        String expandedSystemId = XMLEntityManager.expandSystemId(systemId, baseSystemId, fStrictURI);
         return SecuritySupport.checkAccess(expandedSystemId, allowedProtocols, Constants.ACCESS_EXTERNAL_ALL);
     }
 
@@ -2587,8 +2593,6 @@ public class XMLDocumentFragmentScannerImpl
         //
         // Driver methods
         //
-        private boolean fContinueDispatching = true;
-        private boolean fScanningForMarkup = true;
 
         /**
          *  decides the appropriate state of the parser
@@ -2597,39 +2601,38 @@ public class XMLDocumentFragmentScannerImpl
             fMarkupDepth++;
             final int ch = fEntityScanner.peekChar();
 
-            switch(ch){
-                case '?' :{
-                    setScannerState(SCANNER_STATE_PI);
+            if (isValidNameStartChar(ch) || isValidNameStartHighSurrogate(ch)) {
+                setScannerState(SCANNER_STATE_START_ELEMENT_TAG);
+            } else {
+                switch(ch){
+                    case '?' :{
+                        setScannerState(SCANNER_STATE_PI);
                         fEntityScanner.skipChar(ch, null);
-                    break;
-                }
-                case '!' :{
+                        break;
+                    }
+                    case '!' :{
                         fEntityScanner.skipChar(ch, null);
                         if (fEntityScanner.skipChar('-', null)) {
                             if (!fEntityScanner.skipChar('-', NameType.COMMENT)) {
-                            reportFatalError("InvalidCommentStart",
+                                reportFatalError("InvalidCommentStart",
+                                        null);
+                            }
+                            setScannerState(SCANNER_STATE_COMMENT);
+                        } else if (fEntityScanner.skipString(cdata)) {
+                            setScannerState(SCANNER_STATE_CDATA );
+                        } else if (!scanForDoctypeHook()) {
+                            reportFatalError("MarkupNotRecognizedInContent",
                                     null);
                         }
-                        setScannerState(SCANNER_STATE_COMMENT);
-                    } else if (fEntityScanner.skipString(cdata)) {
-                        setScannerState(SCANNER_STATE_CDATA );
-                    } else if (!scanForDoctypeHook()) {
-                        reportFatalError("MarkupNotRecognizedInContent",
-                                null);
+                        break;
                     }
-                    break;
-                }
-                case '/' :{
-                    setScannerState(SCANNER_STATE_END_ELEMENT_TAG);
+                    case '/' :{
+                        setScannerState(SCANNER_STATE_END_ELEMENT_TAG);
                         fEntityScanner.skipChar(ch, NameType.ELEMENTEND);
-                    break;
-                }
-                default :{
-                    if (isValidNameStartChar(ch)) {
-                        setScannerState(SCANNER_STATE_START_ELEMENT_TAG);
-                    } else {
-                        reportFatalError("MarkupNotRecognizedInContent",
-                                null);
+                        break;
+                    }
+                    default :{
+                        reportFatalError("MarkupNotRecognizedInContent", null);
                     }
                 }
             }
@@ -3248,7 +3251,7 @@ public class XMLDocumentFragmentScannerImpl
 
     protected XMLString getString(){
         if(fAttributeCacheUsedCount < initialCacheCount || fAttributeCacheUsedCount < attributeValueCache.size()){
-            return (XMLString)attributeValueCache.get(fAttributeCacheUsedCount++);
+            return attributeValueCache.get(fAttributeCacheUsedCount++);
         } else{
             XMLString str = new XMLString();
             fAttributeCacheUsedCount++;
