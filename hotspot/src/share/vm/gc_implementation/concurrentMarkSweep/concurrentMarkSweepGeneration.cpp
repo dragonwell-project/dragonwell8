@@ -2288,7 +2288,7 @@ void CMSCollector::collect_in_background(bool clear_all_soft_refs, GCCause::Caus
   }
 
   // Used for PrintGC
-  size_t prev_used;
+  size_t prev_used = 0;
   if (PrintGC && Verbose) {
     prev_used = _cmsGen->used(); // XXXPERM
   }
@@ -8624,7 +8624,7 @@ void SweepClosure::do_post_free_or_garbage_chunk(FreeChunk* fc,
 
   HeapWord* const fc_addr = (HeapWord*) fc;
 
-  bool coalesce;
+  bool coalesce = false;
   const size_t left  = pointer_delta(fc_addr, freeFinger());
   const size_t right = chunkSize;
   switch (FLSCoalescePolicy) {

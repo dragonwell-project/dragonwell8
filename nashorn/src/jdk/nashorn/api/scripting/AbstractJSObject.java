@@ -27,6 +27,7 @@ package jdk.nashorn.api.scripting;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import jdk.nashorn.internal.runtime.JSONListAdapter;
 import jdk.nashorn.internal.runtime.JSType;
@@ -36,7 +37,7 @@ import jdk.nashorn.internal.runtime.JSType;
  *
  * This class can also be subclassed by an arbitrary Java class. Nashorn will
  * treat objects of such classes just like nashorn script objects. Usual nashorn
- * operations like obj[i], obj.foo, obj.func(), delete obj.foo will be glued
+ * operations like obj[i], obj.foo, obj.func(), delete obj.foo will be delegated
  * to appropriate method call of this class.
  *
  * @since 1.8u40
@@ -44,12 +45,12 @@ import jdk.nashorn.internal.runtime.JSType;
 @jdk.Exported
 public abstract class AbstractJSObject implements JSObject {
     /**
-     * Call this object as a JavaScript function. This is equivalent to
-     * 'func.apply(thiz, args)' in JavaScript.
-     *
-     * @param thiz 'this' object to be passed to the function
-     * @param args arguments to method
-     * @return result of call
+     * The default constructor.
+     */
+    public AbstractJSObject() {}
+
+    /**
+     * @implSpec This implementation always throws UnsupportedOperationException
      */
     @Override
     public Object call(final Object thiz, final Object... args) {
@@ -57,11 +58,7 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Call this 'constructor' JavaScript function to create a new object.
-     * This is equivalent to 'new func(arg1, arg2...)' in JavaScript.
-     *
-     * @param args arguments to method
-     * @return result of constructor call
+     * @implSpec This implementation always throws UnsupportedOperationException
      */
     @Override
     public Object newObject(final Object... args) {
@@ -69,10 +66,7 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Evaluate a JavaScript expression.
-     *
-     * @param s JavaScript expression to evaluate
-     * @return evaluation result
+     * @implSpec This imlementation always throws UnsupportedOperationException
      */
     @Override
     public Object eval(final String s) {
@@ -80,21 +74,16 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Retrieves a named member of this JavaScript object.
-     *
-     * @param name of member
-     * @return member
+     * @implSpec This implementation always returns null
      */
     @Override
     public Object getMember(final String name) {
+        Objects.requireNonNull(name);
         return null;
     }
 
     /**
-     * Retrieves an indexed member of this JavaScript object.
-     *
-     * @param index index slot to retrieve
-     * @return member
+     * @implSpec This implementation always returns null
      */
     @Override
     public Object getSlot(final int index) {
@@ -102,21 +91,16 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Does this object have a named member?
-     *
-     * @param name name of member
-     * @return true if this object has a member of the given name
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean hasMember(final String name) {
+        Objects.requireNonNull(name);
         return false;
     }
 
     /**
-     * Does this object have a indexed property?
-     *
-     * @param slot index to check
-     * @return true if this object has a slot
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean hasSlot(final int slot) {
@@ -124,31 +108,25 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Remove a named member from this JavaScript object
-     *
-     * @param name name of the member
+     * @implSpec This implementation is a no-op
      */
     @Override
     public void removeMember(final String name) {
+        Objects.requireNonNull(name);
         //empty
     }
 
     /**
-     * Set a named member in this JavaScript object
-     *
-     * @param name  name of the member
-     * @param value value of the member
+     * @implSpec This implementation is a no-op
      */
     @Override
     public void setMember(final String name, final Object value) {
+        Objects.requireNonNull(name);
         //empty
     }
 
     /**
-     * Set an indexed member in this JavaScript object
-     *
-     * @param index index of the member slot
-     * @param value value of the member
+     * @implSpec This implementation is a no-op
      */
     @Override
     public void setSlot(final int index, final Object value) {
@@ -158,9 +136,7 @@ public abstract class AbstractJSObject implements JSObject {
     // property and value iteration
 
     /**
-     * Returns the set of all property names of this object.
-     *
-     * @return set of property names
+     * @implSpec This implementation returns empty set
      */
     @Override
     public Set<String> keySet() {
@@ -168,9 +144,7 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Returns the set of all property values of this object.
-     *
-     * @return set of property values.
+     * @implSpec This implementation returns empty set
      */
     @Override
     public Collection<Object> values() {
@@ -180,22 +154,13 @@ public abstract class AbstractJSObject implements JSObject {
     // JavaScript instanceof check
 
     /**
-     * Checking whether the given object is an instance of 'this' object.
-     *
-     * @param instance instance to check
-     * @return true if the given 'instance' is an instance of this 'function' object
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean isInstance(final Object instance) {
         return false;
     }
 
-    /**
-     * Checking whether this object is an instance of the given 'clazz' object.
-     *
-     * @param clazz clazz to check
-     * @return true if this object is an instance of the given 'clazz'
-     */
     @Override
     public boolean isInstanceOf(final Object clazz) {
         if (clazz instanceof JSObject) {
@@ -205,20 +170,13 @@ public abstract class AbstractJSObject implements JSObject {
         return false;
     }
 
-    /**
-     * ECMA [[Class]] property
-     *
-     * @return ECMA [[Class]] property value of this object
-     */
     @Override
     public String getClassName() {
         return getClass().getName();
     }
 
     /**
-     * Is this a function object?
-     *
-     * @return if this mirror wraps a ECMAScript function instance
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean isFunction() {
@@ -226,9 +184,7 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Is this a 'use strict' function object?
-     *
-     * @return true if this mirror represents a ECMAScript 'use strict' function
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean isStrictFunction() {
@@ -236,9 +192,7 @@ public abstract class AbstractJSObject implements JSObject {
     }
 
     /**
-     * Is this an array object?
-     *
-     * @return if this mirror wraps a ECMAScript array object
+     * @implSpec This implementation always returns false
      */
     @Override
     public boolean isArray() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
@@ -706,6 +707,16 @@ bool InstanceKlass::link_class_impl(
 
         // also sets rewritten
         this_oop->rewrite_class(CHECK_false);
+      } else if (this_oop()->is_shared()) {
+        ResourceMark rm(THREAD);
+        char* message_buffer; // res-allocated by check_verification_dependencies
+        Handle loader = this_oop()->class_loader();
+        Handle pd     = this_oop()->protection_domain();
+        bool verified = SystemDictionaryShared::check_verification_dependencies(this_oop(),
+                        loader, pd, &message_buffer, THREAD);
+        if (!verified) {
+          THROW_MSG_(vmSymbols::java_lang_VerifyError(), message_buffer, false);
+        }
       }
 
       // relocate jsrs and link methods after they are all rewritten

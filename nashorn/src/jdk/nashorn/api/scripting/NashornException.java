@@ -47,6 +47,8 @@ import jdk.nashorn.internal.runtime.ScriptObject;
 @jdk.Exported
 @SuppressWarnings("serial")
 public abstract class NashornException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     // script file name
     private String fileName;
     // script line number
@@ -59,7 +61,7 @@ public abstract class NashornException extends RuntimeException {
     private Object ecmaError;
 
     /**
-     * Constructor
+     * Constructor to initialize error message, file name, line and column numbers.
      *
      * @param msg       exception message
      * @param fileName  file name
@@ -71,7 +73,7 @@ public abstract class NashornException extends RuntimeException {
     }
 
     /**
-     * Constructor
+     * Constructor to initialize error message, cause exception, file name, line and column numbers.
      *
      * @param msg       exception message
      * @param cause     exception cause
@@ -87,7 +89,7 @@ public abstract class NashornException extends RuntimeException {
     }
 
     /**
-     * Constructor
+     * Constructor to initialize error message and cause exception.
      *
      * @param msg       exception message
      * @param cause     exception cause
