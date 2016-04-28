@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,42 +22,20 @@
  */
 
 /**
- * JDK-8026367: Add a sync keyword to mozilla_compat
+ * JDK-8149334: JSON.parse(JSON.stringify([])).push(10) creates an array containing two elements
  *
  * @test
  * @run
  */
 
-if (typeof sync === "undefined") {
-    load("nashorn:mozilla_compat.js");
-}
+var a = JSON.parse(JSON.stringify([]))
+print(a.length)
+a.push(10)
+print(a.length)
+print(a)
 
-var obj = {
-    count: 0,
-    // Sync called with one argument will synchronize on this-object of invocation
-    inc: sync(function(d) {
-        this.count += d;
-        Assert.assertTrue(java.lang.Thread.holdsLock(this));
-    }),
-    // Pass explicit object to synchronize on as second argument
-    dec: sync(function(d) {
-        this.count -= d;
-        Assert.assertTrue(java.lang.Thread.holdsLock(obj));
-    }, obj)
-};
-
-var t1 = new java.lang.Thread(function() {
-    for (var i = 0; i < 100000; i++) obj.inc(1);
-});
-var t2 = new java.lang.Thread(function() {
-    for (var i = 0; i < 100000; i++) obj.dec(1);
-});
-
-t1.start();
-t2.start();
-t1.join();
-t2.join();
-
-if (obj.count !== 0) {
-    throw new Error("Expected count == 0, got " + obj.count);
-}
+var b = JSON.parse(JSON.stringify([]))
+print(b.length)
+b.push('ieps')
+print(b.length)
+print(b)

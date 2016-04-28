@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,42 +22,13 @@
  */
 
 /**
- * JDK-8026367: Add a sync keyword to mozilla_compat
+ * JDK-8148926: Call site profiling fails on braces-wrapped anonymous function
  *
  * @test
+ * @option -pcs
  * @run
  */
 
-if (typeof sync === "undefined") {
-    load("nashorn:mozilla_compat.js");
-}
+(function() {})() 
 
-var obj = {
-    count: 0,
-    // Sync called with one argument will synchronize on this-object of invocation
-    inc: sync(function(d) {
-        this.count += d;
-        Assert.assertTrue(java.lang.Thread.holdsLock(this));
-    }),
-    // Pass explicit object to synchronize on as second argument
-    dec: sync(function(d) {
-        this.count -= d;
-        Assert.assertTrue(java.lang.Thread.holdsLock(obj));
-    }, obj)
-};
-
-var t1 = new java.lang.Thread(function() {
-    for (var i = 0; i < 100000; i++) obj.inc(1);
-});
-var t2 = new java.lang.Thread(function() {
-    for (var i = 0; i < 100000; i++) obj.dec(1);
-});
-
-t1.start();
-t2.start();
-t1.join();
-t2.join();
-
-if (obj.count !== 0) {
-    throw new Error("Expected count == 0, got " + obj.count);
-}
+var i = (function() { return 2 })()
