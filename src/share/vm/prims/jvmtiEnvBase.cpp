@@ -511,7 +511,7 @@ JvmtiEnvBase::is_thread_fully_suspended(JavaThread* thr, bool wait_for_suspend, 
 // mean much better out of memory handling
 unsigned char *
 JvmtiEnvBase::jvmtiMalloc(jlong size) {
-  unsigned char* mem;
+  unsigned char* mem = NULL;
   jvmtiError result = allocate(size, &mem);
   assert(result == JVMTI_ERROR_NONE, "Allocate failed");
   return mem;
@@ -1038,7 +1038,7 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
     // implied else: entry_count == 0
   }
 
-  int nWant,nWait;
+  int nWant = 0, nWait = 0;
   if (mon != NULL) {
     // this object has a heavyweight monitor
     nWant = mon->contentions(); // # of threads contending for monitor
