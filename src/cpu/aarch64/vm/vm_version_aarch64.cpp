@@ -69,6 +69,7 @@ int VM_Version::_revision;
 int VM_Version::_stepping;
 int VM_Version::_cpuFeatures;
 const char*           VM_Version::_features_str = "";
+VM_Version::PsrInfo VM_Version::_psr_info   = { 0, };
 
 static BufferBlob* stub_blob;
 static const int stub_size = 550;
@@ -93,13 +94,16 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     __ c_stub_prolog(1, 0, MacroAssembler::ret_type_void);
 #endif
 
-    // void getPsrInfo(VM_Version::CpuidInfo* cpuid_info);
+    // void getPsrInfo(VM_Version::PsrInfo* psr_info);
 
     address entry = __ pc();
 
-    // TODO : redefine fields in CpuidInfo and generate
-    // code to fill them in
+    __ enter();
 
+    __ get_dczid_el0(rscratch1);
+    __ strw(rscratch1, Address(c_rarg0, in_bytes(VM_Version::dczid_el0_offset())));
+
+    __ leave();
     __ ret(lr);
 
 #   undef __
@@ -115,6 +119,8 @@ void VM_Version::get_processor_features() {
   _supports_atomic_getadd4 = true;
   _supports_atomic_getset8 = true;
   _supports_atomic_getadd8 = true;
+
+  getPsrInfo_stub(&_psr_info);
 
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance))
     FLAG_SET_DEFAULT(AllocatePrefetchDistance, 256);
@@ -241,6 +247,18 @@ void VM_Version::get_processor_features() {
       warning("SHA512 instruction (for SHA-384 and SHA-512) is not available on this CPU.");
       FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
     }
+  }
+
+  if (is_zva_enabled()) {
+    if (FLAG_IS_DEFAULT(UseBlockZeroing)) {
+      FLAG_SET_DEFAULT(UseBlockZeroing, true);
+    }
+    if (FLAG_IS_DEFAULT(BlockZeroingLowLimit)) {
+      FLAG_SET_DEFAULT(BlockZeroingLowLimit, 4 * VM_Version::zva_length());
+    }
+  } else if (UseBlockZeroing) {
+    warning("DC ZVA is not available on this CPU");
+    FLAG_SET_DEFAULT(UseBlockZeroing, false);
   }
 
   if (FLAG_IS_DEFAULT(UseMultiplyToLenIntrinsic)) {

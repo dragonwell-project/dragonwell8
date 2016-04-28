@@ -125,6 +125,10 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use LSE instructions")                                       \
   product(bool, UseSIMDForMemoryOps, false,                            \
           "Use SIMD instructions in generated memory move code")        \
+  product(bool, UseBlockZeroing, true,                                  \
+          "Use DC ZVA for block zeroing")                               \
+  product(intx, BlockZeroingLowLimit, 256,                              \
+          "Minimum size in bytes when block zeroing will be used")      \
   product(bool, TraceTraps, false, "Trace all traps the signal handler")
 
 #endif
