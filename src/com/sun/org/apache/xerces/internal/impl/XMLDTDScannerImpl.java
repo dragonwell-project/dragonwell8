@@ -43,7 +43,6 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLInputSource;
 import com.sun.org.apache.xerces.internal.xni.Augmentations;
 import com.sun.org.apache.xerces.internal.utils.XMLLimitAnalyzer;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
-import com.sun.xml.internal.stream.Entity;
 
 /**
  * This class is responsible for scanning the declarations found
