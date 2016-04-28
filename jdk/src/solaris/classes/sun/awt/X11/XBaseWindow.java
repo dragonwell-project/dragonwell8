@@ -79,7 +79,6 @@ public class XBaseWindow {
 
     static enum InitialiseState {
         INITIALISING,
-        NOT_INITIALISED,
         INITIALISED,
         FAILED_INITIALISATION
     };
@@ -122,7 +121,6 @@ public class XBaseWindow {
      */
     void instantPreInit(XCreateWindowParams params) {
         state_lock = new StateLock();
-        initialising = InitialiseState.NOT_INITIALISED;
     }
 
     /**
@@ -131,7 +129,6 @@ public class XBaseWindow {
      */
     void preInit(XCreateWindowParams params) {
         state_lock = new StateLock();
-        initialising = InitialiseState.NOT_INITIALISED;
         embedded = Boolean.TRUE.equals(params.get(EMBEDDED));
         visible = Boolean.TRUE.equals(params.get(VISIBLE));
 
@@ -223,7 +220,6 @@ public class XBaseWindow {
                       return false;
                   }
                   return true;
-              case NOT_INITIALISED:
               case FAILED_INITIALISATION:
                   return false;
               default:
@@ -673,7 +669,7 @@ public class XBaseWindow {
         XToolkit.awtLock();
         try {
             XAtom xa = XAtom.get(XAtom.XA_WM_CLASS);
-            xa.setProperty8(getWindow(), cl[0] + '\0' + cl[1]);
+            xa.setProperty8(getWindow(), cl[0] + '\0' + cl[1] + '\0');
         } finally {
             XToolkit.awtUnlock();
         }
