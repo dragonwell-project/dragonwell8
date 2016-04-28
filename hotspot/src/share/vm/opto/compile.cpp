@@ -791,7 +791,9 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
     }
     JVMState* jvms = build_start_state(start(), tf());
     if ((jvms = cg->generate(jvms)) == NULL) {
-      record_method_not_compilable("method parse failed");
+      if (!failure_reason_is(C2Compiler::retry_class_loading_during_parsing())) {
+        record_method_not_compilable("method parse failed");
+      }
       return;
     }
     GraphKit kit(jvms);
@@ -3712,7 +3714,7 @@ void Compile::ConstantTable::emit(CodeBuffer& cb) {
   MacroAssembler _masm(&cb);
   for (int i = 0; i < _constants.length(); i++) {
     Constant con = _constants.at(i);
-    address constant_addr;
+    address constant_addr = NULL;
     switch (con.type()) {
     case T_LONG:   constant_addr = _masm.long_constant(  con.get_jlong()  ); break;
     case T_FLOAT:  constant_addr = _masm.float_constant( con.get_jfloat() ); break;
