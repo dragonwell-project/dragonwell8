@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1501,7 +1501,9 @@ final public class AccessBridge extends AccessBridgeLoader {
                     s.indexOf(AccessibleState.MANAGES_DESCENDANTS.toDisplayString(Locale.US)) == -1) {
                     // Indicate whether this component manages its own
                     // children
-                    AccessibleRole role = ac.getAccessibleRole();
+                    AccessibleRole role = InvocationUtils.invokeAndWait(() -> {
+                                return ac.getAccessibleRole();
+                        }, ac);
                     if (role == AccessibleRole.LIST ||
                         role == AccessibleRole.TABLE ||
                         role == AccessibleRole.TREE) {
@@ -1759,7 +1761,9 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleComponent getAccessibleComponentFromContext(AccessibleContext ac) {
         if (ac != null) {
-            AccessibleComponent acmp = ac.getAccessibleComponent();
+            AccessibleComponent acmp = InvocationUtils.invokeAndWait(() -> {
+                    return ac.getAccessibleComponent();
+                }, ac);
             if (acmp != null) {
                 debugString("Returning AccessibleComponent Context");
                 return acmp;

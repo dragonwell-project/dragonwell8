@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2926,13 +2926,13 @@ const char* JavaThread::get_thread_name_string(char* buf, int buflen) const {
   const char* name_str;
   oop thread_obj = threadObj();
   if (thread_obj != NULL) {
-    typeArrayOop name = java_lang_Thread::name(thread_obj);
+    oop name = java_lang_Thread::name(thread_obj);
     if (name != NULL) {
       if (buf == NULL) {
-        name_str = UNICODE::as_utf8((jchar*) name->base(T_CHAR), name->length());
+        name_str = java_lang_String::as_utf8_string(name);
       }
       else {
-        name_str = UNICODE::as_utf8((jchar*) name->base(T_CHAR), name->length(), buf, buflen);
+        name_str = java_lang_String::as_utf8_string(name, buf, buflen);
       }
     }
     else if (is_attaching_via_jni()) { // workaround for 6412693 - see 6404306
