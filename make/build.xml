@@ -83,6 +83,12 @@
     <condition property="jfr.options" value="${run.test.jvmargs.jfr}" else="">
       <istrue value="${jfr}"/>
     </condition>
+
+    <condition property="test-sys-prop-no-security.os.not.windows">
+      <not>
+        <os family="windows"/>
+      </not>
+    </condition>
   </target>
 
   <!-- check minimum ant version required to be 1.8.4 -->
