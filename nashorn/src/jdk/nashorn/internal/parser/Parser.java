@@ -1135,7 +1135,7 @@ loop:
 
     /**
      * ExpressionStatement :
-     *      Expression ; // [lookahead ~( or  function )]
+     *      Expression ; // [lookahead ~({ or  function )]
      *
      * See 12.4
      *
