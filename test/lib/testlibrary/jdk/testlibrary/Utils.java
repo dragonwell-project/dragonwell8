@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
@@ -331,5 +333,44 @@ public final class Utils {
             }
         }
         return null;
+    }
+
+    private static final int BUFFER_SIZE = 1024;
+
+    /**
+     * Reads all bytes from the input stream and writes the bytes to the
+     * given output stream in the order that they are read. On return, the
+     * input stream will be at end of stream. This method does not close either
+     * stream.
+     * <p>
+     * This method may block indefinitely reading from the input stream, or
+     * writing to the output stream. The behavior for the case where the input
+     * and/or output stream is <i>asynchronously closed</i>, or the thread
+     * interrupted during the transfer, is highly input and output stream
+     * specific, and therefore not specified.
+     * <p>
+     * If an I/O error occurs reading from the input stream or writing to the
+     * output stream, then it may do so after some bytes have been read or
+     * written. Consequently the input stream may not be at end of stream and
+     * one, or both, streams may be in an inconsistent state. It is strongly
+     * recommended that both streams be promptly closed if an I/O error occurs.
+     *
+     * @param  in the input stream, non-null
+     * @param  out the output stream, non-null
+     * @return the number of bytes transferred
+     * @throws IOException if an I/O error occurs when reading or writing
+     * @throws NullPointerException if {@code in} or {@code out} is {@code null}
+     *
+     */
+    public static long transferBetweenStreams(InputStream in, OutputStream out)
+            throws IOException  {
+        long transferred = 0;
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int read;
+        while ((read = in.read(buffer, 0, BUFFER_SIZE)) >= 0) {
+            out.write(buffer, 0, read);
+            transferred += read;
+        }
+        return transferred;
     }
 }
