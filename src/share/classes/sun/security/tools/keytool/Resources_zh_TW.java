@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -381,9 +381,9 @@ public class Resources_zh_TW extends java.util.ListResourceBundle {
                 "\u6C92\u6709\u4F86\u81EA SSL \u4F3A\u670D\u5668\u7684\u6191\u8B49"},
 
         {".The.integrity.of.the.information.stored.in.your.keystore.",
-            "* \u5C1A\u672A\u9A57\u8B49\u5132\u5B58\u65BC\u91D1\u9470\u5132\u5B58\u5EAB\u4E2D\u8CC7\u8A0A  *\n* \u7684\u5B8C\u6574\u6027\uFF01\u82E5\u8981\u9A57\u8B49\u5176\u5B8C\u6574\u6027\uFF0C*\n* \u60A8\u5FC5\u9808\u63D0\u4F9B\u60A8\u7684\u91D1\u9470\u5132\u5B58\u5EAB\u5BC6\u78BC\u3002                  *"},
+            "* \u5C1A\u672A\u9A57\u8B49\u5132\u5B58\u65BC\u91D1\u9470\u5132\u5B58\u5EAB\u4E2D\u8CC7\u8A0A  *\n* \u7684\u5B8C\u6574\u6027\uFF01\u82E5\u8981\u9A57\u8B49\u5176\u5B8C\u6574\u6027\uFF0C    *\n* \u60A8\u5FC5\u9808\u63D0\u4F9B\u60A8\u7684\u91D1\u9470\u5132\u5B58\u5EAB\u5BC6\u78BC\u3002  *"},
         {".The.integrity.of.the.information.stored.in.the.srckeystore.",
-            "* \u5C1A\u672A\u9A57\u8B49\u5132\u5B58\u65BC srckeystore \u4E2D\u8CC7\u8A0A*\n* \u7684\u5B8C\u6574\u6027\uFF01\u82E5\u8981\u9A57\u8B49\u5176\u5B8C\u6574\u6027\uFF0C\u60A8\u5FC5\u9808 *\n* \u63D0\u4F9B srckeystore \u5BC6\u78BC\u3002          *"},
+            "* \u5C1A\u672A\u9A57\u8B49\u5132\u5B58\u65BC srckeystore \u4E2D\u8CC7\u8A0A  *\n* \u7684\u5B8C\u6574\u6027\uFF01\u82E5\u8981\u9A57\u8B49\u5176\u5B8C\u6574\u6027\uFF0C\u60A8\u5FC5\u9808 *\n* \u63D0\u4F9B srckeystore \u5BC6\u78BC\u3002            *"},
 
         {"Certificate.reply.does.not.contain.public.key.for.alias.",
                 "\u6191\u8B49\u56DE\u8986\u4E26\u672A\u5305\u542B <{0}> \u7684\u516C\u958B\u91D1\u9470"},
