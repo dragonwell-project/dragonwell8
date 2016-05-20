@@ -28,6 +28,7 @@ package java.lang.invoke;
 import java.lang.reflect.*;
 import java.util.BitSet;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import sun.invoke.util.ValueConversions;
@@ -2445,6 +2446,7 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
      */
     public static
     MethodHandle dropArguments(MethodHandle target, int pos, List<Class<?>> valueTypes) {
+        valueTypes = copyTypes(valueTypes);
         MethodType oldType = target.type();  // get NPE
         int dropped = dropArgumentChecks(oldType, pos, valueTypes);
         MethodType newType = oldType.insertParameterTypes(pos, valueTypes);
@@ -2457,6 +2459,11 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
         }
         result = result.copyWith(newType, lform);
         return result;
+    }
+
+    private static List<Class<?>> copyTypes(List<Class<?>> types) {
+        Object[] a = types.toArray();
+        return Arrays.asList(Arrays.copyOf(a, a.length, Class[].class));
     }
 
     private static int dropArgumentChecks(MethodType oldType, int pos, List<Class<?>> valueTypes) {
