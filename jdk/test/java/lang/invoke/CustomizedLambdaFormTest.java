@@ -26,7 +26,7 @@ package java.lang.invoke;
 /* @test
  * @summary Assertion in LambdaFormEditor.bindArgumentType is too strong
  *
- * @run main/bootclasspath -esa java.lang.invoke.CustomizedLambdaFormTest
+ * @run main/othervm/bootclasspath -esa java.lang.invoke.CustomizedLambdaFormTest
  */
 public class CustomizedLambdaFormTest {
 
