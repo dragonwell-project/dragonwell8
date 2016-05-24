@@ -32,13 +32,12 @@ import com.oracle.testlibrary.jsr292.CodeCacheOverflowProcessor;
  * @summary unit tests for varargs array methods: MethodHandleInfo.varargsArray(int),
  *          MethodHandleInfo.varargsArray(Class,int) & MethodHandleInfo.varargsList(int)
  * @library /lib/testlibrary /lib/testlibrary/jsr292
- * @run main/bootclasspath java.lang.invoke.VarargsArrayTest
- * @run main/bootclasspath -DVarargsArrayTest.MAX_ARITY=255 -DVarargsArrayTest.START_ARITY=250
- *                         java.lang.invoke.VarargsArrayTest
+ * @run main/othervm/bootclasspath java.lang.invoke.VarargsArrayTest
+ * @run main/othervm/bootclasspath -DVarargsArrayTest.MAX_ARITY=255 -DVarargsArrayTest.START_ARITY=250 java.lang.invoke.VarargsArrayTest
  */
 
 /* This might take a while and burn lots of metadata:
- * @run main/bootclasspath -DVarargsArrayTest.MAX_ARITY=255 -DVarargsArrayTest.EXHAUSTIVE=true java.lang.invoke.VarargsArrayTest
+ * @run main/othervm/bootclasspath -DVarargsArrayTest.MAX_ARITY=255 -DVarargsArrayTest.EXHAUSTIVE=true java.lang.invoke.VarargsArrayTest
  */
 public class VarargsArrayTest {
     private static final Class<?> CLASS = VarargsArrayTest.class;
