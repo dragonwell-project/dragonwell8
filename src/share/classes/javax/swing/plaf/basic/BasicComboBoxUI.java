@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,8 +124,6 @@ public class BasicComboBoxUI extends ComboBoxUI {
     protected MouseListener popupMouseListener;
     protected MouseMotionListener popupMouseMotionListener;
     protected KeyListener popupKeyListener;
-
-    private MouseWheelListener mouseWheelListener;
 
     // This is used for knowing when to cache the minimum preferred size.
     // If the data in the list changes, the cached value get marked for recalc.
@@ -377,10 +375,6 @@ public class BasicComboBoxUI extends ComboBoxUI {
                 comboBox.getModel().addListDataListener( listDataListener );
             }
         }
-
-        if ((mouseWheelListener = createMouseWheelListener()) != null) {
-            comboBox.addMouseWheelListener(mouseWheelListener);
-        }
     }
 
     /**
@@ -426,9 +420,6 @@ public class BasicComboBoxUI extends ComboBoxUI {
             if ( listDataListener != null ) {
                 comboBox.getModel().removeListDataListener( listDataListener );
             }
-        }
-        if (mouseWheelListener != null) {
-            comboBox.removeMouseWheelListener(mouseWheelListener);
         }
     }
 
@@ -541,10 +532,6 @@ public class BasicComboBoxUI extends ComboBoxUI {
             handler = new Handler();
         }
         return handler;
-    }
-
-    private MouseWheelListener createMouseWheelListener() {
-        return getHandler();
     }
 
     //
@@ -1682,8 +1669,7 @@ public class BasicComboBoxUI extends ComboBoxUI {
     //
     private class Handler implements ActionListener, FocusListener,
                                      KeyListener, LayoutManager,
-                                     ListDataListener, PropertyChangeListener,
-                                     MouseWheelListener {
+                                     ListDataListener, PropertyChangeListener {
         //
         // PropertyChangeListener
         //
@@ -1966,10 +1952,6 @@ public class BasicComboBoxUI extends ComboBoxUI {
                     }
                 }
             }
-        }
-
-        public void mouseWheelMoved(MouseWheelEvent e) {
-            e.consume();
         }
    }
 
