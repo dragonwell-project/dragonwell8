@@ -409,10 +409,11 @@ class MacroAssembler: public Assembler {
     umaddl(Rd, Rn, Rm, zr);
   }
 
-#define WRAP(INSN)                                                \
-  void INSN(Register Rd, Register Rn, Register Rm, Register Ra) { \
-    if (Ra != zr) nop();                                          \
-    Assembler::INSN(Rd, Rn, Rm, Ra);                              \
+#define WRAP(INSN)                                                            \
+  void INSN(Register Rd, Register Rn, Register Rm, Register Ra) {             \
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_A53MAC) && Ra != zr) \
+      nop();                                                                  \
+    Assembler::INSN(Rd, Rn, Rm, Ra);                                          \
   }
 
   WRAP(madd) WRAP(msub) WRAP(maddw) WRAP(msubw)
@@ -535,6 +536,15 @@ public:
   inline void get_dczid_el0(Register reg)
   {
     mrs(0b011, 0b0000, 0b0000, 0b111, reg);
+  }
+
+  // CTR_EL0:   op1 == 011
+  //            CRn == 0000
+  //            CRm == 0000
+  //            op2 == 001
+  inline void get_ctr_el0(Register reg)
+  {
+    mrs(0b011, 0b0000, 0b0000, 0b001, reg);
   }
 
   // idiv variant which deals with MINLONG as dividend and -1 as divisor

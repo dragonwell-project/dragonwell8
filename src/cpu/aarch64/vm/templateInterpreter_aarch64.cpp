@@ -2036,7 +2036,8 @@ void TemplateInterpreterGenerator::count_bytecode() {
   } else {
     __ push(rscratch3);
     Label L;
-    __ prfm(Address(rscratch2), PSTL1STRM);
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(rscratch2), PSTL1STRM);
     __ bind(L);
     __ ldxr(rscratch1, rscratch2);
     __ add(rscratch1, rscratch1, 1);

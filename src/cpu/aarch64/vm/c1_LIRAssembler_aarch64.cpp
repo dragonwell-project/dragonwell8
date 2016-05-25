@@ -1610,7 +1610,8 @@ void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
     Label retry_load, nope;
     // flush and load exclusive from the memory location
     // and fail if it is not what we expect
-    __ prfm(Address(addr), PSTL1STRM);
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(addr), PSTL1STRM);
     __ bind(retry_load);
     __ ldaxrw(rscratch1, addr);
     __ cmpw(rscratch1, cmpval);
@@ -1636,7 +1637,8 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
     Label retry_load, nope;
     // flush and load exclusive from the memory location
     // and fail if it is not what we expect
-    __ prfm(Address(addr), PSTL1STRM);
+    if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+      __ prfm(Address(addr), PSTL1STRM);
     __ bind(retry_load);
     __ ldaxr(rscratch1, addr);
     __ cmp(rscratch1, cmpval);
@@ -3216,7 +3218,8 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
         }
       } else {
         Label again;
-        __ prfm(Address(tmp), PSTL1STRM);
+        if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+          __ prfm(Address(tmp), PSTL1STRM);
         __ bind(again);
         (_masm->*lda)(dst, tmp);
         (_masm->*add)(rscratch1, dst, inc);
@@ -3240,7 +3243,8 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
         __ swp(sz, obj, dst, tmp);
       } else {
         Label again;
-        __ prfm(Address(tmp), PSTL1STRM);
+        if ((VM_Version::cpu_cpuFeatures() & VM_Version::CPU_STXR_PREFETCH))
+          __ prfm(Address(tmp), PSTL1STRM);
         __ bind(again);
         (_masm->*lda)(dst, tmp);
         (_masm->*stl)(rscratch2, obj, tmp);

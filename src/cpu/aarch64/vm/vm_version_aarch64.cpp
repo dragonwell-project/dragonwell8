@@ -64,6 +64,7 @@
 
 int VM_Version::_cpu;
 int VM_Version::_model;
+int VM_Version::_model2;
 int VM_Version::_variant;
 int VM_Version::_revision;
 int VM_Version::_stepping;
@@ -103,12 +104,15 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     __ get_dczid_el0(rscratch1);
     __ strw(rscratch1, Address(c_rarg0, in_bytes(VM_Version::dczid_el0_offset())));
 
+    __ get_ctr_el0(rscratch1);
+    __ strw(rscratch1, Address(c_rarg0, in_bytes(VM_Version::ctr_el0_offset())));
+
     __ leave();
     __ ret(lr);
 
 #   undef __
 
-
+    return start;
   }
 };
 
@@ -122,17 +126,20 @@ void VM_Version::get_processor_features() {
 
   getPsrInfo_stub(&_psr_info);
 
+  int dcache_line = VM_Version::dcache_line_size();
+
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance))
-    FLAG_SET_DEFAULT(AllocatePrefetchDistance, 256);
+    FLAG_SET_DEFAULT(AllocatePrefetchDistance, 3*dcache_line);
   if (FLAG_IS_DEFAULT(AllocatePrefetchStepSize))
-    FLAG_SET_DEFAULT(AllocatePrefetchStepSize, 64);
-  FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 256);
-  FLAG_SET_DEFAULT(PrefetchFieldsAhead, 256);
-  FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
+    FLAG_SET_DEFAULT(AllocatePrefetchStepSize, dcache_line);
+  if (FLAG_IS_DEFAULT(PrefetchScanIntervalInBytes))
+    FLAG_SET_DEFAULT(PrefetchScanIntervalInBytes, 3*dcache_line);
   if (FLAG_IS_DEFAULT(PrefetchCopyIntervalInBytes))
-    FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 256);
-  if ((PrefetchCopyIntervalInBytes & 7) || (PrefetchCopyIntervalInBytes >= 32768)) {
-    warning("PrefetchCopyIntervalInBytes must be a multiple of 8 and < 32768");
+    FLAG_SET_DEFAULT(PrefetchCopyIntervalInBytes, 3*dcache_line);
+
+  if (PrefetchCopyIntervalInBytes != -1 &&
+       ((PrefetchCopyIntervalInBytes & 7) || (PrefetchCopyIntervalInBytes >= 32768))) {
+    warning("PrefetchCopyIntervalInBytes must be -1, or a multiple of 8 and < 32768");
     PrefetchCopyIntervalInBytes &= ~7;
     if (PrefetchCopyIntervalInBytes >= 32768)
       PrefetchCopyIntervalInBytes = 32760;
@@ -153,6 +160,7 @@ void VM_Version::get_processor_features() {
   _features_str = strdup(buf);
   _cpuFeatures = auxv;
 
+  int cpu_lines = 0;
   if (FILE *f = fopen("/proc/cpuinfo", "r")) {
     char buf[128], *p;
     while (fgets(buf, sizeof (buf), f) != NULL) {
@@ -160,9 +168,11 @@ void VM_Version::get_processor_features() {
         long v = strtol(p+1, NULL, 0);
         if (strncmp(buf, "CPU implementer", sizeof "CPU implementer" - 1) == 0) {
           _cpu = v;
+          cpu_lines++;
         } else if (strncmp(buf, "CPU variant", sizeof "CPU variant" - 1) == 0) {
           _variant = v;
         } else if (strncmp(buf, "CPU part", sizeof "CPU part" - 1) == 0) {
+          if (_model != v)  _model2 = _model;
           _model = v;
         } else if (strncmp(buf, "CPU revision", sizeof "CPU revision" - 1) == 0) {
           _revision = v;
@@ -173,8 +183,13 @@ void VM_Version::get_processor_features() {
   }
 
   // Enable vendor specific features
-  if (_cpu == CPU_CAVIUM) _cpuFeatures |= CPU_DMB_ATOMICS;
-  if (_cpu == CPU_ARM) _cpuFeatures |= CPU_A53MAC;
+  if (_cpu == CPU_CAVIUM && _variant == 0) _cpuFeatures |= CPU_DMB_ATOMICS;
+  if (_cpu == CPU_ARM && (_model == 0xd03 || _model2 == 0xd03)) _cpuFeatures |= CPU_A53MAC;
+  if (_cpu == CPU_ARM && (_model == 0xd07 || _model2 == 0xd07)) _cpuFeatures |= CPU_STXR_PREFETCH;
+  // If an olde style /proc/cpuinfo (cpu_lines == 1) then if _model is an A57 (0xd07)
+  // we assume the worst and assume we could be on a big little system and have
+  // undisclosed A53 cores which we could be swapped to at any stage
+  if (_cpu == CPU_ARM && cpu_lines == 1 && _model == 0xd07) _cpuFeatures |= CPU_A53MAC;
 
   if (FLAG_IS_DEFAULT(UseCRC32)) {
     UseCRC32 = (auxv & HWCAP_CRC32) != 0;

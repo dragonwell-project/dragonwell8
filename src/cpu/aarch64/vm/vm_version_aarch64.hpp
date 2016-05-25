@@ -35,6 +35,7 @@ public:
 protected:
   static int _cpu;
   static int _model;
+  static int _model2;
   static int _variant;
   static int _revision;
   static int _stepping;
@@ -44,6 +45,7 @@ protected:
 
   struct PsrInfo {
     uint32_t dczid_el0;
+    uint32_t ctr_el0;
   };
   static PsrInfo _psr_info;
   static void get_processor_features();
@@ -80,6 +82,7 @@ public:
     CPU_SHA2         = (1<<6),
     CPU_CRC32        = (1<<7),
     CPU_LSE          = (1<<8),
+    CPU_STXR_PREFETCH= (1 << 29),
     CPU_A53MAC       = (1 << 30),
     CPU_DMB_ATOMICS  = (1 << 31),
   } cpuFeatureFlags;
@@ -91,6 +94,7 @@ public:
   static int cpu_revision()                   { return _revision; }
   static int cpu_cpuFeatures()                { return _cpuFeatures; }
   static ByteSize dczid_el0_offset() { return byte_offset_of(PsrInfo, dczid_el0); }
+  static ByteSize ctr_el0_offset()   { return byte_offset_of(PsrInfo, ctr_el0); }
   static bool is_zva_enabled() {
     // Check the DZP bit (bit 4) of dczid_el0 is zero
     // and block size (bit 0~3) is not zero.
@@ -100,6 +104,12 @@ public:
   static int zva_length() {
     assert(is_zva_enabled(), "ZVA not available");
     return 4 << (_psr_info.dczid_el0 & 0xf);
+  }
+  static int icache_line_size() {
+    return (1 << (_psr_info.ctr_el0 & 0x0f)) * 4;
+  }
+  static int dcache_line_size() {
+    return (1 << ((_psr_info.ctr_el0 >> 16) & 0x0f)) * 4;
   }
 };
 
