@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,18 +48,17 @@ public class GetPrivateKey extends SecmodTest {
 
         System.out.println(p);
         Security.addProvider(p);
-        KeyStore ks = KeyStore.getInstance("PKCS11", p);
+        KeyStore ks = KeyStore.getInstance(PKCS11, p);
         ks.load(null, password);
-        Collection<String> aliases = new TreeSet<String>(Collections.list(ks.aliases()));
+        Collection<String> aliases = new TreeSet<>(
+                Collections.list(ks.aliases()));
         System.out.println("entries: " + aliases.size());
         System.out.println(aliases);
 
         PrivateKey privateKey = (PrivateKey)ks.getKey(keyAlias, password);
         System.out.println(privateKey);
 
-        byte[] data = new byte[1024];
-        Random random = new Random();
-        random.nextBytes(data);
+        byte[] data = generateData(1024);
 
         System.out.println("Signing...");
         Signature signature = Signature.getInstance("MD5withRSA");
@@ -67,7 +66,8 @@ public class GetPrivateKey extends SecmodTest {
         signature.update(data);
         byte[] sig = signature.sign();
 
-        X509Certificate[] chain = (X509Certificate[])ks.getCertificateChain(keyAlias);
+        X509Certificate[] chain =
+                (X509Certificate[]) ks.getCertificateChain(keyAlias);
         signature.initVerify(chain[0].getPublicKey());
         signature.update(data);
         boolean ok = signature.verify(sig);
