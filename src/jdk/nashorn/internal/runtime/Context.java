@@ -379,6 +379,11 @@ public final class Context {
     /** class loader to resolve classes from script. */
     private final ClassLoader appLoader;
 
+    /*package-private*/
+    ClassLoader getAppLoader() {
+        return appLoader;
+    }
+
     /** Class loader to load classes compiled from scripts. */
     private final ScriptLoader scriptLoader;
 
@@ -392,11 +397,12 @@ public final class Context {
     private final ClassFilter classFilter;
 
     private static final ClassLoader myLoader = Context.class.getClassLoader();
-    private static final StructureLoader sharedLoader;
+    /** Process-wide singleton structure loader */
+    private static final StructureLoader theStructLoader;
 
     /*package-private*/ @SuppressWarnings("static-method")
-    ClassLoader getSharedLoader() {
-        return sharedLoader;
+    ClassLoader getStructLoader() {
+        return theStructLoader;
     }
 
     private static AccessControlContext createNoPermAccCtxt() {
@@ -414,7 +420,7 @@ public final class Context {
     private static final AccessControlContext CREATE_GLOBAL_ACC_CTXT  = createPermAccCtxt(NASHORN_CREATE_GLOBAL);
 
     static {
-        sharedLoader = AccessController.doPrivileged(new PrivilegedAction<StructureLoader>() {
+        theStructLoader = AccessController.doPrivileged(new PrivilegedAction<StructureLoader>() {
             @Override
             public StructureLoader run() {
                 return new StructureLoader(myLoader);
@@ -923,7 +929,7 @@ public final class Context {
         if (System.getSecurityManager() != null && !StructureLoader.isStructureClass(fullName)) {
             throw new ClassNotFoundException(fullName);
         }
-        return (Class<? extends ScriptObject>)Class.forName(fullName, true, sharedLoader);
+        return (Class<? extends ScriptObject>)Class.forName(fullName, true, theStructLoader);
     }
 
     /**
@@ -1072,7 +1078,7 @@ public final class Context {
             // No verification when security manager is around as verifier
             // may load further classes - which should be avoided.
             if (System.getSecurityManager() == null) {
-                CheckClassAdapter.verify(new ClassReader(bytecode), sharedLoader, false, new PrintWriter(System.err, true));
+                CheckClassAdapter.verify(new ClassReader(bytecode), theStructLoader, false, new PrintWriter(System.err, true));
             }
         }
     }
@@ -1318,7 +1324,7 @@ public final class Context {
              new PrivilegedAction<ScriptLoader>() {
                 @Override
                 public ScriptLoader run() {
-                    return new ScriptLoader(appLoader, Context.this);
+                    return new ScriptLoader(Context.this);
                 }
              }, CREATE_LOADER_ACC_CTXT);
     }
