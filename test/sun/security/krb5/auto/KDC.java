@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,6 +145,9 @@ public class KDC {
     private List<String> conf = new ArrayList<>();
 
     private Thread thread1, thread2, thread3;
+    private volatile boolean udpConsumerReady = false;
+    private volatile boolean tcpConsumerReady = false;
+    private volatile boolean dispatcherReady = false;
     DatagramSocket u1 = null;
     ServerSocket t1 = null;
 
@@ -194,6 +197,10 @@ public class KDC {
          * Krb5.KDC_ERR_POLICY will be send for S4U2proxy request.
          */
         ALLOW_S4U2PROXY,
+        /**
+         * Sensitive accounts can never be delegated.
+         */
+        SENSITIVE_ACCOUNTS,
     };
 
     static {
@@ -638,7 +645,7 @@ public class KDC {
         try {
             System.out.println(realm + "> " + tgsReq.reqBody.cname +
                     " sends TGS-REQ for " +
-                    service);
+                    service + ", " + tgsReq.reqBody.kdcOptions);
             KDCReqBody body = tgsReq.reqBody;
             int[] eTypes = KDCReqBodyDotEType(body);
             int e2 = eTypes[0];     // etype for outgoing session key
@@ -714,7 +721,13 @@ public class KDC {
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
             if (body.kdcOptions.get(KDCOptions.FORWARDABLE)
                     && allowForwardable) {
-                bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
+                List<String> sensitives = (List<String>)
+                        options.get(Option.SENSITIVE_ACCOUNTS);
+                if (sensitives != null && sensitives.contains(cname.toString())) {
+                    // Cannot make FORWARDABLE
+                } else {
+                    bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
+                }
             }
             if (body.kdcOptions.get(KDCOptions.FORWARDED) ||
                     etp.flags.get(Krb5.TKT_OPTS_FORWARDED)) {
@@ -819,7 +832,8 @@ public class KDC {
                     t,
                     edata);
             System.out.println("     Return " + tgsRep.cname
-                    + " ticket for " + tgsRep.ticket.sname);
+                    + " ticket for " + tgsRep.ticket.sname + ", flags "
+                    + tFlags);
 
             DerOutputStream out = new DerOutputStream();
             out.write(DerValue.createTag(DerValue.TAG_APPLICATION,
@@ -865,7 +879,7 @@ public class KDC {
         try {
             System.out.println(realm + "> " + asReq.reqBody.cname +
                     " sends AS-REQ for " +
-                    service);
+                    service + ", " + asReq.reqBody.kdcOptions);
 
             KDCReqBody body = asReq.reqBody;
 
@@ -908,7 +922,13 @@ public class KDC {
             //body.from
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
             if (body.kdcOptions.get(KDCOptions.FORWARDABLE)) {
-                bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
+                List<String> sensitives = (List<String>)
+                        options.get(Option.SENSITIVE_ACCOUNTS);
+                if (sensitives != null && sensitives.contains(body.cname.toString())) {
+                    // Cannot make FORWARDABLE
+                } else {
+                    bFlags[Krb5.TKT_OPTS_FORWARDABLE] = true;
+                }
             }
             if (body.kdcOptions.get(KDCOptions.RENEWABLE)) {
                 bFlags[Krb5.TKT_OPTS_RENEWABLE] = true;
@@ -1084,7 +1104,8 @@ public class KDC {
                     edata);
 
             System.out.println("     Return " + asRep.cname
-                    + " ticket for " + asRep.ticket.sname);
+                    + " ticket for " + asRep.ticket.sname + ", flags "
+                    + tFlags);
 
             DerOutputStream out = new DerOutputStream();
             out.write(DerValue.createTag(DerValue.TAG_APPLICATION,
@@ -1192,6 +1213,7 @@ public class KDC {
         // The UDP consumer
         thread1 = new Thread() {
             public void run() {
+                udpConsumerReady = true;
                 while (true) {
                     try {
                         byte[] inbuf = new byte[8192];
@@ -1212,6 +1234,7 @@ public class KDC {
         // The TCP consumer
         thread2 = new Thread() {
             public void run() {
+                tcpConsumerReady = true;
                 while (true) {
                     try {
                         Socket socket = tcp.accept();
@@ -1234,6 +1257,7 @@ public class KDC {
         // The dispatcher
         thread3 = new Thread() {
             public void run() {
+                dispatcherReady = true;
                 while (true) {
                     try {
                         q.take().send();
@@ -1244,6 +1268,19 @@ public class KDC {
         };
         thread3.setDaemon(true);
         thread3.start();
+
+        // wait for the KDC is ready
+        try {
+            while (!isReady()) {
+                Thread.sleep(100);
+            }
+        } catch(InterruptedException e) {
+            throw new IOException(e);
+        }
+    }
+
+    boolean isReady() {
+        return udpConsumerReady && tcpConsumerReady && dispatcherReady;
     }
 
     public void terminate() {
