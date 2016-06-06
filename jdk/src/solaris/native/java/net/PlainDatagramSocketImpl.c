@@ -992,17 +992,24 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
                        (char *)&arg, sizeof(arg)) < 0) {
         getErrorString(errno, tmpbuf, sizeof(tmpbuf));
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
+        close(fd);
         return;
     }
     if (JVM_SetSockOpt(fd, SOL_SOCKET, SO_RCVBUF,
                        (char *)&arg, sizeof(arg)) < 0) {
         getErrorString(errno, tmpbuf, sizeof(tmpbuf));
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
+        close(fd);
         return;
     }
 #endif /* __APPLE__ */
 
-     setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (char*) &t, sizeof(int));
+    if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, (char*) &t, sizeof (int)) < 0) {
+        getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
+        close(fd);
+        return;
+    }
 
 #if defined(__linux__)
     arg = 0;
@@ -1024,8 +1031,13 @@ Java_java_net_PlainDatagramSocketImpl_datagramSocketCreate(JNIEnv *env,
      */
     if (domain == AF_INET6) {
         int ttl = 1;
-        setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *)&ttl,
-                   sizeof(ttl));
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *) &ttl,
+                sizeof (ttl)) < 0) {
+            getErrorString(errno, tmpbuf, sizeof(tmpbuf));
+            JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", tmpbuf);
+            close(fd);
+            return;
+        }
     }
 #endif /* __linux__ */
 
@@ -2182,7 +2194,7 @@ static void mcast_join_leave(JNIEnv *env, jobject this,
             caddr[14] = ((address >> 8) & 0xff);
             caddr[15] = (address & 0xff);
         } else {
-            getInet6Address_ipaddress(env, iaObj, caddr);
+            getInet6Address_ipaddress(env, iaObj, (char *) caddr);
         }
 
         memcpy((void *)&(mname6.ipv6mr_multiaddr), caddr, sizeof(struct in6_addr));
