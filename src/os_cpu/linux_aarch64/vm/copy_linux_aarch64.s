@@ -45,14 +45,13 @@ _Copy_disjoint_words:
         sub     count, count, #1
 
 fwd_copy_aligned:
-        // Bias s & d so we only pre index on the last copy
-        sub     s, s, #16
-        sub     d, d, #16
+        ldp     t0, t1, [s, #0]
+        ldp     t2, t3, [s, #16]
+        ldp     t4, t5, [s, #32]
+        ldp     t6, t7, [s, #48]!       // Source now biased by -16
 
-        ldp     t0, t1, [s, #16]
-        ldp     t2, t3, [s, #32]
-        ldp     t4, t5, [s, #48]
-        ldp     t6, t7, [s, #64]!
+        tbnz    d, #3, unal_fwd_copy
+        sub     d, d, #16               // and bias dest
 
         subs    count, count, #16
         blo     fwd_copy_drain
@@ -134,6 +133,94 @@ fwd_copy_drain:
 0:
         ret
 
+unal_fwd_copy:
+        // Bias dest so we only pre index on the last copy
+        sub     d, d, #8
+        subs    count, count, #16
+        blo     unal_fwd_copy_drain
+
+unal_fwd_copy_again:
+        prfm    pldl1keep, [s, #256]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        ldp     t0, t1, [s, #16]
+        stp     t3, t4, [d, #32]
+        ldp     t2, t3, [s, #32]
+        stp     t5, t6, [d, #48]
+        ldp     t4, t5, [s, #48]
+        str     t7, [d, #64]!
+        ldp     t6, t7, [s, #64]!
+        subs    count, count, #8
+        bhs     unal_fwd_copy_again
+
+unal_fwd_copy_drain:
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        stp     t3, t4, [d, #32]
+        stp     t5, t6, [d, #48]
+        str     t7, [d, #64]!
+
+        // count is now -8..-1 for 0..7 words to copy
+        adr     t0, 0f
+        add     t0, t0, count, lsl #5
+        br      t0
+
+        .align  5
+        ret                             // -8 == 0 words
+        .align  5
+        ldr     t0, [s, #16]            // -7 == 1 word
+        str     t0, [d, #8]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -6 = 2 words
+        str     t0, [d, #8]
+        str     t1, [d, #16]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -5 = 3 words
+        ldr     t2, [s, #32]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -4 = 4 words
+        ldp     t2, t3, [s, #32]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        str     t3, [d, #32]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -3 = 5 words
+        ldp     t2, t3, [s, #32]
+        ldr     t4, [s, #48]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        stp     t3, t4, [d, #32]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -2 = 6 words
+        ldp     t2, t3, [s, #32]
+        ldp     t4, t5, [s, #48]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        stp     t3, t4, [d, #32]
+        str     t5, [d, #48]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #16]        // -1 = 7 words
+        ldp     t2, t3, [s, #32]
+        ldp     t4, t5, [s, #48]
+        ldr     t6, [s, #64]
+        str     t0, [d, #8]
+        stp     t1, t2, [d, #16]
+        stp     t3, t4, [d, #32]
+        stp     t5, t6, [d, #48]
+        // Is always aligned here, code for 7 words is one instruction
+        // too large so it just falls through.
+        .align  5
+0:
+        ret
+
         .align  6
 _Copy_conjoint_words:
         sub     t0, d, s
@@ -154,6 +241,8 @@ bwd_copy_aligned:
         ldp     t2, t3, [s, #-32]
         ldp     t4, t5, [s, #-48]
         ldp     t6, t7, [s, #-64]!
+
+        tbnz    d, #3, unal_bwd_copy
 
         subs    count, count, #16
         blo     bwd_copy_drain
@@ -229,6 +318,92 @@ bwd_copy_drain:
         stp     t2, t3, [d, #-32]
         stp     t4, t5, [d, #-48]
         str     t6, [d, #-56]
+        // Is always aligned here, code for 7 words is one instruction
+        // too large so it just falls through.
+        .align  5
+0:
+        ret
+
+unal_bwd_copy:
+        subs    count, count, #16
+        blo     unal_bwd_copy_drain
+
+unal_bwd_copy_again:
+        prfm    pldl1keep, [s, #-256]
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        ldp     t0, t1, [s, #-16]
+        stp     t5, t2, [d, #-40]
+        ldp     t2, t3, [s, #-32]
+        stp     t7, t4, [d, #-56]
+        ldp     t4, t5, [s, #-48]
+        str     t6, [d, #-64]!
+        ldp     t6, t7, [s, #-64]!
+        subs    count, count, #8
+        bhs     unal_bwd_copy_again
+
+unal_bwd_copy_drain:
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        stp     t5, t2, [d, #-40]
+        stp     t7, t4, [d, #-56]
+        str     t6, [d, #-64]!
+
+        // count is now -8..-1 for 0..7 words to copy
+        adr     t0, 0f
+        add     t0, t0, count, lsl #5
+        br      t0
+
+        .align  5
+        ret                             // -8 == 0 words
+        .align  5
+        ldr     t0, [s, #-8]            // -7 == 1 word
+        str     t0, [d, #-8]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -6 = 2 words
+        str     t1, [d, #-8]
+        str     t0, [d, #-16]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -5 = 3 words
+        ldr     t2, [s, #-24]
+        str     t1, [d, #-8]
+        stp     t2, t0, [d, #-24]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -4 = 4 words
+        ldp     t2, t3, [s, #-32]
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        str     t2, [d, #-32]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -3 = 5 words
+        ldp     t2, t3, [s, #-32]
+        ldr     t4, [s, #-40]
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        stp     t4, t2, [d, #-40]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -2 = 6 words
+        ldp     t2, t3, [s, #-32]
+        ldp     t4, t5, [s, #-48]
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        stp     t5, t2, [d, #-40]
+        str     t4, [d, #-48]
+        ret
+        .align  5
+        ldp     t0, t1, [s, #-16]       // -1 = 7 words
+        ldp     t2, t3, [s, #-32]
+        ldp     t4, t5, [s, #-48]
+        ldr     t6, [s, #-56]
+        str     t1, [d, #-8]
+        stp     t3, t0, [d, #-24]
+        stp     t5, t2, [d, #-40]
+        stp     t6, t4, [d, #-56]
         // Is always aligned here, code for 7 words is one instruction
         // too large so it just falls through.
         .align  5
