@@ -1184,7 +1184,7 @@ public class JEditorPane extends JTextComponent {
         if (k == null) {
             // try to dynamically load the support
             String classname = getKitTypeRegistry().get(type);
-            ClassLoader loader = getKitLoaderRegistry().get(type).orElse(null);
+            ClassLoader loader = getKitLoaderRegistry().get(type);
             try {
                 Class c;
                 if (loader != null) {
@@ -1241,7 +1241,11 @@ public class JEditorPane extends JTextComponent {
      */
     public static void registerEditorKitForContentType(String type, String classname, ClassLoader loader) {
         getKitTypeRegistry().put(type, classname);
-        getKitLoaderRegistry().put(type, Optional.ofNullable(loader));
+        if (loader != null) {
+            getKitLoaderRegistry().put(type, loader);
+        } else {
+            getKitLoaderRegistry().remove(type);
+        }
         getKitRegisty().remove(type);
     }
 
@@ -1262,7 +1266,7 @@ public class JEditorPane extends JTextComponent {
         return (Hashtable)SwingUtilities.appContextGet(kitTypeRegistryKey);
     }
 
-    private static Hashtable<String, Optional<ClassLoader>> getKitLoaderRegistry() {
+    private static Hashtable<String, ClassLoader> getKitLoaderRegistry() {
         loadDefaultKitsIfNecessary();
         return (Hashtable)SwingUtilities.appContextGet(kitLoaderRegistryKey);
     }
