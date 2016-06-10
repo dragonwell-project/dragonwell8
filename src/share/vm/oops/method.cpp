@@ -1778,7 +1778,7 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
   void clear_all_methods() {
     for (JNIMethodBlock* b = this; b != NULL; b = b->_next) {
       for (int i = 0; i< number_of_methods; i++) {
-        _methods[i] = NULL;
+        b->_methods[i] = NULL;
       }
     }
   }
@@ -1788,7 +1788,7 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
     int count = 0;
     for (JNIMethodBlock* b = this; b != NULL; b = b->_next) {
       for (int i = 0; i< number_of_methods; i++) {
-        if (_methods[i] != _free_method) count++;
+        if (b->_methods[i] != _free_method) count++;
       }
     }
     return count;
@@ -1846,6 +1846,9 @@ bool Method::is_method_id(jmethodID mid) {
   Method* m = resolve_jmethod_id(mid);
   assert(m != NULL, "should be called with non-null method");
   InstanceKlass* ik = m->method_holder();
+  if (ik == NULL) {
+    return false;
+  }
   ClassLoaderData* cld = ik->class_loader_data();
   if (cld->jmethod_ids() == NULL) return false;
   return (cld->jmethod_ids()->contains((Method**)mid));
@@ -1853,6 +1856,9 @@ bool Method::is_method_id(jmethodID mid) {
 
 Method* Method::checked_resolve_jmethod_id(jmethodID mid) {
   if (mid == NULL) return NULL;
+  if (!Method::is_method_id(mid)) {
+    return NULL;
+  }
   Method* o = resolve_jmethod_id(mid);
   if (o == NULL || o == JNIMethodBlock::_free_method || !((Metadata*)o)->is_method()) {
     return NULL;
