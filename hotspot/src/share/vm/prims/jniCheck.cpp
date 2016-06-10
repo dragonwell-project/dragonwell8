@@ -461,15 +461,10 @@ oop jniCheck::validate_handle(JavaThread* thr, jobject obj) {
 
 Method* jniCheck::validate_jmethod_id(JavaThread* thr, jmethodID method_id) {
   ASSERT_OOPS_ALLOWED;
-  // do the fast jmethodID check first
+  // Do the jmethodID check
   Method* moop = Method::checked_resolve_jmethod_id(method_id);
   if (moop == NULL) {
     ReportJNIFatalError(thr, fatal_wrong_class_or_method);
-  }
-  // jmethodIDs are supposed to be weak handles in the class loader data,
-  // but that can be expensive so check it last
-  else if (!Method::is_method_id(method_id)) {
-    ReportJNIFatalError(thr, fatal_non_weak_method);
   }
   return moop;
 }
