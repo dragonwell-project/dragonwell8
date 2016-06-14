@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -190,7 +190,11 @@ ifdef OPENJDK
   SRC_SERVICES_FILES := $(filter-out %sun/java2d/cmm/kcms/META-INF/services/sun.java2d.cmm.CMMServiceProvider, $(SRC_SERVICES_FILES))
 else
   SRC_SERVICES_FILES := $(filter-out %sun/java2d/pisces/META-INF/services/sun.java2d.pipe.RenderingEngine, $(SRC_SERVICES_FILES))
-  SRC_SERVICES_FILES := $(filter-out %sun/java2d/cmm/lcms/META-INF/services/sun.java2d.cmm.CMMServiceProvider, $(SRC_SERVICES_FILES))
+  ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), linux-sparc)
+    SRC_SERVICES_FILES := $(filter-out %sun/java2d/cmm/kcms/META-INF/services/sun.java2d.cmm.CMMServiceProvider, $(SRC_SERVICES_FILES))
+  else
+    SRC_SERVICES_FILES := $(filter-out %sun/java2d/cmm/lcms/META-INF/services/sun.java2d.cmm.CMMServiceProvider, $(SRC_SERVICES_FILES))
+  endif
 endif
 
 # The number of services files are relatively few. If the increase in numbers, then

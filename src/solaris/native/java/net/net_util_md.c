@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,13 +67,6 @@
 #include "net_util.h"
 
 #include "java_net_SocketOptions.h"
-
-/* needed from libsocket on Solaris 8 */
-
-getaddrinfo_f getaddrinfo_ptr = NULL;
-freeaddrinfo_f freeaddrinfo_ptr = NULL;
-gai_strerror_f gai_strerror_ptr = NULL;
-getnameinfo_f getnameinfo_ptr = NULL;
 
 /*
  * EXCLBIND socket options only on Solaris
@@ -434,8 +427,7 @@ void ThrowUnknownHostExceptionWithGaiError(JNIEnv *env,
     int size;
     char *buf;
     const char *format = "%s: %s";
-    const char *error_string =
-        (gai_strerror_ptr == NULL) ? NULL : (*gai_strerror_ptr)(gai_error);
+    const char *error_string = gai_strerror(gai_error);
     if (error_string == NULL)
         error_string = "unknown error";
 
