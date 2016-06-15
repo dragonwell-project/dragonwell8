@@ -483,7 +483,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
      "Fehler aufgetreten."},
 
   { ER_ILLEGAL_VARIABLE_REFERENCE,
-      "VariableReference au\u00DFerhalb des Kontextes oder ohne Definition f\u00FCr Variable angegeben. Name = {0}"},
+      "VariableReference au\u00DFerhalb des Kontexts oder ohne Definition f\u00FCr Variable angegeben. Name = {0}"},
 
   { ER_AXES_NOT_ALLOWED,
       "Nur \"child::\"- und \"attribute::\"-Achsen sind in Vergleichsmustern zul\u00E4ssig. Betreffende Achsen = {0}"},
@@ -855,7 +855,7 @@ public static final String ER_IGNORABLE_WHITESPACE_NOT_HANDLED =
       "Option \"-E\" nicht unterst\u00FCtzt f\u00FCr DTM-Parser"},
 
   { WG_ILLEGAL_VARIABLE_REFERENCE,
-      "VariableReference au\u00DFerhalb des Kontextes oder ohne Definition f\u00FCr Variable angegeben. Name = {0}"},
+      "VariableReference au\u00DFerhalb des Kontexts oder ohne Definition f\u00FCr Variable angegeben. Name = {0}"},
 
   { WG_UNSUPPORTED_ENCODING,
      "Nicht unterst\u00FCtzte Codierung: {0}"},
