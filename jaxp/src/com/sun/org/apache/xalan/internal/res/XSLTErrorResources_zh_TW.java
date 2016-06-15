@@ -1265,7 +1265,7 @@ public class XSLTErrorResources_zh_TW extends ListResourceBundle
       "\u627E\u4E0D\u5230\u5341\u9032\u4F4D\u683C\u5F0F\u7684\u5BA3\u544A: {0}"},
 
     { WG_OLD_XSLT_NS,
-     "\u907A\u6F0F\u6216\u4E0D\u6B63\u78BA\u7684 XSLT \u547D\u540D\u7A7A\u9593\u3002 "},
+     "\u907A\u6F0F\u6216\u4E0D\u6B63\u78BA\u7684 XSLT \u547D\u540D\u7A7A\u9593\u3002"},
 
     { WG_ONE_DEFAULT_XSLDECIMALFORMAT_ALLOWED,
       "\u53EA\u5141\u8A31\u4E00\u500B\u9810\u8A2D\u7684 xsl:decimal-format \u5BA3\u544A\u3002"},
