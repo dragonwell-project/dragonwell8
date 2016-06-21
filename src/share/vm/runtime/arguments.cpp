@@ -560,8 +560,9 @@ char* SysClassPath::add_jars_to_path(char* path, const char* directory) {
       (os::file_name_strcmp(ext, ".jar") == 0 ||
        os::file_name_strcmp(ext, ".zip") == 0);
     if (isJarOrZip) {
-      char* jarpath = NEW_C_HEAP_ARRAY(char, directory_len + 2 + strlen(name), mtInternal);
-      sprintf(jarpath, "%s%s%s", directory, dir_sep, name);
+      size_t length = directory_len + 2 + strlen(name);
+      char* jarpath = NEW_C_HEAP_ARRAY(char, length, mtInternal);
+      jio_snprintf(jarpath, length, "%s%s%s", directory, dir_sep, name);
       path = add_to_path(path, jarpath, false);
       FREE_C_HEAP_ARRAY(char, jarpath, mtInternal);
     }
@@ -704,9 +705,10 @@ static bool append_to_string_flag(char* name, const char* new_value, Flag::Flags
   } else if (new_len == 0) {
     value = old_value;
   } else {
-    char* buf = NEW_C_HEAP_ARRAY(char, old_len + 1 + new_len + 1, mtInternal);
+    size_t length = old_len + 1 + new_len + 1;
+    char* buf = NEW_C_HEAP_ARRAY(char, length, mtInternal);
     // each new setting adds another LINE to the switch:
-    sprintf(buf, "%s\n%s", old_value, new_value);
+    jio_snprintf(buf, length, "%s\n%s", old_value, new_value);
     value = buf;
     free_this_too = buf;
   }
@@ -813,15 +815,17 @@ const char* Arguments::build_resource_string(char** args, int count) {
   if (args == NULL || count == 0) {
     return NULL;
   }
-  size_t length = strlen(args[0]) + 1; // add 1 for the null terminator
-  for (int i = 1; i < count; i++) {
-    length += strlen(args[i]) + 1; // add 1 for a space
+  size_t length = 0;
+  for (int i = 0; i < count; i++) {
+    length += strlen(args[i]) + 1; // add 1 for a space or NULL terminating character
   }
   char* s = NEW_RESOURCE_ARRAY(char, length);
-  strcpy(s, args[0]);
-  for (int j = 1; j < count; j++) {
-    strcat(s, " ");
-    strcat(s, args[j]);
+  char* dst = s;
+  for (int j = 0; j < count; j++) {
+    size_t offset = strlen(args[j]) + 1; // add 1 for a space or NULL terminating character
+    jio_snprintf(dst, length, "%s ", args[j]); // jio_snprintf will replace the last space character with NULL character
+    dst += offset;
+    length -= offset;
   }
   return (const char*) s;
 }
@@ -1889,7 +1893,7 @@ void Arguments::set_aggressive_opts_flags() {
 
     // Feed the cache size setting into the JDK
     char buffer[1024];
-    sprintf(buffer, "java.lang.Integer.IntegerCache.high=" INTX_FORMAT, AutoBoxCacheMax);
+    jio_snprintf(buffer, 1024, "java.lang.Integer.IntegerCache.high=" INTX_FORMAT, AutoBoxCacheMax);
     add_property(buffer);
   }
   if (AggressiveOpts && FLAG_IS_DEFAULT(BiasedLockingStartupDelay)) {
@@ -2764,7 +2768,9 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
 
         char *options = NULL;
         if(pos != NULL) {
-          options = strcpy(NEW_C_HEAP_ARRAY(char, strlen(pos + 1) + 1, mtInternal), pos + 1);
+          size_t length = strlen(pos + 1) + 1;
+          options = NEW_C_HEAP_ARRAY(char, length, mtInternal);
+          jio_snprintf(options, length, "%s", pos + 1);
         }
 #if !INCLUDE_JVMTI
         if (valid_hprof_or_jdwp_agent(name, is_absolute_path)) {
@@ -2783,7 +2789,9 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       return JNI_ERR;
 #else
       if(tail != NULL) {
-        char *options = strcpy(NEW_C_HEAP_ARRAY(char, strlen(tail) + 1, mtInternal), tail);
+        size_t length = strlen(tail) + 1;
+        char *options = NEW_C_HEAP_ARRAY(char, length, mtInternal);
+        jio_snprintf(options, length, "%s", tail);
         add_init_agent("instrument", options, false);
       }
 #endif // !INCLUDE_JVMTI
@@ -3621,8 +3629,7 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
         }
       } else {
         char buffer[256];
-        strcpy(buffer, "java.awt.headless=");
-        strcat(buffer, envbuffer);
+        jio_snprintf(buffer, 256, "java.awt.headless=%s", envbuffer);
         if (!add_property(buffer)) {
           return JNI_ENOMEM;
         }
