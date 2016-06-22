@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,21 @@
 
 /*
  * @test
- * @bug 8068721
- * @summary test RMI-IIOP call with ConcurrentHashMap as an argument
+ * @bug 8146975
+ * @summary test RMI-IIOP with value object return
  * @library /lib/testlibrary
  * @build jdk.testlibrary.*
- * @build Test HelloInterface HelloServer HelloClient HelloImpl _HelloImpl_Tie _HelloInterface_Stub ConcurrentHashMapTest
- * @run main/othervm -Djava.naming.provider.url=iiop://localhost:1050
- *    -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory  ConcurrentHashMapTest
+ * @compile Test.java Test2.java Test3.java Test4.java
+ * HelloInterface.java HelloServer.java HelloClient.java
+ * HelloImpl.java _HelloImpl_Tie.java _HelloInterface_Stub.java
+ * RmiIiopReturnValueTest.java
+ * @run main/othervm -Djava.naming.provider.url=iiop://localhost:5050
+ *     -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory
+ *     RmiIiopReturnValueTest -port 5049
  * @run main/othervm/secure=java.lang.SecurityManager/policy=jtreg.test.policy
- *    -Djava.naming.provider.url=iiop://localhost:1050
- *    -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory ConcurrentHashMapTest
+ *     -Djava.naming.provider.url=iiop://localhost:5050
+ *     -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory
+ *     RmiIiopReturnValueTest -port 5049
  */
 
 
@@ -46,7 +51,7 @@ import java.util.concurrent.CountDownLatch;
 import jdk.testlibrary.JDKToolFinder;
 import jdk.testlibrary.JDKToolLauncher;
 
-public class ConcurrentHashMapTest {
+public class RmiIiopReturnValueTest {
 
     static final String ORBD = JDKToolFinder.getTestJDKTool("orbd");
     static final String JAVA = JDKToolFinder.getTestJDKTool("java");
@@ -54,7 +59,7 @@ public class ConcurrentHashMapTest {
     static final String CLASSPATH = System.getProperty("java.class.path");
     static final int FIVE_SECONDS = 5000;
 
-    private static Exception clientException;
+    private static Throwable clientException;
     private static boolean exceptionInClient;
     private static Process orbdProcess;
     private static Process rmiServerProcess;
@@ -84,13 +89,14 @@ public class ConcurrentHashMapTest {
     }
 
     static void startOrbd() throws Exception {
-        System.out.println("\nStarting orbd on port 1050 ");
+        System.out.println("\nStarting orbd with NS port 5050 and activation port 5049 ");
 
-        //orbd -ORBInitialHost localhost -ORBInitialPort 1050
+        //orbd -ORBInitialHost localhost -ORBInitialPort 5050 -port 5049
         orbdLauncher.addToolArg("-ORBInitialHost").addToolArg("localhost")
-            .addToolArg("-ORBInitialPort").addToolArg("1050");
+            .addToolArg("-ORBInitialPort").addToolArg("5050")
+            .addToolArg("-port").addToolArg("5049");
 
-        System.out.println("ConcurrentHashMapTest: Executing: " + Arrays.asList(orbdLauncher.getCommand()));
+        System.out.println("RmiIiopReturnValueTest: Executing: " + Arrays.asList(orbdLauncher.getCommand()));
         ProcessBuilder pb = new ProcessBuilder(orbdLauncher.getCommand());
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         orbdProcess = pb.start();
@@ -98,19 +104,21 @@ public class ConcurrentHashMapTest {
 
 
     static void startRmiIiopServer() throws Exception {
-        System.out.println("\nStarting RmiServer");
+        System.out.println("\nStarting RmiIiopServer");
         // java -cp .
         // -Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory
-        // -Djava.naming.provider.url=iiop://localhost:1050 HelloServer
+        // -Djava.naming.provider.url=iiop://localhost:5050 HelloServer -port 5049
         List<String> commands = new ArrayList<>();
-        commands.add(ConcurrentHashMapTest.JAVA);
+        commands.add(RmiIiopReturnValueTest.JAVA);
         commands.add("-Djava.naming.factory.initial=com.sun.jndi.cosnaming.CNCtxFactory");
-        commands.add("-Djava.naming.provider.url=iiop://localhost:1050");
+        commands.add("-Djava.naming.provider.url=iiop://localhost:5050");
         commands.add("-cp");
-        commands.add(ConcurrentHashMapTest.CLASSPATH);
+        commands.add(RmiIiopReturnValueTest.CLASSPATH);
         commands.add("HelloServer");
+        commands.add("-port");
+        commands.add("5049");
 
-        System.out.println("ConcurrentHashMapTest: Executing: " + commands);
+        System.out.println("RmiIiopReturnValueTest: Executing: " + commands);
         ProcessBuilder pb = new ProcessBuilder(commands);
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         rmiServerProcess = pb.start();
@@ -121,26 +129,29 @@ public class ConcurrentHashMapTest {
     }
 
     static void stopRmiIiopServer() throws Exception {
-        rmiServerProcess.destroy();
-        rmiServerProcess.waitFor();
-        //rmiServerProcess.waitFor(30, TimeUnit.SECONDS);
-        System.out.println("serverProcess exitCode:"
-            + rmiServerProcess.exitValue());
+        if (rmiServerProcess != null) {
+            System.out.println("RmiIiopReturnValueTest.stopRmiIiopServer: destroy rmiServerProcess");
+            rmiServerProcess.destroyForcibly();
+            rmiServerProcess.waitFor();
+            System.out.println("serverProcess exitCode:"
+                + rmiServerProcess.exitValue());
+        }
     }
 
     static void stopOrbd() throws Exception {
-        orbdProcess.destroy();
+        System.out.println("RmiIiopReturnValueTest.stopOrbd: destroy orbdProcess ");
+        orbdProcess.destroyForcibly();
         orbdProcess.waitFor();
-        //orbdProcess.waitFor(30, TimeUnit.SECONDS);
         System.out.println("orbd exitCode:"
             + orbdProcess.exitValue());
     }
 
     static void executeRmiIiopClient() throws Exception {
+        System.out.println("RmiIiopReturnValueTest.executeRmiIiopClient: HelloClient.executeRmiClientCall");
         try {
             HelloClient.executeRmiClientCall();
-        } catch (Exception ex) {
-            clientException = ex;
+        } catch (Throwable t) {
+            clientException = t;
             exceptionInClient = true;
         }
     }
