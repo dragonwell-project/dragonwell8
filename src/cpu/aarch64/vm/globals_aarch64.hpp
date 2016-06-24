@@ -104,6 +104,7 @@ define_pd_global(intx, InlineSmallCode,          1000);
 // Don't attempt to use Neon on builtin sim until builtin sim supports it
 #define UseNeon false
 #define UseSIMDForMemoryOps false
+#define AvoidUnalignedAcesses false
 
 #else
 #define UseBuiltinSim		false
@@ -125,6 +126,8 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use LSE instructions")                                       \
   product(bool, UseSIMDForMemoryOps, false,                            \
           "Use SIMD instructions in generated memory move code")        \
+  product(bool, AvoidUnalignedAccesses, false,                          \
+          "Avoid generating unaligned memory accesses")                 \
   product(bool, UseBlockZeroing, true,                                  \
           "Use DC ZVA for block zeroing")                               \
   product(intx, BlockZeroingLowLimit, 256,                              \
