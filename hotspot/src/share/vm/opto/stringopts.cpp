@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1640,6 +1640,17 @@ void PhaseStringOpts::replace_string_concat(StringConcat* sc) {
       kit.store_String_length(kit.control(), result, length);
     }
     kit.store_String_value(kit.control(), result, char_array);
+
+    // Do not let stores that initialize this object be reordered with
+    // a subsequent store that would make this object accessible by
+    // other threads.
+    // Record what AllocateNode this StoreStore protects so that
+    // escape analysis can go from the MemBarStoreStoreNode to the
+    // AllocateNode and eliminate the MemBarStoreStoreNode if possible
+    // based on the escape status of the AllocateNode.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(result, _gvn);
+    assert(alloc != NULL, "should be newly allocated");
+    kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
   } else {
     result = C->top();
   }

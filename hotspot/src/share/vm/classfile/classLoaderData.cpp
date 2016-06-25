@@ -318,10 +318,6 @@ void ClassLoaderData::unload() {
     }
     tty->print_cr("]");
   }
-
-  // In some rare cases items added to this list will not be freed elsewhere.
-  // To keep it simple, just free everything in it here.
-  free_deallocate_list();
 }
 
 oop ClassLoaderData::keep_alive_object() const {
@@ -815,6 +811,12 @@ void ClassLoaderDataGraph::free_deallocate_lists() {
   for (ClassLoaderData* cld = _head; cld != NULL; cld = cld->next()) {
     // We need to keep this data until InstanceKlass::purge_previous_version has been
     // called on all alive classes. See the comment in ClassLoaderDataGraph::clean_metaspaces.
+    cld->free_deallocate_list();
+  }
+
+  // In some rare cases items added to the unloading list will not be freed elsewhere.
+  // To keep it simple, walk the _unloading list also.
+  for (ClassLoaderData* cld = _unloading; cld != _saved_unloading; cld = cld->next()) {
     cld->free_deallocate_list();
   }
 }
