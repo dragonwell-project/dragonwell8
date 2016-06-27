@@ -137,8 +137,10 @@ final class ServerHandshaker extends Handshaker {
                 customizedDHKeySize = Integer.parseUnsignedInt(property);
                 if (customizedDHKeySize < 1024 || customizedDHKeySize > 2048) {
                     throw new IllegalArgumentException(
-                        "Customized DH key size should be positive integer " +
-                        "between 1024 and 2048 bits, inclusive");
+                        "Unsupported customized DH key size: " +
+                        customizedDHKeySize + ". " +
+                        "The key size can only range from 1024" +
+                        " to 2048 (inclusive)");
                 }
             } catch (NumberFormatException nfe) {
                 throw new IllegalArgumentException(
