@@ -469,6 +469,11 @@ public class ProtectionDomain {
                 public ProtectionDomainCache getProtectionDomainCache() {
                     return new PDCache();
                 }
+
+                @Override
+                public boolean getStaticPermissionsField(ProtectionDomain pd) {
+                    return pd.staticPermissions;
+                }
             });
     }
 

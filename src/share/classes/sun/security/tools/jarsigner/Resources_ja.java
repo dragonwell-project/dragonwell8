@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,6 +88,8 @@ public class Resources_ja extends java.util.ListResourceBundle {
                 "[-tsacert <alias>]          \u30BF\u30A4\u30E0\u30B9\u30BF\u30F3\u30D7\u5C40\u306E\u516C\u958B\u9375\u8A3C\u660E\u66F8"},
         {".tsapolicyid.tsapolicyid.for.Timestamping.Authority",
                 "[-tsapolicyid <oid>]        \u30BF\u30A4\u30E0\u30B9\u30BF\u30F3\u30D7\u5C40\u306ETSAPolicyID"},
+        {".tsadigestalg.algorithm.of.digest.data.in.timestamping.request",
+                "[-tsadigestalg <algorithm>] \u30BF\u30A4\u30E0\u30B9\u30BF\u30F3\u30D7\u30FB\u30EA\u30AF\u30A8\u30B9\u30C8\u306E\u30C0\u30A4\u30B8\u30A7\u30B9\u30C8\u30FB\u30C7\u30FC\u30BF\u306E\u30A2\u30EB\u30B4\u30EA\u30BA\u30E0"},
         {".altsigner.class.class.name.of.an.alternative.signing.mechanism",
                 "[-altsigner <class>]        \u4EE3\u66FF\u7F72\u540D\u30E1\u30AB\u30CB\u30BA\u30E0\u306E\u30AF\u30E9\u30B9\u540D"},
         {".altsignerpath.pathlist.location.of.an.alternative.signing.mechanism",
