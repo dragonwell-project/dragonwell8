@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
 
@@ -73,7 +74,23 @@ bool VerificationType::is_reference_assignable_from(
       Klass* from_class = SystemDictionary::resolve_or_fail(
           from.name(), Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-      return InstanceKlass::cast(from_class)->is_subclass_of(this_class());
+      bool result = InstanceKlass::cast(from_class)->is_subclass_of(this_class());
+      if (result && DumpSharedSpaces) {
+        if (klass()->is_subclass_of(from_class) && klass()->is_subclass_of(this_class())) {
+          // No need to save verification dependency. At run time, <klass> will be
+          // loaded from the archived only if <from_class> and <this_class> are
+          // also loaded from the archive. I.e., all 3 classes are exactly the same
+          // as we saw at archive creation time.
+        } else {
+          // Save the dependency. At run time, we need to check that the condition
+          // from_class->is_subclass_of(this_class() is still true.
+          Symbol* accessor_clsname = from.name();
+          Symbol* target_clsname = this_class()->name();
+          SystemDictionaryShared::add_verification_dependency(klass(),
+                       accessor_clsname, target_clsname);
+        }
+      }
+      return result;
     }
   } else if (is_array() && from.is_array()) {
     VerificationType comp_this = get_component(context, CHECK_false);

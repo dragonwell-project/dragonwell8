@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "classfile/sharedClassUtil.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/systemDictionaryShared.hpp"
 #include "code/codeCache.hpp"
 #include "memory/filemap.hpp"
 #include "memory/gcLocker.hpp"
@@ -53,6 +54,7 @@ bool MetaspaceShared::_link_classes_made_progress;
 bool MetaspaceShared::_check_classes_made_progress;
 bool MetaspaceShared::_has_error_classes;
 bool MetaspaceShared::_archive_loading_failed = false;
+bool MetaspaceShared::_remapped_readwrite = false;
 // Read/write a data stream for restoring/preserving metadata pointers and
 // miscellaneous data from/to the shared archive file.
 
@@ -684,6 +686,10 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       exit(1);
     }
   }
+
+  // Copy the dependencies from C_HEAP-alloced GrowableArrays to RO-alloced
+  // Arrays
+  SystemDictionaryShared::finalize_verification_dependencies();
 }
 
 void MetaspaceShared::prepare_for_dumping() {
@@ -1096,6 +1102,7 @@ bool MetaspaceShared::remap_shared_readonly_as_readwrite() {
     if (!mapinfo->remap_shared_readonly_as_readwrite()) {
       return false;
     }
+    _remapped_readwrite = true;
   }
   return true;
 }
