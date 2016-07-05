@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2826,6 +2826,7 @@ void unpacker::putlayout(band** body) {
         }
         assert(!b.le_bci || prevBCI == (int)to_bci(prevBII));
 
+        CHECK;
         switch (b.le_len) {
         case 0: break;
         case 1: putu1(x); break;
@@ -4019,6 +4020,10 @@ uint unpacker::to_bci(uint bii) {
   uint  len =         bcimap.length();
   uint* map = (uint*) bcimap.base();
   assert(len > 0);  // must be initialized before using to_bci
+  if (len == 0) {
+      abort("bad bcimap");
+      return 0;
+  }
   if (bii < len)
     return map[bii];
   // Else it's a fractional or out-of-range BCI.
@@ -4041,6 +4046,7 @@ void unpacker::put_stackmap_type() {
     break;
   case 8: // (8) [PH]
     putu2(to_bci(code_StackMapTable_P.getInt()));
+    CHECK;
     break;
   }
 }
@@ -4088,6 +4094,7 @@ void unpacker::write_bc_ops() {
   CHECK;
 
   for (int curIP = 0; ; curIP++) {
+    CHECK;
     int curPC = (int)(wpoffset() - codeBase);
     bcimap.add(curPC);
     ensure_put_space(10);  // covers most instrs w/o further bounds check
@@ -4329,6 +4336,7 @@ void unpacker::write_bc_ops() {
     int   curIP  = code_fixup_source.get(i);
     int   destIP = curIP + bc_label.getInt();
     int   span   = to_bci(destIP) - to_bci(curIP);
+    CHECK;
     switch (type) {
     case 2: putu2_at(bp, (ushort)span); break;
     case 4: putu4_at(bp,         span); break;
@@ -4525,11 +4533,13 @@ int unpacker::write_attrs(int attrc, julong indexBits) {
           if (tag <= 127) {
             // (64-127)  [(2)]
             if (tag >= 64)  put_stackmap_type();
+            CHECK_0;
           } else if (tag <= 251) {
             // (247)     [(1)(2)]
             // (248-251) [(1)]
             if (tag >= 247)  putu2(code_StackMapTable_offset.getInt());
             if (tag == 247)  put_stackmap_type();
+            CHECK_0;
           } else if (tag <= 254) {
             // (252)     [(1)(2)]
             // (253)     [(1)(2)(2)]
@@ -4556,6 +4566,7 @@ int unpacker::write_attrs(int attrc, julong indexBits) {
         putu2(count = code_LineNumberTable_N.getInt());
         for (j = 0; j < count; j++) {
           putu2(to_bci(code_LineNumberTable_bci_P.getInt()));
+          CHECK_0;
           putu2(code_LineNumberTable_line.getInt());
         }
         break;
@@ -4566,9 +4577,11 @@ int unpacker::write_attrs(int attrc, julong indexBits) {
         for (j = 0; j < count; j++) {
           int bii = code_LocalVariableTable_bci_P.getInt();
           int bci = to_bci(bii);
+          CHECK_0;
           putu2(bci);
           bii    += code_LocalVariableTable_span_O.getInt();
           putu2(to_bci(bii) - bci);
+          CHECK_0;
           putref(code_LocalVariableTable_name_RU.getRefN());
           CHECK_0;
           putref(code_LocalVariableTable_type_RS.getRefN());
@@ -4583,9 +4596,11 @@ int unpacker::write_attrs(int attrc, julong indexBits) {
         for (j = 0; j < count; j++) {
           int bii = code_LocalVariableTypeTable_bci_P.getInt();
           int bci = to_bci(bii);
+          CHECK_0;
           putu2(bci);
           bii    += code_LocalVariableTypeTable_span_O.getInt();
           putu2(to_bci(bii) - bci);
+          CHECK_0;
           putref(code_LocalVariableTypeTable_name_RU.getRefN());
           CHECK_0;
           putref(code_LocalVariableTypeTable_type_RS.getRefN());
