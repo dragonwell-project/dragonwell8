@@ -515,8 +515,10 @@ AWT_ASSERT_APPKIT_THREAD;
 }
 
 -(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint {
-    if ((codePoint >= 0x3000) && (codePoint <= 0x303F)) {
-        // Code point is in 'CJK Symbols and Punctuation' Unicode block.
+    if (((codePoint >= 0x3000) && (codePoint <= 0x303F)) ||
+        ((codePoint >= 0xFF00) && (codePoint <= 0xFFEF))) {
+        // Code point is in 'CJK Symbols and Punctuation' or
+        // 'Halfwidth and Fullwidth Forms' Unicode block.
         return YES;
     }
     return NO;
