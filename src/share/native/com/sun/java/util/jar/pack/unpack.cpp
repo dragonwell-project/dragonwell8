@@ -171,7 +171,10 @@ struct entry {
 
   const char* utf8String() {
     assert(tagMatches(CONSTANT_Utf8));
-    assert(value.b.len == strlen((const char*)value.b.ptr));
+    if (value.b.len != strlen((const char*)value.b.ptr)) {
+      unpack_abort("bad utf8 encoding");
+      // and fall through
+    }
     return (const char*)value.b.ptr;
   }
 
@@ -1315,10 +1318,10 @@ void unpacker::read_signature_values(entry* cpMap, int len) {
     CHECK;
     int nc = 0;
 
-    for ( const char* ncp = form.utf8String() ; *ncp; ncp++) {
-      if (*ncp == 'L')  nc++;
+    for (int j = 0; j < (int)form.value.b.len; j++) {
+      int c = form.value.b.ptr[j];
+      if (c == 'L') nc++;
     }
-
     ncTotal += nc;
     e.refs = U_NEW(entry*, cpMap[i].nrefs = 1 + nc);
     CHECK;
@@ -4021,8 +4024,8 @@ uint unpacker::to_bci(uint bii) {
   uint* map = (uint*) bcimap.base();
   assert(len > 0);  // must be initialized before using to_bci
   if (len == 0) {
-      abort("bad bcimap");
-      return 0;
+    abort("bad bcimap");
+    return 0;
   }
   if (bii < len)
     return map[bii];
@@ -5044,6 +5047,7 @@ unpacker::file* unpacker::get_next_file() {
     entry* e = file_name.getRef();
     CHECK_0;
     cur_file.name = e->utf8String();
+    CHECK_0;
     bool haveLongSize = (testBit(archive_options, AO_HAVE_FILE_SIZE_HI));
     cur_file.size = file_size_hi.getLong(file_size_lo, haveLongSize);
     if (testBit(archive_options, AO_HAVE_FILE_MODTIME))
