@@ -380,11 +380,12 @@ public class HtmlWriter {
         HtmlTree script = new HtmlTree(HtmlTag.SCRIPT);
         script.addAttr(HtmlAttr.TYPE, "text/javascript");
         String scriptCode = DocletConstants.NL +
-                "    targetPage = \"\" + window.location.search;" + DocletConstants.NL +
-                "    if (targetPage != \"\" && targetPage != \"undefined\")" + DocletConstants.NL +
-                "        targetPage = targetPage.substring(1);" + DocletConstants.NL +
-                "    if (targetPage.indexOf(\":\") != -1 || (targetPage != \"\" && !validURL(targetPage)))" + DocletConstants.NL +
-                "        targetPage = \"undefined\";" + DocletConstants.NL +
+                "    tmpTargetPage = \"\" + window.location.search;" + DocletConstants.NL +
+                "    if (tmpTargetPage != \"\" && tmpTargetPage != \"undefined\")" + DocletConstants.NL +
+                "        tmpTargetPage = tmpTargetPage.substring(1);" + DocletConstants.NL +
+                "    if (tmpTargetPage.indexOf(\":\") != -1 || (tmpTargetPage != \"\" && !validURL(tmpTargetPage)))" + DocletConstants.NL +
+                "        tmpTargetPage = \"undefined\";" + DocletConstants.NL +
+                "    targetPage = tmpTargetPage;" + DocletConstants.NL +
                 "    function validURL(url) {" + DocletConstants.NL +
                 "        try {" + DocletConstants.NL +
                 "            url = decodeURIComponent(url);" + DocletConstants.NL +
