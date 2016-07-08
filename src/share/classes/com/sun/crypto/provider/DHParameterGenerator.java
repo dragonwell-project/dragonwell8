@@ -59,12 +59,13 @@ extends AlgorithmParameterGeneratorSpi {
     private SecureRandom random = null;
 
     private static void checkKeySize(int keysize)
-        throws InvalidAlgorithmParameterException {
-        if ((keysize != 2048) &&
+            throws InvalidParameterException {
+            if ((keysize != 2048) &&
             ((keysize < 512) || (keysize > 1024) || (keysize % 64 != 0))) {
-            throw new InvalidAlgorithmParameterException(
-                "Keysize must be multiple of 64 ranging from "
-                + "512 to 1024 (inclusive), or 2048");
+            throw new InvalidParameterException(
+                    "DH key size must be multiple of 64 and range " +
+                    "from 512 to 1024 (inclusive), or 2048. " +
+                    "The specific key size " + keysize + " is not supported");
         }
     }
 
@@ -78,11 +79,7 @@ extends AlgorithmParameterGeneratorSpi {
      */
     protected void engineInit(int keysize, SecureRandom random) {
         // Re-uses DSA parameters and thus have the same range
-        try {
-            checkKeySize(keysize);
-        } catch (InvalidAlgorithmParameterException ex) {
-            throw new InvalidParameterException(ex.getMessage());
-        }
+        checkKeySize(keysize);
         this.primeSize = keysize;
         this.random = random;
     }
@@ -111,7 +108,11 @@ extends AlgorithmParameterGeneratorSpi {
         primeSize = dhParamSpec.getPrimeSize();
 
         // Re-uses DSA parameters and thus have the same range
-        checkKeySize(primeSize);
+        try {
+            checkKeySize(primeSize);
+        } catch (InvalidParameterException ipe) {
+            throw new InvalidAlgorithmParameterException(ipe.getMessage());
+        }
 
         exponentSize = dhParamSpec.getExponentSize();
         if (exponentSize <= 0) {
