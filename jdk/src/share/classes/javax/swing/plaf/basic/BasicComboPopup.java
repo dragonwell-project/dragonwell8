@@ -1006,6 +1006,8 @@ public class BasicComboPopup extends JPopupMenu implements ComboPopup {
             if (e.getStateChange() == ItemEvent.SELECTED) {
                 JComboBox comboBox = (JComboBox)e.getSource();
                 setListSelection(comboBox.getSelectedIndex());
+            } else {
+                setListSelection(-1);
             }
         }
 
