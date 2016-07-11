@@ -23,9 +23,59 @@
 # questions.
 #
 
+# Prepare the system so that TOOLCHAIN_CHECK_COMPILER_VERSION can be called.
+# Must have CC_VERSION_NUMBER and CXX_VERSION_NUMBER.
+AC_DEFUN([TOOLCHAIN_PREPARE_FOR_VERSION_COMPARISONS],
+[
+  if test "x$CC_VERSION" != "x$CXX_VERSION"; then
+    AC_MSG_WARN([C and C++ compiler has different version numbers, $CC_VERSION vs $CXX_VERSION.])
+    AC_MSG_WARN([This typically indicates a broken setup, and is not supported])
+  fi
+
+  # We only check CC_VERSION since we assume CXX_VERSION is equal.
+  if [ [[ "$CC_VERSION" =~ (.*\.){3} ]] ]; then
+    AC_MSG_WARN([C compiler version number has more than three parts (X.Y.Z): $CC_VERSION. Comparisons might be wrong.])
+  fi
+
+  if [ [[  "$CC_VERSION" =~ [0-9]{6} ]] ]; then
+    AC_MSG_WARN([C compiler version number has a part larger than 99999: $CC_VERSION. Comparisons might be wrong.])
+  fi
+
+  COMPARABLE_ACTUAL_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", [$]1, [$]2, [$]3) }' <<< "$CC_VERSION"`
+])
+
+# Check if the configured compiler (C and C++) is of a specific version or
+# newer. TOOLCHAIN_PREPARE_FOR_VERSION_COMPARISONS must have been called before.
+#
+# Arguments:
+#   $1:   The version string to check against the found version
+#   $2:   block to run if the compiler is at least this version (>=)
+#   $3:   block to run if the compiler is older than this version (<)
+AC_DEFUN([TOOLCHAIN_CHECK_COMPILER_VERSION],
+[
+  REFERENCE_VERSION=$1
+
+  if [ [[ "$REFERENCE_VERSION" =~ (.*\.){3} ]] ]; then
+    AC_MSG_ERROR([Internal error: Cannot compare to $REFERENCE_VERSION, only three parts (X.Y.Z) is supported])
+  fi
+
+  if [ [[ "$REFERENCE_VERSION" =~ [0-9]{6} ]] ]; then
+    AC_MSG_ERROR([Internal error: Cannot compare to $REFERENCE_VERSION, only parts < 99999 is supported])
+  fi
+
+  # Version comparison method inspired by http://stackoverflow.com/a/24067243
+  COMPARABLE_REFERENCE_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", [$]1, [$]2, [$]3) }' <<< "$REFERENCE_VERSION"`
+
+  if test $COMPARABLE_ACTUAL_VERSION -ge $COMPARABLE_REFERENCE_VERSION ; then
+    m4_ifval([$2], [$2], [:])
+  else
+    m4_ifval([$3], [$3], [:])
+  fi
+])
+
 # $1 = compiler to test (CC or CXX)
 # $2 = human readable name of compiler (C or C++)
-AC_DEFUN([TOOLCHAIN_CHECK_COMPILER_VERSION],
+AC_DEFUN([TOOLCHAIN_EXTRACT_COMPILER_VERSION],
 [
   COMPILER=[$]$1
   COMPILER_NAME=$2
@@ -81,7 +131,8 @@ AC_DEFUN([TOOLCHAIN_CHECK_COMPILER_VERSION],
 
     # First line typically looks something like:
     # gcc (Ubuntu/Linaro 4.5.2-8ubuntu4) 4.5.2
-    COMPILER_VERSION=`$ECHO $COMPILER_VERSION_TEST | $SED -n "s/^.* \(@<:@1-9@:>@@<:@0-9.@:>@*\)/\1/p"`
+    COMPILER_VERSION=`$ECHO $COMPILER_VERSION_TEST | \
+        $SED -e 's/^.* \(@<:@1-9@:>@\.@<:@0-9.@:>@*\)@<:@^0-9.@:>@.*$/\1/'`
     COMPILER_VENDOR=`$ECHO $COMPILER_VERSION_TEST | $SED -n "s/^\(.*\) @<:@1-9@:>@@<:@0-9.@:>@*/\1/p"`
   fi
   # This sets CC_VERSION or CXX_VERSION. (This comment is a grep marker)
@@ -181,7 +232,7 @@ AC_DEFUN([TOOLCHAIN_FIND_COMPILER],
     AC_MSG_RESULT([no, keeping $1])
     $1="$TEST_COMPILER"
   fi
-  TOOLCHAIN_CHECK_COMPILER_VERSION([$1], [$COMPILER_NAME])
+  TOOLCHAIN_EXTRACT_COMPILER_VERSION([$1], [$COMPILER_NAME])
 ])
 
 
@@ -385,6 +436,12 @@ AC_DEFUN([TOOLCHAIN_SETUP_PATHS],
   # Now that we have resolved CXX ourself, let autoconf have its go at it
   AC_PROG_CXX([$CXX])
 
+  # This is the compiler version number on the form X.Y[.Z]
+  AC_SUBST(CC_VERSION)
+  AC_SUBST(CXX_VERSION)
+
+  TOOLCHAIN_PREPARE_FOR_VERSION_COMPARISONS
+
   ### Locate other tools
 
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
@@ -507,7 +564,8 @@ AC_DEFUN([TOOLCHAIN_SETUP_PATHS],
       BASIC_FIXUP_EXECUTABLE(DUMPBIN)
 
       COMPILER_TYPE=CL
-      CCXXFLAGS="$CCXXFLAGS -nologo"
+      # silence copyright notice and other headers.
+      COMMON_CCXXFLAGS="$COMMON_CCXXFLAGS -nologo"
   ])
   AC_SUBST(RC_FLAGS)
   AC_SUBST(COMPILER_TYPE)
@@ -954,12 +1012,20 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
   #
   # Now setup the CFLAGS and LDFLAGS for the JDK build.
   # Later we will also have CFLAGS and LDFLAGS for the hotspot subrepo build.
+  #    CFLAGS_JDK    - C Compiler flags
+  #    CXXFLAGS_JDK  - C++ Compiler flags
+  #    COMMON_CCXXFLAGS_JDK - common to C and C++
   #
   case $COMPILER_NAME in
     gcc )
-      CCXXFLAGS_JDK="$CCXXFLAGS $CCXXFLAGS_JDK -W -Wall -Wno-unused -Wno-parentheses \
+      COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS $COMMON_CCXXFLAGS_JDK -W -Wall -Wno-unused -Wno-parentheses \
       -pipe \
       -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+      CXXSTD_CXXFLAG="-std=gnu++98"
+      TOOLCHAIN_CXX_COMPILER_CHECK_ARGUMENTS([$CXXSTD_CXXFLAG $CFLAGS_WARNINGS_ARE_ERRORS],
+    					     [], [CXXSTD_CXXFLAG=""])
+      CXXFLAGS_JDK="${CXXFLAGS_JDK} ${CXXSTD_CXXFLAG}"
+      AC_SUBST([CXXSTD_CXXFLAG])
       case $OPENJDK_TARGET_CPU_ARCH in
         arm )
           # on arm we don't prevent gcc to omit frame pointer but do prevent strict aliasing
@@ -969,16 +1035,17 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
           # on ppc we don't prevent gcc to omit frame pointer nor strict-aliasing
           ;;
         * )
-          CCXXFLAGS_JDK="$CCXXFLAGS_JDK -fno-omit-frame-pointer"
+          COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer"
           CFLAGS_JDK="${CFLAGS_JDK} -fno-strict-aliasing"
           ;;
       esac
+      TOOLCHAIN_CHECK_COMPILER_VERSION(6, TOOLCHAIN_SETUP_GCC6_COMPILER_FLAGS)
       ;;
     ossc )
-      CCXXFLAGS_JDK="$CCXXFLAGS $CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
+      COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS $COMMON_CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
       case $OPENJDK_TARGET_CPU_ARCH in
         x86 )
-          CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DcpuIntel -Di586 -D$OPENJDK_TARGET_CPU_LEGACY_LIB"
+          COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DcpuIntel -Di586 -D$OPENJDK_TARGET_CPU_LEGACY_LIB"
           CFLAGS_JDK="$CFLAGS_JDK -erroff=E_BAD_PRAGMA_PACK_VALUE"
           ;;
       esac
@@ -997,16 +1064,16 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
       LDFLAGS_CXX_JDK="$LDFLAGS_CXX_JDK"
       ;;
     cl )
-      CCXXFLAGS_JDK="$CCXXFLAGS $CCXXFLAGS_JDK -Zi -MD -Zc:wchar_t- -W3 -wd4800 \
+      COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS $COMMON_CCXXFLAGS_JDK -Zi -MD -Zc:wchar_t- -W3 -wd4800 \
       -D_STATIC_CPPLIB -D_DISABLE_DEPRECATE_STATIC_CPPLIB -DWIN32_LEAN_AND_MEAN \
       -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE \
       -DWIN32 -DIAL"
       case $OPENJDK_TARGET_CPU in
         x86 )
-          CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_X86_ -Dx86"
+          COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -D_X86_ -Dx86"
           ;;
         x86_64 )
-          CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_AMD64_ -Damd64"
+          COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -D_AMD64_ -Damd64"
           ;;
       esac
       ;;
@@ -1036,7 +1103,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
       ;;
   esac
 
-  CCXXFLAGS_JDK="$CCXXFLAGS_JDK $ADD_LP64"
+  COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK $ADD_LP64"
 
   # The package path is used only on macosx?
   PACKAGE_PATH=/opt/local
@@ -1049,27 +1116,27 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
     #   Note: -Dmacro         is the same as    #define macro 1
     #         -Dmacro=        is the same as    #define macro
     if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_LITTLE_ENDIAN="
+      COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN="
     else
-      CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_LITTLE_ENDIAN"
+      COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN"
     fi
   else
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_BIG_ENDIAN"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -D_BIG_ENDIAN"
   fi
   if test "x$OPENJDK_TARGET_OS" = xlinux; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DLINUX"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DLINUX"
   fi
   if test "x$OPENJDK_TARGET_OS" = xwindows; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DWINDOWS"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DWINDOWS"
   fi
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DSOLARIS"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DSOLARIS"
   fi
   if test "x$OPENJDK_TARGET_OS" = xaix; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DAIX -DPPC64"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DAIX -DPPC64"
   fi
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMACOSX -D_ALLBSD_SOURCE -D_DARWIN_UNLIMITED_SELECT"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DMACOSX -D_ALLBSD_SOURCE -D_DARWIN_UNLIMITED_SELECT"
     # Setting these parameters makes it an error to link to macosx APIs that are
     # newer than the given OS version and makes the linked binaries compatible even
     # if built on a newer version of the OS.
@@ -1079,25 +1146,25 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
     # The macro takes the version with no dots, ex: 1070
     # Let the flags variables get resolved in make for easier override on make
     # command line.
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MIN)) -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
     LDFLAGS_JDK="$LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
   fi
   if test "x$OPENJDK_TARGET_OS" = xbsd; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DBSD -D_ALLBSD_SOURCE"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DBSD -D_ALLBSD_SOURCE"
   fi
   if test "x$DEBUG_LEVEL" = xrelease; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DNDEBUG"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DNDEBUG"
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DTRIMMED"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DTRIMMED"
   fi
   else
-    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DDEBUG"
+    COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DDEBUG"
   fi
 
-  CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DARCH='\"$OPENJDK_TARGET_CPU_LEGACY\"' -D$OPENJDK_TARGET_CPU_LEGACY"
-  CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DRELEASE='\"\$(RELEASE)\"'"
+  COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DARCH='\"$OPENJDK_TARGET_CPU_LEGACY\"' -D$OPENJDK_TARGET_CPU_LEGACY"
+  COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK -DRELEASE='\"\$(RELEASE)\"'"
 
-  CCXXFLAGS_JDK="$CCXXFLAGS_JDK \
+  COMMON_CCXXFLAGS_JDK="$COMMON_CCXXFLAGS_JDK \
       -I${JDK_OUTPUTDIR}/include \
       -I${JDK_OUTPUTDIR}/include/$OPENJDK_TARGET_OS \
       -I${JDK_TOPDIR}/src/share/javavm/export \
@@ -1106,12 +1173,12 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
       -I${JDK_TOPDIR}/src/$OPENJDK_TARGET_OS_API_DIR/native/common"
 
   # The shared libraries are compiled using the picflag.
-  CFLAGS_JDKLIB="$CCXXFLAGS_JDK $CFLAGS_JDK $PICFLAG $CFLAGS_JDKLIB_EXTRA"
-  CXXFLAGS_JDKLIB="$CCXXFLAGS_JDK $CXXFLAGS_JDK $PICFLAG $CXXFLAGS_JDKLIB_EXTRA "
+  CFLAGS_JDKLIB="$COMMON_CCXXFLAGS_JDK $CFLAGS_JDK $PICFLAG $CFLAGS_JDKLIB_EXTRA"
+  CXXFLAGS_JDKLIB="$COMMON_CCXXFLAGS_JDK $CXXFLAGS_JDK $PICFLAG $CXXFLAGS_JDKLIB_EXTRA "
 
   # Executable flags
-  CFLAGS_JDKEXE="$CCXXFLAGS_JDK $CFLAGS_JDK"
-  CXXFLAGS_JDKEXE="$CCXXFLAGS_JDK $CXXFLAGS_JDK"
+  CFLAGS_JDKEXE="$COMMON_CCXXFLAGS_JDK $CFLAGS_JDK"
+  CXXFLAGS_JDKEXE="$COMMON_CCXXFLAGS_JDK $CXXFLAGS_JDK"
 
   # Now this is odd. The JDK native libraries have to link against libjvm.so
   # On 32-bit machines there is normally two distinct libjvm.so:s, client and server.
@@ -1196,13 +1263,13 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_COMPILER_FLAGS_FOR_JDK],
 ])
 
 
-# TOOLCHAIN_COMPILER_CHECK_ARGUMENTS([ARGUMENT], [RUN-IF-TRUE],
-#                                   [RUN-IF-FALSE])
+# TOOLCHAIN_C_COMPILER_CHECK_ARGUMENTS([ARGUMENT], [RUN-IF-TRUE],
+#                                      [RUN-IF-FALSE])
 # ------------------------------------------------------------
-# Check that the c and c++ compilers support an argument
-AC_DEFUN([TOOLCHAIN_COMPILER_CHECK_ARGUMENTS],
+# Check that the C compiler supports an argument
+AC_DEFUN([TOOLCHAIN_C_COMPILER_CHECK_ARGUMENTS],
 [
-  AC_MSG_CHECKING([if compiler supports "$1"])
+  AC_MSG_CHECKING([if the C compiler supports "$1"])
   supports=yes
 
   saved_cflags="$CFLAGS"
@@ -1213,6 +1280,23 @@ AC_DEFUN([TOOLCHAIN_COMPILER_CHECK_ARGUMENTS],
   AC_LANG_POP([C])
   CFLAGS="$saved_cflags"
 
+  AC_MSG_RESULT([$supports])
+  if test "x$supports" = "xyes" ; then
+    m4_ifval([$2], [$2], [:])
+  else
+    m4_ifval([$3], [$3], [:])
+  fi
+])
+
+# TOOLCHAIN_CXX_COMPILER_CHECK_ARGUMENTS([ARGUMENT], [RUN-IF-TRUE],
+#                                        [RUN-IF-FALSE])
+# ------------------------------------------------------------
+# Check that the C++ compiler supports an argument
+AC_DEFUN([TOOLCHAIN_CXX_COMPILER_CHECK_ARGUMENTS],
+[
+  AC_MSG_CHECKING([if the C++ compiler supports "$1"])
+  supports=yes
+
   saved_cxxflags="$CXXFLAGS"
   CXXFLAGS="$CXXFLAG $1"
   AC_LANG_PUSH([C++])
@@ -1220,7 +1304,32 @@ AC_DEFUN([TOOLCHAIN_COMPILER_CHECK_ARGUMENTS],
       [supports=no])
   AC_LANG_POP([C++])
   CXXFLAGS="$saved_cxxflags"
+  
+  AC_MSG_RESULT([$supports])
+  if test "x$supports" = "xyes" ; then
+    m4_ifval([$2], [$2], [:])
+  else
+    m4_ifval([$3], [$3], [:])
+  fi
+])
 
+# TOOLCHAIN_COMPILER_CHECK_ARGUMENTS([ARGUMENT], [RUN-IF-TRUE],
+#                                    [RUN-IF-FALSE])
+# ------------------------------------------------------------
+# Check that the C and C++ compilers support an argument
+AC_DEFUN([TOOLCHAIN_COMPILER_CHECK_ARGUMENTS],
+[
+  TOOLCHAIN_C_COMPILER_CHECK_ARGUMENTS([$1],
+  				       [C_COMP_SUPPORTS="yes"],
+				       [C_COMP_SUPPORTS="no"])
+  TOOLCHAIN_CXX_COMPILER_CHECK_ARGUMENTS([$1],
+  					 [CXX_COMP_SUPPORTS="yes"],
+					 [CXX_COMP_SUPPORTS="no"])
+
+  AC_MSG_CHECKING([if both compilers support "$1"])
+  supports=no
+  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then supports=yes; fi
+  
   AC_MSG_RESULT([$supports])
   if test "x$supports" = "xyes" ; then
     m4_ifval([$2], [$2], [:])
@@ -1310,4 +1419,21 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_JTREG],
 
   AC_SUBST(JT_HOME)
   AC_SUBST(JTREGEXE)
+])
+
+AC_DEFUN_ONCE([TOOLCHAIN_SETUP_GCC6_COMPILER_FLAGS],
+[
+  # These flags are required for GCC 6 builds as undefined behaviour in OpenJDK code
+  # runs afoul of the more aggressive versions of these optimisations.
+  # Notably, value range propagation now assumes that the this pointer of C++
+  # member functions is non-null.
+  NO_DELETE_NULL_POINTER_CHECKS_CFLAG="-fno-delete-null-pointer-checks"
+  TOOLCHAIN_COMPILER_CHECK_ARGUMENTS([$NO_DELETE_NULL_POINTER_CHECKS_CFLAG -Werror],
+  				     [], [NO_DELETE_NULL_POINTER_CHECKS_CFLAG=""])
+  AC_SUBST([NO_DELETE_NULL_POINTER_CHECKS_CFLAG])
+  NO_LIFETIME_DSE_CFLAG="-fno-lifetime-dse"
+  TOOLCHAIN_COMPILER_CHECK_ARGUMENTS([$NO_LIFETIME_DSE_CFLAG -Werror],
+  				     [], [NO_LIFETIME_DSE_CFLAG=""])
+  CFLAGS_JDK="${CFLAGS_JDK} ${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} ${NO_LIFETIME_DSE_CFLAG}"
+  AC_SUBST([NO_LIFETIME_DSE_CFLAG])
 ])
