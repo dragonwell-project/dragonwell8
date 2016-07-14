@@ -27,6 +27,7 @@ import java.util.Arrays;
 /*
  * @test
  * @bug 8159244
+ * @requires vm.gc == "Parallel" | vm.gc == "null"
  * @summary Verifies that no partially initialized String object escapes from
  *          C2's String concat optimization in a highly concurrent setting.
  *          This test triggers the bug in about 1 out of 10 runs.

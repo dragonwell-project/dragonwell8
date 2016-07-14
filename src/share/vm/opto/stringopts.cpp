@@ -1641,16 +1641,11 @@ void PhaseStringOpts::replace_string_concat(StringConcat* sc) {
     }
     kit.store_String_value(kit.control(), result, char_array);
 
-    // Do not let stores that initialize this object be reordered with
-    // a subsequent store that would make this object accessible by
-    // other threads.
-    // Record what AllocateNode this StoreStore protects so that
-    // escape analysis can go from the MemBarStoreStoreNode to the
-    // AllocateNode and eliminate the MemBarStoreStoreNode if possible
-    // based on the escape status of the AllocateNode.
-    AllocateNode* alloc = AllocateNode::Ideal_allocation(result, _gvn);
-    assert(alloc != NULL, "should be newly allocated");
-    kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+    // The value field is final. Emit a barrier here to ensure that the effect
+    // of the initialization is committed to memory before any code publishes
+    // a reference to the newly constructed object (see Parse::do_exits()).
+    assert(AllocateNode::Ideal_allocation(result, _gvn) != NULL, "should be newly allocated");
+    kit.insert_mem_bar(Op_MemBarRelease, result);
   } else {
     result = C->top();
   }
