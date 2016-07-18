@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -164,7 +164,9 @@ public class HtmlWriter {
 
     public final Content descfrmInterfaceLabel;
 
-    private final Writer writer;
+    private final DocFile file;
+
+    private Writer writer;
 
     private Content script;
 
@@ -180,7 +182,7 @@ public class HtmlWriter {
      */
     public HtmlWriter(Configuration configuration, DocPath path)
             throws IOException, UnsupportedEncodingException {
-        writer = DocFile.createFileForOutput(configuration, path).openWriter();
+        file = DocFile.createFileForOutput(configuration, path);
         this.configuration = configuration;
         this.memberDetailsListPrinted = false;
         profileTableHeader = new String[] {
@@ -239,6 +241,7 @@ public class HtmlWriter {
     }
 
     public void write(Content c) throws IOException {
+        writer = file.openWriter();
         c.write(writer, true);
     }
 
