@@ -53,5 +53,7 @@ esac
 ${COMPILEJAVA}${FS}bin${FS}javac ${TESTJAVACOPTS} ${TESTTOOLVMOPTS} -d . ${TESTSRC}${FS}OriginServer.java \
     ${TESTSRC}${FS}ProxyTunnelServer.java \
     ${TESTSRC}${FS}PostThruProxyWithAuth.java
-${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} PostThruProxyWithAuth ${HOSTNAME} ${TESTSRC}
+${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} \
+    -Djdk.http.auth.tunneling.disabledSchemes= \
+    PostThruProxyWithAuth ${HOSTNAME} ${TESTSRC}
 exit
