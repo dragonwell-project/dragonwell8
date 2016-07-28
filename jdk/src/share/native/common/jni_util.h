@@ -105,6 +105,13 @@ JNIEXPORT void JNICALL
 JNU_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                              const char *defaultMessage);
 
+/* Throw an exception by name, using a given message and the string
+ * returned by getLastErrorString to construct the detail string.
+ */
+JNIEXPORT void JNICALL
+JNU_ThrowByNameWithMessageAndLastError
+  (JNIEnv *env, const char *name, const char *message);
+
 /* Throw an IOException, using the last-error string for the detail
  * string.  If the last-error string is NULL, use the given default
  * detail string.
