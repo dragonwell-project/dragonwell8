@@ -472,6 +472,13 @@ public:
     mov(dst, (long)i);
   }
 
+  void mov(Register dst, RegisterOrConstant src) {
+    if (src.is_register())
+      mov(dst, src.as_register());
+    else
+      mov(dst, src.as_constant());
+  }
+
   void movptr(Register r, uintptr_t imm64);
 
   void mov(FloatRegister Vd, SIMD_Arrangement T, u_int32_t imm32);
