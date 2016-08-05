@@ -4764,6 +4764,8 @@ encode %{
 
     assert_different_registers(oop, box, tmp, disp_hdr);
 
+    __ shenandoah_store_check(oop);
+
     // Load markOop from object into displaced_header.
     __ ldr(disp_hdr, Address(oop, oopDesc::mark_offset_in_bytes()));
 
@@ -4921,6 +4923,8 @@ encode %{
     Label cas_failed;
 
     assert_different_registers(oop, box, tmp, disp_hdr);
+
+    __ shenandoah_store_check(oop);
 
     // Always do locking in runtime.
     if (EmitSync & 0x01) {
@@ -8409,7 +8413,57 @@ instruct storeP(iRegP src, memory mem)
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# ptr" %}
 
-  ins_encode(aarch64_enc_str(src, mem));
+  ins_encode %{
+    int opcode = $mem->opcode();
+    Register base = as_Register($mem$$base);
+    int index = $mem$$index;
+    int size = $mem$$scale;
+    int disp = $mem$$disp;
+    Register reg = as_Register($src$$reg);
+
+    // we sometimes get asked to store the stack pointer into the
+    // current thread -- we cannot do that directly on AArch64
+    if (reg == r31_sp) {
+      MacroAssembler _masm(&cbuf);
+      assert(as_Register($mem$$base) == rthread, "unexpected store for sp");
+      __ mov(rscratch2, sp);
+      reg = rscratch2;
+    }
+    Address::extend scale;
+
+    // Hooboy, this is fugly.  We need a way to communicate to the
+    // encoder that the index needs to be sign extended, so we have to
+    // enumerate all the cases.
+    switch (opcode) {
+    case INDINDEXSCALEDOFFSETI2L:
+    case INDINDEXSCALEDI2L:
+    case INDINDEXSCALEDOFFSETI2LN:
+    case INDINDEXSCALEDI2LN:
+    case INDINDEXOFFSETI2L:
+    case INDINDEXOFFSETI2LN:
+      scale = Address::sxtw(size);
+      break;
+    default:
+      scale = Address::lsl(size);
+    }
+
+    Address adr;
+    if (index == -1) {
+      adr = Address(base, disp);
+    } else {
+      if (disp == 0) {
+        adr = Address(base, as_Register(index), scale);
+      } else {
+        __ lea(rscratch1, Address(base, disp));
+        adr = Address(rscratch1, as_Register(index), scale);
+      }
+    }
+
+    if (reg != rscratch2)
+      __ shenandoah_store_check(reg, adr);
+
+    __ str(reg, adr);
+  %}
 
   ins_pipe(istore_reg_mem);
 %}
@@ -9259,8 +9313,42 @@ instruct convN2I(iRegINoSp dst, iRegN src)
   ins_pipe(ialu_reg);
 %}
 
+instruct shenandoahRB(iRegPNoSp dst, iRegP src, rFlagsReg cr) %{
+  match(Set dst (ShenandoahReadBarrier src));
+  format %{ "shenandoah_rb $dst,$src" %}
+  ins_encode %{
+    Register s = $src$$Register;
+    Register d = $dst$$Register;
+    __ ldr(d, Address(s, -8));
+  %}
+  ins_pipe(pipe_class_memory);
+%}
 
-// Convert oop pointer into compressed form
+instruct shenandoahWB(iRegP_R0 dst, iRegP src, rFlagsReg cr) %{
+  match(Set dst (ShenandoahWriteBarrier src));
+  effect(KILL cr);
+
+  format %{ "shenandoah_wb $dst,$src" %}
+  ins_encode %{
+    Label done;
+    Register s = $src$$Register;
+    Register d = $dst$$Register;
+    assert(d == r0, "result in r0");
+    Address evacuation_in_progress = Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset()));
+    __ block_comment("Shenandoah write barrier {");
+    __ ldr(d, Address(s, -8));
+    __ ldrb(rscratch1, evacuation_in_progress);
+    __ membar(Assembler::LoadLoad);
+    __ ldr(d, Address(s, -8));
+    __ cbzw(rscratch1, done);
+    __ far_call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::aarch64::shenandoah_wb())), NULL, lr);
+    __ bind(done);
+    __ block_comment("} Shenandoah write barrier");
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+
 instruct encodeHeapOop(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
   predicate(n->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
   match(Set dst (EncodeP src));
@@ -9647,7 +9735,7 @@ instruct compareAndSwapNAcq(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN
 %}
 
 
-instruct get_and_setI(indirect mem, iRegI newv, iRegINoSp prev) %{
+instruct get_and_setI(indirect mem, iRegINoSp newv, iRegI prev) %{
   match(Set prev (GetAndSetI mem newv));
   format %{ "atomic_xchgw  $prev, $newv, [$mem]" %}
   ins_encode %{
@@ -9656,7 +9744,7 @@ instruct get_and_setI(indirect mem, iRegI newv, iRegINoSp prev) %{
   ins_pipe(pipe_serial);
 %}
 
-instruct get_and_setL(indirect mem, iRegL newv, iRegLNoSp prev) %{
+instruct get_and_setL(indirect mem, iRegLNoSp newv, iRegL prev) %{
   match(Set prev (GetAndSetL mem newv));
   format %{ "atomic_xchg  $prev, $newv, [$mem]" %}
   ins_encode %{
@@ -9665,7 +9753,7 @@ instruct get_and_setL(indirect mem, iRegL newv, iRegLNoSp prev) %{
   ins_pipe(pipe_serial);
 %}
 
-instruct get_and_setN(indirect mem, iRegN newv, iRegINoSp prev) %{
+instruct get_and_setN(indirect mem, iRegNNoSp newv, iRegI prev) %{
   match(Set prev (GetAndSetN mem newv));
   format %{ "atomic_xchgw $prev, $newv, [$mem]" %}
   ins_encode %{
@@ -9674,7 +9762,7 @@ instruct get_and_setN(indirect mem, iRegN newv, iRegINoSp prev) %{
   ins_pipe(pipe_serial);
 %}
 
-instruct get_and_setP(indirect mem, iRegP newv, iRegPNoSp prev) %{
+instruct get_and_setP(indirect mem, iRegPNoSp newv, iRegP prev) %{
   match(Set prev (GetAndSetP mem newv));
   format %{ "atomic_xchg  $prev, $newv, [$mem]" %}
   ins_encode %{
@@ -15122,7 +15210,7 @@ instruct string_compare(iRegP_R1 str1, iRegI_R2 cnt1, iRegP_R3 str2, iRegI_R4 cn
 %}
 
 instruct string_indexof(iRegP_R1 str1, iRegI_R4 cnt1, iRegP_R3 str2, iRegI_R2 cnt2,
-       iRegI_R0 result, iRegINoSp tmp1, iRegINoSp tmp2, iRegINoSp tmp3, iRegINoSp tmp4, rFlagsReg cr)
+       iRegI_R0 result, iRegI tmp1, iRegI tmp2, iRegI tmp3, iRegI tmp4, rFlagsReg cr)
 %{
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 cnt2)));
   effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt1, USE_KILL cnt2,
@@ -15140,8 +15228,8 @@ instruct string_indexof(iRegP_R1 str1, iRegI_R4 cnt1, iRegP_R3 str2, iRegI_R2 cn
 %}
 
 instruct string_indexof_con(iRegP_R1 str1, iRegI_R4 cnt1, iRegP_R3 str2,
-                 immI_le_4 int_cnt2, iRegI_R0 result, iRegINoSp tmp1, iRegINoSp tmp2,
-                 iRegINoSp tmp3, iRegINoSp tmp4, rFlagsReg cr)
+                 immI_le_4 int_cnt2, iRegI_R0 result, iRegI tmp1, iRegI tmp2,
+                 iRegI tmp3, iRegI tmp4, rFlagsReg cr)
 %{
   match(Set result (StrIndexOf (Binary str1 cnt1) (Binary str2 int_cnt2)));
   effect(USE_KILL str1, USE_KILL str2, USE_KILL cnt1,

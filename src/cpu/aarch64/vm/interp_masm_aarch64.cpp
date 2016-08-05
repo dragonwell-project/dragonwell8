@@ -665,6 +665,8 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     // Load object pointer into obj_reg %c_rarg3
     ldr(obj_reg, Address(lock_reg, obj_offset));
 
+    shenandoah_store_check(obj_reg);
+
     if (UseBiasedLocking) {
       biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, done, &slow_case);
     }
@@ -763,6 +765,8 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
 
     // Load oop into obj_reg(%c_rarg3)
     ldr(obj_reg, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));
+
+    shenandoah_store_check(obj_reg);
 
     // Free entry
     str(zr, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));

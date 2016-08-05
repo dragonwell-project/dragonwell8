@@ -447,10 +447,7 @@ public:
   // now mov instructions for loading absolute addresses and 32 or
   // 64 bit integers
 
-  inline void mov(Register dst, address addr)
-  {
-    mov_immediate64(dst, (u_int64_t)addr);
-  }
+  void mov(Register dst, address addr);
 
   inline void mov(Register dst, u_int64_t imm64)
   {
@@ -932,7 +929,7 @@ public:
   void verify_FPU(int stack_depth, const char* s = "illegal FPU state");
 
   // prints msg, dumps registers and stops execution
-  void stop(const char* msg);
+  void stop(const char* msg, Label *l = NULL);
 
   // prints msg and continues
   void warn(const char* msg);
@@ -1212,7 +1209,13 @@ public:
                       Register tmp1, Register tmp2,
                       Register tmp3, Register tmp4,
                       int int_cnt1, Register result);
-private:
+
+  void in_heap_check(Register r, Label &nope);
+  void shenandoah_store_check(Register r, Address addr);
+  void shenandoah_store_check(Address addr);
+  void shenandoah_store_check(Register addr);
+
+ private:
   void add2_with_carry(Register final_dest_hi, Register dest_hi, Register dest_lo,
                        Register src1, Register src2);
   void add2_with_carry(Register dest_hi, Register dest_lo, Register src1, Register src2) {

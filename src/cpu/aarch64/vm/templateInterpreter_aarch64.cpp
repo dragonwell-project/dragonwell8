@@ -584,6 +584,7 @@ void InterpreterGenerator::lock_method(void) {
 #endif // ASSERT
 
     __ bind(done);
+    oopDesc::bs()->interpreter_write_barrier(_masm, r0);
   }
 
   // add space for monitor & lock
@@ -694,7 +695,7 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   //   and so we don't need to call the G1 pre-barrier. Thus we can use the
   //   regular method entry code to generate the NPE.
   //
-  // This code is based on generate_accessor_entry.
+  // This code is based on generate_accessor_enty.
   //
   // rmethod: Method*
   // r13: senderSP must preserve for slow path, set SP to it on fast path
@@ -704,19 +705,21 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   const int referent_offset = java_lang_ref_Reference::referent_offset;
   guarantee(referent_offset > 0, "referent offset not initialized");
 
-  if (UseG1GC) {
+  if (UseG1GC || UseShenandoahGC) {
     Label slow_path;
     const Register local_0 = c_rarg0;
     // Check if local 0 != NULL
     // If the receiver is null then it is OK to jump to the slow path.
     __ ldr(local_0, Address(esp, 0));
+    __ mov(r19, r13); // First call-saved register
     __ cbz(local_0, slow_path);
+
+    oopDesc::bs()->interpreter_read_barrier_not_null(_masm, local_0);
 
     // Load the value of the referent field.
     const Address field_address(local_0, referent_offset);
     __ load_heap_oop(local_0, field_address);
 
-    __ mov(r19, r13);   // Move senderSP to a callee-saved register
     // Generate the G1 pre-barrier code to log the value of
     // the referent field in an SATB buffer.
     __ enter(); // g1_write may call runtime

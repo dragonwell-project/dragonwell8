@@ -206,6 +206,8 @@ int VtableStub::pd_code_size_limit(bool is_vtable_stub) {
     size += 52;
   else
     size += 104;
+  if (ShenandoahVerifyReadsToFromSpace)
+    size += 512;
   return size;
 
   // In order to tune these parameters, run the JVM with VM options

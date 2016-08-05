@@ -34,6 +34,9 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "gc_implementation/shenandoah/brooksPointer.hpp"
+#include "gc_implementation/shenandoah/shenandoahHeap.hpp"
+#include "gc_implementation/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc_interface/collectedHeap.hpp"
 #include "memory/barrierSet.hpp"
 #include "memory/cardTableModRefBS.hpp"
@@ -854,7 +857,8 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       if (UseCompressedOops && !wide) {
         __ strw(compressed_src, as_Address(to_addr, rscratch2));
       } else {
-         __ str(compressed_src, as_Address(to_addr));
+        __ shenandoah_store_check(compressed_src, as_Address(to_addr));
+        __ str(compressed_src, as_Address(to_addr));
       }
       break;
     case T_METADATA:
@@ -1155,6 +1159,50 @@ void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
   }
 }
 
+
+void LIR_Assembler::emit_opShenandoahWriteBarrier(LIR_OpShenandoahWriteBarrier* op) {
+  Label done;
+  Register obj = op->in_opr()->as_register();
+  Register res = op->result_opr()->as_register();
+  Register tmp1 = op->tmp1_opr()->as_register();
+  Register tmp2 = op->tmp2_opr()->as_register();
+  assert_different_registers(res, tmp1, tmp2);
+
+  __ block_comment("Shenandoah write barrier {");
+
+  // Check for null.
+  if (op->need_null_check()) {
+    if (res != obj)  __ mov(res, obj);
+    __ cbz(res, done);
+  }
+
+  // Check for evacuation-in-progress
+  Address evacuation_in_progress
+    = Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset()));
+  __ ldrb(rscratch2, evacuation_in_progress);
+  __ membar(Assembler::LoadLoad);
+
+  // The read-barrier.
+  __ ldr(res, Address(obj, BrooksPointer::BYTE_OFFSET));
+
+  __ cbzw(rscratch2, done);
+
+  // Check for object in collection set.
+  __ lsr(tmp1, res, ShenandoahHeapRegion::RegionSizeShift);
+  __ mov(tmp2, ShenandoahHeap::in_cset_fast_test_addr());
+  __ ldrb(tmp2, Address(tmp2, tmp1));
+  __ tbz(tmp2, 0, done);
+
+  RegSet to_save = RegSet::of(r0, r1) - res;
+  __ push(to_save, sp);
+  __ mov(r1, res);
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::shenandoah_write_barrier_slow_id)));
+  __ mov(res, r0);
+  __ pop(to_save, sp);
+
+  __ block_comment("} Shenandoah write barrier");
+  __ bind(done);
+}
 
 
 void LIR_Assembler::emit_opConvert(LIR_OpConvert* op) {
@@ -1654,9 +1702,8 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
   __ membar(__ AnyAny);
 }
 
-
+// Return 1 in rscratch1 if the CAS fails.
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
-  assert(VM_Version::supports_cx8(), "wrong machine");
   Register addr = as_reg(op->addr());
   Register newval = as_reg(op->new_value());
   Register cmpval = as_reg(op->cmp_value());
@@ -1671,8 +1718,41 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
       __ encode_heap_oop(rscratch2, newval);
       newval = rscratch2;
       casw(addr, newval, cmpval);
+    } else if (UseShenandoahGC) {
+      Register tmp1 = as_reg(op->tmp1());
+      Register tmp2 = as_reg(op->tmp2());
+      Label done, retry;
+
+      __ mov(tmp1, cmpval);
+
+      __ bind(retry);
+
+      casl(addr, newval, tmp1);
+
+      // If the cmpxchg succeeded, then we're done.
+      __ cbz(rscratch1, done);
+
+      // Resolve the original cmp value into rscratch2.
+      __ mov(rscratch2, tmp1);
+      oopDesc::bs()->interpreter_read_barrier(masm(), rscratch2);
+
+      // Resolve the old value at address into rscratch1.
+      __ ldr(tmp1, Address(addr));
+      __ mov(rscratch1, tmp1);
+      oopDesc::bs()->interpreter_read_barrier(masm(), rscratch1);
+
+      // We're done if the expected/cmp value is not the same as
+      // old. It's a valid cmpxchg failure then. Otherwise we need
+      // special treatment for Shenandoah to prevent false negatives.
+      __ cmp(rscratch1, rscratch2);
+      __ br(Assembler::EQ, retry);
+      __ mov(rscratch1, 1);  // Failed
+
+      __ bind(done);
+      volatile address xx = _masm->pc();
+      asm("nop");
     } else {
-      casl(addr, newval, cmpval);
+        casl(addr, newval, cmpval);
     }
   } else if (op->code() == lir_cas_int) {
     casw(addr, newval, cmpval);
@@ -1968,6 +2048,9 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       Register reg2 = opr2->as_register();
       if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY) {
         __ cmp(reg1, reg2);
+        if (UseShenandoahGC) {
+          oopDesc::bs()->asm_acmp_barrier(masm(), reg1, reg2);
+        }
       } else {
         assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY, "cmp int, oop?");
         __ cmpw(reg1, reg2);
@@ -1982,42 +2065,47 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
     }
 
     if (opr2->is_constant()) {
-      bool is_32bit = false; // width of register operand
       jlong imm;
-
       switch(opr2->type()) {
-      case T_INT:
-        imm = opr2->as_constant_ptr()->as_jint();
-        is_32bit = true;
-        break;
       case T_LONG:
-        imm = opr2->as_constant_ptr()->as_jlong();
-        break;
+	imm = opr2->as_constant_ptr()->as_jlong();
+	break;
+      case T_INT:
       case T_ADDRESS:
-        imm = opr2->as_constant_ptr()->as_jint();
-        break;
+	imm = opr2->as_constant_ptr()->as_jint();
+	break;
       case T_OBJECT:
       case T_ARRAY:
-        imm = jlong(opr2->as_constant_ptr()->as_jobject());
-        break;
+	imm = jlong(opr2->as_constant_ptr()->as_jobject());
+	break;
       default:
-        ShouldNotReachHere();
-        break;
+	ShouldNotReachHere();
+	break;
+      }
+
+      if (opr2->type() == T_OBJECT || opr2->type() == T_ARRAY) {
+        jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
+        __ cmp(reg1, rscratch1);
+        if (UseShenandoahGC
+            && (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY)) {
+          oopDesc::bs()->asm_acmp_barrier(masm(), reg1, rscratch1);
+        }
+        return;
       }
 
       if (Assembler::operand_valid_for_add_sub_immediate(imm)) {
-        if (is_32bit)
-          __ cmpw(reg1, imm);
-        else
-          __ cmp(reg1, imm);
-        return;
+	if (type2aelembytes(opr1->type()) <= 4)
+	  __ cmpw(reg1, imm);
+	else
+	  __ cmp(reg1, imm);
+	return;
       } else {
-        __ mov(rscratch1, imm);
-        if (is_32bit)
-          __ cmpw(reg1, rscratch1);
-        else
-          __ cmp(reg1, rscratch1);
-        return;
+	__ mov(rscratch1, imm);
+	if (type2aelembytes(opr1->type()) <= 4)
+	  __ cmpw(reg1, rscratch1);
+	else
+	  __ cmp(reg1, rscratch1);
+	return;
       }
     } else
       ShouldNotReachHere();

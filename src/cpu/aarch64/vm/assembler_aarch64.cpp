@@ -33,7 +33,7 @@
 #include "interpreter/interpreter.hpp"
 
 #ifndef PRODUCT
-const unsigned long Assembler::asm_bp = 0x00007fffee09ac88;
+const unsigned long Assembler::asm_bp = 0x0000007fa8092b5c;
 #endif
 
 #include "compiler/disassembler.hpp"
@@ -1267,6 +1267,10 @@ void Address::lea(MacroAssembler *as, Register r) const {
       __ mov(r, target());
     else
       __ movptr(r, (uint64_t)target());
+    break;
+  }
+  case post: {
+    __ mov(r, _base);
     break;
   }
   default:
