@@ -464,7 +464,7 @@ public class SecureRandom extends java.util.Random {
      * @param bytes the array to be filled in with random bytes.
      */
     @Override
-    synchronized public void nextBytes(byte[] bytes) {
+    public void nextBytes(byte[] bytes) {
         secureRandomSpi.engineNextBytes(bytes);
     }
 

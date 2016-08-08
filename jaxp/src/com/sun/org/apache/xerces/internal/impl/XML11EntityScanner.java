@@ -752,7 +752,7 @@ public class XML11EntityScanner
             load(0, true, true);
         }
         else if (fCurrentEntity.position == fCurrentEntity.count - 1) {
-            invokeListeners(0);
+            invokeListeners(1);
             fCurrentEntity.ch[0] = fCurrentEntity.ch[fCurrentEntity.count - 1];
             load(1, false, false);
             fCurrentEntity.position = 0;
@@ -904,7 +904,7 @@ public class XML11EntityScanner
             load(0, true, true);
         }
         else if (fCurrentEntity.position == fCurrentEntity.count - 1) {
-            invokeListeners(0);
+            invokeListeners(1);
             fCurrentEntity.ch[0] = fCurrentEntity.ch[fCurrentEntity.count - 1];
             load(1, false, false);
             fCurrentEntity.startPosition = 0;
@@ -1352,7 +1352,7 @@ public class XML11EntityScanner
                         fCurrentEntity.lineNumber++;
                         fCurrentEntity.columnNumber = 1;
                         if (fCurrentEntity.position == fCurrentEntity.count - 1) {
-                            invokeListeners(0);
+                            invokeListeners(1);
                             fCurrentEntity.ch[0] = (char)c;
                             entityChanged = load(1, true, false);
                             if (!entityChanged) {
@@ -1406,8 +1406,9 @@ public class XML11EntityScanner
                     fCurrentEntity.lineNumber++;
                     fCurrentEntity.columnNumber = 1;
                     if (fCurrentEntity.position == fCurrentEntity.count - 1) {
+                        invokeListeners(1);
                         fCurrentEntity.ch[0] = (char)c;
-                        entityChanged = load(1, true, true);
+                        entityChanged = load(1, true, false);
                         if (!entityChanged) {
                             // the load change the position to be 1,
                             // need to restore it when entity not changed

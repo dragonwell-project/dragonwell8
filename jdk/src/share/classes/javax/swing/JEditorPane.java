@@ -24,15 +24,12 @@
  */
 package javax.swing;
 
-import sun.swing.SwingUtilities2;
 
 import java.awt.*;
-import java.awt.event.*;
 import java.lang.reflect.*;
 import java.net.*;
 import java.util.*;
 import java.io.*;
-import java.util.*;
 
 import javax.swing.plaf.*;
 import javax.swing.text.*;
@@ -1244,7 +1241,11 @@ public class JEditorPane extends JTextComponent {
      */
     public static void registerEditorKitForContentType(String type, String classname, ClassLoader loader) {
         getKitTypeRegistry().put(type, classname);
-        getKitLoaderRegistry().put(type, loader);
+        if (loader != null) {
+            getKitLoaderRegistry().put(type, loader);
+        } else {
+            getKitLoaderRegistry().remove(type);
+        }
         getKitRegisty().remove(type);
     }
 
