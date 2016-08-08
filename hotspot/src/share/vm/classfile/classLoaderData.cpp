@@ -813,6 +813,12 @@ void ClassLoaderDataGraph::free_deallocate_lists() {
     // called on all alive classes. See the comment in ClassLoaderDataGraph::clean_metaspaces.
     cld->free_deallocate_list();
   }
+
+  // In some rare cases items added to the unloading list will not be freed elsewhere.
+  // To keep it simple, walk the _unloading list also.
+  for (ClassLoaderData* cld = _unloading; cld != _saved_unloading; cld = cld->next()) {
+    cld->free_deallocate_list();
+  }
 }
 
 // CDS support

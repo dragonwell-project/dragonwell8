@@ -176,6 +176,7 @@ public class Names {
     public final Name lambda;
     public final Name metafactory;
     public final Name altMetafactory;
+    public final Name dollarThis;
 
     public final Name.Table table;
 
@@ -234,6 +235,7 @@ public class Names {
         value = fromString("value");
         valueOf = fromString("valueOf");
         values = fromString("values");
+        dollarThis = fromString("$this");
 
         // class names
         java_io_Serializable = fromString("java.io.Serializable");
