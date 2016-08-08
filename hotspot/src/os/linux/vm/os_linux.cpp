@@ -3047,6 +3047,48 @@ static char* anon_mmap(char* requested_addr, size_t bytes, bool fixed) {
   return addr == MAP_FAILED ? NULL : addr;
 }
 
+// Allocate (using mmap, NO_RESERVE, with small pages) at either a given request address
+//   (req_addr != NULL) or with a given alignment.
+//  - bytes shall be a multiple of alignment.
+//  - req_addr can be NULL. If not NULL, it must be a multiple of alignment.
+//  - alignment sets the alignment at which memory shall be allocated.
+//     It must be a multiple of allocation granularity.
+// Returns address of memory or NULL. If req_addr was not NULL, will only return
+//  req_addr or NULL.
+static char* anon_mmap_aligned(size_t bytes, size_t alignment, char* req_addr) {
+
+  size_t extra_size = bytes;
+  if (req_addr == NULL && alignment > 0) {
+    extra_size += alignment;
+  }
+
+  char* start = (char*) ::mmap(req_addr, extra_size, PROT_NONE,
+    MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,
+    -1, 0);
+  if (start == MAP_FAILED) {
+    start = NULL;
+  } else {
+    if (req_addr != NULL) {
+      if (start != req_addr) {
+        ::munmap(start, extra_size);
+        start = NULL;
+      }
+    } else {
+      char* const start_aligned = (char*) align_ptr_up(start, alignment);
+      char* const end_aligned = start_aligned + bytes;
+      char* const end = start + extra_size;
+      if (start_aligned > start) {
+        ::munmap(start, start_aligned - start);
+      }
+      if (end_aligned < end) {
+        ::munmap(end_aligned, end - end_aligned);
+      }
+      start = start_aligned;
+    }
+  }
+  return start;
+}
+
 // Don't update _highest_vm_reserved_address, because there might be memory
 // regions above addr + size. If so, releasing a memory region only creates
 // a hole in the address space, it doesn't help prevent heap-stack collision.
@@ -3331,68 +3373,139 @@ void os::large_page_init() {
 #define SHM_HUGETLB 04000
 #endif
 
+#define shm_warning_format(format, ...)              \
+  do {                                               \
+    if (UseLargePages &&                             \
+        (!FLAG_IS_DEFAULT(UseLargePages) ||          \
+         !FLAG_IS_DEFAULT(UseSHM) ||                 \
+         !FLAG_IS_DEFAULT(LargePageSizeInBytes))) {  \
+      warning(format, __VA_ARGS__);                  \
+    }                                                \
+  } while (0)
+
+#define shm_warning(str) shm_warning_format("%s", str)
+
+#define shm_warning_with_errno(str)                \
+  do {                                             \
+    int err = errno;                               \
+    shm_warning_format(str " (error = %d)", err);  \
+  } while (0)
+
+static char* shmat_with_alignment(int shmid, size_t bytes, size_t alignment) {
+  assert(is_size_aligned(bytes, alignment), "Must be divisible by the alignment");
+
+  if (!is_size_aligned(alignment, SHMLBA)) {
+    assert(false, "Code below assumes that alignment is at least SHMLBA aligned");
+    return NULL;
+  }
+
+  // To ensure that we get 'alignment' aligned memory from shmat,
+  // we pre-reserve aligned virtual memory and then attach to that.
+
+  char* pre_reserved_addr = anon_mmap_aligned(bytes, alignment, NULL);
+  if (pre_reserved_addr == NULL) {
+    // Couldn't pre-reserve aligned memory.
+    shm_warning("Failed to pre-reserve aligned memory for shmat.");
+    return NULL;
+  }
+
+  // SHM_REMAP is needed to allow shmat to map over an existing mapping.
+  char* addr = (char*)shmat(shmid, pre_reserved_addr, SHM_REMAP);
+
+  if ((intptr_t)addr == -1) {
+    int err = errno;
+    shm_warning_with_errno("Failed to attach shared memory.");
+
+    assert(err != EACCES, "Unexpected error");
+    assert(err != EIDRM,  "Unexpected error");
+    assert(err != EINVAL, "Unexpected error");
+
+    // Since we don't know if the kernel unmapped the pre-reserved memory area
+    // we can't unmap it, since that would potentially unmap memory that was
+    // mapped from other threads.
+    return NULL;
+  }
+
+  return addr;
+}
+
+static char* shmat_at_address(int shmid, char* req_addr) {
+  if (!is_ptr_aligned(req_addr, SHMLBA)) {
+    assert(false, "Requested address needs to be SHMLBA aligned");
+    return NULL;
+  }
+
+  char* addr = (char*)shmat(shmid, req_addr, 0);
+
+  if ((intptr_t)addr == -1) {
+    shm_warning_with_errno("Failed to attach shared memory.");
+    return NULL;
+  }
+
+  return addr;
+}
+
+static char* shmat_large_pages(int shmid, size_t bytes, size_t alignment, char* req_addr) {
+  // If a req_addr has been provided, we assume that the caller has already aligned the address.
+  if (req_addr != NULL) {
+    assert(is_ptr_aligned(req_addr, os::large_page_size()), "Must be divisible by the large page size");
+    assert(is_ptr_aligned(req_addr, alignment), "Must be divisible by given alignment");
+    return shmat_at_address(shmid, req_addr);
+  }
+
+  // Since shmid has been setup with SHM_HUGETLB, shmat will automatically
+  // return large page size aligned memory addresses when req_addr == NULL.
+  // However, if the alignment is larger than the large page size, we have
+  // to manually ensure that the memory returned is 'alignment' aligned.
+  if (alignment > os::large_page_size()) {
+    assert(is_size_aligned(alignment, os::large_page_size()), "Must be divisible by the large page size");
+    return shmat_with_alignment(shmid, bytes, alignment);
+  } else {
+    return shmat_at_address(shmid, NULL);
+  }
+}
+
 char* os::Linux::reserve_memory_special_shm(size_t bytes, size_t alignment, char* req_addr, bool exec) {
   // "exec" is passed in but not used.  Creating the shared image for
   // the code cache doesn't have an SHM_X executable permission to check.
   assert(UseLargePages && UseSHM, "only for SHM large pages");
   assert(is_ptr_aligned(req_addr, os::large_page_size()), "Unaligned address");
+  assert(is_ptr_aligned(req_addr, alignment), "Unaligned address");
 
-  if (!is_size_aligned(bytes, os::large_page_size()) || alignment > os::large_page_size()) {
+  if (!is_size_aligned(bytes, os::large_page_size())) {
     return NULL; // Fallback to small pages.
   }
 
-  key_t key = IPC_PRIVATE;
-  char *addr;
-
-  bool warn_on_failure = UseLargePages &&
-                        (!FLAG_IS_DEFAULT(UseLargePages) ||
-                         !FLAG_IS_DEFAULT(UseSHM) ||
-                         !FLAG_IS_DEFAULT(LargePageSizeInBytes)
-                        );
-  char msg[128];
-
   // Create a large shared memory region to attach to based on size.
-  // Currently, size is the total size of the heap
-  int shmid = shmget(key, bytes, SHM_HUGETLB|IPC_CREAT|SHM_R|SHM_W);
+  // Currently, size is the total size of the heap.
+  int shmid = shmget(IPC_PRIVATE, bytes, SHM_HUGETLB|IPC_CREAT|SHM_R|SHM_W);
   if (shmid == -1) {
-     // Possible reasons for shmget failure:
-     // 1. shmmax is too small for Java heap.
-     //    > check shmmax value: cat /proc/sys/kernel/shmmax
-     //    > increase shmmax value: echo "0xffffffff" > /proc/sys/kernel/shmmax
-     // 2. not enough large page memory.
-     //    > check available large pages: cat /proc/meminfo
-     //    > increase amount of large pages:
-     //          echo new_value > /proc/sys/vm/nr_hugepages
-     //      Note 1: different Linux may use different name for this property,
-     //            e.g. on Redhat AS-3 it is "hugetlb_pool".
-     //      Note 2: it's possible there's enough physical memory available but
-     //            they are so fragmented after a long run that they can't
-     //            coalesce into large pages. Try to reserve large pages when
-     //            the system is still "fresh".
-     if (warn_on_failure) {
-       jio_snprintf(msg, sizeof(msg), "Failed to reserve shared memory (errno = %d).", errno);
-       warning("%s", msg);
-     }
-     return NULL;
+    // Possible reasons for shmget failure:
+    // 1. shmmax is too small for Java heap.
+    //    > check shmmax value: cat /proc/sys/kernel/shmmax
+    //    > increase shmmax value: echo "0xffffffff" > /proc/sys/kernel/shmmax
+    // 2. not enough large page memory.
+    //    > check available large pages: cat /proc/meminfo
+    //    > increase amount of large pages:
+    //          echo new_value > /proc/sys/vm/nr_hugepages
+    //      Note 1: different Linux may use different name for this property,
+    //            e.g. on Redhat AS-3 it is "hugetlb_pool".
+    //      Note 2: it's possible there's enough physical memory available but
+    //            they are so fragmented after a long run that they can't
+    //            coalesce into large pages. Try to reserve large pages when
+    //            the system is still "fresh".
+    shm_warning_with_errno("Failed to reserve shared memory.");
+    return NULL;
   }
 
-  // attach to the region
-  addr = (char*)shmat(shmid, req_addr, 0);
-  int err = errno;
+  // Attach to the region.
+  char* addr = shmat_large_pages(shmid, bytes, alignment, req_addr);
 
   // Remove shmid. If shmat() is successful, the actual shared memory segment
   // will be deleted when it's detached by shmdt() or when the process
   // terminates. If shmat() is not successful this will remove the shared
   // segment immediately.
   shmctl(shmid, IPC_RMID, NULL);
-
-  if ((intptr_t)addr == -1) {
-     if (warn_on_failure) {
-       jio_snprintf(msg, sizeof(msg), "Failed to attach shared memory (errno = %d).", err);
-       warning("%s", msg);
-     }
-     return NULL;
-  }
 
   return addr;
 }
@@ -3433,35 +3546,28 @@ char* os::Linux::reserve_memory_special_huge_tlbfs_only(size_t bytes, char* req_
   return addr;
 }
 
+// Reserve memory using mmap(MAP_HUGETLB).
+//  - bytes shall be a multiple of alignment.
+//  - req_addr can be NULL. If not NULL, it must be a multiple of alignment.
+//  - alignment sets the alignment at which memory shall be allocated.
+//     It must be a multiple of allocation granularity.
+// Returns address of memory or NULL. If req_addr was not NULL, will only return
+//  req_addr or NULL.
 char* os::Linux::reserve_memory_special_huge_tlbfs_mixed(size_t bytes, size_t alignment, char* req_addr, bool exec) {
   size_t large_page_size = os::large_page_size();
-
   assert(bytes >= large_page_size, "Shouldn't allocate large pages for small sizes");
 
-  // Allocate small pages.
+  assert(is_ptr_aligned(req_addr, alignment), "Must be");
+  assert(is_size_aligned(bytes, alignment), "Must be");
 
-  char* start;
-  if (req_addr != NULL) {
-    assert(is_ptr_aligned(req_addr, alignment), "Must be");
-    assert(is_size_aligned(bytes, alignment), "Must be");
-    start = os::reserve_memory(bytes, req_addr);
-    assert(start == NULL || start == req_addr, "Must be");
-  } else {
-    start = os::reserve_memory_aligned(bytes, alignment);
-  }
+  // First reserve - but not commit - the address range in small pages.
+  char* const start = anon_mmap_aligned(bytes, alignment, req_addr);
 
   if (start == NULL) {
     return NULL;
   }
 
   assert(is_ptr_aligned(start, alignment), "Must be");
-
-  if (MemTracker::tracking_level() > NMT_minimal) {
-    // os::reserve_memory_special will record this memory area.
-    // Need to release it here to prevent overlapping reservations.
-    Tracker tkr = MemTracker::get_virtual_memory_release_tracker();
-    tkr.record((address)start, bytes);
-  }
 
   char* end = start + bytes;
 
@@ -3482,9 +3588,9 @@ char* os::Linux::reserve_memory_special_huge_tlbfs_mixed(size_t bytes, size_t al
 
   int prot = exec ? PROT_READ|PROT_WRITE|PROT_EXEC : PROT_READ|PROT_WRITE;
 
-
   void* result;
 
+  // Commit small-paged leading area.
   if (start != lp_start) {
     result = ::mmap(start, lp_start - start, prot,
                     MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
@@ -3495,11 +3601,12 @@ char* os::Linux::reserve_memory_special_huge_tlbfs_mixed(size_t bytes, size_t al
     }
   }
 
+  // Commit large-paged area.
   result = ::mmap(lp_start, lp_bytes, prot,
                   MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED|MAP_HUGETLB,
                   -1, 0);
   if (result == MAP_FAILED) {
-    warn_on_large_pages_failure(req_addr, bytes, errno);
+    warn_on_large_pages_failure(lp_start, lp_bytes, errno);
     // If the mmap above fails, the large pages region will be unmapped and we
     // have regions before and after with small pages. Release these regions.
     //
@@ -3512,6 +3619,7 @@ char* os::Linux::reserve_memory_special_huge_tlbfs_mixed(size_t bytes, size_t al
     return NULL;
   }
 
+  // Commit small-paged trailing area.
   if (lp_end != end) {
       result = ::mmap(lp_end, end - lp_end, prot,
                       MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED,
@@ -3528,7 +3636,7 @@ char* os::Linux::reserve_memory_special_huge_tlbfs_mixed(size_t bytes, size_t al
 char* os::Linux::reserve_memory_special_huge_tlbfs(size_t bytes, size_t alignment, char* req_addr, bool exec) {
   assert(UseLargePages && UseHugeTLBFS, "only for Huge TLBFS large pages");
   assert(is_ptr_aligned(req_addr, alignment), "Must be");
-  assert(is_power_of_2(alignment), "Must be");
+  assert(is_size_aligned(alignment, os::vm_allocation_granularity()), "Must be");
   assert(is_power_of_2(os::large_page_size()), "Must be");
   assert(bytes >= os::large_page_size(), "Shouldn't allocate large pages for small sizes");
 
@@ -6102,47 +6210,100 @@ class TestReserveMemorySpecial : AllStatic {
     }
   }
 
-  static void test_reserve_memory_special_huge_tlbfs_mixed(size_t size, size_t alignment) {
-    if (!UseHugeTLBFS) {
-        return;
-    }
-
-    test_log("test_reserve_memory_special_huge_tlbfs_mixed(" SIZE_FORMAT ", " SIZE_FORMAT ")",
-        size, alignment);
-
-    assert(size >= os::large_page_size(), "Incorrect input to test");
-
-    char* addr = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, NULL, false);
-
-    if (addr != NULL) {
-      small_page_write(addr, size);
-
-      os::Linux::release_memory_special_huge_tlbfs(addr, size);
-    }
-  }
-
-  static void test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(size_t size) {
-    size_t lp = os::large_page_size();
-    size_t ag = os::vm_allocation_granularity();
-
-    for (size_t alignment = ag; is_size_aligned(size, alignment); alignment *= 2) {
-      test_reserve_memory_special_huge_tlbfs_mixed(size, alignment);
-    }
-  }
-
   static void test_reserve_memory_special_huge_tlbfs_mixed() {
     size_t lp = os::large_page_size();
     size_t ag = os::vm_allocation_granularity();
 
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp + ag);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp + lp / 2);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 2);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 2 + ag);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 2 - ag);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 2 + lp / 2);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 10);
-    test_reserve_memory_special_huge_tlbfs_mixed_all_alignments(lp * 10 + lp / 2);
+    // sizes to test
+    const size_t sizes[] = {
+      lp, lp + ag, lp + lp / 2, lp * 2,
+      lp * 2 + ag, lp * 2 - ag, lp * 2 + lp / 2,
+      lp * 10, lp * 10 + lp / 2
+    };
+    const int num_sizes = sizeof(sizes) / sizeof(size_t);
+
+    // For each size/alignment combination, we test three scenarios:
+    // 1) with req_addr == NULL
+    // 2) with a non-null req_addr at which we expect to successfully allocate
+    // 3) with a non-null req_addr which contains a pre-existing mapping, at which we
+    //    expect the allocation to either fail or to ignore req_addr
+
+    // Pre-allocate two areas; they shall be as large as the largest allocation
+    //  and aligned to the largest alignment we will be testing.
+    const size_t mapping_size = sizes[num_sizes - 1] * 2;
+    char* const mapping1 = (char*) ::mmap(NULL, mapping_size,
+      PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,
+      -1, 0);
+    assert(mapping1 != MAP_FAILED, "should work");
+
+    char* const mapping2 = (char*) ::mmap(NULL, mapping_size,
+      PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE,
+      -1, 0);
+    assert(mapping2 != MAP_FAILED, "should work");
+
+    // Unmap the first mapping, but leave the second mapping intact: the first
+    // mapping will serve as a value for a "good" req_addr (case 2). The second
+    // mapping, still intact, as "bad" req_addr (case 3).
+    ::munmap(mapping1, mapping_size);
+
+    // Case 1
+    test_log("%s, req_addr NULL:", __FUNCTION__);
+    test_log("size            align           result");
+
+    for (int i = 0; i < num_sizes; i++) {
+      const size_t size = sizes[i];
+      for (size_t alignment = ag; is_size_aligned(size, alignment); alignment *= 2) {
+        char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, NULL, false);
+        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " ->  " PTR_FORMAT " %s",
+            size, alignment, p, (p != NULL ? "" : "(failed)"));
+        if (p != NULL) {
+          assert(is_ptr_aligned(p, alignment), "must be");
+          small_page_write(p, size);
+          os::Linux::release_memory_special_huge_tlbfs(p, size);
+        }
+      }
+    }
+
+    // Case 2
+    test_log("%s, req_addr non-NULL:", __FUNCTION__);
+    test_log("size            align           req_addr         result");
+
+    for (int i = 0; i < num_sizes; i++) {
+      const size_t size = sizes[i];
+      for (size_t alignment = ag; is_size_aligned(size, alignment); alignment *= 2) {
+        char* const req_addr = (char*) align_ptr_up(mapping1, alignment);
+        char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, req_addr, false);
+        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " " PTR_FORMAT " ->  " PTR_FORMAT " %s",
+            size, alignment, req_addr, p,
+            ((p != NULL ? (p == req_addr ? "(exact match)" : "") : "(failed)")));
+        if (p != NULL) {
+          assert(p == req_addr, "must be");
+          small_page_write(p, size);
+          os::Linux::release_memory_special_huge_tlbfs(p, size);
+        }
+      }
+    }
+
+    // Case 3
+    test_log("%s, req_addr non-NULL with preexisting mapping:", __FUNCTION__);
+    test_log("size            align           req_addr         result");
+
+    for (int i = 0; i < num_sizes; i++) {
+      const size_t size = sizes[i];
+      for (size_t alignment = ag; is_size_aligned(size, alignment); alignment *= 2) {
+        char* const req_addr = (char*) align_ptr_up(mapping2, alignment);
+        char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, req_addr, false);
+        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " " PTR_FORMAT " ->  " PTR_FORMAT " %s",
+            size, alignment, req_addr, p,
+            ((p != NULL ? "" : "(failed)")));
+        // as the area around req_addr contains already existing mappings, the API should always
+        // return NULL (as per contract, it cannot return another address)
+        assert(p == NULL, "must be");
+      }
+    }
+
+    ::munmap(mapping2, mapping_size);
+
   }
 
   static void test_reserve_memory_special_huge_tlbfs() {
