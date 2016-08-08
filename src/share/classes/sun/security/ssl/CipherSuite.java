@@ -75,12 +75,6 @@ final class CipherSuite implements Comparable<CipherSuite> {
     // minimum priority for default enabled CipherSuites
     final static int DEFAULT_SUITES_PRIORITY = 300;
 
-    // Flag indicating if CipherSuite availability can change dynamically.
-    // This is the case when we rely on a JCE cipher implementation that
-    // may not be available in the installed JCE providers.
-    // It is true because we might not have an ECC implementation.
-    final static boolean DYNAMIC_AVAILABILITY = true;
-
     private final static boolean ALLOW_ECC = Debug.getBooleanProperty
         ("com.sun.net.ssl.enableECC", true);
 
@@ -186,9 +180,6 @@ final class CipherSuite implements Comparable<CipherSuite> {
      * Return whether this CipherSuite is available for use. A
      * CipherSuite may be unavailable even if it is supported
      * (i.e. allowed == true) if the required JCE cipher is not installed.
-     * In some configuration, this situation may change over time, call
-     * CipherSuiteList.clearAvailableCache() before this method to obtain
-     * the most current status.
      */
     boolean isAvailable() {
         return allowed && keyExchange.isAvailable() && cipher.isAvailable();
@@ -404,10 +395,6 @@ final class CipherSuite implements Comparable<CipherSuite> {
      */
     final static class BulkCipher {
 
-        // Map BulkCipher -> Boolean(available)
-        private final static Map<BulkCipher,Boolean> availableCache =
-                                            new HashMap<>(8);
-
         // descriptive name including key size, e.g. AES/128
         final String description;
 
@@ -451,6 +438,9 @@ final class CipherSuite implements Comparable<CipherSuite> {
         // The secure random used to detect the cipher availability.
         private final static SecureRandom secureRandom;
 
+        // runtime availability
+        private final boolean isAvailable;
+
         static {
             try {
                 secureRandom = JsseJce.getSecureRandom();
@@ -475,6 +465,17 @@ final class CipherSuite implements Comparable<CipherSuite> {
 
             this.expandedKeySize = expandedKeySize;
             this.exportable = true;
+
+            // availability of this bulk cipher
+            //
+            // Currently all supported ciphers except AES are always available
+            // via the JSSE internal implementations. We also assume AES/128 of
+            // CBC mode is always available since it is shipped with the SunJCE
+            // provider.  However, AES/256 is unavailable when the default JCE
+            // policy jurisdiction files are installed because of key length
+            // restrictions.
+            this.isAvailable =
+                    allowed ? isUnlimited(keySize, transformation) : false;
         }
 
         BulkCipher(String transformation, CipherType cipherType, int keySize,
@@ -491,6 +492,17 @@ final class CipherSuite implements Comparable<CipherSuite> {
 
             this.expandedKeySize = keySize;
             this.exportable = false;
+
+            // availability of this bulk cipher
+            //
+            // Currently all supported ciphers except AES are always available
+            // via the JSSE internal implementations. We also assume AES/128 of
+            // CBC mode is always available since it is shipped with the SunJCE
+            // provider.  However, AES/256 is unavailable when the default JCE
+            // policy jurisdiction files are installed because of key length
+            // restrictions.
+            this.isAvailable =
+                    allowed ? isUnlimited(keySize, transformation) : false;
         }
 
         /**
@@ -508,84 +520,27 @@ final class CipherSuite implements Comparable<CipherSuite> {
 
         /**
          * Test if this bulk cipher is available. For use by CipherSuite.
-         *
-         * Currently all supported ciphers except AES are always available
-         * via the JSSE internal implementations. We also assume AES/128 of
-         * CBC mode is always available since it is shipped with the SunJCE
-         * provider.  However, AES/256 is unavailable when the default JCE
-         * policy jurisdiction files are installed because of key length
-         * restrictions, and AEAD is unavailable when the underlying providers
-         * do not support AEAD/GCM mode.
          */
         boolean isAvailable() {
-            if (allowed == false) {
-                return false;
+            return this.isAvailable;
+        }
+
+        private static boolean isUnlimited(int keySize, String transformation) {
+            int keySizeInBits = keySize * 8;
+            if (keySizeInBits > 128) {    // need the JCE unlimited
+                                          // strength jurisdiction policy
+                try {
+                    if (Cipher.getMaxAllowedKeyLength(
+                            transformation) < keySizeInBits) {
+
+                        return false;
+                    }
+                } catch (Exception e) {
+                    return false;
+                }
             }
 
-            if ((this == B_AES_256) ||
-                    (this.cipherType == CipherType.AEAD_CIPHER)) {
-                return isAvailable(this);
-            }
-
-            // always available
             return true;
-        }
-
-        // for use by CipherSuiteList.clearAvailableCache();
-        static synchronized void clearAvailableCache() {
-            if (DYNAMIC_AVAILABILITY) {
-                availableCache.clear();
-            }
-        }
-
-        private static synchronized boolean isAvailable(BulkCipher cipher) {
-            Boolean b = availableCache.get(cipher);
-            if (b == null) {
-                int keySizeInBits = cipher.keySize * 8;
-                if (keySizeInBits > 128) {    // need the JCE unlimited
-                                               // strength jurisdiction policy
-                    try {
-                        if (Cipher.getMaxAllowedKeyLength(
-                                cipher.transformation) < keySizeInBits) {
-                            b = Boolean.FALSE;
-                        }
-                    } catch (Exception e) {
-                        b = Boolean.FALSE;
-                    }
-                }
-
-                if (b == null) {
-                    b = Boolean.FALSE;          // may be reset to TRUE if
-                                                // the cipher is available
-                    CipherBox temporary = null;
-                    try {
-                        SecretKey key = new SecretKeySpec(
-                                            new byte[cipher.expandedKeySize],
-                                            cipher.algorithm);
-                        IvParameterSpec iv;
-                        if (cipher.cipherType == CipherType.AEAD_CIPHER) {
-                            iv = new IvParameterSpec(
-                                            new byte[cipher.fixedIvSize]);
-                        } else {
-                            iv = new IvParameterSpec(new byte[cipher.ivSize]);
-                        }
-                        temporary = cipher.newCipher(
-                                            ProtocolVersion.DEFAULT,
-                                            key, iv, secureRandom, true);
-                        b = temporary.isAvailable();
-                    } catch (NoSuchAlgorithmException e) {
-                        // not available
-                    } finally {
-                        if (temporary != null) {
-                            temporary.dispose();
-                        }
-                    }
-                }
-
-                availableCache.put(cipher, b);
-            }
-
-            return b.booleanValue();
         }
 
         @Override

@@ -230,7 +230,7 @@ setup_logging(const char *filename, unsigned flags)
 
 /* Finish up logging, flush output to the logfile. */
 void
-finish_logging(int exit_code)
+finish_logging()
 {
 #ifdef JDWP_LOGGING
     MUTEX_LOCK(my_mutex);

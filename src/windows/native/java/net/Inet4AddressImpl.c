@@ -292,7 +292,6 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
 }
 
 
-
 static BOOL
 WindowsVersionCheck(WORD wMajorVersion, WORD wMinorVersion, WORD wServicePackMajor) {
     OSVERSIONINFOEXW osvi = { sizeof(osvi), 0, 0, 0, 0, {0}, 0, 0 };
@@ -316,7 +315,7 @@ isVistaSP1OrGreater() {
 }
 
 static jboolean
-wxp_ping4(JNIEnv *env,
+tcp_ping4(JNIEnv *env,
           jbyteArray addrArray,
           jint timeout,
           jbyteArray ifArray,
@@ -471,22 +470,16 @@ static jboolean
 ping4(JNIEnv *env,
       unsigned long src_addr,
       unsigned long dest_addr,
-      jint timeout)
+      jint timeout,
+      HANDLE hIcmpFile)
 {
     // See https://msdn.microsoft.com/en-us/library/aa366050%28VS.85%29.aspx
 
-    HANDLE hIcmpFile;
     DWORD dwRetVal = 0;
     char SendData[32] = {0};
     LPVOID ReplyBuffer = NULL;
     DWORD ReplySize = 0;
     jboolean ret = JNI_FALSE;
-
-    hIcmpFile = IcmpCreateFile();
-    if (hIcmpFile == INVALID_HANDLE_VALUE) {
-        NET_ThrowNew(env, WSAGetLastError(), "Unable to open handle");
-        return JNI_FALSE;
-    }
 
     ReplySize = sizeof(ICMP_ECHO_REPLY) + sizeof(SendData);
     ReplyBuffer = (VOID*) malloc(ReplySize);
@@ -553,6 +546,7 @@ Java_java_net_Inet4AddressImpl_isReachable0(JNIEnv *env, jobject this,
         jint dest_addr = 0;
         jbyte caddr[4];
         int sz;
+        HANDLE hIcmpFile;
 
         /**
          * Convert IP address from byte array to integer
@@ -583,8 +577,20 @@ Java_java_net_Inet4AddressImpl_isReachable0(JNIEnv *env, jobject this,
             src_addr = htonl(src_addr);
         }
 
-        return ping4(env, src_addr, dest_addr, timeout);
+        hIcmpFile = IcmpCreateFile();
+        if (hIcmpFile == INVALID_HANDLE_VALUE) {
+            int err = WSAGetLastError();
+            if (err == ERROR_ACCESS_DENIED) {
+                // fall back to TCP echo if access is denied to ICMP
+                return tcp_ping4(env, addrArray, timeout, ifArray, ttl);
+            } else {
+                NET_ThrowNew(env, err, "Unable to create ICMP file handle");
+                return JNI_FALSE;
+            }
+        } else {
+            return ping4(env, src_addr, dest_addr, timeout, hIcmpFile);
+        }
     } else {
-        wxp_ping4(env, addrArray, timeout, ifArray, ttl);
+        tcp_ping4(env, addrArray, timeout, ifArray, ttl);
     }
 }
