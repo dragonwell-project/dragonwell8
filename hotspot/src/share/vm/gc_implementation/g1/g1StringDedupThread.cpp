@@ -100,14 +100,14 @@ void G1StringDedupThread::run() {
         }
       }
 
-      G1StringDedupTable::trim_entry_cache();
-
       stat.mark_done();
 
       // Print statistics
       total_stat.add(stat);
       print(gclog_or_tty, stat, total_stat);
     }
+
+    G1StringDedupTable::clean_entry_cache();
   }
 
   terminate();
