@@ -30,20 +30,19 @@
 ## @run shell/timeout=30 TestDirtyInt.sh
 ##
 
-if [ "${TESTSRC}" = "" ]
-then
-  TESTSRC=${PWD}
-  echo "TESTSRC not set.  Using "${TESTSRC}" as default"
+if [ -z "${TESTSRC}" ]; then
+    TESTSRC="${PWD}"
+    echo "TESTSRC not set.  Using "${TESTSRC}" as default"
 fi
 echo "TESTSRC=${TESTSRC}"
 ## Adding common setup Variables for running shell tests.
 . ${TESTSRC}/../../test_env.sh
 
 # set platform-dependent variables
-if [ $VM_OS == "linux" -a $VM_CPU == "sparcv9" ]; then
+if [ "$VM_OS" = "linux" -a "$VM_CPU" = "sparcv9" ]; then
     echo "Testing on linux-sparc"
     gcc_cmd=`which gcc`
-    if [ "x$gcc_cmd" == "x" ]; then
+    if [ -z "$gcc_cmd" ]; then
         echo "WARNING: gcc not found. Cannot execute test." 2>&1
         exit 0;
     fi
@@ -68,10 +67,9 @@ cmd="${TESTJAVA}${FS}bin${FS}java \
     -Djava.library.path=${TESTSRC}${FS} TestDirtyInt"
 
 echo "$cmd"
-eval $cmd 
+eval $cmd
 
-if [ $? = 0 ]
-then
+if [ $? = 0 ]; then
     echo "Test Passed"
     exit 0
 fi
