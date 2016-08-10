@@ -42,6 +42,7 @@ protected:
     fcfids,
     vand,
     dcba,
+    vcipher,
     num_features // last entry to count features
   };
   enum Feature_Flag_Set {
@@ -56,6 +57,7 @@ protected:
     fcfids_m              = (1 << fcfids ),
     vand_m                = (1 << vand   ),
     dcba_m                = (1 << dcba   ),
+    vcipher_m             = (1 << vcipher),
     all_features_m        = -1
   };
   static int  _features;
@@ -83,6 +85,7 @@ public:
   static bool has_fcfids()  { return (_features & fcfids_m) != 0; }
   static bool has_vand()    { return (_features & vand_m) != 0; }
   static bool has_dcba()    { return (_features & dcba_m) != 0; }
+  static bool has_vcipher() { return (_features & vcipher_m) != 0; }
 
   static const char* cpu_features() { return _features_str; }
 
