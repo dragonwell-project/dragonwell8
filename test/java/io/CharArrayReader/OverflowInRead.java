@@ -24,7 +24,8 @@
 /* @test
  * @bug 8163518
  * @summary Integer overflow when reading in large buffer
- * @requires (os.simpleArch == "x64" & os.maxMemory > 8g)
+ * @ignore This test has huge memory requirements
+ * @requires (sun.arch.data.model == "64" & os.maxMemory > 8g)
  * @run main/othervm -Xmx8g OverflowInRead
  */
 
