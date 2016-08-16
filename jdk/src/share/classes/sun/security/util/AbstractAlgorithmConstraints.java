@@ -48,8 +48,12 @@ public abstract class AbstractAlgorithmConstraints
     private static void loadAlgorithmsMap(Map<String, String[]> algorithmsMap,
             String propertyName) {
         String property = AccessController.doPrivileged(
-                (PrivilegedAction<String>) () -> Security.getProperty(
-                        propertyName));
+                new PrivilegedAction<String>() {
+                    @Override
+                    public String run() {
+                        return Security.getProperty(propertyName);
+                    }
+                });
 
         String[] algorithmsInProperty = null;
         if (property != null && !property.isEmpty()) {
