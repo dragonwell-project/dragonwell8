@@ -3717,6 +3717,16 @@ void ClassFileParser::layout_fields(Handle class_loader,
   info->has_nonstatic_fields = has_nonstatic_fields;
 }
 
+static bool relax_format_check_for(ClassLoaderData* loader_data) {
+  bool trusted = (loader_data->is_the_null_class_loader_data() ||
+                  SystemDictionary::is_ext_class_loader(loader_data->class_loader()));
+  bool need_verify =
+    // verifyAll
+    (BytecodeVerificationLocal && BytecodeVerificationRemote) ||
+    // verifyRemote
+    (!BytecodeVerificationLocal && BytecodeVerificationRemote && !trusted);
+  return !need_verify;
+}
 
 instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
                                                     ClassLoaderData* loader_data,
@@ -3863,7 +3873,7 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
 
   // Check if verification needs to be relaxed for this class file
   // Do not restrict it to jdk1.0 or jdk1.1 to maintain backward compatibility (4982376)
-  _relax_verify = Verifier::relax_verify_for(class_loader());
+  _relax_verify = relax_format_check_for(_loader_data);
 
   // Constant pool
   constantPoolHandle cp = parse_constant_pool(CHECK_(nullHandle));
