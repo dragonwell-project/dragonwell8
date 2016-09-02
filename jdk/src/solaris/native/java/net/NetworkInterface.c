@@ -1350,9 +1350,9 @@ static int getFlags(int sock, const char *ifname, int *flags) {
 static int openSocketWithFallback(JNIEnv *env, const char *ifname) {
     int sock;
 
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    if ((sock = JVM_Socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         if (errno == EPROTONOSUPPORT) {
-            if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+            if ((sock = JVM_Socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
                 NET_ThrowByNameWithLastError
                     (env, JNU_JAVANETPKG "SocketException", "IPV6 Socket creation failed");
                 return -1;
