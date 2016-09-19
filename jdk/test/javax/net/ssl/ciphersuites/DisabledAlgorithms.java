@@ -41,7 +41,8 @@ import javax.net.ssl.SSLSocketFactory;
  * @bug 8076221
  * @summary Check if weak cipher suites are disabled
  * @run main/othervm DisabledAlgorithms default
- * @run main/othervm DisabledAlgorithms empty
+ * @run main/othervm -Djdk.tls.namedGroups="secp256r1,secp192r1"
+ *     DisabledAlgorithms empty
  */
 public class DisabledAlgorithms {
 
@@ -96,6 +97,11 @@ public class DisabledAlgorithms {
                 Security.setProperty("jdk.tls.disabledAlgorithms", "");
                 System.out.println("jdk.tls.disabledAlgorithms = "
                         + Security.getProperty("jdk.tls.disabledAlgorithms"));
+
+                // some of the certs in our test are weak; disable
+                Security.setProperty("jdk.certpath.disabledAlgorithms", "");
+                System.out.println("jdk.certpath.disabledAlgorithms = "
+                        + Security.getProperty("jdk.cerpath.disabledAlgorithms"));
 
                 // check if RC4 cipher suites can be used
                 // if jdk.tls.disabledAlgorithms is empty
@@ -224,6 +230,7 @@ public class DisabledAlgorithms {
                     socket.getSession().invalidate();
                 } catch (SSLHandshakeException e) {
                     System.out.println("Server: run: " + e);
+                    e.printStackTrace();
                     sslError = true;
                     stopped = true;
                 } catch (IOException e) {
