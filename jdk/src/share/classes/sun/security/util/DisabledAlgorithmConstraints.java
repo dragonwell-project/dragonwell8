@@ -261,9 +261,9 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                                     toUpperCase(Locale.ENGLISH));
                     policy = constraintEntry.substring(space + 1);
                 } else {
-                    constraintsMap.computeIfAbsent(
+                    constraintsMap.putIfAbsent(
                             constraintEntry.toUpperCase(Locale.ENGLISH),
-                            k -> new HashSet<>());
+                            new HashSet<>());
                     continue;
                 }
 
