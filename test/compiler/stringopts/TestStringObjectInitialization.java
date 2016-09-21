@@ -59,6 +59,11 @@ public class TestStringObjectInitialization {
         // Trigger C2's string concatenation optimization
         add(s + Arrays.toString(sArray) + " const ");
     }
+
+    public void reset() {
+        // Reset string to avoid OOMEs
+        myString = "";
+    }
 }
 
 class Runner implements Runnable {
@@ -70,8 +75,9 @@ class Runner implements Runnable {
 
     public void run(){
         String[] array = {"a", "b", "c"};
-        for (int i = 0; i < 10000; ++i) {
+        for (int i = 0; i < 100_000; ++i) {
             test.run("a", array);
+            test.reset();
         }
     }
 }
