@@ -43,6 +43,7 @@ protected:
     vand,
     dcba,
     vcipher,
+    vpmsumb,
     num_features // last entry to count features
   };
   enum Feature_Flag_Set {
@@ -58,6 +59,7 @@ protected:
     vand_m                = (1 << vand   ),
     dcba_m                = (1 << dcba   ),
     vcipher_m             = (1 << vcipher),
+    vpmsumb_m             = (1 << vpmsumb),
     all_features_m        = -1
   };
   static int  _features;
@@ -86,6 +88,7 @@ public:
   static bool has_vand()    { return (_features & vand_m) != 0; }
   static bool has_dcba()    { return (_features & dcba_m) != 0; }
   static bool has_vcipher() { return (_features & vcipher_m) != 0; }
+  static bool has_vpmsumb() { return (_features & vpmsumb_m) != 0; }
 
   static const char* cpu_features() { return _features_str; }
 
