@@ -660,4 +660,4 @@ jdk.tls.legacyAlgorithms= \
 # implementation. It is not guaranteed to be examined and used by other
 # implementations.
 #
-jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
+jdk.jar.disabledAlgorithms=MD2, RSA keySize < 1024
