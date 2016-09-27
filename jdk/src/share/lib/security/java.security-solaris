@@ -626,3 +626,40 @@ jdk.tls.legacyAlgorithms= \
 #       E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED \
 #       EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE65381 \
 #       FFFFFFFF FFFFFFFF, 2}
+
+# Algorithm restrictions for signed JAR files
+#
+# In some environments, certain algorithms or key lengths may be undesirable
+# for signed JAR validation.  For example, "MD2" is generally no longer
+# considered to be a secure hash algorithm.  This section describes the
+# mechanism for disabling algorithms based on algorithm name and/or key length.
+# JARs signed with any of the disabled algorithms or key sizes will be treated
+# as unsigned.
+#
+# The syntax of the disabled algorithm string is described as follows:
+#   DisabledAlgorithms:
+#       " DisabledAlgorithm { , DisabledAlgorithm } "
+#
+#   DisabledAlgorithm:
+#       AlgorithmName [Constraint]
+#
+#   AlgorithmName:
+#       (see below)
+#
+#   Constraint:
+#       KeySizeConstraint
+#
+#   KeySizeConstraint:
+#       keySize Operator KeyLength
+#
+#   Operator:
+#       <= | < | == | != | >= | >
+#
+#   KeyLength:
+#       Integer value of the algorithm's key length in bits
+#
+# Note: This property is currently used by the JDK Reference
+# implementation. It is not guaranteed to be examined and used by other
+# implementations.
+#
+jdk.jar.disabledAlgorithms=MD2, RSA keySize < 1024

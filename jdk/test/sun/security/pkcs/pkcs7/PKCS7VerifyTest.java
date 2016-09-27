@@ -26,8 +26,8 @@
  * @bug 8048357
  * @summary Read signed data in one or more PKCS7 objects from individual files,
  * verify SignerInfos and certificate chain.
- * @run main PKCS7VerifyTest PKCS7TEST.DSA.base64
- * @run main PKCS7VerifyTest PKCS7TEST.DSA.base64 PKCS7TEST.SF
+ * @run main/othervm -Djava.security.properties=${test.src}/reenable.jar.alg.props PKCS7VerifyTest PKCS7TEST.DSA.base64
+ * @run main/othervm -Djava.security.properties=${test.src}/reenable.jar.alg.props PKCS7VerifyTest PKCS7TEST.DSA.base64 PKCS7TEST.SF
  */
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -35,6 +35,7 @@ import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.HashMap;
