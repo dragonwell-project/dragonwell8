@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,21 +32,19 @@ package sun.misc.resources;
  * @author Michael Colburn
  */
 
-public class Messages_it extends java.util.ListResourceBundle {
+public final class Messages_it extends java.util.ListResourceBundle {
 
     /**
      * Returns the contents of this <code>ResourceBundle</code>.
      * <p>
      * @return the contents of this <code>ResourceBundle</code>.
      */
-    public Object[][] getContents() {
-        return contents;
+    protected Object[][] getContents() {
+        return new Object[][]{
+            {"optpkg.versionerror", "ERRORE: Formato versione non valido nel file JAR {0}. Verificare nella documentazione il formato della versione supportato."},
+            {"optpkg.attributeerror", "ERRORE: L''attributo manifest JAR {0} richiesto non \u00E8 impostato nel file JAR {1}."},
+            {"optpkg.attributeserror", "ERRORE: Alcuni attributi manifesti JAR obbligatori non sono impostati nel file JAR {0}."}
+        };
     }
-
-    private static final Object[][] contents = {
-        { "optpkg.versionerror", "ERRORE: Formato versione non valido nel file JAR {0}. Verificare nella documentazione il formato della versione supportato." },
-        { "optpkg.attributeerror", "ERRORE: L''attributo manifest JAR {0} richiesto non \u00E8 impostato nel file JAR {1}." },
-        { "optpkg.attributeserror", "ERRORE: Alcuni attributi manifesti JAR obbligatori non sono impostati nel file JAR {0}." }
-    };
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,12 @@
  * @test
  * @bug 4924188
  * @summary sign a JAR file that has entry names with non-ASCII characters.
+ * @run main/othervm -Djava.security.properties=${test.src}/reenable.jar.alg.props JarSigningNonAscii
  */
 
 import sun.security.tools.*;
 import java.io.*;
+import java.security.Security;
 import java.util.*;
 import java.util.jar.*;
 import java.security.cert.Certificate;
