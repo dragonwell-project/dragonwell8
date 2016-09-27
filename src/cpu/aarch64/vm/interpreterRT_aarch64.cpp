@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, Red Hat Inc.
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates.
  * All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -131,8 +131,8 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_float() {
   if (_num_fp_args < Argument::n_float_register_parameters_c) {
     __ ldrs(as_FloatRegister(_num_fp_args++), src);
   } else {
-    __ ldrh(r0, src);
-    __ strh(r0, Address(to(), _stack_offset));
+    __ ldrw(r0, src);
+    __ strw(r0, Address(to(), _stack_offset));
     _stack_offset += wordSize;
     _num_fp_args++;
   }
@@ -350,7 +350,7 @@ class SlowSignatureHandler
       _num_fp_args++;
     } else {
       *_to++ = from_obj;
-      _num_int_args++;
+      _num_fp_args++;
     }
   }
 
@@ -365,7 +365,7 @@ class SlowSignatureHandler
       _num_fp_args++;
     } else {
       *_to++ = from_obj;
-      _num_int_args++;
+      _num_fp_args++;
     }
   }
 
