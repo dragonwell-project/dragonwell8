@@ -1,0 +1,15 @@
+// Individual Permissions for FilterWithSecurityManagerTest
+grant {
+        // Permissions needed to run the test
+        permission java.util.PropertyPermission "*", "read";
+        permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
+        permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+        permission java.lang.RuntimePermission "accessDeclaredMembers";
+        permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+};
+
+// Standard extensions get all permissions by default
+grant codeBase "file:${{java.ext.dirs}}/*" {
+        permission java.security.AllPermission;
+};
+
