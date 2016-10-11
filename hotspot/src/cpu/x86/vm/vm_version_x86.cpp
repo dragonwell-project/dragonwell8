@@ -704,16 +704,16 @@ void VM_Version::get_processor_features() {
     UseMultiplyToLenIntrinsic = true;
   }
   if (FLAG_IS_DEFAULT(UseSquareToLenIntrinsic)) {
-    UseSquareToLenIntrinsic = false;
+    UseSquareToLenIntrinsic = true;
   }
   if (FLAG_IS_DEFAULT(UseMulAddIntrinsic)) {
-    UseMulAddIntrinsic = false;
+    UseMulAddIntrinsic = true;
   }
   if (FLAG_IS_DEFAULT(UseMontgomeryMultiplyIntrinsic)) {
-    UseMontgomeryMultiplyIntrinsic = false;
+    UseMontgomeryMultiplyIntrinsic = true;
   }
   if (FLAG_IS_DEFAULT(UseMontgomerySquareIntrinsic)) {
-    UseMontgomerySquareIntrinsic = false;
+    UseMontgomerySquareIntrinsic = true;
   }
 #else
   if (UseMultiplyToLenIntrinsic) {
