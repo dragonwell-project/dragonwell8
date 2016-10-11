@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,10 @@
           "Load DLLs with executable-stack attribute in the VM Thread") \
                                                                         \
   product(bool, UseSHM, false,                                          \
-          "Use SYSV shared memory for large pages")
+          "Use SYSV shared memory for large pages")                     \
+                                                                        \
+  diagnostic(bool, PrintActiveCpus, false,                              \
+          "Print the number of CPUs detected in os::active_processor_count")
 
 //
 // Defines Linux-specific default values. The flags are available on all
