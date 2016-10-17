@@ -121,7 +121,7 @@ class IIONodeList implements NodeList {
     }
 
     public Node item(int index) {
-        if (index < 0 || index > nodes.size()) {
+        if (index < 0 || index >= nodes.size()) {
             return null;
         }
         return (Node)nodes.get(index);
@@ -878,7 +878,7 @@ public class IIOMetadataNode implements Element, NodeList {
     }
 
     private void getElementsByTagName(String name, List l) {
-        if (nodeName.equals(name)) {
+        if (nodeName.equals(name) || "*".equals(name)) {
             l.add(this);
         }
 
