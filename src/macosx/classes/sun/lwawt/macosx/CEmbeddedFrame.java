@@ -91,7 +91,7 @@ public class CEmbeddedFrame extends EmbeddedFrame {
         int x = (int)pluginX;
         int y = (int)pluginY;
 
-        responder.handleScrollEvent(x, y, modifierFlags, deltaX, deltaY);
+        responder.handleScrollEvent(x, y, modifierFlags, deltaX, deltaY, NSEvent.SCROLL_PHASE_UNSUPPORTED);
     }
 
     public void handleKeyEvent(int eventType, int modifierFlags, String characters,

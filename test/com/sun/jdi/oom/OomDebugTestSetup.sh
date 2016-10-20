@@ -1,11 +1,11 @@
+#!/bin/sh
 #
+# Copyright (c) 2016 Red Hat Inc.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License version 2 only, as
-# published by the Free Software Foundation.  Oracle designates this
-# particular file as subject to the "Classpath" exception as provided
-# by Oracle in the LICENSE file that accompanied this code.
+# published by the Free Software Foundation.
 #
 # This code is distributed in the hope that it will be useful, but WITHOUT
 # ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,13 +21,26 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
-# This file is in the public domain, so clarified as of
-# 2009-05-17 by Arthur David Olson.
 
-# For distributors who don't want to put time zone specification in
-# their installation procedures.  Users that run 'date' will get the
-# time zone abbreviation "-00", indicating that the actual time zone
-# is unknown.
 
-# Zone	NAME	GMTOFF	RULES	FORMAT
-Zone	Factory	0	-	-00
+if [ "${TESTSRC}" = "" ]
+then
+  echo "TESTSRC not set.  Test cannot execute.  Failed."
+  exit 1
+fi
+echo "TESTSRC=${TESTSRC}"
+
+if [ "${TESTJAVA}" = "" ]
+then
+  echo "TESTJAVA not set.  Test cannot execute.  Failed."
+  exit 1
+fi
+echo "TESTJAVA=${TESTJAVA}"
+
+if [ "${TESTCLASSES}" = "" ]
+then
+  echo "TESTCLASSES not set.  Test cannot execute.  Failed."
+  exit 1
+fi
+
+cp ${TESTSRC}/@debuggeeVMOptions ${TESTCLASSES}/
