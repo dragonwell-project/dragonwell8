@@ -22,7 +22,7 @@
  */
 /*
  * @test
- * @bug 6682516
+ * @bug 6682516 8149521
  * @summary SPNEGO_HTTP_AUTH/WWW_KRB and SPNEGO_HTTP_AUTH/WWW_SPNEGO failed on all non-windows platforms
  * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Djava.security.krb5.conf=krb5.conf Test
  */
@@ -43,9 +43,11 @@ public class Test implements NameServiceDescriptor {
         check("c1", "c1.this.domain");
         check("c1.this", "c1.this.domain");
         check("c1.this.domain", "c1.this.domain");
+        check("c1.this.domain.", "c1.this.domain");
 
         // canonicalized name goes IP, reject
         check("c2", "c2");
+        check("c2.", "c2");
 
         // canonicalized name goes strange, reject
         check("c3", "c3");
