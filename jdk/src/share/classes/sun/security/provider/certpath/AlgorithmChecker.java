@@ -27,7 +27,6 @@ package sun.security.provider.certpath;
 
 import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
-import java.security.Timestamp;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -78,7 +77,6 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
     private final PublicKey trustedPubKey;
     private final Date pkixdate;
     private PublicKey prevPubKey;
-    private final Timestamp jarTimestamp;
 
     private final static Set<CryptoPrimitive> SIGNATURE_PRIMITIVE_SET =
         Collections.unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
@@ -144,29 +142,6 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
         this.trustedPubKey = null;
         this.constraints = constraints;
         this.pkixdate = null;
-        this.jarTimestamp = null;
-    }
-
-    /**
-     * Create a new {@code AlgorithmChecker} with the given
-     * {@code Timestamp}.
-     * <p>
-     * Note that this constructor will be used to check a certification
-     * path for signed JAR files that are timestamped.
-     *
-     * @param jarTimestamp Timestamp passed for JAR timestamp constraint
-     *                     checking. Set to null if not applicable.
-     */
-    public AlgorithmChecker(Timestamp jarTimestamp) {
-        this.prevPubKey = null;
-        this.trustedPubKey = null;
-        this.constraints = certPathDefaultConstraints;
-        if (jarTimestamp == null) {
-            throw new IllegalArgumentException(
-                    "Timestamp cannot be null");
-        }
-        this.pkixdate = jarTimestamp.getTimestamp();
-        this.jarTimestamp = jarTimestamp;
     }
 
     /**
@@ -204,7 +179,6 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
         this.prevPubKey = trustedPubKey;
         this.constraints = constraints;
         this.pkixdate = pkixdate;
-        this.jarTimestamp = null;
     }
 
     /**
@@ -233,10 +207,6 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
             debug.println("AlgorithmChecker.contains: " + cert.getSigAlgName());
         }
         return AnchorCertificates.contains(cert);
-    }
-
-    Timestamp getJarTimestamp() {
-        return jarTimestamp;
     }
 
     @Override
@@ -326,7 +296,8 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
         // permits() will throw exception on failure.
         certPathDefaultConstraints.permits(primitives,
                 new CertConstraintParameters((X509Certificate)cert,
-                        trustedMatch, pkixdate, jarTimestamp));
+                        trustedMatch, pkixdate));
+                // new CertConstraintParameters(x509Cert, trustedMatch));
         // If there is no previous key, set one and exit
         if (prevPubKey == null) {
             prevPubKey = currPubKey;
@@ -471,7 +442,7 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
      * Check the signature algorithm with the specified public key.
      *
      * @param key the public key to verify the CRL signature
-     * @param algorithmId signature algorithm Algorithm ID
+     * @param crl the target CRL
      */
     static void check(PublicKey key, AlgorithmId algorithmId)
                         throws CertPathValidatorException {

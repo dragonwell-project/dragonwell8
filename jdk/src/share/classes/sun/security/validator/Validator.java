@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -219,7 +219,14 @@ public abstract class Validator {
      * Validate the given certificate chain. If otherCerts is non-null, it is
      * a Collection of additional X509Certificates that could be helpful for
      * path building.
-     *
+     * <p>
+     * Parameter is an additional parameter with variant specific meaning.
+     * Currently, it is only defined for TLS_SERVER variant validators, where
+     * it must be non null and the name of the TLS key exchange algorithm being
+     * used (see JSSE X509TrustManager specification). In the future, it
+     * could be used to pass in a PKCS#7 object for code signing to check time
+     * stamps.
+     * <p>
      * @return a non-empty chain that was used to validate the path. The
      * end entity cert is at index 0, the trust anchor at index n-1.
      */
@@ -237,12 +244,12 @@ public abstract class Validator {
      *        could be helpful for path building (or null)
      * @param constraints algorithm constraints for certification path
      *        processing
-     * @param parameter an additional parameter object to pass specific data.
-     *        This parameter object maybe one of the two below:
-     *        1) TLS_SERVER variant validators, where it must be non null and
-     *        the name of the TLS key exchange algorithm being used
-     *        (see JSSE X509TrustManager specification).
-     *        2) {@code Timestamp} object from a signed JAR file.
+     * @param parameter an additional parameter with variant specific meaning.
+     *        Currently, it is only defined for TLS_SERVER variant validators,
+     *        where it must be non null and the name of the TLS key exchange
+     *        algorithm being used (see JSSE X509TrustManager specification).
+     *        In the future, it could be used to pass in a PKCS#7 object for
+     *        code signing to check time stamps.
      * @return a non-empty chain that was used to validate the path. The
      *        end entity cert is at index 0, the trust anchor at index n-1.
      */
