@@ -661,3 +661,68 @@ jdk.tls.legacyAlgorithms= \
 #       E485B576 625E7EC6 F44C42E9 A637ED6B 0BFF5CB6 F406B7ED \
 #       EE386BFB 5A899FA5 AE9F2411 7C4B1FE6 49286651 ECE65381 \
 #       FFFFFFFF FFFFFFFF, 2}
+
+# Cryptographic Jurisdiction Policy defaults
+#
+# Due to the import control restrictions of some countries, the default
+# JCE policy files allow for strong but "limited" cryptographic key
+# lengths to be used.  If your country's cryptographic regulations allow,
+# the "unlimited" strength policy files can be used instead, which contain
+# no restrictions on cryptographic strengths.
+#
+# YOU ARE ADVISED TO CONSULT YOUR EXPORT/IMPORT CONTROL COUNSEL OR ATTORNEY
+# TO DETERMINE THE EXACT REQUIREMENTS.
+#
+# <java-home> (below) refers to the directory where the JRE was
+# installed. It is determined based on whether you are running JCE
+# on a JRE or a JRE contained within the Java Development Kit, or
+# JDK(TM). The JDK contains the JRE, but at a different level in the
+# file hierarchy. For example, if the JDK is installed in
+# /home/user1/jdk1.8.0 on Unix or in C:\jdk1.8.0 on Windows, then
+# <java-home> is:
+#
+#  /home/user1/jdk1.8.0/jre           [Unix]
+#  C:\jdk1.8.0\jre                    [Windows]
+#
+# If on the other hand the JRE is installed in /home/user1/jre1.8.0
+# on Unix or in C:\jre1.8.0 on Windows, and the JDK is not
+# installed, then <java-home> is:
+#
+#  /home/user1/jre1.8.0               [Unix]
+#  C:\jre1.8.0                        [Windows]
+#
+# On Windows, for each JDK installation, there may be additional
+# JREs installed under the "Program Files" directory. Please make
+# sure that you install the unlimited strength policy JAR files
+# for all JREs that you plan to use.
+#
+# The policy files are jar files organized into subdirectories of
+# <java-home>/lib/security/policy.  Each directory contains a complete
+# set of policy files.
+#
+# The "crypto.policy" Security property controls the directory selection,
+# and thus the effective cryptographic policy.
+#
+# The default set of directories is:
+#
+#     limited | unlimited
+#
+# however other directories can be created and configured.
+#
+# To support older JDK Update releases, the crypto.policy property
+# is not defined by default. When the property is not defined, an
+# update release binary aware of the new property will use the following
+# logic to decide what crypto policy files get used :
+#
+# * If the US_export_policy.jar and local_policy.jar files are located
+# in the (legacy) <java-home>/lib/security directory, then the rules
+# embedded in those jar files will be used. This helps preserve compatibility
+# for users upgrading from an older installation.
+#
+# * If crypto.policy is not defined and no such jar files are present in
+# the legacy locations, then the JDK will use the limited settings
+# (equivalent to crypto.policy=limited)
+#
+# Please see the JCA documentation for additional information on these
+# files and formats.
+#crypto.policy=unlimited
