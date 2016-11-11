@@ -112,6 +112,7 @@ SUNWprivate_1.1 {
 		NET_EnableFastTcpLoopback;
 		NET_ThrowNew;
                 ipv6_available;
+                initInetAddressIDs;
 
 	local:
 		*;
