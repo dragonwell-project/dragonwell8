@@ -38,11 +38,15 @@
     self = [super init];
     if (self == nil) return self;
 
-    windowLayer = aWindowLayer;
+    self.windowLayer = aWindowLayer;
 
     return self;
 }
 
+- (void) dealloc {
+    self.windowLayer = nil;
+    [super dealloc];
+}
 
 - (CALayer *) layer {
     return layer;
