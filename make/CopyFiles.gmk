@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -357,17 +357,20 @@ ifndef OPENJDK
 RESTRICTED_PKGS_SRC := $(JDK_TOPDIR)/src/closed/share/lib/security/restricted.pkgs
 RESTRICTED_PKGS := $(shell $(CAT) $(RESTRICTED_PKGS_SRC) | $(TR) "\n" " ")
 
+endif
+
 $(PROPS_DST): $(PROPS_SRC)
 	$(MKDIR) -p $(@D)
-	$(TOOL_ADDTORESTRICTEDPKGS) $^ $@.tmp $(RESTRICTED_PKGS)
+        ifndef OPENJDK
+	  $(TOOL_ADDTORESTRICTEDPKGS) $^ $@.tmp $(RESTRICTED_PKGS)
+        else
+	  $(CP) $^ $@.tmp
+        endif
+        ifeq ($(UNLIMITED_CRYPTO), true)
+	  $(TOOL_CRYPTOLEVEL) $@.tmp $@.tmp2 unlimited
+	  $(MV) $@.tmp2 $@.tmp
+        endif
 	$(MV) $@.tmp $@
-
-else
-
-$(PROPS_DST): $(PROPS_SRC)
-	$(call install-file)
-
-endif
 
 COPY_FILES += $(PROPS_DST)
 

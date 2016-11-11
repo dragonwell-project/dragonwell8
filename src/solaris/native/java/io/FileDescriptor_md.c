@@ -23,9 +23,11 @@
  * questions.
  */
 
+#include "jni.h"
+#include "jni_util.h"
 #include "jvm.h"
-#include "io_util_md.h"
 
+#include "io_util_md.h"
 #include "java_io_FileDescriptor.h"
 
 /*******************************************************************/
@@ -41,7 +43,7 @@ jfieldID IO_fd_fdID;
 
 JNIEXPORT void JNICALL
 Java_java_io_FileDescriptor_initIDs(JNIEnv *env, jclass fdClass) {
-    IO_fd_fdID = (*env)->GetFieldID(env, fdClass, "fd", "I");
+    CHECK_NULL(IO_fd_fdID = (*env)->GetFieldID(env, fdClass, "fd", "I"));
 }
 
 /**************************************************************
