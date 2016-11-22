@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,18 +75,14 @@ Java_java_net_Inet6AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
     } else {
         // ensure null-terminated
         hostname[NI_MAXHOST] = '\0';
-#if defined(__linux__) || defined(_ALLBSD_SOURCE)
-        /* On Linux/FreeBSD gethostname() says "host.domain.sun.com".  On
-         * Solaris gethostname() says "host", so extra work is needed.
-         */
-#else
+
         /* Solaris doesn't want to give us a fully qualified domain name.
          * We do a reverse lookup to try and get one.  This works
          * if DNS occurs before NIS in /etc/resolv.conf, but fails
          * if NIS comes first (it still gets only a partial name).
          * We use thread-safe system calls.
          */
-#ifdef AF_INET6
+#if defined(__solaris__) && defined(AF_INET6)
         struct addrinfo  hints, *res;
         int error;
 
@@ -111,8 +107,7 @@ Java_java_net_Inet6AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
 
             freeaddrinfo(res);
         }
-#endif /* AF_INET6 */
-#endif /* __linux__ || _ALLBSD_SOURCE */
+#endif
     }
     return (*env)->NewStringUTF(env, hostname);
 }
