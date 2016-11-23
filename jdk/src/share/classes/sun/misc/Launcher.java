@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,7 @@ package sun.misc;
 import java.io.File;
 import java.io.IOException;
 import java.io.FilePermission;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.net.MalformedURLException;
-import java.net.URLStreamHandler;
-import java.net.URLStreamHandlerFactory;
+import java.net.*;
 import java.util.HashSet;
 import java.util.StringTokenizer;
 import java.util.Set;
@@ -213,8 +209,16 @@ public class Launcher {
             URL[] urls = super.getURLs();
             File prevDir = null;
             for (int i = 0; i < urls.length; i++) {
-                // Get the ext directory from the URL
-                File dir = new File(urls[i].getPath()).getParentFile();
+                // Get the ext directory from the URL; convert to
+                // URI first, so the URL will be decoded.
+                URI uri;
+                try {
+                    uri = urls[i].toURI();
+                } catch (URISyntaxException ue) {
+                    // skip this URL if cannot convert it to URI
+                    continue;
+                }
+                File dir = new File(uri).getParentFile();
                 if (dir != null && !dir.equals(prevDir)) {
                     // Look in architecture-specific subdirectory first
                     // Read from the saved system properties to avoid deadlock
