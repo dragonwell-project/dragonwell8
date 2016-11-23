@@ -60,7 +60,7 @@ import sun.security.x509.X500Name;
 
 /*
  * @test
- * @bug 6543842 6543440 6939248 8009636 8024302 8163304
+ * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911
  * @summary checking response of timestamp
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.timestamp
@@ -350,6 +350,18 @@ public class TimestampCheck {
                         .shouldHaveExitValue(0);
                 checkWeak("weak.jar");
 
+                signWithAliasAndTsa("halfWeak", "old.jar", "old", "-digestalg", "MD5")
+                        .shouldHaveExitValue(0);
+                checkHalfWeak("halfWeak.jar");
+
+                // sign with DSA key
+                signWithAliasAndTsa("sign1", "old.jar", "dsakey")
+                        .shouldHaveExitValue(0);
+                // sign with RSAkeysize < 1024
+                signWithAliasAndTsa("sign2", "sign1.jar", "weakkeysize")
+                        .shouldHaveExitValue(0);
+                checkMultiple("sign2.jar");
+
                 // When .SF or .RSA is missing or invalid
                 checkMissingOrInvalidFiles("normal.jar");
             } else {                        // Run as a standalone server
@@ -454,6 +466,37 @@ public class TimestampCheck {
                 .shouldMatch("SignatureException:.*Disabled");
     }
 
+    static void checkHalfWeak(String file) throws Throwable {
+        verify(file)
+                .shouldHaveExitValue(0)
+                .shouldContain("treated as unsigned")
+                .shouldMatch("weak algorithm that is now disabled.")
+                .shouldMatch("Re-run jarsigner with the -verbose option for more details");
+        verify(file, "-verbose")
+                .shouldHaveExitValue(0)
+                .shouldContain("treated as unsigned")
+                .shouldMatch("weak algorithm that is now disabled by")
+                .shouldMatch("Digest algorithm: .*weak")
+                .shouldNotMatch("Signature algorithm: .*weak")
+                .shouldNotMatch("Timestamp digest algorithm: .*weak")
+                .shouldNotMatch("Timestamp signature algorithm: .*weak.*weak")
+                .shouldNotMatch("Timestamp signature algorithm: .*key.*weak");
+     }
+
+    static void checkMultiple(String file) throws Throwable {
+        verify(file)
+                .shouldHaveExitValue(0)
+                .shouldContain("jar verified");
+        verify(file, "-verbose", "-certs")
+                .shouldHaveExitValue(0)
+                .shouldContain("jar verified")
+                .shouldMatch("X.509.*CN=dsakey")
+                .shouldNotMatch("X.509.*CN=weakkeysize")
+                .shouldMatch("Signed by .*CN=dsakey")
+                .shouldMatch("Signed by .*CN=weakkeysize")
+                .shouldMatch("Signature algorithm: .*key.*weak");
+     }
+
     static void checkTimestamp(String file, String policyId, String digestAlg)
             throws Exception {
         try (JarFile jf = new JarFile(file)) {
@@ -487,6 +530,12 @@ public class TimestampCheck {
      */
     static OutputAnalyzer sign(String path, String... extra)
             throws Throwable {
+        String alias = path.equals("badku") ? "badku" : "old";
+        return signWithAliasAndTsa(path, "old.jar", alias, extra);
+    }
+
+    static OutputAnalyzer signWithAliasAndTsa (String path, String jar,
+            String alias, String...extra) throws Throwable {
         which++;
         System.err.println("\n>> Test #" + which + ": " + Arrays.toString(extra));
         List<String> args = new ArrayList<>();
@@ -494,8 +543,8 @@ public class TimestampCheck {
         args.add("-debug");
         args.add("-signedjar");
         args.add(path + ".jar");
-        args.add("old.jar");
-        args.add(path.equals("badku") ? "badku" : "old");
+        args.add(jar);
+        args.add(alias);
         if (!path.equals("none") && !path.equals("badku")) {
             args.add("-tsa");
             args.add(host + path);
@@ -509,6 +558,8 @@ public class TimestampCheck {
         Files.deleteIfExists(Paths.get("tsks"));
         keytool("-alias ca -genkeypair -ext bc -dname CN=CA");
         keytool("-alias old -genkeypair -dname CN=old");
+        keytool("-alias dsakey -genkeypair -keyalg DSA -dname CN=dsakey");
+        keytool("-alias weakkeysize -genkeypair -keysize 512 -dname CN=weakkeysize");
         keytool("-alias badku -genkeypair -dname CN=badku");
         keytool("-alias ts -genkeypair -dname CN=ts");
         keytool("-alias tsweak -genkeypair -keysize 512 -dname CN=tsbad1");
@@ -517,6 +568,8 @@ public class TimestampCheck {
         keytool("-alias tsbad3 -genkeypair -dname CN=tsbad3");
 
         gencert("old");
+        gencert("dsakey");
+        gencert("weakkeysize");
         gencert("badku", "-ext ku:critical=keyAgreement");
         gencert("ts", "-ext eku:critical=ts");
         gencert("tsweak", "-ext eku:critical=ts");
