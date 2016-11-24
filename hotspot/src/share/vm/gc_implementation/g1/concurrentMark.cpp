@@ -3096,7 +3096,10 @@ private:
   }
 
   void do_object_work(oop obj) {
-    guarantee(!_g1h->obj_in_cs(obj),
+    guarantee(G1CMObjArrayProcessor::is_array_slice(obj) || obj->is_oop(),
+              err_msg("Non-oop " PTR_FORMAT ", phase: %s, info: %d",
+                      p2i((void*) obj), phase_str(), _info));
+    guarantee(G1CMObjArrayProcessor::is_array_slice(obj) || !_g1h->obj_in_cs(obj),
               err_msg("obj: " PTR_FORMAT " in CSet, phase: %s, info: %d",
                       p2i((void*) obj), phase_str(), _info));
   }
@@ -3506,18 +3509,25 @@ void ConcurrentMark::print_finger() {
 template<bool scan>
 inline void CMTask::process_grey_object(oop obj) {
   assert(scan || obj->is_typeArray(), "Skipping scan of grey non-typeArray");
-  assert(_nextMarkBitMap->isMarked((HeapWord*) obj), "invariant");
 
   if (_cm->verbose_high()) {
     gclog_or_tty->print_cr("[%u] processing grey object " PTR_FORMAT,
                            _worker_id, p2i((void*) obj));
   }
 
-  size_t obj_size = obj->size();
-  _words_scanned += obj_size;
+  assert(G1CMObjArrayProcessor::is_array_slice(obj) || _nextMarkBitMap->isMarked((HeapWord*) obj),
+         "Any stolen object should be a slice or marked");
 
   if (scan) {
-    obj->oop_iterate(_cm_oop_closure);
+    if (G1CMObjArrayProcessor::is_array_slice(obj)) {
+      _words_scanned += _objArray_processor.process_slice(obj);
+    } else if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
+      _words_scanned += _objArray_processor.process_obj(obj);
+    } else {
+      size_t obj_size = obj->size();
+      _words_scanned += obj_size;
+      obj->oop_iterate(_cm_oop_closure);;
+    }
   }
   statsOnly( ++_objs_scanned );
   check_limits();
@@ -3877,6 +3887,8 @@ void CMTask::get_entries_from_global_stack() {
                              _worker_id, n);
     }
     for (int i = 0; i < n; ++i) {
+      assert(G1CMObjArrayProcessor::is_array_slice(buffer[i]) || buffer[i]->is_oop(),
+             err_msg("Element " PTR_FORMAT " must be an array slice or oop", p2i(buffer[i])));
       bool success = _task_queue->push(buffer[i]);
       // We only call this when the local queue is empty or under a
       // given target limit. So, we do not expect this push to fail.
@@ -3895,7 +3907,9 @@ void CMTask::get_entries_from_global_stack() {
 }
 
 void CMTask::drain_local_queue(bool partially) {
-  if (has_aborted()) return;
+  if (has_aborted()) {
+    return;
+  }
 
   // Decide what the target size is, depending whether we're going to
   // drain it partially (so that other tasks can steal if they run out
@@ -3922,10 +3936,6 @@ void CMTask::drain_local_queue(bool partially) {
         gclog_or_tty->print_cr("[%u] popped " PTR_FORMAT, _worker_id,
                                p2i((void*) obj));
       }
-
-      assert(_g1h->is_in_g1_reserved((HeapWord*) obj), "invariant" );
-      assert(!_g1h->is_on_master_free_list(
-                  _g1h->heap_region_containing((HeapWord*) obj)), "invariant");
 
       scan_object(obj);
 
@@ -4427,8 +4437,6 @@ void CMTask::do_marking_step(double time_target_ms,
 
         statsOnly( ++_steals );
 
-        assert(_nextMarkBitMap->isMarked((HeapWord*) obj),
-               "any stolen object should be marked");
         scan_object(obj);
 
         // And since we're towards the end, let's totally drain the
@@ -4602,6 +4610,7 @@ CMTask::CMTask(uint worker_id,
                CMTaskQueueSet* task_queues)
   : _g1h(G1CollectedHeap::heap()),
     _worker_id(worker_id), _cm(cm),
+    _objArray_processor(this),
     _claimed(false),
     _nextMarkBitMap(NULL), _hash_seed(17),
     _task_queue(task_queue),
