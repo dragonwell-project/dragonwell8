@@ -345,7 +345,7 @@ void InterpreterGenerator::generate_counter_incr(
       // Increment counter in the MDO
       const Address mdo_invocation_counter(r0, in_bytes(MethodData::invocation_counter_offset()) +
                                                 in_bytes(InvocationCounter::counter_offset()));
-      __ increment_mask_and_jump(mdo_invocation_counter, increment, mask, rscratch1, false, Assembler::EQ, overflow);
+      __ increment_mask_and_jump(mdo_invocation_counter, increment, mask, rscratch1, rscratch2, false, Assembler::EQ, overflow);
       __ b(done);
     }
     __ bind(no_mdo);
@@ -354,7 +354,7 @@ void InterpreterGenerator::generate_counter_incr(
                   MethodCounters::invocation_counter_offset() +
                   InvocationCounter::counter_offset());
     __ get_method_counters(rmethod, rscratch2, done);
-    __ increment_mask_and_jump(invocation_counter, increment, mask, rscratch1, false, Assembler::EQ, overflow);
+    __ increment_mask_and_jump(invocation_counter, increment, mask, rscratch1, rscratch2, false, Assembler::EQ, overflow);
     __ bind(done);
   } else {
     const Address backedge_counter(rscratch2,

@@ -1787,14 +1787,14 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
         const Address mdo_backedge_counter(r1, in_bytes(MethodData::backedge_counter_offset()) +
                                            in_bytes(InvocationCounter::counter_offset()));
         __ increment_mask_and_jump(mdo_backedge_counter, increment, mask,
-                                   r0, false, Assembler::EQ, &backedge_counter_overflow);
+                                   r0, rscratch2, false, Assembler::EQ, &backedge_counter_overflow);
         __ b(dispatch);
       }
       __ bind(no_mdo);
       // Increment backedge counter in MethodCounters*
       __ ldr(rscratch1, Address(rmethod, Method::method_counters_offset()));
       __ increment_mask_and_jump(Address(rscratch1, be_offset), increment, mask,
-                                 r0, false, Assembler::EQ, &backedge_counter_overflow);
+                                 r0, rscratch2, false, Assembler::EQ, &backedge_counter_overflow);
     } else {
       // increment counter
       __ ldr(rscratch2, Address(rmethod, Method::method_counters_offset()));
