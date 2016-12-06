@@ -34,8 +34,6 @@ import java.util.*;
 import java.security.AccessControlException;
 import java.security.Permission;
 import java.rmi.server.RMIClassLoader;
-import sun.misc.ObjectStreamClassValidator;
-import sun.misc.SharedSecrets;
 
 /**
  * MarshalInputStream is an extension of ObjectInputStream.  When resolving
@@ -53,11 +51,6 @@ import sun.misc.SharedSecrets;
  * @author      Peter Jones
  */
 public class MarshalInputStream extends ObjectInputStream {
-    interface StreamChecker extends ObjectStreamClassValidator {
-        void checkProxyInterfaceNames(String[] ifaces);
-    }
-
-    private volatile StreamChecker streamChecker = null;
 
     /**
      * Value of "java.rmi.server.useCodebaseOnly" property,
@@ -244,11 +237,6 @@ public class MarshalInputStream extends ObjectInputStream {
     protected Class<?> resolveProxyClass(String[] interfaces)
         throws IOException, ClassNotFoundException
     {
-        StreamChecker checker = streamChecker;
-        if (checker != null) {
-            checker.checkProxyInterfaceNames(interfaces);
-        }
-
         /*
          * Always read annotation written by MarshalOutputStream.
          */
@@ -327,29 +315,5 @@ public class MarshalInputStream extends ObjectInputStream {
      */
     void useCodebaseOnly() {
         useCodebaseOnly = true;
-    }
-
-    synchronized void setStreamChecker(StreamChecker checker) {
-        streamChecker = checker;
-        SharedSecrets.getJavaObjectInputStreamAccess().setValidator(this, checker);
-    }
-    @Override
-    protected ObjectStreamClass readClassDescriptor() throws IOException,
-            ClassNotFoundException {
-        ObjectStreamClass descriptor = super.readClassDescriptor();
-
-        validateDesc(descriptor);
-
-        return descriptor;
-    }
-
-    private void validateDesc(ObjectStreamClass descriptor) {
-        StreamChecker checker;
-        synchronized (this) {
-            checker = streamChecker;
-        }
-        if (checker != null) {
-            checker.validateDescriptor(descriptor);
-        }
     }
 }

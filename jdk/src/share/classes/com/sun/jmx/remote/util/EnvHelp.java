@@ -53,22 +53,6 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorServer;
 
 public class EnvHelp {
-
-    /**
-    * Name of the attribute that specifies a list of class names acceptable
-    * as parameters to the {@link RMIServer#newClient(java.lang.Object) RMIServer.newClient()}
-    * remote method call.
-    * <p>
-    * This list of classes should correspond to the transitive closure of the
-    * credentials class (or classes) used by the installed {@linkplain JMXAuthenticator}
-    * associated with the {@linkplain RMIServer} implementation.
-    * <p>
-    * If the attribute is not set, or is null, then any class is
-    * deemed acceptable.
-    */
-    public static final String CREDENTIAL_TYPES =
-            "jmx.remote.rmi.server.credential.types";
-
     /**
      * <p>Name of the attribute that specifies a default class loader
      * object.
