@@ -1,0 +1,52 @@
+#
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+#############################################################################
+#
+# List of quarantined tests -- tests that should not be run by default, because
+# they may fail due to known reason. The reason (CR#) must be mandatory specified.
+#
+# List items are testnames followed by labels, all MUST BE commented
+#   as to why they are here and use a label:
+#     generic-all   Problems on all platforms
+#     generic-ARCH  Where ARCH is one of: sparc, sparcv9, x64, i586, etc.
+#     OSNAME-all    Where OSNAME is one of: solaris, linux, windows, macosx, aix
+#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. solaris-amd64
+#     OSNAME-REV    Specific on to one OSNAME and REV, e.g. solaris-5.8
+#
+# More than one label is allowed but must be on the same line.
+#
+#############################################################################
+
+# :hotspot_runtime
+
+runtime/SharedArchiveFile/SharedBaseAddress.java 8044600 solaris-sparc
+runtime/6929067/Test6929067.sh 8028740 generic-all
+runtime/CDSCompressedKPtrs/XShareAuto.java 8026154 generic-all
+runtime/XCheckJniJsig/XCheckJSig.java 8023735 generic-all
+runtime/6626217/Test6626217.sh 8028733 generic-all
+runtime/jsig/Test8017498.sh 8028806 generic-all
+runtime/LoadClass/LoadClassNegative.java 8028095 generic-all
+runtime/NMT/MallocStressTest.java 8166548 generic-all
+runtime/InitialThreadOverflow/testme.sh 8029139 generic-all
+runtime/memory/ReadFromNoaccessArea.java 8028398 generic-all
