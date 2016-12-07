@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore 8028095
  * @test
  * @key regression
  * @bug 8020675
