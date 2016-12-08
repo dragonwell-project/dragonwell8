@@ -25,15 +25,27 @@
 
 package sun.reflect;
 
+import java.io.Externalizable;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
+import java.io.OptionalDataException;
+import java.io.Serializable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.Executable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.PrivilegedAction;
+import java.util.Objects;
+
 import sun.reflect.misc.ReflectUtil;
+
 
 /** <P> The master factory for all reflective objects, both those in
     java.lang.reflect (Fields, Methods, Constructors) as well as their
@@ -56,6 +68,9 @@ public class ReflectionFactory {
     // Provides access to package-private mechanisms in java.lang.reflect
     private static volatile LangReflectAccess langReflectAccess;
 
+    /* Method for static class initializer <clinit>, or null */
+    private static volatile Method hasStaticInitializerMethod;
+
     //
     // "Inflation" mechanism. Loading bytecodes to implement
     // Method.invoke() and Constructor.newInstance() currently costs
@@ -73,8 +88,7 @@ public class ReflectionFactory {
     private static boolean noInflation        = false;
     private static int     inflationThreshold = 15;
 
-    private ReflectionFactory() {
-    }
+    private ReflectionFactory() {}
 
     /**
      * A convenience class for acquiring the capability to instantiate
@@ -328,6 +342,14 @@ public class ReflectionFactory {
     //
     //
 
+    /**
+     * Returns an accessible constructor capable of creating instances
+     * of the given class, initialized by the given constructor.
+     *
+     * @param classToInstantiate the class to instantiate
+     * @param constructorToCall the constructor to call
+     * @return an accessible constructor
+     */
     public Constructor<?> newConstructorForSerialization
         (Class<?> classToInstantiate, Constructor<?> constructorToCall)
     {
@@ -335,6 +357,42 @@ public class ReflectionFactory {
         if (constructorToCall.getDeclaringClass() == classToInstantiate) {
             return constructorToCall;
         }
+        return generateConstructor(classToInstantiate, constructorToCall);
+    }
+
+    /**
+     * Returns an accessible no-arg constructor for a class.
+     * The no-arg constructor is found searching the class and its supertypes.
+     *
+     * @param cl the class to instantiate
+     * @return a no-arg constructor for the class or {@code null} if
+     *     the class or supertypes do not have a suitable no-arg constructor
+     */
+    public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
+        Class<?> initCl = cl;
+        while (Serializable.class.isAssignableFrom(initCl)) {
+            if ((initCl = initCl.getSuperclass()) == null) {
+                return null;
+            }
+        }
+        Constructor<?> constructorToCall;
+        try {
+            constructorToCall = initCl.getDeclaredConstructor();
+            int mods = constructorToCall.getModifiers();
+            if ((mods & Modifier.PRIVATE) != 0 ||
+                    ((mods & (Modifier.PUBLIC | Modifier.PROTECTED)) == 0 &&
+                            !packageEquals(cl, initCl))) {
+                return null;
+            }
+        } catch (NoSuchMethodException ex) {
+            return null;
+        }
+        return generateConstructor(cl, constructorToCall);
+    }
+
+    private final Constructor<?> generateConstructor(Class<?> classToInstantiate,
+                                                     Constructor<?> constructorToCall) {
+
 
         ConstructorAccessor acc = new MethodAccessorGenerator().
             generateSerializationConstructor(classToInstantiate,
@@ -355,7 +413,220 @@ public class ReflectionFactory {
                                           langReflectAccess().
                                           getConstructorParameterAnnotations(constructorToCall));
         setConstructorAccessor(c, acc);
+        c.setAccessible(true);
         return c;
+    }
+
+    /**
+     * Returns an accessible no-arg constructor for an externalizable class to be
+     * initialized using a public no-argument constructor.
+     *
+     * @param cl the class to instantiate
+     * @return A no-arg constructor for the class; returns {@code null} if
+     *     the class does not implement {@link java.io.Externalizable}
+     */
+    public final Constructor<?> newConstructorForExternalization(Class<?> cl) {
+        if (!Externalizable.class.isAssignableFrom(cl)) {
+            return null;
+        }
+        try {
+            Constructor<?> cons = cl.getConstructor();
+            cons.setAccessible(true);
+            return cons;
+        } catch (NoSuchMethodException ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code readObject} method on
+     * a Serializable class.
+     * The first argument of {@link MethodHandle#invoke} is the serializable
+     * object and the second argument is the {@code ObjectInputStream} passed to
+     * {@code readObject}.
+     *
+     * @param cl a Serializable class
+     * @return  a direct MethodHandle for the {@code readObject} method of the class or
+     *          {@code null} if the class does not have a {@code readObject} method
+     */
+    public final MethodHandle readObjectForSerialization(Class<?> cl) {
+        return findReadWriteObjectForSerialization(cl, "readObject", ObjectInputStream.class);
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code readObjectNoData} method on
+     * a Serializable class.
+     * The first argument of {@link MethodHandle#invoke} is the serializable
+     * object and the second argument is the {@code ObjectInputStream} passed to
+     * {@code readObjectNoData}.
+     *
+     * @param cl a Serializable class
+     * @return  a direct MethodHandle for the {@code readObjectNoData} method
+     *          of the class or {@code null} if the class does not have a
+     *          {@code readObjectNoData} method
+     */
+    public final MethodHandle readObjectNoDataForSerialization(Class<?> cl) {
+        return findReadWriteObjectForSerialization(cl, "readObjectNoData", ObjectInputStream.class);
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code writeObject} method on
+     * a Serializable class.
+     * The first argument of {@link MethodHandle#invoke} is the serializable
+     * object and the second argument is the {@code ObjectOutputStream} passed to
+     * {@code writeObject}.
+     *
+     * @param cl a Serializable class
+     * @return  a direct MethodHandle for the {@code writeObject} method of the class or
+     *          {@code null} if the class does not have a {@code writeObject} method
+     */
+    public final MethodHandle writeObjectForSerialization(Class<?> cl) {
+        return findReadWriteObjectForSerialization(cl, "writeObject", ObjectOutputStream.class);
+    }
+
+    private final MethodHandle findReadWriteObjectForSerialization(Class<?> cl,
+                                                                   String methodName,
+                                                                   Class<?> streamClass) {
+        if (!Serializable.class.isAssignableFrom(cl)) {
+            return null;
+        }
+
+        try {
+            Method meth = cl.getDeclaredMethod(methodName, streamClass);
+            int mods = meth.getModifiers();
+            if (meth.getReturnType() != Void.TYPE ||
+                    Modifier.isStatic(mods) ||
+                    !Modifier.isPrivate(mods)) {
+                return null;
+            }
+            meth.setAccessible(true);
+            return MethodHandles.lookup().unreflect(meth);
+        } catch (NoSuchMethodException ex) {
+            return null;
+        } catch (IllegalAccessException ex1) {
+            throw new InternalError("Error", ex1);
+        }
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code readResolve} method on
+     * a serializable class.
+     * The single argument of {@link MethodHandle#invoke} is the serializable
+     * object.
+     *
+     * @param cl the Serializable class
+     * @return  a direct MethodHandle for the {@code readResolve} method of the class or
+     *          {@code null} if the class does not have a {@code readResolve} method
+     */
+    public final MethodHandle readResolveForSerialization(Class<?> cl) {
+        return getReplaceResolveForSerialization(cl, "readResolve");
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code writeReplace} method on
+     * a serializable class.
+     * The single argument of {@link MethodHandle#invoke} is the serializable
+     * object.
+     *
+     * @param cl the Serializable class
+     * @return  a direct MethodHandle for the {@code writeReplace} method of the class or
+     *          {@code null} if the class does not have a {@code writeReplace} method
+     */
+    public final MethodHandle writeReplaceForSerialization(Class<?> cl) {
+        return getReplaceResolveForSerialization(cl, "writeReplace");
+    }
+
+    /**
+     * Returns a direct MethodHandle for the {@code writeReplace} method on
+     * a serializable class.
+     * The single argument of {@link MethodHandle#invoke} is the serializable
+     * object.
+     *
+     * @param cl the Serializable class
+     * @return  a direct MethodHandle for the {@code writeReplace} method of the class or
+     *          {@code null} if the class does not have a {@code writeReplace} method
+     */
+    private MethodHandle getReplaceResolveForSerialization(Class<?> cl,
+                                                           String methodName) {
+        if (!Serializable.class.isAssignableFrom(cl)) {
+            return null;
+        }
+
+        Class<?> defCl = cl;
+        while (defCl != null) {
+            try {
+                Method m = defCl.getDeclaredMethod(methodName);
+                if (m.getReturnType() != Object.class) {
+                    return null;
+                }
+                int mods = m.getModifiers();
+                if (Modifier.isStatic(mods) | Modifier.isAbstract(mods)) {
+                    return null;
+                } else if (Modifier.isPublic(mods) | Modifier.isProtected(mods)) {
+                    // fall through
+                } else if (Modifier.isPrivate(mods) && (cl != defCl)) {
+                    return null;
+                } else if (!packageEquals(cl, defCl)) {
+                    return null;
+                }
+                try {
+                    // Normal return
+                    m.setAccessible(true);
+                    return MethodHandles.lookup().unreflect(m);
+                } catch (IllegalAccessException ex0) {
+                    // setAccessible should prevent IAE
+                    throw new InternalError("Error", ex0);
+                }
+            } catch (NoSuchMethodException ex) {
+                defCl = defCl.getSuperclass();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if the class has a static initializer.
+     * The presence of a static initializer is used to compute the serialVersionUID.
+     * @param cl a serializable classLook
+     * @return {@code true} if the class has a static initializer,
+     *          otherwise {@code false}
+     */
+    public final boolean hasStaticInitializerForSerialization(Class<?> cl) {
+        Method m = hasStaticInitializerMethod;
+        if (m == null) {
+            try {
+                m = ObjectStreamClass.class.getDeclaredMethod("hasStaticInitializer",
+                        new Class<?>[]{Class.class});
+                m.setAccessible(true);
+                hasStaticInitializerMethod = m;
+            } catch (NoSuchMethodException ex) {
+                throw new InternalError("No such method hasStaticInitializer on "
+                        + ObjectStreamClass.class, ex);
+            }
+        }
+        try {
+            return (Boolean) m.invoke(null, cl);
+        } catch (InvocationTargetException | IllegalAccessException ex) {
+            throw new InternalError("Exception invoking hasStaticInitializer", ex);
+        }
+    }
+
+    /**
+     * Returns a new OptionalDataException with {@code eof} set to {@code true}
+     * or {@code false}.
+     * @param bool the value of {@code eof} in the created OptionalDataException
+     * @return  a new OptionalDataException
+     */
+    public final OptionalDataException newOptionalDataExceptionForSerialization(boolean bool) {
+        try {
+            Constructor<OptionalDataException> boolCtor =
+                    OptionalDataException.class.getDeclaredConstructor(Boolean.TYPE);
+            boolCtor.setAccessible(true);
+            return boolCtor.newInstance(bool);
+        } catch (NoSuchMethodException | InstantiationException|
+                IllegalAccessException|InvocationTargetException ex) {
+            throw new InternalError("unable to create OptionalDataException", ex);
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -421,4 +692,17 @@ public class ReflectionFactory {
         }
         return langReflectAccess;
     }
+
+    /**
+     * Returns true if classes are defined in the classloader and same package, false
+     * otherwise.
+     * @param cl1 a class
+     * @param cl2 another class
+     * @returns true if the two classes are in the same classloader and package
+     */
+    private static boolean packageEquals(Class<?> cl1, Class<?> cl2) {
+        return cl1.getClassLoader() == cl2.getClassLoader() &&
+                Objects.equals(cl1.getPackage(), cl2.getPackage());
+    }
+
 }
