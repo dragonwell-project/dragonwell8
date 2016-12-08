@@ -680,7 +680,9 @@ public class MethodHandles {
             // disallow lookup more restricted packages
             if (allowedModes == ALL_MODES && lookupClass.getClassLoader() == null) {
                 if (name.startsWith("java.") ||
-                        (name.startsWith("sun.") && !name.startsWith("sun.invoke."))) {
+                        (name.startsWith("sun.")
+                                && !name.startsWith("sun.invoke.")
+                                && !name.equals("sun.reflect.ReflectionFactory"))) {
                     throw newIllegalArgumentException("illegal lookupClass: " + lookupClass);
                 }
             }
