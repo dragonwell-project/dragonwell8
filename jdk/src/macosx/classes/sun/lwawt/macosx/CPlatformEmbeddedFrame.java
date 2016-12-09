@@ -129,11 +129,6 @@ public class CPlatformEmbeddedFrame implements PlatformWindow {
     @Override
     public void setAlwaysOnTop(boolean value) {}
 
-    // This method should be properly implemented for applets.
-    // It returns null just as a stub.
-    @Override
-    public PlatformWindow getTopmostPlatformWindowUnderMouse() { return null; }
-
     @Override
     public void updateFocusableWindowState() {}
 
