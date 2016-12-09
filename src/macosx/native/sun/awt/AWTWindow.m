@@ -1258,15 +1258,16 @@ JNIEXPORT jobject
 JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeGetTopmostPlatformWindowUnderMouse
 (JNIEnv *env, jclass clazz)
 {
-    jobject topmostWindowUnderMouse = nil;
+    __block jobject topmostWindowUnderMouse = nil;
 
     JNF_COCOA_ENTER(env);
-    AWT_ASSERT_APPKIT_THREAD;
 
-    AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
-    if (awtWindow != nil) {
-        topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
-    }
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^{
+        AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
+        if (awtWindow != nil) {
+            topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
+        }
+    }];
 
     JNF_COCOA_EXIT(env);
 
