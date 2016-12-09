@@ -333,6 +333,12 @@ public final class AWTAccessor {
          * Marks the specified window as an utility window for TrayIcon.
          */
         void setTrayIconWindow(Window w, boolean isTrayIconWindow);
+
+        /**
+         * Return an array containing all the windows this
+         * window currently owns.
+         */
+        Window[] getOwnedWindows(Window w);
     }
 
     /**
