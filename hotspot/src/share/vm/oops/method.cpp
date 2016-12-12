@@ -590,7 +590,7 @@ bool Method::is_constant_getter() const {
 }
 
 bool Method::is_initializer() const {
-  return name() == vmSymbols::object_initializer_name() || is_static_initializer();
+  return is_object_initializer() || is_static_initializer();
 }
 
 bool Method::has_valid_initializer_flags() const {
@@ -606,6 +606,9 @@ bool Method::is_static_initializer() const {
          has_valid_initializer_flags();
 }
 
+bool Method::is_object_initializer() const {
+   return name() == vmSymbols::object_initializer_name();
+}
 
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* this_oop, TRAPS) {
   int length = this_oop->checked_exceptions_length();
