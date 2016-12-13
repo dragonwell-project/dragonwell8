@@ -31,15 +31,11 @@ import java.security.Key;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertPathValidatorException.BasicReason;
 import java.security.cert.X509Certificate;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -242,8 +238,6 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
         private Map<String, Set<Constraint>> constraintsMap = new HashMap<>();
         private static final Pattern keySizePattern = Pattern.compile(
                 "keySize\\s*(<=|<|==|!=|>|>=)\\s*(\\d+)");
-        private static final Pattern denyAfterPattern = Pattern.compile(
-                "denyAfter\\s+(\\d{4})-(\\d{2})-(\\d{2})");
 
         public Constraints(String[] constraintArray) {
             for (String constraintEntry : constraintArray) {
@@ -274,11 +268,10 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                 }
 
                 // Convert constraint conditions into Constraint classes
-                Constraint c, lastConstraint = null;
+                Constraint c = null;
+                Constraint lastConstraint = null;
                 // Allow only one jdkCA entry per constraint entry
                 boolean jdkCALimit = false;
-                // Allow only one denyAfter entry per constraint entry
-                boolean denyAfterLimit = false;
 
                 for (String entry : policy.split("&")) {
                     entry = entry.trim();
@@ -304,25 +297,6 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                         }
                         c = new jdkCAConstraint(algorithm);
                         jdkCALimit = true;
-
-                    } else if(matcher.usePattern(denyAfterPattern).matches()) {
-                        if (debug != null) {
-                            debug.println("Constraints set to denyAfter");
-                        }
-                        if (denyAfterLimit) {
-                            throw new IllegalArgumentException("Only one " +
-                                    "denyAfter entry allowed in property. " +
-                                    "Constraint: " + constraintEntry);
-                        }
-                        int year = Integer.parseInt(matcher.group(1));
-                        int month = Integer.parseInt(matcher.group(2));
-                        int day = Integer.parseInt(matcher.group(3));
-                        c = new DenyAfterConstraint(algorithm, year, month,
-                                day);
-                        denyAfterLimit = true;
-                    } else {
-                        throw new IllegalArgumentException("Error in security" +
-                                " property. Constraint unknown: " + entry);
                     }
 
                     // Link multiple conditions for a single constraint
@@ -332,7 +306,9 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                             constraintsMap.putIfAbsent(algorithm,
                                     new HashSet<>());
                         }
-                        constraintsMap.get(algorithm).add(c);
+                        if (c != null) {
+                            constraintsMap.get(algorithm).add(c);
+                        }
                     } else {
                         lastConstraint.nextConstraint = c;
                     }
@@ -396,15 +372,7 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
         }
                         }
 
-    /**
-     * This abstract Constraint class for algorithm-based checking
-     * may contain one or more constraints.  If the '&' on the {@Security}
-     * property is used, multiple constraints have been grouped together
-     * requiring all the constraints to fail for the check to be disallowed.
-     *
-     * If the class contains multiple constraints, the next constraint
-     * is stored in {@code nextConstraint} in linked-list fashion.
-     */
+    // Abstract class for algorithm constraint checking
     private abstract static class Constraint {
         String algorithm;
         Constraint nextConstraint = null;
@@ -440,79 +408,22 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
         }
 
         /**
-         * Check if an algorithm constraint is permitted with a given key.
-         *
-         * If the check inside of {@code permit()} fails, it must call
-         * {@code next()} with the same {@code Key} parameter passed if
-         * multiple constraints need to be checked.
-         *
+         * Check if an algorithm constraint permit this key to be used.
          * @param key Public key
-         * @return 'true' if constraint is allowed, 'false' if disallowed.
+         * @return true if constraints do not match
          */
         public boolean permits(Key key) {
             return true;
         }
 
         /**
-         * Check if an algorithm constraint is permitted with a given
-         * CertConstraintParameters.
-         *
-         * If the check inside of {@code permits()} fails, it must call
-         * {@code next()} with the same {@code CertConstraintParameters}
-         * parameter passed if multiple constraints need to be checked.
-         *
-         * @param cp CertConstraintParameter containing certificate info
-         * @throws CertPathValidatorException if constraint disallows.
-         *
+         * Check if an algorithm constraint is permit this certificate to
+         * be used.
+         * @param cp CertificateParameter containing certificate and state info
+         * @return true if constraints do not match
          */
         public abstract void permits(CertConstraintParameters cp)
                 throws CertPathValidatorException;
-
-        /**
-         * Recursively check if the constraints are allowed.
-         *
-         * If {@code nextConstraint} is non-null, this method will
-         * call {@code nextConstraint}'s {@code permits()} to check if the
-         * constraint is allowed or denied.  If the constraint's
-         * {@code permits()} is allowed, this method will exit this and any
-         * recursive next() calls, returning 'true'.  If the constraints called
-         * were disallowed, the last constraint will throw
-         * {@code CertPathValidatorException}.
-         *
-         * @param cp CertConstraintParameters
-         * @return 'true' if constraint allows the operation, 'false' if
-         * we are at the end of the constraint list or,
-         * {@code nextConstraint} is null.
-         */
-        boolean next(CertConstraintParameters cp)
-                throws CertPathValidatorException {
-            if (nextConstraint != null) {
-                nextConstraint.permits(cp);
-                return true;
-            }
-            return false;
-        }
-
-        /**
-         * Recursively check if this constraint is allowed,
-         *
-         * If {@code nextConstraint} is non-null, this method will
-         * call {@code nextConstraint}'s {@code permit()} to check if the
-         * constraint is allowed or denied.  If the constraint's
-         * {@code permit()} is allowed, this method will exit this and any
-         * recursive next() calls, returning 'true'.  If the constraints
-         * called were disallowed the check will exit with 'false'.
-         *
-         * @param key Public key
-         * @return 'true' if constraint allows the operation, 'false' if
-         * the constraint denies the operation.
-         */
-        boolean next(Key key) {
-            if (nextConstraint != null && nextConstraint.permits(key)) {
-                return true;
-            }
-            return false;
-        }
     }
 
     /*
@@ -525,9 +436,9 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
         }
 
         /*
-         * Check if CertConstraintParameters has a trusted match, if it does
-         * call next() for any following constraints. If it does not, exit
-         * as this constraint(s) does not restrict the operation.
+         * Check if each constraint fails and check if there is a linked
+         * constraint  Any permitted constraint will exit the linked list
+         * to allow the operation.
          */
         public void permits(CertConstraintParameters cp)
                 throws CertPathValidatorException {
@@ -535,9 +446,10 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                 debug.println("jdkCAConstraints.permits(): " + algorithm);
             }
 
-            // Check chain has a trust anchor in cacerts
+            // Return false if the chain has a trust anchor in cacerts
             if (cp.isTrustedMatch()) {
-                if (next(cp)) {
+                if (nextConstraint != null) {
+                    nextConstraint.permits(cp);
                     return;
                 }
                 throw new CertPathValidatorException(
@@ -548,99 +460,6 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
         }
     }
 
-    /*
-     * This class handles the denyAfter constraint.  The date is in the UTC/GMT
-     * timezone.
-     */
-     private static class DenyAfterConstraint extends Constraint {
-         private Date denyAfterDate;
-         private static final SimpleDateFormat dateFormat =
-                 new SimpleDateFormat("EEE, MMM d HH:mm:ss z YYYY");
-
-         DenyAfterConstraint(String algo, int year, int month, int day) {
-             Calendar c;
-
-             algorithm = algo;
-
-             if (debug != null) {
-                 debug.println("DenyAfterConstraint read in as:  year " +
-                         year + ", month = " + month + ", day = " + day);
-             }
-
-             c = new Calendar.Builder().setTimeZone(TimeZone.getTimeZone("GMT"))
-                     .setDate(year, month - 1, day).build();
-
-             if (year > c.getActualMaximum(Calendar.YEAR) ||
-                     year < c.getActualMinimum(Calendar.YEAR)) {
-                 throw new IllegalArgumentException(
-                         "Invalid year given in constraint: " + year);
-             }
-             if ((month - 1) > c.getActualMaximum(Calendar.MONTH) ||
-                     (month - 1) < c.getActualMinimum(Calendar.MONTH)) {
-                 throw new IllegalArgumentException(
-                         "Invalid month given in constraint: " + month);
-             }
-             if (day > c.getActualMaximum(Calendar.DAY_OF_MONTH) ||
-                     day < c.getActualMinimum(Calendar.DAY_OF_MONTH)) {
-                 throw new IllegalArgumentException(
-                         "Invalid Day of Month given in constraint: " + day);
-             }
-
-             denyAfterDate = c.getTime();
-             if (debug != null) {
-                 debug.println("DenyAfterConstraint date set to: " +
-                         dateFormat.format(denyAfterDate));
-             }
-         }
-
-         /*
-          * Checking that the provided date is not beyond the constraint date.
-          * The provided date can be the PKIXParameter date if given,
-          * otherwise it is the current date.
-          *
-          * If the constraint disallows, call next() for any following
-          * constraints. Throw an exception if this is the last constraint.
-          */
-         @Override
-         public void permits(CertConstraintParameters cp)
-                 throws CertPathValidatorException {
-             Date currentDate;
-
-             if (cp.getPKIXParamDate() != null) {
-                 currentDate = cp.getPKIXParamDate();
-             } else {
-                 currentDate = new Date();
-             }
-
-             if (!denyAfterDate.after(currentDate)) {
-                 if (next(cp)) {
-                     return;
-                 }
-                 throw new CertPathValidatorException(
-                         "denyAfter constraint check failed.  " +
-                                 "Constraint date: " +
-                                 dateFormat.format(denyAfterDate) +
-                                 "; Cert date: " +
-                                 dateFormat.format(currentDate),
-                          null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
-             }
-         }
-
-         /*
-          * Return result if the constraint's date is beyond the current date
-          * in UTC timezone.
-          */
-         public boolean permits(Key key) {
-             if (next(key)) {
-                 return true;
-             }
-             if (debug != null) {
-                 debug.println("DenyAfterConstraints.permits(): " + algorithm);
-             }
-
-             return denyAfterDate.after(new Date());
-         }
-     }
 
     /*
      * This class contains constraints dealing with the key size
