@@ -27,10 +27,18 @@ WIN_VERIFY_LIB := $(JDK_OUTPUTDIR)/objs/libverify/verify.lib
 
 ##########################################################################################
 
-BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
+BUILD_LIBFDLIBM_OPTIMIZATION := NONE
 
-ifneq ($(OPENJDK_TARGET_OS), solaris)
-  BUILD_LIBFDLIBM_OPTIMIZATION := NONE
+ifeq ($(OPENJDK_TARGET_OS), solaris)
+  BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
+endif
+
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  ifeq ($(OPENJDK_TARGET_CPU), ppc64)
+    BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
+  else ifeq ($(OPENJDK_TARGET_CPU), ppc64le)
+    BUILD_LIBFDLIBM_OPTIMIZATION := HIGH
+  endif
 endif
 
 ifneq ($(OPENJDK_TARGET_OS), macosx)
@@ -44,6 +52,8 @@ ifneq ($(OPENJDK_TARGET_OS), macosx)
           -I$(JDK_TOPDIR)/src/share/native/java/lang/fdlibm/include, \
       CFLAGS_windows_debug := -DLOGGING, \
       CFLAGS_aix := -qfloat=nomaf, \
+      CFLAGS_linux_ppc64 := -ffp-contract=off, \
+      CFLAGS_linux_ppc64le := -ffp-contract=off, \
       ARFLAGS := $(ARFLAGS), \
       OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libfdlibm, \
       DEBUG_SYMBOLS := $(DEBUG_ALL_BINARIES)))
