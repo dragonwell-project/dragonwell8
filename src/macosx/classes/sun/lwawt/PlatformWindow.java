@@ -107,8 +107,6 @@ public interface PlatformWindow {
 
     public void setAlwaysOnTop(boolean value);
 
-    public PlatformWindow getTopmostPlatformWindowUnderMouse();
-
     public void updateFocusableWindowState();
 
     public boolean rejectFocusRequest(CausedFocusEvent.Cause cause);
