@@ -26,7 +26,6 @@
 package sun.security.util;
 
 import java.security.cert.X509Certificate;
-import java.util.Date;
 
 /**
  * This class is a wrapper for keeping state and passing objects between PKIX,
@@ -35,21 +34,18 @@ import java.util.Date;
 public class CertConstraintParameters {
     // A certificate being passed to check against constraints.
     private final X509Certificate cert;
+
     // This is true if the trust anchor in the certificate chain matches a cert
     // in AnchorCertificates
     private final boolean trustedMatch;
-    // PKIXParameter date
-    private final Date pkixDate;
 
-    public CertConstraintParameters(X509Certificate c, boolean match,
-            Date pkixdate) {
+    public CertConstraintParameters(X509Certificate c, boolean match) {
         cert = c;
         trustedMatch = match;
-        pkixDate = pkixdate;
     }
 
     public CertConstraintParameters(X509Certificate c) {
-        this(c, false, null);
+        this(c, false);
     }
 
     // Returns if the trust anchor has a match if anchor checking is enabled.
@@ -60,9 +56,4 @@ public class CertConstraintParameters {
     public X509Certificate getCertificate() {
         return cert;
     }
-
-    public Date getPKIXParamDate() {
-        return pkixDate;
-    }
-
 }
