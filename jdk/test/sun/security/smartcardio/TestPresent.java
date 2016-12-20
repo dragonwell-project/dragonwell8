@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.util.List;
 import javax.smartcardio.CardTerminal;
 import javax.smartcardio.TerminalFactory;
 
-public class TestPresent {
+public class TestPresent extends Utils {
 
     private static class Timer {
         private long time = System.currentTimeMillis();
@@ -66,15 +66,12 @@ public class TestPresent {
     }
 
     public static void main(String[] args) throws Exception {
-        TerminalFactory factory = TerminalFactory.getInstance("PC/SC", null);
-        System.out.println(factory);
-
-        List<CardTerminal> terminals = factory.terminals().list();
-        System.out.println("Terminals: " + terminals);
-        if (terminals.isEmpty()) {
-            throw new Exception("No card terminals available");
+        CardTerminal terminal = getTerminal(args);
+        if (terminal == null) {
+            System.out.println("Skipping the test: " +
+                    "no card terminals available");
+            return;
         }
-        CardTerminal terminal = terminals.get(0);
 
         while (terminal.isCardPresent()) {
             System.out.println("*** Remove card!");

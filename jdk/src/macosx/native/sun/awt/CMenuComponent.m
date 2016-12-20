@@ -41,45 +41,11 @@
     return self;
 }
 
--(void) cleanup {
-    // Used by subclasses
-}
-
--(void) disposer {
+-(void) dealloc {
     JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
     JNFDeleteGlobalRef(env, fPeer);
     fPeer = NULL;
 
-    [self cleanup];
-    [self release];
+    [super dealloc];
 }
-
-// The method is used by all subclasses, since the process of the creation
-// is the same. The only exception is the CMenuItem class.
-- (void) _create_OnAppKitThread: (NSMutableArray *)argValue {
-    jobject cPeerObjGlobal = (jobject)[[argValue objectAtIndex: 0] pointerValue];
-    CMenuItem *aCMenuItem = [self initWithPeer:cPeerObjGlobal];
-    [argValue removeAllObjects];
-    [argValue addObject: aCMenuItem];
-}
-
 @end
-
-/*
- * Class:     sun_lwawt_macosx_CMenuComponent
- * Method:    nativeDispose
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL
-Java_sun_lwawt_macosx_CMenuComponent_nativeDispose
-(JNIEnv *env, jobject peer, jlong menuItemObj)
-{
-JNF_COCOA_ENTER(env);
-
-    [ThreadUtilities performOnMainThread:@selector(disposer)
-                                      on:((id)jlong_to_ptr(menuItemObj))
-                              withObject:nil
-                           waitUntilDone:NO];
-
-JNF_COCOA_EXIT(env);
-}

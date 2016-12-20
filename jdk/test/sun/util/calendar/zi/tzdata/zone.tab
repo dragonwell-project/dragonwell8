@@ -175,7 +175,8 @@ CU	+2308-08222	America/Havana
 CV	+1455-02331	Atlantic/Cape_Verde
 CW	+1211-06900	America/Curacao
 CX	-1025+10543	Indian/Christmas
-CY	+3510+03322	Asia/Nicosia
+CY	+3510+03322	Asia/Nicosia	Cyprus (most areas)
+CY	+3507+03357	Asia/Famagusta	Northern Cyprus
 CZ	+5005+01426	Europe/Prague
 DE	+5230+01322	Europe/Berlin	Germany (most areas)
 DE	+4742+00841	Europe/Busingen	Busingen
@@ -284,7 +285,7 @@ MH	+0709+17112	Pacific/Majuro	Marshall Islands (most areas)
 MH	+0905+16720	Pacific/Kwajalein	Kwajalein
 MK	+4159+02126	Europe/Skopje
 ML	+1239-00800	Africa/Bamako
-MM	+1647+09610	Asia/Rangoon
+MM	+1647+09610	Asia/Yangon
 MN	+4755+10653	Asia/Ulaanbaatar	Mongolia (most areas)
 MN	+4801+09139	Asia/Hovd	Bayan-Olgiy, Govi-Altai, Hovd, Uvs, Zavkhan
 MN	+4804+11430	Asia/Choibalsan	Dornod, Sukhbaatar

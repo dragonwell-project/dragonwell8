@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -705,12 +705,21 @@ final class P11Signature extends SignatureSpi {
         }
     }
 
-    private static byte[] asn1ToDSA(byte[] signature) throws SignatureException {
+    private static byte[] asn1ToDSA(byte[] sig) throws SignatureException {
         try {
-            DerInputStream in = new DerInputStream(signature);
+            // Enforce strict DER checking for signatures
+            DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
             DerValue[] values = in.getSequence(2);
+
+            // check number of components in the read sequence
+            // and trailing data
+            if ((values.length != 2) || (in.available() != 0)) {
+                throw new IOException("Invalid encoding for signature");
+            }
+
             BigInteger r = values[0].getPositiveBigInteger();
             BigInteger s = values[1].getPositiveBigInteger();
+
             byte[] br = toByteArray(r, 20);
             byte[] bs = toByteArray(s, 20);
             if ((br == null) || (bs == null)) {
@@ -720,16 +729,25 @@ final class P11Signature extends SignatureSpi {
         } catch (SignatureException e) {
             throw e;
         } catch (Exception e) {
-            throw new SignatureException("invalid encoding for signature", e);
+            throw new SignatureException("Invalid encoding for signature", e);
         }
     }
 
-    private byte[] asn1ToECDSA(byte[] signature) throws SignatureException {
+    private byte[] asn1ToECDSA(byte[] sig) throws SignatureException {
         try {
-            DerInputStream in = new DerInputStream(signature);
+            // Enforce strict DER checking for signatures
+            DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
             DerValue[] values = in.getSequence(2);
+
+            // check number of components in the read sequence
+            // and trailing data
+            if ((values.length != 2) || (in.available() != 0)) {
+                throw new IOException("Invalid encoding for signature");
+            }
+
             BigInteger r = values[0].getPositiveBigInteger();
             BigInteger s = values[1].getPositiveBigInteger();
+
             // trim leading zeroes
             byte[] br = KeyUtil.trimZeroes(r.toByteArray());
             byte[] bs = KeyUtil.trimZeroes(s.toByteArray());
@@ -740,7 +758,7 @@ final class P11Signature extends SignatureSpi {
             System.arraycopy(bs, 0, res, res.length - bs.length, bs.length);
             return res;
         } catch (Exception e) {
-            throw new SignatureException("invalid encoding for signature", e);
+            throw new SignatureException("Invalid encoding for signature", e);
         }
     }
 
