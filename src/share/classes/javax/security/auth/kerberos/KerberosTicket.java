@@ -634,8 +634,9 @@ public class KerberosTicket implements Destroyable, Refreshable,
     }
 
     public String toString() {
-        if (destroyed)
-            throw new IllegalStateException("This ticket is no longer valid");
+        if (destroyed) {
+            return "Destroyed KerberosTicket";
+        }
         StringBuffer caddrBuf = new StringBuffer();
         if (clientAddresses != null) {
             for (int i = 0; i < clientAddresses.length; i++) {
