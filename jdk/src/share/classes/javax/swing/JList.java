@@ -3052,7 +3052,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
         public Accessible getAccessibleAt(Point p) {
             int i = locationToIndex(p);
             if (i >= 0) {
-                return new AccessibleJListChild(JList.this, i);
+                return new ActionableAccessibleJListChild(JList.this, i);
             } else {
                 return null;
             }
@@ -3079,7 +3079,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
             if (i >= getModel().getSize()) {
                 return null;
             } else {
-                return new AccessibleJListChild(JList.this, i);
+                return new ActionableAccessibleJListChild(JList.this, i);
             }
         }
 
@@ -3184,7 +3184,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
         protected class AccessibleJListChild extends AccessibleContext
                 implements Accessible, AccessibleComponent {
             private JList<E>     parent = null;
-            private int       indexInParent;
+            int indexInParent;
             private Component component = null;
             private AccessibleContext accessibleContext = null;
             private ListModel<E> listModel;
@@ -3204,7 +3204,7 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
                 return getComponentAtIndex(indexInParent);
             }
 
-            private AccessibleContext getCurrentAccessibleContext() {
+            AccessibleContext getCurrentAccessibleContext() {
                 Component c = getComponentAtIndex(indexInParent);
                 if (c instanceof Accessible) {
                     return c.getAccessibleContext();
@@ -3368,10 +3368,6 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
                 if (ac != null) {
                     ac.removePropertyChangeListener(l);
                 }
-            }
-
-            public AccessibleAction getAccessibleAction() {
-                return getCurrentAccessibleContext().getAccessibleAction();
             }
 
            /**
@@ -3588,7 +3584,13 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
 
             public Point getLocationOnScreen() {
                 if (parent != null) {
-                    Point listLocation = parent.getLocationOnScreen();
+                    Point listLocation;
+                    try {
+                        listLocation = parent.getLocationOnScreen();
+                    } catch (IllegalComponentStateException e) {
+                        // This can happen if the component isn't visisble
+                        return null;
+                    }
                     Point componentLocation = parent.indexToLocation(indexInParent);
                     if (componentLocation != null) {
                         componentLocation.translate(listLocation.x, listLocation.y);
@@ -3728,6 +3730,57 @@ public class JList<E> extends JComponent implements Scrollable, Accessible
                     return null;
                 }
             }
+
         } // inner class AccessibleJListChild
+
+        private class ActionableAccessibleJListChild
+            extends AccessibleJListChild
+            implements AccessibleAction {
+
+            ActionableAccessibleJListChild(JList<E> parent, int indexInParent) {
+                super(parent, indexInParent);
+            }
+
+            @Override
+            public AccessibleAction getAccessibleAction() {
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac == null) {
+                    return null;
+                } else {
+                    AccessibleAction aa = ac.getAccessibleAction();
+                    if (aa != null) {
+                        return aa;
+                    } else {
+                        return this;
+                    }
+                }
+            }
+
+            @Override
+            public boolean doAccessibleAction(int i) {
+                if (i == 0) {
+                    JList.this.setSelectedIndex(indexInParent);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            @Override
+            public String getAccessibleActionDescription(int i) {
+                if (i == 0) {
+                    return UIManager.getString("AbstractButton.clickText");
+                } else {
+                    return null;
+                }
+            }
+
+            @Override
+            public int getAccessibleActionCount() {
+                return 1;
+            }
+
+        } // inner class ActionableAccessibleJListChild
+
     } // inner class AccessibleJList
 }

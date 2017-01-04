@@ -333,6 +333,7 @@ jint  IPv6_supported()
     if (getsockname(0, (struct sockaddr *)&sa, &sa_len) == 0) {
         struct sockaddr *saP = (struct sockaddr *)&sa;
         if (saP->sa_family != AF_INET6) {
+            close(fd);
             return JNI_FALSE;
         }
     }
@@ -1207,16 +1208,10 @@ NET_GetSockOpt(int fd, int level, int opt, void *result,
                int *len)
 {
     int rv;
+    socklen_t socklen = *len;
 
-#ifdef __solaris__
-    rv = getsockopt(fd, level, opt, result, len);
-#else
-    {
-        socklen_t socklen = *len;
-        rv = getsockopt(fd, level, opt, result, &socklen);
-        *len = socklen;
-    }
-#endif
+    rv = getsockopt(fd, level, opt, result, &socklen);
+    *len = socklen;
 
     if (rv < 0) {
         return rv;
