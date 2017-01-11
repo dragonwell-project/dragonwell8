@@ -33,6 +33,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/time.h>
 
 #ifndef _ALLBSD_SOURCE
 #include <values.h>
@@ -1656,3 +1657,20 @@ NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout)
 
     return timeout;
 }
+
+#if !defined(__solaris__)
+long NET_GetCurrentTime() {
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    return (time.tv_sec * 1000 + time.tv_usec / 1000);
+}
+
+int NET_TimeoutWithCurrentTime(int s, long timeout, long currentTime) {
+    return NET_Timeout0(s, timeout, currentTime);
+}
+
+int NET_Timeout(int s, long timeout) {
+    long currentTime = (timeout > 0) ? NET_GetCurrentTime() : 0;
+    return NET_Timeout0(s, timeout, currentTime);
+}
+#endif
