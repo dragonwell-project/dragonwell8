@@ -588,7 +588,7 @@ public:
 
   static int patch_oop(address insn_addr, address o);
 
-  void emit_trampoline_stub(int insts_call_instruction_offset, address target);
+  address emit_trampoline_stub(int insts_call_instruction_offset, address target);
 
   // The following 4 methods return the offset of the appropriate move instruction
 
@@ -995,7 +995,7 @@ public:
 
   // Calls
 
-  void trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
+  address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
 
   static bool far_branches() {
     return ReservedCodeCacheSize > branch_range;
@@ -1015,7 +1015,7 @@ public:
   }
 
   // Emit the CompiledIC call idiom
-  void ic_call(address entry);
+  address ic_call(address entry);
 
 public:
 

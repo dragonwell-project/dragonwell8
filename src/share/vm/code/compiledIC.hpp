@@ -324,7 +324,7 @@ class CompiledStaticCall: public NativeCall {
 
   // Code
 #if defined AARCH64 && !defined ZERO
-  static void emit_to_interp_stub(CodeBuffer &cbuf, address mark);
+  static address emit_to_interp_stub(CodeBuffer &cbuf, address mark);
 #else
   static void emit_to_interp_stub(CodeBuffer &cbuf);
 #endif
