@@ -226,10 +226,6 @@ sun/security/pkcs11/ec/ReadCertificates.java                    solaris-all
 sun/security/pkcs11/ec/ReadPKCS12.java                          solaris-all
 sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            solaris-all
 
-# 7041639, Solaris DSA keypair generation bug
-java/security/KeyPairGenerator/SolarisShortDSA.java             solaris-all
-sun/security/tools/keytool/standard.sh                          solaris-all
-
 # 8026393
 sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
 
