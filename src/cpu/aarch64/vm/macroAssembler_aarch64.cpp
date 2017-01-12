@@ -709,7 +709,8 @@ address MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
 #else
     bl(entry.target());
 #endif
-  return start_offset;
+  // just need to return a non-null address
+  return pc();
 }
 
 
