@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,11 @@
 
 /**
  * @test
- * @bug 8059556
+ * @bug 8059556 8158639 8164508
+ *
  * @run main/othervm -Xbatch NullConstantReceiver
+ * @run main/othervm -Xbatch -XX:CompileCommand=exclude,*::run NullConstantReceiver
+ * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,*::run NullConstantReceiver
  */
 
 import java.lang.invoke.MethodHandle;
