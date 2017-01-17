@@ -290,6 +290,15 @@ final class JsseJce {
         }
     }
 
+    static AlgorithmParameters getAlgorithmParameters(String algorithm)
+            throws NoSuchAlgorithmException {
+        if (cryptoProvider == null) {
+            return AlgorithmParameters.getInstance(algorithm);
+        } else {
+            return AlgorithmParameters.getInstance(algorithm, cryptoProvider);
+        }
+    }
+
     static SecureRandom getSecureRandom() throws KeyManagementException {
         if (cryptoProvider == null) {
             return new SecureRandom();
@@ -409,6 +418,7 @@ final class JsseJce {
                 JsseJce.getKeyAgreement("ECDH");
                 JsseJce.getKeyFactory("EC");
                 JsseJce.getKeyPairGenerator("EC");
+                JsseJce.getAlgorithmParameters("EC");
             } catch (Exception e) {
                 mediator = false;
             }

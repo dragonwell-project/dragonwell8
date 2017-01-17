@@ -621,8 +621,11 @@ final class ClientHandshaker extends Handshaker {
             } else {
                 // we wanted to resume, but the server refused
                 //
-                // Invalidate the session in case of reusing next time.
-                session.invalidate();
+                // Invalidate the session for initial handshake in case
+                // of reusing next time.
+                if (isInitialHandshake) {
+                    session.invalidate();
+                }
                 session = null;
                 if (!enableNewSession) {
                     throw new SSLException("New session creation is disabled");
@@ -762,30 +765,33 @@ final class ClientHandshaker extends Handshaker {
                 String typeName;
 
                 switch (certRequest.types[i]) {
-                case CertificateRequest.cct_rsa_sign:
-                    typeName = "RSA";
-                    break;
+                    case CertificateRequest.cct_rsa_sign:
+                        typeName = "RSA";
+                        break;
 
-                case CertificateRequest.cct_dss_sign:
-                    typeName = "DSA";
-                    break;
+                    case CertificateRequest.cct_dss_sign:
+                        typeName = "DSA";
+                            break;
 
-                case CertificateRequest.cct_ecdsa_sign:
-                    // ignore if we do not have EC crypto available
-                    typeName = JsseJce.isEcAvailable() ? "EC" : null;
-                    break;
+                    case CertificateRequest.cct_ecdsa_sign:
+                        // ignore if we do not have EC crypto available
+                        typeName = JsseJce.isEcAvailable() ? "EC" : null;
+                        break;
 
-                // Fixed DH/ECDH client authentication not supported
-                case CertificateRequest.cct_rsa_fixed_dh:
-                case CertificateRequest.cct_dss_fixed_dh:
-                case CertificateRequest.cct_rsa_fixed_ecdh:
-                case CertificateRequest.cct_ecdsa_fixed_ecdh:
-                // Any other values (currently not used in TLS)
-                case CertificateRequest.cct_rsa_ephemeral_dh:
-                case CertificateRequest.cct_dss_ephemeral_dh:
-                default:
-                    typeName = null;
-                    break;
+                    // Fixed DH/ECDH client authentication not supported
+                    //
+                    // case CertificateRequest.cct_rsa_fixed_dh:
+                    // case CertificateRequest.cct_dss_fixed_dh:
+                    // case CertificateRequest.cct_rsa_fixed_ecdh:
+                    // case CertificateRequest.cct_ecdsa_fixed_ecdh:
+                    //
+                    // Any other values (currently not used in TLS)
+                    //
+                    // case CertificateRequest.cct_rsa_ephemeral_dh:
+                    // case CertificateRequest.cct_dss_ephemeral_dh:
+                    default:
+                        typeName = null;
+                        break;
                 }
 
                 if ((typeName != null) && (!keytypesTmp.contains(typeName))) {
@@ -813,18 +819,6 @@ final class ClientHandshaker extends Handshaker {
                 X509Certificate[] certs = km.getCertificateChain(alias);
                 if ((certs != null) && (certs.length != 0)) {
                     PublicKey publicKey = certs[0].getPublicKey();
-                    // for EC, make sure we use a supported named curve
-                    if (publicKey instanceof ECPublicKey) {
-                        ECParameterSpec params =
-                            ((ECPublicKey)publicKey).getParams();
-                        int index =
-                            SupportedEllipticCurvesExtension.getCurveIndex(
-                                params);
-                        if (!SupportedEllipticCurvesExtension.isSupported(
-                                index)) {
-                            publicKey = null;
-                        }
-                    }
                     if (publicKey != null) {
                         m1 = new CertificateMsg(certs);
                         signingKey = km.getPrivateKey(alias);
@@ -1384,6 +1378,17 @@ final class ClientHandshaker extends Handshaker {
         ClientHello clientHelloMessage = new ClientHello(
                 sslContext.getSecureRandom(), maxProtocolVersion,
                 sessionId, cipherSuites);
+
+        // add elliptic curves and point format extensions
+        if (cipherSuites.containsEC()) {
+            SupportedEllipticCurvesExtension ece =
+                SupportedEllipticCurvesExtension.createExtension(algorithmConstraints);
+            if (ece != null) {
+                clientHelloMessage.extensions.add(ece);
+                clientHelloMessage.extensions.add(
+                   SupportedEllipticPointFormatsExtension.DEFAULT);
+            }
+        }
 
         // add signature_algorithm extension
         if (maxProtocolVersion.v >= ProtocolVersion.TLS12.v) {

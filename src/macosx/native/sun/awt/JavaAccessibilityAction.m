@@ -55,19 +55,6 @@
     [super dealloc];
 }
 
-- (void)finalize
-{
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    JNFDeleteWeakGlobalRef(env, fAccessibleAction);
-    fAccessibleAction = NULL;
-
-    JNFDeleteWeakGlobalRef(env, fComponent);
-    fComponent = NULL;
-
-    [super finalize];
-}
-
 
 - (NSString *)getDescription
 {
@@ -129,19 +116,6 @@
     fComponent = NULL;
 
     [super dealloc];
-}
-
-- (void)finalize
-{
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    JNFDeleteWeakGlobalRef(env, fTabGroup);
-    fTabGroup = NULL;
-
-    JNFDeleteWeakGlobalRef(env, fComponent);
-    fComponent = NULL;
-
-    [super finalize];
 }
 
 - (NSString *)getDescription

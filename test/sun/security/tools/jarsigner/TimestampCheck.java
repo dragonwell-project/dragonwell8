@@ -60,7 +60,7 @@ import sun.security.x509.X500Name;
 
 /*
  * @test
- * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911
+ * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911 8169688
  * @summary checking response of timestamp
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.timestamp
