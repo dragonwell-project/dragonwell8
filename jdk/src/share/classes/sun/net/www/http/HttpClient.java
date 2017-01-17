@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,6 +102,11 @@ public class HttpClient extends NetworkClient {
        if false, then NTLM connections will not be cached.
        The default value is 'true'. */
     private static final boolean cacheNTLMProp;
+    /* Value of the system property jdk.spnego.cache;
+       if false, then connections authentified using the Negotiate/Kerberos
+       scheme will not be cached.
+       The default value is 'true'. */
+    private static final boolean cacheSPNEGOProp;
 
     volatile boolean keepingAlive = false;     /* this is a keep-alive connection */
     volatile boolean disableKeepAlive;/* keep-alive has been disabled for this
@@ -160,6 +165,9 @@ public class HttpClient extends NetworkClient {
         String cacheNTLM = java.security.AccessController.doPrivileged(
             new sun.security.action.GetPropertyAction("jdk.ntlm.cache"));
 
+        String cacheSPNEGO = java.security.AccessController.doPrivileged(
+            new sun.security.action.GetPropertyAction("jdk.spnego.cache"));
+
         if (keepAlive != null) {
             keepAliveProp = Boolean.valueOf(keepAlive).booleanValue();
         } else {
@@ -176,6 +184,12 @@ public class HttpClient extends NetworkClient {
             cacheNTLMProp = Boolean.parseBoolean(cacheNTLM);
         } else {
             cacheNTLMProp = true;
+        }
+
+        if (cacheSPNEGO != null) {
+            cacheSPNEGOProp = Boolean.parseBoolean(cacheSPNEGO);
+        } else {
+            cacheSPNEGOProp = true;
         }
     }
 
@@ -770,9 +784,16 @@ public class HttpClient extends NetworkClient {
                 // and cacheNTLMProp is false, than we can't keep this connection
                 // alive: we will switch disableKeepAlive to true.
                 boolean canKeepAlive = !disableKeepAlive;
-                if (canKeepAlive && cacheNTLMProp == false && authenticate != null) {
+                if (canKeepAlive && (cacheNTLMProp == false || cacheSPNEGOProp == false)
+                        && authenticate != null) {
                     authenticate = authenticate.toLowerCase(Locale.US);
-                    canKeepAlive = !authenticate.startsWith("ntlm ");
+                    if (cacheNTLMProp == false) {
+                        canKeepAlive &= !authenticate.startsWith("ntlm ");
+                    }
+                    if (cacheSPNEGOProp == false) {
+                        canKeepAlive &= !authenticate.startsWith("negotiate ");
+                        canKeepAlive &= !authenticate.startsWith("kerberos ");
+                    }
                 }
                 disableKeepAlive |= !canKeepAlive;
 
