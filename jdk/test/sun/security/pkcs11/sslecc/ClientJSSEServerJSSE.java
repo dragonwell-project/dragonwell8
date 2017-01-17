@@ -33,7 +33,8 @@
  * @author Andreas Sterbenz
  * @library ..
  * @library ../../../../java/security/testlibrary
- * @run main/othervm ClientJSSEServerJSSE
+ * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1"
+ *      ClientJSSEServerJSSE
  */
 
 import java.security.*;

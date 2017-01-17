@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -599,11 +599,14 @@ public class Level implements java.io.Serializable {
             if (list != null) {
                 for (KnownLevel level : list) {
                     Level other = level.mirroredLevel;
+                    Class<? extends Level> type = level.levelObject.getClass();
                     if (l.value == other.value &&
                            (l.resourceBundleName == other.resourceBundleName ||
                                (l.resourceBundleName != null &&
                                 l.resourceBundleName.equals(other.resourceBundleName)))) {
-                        return level;
+                        if (type == l.getClass()) {
+                            return level;
+                        }
                     }
                 }
             }

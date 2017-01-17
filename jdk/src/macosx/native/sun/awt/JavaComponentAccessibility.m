@@ -194,20 +194,6 @@ static NSObject *sAttributeNamesLOCK = nil;
 
     [super dealloc];
 }
-- (void)finalize
-{
-    [self unregisterFromCocoaAXSystem];
-
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    (*env)->DeleteWeakGlobalRef(env, fAccessible);
-    fAccessible = NULL;
-
-    (*env)->DeleteWeakGlobalRef(env, fComponent);
-    fComponent = NULL;
-
-    [super finalize];
-}
 
 - (void)postValueChanged
 {
@@ -382,8 +368,8 @@ static NSObject *sAttributeNamesLOCK = nil;
     // must init freshly -alloc'd object
     [newChild initWithParent:parent withEnv:env withAccessible:jCAX withIndex:index withView:view withJavaRole:javaRole]; // must init new instance
 
-    // must hard CFRetain() pointer poked into Java object
-    CFRetain(newChild);
+    // must hard retain pointer poked into Java object
+    [newChild retain];
     JNFSetLongField(env, jCAX, jf_ptr, ptr_to_jlong(newChild));
     (*env)->DeleteLocalRef(env, jCAX);
 
@@ -1594,18 +1580,6 @@ static BOOL ObjectEquals(JNIEnv *env, jobject a, jobject b, jobject component);
     }
 
     [super dealloc];
-}
-
-- (void)finalize
-{
-    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-
-    if (fTabGroupAxContext != NULL) {
-        JNFDeleteWeakGlobalRef(env, fTabGroupAxContext);
-        fTabGroupAxContext = NULL;
-    }
-
-    [super finalize];
 }
 
 - (id)accessibilityValueAttribute

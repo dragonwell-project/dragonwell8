@@ -36,8 +36,9 @@ import java.util.Enumeration;
 
 import org.omg.CORBA.ORB;
 
-import javax.naming.Context;
-import javax.naming.ConfigurationException;
+import javax.naming.*;
+
+import com.sun.jndi.cosnaming.CNCtx;
 
 /**
   * Contains utilities for performing CORBA-related tasks:
@@ -201,6 +202,32 @@ public class CorbaUtils {
 
         // Create ORBs using orbProp for a standalone application
         return ORB.init(new String[0], orbProp);
+    }
+
+    /**
+     * Check whether object factory code base is trusted.
+     * Classes may only be loaded from an arbitrary URL code base when
+     * the system property com.sun.jndi.rmi.object.trustURLCodebase
+     * has been set to "true".
+     */
+    public static boolean isObjectFactoryTrusted(Object obj)
+        throws NamingException {
+
+        // Extract Reference, if possible
+        Reference ref = null;
+        if (obj instanceof Reference) {
+            ref = (Reference) obj;
+        } else if (obj instanceof Referenceable) {
+            ref = ((Referenceable)(obj)).getReference();
+        }
+
+        if (ref != null && ref.getFactoryClassLocation() != null &&
+                !CNCtx.trustURLCodebase) {
+            throw new ConfigurationException(
+                "The object factory is untrusted. Set the system property" +
+                " 'com.sun.jndi.cosnaming.object.trustURLCodebase' to 'true'.");
+        }
+        return true;
     }
 
     /**

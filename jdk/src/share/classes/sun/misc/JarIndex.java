@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,11 @@
 package sun.misc;
 
 import java.io.*;
+import java.security.AccessController;
 import java.util.*;
 import java.util.jar.*;
 import java.util.zip.*;
+import sun.security.action.GetPropertyAction;
 
 /**
  * This class is used to maintain mappings from packages, classes
@@ -72,7 +74,8 @@ public class JarIndex {
      * be added to the index. Otherwise, just the directory names are added.
      */
     private static final boolean metaInfFilenames =
-        "true".equals(System.getProperty("sun.misc.JarIndex.metaInfFilenames"));
+        "true".equals(AccessController.doPrivileged(
+             new GetPropertyAction("sun.misc.JarIndex.metaInfFilenames")));
 
     /**
      * Constructs a new, empty jar index.
