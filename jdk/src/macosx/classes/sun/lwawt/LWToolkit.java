@@ -385,8 +385,6 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
         return new LWMouseInfoPeer();
     }
 
-    protected abstract PlatformWindow getPlatformWindowUnderMouse();
-
     @Override
     public final PrintJob getPrintJob(Frame frame, String doctitle,
                                       Properties props) {

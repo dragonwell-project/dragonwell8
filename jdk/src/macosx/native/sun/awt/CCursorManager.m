@@ -118,11 +118,13 @@ Java_sun_lwawt_macosx_CCursorManager_nativeGetCursorPosition
 
 JNF_COCOA_ENTER(env);
 
-    CGEventRef event = CGEventCreate(NULL);
-    CGPoint globalPos = CGEventGetLocation(event);
-    CFRelease(event);
-
-    jpt = NSToJavaPoint(env, globalPos);
+    __block NSPoint pt = NSZeroPoint;
+    
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
+            pt = ConvertNSScreenPoint(env, [NSEvent mouseLocation]);
+    }];
+    
+    jpt = NSToJavaPoint(env, pt);
 
 JNF_COCOA_EXIT(env);
 
