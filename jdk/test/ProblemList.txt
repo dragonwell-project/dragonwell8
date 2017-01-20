@@ -160,10 +160,6 @@ javax/xml/jaxp/transform/jdk8004476/XSLTExFuncTest.java		windows-all
 # Filed 7052625
 com/sun/net/httpserver/bugs/6725892/Test.java                   generic-all
 
-# failing on vista 32/64 on nightly
-# 7102702
-java/net/PortUnreachableException/OneExceptionOnly.java         windows-all
-
 # 7148829
 sun/net/InetAddress/nameservice/simple/CacheTest.java		generic-all
 sun/net/InetAddress/nameservice/simple/DefaultCaching.java	generic-all
@@ -230,10 +226,6 @@ sun/security/pkcs11/ec/ReadCertificates.java                    solaris-all
 sun/security/pkcs11/ec/ReadPKCS12.java                          solaris-all
 sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            solaris-all
 
-# 7041639, Solaris DSA keypair generation bug
-java/security/KeyPairGenerator/SolarisShortDSA.java             solaris-all
-sun/security/tools/keytool/standard.sh                          solaris-all
-
 # 8026393
 sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
 
@@ -274,9 +266,6 @@ tools/launcher/FXLauncherTest.java                              linux-all
 ############################################################################
 
 # jdk_util
-
-# Filed 6772009
-java/util/concurrent/locks/ReentrantLock/CancelledLockLoops.java generic-all
 
 ############################################################################
 

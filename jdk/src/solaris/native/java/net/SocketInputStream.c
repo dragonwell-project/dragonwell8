@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,42 @@ Java_java_net_SocketInputStream_init(JNIEnv *env, jclass cls) {
     IO_fd_fdID = NET_GetFileDescriptorID(env);
 }
 
+#if !defined(__solaris__)
+static int NET_ReadWithTimeout(JNIEnv *env, int fd, char *bufP, int len, long timeout) {
+    int result = 0;
+    long prevtime = NET_GetCurrentTime(), newtime;
+    while (timeout > 0) {
+        result = NET_TimeoutWithCurrentTime(fd, timeout, prevtime);
+        if (result <= 0) {
+            if (result == 0) {
+                JNU_ThrowByName(env, "java/net/SocketTimeoutException", "Read timed out");
+            } else if (result == -1) {
+                if (errno == EBADF) {
+                    JNU_ThrowByName(env, "java/net/SocketException", "Socket closed");
+                } else if (errno == ENOMEM) {
+                    JNU_ThrowOutOfMemoryError(env, "NET_Timeout native heap allocation failed");
+                } else {
+                    JNU_ThrowByNameWithMessageAndLastError
+                            (env, "java/net/SocketException", "select/poll failed");
+                }
+            }
+            return -1;
+        }
+        result = NET_NonBlockingRead(fd, bufP, len);
+        if (result == -1 && ((errno == EAGAIN) || (errno == EWOULDBLOCK))) {
+            newtime = NET_GetCurrentTime();
+            timeout -= newtime - prevtime;
+            if (timeout > 0) {
+                prevtime = newtime;
+            }
+        } else {
+            break;
+        }
+    }
+    return result;
+}
+#endif
+
 /*
  * Class:     java_net_SocketInputStream
  * Method:    socketRead0
@@ -99,6 +135,7 @@ Java_java_net_SocketInputStream_socketRead0(JNIEnv *env, jobject this,
         bufP = BUF;
     }
 
+#if defined(__solaris__)
     if (timeout) {
         nread = NET_Timeout(fd, timeout);
         if (nread <= 0) {
@@ -126,7 +163,19 @@ Java_java_net_SocketInputStream_socketRead0(JNIEnv *env, jobject this,
     }
 
     nread = NET_Read(fd, bufP, len);
-
+#else
+    if (timeout) {
+        nread = NET_ReadWithTimeout(env, fd, bufP, len, timeout);
+        if ((*env)->ExceptionCheck(env)) {
+            if (bufP != BUF) {
+                free(bufP);
+            }
+            return nread;
+        }
+    } else {
+        nread = NET_Read(fd, bufP, len);
+    }
+#endif
     if (nread <= 0) {
         if (nread < 0) {
 
