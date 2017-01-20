@@ -42,6 +42,11 @@ ifeq ($(OPENJDK_TARGET_OS), linux)
 endif
 
 ifneq ($(OPENJDK_TARGET_OS), macosx)
+  # Unfortunately, '-ffp-contract' is only available since gcc 4.6. For ppc64le
+  # that's no problem since ppc64le support only appeared in gcc 4.8.3. But on
+  # ppc64 (big endian) we traditionally compiled with gcc 4.3 which only knows
+  # '-mno-fused-madd'. However, that's still not enough to get the float
+  # computations right - we additionally have to supply '-fno-strict-aliasing'.
   $(eval $(call SetupNativeCompilation,BUILD_LIBFDLIBM, \
       STATIC_LIBRARY := fdlibm, \
       OUTPUT_DIR := $(JDK_OUTPUTDIR)/objs, \
@@ -52,7 +57,7 @@ ifneq ($(OPENJDK_TARGET_OS), macosx)
           -I$(JDK_TOPDIR)/src/share/native/java/lang/fdlibm/include, \
       CFLAGS_windows_debug := -DLOGGING, \
       CFLAGS_aix := -qfloat=nomaf, \
-      CFLAGS_linux_ppc64 := -ffp-contract=off, \
+      CFLAGS_linux_ppc64 := -mno-fused-madd -fno-strict-aliasing, \
       CFLAGS_linux_ppc64le := -ffp-contract=off, \
       ARFLAGS := $(ARFLAGS), \
       OBJECT_DIR := $(JDK_OUTPUTDIR)/objs/libfdlibm, \
