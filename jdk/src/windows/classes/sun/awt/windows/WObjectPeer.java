@@ -34,16 +34,16 @@ abstract class WObjectPeer {
     }
 
     // The Windows handle for the native widget.
-    long pData;
+    volatile long pData;
     // if the native peer has been destroyed
-    boolean destroyed = false;
+    private volatile boolean destroyed;
     // The associated AWT object.
-    Object target;
+    volatile Object target;
 
     private volatile boolean disposed;
 
     // set from JNI if any errors in creating the peer occur
-    protected Error createError = null;
+    volatile Error createError = null;
 
     // used to synchronize the state of this peer
     private final Object stateLock = new Object();
