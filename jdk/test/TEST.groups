@@ -394,6 +394,7 @@ needs_jre = \
   javax/management/mxbean/LeakTest.java \
   javax/management/mxbean/MXBeanTest.java \
   javax/management/mxbean/PropertyNamesTest.java \
+  javax/xml/bind/marshal/8134111/UnmarshalTest.java \
   javax/xml/ws/8043129 \
   jdk/lambda/vm/InterfaceAccessFlagsTest.java \
   sun/misc/URLClassPath/ClassnameCharTest.java \
@@ -566,6 +567,7 @@ needs_compact2 = \
   java/net/HttpCookie/IllegalCookieNameTest.java \
   java/net/HttpURLConnection/UnmodifiableMaps.java \
   java/net/ResponseCache/Test.java \
+  java/net/SetFactoryPermission/SetFactoryPermission.java \
   java/net/URLClassLoader/ClassLoad.java \
   java/net/URLClassLoader/closetest/CloseTest.java \
   java/net/URLPermission/URLTest.java \
