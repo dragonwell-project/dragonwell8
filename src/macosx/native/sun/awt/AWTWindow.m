@@ -326,10 +326,44 @@ AWT_ASSERT_APPKIT_THREAD;
     return [window isKindOfClass: [AWTWindow_Panel class]] || [window isKindOfClass: [AWTWindow_Normal class]];
 }
 
+// Retrieves the list of possible window layers (levels)
++ (NSArray*) getWindowLayers {
+    static NSArray *windowLayers;
+    static dispatch_once_t token;
+ 
+    // Initialize the list of possible window layers
+    dispatch_once(&token, ^{
+        // The layers are ordered from front to back, (i.e. the toppest one is the first)
+        windowLayers = [NSArray arrayWithObjects:
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGPopUpMenuWindowLevelKey)],
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGFloatingWindowLevelKey)],
+                            [NSNumber numberWithInt:CGWindowLevelForKey(kCGNormalWindowLevelKey)],
+                            nil
+                       ];
+        [windowLayers retain];
+    });
+    return windowLayers;
+}
+
+
 // returns id for the topmost window under mouse
 + (NSInteger) getTopmostWindowUnderMouseID {
     NSInteger result = -1;
-    
+
+    NSArray *windowLayers = [AWTWindow getWindowLayers];
+    // Looking for the window under mouse starting from the toppest layer
+    for (NSNumber *layer in windowLayers) {
+        result = [AWTWindow getTopmostWindowUnderMouseIDImpl:[layer integerValue]];
+        if (result != -1) {
+            break;
+        }
+    }
+    return result;
+}
+
++ (NSInteger) getTopmostWindowUnderMouseIDImpl:(NSInteger)windowLayer {
+    NSInteger result = -1;    
+
     NSRect screenRect = [[NSScreen mainScreen] frame];
     NSPoint nsMouseLocation = [NSEvent mouseLocation];
     CGPoint cgMouseLocation = CGPointMake(nsMouseLocation.x, screenRect.size.height - nsMouseLocation.y);
@@ -338,7 +372,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     for (NSDictionary *window in windows) {
         NSInteger layer = [[window objectForKey:(id)kCGWindowLayer] integerValue];
-        if (layer == 0) {
+        if (layer == windowLayer) {
             CGRect rect;
             CGRectMakeWithDictionaryRepresentation((CFDictionaryRef)[window objectForKey:(id)kCGWindowBounds], &rect);
             if (CGRectContainsPoint(rect, cgMouseLocation)) {
@@ -614,6 +648,14 @@ AWT_ASSERT_APPKIT_THREAD;
 AWT_ASSERT_APPKIT_THREAD;
 
     self.isMinimizing = YES;
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_windowWillMiniaturize, jc_CPlatformWindow, "windowWillMiniaturize", "()V");
+        JNFCallVoidMethod(env, platformWindow, jm_windowWillMiniaturize);
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
     // Excplicitly make myself a key window to avoid possible
     // negative visual effects during iconify operation
     [self.nsWindow makeKeyAndOrderFront:self.nsWindow];
@@ -1255,15 +1297,16 @@ JNIEXPORT jobject
 JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeGetTopmostPlatformWindowUnderMouse
 (JNIEnv *env, jclass clazz)
 {
-    jobject topmostWindowUnderMouse = nil;
+    __block jobject topmostWindowUnderMouse = nil;
 
     JNF_COCOA_ENTER(env);
-    AWT_ASSERT_APPKIT_THREAD;
 
-    AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
-    if (awtWindow != nil) {
-        topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
-    }
+    [ThreadUtilities performOnMainThreadWaiting:YES block:^{
+        AWTWindow *awtWindow = [AWTWindow getTopmostWindowUnderMouse];
+        if (awtWindow != nil) {
+            topmostWindowUnderMouse = [awtWindow.javaPlatformWindow jObject];
+        }
+    }];
 
     JNF_COCOA_EXIT(env);
 
