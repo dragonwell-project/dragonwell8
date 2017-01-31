@@ -1155,7 +1155,7 @@ Node *LoadNode::Identity( PhaseTransform *phase ) {
     for (DUIterator_Fast imax, i = region->fast_outs(imax); i < imax; i++) {
       Node* phi = region->fast_out(i);
       if (phi->is_Phi() && phi != mem &&
-          phi->as_Phi()->is_same_inst_field(this_type, (int)mem->_idx, this_iid, this_index, this_offset)) {
+          phi->as_Phi()->is_same_inst_field(this_type, this_iid, this_index, this_offset)) {
         return phi;
       }
     }
@@ -1400,7 +1400,7 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
     this_iid = base->_idx;
   }
   PhaseIterGVN* igvn = phase->is_IterGVN();
-  Node* phi = new (C) PhiNode(region, this_type, NULL, mem->_idx, this_iid, this_index, this_offset);
+  Node* phi = new (C) PhiNode(region, this_type, NULL, this_iid, this_index, this_offset);
   for (uint i = 1; i < region->req(); i++) {
     Node* x;
     Node* the_clone = NULL;
