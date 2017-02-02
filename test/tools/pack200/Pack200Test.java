@@ -31,6 +31,7 @@ import java.util.jar.*;
  /*
   * @test
   * @bug 6521334 6712743 8007902
+  * @requires (sun.arch.data.model == "64" & os.maxMemory >= 4g)
   * @summary check for memory leaks, test general packer/unpacker functionality\
   *          using native and java unpackers
   * @compile -XDignore.symbol.file Utils.java Pack200Test.java
