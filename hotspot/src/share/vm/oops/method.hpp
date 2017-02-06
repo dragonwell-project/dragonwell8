@@ -445,7 +445,7 @@ class Method : public Metadata {
   address verified_code_entry();
   bool check_code() const;      // Not inline to avoid circular ref
   nmethod* volatile code() const                 { assert( check_code(), "" ); return (nmethod *)OrderAccess::load_ptr_acquire(&_code); }
-  void clear_code();            // Clear out any compiled code
+  void clear_code(bool acquire_lock = true);            // Clear out any compiled code
   static void set_code(methodHandle mh, nmethod* code);
   void set_adapter_entry(AdapterHandlerEntry* adapter) {  _adapter = adapter; }
   address get_i2c_entry();
