@@ -60,7 +60,7 @@ import sun.security.x509.X500Name;
 
 /*
  * @test
- * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911 8169688
+ * @bug 6543842 6543440 6939248 8009636 8024302 8163304 8169911 8169688 8171121
  * @summary checking response of timestamp
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.timestamp
@@ -345,8 +345,8 @@ public class TimestampCheck {
                         .shouldHaveExitValue(0);
                 checkTimestamp("tsaalg.jar", defaultPolicyId, "SHA-1");
 
-                sign("weak", "-digestalg", "MD2",
-                                "-sigalg", "MD2withRSA", "-tsadigestalg", "MD2")
+                sign("weak", "-digestalg", "MD5",
+                                "-sigalg", "MD5withRSA", "-tsadigestalg", "MD5")
                         .shouldHaveExitValue(0);
                 checkWeak("weak.jar");
 
