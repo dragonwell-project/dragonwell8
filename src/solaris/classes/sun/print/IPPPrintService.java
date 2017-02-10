@@ -59,7 +59,8 @@ import java.nio.charset.Charset;
 
 import java.util.Iterator;
 import java.util.HashSet;
-
+import java.util.Map;
+import java.util.Set;
 
 public class IPPPrintService implements PrintService, SunPrinterJobService {
 
@@ -1698,6 +1699,20 @@ public class IPPPrintService implements PrintService, SunPrinterJobService {
 
                     if (responseMap != null && responseMap.length > 0) {
                         getAttMap = responseMap[0];
+                        // If there is extra hashmap created due to duplicate
+                        // key/attribute present in IPPresponse, then use that
+                        // map too by appending to getAttMap after removing the
+                        // duplicate key/value
+                        if (responseMap.length > 1) {
+                            for (int i = 1; i < responseMap.length; i++) {
+                                Set<Map.Entry<String, AttributeClass>> entries = responseMap[i].entrySet();
+                                for (Map.Entry<String, AttributeClass> entry : entries) {
+                                    if (!getAttMap.containsKey(entry.getValue())) {
+                                        getAttMap.put(entry.getKey(), entry.getValue());
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else {
                     debug_println(debugPrefix+"opGetAttributes - null input stream");
