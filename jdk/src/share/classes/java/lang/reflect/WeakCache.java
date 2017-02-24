@@ -239,11 +239,11 @@ final class WeakCache<K, P, V> {
             // wrap value with CacheValue (WeakReference)
             CacheValue<V> cacheValue = new CacheValue<>(value);
 
+            // put into reverseMap
+            reverseMap.put(cacheValue, Boolean.TRUE);
+
             // try replacing us with CacheValue (this should always succeed)
-            if (valuesMap.replace(subKey, this, cacheValue)) {
-                // put also in reverseMap
-                reverseMap.put(cacheValue, Boolean.TRUE);
-            } else {
+            if (!valuesMap.replace(subKey, this, cacheValue)) {
                 throw new AssertionError("Should not reach here");
             }
 
