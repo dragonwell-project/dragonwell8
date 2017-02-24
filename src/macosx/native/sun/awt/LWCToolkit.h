@@ -41,6 +41,7 @@ extern jint* gButtonDownMasks;
 + (long) getEventCount;
 + (void) eventCountPlusPlus;
 + (jint) scrollStateWithEvent: (NSEvent*) event;
++ (BOOL) hasPreciseScrollingDeltas: (NSEvent*) event;
 @end
 
 /*
