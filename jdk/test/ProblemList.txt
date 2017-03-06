@@ -316,6 +316,8 @@ sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
 
 security/infra/java/security/cert/CertPathValidator/certification/ActalisCA.java  8224768 generic-all
 
+sun/security/mscapi/SignedObjectChain.java                      8176183 windows-all
+
 ############################################################################
 
 # jdk_sound
