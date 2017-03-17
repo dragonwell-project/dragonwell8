@@ -781,7 +781,9 @@ public abstract class RasterPrinterJob extends PrinterJob {
             PrintService pservice = getPrintService();
             PageFormat pageFrmAttrib = attributeToPageFormat(pservice,
                                                              attributes);
+            setParentWindowID(attributes);
             PageFormat page = pageDialog(pageFrmAttrib);
+            clearParentWindowID();
 
             // If user cancels the dialog, pageDialog() will return the original
             // page object and as per spec, we should return null in that case.
@@ -814,6 +816,10 @@ public abstract class RasterPrinterJob extends PrinterJob {
 
         if (service == null) {
             return null;
+        }
+
+        if (onTop != null) {
+            attributes.add(onTop);
         }
 
         ServiceDialog pageDialog = new ServiceDialog(gc, x, y, service,
@@ -880,7 +886,9 @@ public abstract class RasterPrinterJob extends PrinterJob {
 
             }
 
+            setParentWindowID(attributes);
             boolean ret = printDialog();
+            clearParentWindowID();
             this.attributes = attributes;
             return ret;
 
@@ -2436,6 +2444,28 @@ public abstract class RasterPrinterJob extends PrinterJob {
             return s; // no need to make a new String.
         } else {
             return new String(out_chars, 0, pos);
+        }
+    }
+
+    private DialogOnTop onTop = null;
+
+    private long parentWindowID = 0L;
+
+    /* Called from native code */
+    private long getParentWindowID() {
+        return parentWindowID;
+    }
+
+    private void clearParentWindowID() {
+        parentWindowID = 0L;
+        onTop = null;
+    }
+
+    private void setParentWindowID(PrintRequestAttributeSet attrs) {
+        parentWindowID = 0L;
+        onTop = (DialogOnTop)attrs.get(DialogOnTop.class);
+        if (onTop != null) {
+            parentWindowID = onTop.getID();
         }
     }
 }
