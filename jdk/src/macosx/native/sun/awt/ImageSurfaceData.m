@@ -34,9 +34,6 @@
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 #import "BufImgSurfaceData.h"
-#import "ThreadUtilities.h"
-
-
 
 //#define DEBUG 1
 #if defined DEBUG
@@ -195,9 +192,8 @@ IMAGE_SURFACE_INLINE void customPixelsFromJava(JNIEnv *env, ImageSDOps *isdo)
 PRINT("    customPixelsFromJava")
 
     SurfaceDataOps *sdo = (SurfaceDataOps*)isdo;
-    JNFCallVoidMethod([ThreadUtilities getJNIEnv], sdo->sdObject, jm_syncFromCustom); // AWT_THREADING Safe (known object)
+    JNFCallVoidMethod(env, sdo->sdObject, jm_syncFromCustom); // AWT_THREADING Safe (known object)
 }
-
 
 IMAGE_SURFACE_INLINE void copyBits(jint w, jint h, jint javaPixelsBytesPerRow, Pixel8bit *pixelsSrc, jint dstPixelsBytesPerRow, Pixel8bit *pixelsDst)
 {
@@ -427,7 +423,7 @@ IMAGE_SURFACE_INLINE void customPixelsToJava(JNIEnv *env, ImageSDOps *isdo)
 PRINT("    customPixelsToJava")
 
     SurfaceDataOps *sdo = (SurfaceDataOps*)isdo;
-    JNFCallVoidMethod([ThreadUtilities getJNIEnv], sdo->sdObject, jm_syncToCustom); // AWT_THREADING Safe (known object)
+    JNFCallVoidMethod(env, sdo->sdObject, jm_syncToCustom); // AWT_THREADING Safe (known object)
 }
 
 IMAGE_SURFACE_INLINE void removeAlphaPre_32bit(jint w, jint h, jint javaPixelsBytesPerRow, jint javaPixelBytes, Pixel32bit *pixelsSrc)
@@ -995,9 +991,9 @@ static void imageDataProvider_UnholdJavaPixels(void *info, const void *data, siz
 {
 PRINT("imageDataProvider_UnholdJavaPixels")
 
-    ImageSDOps* isdo = (ImageSDOps*)info;
-    unholdJavaPixels([ThreadUtilities getJNIEnv], isdo);
+    // Currently do nothing
 }
+
 static void imageDataProvider_FreeTempPixels(void *info, const void *data, size_t size)
 {
 PRINT("imageDataProvider_FreeTempPixels")

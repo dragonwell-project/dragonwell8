@@ -1482,6 +1482,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     /**
      * Invokes {@code shutdown} when this executor is no longer
      * referenced and it has no threads.
+     *
+     * <p>This method is invoked with privileges that are restricted by
+     * the security context of the caller that invokes the constructor.
      */
     protected void finalize() {
         SecurityManager sm = System.getSecurityManager();
