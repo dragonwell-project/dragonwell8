@@ -240,6 +240,9 @@ sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
 # 8158827
 sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windows-all
 
+# 8160071 ClientJSSEServerJSSE.java test failure
+sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java		linux-all
+
 ############################################################################
 
 # jdk_sound
