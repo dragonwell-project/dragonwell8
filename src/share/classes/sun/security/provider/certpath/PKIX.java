@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@ package sun.security.provider.certpath;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.PublicKey;
+import java.security.Timestamp;
 import java.security.cert.*;
 import java.security.interfaces.DSAPublicKey;
 import java.util.*;
@@ -85,6 +86,8 @@ class PKIX {
         private CertSelector constraints;
         private Set<TrustAnchor> anchors;
         private List<X509Certificate> certs;
+        private Timestamp timestamp;
+        private String variant;
 
         ValidatorParams(CertPath cp, PKIXParameters params)
             throws InvalidAlgorithmParameterException
@@ -100,6 +103,11 @@ class PKIX {
         ValidatorParams(PKIXParameters params)
             throws InvalidAlgorithmParameterException
         {
+            if (params instanceof PKIXExtendedParameters) {
+                timestamp = ((PKIXExtendedParameters) params).getTimestamp();
+                variant = ((PKIXExtendedParameters) params).getVariant();
+            }
+
             this.anchors = params.getTrustAnchors();
             // Make sure that none of the trust anchors include name constraints
             // (not supported).
@@ -188,6 +196,14 @@ class PKIX {
         // in order to clone CertPathCheckers before building a new chain
         PKIXParameters getPKIXParameters() {
             return params;
+        }
+
+        Timestamp timestamp() {
+            return timestamp;
+        }
+
+        String variant() {
+            return variant;
         }
     }
 
