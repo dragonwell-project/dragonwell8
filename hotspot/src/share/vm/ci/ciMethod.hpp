@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -331,6 +331,7 @@ class ciMethod : public ciMetadata {
   bool can_be_statically_bound() const           { return _can_be_statically_bound; }
   bool is_boxing_method() const;
   bool is_unboxing_method() const;
+  bool is_object_initializer() const;
 
   // Replay data methods
   void dump_name_as_ascii(outputStream* st);
