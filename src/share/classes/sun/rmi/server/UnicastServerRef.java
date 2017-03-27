@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import sun.misc.ObjectInputFilter;
 import sun.rmi.runtime.Log;
 import sun.rmi.transport.LiveRef;
+import sun.rmi.transport.StreamRemoteCall;
 import sun.rmi.transport.Target;
 import sun.rmi.transport.tcp.TCPTransport;
 import sun.security.action.GetBooleanAction;
@@ -334,10 +335,9 @@ public class UnicastServerRef extends UnicastRef
                     params[i] = unmarshalValue(types[i], in);
                 }
 
-            } catch (java.io.IOException e) {
-                throw new UnmarshalException(
-                    "error unmarshalling arguments", e);
-            } catch (ClassNotFoundException e) {
+            } catch (java.io.IOException | ClassNotFoundException e) {
+                // disable saving any refs in the inputStream for GC
+                ((StreamRemoteCall) call).discardPendingRefs();
                 throw new UnmarshalException(
                     "error unmarshalling arguments", e);
             } finally {
