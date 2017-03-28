@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,38 +19,34 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef _ELFMACROS_H_
-#define _ELFMACROS_H_
+/**
+ * @test
+ * @bug 8175887
+ * @summary C1 doesn't respect the JMM with volatile field loads
+ *
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:TieredStopAtLevel=1 VolatileGuardTest
+ */
+public class VolatileGuardTest {
+    volatile static private int a;
+    static private int b;
 
-#if defined(_LP64)
-#define ELF_EHDR        Elf64_Ehdr
-#define ELF_SHDR        Elf64_Shdr
-#define ELF_PHDR        Elf64_Phdr
-#define ELF_SYM         Elf64_Sym
-#define ELF_NHDR        Elf64_Nhdr
-#define ELF_DYN         Elf64_Dyn
-#define ELF_ADDR        Elf64_Addr
-#define ELF_AUXV        Elf64_auxv_t
+    static void test() {
+        int tt = b; // makes the JVM CSE the value of b
 
-#define ELF_ST_TYPE     ELF64_ST_TYPE
+        while (a == 0) {} // burn
+        if (b == 0) {
+            System.err.println("wrong value of b");
+            System.exit(1); // fail hard to report the error
+        }
+    }
 
-#else
-
-#define ELF_EHDR        Elf32_Ehdr
-#define ELF_SHDR        Elf32_Shdr
-#define ELF_PHDR        Elf32_Phdr
-#define ELF_SYM         Elf32_Sym
-#define ELF_NHDR        Elf32_Nhdr
-#define ELF_DYN         Elf32_Dyn
-#define ELF_ADDR        Elf32_Addr
-#define ELF_AUXV        Elf32_auxv_t
-
-#define ELF_ST_TYPE     ELF32_ST_TYPE
-
-#endif
-
-
-#endif /* _ELFMACROS_H_ */
+    public static void main(String [] args) throws Exception {
+        for (int i = 0; i < 10; i++) {
+            new Thread(VolatileGuardTest::test).start();
+        }
+        b = 1;
+        a = 1;
+    }
+}

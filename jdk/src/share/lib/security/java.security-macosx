@@ -425,9 +425,7 @@ krb5.kdc.bad.policy = tryLast
 # describes the mechanism for disabling algorithms based on algorithm name
 # and/or key length.  This includes algorithms used in certificates, as well
 # as revocation information such as CRLs and signed OCSP Responses.
-#
-# The syntax of the disabled algorithm string is described as this Java
-# BNF-style:
+# The syntax of the disabled algorithm string is described as follows:
 #   DisabledAlgorithms:
 #       " DisabledAlgorithm { , DisabledAlgorithm } "
 #
@@ -438,25 +436,26 @@ krb5.kdc.bad.policy = tryLast
 #       (see below)
 #
 #   Constraint:
-#       KeySizeConstraint, CertConstraint
+#       KeySizeConstraint | CAConstraint | DenyAfterConstraint |
+#       UsageConstraint
 #
 #   KeySizeConstraint:
-#       keySize Operator DecimalInteger
+#       keySize Operator KeyLength
 #
 #   Operator:
 #       <= | < | == | != | >= | >
 #
-#   DecimalInteger:
-#       DecimalDigits
+#   KeyLength:
+#       Integer value of the algorithm's key length in bits
 #
-#   DecimalDigits:
-#       DecimalDigit {DecimalDigit}
-#
-#   DecimalDigit: one of
-#       1 2 3 4 5 6 7 8 9 0
-#
-#   CertConstraint
+#   CAConstraint:
 #       jdkCA
+#
+#   DenyAfterConstraint:
+#       denyAfter YYYY-MM-DD
+#
+#   UsageConstraint:
+#       usage [TLSServer] [TLSClient] [SignedJAR]
 #
 # The "AlgorithmName" is the standard algorithm name of the disabled
 # algorithm. See "Java Cryptography Architecture Standard Algorithm Name
@@ -470,27 +469,55 @@ krb5.kdc.bad.policy = tryLast
 # that rely on DSA, such as NONEwithDSA, SHA1withDSA.  However, the assertion
 # will not disable algorithms related to "ECDSA".
 #
-# A "Constraint" provides further guidance for the algorithm being specified.
-# The "KeySizeConstraint" requires a key of a valid size range if the
-# "AlgorithmName" is of a key algorithm.  The "DecimalInteger" indicates the
-# key size specified in number of bits.  For example, "RSA keySize <= 1024"
-# indicates that any RSA key with key size less than or equal to 1024 bits
-# should be disabled, and "RSA keySize < 1024, RSA keySize > 2048" indicates
-# that any RSA key with key size less than 1024 or greater than 2048 should
-# be disabled. Note that the "KeySizeConstraint" only makes sense to key
-# algorithms.
+# A "Constraint" defines restrictions on the keys and/or certificates for
+# a specified AlgorithmName:
 #
-# "CertConstraint" specifies additional constraints for
-# certificates that contain algorithms that are restricted:
+#   KeySizeConstraint:
+#     keySize Operator KeyLength
+#       The constraint requires a key of a valid size range if the
+#       "AlgorithmName" is of a key algorithm.  The "KeyLength" indicates
+#       the key size specified in number of bits.  For example,
+#       "RSA keySize <= 1024" indicates that any RSA key with key size less
+#       than or equal to 1024 bits should be disabled, and
+#       "RSA keySize < 1024, RSA keySize > 2048" indicates that any RSA key
+#       with key size less than 1024 or greater than 2048 should be disabled.
+#       This constraint is only used on algorithms that have a key size.
 #
-#   "jdkCA" prohibits the specified algorithm only if the algorithm is used
-#     in a certificate chain that terminates at a marked trust anchor in the
-#     lib/security/cacerts keystore.  All other chains are not affected.
-#     If the jdkCA constraint is not set, then all chains using the
-#     specified algorithm are restricted. jdkCA may only be used once in
-#     a DisabledAlgorithm expression.
-#     Example:  To apply this constraint to SHA-1 certificates, include
-#     the following:  "SHA1 jdkCA"
+#   CAConstraint:
+#     jdkCA
+#       This constraint prohibits the specified algorithm only if the
+#       algorithm is used in a certificate chain that terminates at a marked
+#       trust anchor in the lib/security/cacerts keystore.  If the jdkCA
+#       constraint is not set, then all chains using the specified algorithm
+#       are restricted.  jdkCA may only be used once in a DisabledAlgorithm
+#       expression.
+#       Example:  To apply this constraint to SHA-1 certificates, include
+#       the following:  "SHA1 jdkCA"
+#
+#   DenyAfterConstraint:
+#     denyAfter YYYY-MM-DD
+#       This constraint prohibits a certificate with the specified algorithm
+#       from being used after the date regardless of the certificate's
+#       validity.  JAR files that are signed and timestamped before the
+#       constraint date with certificates containing the disabled algorithm
+#       will not be restricted.  The date is processed in the UTC timezone.
+#       This constraint can only be used once in a DisabledAlgorithm
+#       expression.
+#       Example:  To deny usage of RSA 2048 bit certificates after Feb 3 2020,
+#       use the following:  "RSA keySize == 2048 & denyAfter 2020-02-03"
+#
+#   UsageConstraint:
+#     usage [TLSServer] [TLSClient] [SignedJAR]
+#       This constraint prohibits the specified algorithm for
+#       a specified usage.  This should be used when disabling an algorithm
+#       for all usages is not practical. 'TLSServer' restricts the algorithm
+#       in TLS server certificate chains when server authentication is
+#       performed. 'TLSClient' restricts the algorithm in TLS client
+#       certificate chains when client authentication is performed.
+#       'SignedJAR' constrains use of certificates in signed jar files.
+#       The usage type follows the keyword and more than one usage type can
+#       be specified with a whitespace delimiter.
+#       Example:  "SHA1 usage TLSServer TLSClient"
 #
 # When an algorithm must satisfy more than one constraint, it must be
 # delimited by an ampersand '&'.  For example, to restrict certificates in a
@@ -503,6 +530,9 @@ krb5.kdc.bad.policy = tryLast
 # before larger keysize constraints of the same algorithm.  For example:
 # "RSA keySize < 1024 & jdkCA, RSA keySize < 2048".
 #
+# Note: The algorithm restrictions do not apply to trust anchors or
+# self-signed certificates.
+#
 # Note: This property is currently used by Oracle's PKIX implementation. It
 # is not guaranteed to be examined and used by other implementations.
 #
@@ -510,9 +540,10 @@ krb5.kdc.bad.policy = tryLast
 #   jdk.certpath.disabledAlgorithms=MD2, DSA, RSA keySize < 2048
 #
 #
-jdk.certpath.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
-    DSA keySize < 1024, EC keySize < 224
+jdk.certpath.disabledAlgorithms=MD2, MD5, SHA1 jdkCA & usage TLSServer, \
+    RSA keySize < 1024, DSA keySize < 1024, EC keySize < 224
 
+#
 # Algorithm restrictions for signed JAR files
 #
 # In some environments, certain algorithms or key lengths may be undesirable
@@ -527,16 +558,19 @@ jdk.certpath.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
 #       " DisabledAlgorithm { , DisabledAlgorithm } "
 #
 #   DisabledAlgorithm:
-#       AlgorithmName [Constraint]
+#       AlgorithmName [Constraint] { '&' Constraint }
 #
 #   AlgorithmName:
 #       (see below)
 #
 #   Constraint:
-#       KeySizeConstraint
+#       KeySizeConstraint | DenyAfterConstraint
 #
 #   KeySizeConstraint:
 #       keySize Operator KeyLength
+#
+#   DenyAfterConstraint:
+#       denyAfter YYYY-MM-DD
 #
 #   Operator:
 #       <= | < | == | != | >= | >
@@ -548,8 +582,11 @@ jdk.certpath.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
 # implementation. It is not guaranteed to be examined and used by other
 # implementations.
 #
+# See "jdk.certpath.disabledAlgorithms" for syntax descriptions.
+#
 jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
 
+#
 # Algorithm restrictions for Secure Socket Layer/Transport Layer Security
 # (SSL/TLS) processing
 #
@@ -570,6 +607,9 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
 #
 # See the specification of "jdk.certpath.disabledAlgorithms" for the
 # syntax of the disabled algorithm string.
+#
+# Note: The algorithm restrictions do not apply to trust anchors or
+# self-signed certificates.
 #
 # Note: This property is currently used by the JDK Reference implementation.
 # It is not guaranteed to be examined and used by other implementations.
