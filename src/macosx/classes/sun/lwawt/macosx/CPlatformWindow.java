@@ -211,6 +211,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     private boolean isFullScreenAnimationOn;
 
     private volatile boolean isIconifyAnimationActive;
+    private volatile boolean isZoomed;
 
     private Window target;
     private LWWindowPeer peer;
@@ -480,7 +481,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     private boolean isMaximized() {
         return undecorated ? this.normalBounds != null
-                : CWrapper.NSWindow.isZoomed(getNSWindowPtr());
+                : isZoomed;
     }
 
     private void maximize() {
@@ -936,6 +937,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
     protected void deliverMoveResizeEvent(int x, int y, int width, int height,
                                         boolean byUser) {
+        isZoomed = CWrapper.NSWindow.isZoomed(getNSWindowPtr());
         checkZoom();
 
         final Rectangle oldB = nativeBounds;
