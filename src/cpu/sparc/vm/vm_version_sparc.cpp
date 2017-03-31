@@ -236,7 +236,7 @@ void VM_Version::initialize() {
   assert((OptoLoopAlignment % relocInfo::addr_unit()) == 0, "alignment is not a multiple of NOP size");
 
   char buf[512];
-  jio_snprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  jio_snprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
                (has_v9() ? ", v9" : (has_v8() ? ", v8" : "")),
                (has_hardware_popc() ? ", popc" : ""),
                (has_vis1() ? ", vis1" : ""),
@@ -249,6 +249,7 @@ void VM_Version::initialize() {
                (has_sha256() ? ", sha256" : ""),
                (has_sha512() ? ", sha512" : ""),
                (is_ultra3() ? ", ultra3" : ""),
+               (has_sparc5_instr() ? ", sparc5" : ""),
                (is_sun4v() ? ", sun4v" : ""),
                (is_niagara_plus() ? ", niagara_plus" : (is_niagara() ? ", niagara" : "")),
                (is_sparc64() ? ", sparc64" : ""),
@@ -479,16 +480,13 @@ int VM_Version::parse_features(const char* implementation) {
     if (strstr(impl, "SPARC-T1") != NULL) {
       features |= T1_model_m;
     }
+  } else if (strstr(impl, "SUN4V-CPU") != NULL) {
+    // Generic or migration class LDOM
+    features |= T_family_m;
   } else {
-    if (strstr(impl, "SPARC") == NULL) {
 #ifndef PRODUCT
-      // kstat on Solaris 8 virtual machines (branded zones)
-      // returns "(unsupported)" implementation. Solaris 8 is not
-      // supported anymore, but include this check to be on the
-      // safe side.
-      warning("Can't parse CPU implementation = '%s', assume generic SPARC", impl);
+    warning("Failed to parse CPU implementation = '%s'", impl);
 #endif
-    }
   }
   os::free((void*)impl);
   return features;
