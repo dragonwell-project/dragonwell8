@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,7 +142,7 @@ public class Resources_zh_CN extends java.util.ListResourceBundle {
         {"jar.treated.unsigned.see.weak",
                 "\u7531\u4E8E\u8BE5 jar \u662F\u4F7F\u7528\u76EE\u524D\u5DF2\u7981\u7528\u7684\u5F31\u7B97\u6CD5\u7B7E\u540D\u7684, \u56E0\u6B64\u8BE5 jar \u5C06\u88AB\u89C6\u4E3A\u672A\u7B7E\u540D\u3002\n\n\u6709\u5173\u8BE6\u7EC6\u4FE1\u606F, \u8BF7\u4F7F\u7528 -verbose \u9009\u9879\u91CD\u65B0\u8FD0\u884C jarsigner\u3002"},
         {"jar.treated.unsigned.see.weak.verbose",
-                "\u8B66\u544A: \u7531\u4E8E\u8BE5 jar \u662F\u4F7F\u7528\u76EE\u524D\u5DF2\u7531\u5B89\u5168\u5C5E\u6027\u7981\u7528\u7684\u5F31\u7B97\u6CD5\u7B7E\u540D\u7684, \u56E0\u6B64\u8BE5 jar \u5C06\u88AB\u89C6\u4E3A\u672A\u7B7E\u540D:"},
+                "\u8B66\u544A: \u8BE5 jar \u5C06\u88AB\u89C6\u4E3A\u672A\u7B7E\u540D, \u56E0\u4E3A\u5B83\u662F\u7531\u76EE\u524D\u5B89\u5168\u5C5E\u6027\u7981\u7528\u7684\u5F31\u7B97\u6CD5\u7B7E\u540D\u7684:"},
         {"jar.signed.", "jar \u5DF2\u7B7E\u540D\u3002"},
         {"jar.signed.with.signer.errors.", "jar \u5DF2\u7B7E\u540D, \u4F46\u51FA\u73B0\u7B7E\u540D\u8005\u9519\u8BEF\u3002"},
         {"jar.verified.", "jar \u5DF2\u9A8C\u8BC1\u3002"},
