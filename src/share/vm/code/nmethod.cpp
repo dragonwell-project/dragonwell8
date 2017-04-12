@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -254,7 +254,8 @@ bool ExceptionCache::match_exception_with_space(Handle exception) {
 
 
 address ExceptionCache::test_address(address addr) {
-  for (int i=0; i<count(); i++) {
+  int limit = count();
+  for (int i = 0; i < limit; i++) {
     if (pc_at(i) == addr) {
       return handler_at(i);
     }
@@ -265,9 +266,11 @@ address ExceptionCache::test_address(address addr) {
 
 bool ExceptionCache::add_address_and_handler(address addr, address handler) {
   if (test_address(addr) == handler) return true;
-  if (count() < cache_size) {
-    set_pc_at(count(),addr);
-    set_handler_at(count(), handler);
+
+  int index = count();
+  if (index < cache_size) {
+    set_pc_at(index, addr);
+    set_handler_at(index, handler);
     increment_count();
     return true;
   }
@@ -380,10 +383,11 @@ void nmethod::add_exception_cache_entry(ExceptionCache* new_entry) {
   assert(new_entry != NULL,"Must be non null");
   assert(new_entry->next() == NULL, "Must be null");
 
-  if (exception_cache() != NULL) {
-    new_entry->set_next(exception_cache());
+  ExceptionCache *ec = exception_cache();
+  if (ec != NULL) {
+    new_entry->set_next(ec);
   }
-  set_exception_cache(new_entry);
+  release_set_exception_cache(new_entry);
 }
 
 void nmethod::clean_exception_cache(BoolObjectClosure* is_alive) {
