@@ -38,11 +38,10 @@ import javax.net.ssl.SSLSocketFactory;
 
 /**
  * @test
- * @bug 8076221
+ * @bug 8076221 8157035
  * @summary Check if weak cipher suites are disabled
  * @run main/othervm DisabledAlgorithms default
- * @run main/othervm -Djdk.tls.namedGroups="secp256r1,secp192r1"
- *     DisabledAlgorithms empty
+ * @run main/othervm DisabledAlgorithms empty
  */
 public class DisabledAlgorithms {
 
@@ -97,11 +96,6 @@ public class DisabledAlgorithms {
                 Security.setProperty("jdk.tls.disabledAlgorithms", "");
                 System.out.println("jdk.tls.disabledAlgorithms = "
                         + Security.getProperty("jdk.tls.disabledAlgorithms"));
-
-                // some of the certs in our test are weak; disable
-                Security.setProperty("jdk.certpath.disabledAlgorithms", "");
-                System.out.println("jdk.certpath.disabledAlgorithms = "
-                        + Security.getProperty("jdk.cerpath.disabledAlgorithms"));
 
                 // check if RC4 cipher suites can be used
                 // if jdk.tls.disabledAlgorithms is empty

@@ -26,8 +26,7 @@
  * @bug 4496785
  * @summary Verify that all ciphersuites work in all configurations
  * @author Andreas Sterbenz
- * @run main/othervm/timeout=300 -Djdk.tls.namedGroups="secp256r1,secp192r1"
- *      ClientJSSEServerJSSE
+ * @run main/othervm/timeout=300 ClientJSSEServerJSSE
  */
 
 import java.security.Security;
