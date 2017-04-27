@@ -87,6 +87,8 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainDatagramSocketImpl_initIDs
     IO_fd_fdID = NET_GetFileDescriptorID(env);
     CHECK_NULL(IO_fd_fdID);
     JNU_CHECK_EXCEPTION(env);
+
+    initInetAddressIDs(env);
 }
 
 /*
