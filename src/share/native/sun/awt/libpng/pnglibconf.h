@@ -27,16 +27,15 @@
 /* libpng STANDARD API DEFINITION */
 
 /* pnglibconf.h - library build configuration */
-
 /* This file is available under and governed by the GNU General Public
  * License version 2 only, as published by the Free Software Foundation.
  * However, the following notice accompanied the original version of this
  * file and, per its terms, should not be removed:
  */
 
-/* libpng version 1.6.20, December 3, 2015 */
+/* libpng version 1.6.28, January 5, 2017 */
 
-/* Copyright (c) 1998-2014 Glenn Randers-Pehrson */
+/* Copyright (c) 1998-2016 Glenn Randers-Pehrson */
 
 /* This code is released under the libpng license. */
 /* For conditions of distribution and use, see the disclaimer */
@@ -84,7 +83,7 @@
 #define PNG_READ_BGR_SUPPORTED
 #define PNG_READ_CHECK_FOR_INVALID_INDEX_SUPPORTED
 #define PNG_READ_COMPOSITE_NODIV_SUPPORTED
-#define PNG_READ_COMPRESSED_TEXT_SUPPORTED
+/*#undef PNG_READ_COMPRESSED_TEXT_SUPPORTED*/
 #define PNG_READ_EXPAND_16_SUPPORTED
 #define PNG_READ_EXPAND_SUPPORTED
 #define PNG_READ_FILLER_SUPPORTED
@@ -116,8 +115,8 @@
 #define PNG_READ_cHRM_SUPPORTED
 #define PNG_READ_gAMA_SUPPORTED
 #define PNG_READ_hIST_SUPPORTED
-#define PNG_READ_iCCP_SUPPORTED
-#define PNG_READ_iTXt_SUPPORTED
+/*#undef PNG_READ_iCCP_SUPPORTED*/
+/*#undef PNG_READ_iTXt_SUPPORTED*/
 #define PNG_READ_oFFs_SUPPORTED
 #define PNG_READ_pCAL_SUPPORTED
 #define PNG_READ_pHYs_SUPPORTED
@@ -128,7 +127,7 @@
 #define PNG_READ_tEXt_SUPPORTED
 #define PNG_READ_tIME_SUPPORTED
 #define PNG_READ_tRNS_SUPPORTED
-#define PNG_READ_zTXt_SUPPORTED
+/*#undef PNG_READ_zTXt_SUPPORTED*/
 /*#undef PNG_SAVE_INT_32_SUPPORTED*/
 #define PNG_SAVE_UNKNOWN_CHUNKS_SUPPORTED
 #define PNG_SEQUENTIAL_READ_SUPPORTED
@@ -141,6 +140,7 @@
 #define PNG_SIMPLIFIED_READ_SUPPORTED
 /*#undef PNG_SIMPLIFIED_WRITE_AFIRST_SUPPORTED*/
 /*#undef PNG_SIMPLIFIED_WRITE_BGR_SUPPORTED*/
+/*#undef PNG_SIMPLIFIED_WRITE_STDIO_SUPPORTED*/
 /*#undef PNG_SIMPLIFIED_WRITE_SUPPORTED*/
 #define PNG_STDIO_SUPPORTED
 #define PNG_STORE_UNKNOWN_CHUNKS_SUPPORTED
@@ -231,10 +231,10 @@
 #define PNG_QUANTIZE_RED_BITS 5
 #define PNG_TEXT_Z_DEFAULT_COMPRESSION (-1)
 #define PNG_TEXT_Z_DEFAULT_STRATEGY 0
-#define PNG_USER_CHUNK_CACHE_MAX 0
-#define PNG_USER_CHUNK_MALLOC_MAX 0
-#define PNG_USER_HEIGHT_MAX 1000000
-#define PNG_USER_WIDTH_MAX 1000000
+#define PNG_USER_CHUNK_CACHE_MAX 1000
+#define PNG_USER_CHUNK_MALLOC_MAX 8000000
+#define PNG_USER_HEIGHT_MAX 8000
+#define PNG_USER_WIDTH_MAX 8000
 #define PNG_ZBUF_SIZE 8192
 #define PNG_ZLIB_VERNUM 0
 #define PNG_Z_DEFAULT_COMPRESSION (-1)
