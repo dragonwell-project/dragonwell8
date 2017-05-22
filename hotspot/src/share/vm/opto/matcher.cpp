@@ -1657,6 +1657,7 @@ MachNode *Matcher::ReduceInst( State *s, int rule, Node *&mem ) {
 
   // Build the object to represent this state & prepare for recursive calls
   MachNode *mach = s->MachNodeGenerator( rule, C );
+  guarantee(mach != NULL, "Missing MachNode");
   mach->_opnds[0] = s->MachOperGenerator( _reduceOp[rule], C );
   assert( mach->_opnds[0] != NULL, "Missing result operand" );
   Node *leaf = s->_leaf;
