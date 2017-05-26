@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,6 +140,10 @@ final class ClientHandshaker extends Handshaker {
      */
     private final static boolean allowUnsafeServerCertChange =
         Debug.getBooleanProperty("jdk.tls.allowUnsafeServerCertChange", false);
+
+    // To switch off the supported_groups extension for DHE cipher suite.
+    private static final boolean enableFFDHE =
+            Debug.getBooleanProperty("jsse.enableFFDHE", true);
 
     private List<SNIServerName> requestedServerNames =
             Collections.<SNIServerName>emptyList();
@@ -649,10 +653,12 @@ final class ClientHandshaker extends Handshaker {
             ExtensionType type = ext.type;
             if (type == ExtensionType.EXT_SERVER_NAME) {
                 serverNamesAccepted = true;
-            } else if ((type != ExtensionType.EXT_ELLIPTIC_CURVES)
+            } else if ((type != ExtensionType.EXT_SUPPORTED_GROUPS)
                     && (type != ExtensionType.EXT_EC_POINT_FORMATS)
                     && (type != ExtensionType.EXT_SERVER_NAME)
                     && (type != ExtensionType.EXT_RENEGOTIATION_INFO)) {
+                // Note: Better to check client requested extensions rather
+                // than all supported extensions.
                 fatalSE(Alerts.alert_unsupported_extension,
                     "Server sent an unsupported extension: " + type);
             }
@@ -701,6 +707,17 @@ final class ClientHandshaker extends Handshaker {
      * our own D-H algorithm object so we can defer key calculations
      * until after we've sent the client key exchange message (which
      * gives client and server some useful parallelism).
+     *
+     * Note per section 3 of RFC 7919, if the server is not compatible with
+     * FFDHE specification, the client MAY decide to continue the connection
+     * if the selected DHE group is acceptable under local policy, or it MAY
+     * decide to terminate the connection with a fatal insufficient_security
+     * (71) alert.  The algorithm constraints mechanism is JDK local policy
+     * used for additional DHE parameters checking.  So this implementation
+     * does not check the server compatibility and just pass to the local
+     * algorithm constraints checking.  The client will continue the
+     * connection if the server selected DHE group is acceptable by the
+     * specified algorithm constraints.
      */
     private void serverKeyExchange(DH_ServerKeyExchange mesg)
             throws IOException {
@@ -1379,14 +1396,17 @@ final class ClientHandshaker extends Handshaker {
                 sslContext.getSecureRandom(), maxProtocolVersion,
                 sessionId, cipherSuites);
 
-        // add elliptic curves and point format extensions
-        if (cipherSuites.containsEC()) {
-            EllipticCurvesExtension ece =
-                EllipticCurvesExtension.createExtension(algorithmConstraints);
-            if (ece != null) {
-                clientHelloMessage.extensions.add(ece);
+        // Add named groups extension for ECDHE and FFDHE if necessary.
+        SupportedGroupsExtension sge =
+                SupportedGroupsExtension.createExtension(
+                        algorithmConstraints,
+                        cipherSuites, enableFFDHE);
+        if (sge != null) {
+            clientHelloMessage.extensions.add(sge);
+            // Add elliptic point format extensions
+            if (cipherSuites.contains(NamedGroupType.NAMED_GROUP_ECDHE)) {
                 clientHelloMessage.extensions.add(
-                   EllipticPointFormatsExtension.DEFAULT);
+                    EllipticPointFormatsExtension.DEFAULT);
             }
         }
 
