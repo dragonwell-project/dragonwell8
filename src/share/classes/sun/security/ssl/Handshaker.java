@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import sun.security.ssl.CipherSuite.*;
 
 import static sun.security.ssl.CipherSuite.PRF.*;
 import static sun.security.ssl.CipherSuite.CipherType.*;
+import static sun.security.ssl.NamedGroupType.*;
 
 /**
  * Handshaker ... processes handshake records from an SSL V3.0
@@ -636,41 +637,14 @@ abstract class Handshaker {
             ArrayList<CipherSuite> suites = new ArrayList<>();
             if (!(activeProtocols.collection().isEmpty()) &&
                     activeProtocols.min.v != ProtocolVersion.NONE.v) {
-                boolean checkedCurves = false;
-                boolean hasCurves = false;
+                Map<NamedGroupType, Boolean> cachedStatus =
+                        new EnumMap<>(NamedGroupType.class);
                 for (CipherSuite suite : enabledCipherSuites.collection()) {
-                    if (suite.obsoleted > activeProtocols.min.v &&
-                            suite.supported <= activeProtocols.max.v) {
-                        if (algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                suite.name, null)) {
-                            boolean available = true;
-                            if (suite.keyExchange.isEC) {
-                                if (!checkedCurves) {
-                                    hasCurves = EllipticCurvesExtension
-                                        .hasActiveCurves(algorithmConstraints);
-                                    checkedCurves = true;
-
-                                    if (!hasCurves && debug != null &&
-                                                Debug.isOn("verbose")) {
-                                        System.out.println(
-                                           "No available elliptic curves");
-                                    }
-                                }
-
-                                available = hasCurves;
-
-                               if (!available && debug != null &&
-                                        Debug.isOn("verbose")) {
-                                    System.out.println(
-                                        "No active elliptic curves, ignore " +
-                                       suite);
-                                }
-                            }
-
-                            if (available) {
-                                suites.add(suite);
-                            }
+                    if (suite.isAvailable() &&
+                            (suite.obsoleted > activeProtocols.min.v &&
+                            suite.supported <= activeProtocols.max.v)) {
+                        if (isActivatable(suite, cachedStatus)) {
+                            suites.add(suite);
                         }
                     } else if (debug != null && Debug.isOn("verbose")) {
                         if (suite.obsoleted <= activeProtocols.min.v) {
@@ -728,46 +702,15 @@ abstract class Handshaker {
                     continue;
                 }
                 boolean found = false;
+                Map<NamedGroupType, Boolean> cachedStatus =
+                        new EnumMap<>(NamedGroupType.class);
                 for (CipherSuite suite : enabledCipherSuites.collection()) {
                     if (suite.isAvailable() && suite.obsoleted > protocol.v &&
                                                suite.supported <= protocol.v) {
-                        if (algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                suite.name, null)) {
-
-                            boolean available = true;
-                            if (suite.keyExchange.isEC) {
-                                if (!checkedCurves) {
-                                    hasCurves = EllipticCurvesExtension
-                                        .hasActiveCurves(algorithmConstraints);
-                                    checkedCurves = true;
-
-                                    if (!hasCurves && debug != null &&
-                                                Debug.isOn("verbose")) {
-                                        System.out.println(
-                                            "No activated elliptic curves");
-                                    }
-                                }
-
-                                available = hasCurves;
-
-                                if (!available && debug != null &&
-                                        Debug.isOn("verbose")) {
-                                    System.out.println(
-                                        "No active elliptic curves, ignore " +
-                                        suite + " for " + protocol);
-                                }
-                            }
-
-                            if (available) {
-                                protocols.add(protocol);
-                                found = true;
-                                break;
-                            }
-                        } else if (debug != null && Debug.isOn("verbose")) {
-                            System.out.println(
-                                "Ignoring disabled cipher suite: " + suite +
-                                 " for " + protocol);
+                        if (isActivatable(suite, cachedStatus)) {
+                            protocols.add(protocol);
+                            found = true;
+                            break;
                         }
                     } else if (debug != null && Debug.isOn("verbose")) {
                         System.out.println(
@@ -775,6 +718,7 @@ abstract class Handshaker {
                                  " for " + protocol);
                     }
                 }
+
                 if (!found && (debug != null) && Debug.isOn("handshake")) {
                     System.out.println(
                         "No available cipher suite for " + protocol);
@@ -789,6 +733,43 @@ abstract class Handshaker {
         }
 
         return activeProtocols;
+    }
+
+    private boolean isActivatable(CipherSuite suite,
+            Map<NamedGroupType, Boolean> cachedStatus) {
+
+        if (algorithmConstraints.permits(
+                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), suite.name, null)) {
+            boolean available = true;
+            NamedGroupType groupType = suite.keyExchange.groupType;
+            if (groupType != NAMED_GROUP_NONE) {
+                Boolean checkedStatus = cachedStatus.get(groupType);
+                if (checkedStatus == null) {
+                    available = SupportedGroupsExtension.isActivatable(
+                            algorithmConstraints, groupType);
+                    cachedStatus.put(groupType, available);
+
+                    if (!available && debug != null && Debug.isOn("verbose")) {
+                        System.out.println("No activated named group");
+                    }
+                } else {
+                    available = checkedStatus.booleanValue();
+                }
+
+                if (!available && debug != null && Debug.isOn("verbose")) {
+                    System.out.println(
+                        "No active named group, ignore " + suite);
+                }
+
+                return available;
+            } else {
+                return true;
+            }
+        } else if (debug != null && Debug.isOn("verbose")) {
+            System.out.println("Ignoring disabled cipher suite: " + suite);
+        }
+
+        return false;
     }
 
     /**
