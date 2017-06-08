@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,6 @@ import javax.security.auth.x500.X500Principal;
 
 import static sun.security.provider.certpath.OCSP.*;
 import static sun.security.provider.certpath.PKIX.*;
-import sun.security.action.GetPropertyAction;
 import sun.security.x509.*;
 import static sun.security.x509.PKIXExtensions.*;
 import sun.security.util.Debug;
@@ -62,12 +61,12 @@ class RevocationChecker extends PKIXRevocationChecker {
     private List<CertStore> certStores;
     private Map<X509Certificate, byte[]> ocspResponses;
     private List<Extension> ocspExtensions;
-    private boolean legacy;
+    private final boolean legacy;
     private LinkedList<CertPathValidatorException> softFailExceptions =
         new LinkedList<>();
 
     // state variables
-    private X509Certificate issuerCert;
+    private OCSPResponse.IssuerInfo issuerInfo;
     private PublicKey prevPubKey;
     private boolean crlSignFlag;
     private int certIndex;
@@ -302,9 +301,9 @@ class RevocationChecker extends PKIXRevocationChecker {
                 CertPathValidatorException("forward checking not supported");
         }
         if (anchor != null) {
-            issuerCert = anchor.getTrustedCert();
-            prevPubKey = (issuerCert != null) ? issuerCert.getPublicKey()
-                                              : anchor.getCAPublicKey();
+            issuerInfo = new OCSPResponse.IssuerInfo(anchor);
+            prevPubKey = issuerInfo.getPublicKey();
+
         }
         crlSignFlag = true;
         if (params != null && params.certPath() != null) {
@@ -438,7 +437,7 @@ class RevocationChecker extends PKIXRevocationChecker {
     private void updateState(X509Certificate cert)
         throws CertPathValidatorException
     {
-        issuerCert = cert;
+        issuerInfo = new OCSPResponse.IssuerInfo(anchor, cert);
 
         // Make new public key if parameters are missing
         PublicKey pubKey = cert.getPublicKey();
@@ -466,6 +465,34 @@ class RevocationChecker extends PKIXRevocationChecker {
                   stackedCerts, params.trustAnchors());
     }
 
+    static boolean isCausedByNetworkIssue(String type, CertStoreException cse) {
+        boolean result;
+        Throwable t = cse.getCause();
+
+        switch (type) {
+            case "LDAP":
+                if (t != null) {
+                    // These two exception classes are inside java.naming module
+                    String cn = t.getClass().getName();
+                    result = (cn.equals("javax.naming.ServiceUnavailableException") ||
+                        cn.equals("javax.naming.CommunicationException"));
+                } else {
+                    result = false;
+                }
+                break;
+            case "SSLServer":
+                result = (t != null && t instanceof IOException);
+                break;
+            case "URI":
+                result = (t != null && t instanceof IOException);
+                break;
+            default:
+                // we don't know about any other remote CertStore types
+                return false;
+        }
+        return result;
+    }
+
     private void checkCRLs(X509Certificate cert, PublicKey prevKey,
                            X509Certificate prevCert, boolean signFlag,
                            boolean allowSeparateKey,
@@ -478,9 +505,9 @@ class RevocationChecker extends PKIXRevocationChecker {
                           " ---checking revocation status ...");
         }
 
-        // reject circular dependencies - RFC 3280 is not explicit on how
-        // to handle this, so we feel it is safest to reject them until
-        // the issue is resolved in the PKIX WG.
+        // Reject circular dependencies - RFC 5280 is not explicit on how
+        // to handle this, but does suggest that they can be a security
+        // risk and can create unresolvable dependencies
         if (stackedCerts != null && stackedCerts.contains(cert)) {
             if (debug != null) {
                 debug.println("RevocationChecker.checkCRLs()" +
@@ -510,7 +537,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                                   "CertStoreException: " + e.getMessage());
                 }
                 if (networkFailureException == null &&
-                    CertStoreHelper.isCausedByNetworkIssue(store.getType(),e)) {
+                    isCausedByNetworkIssue(store.getType(),e)) {
                     // save this exception, we may need to throw it later
                     networkFailureException = new CertPathValidatorException(
                         "Unable to determine revocation status due to " +
@@ -550,15 +577,14 @@ class RevocationChecker extends PKIXRevocationChecker {
             try {
                 if (crlDP) {
                     approvedCRLs.addAll(DistributionPointFetcher.getCRLs(
-                                        sel, signFlag, prevKey, prevCert,
-                                        params.sigProvider(), certStores,
-                                        reasonsMask, anchors, null));
+                            sel, signFlag, prevKey, prevCert,
+                            params.sigProvider(), certStores, reasonsMask,
+                            anchors, null, params.variant()));
                 }
             } catch (CertStoreException e) {
                 if (e instanceof CertStoreTypeException) {
                     CertStoreTypeException cste = (CertStoreTypeException)e;
-                    if (CertStoreHelper.isCausedByNetworkIssue(cste.getType(),
-                                                               e)) {
+                    if (isCausedByNetworkIssue(cste.getType(), e)) {
                         throw new CertPathValidatorException(
                             "Unable to determine revocation status due to " +
                             "network error", e, null, -1,
@@ -634,7 +660,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                 /*
                  * Abort CRL validation and throw exception if there are any
                  * unrecognized critical CRL entry extensions (see section
-                 * 5.3 of RFC 3280).
+                 * 5.3 of RFC 5280).
                  */
                 Set<String> unresCritExts = entry.getCriticalExtensionOIDs();
                 if (unresCritExts != null && !unresCritExts.isEmpty()) {
@@ -682,14 +708,8 @@ class RevocationChecker extends PKIXRevocationChecker {
         OCSPResponse response = null;
         CertId certId = null;
         try {
-            if (issuerCert != null) {
-                certId = new CertId(issuerCert,
-                                    currCert.getSerialNumberObject());
-            } else {
-                // must be an anchor name and key
-                certId = new CertId(anchor.getCA(), anchor.getCAPublicKey(),
-                                    currCert.getSerialNumberObject());
-            }
+            certId = new CertId(issuerInfo.getName(), issuerInfo.getPublicKey(),
+                    currCert.getSerialNumberObject());
 
             // check if there is a cached OCSP response available
             byte[] responseBytes = ocspResponses.get(cert);
@@ -706,8 +726,8 @@ class RevocationChecker extends PKIXRevocationChecker {
                         nonce = ext.getValue();
                     }
                 }
-                response.verify(Collections.singletonList(certId), issuerCert,
-                                responderCert, params.date(), nonce);
+                response.verify(Collections.singletonList(certId), issuerInfo,
+                        responderCert, params.date(), nonce, params.variant());
 
             } else {
                 URI responderURI = (this.responderURI != null)
@@ -720,8 +740,8 @@ class RevocationChecker extends PKIXRevocationChecker {
                 }
 
                 response = OCSP.check(Collections.singletonList(certId),
-                                      responderURI, issuerCert, responderCert,
-                                      null, ocspExtensions);
+                        responderURI, issuerInfo, responderCert, null,
+                        ocspExtensions, params.variant());
             }
         } catch (IOException e) {
             throw new CertPathValidatorException(
@@ -833,7 +853,7 @@ class RevocationChecker extends PKIXRevocationChecker {
                     if (DistributionPointFetcher.verifyCRL(
                             certImpl, point, crl, reasonsMask, signFlag,
                             prevKey, null, params.sigProvider(), anchors,
-                            certStores, params.date()))
+                            certStores, params.date(), params.variant()))
                     {
                         results.add(crl);
                     }
@@ -886,9 +906,9 @@ class RevocationChecker extends PKIXRevocationChecker {
                 " ---checking " + msg + "...");
         }
 
-        // reject circular dependencies - RFC 3280 is not explicit on how
-        // to handle this, so we feel it is safest to reject them until
-        // the issue is resolved in the PKIX WG.
+        // Reject circular dependencies - RFC 5280 is not explicit on how
+        // to handle this, but does suggest that they can be a security
+        // risk and can create unresolvable dependencies
         if ((stackedCerts != null) && stackedCerts.contains(cert)) {
             if (debug != null) {
                 debug.println(
