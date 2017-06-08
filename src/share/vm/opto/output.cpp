@@ -2095,6 +2095,7 @@ void Scheduling::AddNodeToAvailableList(Node *n) {
     if( last->is_MachIf() && last->in(1) == n &&
         ( op == Op_CmpI ||
           op == Op_CmpU ||
+          op == Op_CmpUL ||
           op == Op_CmpP ||
           op == Op_CmpF ||
           op == Op_CmpD ||
