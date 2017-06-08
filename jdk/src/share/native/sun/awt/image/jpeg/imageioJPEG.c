@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@ static jmethodID JPEGImageReader_acceptPixelsID;
 static jmethodID JPEGImageReader_pushBackID;
 static jmethodID JPEGImageReader_passStartedID;
 static jmethodID JPEGImageReader_passCompleteID;
+static jmethodID JPEGImageReader_skipPastImageID;
 static jmethodID JPEGImageWriter_writeOutputDataID;
 static jmethodID JPEGImageWriter_warningOccurredID;
 static jmethodID JPEGImageWriter_warningWithMessageID;
@@ -553,30 +554,43 @@ sun_jpeg_error_exit (j_common_ptr cinfo)
 METHODDEF(void)
 sun_jpeg_output_message (j_common_ptr cinfo)
 {
-  char buffer[JMSG_LENGTH_MAX];
-  jstring string;
-  imageIODataPtr data = (imageIODataPtr) cinfo->client_data;
-  JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
-  jobject theObject;
+    char buffer[JMSG_LENGTH_MAX];
+    jstring string;
+    imageIODataPtr data = (imageIODataPtr) cinfo->client_data;
+    JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+    jobject theObject;
 
-  /* Create the message */
-  (*cinfo->err->format_message) (cinfo, buffer);
+    /* Create the message */
+    (*cinfo->err->format_message) (cinfo, buffer);
 
-  // Create a new java string from the message
-  string = (*env)->NewStringUTF(env, buffer);
-  CHECK_NULL(string);
+    // Create a new java string from the message
+    string = (*env)->NewStringUTF(env, buffer);
+    CHECK_NULL(string);
 
-  theObject = data->imageIOobj;
+    theObject = data->imageIOobj;
 
-  if (cinfo->is_decompressor) {
-      (*env)->CallVoidMethod(env, theObject,
-                             JPEGImageReader_warningWithMessageID,
-                             string);
-  } else {
-      (*env)->CallVoidMethod(env, theObject,
-                             JPEGImageWriter_warningWithMessageID,
-                             string);
-  }
+    if (cinfo->is_decompressor) {
+        struct jpeg_source_mgr *src = ((j_decompress_ptr)cinfo)->src;
+        RELEASE_ARRAYS(env, data, src->next_input_byte);
+        (*env)->CallVoidMethod(env, theObject,
+            JPEGImageReader_warningWithMessageID,
+            string);
+        if ((*env)->ExceptionOccurred(env)
+            || !GET_ARRAYS(env, data, &(src->next_input_byte))) {
+            cinfo->err->error_exit(cinfo);
+        }
+    } else {
+        struct jpeg_destination_mgr *dest = ((j_compress_ptr)cinfo)->dest;
+        RELEASE_ARRAYS(env, data, (const JOCTET *)(dest->next_output_byte));
+        (*env)->CallVoidMethod(env, theObject,
+            JPEGImageWriter_warningWithMessageID,
+            string);
+        if ((*env)->ExceptionOccurred(env)
+            || !GET_ARRAYS(env, data,
+            (const JOCTET **)(&dest->next_output_byte))) {
+            cinfo->err->error_exit(cinfo);
+        }
+    }
 }
 
 /* End of verbatim copy from jpegdecoder.c */
@@ -1043,6 +1057,7 @@ imageio_fill_suspended_buffer(j_decompress_ptr cinfo)
         if (!GET_ARRAYS(env, data, &(src->next_input_byte))) {
             cinfo->err->error_exit((j_common_ptr) cinfo);
         }
+        RELEASE_ARRAYS(env, data, src->next_input_byte);
         return;
     }
 
@@ -1458,6 +1473,10 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_initReaderIDs
                                                      cls,
                                                      "pushBack",
                                                      "(I)V"));
+    CHECK_NULL(JPEGImageReader_skipPastImageID = (*env)->GetMethodID(env,
+                                                     cls,
+                                                     "skipPastImage",
+                                                     "(I)V"));
     CHECK_NULL(JPEGQTable_tableID = (*env)->GetFieldID(env,
                                             qTableClass,
                                             "qTable",
@@ -1798,9 +1817,14 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImageHeader
                                cinfo->out_color_space,
                                cinfo->num_components,
                                profileData);
+        if ((*env)->ExceptionOccurred(env)
+            || !GET_ARRAYS(env, data, &(src->next_input_byte))) {
+            cinfo->err->error_exit((j_common_ptr) cinfo);
+        }
         if (reset) {
             jpeg_abort_decompress(cinfo);
         }
+        RELEASE_ARRAYS(env, data, src->next_input_byte);
     }
 
     return retval;
@@ -1834,6 +1858,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
     (JNIEnv *env,
      jobject this,
+     jint imageIndex,
      jlong ptr,
      jbyteArray buffer,
      jint numBands,
@@ -2011,6 +2036,7 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
     jpeg_start_decompress(cinfo);
 
     if (numBands !=  cinfo->output_components) {
+        RELEASE_ARRAYS(env, data, src->next_input_byte);
         JNU_ThrowByName(env, "javax/imageio/IIOException",
                         "Invalid argument to native readImage");
         return data->abortFlag;
@@ -2019,6 +2045,7 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
     if (cinfo->output_components <= 0 ||
         cinfo->image_width > (0xffffffffu / (unsigned int)cinfo->output_components))
     {
+        RELEASE_ARRAYS(env, data, src->next_input_byte);
         JNU_ThrowByName(env, "javax/imageio/IIOException",
                         "Invalid number of output components");
         return data->abortFlag;
@@ -2042,15 +2069,24 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
             // the first interesting pass.
             jpeg_start_output(cinfo, cinfo->input_scan_number);
             if (wantUpdates) {
+                RELEASE_ARRAYS(env, data, src->next_input_byte);
                 (*env)->CallVoidMethod(env, this,
                                        JPEGImageReader_passStartedID,
                                        cinfo->input_scan_number-1);
+                if ((*env)->ExceptionOccurred(env)
+                    || !GET_ARRAYS(env, data, &(src->next_input_byte))) {
+                    cinfo->err->error_exit((j_common_ptr) cinfo);
+                }
             }
         } else if (wantUpdates) {
+            RELEASE_ARRAYS(env, data, src->next_input_byte);
             (*env)->CallVoidMethod(env, this,
                                    JPEGImageReader_passStartedID,
                                    0);
-
+            if ((*env)->ExceptionOccurred(env)
+                || !GET_ARRAYS(env, data, &(src->next_input_byte))) {
+                cinfo->err->error_exit((j_common_ptr) cinfo);
+            }
         }
 
         // Skip until the first interesting line
@@ -2138,8 +2174,13 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
             done = TRUE;
         }
         if (wantUpdates) {
+            RELEASE_ARRAYS(env, data, src->next_input_byte);
             (*env)->CallVoidMethod(env, this,
                                    JPEGImageReader_passCompleteID);
+            if ((*env)->ExceptionOccurred(env)
+                || !GET_ARRAYS(env, data, &(src->next_input_byte))) {
+                cinfo->err->error_exit((j_common_ptr) cinfo);
+            }
         }
 
     }
@@ -2147,12 +2188,23 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageReader_readImage
      * We are done, but we might not have read all the lines, or all
      * the passes, so use jpeg_abort instead of jpeg_finish_decompress.
      */
-    if (cinfo->output_scanline == cinfo->output_height) {
-        //    if ((cinfo->output_scanline == cinfo->output_height) &&
-        //(jpeg_input_complete(cinfo))) {  // We read the whole file
-        jpeg_finish_decompress(cinfo);
-    } else {
+    if ((cinfo->output_scanline != cinfo->output_height) ||
+        data->abortFlag == JNI_TRUE)
+     {
         jpeg_abort_decompress(cinfo);
+     } else if ((!jpeg_input_complete(cinfo)) &&
+                (progressive &&
+                 (cinfo->input_scan_number > maxProgressivePass))) {
+        /* We haven't reached EOI, but we need to skip to there */
+        (*cinfo->src->term_source) (cinfo);
+        /* We can use jpeg_abort to release memory and reset global_state */
+        jpeg_abort((j_common_ptr) cinfo);
+        (*env)->CallVoidMethod(env,
+                               this,
+                               JPEGImageReader_skipPastImageID,
+                               imageIndex);
+    } else {
+        jpeg_finish_decompress(cinfo);
     }
 
     free(scanLinePtr);

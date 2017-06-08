@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package sun.security.ec;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.math.BigInteger;
 
@@ -286,11 +287,15 @@ abstract class ECDSASignature extends SignatureSpi {
         }
         random.nextBytes(seed);
 
+        // random bits needed for timing countermeasures
+        int timingArgument = random.nextInt();
+        // values must be non-zero to enable countermeasures
+        timingArgument |= 1;
+
         try {
-
             return encodeSignature(
-                signDigest(getDigestValue(), s, encodedParams, seed));
-
+                signDigest(getDigestValue(), s, encodedParams, seed,
+                    timingArgument));
         } catch (GeneralSecurityException e) {
             throw new SignatureException("Could not sign data", e);
         }
@@ -363,13 +368,22 @@ abstract class ECDSASignature extends SignatureSpi {
     }
 
     // Convert the DER encoding of R and S into a concatenation of R and S
-    private byte[] decodeSignature(byte[] signature) throws SignatureException {
+    private byte[] decodeSignature(byte[] sig) throws SignatureException {
 
         try {
-            DerInputStream in = new DerInputStream(signature);
+            // Enforce strict DER checking for signatures
+            DerInputStream in = new DerInputStream(sig, 0, sig.length, false);
             DerValue[] values = in.getSequence(2);
+
+            // check number of components in the read sequence
+            // and trailing data
+            if ((values.length != 2) || (in.available() != 0)) {
+                throw new IOException("Invalid encoding for signature");
+            }
+
             BigInteger r = values[0].getPositiveBigInteger();
             BigInteger s = values[1].getPositiveBigInteger();
+
             // trim leading zeroes
             byte[] rBytes = trimZeroes(r.toByteArray());
             byte[] sBytes = trimZeroes(s.toByteArray());
@@ -383,7 +397,7 @@ abstract class ECDSASignature extends SignatureSpi {
             return result;
 
         } catch (Exception e) {
-            throw new SignatureException("Could not decode signature", e);
+            throw new SignatureException("Invalid encoding for signature", e);
         }
     }
 
@@ -408,11 +422,19 @@ abstract class ECDSASignature extends SignatureSpi {
      * @param s the private key's S value.
      * @param encodedParams the curve's DER encoded object identifier.
      * @param seed the random seed.
+     * @param timing When non-zero, the implmentation will use timing
+     *     countermeasures to hide secrets from timing channels. The EC
+     *     implementation will disable the countermeasures when this value is
+     *     zero, because the underlying EC functions are shared by several
+     *     crypto operations, some of which do not use the countermeasures.
+     *     The high-order 31 bits must be uniformly random. The entropy from
+     *     these bits is used by the countermeasures.
      *
      * @return byte[] the signature.
      */
     private static native byte[] signDigest(byte[] digest, byte[] s,
-        byte[] encodedParams, byte[] seed) throws GeneralSecurityException;
+        byte[] encodedParams, byte[] seed, int timing)
+            throws GeneralSecurityException;
 
     /**
      * Verifies the signed digest using the public key.
