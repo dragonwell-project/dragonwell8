@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -982,9 +982,8 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
     private final static int CURVE_EXPLICIT_CHAR2 = 2;
     private final static int CURVE_NAMED_CURVE    = 3;
 
-    // id of the named group we are using
-    private int groupId;
-
+    // id of the curve we are using
+    private int curveId;
     // encoded public point
     private byte[] pointBytes;
 
@@ -1003,8 +1002,7 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
     ECDH_ServerKeyExchange(ECDHCrypt obj, PrivateKey privateKey,
             byte[] clntNonce, byte[] svrNonce, SecureRandom sr,
             SignatureAndHashAlgorithm signAlgorithm,
-            ProtocolVersion protocolVersion)
-            throws SSLHandshakeException, GeneralSecurityException {
+            ProtocolVersion protocolVersion) throws GeneralSecurityException {
 
         this.protocolVersion = protocolVersion;
 
@@ -1012,14 +1010,7 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         ECParameterSpec params = publicKey.getParams();
         ECPoint point = publicKey.getW();
         pointBytes = JsseJce.encodePoint(point, params.getCurve());
-
-        NamedGroup namedGroup = NamedGroup.valueOf(params);
-        if ((namedGroup == null) || (namedGroup.oid == null) ){
-            // unlikely
-            throw new SSLHandshakeException(
-                "Unnamed EC parameter spec: " + params);
-        }
-        groupId = namedGroup.id;
+        curveId = EllipticCurvesExtension.getCurveIndex(params);
 
         if (privateKey == null) {
             // ECDH_anon
@@ -1056,27 +1047,20 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         // These parsing errors should never occur as we negotiated
         // the supported curves during the exchange of the Hello messages.
         if (curveType == CURVE_NAMED_CURVE) {
-            groupId = input.getInt16();
-            NamedGroup namedGroup = NamedGroup.valueOf(groupId);
-            if (namedGroup == null) {
+            curveId = input.getInt16();
+            if (!EllipticCurvesExtension.isSupported(curveId)) {
                 throw new SSLHandshakeException(
-                    "Unknown named group ID: " + groupId);
+                    "Unsupported curveId: " + curveId);
             }
-
-            if (!SupportedGroupsExtension.supports(namedGroup)) {
+            String curveOid = EllipticCurvesExtension.getCurveOid(curveId);
+            if (curveOid == null) {
                 throw new SSLHandshakeException(
-                    "Unsupported named group: " + namedGroup);
+                    "Unknown named curve: " + curveId);
             }
-
-            if (namedGroup.oid == null) {
-                throw new SSLHandshakeException(
-                    "Unknown named EC curve: " + namedGroup);
-            }
-
-            parameters = JsseJce.getECParameterSpec(namedGroup.oid);
+            parameters = JsseJce.getECParameterSpec(curveOid);
             if (parameters == null) {
                 throw new SSLHandshakeException(
-                    "No supported EC parameter for named group: " + namedGroup);
+                    "Unsupported curve: " + curveOid);
             }
         } else {
             throw new SSLHandshakeException(
@@ -1159,8 +1143,8 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         sig.update(svrNonce);
 
         sig.update((byte)CURVE_NAMED_CURVE);
-        sig.update((byte)(groupId >> 8));
-        sig.update((byte)groupId);
+        sig.update((byte)(curveId >> 8));
+        sig.update((byte)curveId);
         sig.update((byte)pointBytes.length);
         sig.update(pointBytes);
     }
@@ -1181,7 +1165,7 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
     @Override
     void send(HandshakeOutStream s) throws IOException {
         s.putInt8(CURVE_NAMED_CURVE);
-        s.putInt16(groupId);
+        s.putInt16(curveId);
         s.putBytes8(pointBytes);
 
         if (signatureBytes != null) {
