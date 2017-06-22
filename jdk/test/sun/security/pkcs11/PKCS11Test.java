@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -509,6 +509,8 @@ public abstract class PKCS11Test {
             PKCS11_BASE + "/nss/lib/windows-i586/".replace('/', SEP)});
         osMap.put("Windows-amd64-64", new String[]{
             PKCS11_BASE + "/nss/lib/windows-amd64/".replace('/', SEP)});
+        osMap.put("MacOSX-x86_64-64", new String[]{
+            PKCS11_BASE + "/nss/lib/macosx-x86_64/"});
     }
 
     private final static char[] hexDigits = "0123456789abcdef".toCharArray();
