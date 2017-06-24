@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,6 +83,14 @@ public class XmlUtil {
 
     private final static String LEXICAL_HANDLER_PROPERTY =
         "http://xml.org/sax/properties/lexical-handler";
+
+    private static final String DISALLOW_DOCTYPE_DECL = "http://apache.org/xml/features/disallow-doctype-decl";
+
+    private static final String EXTERNAL_GE = "http://xml.org/sax/features/external-general-entities";
+
+    private static final String EXTERNAL_PE = "http://xml.org/sax/features/external-parameter-entities";
+
+    private static final String LOAD_EXTERNAL_DTD = "http://apache.org/xml/features/nonvalidating/load-external-dtd";
 
     private static final Logger LOGGER = Logger.getLogger(XmlUtil.class.getName());
 
@@ -372,15 +380,29 @@ public class XmlUtil {
     };
 
     public static DocumentBuilderFactory newDocumentBuilderFactory() {
-        return newDocumentBuilderFactory(true);
+        return newDocumentBuilderFactory(false);
     }
 
-    public static DocumentBuilderFactory newDocumentBuilderFactory(boolean secureXmlProcessing) {
+    public static DocumentBuilderFactory newDocumentBuilderFactory(boolean disableSecurity) {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        String featureToSet = XMLConstants.FEATURE_SECURE_PROCESSING;
         try {
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, isXMLSecurityDisabled(secureXmlProcessing));
+            boolean securityOn = !isXMLSecurityDisabled(disableSecurity);
+            factory.setFeature(featureToSet, securityOn);
+            factory.setNamespaceAware(true);
+            if (securityOn) {
+                factory.setExpandEntityReferences(false);
+                featureToSet = DISALLOW_DOCTYPE_DECL;
+                factory.setFeature(featureToSet, true);
+                featureToSet = EXTERNAL_GE;
+                factory.setFeature(featureToSet, false);
+                featureToSet = EXTERNAL_PE;
+                factory.setFeature(featureToSet, false);
+                featureToSet = LOAD_EXTERNAL_DTD;
+                factory.setFeature(featureToSet, false);
+            }
         } catch (ParserConfigurationException e) {
-            LOGGER.log(Level.WARNING, "Factory [{0}] doesn't support secure xml processing!", new Object[] { factory.getClass().getName() } );
+            LOGGER.log(Level.WARNING, "Factory [{0}] doesn't support "+featureToSet+" feature!", new Object[] {factory.getClass().getName()} );
         }
         return factory;
     }
@@ -399,12 +421,25 @@ public class XmlUtil {
         return newTransformerFactory(true);
     }
 
-    public static SAXParserFactory newSAXParserFactory(boolean secureXmlProcessingEnabled) {
+    public static SAXParserFactory newSAXParserFactory(boolean disableSecurity) {
         SAXParserFactory factory = SAXParserFactory.newInstance();
+        String featureToSet = XMLConstants.FEATURE_SECURE_PROCESSING;
         try {
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, isXMLSecurityDisabled(secureXmlProcessingEnabled));
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Factory [{0}] doesn't support secure xml processing!", new Object[]{factory.getClass().getName()});
+            boolean securityOn = !isXMLSecurityDisabled(disableSecurity);
+            factory.setFeature(featureToSet, securityOn);
+            factory.setNamespaceAware(true);
+            if (securityOn) {
+                featureToSet = DISALLOW_DOCTYPE_DECL;
+                factory.setFeature(featureToSet, true);
+                featureToSet = EXTERNAL_GE;
+                factory.setFeature(featureToSet, false);
+                featureToSet = EXTERNAL_PE;
+                factory.setFeature(featureToSet, false);
+                featureToSet = LOAD_EXTERNAL_DTD;
+                factory.setFeature(featureToSet, false);
+            }
+        } catch (ParserConfigurationException | SAXNotRecognizedException | SAXNotSupportedException e) {
+            LOGGER.log(Level.WARNING, "Factory [{0}] doesn't support "+featureToSet+" feature!", new Object[]{factory.getClass().getName()});
         }
         return factory;
     }
