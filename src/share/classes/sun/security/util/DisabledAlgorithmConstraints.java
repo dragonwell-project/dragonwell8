@@ -761,8 +761,9 @@ public class DisabledAlgorithmConstraints extends AbstractAlgorithmConstraints {
                     return;
                 }
                 throw new CertPathValidatorException(
-                        "Algorithm constraints check failed on keysize limits. "
-                        + algorithm + " " + size + "bit key" + extendedMsg(cp),
+                        "Algorithm constraints check failed on keysize limits. " +
+                        algorithm + " " + KeyUtil.getKeySize(key) + "bit key" +
+                        extendedMsg(cp),
                         null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
             }
         }
