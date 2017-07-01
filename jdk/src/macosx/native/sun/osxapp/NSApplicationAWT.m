@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,6 @@ AWT_ASSERT_APPKIT_THREAD;
 
     [super dealloc];
 }
-//- (void)finalize { [super finalize]; }
 
 - (void)finishLaunching
 {
@@ -363,7 +362,6 @@ AWT_ASSERT_APPKIT_THREAD;
 {
     void (^copy)() = [block copy];
     NSInteger encode = (NSInteger) copy;
-    [copy retain];
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];    
     NSEvent* event = [NSEvent otherEventWithType: NSApplicationDefined
                                         location: NSMakePoint(0,0)

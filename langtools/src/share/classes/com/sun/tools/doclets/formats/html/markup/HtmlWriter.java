@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -164,7 +164,9 @@ public class HtmlWriter {
 
     public final Content descfrmInterfaceLabel;
 
-    private final Writer writer;
+    private final DocFile file;
+
+    private Writer writer;
 
     private Content script;
 
@@ -180,7 +182,7 @@ public class HtmlWriter {
      */
     public HtmlWriter(Configuration configuration, DocPath path)
             throws IOException, UnsupportedEncodingException {
-        writer = DocFile.createFileForOutput(configuration, path).openWriter();
+        file = DocFile.createFileForOutput(configuration, path);
         this.configuration = configuration;
         this.memberDetailsListPrinted = false;
         profileTableHeader = new String[] {
@@ -239,6 +241,7 @@ public class HtmlWriter {
     }
 
     public void write(Content c) throws IOException {
+        writer = file.openWriter();
         c.write(writer, true);
     }
 
@@ -380,11 +383,12 @@ public class HtmlWriter {
         HtmlTree script = new HtmlTree(HtmlTag.SCRIPT);
         script.addAttr(HtmlAttr.TYPE, "text/javascript");
         String scriptCode = DocletConstants.NL +
-                "    targetPage = \"\" + window.location.search;" + DocletConstants.NL +
-                "    if (targetPage != \"\" && targetPage != \"undefined\")" + DocletConstants.NL +
-                "        targetPage = targetPage.substring(1);" + DocletConstants.NL +
-                "    if (targetPage.indexOf(\":\") != -1 || (targetPage != \"\" && !validURL(targetPage)))" + DocletConstants.NL +
-                "        targetPage = \"undefined\";" + DocletConstants.NL +
+                "    tmpTargetPage = \"\" + window.location.search;" + DocletConstants.NL +
+                "    if (tmpTargetPage != \"\" && tmpTargetPage != \"undefined\")" + DocletConstants.NL +
+                "        tmpTargetPage = tmpTargetPage.substring(1);" + DocletConstants.NL +
+                "    if (tmpTargetPage.indexOf(\":\") != -1 || (tmpTargetPage != \"\" && !validURL(tmpTargetPage)))" + DocletConstants.NL +
+                "        tmpTargetPage = \"undefined\";" + DocletConstants.NL +
+                "    targetPage = tmpTargetPage;" + DocletConstants.NL +
                 "    function validURL(url) {" + DocletConstants.NL +
                 "        try {" + DocletConstants.NL +
                 "            url = decodeURIComponent(url);" + DocletConstants.NL +

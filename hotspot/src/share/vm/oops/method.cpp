@@ -98,7 +98,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, int size) {
   // Fix and bury in Method*
   set_interpreter_entry(NULL); // sets i2i entry and from_int
   set_adapter_entry(NULL);
-  clear_code(); // from_c/from_i get set to c2i/i2i
+  clear_code(false /* don't need a lock */); // from_c/from_i get set to c2i/i2i
 
   if (access_flags.is_native()) {
     clear_native_function();
@@ -111,6 +111,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, int size) {
 // Release Method*.  The nmethod will be gone when we get here because
 // we've walked the code cache.
 void Method::deallocate_contents(ClassLoaderData* loader_data) {
+  clear_jmethod_id(loader_data);
   MetadataFactory::free_metadata(loader_data, constMethod());
   set_constMethod(NULL);
   MetadataFactory::free_metadata(loader_data, method_data());
@@ -589,7 +590,7 @@ bool Method::is_constant_getter() const {
 }
 
 bool Method::is_initializer() const {
-  return name() == vmSymbols::object_initializer_name() || is_static_initializer();
+  return is_object_initializer() || is_static_initializer();
 }
 
 bool Method::has_valid_initializer_flags() const {
@@ -605,6 +606,9 @@ bool Method::is_static_initializer() const {
          has_valid_initializer_flags();
 }
 
+bool Method::is_object_initializer() const {
+   return name() == vmSymbols::object_initializer_name();
+}
 
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* this_oop, TRAPS) {
   int length = this_oop->checked_exceptions_length();
@@ -842,8 +846,8 @@ void Method::set_not_osr_compilable(int comp_level, bool report, const char* rea
 }
 
 // Revert to using the interpreter and clear out the nmethod
-void Method::clear_code() {
-
+void Method::clear_code(bool acquire_lock /* = true */) {
+  MutexLockerEx pl(acquire_lock ? Patching_lock : NULL, Mutex::_no_safepoint_check_flag);
   // this may be NULL if c2i adapters have not been made yet
   // Only should happen at allocate time.
   if (_adapter == NULL) {
@@ -971,6 +975,7 @@ bool Method::check_code() const {
 
 // Install compiled code.  Instantly it can execute.
 void Method::set_code(methodHandle mh, nmethod *code) {
+  MutexLockerEx pl(Patching_lock, Mutex::_no_safepoint_check_flag);
   assert( code, "use clear_code to remove code" );
   assert( mh->check_code(), "" );
 
@@ -1800,6 +1805,17 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
 #endif // ASSERT
     *m = _free_method;
   }
+  void clear_method(Method* m) {
+    for (JNIMethodBlock* b = this; b != NULL; b = b->_next) {
+      for (int i = 0; i < number_of_methods; i++) {
+        if (b->_methods[i] == m) {
+          b->_methods[i] = NULL;
+          return;
+        }
+      }
+    }
+    // not found
+  }
 
   // During class unloading the methods are cleared, which is different
   // than freed.
@@ -1872,7 +1888,9 @@ void Method::change_method_associated_with_jmethod_id(jmethodID jmid, Method* ne
 
 bool Method::is_method_id(jmethodID mid) {
   Method* m = resolve_jmethod_id(mid);
-  assert(m != NULL, "should be called with non-null method");
+  if (m == NULL) {
+    return false;
+  }
   InstanceKlass* ik = m->method_holder();
   if (ik == NULL) {
     return false;
@@ -1903,6 +1921,10 @@ void Method::set_on_stack(const bool value) {
   if (value && succeeded) {
     MetadataOnStackMark::record(this, Thread::current());
   }
+}
+
+void Method::clear_jmethod_id(ClassLoaderData* loader_data) {
+  loader_data->jmethod_ids()->clear_method(this);
 }
 
 // Called when the class loader is unloaded to make all methods weak.

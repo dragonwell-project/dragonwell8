@@ -44,6 +44,8 @@ final class CPlatformResponder {
     private final PlatformEventNotifier eventNotifier;
     private final boolean isNpapiCallback;
     private int lastKeyPressCode = KeyEvent.VK_UNDEFINED;
+    private final DeltaAccumulator deltaAccumulatorX = new DeltaAccumulator();
+    private final DeltaAccumulator deltaAccumulatorY = new DeltaAccumulator();
 
     CPlatformResponder(final PlatformEventNotifier eventNotifier,
                        final boolean isNpapiCallback) {
@@ -90,37 +92,38 @@ final class CPlatformResponder {
      * Handles scroll events.
      */
     void handleScrollEvent(final int x, final int y, final int modifierFlags,
-                           final double deltaX, final double deltaY) {
+                           final double deltaX, final double deltaY,
+                           final int scrollPhase) {
         final int buttonNumber = CocoaConstants.kCGMouseButtonCenter;
         int jmodifiers = NSEvent.nsToJavaMouseModifiers(buttonNumber,
                                                         modifierFlags);
         final boolean isShift = (jmodifiers & InputEvent.SHIFT_DOWN_MASK) != 0;
 
+        int roundDeltaX = deltaAccumulatorX.getRoundedDelta(deltaX, scrollPhase);
+        int roundDeltaY = deltaAccumulatorY.getRoundedDelta(deltaY, scrollPhase);
+
         // Vertical scroll.
-        if (!isShift && deltaY != 0.0) {
-            dispatchScrollEvent(x, y, jmodifiers, deltaY);
+        if (!isShift && (deltaY != 0.0 || roundDeltaY != 0)) {
+            dispatchScrollEvent(x, y, jmodifiers, roundDeltaY, deltaY);
         }
         // Horizontal scroll or shirt+vertical scroll.
         final double delta = isShift && deltaY != 0.0 ? deltaY : deltaX;
-        if (delta != 0.0) {
+        final int roundDelta = isShift && roundDeltaY != 0 ? roundDeltaY : roundDeltaX;
+        if (delta != 0.0 || roundDelta != 0) {
             jmodifiers |= InputEvent.SHIFT_DOWN_MASK;
-            dispatchScrollEvent(x, y, jmodifiers, delta);
+            dispatchScrollEvent(x, y, jmodifiers, roundDelta, delta);
         }
     }
 
     private void dispatchScrollEvent(final int x, final int y,
-                                     final int modifiers, final double delta) {
+                                     final int modifiers,
+                                     final int roundDelta, final double delta) {
         final long when = System.currentTimeMillis();
         final int scrollType = MouseWheelEvent.WHEEL_UNIT_SCROLL;
         final int scrollAmount = 1;
-        int wheelRotation = (int) delta;
-        int signum = (int) Math.signum(delta);
-        if (signum * delta < 1) {
-            wheelRotation = signum;
-        }
         // invert the wheelRotation for the peer
         eventNotifier.notifyMouseWheelEvent(when, x, y, modifiers, scrollType,
-                scrollAmount, -wheelRotation, -delta, null);
+                scrollAmount, -roundDelta, -delta, null);
     }
 
     /**
@@ -255,5 +258,44 @@ final class CPlatformResponder {
 
     void handleWindowFocusEvent(boolean gained, LWWindowPeer opposite) {
         eventNotifier.notifyActivation(gained, opposite);
+    }
+
+    static class DeltaAccumulator {
+
+        double accumulatedDelta;
+        boolean accumulate;
+
+        int getRoundedDelta(double delta, int scrollPhase) {
+
+            int roundDelta = (int) Math.round(delta);
+
+            if (scrollPhase == NSEvent.SCROLL_PHASE_UNSUPPORTED) { // mouse wheel
+                if (roundDelta == 0 && delta != 0) {
+                    roundDelta = delta > 0 ? 1 : -1;
+                }
+            } else { // trackpad
+                if (scrollPhase == NSEvent.SCROLL_PHASE_BEGAN) {
+                    accumulatedDelta = 0;
+                    accumulate = true;
+                }
+                else if (scrollPhase == NSEvent.SCROLL_PHASE_MOMENTUM_BEGAN) {
+                    accumulate = true;
+                }
+                if (accumulate) {
+
+                    accumulatedDelta += delta;
+
+                    roundDelta = (int) Math.round(accumulatedDelta);
+
+                    accumulatedDelta -= roundDelta;
+
+                    if (scrollPhase == NSEvent.SCROLL_PHASE_ENDED) {
+                        accumulate = false;
+                    }
+                }
+            }
+
+            return roundDelta;
+        }
     }
 }
