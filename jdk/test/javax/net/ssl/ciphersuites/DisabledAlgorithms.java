@@ -38,7 +38,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 /**
  * @test
- * @bug 8076221
+ * @bug 8076221 8157035
  * @summary Check if weak cipher suites are disabled
  * @run main/othervm DisabledAlgorithms default
  * @run main/othervm DisabledAlgorithms empty
@@ -224,6 +224,7 @@ public class DisabledAlgorithms {
                     socket.getSession().invalidate();
                 } catch (SSLHandshakeException e) {
                     System.out.println("Server: run: " + e);
+                    e.printStackTrace();
                     sslError = true;
                     stopped = true;
                 } catch (IOException e) {

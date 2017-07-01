@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,6 @@ BOOL AwtComponent::sm_restoreFocusAndActivation = FALSE;
 HWND AwtComponent::sm_focusOwner = NULL;
 HWND AwtComponent::sm_focusedWindow = NULL;
 BOOL AwtComponent::sm_bMenuLoop = FALSE;
-AwtComponent* AwtComponent::sm_getComponentCache = NULL;
 BOOL AwtComponent::sm_inSynthesizeFocus = FALSE;
 
 /************************************************************************/
@@ -256,6 +255,8 @@ AwtComponent::AwtComponent()
         AwtComponent::BuildPrimaryDynamicTable();
         sm_PrimaryDynamicTableBuilt = TRUE;
     }
+
+    deadKeyActive = FALSE;
 }
 
 AwtComponent::~AwtComponent()
@@ -272,10 +273,6 @@ AwtComponent::~AwtComponent()
      * handle.
      */
     DestroyHWnd();
-
-    if (sm_getComponentCache == this) {
-        sm_getComponentCache = NULL;
-    }
 }
 
 void AwtComponent::Dispose()
@@ -348,9 +345,6 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     if (hWnd == AwtToolkit::GetInstance().GetHWnd()) {
         return NULL;
     }
-    if (sm_getComponentCache && sm_getComponentCache->GetHWnd() == hWnd) {
-        return sm_getComponentCache;
-    }
 
     // check that it's an AWT component from the same toolkit as the caller
     if (::IsWindow(hWnd) &&
@@ -358,7 +352,7 @@ AwtComponent* AwtComponent::GetComponent(HWND hWnd) {
     {
         DASSERT(WmAwtIsComponent != 0);
         if (::SendMessage(hWnd, WmAwtIsComponent, 0, 0L)) {
-            return sm_getComponentCache = GetComponentImpl(hWnd);
+            return GetComponentImpl(hWnd);
         }
     }
     return NULL;
@@ -2936,6 +2930,7 @@ static const CharToVKEntry charToDeadVKTable[] = {
     {0x037A, java_awt_event_KeyEvent_VK_DEAD_IOTA},             // ASCII ???
     {0x309B, java_awt_event_KeyEvent_VK_DEAD_VOICED_SOUND},
     {0x309C, java_awt_event_KeyEvent_VK_DEAD_SEMIVOICED_SOUND},
+    {0x0004, java_awt_event_KeyEvent_VK_COMPOSE},
     {0,0}
 };
 
@@ -3428,8 +3423,9 @@ UINT AwtComponent::WindowsKeyToJavaChar(UINT wkey, UINT modifiers, TransOps ops,
     AwtToolkit::GetKeyboardState(keyboardState);
 
     // apply modifiers to keyboard state if necessary
+    BOOL shiftIsDown = FALSE;
     if (modifiers) {
-        BOOL shiftIsDown = modifiers & java_awt_event_InputEvent_SHIFT_DOWN_MASK;
+        shiftIsDown = modifiers & java_awt_event_InputEvent_SHIFT_DOWN_MASK;
         BOOL altIsDown = modifiers & java_awt_event_InputEvent_ALT_DOWN_MASK;
         BOOL ctrlIsDown = modifiers & java_awt_event_InputEvent_CTRL_DOWN_MASK;
 
@@ -3501,18 +3497,27 @@ UINT AwtComponent::WindowsKeyToJavaChar(UINT wkey, UINT modifiers, TransOps ops,
         } // ctrlIsDown
     } // modifiers
 
-    // instead of creating our own conversion tables, I'll let Win32
-    // convert the character for me.
     WORD wChar[2];
-    UINT scancode = ::MapVirtualKey(wkey, 0);
-    int converted = ::ToUnicodeEx(wkey, scancode, keyboardState,
-                                  wChar, 2, 0, GetKeyboardLayout());
+    int converted = 1;
+    UINT ch = ::MapVirtualKeyEx(wkey, 2, GetKeyboardLayout());
+    if (ch & 0x80000000) {
+        // Dead key which is handled as a normal key
+        isDeadKey = deadKeyActive = TRUE;
+    } else if (deadKeyActive) {
+        // We cannot use ::ToUnicodeEx if dead key is active because this will
+        // break dead key function
+        wChar[0] = shiftIsDown ? ch : tolower(ch);
+    } else {
+        UINT scancode = ::MapVirtualKey(wkey, 0);
+        converted = ::ToUnicodeEx(wkey, scancode, keyboardState,
+                                              wChar, 2, 0, GetKeyboardLayout());
+    }
 
     UINT translation;
     BOOL deadKeyFlag = (converted == 2);
 
     // Dead Key
-    if (converted < 0) {
+    if (converted < 0 || isDeadKey) {
         translation = java_awt_event_KeyEvent_CHAR_UNDEFINED;
     } else
     // No translation available -- try known conversions or else punt.
@@ -3666,6 +3671,8 @@ MsgRouting AwtComponent::WmIMEChar(UINT character, UINT repCnt, UINT flags, BOOL
 MsgRouting AwtComponent::WmChar(UINT character, UINT repCnt, UINT flags,
                                 BOOL system)
 {
+    deadKeyActive = FALSE;
+
     // Will only get WmChar messages with DBCS if we create them for
     // an Edit class in the WmForwardChar method. These synthesized
     // DBCS chars are ok to pass on directly to the default window
@@ -3765,7 +3772,10 @@ void AwtComponent::OpenCandidateWindow(int x, int y)
     HWND hWnd = GetHWnd();
     HWND hTop = GetTopLevelParentForWindow(hWnd);
     ::ClientToScreen(hTop, &p);
-
+    if (!m_bitsCandType) {
+        SetCandidateWindow(m_bitsCandType, x - p.x, y - p.y);
+        return;
+    }
     for (int iCandType=0; iCandType<32; iCandType++, bits<<=1) {
         if ( m_bitsCandType & bits )
             SetCandidateWindow(iCandType, x - p.x, y - p.y);
@@ -3783,7 +3793,7 @@ void AwtComponent::SetCandidateWindow(int iCandType, int x, int y)
     HIMC hIMC = ImmGetContext(hwnd);
     CANDIDATEFORM cf;
     cf.dwIndex = iCandType;
-    cf.dwStyle = CFS_CANDIDATEPOS;
+    cf.dwStyle = CFS_POINT;
     cf.ptCurrentPos.x = x;
     cf.ptCurrentPos.y = y;
 
@@ -3815,9 +3825,15 @@ MsgRouting AwtComponent::WmImeSetContext(BOOL fSet, LPARAM *lplParam)
 
 MsgRouting AwtComponent::WmImeNotify(WPARAM subMsg, LPARAM bitsCandType)
 {
-    if (!m_useNativeCompWindow && subMsg == IMN_OPENCANDIDATE) {
-        m_bitsCandType = bitsCandType;
-        InquireCandidatePosition();
+    if (!m_useNativeCompWindow) {
+        if (subMsg == IMN_OPENCANDIDATE) {
+            m_bitsCandType = subMsg;
+            InquireCandidatePosition();
+        } else if (subMsg == IMN_OPENSTATUSWINDOW ||
+                   subMsg == WM_IME_STARTCOMPOSITION) {
+            m_bitsCandType = 0;
+            InquireCandidatePosition();
+        }
         return mrConsume;
     }
     return mrDoDefault;
@@ -4077,14 +4093,14 @@ HWND AwtComponent::GetProxyFocusOwner()
     return (HWND)NULL;
 }
 
-/* Call DefWindowProc for the focus proxy, if any */
+/* Redirects message to the focus proxy, if any */
 void AwtComponent::CallProxyDefWindowProc(UINT message, WPARAM wParam,
     LPARAM lParam, LRESULT &retVal, MsgRouting &mr)
 {
     if (mr != mrConsume)  {
         HWND proxy = GetProxyFocusOwner();
         if (proxy != NULL && ::IsWindowEnabled(proxy)) {
-            retVal = ComCtl32Util::GetInstance().DefWindowProc(NULL, proxy, message, wParam, lParam);
+            retVal = ::DefWindowProc(proxy, message, wParam, lParam);
             mr = mrConsume;
         }
     }
@@ -4163,7 +4179,7 @@ MsgRouting AwtComponent::WmDrawItem(UINT ctrlId, DRAWITEMSTRUCT &drawInfo)
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
     if (drawInfo.CtlType == ODT_MENU) {
-        if (drawInfo.itemData != 0) {
+        if (IsMenu((HMENU)drawInfo.hwndItem) && drawInfo.itemData != 0) {
             AwtMenu* menu = (AwtMenu*)(drawInfo.itemData);
             menu->DrawItem(drawInfo);
         }

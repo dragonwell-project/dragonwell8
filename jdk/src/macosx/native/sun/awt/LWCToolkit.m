@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,13 @@
 
 #import "sizecalc.h"
 
+// SCROLL PHASE STATE
+#define SCROLL_PHASE_UNSUPPORTED 1
+#define SCROLL_PHASE_BEGAN 2
+#define SCROLL_PHASE_CONTINUED 3
+#define SCROLL_PHASE_MOMENTUM_BEGAN 4
+#define SCROLL_PHASE_ENDED 5
+
 int gNumberOfButtons;
 jint* gButtonDownMasks;
 
@@ -54,6 +61,40 @@ static long eventCount;
     eventCount++;
 }
 
++ (jint) scrollStateWithEvent: (NSEvent*) event {
+    
+    if ([event type] != NSScrollWheel) {
+        return 0;
+    }
+    
+    if ([event phase]) {
+        // process a phase of manual scrolling
+        switch ([event phase]) {
+            case NSEventPhaseBegan: return SCROLL_PHASE_BEGAN;
+            case NSEventPhaseCancelled: return SCROLL_PHASE_ENDED;
+            case NSEventPhaseEnded: return SCROLL_PHASE_ENDED;
+            default: return SCROLL_PHASE_CONTINUED;
+        }
+    }
+    
+    if ([event momentumPhase]) {
+        // process a phase of automatic scrolling
+        switch ([event momentumPhase]) {
+            case NSEventPhaseBegan: return SCROLL_PHASE_MOMENTUM_BEGAN;
+            case NSEventPhaseCancelled: return SCROLL_PHASE_ENDED;
+            case NSEventPhaseEnded: return SCROLL_PHASE_ENDED;
+            default: return SCROLL_PHASE_CONTINUED;
+        }
+    }
+    // phase and momentum phase both are not set
+    return SCROLL_PHASE_UNSUPPORTED;
+}
+
++ (BOOL) hasPreciseScrollingDeltas: (NSEvent*) event {
+    return [event type] == NSScrollWheel
+    && [event respondsToSelector:@selector(hasPreciseScrollingDeltas)]
+    && [event hasPreciseScrollingDeltas];
+}
 @end
 
 
@@ -249,17 +290,15 @@ JNIEXPORT jlong JNICALL Java_sun_lwawt_macosx_LWCToolkit_createAWTRunLoopMediato
 {
 AWT_ASSERT_APPKIT_THREAD;
 
-    AWTRunLoopObject *o = nil;
+    jlong result;
 
+JNF_COCOA_ENTER(env);
     // We double retain because this object is owned by both main thread and "other" thread
     // We release in both doAWTRunLoop and stopAWTRunLoop
-    o = [[AWTRunLoopObject alloc] init];
-    if (o) {
-        CFRetain(o); // GC
-        CFRetain(o); // GC
-        [o release];
-    }
-    return ptr_to_jlong(o);
+    result = ptr_to_jlong([[[AWTRunLoopObject alloc] init] retain]);
+JNF_COCOA_EXIT(env);
+
+    return result;
 }
 
 /*
@@ -296,10 +335,7 @@ JNF_COCOA_ENTER(env);
 
         }
     }
-
-   
-    CFRelease(mediatorObject);
-
+    [mediatorObject release];
 JNF_COCOA_EXIT(env);
 }
 
@@ -317,7 +353,7 @@ JNF_COCOA_ENTER(env);
 
     [ThreadUtilities performOnMainThread:@selector(endRunLoop) on:mediatorObject withObject:nil waitUntilDone:NO];
 
-    CFRelease(mediatorObject);
+    [mediatorObject release];
 
 JNF_COCOA_EXIT(env);
 }

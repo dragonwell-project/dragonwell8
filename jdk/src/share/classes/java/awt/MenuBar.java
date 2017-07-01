@@ -222,7 +222,6 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
             if (m.parent != null) {
                 m.parent.remove(m);
             }
-            menus.addElement(m);
             m.parent = this;
 
             MenuBarPeer peer = (MenuBarPeer)this.peer;
@@ -230,7 +229,10 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
                 if (m.peer == null) {
                     m.addNotify();
                 }
+                menus.addElement(m);
                 peer.addMenu(m);
+            } else {
+                menus.addElement(m);
             }
             return m;
         }
@@ -248,9 +250,9 @@ public class MenuBar extends MenuComponent implements MenuContainer, Accessible 
             menus.removeElementAt(index);
             MenuBarPeer peer = (MenuBarPeer)this.peer;
             if (peer != null) {
+                peer.delMenu(index);
                 m.removeNotify();
                 m.parent = null;
-                peer.delMenu(index);
             }
             if (helpMenu == m) {
                 helpMenu = null;

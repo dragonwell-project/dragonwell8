@@ -690,7 +690,8 @@ IRT_END
 IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code bytecode)) {
   // extract receiver from the outgoing argument list if necessary
   Handle receiver(thread, NULL);
-  if (bytecode == Bytecodes::_invokevirtual || bytecode == Bytecodes::_invokeinterface) {
+  if (bytecode == Bytecodes::_invokevirtual || bytecode == Bytecodes::_invokeinterface ||
+      bytecode == Bytecodes::_invokespecial) {
     ResourceMark rm(thread);
     methodHandle m (thread, method(thread));
     Bytecode_invoke call(m, bci(thread));
@@ -756,16 +757,25 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes
       int index = info.resolved_method()->itable_index();
       assert(info.itable_index() == index, "");
     }
+  } else if (bytecode == Bytecodes::_invokespecial) {
+    assert(info.call_kind() == CallInfo::direct_call, "must be direct call");
   } else {
     assert(info.call_kind() == CallInfo::direct_call ||
            info.call_kind() == CallInfo::vtable_call, "");
   }
 #endif
+  // Get sender or sender's host_klass, and only set cpCache entry to resolved if
+  // it is not an interface.  The receiver for invokespecial calls within interface
+  // methods must be checked for every call.
+  InstanceKlass* sender = pool->pool_holder();
+  sender = sender->is_anonymous() ? InstanceKlass::cast(sender->host_klass()) : sender;
+
   switch (info.call_kind()) {
   case CallInfo::direct_call:
     cache_entry(thread)->set_direct_call(
       bytecode,
-      info.resolved_method());
+      info.resolved_method(),
+      sender->is_interface());
     break;
   case CallInfo::vtable_call:
     cache_entry(thread)->set_vtable_call(
