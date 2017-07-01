@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,27 @@
  */
 
 /**
- * JDK-8030182: scopeCall with -1 as line number
+ * JDK-8163945: Honor Number type hint in toPrimitive on Numbers
  *
  * @test
  * @run
  */
 
-var str = "";
-
-// large code to force splitting
-for (i = 0; i < 2000; ++i)
-    str +="o = new Object()\n";
-
-str +="g()";
-
-// check that "$split" or some such internal method
-// does not appear in script stack trace!!
-try {
-    eval(str);
-} catch (e) {
-    print(e.stack.replace(/\\/g, '/'));
+function assertLessThan(a, b) {
+    Assert.assertTrue(a < b);
+    Assert.assertTrue(a <= b);
+    Assert.assertFalse(a >= b);
+    Assert.assertFalse(a > b);
 }
 
+assertLessThan(new java.lang.Long(2), new java.lang.Long(10));
+assertLessThan(new java.lang.Long(2), 10);
+assertLessThan(2, new java.lang.Long(10));
+
+assertLessThan(new java.math.BigInteger(2), new java.math.BigInteger(10));
+assertLessThan(new java.math.BigInteger(2), 10);
+assertLessThan(2, new java.math.BigInteger(10));
+
+assertLessThan(new java.util.concurrent.atomic.AtomicInteger(2), new java.util.concurrent.atomic.AtomicInteger(10));
+assertLessThan(new java.util.concurrent.atomic.AtomicInteger(2), 10);
+assertLessThan(2, new java.util.concurrent.atomic.AtomicInteger(10));
