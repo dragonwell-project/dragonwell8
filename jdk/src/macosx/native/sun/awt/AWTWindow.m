@@ -330,7 +330,7 @@ AWT_ASSERT_APPKIT_THREAD;
 + (NSArray*) getWindowLayers {
     static NSArray *windowLayers;
     static dispatch_once_t token;
- 
+
     // Initialize the list of possible window layers
     dispatch_once(&token, ^{
         // The layers are ordered from front to back, (i.e. the toppest one is the first)
@@ -362,7 +362,7 @@ AWT_ASSERT_APPKIT_THREAD;
 }
 
 + (NSInteger) getTopmostWindowUnderMouseIDImpl:(NSInteger)windowLayer {
-    NSInteger result = -1;    
+    NSInteger result = -1;
 
     NSRect screenRect = [[NSScreen mainScreen] frame];
     NSPoint nsMouseLocation = [NSEvent mouseLocation];
