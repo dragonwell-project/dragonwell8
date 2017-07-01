@@ -67,8 +67,15 @@ void MemNode::dump_spec(outputStream *st) const {
   dump_adr_type(this, _adr_type, st);
 
   Compile* C = Compile::current();
-  if( C->alias_type(_adr_type)->is_volatile() )
+  if (C->alias_type(_adr_type)->is_volatile()) {
     st->print(" Volatile!");
+  }
+  if (_unaligned_access) {
+    st->print(" unaligned");
+  }
+  if (_mismatched_access) {
+    st->print(" mismatched");
+  }
 }
 
 void MemNode::dump_adr_type(const Node* mem, const TypePtr* adr_type, outputStream *st) {
@@ -1149,6 +1156,9 @@ Node *LoadNode::Identity( PhaseTransform *phase ) {
       // Use _idx of address base (could be Phi node) for boxed values.
       intptr_t   ignore = 0;
       Node*      base = AddPNode::Ideal_base_and_offset(in(Address), phase, ignore);
+      if (base == NULL) {
+        return this;
+      }
       this_iid = base->_idx;
     }
     const Type* this_type = bottom_type();
@@ -3322,6 +3332,9 @@ bool InitializeNode::detect_init_independence(Node* n, int& count) {
 // within the initialized memory.
 intptr_t InitializeNode::can_capture_store(StoreNode* st, PhaseTransform* phase, bool can_reshape) {
   const int FAIL = 0;
+  if (st->is_unaligned_access()) {
+    return FAIL;
+  }
   if (st->req() != MemNode::ValueIn + 1)
     return FAIL;                // an inscrutable StoreNode (card mark?)
   Node* ctl = st->in(MemNode::Control);
@@ -4025,9 +4038,10 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
     // if it is the last unused 4 bytes of an instance, forget about it
     intptr_t size_limit = phase->find_intptr_t_con(size_in_bytes, max_jint);
     if (zeroes_done + BytesPerLong >= size_limit) {
-      assert(allocation() != NULL, "");
-      if (allocation()->Opcode() == Op_Allocate) {
-        Node* klass_node = allocation()->in(AllocateNode::KlassNode);
+      AllocateNode* alloc = allocation();
+      assert(alloc != NULL, "must be present");
+      if (alloc != NULL && alloc->Opcode() == Op_Allocate) {
+        Node* klass_node = alloc->in(AllocateNode::KlassNode);
         ciKlass* k = phase->type(klass_node)->is_klassptr()->klass();
         if (zeroes_done == k->layout_helper())
           zeroes_done = size_limit;

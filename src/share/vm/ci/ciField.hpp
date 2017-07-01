@@ -124,22 +124,8 @@ public:
     return _holder->is_shared() && !is_static();
   }
 
-  // Is this field a constant?
-  //
-  // Clarification: A field is considered constant if:
-  //   1. The field is both static and final
-  //   2. The canonical holder of the field has undergone
-  //      static initialization.
-  //   3. If the field is an object or array, then the oop
-  //      in question is allocated in perm space.
-  //   4. The field is not one of the special static/final
-  //      non-constant fields.  These are java.lang.System.in
-  //      and java.lang.System.out.  Abomination.
-  //
-  // A field is also considered constant if it is marked @Stable
-  // and is non-null (or non-zero, if a primitive).
-  // For non-static fields, the null/zero check must be
-  // arranged by the user, as constant_value().is_null_or_zero().
+  // Is this field a constant? See ciField::initialize_from() for details
+  // about how a field is determined to be constant.
   bool is_constant() { return _is_constant; }
 
   // Get the constant value of this field.
@@ -176,6 +162,9 @@ public:
   bool is_stable      () { return flags().is_stable(); }
   bool is_volatile    () { return flags().is_volatile(); }
   bool is_transient   () { return flags().is_transient(); }
+  // The field is modified outside of instance initializer methods
+  // (or class/initializer methods if the field is static).
+  bool has_initialized_final_update() { return flags().has_initialized_final_update(); }
 
   bool is_call_site_target() {
     ciInstanceKlass* callsite_klass = CURRENT_ENV->CallSite_klass();

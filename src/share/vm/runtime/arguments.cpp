@@ -3193,8 +3193,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
 
       // Enable parallel GC and adaptive generation sizing
       FLAG_SET_CMDLINE(bool, UseParallelGC, true);
-      FLAG_SET_DEFAULT(ParallelGCThreads,
-                       Abstract_VM_Version::parallel_worker_threads());
 
       // Encourage steady state memory management
       FLAG_SET_CMDLINE(uintx, ThresholdTolerance, 100);

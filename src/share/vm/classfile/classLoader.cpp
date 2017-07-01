@@ -1627,7 +1627,6 @@ void ClassLoader::compile_the_world_in(char* name, Handle loader, TRAPS) {
                 if (nm != NULL && !m->is_method_handle_intrinsic()) {
                   // Throw out the code so that the code cache doesn't fill up
                   nm->make_not_entrant();
-                  m->clear_code();
                 }
                 CompileBroker::compile_method(m, InvocationEntryBci, CompLevel_full_optimization,
                                               methodHandle(), 0, "CTW", THREAD);
@@ -1646,7 +1645,6 @@ void ClassLoader::compile_the_world_in(char* name, Handle loader, TRAPS) {
             if (nm != NULL && !m->is_method_handle_intrinsic()) {
               // Throw out the code so that the code cache doesn't fill up
               nm->make_not_entrant();
-              m->clear_code();
             }
           }
         }

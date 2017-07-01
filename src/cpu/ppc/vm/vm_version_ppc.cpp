@@ -102,7 +102,7 @@ void VM_Version::initialize() {
   // Create and print feature-string.
   char buf[(num_features+1) * 16]; // Max 16 chars per feature.
   jio_snprintf(buf, sizeof(buf),
-               "ppc64%s%s%s%s%s%s%s%s",
+               "ppc64%s%s%s%s%s%s%s%s%s",
                (has_fsqrt()   ? " fsqrt"   : ""),
                (has_isel()    ? " isel"    : ""),
                (has_lxarxeh() ? " lxarxeh" : ""),
@@ -111,7 +111,8 @@ void VM_Version::initialize() {
                (has_popcntb() ? " popcntb" : ""),
                (has_popcntw() ? " popcntw" : ""),
                (has_fcfids()  ? " fcfids"  : ""),
-               (has_vand()    ? " vand"    : "")
+               (has_vand()    ? " vand"    : ""),
+               (has_vcipher() ? " aes"     : "")
                // Make sure number of %s matches num_features!
               );
   _features_str = strdup(buf);
@@ -156,6 +157,28 @@ void VM_Version::initialize() {
   }
 
   // The AES intrinsic stubs require AES instruction support.
+#if defined(VM_LITTLE_ENDIAN)
+  if (has_vcipher()) {
+    if (FLAG_IS_DEFAULT(UseAES)) {
+      UseAES = true;
+    }
+  } else if (UseAES) {
+    if (!FLAG_IS_DEFAULT(UseAES))
+      warning("AES instructions are not available on this CPU");
+    FLAG_SET_DEFAULT(UseAES, false);
+  }
+
+  if (UseAES && has_vcipher()) {
+    if (FLAG_IS_DEFAULT(UseAESIntrinsics)) {
+      UseAESIntrinsics = true;
+    }
+  } else if (UseAESIntrinsics) {
+    if (!FLAG_IS_DEFAULT(UseAESIntrinsics))
+      warning("AES intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseAESIntrinsics, false);
+  }
+
+#else
   if (UseAES) {
     warning("AES instructions are not available on this CPU");
     FLAG_SET_DEFAULT(UseAES, false);
@@ -165,6 +188,7 @@ void VM_Version::initialize() {
       warning("AES intrinsics are not available on this CPU");
     FLAG_SET_DEFAULT(UseAESIntrinsics, false);
   }
+#endif
 
   if (UseSHA) {
     warning("SHA instructions are not available on this CPU");
@@ -452,6 +476,7 @@ void VM_Version::determine_features() {
   a->popcntw(R7, R5);                          // code[7] -> popcntw
   a->fcfids(F3, F4);                           // code[8] -> fcfids
   a->vand(VR0, VR0, VR0);                      // code[9] -> vand
+  a->vcipher(VR0, VR1, VR2);                   // code[10] -> vcipher
   a->blr();
 
   // Emit function to set one cache line to zero. Emit function descriptor and get pointer to it.
@@ -495,6 +520,7 @@ void VM_Version::determine_features() {
   if (code[feature_cntr++]) features |= popcntw_m;
   if (code[feature_cntr++]) features |= fcfids_m;
   if (code[feature_cntr++]) features |= vand_m;
+  if (code[feature_cntr++]) features |= vcipher_m;
 
   // Print the detection code.
   if (PrintAssembly) {
