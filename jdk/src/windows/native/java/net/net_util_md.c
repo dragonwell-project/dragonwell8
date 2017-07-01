@@ -218,9 +218,7 @@ NET_ThrowSocketException(JNIEnv *env, char* msg)
 void
 NET_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                    const char *defaultDetail) {
-    char errmsg[255];
-    sprintf(errmsg, "errno: %d, error: %s\n", WSAGetLastError(), defaultDetail);
-    JNU_ThrowByNameWithLastError(env, name, errmsg);
+    JNU_ThrowByNameWithMessageAndLastError(env, name, defaultDetail);
 }
 
 jfieldID

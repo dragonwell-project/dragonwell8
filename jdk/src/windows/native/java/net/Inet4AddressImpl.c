@@ -33,6 +33,7 @@
 #include <process.h>
 #include <iphlpapi.h>
 #include <icmpapi.h>
+#include <WinError.h>
 
 #include "java_net_InetAddress.h"
 #include "java_net_Inet4AddressImpl.h"
@@ -113,11 +114,6 @@ Java_java_net_Inet4AddressImpl_getLocalHostName (JNIEnv *env, jobject this) {
     return JNU_NewStringPlatform(env, hostname);
 }
 
-static jclass ni_iacls;
-static jclass ni_ia4cls;
-static jmethodID ni_ia4ctrID;
-static int initialized = 0;
-
 /*
  * Find an internet address for a given hostname.  Not this this
  * code only works for addresses of type INET. The translation
@@ -142,19 +138,8 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
 
     jobjectArray ret = NULL;
 
-    if (!initialized) {
-      ni_iacls = (*env)->FindClass(env, "java/net/InetAddress");
-      CHECK_NULL_RETURN(ni_iacls, NULL);
-      ni_iacls = (*env)->NewGlobalRef(env, ni_iacls);
-      CHECK_NULL_RETURN(ni_iacls, NULL);
-      ni_ia4cls = (*env)->FindClass(env, "java/net/Inet4Address");
-      CHECK_NULL_RETURN(ni_ia4cls, NULL);
-      ni_ia4cls = (*env)->NewGlobalRef(env, ni_ia4cls);
-      CHECK_NULL_RETURN(ni_ia4cls, NULL);
-      ni_ia4ctrID = (*env)->GetMethodID(env, ni_ia4cls, "<init>", "()V");
-      CHECK_NULL_RETURN(ni_ia4ctrID, NULL);
-      initialized = 1;
-    }
+    initInetAddressIDs(env);
+    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
 
     if (IS_NULL(host)) {
         JNU_ThrowNullPointerException(env, "host argument");
@@ -198,13 +183,13 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
         address |= (addr[1]<<8) & 0xff00;
         address |= addr[0];
 
-        ret = (*env)->NewObjectArray(env, 1, ni_iacls, NULL);
+        ret = (*env)->NewObjectArray(env, 1, ia_class, NULL);
 
         if (IS_NULL(ret)) {
             goto cleanupAndReturn;
         }
 
-        iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4ctrID);
+        iaObj = (*env)->NewObject(env, ia4_class, ia4_ctrID);
         if (IS_NULL(iaObj)) {
           ret = NULL;
           goto cleanupAndReturn;
@@ -228,7 +213,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             addrp++;
         }
 
-        ret = (*env)->NewObjectArray(env, i, ni_iacls, NULL);
+        ret = (*env)->NewObjectArray(env, i, ia_class, NULL);
 
         if (IS_NULL(ret)) {
             goto cleanupAndReturn;
@@ -237,7 +222,7 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
         addrp = (struct in_addr **) hp->h_addr_list;
         i = 0;
         while (*addrp != (struct in_addr *) 0) {
-          jobject iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4ctrID);
+          jobject iaObj = (*env)->NewObject(env, ia4_class, ia4_ctrID);
           if (IS_NULL(iaObj)) {
             ret = NULL;
             goto cleanupAndReturn;
@@ -481,7 +466,15 @@ ping4(JNIEnv *env,
     DWORD ReplySize = 0;
     jboolean ret = JNI_FALSE;
 
-    ReplySize = sizeof(ICMP_ECHO_REPLY) + sizeof(SendData);
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/aa366051%28v=vs.85%29.aspx
+    ReplySize = sizeof(ICMP_ECHO_REPLY)   // The buffer should be large enough
+                                          // to hold at least one ICMP_ECHO_REPLY
+                                          // structure
+                + sizeof(SendData)        // plus RequestSize bytes of data.
+                + 8;                      // This buffer should also be large enough
+                                          // to also hold 8 more bytes of data
+                                          // (the size of an ICMP error message)
+
     ReplyBuffer = (VOID*) malloc(ReplySize);
     if (ReplyBuffer == NULL) {
         IcmpCloseHandle(hIcmpFile);
@@ -517,10 +510,47 @@ ping4(JNIEnv *env,
                                    (timeout < 1000) ? 1000 : timeout);   // DWORD Timeout
     }
 
-    if (dwRetVal != 0) {
+    if (dwRetVal == 0) { // if the call failed
+        TCHAR *buf;
+        DWORD err = WSAGetLastError();
+        switch (err) {
+            case ERROR_NO_NETWORK:
+            case ERROR_NETWORK_UNREACHABLE:
+            case ERROR_HOST_UNREACHABLE:
+            case ERROR_PROTOCOL_UNREACHABLE:
+            case ERROR_PORT_UNREACHABLE:
+            case ERROR_REQUEST_ABORTED:
+            case ERROR_INCORRECT_ADDRESS:
+            case ERROR_HOST_DOWN:
+            case ERROR_INVALID_COMPUTERNAME:
+            case ERROR_INVALID_NETNAME:
+            case WSAEHOSTUNREACH:   /* Host Unreachable */
+            case WSAENETUNREACH:    /* Network Unreachable */
+            case WSAENETDOWN:       /* Network is down */
+            case WSAEPFNOSUPPORT:   /* Protocol Family unsupported */
+            case IP_REQ_TIMED_OUT:
+                break;
+            default:
+                FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+                        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                        (LPTSTR)&buf, 0, NULL);
+                NET_ThrowNew(env, err, buf);
+                LocalFree(buf);
+                break;
+        }
+    } else {
         PICMP_ECHO_REPLY pEchoReply = (PICMP_ECHO_REPLY)ReplyBuffer;
-        if ((int)pEchoReply->RoundTripTime <= timeout)
+
+        // This is to take into account the undocumented minimum
+        // timeout mentioned in the IcmpSendEcho call above.
+        // We perform an extra check to make sure that our
+        // roundtrip time was less than our desired timeout
+        // for cases where that timeout is < 1000ms.
+        if (pEchoReply->Status == IP_SUCCESS
+                && (int)pEchoReply->RoundTripTime <= timeout)
+        {
             ret = JNI_TRUE;
+        }
     }
 
     free(ReplyBuffer);

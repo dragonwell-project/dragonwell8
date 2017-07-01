@@ -438,6 +438,10 @@ public abstract class Signature extends SignatureSpi {
         return this.provider;
     }
 
+    private String getProviderName() {
+        return (provider == null)  ? "(no provider)" : provider.getName();
+    }
+
     void chooseFirstProvider() {
         // empty, overridden in Delegate
     }
@@ -459,7 +463,7 @@ public abstract class Signature extends SignatureSpi {
 
         if (!skipDebug && pdebug != null) {
             pdebug.println("Signature." + algorithm +
-                " verification algorithm from: " + this.provider.getName());
+                " verification algorithm from: " + getProviderName());
         }
     }
 
@@ -508,7 +512,7 @@ public abstract class Signature extends SignatureSpi {
 
         if (!skipDebug && pdebug != null) {
             pdebug.println("Signature." + algorithm +
-                " verification algorithm from: " + this.provider.getName());
+                " verification algorithm from: " + getProviderName());
         }
     }
 
@@ -529,7 +533,7 @@ public abstract class Signature extends SignatureSpi {
 
         if (!skipDebug && pdebug != null) {
             pdebug.println("Signature." + algorithm +
-                " signing algorithm from: " + this.provider.getName());
+                " signing algorithm from: " + getProviderName());
         }
     }
 
@@ -552,7 +556,7 @@ public abstract class Signature extends SignatureSpi {
 
         if (!skipDebug && pdebug != null) {
             pdebug.println("Signature." + algorithm +
-                " signing algorithm from: " + this.provider.getName());
+                " signing algorithm from: " + getProviderName());
         }
     }
 

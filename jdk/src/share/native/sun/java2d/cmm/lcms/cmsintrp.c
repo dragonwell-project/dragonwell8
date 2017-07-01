@@ -30,7 +30,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2012 Marti Maria Saguer
+//  Copyright (c) 1998-2016 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -185,7 +185,7 @@ cmsInterpParams* _cmsComputeInterpParams(cmsContext ContextID, int nSamples, int
     int i;
     cmsUInt32Number Samples[MAX_INPUT_DIMENSIONS];
 
-    // Fill the auxiliar array
+    // Fill the auxiliary array
     for (i=0; i < MAX_INPUT_DIMENSIONS; i++)
         Samples[i] = nSamples;
 
@@ -244,7 +244,7 @@ void LinLerp1D(register const cmsUInt16Number Value[],
 // To prevent out of bounds indexing
 cmsINLINE cmsFloat32Number fclamp(cmsFloat32Number v)
 {
-    return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+    return v < 0.0f || v != v ? 0.0f : (v > 1.0f ? 1.0f : v);
 }
 
 // Floating-point version of 1D interpolation

@@ -207,7 +207,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   // Check to see if the field is constant.
   bool is_final = this->is_final();
   bool is_stable = FoldStableValues && this->is_stable();
-  if (_holder->is_initialized() && (is_final || is_stable)) {
+  if (_holder->is_initialized() && ((is_final && !has_initialized_final_update()) || is_stable)) {
     if (!this->is_static()) {
       // A field can be constant if it's a final static field or if
       // it's a final non-static field of a trusted class (classes in

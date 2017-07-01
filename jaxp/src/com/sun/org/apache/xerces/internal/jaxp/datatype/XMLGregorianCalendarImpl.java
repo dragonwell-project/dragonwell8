@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2671,6 +2671,9 @@ public class XMLGregorianCalendarImpl
             customTimezoneId.append(sign);
             customTimezoneId.append(hour);
             if (minutes != 0) {
+                if (minutes < 10) {
+                    customTimezoneId.append('0');
+                }
                 customTimezoneId.append(minutes);
             }
             result = TimeZone.getTimeZone(customTimezoneId.toString());

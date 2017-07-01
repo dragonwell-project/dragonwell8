@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -616,7 +616,11 @@ bool InstanceKlass::link_class_or_fail(TRAPS) {
 
 bool InstanceKlass::link_class_impl(
     instanceKlassHandle this_oop, bool throw_verifyerror, TRAPS) {
-  // check for error state
+  // check for error state.
+  // This is checking for the wrong state.  If the state is initialization_error,
+  // then this class *was* linked.  The CDS code does a try_link_class and uses
+  // initialization_error to mark classes to not include in the archive during
+  // DumpSharedSpaces.  This should be removed when the CDS bug is fixed.
   if (this_oop->is_in_error_state()) {
     ResourceMark rm(THREAD);
     THROW_MSG_(vmSymbols::java_lang_NoClassDefFoundError(),
@@ -801,37 +805,22 @@ void InstanceKlass::link_methods(TRAPS) {
 }
 
 // Eagerly initialize superinterfaces that declare default methods (concrete instance: any access)
-void InstanceKlass::initialize_super_interfaces(instanceKlassHandle this_oop, TRAPS) {
-  if (this_oop->has_default_methods()) {
-    for (int i = 0; i < this_oop->local_interfaces()->length(); ++i) {
-      Klass* iface = this_oop->local_interfaces()->at(i);
-      InstanceKlass* ik = InstanceKlass::cast(iface);
-      if (ik->should_be_initialized()) {
-        if (ik->has_default_methods()) {
-          ik->initialize_super_interfaces(ik, THREAD);
-        }
-        // Only initialize() interfaces that "declare" concrete methods.
-        // has_default_methods drives searching superinterfaces since it
-        // means has_default_methods in its superinterface hierarchy
-        if (!HAS_PENDING_EXCEPTION && ik->declares_default_methods()) {
-          ik->initialize(THREAD);
-        }
-        if (HAS_PENDING_EXCEPTION) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          {
-            EXCEPTION_MARK;
-            // Locks object, set state, and notify all waiting threads
-            this_oop->set_initialization_state_and_notify(
-                initialization_error, THREAD);
+void InstanceKlass::initialize_super_interfaces(instanceKlassHandle this_k, TRAPS) {
+  assert (this_k->has_default_methods(), "caller should have checked this");
+  for (int i = 0; i < this_k->local_interfaces()->length(); ++i) {
+    Klass* iface = this_k->local_interfaces()->at(i);
+    InstanceKlass* ik = InstanceKlass::cast(iface);
 
-            // ignore any exception thrown, superclass initialization error is
-            // thrown below
-            CLEAR_PENDING_EXCEPTION;
-          }
-          THROW_OOP(e());
-        }
-      }
+    // Initialization is depth first search ie. we start with top of the inheritance tree
+    // has_default_methods drives searching superinterfaces since it
+    // means has_default_methods in its superinterface hierarchy
+    if (ik->has_default_methods()) {
+      ik->initialize_super_interfaces(ik, CHECK);
+    }
+
+    // Only initialize() interfaces that "declare" concrete methods.
+    if (ik->should_be_initialized() && ik->declares_default_methods()) {
+      ik->initialize(CHECK);
     }
   }
 }
@@ -897,28 +886,34 @@ void InstanceKlass::initialize_impl(instanceKlassHandle this_oop, TRAPS) {
   }
 
   // Step 7
-  Klass* super_klass = this_oop->super();
-  if (super_klass != NULL && !this_oop->is_interface() && super_klass->should_be_initialized()) {
-    super_klass->initialize(THREAD);
+  // Next, if C is a class rather than an interface, initialize its super class and super
+  // interfaces.
+  if (!this_oop->is_interface()) {
+    Klass* super_klass = this_oop->super();
+    if (super_klass != NULL && super_klass->should_be_initialized()) {
+      super_klass->initialize(THREAD);
+    }
+    // If C implements any interfaces that declares a non-abstract, non-static method,
+    // the initialization of C triggers initialization of its super interfaces.
+    // Only need to recurse if has_default_methods which includes declaring and
+    // inheriting default methods
+    if (!HAS_PENDING_EXCEPTION && this_oop->has_default_methods()) {
+      this_oop->initialize_super_interfaces(this_oop, THREAD);
+    }
 
+    // If any exceptions, complete abruptly, throwing the same exception as above.
     if (HAS_PENDING_EXCEPTION) {
       Handle e(THREAD, PENDING_EXCEPTION);
       CLEAR_PENDING_EXCEPTION;
       {
         EXCEPTION_MARK;
-        this_oop->set_initialization_state_and_notify(initialization_error, THREAD); // Locks object, set state, and notify all waiting threads
-        CLEAR_PENDING_EXCEPTION;   // ignore any exception thrown, superclass initialization error is thrown below
+        // Locks object, set state, and notify all waiting threads
+        this_oop->set_initialization_state_and_notify(initialization_error, THREAD);
+        CLEAR_PENDING_EXCEPTION;
       }
       DTRACE_CLASSINIT_PROBE_WAIT(super__failed, InstanceKlass::cast(this_oop()), -1,wait);
       THROW_OOP(e());
     }
-  }
-
-  // Recursively initialize any superinterfaces that declare default methods
-  // Only need to recurse if has_default_methods which includes declaring and
-  // inheriting default methods
-  if (this_oop->has_default_methods()) {
-    this_oop->initialize_super_interfaces(this_oop, CHECK);
   }
 
   // Step 8
@@ -981,10 +976,15 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
 
 void InstanceKlass::set_initialization_state_and_notify_impl(instanceKlassHandle this_oop, ClassState state, TRAPS) {
   oop init_lock = this_oop->init_lock();
-  ObjectLocker ol(init_lock, THREAD, init_lock != NULL);
-  this_oop->set_init_state(state);
-  this_oop->fence_and_clear_init_lock();
-  ol.notify_all(CHECK);
+  if (init_lock != NULL) {
+    ObjectLocker ol(init_lock, THREAD);
+    this_oop->set_init_state(state);
+    this_oop->fence_and_clear_init_lock();
+    ol.notify_all(CHECK);
+  } else {
+    assert(init_lock != NULL, "The initialization state should never be set twice");
+    this_oop->set_init_state(state);
+  }
 }
 
 // The embedded _implementor field can only record one implementor.
@@ -1475,18 +1475,23 @@ static int binary_search(Array<Method*>* methods, Symbol* name) {
 
 // find_method looks up the name/signature in the local methods array
 Method* InstanceKlass::find_method(Symbol* name, Symbol* signature) const {
-  return find_method_impl(name, signature, false);
+  return find_method_impl(name, signature, find_overpass, find_static, find_private);
 }
 
-Method* InstanceKlass::find_method_impl(Symbol* name, Symbol* signature, bool skipping_overpass) const {
-  return InstanceKlass::find_method_impl(methods(), name, signature, skipping_overpass, false);
+Method* InstanceKlass::find_method_impl(Symbol* name, Symbol* signature,
+                                        OverpassLookupMode overpass_mode,
+                                        StaticLookupMode static_mode,
+                                        PrivateLookupMode private_mode) const {
+  return InstanceKlass::find_method_impl(methods(), name, signature, overpass_mode, static_mode, private_mode);
 }
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
 Method* InstanceKlass::find_instance_method(
     Array<Method*>* methods, Symbol* name, Symbol* signature) {
-  Method* meth = InstanceKlass::find_method_impl(methods, name, signature, false, true);
+  Method* meth = InstanceKlass::find_method_impl(methods, name, signature,
+                                                 find_overpass, skip_static, find_private);
+  assert(((meth == NULL) || !meth->is_static()), "find_instance_method should have skipped statics");
   return meth;
 }
 
@@ -1496,22 +1501,51 @@ Method* InstanceKlass::find_instance_method(Symbol* name, Symbol* signature) {
     return InstanceKlass::find_instance_method(methods(), name, signature);
 }
 
+// Find looks up the name/signature in the local methods array
+// and filters on the overpass, static and private flags
+// This returns the first one found
+// note that the local methods array can have up to one overpass, one static
+// and one instance (private or not) with the same name/signature
+Method* InstanceKlass::find_local_method(Symbol* name, Symbol* signature,
+                                        OverpassLookupMode overpass_mode,
+                                        StaticLookupMode static_mode,
+                                        PrivateLookupMode private_mode) const {
+  return InstanceKlass::find_method_impl(methods(), name, signature, overpass_mode, static_mode, private_mode);
+}
+
+// Find looks up the name/signature in the local methods array
+// and filters on the overpass, static and private flags
+// This returns the first one found
+// note that the local methods array can have up to one overpass, one static
+// and one instance (private or not) with the same name/signature
+Method* InstanceKlass::find_local_method(Array<Method*>* methods,
+                                        Symbol* name, Symbol* signature,
+                                        OverpassLookupMode overpass_mode,
+                                        StaticLookupMode static_mode,
+                                        PrivateLookupMode private_mode) {
+  return InstanceKlass::find_method_impl(methods, name, signature, overpass_mode, static_mode, private_mode);
+}
+
+
 // find_method looks up the name/signature in the local methods array
 Method* InstanceKlass::find_method(
     Array<Method*>* methods, Symbol* name, Symbol* signature) {
-  return InstanceKlass::find_method_impl(methods, name, signature, false, false);
+  return InstanceKlass::find_method_impl(methods, name, signature, find_overpass, find_static, find_private);
 }
 
 Method* InstanceKlass::find_method_impl(
-    Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass, bool skipping_static) {
-  int hit = find_method_index(methods, name, signature, skipping_overpass, skipping_static);
+    Array<Method*>* methods, Symbol* name, Symbol* signature,
+    OverpassLookupMode overpass_mode, StaticLookupMode static_mode,
+    PrivateLookupMode private_mode) {
+  int hit = find_method_index(methods, name, signature, overpass_mode, static_mode, private_mode);
   return hit >= 0 ? methods->at(hit): NULL;
 }
 
-bool InstanceKlass::method_matches(Method* m, Symbol* signature, bool skipping_overpass, bool skipping_static) {
-    return (m->signature() == signature) &&
+bool InstanceKlass::method_matches(Method* m, Symbol* signature, bool skipping_overpass, bool skipping_static, bool skipping_private) {
+    return  ((m->signature() == signature) &&
             (!skipping_overpass || !m->is_overpass()) &&
-            (!skipping_static || !m->is_static());
+            (!skipping_static || !m->is_static()) &&
+            (!skipping_private || !m->is_private()));
 }
 
 // Used directly for default_methods to find the index into the
@@ -1521,15 +1555,25 @@ bool InstanceKlass::method_matches(Method* m, Symbol* signature, bool skipping_o
 // the search continues to find a potential non-overpass match.  This capability
 // is important during method resolution to prefer a static method, for example,
 // over an overpass method.
+// There is the possibility in any _method's array to have the same name/signature
+// for a static method, an overpass method and a local instance method
+// To correctly catch a given method, the search criteria may need
+// to explicitly skip the other two. For local instance methods, it
+// is often necessary to skip private methods
 int InstanceKlass::find_method_index(
-    Array<Method*>* methods, Symbol* name, Symbol* signature, bool skipping_overpass, bool skipping_static) {
+    Array<Method*>* methods, Symbol* name, Symbol* signature,
+    OverpassLookupMode overpass_mode, StaticLookupMode static_mode,
+    PrivateLookupMode private_mode) {
+  bool skipping_overpass = (overpass_mode == skip_overpass);
+  bool skipping_static = (static_mode == skip_static);
+  bool skipping_private = (private_mode == skip_private);
   int hit = binary_search(methods, name);
   if (hit != -1) {
     Method* m = methods->at(hit);
 
     // Do linear search to find matching signature.  First, quick check
     // for common case, ignoring overpasses if requested.
-    if (method_matches(m, signature, skipping_overpass, skipping_static)) return hit;
+    if (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) return hit;
 
     // search downwards through overloaded methods
     int i;
@@ -1537,18 +1581,18 @@ int InstanceKlass::find_method_index(
         Method* m = methods->at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (method_matches(m, signature, skipping_overpass, skipping_static)) return i;
+        if (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) return i;
     }
     // search upwards
     for (i = hit + 1; i < methods->length(); ++i) {
         Method* m = methods->at(i);
         assert(m->is_method(), "must be method");
         if (m->name() != name) break;
-        if (method_matches(m, signature, skipping_overpass, skipping_static)) return i;
+        if (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) return i;
     }
     // not found
 #ifdef ASSERT
-    int index = skipping_overpass || skipping_static ? -1 : linear_search(methods, name, signature);
+    int index = (skipping_overpass || skipping_static || skipping_private) ? -1 : linear_search(methods, name, signature);
     assert(index == -1, err_msg("binary search should have found entry %d", index));
 #endif
   }
@@ -1574,16 +1618,16 @@ int InstanceKlass::find_method_by_name(
 
 // uncached_lookup_method searches both the local class methods array and all
 // superclasses methods arrays, skipping any overpass methods in superclasses.
-Method* InstanceKlass::uncached_lookup_method(Symbol* name, Symbol* signature, MethodLookupMode mode) const {
-  MethodLookupMode lookup_mode = mode;
+Method* InstanceKlass::uncached_lookup_method(Symbol* name, Symbol* signature, OverpassLookupMode overpass_mode) const {
+  OverpassLookupMode overpass_local_mode = overpass_mode;
   Klass* klass = const_cast<InstanceKlass*>(this);
   while (klass != NULL) {
-    Method* method = InstanceKlass::cast(klass)->find_method_impl(name, signature, (lookup_mode == skip_overpass));
+    Method* method = InstanceKlass::cast(klass)->find_method_impl(name, signature, overpass_local_mode, find_static, find_private);
     if (method != NULL) {
       return method;
     }
     klass = InstanceKlass::cast(klass)->super();
-    lookup_mode = skip_overpass;   // Always ignore overpass methods in superclasses
+    overpass_local_mode = skip_overpass;   // Always ignore overpass methods in superclasses
   }
   return NULL;
 }
@@ -1613,7 +1657,7 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
   }
   // Look up interfaces
   if (m == NULL) {
-    m = lookup_method_in_all_interfaces(name, signature, normal);
+    m = lookup_method_in_all_interfaces(name, signature, find_defaults);
   }
   return m;
 }
@@ -1623,7 +1667,7 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
 // They should only be found in the initial InterfaceMethodRef
 Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
                                                        Symbol* signature,
-                                                       MethodLookupMode mode) const {
+                                                       DefaultsLookupMode defaults_mode) const {
   Array<Klass*>* all_ifs = transitive_interfaces();
   int num_ifs = all_ifs->length();
   InstanceKlass *ik = NULL;
@@ -1631,7 +1675,7 @@ Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
     ik = InstanceKlass::cast(all_ifs->at(i));
     Method* m = ik->lookup_method(name, signature);
     if (m != NULL && m->is_public() && !m->is_static() &&
-        ((mode != skip_defaults) || !m->is_default_method())) {
+        ((defaults_mode != skip_defaults) || !m->is_default_method())) {
       return m;
     }
   }
