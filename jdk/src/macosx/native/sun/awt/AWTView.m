@@ -114,9 +114,9 @@ AWT_ASSERT_APPKIT_THREAD;
             remoteLayer.parentLayer = parentLayer;
             remoteLayer.remoteLayer = NULL;
             remoteLayer.jrsRemoteLayer = [remoteLayer createRemoteLayerBoundTo:JRSRemotePort];
-            CFRetain(remoteLayer);  // REMIND
+            [remoteLayer retain];  // REMIND
             remoteLayer.frame = CGRectMake(0, 0, 720, 500); // REMIND
-            CFRetain(remoteLayer.jrsRemoteLayer); // REMIND
+            [remoteLayer.jrsRemoteLayer retain]; // REMIND
             int layerID = [remoteLayer.jrsRemoteLayer layerID];
             NSLog(@"layer id to send = %d", layerID);
             sendLayerID(layerID);
@@ -385,8 +385,15 @@ AWT_ASSERT_APPKIT_THREAD;
         clickCount = [event clickCount];
     }
 
+    jdouble deltaX = [event deltaX];
+    jdouble deltaY = [event deltaY];
+    if ([AWTToolkit hasPreciseScrollingDeltas: event]) {
+        deltaX = [event scrollingDeltaX] * 0.1;
+        deltaY = [event scrollingDeltaY] * 0.1;
+    }
+
     static JNF_CLASS_CACHE(jc_NSEvent, "sun/lwawt/macosx/NSEvent");
-    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDD)V");
+    static JNF_CTOR_CACHE(jctor_NSEvent, jc_NSEvent, "(IIIIIIIIDDI)V");
     jobject jEvent = JNFNewObject(env, jctor_NSEvent,
                                   [event type],
                                   [event modifierFlags],
@@ -394,8 +401,9 @@ AWT_ASSERT_APPKIT_THREAD;
                                   [event buttonNumber],
                                   (jint)localPoint.x, (jint)localPoint.y,
                                   (jint)absP.x, (jint)absP.y,
-                                  [event deltaY],
-                                  [event deltaX]);
+                                  deltaY,
+                                  deltaX,
+                                  [AWTToolkit scrollStateWithEvent: event]);
     if (jEvent == nil) {
         // Unable to create event by some reason.
         return;
@@ -1340,12 +1348,9 @@ JNF_COCOA_ENTER(env);
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
 
         CALayer *windowLayer = jlong_to_ptr(windowLayerPtr);
-        AWTView *view = [[AWTView alloc] initWithRect:rect
-                                         platformView:cPlatformView
-                                         windowLayer:windowLayer];
-        CFRetain(view);
-        [view release]; // GC
-        newView = view;
+        newView = [[AWTView alloc] initWithRect:rect
+                                   platformView:cPlatformView
+                                    windowLayer:windowLayer];
     }];
 
 JNF_COCOA_EXIT(env);

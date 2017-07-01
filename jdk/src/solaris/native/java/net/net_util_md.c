@@ -33,6 +33,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <sys/time.h>
 
 #ifndef _ALLBSD_SOURCE
 #include <values.h>
@@ -106,6 +107,8 @@ void setDefaultScopeID(JNIEnv *env, struct sockaddr *him)
 int getDefaultScopeID(JNIEnv *env) {
     static jclass ni_class = NULL;
     static jfieldID ni_defaultIndexID;
+    int defaultIndex = 0;
+
     if (ni_class == NULL) {
         jclass c = (*env)->FindClass(env, "java/net/NetworkInterface");
         CHECK_NULL_RETURN(c, 0);
@@ -116,7 +119,6 @@ int getDefaultScopeID(JNIEnv *env) {
         CHECK_NULL_RETURN(ni_defaultIndexID, 0);
         ni_class = c;
     }
-    int defaultIndex = 0;
     defaultIndex = (*env)->GetStaticIntField(env, ni_class,
                                              ni_defaultIndexID);
     return defaultIndex;
@@ -257,9 +259,7 @@ int cmpScopeID (unsigned int scope, struct sockaddr *him) {
 void
 NET_ThrowByNameWithLastError(JNIEnv *env, const char *name,
                    const char *defaultDetail) {
-    char errmsg[255];
-    sprintf(errmsg, "errno: %d, error: %s\n", errno, defaultDetail);
-    JNU_ThrowByNameWithLastError(env, name, errmsg);
+    JNU_ThrowByNameWithMessageAndLastError(env, name, defaultDetail);
 }
 
 void
@@ -334,6 +334,7 @@ jint  IPv6_supported()
     if (getsockname(0, (struct sockaddr *)&sa, &sa_len) == 0) {
         struct sockaddr *saP = (struct sockaddr *)&sa;
         if (saP->sa_family != AF_INET6) {
+            close(fd);
             return JNI_FALSE;
         }
     }
@@ -1208,16 +1209,10 @@ NET_GetSockOpt(int fd, int level, int opt, void *result,
                int *len)
 {
     int rv;
+    socklen_t socklen = *len;
 
-#ifdef __solaris__
-    rv = getsockopt(fd, level, opt, result, len);
-#else
-    {
-        socklen_t socklen = *len;
-        rv = getsockopt(fd, level, opt, result, &socklen);
-        *len = socklen;
-    }
-#endif
+    rv = getsockopt(fd, level, opt, result, &socklen);
+    *len = socklen;
 
     if (rv < 0) {
         return rv;
@@ -1662,3 +1657,20 @@ NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout)
 
     return timeout;
 }
+
+#if !defined(__solaris__)
+long NET_GetCurrentTime() {
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    return (time.tv_sec * 1000 + time.tv_usec / 1000);
+}
+
+int NET_TimeoutWithCurrentTime(int s, long timeout, long currentTime) {
+    return NET_Timeout0(s, timeout, currentTime);
+}
+
+int NET_Timeout(int s, long timeout) {
+    long currentTime = (timeout > 0) ? NET_GetCurrentTime() : 0;
+    return NET_Timeout0(s, timeout, currentTime);
+}
+#endif

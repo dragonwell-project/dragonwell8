@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756
+ * @bug      4665566 4855876 7025314 8012375 8015997 8016328 8024756 8151921
  * @summary  Verify that the output has the right javascript.
  * @author   jamieh
  * @library  ../lib/
@@ -50,11 +50,12 @@ public class TestJavascript extends JavadocTester {
             "<a href=\"index.html?TestJavascript.html\" target=\"_top\">Frames</a>"},
         {BUG_ID + FS + "index.html",
             "<script type=\"text/javascript\">" + NL +
-                        "    targetPage = \"\" + window.location.search;" + NL +
-            "    if (targetPage != \"\" && targetPage != \"undefined\")" + NL +
-            "        targetPage = targetPage.substring(1);" + NL +
-            "    if (targetPage.indexOf(\":\") != -1 || (targetPage != \"\" && !validURL(targetPage)))" + NL +
-            "        targetPage = \"undefined\";" + NL +
+            "    tmpTargetPage = \"\" + window.location.search;" + NL +
+            "    if (tmpTargetPage != \"\" && tmpTargetPage != \"undefined\")" + NL +
+            "        tmpTargetPage = tmpTargetPage.substring(1);" + NL +
+            "    if (tmpTargetPage.indexOf(\":\") != -1 || (tmpTargetPage != \"\" && !validURL(tmpTargetPage)))" + NL +
+            "        tmpTargetPage = \"undefined\";" + NL +
+            "    targetPage = tmpTargetPage;" + NL +
             "    function validURL(url) {" + NL +
             "        try {" + NL +
             "            url = decodeURIComponent(url);" + NL +

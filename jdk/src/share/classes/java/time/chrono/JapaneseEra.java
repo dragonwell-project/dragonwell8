@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,11 +73,13 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalField;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Objects;
 
 import sun.util.calendar.CalendarDate;
@@ -125,8 +127,8 @@ public final class JapaneseEra
      */
     public static final JapaneseEra HEISEI = new JapaneseEra(2, LocalDate.of(1989, 1, 8));
 
-    // the number of defined JapaneseEra constants.
-    // There could be an extra era defined in its configuration.
+    // The number of predefined JapaneseEra constants.
+    // There may be a supplemental era defined by the property.
     private static final int N_ERA_CONSTANTS = HEISEI.getValue() + ERA_OFFSET;
 
     /**
@@ -236,6 +238,23 @@ public final class JapaneseEra
         return Arrays.copyOf(KNOWN_ERAS, KNOWN_ERAS.length);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @param style {@inheritDoc}
+     * @param locale {@inheritDoc}
+     */
+    @Override
+    public String getDisplayName(TextStyle style, Locale locale) {
+        // If this JapaneseEra is a supplemental one, obtain the name from
+        // the era definition.
+        if (getValue() > N_ERA_CONSTANTS - ERA_OFFSET) {
+            Objects.requireNonNull(locale, "locale");
+            return style.asNormal() == TextStyle.NARROW ? getAbbreviation() : getName();
+        }
+        return Era.super.getDisplayName(style, locale);
+    }
+
     //-----------------------------------------------------------------------
     /**
      * Obtains an instance of {@code JapaneseEra} from a date.
@@ -337,11 +356,7 @@ public final class JapaneseEra
 
     //-----------------------------------------------------------------------
     String getAbbreviation() {
-        int index = ordinal(getValue());
-        if (index == 0) {
-            return "";
-        }
-        return ERA_CONFIG[index].getAbbreviation();
+        return ERA_CONFIG[ordinal(getValue())].getAbbreviation();
     }
 
     String getName() {
