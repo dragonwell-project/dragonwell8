@@ -40,6 +40,8 @@ extern jint* gButtonDownMasks;
 @interface AWTToolkit : NSObject { }
 + (long) getEventCount;
 + (void) eventCountPlusPlus;
++ (jint) scrollStateWithEvent: (NSEvent*) event;
++ (BOOL) hasPreciseScrollingDeltas: (NSEvent*) event;
 @end
 
 /*

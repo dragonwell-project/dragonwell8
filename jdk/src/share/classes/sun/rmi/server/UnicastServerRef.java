@@ -27,6 +27,7 @@ package sun.rmi.server;
 
 import java.io.IOException;
 import java.io.ObjectInput;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectStreamClass;
 import java.lang.reflect.InvocationTargetException;
@@ -53,8 +54,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import sun.misc.ObjectInputFilter;
 import sun.rmi.runtime.Log;
-import static sun.rmi.server.UnicastRef.marshalValue;
 import sun.rmi.transport.LiveRef;
 import sun.rmi.transport.Target;
 import sun.rmi.transport.tcp.TCPTransport;
@@ -64,6 +65,10 @@ import sun.security.action.GetBooleanAction;
  * UnicastServerRef implements the remote reference layer server-side
  * behavior for remote objects exported with the "UnicastRef" reference
  * type.
+ * If an {@link ObjectInputFilter ObjectInputFilter} is supplied it is
+ * invoked during deserialization to filter the arguments,
+ * otherwise the default filter of {@link ObjectInputStream ObjectInputStream}
+ * applies.
  *
  * @author  Ann Wollrath
  * @author  Roger Riggs
@@ -106,6 +111,9 @@ public class UnicastServerRef extends UnicastRef
      */
     private transient Skeleton skel;
 
+    // The ObjectInputFilter for checking the invocation arguments
+    private final transient ObjectInputFilter filter;
+
     /** maps method hash to Method object for each remote method */
     private transient Map<Long,Method> hashToMethod_Map = null;
 
@@ -124,16 +132,29 @@ public class UnicastServerRef extends UnicastRef
 
     /**
      * Create a new (empty) Unicast server remote reference.
+     * The filter is null to defer to the  default ObjectInputStream filter, if any.
      */
     public UnicastServerRef() {
+        this.filter = null;
     }
 
     /**
      * Construct a Unicast server remote reference for a specified
      * liveRef.
+     * The filter is null to defer to the  default ObjectInputStream filter, if any.
      */
     public UnicastServerRef(LiveRef ref) {
         super(ref);
+        this.filter = null;
+    }
+
+    /**
+     * Construct a Unicast server remote reference for a specified
+     * liveRef and filter.
+     */
+    public UnicastServerRef(LiveRef ref, ObjectInputFilter filter) {
+        super(ref);
+        this.filter = filter;
     }
 
     /**
@@ -142,6 +163,7 @@ public class UnicastServerRef extends UnicastRef
      */
     public UnicastServerRef(int port) {
         super(new LiveRef(port));
+        this.filter = null;
     }
 
     /**
@@ -366,9 +388,26 @@ public class UnicastServerRef extends UnicastRef
         }
     }
 
+    /**
+     * Sets a filter for invocation arguments, if a filter has been set.
+     * Called by dispatch before the arguments are read.
+     */
     protected void unmarshalCustomCallData(ObjectInput in)
-        throws IOException, ClassNotFoundException
-    {}
+            throws IOException, ClassNotFoundException {
+        if (filter != null &&
+                in instanceof ObjectInputStream) {
+            // Set the filter on the stream
+            ObjectInputStream ois = (ObjectInputStream) in;
+
+            AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    ObjectInputFilter.Config.setObjectInputFilter(ois, filter);
+                    return null;
+                }
+            });
+        }
+    }
 
     /**
      * Handle server-side dispatch using the RMI 1.1 stub/skeleton

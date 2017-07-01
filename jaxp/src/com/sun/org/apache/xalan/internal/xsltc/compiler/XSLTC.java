@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -16,9 +16,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-/*
- * $Id: XSLTC.java,v 1.2.4.1 2005/09/05 09:51:38 pvedula Exp $
  */
 
 package com.sun.org.apache.xalan.internal.xsltc.compiler;
@@ -39,6 +36,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
@@ -283,7 +281,7 @@ public final class XSLTC {
     }
 
     /*
-     * Function loads an external extension functions.
+     * Function loads an external extension function.
      * The filtering of function types (external,internal) takes place in FunctionCall class
      *
      */
@@ -598,18 +596,18 @@ public final class XSLTC {
     }
 
     /**
-     * Get a Vector containing all compile error messages
-     * @return A Vector containing all compile error messages
+     * Get a list of all compile error messages
+     * @return A List containing all compile error messages
      */
-    public Vector getErrors() {
+    public ArrayList<ErrorMsg> getErrors() {
         return _parser.getErrors();
     }
 
     /**
-     * Get a Vector containing all compile warning messages
-     * @return A Vector containing all compile error messages
+     * Get a list of all compile warning messages
+     * @return A List containing all compile error messages
      */
-    public Vector getWarnings() {
+    public ArrayList<ErrorMsg> getWarnings() {
         return _parser.getWarnings();
     }
 

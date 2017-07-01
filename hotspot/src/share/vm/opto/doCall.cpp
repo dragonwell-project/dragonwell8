@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -205,16 +205,22 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
 
       int morphism = profile.morphism();
       if (speculative_receiver_type != NULL) {
-        // We have a speculative type, we should be able to resolve
-        // the call. We do that before looking at the profiling at
-        // this invoke because it may lead to bimorphic inlining which
-        // a speculative type should help us avoid.
-        receiver_method = callee->resolve_invoke(jvms->method()->holder(),
-                                                 speculative_receiver_type);
-        if (receiver_method == NULL) {
-          speculative_receiver_type = NULL;
+        if (!too_many_traps(caller, bci, Deoptimization::Reason_speculate_class_check)) {
+          // We have a speculative type, we should be able to resolve
+          // the call. We do that before looking at the profiling at
+          // this invoke because it may lead to bimorphic inlining which
+          // a speculative type should help us avoid.
+          receiver_method = callee->resolve_invoke(jvms->method()->holder(),
+                                                   speculative_receiver_type);
+          if (receiver_method == NULL) {
+            speculative_receiver_type = NULL;
+          } else {
+            morphism = 1;
+          }
         } else {
-          morphism = 1;
+          // speculation failed before. Use profiling at the call
+          // (could allow bimorphic inlining for instance).
+          speculative_receiver_type = NULL;
         }
       }
       if (receiver_method == NULL &&
@@ -252,7 +258,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
                                     Deoptimization::Reason_bimorphic :
                                     (speculative_receiver_type == NULL ? Deoptimization::Reason_class_check : Deoptimization::Reason_speculate_class_check);
           if ((morphism == 1 || (morphism == 2 && next_hit_cg != NULL)) &&
-              !too_many_traps(jvms->method(), jvms->bci(), reason)
+              !too_many_traps(caller, bci, reason)
              ) {
             // Generate uncommon trap for class check failure path
             // in case of monomorphic or bimorphic virtual call site.
@@ -475,6 +481,30 @@ void Parse::do_call() {
                                       receiver_type, is_virtual,
                                       call_does_dispatch, vtable_index);  // out-parameters
     speculative_receiver_type = receiver_type != NULL ? receiver_type->speculative_type() : NULL;
+  }
+
+  // invoke-super-special
+  if (iter().cur_bc_raw() == Bytecodes::_invokespecial && !orig_callee->is_object_initializer()) {
+    ciInstanceKlass* calling_klass = method()->holder();
+    ciInstanceKlass* sender_klass =
+        calling_klass->is_anonymous() ? calling_klass->host_klass() :
+                                        calling_klass;
+    if (sender_klass->is_interface()) {
+      Node* receiver_node = stack(sp() - nargs);
+      Node* cls_node = makecon(TypeKlassPtr::make(sender_klass));
+      Node* bad_type_ctrl = NULL;
+      Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+      if (bad_type_ctrl != NULL) {
+        PreserveJVMState pjvms(this);
+        set_control(bad_type_ctrl);
+        uncommon_trap(Deoptimization::Reason_class_check,
+                      Deoptimization::Action_none);
+      }
+      if (stopped()) {
+        return; // MUST uncommon-trap?
+      }
+      set_stack(sp() - nargs, casted_receiver);
+    }
   }
 
   // Note:  It's OK to try to inline a virtual call.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,6 +103,14 @@
 # include <sys/ioctl.h>
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
+
+#ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+  #include <sched.h>
+  #undef _GNU_SOURCE
+#else
+  #include <sched.h>
+#endif
 
 // if RUSAGE_THREAD for getrusage() has not been defined, do it here. The code calling
 // getrusage() is prepared to handle the associated failure.
@@ -1067,29 +1075,30 @@ static bool find_vma(address addr, address* vma_low, address* vma_high) {
 
 // Locate initial thread stack. This special handling of initial thread stack
 // is needed because pthread_getattr_np() on most (all?) Linux distros returns
-// bogus value for initial thread.
+// bogus value for the primordial process thread. While the launcher has created
+// the VM in a new thread since JDK 6, we still have to allow for the use of the
+// JNI invocation API from a primordial thread.
 void os::Linux::capture_initial_stack(size_t max_size) {
-  // stack size is the easy part, get it from RLIMIT_STACK
-  size_t stack_size;
+
+  // max_size is either 0 (which means accept OS default for thread stacks) or
+  // a user-specified value known to be at least the minimum needed. If we
+  // are actually on the primordial thread we can make it appear that we have a
+  // smaller max_size stack by inserting the guard pages at that location. But we
+  // cannot do anything to emulate a larger stack than what has been provided by
+  // the OS or threading library. In fact if we try to use a stack greater than
+  // what is set by rlimit then we will crash the hosting process.
+
+  // Maximum stack size is the easy part, get it from RLIMIT_STACK.
+  // If this is "unlimited" then it will be a huge value.
   struct rlimit rlim;
   getrlimit(RLIMIT_STACK, &rlim);
-  stack_size = rlim.rlim_cur;
+  size_t stack_size = rlim.rlim_cur;
 
   // 6308388: a bug in ld.so will relocate its own .data section to the
   //   lower end of primordial stack; reduce ulimit -s value a little bit
   //   so we won't install guard page on ld.so's data section.
   stack_size -= 2 * page_size();
 
-  // 4441425: avoid crash with "unlimited" stack size on SuSE 7.1 or Redhat
-  //   7.1, in both cases we will get 2G in return value.
-  // 4466587: glibc 2.2.x compiled w/o "--enable-kernel=2.4.0" (RH 7.0,
-  //   SuSE 7.2, Debian) can not handle alternate signal stack correctly
-  //   for initial thread if its stack size exceeds 6M. Cap it at 2M,
-  //   in case other parts in glibc still assumes 2M max stack size.
-  // FIXME: alt signal stack is gone, maybe we can relax this constraint?
-  // Problem still exists RH7.2 (IA64 anyway) but 2MB is a little small
-  if (stack_size > 2 * K * K IA64_ONLY(*2))
-      stack_size = 2 * K * K IA64_ONLY(*2);
   // Try to figure out where the stack base (top) is. This is harder.
   //
   // When an application is started, glibc saves the initial stack pointer in
@@ -1249,14 +1258,18 @@ void os::Linux::capture_initial_stack(size_t max_size) {
   // stack_top could be partially down the page so align it
   stack_top = align_size_up(stack_top, page_size());
 
-  if (max_size && stack_size > max_size) {
-     _initial_thread_stack_size = max_size;
+  // Allowed stack value is minimum of max_size and what we derived from rlimit
+  if (max_size > 0) {
+    _initial_thread_stack_size = MIN2(max_size, stack_size);
   } else {
-     _initial_thread_stack_size = stack_size;
+    // Accept the rlimit max, but if stack is unlimited then it will be huge, so
+    // clamp it at 8MB as we do on Solaris
+    _initial_thread_stack_size = MIN2(stack_size, 8*M);
   }
 
   _initial_thread_stack_size = align_size_down(_initial_thread_stack_size, page_size());
   _initial_thread_stack_bottom = (address)stack_top - _initial_thread_stack_size;
+  assert(_initial_thread_stack_bottom < (address)stack_top, "overflow!");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2723,8 +2736,9 @@ void os::numa_make_local(char *addr, size_t bytes, int lgrp_hint) {
 bool os::numa_topology_changed()   { return false; }
 
 size_t os::numa_get_groups_num() {
-  int max_node = Linux::numa_max_node();
-  return max_node > 0 ? max_node + 1 : 1;
+  // Return just the number of nodes in which it's possible to allocate memory
+  // (in numa terminology, configured nodes).
+  return Linux::numa_num_configured_nodes();
 }
 
 int os::numa_get_group_id() {
@@ -2738,11 +2752,33 @@ int os::numa_get_group_id() {
   return 0;
 }
 
-size_t os::numa_get_leaf_groups(int *ids, size_t size) {
-  for (size_t i = 0; i < size; i++) {
-    ids[i] = i;
+int os::Linux::get_existing_num_nodes() {
+  size_t node;
+  size_t highest_node_number = Linux::numa_max_node();
+  int num_nodes = 0;
+
+  // Get the total number of nodes in the system including nodes without memory.
+  for (node = 0; node <= highest_node_number; node++) {
+    if (isnode_in_existing_nodes(node)) {
+      num_nodes++;
+    }
   }
-  return size;
+  return num_nodes;
+}
+
+size_t os::numa_get_leaf_groups(int *ids, size_t size) {
+  size_t highest_node_number = Linux::numa_max_node();
+  size_t i = 0;
+
+  // Map all node ids in which is possible to allocate memory. Also nodes are
+  // not always consecutively available, i.e. available from 0 to the highest
+  // node number.
+  for (size_t node = 0; node <= highest_node_number; node++) {
+    if (Linux::isnode_in_configured_nodes(node)) {
+      ids[i++] = node;
+    }
+  }
+  return i;
 }
 
 bool os::get_page_info(char *start, page_info* info) {
@@ -2812,18 +2848,28 @@ bool os::Linux::libnuma_init() {
                                            libnuma_dlsym(handle, "numa_node_to_cpus")));
       set_numa_max_node(CAST_TO_FN_PTR(numa_max_node_func_t,
                                        libnuma_dlsym(handle, "numa_max_node")));
+      set_numa_num_configured_nodes(CAST_TO_FN_PTR(numa_num_configured_nodes_func_t,
+                                                   libnuma_dlsym(handle, "numa_num_configured_nodes")));
       set_numa_available(CAST_TO_FN_PTR(numa_available_func_t,
                                         libnuma_dlsym(handle, "numa_available")));
       set_numa_tonode_memory(CAST_TO_FN_PTR(numa_tonode_memory_func_t,
                                             libnuma_dlsym(handle, "numa_tonode_memory")));
       set_numa_interleave_memory(CAST_TO_FN_PTR(numa_interleave_memory_func_t,
-                                            libnuma_dlsym(handle, "numa_interleave_memory")));
+                                                libnuma_dlsym(handle, "numa_interleave_memory")));
       set_numa_set_bind_policy(CAST_TO_FN_PTR(numa_set_bind_policy_func_t,
-                                            libnuma_dlsym(handle, "numa_set_bind_policy")));
-
+                                              libnuma_dlsym(handle, "numa_set_bind_policy")));
+      set_numa_bitmask_isbitset(CAST_TO_FN_PTR(numa_bitmask_isbitset_func_t,
+                                               libnuma_dlsym(handle, "numa_bitmask_isbitset")));
+      set_numa_distance(CAST_TO_FN_PTR(numa_distance_func_t,
+                                       libnuma_dlsym(handle, "numa_distance")));
 
       if (numa_available() != -1) {
         set_numa_all_nodes((unsigned long*)libnuma_dlsym(handle, "numa_all_nodes"));
+        set_numa_all_nodes_ptr((struct bitmask **)libnuma_dlsym(handle, "numa_all_nodes_ptr"));
+        set_numa_nodes_ptr((struct bitmask **)libnuma_dlsym(handle, "numa_nodes_ptr"));
+        // Create an index -> node mapping, since nodes are not always consecutive
+        _nindex_to_node = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<int>(0, true);
+        rebuild_nindex_to_node_map();
         // Create a cpu -> node mapping
         _cpu_to_node = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<int>(0, true);
         rebuild_cpu_to_node_map();
@@ -2832,6 +2878,17 @@ bool os::Linux::libnuma_init() {
     }
   }
   return false;
+}
+
+void os::Linux::rebuild_nindex_to_node_map() {
+  int highest_node_number = Linux::numa_max_node();
+
+  nindex_to_node()->clear();
+  for (int node = 0; node <= highest_node_number; node++) {
+    if (Linux::isnode_in_existing_nodes(node)) {
+      nindex_to_node()->append(node);
+    }
+  }
 }
 
 // rebuild_cpu_to_node_map() constructs a table mapping cpud id to node id.
@@ -2846,23 +2903,53 @@ void os::Linux::rebuild_cpu_to_node_map() {
                               // in the library.
   const size_t BitsPerCLong = sizeof(long) * CHAR_BIT;
 
-  size_t cpu_num = os::active_processor_count();
+  size_t cpu_num = processor_count();
   size_t cpu_map_size = NCPUS / BitsPerCLong;
   size_t cpu_map_valid_size =
     MIN2((cpu_num + BitsPerCLong - 1) / BitsPerCLong, cpu_map_size);
 
   cpu_to_node()->clear();
   cpu_to_node()->at_grow(cpu_num - 1);
-  size_t node_num = numa_get_groups_num();
 
+  size_t node_num = get_existing_num_nodes();
+
+  int distance = 0;
+  int closest_distance = INT_MAX;
+  int closest_node = 0;
   unsigned long *cpu_map = NEW_C_HEAP_ARRAY(unsigned long, cpu_map_size, mtInternal);
   for (size_t i = 0; i < node_num; i++) {
-    if (numa_node_to_cpus(i, cpu_map, cpu_map_size * sizeof(unsigned long)) != -1) {
+    // Check if node is configured (not a memory-less node). If it is not, find
+    // the closest configured node.
+    if (!isnode_in_configured_nodes(nindex_to_node()->at(i))) {
+      closest_distance = INT_MAX;
+      // Check distance from all remaining nodes in the system. Ignore distance
+      // from itself and from another non-configured node.
+      for (size_t m = 0; m < node_num; m++) {
+        if (m != i && isnode_in_configured_nodes(nindex_to_node()->at(m))) {
+          distance = numa_distance(nindex_to_node()->at(i), nindex_to_node()->at(m));
+          // If a closest node is found, update. There is always at least one
+          // configured node in the system so there is always at least one node
+          // close.
+          if (distance != 0 && distance < closest_distance) {
+            closest_distance = distance;
+            closest_node = nindex_to_node()->at(m);
+          }
+        }
+      }
+     } else {
+       // Current node is already a configured node.
+       closest_node = nindex_to_node()->at(i);
+     }
+
+    // Get cpus from the original node and map them to the closest node. If node
+    // is a configured node (not a memory-less node), then original node and
+    // closest node are the same.
+    if (numa_node_to_cpus(nindex_to_node()->at(i), cpu_map, cpu_map_size * sizeof(unsigned long)) != -1) {
       for (size_t j = 0; j < cpu_map_valid_size; j++) {
         if (cpu_map[j] != 0) {
           for (size_t k = 0; k < BitsPerCLong; k++) {
             if (cpu_map[j] & (1UL << k)) {
-              cpu_to_node()->at_put(j * BitsPerCLong + k, i);
+              cpu_to_node()->at_put(j * BitsPerCLong + k, closest_node);
             }
           }
         }
@@ -2880,14 +2967,20 @@ int os::Linux::get_node_by_cpu(int cpu_id) {
 }
 
 GrowableArray<int>* os::Linux::_cpu_to_node;
+GrowableArray<int>* os::Linux::_nindex_to_node;
 os::Linux::sched_getcpu_func_t os::Linux::_sched_getcpu;
 os::Linux::numa_node_to_cpus_func_t os::Linux::_numa_node_to_cpus;
 os::Linux::numa_max_node_func_t os::Linux::_numa_max_node;
+os::Linux::numa_num_configured_nodes_func_t os::Linux::_numa_num_configured_nodes;
 os::Linux::numa_available_func_t os::Linux::_numa_available;
 os::Linux::numa_tonode_memory_func_t os::Linux::_numa_tonode_memory;
 os::Linux::numa_interleave_memory_func_t os::Linux::_numa_interleave_memory;
 os::Linux::numa_set_bind_policy_func_t os::Linux::_numa_set_bind_policy;
+os::Linux::numa_bitmask_isbitset_func_t os::Linux::_numa_bitmask_isbitset;
+os::Linux::numa_distance_func_t os::Linux::_numa_distance;
 unsigned long* os::Linux::_numa_all_nodes;
+struct bitmask* os::Linux::_numa_all_nodes_ptr;
+struct bitmask* os::Linux::_numa_nodes_ptr;
 
 bool os::pd_uncommit_memory(char* addr, size_t size) {
   uintptr_t res = (uintptr_t) ::mmap(addr, size, PROT_NONE,
@@ -5016,12 +5109,42 @@ void os::make_polling_page_readable(void) {
   }
 };
 
+static int os_cpu_count(const cpu_set_t* cpus) {
+  int count = 0;
+  // only look up to the number of configured processors
+  for (int i = 0; i < os::processor_count(); i++) {
+    if (CPU_ISSET(i, cpus)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+// Get the current number of available processors for this process.
+// This value can change at any time during a process's lifetime.
+// sched_getaffinity gives an accurate answer as it accounts for cpusets.
+// If anything goes wrong we fallback to returning the number of online
+// processors - which can be greater than the number available to the process.
 int os::active_processor_count() {
-  // Linux doesn't yet have a (official) notion of processor sets,
-  // so just return the number of online processors.
-  int online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
-  assert(online_cpus > 0 && online_cpus <= processor_count(), "sanity check");
-  return online_cpus;
+  cpu_set_t cpus;  // can represent at most 1024 (CPU_SETSIZE) processors
+  int cpus_size = sizeof(cpu_set_t);
+  int cpu_count = 0;
+
+  // pid 0 means the current thread - which we have to assume represents the process
+  if (sched_getaffinity(0, cpus_size, &cpus) == 0) {
+    cpu_count = os_cpu_count(&cpus);
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: sched_getaffinity processor count: %d", cpu_count);
+    }
+  }
+  else {
+    cpu_count = ::sysconf(_SC_NPROCESSORS_ONLN);
+    warning("sched_getaffinity failed (%s)- using online processor count (%d) "
+            "which may exceed available processors", strerror(errno), cpu_count);
+  }
+
+  assert(cpu_count > 0 && cpu_count <= processor_count(), "sanity check");
+  return cpu_count;
 }
 
 void os::set_native_thread_name(const char *name) {

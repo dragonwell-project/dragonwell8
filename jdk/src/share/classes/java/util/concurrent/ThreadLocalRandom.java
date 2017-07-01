@@ -47,6 +47,7 @@ import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.StreamSupport;
+import sun.misc.VM;
 
 /**
  * A random number generator isolated to the current thread.  Like the
@@ -135,10 +136,8 @@ public class ThreadLocalRandom extends Random {
     private static final AtomicLong seeder = new AtomicLong(initialSeed());
 
     private static long initialSeed() {
-        String pp = java.security.AccessController.doPrivileged(
-                new sun.security.action.GetPropertyAction(
-                        "java.util.secureRandomSeed"));
-        if (pp != null && pp.equalsIgnoreCase("true")) {
+        String sec = VM.getSavedProperty("java.util.secureRandomSeed");
+        if (Boolean.parseBoolean(sec)) {
             byte[] seedBytes = java.security.SecureRandom.getSeed(8);
             long s = (long)(seedBytes[0]) & 0xffL;
             for (int i = 1; i < 8; ++i)
