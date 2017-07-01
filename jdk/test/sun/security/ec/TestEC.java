@@ -35,7 +35,7 @@
  * @library ../pkcs11/sslecc
  * @library ../../../java/security/testlibrary
  * @compile -XDignore.symbol.file TestEC.java
- * @run main/othervm TestEC
+ * @run main/othervm -Djdk.tls.namedGroups="secp256r1,sect193r1" TestEC
  */
 
 import java.security.NoSuchProviderException;

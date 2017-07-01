@@ -51,7 +51,7 @@ text: .text%Java_java_io_FileInputStream_open0;
 text: .text%fileOpen;
 text: .text%Java_java_io_FileInputStream_readBytes;
 text: .text%readBytes;
-text: .text%Java_java_io_FileInputStream_available;
+text: .text%Java_java_io_FileInputStream_available0;
 text: .text%Java_java_io_FileInputStream_close0;
 text: .text%Java_java_lang_Compiler_registerNatives;
 text: .text%Java_java_security_AccessController_doPrivileged__Ljava_security_PrivilegedExceptionAction_2;

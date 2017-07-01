@@ -489,14 +489,20 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
      * Create a NetworkInterface object and populate it
      */
     netifObj = (*env)->NewObject(env, ni_class, ni_ctor);
+    if (netifObj == NULL) {
+        return NULL;
+    }
     name = (*env)->NewStringUTF(env, ifs->name);
+    if (name == NULL) {
+        return NULL;
+    }
     if (ifs->dNameIsUnicode) {
         displayName = (*env)->NewString(env, (PWCHAR)ifs->displayName,
                                         (jsize)wcslen ((PWCHAR)ifs->displayName));
     } else {
         displayName = (*env)->NewStringUTF(env, ifs->displayName);
     }
-    if (netifObj == NULL || name == NULL || displayName == NULL) {
+    if (displayName == NULL) {
         return NULL;
     }
     (*env)->SetObjectField(env, netifObj, ni_nameID, name);
@@ -513,7 +519,7 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
         }
     }
 
-    addrArr = (*env)->NewObjectArray(env, netaddrCount, ni_iacls, NULL);
+    addrArr = (*env)->NewObjectArray(env, netaddrCount, ia_class, NULL);
     if (addrArr == NULL) {
         return NULL;
     }
@@ -531,7 +537,7 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
         jobject iaObj, ia2Obj;
         jobject ibObj = NULL;
         if (addrs->addr.him.sa_family == AF_INET) {
-            iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4Ctor);
+            iaObj = (*env)->NewObject(env, ia4_class, ia4_ctrID);
             if (iaObj == NULL) {
                 return NULL;
             }
@@ -545,7 +551,7 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
               return NULL;
             }
             (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
-            ia2Obj = (*env)->NewObject(env, ni_ia4cls, ni_ia4Ctor);
+            ia2Obj = (*env)->NewObject(env, ia4_class, ia4_ctrID);
             if (ia2Obj == NULL) {
               free_netaddr(netaddrP);
               return NULL;
@@ -556,26 +562,28 @@ static jobject createNetworkInterfaceXP(JNIEnv *env, netif *ifs)
             (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
         } else /* AF_INET6 */ {
             int scope;
-            iaObj = (*env)->NewObject(env, ni_ia6cls, ni_ia6ctrID);
-            if (iaObj) {
-                int ret = setInet6Address_ipaddress(env, iaObj, (jbyte *)&(addrs->addr.him6.sin6_addr.s6_addr));
-                if (ret == JNI_FALSE) {
-                    return NULL;
-                }
-                scope = addrs->addr.him6.sin6_scope_id;
-                if (scope != 0) { /* zero is default value, no need to set */
-                    setInet6Address_scopeid(env, iaObj, scope);
-                    setInet6Address_scopeifname(env, iaObj, netifObj);
-                }
-                ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
-                if (ibObj == NULL) {
-                  free_netaddr(netaddrP);
-                  return NULL;
-                }
-                (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
-                (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
-                (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
+            int ret;
+            iaObj = (*env)->NewObject(env, ia6_class, ia6_ctrID);
+            if (iaObj == NULL) {
+                return NULL;
             }
+            ret = setInet6Address_ipaddress(env, iaObj, (jbyte *)&(addrs->addr.him6.sin6_addr.s6_addr));
+            if (ret == JNI_FALSE) {
+                return NULL;
+            }
+            scope = addrs->addr.him6.sin6_scope_id;
+            if (scope != 0) { /* zero is default value, no need to set */
+                setInet6Address_scopeid(env, iaObj, scope);
+                setInet6Address_scopeifname(env, iaObj, netifObj);
+            }
+            ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
+            if (ibObj == NULL) {
+              free_netaddr(netaddrP);
+              return NULL;
+            }
+            (*env)->SetObjectField(env, ibObj, ni_ibaddressID, iaObj);
+            (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
+            (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
         }
         (*env)->SetObjectArrayElement(env, addrArr, addr_index, iaObj);
         addrs = addrs->next;

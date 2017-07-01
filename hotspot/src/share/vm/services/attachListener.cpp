@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -271,13 +271,17 @@ static jint set_intx_flag(const char* name, AttachOperation* op, outputStream* o
 // set a uintx global flag using value from AttachOperation
 static jint set_uintx_flag(const char* name, AttachOperation* op, outputStream* out) {
   uintx value;
-  const char* arg1;
-  if ((arg1 = op->arg(1)) != NULL) {
-    int n = sscanf(arg1, UINTX_FORMAT, &value);
-    if (n != 1) {
-      out->print_cr("flag value must be an unsigned integer");
-      return JNI_ERR;
-    }
+
+  const char* arg1 = op->arg(1);
+  if (arg1 == NULL) {
+    out->print_cr("flag value must be specified");
+    return JNI_ERR;
+  }
+
+  int n = sscanf(arg1, UINTX_FORMAT, &value);
+  if (n != 1) {
+    out->print_cr("flag value must be an unsigned integer");
+    return JNI_ERR;
   }
 
   if (strncmp(name, "MaxHeapFreeRatio", 17) == 0) {
