@@ -36,6 +36,7 @@ import java.awt.event.InvocationEvent;
 import java.awt.event.KeyEvent;
 import java.awt.geom.Point2D;
 import java.awt.peer.ComponentPeer;
+import java.awt.peer.MenuComponentPeer;
 
 import java.lang.reflect.InvocationTargetException;
 import java.security.AccessControlContext;
@@ -333,6 +334,12 @@ public final class AWTAccessor {
          * Marks the specified window as an utility window for TrayIcon.
          */
         void setTrayIconWindow(Window w, boolean isTrayIconWindow);
+
+        /**
+         * Return an array containing all the windows this
+         * window currently owns.
+         */
+        Window[] getOwnedWindows(Window w);
     }
 
     /**
@@ -463,6 +470,11 @@ public final class AWTAccessor {
          * Gets the font used for this menu component.
          */
         Font getFont_NoClientCode(MenuComponent menuComp);
+
+        /**
+         * Returns the peer of the menu component.
+         */
+        <T extends MenuComponentPeer> T getPeer(MenuComponent menuComp);
     }
 
     /**

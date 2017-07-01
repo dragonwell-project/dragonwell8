@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -1222,7 +1222,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
 
         // definitions
         while (!fEntityScanner.skipChar('>', null)) {
-            String name = fEntityScanner.scanName(NameType.ATTRIBUTE);
+            String name = fEntityScanner.scanName(NameType.ATTRIBUTENAME);
             if (name == null) {
                 reportFatalError("AttNameRequiredInAttDef",
                 new Object[]{elName});
@@ -1366,7 +1366,7 @@ implements XMLDTDScanner, XMLComponent, XMLEntityHandler {
             fMarkUpDepth++;
             do {
                 skipSeparator(false, !scanningInternalSubset());
-                String aName = fEntityScanner.scanName(NameType.ATTRIBUTE);
+                String aName = fEntityScanner.scanName(NameType.ATTRIBUTENAME);
                 if (aName == null) {
                     reportFatalError("MSG_NAME_REQUIRED_IN_NOTATIONTYPE",
                     new Object[]{elName, atName});

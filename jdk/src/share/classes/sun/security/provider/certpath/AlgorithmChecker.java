@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,16 +27,17 @@ package sun.security.provider.certpath;
 
 import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
+import java.security.Timestamp;
+import java.security.cert.CertPathValidator;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Set;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.math.BigInteger;
 import java.security.PublicKey;
 import java.security.KeyFactory;
 import java.security.AlgorithmParameters;
-import java.security.NoSuchAlgorithmException;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.security.cert.X509CRL;
@@ -48,17 +49,21 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertPathValidatorException.BasicReason;
 import java.security.cert.PKIXReason;
-import java.io.IOException;
-import java.security.interfaces.*;
-import java.security.spec.*;
+import java.security.interfaces.DSAParams;
+import java.security.interfaces.DSAPublicKey;
+import java.security.spec.DSAPublicKeySpec;
 
+import sun.security.util.AnchorCertificates;
+import sun.security.util.ConstraintsParameters;
+import sun.security.util.Debug;
 import sun.security.util.DisabledAlgorithmConstraints;
+import sun.security.validator.Validator;
 import sun.security.x509.X509CertImpl;
 import sun.security.x509.X509CRLImpl;
 import sun.security.x509.AlgorithmId;
 
 /**
- * A <code>PKIXCertPathChecker</code> implementation to check whether a
+ * A {@code PKIXCertPathChecker} implementation to check whether a
  * specified certificate contains the required algorithm constraints.
  * <p>
  * Certificate fields such as the subject public key, the signature
@@ -68,80 +73,145 @@ import sun.security.x509.AlgorithmId;
  * @see PKIXCertPathChecker
  * @see PKIXParameters
  */
-final public class AlgorithmChecker extends PKIXCertPathChecker {
+public final class AlgorithmChecker extends PKIXCertPathChecker {
+    private static final Debug debug = Debug.getInstance("certpath");
 
     private final AlgorithmConstraints constraints;
     private final PublicKey trustedPubKey;
+    private final Date pkixdate;
     private PublicKey prevPubKey;
+    private final Timestamp jarTimestamp;
+    private final String variant;
 
-    private final static Set<CryptoPrimitive> SIGNATURE_PRIMITIVE_SET =
+    private static final Set<CryptoPrimitive> SIGNATURE_PRIMITIVE_SET =
         Collections.unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
 
-    private final static Set<CryptoPrimitive> KU_PRIMITIVE_SET =
+    private static final Set<CryptoPrimitive> KU_PRIMITIVE_SET =
         Collections.unmodifiableSet(EnumSet.of(
             CryptoPrimitive.SIGNATURE,
             CryptoPrimitive.KEY_ENCAPSULATION,
             CryptoPrimitive.PUBLIC_KEY_ENCRYPTION,
             CryptoPrimitive.KEY_AGREEMENT));
 
-    private final static DisabledAlgorithmConstraints
+    private static final DisabledAlgorithmConstraints
         certPathDefaultConstraints = new DisabledAlgorithmConstraints(
             DisabledAlgorithmConstraints.PROPERTY_CERTPATH_DISABLED_ALGS);
 
+    // If there is no "cacerts" keyword, then disable anchor checking
+    private static final boolean publicCALimits =
+            certPathDefaultConstraints.checkProperty("jdkCA");
+
+    // If anchor checking enabled, this will be true if the trust anchor
+    // has a match in the cacerts file
+    private boolean trustedMatch = false;
+
     /**
-     * Create a new <code>AlgorithmChecker</code> with the algorithm
-     * constraints specified in security property
-     * "jdk.certpath.disabledAlgorithms".
+     * Create a new {@code AlgorithmChecker} with the given algorithm
+     * given {@code TrustAnchor} and {@code String} variant.
      *
      * @param anchor the trust anchor selected to validate the target
      *     certificate
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
      */
-    public AlgorithmChecker(TrustAnchor anchor) {
-        this(anchor, certPathDefaultConstraints);
+    public AlgorithmChecker(TrustAnchor anchor, String variant) {
+        this(anchor, certPathDefaultConstraints, null, null, variant);
     }
 
     /**
-     * Create a new <code>AlgorithmChecker</code> with the
-     * given {@code AlgorithmConstraints}.
-     * <p>
-     * Note that this constructor will be used to check a certification
-     * path where the trust anchor is unknown, or a certificate list which may
-     * contain the trust anchor. This constructor is used by SunJSSE.
+     * Create a new {@code AlgorithmChecker} with the given
+     * {@code AlgorithmConstraints}, {@code Timestamp}, and {@code String}
+     * variant.
+     *
+     * Note that this constructor can initialize a variation of situations where
+     * the AlgorithmConstraints, Timestamp, or Variant maybe known.
      *
      * @param constraints the algorithm constraints (or null)
+     * @param jarTimestamp Timestamp passed for JAR timestamp constraint
+     *                     checking. Set to null if not applicable.
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
      */
-    public AlgorithmChecker(AlgorithmConstraints constraints) {
-        this.prevPubKey = null;
-        this.trustedPubKey = null;
-        this.constraints = constraints;
+    public AlgorithmChecker(AlgorithmConstraints constraints,
+            Timestamp jarTimestamp, String variant) {
+        this(null, constraints, null, jarTimestamp, variant);
     }
 
     /**
-     * Create a new <code>AlgorithmChecker</code> with the
-     * given <code>TrustAnchor</code> and <code>AlgorithmConstraints</code>.
+     * Create a new {@code AlgorithmChecker} with the
+     * given {@code TrustAnchor}, {@code AlgorithmConstraints},
+     * {@code Timestamp}, and {@code String} variant.
      *
      * @param anchor the trust anchor selected to validate the target
      *     certificate
      * @param constraints the algorithm constraints (or null)
-     *
-     * @throws IllegalArgumentException if the <code>anchor</code> is null
+     * @param pkixdate The date specified by the PKIXParameters date.  If the
+     *                 PKIXParameters is null, the current date is used.  This
+     *                 should be null when jar files are being checked.
+     * @param jarTimestamp Timestamp passed for JAR timestamp constraint
+     *                     checking. Set to null if not applicable.
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
      */
     public AlgorithmChecker(TrustAnchor anchor,
-            AlgorithmConstraints constraints) {
+            AlgorithmConstraints constraints, Date pkixdate,
+            Timestamp jarTimestamp, String variant) {
 
-        if (anchor == null) {
-            throw new IllegalArgumentException(
-                        "The trust anchor cannot be null");
-        }
-
-        if (anchor.getTrustedCert() != null) {
-            this.trustedPubKey = anchor.getTrustedCert().getPublicKey();
+        if (anchor != null) {
+            if (anchor.getTrustedCert() != null) {
+                this.trustedPubKey = anchor.getTrustedCert().getPublicKey();
+                // Check for anchor certificate restrictions
+                trustedMatch = checkFingerprint(anchor.getTrustedCert());
+                if (trustedMatch && debug != null) {
+                    debug.println("trustedMatch = true");
+                }
+            } else {
+                this.trustedPubKey = anchor.getCAPublicKey();
+            }
         } else {
-            this.trustedPubKey = anchor.getCAPublicKey();
+            this.trustedPubKey = null;
+            if (debug != null) {
+                debug.println("TrustAnchor is null, trustedMatch is false.");
+            }
         }
 
-        this.prevPubKey = trustedPubKey;
-        this.constraints = constraints;
+        this.prevPubKey = this.trustedPubKey;
+        this.constraints = (constraints == null ? certPathDefaultConstraints :
+                constraints);
+        // If we are checking jar files, set pkixdate the same as the timestamp
+        // for certificate checking
+        this.pkixdate = (jarTimestamp != null ? jarTimestamp.getTimestamp() :
+                pkixdate);
+        this.jarTimestamp = jarTimestamp;
+        this.variant = (variant == null ? Validator.VAR_GENERIC : variant);
+    }
+
+    /**
+     * Create a new {@code AlgorithmChecker} with the given {@code TrustAnchor},
+     * {@code PKIXParameter} date, and {@code varient}
+     *
+     * @param anchor the trust anchor selected to validate the target
+     *     certificate
+     * @param pkixdate Date the constraints are checked against. The value is
+     *             either the PKIXParameters date or null for the current date.
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
+     */
+    public AlgorithmChecker(TrustAnchor anchor, Date pkixdate, String variant) {
+        this(anchor, certPathDefaultConstraints, pkixdate, null, variant);
+    }
+
+    // Check this 'cert' for restrictions in the AnchorCertificates
+    // trusted certificates list
+    private static boolean checkFingerprint(X509Certificate cert) {
+        if (!publicCALimits) {
+            return false;
+        }
+
+        if (debug != null) {
+            debug.println("AlgorithmChecker.contains: " + cert.getSigAlgName());
+        }
+        return AnchorCertificates.contains(cert);
     }
 
     @Override
@@ -181,40 +251,34 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
             return;
         }
 
-        X509CertImpl x509Cert = null;
-        try {
-            x509Cert = X509CertImpl.toImpl((X509Certificate)cert);
-        } catch (CertificateException ce) {
-            throw new CertPathValidatorException(ce);
+        // check the key usage and key size
+        boolean[] keyUsage = ((X509Certificate) cert).getKeyUsage();
+        if (keyUsage != null && keyUsage.length < 9) {
+            throw new CertPathValidatorException(
+                "incorrect KeyUsage extension",
+                null, null, -1, PKIXReason.INVALID_KEY_USAGE);
         }
 
-        PublicKey currPubKey = x509Cert.getPublicKey();
-        String currSigAlg = x509Cert.getSigAlgName();
-
-        AlgorithmId algorithmId = null;
+        X509CertImpl x509Cert;
+        AlgorithmId algorithmId;
         try {
+            x509Cert = X509CertImpl.toImpl((X509Certificate)cert);
             algorithmId = (AlgorithmId)x509Cert.get(X509CertImpl.SIG_ALG);
         } catch (CertificateException ce) {
             throw new CertPathValidatorException(ce);
         }
 
         AlgorithmParameters currSigAlgParams = algorithmId.getParameters();
+        PublicKey currPubKey = cert.getPublicKey();
+        String currSigAlg = ((X509Certificate)cert).getSigAlgName();
 
-        // Check the current signature algorithm
-        if (!constraints.permits(
-                SIGNATURE_PRIMITIVE_SET,
-                currSigAlg, currSigAlgParams)) {
+        // Check the signature algorithm and parameters against constraints.
+        if (!constraints.permits(SIGNATURE_PRIMITIVE_SET, currSigAlg,
+                currSigAlgParams)) {
             throw new CertPathValidatorException(
-                "Algorithm constraints check failed: " + currSigAlg,
-                null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
-        }
-
-        // check the key usage and key size
-        boolean[] keyUsage = x509Cert.getKeyUsage();
-        if (keyUsage != null && keyUsage.length < 9) {
-            throw new CertPathValidatorException(
-                "incorrect KeyUsage extension",
-                null, null, -1, PKIXReason.INVALID_KEY_USAGE);
+                    "Algorithm constraints check failed on signature " +
+                            "algorithm: " + currSigAlg, null, null, -1,
+                    BasicReason.ALGORITHM_CONSTRAINED);
         }
 
         // Assume all key usage bits are set if key usage is not present
@@ -248,65 +312,79 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
 
             if (primitives.isEmpty()) {
                 throw new CertPathValidatorException(
-                    "incorrect KeyUsage extension",
+                    "incorrect KeyUsage extension bits",
                     null, null, -1, PKIXReason.INVALID_KEY_USAGE);
             }
         }
 
-        if (!constraints.permits(primitives, currPubKey)) {
-            throw new CertPathValidatorException(
-                "algorithm constraints check failed",
-                null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
+        ConstraintsParameters cp =
+                new ConstraintsParameters((X509Certificate)cert,
+                        trustedMatch, pkixdate, jarTimestamp, variant);
+
+        // Check against local constraints if it is DisabledAlgorithmConstraints
+        if (constraints instanceof DisabledAlgorithmConstraints) {
+            ((DisabledAlgorithmConstraints)constraints).permits(currSigAlg, cp);
+            // DisabledAlgorithmsConstraints does not check primitives, so key
+            // additional key check.
+
+        } else {
+            // Perform the default constraints checking anyway.
+            certPathDefaultConstraints.permits(currSigAlg, cp);
+            // Call locally set constraints to check key with primitives.
+            if (!constraints.permits(primitives, currPubKey)) {
+                throw new CertPathValidatorException(
+                        "Algorithm constraints check failed on key " +
+                                currPubKey.getAlgorithm() + " with size of " +
+                                sun.security.util.KeyUtil.getKeySize(currPubKey) +
+                                "bits",
+                        null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
+            }
+        }
+
+        // If there is no previous key, set one and exit
+        if (prevPubKey == null) {
+            prevPubKey = currPubKey;
+            return;
         }
 
         // Check with previous cert for signature algorithm and public key
-        if (prevPubKey != null) {
-            if (currSigAlg != null) {
-                if (!constraints.permits(
-                        SIGNATURE_PRIMITIVE_SET,
-                        currSigAlg, prevPubKey, currSigAlgParams)) {
-                    throw new CertPathValidatorException(
-                        "Algorithm constraints check failed: " + currSigAlg,
-                        null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
-                }
+        if (!constraints.permits(
+                SIGNATURE_PRIMITIVE_SET,
+                currSigAlg, prevPubKey, currSigAlgParams)) {
+            throw new CertPathValidatorException(
+                    "Algorithm constraints check failed on " +
+                            "signature algorithm: " + currSigAlg,
+                    null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
+        }
+
+        // Inherit key parameters from previous key
+        if (PKIX.isDSAPublicKeyWithoutParams(currPubKey)) {
+            // Inherit DSA parameters from previous key
+            if (!(prevPubKey instanceof DSAPublicKey)) {
+                throw new CertPathValidatorException("Input key is not " +
+                        "of a appropriate type for inheriting parameters");
             }
 
-            // Inherit key parameters from previous key
-            if (PKIX.isDSAPublicKeyWithoutParams(currPubKey)) {
-                // Inherit DSA parameters from previous key
-                if (!(prevPubKey instanceof DSAPublicKey)) {
-                    throw new CertPathValidatorException("Input key is not " +
-                        "of a appropriate type for inheriting parameters");
-                }
+            DSAParams params = ((DSAPublicKey)prevPubKey).getParams();
+            if (params == null) {
+                throw new CertPathValidatorException(
+                        "Key parameters missing from public key.");
+            }
 
-                DSAParams params = ((DSAPublicKey)prevPubKey).getParams();
-                if (params == null) {
-                    throw new CertPathValidatorException(
-                                    "Key parameters missing");
-                }
-
-                try {
-                    BigInteger y = ((DSAPublicKey)currPubKey).getY();
-                    KeyFactory kf = KeyFactory.getInstance("DSA");
-                    DSAPublicKeySpec ks = new DSAPublicKeySpec(y,
-                                                       params.getP(),
-                                                       params.getQ(),
-                                                       params.getG());
-                    currPubKey = kf.generatePublic(ks);
-                } catch (GeneralSecurityException e) {
-                    throw new CertPathValidatorException("Unable to generate " +
+            try {
+                BigInteger y = ((DSAPublicKey)currPubKey).getY();
+                KeyFactory kf = KeyFactory.getInstance("DSA");
+                DSAPublicKeySpec ks = new DSAPublicKeySpec(y, params.getP(),
+                        params.getQ(), params.getG());
+                currPubKey = kf.generatePublic(ks);
+            } catch (GeneralSecurityException e) {
+                throw new CertPathValidatorException("Unable to generate " +
                         "key with inherited parameters: " + e.getMessage(), e);
-                }
             }
         }
 
         // reset the previous public key
         prevPubKey = currPubKey;
-
-        // check the extended key usage, ignore the check now
-        // List<String> extendedKeyUsages = x509Cert.getExtendedKeyUsage();
-
-        // DO NOT remove any unresolved critical extensions
     }
 
     /**
@@ -330,6 +408,11 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
             // Don't bother to change the trustedPubKey.
             if (anchor.getTrustedCert() != null) {
                 prevPubKey = anchor.getTrustedCert().getPublicKey();
+                // Check for anchor certificate restrictions
+                trustedMatch = checkFingerprint(anchor.getTrustedCert());
+                if (trustedMatch && debug != null) {
+                    debug.println("trustedMatch = true");
+                }
             } else {
                 prevPubKey = anchor.getCAPublicKey();
             }
@@ -341,8 +424,10 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
      *
      * @param key the public key to verify the CRL signature
      * @param crl the target CRL
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
      */
-    static void check(PublicKey key, X509CRL crl)
+    static void check(PublicKey key, X509CRL crl, String variant)
                         throws CertPathValidatorException {
 
         X509CRLImpl x509CRLImpl = null;
@@ -353,27 +438,24 @@ final public class AlgorithmChecker extends PKIXCertPathChecker {
         }
 
         AlgorithmId algorithmId = x509CRLImpl.getSigAlgId();
-        check(key, algorithmId);
+        check(key, algorithmId, variant);
     }
 
     /**
      * Check the signature algorithm with the specified public key.
      *
      * @param key the public key to verify the CRL signature
-     * @param crl the target CRL
+     * @param algorithmId signature algorithm Algorithm ID
+     * @param variant is the Validator variants of the operation. A null value
+     *                passed will set it to Validator.GENERIC.
      */
-    static void check(PublicKey key, AlgorithmId algorithmId)
+    static void check(PublicKey key, AlgorithmId algorithmId, String variant)
                         throws CertPathValidatorException {
         String sigAlgName = algorithmId.getName();
         AlgorithmParameters sigAlgParams = algorithmId.getParameters();
 
-        if (!certPathDefaultConstraints.permits(
-                SIGNATURE_PRIMITIVE_SET, sigAlgName, key, sigAlgParams)) {
-            throw new CertPathValidatorException(
-                "algorithm check failed: " + sigAlgName + " is disabled",
-                null, null, -1, BasicReason.ALGORITHM_CONSTRAINED);
-        }
+        certPathDefaultConstraints.permits(new ConstraintsParameters(
+                sigAlgName, sigAlgParams, key, variant));
     }
-
 }
 
