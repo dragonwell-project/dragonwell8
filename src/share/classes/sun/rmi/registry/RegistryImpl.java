@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,10 +100,10 @@ public class RegistryImpl extends java.rmi.server.RemoteServer
     private static final String REGISTRY_FILTER_PROPNAME = "sun.rmi.registry.registryFilter";
 
     /** Registry max depth of remote invocations. **/
-    private static int REGISTRY_MAX_DEPTH = 5;
+    private static final int REGISTRY_MAX_DEPTH = 20;
 
     /** Registry maximum array size in remote invocations. **/
-    private static int REGISTRY_MAX_ARRAY_SIZE = 10000;
+    private static final int REGISTRY_MAX_ARRAY_SIZE = 10000;
 
     /**
      * The registryFilter created from the value of the {@code "sun.rmi.registry.registryFilter"}
