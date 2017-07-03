@@ -41,7 +41,7 @@ static jboolean purgeOutstandingICMP(JNIEnv *env, jint fd)
     char buf[1];
     fd_set tbl;
     struct timeval t = { 0, 0 };
-    struct sockaddr_in rmtaddr;
+    SOCKETADDRESS rmtaddr;
     int addrlen = sizeof(rmtaddr);
 
     /*
@@ -87,6 +87,8 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainDatagramSocketImpl_initIDs
     IO_fd_fdID = NET_GetFileDescriptorID(env);
     CHECK_NULL(IO_fd_fdID);
     JNU_CHECK_EXCEPTION(env);
+
+    initInetAddressIDs(env);
 }
 
 /*

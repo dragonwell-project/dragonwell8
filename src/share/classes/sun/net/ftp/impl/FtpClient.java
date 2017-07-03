@@ -1718,7 +1718,7 @@ public class FtpClient extends sun.net.ftp.FtpClient {
      */
     public InputStream nameList(String path) throws sun.net.ftp.FtpProtocolException, IOException {
         Socket s;
-        s = openDataConnection("NLST " + path);
+        s = openDataConnection(path == null ? "NLST" : "NLST " + path);
         if (s != null) {
             return createInputStream(s.getInputStream());
         }

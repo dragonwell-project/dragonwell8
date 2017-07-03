@@ -807,7 +807,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             }
 
             if (false == bExtendedSearch) {
-                debugString ("bk -- getVirtualAccessibleNameFromContext will not use the extended name search algorithm.  role = " + role.toDisplayString (Locale.US) );
+                debugString ("bk -- getVirtualAccessibleNameFromContext will not use the extended name search algorithm.  role = " + ( role != null ? role.toDisplayString(Locale.US) : "null") );
                 /*
                 Step 3:
                 =======

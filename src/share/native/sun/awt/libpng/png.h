@@ -90,6 +90,9 @@
  *    Glenn Randers-Pehrson
  *    Willem van Schaik
  *
+ * Some files in the "scripts" directory have different copyright owners
+ * but are also released under this license.
+ *
  * libpng versions 0.89, June 1996, through 0.96, May 1997, are
  * Copyright (c) 1996-1997 Andreas Dilger, are derived from libpng-0.88,
  * and are distributed according to the same disclaimer and license as

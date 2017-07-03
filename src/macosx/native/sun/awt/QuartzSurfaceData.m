@@ -72,7 +72,7 @@ static pthread_mutex_t gColorCacheLock = PTHREAD_MUTEX_INITIALIZER;
 
 // given a UInt32 color, it tries to find that find the corresponding CGColorRef in the hash cache. If the CGColorRef
 // doesn't exist or there is a collision, it creates a new one CGColorRef and put's in the cache. Then,
-// it sets with current fill/stroke color for the the CGContext passed in (qsdo->cgRef).
+// it sets with current fill/stroke color for the CGContext passed in (qsdo->cgRef).
 void setCachedColor(QuartzSDOps *qsdo, UInt32 color)
 {
     static const CGFloat kColorConversionMultiplier = 1.0f/255.0f;
@@ -268,9 +268,90 @@ PRINT("    gradientPaintReleaseFunction")
     free(info);
 }
 
+static inline void contextQuartzLinearGradientPath(QuartzSDOps* qsdo)
+{
+
+PRINT("    contextQuartzLinearGradientPath");
+
+    CGContextRef cgRef = qsdo->cgRef;
+    StateGradientInfo *gradientInfo = qsdo->gradientInfo;
+   
+    CGColorSpaceRef colorspace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+    size_t num_locations = gradientInfo->fractionsLength;
+    CGFloat *locations = (CGFloat *) malloc(sizeof(CGFloat) * num_locations);
+    int i = 0;
+    size_t component_size = num_locations * 4;
+    CGFloat components[component_size];
+    CGGradientRef gradient = NULL;
+
+    for (i = 0; i < num_locations; i++) {
+        locations[i] = gradientInfo->fractionsdata[i];
+    }
+    for (i = 0; i < component_size; i++) {
+        components[i] = gradientInfo->colordata[i];
+    } 
+    CGContextSaveGState(cgRef);
+    gradient = CGGradientCreateWithColorComponents(colorspace, components, locations, num_locations);
+    if (qsdo->isEvenOddFill) {
+        CGContextEOClip(cgRef);
+    } else {
+        CGContextClip(cgRef);
+    }
+    CGContextDrawLinearGradient(cgRef, gradient, gradientInfo->start, gradientInfo->end, kCGGradientDrawsAfterEndLocation);    
+
+    CGContextRestoreGState(cgRef);
+    CGColorSpaceRelease(colorspace);
+    CGGradientRelease(gradient);
+    free(locations);
+    free(gradientInfo->colordata);
+    free(gradientInfo->fractionsdata);
+}
+
+static inline void contextQuartzRadialGradientPath(QuartzSDOps* qsdo)
+{
+
+PRINT("    contextQuartzRadialGradientPath");
+
+    CGContextRef cgRef = qsdo->cgRef;
+    StateGradientInfo *gradientInfo = qsdo->gradientInfo;
+   
+    CGColorSpaceRef colorspace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+    size_t num_locations = gradientInfo->fractionsLength;
+    CGFloat *locations = (CGFloat *) malloc(sizeof(CGFloat) * num_locations);
+    int i = 0;
+    size_t component_size = num_locations * 4;
+    CGFloat components[component_size];
+    CGGradientRef gradient = NULL;
+    CGFloat startRadius = gradientInfo->radius;
+    CGFloat endRadius = gradientInfo->radius;
+
+    for (i = 0; i < num_locations; i++) {
+        locations[i] = gradientInfo->fractionsdata[i];
+    }
+    for (i = 0; i < component_size; i++) {
+        components[i] = gradientInfo->colordata[i];
+    } 
+    CGContextSaveGState(cgRef);
+    gradient = CGGradientCreateWithColorComponents(colorspace, components, locations, num_locations);
+    if (qsdo->isEvenOddFill) {
+        CGContextEOClip(cgRef);
+    } else {
+        CGContextClip(cgRef);
+    }
+    CGContextDrawRadialGradient(cgRef, gradient, gradientInfo->start, 0, gradientInfo->end, endRadius, kCGGradientDrawsAfterEndLocation);    
+    
+    CGContextRestoreGState(cgRef);
+    CGColorSpaceRelease(colorspace);
+    CGGradientRelease(gradient);
+    free(locations);
+    free(gradientInfo->colordata);
+    free(gradientInfo->fractionsdata);
+}
+
 static inline void contextGradientPath(QuartzSDOps* qsdo)
 {
 PRINT("    ContextGradientPath")
+ 
     CGContextRef cgRef = qsdo->cgRef;
     StateShadingInfo* shadingInfo = qsdo->shadingInfo;
 
@@ -827,6 +908,68 @@ PRINT(" SetUpCGContext")
     qsdo->renderType = renderType;
 }
 
+void setupGradient(JNIEnv *env, QuartzSDOps* qsdo, jfloat* javaFloatGraphicsStates)
+{
+    static const CGFloat kColorConversionMultiplier = 1.0f/255.0f;
+    qsdo->gradientInfo = (StateGradientInfo*)malloc(sizeof(StateGradientInfo));
+    if (qsdo->gradientInfo == NULL)
+    {
+        [JNFException raise:env as:kOutOfMemoryError reason:"Failed to malloc memory for gradient paint"];
+    }
+
+    qsdo->graphicsStateInfo.simpleStroke = NO;
+    qsdo->graphicsStateInfo.simpleColor = NO;
+
+    qsdo->gradientInfo->start.x    = javaFloatGraphicsStates[sun_java2d_OSXSurfaceData_kColorx1Index];
+    qsdo->gradientInfo->start.y    = javaFloatGraphicsStates[sun_java2d_OSXSurfaceData_kColory1Index];
+    qsdo->gradientInfo->end.x    = javaFloatGraphicsStates[sun_java2d_OSXSurfaceData_kColorx2Index];
+    qsdo->gradientInfo->end.y    = javaFloatGraphicsStates[sun_java2d_OSXSurfaceData_kColory2Index];
+
+    jobject colorArray  = ((*env)->GetObjectArrayElement(env, qsdo->javaGraphicsStatesObjects, sun_java2d_OSXSurfaceData_kColorArrayIndex)); 
+    if (colorArray != NULL)
+    {
+        jint length = (*env)->GetArrayLength(env, colorArray);
+
+        jint* jcolorData = (jint*)(*env)->GetPrimitiveArrayCritical(env, colorArray, NULL);
+        qsdo->gradientInfo->colordata = (CGFloat*)malloc(sizeof(CGFloat)*4*length);
+        memset(qsdo->gradientInfo->colordata, 0, sizeof(CGFloat)*4*length);
+        if (jcolorData != NULL)
+        {
+            int i;
+            for (i=0; i<length; i++)
+            {
+                qsdo->gradientInfo->colordata[i*4] = ((jcolorData[i]>>16)&0xff)*kColorConversionMultiplier;
+
+                qsdo->gradientInfo->colordata[i*4+1] = ((jcolorData[i]>>8)&0xff)*kColorConversionMultiplier;
+
+                qsdo->gradientInfo->colordata[i*4+2] = ((jcolorData[i]>>0)&0xff)*kColorConversionMultiplier;
+
+                qsdo->gradientInfo->colordata[i*4+3] = ((jcolorData[i]>>24)&0xff)*kColorConversionMultiplier;
+            }
+        }
+        (*env)->ReleasePrimitiveArrayCritical(env, colorArray, jcolorData, 0);
+    }
+    jobject fractionsArray  = ((*env)->GetObjectArrayElement(env, qsdo->javaGraphicsStatesObjects, sun_java2d_OSXSurfaceData_kFractionsArrayIndex)); 
+    if (fractionsArray != NULL)
+    {
+        jint length = (*env)->GetArrayLength(env, fractionsArray);
+        qsdo->gradientInfo->fractionsLength = length;
+
+        jfloat* jfractionsData = (jfloat*)(*env)->GetPrimitiveArrayCritical(env, fractionsArray, NULL);
+        if (jfractionsData != NULL)
+        {
+            int i;
+            qsdo->gradientInfo->fractionsdata = (CGFloat *)malloc(sizeof(CGFloat) *length);
+            memset(qsdo->gradientInfo->fractionsdata, 0, sizeof(CGFloat)*length);
+            for (i=0; i<length; i++)
+            {
+                qsdo->gradientInfo->fractionsdata[i] = jfractionsData[i];
+            }
+            (*env)->ReleasePrimitiveArrayCritical(env, fractionsArray, jfractionsData, 0);
+        }
+    }    
+}
+
 SDRenderType SetUpPaint(JNIEnv *env, QuartzSDOps *qsdo, SDRenderType renderType)
 {
     CGContextRef cgRef = qsdo->cgRef;
@@ -898,6 +1041,21 @@ SDRenderType SetUpPaint(JNIEnv *env, QuartzSDOps *qsdo, SDRenderType renderType)
 
             break;
         }
+        case sun_java2d_OSXSurfaceData_kColorLinearGradient:
+        {
+            renderType = SD_LinearGradient;
+            setupGradient(env, qsdo, javaFloatGraphicsStates);
+            break;
+        }
+
+        case sun_java2d_OSXSurfaceData_kColorRadialGradient:
+        {
+            renderType = SD_RadialGradient;
+            setupGradient(env, qsdo, javaFloatGraphicsStates);
+            qsdo->gradientInfo->radius = javaFloatGraphicsStates[sun_java2d_OSXSurfaceData_kRadiusIndex];
+            break;
+        }
+
         case sun_java2d_OSXSurfaceData_kColorTexture:
         {
             qsdo->patternInfo = (StatePatternInfo*)malloc(sizeof(StatePatternInfo));
@@ -1076,11 +1234,24 @@ PRINT(" CompleteCGContext")
             }
             break;
 
+        case SD_LinearGradient:
+            if (CGContextIsPathEmpty(qsdo->cgRef) == 0)
+            {
+                contextQuartzLinearGradientPath(qsdo);
+            }
+            break;
+
+        case SD_RadialGradient:
+            if (CGContextIsPathEmpty(qsdo->cgRef) == 0)
+            {
+                contextQuartzRadialGradientPath(qsdo);
+            }
+            break;
+
         case SD_Pattern:
             if (CGContextIsPathEmpty(qsdo->cgRef) == 0)
             {
-                //TODO:BG
-                //contextTexturePath(env, qsdo);
+                contextTexturePath(env, qsdo);
             }
             break;
 
@@ -1110,5 +1281,9 @@ PRINT(" CompleteCGContext")
     if (qsdo->shadingInfo != NULL) {
         gradientPaintReleaseFunction(qsdo->shadingInfo);
         qsdo->shadingInfo = NULL;
+    }
+    if (qsdo->gradientInfo != NULL) {
+        gradientPaintReleaseFunction(qsdo->gradientInfo);
+        qsdo->gradientInfo = NULL;
     }
 }
