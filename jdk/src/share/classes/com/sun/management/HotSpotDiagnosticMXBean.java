@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,9 +63,10 @@ public interface HotSpotDiagnosticMXBean extends PlatformManagedObject {
      * @param  outputFile the system-dependent filename
      * @param  live if <tt>true</tt> dump only <i>live</i> objects
      *         i.e. objects that are reachable from others
-     * @throws IOException if the <tt>outputFile</tt>
+     * @throws IOException if the <tt>outputFile</tt> already exists,
      *                     cannot be created, opened, or written to.
      * @throws UnsupportedOperationException if this operation is not supported.
+     * @throws IllegalArgumentException if <tt>outputFile</tt> does not end with ".hprof" suffix.
      * @throws NullPointerException if <tt>outputFile</tt> is <tt>null</tt>.
      * @throws SecurityException
      *         If a security manager exists and its {@link
