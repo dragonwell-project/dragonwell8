@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -345,7 +345,6 @@ AWT_ASSERT_APPKIT_THREAD;
     return windowLayers;
 }
 
-
 // returns id for the topmost window under mouse
 + (NSInteger) getTopmostWindowUnderMouseID {
     NSInteger result = -1;
@@ -463,7 +462,22 @@ AWT_ASSERT_APPKIT_THREAD;
     [super dealloc];
 }
 
-// Tests wheather the corresponding Java paltform window is visible or not
+// Tests whether window is blocked by modal dialog/window
+- (BOOL) isBlocked {
+    BOOL isBlocked = NO;
+    
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_isBlocked, jc_CPlatformWindow, "isBlocked", "()Z");
+        isBlocked = JNFCallBooleanMethod(env, platformWindow, jm_isBlocked) == JNI_TRUE ? YES : NO;
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+    
+    return isBlocked;
+}
+
+// Tests whether the corresponding Java platform window is visible or not
 + (BOOL) isJavaPlatformWindowVisible:(NSWindow *)window {
     BOOL isVisible = NO;
     
@@ -487,8 +501,9 @@ AWT_ASSERT_APPKIT_THREAD;
 - (void) orderChildWindows:(BOOL)focus {
 AWT_ASSERT_APPKIT_THREAD;
 
-    if (self.isMinimizing) {
+    if (self.isMinimizing || [self isBlocked]) {
         // Do not perform any ordering, if iconify is in progress
+        // or the window is blocked by a modal window
         return;
     }
 
@@ -842,18 +857,20 @@ AWT_ASSERT_APPKIT_THREAD;
 
 - (void)sendEvent:(NSEvent *)event {
         if ([event type] == NSLeftMouseDown || [event type] == NSRightMouseDown || [event type] == NSOtherMouseDown) {
-            // Move parent windows to front and make sure that a child window is displayed
-            // in front of its nearest parent.
-            if (self.ownerWindow != nil) {
-                JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
-                jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
-                if (platformWindow != NULL) {
-                    static JNF_MEMBER_CACHE(jm_orderAboveSiblings, jc_CPlatformWindow, "orderAboveSiblings", "()V");
-                    JNFCallVoidMethod(env,platformWindow, jm_orderAboveSiblings);
-                    (*env)->DeleteLocalRef(env, platformWindow);
+            if ([self isBlocked]) {
+                // Move parent windows to front and make sure that a child window is displayed
+                // in front of its nearest parent.
+                if (self.ownerWindow != nil) {
+                    JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
+                    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+                    if (platformWindow != NULL) {
+                        static JNF_MEMBER_CACHE(jm_orderAboveSiblings, jc_CPlatformWindow, "orderAboveSiblings", "()V");
+                        JNFCallVoidMethod(env,platformWindow, jm_orderAboveSiblings);
+                        (*env)->DeleteLocalRef(env, platformWindow);
+                    }
                 }
+                [self orderChildWindows:YES];
             }
-            [self orderChildWindows:YES];
 
             NSPoint p = [NSEvent mouseLocation];
             NSRect frame = [self.nsWindow frame];
@@ -863,9 +880,12 @@ AWT_ASSERT_APPKIT_THREAD;
             if (p.y >= (frame.origin.y + contentRect.size.height)) {
                 JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
                 jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
-                // Currently, no need to deliver the whole NSEvent.
-                static JNF_MEMBER_CACHE(jm_deliverNCMouseDown, jc_CPlatformWindow, "deliverNCMouseDown", "()V");
-                JNFCallVoidMethod(env, platformWindow, jm_deliverNCMouseDown);
+                if (platformWindow != NULL) {
+                    // Currently, no need to deliver the whole NSEvent.
+                    static JNF_MEMBER_CACHE(jm_deliverNCMouseDown, jc_CPlatformWindow, "deliverNCMouseDown", "()V");
+                    JNFCallVoidMethod(env, platformWindow, jm_deliverNCMouseDown);
+                    (*env)->DeleteLocalRef(env, platformWindow);
+                }
             }
         }
 }
@@ -1316,9 +1336,9 @@ JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeGetTopmostPlatformWindowUnde
 /*
  * Class:     sun_lwawt_macosx_CPlatformWindow
  * Method:    nativeSynthesizeMouseEnteredExitedEvents
- * Signature: (J)V
+ * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents__
 (JNIEnv *env, jclass clazz)
 {
     JNF_COCOA_ENTER(env);
@@ -1328,6 +1348,29 @@ JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMou
     }];
 
     JNF_COCOA_EXIT(env);
+}
+
+/*
+ * Class:     sun_lwawt_macosx_CPlatformWindow
+ * Method:    nativeSynthesizeMouseEnteredExitedEvents
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSynthesizeMouseEnteredExitedEvents__JI
+(JNIEnv *env, jclass clazz, jlong windowPtr, jint eventType)
+{
+JNF_COCOA_ENTER(env);
+
+    if (eventType == NSMouseEntered || eventType == NSMouseExited) {
+        NSWindow *nsWindow = OBJC(windowPtr);
+
+        [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
+            [AWTWindow synthesizeMouseEnteredExitedEvents:nsWindow withType:eventType];
+        }];
+    } else {
+        [JNFException raise:env as:kIllegalArgumentException reason:"unknown event type"];
+    }
+    
+JNF_COCOA_EXIT(env);
 }
 
 /*

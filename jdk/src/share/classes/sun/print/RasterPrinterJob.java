@@ -742,7 +742,19 @@ public abstract class RasterPrinterJob extends PrinterJob {
         }
         updatePageAttributes(service, page);
 
-        PageFormat newPage = pageDialog(attributes);
+        PageFormat newPage = null;
+        DialogTypeSelection dts =
+            (DialogTypeSelection)attributes.get(DialogTypeSelection.class);
+        if (dts == DialogTypeSelection.NATIVE) {
+            // Remove DialogTypeSelection.NATIVE to prevent infinite loop in
+            // RasterPrinterJob.
+            attributes.remove(DialogTypeSelection.class);
+            newPage = pageDialog(attributes);
+            // restore attribute
+            attributes.add(DialogTypeSelection.NATIVE);
+        } else {
+            newPage = pageDialog(attributes);
+        }
 
         if (newPage == null) {
             return page;
@@ -767,8 +779,17 @@ public abstract class RasterPrinterJob extends PrinterJob {
         // Check for native, note that default dialog is COMMON.
         if (dlg == DialogTypeSelection.NATIVE) {
             PrintService pservice = getPrintService();
-            PageFormat page = pageDialog(attributeToPageFormat(pservice,
-                                                               attributes));
+            PageFormat pageFrmAttrib = attributeToPageFormat(pservice,
+                                                             attributes);
+            setParentWindowID(attributes);
+            PageFormat page = pageDialog(pageFrmAttrib);
+            clearParentWindowID();
+
+            // If user cancels the dialog, pageDialog() will return the original
+            // page object and as per spec, we should return null in that case.
+            if (page == pageFrmAttrib) {
+                return null;
+            }
             updateAttributesWithPageFormat(pservice, page, attributes);
             return page;
         }
@@ -795,6 +816,10 @@ public abstract class RasterPrinterJob extends PrinterJob {
 
         if (service == null) {
             return null;
+        }
+
+        if (onTop != null) {
+            attributes.add(onTop);
         }
 
         ServiceDialog pageDialog = new ServiceDialog(gc, x, y, service,
@@ -861,7 +886,9 @@ public abstract class RasterPrinterJob extends PrinterJob {
 
             }
 
+            setParentWindowID(attributes);
             boolean ret = printDialog();
+            clearParentWindowID();
             this.attributes = attributes;
             return ret;
 
@@ -2417,6 +2444,28 @@ public abstract class RasterPrinterJob extends PrinterJob {
             return s; // no need to make a new String.
         } else {
             return new String(out_chars, 0, pos);
+        }
+    }
+
+    private DialogOnTop onTop = null;
+
+    private long parentWindowID = 0L;
+
+    /* Called from native code */
+    private long getParentWindowID() {
+        return parentWindowID;
+    }
+
+    private void clearParentWindowID() {
+        parentWindowID = 0L;
+        onTop = null;
+    }
+
+    private void setParentWindowID(PrintRequestAttributeSet attrs) {
+        parentWindowID = 0L;
+        onTop = (DialogOnTop)attrs.get(DialogOnTop.class);
+        if (onTop != null) {
+            parentWindowID = onTop.getID();
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,6 +68,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     private static native void nativeSetNSWindowRepresentedFilename(long nsWindowPtr, String representedFilename);
     private static native void nativeSetEnabled(long nsWindowPtr, boolean isEnabled);
     private static native void nativeSynthesizeMouseEnteredExitedEvents();
+    private static native void nativeSynthesizeMouseEnteredExitedEvents(long nsWindowPtr, int eventType);
     private static native void nativeDispose(long nsWindowPtr);
     private static native void nativeEnterFullScreenMode(long nsWindowPtr);
     private static native void nativeExitFullScreenMode(long nsWindowPtr);
@@ -870,6 +871,13 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             return;
         }
 
+        if (blocked) {
+            // We are going to show a modal window. Previously displayed window will be
+            // blocked/disabled. So we have to send mouse exited event to it now, since
+            // all mouse events are discarded for blocked/disabled windows.
+            execute(ptr -> nativeSynthesizeMouseEnteredExitedEvents(ptr, CocoaConstants.NSMouseExited));
+        }
+
         execute(ptr -> nativeSetEnabled(ptr, !blocked));
         checkBlockingAndOrder();
     }
@@ -1037,6 +1045,11 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         }
 
         return !peer.isSimpleWindow() && target.getFocusableWindowState();
+    }
+
+    private boolean isBlocked() {
+        LWWindowPeer blocker = (peer != null) ? peer.getBlocker() : null;
+        return (blocker != null);
     }
 
     /*

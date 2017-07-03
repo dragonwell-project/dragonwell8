@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.FilePermission;
 import java.net.*;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.StringTokenizer;
 import java.util.Set;
@@ -218,7 +219,9 @@ public class Launcher {
                     // skip this URL if cannot convert it to URI
                     continue;
                 }
-                File dir = new File(uri).getParentFile();
+                // Use the Paths.get(uri) call in order to handle
+                // UNC based file name conversion correctly.
+                File dir = Paths.get(uri).toFile().getParentFile();
                 if (dir != null && !dir.equals(prevDir)) {
                     // Look in architecture-specific subdirectory first
                     // Read from the saved system properties to avoid deadlock

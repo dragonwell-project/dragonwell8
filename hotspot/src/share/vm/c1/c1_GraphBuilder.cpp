@@ -1485,6 +1485,21 @@ void GraphBuilder::method_return(Value x) {
   // Check to see whether we are inlining. If so, Return
   // instructions become Gotos to the continuation point.
   if (continuation() != NULL) {
+
+    int invoke_bci = state()->caller_state()->bci();
+
+    if (x != NULL) {
+      ciMethod* caller = state()->scope()->caller()->method();
+      Bytecodes::Code invoke_raw_bc = caller->raw_code_at_bci(invoke_bci);
+      if (invoke_raw_bc == Bytecodes::_invokehandle || invoke_raw_bc == Bytecodes::_invokedynamic) {
+        ciType* declared_ret_type = caller->get_declared_signature_at_bci(invoke_bci)->return_type();
+        if (declared_ret_type->is_klass() && x->exact_type() == NULL &&
+            x->declared_type() != declared_ret_type && declared_ret_type != compilation()->env()->Object_klass()) {
+          x = append(new TypeCast(declared_ret_type->as_klass(), x, copy_state_before()));
+        }
+      }
+    }
+
     assert(!method()->is_synchronized() || InlineSynchronizedMethods, "can not inline synchronized methods yet");
 
     if (compilation()->env()->dtrace_method_probes()) {
@@ -1508,7 +1523,6 @@ void GraphBuilder::method_return(Value x) {
     // State at end of inlined method is the state of the caller
     // without the method parameters on stack, including the
     // return value, if any, of the inlined method on operand stack.
-    int invoke_bci = state()->caller_state()->bci();
     set_state(state()->caller_state()->copy_for_parsing());
     if (x != NULL) {
       state()->push(x->type(), x);
@@ -1822,6 +1836,20 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       log->elem("call method='%d' instr='%s'",
                 log->identify(target),
                 Bytecodes::name(code));
+
+  // invoke-special-super
+  if (bc_raw == Bytecodes::_invokespecial && !target->is_object_initializer()) {
+    ciInstanceKlass* sender_klass =
+          calling_klass->is_anonymous() ? calling_klass->host_klass() :
+                                          calling_klass;
+    if (sender_klass->is_interface()) {
+      int index = state()->stack_size() - (target->arg_size_no_receiver() + 1);
+      Value receiver = state()->stack_at(index);
+      CheckCast* c = new CheckCast(sender_klass, receiver, copy_state_before());
+      c->set_invokespecial_receiver_check();
+      state()->stack_at_put(index, append_split(c));
+    }
+  }
 
   // Some methods are obviously bindable without any type checks so
   // convert them directly to an invokespecial or invokestatic.

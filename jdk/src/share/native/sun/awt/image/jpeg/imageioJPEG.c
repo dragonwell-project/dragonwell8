@@ -2686,6 +2686,18 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeTables
     RELEASE_ARRAYS(env, data, NULL);
 }
 
+static void freeArray(void** arr, jint size) {
+    int i;
+    if (arr != NULL) {
+        for (i = 0; i < size; i++) {
+            if (arr[i] != NULL) {
+                free(arr[i]);
+            }
+        }
+        free(arr);
+    }
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
     (JNIEnv *env,
@@ -2794,6 +2806,8 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
                 scale = (UINT8**) calloc(numBands, sizeof(UINT8*));
 
                 if (scale == NULL) {
+                    (*env)->ReleaseIntArrayElements(env, bandSizes,
+                                                    bandSize, JNI_ABORT);
                     JNU_ThrowByName( env, "java/lang/OutOfMemoryError",
                                      "Writing JPEG Stream");
                     return JNI_FALSE;
@@ -2810,6 +2824,8 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
                     free(scale[j]);
                 }
                 free(scale);
+                (*env)->ReleaseIntArrayElements(env, bandSizes,
+                                                bandSize, JNI_ABORT);
                 JNU_ThrowByName( env, "java/lang/OutOfMemoryError",
                                  "Writing JPEG Stream");
                 return JNI_FALSE;
@@ -2834,21 +2850,14 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
     pb = &data->pixelBuf;
 
     if (setPixelBuffer(env, pb, buffer) == NOT_OK) {
-        if (scale != NULL) {
-            for (i = 0; i < numBands; i++) {
-                if (scale[i] != NULL) {
-                    free(scale[i]);
-                }
-            }
-            free(scale);
-        }
+        freeArray(scale, numBands);
         return data->abortFlag;  // We already threw an out of memory exception
     }
 
     // Allocate a 1-scanline buffer
     scanLinePtr = (JSAMPROW)malloc(scanLineSize);
     if (scanLinePtr == NULL) {
-        RELEASE_ARRAYS(env, data, (const JOCTET *)(dest->next_output_byte));
+        freeArray(scale, numBands);
         JNU_ThrowByName( env,
                          "java/lang/OutOfMemoryError",
                          "Writing JPEG Stream");
@@ -2870,15 +2879,7 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
             JNU_ThrowByName(env, "javax/imageio/IIOException", buffer);
         }
 
-        if (scale != NULL) {
-            for (i = 0; i < numBands; i++) {
-                if (scale[i] != NULL) {
-                    free(scale[i]);
-                }
-            }
-            free(scale);
-        }
-
+        freeArray(scale, numBands);
         free(scanLinePtr);
         return data->abortFlag;
     }
@@ -2926,7 +2927,11 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
     if (qsels) {
         (*env)->ReleaseIntArrayElements(env, QtableSelectors, qsels, JNI_ABORT);
     }
-    if (!success) return data->abortFlag;
+    if (!success) {
+        freeArray(scale, numBands);
+        free(scanLinePtr);
+        return data->abortFlag;
+    }
 
     jpeg_suppress_tables(cinfo, TRUE);  // Disable writing any current
 
@@ -2944,6 +2949,8 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
     if (GET_ARRAYS(env, data,
                    (const JOCTET **)(&dest->next_output_byte)) == NOT_OK) {
         (*env)->ExceptionClear(env);
+        freeArray(scale, numBands);
+        free(scanLinePtr);
         JNU_ThrowByName(env,
                         "javax/imageio/IIOException",
                         "Array pin failed");
@@ -2978,7 +2985,12 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
             cinfo->scan_info = cinfo->script_space;
             scanptr = (int *) cinfo->script_space;
             scanData = (*env)->GetIntArrayElements(env, scanInfo, NULL);
-            CHECK_NULL_RETURN(scanData, data->abortFlag);
+            if (scanData == NULL) {
+                RELEASE_ARRAYS(env, data, (const JOCTET *)(dest->next_output_byte));
+                freeArray(scale, numBands);
+                free(scanLinePtr);
+                return data->abortFlag;
+            }
             // number of jints per scan is 9
             // We avoid a memcpy to handle different size ints
             for (i = 0; i < numScans*9; i++) {
@@ -3074,15 +3086,7 @@ Java_com_sun_imageio_plugins_jpeg_JPEGImageWriter_writeImage
         jpeg_abort((j_common_ptr)cinfo);
     }
 
-    if (scale != NULL) {
-        for (i = 0; i < numBands; i++) {
-            if (scale[i] != NULL) {
-                free(scale[i]);
-            }
-        }
-        free(scale);
-    }
-
+    freeArray(scale, numBands);
     free(scanLinePtr);
     RELEASE_ARRAYS(env, data, NULL);
     return data->abortFlag;

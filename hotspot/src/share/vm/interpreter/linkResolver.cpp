@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -289,11 +289,11 @@ void LinkResolver::lookup_method_in_klasses(methodHandle& result, KlassHandle kl
 // returns first instance method
 // Looks up method in classes, then looks up local default methods
 void LinkResolver::lookup_instance_method_in_klasses(methodHandle& result, KlassHandle klass, Symbol* name, Symbol* signature, TRAPS) {
-  Method* result_oop = klass->uncached_lookup_method(name, signature, Klass::normal);
+  Method* result_oop = klass->uncached_lookup_method(name, signature, Klass::find_overpass);
   result = methodHandle(THREAD, result_oop);
   while (!result.is_null() && result->is_static() && result->method_holder()->super() != NULL) {
     KlassHandle super_klass = KlassHandle(THREAD, result->method_holder()->super());
-    result = methodHandle(THREAD, super_klass->uncached_lookup_method(name, signature, Klass::normal));
+    result = methodHandle(THREAD, super_klass->uncached_lookup_method(name, signature, Klass::find_overpass));
   }
 
   if (klass->oop_is_array()) {
@@ -320,7 +320,9 @@ int LinkResolver::vtable_index_of_interface_method(KlassHandle klass,
   // First check in default method array
   if (!resolved_method->is_abstract() &&
     (InstanceKlass::cast(klass())->default_methods() != NULL)) {
-    int index = InstanceKlass::find_method_index(InstanceKlass::cast(klass())->default_methods(), name, signature, false, false);
+    int index = InstanceKlass::find_method_index(InstanceKlass::cast(klass())->default_methods(),
+                                                 name, signature, Klass::find_overpass,
+                                                 Klass::find_static, Klass::find_private);
     if (index >= 0 ) {
       vtable_index = InstanceKlass::cast(klass())->default_vtable_indices()->at(index);
     }
@@ -913,11 +915,11 @@ void LinkResolver::linktime_resolve_static_method(methodHandle& resolved_method,
 }
 
 
-void LinkResolver::resolve_special_call(CallInfo& result, KlassHandle resolved_klass, Symbol* method_name,
+void LinkResolver::resolve_special_call(CallInfo& result, Handle recv, KlassHandle resolved_klass, Symbol* method_name,
                                         Symbol* method_signature, KlassHandle current_klass, bool check_access, TRAPS) {
   methodHandle resolved_method;
   linktime_resolve_special_method(resolved_method, resolved_klass, method_name, method_signature, current_klass, check_access, CHECK);
-  runtime_resolve_special_method(result, resolved_method, resolved_klass, current_klass, check_access, CHECK);
+  runtime_resolve_special_method(result, resolved_method, resolved_klass, current_klass, recv, check_access, CHECK);
 }
 
 // throws linktime exceptions
@@ -1016,7 +1018,7 @@ void LinkResolver::linktime_resolve_special_method(methodHandle& resolved_method
 
 // throws runtime exceptions
 void LinkResolver::runtime_resolve_special_method(CallInfo& result, methodHandle resolved_method, KlassHandle resolved_klass,
-                                                  KlassHandle current_klass, bool check_access, TRAPS) {
+                                                  KlassHandle current_klass, Handle recv, bool check_access, TRAPS) {
 
   // resolved method is selected method unless we have an old-style lookup
   // for a superclass method
@@ -1024,21 +1026,19 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result, methodHandle
   // no checks for shadowing
   methodHandle sel_method(THREAD, resolved_method());
 
-  // check if this is an old-style super call and do a new lookup if so
-  { KlassHandle method_klass  = KlassHandle(THREAD,
-                                            resolved_method->method_holder());
+  if (check_access &&
+      // check if the method is not <init>
+      resolved_method->name() != vmSymbols::object_initializer_name()) {
 
-    if (check_access &&
+  // check if this is an old-style super call and do a new lookup if so
         // a) check if ACC_SUPER flag is set for the current class
-        (current_klass->is_super() || !AllowNonVirtualCalls) &&
+    if ((current_klass->is_super() || !AllowNonVirtualCalls) &&
         // b) check if the class of the resolved_klass is a superclass
         // (not supertype in order to exclude interface classes) of the current class.
         // This check is not performed for super.invoke for interface methods
         // in super interfaces.
         current_klass->is_subclass_of(resolved_klass()) &&
-        current_klass() != resolved_klass() &&
-        // c) check if the method is not <init>
-        resolved_method->name() != vmSymbols::object_initializer_name()) {
+        current_klass() != resolved_klass()) {
       // Lookup super method
       KlassHandle super_klass(THREAD, current_klass->super());
       lookup_instance_method_in_klasses(sel_method, super_klass,
@@ -1051,6 +1051,27 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result, methodHandle
                   Method::name_and_sig_as_C_string(resolved_klass(),
                                             resolved_method->name(),
                                             resolved_method->signature()));
+      }
+    }
+
+    // Check that the class of objectref (the receiver) is the current class or interface,
+    // or a subtype of the current class or interface (the sender), otherwise invokespecial
+    // throws IllegalAccessError.
+    // The verifier checks that the sender is a subtype of the class in the I/MR operand.
+    // The verifier also checks that the receiver is a subtype of the sender, if the sender is
+    // a class.  If the sender is an interface, the check has to be performed at runtime.
+    InstanceKlass* sender = InstanceKlass::cast(current_klass());
+    sender = sender->is_anonymous() ? InstanceKlass::cast(sender->host_klass()) : sender;
+    if (sender->is_interface() && recv.not_null()) {
+      Klass* receiver_klass = recv->klass();
+      if (!receiver_klass->is_subtype_of(sender)) {
+        ResourceMark rm(THREAD);
+        char buf[500];
+        jio_snprintf(buf, sizeof(buf),
+                     "Receiver class %s must be the current class or a subtype of interface %s",
+                     receiver_klass->name()->as_C_string(),
+                     sender->name()->as_C_string());
+        THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), buf);
       }
     }
   }
@@ -1184,7 +1205,7 @@ void LinkResolver::runtime_resolve_virtual_method(CallInfo& result,
   assert(resolved_method->method_holder()->is_linked(), "must be linked");
 
   // do lookup based on receiver klass using the vtable index
-  if (resolved_method->method_holder()->is_interface()) { // miranda method
+  if (resolved_method->method_holder()->is_interface()) { // default or miranda method
     vtable_index = vtable_index_of_interface_method(resolved_klass,
                            resolved_method);
     assert(vtable_index >= 0 , "we should have valid vtable index at this point");
@@ -1193,7 +1214,7 @@ void LinkResolver::runtime_resolve_virtual_method(CallInfo& result,
     selected_method = methodHandle(THREAD, inst->method_at_vtable(vtable_index));
   } else {
     // at this point we are sure that resolved_method is virtual and not
-    // a miranda method; therefore, it must have a valid vtable index.
+    // a default or miranda method; therefore, it must have a valid vtable index.
     assert(!resolved_method->has_itable_index(), "");
     vtable_index = resolved_method->vtable_index();
     // We could get a negative vtable_index for final methods,
@@ -1479,7 +1500,7 @@ methodHandle LinkResolver::resolve_special_call_or_null(
                                                   bool check_access) {
   EXCEPTION_MARK;
   CallInfo info;
-  resolve_special_call(info, resolved_klass, name, signature, current_klass, check_access, THREAD);
+  resolve_special_call(info, Handle(), resolved_klass, name, signature, current_klass, check_access, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     CLEAR_PENDING_EXCEPTION;
     return methodHandle();
@@ -1495,7 +1516,7 @@ methodHandle LinkResolver::resolve_special_call_or_null(
 void LinkResolver::resolve_invoke(CallInfo& result, Handle recv, constantPoolHandle pool, int index, Bytecodes::Code byte, TRAPS) {
   switch (byte) {
     case Bytecodes::_invokestatic   : resolve_invokestatic   (result,       pool, index, CHECK); break;
-    case Bytecodes::_invokespecial  : resolve_invokespecial  (result,       pool, index, CHECK); break;
+    case Bytecodes::_invokespecial  : resolve_invokespecial  (result, recv, pool, index, CHECK); break;
     case Bytecodes::_invokevirtual  : resolve_invokevirtual  (result, recv, pool, index, CHECK); break;
     case Bytecodes::_invokehandle   : resolve_invokehandle   (result,       pool, index, CHECK); break;
     case Bytecodes::_invokedynamic  : resolve_invokedynamic  (result,       pool, index, CHECK); break;
@@ -1526,13 +1547,13 @@ void LinkResolver::resolve_invokestatic(CallInfo& result, constantPoolHandle poo
 }
 
 
-void LinkResolver::resolve_invokespecial(CallInfo& result, constantPoolHandle pool, int index, TRAPS) {
+void LinkResolver::resolve_invokespecial(CallInfo& result, Handle recv, constantPoolHandle pool, int index, TRAPS) {
   KlassHandle  resolved_klass;
   Symbol* method_name = NULL;
   Symbol* method_signature = NULL;
   KlassHandle  current_klass;
   resolve_pool(resolved_klass, method_name,  method_signature, current_klass, pool, index, CHECK);
-  resolve_special_call(result, resolved_klass, method_name, method_signature, current_klass, true, CHECK);
+  resolve_special_call(result, recv, resolved_klass, method_name, method_signature, current_klass, true, CHECK);
 }
 
 
