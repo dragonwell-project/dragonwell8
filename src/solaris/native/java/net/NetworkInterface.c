@@ -1425,7 +1425,7 @@ static int getMacAddress
 
     return -1;
 #elif defined(__linux__)
-    static struct ifreq ifr;
+    struct ifreq ifr;
     int i;
     memset((char *)&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name) - 1);
