@@ -1379,18 +1379,14 @@ final class DirectAudioDevice extends AbstractMixer {
                 // pre-empted while another thread changes doIO and notifies,
                 // before we wait (so we sleep in wait forever).
                 synchronized(lock) {
-                    if (!doIO) {
+                    while (!doIO && thread == curThread) {
                         try {
                             lock.wait();
-                        } catch(InterruptedException ie) {
-                        } finally {
-                            if (thread != curThread) {
-                                break;
-                            }
+                        } catch (InterruptedException ignored) {
                         }
                     }
                 }
-                while (doIO) {
+                while (doIO && thread == curThread) {
                     if (newFramePosition >= 0) {
                         clipBytePosition = newFramePosition * frameSize;
                         newFramePosition = -1;
