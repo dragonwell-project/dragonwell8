@@ -30,20 +30,6 @@
 #define __ masm->
 
 #ifndef CC_INTERP
-void ShenandoahBarrierSet::compile_resolve_oop_runtime(MacroAssembler* masm, Register dst) {
-  __ enter();
-  __ push_call_clobbered_registers();
-
-  __ mov(c_rarg0, dst);
-  __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahBarrierSet::resolve_oop_static));
-  __ blrt(rscratch1, 1, 0, 1);
-  __ mov(rscratch1, r0);
-
-  __ pop_call_clobbered_registers();
-  __ mov(dst, rscratch1);
-  __ leave();
-}
-
 void ShenandoahBarrierSet::interpreter_read_barrier(MacroAssembler* masm, Register dst) {
   if (ShenandoahReadBarrier) {
     Label is_null;
@@ -55,11 +41,7 @@ void ShenandoahBarrierSet::interpreter_read_barrier(MacroAssembler* masm, Regist
 
 void ShenandoahBarrierSet::interpreter_read_barrier_not_null(MacroAssembler* masm, Register dst) {
   if (ShenandoahReadBarrier) {
-    if (ShenandoahVerifyReadsToFromSpace) {
-      compile_resolve_oop_runtime(masm, dst);
-      return;
-    }
-    __ ldr(dst, Address(dst, BrooksPointer::BYTE_OFFSET));
+    __ ldr(dst, Address(dst, BrooksPointer::byte_offset()));
   }
 }
 
@@ -85,7 +67,7 @@ void ShenandoahBarrierSet::interpreter_write_barrier(MacroAssembler* masm, Regis
 
   __ cbzw(rscratch2, done);
 
-  __ lsr(rscratch1, dst, ShenandoahHeapRegion::RegionSizeShift);
+  __ lsr(rscratch1, dst, ShenandoahHeapRegion::region_size_shift_jint());
   __ mov(rscratch2,  ShenandoahHeap::in_cset_fast_test_addr());
   __ ldrb(rscratch2, Address(rscratch2, rscratch1));
   __ tst(rscratch2, 0x1);
@@ -110,7 +92,7 @@ void ShenandoahBarrierSet::interpreter_write_barrier(MacroAssembler* masm, Regis
 }
 
 void ShenandoahHeap::compile_prepare_oop(MacroAssembler* masm, Register obj) {
-  __ add(obj, obj, BrooksPointer::BROOKS_POINTER_OBJ_SIZE * HeapWordSize);
+  __ add(obj, obj, BrooksPointer::byte_size());
   __ str(obj, Address(obj, -1 * HeapWordSize));
 }
 

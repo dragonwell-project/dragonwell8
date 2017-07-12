@@ -426,6 +426,8 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   Address klass_addr     (obj_reg, oopDesc::klass_offset_in_bytes());
   Address saved_mark_addr(lock_reg, 0);
 
+  shenandoah_store_addr_check(obj_reg);
+
   // Biased locking
   // See whether the lock is currently biased toward our thread and
   // whether the epoch is still valid
@@ -576,6 +578,7 @@ void MacroAssembler::biased_locking_exit(Register obj_reg, Register temp_reg, La
   // a higher level. Second, if the bias was revoked while we held the
   // lock, the object could not be rebiased toward another thread, so
   // the bias bit would be clear.
+  shenandoah_store_addr_check(obj_reg); // Access mark word
   ldr(temp_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
   andr(temp_reg, temp_reg, markOopDesc::biased_lock_mask_in_place);
   cmp(temp_reg, markOopDesc::biased_lock_pattern);
@@ -1408,10 +1411,6 @@ void MacroAssembler::null_check(Register reg, int offset) {
     // accessing M[reg] w/o changing any registers
     // NOTE: this is plenty to provoke a segv
 
-    if (ShenandoahVerifyReadsToFromSpace) {
-      oopDesc::bs()->interpreter_read_barrier(this, reg);
-    }
-
     ldr(zr, Address(reg));
   } else {
     // nothing to do, (later) access of M[reg + offset]
@@ -1643,7 +1642,7 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 void MacroAssembler::mov(Register dst, address addr) {
   assert(Universe::heap() == NULL
          || !Universe::heap()->is_in(addr), "use movptr for oop pointers");
-  mov_immediate64(dst, (uintptr_t)addr);
+    mov_immediate64(dst, (uintptr_t)addr);
 }
 
 // Form an address from base + offset in Rd.  Rd may or may
@@ -2213,6 +2212,69 @@ void MacroAssembler::cmpxchg(Register addr, Register expected,
   }
 }
 
+void MacroAssembler::cmpxchg_oop_shenandoah(Register addr, Register expected,
+                                            Register new_val,
+                                            enum operand_size size,
+                                            bool acquire, bool release,
+                                            bool weak,
+                                            Register result, Register tmp2) {
+  assert(UseShenandoahGC, "only for shenandoah");
+  bool is_cae = (result != noreg);
+  bool is_narrow = (size == word);
+
+  if (! is_cae) result = rscratch1;
+
+  assert_different_registers(addr, expected, new_val, result, tmp2);
+
+  if (ShenandoahStoreCheck) {
+    if (is_narrow) {
+      decode_heap_oop(tmp2, new_val);
+      shenandoah_store_check(addr, tmp2);
+    } else {
+      shenandoah_store_check(addr, new_val);
+    }
+  }
+  Label retry, done, fail;
+
+  // CAS, using LL/SC pair.
+  bind(retry);
+  load_exclusive(result, addr, size, acquire);
+  if (is_narrow) {
+    cmpw(result, expected);
+  } else {
+    cmp(result, expected);
+  }
+  br(Assembler::NE, fail);
+  store_exclusive(tmp2, new_val, addr, size, release);
+  if (weak) {
+    cmpw(tmp2, 0u); // If the store fails, return NE to our caller
+  } else {
+    cbnzw(tmp2, retry);
+  }
+  b(done);
+
+  bind(fail);
+  // Check if rb(expected)==rb(result)
+  // Shuffle registers so that we have memory value ready for next expected.
+  mov(tmp2, expected);
+  mov(expected, result);
+  if (is_narrow) {
+    decode_heap_oop(result, result);
+    decode_heap_oop(tmp2, tmp2);
+  }
+  oopDesc::bs()->interpreter_read_barrier(this, result);
+  oopDesc::bs()->interpreter_read_barrier(this, tmp2);
+  cmp(result, tmp2);
+  // Retry with expected now being the value we just loaded from addr.
+  br(Assembler::EQ, retry);
+  if (is_narrow && is_cae) {
+    // For cmp-and-exchange and narrow oops, we need to restore
+    // the compressed old-value. We moved it to 'expected' a few lines up.
+    mov(result, expected);
+  }
+  bind(done);
+}
+
 static bool different(Register a, RegisterOrConstant b, Register c) {
   if (b.is_constant())
     return a != c;
@@ -2411,19 +2473,17 @@ void MacroAssembler::c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_t
 }
 #endif
 
-void MacroAssembler::push_call_clobbered_registers() {
-  push(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
-
+void MacroAssembler::push_call_clobbered_fp_registers() {
   // Push v0-v7, v16-v31.
   for (int i = 30; i >= 0; i -= 2) {
     if (i <= v7->encoding() || i >= v16->encoding()) {
-        stpd(as_FloatRegister(i), as_FloatRegister(i+1),
-             Address(pre(sp, -2 * wordSize)));
+      stpd(as_FloatRegister(i), as_FloatRegister(i+1),
+           Address(pre(sp, -2 * wordSize)));
     }
   }
 }
 
-void MacroAssembler::pop_call_clobbered_registers() {
+void MacroAssembler::pop_call_clobbered_fp_registers() {
 
   for (int i = 0; i < 32; i += 2) {
     if (i <= v7->encoding() || i >= v16->encoding()) {
@@ -2431,6 +2491,17 @@ void MacroAssembler::pop_call_clobbered_registers() {
            Address(post(sp, 2 * wordSize)));
     }
   }
+}
+
+void MacroAssembler::push_call_clobbered_registers() {
+  push(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
+
+  push_call_clobbered_fp_registers();
+}
+
+void MacroAssembler::pop_call_clobbered_registers() {
+
+  pop_call_clobbered_fp_registers();
 
   pop(RegSet::range(r0, r18) - RegSet::of(rscratch1, rscratch2), sp);
 }
@@ -3520,7 +3591,6 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src)
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src) {
-  shenandoah_store_check(src, dst);
   if (UseCompressedOops) {
     assert(!dst.uses(src), "not enough registers");
     encode_heap_oop(src);
@@ -3641,11 +3711,6 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
   assert(thread == rthread, "must be");
 #endif // _LP64
 
-  if (UseShenandoahGC) {
-    // No need for this in Shenandoah.
-    return;
-  }
-
   assert(UseG1GC, "expect G1 GC");
 
   Address queue_index(thread, in_bytes(JavaThread::dirty_card_queue_offset() +
@@ -3711,6 +3776,85 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr,
   push(store_addr->bit(true) | new_val->bit(true), sp);
   call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), card_addr, thread);
   pop(store_addr->bit(true) | new_val->bit(true), sp);
+
+  bind(done);
+}
+
+void MacroAssembler::shenandoah_write_barrier_post(Register store_addr,
+                                                   Register new_val,
+                                                   Register thread,
+                                                   Register tmp,
+                                                   Register tmp2) {
+  assert(thread == rthread, "must be");
+  assert(UseShenandoahGC, "expect Shenandoah GC");
+
+  if (! UseShenandoahMatrix) {
+    // No need for that barrier if not using matrix.
+    return;
+  }
+
+  assert_different_registers(store_addr, new_val, thread, tmp, tmp2, rscratch2);
+
+  Label done;
+  cbz(new_val, done);
+
+  ShenandoahConnectionMatrix* matrix = ShenandoahHeap::heap()->connection_matrix();
+  address matrix_addr = matrix->matrix_addr();
+  unsigned long offset;
+  adrp(rscratch2, ExternalAddress(ShenandoahHeap::heap()->base()), offset);
+  assert(offset == 0, "Heap base address must be page aligned");
+
+  sub(tmp, new_val, rscratch2);
+  lsr(tmp, tmp, ShenandoahHeapRegion::region_size_shift_jint());
+
+  sub(tmp2, store_addr, rscratch2);
+  lsr(tmp2, tmp2, ShenandoahHeapRegion::region_size_shift_jint());
+
+  mov(rscratch2, matrix->stride_jint());
+  madd(tmp, tmp, rscratch2, tmp2);
+
+  mov(rscratch2, (uintptr_t)matrix_addr);
+  Address loc(rscratch2, tmp);
+
+  ldrb(tmp2, loc);
+  cbnz(tmp2, done);
+  mov(tmp2, 1);
+  strb(tmp2, loc);
+  bind(done);
+}
+
+void MacroAssembler::shenandoah_write_barrier(Register dst) {
+  assert(UseShenandoahGC, "must only be called with Shenandoah GC active");
+  assert(dst != rscratch1, "need rscratch1");
+  assert(dst != rscratch2, "need rscratch2");
+
+  Label done;
+
+  // Check for evacuation-in-progress
+  Address evacuation_in_progress = Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset()));
+  ldrb(rscratch1, evacuation_in_progress);
+  membar(Assembler::LoadLoad);
+
+  // The read-barrier.
+  ldr(dst, Address(dst, BrooksPointer::byte_offset()));
+
+  // Evac-check ...
+  cbzw(rscratch1, done);
+
+  RegSet to_save = RegSet::of(r0);
+  if (dst != r0) {
+    push(to_save, sp);
+    mov(r0, dst);
+  }
+
+  assert(StubRoutines::aarch64::shenandoah_wb() != NULL, "need write barrier stub");
+  far_call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::aarch64::shenandoah_wb())));
+
+  if (dst != r0) {
+    mov(dst, r0);
+    pop(to_save, sp);
+  }
+  block_comment("} Shenandoah write barrier");
 
   bind(done);
 }
@@ -4818,6 +4962,7 @@ void MacroAssembler::char_arrays_equals(Register ary1, Register ary2,
 
     // same array?
     cmp(ary1, ary2);
+    oopDesc::bs()->asm_acmp_barrier(this, ary1, ary2);
     br(Assembler::EQ, SAME);
 
     // ne if either null
@@ -4935,140 +5080,153 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
 // written to, and that fromspace pointers are not written into
 // objects during concurrent marking.  These methods check for that.
 
-const bool ShenandoahStoreCheck = false;
-
-void MacroAssembler::in_heap_check(Register r, Label &nope) {
+void MacroAssembler::in_heap_check(Register r, Register tmp, Label &nope) {
   ShenandoahHeap *h = (ShenandoahHeap *)Universe::heap();
 
-  HeapWord* first_region_bottom = h->first_region_bottom();
-  HeapWord* last_region_end = first_region_bottom + (ShenandoahHeapRegion::RegionSizeBytes / HeapWordSize) * h->max_regions();
+  HeapWord* heap_base = (HeapWord*) h->base();
+  HeapWord* last_region_end = heap_base + (ShenandoahHeapRegion::region_size_bytes() / HeapWordSize) * h->max_regions();
 
-  mov(rscratch1, (uintptr_t)first_region_bottom);
-  cmp(r, rscratch1);
+  mov(tmp, (uintptr_t) heap_base);
+  cmp(r, tmp);
   br(Assembler::LO, nope);
-  mov(rscratch1, (uintptr_t)last_region_end);
-  cmp(r, rscratch1);
+  mov(tmp, (uintptr_t)last_region_end);
+  cmp(r, tmp);
   br(Assembler::HS, nope);
 }
 
-void MacroAssembler::shenandoah_store_check(Register r, Address dest) {
-  if (! ShenandoahStoreCheck)
-    return;
+void MacroAssembler::shenandoah_cset_check(Register obj, Register tmp1, Register tmp2, Label& done) {
 
-  if (! UseShenandoahGC)
-    return;
+  // Test that oop is not in to-space.
+  lsr(tmp1, obj, ShenandoahHeapRegion::region_size_shift_jint());
+  assert(ShenandoahHeap::in_cset_fast_test_addr() != 0, "sanity");
+  mov(tmp2, ShenandoahHeap::in_cset_fast_test_addr());
+  ldrb(tmp2, Address(tmp2, tmp1));
+  tbz(tmp2, 0, done);
 
-  assert_different_registers(rscratch1, rscratch2, r);
-  assert(! dest.uses(rscratch1), "must be");
-  assert(! dest.uses(rscratch2), "must be");
+  // Check for cancelled GC.
+  assert(ShenandoahHeap::cancelled_concgc_addr() != 0, "sanity");
+  mov(tmp2, ShenandoahHeap::cancelled_concgc_addr());
+  ldrb(tmp2, Address(tmp2));
+  cbnz(tmp2, done);
+}
+
+void MacroAssembler::_shenandoah_store_check(Address addr, Register value, const char* msg, const char* file, int line) {
+  _shenandoah_store_check(addr.base(), value, msg, file, line);
+}
+
+void MacroAssembler::_shenandoah_store_check(Register addr, Register value, const char* msg, const char* file, int line) {
+
+  if (! UseShenandoahGC || ! ShenandoahStoreCheck) return;
+  if (addr == r31_sp || addr == sp) return; // Stack-based target
+
+  Register raddr = r8;
+  Register rval = r9;
+  Register tmp1 = r10;
+  Register tmp2 = r11;
+
+  RegSet to_save = RegSet::of(raddr, rval, tmp1, tmp2);
+
+  // Push tmp regs and flags.
+  push(to_save, sp);
+  get_nzcv(tmp1);
+  push(RegSet::of(tmp1), sp);
+
+  mov(rval, value);
+  mov(raddr, addr);
 
   Label done;
-  cbz(r, done);
 
-  mov(rscratch2, ShenandoahHeap::concurrent_mark_in_progress_addr());
-  Assembler::ldrw(rscratch2, Address(rscratch2));
-  cbzw(rscratch2, done);
+  // If not in-heap target, skip check.
+  in_heap_check(raddr, tmp1, done);
 
-  in_heap_check(r, done);
+  // Test that target oop is not in to-space.
+  shenandoah_cset_check(raddr, tmp1, tmp2, done);
 
-  // Check for object in collection set.
-  lsr(rscratch1, r, ShenandoahHeapRegion::RegionSizeShift);
-  mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-  ldrb(rscratch2, Address(rscratch2, rscratch1));
-  tbz(rscratch2, 0, done);
+  // Do value-check only when concurrent mark is in progress.
+  mov(tmp1, ShenandoahHeap::concurrent_mark_in_progress_addr());
+  ldrw(tmp1, Address(tmp1));
+  cbzw(tmp1, done);
 
-  // Check for dest in heap
-  lea(rscratch2, dest);
-  in_heap_check(rscratch2, done);
+  // Null-check value.
+  cbz(rval, done);
 
-  lsr(rscratch1, rscratch2, ShenandoahHeapRegion::RegionSizeShift);
-  mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-  ldrb(rscratch2, Address(rscratch2, rscratch1));
-  tbz(rscratch2, 0, done);
+  // Test that value oop is not in to-space.
+  shenandoah_cset_check(rval, tmp1, tmp2, done);
 
-  ldr(rscratch2, Address(r, BrooksPointer::BYTE_OFFSET));
+  // Failure.
+  // Pop tmp regs and flags.
+  pop(RegSet::of(tmp1), sp);
+  set_nzcv(tmp1);
+  pop(to_save, sp);
+  const char* b = NULL;
+  {
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("shenandoah_store_check: %s in file: %s line: %i", msg, file, line);
+    b = code_string(ss.as_string());
+  }
+  // hlt(0);
 
-  stop("Shenandoah: store of oop in collection set during marking!", &done);
-  should_not_reach_here();
-
-  bind(done);
-}
-
-void MacroAssembler::shenandoah_store_check(Address dest) {
-  if (! ShenandoahStoreCheck)
-    return;
-
-  if (! UseShenandoahGC)
-    return;
-
-  block_comment("shenandoah_store_check {");
-
-  assert(! dest.uses(rscratch1), "must be");
-  assert(! dest.uses(rscratch2), "must be");
-
-  Label done, yes;
-
-  ldr(rscratch2, Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset())));
-  cbnzw(rscratch2, yes);
-
-  mov(rscratch2, ShenandoahHeap::concurrent_mark_in_progress_addr());
-  Assembler::ldrw(rscratch2, Address(rscratch2));
-  cbzw(rscratch2, done);
-
-  bind(yes);
-
-  // Check for dest in heap
-  lea(rscratch2, dest);
-  cbz(rscratch2, done);
-  in_heap_check(rscratch2, done);
-
-  lsr(rscratch1, rscratch2, ShenandoahHeapRegion::RegionSizeShift);
-  mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-  ldrb(rscratch2, Address(rscratch2, rscratch1));
-  tbz(rscratch2, 0, done);
-
-  stop("Shenandoah: store in collection set during marking/evacuation!", &done);
-  should_not_reach_here();
+  stop(b);
 
   bind(done);
-  block_comment("} shenandoah_store_check");
+  // Pop tmp regs and flags.
+  pop(RegSet::of(tmp1), sp);
+  set_nzcv(tmp1);
+  pop(to_save, sp);
 }
 
-void MacroAssembler::shenandoah_store_check(Register dest) {
-  if (! ShenandoahStoreCheck)
-    return;
+void MacroAssembler::_shenandoah_store_addr_check(Address addr, const char* msg, const char* file, int line) {
+  _shenandoah_store_addr_check(addr.base(), msg, file, line);
+}
 
-  if (! UseShenandoahGC)
-    return;
+void MacroAssembler::_shenandoah_store_addr_check(Register dst, const char* msg, const char* file, int line) {
 
-  block_comment("shenandoah_store_check {");
+  if (! UseShenandoahGC || ! ShenandoahStoreCheck) return;
+  if (dst == r31_sp || dst == sp) return; // Stack-based target
 
-  assert_different_registers(rscratch1, rscratch2, dest);
+  Register addr = r8;
+  Register tmp1 = r9;
+  Register tmp2 = r10;
 
-  Label done, yes;
+  Label done;
+  RegSet to_save = RegSet::of(addr, tmp1, tmp2);
 
-  ldr(rscratch2, Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset())));
-  cbnzw(rscratch2, yes);
+  // Push tmp regs and flags.
+  push(to_save, sp);
+  get_nzcv(tmp1);
+  push(RegSet::of(tmp1), sp);
 
-  mov(rscratch2, ShenandoahHeap::concurrent_mark_in_progress_addr());
-  Assembler::ldrw(rscratch2, Address(rscratch2));
-  cbzw(rscratch2, done);
+  orr(addr, zr, dst);
+  // mov(addr, dst);
 
-  bind(yes);
+  // Check null.
+  cbz(addr, done);
 
-  // Check for dest in heap
-  cbz(dest, done);
-  in_heap_check(dest, done);
+  in_heap_check(addr, tmp1, done);
 
-  lsr(rscratch1, dest, ShenandoahHeapRegion::RegionSizeShift);
-  mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-  ldrb(rscratch2, Address(rscratch2, rscratch1));
-  tbz(rscratch2, 0, done);
+  shenandoah_cset_check(addr, tmp1, tmp2, done);
 
-  stop("Shenandoah: store in collection set during marking/evacuation!", &done);
-  should_not_reach_here();
+  // Fail.
+  // Pop tmp regs and flags.
+  pop(RegSet::of(tmp1), sp);
+  set_nzcv(tmp1);
+  pop(to_save, sp);
+  const char* b = NULL;
+  {
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("shenandoah_store_check: %s in file: %s line: %i", msg, file, line);
+    b = code_string(ss.as_string());
+  }
+  // hlt(0);
+  stop(b);
+  // should_not_reach_here();
 
   bind(done);
-  block_comment("} shenandoah_store_check");
-}
+  // Pop tmp regs and flags.
+  pop(RegSet::of(tmp1), sp);
+  set_nzcv(tmp1);
+  pop(to_save, sp);
 
+}

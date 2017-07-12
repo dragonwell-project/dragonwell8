@@ -1171,22 +1171,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
 #if INCLUDE_ALL_GCS
 
-    case shenandoah_write_barrier_slow_id:
-      {
-        StubFrame f(sasm, "shenandoah_write_barrier", dont_gc_arguments);
-
-        __ enter();
-        __ push_call_clobbered_registers();
-        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahBarrierSet::write_barrier_c1),
-                        rthread, r1);
-        __ mov(rscratch1, r0);
-        __ pop_call_clobbered_registers();
-        __ mov(r0, rscratch1);
-        __ leave();
-        __ verify_oop(r0);
-
-      }
-      break;
     case g1_pre_barrier_slow_id:
       {
         StubFrame f(sasm, "g1_pre_barrier", dont_gc_arguments);

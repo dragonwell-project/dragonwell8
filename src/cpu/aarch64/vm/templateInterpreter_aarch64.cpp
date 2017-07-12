@@ -593,6 +593,7 @@ void InterpreterGenerator::lock_method(void) {
   __ mov(rscratch1, esp);
   __ str(rscratch1, monitor_block_top);  // set new monitor block top
   // store object
+  __ shenandoah_store_addr_check(r0);
   __ str(r0, Address(esp, BasicObjectLock::obj_offset_in_bytes()));
   __ mov(c_rarg1, esp); // object address
   __ lock_object(c_rarg1);
@@ -695,7 +696,7 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   //   and so we don't need to call the G1 pre-barrier. Thus we can use the
   //   regular method entry code to generate the NPE.
   //
-  // This code is based on generate_accessor_enty.
+  // This code is based on generate_accessor_entry.
   //
   // rmethod: Method*
   // r13: senderSP must preserve for slow path, set SP to it on fast path
@@ -720,6 +721,7 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
     const Address field_address(local_0, referent_offset);
     __ load_heap_oop(local_0, field_address);
 
+    __ mov(r19, r13);   // Move senderSP to a callee-saved register
     // Generate the G1 pre-barrier code to log the value of
     // the referent field in an SATB buffer.
     __ enter(); // g1_write may call runtime
@@ -841,6 +843,7 @@ address InterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpret
       __ ldrw(crc,   Address(esp, 4*wordSize)); // Initial CRC
     } else {
       __ ldr(buf, Address(esp, 2*wordSize)); // byte[] array
+      oopDesc::bs()->interpreter_read_barrier_not_null(_masm, buf);
       __ add(buf, buf, arrayOopDesc::base_offset_in_bytes(T_BYTE)); // + header size
       __ ldrw(off, Address(esp, wordSize)); // offset
       __ add(buf, buf, off); // + offset
@@ -1272,6 +1275,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 					  wordSize - sizeof(BasicObjectLock))));
 
       __ ldr(t, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
+      __ shenandoah_store_addr_check(t); // Invariant
       __ cbnz(t, unlock);
 
       // Entry already unlocked, need to throw exception

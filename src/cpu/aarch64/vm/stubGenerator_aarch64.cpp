@@ -562,152 +562,168 @@ class StubGenerator: public StubCodeGenerator {
   //
   // Trash rscratch1, rscratch2.  Preserve everything else.
 
-  address generate_shenandoah_wb() {
+  address generate_shenandoah_wb(bool c_abi, bool do_cset_test) {
     StubCodeMark mark(this, "StubRoutines", "shenandoah_wb");
 
     __ align(6);
     address start = __ pc();
 
-    Label work, slow_case, lose, not_an_instance, is_array;
-    Address evacuation_in_progress
-      = Address(rthread, in_bytes(JavaThread::evacuation_in_progress_offset()));
+    Label slow_case, lose, not_an_instance, is_array;
 
-    __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-    __ lsr(rscratch1, r0, ShenandoahHeapRegion::RegionSizeShift);
-    __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-    __ tbnz(rscratch2, 0, work);
-    __ ret(lr);
-
-    __ bind(work);
-
-    RegSet saved = RegSet::range(r1, r4);
-    __ push(saved, sp);
-
-    Register obj = r0, size = r2, newobj = r3, newobj_end = rscratch2;
-
-    __ ldr(newobj, Address(rthread, JavaThread::gclab_top_offset()));
-    __ cbz(newobj, slow_case); // No GCLAB
-
-    __ load_klass(r1, obj);
-    __ ldrw(size, Address(r1, Klass::layout_helper_offset()));
-    __ tbnz(size, BitsPerInt - 1, not_an_instance);  // make sure it's an instance (LH > 0)
-    assert(Klass::_lh_neutral_value == 0, "must be");
-    __ cbzw(size, slow_case);
-    __ tbnz(size, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
-    __ bind(is_array);
-
-    // size contains the size (in bytes) of the object.
-
-    // Make sure it's not a really big object.
-    // ??? Maybe this test is not necessary.
-    __ cmp(size, 128 * HeapWordSize);
-    __ br(Assembler::GE, slow_case);
-
-    int oop_extra_words = Universe::heap()->oop_extra_words();
-    __ add(newobj_end, newobj, oop_extra_words * HeapWordSize);
-    __ add(newobj_end, newobj_end, size, ext::uxtw);
-
-    // Pointer to end of new object is in newobj_end.
-
-    __ ldr(rscratch1, Address(rthread, JavaThread::gclab_end_offset()));
-    __ cmp(newobj_end, rscratch1);
-    __ br(Assembler::HS, slow_case); // No room in GCLAB
-
-    // Store Brooks pointer and adjust start of newobj.
-    Universe::heap()->compile_prepare_oop(_masm, newobj);
-
-    // We can reuse newobj_end (rscratch2) to hold dst.
-    Register src = r1, dst = newobj_end;
-
-    // Copy the object from obj to newobj.  This loop is short and
-    // sweet: the typical size of an object is about eight HeapWords
-    // so it makes no sense to optimize for a large memory copy.
-    // There might be some sense to calling generate_copy_longs from
-    // here if the object to be copied is very large.
-    Label loop, odd_count;
-    {
-      __ mov(src, obj);
-      __ mov(dst, newobj);
-      __ tbnz(size, exact_log2(HeapWordSize), odd_count);
-
-      // Live registers: obj, newobj, size, src, dst.
-
-      __ bind(loop);
-      // Count is even.  Copy pairs of HeapWords.
-      __ ldp(rscratch1, r4, __ post(src, 2 * HeapWordSize));
-      __ stp(rscratch1, r4, __ post(dst, 2 * HeapWordSize));
-      __ subs(size, size, 2 * HeapWordSize);
-      __ br(Assembler::GT, loop);
+    if (do_cset_test) {
+      Label work;
+      __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
+      __ lsr(rscratch1, r0, ShenandoahHeapRegion::region_size_shift_jint());
+      __ ldrb(rscratch2, Address(rscratch2, rscratch1));
+      __ tbnz(rscratch2, 0, work);
+      __ ret(lr);
+      __ bind(work);
     }
 
-    // All copied.  Now try to CAS the Brooks pointer.
-    Label succeed;
-    __ lea(r2, Address(obj, BrooksPointer::BYTE_OFFSET));
-    __ cmpxchgptr(obj, newobj, r2, rscratch1, succeed, NULL);
+    Register obj = r0;
+    if (UseTLAB) {
+      RegSet saved = RegSet::range(r1, r4);
+      if (!c_abi) {
+        __ push(saved, sp);
+      }
+
+      Register size = r2, newobj = r3, newobj_end = rscratch2;
+
+      __ ldr(newobj, Address(rthread, JavaThread::gclab_top_offset()));
+      __ cbz(newobj, slow_case); // No GCLAB
+
+      __ load_klass(r1, obj);
+      __ ldrw(size, Address(r1, Klass::layout_helper_offset()));
+      __ tbnz(size, BitsPerInt - 1, not_an_instance);  // make sure it's an instance (LH > 0)
+      assert(Klass::_lh_neutral_value == 0, "must be");
+      __ cbzw(size, slow_case);
+      __ tbnz(size, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
+      __ bind(is_array);
+
+      // size contains the size (in bytes) of the object.
+
+      // Make sure it's not a really big object.
+      // ??? Maybe this test is not necessary.
+      __ cmp(size, 128 * HeapWordSize);
+      __ br(Assembler::GE, slow_case);
+
+      int oop_extra_words = Universe::heap()->oop_extra_words();
+      __ add(newobj_end, newobj, oop_extra_words * HeapWordSize);
+      __ add(newobj_end, newobj_end, size, ext::uxtw);
+
+      // Pointer to end of new object is in newobj_end.
+
+      __ ldr(rscratch1, Address(rthread, JavaThread::gclab_end_offset()));
+      __ cmp(newobj_end, rscratch1);
+      __ br(Assembler::HS, slow_case); // No room in GCLAB
+
+      // Store Brooks pointer and adjust start of newobj.
+      Universe::heap()->compile_prepare_oop(_masm, newobj);
+
+      // We can reuse newobj_end (rscratch2) to hold dst.
+      Register src = r1, dst = newobj_end;
+
+      // Copy the object from obj to newobj.  This loop is short and
+      // sweet: the typical size of an object is about eight HeapWords
+      // so it makes no sense to optimize for a large memory copy.
+      // There might be some sense to calling generate_copy_longs from
+      // here if the object to be copied is very large.
+      Label loop, odd_count;
+      {
+        __ mov(src, obj);
+        __ mov(dst, newobj);
+        __ tbnz(size, exact_log2(HeapWordSize), odd_count);
+
+        // Live registers: obj, newobj, size, src, dst.
+
+        __ bind(loop);
+        // Count is even.  Copy pairs of HeapWords.
+        __ ldp(rscratch1, r4, __ post(src, 2 * HeapWordSize));
+        __ stp(rscratch1, r4, __ post(dst, 2 * HeapWordSize));
+        __ subs(size, size, 2 * HeapWordSize);
+        __ br(Assembler::GT, loop);
+      }
+
+      // All copied.  Now try to CAS the Brooks pointer.
+      Label succeed;
+      __ lea(r2, Address(obj, BrooksPointer::byte_offset()));
+      __ cmpxchgptr(obj, newobj, r2, rscratch1, succeed, NULL);
       // If we lose the CAS we are racing with someone who just beat
       // us evacuating the object.  This leaves the address of the
       // evacuated object in r0.
 
-    // We lost.
-    __ pop(saved, sp);
-    __ ret(lr);
+      // We lost.
+      if (!c_abi) {
+        __ pop(saved, sp);
+      }
+      __ ret(lr);
 
-    // We won.
-    __ bind(succeed);
-    __ mov(obj, newobj);
-    // dst points to end of newobj.
-    __ str(dst, Address(rthread, JavaThread::gclab_top_offset()));
-    __ pop(saved, sp);
-    __ ret(lr);
+      // We won.
+      __ bind(succeed);
+      __ mov(obj, newobj);
+      // dst points to end of newobj.
+      __ str(dst, Address(rthread, JavaThread::gclab_top_offset()));
+      if (!c_abi) {
+        __ pop(saved, sp);
+      }
+      __ ret(lr);
 
-    // Come here if the count of HeapWords is odd.
-    {
-      __ bind(odd_count);
-      __ ldr(rscratch1, __ post(src, HeapWordSize));
-      __ str(rscratch1, __ post(dst, HeapWordSize));
-      __ subs(size, size, HeapWordSize);
-      __ b(loop);
-    }
+      // Come here if the count of HeapWords is odd.
+      {
+        __ bind(odd_count);
+        __ ldr(rscratch1, __ post(src, HeapWordSize));
+        __ str(rscratch1, __ post(dst, HeapWordSize));
+        __ subs(size, size, HeapWordSize);
+        __ b(loop);
+      }
 
-    // Come here if obj is an array of some kind.
-    {
-      __ bind(not_an_instance);
+      // Come here if obj is an array of some kind.
+      {
+        __ bind(not_an_instance);
 
-      // It's an array.  Calculate the size in r4.
-      __ ubfx(r4, size, Klass::_lh_header_size_shift,
-              exact_log2(Klass::_lh_header_size_mask+1));
-      __ ldrw(rscratch1, Address(obj, arrayOopDesc::length_offset_in_bytes()));
-      __ ubfx(rscratch2, size, Klass::_lh_log2_element_size_shift,
-              exact_log2(Klass::_lh_log2_element_size_mask+1));
-      __ lslv(rscratch1, rscratch1, rscratch2);
-      __ add(size, rscratch1, r4);
+        // It's an array.  Calculate the size in r4.
+        __ ubfx(r4, size, Klass::_lh_header_size_shift,
+                exact_log2(Klass::_lh_header_size_mask+1));
+        __ ldrw(rscratch1, Address(obj, arrayOopDesc::length_offset_in_bytes()));
+        __ ubfx(rscratch2, size, Klass::_lh_log2_element_size_shift,
+                exact_log2(Klass::_lh_log2_element_size_mask+1));
+        __ lslv(rscratch1, rscratch1, rscratch2);
+        __ add(size, rscratch1, r4);
 
-      // Round up the size.
-      __ add(size, size, MinObjAlignmentInBytes-1);
-      __ andr(size, size, -MinObjAlignmentInBytes);
+        // Round up the size.
+        __ add(size, size, MinObjAlignmentInBytes-1);
+        __ andr(size, size, -MinObjAlignmentInBytes);
 
-      __ b(is_array);
-    }
+        __ b(is_array);
+      }
 
-    {
       // Make a runtime call to evacuate the object.
       __ bind(slow_case);
-      __ pop(saved, sp);
+      if (!c_abi) {
+          __ pop(saved, sp);
+      }
+    }
 
-      __ enter(); // required for proper stackwalking of RuntimeStub frame
+    __ enter(); // required for proper stackwalking of RuntimeStub frame
 
+    if (!c_abi) {
       __ push_call_clobbered_registers();
+    } else {
+      __ push_call_clobbered_fp_registers();
+    }
 
-      __ mov(lr, CAST_FROM_FN_PTR(address, ShenandoahBarrierSet::write_barrier_c2));
-      __ blrt(lr, 1, 0, MacroAssembler::ret_type_integral);
+    __ mov(lr, CAST_FROM_FN_PTR(address, ShenandoahBarrierSet::write_barrier_c2));
+    __ blrt(lr, 1, 0, MacroAssembler::ret_type_integral);
+    if (!c_abi) {
       __ mov(rscratch1, obj);
-
       __ pop_call_clobbered_registers();
       __ mov(obj, rscratch1);
-
-      __ leave(); // required for proper stackwalking of RuntimeStub frame
-      __ ret(lr);
+    } else {
+      __ pop_call_clobbered_fp_registers();
     }
+
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(lr);
 
     return start;
   }
@@ -825,6 +841,7 @@ class StubGenerator: public StubCodeGenerator {
         break;
       default:
         ShouldNotReachHere();
+
       }
     }
   }
@@ -1796,7 +1813,7 @@ class StubGenerator: public StubCodeGenerator {
   //   used by generate_conjoint_int_oop_copy().
   //
   address generate_disjoint_int_copy(bool aligned, address *entry,
-					 const char *name) {
+                                        const char *name) {
     const bool not_oop = false;
     return generate_disjoint_copy(sizeof (jint), aligned, not_oop, entry, name);
   }
@@ -4428,10 +4445,6 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
     }
 
-    if (UseShenandoahGC) {
-      StubRoutines::aarch64::_shenandoah_wb = generate_shenandoah_wb();
-    }
-
     if (UseMontgomeryMultiplyIntrinsic) {
       StubCodeMark mark(this, "StubRoutines", "montgomeryMultiply");
       MontgomeryMultiplyGenerator g(_masm, /*squaring*/false);
@@ -4444,6 +4457,11 @@ class StubGenerator: public StubCodeGenerator {
       // We use generate_multiply() rather than generate_square()
       // because it's faster for the sizes of modulus we care about.
       StubRoutines::_montgomerySquare = g.generate_multiply();
+    }
+
+    if (UseShenandoahGC && ShenandoahWriteBarrier) {
+      StubRoutines::aarch64::_shenandoah_wb = generate_shenandoah_wb(false, true);
+      StubRoutines::_shenandoah_wb_C = generate_shenandoah_wb(true, !ShenandoahWriteBarrierCsetTestInIR);
     }
 
 #ifndef BUILTIN_SIM

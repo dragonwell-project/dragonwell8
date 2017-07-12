@@ -813,7 +813,7 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   LIR_Address* a;
 
   LIR_Opr obj_op = obj.result();
-  obj_op = shenandoah_write_barrier(obj_op, NULL, false);
+  obj_op = shenandoah_write_barrier(obj_op, NULL, true);
 
   if(offset.result()->is_constant()) {
     jlong c = offset.result()->as_jlong();
@@ -854,14 +854,12 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
     __ cas_obj(addr, cmp.result(), val_op, new_register(T_INT), new_register(T_INT),
 	       result);
   } else if (type == intType)
-    __ cas_int(addr, cmp.result(), val_op, ill, ill);
+    __ cas_int(addr, cmp.result(), val_op, ill, ill, result);
   else if (type == longType)
-    __ cas_long(addr, cmp.result(), val_op, ill, ill);
+    __ cas_long(addr, cmp.result(), val_op, ill, ill, result);
   else {
     ShouldNotReachHere();
   }
-
-  __ logical_xor(FrameMap::r8_opr, LIR_OprFact::intConst(1), result);
 
   if (type == objectType) {   // Write-barrier needed for Object fields.
     // Seems to be precise
@@ -1040,7 +1038,6 @@ void LIRGenerator::do_update_CRC32(Intrinsic* x) {
                                        LIR_Address::times_1,
                                        offset,
                                        T_BYTE);
-
       BasicTypeList signature(3);
       signature.append(T_INT);
       signature.append(T_ADDRESS);
@@ -1437,7 +1434,7 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
   }
 
   LIR_Opr src_op = src.result();
-  src_op = shenandoah_write_barrier(src_op, NULL, false);
+  src_op = shenandoah_write_barrier(src_op, NULL, true);
   if (is_obj) {
     data = shenandoah_read_barrier(data, NULL, true);
   }

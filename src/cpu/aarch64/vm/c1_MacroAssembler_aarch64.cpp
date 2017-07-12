@@ -69,7 +69,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 
   verify_oop(obj);
 
-  shenandoah_store_check(obj);
+  shenandoah_store_addr_check(obj);
 
   // save object being locked into the BasicObjectLock
   str(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
@@ -133,9 +133,6 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   if (UseBiasedLocking) {
     // load object
     ldr(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
-
-    shenandoah_store_check(obj);
-
     biased_locking_exit(obj, hdr, done);
   }
 
@@ -149,7 +146,8 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
     ldr(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
   }
   verify_oop(obj);
-  shenandoah_store_check(obj);
+
+  shenandoah_store_addr_check(obj);
 
   // test if object header is pointing to the displaced header, and if so, restore
   // the displaced header in the object - if the object header is not pointing to

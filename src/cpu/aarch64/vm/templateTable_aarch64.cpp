@@ -181,11 +181,22 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
           oopDesc::bs()->interpreter_read_barrier(_masm, val);
 
           __ store_heap_oop(Address(r3, 0), val);
-          __ g1_write_barrier_post(r3 /* store_adr */,
-                                   new_val /* new_val */,
-                                   rthread /* thread */,
-                                   r10 /* tmp */,
-                                   r1 /* tmp2 */);
+
+          if (UseG1GC) {
+            __ g1_write_barrier_post(r3 /* store_adr */,
+                                     new_val /* new_val */,
+                                     rthread /* thread */,
+                                     r10 /* tmp */,
+                                     r1 /* tmp2 */);
+          } else if (UseShenandoahGC) {
+            __ shenandoah_write_barrier_post(r3 /* store_adr */,
+                                     new_val /* new_val */,
+                                     rthread /* thread */,
+                                     r10 /* tmp */,
+                                     r1 /* tmp2 */);
+          } else {
+            ShouldNotReachHere();
+          }
         }
 
       }
@@ -653,11 +664,6 @@ void TemplateTable::index_check(Register array, Register index)
 {
   // destroys r1, rscratch1
   // check array
-
-  if (ShenandoahVerifyReadsToFromSpace) {
-    oopDesc::bs()->interpreter_read_barrier(_masm, array);
-  }
-
   __ null_check(array, arrayOopDesc::length_offset_in_bytes());
   // sign extend index for use by indexed load
   // __ movl2ptr(index, index);
@@ -2697,6 +2703,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static) {
   {
     __ pop(ztos);
     if (!is_static) pop_and_check_object(obj);
+    oopDesc::bs()->interpreter_write_barrier(_masm, obj);
     __ andw(r0, r0, 0x1);
     __ strb(r0, field);
     if (!is_static) {
@@ -3551,10 +3558,6 @@ void TemplateTable::anewarray() {
 void TemplateTable::arraylength() {
   transition(atos, itos);
   __ null_check(r0, arrayOopDesc::length_offset_in_bytes());
-
-  if (ShenandoahVerifyReadsToFromSpace) {
-    oopDesc::bs()->interpreter_read_barrier(_masm, r0);
-  }
   __ ldrw(r0, Address(r0, arrayOopDesc::length_offset_in_bytes()));
 }
 
@@ -3759,7 +3762,7 @@ void TemplateTable::monitorenter()
     // check if current entry is used
     // if not used then remember entry in c_rarg1
     __ ldr(rscratch1, Address(c_rarg3, BasicObjectLock::obj_offset_in_bytes()));
-    oopDesc::bs()->interpreter_read_barrier(_masm, rscratch1);
+    __ shenandoah_store_addr_check(rscratch1); // Invariant
     __ cmp(zr, rscratch1);
     __ csel(c_rarg1, c_rarg3, c_rarg1, Assembler::EQ);
     // check if current entry is for same object
@@ -3815,6 +3818,7 @@ void TemplateTable::monitorenter()
   __ increment(rbcp);
 
   // store object
+  __ shenandoah_store_addr_check(r0); // Invariant
   __ str(r0, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
   __ lock_object(c_rarg1);
 
@@ -3860,7 +3864,7 @@ void TemplateTable::monitorexit()
     __ bind(loop);
     // check if current entry is for same object
     __ ldr(rscratch1, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
-    oopDesc::bs()->interpreter_read_barrier(_masm, rscratch1);
+    __ shenandoah_store_addr_check(rscratch1); // Invariant
     __ cmp(r0, rscratch1);
     // if same object then stop searching
     __ br(Assembler::EQ, found);

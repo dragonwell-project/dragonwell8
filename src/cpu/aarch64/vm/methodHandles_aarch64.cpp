@@ -132,10 +132,13 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
   //NOT_PRODUCT({ FlagSetting fs(TraceMethodHandles, true); trace_method_handle(_masm, "LZMH"); });
 
   // Load the invoker, as MH -> MH.form -> LF.vmentry
+  oopDesc::bs()->interpreter_read_barrier(_masm, recv);
   __ verify_oop(recv);
   __ load_heap_oop(method_temp, Address(recv, NONZERO(java_lang_invoke_MethodHandle::form_offset_in_bytes())));
+  oopDesc::bs()->interpreter_read_barrier(_masm, method_temp);
   __ verify_oop(method_temp);
   __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_LambdaForm::vmentry_offset_in_bytes())));
+  oopDesc::bs()->interpreter_read_barrier(_masm, method_temp);
   __ verify_oop(method_temp);
   // the following assumes that a Method* is normally compressed in the vmtarget field:
   __ ldr(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::vmtarget_offset_in_bytes())));
@@ -150,6 +153,7 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
     Label L;
     __ ldr(rscratch1, __ argument_address(temp2, -1));
     __ cmp(recv, rscratch1);
+    oopDesc::bs()->asm_acmp_barrier(_masm, recv, rscratch1);
     __ br(Assembler::EQ, L);
     __ ldr(r0, __ argument_address(temp2, -1));
     __ hlt(0);
@@ -327,6 +331,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
     //  r13 - interpreter linkage (if interpreted)  ??? FIXME
     //  r1 ... r0 - compiler arguments (if compiled)
 
+    oopDesc::bs()->interpreter_read_barrier(_masm, member_reg);
     Label L_incompatible_class_change_error;
     switch (iid) {
     case vmIntrinsics::_linkToSpecial:
