@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import javax.xml.ws.WebServiceException;
 
 /**
@@ -117,13 +119,21 @@ public abstract class JAXWSExceptionBase
         String resourceBundleName = (String) in.readObject();
         String key = (String) in.readObject();
         int len = in.readInt();
-        if (len == -1) {
+        if (len < -1) {
+            throw new NegativeArraySizeException();
+        } else if (len == -1) {
             args = null;
-        } else {
+        } else if (len < 255) {
             args = new Object[len];
             for (int i = 0; i < args.length; i++) {
                 args[i] = in.readObject();
             }
+        } else {
+            List<Object> argList = new ArrayList<>(Math.min(len, 1024));
+            for (int i = 0; i < len; i++) {
+                argList.add(in.readObject());
+            }
+            args = argList.toArray(new Object[argList.size()]);
         }
         msg = new LocalizableMessageFactory(resourceBundleName).getMessage(key,args);
     }
