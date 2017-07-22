@@ -90,12 +90,18 @@ class ZipFile implements ZipConstants, Closeable {
 
     private static final boolean usemmap;
 
+    private static final boolean ensuretrailingslash;
+
     static {
         // A system prpperty to disable mmap use to avoid vm crash when
         // in-use zip file is accidently overwritten by others.
         String prop = sun.misc.VM.getSavedProperty("sun.zip.disableMemoryMapping");
         usemmap = (prop == null ||
                    !(prop.length() == 0 || prop.equalsIgnoreCase("true")));
+
+        // see getEntry() for details
+        prop = sun.misc.VM.getSavedProperty("jdk.util.zip.ensureTrailingSlash");
+        ensuretrailingslash = prop == null || !prop.equalsIgnoreCase("false");
     }
 
     /**
@@ -309,7 +315,16 @@ class ZipFile implements ZipConstants, Closeable {
             ensureOpen();
             jzentry = getEntry(jzfile, zc.getBytes(name), true);
             if (jzentry != 0) {
-                ZipEntry ze = getZipEntry(name, jzentry);
+                // If no entry is found for the specified 'name' and
+                // the 'name' does not end with a forward slash '/',
+                // the implementation tries to find the entry with a
+                // slash '/' appended to the end of the 'name', before
+                // returning null. When such entry is found, the name
+                // that actually is found (with a slash '/' attached)
+                // is used
+                // (disabled if jdk.util.zip.ensureTrailingSlash=false)
+                ZipEntry ze = ensuretrailingslash ? getZipEntry(null, jzentry)
+                                                  : getZipEntry(name, jzentry);
                 freeEntry(jzfile, jzentry);
                 return ze;
             }
@@ -560,7 +575,9 @@ class ZipFile implements ZipConstants, Closeable {
             e.name = name;
         } else {
             byte[] bname = getEntryBytes(jzentry, JZENTRY_NAME);
-            if (!zc.isUTF8() && (e.flag & EFS) != 0) {
+            if (bname == null) {
+                e.name = "";             // length 0 empty name
+            } else if (!zc.isUTF8() && (e.flag & EFS) != 0) {
                 e.name = zc.toStringUTF8(bname, bname.length);
             } else {
                 e.name = zc.toString(bname, bname.length);
