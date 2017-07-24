@@ -23,13 +23,14 @@
 
 /*
  * @test
- * @bug 4420318
+ * @bug 4420318 8183341
  * @summary Checks that an IllegalStateException is thrown by getNumImages(true)
  *          when seekForwardOnly is true
  */
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -40,20 +41,33 @@ import com.sun.imageio.plugins.jpeg.JPEGImageReader;
 import com.sun.imageio.plugins.png.PNGImageReader;
 
 public class AllowSearch {
-
     private static void test(ImageReader reader, String format)
         throws IOException {
-        File f = File.createTempFile("imageio", ".tmp");
-        ImageInputStream stream = ImageIO.createImageInputStream(f);
-        reader.setInput(stream, true);
-
         boolean gotISE = false;
+        File f = null;
+        ImageInputStream stream = null;
         try {
-            int numImages = reader.getNumImages(true);
-        } catch (IOException ioe) {
-            gotISE = false;
-        } catch (IllegalStateException ise) {
-            gotISE = true;
+            f = File.createTempFile("imageio", ".tmp");
+            stream = ImageIO.createImageInputStream(f);
+            reader.setInput(stream, true);
+
+            try {
+                int numImages = reader.getNumImages(true);
+            } catch (IOException ioe) {
+                gotISE = false;
+            } catch (IllegalStateException ise) {
+                gotISE = true;
+            }
+        } finally {
+            if (stream != null) {
+                stream.close();
+            }
+
+            reader.dispose();
+
+            if (f != null) {
+                Files.delete(f.toPath());
+            }
         }
 
         if (!gotISE) {
