@@ -935,6 +935,13 @@ public final class Main {
             cf = CertificateFactory.getInstance("X509");
         }
 
+        // -trustcacerts can only be specified on -importcert.
+        // Reset it so that warnings on CA cert will remain for
+        // -printcert, etc.
+        if (command != IMPORTCERT) {
+            trustcacerts = false;
+        }
+
         if (trustcacerts) {
             caks = KeyStoreUtil.getCacertsKeyStore();
         }
@@ -1676,9 +1683,8 @@ public final class Main {
         if (keyPass == null) {
             keyPass = promptForKeyPass(alias, null, storePass);
         }
-        keyStore.setKeyEntry(alias, privKey, keyPass, chain);
-
         checkWeak(rb.getString("the.generated.certificate"), chain[0]);
+        keyStore.setKeyEntry(alias, privKey, keyPass, chain);
     }
 
     /**
@@ -2029,6 +2035,10 @@ public final class Main {
         }
 
         try {
+            Certificate c = srckeystore.getCertificate(alias);
+            if (c != null) {
+                checkWeak("<" + newAlias + ">", c);
+            }
             keyStore.setEntry(newAlias, entry, pp);
             // Place the check so that only successful imports are blocked.
             // For example, we don't block a failed SecretEntry import.
@@ -2037,10 +2047,6 @@ public final class Main {
                     throw new Exception(rb.getString(
                             "The.destination.pkcs12.keystore.has.different.storepass.and.keypass.Please.retry.with.destkeypass.specified."));
                 }
-            }
-            Certificate c = srckeystore.getCertificate(alias);
-            if (c != null) {
-                checkWeak("<" + newAlias + ">", c);
             }
             return 1;
         } catch (KeyStoreException kse) {
@@ -2727,8 +2733,8 @@ public final class Main {
         }
 
         if (noprompt) {
-            keyStore.setCertificateEntry(alias, cert);
             checkWeak(rb.getString("the.input"), cert);
+            keyStore.setCertificateEntry(alias, cert);
             return true;
         }
 
@@ -2979,6 +2985,11 @@ public final class Main {
         MessageFormat form = new MessageFormat
                 (rb.getString(".PATTERN.printX509Cert.with.weak"));
         PublicKey pkey = cert.getPublicKey();
+        String sigName = cert.getSigAlgName();
+        // No need to warn about sigalg of a trust anchor
+        if (!isTrustedCert(cert)) {
+            sigName = withWeak(sigName);
+        }
         Object[] source = {cert.getSubjectDN().toString(),
                         cert.getIssuerDN().toString(),
                         cert.getSerialNumber().toString(16),
@@ -2987,7 +2998,7 @@ public final class Main {
                         getCertFingerPrint("MD5", cert),
                         getCertFingerPrint("SHA1", cert),
                         getCertFingerPrint("SHA-256", cert),
-                        withWeak(cert.getSigAlgName()),
+                        sigName,
                         withWeak(pkey),
                         cert.getVersion()
                         };
@@ -3061,7 +3072,7 @@ public final class Main {
      * or null otherwise. A label is added.
      */
     private static Pair<String,Certificate>
-            getTrustedSigner(Certificate cert, KeyStore ks) throws Exception {
+            getSigner(Certificate cert, KeyStore ks) throws Exception {
         if (ks.getCertificateAlias(cert) != null) {
             return new Pair<>("", cert);
         }
@@ -3412,9 +3423,9 @@ public final class Main {
         // do we trust the cert at the top?
         Certificate topCert = replyCerts[replyCerts.length-1];
         boolean fromKeyStore = true;
-        Pair<String,Certificate> root = getTrustedSigner(topCert, keyStore);
+        Pair<String,Certificate> root = getSigner(topCert, keyStore);
         if (root == null && trustcacerts && caks != null) {
-            root = getTrustedSigner(topCert, caks);
+            root = getSigner(topCert, caks);
             fromKeyStore = false;
         }
         if (root == null) {
@@ -4220,9 +4231,19 @@ public final class Main {
         return ext;
     }
 
+    private boolean isTrustedCert(Certificate cert) throws KeyStoreException {
+        if (caks != null && caks.getCertificateAlias(cert) != null) {
+            return true;
+        } else {
+            String inKS = keyStore.getCertificateAlias(cert);
+            return inKS != null && keyStore.isCertificateEntry(inKS);
+        }
+    }
+
     private void checkWeak(String label, String sigAlg, Key key) {
 
-        if (!DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, sigAlg, null)) {
+        if (sigAlg != null && !DISABLED_CHECK.permits(
+                SIG_PRIMITIVE_SET, sigAlg, null)) {
             weakWarnings.add(String.format(
                     rb.getString("whose.sigalg.risk"), label, sigAlg));
         }
@@ -4235,7 +4256,8 @@ public final class Main {
         }
     }
 
-    private void checkWeak(String label, Certificate[] certs) {
+    private void checkWeak(String label, Certificate[] certs)
+            throws KeyStoreException {
         for (int i = 0; i < certs.length; i++) {
             Certificate cert = certs[i];
             if (cert instanceof X509Certificate) {
@@ -4244,15 +4266,18 @@ public final class Main {
                 if (certs.length > 1) {
                     fullLabel = oneInMany(label, i, certs.length);
                 }
-                checkWeak(fullLabel, xc.getSigAlgName(), xc.getPublicKey());
+                checkWeak(fullLabel, xc);
             }
         }
     }
 
-    private void checkWeak(String label, Certificate cert) {
+    private void checkWeak(String label, Certificate cert)
+            throws KeyStoreException {
         if (cert instanceof X509Certificate) {
             X509Certificate xc = (X509Certificate)cert;
-            checkWeak(label, xc.getSigAlgName(), xc.getPublicKey());
+            // No need to check the sigalg of a trust anchor
+            String sigAlg = isTrustedCert(cert) ? null : xc.getSigAlgName();
+            checkWeak(label, sigAlg, xc.getPublicKey());
         }
     }
 
