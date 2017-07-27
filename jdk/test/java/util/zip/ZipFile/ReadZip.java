@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,11 @@
  */
 
 /* @test
-   @bug 4241361 4842702 4985614 6646605 5032358 6923692
-   @summary Make sure we can read a zip file.
+ * @bug 4241361 4842702 4985614 6646605 5032358 6923692 6233323 8144977 8184993
+ * @summary Make sure we can read a zip file.
+ * @run main/othervm ReadZip
+ * @run main/othervm -Djdk.util.zip.ensureTrailingSlash=true ReadZip
+ * @run main/othervm -Djdk.util.zip.ensureTrailingSlash=false ReadZip
  */
 
 import java.io.*;
@@ -102,6 +105,45 @@ public class ReadZip {
         } finally {
             newZip.delete();
         }
+
+        // Read directory entry
+        try {
+            try (FileOutputStream fos = new FileOutputStream(newZip);
+                 ZipOutputStream zos = new ZipOutputStream(fos))
+            {
+                ZipEntry ze = new ZipEntry("directory/");
+                zos.putNextEntry(ze);
+                zos.closeEntry();
+            }
+            try (ZipFile zf = new ZipFile(newZip)) {
+                ZipEntry ze = zf.getEntry("directory/");
+                if (ze == null || !ze.isDirectory())
+                    throw new RuntimeException("read entry \"directory/\" failed");
+                try (InputStream is = zf.getInputStream(ze)) {
+                    is.available();
+                } catch (Exception x) {
+                    x.printStackTrace();
+                }
+
+                ze = zf.getEntry("directory");
+
+                boolean legacyBehavior =
+                    System.getProperty("jdk.util.zip.ensureTrailingSlash", "true")
+                        .equalsIgnoreCase("false");
+
+                if (ze == null || (!legacyBehavior && !ze.isDirectory()))
+                    throw new RuntimeException("read entry \"directory\" failed");
+                try (InputStream is = zf.getInputStream(ze)) {
+                    is.available();
+                } catch (Exception x) {
+                    x.printStackTrace();
+                }
+            }
+        } finally {
+            newZip.delete();
+        }
+
+
 
         // Throw a FNF exception when read a non-existing zip file
         try { unreached (new ZipFile(
