@@ -453,6 +453,10 @@ public class Resources extends java.util.ListResourceBundle {
         {"verified.by.s.in.s.weak", "Verified by %s in %s with a %s"},
         {"whose.sigalg.risk", "%s uses the %s signature algorithm which is considered a security risk."},
         {"whose.key.risk", "%s uses a %s which is considered a security risk."},
+        {"jks.storetype.warning", "The %1$s keystore uses a proprietary format. It is recommended to migrate to PKCS12 which is an industry standard format using \"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"."},
+        {"migrate.keystore.warning", "Migrated \"%1$s\" to %4$s. The %2$s keystore is backed up as \"%3$s\"."},
+        {"backup.keystore.warning", "The original keystore \"%1$s\" is backed up as \"%3$s\"..."},
+        {"importing.keystore.status", "Importing keystore %1$s to %2$s..."},
     };
 
 
