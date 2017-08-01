@@ -538,6 +538,42 @@ void LinkResolver::resolve_method_statically(methodHandle& resolved_method, Klas
   }
 }
 
+void LinkResolver::check_method_loader_constraints(methodHandle& resolved_method,
+                                                   KlassHandle resolved_klass,
+                                                   Symbol* method_name,
+                                                   Symbol* method_signature,
+                                                   KlassHandle current_klass,
+                                                   const char* method_type, TRAPS) {
+  Handle loader (THREAD, InstanceKlass::cast(current_klass())->class_loader());
+  Handle class_loader (THREAD, resolved_method->method_holder()->class_loader());
+  {
+    ResourceMark rm(THREAD);
+    Symbol* failed_type_symbol =
+      SystemDictionary::check_signature_loaders(method_signature, loader,
+                                                class_loader, true, CHECK);
+    if (failed_type_symbol != NULL) {
+      const char* msg = "loader constraint violation: when resolving %s"
+        " \"%s\" the class loader (instance of %s) of the current class, %s,"
+        " and the class loader (instance of %s) for the method's defining class, %s, have"
+        " different Class objects for the type %s used in the signature";
+      char* sig = Method::name_and_sig_as_C_string(resolved_klass(), method_name, method_signature);
+      const char* loader1 = SystemDictionary::loader_name(loader());
+      char* current = InstanceKlass::cast(current_klass())->name()->as_C_string();
+      const char* loader2 = SystemDictionary::loader_name(class_loader());
+      char* target = InstanceKlass::cast(resolved_method->method_holder())
+                     ->name()->as_C_string();
+      char* failed_type_name = failed_type_symbol->as_C_string();
+      size_t buflen = strlen(msg) + strlen(sig) + strlen(loader1) +
+        strlen(current) + strlen(loader2) + strlen(target) +
+        strlen(failed_type_name) + strlen(method_type) + 1;
+      char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
+      jio_snprintf(buf, buflen, msg, method_type, sig, loader1, current, loader2,
+                   target, failed_type_name);
+      THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
+    }
+  }
+}
+
 void LinkResolver::resolve_method(methodHandle& resolved_method, KlassHandle resolved_klass,
                                   Symbol* method_name, Symbol* method_signature,
                                   KlassHandle current_klass, bool check_access,
@@ -594,34 +630,8 @@ void LinkResolver::resolve_method(methodHandle& resolved_method, KlassHandle res
                                CHECK);
 
     // check loader constraints
-    Handle loader (THREAD, InstanceKlass::cast(current_klass())->class_loader());
-    Handle class_loader (THREAD, resolved_method->method_holder()->class_loader());
-    {
-      ResourceMark rm(THREAD);
-      Symbol* failed_type_symbol =
-        SystemDictionary::check_signature_loaders(method_signature, loader,
-                                                  class_loader, true, CHECK);
-      if (failed_type_symbol != NULL) {
-        const char* msg = "loader constraint violation: when resolving method"
-          " \"%s\" the class loader (instance of %s) of the current class, %s,"
-          " and the class loader (instance of %s) for the method's defining class, %s, have"
-          " different Class objects for the type %s used in the signature";
-        char* sig = Method::name_and_sig_as_C_string(resolved_klass(),method_name,method_signature);
-        const char* loader1 = SystemDictionary::loader_name(loader());
-        char* current = InstanceKlass::cast(current_klass())->name()->as_C_string();
-        const char* loader2 = SystemDictionary::loader_name(class_loader());
-        char* target = InstanceKlass::cast(resolved_method->method_holder())
-                       ->name()->as_C_string();
-        char* failed_type_name = failed_type_symbol->as_C_string();
-        size_t buflen = strlen(msg) + strlen(sig) + strlen(loader1) +
-          strlen(current) + strlen(loader2) + strlen(target) +
-          strlen(failed_type_name) + 1;
-        char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
-        jio_snprintf(buf, buflen, msg, sig, loader1, current, loader2,
-                     target, failed_type_name);
-        THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
-      }
-    }
+    check_method_loader_constraints(resolved_method, resolved_klass, method_name,
+                                    method_signature, current_klass, "method", CHECK);
   }
 }
 
@@ -670,36 +680,8 @@ void LinkResolver::resolve_interface_method(methodHandle& resolved_method,
                                resolved_method,
                                CHECK);
 
-    HandleMark hm(THREAD);
-    Handle loader (THREAD, InstanceKlass::cast(current_klass())->class_loader());
-    Handle class_loader (THREAD, resolved_method->method_holder()->class_loader());
-    {
-      ResourceMark rm(THREAD);
-      Symbol* failed_type_symbol =
-        SystemDictionary::check_signature_loaders(method_signature, loader,
-                                                  class_loader, true, CHECK);
-      if (failed_type_symbol != NULL) {
-        const char* msg = "loader constraint violation: when resolving "
-          "interface method \"%s\" the class loader (instance of %s) of the "
-          "current class, %s, and the class loader (instance of %s) for "
-          "the method's defining class, %s, have different Class objects for the type %s "
-          "used in the signature";
-        char* sig = Method::name_and_sig_as_C_string(resolved_klass(),method_name,method_signature);
-        const char* loader1 = SystemDictionary::loader_name(loader());
-        char* current = InstanceKlass::cast(current_klass())->name()->as_C_string();
-        const char* loader2 = SystemDictionary::loader_name(class_loader());
-        char* target = InstanceKlass::cast(resolved_method->method_holder())
-                       ->name()->as_C_string();
-        char* failed_type_name = failed_type_symbol->as_C_string();
-        size_t buflen = strlen(msg) + strlen(sig) + strlen(loader1) +
-          strlen(current) + strlen(loader2) + strlen(target) +
-          strlen(failed_type_name) + 1;
-        char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
-        jio_snprintf(buf, buflen, msg, sig, loader1, current, loader2,
-                     target, failed_type_name);
-        THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
-      }
-    }
+    check_method_loader_constraints(resolved_method, resolved_klass, method_name,
+                                    method_signature, current_klass, "interface method", CHECK);
   }
 
   if (nostatics && resolved_method->is_static()) {
@@ -1049,6 +1031,10 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result, methodHandle
                   Method::name_and_sig_as_C_string(resolved_klass(),
                                             resolved_method->name(),
                                             resolved_method->signature()));
+      } else if (sel_method() != resolved_method()) {
+        check_method_loader_constraints(sel_method, resolved_klass,
+                                        sel_method->name(), sel_method->signature(),
+                                        current_klass, "method", CHECK);
       }
     }
 
