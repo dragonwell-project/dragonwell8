@@ -1333,7 +1333,7 @@ static void check_needs_gc_for_critical_native(MacroAssembler* masm,
   __ increment(rsp, wordSize);
 
   __ get_thread(thread);
-  __ reset_last_Java_frame(thread, false, true);
+  __ reset_last_Java_frame(thread, false);
 
   save_or_restore_arguments(masm, stack_slots, total_in_args,
                             arg_save_area, NULL, in_regs, in_sig_bt);
@@ -2251,7 +2251,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // We can finally stop using that last_Java_frame we setup ages ago
 
-  __ reset_last_Java_frame(thread, false, true);
+  __ reset_last_Java_frame(thread, false);
 
   // Unpack oop result
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
@@ -2951,7 +2951,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ pop(rcx);
 
   __ get_thread(rcx);
-  __ reset_last_Java_frame(rcx, false, false);
+  __ reset_last_Java_frame(rcx, false);
 
   // Load UnrollBlock into EDI
   __ mov(rdi, rax);
@@ -3117,7 +3117,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ push(rax);
 
   __ get_thread(rcx);
-  __ reset_last_Java_frame(rcx, false, false);
+  __ reset_last_Java_frame(rcx, false);
 
   // Collect return values
   __ movptr(rax,Address(rsp, (RegisterSaver::raxOffset() + additional_words + 1)*wordSize));
@@ -3219,7 +3219,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 
   __ get_thread(rcx);
 
-  __ reset_last_Java_frame(rcx, false, false);
+  __ reset_last_Java_frame(rcx, false);
 
   // Load UnrollBlock into EDI
   __ movptr(rdi, rax);
@@ -3331,7 +3331,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   oop_maps->add_gc_map( __ pc()-start, new OopMap( framesize, 0 ) );
 
   __ get_thread(rdi);
-  __ reset_last_Java_frame(rdi, true, false);
+  __ reset_last_Java_frame(rdi, true);
 
   // Pop self-frame.
   __ leave();     // Epilog!
@@ -3426,7 +3426,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   // Clear last_Java_sp again
   __ get_thread(java_thread);
-  __ reset_last_Java_frame(java_thread, false, false);
+  __ reset_last_Java_frame(java_thread, false);
 
   __ cmpptr(Address(java_thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);
   __ jcc(Assembler::equal, noException);
@@ -3501,7 +3501,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   __ addptr(rsp, wordSize);
 
   // clear last_Java_sp
-  __ reset_last_Java_frame(thread, true, false);
+  __ reset_last_Java_frame(thread, true);
   // check for pending exceptions
   Label pending;
   __ cmpptr(Address(thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);

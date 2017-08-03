@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,15 @@ const TypePtr *MemNode::adr_type() const {
   const TypePtr* cross_check = NULL;
   DEBUG_ONLY(cross_check = _adr_type);
   return calculate_adr_type(adr->bottom_type(), cross_check);
+}
+
+bool MemNode::check_if_adr_maybe_raw(Node* adr) {
+  if (adr != NULL) {
+    if (adr->bottom_type()->base() == Type::RawPtr || adr->bottom_type()->base() == Type::AnyPtr) {
+      return true;
+    }
+  }
+  return false;
 }
 
 #ifndef PRODUCT
@@ -503,6 +512,7 @@ Node* MemNode::find_previous_store(PhaseTransform* phase) {
   if (offset == Type::OffsetBot)
     return NULL;            // cannot unalias unless there are precise offsets
 
+  const bool adr_maybe_raw = check_if_adr_maybe_raw(adr);
   const TypeOopPtr *addr_t = adr->bottom_type()->isa_oopptr();
 
   intptr_t size_in_bytes = memory_size();
@@ -519,6 +529,13 @@ Node* MemNode::find_previous_store(PhaseTransform* phase) {
       Node* st_base = AddPNode::Ideal_base_and_offset(st_adr, phase, st_offset);
       if (st_base == NULL)
         break;              // inscrutable pointer
+
+      // For raw accesses it's not enough to prove that constant offsets don't intersect.
+      // We need the bases to be the equal in order for the offset check to make sense.
+      if ((adr_maybe_raw || check_if_adr_maybe_raw(st_adr)) && st_base != base) {
+        break;
+      }
+
       if (st_offset != offset && st_offset != Type::OffsetBot) {
         const int MAX_STORE = BytesPerLong;
         if (st_offset >= offset + size_in_bytes ||
