@@ -1690,7 +1690,7 @@ public final class Main {
     private static String getCompatibleSigAlgName(String keyAlgName)
             throws Exception {
         if ("DSA".equalsIgnoreCase(keyAlgName)) {
-            return "SHA1WithDSA";
+            return "SHA256WithDSA";
         } else if ("RSA".equalsIgnoreCase(keyAlgName)) {
             return "SHA256WithRSA";
         } else if ("EC".equalsIgnoreCase(keyAlgName)) {
@@ -1714,7 +1714,8 @@ public final class Main {
                 // hardcode for now as DEF_RSA_KEY_SIZE is still 1024
                 keysize = 2048; // SecurityProviderConstants.DEF_RSA_KEY_SIZE;
             } else if ("DSA".equalsIgnoreCase(keyAlgName)) {
-                keysize = SecurityProviderConstants.DEF_DSA_KEY_SIZE;
+                // hardcode for now as DEF_DSA_KEY_SIZE is still 1024
+                keysize = 2048;
             }
         }
 
