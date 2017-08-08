@@ -617,7 +617,7 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
 #
 # Example:
 #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
-jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 1024, \
     EC keySize < 224
 
 # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
@@ -882,6 +882,8 @@ jdk.xml.dsig.secureValidationPolicy=\
 # If the pattern is equal to the class name, it matches.
 # Otherwise, the status is UNDECIDED.
 #
+# Primitive types are not configurable with this filter.
+#
 #jdk.serialFilter=pattern;pattern
 
 #
@@ -890,6 +892,10 @@ jdk.xml.dsig.secureValidationPolicy=\
 # The filter pattern uses the same format as jdk.serialFilter.
 # This filter can override the builtin filter if additional types need to be
 # allowed or rejected from the RMI Registry.
+#
+# The maxdepth of any array passed to the RMI Registry is set to
+# 10000.  The maximum depth of the graph is set to 20.
+# These limits can be reduced via the maxarray, maxdepth limits.
 #
 #sun.rmi.registry.registryFilter=pattern;pattern
 
