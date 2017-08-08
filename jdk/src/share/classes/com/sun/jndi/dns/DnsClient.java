@@ -418,8 +418,7 @@ public class DnsClient {
                     udpSocket.receive(ipkt);
                     long end = System.currentTimeMillis();
 
-                    byte[] data = new byte[ipkt.getLength()];
-                    data = ipkt.getData();
+                    byte[] data = ipkt.getData();
                     if (isMatchResponse(data, xid)) {
                         return data;
                     }
