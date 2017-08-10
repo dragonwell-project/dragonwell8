@@ -324,6 +324,20 @@ vmIntrinsics::ID vmIntrinsics::for_raw_conversion(BasicType src, BasicType dest)
   return vmIntrinsics::_none;
 }
 
+// Some intrinsics produce different results if they are not pinned
+bool vmIntrinsics::should_be_pinned(vmIntrinsics::ID id) {
+  assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
+  switch(id) {
+#ifdef TRACE_HAVE_INTRINSICS
+  case vmIntrinsics::_counterTime:
+#endif
+  case vmIntrinsics::_currentTimeMillis:
+  case vmIntrinsics::_nanoTime:
+    return true;
+  default:
+    return false;
+  }
+}
 
 #define VM_INTRINSIC_INITIALIZE(id, klass, name, sig, flags) #id "\0"
 static const char* vm_intrinsic_name_bodies =
