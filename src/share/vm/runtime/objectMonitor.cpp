@@ -381,6 +381,8 @@ void ATTR ObjectMonitor::enter(TRAPS) {
   { // Change java thread status to indicate blocked on monitor enter.
     JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
 
+    Self->set_current_pending_monitor(this);
+
     DTRACE_MONITOR_PROBE(contended__enter, this, object(), jt);
     if (JvmtiExport::should_post_monitor_contended_enter()) {
       JvmtiExport::post_monitor_contended_enter(jt, this);
@@ -394,8 +396,6 @@ void ATTR ObjectMonitor::enter(TRAPS) {
 
     OSThreadContendState osts(Self->osthread());
     ThreadBlockInVM tbivm(jt);
-
-    Self->set_current_pending_monitor(this);
 
     // TODO-FIXME: change the following for(;;) loop to straight-line code.
     for (;;) {
