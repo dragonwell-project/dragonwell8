@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,12 @@
 
 package sun.misc;
 
+import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 
 public interface JavaOISAccess {
     void setObjectInputFilter(ObjectInputStream stream, ObjectInputFilter filter);
     ObjectInputFilter getObjectInputFilter(ObjectInputStream stream);
+    void checkArray(ObjectInputStream stream, Class<?> arrayType, int arrayLength)
+        throws InvalidClassException;
 }
