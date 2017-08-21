@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import sun.security.ec.ECPrivateKeyImpl;
 import sun.security.ec.ECPublicKeyImpl;
 import sun.security.jca.JCAUtil;
 import sun.security.util.ECUtil;
+import static sun.security.util.SecurityProviderConstants.DEF_EC_KEY_SIZE;
 
 /**
  * EC keypair generator.
@@ -49,7 +50,6 @@ public final class ECKeyPairGenerator extends KeyPairGeneratorSpi {
 
     private static final int KEY_SIZE_MIN = 112; // min bits (see ecc_impl.h)
     private static final int KEY_SIZE_MAX = 571; // max bits (see ecc_impl.h)
-    private static final int KEY_SIZE_DEFAULT = 256;
 
     // used to seed the keypair generator
     private SecureRandom random;
@@ -65,7 +65,7 @@ public final class ECKeyPairGenerator extends KeyPairGeneratorSpi {
      */
     public ECKeyPairGenerator() {
         // initialize to default in case the app does not call initialize()
-        initialize(KEY_SIZE_DEFAULT, null);
+        initialize(DEF_EC_KEY_SIZE, null);
     }
 
     // initialize the generator. See JCA doc
