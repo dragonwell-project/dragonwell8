@@ -345,8 +345,6 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"Enter.alias.name.", "Ange aliasnamn:  "},
         {".RETURN.if.same.as.for.otherAlias.",
                 "\t(RETURN om det \u00E4r det samma som f\u00F6r <{0}>)"},
-        {".PATTERN.printX509Cert",
-                "\u00C4gare: {0}\nUtf\u00E4rdare: {1}\nSerienummer: {2}\nGiltigt fr\u00E5n den: {3} till: {4}\nCertifikatets fingeravtryck:\n\t MD5: {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\t Namn p\u00E5 signaturalgoritm: {8}\n\t Version: {9}"},
         {"What.is.your.first.and.last.name.",
                 "Vad heter du i f\u00F6r- och efternamn?"},
         {"What.is.the.name.of.your.organizational.unit.",
@@ -409,15 +407,12 @@ public class Resources_sv extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "Ange -keysize f\u00F6r att skapa hemlig nyckel"},
 
-        {"verified.by.s.in.s", "Verifierad av %s i %s"},
         {"warning.not.verified.make.sure.keystore.is.correct",
             "VARNING: ej verifierad. Se till att -nyckellager \u00E4r korrekt."},
 
         {"Extensions.", "Till\u00E4gg: "},
         {".Empty.value.", "(Tomt v\u00E4rde)"},
         {"Extension.Request.", "Till\u00E4ggsbeg\u00E4ran:"},
-        {"PKCS.10.Certificate.Request.Version.1.0.Subject.s.Public.Key.s.format.s.key.",
-                "PKCS #10 certifikatbeg\u00E4ran (version 1.0)\n\u00C4rende: %s\n\u00D6ppen nyckel: %s-format %s-nyckel\n"},
         {"Unknown.keyUsage.type.", "Ok\u00E4nd keyUsage-typ: "},
         {"Unknown.extendedkeyUsage.type.", "Ok\u00E4nd extendedkeyUsage-typ: "},
         {"Unknown.AccessDescription.type.", "Ok\u00E4nd AccessDescription-typ: "},
@@ -426,7 +421,37 @@ public class Resources_sv extends java.util.ListResourceBundle {
                  "Detta till\u00E4gg kan inte markeras som kritiskt. "},
         {"Odd.number.of.hex.digits.found.", "Udda antal hex-siffror p\u00E5tr\u00E4ffades: "},
         {"Unknown.extension.type.", "Ok\u00E4nd till\u00E4ggstyp: "},
-        {"command.{0}.is.ambiguous.", "kommandot {0} \u00E4r tvetydigt:"}
+        {"command.{0}.is.ambiguous.", "kommandot {0} \u00E4r tvetydigt:"},
+
+        // 8171319: keytool should print out warnings when reading or
+        // generating cert/cert req using weak algorithms
+        {"the.certificate.request", "Certifikatbeg\u00E4ran"},
+        {"the.issuer", "Utf\u00E4rdaren"},
+        {"the.generated.certificate", "Det genererade certifikatet"},
+        {"the.generated.crl", "Den genererade listan \u00F6ver \u00E5terkallade certifikat"},
+        {"the.generated.certificate.request", "Den genererade certifikatbeg\u00E4ran"},
+        {"the.certificate", "Certifikatet"},
+        {"the.crl", "Listan \u00F6ver \u00E5terkallade certifikat"},
+        {"the.tsa.certificate", "TSA-certifikatet"},
+        {"the.input", "Indata"},
+        {"reply", "Svar"},
+        {"one.in.many", "%s %d av %d"},
+        {"alias.in.cacerts", "Utf\u00E4rdaren <%s> i cacerts"},
+        {"alias.in.keystore", "Utf\u00E4rdaren <%s>"},
+        {"with.weak", "%s (svag)"},
+        {"key.bit", "%d-bitars %s-nyckel"},
+        {"key.bit.weak", "%d-bitars %s-nyckel (svag)"},
+        {".PATTERN.printX509Cert.with.weak",
+                "\u00C4gare: {0}\nUtf\u00E4rdare: {1}\nSerienummer: {2}\nGiltigt fr\u00E5n: {3}, till: {4}\nCertifikatfingeravtryck:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\nSignaturalgoritmnamn: {8}\nAlgoritm f\u00F6r \u00F6ppen nyckel f\u00F6r \u00E4mne: {9}\nVersion: {10}"},
+        {"PKCS.10.with.weak",
+                "PKCS #10-certifikatbeg\u00E4ran (version 1.0)\n\u00C4mne: %s\nFormat: %s\n\u00D6ppen nyckel: %s\nSignaturalgoritm: %s\n"},
+        {"verified.by.s.in.s.weak", "Verifierades av %s i %s med en %s"},
+        {"whose.sigalg.risk", "%s anv\u00E4nder signaturalgoritmen %s, vilket anses utg\u00F6ra en s\u00E4kerhetsrisk."},
+        {"whose.key.risk", "%s anv\u00E4nder en %s, vilket anses utg\u00F6ra en s\u00E4kerhetsrisk."},
+        {"jks.storetype.warning", "Nyckellagret %1$s anv\u00E4nder ett propriet\u00E4rt format. Du b\u00F6r migrera till PKCS12, som \u00E4r ett branschstandardformat, med \"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"."},
+        {"migrate.keystore.warning", "Migrerade \"%1$s\" till %4$s. Nyckellagret %2$s s\u00E4kerhetskopierades som \"%3$s\"."},
+        {"backup.keystore.warning", "Det ursprungliga nyckellagret, \"%1$s\", s\u00E4kerhetskopieras som \"%3$s\"..."},
+        {"importing.keystore.status", "Importerar nyckellagret %1$s till %2$s..."},
     };
 
 
