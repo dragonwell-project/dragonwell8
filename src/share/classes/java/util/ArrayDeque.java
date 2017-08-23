@@ -36,7 +36,6 @@ package java.util;
 
 import java.io.Serializable;
 import java.util.function.Consumer;
-import sun.misc.SharedSecrets;
 
 /**
  * Resizable-array implementation of the {@link Deque} interface.  Array
@@ -119,7 +118,12 @@ public class ArrayDeque<E> extends AbstractCollection<E>
 
     // ******  Array allocation and resizing utilities ******
 
-    private static int calculateSize(int numElements) {
+    /**
+     * Allocates empty array to hold the given number of elements.
+     *
+     * @param numElements  the number of elements to hold
+     */
+    private void allocateElements(int numElements) {
         int initialCapacity = MIN_INITIAL_CAPACITY;
         // Find the best power of two to hold elements.
         // Tests "<=" because arrays aren't kept full.
@@ -135,16 +139,7 @@ public class ArrayDeque<E> extends AbstractCollection<E>
             if (initialCapacity < 0)   // Too many elements, must back off
                 initialCapacity >>>= 1;// Good luck allocating 2 ^ 30 elements
         }
-        return initialCapacity;
-    }
-
-    /**
-     * Allocates empty array to hold the given number of elements.
-     *
-     * @param numElements  the number of elements to hold
-     */
-    private void allocateElements(int numElements) {
-        elements = new Object[calculateSize(numElements)];
+        elements = new Object[initialCapacity];
     }
 
     /**
@@ -884,8 +879,6 @@ public class ArrayDeque<E> extends AbstractCollection<E>
 
         // Read in size and allocate array
         int size = s.readInt();
-        int capacity = calculateSize(size);
-        SharedSecrets.getJavaOISAccess().checkArray(s, Object[].class, capacity);
         allocateElements(size);
         head = 0;
         tail = size;
