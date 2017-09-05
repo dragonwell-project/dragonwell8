@@ -268,21 +268,21 @@ instruct $2$1_rReg(iReg$1NoSp dst, iReg$1 src, iRegI shift, rFlagsReg cr)
   ins_pipe(ialu_reg_reg_vshift);
 %}')dnl
 define(ROL_INSN, `
-instruct $3$1_rReg_Var_C$2(iRegLNoSp dst, iRegL src, iRegI shift, immI$2 c$2, rFlagsReg cr)
+instruct $3$1_rReg_Var_C$2(iReg$1NoSp dst, iReg$1 src, iRegI shift, immI$2 c$2, rFlagsReg cr)
 %{
   match(Set dst (Or$1 (LShift$1 src shift) (URShift$1 src (SubI c$2 shift))));
 
   expand %{
-    $3L_rReg(dst, src, shift, cr);
+    $3$1_rReg(dst, src, shift, cr);
   %}
 %}')dnl
 define(ROR_INSN, `
-instruct $3$1_rReg_Var_C$2(iRegLNoSp dst, iRegL src, iRegI shift, immI$2 c$2, rFlagsReg cr)
+instruct $3$1_rReg_Var_C$2(iReg$1NoSp dst, iReg$1 src, iRegI shift, immI$2 c$2, rFlagsReg cr)
 %{
   match(Set dst (Or$1 (URShift$1 src shift) (LShift$1 src (SubI c$2 shift))));
 
   expand %{
-    $3L_rReg(dst, src, shift, cr);
+    $3$1_rReg(dst, src, shift, cr);
   %}
 %}')dnl
 ROL_EXPAND(L, rol, rorv)
