@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -389,17 +389,16 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
         omv = oms.current();
         oop* loc = fr->oopmapreg_to_location(omv.reg(),reg_map);
         if ( loc != NULL ) {
-          oop *base_loc    = fr->oopmapreg_to_location(omv.content_reg(), reg_map);
           oop *derived_loc = loc;
-          oop val = *base_loc;
-          if (val == (oop)NULL || Universe::is_narrow_oop_base(val)) {
-            // Ignore NULL oops and decoded NULL narrow oops which
-            // equal to Universe::narrow_oop_base when a narrow oop
-            // implicit null check is used in compiled code.
-            // The narrow_oop_base could be NULL or be the address
-            // of the page below heap depending on compressed oops mode.
-          } else
+          oop *base_loc    = fr->oopmapreg_to_location(omv.content_reg(), reg_map);
+          // Ignore NULL oops and decoded NULL narrow oops which
+          // equal to Universe::narrow_oop_base when a narrow oop
+          // implicit null check is used in compiled code.
+          // The narrow_oop_base could be NULL or be the address
+          // of the page below heap depending on compressed oops mode.
+          if (base_loc != NULL && *base_loc != (oop)NULL && !Universe::is_narrow_oop_base(*base_loc)) {
             derived_oop_fn(base_loc, derived_loc);
+          }
         }
         oms.next();
       }  while (!oms.is_done());
