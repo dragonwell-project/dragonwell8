@@ -36,7 +36,7 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION    HS_VER
+ FILEVERSION    JDK_VER
  PRODUCTVERSION JDK_VER
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
@@ -56,7 +56,7 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      XSTR(HS_COMPANY)       "\0"
             VALUE "FileDescription",  XSTR(HS_FILEDESC)      "\0"
-            VALUE "FileVersion",      XSTR(HS_DOTVER)        "\0"
+            VALUE "FileVersion",      XSTR(JDK_DOTVER)        "\0"
             VALUE "Full Version",     XSTR(HS_BUILD_ID)      "\0"
 	    VALUE "InternalName",     XSTR(HS_INTERNAL_NAME) "\0"
             VALUE "LegalCopyright",   XSTR(HS_COPYRIGHT)     "\0"
