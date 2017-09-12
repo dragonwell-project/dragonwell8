@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,37 +32,25 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.InvocationTargetException;
 
 import java.util.Set;
 import java.util.HashSet;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.Vector;
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.StringTokenizer;
 import java.util.Enumeration;
 import java.util.WeakHashMap;
 
 import java.net.InetAddress;
 
 import java.security.PrivilegedAction;
+import java.security.Security;
 import java.security.AccessController;
 
-import javax.rmi.CORBA.Util;
 import javax.rmi.CORBA.ValueHandler;
 
-import org.omg.CORBA.Context;
-import org.omg.CORBA.ContextList;
-import org.omg.CORBA.Environment;
-import org.omg.CORBA.ExceptionList;
-import org.omg.CORBA.ORBPackage.InvalidName;
 import org.omg.CORBA.NVList;
 import org.omg.CORBA.TCKind;
 import org.omg.CORBA.NamedValue;
@@ -75,7 +63,6 @@ import org.omg.CORBA.StructMember;
 import org.omg.CORBA.UnionMember;
 import org.omg.CORBA.ValueMember;
 import org.omg.CORBA.BAD_PARAM;
-import org.omg.CORBA.MARSHAL;
 
 import org.omg.CORBA.portable.ValueFactory;
 
@@ -83,10 +70,7 @@ import org.omg.CORBA.ORBPackage.InvalidName;
 
 import com.sun.org.omg.SendingContext.CodeBase;
 
-import com.sun.corba.se.pept.broker.Broker;
 import com.sun.corba.se.pept.protocol.ClientInvocationInfo;
-import com.sun.corba.se.pept.transport.ContactInfo;
-import com.sun.corba.se.pept.transport.ConnectionCache;
 import com.sun.corba.se.pept.transport.TransportManager;
 
 import com.sun.corba.se.spi.ior.IOR;
@@ -95,8 +79,6 @@ import com.sun.corba.se.spi.ior.TaggedComponentFactoryFinder;
 import com.sun.corba.se.spi.ior.IORFactories;
 import com.sun.corba.se.spi.ior.ObjectKey;
 import com.sun.corba.se.spi.ior.ObjectKeyFactory;
-import com.sun.corba.se.spi.ior.iiop.IIOPFactories;
-import com.sun.corba.se.spi.ior.iiop.GIOPVersion;
 import com.sun.corba.se.spi.oa.OAInvocationInfo;
 import com.sun.corba.se.spi.oa.ObjectAdapterFactory;
 import com.sun.corba.se.spi.orb.DataCollector;
@@ -113,24 +95,18 @@ import com.sun.corba.se.spi.orbutil.threadpool.ThreadPoolManager;
 import com.sun.corba.se.spi.protocol.ClientDelegateFactory;
 import com.sun.corba.se.spi.protocol.RequestDispatcherRegistry;
 import com.sun.corba.se.spi.protocol.CorbaServerRequestDispatcher;
-import com.sun.corba.se.spi.protocol.RequestDispatcherDefault;
 import com.sun.corba.se.spi.protocol.PIHandler;
-import com.sun.corba.se.spi.protocol.CorbaMessageMediator;
-import com.sun.corba.se.spi.protocol.ForwardException;
 import com.sun.corba.se.spi.resolver.Resolver;
 import com.sun.corba.se.spi.resolver.LocalResolver;
-import com.sun.corba.se.spi.orb.StringPair;
-import com.sun.corba.se.spi.orb.StringPair;
 import com.sun.corba.se.spi.transport.CorbaContactInfoListFactory;
 import com.sun.corba.se.spi.transport.CorbaTransportManager;
+import com.sun.corba.se.spi.ior.IORTypeCheckRegistry;
 import com.sun.corba.se.spi.legacy.connection.LegacyServerSocketManager;
+import com.sun.corba.se.spi.logging.CORBALogDomains;
 import com.sun.corba.se.spi.copyobject.CopierManager;
-import com.sun.corba.se.spi.presentation.rmi.PresentationDefaults;
-import com.sun.corba.se.spi.presentation.rmi.PresentationManager;
 import com.sun.corba.se.spi.presentation.rmi.StubAdapter;
 import com.sun.corba.se.spi.servicecontext.ServiceContextRegistry;
 
-import com.sun.corba.se.impl.corba.TypeCodeFactory;
 import com.sun.corba.se.impl.corba.TypeCodeImpl;
 import com.sun.corba.se.impl.corba.NVListImpl;
 import com.sun.corba.se.impl.corba.ExceptionListImpl;
@@ -139,9 +115,6 @@ import com.sun.corba.se.impl.corba.NamedValueImpl;
 import com.sun.corba.se.impl.corba.EnvironmentImpl;
 import com.sun.corba.se.impl.corba.AsynchInvoke;
 import com.sun.corba.se.impl.corba.AnyImpl;
-import com.sun.corba.se.impl.corba.RequestImpl;
-import com.sun.corba.se.impl.dynamicany.DynAnyFactoryImpl;
-import com.sun.corba.se.impl.encoding.EncapsOutputStream;
 import com.sun.corba.se.impl.encoding.CachedCodeBase;
 import com.sun.corba.se.impl.interceptors.PIHandlerImpl;
 import com.sun.corba.se.impl.interceptors.PINoOpHandlerImpl;
@@ -150,12 +123,10 @@ import com.sun.corba.se.impl.ior.TaggedProfileFactoryFinderImpl;
 import com.sun.corba.se.impl.ior.TaggedProfileTemplateFactoryFinderImpl;
 import com.sun.corba.se.impl.oa.toa.TOAFactory;
 import com.sun.corba.se.impl.oa.poa.BadServerIdHandler;
-import com.sun.corba.se.impl.oa.poa.DelegateImpl;
 import com.sun.corba.se.impl.oa.poa.POAFactory;
 import com.sun.corba.se.impl.orbutil.ORBConstants;
 import com.sun.corba.se.impl.orbutil.ORBUtility;
 import com.sun.corba.se.impl.orbutil.StackImpl;
-import com.sun.corba.se.impl.orbutil.threadpool.ThreadPoolImpl;
 import com.sun.corba.se.impl.orbutil.threadpool.ThreadPoolManagerImpl;
 import com.sun.corba.se.impl.protocol.RequestDispatcherRegistryImpl;
 import com.sun.corba.se.impl.protocol.CorbaInvocationInfo;
@@ -164,7 +135,7 @@ import com.sun.corba.se.impl.legacy.connection.LegacyServerSocketManagerImpl;
 import com.sun.corba.se.impl.util.Utility;
 import com.sun.corba.se.impl.logging.ORBUtilSystemException;
 import com.sun.corba.se.impl.copyobject.CopierManagerImpl;
-import com.sun.corba.se.impl.presentation.rmi.PresentationManagerImpl;
+import com.sun.corba.se.impl.ior.IORTypeCheckRegistryImpl;
 
 /**
  * The JavaIDL ORB implementation.
@@ -226,6 +197,8 @@ public class ORBImpl extends com.sun.corba.se.spi.orb.ORB
 
     private ServiceContextRegistry serviceContextRegistry ;
 
+    private IORTypeCheckRegistry iorTypeCheckRegistry;
+
     // Needed here to implement connect/disconnect
     private TOAFactory toaFactory ;
 
@@ -273,6 +246,8 @@ public class ORBImpl extends com.sun.corba.se.spi.orb.ORB
     // refer to the localResolver.  Also used to protect access to
     // insNamingDelegate.
     private final Object resolverLock = new Object() ;
+
+    private static final String IORTYPECHECKREGISTRY_FILTER_PROPNAME = "com.sun.CORBA.ORBIorTypeCheckRegistryFilter";
 
     private TaggedComponentFactoryFinder taggedComponentFactoryFinder ;
 
@@ -413,6 +388,37 @@ public class ORBImpl extends com.sun.corba.se.spi.orb.ORB
         serviceContextRegistry = new ServiceContextRegistry( this ) ;
     }
 
+    private void initIORTypeCheckRegistry() {
+        String filterProps = AccessController
+                .doPrivileged(new PrivilegedAction<String>() {
+                    public String run() {
+                        String props = System
+                                .getProperty(IORTYPECHECKREGISTRY_FILTER_PROPNAME);
+                        if (props == null) {
+                            props = Security
+                                    .getProperty(IORTYPECHECKREGISTRY_FILTER_PROPNAME);
+                        }
+                        return props;
+                    }
+                });
+        if (filterProps != null) {
+            try {
+                iorTypeCheckRegistry = new IORTypeCheckRegistryImpl(filterProps, this);
+            } catch (Exception ex) {
+                throw wrapper.bootstrapException(ex);
+            }
+
+            if (this.orbInitDebugFlag) {
+                dprint(".initIORTypeCheckRegistry, IORTypeCheckRegistryImpl created for properties == "
+                        + filterProps);
+            }
+        } else {
+            if (this.orbInitDebugFlag) {
+                dprint(".initIORTypeCheckRegistry, IORTypeCheckRegistryImpl NOT created for properties == ");
+            }
+        }
+    }
+
     protected void setDebugFlags( String[] args )
     {
         for (int ctr=0; ctr<args.length; ctr++ ) {
@@ -494,6 +500,8 @@ public class ORBImpl extends com.sun.corba.se.spi.orb.ORB
         getThreadPoolManager();
 
         super.getByteBufferPool();
+
+        initIORTypeCheckRegistry();
     }
 
     private synchronized POAFactory getPOAFactory()
@@ -2089,6 +2097,17 @@ public class ORBImpl extends com.sun.corba.se.spi.orb.ORB
         }
         return copierManager ;
     }
+
+    @Override
+    public void validateIORClass(String iorClassName) {
+        if (iorTypeCheckRegistry != null) {
+            if (!iorTypeCheckRegistry.isValidIORType(iorClassName)) {
+                throw ORBUtilSystemException.get( this,
+                        CORBALogDomains.OA_IOR ).badStringifiedIor();
+            }
+        }
+    }
+
 } // Class ORBImpl
 
 ////////////////////////////////////////////////////////////////////////
