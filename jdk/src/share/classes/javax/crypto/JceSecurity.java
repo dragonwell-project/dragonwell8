@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -257,12 +257,12 @@ final class JceSecurity {
      * user edit or an application call is required.
      *
      * Otherwise, if user has policy jar files installed in the legacy
-     * jre/lib/security/ directory, the JDK will honor whatever
+     * <java-home>/lib/security/ directory, the JDK will honor whatever
      * setting is set by those policy files. (legacy/current behavior)
      *
      * If none of the above 2 conditions are met, the JDK will default
-     * to using the limited crypto policy files found in the
-     * jre/lib/security/policy/limited/ directory
+     * to using the unlimited crypto policy files found in the
+     * <java-home>/lib/security/policy/unlimited/ directory
      */
     private static void setupJurisdictionPolicies() throws Exception {
         // Sanity check the crypto.policy Security property.  Single
@@ -300,9 +300,9 @@ final class JceSecurity {
                 !importJar.exists())) {
             // Compatibility set up. If crypto.policy is not defined.
             // check to see if legacy jars exist in lib directory. If
-            // they don't exist, we default to limited policy mode.
+            // they don't exist, we default to unlimited policy mode.
             cpPath = Paths.get(
-                    javaHomeProperty, "lib", "security", "policy", "limited");
+                    javaHomeProperty, "lib", "security", "policy", "unlimited");
             // point to the new jar files in limited directory
             exportJar = new File(cpPath.toFile(),"US_export_policy.jar");
             importJar = new File(cpPath.toFile(),"local_policy.jar");
