@@ -748,8 +748,7 @@ void MacroAssembler::pushptr(AddressLiteral src) {
   }
 }
 
-void MacroAssembler::reset_last_Java_frame(bool clear_fp,
-                                           bool clear_pc) {
+void MacroAssembler::reset_last_Java_frame(bool clear_fp) {
   // we must set sp to zero to clear frame
   movptr(Address(r15_thread, JavaThread::last_Java_sp_offset()), NULL_WORD);
   // must clear fp, so that compiled frames are not confused; it is
@@ -758,9 +757,8 @@ void MacroAssembler::reset_last_Java_frame(bool clear_fp,
     movptr(Address(r15_thread, JavaThread::last_Java_fp_offset()), NULL_WORD);
   }
 
-  if (clear_pc) {
-    movptr(Address(r15_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
-  }
+  // Always clear the pc because it could have been set by make_walkable()
+  movptr(Address(r15_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
 }
 
 void MacroAssembler::set_last_Java_frame(Register last_java_sp,
@@ -2561,7 +2559,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
   }
   // reset last Java frame
   // Only interpreter should have to clear fp
-  reset_last_Java_frame(java_thread, true, false);
+  reset_last_Java_frame(java_thread, true);
 
 #ifndef CC_INTERP
    // C++ interp handles this in the interpreter
@@ -3808,7 +3806,7 @@ void MacroAssembler::push_IU_state() {
   pusha();
 }
 
-void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp, bool clear_pc) {
+void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp) {
   // determine java_thread register
   if (!java_thread->is_valid()) {
     java_thread = rdi;
@@ -3820,8 +3818,8 @@ void MacroAssembler::reset_last_Java_frame(Register java_thread, bool clear_fp, 
     movptr(Address(java_thread, JavaThread::last_Java_fp_offset()), NULL_WORD);
   }
 
-  if (clear_pc)
-    movptr(Address(java_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
+  // Always clear the pc because it could have been set by make_walkable()
+  movptr(Address(java_thread, JavaThread::last_Java_pc_offset()), NULL_WORD);
 
 }
 
