@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1045,7 +1045,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
     Label ok, ok2;
     __ brx(Assembler::equal, false, Assembler::pt, ok);
-    __ delayed()->ld_ptr(G5_method, CompiledICHolder::holder_method_offset(), G5_method);
+    __ delayed()->ld_ptr(G5_method, CompiledICHolder::holder_metadata_offset(), G5_method);
     __ jump_to(ic_miss, G3_scratch);
     __ delayed()->nop();
 

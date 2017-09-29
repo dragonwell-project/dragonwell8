@@ -1748,12 +1748,11 @@ void static clean_ic_if_metadata_is_dead(CompiledIC *ic, BoolObjectClosure *is_a
     CompiledICHolder* cichk_oop = ic->cached_icholder();
 
     if (mark_on_stack) {
-      Metadata::mark_on_stack(cichk_oop->holder_method());
+      Metadata::mark_on_stack(cichk_oop->holder_metadata());
       Metadata::mark_on_stack(cichk_oop->holder_klass());
     }
 
-    if (cichk_oop->holder_method()->method_holder()->is_loader_alive(is_alive) &&
-        cichk_oop->holder_klass()->is_loader_alive(is_alive)) {
+    if (cichk_oop->is_loader_alive(is_alive)) {
       return;
     }
   } else {
@@ -2180,7 +2179,7 @@ void nmethod::metadata_do(void f(Metadata*)) {
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
           CompiledICHolder* cichk = ic->cached_icholder();
-          f(cichk->holder_method());
+          f(cichk->holder_metadata());
           f(cichk->holder_klass());
         } else {
           Metadata* ic_oop = ic->cached_metadata();
