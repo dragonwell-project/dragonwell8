@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -1193,7 +1193,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Argument is valid and klass is as expected, continue.
 
   // Extract method from inline cache, verified entry point needs it.
-  __ ld(R19_method, CompiledICHolder::holder_method_offset(), ic);
+  __ ld(R19_method, CompiledICHolder::holder_metadata_offset(), ic);
   assert(R19_method == ic, "the inline cache register is dead here");
 
   __ ld(code, method_(code));

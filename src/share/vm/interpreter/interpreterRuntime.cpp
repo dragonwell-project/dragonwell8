@@ -786,6 +786,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes
   case CallInfo::itable_call:
     cache_entry(thread)->set_itable_call(
       bytecode,
+      info.resolved_klass(),
       info.resolved_method(),
       info.itable_index());
     break;
