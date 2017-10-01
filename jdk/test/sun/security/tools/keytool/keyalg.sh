@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,45 +22,28 @@
 #
 
 # @test
-# @summary (almost) all keytool behaviors
-# @author Weijun Wang
-# @run shell/timeout=600 standard.sh
+# @bug 8029659
+# @summary Keytool, print key algorithm of certificate or key entry
 #
-# This test is always excecuted.
-#
-# set a few environment variables so that the shell-script can run stand-alone
-# in the source directory
-if [ "${TESTSRC}" = "" ] ; then
-  TESTSRC="."
-fi
-if [ "${TESTCLASSES}" = "" ] ; then
-  TESTCLASSES="."
-fi
+
 if [ "${TESTJAVA}" = "" ] ; then
   JAVAC_CMD=`which javac`
   TESTJAVA=`dirname $JAVAC_CMD`/..
-  COMPILEJAVA="${TESTJAVA}"
 fi
 
-# set platform-dependent variables
-OS=`uname -s`
-case "$OS" in
-  SunOS | Linux | Darwin | AIX | CYGWIN* )
-    FS="/"
-    ;;
-  Windows_* )
-    FS="\\"
-    ;;
-  * )
-    echo "Unrecognized system!"
-    exit 1;
-    ;;
-esac
+TESTTOOLVMOPTS="$TESTTOOLVMOPTS -J-Duser.language=en -J-Duser.country=US"
 
-${COMPILEJAVA}${FS}bin${FS}javac ${TESTJAVACOPTS} ${TESTTOOLVMOPTS} -d . -XDignore.symbol.file ${TESTSRC}${FS}KeyToolTest.java || exit 10
+KS=ks
+KEYTOOL="$TESTJAVA/bin/keytool ${TESTTOOLVMOPTS} -keystore ks -storepass changeit -keypass changeit"
 
-echo | ${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} -Dfile KeyToolTest
-status=$?
+rm $KS 2> /dev/null
 
-exit $status
+$KEYTOOL -genkeypair -alias ca -dname CN=CA -keyalg EC || exit 1
+$KEYTOOL -genkeypair -alias user -dname CN=User -keyalg RSA -keysize 1024 || exit 2
+$KEYTOOL -certreq -alias user |
+        $KEYTOOL -gencert -alias ca -rfc -sigalg SHA1withECDSA |
+        $KEYTOOL -printcert > user.dump || exit 3
+
+cat user.dump | grep "Signature algorithm name:" | grep SHA1withECDSA || exit 4
+cat user.dump | grep "Subject Public Key Algorithm:" | grep RSA | grep 1024 || exit 5
 
