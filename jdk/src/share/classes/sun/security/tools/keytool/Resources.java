@@ -345,8 +345,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"Enter.alias.name.", "Enter alias name:  "},
         {".RETURN.if.same.as.for.otherAlias.",
                 "\t(RETURN if same as for <{0}>)"},
-        {".PATTERN.printX509Cert",
-                "Owner: {0}\nIssuer: {1}\nSerial number: {2}\nValid from: {3} until: {4}\nCertificate fingerprints:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\t Signature algorithm name: {8}\n\t Version: {9}"},
         {"What.is.your.first.and.last.name.",
                 "What is your first and last name?"},
         {"What.is.the.name.of.your.organizational.unit.",
@@ -413,16 +411,12 @@ public class Resources extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "Please provide -keysize for secret key generation"},
 
-        {"verified.by.s.in.s", "Verified by %s in %s"},
         {"warning.not.verified.make.sure.keystore.is.correct",
             "WARNING: not verified. Make sure -keystore is correct."},
 
         {"Extensions.", "Extensions: "},
         {".Empty.value.", "(Empty value)"},
         {"Extension.Request.", "Extension Request:"},
-        {"PKCS.10.Certificate.Request.Version.1.0.Subject.s.Public.Key.s.format.s.key.",
-                "PKCS #10 Certificate Request (Version 1.0)\n" +
-                "Subject: %s\nPublic Key: %s format %s key\n"},
         {"Unknown.keyUsage.type.", "Unknown keyUsage type: "},
         {"Unknown.extendedkeyUsage.type.", "Unknown extendedkeyUsage type: "},
         {"Unknown.AccessDescription.type.", "Unknown AccessDescription type: "},
@@ -431,7 +425,38 @@ public class Resources extends java.util.ListResourceBundle {
                  "This extension cannot be marked as critical. "},
         {"Odd.number.of.hex.digits.found.", "Odd number of hex digits found: "},
         {"Unknown.extension.type.", "Unknown extension type: "},
-        {"command.{0}.is.ambiguous.", "command {0} is ambiguous:"}
+        {"command.{0}.is.ambiguous.", "command {0} is ambiguous:"},
+
+        // 8171319: keytool should print out warnings when reading or
+        // generating cert/cert req using weak algorithms
+        {"the.certificate.request", "The certificate request"},
+        {"the.issuer", "The issuer"},
+        {"the.generated.certificate", "The generated certificate"},
+        {"the.generated.crl", "The generated CRL"},
+        {"the.generated.certificate.request", "The generated certificate request"},
+        {"the.certificate", "The certificate"},
+        {"the.crl", "The CRL"},
+        {"the.tsa.certificate", "The TSA certificate"},
+        {"the.input", "The input"},
+        {"reply", "Reply"},
+        {"one.in.many", "%s #%d of %d"},
+        {"alias.in.cacerts", "Issuer <%s> in cacerts"},
+        {"alias.in.keystore", "Issuer <%s>"},
+        {"with.weak", "%s (weak)"},
+        {"key.bit", "%d-bit %s key"},
+        {"key.bit.weak", "%d-bit %s key (weak)"},
+        {".PATTERN.printX509Cert.with.weak",
+                "Owner: {0}\nIssuer: {1}\nSerial number: {2}\nValid from: {3} until: {4}\nCertificate fingerprints:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\nSignature algorithm name: {8}\nSubject Public Key Algorithm: {9}\nVersion: {10}"},
+        {"PKCS.10.with.weak",
+                "PKCS #10 Certificate Request (Version 1.0)\n" +
+                        "Subject: %s\nFormat: %s\nPublic Key: %s\nSignature algorithm: %s\n"},
+        {"verified.by.s.in.s.weak", "Verified by %s in %s with a %s"},
+        {"whose.sigalg.risk", "%s uses the %s signature algorithm which is considered a security risk."},
+        {"whose.key.risk", "%s uses a %s which is considered a security risk."},
+        {"jks.storetype.warning", "The %1$s keystore uses a proprietary format. It is recommended to migrate to PKCS12 which is an industry standard format using \"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"."},
+        {"migrate.keystore.warning", "Migrated \"%1$s\" to %4$s. The %2$s keystore is backed up as \"%3$s\"."},
+        {"backup.keystore.warning", "The original keystore \"%1$s\" is backed up as \"%3$s\"..."},
+        {"importing.keystore.status", "Importing keystore %1$s to %2$s..."},
     };
 
 
