@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -345,8 +345,6 @@ public class Resources_it extends java.util.ListResourceBundle {
         {"Enter.alias.name.", "Immettere nome alias:  "},
         {".RETURN.if.same.as.for.otherAlias.",
                 "\t(INVIO se corrisponde al nome di <{0}>)"},
-        {".PATTERN.printX509Cert",
-                "Proprietario: {0}\nAutorit\u00E0 emittente: {1}\nNumero di serie: {2}\nValido da: {3} a: {4}\nImpronte digitali certificato:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\t Nome algoritmo firma: {8}\n\t Versione: {9}"},
         {"What.is.your.first.and.last.name.",
                 "Specificare nome e cognome"},
         {"What.is.the.name.of.your.organizational.unit.",
@@ -409,15 +407,12 @@ public class Resources_it extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "Specificare il valore -keysize per la generazione della chiave segreta"},
 
-        {"verified.by.s.in.s", "Verificato da %s in %s"},
         {"warning.not.verified.make.sure.keystore.is.correct",
             "AVVERTENZA: non verificato. Assicurarsi che -keystore sia corretto."},
 
         {"Extensions.", "Estensioni: "},
         {".Empty.value.", "(valore vuoto)"},
         {"Extension.Request.", "Richiesta di estensione:"},
-        {"PKCS.10.Certificate.Request.Version.1.0.Subject.s.Public.Key.s.format.s.key.",
-                "Richiesta di certificato PKCS #10 (versione 1.0)\nOggetto: %s\nChiave pubblica: %s formato %s chiave\n"},
         {"Unknown.keyUsage.type.", "Tipo keyUsage sconosciuto: "},
         {"Unknown.extendedkeyUsage.type.", "Tipo extendedkeyUsage sconosciuto: "},
         {"Unknown.AccessDescription.type.", "Tipo AccessDescription sconosciuto: "},
@@ -426,7 +421,37 @@ public class Resources_it extends java.util.ListResourceBundle {
                  "Impossibile contrassegnare questa estensione come critica. "},
         {"Odd.number.of.hex.digits.found.", "\u00C8 stato trovato un numero dispari di cifre esadecimali: "},
         {"Unknown.extension.type.", "Tipo di estensione sconosciuto: "},
-        {"command.{0}.is.ambiguous.", "il comando {0} \u00E8 ambiguo:"}
+        {"command.{0}.is.ambiguous.", "il comando {0} \u00E8 ambiguo:"},
+
+        // 8171319: keytool should print out warnings when reading or
+        // generating cert/cert req using weak algorithms
+        {"the.certificate.request", "La richiesta di certificato"},
+        {"the.issuer", "L'emittente"},
+        {"the.generated.certificate", "Il certificato generato"},
+        {"the.generated.crl", "La CRL generata"},
+        {"the.generated.certificate.request", "La richiesta di certificato generata"},
+        {"the.certificate", "Il certificato"},
+        {"the.crl", "La CRL"},
+        {"the.tsa.certificate", "Il certificato TSA"},
+        {"the.input", "L'input"},
+        {"reply", "Rispondi"},
+        {"one.in.many", "%s #%d di %d"},
+        {"alias.in.cacerts", "Emittente <%s> in cacerts"},
+        {"alias.in.keystore", "Emittente <%s>"},
+        {"with.weak", "%s (debole)"},
+        {"key.bit", "Chiave %s a %d bit"},
+        {"key.bit.weak", "Chiave %s a %d bit (debole)"},
+        {".PATTERN.printX509Cert.with.weak",
+                "Proprietario: {0}\nEmittente: {1}\nNumero di serie: {2}\nValido da: {3} a: {4}\nImpronte certificato:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\nNome algoritmo firma: {8}\nAlgoritmo di chiave pubblica oggetto: {9}\nVersione: {10}"},
+        {"PKCS.10.with.weak",
+                "Richiesta di certificato PKCS #10 (versione 1.0)\nOggetto: %s\nFormato: %s\nChiave pubblica: %s\nAlgoritmo firma: %s\n"},
+        {"verified.by.s.in.s.weak", "Verificato da %s in %s con un %s"},
+        {"whose.sigalg.risk", "%s utilizza l'algoritmo firma %s che \u00E8 considerato un rischio per la sicurezza."},
+        {"whose.key.risk", "%s utilizza un %s che \u00E8 considerato un rischio per la sicurezza."},
+        {"jks.storetype.warning", "Il keystore %1$s utilizza un formato proprietario. Si consiglia di eseguire la migrazione a PKCS12, un formato standard di settore, utilizzando il comando \"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"."},
+        {"migrate.keystore.warning", "Migrazione di \"%1$s\" in %4$s eseguita. Backup del keystore %2$s eseguito con il nome \"%3$s\"."},
+        {"backup.keystore.warning", "Backup del keystore originale \"%1$s\" eseguito con il nome \"%3$s\"..."},
+        {"importing.keystore.status", "Importazione del keystore %1$s in %2$s in corso..."},
     };
 
 
