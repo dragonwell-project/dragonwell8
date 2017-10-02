@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- Test spaces in 'xs:element' 'substitutionGroup' attribute -->
+    <xs:element name="  name" type="xs:string"/>
+    <xs:element name="navn" substitutionGroup="  name   "/>
+
+    <!-- Test spaces in 'xs:element' 'name' and 'ref' attributes -->
+    <xs:element name="   address   ">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="street" type="xs:string"/>
+                <xs:element name="building" type="xs:string"/>
+                <xs:element name="apt" type="xs:int"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+    <xs:element name="personinfo">
+        <xs:complexType>
+            <xs:all>
+                <xs:element name="firstname" type="xs:string"/>
+                <xs:element ref="address123 "/>
+                <xs:element name="city" type="xs:string"/>
+                <xs:element name="country" type="xs:string"/>
+            </xs:all>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Test spaces in xs:attribute 'name', 'type' and 'ref' attributes -->
+    <xs:simpleType name="typeForAttribute   ">
+        <xs:restriction base="  xs:string">
+            <xs:pattern value="[A-Z][A-Z]"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:attribute name="  code" type="  typeForAttribute">
+    </xs:attribute>
+    <xs:complexType name="TestComplexType">
+        <xs:attribute ref="code  "/>
+    </xs:complexType>
+
+    <!-- Test spaces in xs:attributeGroup 'name' and 'ref' attributes -->
+    <xs:attributeGroup name="personattr   ">
+        <xs:attribute name="attr1" type="xs:string"/>
+        <xs:attribute name="attr2" type="xs:integer"/>
+    </xs:attributeGroup>
+    <xs:complexType name="person">
+        <xs:attributeGroup ref="   personattr  "/>
+    </xs:complexType>
+
+    <!-- Test spaces in <xs:group> 'name' and 'ref' attributes -->
+    <xs:group name="    customer">
+        <xs:sequence>
+            <xs:element name="firstname" type="xs:string"/>
+            <xs:element name="secondname" type="xs:string"/>
+        </xs:sequence>
+    </xs:group>
+    <xs:complexType name="orderType">
+        <xs:group ref="customer    "/>
+        <xs:attribute name="itemId" type="xs:integer"/>
+    </xs:complexType>
+    <xs:element name="order" type="orderType"/>
+
+</xs:schema>
