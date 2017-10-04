@@ -43,9 +43,9 @@ import java.util.concurrent.ConcurrentMap;
 
 import static java.io.ObjectStreamClass.processQueue;
 
+import sun.misc.SharedSecrets;
 import sun.misc.ObjectInputFilter;
 import sun.misc.ObjectStreamClassValidator;
-import sun.misc.SharedSecrets;
 import sun.reflect.misc.ReflectUtil;
 import sun.misc.JavaOISAccess;
 import sun.util.logging.PlatformLogger;
@@ -253,6 +253,12 @@ public class ObjectInputStream
 
             public ObjectInputFilter getObjectInputFilter(ObjectInputStream stream) {
                 return stream.getInternalObjectInputFilter();
+            }
+
+            public void checkArray(ObjectInputStream stream, Class<?> arrayType, int arrayLength)
+                throws InvalidClassException
+            {
+                stream.checkArray(arrayType, arrayLength);
             }
         });
     }
@@ -1257,6 +1263,33 @@ public class ObjectInputStream
     }
 
     /**
+     * Checks the given array type and length to ensure that creation of such
+     * an array is permitted by this ObjectInputStream. The arrayType argument
+     * must represent an actual array type.
+     *
+     * This private method is called via SharedSecrets.
+     *
+     * @param arrayType the array type
+     * @param arrayLength the array length
+     * @throws NullPointerException if arrayType is null
+     * @throws IllegalArgumentException if arrayType isn't actually an array type
+     * @throws NegativeArraySizeException if arrayLength is negative
+     * @throws InvalidClassException if the filter rejects creation
+     */
+    private void checkArray(Class<?> arrayType, int arrayLength) throws InvalidClassException {
+        Objects.requireNonNull(arrayType);
+        if (! arrayType.isArray()) {
+            throw new IllegalArgumentException("not an array type");
+        }
+
+        if (arrayLength < 0) {
+            throw new NegativeArraySizeException();
+        }
+
+        filterCheck(arrayType, arrayLength);
+    }
+
+    /**
      * Provide access to the persistent fields read from the input stream.
      */
     public static abstract class GetField {
@@ -1746,6 +1779,10 @@ public class ObjectInputStream
         passHandle = NULL_HANDLE;
 
         int numIfaces = bin.readInt();
+        if (numIfaces > 65535) {
+            throw new InvalidObjectException("interface limit exceeded: "
+                    + numIfaces);
+        }
         String[] ifaces = new String[numIfaces];
         for (int i = 0; i < numIfaces; i++) {
             ifaces[i] = bin.readUTF();
