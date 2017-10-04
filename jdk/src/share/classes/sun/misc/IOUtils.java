@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,9 @@ import java.util.Arrays;
 public class IOUtils {
 
     /**
-     * Read up to <code>length</code> of bytes from <code>in</code>
+     * Read up to {@code length} of bytes from {@code in}
      * until EOF is detected.
-     * @param in input stream, must not be null
+     * @param is input stream, must not be null
      * @param length number of bytes to read, -1 or Integer.MAX_VALUE means
      *        read as much as possible
      * @param readAll if true, an EOFException will be thrown if not enough
@@ -76,5 +76,23 @@ public class IOUtils {
             pos += cc;
         }
         return output;
+    }
+
+    /**
+     * Read {@code length} of bytes from {@code in}. An exception is
+     * thrown if there are not enough bytes in the stream.
+     *
+     * @param is input stream, must not be null
+     * @param length number of bytes to read, must not be negative
+     * @return bytes read
+     * @throws IOException if any IO error or a premature EOF is detected, or
+     *      if {@code length} is negative since this length is usually also
+     *      read from {@code is}.
+     */
+    public static byte[] readNBytes(InputStream is, int length) throws IOException {
+        if (length < 0) {
+            throw new IOException("length cannot be negative: " + length);
+        }
+        return readFully(is, length, true);
     }
 }
