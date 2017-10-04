@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2413,6 +2413,9 @@ final public class LdapCtx extends ComponentDirContext
         // First determine the referral mode
         if (ref != null) {
             switch (ref) {
+                case "follow-scheme":
+                    handleReferrals = LdapClient.LDAP_REF_FOLLOW_SCHEME;
+                    break;
                 case "follow":
                     handleReferrals = LdapClient.LDAP_REF_FOLLOW;
                     break;
@@ -2975,8 +2978,23 @@ final public class LdapCtx extends ComponentDirContext
             r = new LdapReferralException(resolvedName, resolvedObj, remainName,
                 msg, envprops, fullDN, handleReferrals, reqCtls);
             // only one set of URLs is present
-            r.setReferralInfo(res.referrals == null ? null :
-                    res.referrals.elementAt(0), false);
+            Vector<String> refs;
+            if (res.referrals == null) {
+                refs = null;
+            } else if (handleReferrals == LdapClient.LDAP_REF_FOLLOW_SCHEME) {
+                refs = new Vector<>();
+                for (String s : res.referrals.elementAt(0)) {
+                    if (s.startsWith("ldap:")) {
+                        refs.add(s);
+                    }
+                }
+                if (refs.isEmpty()) {
+                    refs = null;
+                }
+            } else {
+                refs = res.referrals.elementAt(0);
+            }
+            r.setReferralInfo(refs, false);
 
             if (hopCount > 1) {
                 r.setHopCount(hopCount);

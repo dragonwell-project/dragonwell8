@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -170,6 +170,9 @@ final class CounterMode extends FeedbackCipher {
      * are encrypted on demand.
      */
     private int crypt(byte[] in, int inOff, int len, byte[] out, int outOff) {
+        if (len == 0) {
+            return 0;
+        }
         int result = len;
         while (len-- > 0) {
             if (used >= blockSize) {

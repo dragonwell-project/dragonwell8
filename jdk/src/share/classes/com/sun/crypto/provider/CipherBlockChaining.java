@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,6 +140,9 @@ class CipherBlockChaining extends FeedbackCipher  {
     int encrypt(byte[] plain, int plainOffset, int plainLen,
                 byte[] cipher, int cipherOffset)
     {
+        if (plainLen <= 0) {
+            return plainLen;
+        }
         if ((plainLen % blockSize) != 0) {
             throw new ProviderException("Internal error in input buffering");
         }
@@ -181,6 +184,9 @@ class CipherBlockChaining extends FeedbackCipher  {
     int decrypt(byte[] cipher, int cipherOffset, int cipherLen,
                 byte[] plain, int plainOffset)
     {
+        if (cipherLen <= 0) {
+            return cipherLen;
+        }
         if ((cipherLen % blockSize) != 0) {
             throw new ProviderException("Internal error in input buffering");
         }

@@ -30,6 +30,8 @@ package javax.xml.transform;
  */
 public class TransformerConfigurationException extends TransformerException {
 
+    private static final long serialVersionUID = 1285547467942875745L;
+
     /**
      * Create a new <code>TransformerConfigurationException</code> with no
      * detail mesage.
