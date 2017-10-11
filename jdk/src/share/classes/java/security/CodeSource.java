@@ -34,6 +34,7 @@ import java.util.Hashtable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.cert.*;
+import sun.misc.IOUtils;
 
 /**
  *
@@ -546,6 +547,8 @@ public class CodeSource implements java.io.Serializable {
             // could all be present in the stream at the same time
             cfs = new Hashtable<String, CertificateFactory>(3);
             certList = new ArrayList<>(size > 20 ? 20 : size);
+        } else if (size < 0) {
+            throw new IOException("size cannot be negative");
         }
 
         for (int i = 0; i < size; i++) {
@@ -567,13 +570,7 @@ public class CodeSource implements java.io.Serializable {
                 cfs.put(certType, cf);
             }
             // parse the certificate
-            byte[] encoded = null;
-            try {
-                encoded = new byte[ois.readInt()];
-            } catch (OutOfMemoryError oome) {
-                throw new IOException("Certificate too big");
-            }
-            ois.readFully(encoded);
+            byte[] encoded = IOUtils.readNBytes(ois, ois.readInt());
             ByteArrayInputStream bais = new ByteArrayInputStream(encoded);
             try {
                 certList.add(cf.generateCertificate(bais));

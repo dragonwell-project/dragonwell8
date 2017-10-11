@@ -2808,12 +2808,12 @@ SOFTWARE.
 
 -------------------------------------------------------------------------------
 
-%% This notice is provided with respect to zlib v1.2.8, which may be included 
+%% This notice is provided with respect to zlib v1.2.11, which may be included 
 with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
 
-  version 1.2.8, April 28th, 2013
+  version 1.2.11, January 15th, 2017
 
   Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
 

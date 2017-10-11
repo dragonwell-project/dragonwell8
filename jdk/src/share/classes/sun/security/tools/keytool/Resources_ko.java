@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -345,8 +345,6 @@ public class Resources_ko extends java.util.ListResourceBundle {
         {"Enter.alias.name.", "\uBCC4\uCE6D \uC774\uB984 \uC785\uB825:  "},
         {".RETURN.if.same.as.for.otherAlias.",
                 "\t(<{0}>\uACFC(\uC640) \uB3D9\uC77C\uD55C \uACBD\uC6B0 Enter \uD0A4\uB97C \uB204\uB984)"},
-        {".PATTERN.printX509Cert",
-                "\uC18C\uC720\uC790: {0}\n\uBC1C\uD589\uC790: {1}\n\uC77C\uB828 \uBC88\uD638: {2}\n\uC801\uD569\uD55C \uC2DC\uC791 \uB0A0\uC9DC: {3}, \uC885\uB8CC \uB0A0\uC9DC: {4}\n\uC778\uC99D\uC11C \uC9C0\uBB38:\n\t MD5: {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\t \uC11C\uBA85 \uC54C\uACE0\uB9AC\uC998 \uC774\uB984: {8}\n\t \uBC84\uC804: {9}"},
         {"What.is.your.first.and.last.name.",
                 "\uC774\uB984\uACFC \uC131\uC744 \uC785\uB825\uD558\uC2ED\uC2DC\uC624."},
         {"What.is.the.name.of.your.organizational.unit.",
@@ -409,15 +407,12 @@ public class Resources_ko extends java.util.ListResourceBundle {
         {"Please.provide.keysize.for.secret.key.generation",
                 "\uBCF4\uC548 \uD0A4\uB97C \uC0DD\uC131\uD558\uB824\uBA74 -keysize\uB97C \uC81C\uACF5\uD558\uC2ED\uC2DC\uC624."},
 
-        {"verified.by.s.in.s", "%s(%s)\uC5D0 \uC758\uD574 \uD655\uC778\uB428"},
         {"warning.not.verified.make.sure.keystore.is.correct",
             "\uACBD\uACE0: \uD655\uC778\uB418\uC9C0 \uC54A\uC74C. -keystore\uAC00 \uC62C\uBC14\uB978\uC9C0 \uD655\uC778\uD558\uC2ED\uC2DC\uC624."},
 
         {"Extensions.", "\uD655\uC7A5: "},
         {".Empty.value.", "(\uBE44\uC5B4 \uC788\uB294 \uAC12)"},
         {"Extension.Request.", "\uD655\uC7A5 \uC694\uCCAD:"},
-        {"PKCS.10.Certificate.Request.Version.1.0.Subject.s.Public.Key.s.format.s.key.",
-                "PKCS #10 \uC778\uC99D\uC11C \uC694\uCCAD(1.0 \uBC84\uC804)\n\uC81C\uBAA9: %s\n\uACF5\uC6A9 \uD0A4: %s \uD615\uC2DD %s \uD0A4\n"},
         {"Unknown.keyUsage.type.", "\uC54C \uC218 \uC5C6\uB294 keyUsage \uC720\uD615: "},
         {"Unknown.extendedkeyUsage.type.", "\uC54C \uC218 \uC5C6\uB294 extendedkeyUsage \uC720\uD615: "},
         {"Unknown.AccessDescription.type.", "\uC54C \uC218 \uC5C6\uB294 AccessDescription \uC720\uD615: "},
@@ -426,7 +421,37 @@ public class Resources_ko extends java.util.ListResourceBundle {
                  "\uC774 \uD655\uC7A5\uC740 \uC911\uC694\uD55C \uAC83\uC73C\uB85C \uD45C\uC2DC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. "},
         {"Odd.number.of.hex.digits.found.", "\uD640\uC218 \uAC1C\uC758 16\uC9C4\uC218\uAC00 \uBC1C\uACAC\uB428: "},
         {"Unknown.extension.type.", "\uC54C \uC218 \uC5C6\uB294 \uD655\uC7A5 \uC720\uD615: "},
-        {"command.{0}.is.ambiguous.", "{0} \uBA85\uB839\uC774 \uBAA8\uD638\uD568:"}
+        {"command.{0}.is.ambiguous.", "{0} \uBA85\uB839\uC774 \uBAA8\uD638\uD568:"},
+
+        // 8171319: keytool should print out warnings when reading or
+        // generating cert/cert req using weak algorithms
+        {"the.certificate.request", "\uC778\uC99D\uC11C \uC694\uCCAD"},
+        {"the.issuer", "\uBC1C\uD589\uC790"},
+        {"the.generated.certificate", "\uC0DD\uC131\uB41C \uC778\uC99D\uC11C"},
+        {"the.generated.crl", "\uC0DD\uC131\uB41C CRL"},
+        {"the.generated.certificate.request", "\uC0DD\uC131\uB41C \uC778\uC99D\uC11C \uC694\uCCAD"},
+        {"the.certificate", "\uC778\uC99D\uC11C"},
+        {"the.crl", "CRL"},
+        {"the.tsa.certificate", "TSA \uC778\uC99D\uC11C"},
+        {"the.input", "\uC785\uB825"},
+        {"reply", "\uD68C\uC2E0"},
+        {"one.in.many", "%s #%d/%d"},
+        {"alias.in.cacerts", "cacerts\uC758 <%s> \uBC1C\uD589\uC790"},
+        {"alias.in.keystore", "<%s> \uBC1C\uD589\uC790"},
+        {"with.weak", "%s(\uC57D\uD568)"},
+        {"key.bit", "%d\uBE44\uD2B8 %s \uD0A4"},
+        {"key.bit.weak", "%d\uBE44\uD2B8 %s \uD0A4(\uC57D\uD568)"},
+        {".PATTERN.printX509Cert.with.weak",
+                "\uC18C\uC720\uC790: {0}\n\uBC1C\uD589\uC790: {1}\n\uC77C\uB828 \uBC88\uD638: {2}\n\uC801\uD569\uD55C \uC2DC\uC791 \uB0A0\uC9DC: {3} \uC885\uB8CC \uB0A0\uC9DC: {4}\n\uC778\uC99D\uC11C \uC9C0\uBB38:\n\t MD5:  {5}\n\t SHA1: {6}\n\t SHA256: {7}\n\uC11C\uBA85 \uC54C\uACE0\uB9AC\uC998 \uC774\uB984: {8}\n\uC8FC\uCCB4 \uACF5\uC6A9 \uD0A4 \uC54C\uACE0\uB9AC\uC998: {9}\n\uBC84\uC804: {10}"},
+        {"PKCS.10.with.weak",
+                "PKCS #10 \uC778\uC99D\uC11C \uC694\uCCAD(1.0 \uBC84\uC804)\n\uC81C\uBAA9: %s\n\uD615\uC2DD: %s\n\uACF5\uC6A9 \uD0A4: %s\n\uC11C\uBA85 \uC54C\uACE0\uB9AC\uC998: %s\n"},
+        {"verified.by.s.in.s.weak", "%s\uC774(\uAC00) %s\uC5D0\uC11C %s\uC744(\uB97C) \uC0AC\uC6A9\uD558\uC5EC \uD655\uC778"},
+        {"whose.sigalg.risk", "%s\uC774(\uAC00) \uBCF4\uC548 \uC704\uD5D8\uC73C\uB85C \uAC04\uC8FC\uB418\uB294 %s \uC11C\uBA85 \uC54C\uACE0\uB9AC\uC998\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4."},
+        {"whose.key.risk", "%s\uC774(\uAC00) \uBCF4\uC548 \uC704\uD5D8\uC73C\uB85C \uAC04\uC8FC\uB418\uB294 %s\uC744(\uB97C) \uC0AC\uC6A9\uD569\uB2C8\uB2E4."},
+        {"jks.storetype.warning", "%1$s \uD0A4 \uC800\uC7A5\uC18C\uB294 \uACE0\uC720 \uD615\uC2DD\uC744 \uC0AC\uC6A9\uD569\uB2C8\uB2E4. \"keytool -importkeystore -srckeystore %2$s -destkeystore %2$s -deststoretype pkcs12\"\uB97C \uC0AC\uC6A9\uD558\uB294 \uC0B0\uC5C5 \uD45C\uC900 \uD615\uC2DD\uC778 PKCS12\uB85C \uC774\uC804\uD558\uB294 \uAC83\uC774 \uC88B\uC2B5\uB2C8\uB2E4."},
+        {"migrate.keystore.warning", "\"%1$s\"\uC744(\uB97C) %4$s(\uC73C)\uB85C \uC774\uC804\uD588\uC2B5\uB2C8\uB2E4. %2$s \uD0A4 \uC800\uC7A5\uC18C\uAC00 \"%3$s\"(\uC73C)\uB85C \uBC31\uC5C5\uB418\uC5C8\uC2B5\uB2C8\uB2E4."},
+        {"backup.keystore.warning", "\uC6D0\uBCF8 \uD0A4 \uC800\uC7A5\uC18C \"%1$s\"\uC774(\uAC00) \"%3$s\"(\uC73C)\uB85C \uBC31\uC5C5\uB418\uC5C8\uC2B5\uB2C8\uB2E4."},
+        {"importing.keystore.status", "\uD0A4 \uC800\uC7A5\uC18C %1$s\uC744(\uB97C) %2$s(\uC73C)\uB85C \uC784\uD3EC\uD2B8\uD558\uB294 \uC911..."},
     };
 
 
