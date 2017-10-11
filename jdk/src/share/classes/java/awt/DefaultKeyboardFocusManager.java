@@ -181,11 +181,16 @@ public class DefaultKeyboardFocusManager extends KeyboardFocusManager {
     private boolean doRestoreFocus(Component toFocus, Component vetoedComponent,
                                    boolean clearOnFailure)
     {
+        boolean success = true;
         if (toFocus != vetoedComponent && toFocus.isShowing() && toFocus.canBeFocusOwner() &&
-            toFocus.requestFocus(false, CausedFocusEvent.Cause.ROLLBACK))
+            (success = toFocus.requestFocus(false, CausedFocusEvent.Cause.ROLLBACK)))
         {
             return true;
         } else {
+            if (!success && getGlobalFocusedWindow() != SunToolkit.getContainingWindow(toFocus)) {
+                restoreFocusTo = toFocus;
+                return true;
+            }
             Component nextFocus = toFocus.getNextFocusCandidate();
             if (nextFocus != null && nextFocus != vetoedComponent &&
                 nextFocus.requestFocusInWindow(CausedFocusEvent.Cause.ROLLBACK))
