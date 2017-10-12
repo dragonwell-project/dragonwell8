@@ -6068,11 +6068,21 @@ bool LibraryCallKit::inline_montgomeryMultiply() {
     Node* n_start = array_element_address(n, intcon(0), n_elem);
     Node* m_start = array_element_address(m, intcon(0), m_elem);
 
-    Node* call = make_runtime_call(RC_LEAF,
-                                   OptoRuntime::montgomeryMultiply_Type(),
-                                   stubAddr, stubName, TypePtr::BOTTOM,
-                                   a_start, b_start, n_start, len, inv, top(),
-                                   m_start);
+    Node* call = NULL;
+    if (CCallingConventionRequiresIntsAsLongs) {
+      Node* len_I2L = ConvI2L(len);
+      call = make_runtime_call(RC_LEAF,
+                               OptoRuntime::montgomeryMultiply_Type(),
+                               stubAddr, stubName, TypePtr::BOTTOM,
+                               a_start, b_start, n_start, len_I2L XTOP, inv,
+                               top(), m_start);
+    } else {
+      call = make_runtime_call(RC_LEAF,
+                               OptoRuntime::montgomeryMultiply_Type(),
+                               stubAddr, stubName, TypePtr::BOTTOM,
+                               a_start, b_start, n_start, len, inv, top(),
+                               m_start);
+    }
     set_result(m);
   }
 
@@ -6122,11 +6132,22 @@ bool LibraryCallKit::inline_montgomerySquare() {
     Node* n_start = array_element_address(n, intcon(0), n_elem);
     Node* m_start = array_element_address(m, intcon(0), m_elem);
 
-    Node* call = make_runtime_call(RC_LEAF,
-                                   OptoRuntime::montgomerySquare_Type(),
-                                   stubAddr, stubName, TypePtr::BOTTOM,
-                                   a_start, n_start, len, inv, top(),
-                                   m_start);
+    Node* call = NULL;
+    if (CCallingConventionRequiresIntsAsLongs) {
+      Node* len_I2L = ConvI2L(len);
+      call = make_runtime_call(RC_LEAF,
+                               OptoRuntime::montgomerySquare_Type(),
+                               stubAddr, stubName, TypePtr::BOTTOM,
+                               a_start, n_start, len_I2L XTOP, inv, top(),
+                               m_start);
+    } else {
+      call = make_runtime_call(RC_LEAF,
+                               OptoRuntime::montgomerySquare_Type(),
+                               stubAddr, stubName, TypePtr::BOTTOM,
+                               a_start, n_start, len, inv, top(),
+                               m_start);
+    }
+
     set_result(m);
   }
 
