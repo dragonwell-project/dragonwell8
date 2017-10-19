@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,7 +20,6 @@
 // Catalog.java - Represents OASIS Open Catalog files.
 package com.sun.org.apache.xml.internal.resolver;
 
-import com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl;
 import com.sun.org.apache.xerces.internal.utils.SecuritySupport;
 import com.sun.org.apache.xml.internal.resolver.helpers.FileURL;
 import com.sun.org.apache.xml.internal.resolver.helpers.PublicId;
@@ -41,6 +40,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 import javax.xml.parsers.SAXParserFactory;
+import jdk.xml.internal.JdkXmlUtils;
 
 /**
  * Represents OASIS Open Catalog files.
@@ -395,9 +395,7 @@ public class Catalog {
    * Setup readers.
    */
   public void setupReaders() {
-    SAXParserFactory spf = catalogManager.useServicesMechanism() ?
-                    SAXParserFactory.newInstance() : new SAXParserFactoryImpl();
-    spf.setNamespaceAware(true);
+    SAXParserFactory spf = JdkXmlUtils.getSAXFactory(catalogManager.overrideDefaultParser());
     spf.setValidating(false);
 
     SAXCatalogReader saxReader = new SAXCatalogReader(spf);
