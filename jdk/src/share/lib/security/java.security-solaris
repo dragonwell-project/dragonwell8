@@ -224,6 +224,7 @@ package.access=sun.,\
                jdk.internal.,\
                jdk.nashorn.internal.,\
                jdk.nashorn.tools.,\
+               jdk.xml.internal.,\
                com.sun.activation.registries.
 
 #
@@ -273,6 +274,7 @@ package.definition=sun.,\
                    jdk.internal.,\
                    jdk.nashorn.internal.,\
                    jdk.nashorn.tools.,\
+                   jdk.xml.internal.,\
                    com.sun.activation.registries.
 
 #
