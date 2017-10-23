@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,8 +196,10 @@ private:
   int _count;
 public:
   CountHandleClosure(): _count(0) {}
-  virtual void do_oop(oop* unused) {
-    _count++;
+  virtual void do_oop(oop* ooph) {
+    if (*ooph != JNIHandles::deleted_handle()) {
+      _count++;
+    }
   }
   virtual void do_oop(narrowOop* unused) { ShouldNotReachHere(); }
   int count() { return _count; }
