@@ -141,6 +141,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
     }
 
     // see JCA spec
+    @Override
     public void initialize(int keySize, SecureRandom random) {
         token.ensureValid();
         try {
@@ -162,6 +163,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
     }
 
     // see JCA spec
+    @Override
     public void initialize(AlgorithmParameterSpec params, SecureRandom random)
             throws InvalidAlgorithmParameterException {
         token.ensureValid();
@@ -173,7 +175,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
             }
             DHParameterSpec dhParams = (DHParameterSpec) params;
             tmpKeySize = dhParams.getP().bitLength();
-            checkKeySize(tmpKeySize, null);
+            checkKeySize(tmpKeySize, dhParams);
             // XXX sanity check params
         } else if (algorithm.equals("RSA")) {
             if (params instanceof RSAKeyGenParameterSpec == false) {
@@ -195,7 +197,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
             }
             DSAParameterSpec dsaParams = (DSAParameterSpec) params;
             tmpKeySize = dsaParams.getP().bitLength();
-            checkKeySize(tmpKeySize, null);
+            checkKeySize(tmpKeySize, dsaParams);
             // XXX sanity check params
         } else if (algorithm.equals("EC")) {
             ECParameterSpec ecParams;
@@ -220,7 +222,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
                     ("ECParameterSpec or ECGenParameterSpec required for EC");
             }
             tmpKeySize = ecParams.getCurve().getField().getFieldSize();
-            checkKeySize(tmpKeySize, null);
+            checkKeySize(tmpKeySize, ecParams);
         } else {
             throw new ProviderException("Unknown algorithm: " + algorithm);
         }
@@ -229,8 +231,7 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
         this.random = random;
     }
 
-    // NOTE: 'params' is only used for checking RSA keys currently.
-    private void checkKeySize(int keySize, RSAKeyGenParameterSpec params)
+    private void checkKeySize(int keySize, AlgorithmParameterSpec params)
         throws InvalidAlgorithmParameterException {
         // check native range first
         if ((minKeySize != -1) && (keySize < minKeySize)) {
@@ -267,7 +268,8 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
             if (algorithm.equals("RSA")) {
                 BigInteger tmpExponent = rsaPublicExponent;
                 if (params != null) {
-                    tmpExponent = params.getPublicExponent();
+                    tmpExponent =
+                        ((RSAKeyGenParameterSpec)params).getPublicExponent();
                 }
                 try {
                     // Reuse the checking in SunRsaSign provider.
@@ -277,10 +279,10 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
                         minKeySize,
                         (maxKeySize==-1? Integer.MAX_VALUE:maxKeySize));
                 } catch (InvalidKeyException e) {
-                    throw new InvalidAlgorithmParameterException(e.getMessage());
+                    throw new InvalidAlgorithmParameterException(e);
                 }
-            } else {
-                if (algorithm.equals("DH") && (params != null)) {
+            } else if (algorithm.equals("DH")) {
+                if (params != null) {   // initialized with specified parameters
                     // sanity check, nobody really wants keys this large
                     if (keySize > 64 * 1024) {
                         throw new InvalidAlgorithmParameterException(
@@ -288,24 +290,44 @@ final class P11KeyPairGenerator extends KeyPairGeneratorSpi {
                             "The specific key size " +
                             keySize + " is not supported");
                     }
-                } else {
-                    // this restriction is in the spec for DSA
-                    // since we currently use DSA parameters for DH as well,
-                    // it also applies to DH if no parameters are specified
-                    if ((keySize != 2048) &&
-                        ((keySize > 1024) || ((keySize & 0x3f) != 0))) {
-                        throw new InvalidAlgorithmParameterException(algorithm +
-                            " key must be multiples of 64 if less than 1024 bits" +
-                            ", or 2048 bits. " +
+                } else {        // default parameters will be used.
+                    // Range is based on the values in
+                    // sun.security.provider.ParameterCache class.
+                    if ((keySize > 8192) || (keySize < 512) ||
+                            ((keySize & 0x3f) != 0)) {
+                        throw new InvalidAlgorithmParameterException(
+                            "DH key size must be multiple of 64, and can " +
+                            "only range from 512 to 8192 (inclusive). " +
                             "The specific key size " +
                             keySize + " is not supported");
                     }
+
+                    DHParameterSpec cache =
+                            ParameterCache.getCachedDHParameterSpec(keySize);
+                    // Except 2048 and 3072, not yet support generation of
+                    // parameters bigger than 1024 bits.
+                    if ((cache == null) && (keySize > 1024)) {
+                        throw new InvalidAlgorithmParameterException(
+                                "Unsupported " + keySize +
+                                "-bit DH parameter generation");
+                    }
+                }
+            } else {
+                // this restriction is in the spec for DSA
+                if ((keySize != 3072) && (keySize != 2048) &&
+                        ((keySize > 1024) || ((keySize & 0x3f) != 0))) {
+                    throw new InvalidAlgorithmParameterException(
+                        "DSA key must be multiples of 64 if less than " +
+                        "1024 bits, or 2048, 3072 bits. " +
+                        "The specific key size " +
+                        keySize + " is not supported");
                 }
             }
         }
     }
 
     // see JCA spec
+    @Override
     public KeyPair generateKeyPair() {
         token.ensureValid();
         CK_ATTRIBUTE[] publicKeyTemplate;
