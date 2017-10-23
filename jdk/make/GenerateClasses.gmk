@@ -78,14 +78,6 @@ $(eval $(call SetupRMICompilation,RMI_12, \
     RUN_V12 := true))
 GENCLASSES += $(RMI_12)
 
-$(eval $(call SetupRMICompilation,RMI_11, \
-    CLASSES := sun.rmi.registry.RegistryImpl \
-        sun.rmi.transport.DGCImpl, \
-    CLASSES_DIR := $(CLASSES_DIR), \
-    STUB_CLASSES_DIR := $(STUB_CLASSES_DIR), \
-    RUN_V11 := true))
-GENCLASSES += $(RMI_11)
-
 # For RMI/IIOP call rmic a second time with -standardPackage option
 # so that *_tie classes are generated in package without the prefix
 # org.omg.stub (6375696)
@@ -112,7 +104,7 @@ GENCLASSES += $(filter %.java, $(RMI_SRC))
 
 ##########################################################################################
 
-$(RMI_12) $(RMI_11) $(RMI_IIOP) $(RMI_SRC): $(BUILD_BOOTSTRAP_RMIC)
+$(RMI_12) $(RMI_IIOP) $(RMI_SRC): $(BUILD_BOOTSTRAP_RMIC)
 
 $(RMIC_GENSRC_DIR)/_the.classes.removed: $(GENCLASSES)
 	$(FIND) $(RMIC_GENSRC_DIR) -name "*.class" $(FIND_DELETE)

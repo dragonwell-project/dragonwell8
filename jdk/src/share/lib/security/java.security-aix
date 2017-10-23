@@ -209,6 +209,8 @@ package.access=sun.,\
                com.sun.org.apache.xalan.internal.xsltc.trax.,\
                com.sun.org.apache.xalan.internal.xsltc.util.,\
                com.sun.org.apache.xml.internal.res.,\
+               com.sun.org.apache.xml.internal.resolver.helpers.,\
+               com.sun.org.apache.xml.internal.resolver.readers.,\
                com.sun.org.apache.xml.internal.security.,\
                com.sun.org.apache.xml.internal.serializer.utils.,\
                com.sun.org.apache.xml.internal.utils.,\
@@ -256,6 +258,8 @@ package.definition=sun.,\
                    com.sun.org.apache.xalan.internal.xsltc.trax.,\
                    com.sun.org.apache.xalan.internal.xsltc.util.,\
                    com.sun.org.apache.xml.internal.res.,\
+                   com.sun.org.apache.xml.internal.resolver.helpers.,\
+                   com.sun.org.apache.xml.internal.resolver.readers.,\
                    com.sun.org.apache.xml.internal.security.,\
                    com.sun.org.apache.xml.internal.serializer.utils.,\
                    com.sun.org.apache.xml.internal.utils.,\
@@ -484,21 +488,21 @@ krb5.kdc.bad.policy = tryLast
 #     jdkCA
 #       This constraint prohibits the specified algorithm only if the
 #       algorithm is used in a certificate chain that terminates at a marked
-#       trust anchor in the??lib/security/cacerts keystore.  If the jdkCA
-#       constraint is not set, then all chains using the??specified algorithm
+#       trust anchor in the lib/security/cacerts keystore.  If the jdkCA
+#       constraint is not set, then all chains using the specified algorithm
 #       are restricted.  jdkCA may only be used once in a DisabledAlgorithm
 #       expression.
-#       Example: ??To apply this constraint to SHA-1 certificates, include
-#       the following: ??"SHA1 jdkCA"
+#       Example:  To apply this constraint to SHA-1 certificates, include
+#       the following:  "SHA1 jdkCA"
 #
 #   DenyAfterConstraint:
 #     denyAfter YYYY-MM-DD
 #       This constraint prohibits a certificate with the specified algorithm
 #       from being used after the date regardless of the certificate's
-#       validity. ??JAR files that are signed and timestamped before the
+#       validity.  JAR files that are signed and timestamped before the
 #       constraint date with certificates containing the disabled algorithm
-#       will not be restricted. ??The date is processed in the UTC timezone.
-#       This??constraint can only be used once in a DisabledAlgorithm
+#       will not be restricted.  The date is processed in the UTC timezone.
+#       This constraint can only be used once in a DisabledAlgorithm
 #       expression.
 #       Example:  To deny usage of RSA 2048 bit certificates after Feb 3 2020,
 #       use the following:  "RSA keySize == 2048 & denyAfter 2020-02-03"
@@ -733,69 +737,71 @@ jdk.tls.legacyAlgorithms= \
 
 # Cryptographic Jurisdiction Policy defaults
 #
-# Due to the import control restrictions of some countries, the default
-# JCE policy files allow for strong but "limited" cryptographic key
-# lengths to be used.  If your country's cryptographic regulations allow,
-# the "unlimited" strength policy files can be used instead, which contain
-# no restrictions on cryptographic strengths.
+# Import and export control rules on cryptographic software vary from
+# country to country.  By default, the JDK provides two different sets of
+# cryptographic policy files:
 #
-# YOU ARE ADVISED TO CONSULT YOUR EXPORT/IMPORT CONTROL COUNSEL OR ATTORNEY
-# TO DETERMINE THE EXACT REQUIREMENTS.
+#     unlimited:  These policy files contain no restrictions on cryptographic
+#                 strengths or algorithms.
 #
-# <java-home> (below) refers to the directory where the JRE was
-# installed. It is determined based on whether you are running JCE
-# on a JRE or a JRE contained within the Java Development Kit, or
-# JDK(TM). The JDK contains the JRE, but at a different level in the
-# file hierarchy. For example, if the JDK is installed in
-# /home/user1/jdk1.8.0 on Unix or in C:\jdk1.8.0 on Windows, then
-# <java-home> is:
+#     limited:    These policy files contain more restricted cryptographic
+#                 strengths, and are still available if your country or
+#                 usage requires the traditional restrictive policy.
 #
-#  /home/user1/jdk1.8.0/jre           [Unix]
-#  C:\jdk1.8.0\jre                    [Windows]
+# The JDK JCE framework uses the unlimited policy files by default.
+# However the user may explicitly choose a set either by defining the
+# "crypto.policy" Security property or by installing valid JCE policy
+# jar files into the traditional JDK installation location.  To better
+# support older JDK Update releases, the "crypto.policy" property is not
+# defined by default.  See below for more information.
 #
-# If on the other hand the JRE is installed in /home/user1/jre1.8.0
-# on Unix or in C:\jre1.8.0 on Windows, and the JDK is not
-# installed, then <java-home> is:
+# The following logic determines which policy files are used:
 #
-#  /home/user1/jre1.8.0               [Unix]
-#  C:\jre1.8.0                        [Windows]
+#         <java-home> refers to the directory where the JRE was
+#         installed and may be determined using the "java.home"
+#         System property.
 #
-# On Windows, for each JDK installation, there may be additional
-# JREs installed under the "Program Files" directory. Please make
-# sure that you install the unlimited strength policy JAR files
-# for all JREs that you plan to use.
+# 1.  If the Security property "crypto.policy" has been defined,
+#     then the following mechanism is used:
 #
-# The policy files are jar files organized into subdirectories of
+#     The policy files are stored as jar files in subdirectories of
 # <java-home>/lib/security/policy.  Each directory contains a complete
 # set of policy files.
 #
-# The "crypto.policy" Security property controls the directory selection,
-# and thus the effective cryptographic policy.
+#     The "crypto.policy" Security property controls the directory
+#     selection, and thus the effective cryptographic policy.
 #
 # The default set of directories is:
 #
 #     limited | unlimited
 #
-# however other directories can be created and configured.
-#
-# To support older JDK Update releases, the crypto.policy property
-# is not defined by default. When the property is not defined, an
-# update release binary aware of the new property will use the following
-# logic to decide what crypto policy files get used :
-#
-# * If the US_export_policy.jar and local_policy.jar files are located
-# in the (legacy) <java-home>/lib/security directory, then the rules
-# embedded in those jar files will be used. This helps preserve compatibility
+# 2.  If the "crypto.policy" property is not set and the traditional
+#     US_export_policy.jar and local_policy.jar files
+#     (e.g. limited/unlimited) are found in the legacy
+#     <java-home>/lib/security directory, then the rules embedded within
+#     those jar files will be used. This helps preserve compatibility
 # for users upgrading from an older installation.
 #
-# * If crypto.policy is not defined and no such jar files are present in
-# the legacy locations, then the JDK will use the limited settings
-# (equivalent to crypto.policy=limited)
+# 3.  If the jar files are not present in the legacy location
+#     and the "crypto.policy" Security property is not defined,
+#     then the JDK will use the unlimited settings (equivalent to
+#     crypto.policy=unlimited)
 #
 # Please see the JCA documentation for additional information on these
 # files and formats.
-#crypto.policy=unlimited
 #
+# YOU ARE ADVISED TO CONSULT YOUR EXPORT/IMPORT CONTROL COUNSEL OR ATTORNEY
+# TO DETERMINE THE EXACT REQUIREMENTS.
+#
+# Please note that the JCE for Java SE, including the JCE framework,
+# cryptographic policy files, and standard JCE providers provided with
+# the Java SE, have been reviewed and approved for export as mass market
+# encryption item by the US Bureau of Industry and Security.
+#
+# Note: This property is currently used by the JDK Reference implementation.
+# It is not guaranteed to be examined and used by other implementations.
+#
+#crypto.policy=unlimited
 
 # The policy for the XML Signature secure validation mode. The mode is
 # enabled by setting the property "org.jcp.xml.dsig.secureValidation" to
@@ -885,10 +891,33 @@ jdk.xml.dsig.secureValidationPolicy=\
 #
 # The filter pattern uses the same format as jdk.serialFilter.
 # This filter can override the builtin filter if additional types need to be
-# allowed or rejected from the RMI Registry.
+# allowed or rejected from the RMI Registry or to decrease limits but not
+# to increase limits.
+# If the limits (maxdepth, maxrefs, or maxbytes) are exceeded, the object is rejected.
 #
-#sun.rmi.registry.registryFilter=pattern;pattern
-
+# Each non-array type is allowed or rejected if it matches one of the patterns,
+# evaluated from left to right, and is otherwise allowed. Arrays of any
+# component type, including subarrays and arrays of primitives, are allowed.
+#
+# Array construction of any component type, including subarrays and arrays of
+# primitives, are allowed unless the length is greater than the maxarray limit.
+# The filter is applied to each array element.
+#
+# The built-in filter allows subclasses of allowed classes and
+# can approximately be represented as the pattern:
+#
+#sun.rmi.registry.registryFilter=\
+#    maxarray=1000000;\
+#    maxdepth=20;\
+#    java.lang.String;\
+#    java.lang.Number;\
+#    java.lang.reflect.Proxy;\
+#    java.rmi.Remote;\
+#    sun.rmi.server.UnicastRef;\
+#    sun.rmi.server.RMIClientSocketFactory;\
+#    sun.rmi.server.RMIServerSocketFactory;\
+#    java.rmi.activation.ActivationID;\
+#    java.rmi.server.UID
 #
 # RMI Distributed Garbage Collector (DGC) Serial Filter
 #
