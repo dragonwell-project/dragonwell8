@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3135,6 +3135,24 @@ void Metaspace::ergo_initialize() {
 
   CompressedClassSpaceSize = align_size_down_bounded(CompressedClassSpaceSize, _reserve_alignment);
   set_compressed_class_space_size(CompressedClassSpaceSize);
+
+  // Initial virtual space size will be calculated at global_initialize()
+  uintx min_metaspace_sz =
+      VIRTUALSPACEMULTIPLIER * InitialBootClassLoaderMetaspaceSize;
+  if (UseCompressedClassPointers) {
+    if ((min_metaspace_sz + CompressedClassSpaceSize) >  MaxMetaspaceSize) {
+      if (min_metaspace_sz >= MaxMetaspaceSize) {
+        vm_exit_during_initialization("MaxMetaspaceSize is too small.");
+      } else {
+        FLAG_SET_ERGO(uintx, CompressedClassSpaceSize,
+                      MaxMetaspaceSize - min_metaspace_sz);
+      }
+    }
+  } else if (min_metaspace_sz >= MaxMetaspaceSize) {
+    FLAG_SET_ERGO(uintx, InitialBootClassLoaderMetaspaceSize,
+                  min_metaspace_sz);
+  }
+
 }
 
 void Metaspace::global_initialize() {
