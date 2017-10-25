@@ -528,6 +528,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS),windows macosx),)
 
     LIBAWT_XAWT_CFLAGS := -DXAWT -DXAWT_HACK \
         -DPACKAGE_PATH=\"$(PACKAGE_PATH)\" \
+        $(FONTCONFIG_CFLAGS) \
         $(CUPS_CFLAGS) \
         $(foreach dir, $(LIBAWT_XAWT_DIRS), -I$(dir)) \
         -I$(JDK_TOPDIR)/src/share/native/sun/java2d \
@@ -772,6 +773,7 @@ ifeq ($(BUILD_HEADLESS), true)
     LIBAWT_HEADLESS_CFLAGS := -DHEADLESS=true \
         -DPACKAGE_PATH=\"$(PACKAGE_PATH)\" \
         $(CUPS_CFLAGS) \
+        $(FONTCONFIG_CFLAGS) \
         $(X_CFLAGS) \
         -I$(JDK_TOPDIR)/src/share/native/sun/java2d \
         -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/java2d \
