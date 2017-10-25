@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,10 +228,13 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
 #ifdef ASSERT
     int index = call_info->resolved_method()->itable_index();
     assert(index == itable_index, "CallInfo pre-computes this");
-#endif //ASSERT
     InstanceKlass* k = call_info->resolved_method()->method_holder();
     assert(k->verify_itable_index(itable_index), "sanity check");
-    InlineCacheBuffer::create_transition_stub(this, k, entry);
+#endif //ASSERT
+    CompiledICHolder* holder = new CompiledICHolder(call_info->resolved_method()->method_holder(),
+                                                    call_info->resolved_klass()());
+    holder->claim();
+    InlineCacheBuffer::create_transition_stub(this, holder, entry);
   } else {
     assert(call_info->call_kind() == CallInfo::vtable_call, "either itable or vtable");
     // Can be different than selected_method->vtable_index(), due to package-private etc.
@@ -527,7 +530,14 @@ void CompiledIC::compute_monomorphic_entry(methodHandle method,
 
 bool CompiledIC::is_icholder_entry(address entry) {
   CodeBlob* cb = CodeCache::find_blob_unsafe(entry);
-  return (cb != NULL && cb->is_adapter_blob());
+  if (cb != NULL && cb->is_adapter_blob()) {
+    return true;
+  }
+  // itable stubs also use CompiledICHolder
+  if (VtableStubs::is_entry_point(entry) && VtableStubs::stub_containing(entry)->is_itable_stub()) {
+    return true;
+  }
+  return false;
 }
 
 // ----------------------------------------------------------------------------
