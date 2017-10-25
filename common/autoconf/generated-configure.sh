@@ -657,6 +657,7 @@ LIBZIP_CAN_USE_MMAP
 USE_EXTERNAL_LIBZ
 USE_EXTERNAL_LIBGIF
 USE_EXTERNAL_LIBJPEG
+FONTCONFIG_CFLAGS
 ALSA_LIBS
 ALSA_CFLAGS
 FREETYPE_BUNDLE_LIB_PATH
@@ -1091,6 +1092,8 @@ enable_freetype_bundling
 with_alsa
 with_alsa_include
 with_alsa_lib
+with_fontconfig
+with_fontconfig_include
 with_giflib
 with_zlib
 with_stdc__lib
@@ -1946,6 +1949,10 @@ Optional Packages:
                           headers under PATH/include)
   --with-alsa-include     specify directory for the alsa include files
   --with-alsa-lib         specify directory for the alsa library
+  --with-fontconfig       specify prefix directory for the fontconfig package
+                          (expecting the headers under PATH/include)
+  --with-fontconfig-include
+                          specify directory for the fontconfig include files
   --with-giflib           use giflib from build system or OpenJDK source
                           (system, bundled) [bundled]
   --with-zlib             use zlib from build system or OpenJDK source
@@ -3827,6 +3834,8 @@ apt_help() {
       PKGHANDLER_COMMAND="sudo apt-get install libasound2-dev" ;;
     cups)
       PKGHANDLER_COMMAND="sudo apt-get install libcups2-dev" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo apt-get install libfontconfig1-dev" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo apt-get install libfreetype6-dev" ;;
     pulse)
@@ -3848,6 +3857,8 @@ yum_help() {
       PKGHANDLER_COMMAND="sudo yum install alsa-lib-devel" ;;
     cups)
       PKGHANDLER_COMMAND="sudo yum install cups-devel" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo yum install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo yum install freetype-devel" ;;
     pulse)
@@ -3980,6 +3991,11 @@ fi
 
 
 
+
+
+################################################################################
+# Setup fontconfig
+################################################################################
 
 
 
@@ -4342,7 +4358,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1544009140
+DATE_WHEN_GENERATED=1551441508
 
 ###############################################################################
 #
@@ -42396,6 +42412,7 @@ $as_echo_n "checking what is not needed on Windows?... " >&6; }
     ALSA_NOT_NEEDED=yes
     PULSE_NOT_NEEDED=yes
     X11_NOT_NEEDED=yes
+    FONTCONFIG_NOT_NEEDED=yes
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: alsa cups pulse x11" >&5
 $as_echo "alsa cups pulse x11" >&6; }
   fi
@@ -42406,6 +42423,7 @@ $as_echo_n "checking what is not needed on MacOSX?... " >&6; }
     ALSA_NOT_NEEDED=yes
     PULSE_NOT_NEEDED=yes
     X11_NOT_NEEDED=yes
+    FONTCONFIG_NOT_NEEDED=yes
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: alsa pulse x11" >&5
 $as_echo "alsa pulse x11" >&6; }
   fi
@@ -47719,6 +47737,114 @@ done
     fi
   fi
 
+
+
+
+
+
+# Check whether --with-fontconfig was given.
+if test "${with_fontconfig+set}" = set; then :
+  withval=$with_fontconfig;
+fi
+
+
+# Check whether --with-fontconfig-include was given.
+if test "${with_fontconfig_include+set}" = set; then :
+  withval=$with_fontconfig_include;
+fi
+
+
+  if test "x$FONTCONFIG_NOT_NEEDED" = xyes; then
+    if (test "x${with_fontconfig}" != x && test "x${with_fontconfig}" != xno) || \
+        (test "x${with_fontconfig_include}" != x && test "x${with_fontconfig_include}" != xno); then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: fontconfig not used, so --with-fontconfig[-*] is ignored" >&5
+$as_echo "$as_me: WARNING: fontconfig not used, so --with-fontconfig[-*] is ignored" >&2;}
+    fi
+    FONTCONFIG_CFLAGS=
+  else
+    FONTCONFIG_FOUND=no
+
+    if test "x${with_fontconfig}" = xno || test "x${with_fontconfig_include}" = xno; then
+      as_fn_error $? "It is not possible to disable the use of fontconfig. Remove the --without-fontconfig option." "$LINENO" 5
+    fi
+
+    if test "x${with_fontconfig}" != x; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fontconfig headers" >&5
+$as_echo_n "checking for fontconfig headers... " >&6; }
+      if test -s "${with_fontconfig}/include/fontconfig/fontconfig.h"; then
+        FONTCONFIG_CFLAGS="-I${with_fontconfig}/include"
+        FONTCONFIG_FOUND=yes
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FONTCONFIG_FOUND" >&5
+$as_echo "$FONTCONFIG_FOUND" >&6; }
+      else
+        as_fn_error $? "Can't find 'include/fontconfig/fontconfig.h' under ${with_fontconfig} given with the --with-fontconfig option." "$LINENO" 5
+      fi
+    fi
+    if test "x${with_fontconfig_include}" != x; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fontconfig headers" >&5
+$as_echo_n "checking for fontconfig headers... " >&6; }
+      if test -s "${with_fontconfig_include}/fontconfig/fontconfig.h"; then
+        FONTCONFIG_CFLAGS="-I${with_fontconfig_include}"
+        FONTCONFIG_FOUND=yes
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FONTCONFIG_FOUND" >&5
+$as_echo "$FONTCONFIG_FOUND" >&6; }
+      else
+        as_fn_error $? "Can't find 'fontconfig/fontconfig.h' under ${with_fontconfig_include} given with the --with-fontconfig-include option." "$LINENO" 5
+      fi
+    fi
+    if test "x$FONTCONFIG_FOUND" = xno; then
+      # Are the fontconfig headers installed in the default /usr/include location?
+      for ac_header in fontconfig/fontconfig.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "fontconfig/fontconfig.h" "ac_cv_header_fontconfig_fontconfig_h" "$ac_includes_default"
+if test "x$ac_cv_header_fontconfig_fontconfig_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FONTCONFIG_FONTCONFIG_H 1
+_ACEOF
+
+          FONTCONFIG_FOUND=yes
+          FONTCONFIG_CFLAGS=
+          DEFAULT_FONTCONFIG=yes
+
+fi
+
+done
+
+    fi
+    if test "x$FONTCONFIG_FOUND" = xno; then
+
+  # Print a helpful message on how to acquire the necessary build dependency.
+  # fontconfig is the help tag: freetype, cups, pulse, alsa etc
+  MISSING_DEPENDENCY=fontconfig
+
+  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
+    cygwin_help $MISSING_DEPENDENCY
+  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
+    msys_help $MISSING_DEPENDENCY
+  else
+    PKGHANDLER_COMMAND=
+
+    case $PKGHANDLER in
+      apt-get)
+        apt_help     $MISSING_DEPENDENCY ;;
+      yum)
+        yum_help     $MISSING_DEPENDENCY ;;
+      port)
+        port_help    $MISSING_DEPENDENCY ;;
+      pkgutil)
+        pkgutil_help $MISSING_DEPENDENCY ;;
+      pkgadd)
+        pkgadd_help  $MISSING_DEPENDENCY ;;
+    esac
+
+    if test "x$PKGHANDLER_COMMAND" != x; then
+      HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
+    fi
+  fi
+
+      as_fn_error $? "Could not find fontconfig! $HELP_MSG " "$LINENO" 5
+    fi
+  fi
 
 
 
