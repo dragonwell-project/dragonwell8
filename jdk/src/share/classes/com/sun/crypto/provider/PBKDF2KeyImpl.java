@@ -190,7 +190,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         return key;
     }
 
-    public byte[] getEncoded() {
+    public synchronized byte[] getEncoded() {
         return key.clone();
     }
 
@@ -202,7 +202,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         return iterCount;
     }
 
-    public char[] getPassword() {
+    public synchronized char[] getPassword() {
         return passwd.clone();
     }
 
@@ -264,13 +264,15 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
      */
     protected void finalize() throws Throwable {
         try {
-            if (this.passwd != null) {
-                java.util.Arrays.fill(this.passwd, '0');
-                this.passwd = null;
-            }
-            if (this.key != null) {
-                java.util.Arrays.fill(this.key, (byte)0x00);
-                this.key = null;
+            synchronized (this) {
+                if (this.passwd != null) {
+                    java.util.Arrays.fill(this.passwd, '0');
+                    this.passwd = null;
+                }
+                if (this.key != null) {
+                    java.util.Arrays.fill(this.key, (byte)0x00);
+                    this.key = null;
+                }
             }
         } finally {
             super.finalize();
