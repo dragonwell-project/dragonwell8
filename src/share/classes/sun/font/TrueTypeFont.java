@@ -887,8 +887,8 @@ public class TrueTypeFont extends FileFont {
         }
     }
 
-    /* NB: is it better to move declaration to Font2D? */
-    long getLayoutTableCache() {
+    @Override
+    protected long getLayoutTableCache() {
         try {
           return getScaler().getLayoutTableCache();
         } catch(FontScalerException fe) {
@@ -897,7 +897,7 @@ public class TrueTypeFont extends FileFont {
     }
 
     @Override
-    byte[] getTableBytes(int tag) {
+    protected byte[] getTableBytes(int tag) {
         ByteBuffer buffer = getTableBuffer(tag);
         if (buffer == null) {
             return null;

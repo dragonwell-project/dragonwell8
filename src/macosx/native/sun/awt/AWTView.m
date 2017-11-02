@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -284,7 +284,7 @@ AWT_ASSERT_APPKIT_THREAD;
     // Allow TSM to look at the event and potentially send back NSTextInputClient messages.
     [self interpretKeyEvents:[NSArray arrayWithObject:event]];
 
-    if (fEnablePressAndHold && [event willBeHandledByComplexInputMethod]) {
+    if (fEnablePressAndHold && [event willBeHandledByComplexInputMethod] && fInputMethodLOCKABLE) {
         fProcessingKeystroke = NO;
         if (!fInPressAndHold) {
             fInPressAndHold = YES;
@@ -979,6 +979,13 @@ JNF_CLASS_CACHE(jc_CInputMethod, "sun/lwawt/macosx/CInputMethod");
         // The input method event will create psuedo-key events for each character in the committed string.
         // We also don't want to send the character that triggered the insertText, usually a return. [3337563]
         fKeyEventsNeeded = NO;
+    }
+    else {
+        // Need to set back the fKeyEventsNeeded flag so that the string following the
+        // marked text is not ignored by keyDown
+        if (utf16Length > 0 || utf8Length > 0) {
+            fKeyEventsNeeded = YES;
+        }
     }
 
     fPAHNeedsToSelect = NO;

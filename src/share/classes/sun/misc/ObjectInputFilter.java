@@ -379,7 +379,20 @@ public interface ObjectInputFilter {
          */
         public static ObjectInputFilter createFilter(String pattern) {
             Objects.requireNonNull(pattern, "pattern");
-            return Global.createFilter(pattern);
+            return Global.createFilter(pattern, true);
+        }
+
+        /**
+         * Returns an ObjectInputFilter from a string of patterns that
+         * checks only the length for arrays, not the component type.
+         *
+         * @param pattern the pattern string to parse; not null
+         * @return a filter to check a class being deserialized;
+         *          {@code null} if no patterns
+         */
+        public static ObjectInputFilter createFilter2(String pattern) {
+            Objects.requireNonNull(pattern, "pattern");
+            return Global.createFilter(pattern, false);
         }
 
         /**
@@ -413,18 +426,24 @@ public interface ObjectInputFilter {
              * Maximum length of any array.
              */
             private long maxArrayLength;
+            /**
+             * True to check the component type for arrays.
+             */
+            private final boolean checkComponentType;
 
             /**
              * Returns an ObjectInputFilter from a string of patterns.
              *
              * @param pattern the pattern string to parse
+             * @param checkComponentType true if the filter should check
+             *                           the component type of arrays
              * @return a filter to check a class being deserialized; not null
              * @throws IllegalArgumentException if the parameter is malformed
              *                if the pattern is missing the name, the long value
              *                is not a number or is negative.
              */
-            static ObjectInputFilter createFilter(String pattern) {
-                Global filter = new Global(pattern);
+            static ObjectInputFilter createFilter(String pattern, boolean checkComponentType) {
+                Global filter = new Global(pattern, checkComponentType);
                 return filter.isEmpty() ? null : filter;
             }
 
@@ -432,10 +451,13 @@ public interface ObjectInputFilter {
              * Construct a new filter from the pattern String.
              *
              * @param pattern a pattern string of filters
+             * @param checkComponentType true if the filter should check
+             *                           the component type of arrays
              * @throws IllegalArgumentException if the pattern is malformed
              */
-            private Global(String pattern) {
+            private Global(String pattern, boolean checkComponentType) {
                 this.pattern = pattern;
+                this.checkComponentType = checkComponentType;
 
                 maxArrayLength = Long.MAX_VALUE; // Default values are unlimited
                 maxDepth = Long.MAX_VALUE;
@@ -593,6 +615,10 @@ public interface ObjectInputFilter {
                         if (filterInfo.arrayLength() >= 0 && filterInfo.arrayLength() > maxArrayLength) {
                             // array length is too big
                             return Status.REJECTED;
+                        }
+                        if (!checkComponentType) {
+                            // As revised; do not check the component type for arrays
+                            return Status.UNDECIDED;
                         }
                         do {
                             // Arrays are decided based on the component type
