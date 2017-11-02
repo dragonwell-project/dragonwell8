@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -768,7 +768,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes
   // it is not an interface.  The receiver for invokespecial calls within interface
   // methods must be checked for every call.
   InstanceKlass* sender = pool->pool_holder();
-  sender = sender->is_anonymous() ? InstanceKlass::cast(sender->host_klass()) : sender;
+  sender = sender->has_host_klass() ? InstanceKlass::cast(sender->host_klass()) : sender;
 
   switch (info.call_kind()) {
   case CallInfo::direct_call:
@@ -786,6 +786,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes
   case CallInfo::itable_call:
     cache_entry(thread)->set_itable_call(
       bytecode,
+      info.resolved_klass(),
       info.resolved_method(),
       info.itable_index());
     break;
@@ -979,6 +980,7 @@ IRT_ENTRY(void, InterpreterRuntime::update_mdp_for_ret(JavaThread* thread, int r
   // ProfileData is essentially a wrapper around a derived oop, so we
   // need to take the lock before making any ProfileData structures.
   ProfileData* data = h_mdo->data_at(h_mdo->dp_to_di(fr.interpreter_frame_mdp()));
+  guarantee(data != NULL, "profile data must be valid");
   RetData* rdata = data->as_RetData();
   address new_mdp = rdata->fixup_ret(return_bci, h_mdo);
   fr.interpreter_frame_set_mdp(new_mdp);
