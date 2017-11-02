@@ -806,11 +806,12 @@ public class MetalTabbedPaneUI extends BasicTabbedPaneUI {
 
         // Paint the background for the tab area
         if ( tabPane.isOpaque() ) {
-            if (!c.isBackgroundSet() && (tabAreaBackground != null)) {
+            Color background = c.getBackground();
+            if (background instanceof UIResource && tabAreaBackground != null) {
                 g.setColor(tabAreaBackground);
             }
             else {
-                g.setColor( c.getBackground() );
+                g.setColor(background);
             }
             switch ( tabPlacement ) {
             case LEFT:

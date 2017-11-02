@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+    <!-- Test spaces in elementDeclBody 'type' attribute -->
+    <xs:element name="intvalues" type="valuelist  "/>
+
+    <!-- Test spaces in simpleType 'name' attribute
+         and in inner <xs:list> 'itemType' attribute -->
+    <xs:simpleType name="   valuelist    ">
+        <xs:list itemType="  xs:integer "/>
+    </xs:simpleType>
+
+    <!-- Test spaces in <xs:simpleType> -> <xs:restriction> 'base'
+         attribute -->
+    <xs:element name="stringWithRestriction" type="  tenSizedString"/>
+    <xs:simpleType name="  tenSizedString  ">
+        <xs:restriction base="   xs:string   ">
+            <xs:minLength value="10"/>
+            <xs:maxLength value="10"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- Test spaces in <xs:simpleType> -> <xs:union> 'memberTypes'
+         attribute -->
+    <xs:element name="stringAndIntsUnion" type="  stringsAndInts  "/>
+    <xs:simpleType name="stringsAndInts">
+        <xs:union memberTypes="    xs:integer    xs:string
+                                   tenSizedString   " />
+    </xs:simpleType>
+
+</xs:schema>
