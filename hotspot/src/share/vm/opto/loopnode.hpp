@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -257,19 +257,29 @@ public:
   Node *incr() const                { Node *tmp = cmp_node(); return (tmp && tmp->req()==3) ? tmp->in(1) : NULL; }
   Node *limit() const               { Node *tmp = cmp_node(); return (tmp && tmp->req()==3) ? tmp->in(2) : NULL; }
   Node *stride() const              { Node *tmp = incr    (); return (tmp && tmp->req()==3) ? tmp->in(2) : NULL; }
-  Node *phi() const                 { Node *tmp = incr    (); return (tmp && tmp->req()==3) ? tmp->in(1) : NULL; }
   Node *init_trip() const           { Node *tmp = phi     (); return (tmp && tmp->req()==3) ? tmp->in(1) : NULL; }
   int stride_con() const;
   bool stride_is_con() const        { Node *tmp = stride  (); return (tmp != NULL && tmp->is_Con()); }
   BoolTest::mask test_trip() const  { return in(TestValue)->as_Bool()->_test._test; }
+  PhiNode *phi() const {
+    Node *tmp = incr();
+    if (tmp && tmp->req() == 3) {
+      Node* phi = tmp->in(1);
+      if (phi->is_Phi()) {
+        return phi->as_Phi();
+      }
+    }
+    return NULL;
+  }
   CountedLoopNode *loopnode() const {
     // The CountedLoopNode that goes with this CountedLoopEndNode may
     // have been optimized out by the IGVN so be cautious with the
     // pattern matching on the graph
-    if (phi() == NULL) {
+    PhiNode* iv_phi = phi();
+    if (iv_phi == NULL) {
       return NULL;
     }
-    Node *ln = phi()->in(0);
+    Node *ln = iv_phi->in(0);
     if (ln->is_CountedLoop() && ln->as_CountedLoop()->loopexit() == this) {
       return (CountedLoopNode*)ln;
     }
