@@ -4965,6 +4965,12 @@ public abstract class Component implements ImageObserver, MenuContainer,
                 tpeer.handleEvent(e);
             }
         }
+
+        if (SunToolkit.isTouchKeyboardAutoShowEnabled() &&
+            (toolkit instanceof SunToolkit) &&
+            ((e instanceof MouseEvent) || (e instanceof FocusEvent))) {
+            ((SunToolkit)toolkit).showOrHideTouchKeyboard(this, e);
+        }
     } // dispatchEventImpl()
 
     /*
