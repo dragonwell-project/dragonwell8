@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,17 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package sun.font;
 
-package sun.misc;
 
-import java.io.ObjectStreamClass;
 
 /**
- * A callback used by {@code ObjectInputStream} to do descriptor validation.
- *
- * @author sjiang
+ * Interface that indicates a Font2D that is not a Composite but has the
+ * property that it internally behaves like one, substituting glyphs
+ * from another font at render time.
+ * In this case the Font must provide a way to behave like a regular
+ * composite when that behaviour is not wanted.
  */
-public interface ObjectStreamClassValidator {
-    /**
-     * This method will be called by ObjectInputStream to
-     * check a descriptor just before creating an object described by this descriptor.
-     * The object will not be created if this method throws a {@code RuntimeException}.
-     * @param descriptor descriptor to be checked.
-     */
-    public void validateDescriptor(ObjectStreamClass descriptor);
+public interface FontSubstitution {
+    public CompositeFont getCompositeFont2D();
 }
