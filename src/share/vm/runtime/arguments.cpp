@@ -4156,6 +4156,11 @@ jint Arguments::apply_ergo() {
     warning("Setting CompressedClassSpaceSize has no effect when compressed class pointers are not used");
   }
 
+  if (UseOnStackReplacement && !UseLoopCounter) {
+    warning("On-stack-replacement requires loop counters; enabling loop counters");
+    FLAG_SET_DEFAULT(UseLoopCounter, true);
+  }
+
 #ifndef PRODUCT
   if (CompileTheWorld) {
     // Force NmethodSweeper to sweep whole CodeCache each time.

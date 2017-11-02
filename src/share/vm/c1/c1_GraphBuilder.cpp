@@ -1530,7 +1530,7 @@ void GraphBuilder::method_return(Value x) {
         ciMethod* caller = state()->scope()->method();
         ciMethodData* md = caller->method_data_or_null();
         ciProfileData* data = md->bci_to_data(invoke_bci);
-        if (data->is_CallTypeData() || data->is_VirtualCallTypeData()) {
+        if (data != NULL && (data->is_CallTypeData() || data->is_VirtualCallTypeData())) {
           bool has_return = data->is_CallTypeData() ? ((ciCallTypeData*)data)->has_return() : ((ciVirtualCallTypeData*)data)->has_return();
           // May not be true in case of an inlined call through a method handle intrinsic.
           if (has_return) {
@@ -1747,7 +1747,7 @@ Values* GraphBuilder::args_list_for_profiling(ciMethod* target, int& start, bool
   start = has_receiver ? 1 : 0;
   if (profile_arguments()) {
     ciProfileData* data = method()->method_data()->bci_to_data(bci());
-    if (data->is_CallTypeData() || data->is_VirtualCallTypeData()) {
+    if (data != NULL && (data->is_CallTypeData() || data->is_VirtualCallTypeData())) {
       n = data->is_CallTypeData() ? data->as_CallTypeData()->number_of_arguments() : data->as_VirtualCallTypeData()->number_of_arguments();
     }
   }
@@ -3313,7 +3313,9 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   // for osr compile, bailout if some requirements are not fulfilled
   if (osr_bci != -1) {
     BlockBegin* osr_block = blm.bci2block()->at(osr_bci);
-    assert(osr_block->is_set(BlockBegin::was_visited_flag),"osr entry must have been visited for osr compile");
+    if (!osr_block->is_set(BlockBegin::was_visited_flag)) {
+      BAILOUT("osr entry must have been visited for osr compile");
+    }
 
     // check if osr entry point has empty stack - we cannot handle non-empty stacks at osr entry points
     if (!osr_block->state()->stack_is_empty()) {
@@ -4465,7 +4467,7 @@ void GraphBuilder::profile_return_type(Value ret, ciMethod* callee, ciMethod* m,
   }
   ciMethodData* md = m->method_data_or_null();
   ciProfileData* data = md->bci_to_data(invoke_bci);
-  if (data->is_CallTypeData() || data->is_VirtualCallTypeData()) {
+  if (data != NULL && (data->is_CallTypeData() || data->is_VirtualCallTypeData())) {
     append(new ProfileReturnType(m , invoke_bci, callee, ret));
   }
 }

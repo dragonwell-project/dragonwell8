@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright 2016 Google, Inc.  All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,35 +19,33 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "precompiled.hpp"
-#include "opto/compile.hpp"
-#include "opto/node.hpp"
-#include "runtime/globals.hpp"
-#include "utilities/debug.hpp"
+/*
+ * @test
+ * @bug 8166742
+ * @summary C2 IV elimination throws FPE
+ * @run main/othervm -XX:-TieredCompilation -XX:-BackgroundCompilation TestImpossibleIV
+ * @author Chuck Rasbold rasbold@google.com
+ */
 
-// processor dependent initialization for ppc
+/*
+ * Use -XX:-TieredCompilation to get C2 only.
+ * Use -XX:-BackgroundCompilation to wait for compilation before test exit.
+ */
 
-void Compile::pd_compiler2_init() {
+public class TestImpossibleIV {
 
-  // Power7 and later
-  if (PowerArchitecturePPC64 > 6) {
-    if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
-      FLAG_SET_ERGO(bool, UsePopCountInstruction, true);
+  static private void testMethod() {
+    int sum = 0;
+    // A unit count-down loop which has an induction variable with
+    // MIN_VALUE stride.
+    for (int i = 100000; i >= 0; i--) {
+      sum += Integer.MIN_VALUE;
     }
   }
 
-  if (PowerArchitecturePPC64 == 6) {
-    if (FLAG_IS_DEFAULT(InsertEndGroupPPC64)) {
-      FLAG_SET_ERGO(bool, InsertEndGroupPPC64, true);
-    }
+  public static void main(String[] args) {
+    testMethod();
   }
-
-  if (OptimizeFill) {
-    warning("OptimizeFill is not supported on this CPU.");
-    FLAG_SET_DEFAULT(OptimizeFill, false);
-  }
-
 }

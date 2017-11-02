@@ -2524,6 +2524,14 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_aescrypt_decryptBlock = generate_aescrypt_decryptBlock();
     }
 
+    if (UseMontgomeryMultiplyIntrinsic) {
+      StubRoutines::_montgomeryMultiply
+        = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_multiply);
+    }
+    if (UseMontgomerySquareIntrinsic) {
+      StubRoutines::_montgomerySquare
+        = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_square);
+    }
   }
 
  public:
