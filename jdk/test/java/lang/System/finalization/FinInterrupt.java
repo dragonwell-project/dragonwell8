@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,19 +21,21 @@
  * questions.
  */
 
-package sun.misc;
-
-import java.io.ObjectInputStream;
-
-/**
- * The interface to specify methods for accessing {@code ObjectInputStream}
- * @author sjiang
+/*
+ * @test
+ * @bug 4354680
+ * @summary runFinalization() should not clear or ignore interrupt bit
+ * @run main FinInterrupt
  */
-public interface JavaObjectInputStreamAccess {
-    /**
-     * Sets a descriptor validating.
-     * @param ois stream to have the descriptors validated
-     * @param validator validator used to validate a descriptor.
-     */
-    public void setValidator(ObjectInputStream ois, ObjectStreamClassValidator validator);
+
+public class FinInterrupt {
+    public static void main(String[] args) throws Exception {
+        Thread.currentThread().interrupt();
+        System.runFinalization();
+        if (Thread.interrupted()) {
+            System.out.println("Passed: interrupt bit was still set.");
+        } else {
+            throw new AssertionError("interrupt bit was cleared");
+        }
+    }
 }

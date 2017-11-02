@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package com.sun.xml.internal.bind.v2.runtime.output;
 
+import com.sun.xml.internal.bind.marshaller.NoEscapeHandler;
 import com.sun.xml.internal.bind.v2.runtime.JAXBContextImpl;
 import com.sun.xml.internal.bind.v2.runtime.Name;
 import com.sun.xml.internal.bind.v2.runtime.XMLSerializer;
@@ -220,7 +221,7 @@ public final class FastInfosetStreamWriterOutput extends XMLStreamWriterOutput {
 
     public FastInfosetStreamWriterOutput(StAXDocumentSerializer out,
             JAXBContextImpl context) {
-        super(out);
+        super(out, NoEscapeHandler.theInstance);
 
         this.fiout = out;
         this.localNames = context.getUTF8NameTable();
