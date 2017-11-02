@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3836,11 +3836,13 @@ MsgRouting AwtComponent::WmImeNotify(WPARAM subMsg, LPARAM bitsCandType)
 {
     if (!m_useNativeCompWindow) {
         if (subMsg == IMN_OPENCANDIDATE) {
-            m_bitsCandType = subMsg;
+            m_bitsCandType = bitsCandType;
             InquireCandidatePosition();
         } else if (subMsg == IMN_OPENSTATUSWINDOW ||
                    subMsg == WM_IME_STARTCOMPOSITION) {
             m_bitsCandType = 0;
+            InquireCandidatePosition();
+        } else if (subMsg == IMN_SETCANDIDATEPOS) {
             InquireCandidatePosition();
         }
         return mrConsume;
