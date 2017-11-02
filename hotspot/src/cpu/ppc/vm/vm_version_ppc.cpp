@@ -201,6 +201,12 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseSHA512Intrinsics, false);
   }
 
+  if (FLAG_IS_DEFAULT(UseMontgomeryMultiplyIntrinsic)) {
+    UseMontgomeryMultiplyIntrinsic = true;
+  }
+  if (FLAG_IS_DEFAULT(UseMontgomerySquareIntrinsic)) {
+    UseMontgomerySquareIntrinsic = true;
+  }
 }
 
 void VM_Version::print_features() {

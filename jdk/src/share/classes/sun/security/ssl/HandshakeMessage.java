@@ -1010,7 +1010,7 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         ECParameterSpec params = publicKey.getParams();
         ECPoint point = publicKey.getW();
         pointBytes = JsseJce.encodePoint(point, params.getCurve());
-        curveId = SupportedEllipticCurvesExtension.getCurveIndex(params);
+        curveId = EllipticCurvesExtension.getCurveIndex(params);
 
         if (privateKey == null) {
             // ECDH_anon
@@ -1048,13 +1048,11 @@ class ECDH_ServerKeyExchange extends ServerKeyExchange {
         // the supported curves during the exchange of the Hello messages.
         if (curveType == CURVE_NAMED_CURVE) {
             curveId = input.getInt16();
-            if (SupportedEllipticCurvesExtension.isSupported(curveId)
-                    == false) {
+            if (!EllipticCurvesExtension.isSupported(curveId)) {
                 throw new SSLHandshakeException(
                     "Unsupported curveId: " + curveId);
             }
-            String curveOid =
-                SupportedEllipticCurvesExtension.getCurveOid(curveId);
+            String curveOid = EllipticCurvesExtension.getCurveOid(curveId);
             if (curveOid == null) {
                 throw new SSLHandshakeException(
                     "Unknown named curve: " + curveId);
