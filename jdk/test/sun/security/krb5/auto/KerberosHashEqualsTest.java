@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 4641821
- * @run main/othervm KerberosHashEqualsTest
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KerberosHashEqualsTest
  * @summary hashCode() and equals() for KerberosKey and KerberosTicket
  */
 

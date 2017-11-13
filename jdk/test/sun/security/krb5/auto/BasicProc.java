@@ -27,7 +27,7 @@
  * @summary A test library to launch multiple Java processes
  * @library ../../../../java/security/testlibrary/
  * @compile -XDignore.symbol.file BasicProc.java
- * @run main/othervm BasicProc
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicProc
  */
 
 import java.io.File;
@@ -65,6 +65,9 @@ public class BasicProc {
                     .args("client")
                     .prop("java.security.krb5.conf", CONF)
                     .prop("java.security.manager", "")
+                    .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
+                    .perm(new java.lang.RuntimePermission(
+                            "accessClassInPackage.sun.net.spi.nameservice"))
                     .perm(new java.util.PropertyPermission(
                             "sun.security.krb5.principal", "read"))
                     .perm(new javax.security.auth.AuthPermission(
@@ -85,6 +88,9 @@ public class BasicProc {
                     .args("server")
                     .prop("java.security.krb5.conf", CONF)
                     .prop("java.security.manager", "")
+                    .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
+                    .perm(new java.lang.RuntimePermission(
+                            "accessClassInPackage.sun.net.spi.nameservice"))
                     .perm(new java.util.PropertyPermission(
                             "sun.security.krb5.principal", "read"))
                     .perm(new javax.security.auth.AuthPermission(
@@ -107,6 +113,9 @@ public class BasicProc {
                     .args("backend")
                     .prop("java.security.krb5.conf", CONF)
                     .prop("java.security.manager", "")
+                    .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
+                    .perm(new java.lang.RuntimePermission(
+                            "accessClassInPackage.sun.net.spi.nameservice"))
                     .perm(new java.util.PropertyPermission(
                             "sun.security.krb5.principal", "read"))
                     .perm(new javax.security.auth.AuthPermission(
@@ -185,6 +194,7 @@ public class BasicProc {
         return p
             .env("KRB5_CONFIG", CONF)
             .env("KRB5_KTNAME", KTAB)
+            .prop("sun.net.spi.nameservice.provider.1", "ns,mock")
             .prop("sun.security.jgss.native", "true")
             .prop("javax.security.auth.useSubjectCredsOnly", "false")
             .prop("sun.security.nativegss.debug", "true");

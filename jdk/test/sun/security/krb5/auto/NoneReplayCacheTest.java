@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8001326
- * @run main/othervm NoneReplayCacheTest
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NoneReplayCacheTest
  * @summary the replaycache type none cannot stop an authenticator replay,
  * but it can stop a message replay when s.s.k.acceptor.subkey is true.
  * You should not really use none in production environment. This test merely

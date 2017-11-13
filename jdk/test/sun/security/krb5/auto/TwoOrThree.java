@@ -26,11 +26,11 @@
  * @bug 8005447
  * @summary default principal can act as anyone
  * @compile -XDignore.symbol.file TwoOrThree.java
- * @run main/othervm TwoOrThree first first
- * @run main/othervm/fail TwoOrThree first second
- * @run main/othervm TwoOrThree - first
- * @run main/othervm TwoOrThree - second
- * @run main/othervm/fail TwoOrThree - third
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TwoOrThree first first
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock TwoOrThree first second
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TwoOrThree - first
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TwoOrThree - second
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock TwoOrThree - third
  */
 
 import java.nio.file.Files;
