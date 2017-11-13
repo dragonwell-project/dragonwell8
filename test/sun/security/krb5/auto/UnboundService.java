@@ -26,14 +26,14 @@
  * @bug 8001104
  * @summary Unbound SASL service: the GSSAPI/krb5 mech
  * @compile -XDignore.symbol.file UnboundService.java
- * @run main/othervm UnboundService null null
- * @run main/othervm UnboundService server/host.rabbit.hole null
- * @run main/othervm UnboundService server/host.rabbit.hole@RABBIT.HOLE null
- * @run main/othervm/fail UnboundService backend/host.rabbit.hole null
- * @run main/othervm UnboundService null server@host.rabbit.hole
- * @run main/othervm UnboundService server/host.rabbit.hole server@host.rabbit.hole
- * @run main/othervm UnboundService server/host.rabbit.hole@RABBIT.HOLE server@host.rabbit.hole
- * @run main/othervm/fail UnboundService backend/host.rabbit.hole server@host.rabbit.hole
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService null null
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService server/host.rabbit.hole null
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService server/host.rabbit.hole@RABBIT.HOLE null
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService backend/host.rabbit.hole null
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService null server@host.rabbit.hole
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService server/host.rabbit.hole server@host.rabbit.hole
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService server/host.rabbit.hole@RABBIT.HOLE server@host.rabbit.hole
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundService backend/host.rabbit.hole server@host.rabbit.hole
  */
 
 import java.io.File;

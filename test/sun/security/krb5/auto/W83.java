@@ -26,8 +26,8 @@
  * @bug 6932525 6951366 6959292
  * @summary kerberos login failure on win2008 with AD set to win2000 compat mode
  * and cannot login if session key and preauth does not use the same etype
- * @run main/othervm -D6932525 W83
- * @run main/othervm -D6959292 W83
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -D6932525 W83
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -D6959292 W83
  */
 import com.sun.security.auth.module.Krb5LoginModule;
 import java.io.File;
