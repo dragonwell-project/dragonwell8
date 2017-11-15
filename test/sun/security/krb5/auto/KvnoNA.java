@@ -25,7 +25,7 @@
  * @test
  * @bug 7197159
  * @compile -XDignore.symbol.file KvnoNA.java
- * @run main/othervm KvnoNA
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KvnoNA
  * @summary accept different kvno if there no match
  */
 

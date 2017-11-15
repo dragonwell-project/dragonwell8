@@ -136,12 +136,18 @@ LEGlyphID FontInstanceAdapter::mapCharToGlyph(LEUnicode32 ch, const LECharMapper
     }
 
     LEGlyphID id = (LEGlyphID)env->CallIntMethod(font2D, sunFontIDs.f2dCharToGlyphMID, (jint)mappedChar);
+    if ((int)id < 0) {
+        id = 0;
+    }
     return id;
 }
 
 LEGlyphID FontInstanceAdapter::mapCharToGlyph(LEUnicode32 ch) const
 {
     LEGlyphID id = (LEGlyphID)env->CallIntMethod(font2D, sunFontIDs.f2dCharToGlyphMID, ch);
+    if ((int)id < 0) {
+        id = 0;
+    }
     return id;
 }
 
@@ -189,8 +195,12 @@ le_uint32 FontInstanceAdapter::mapCharToWideGlyph(LEUnicode32 ch, const LECharMa
         return 1;
     }
 
-    return (LEGlyphID)env->CallIntMethod(font2D, sunFontIDs.charToGlyphMID,
+    LEGlyphID id = (LEGlyphID)env->CallIntMethod(font2D, sunFontIDs.charToGlyphMID,
                                          mappedChar);
+    if ((int)id < 0) {
+       id = 0;
+    }
+   return id;
 }
 
 void FontInstanceAdapter::getGlyphAdvance(LEGlyphID glyph, LEPoint &advance) const

@@ -26,7 +26,7 @@
  * @bug 7152176
  * @summary More krb5 tests
  * @compile -XDignore.symbol.file TwoTab.java
- * @run main/othervm TwoTab
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TwoTab
  */
 
 import java.io.File;
