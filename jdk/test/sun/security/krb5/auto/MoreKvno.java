@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6893158 6907425 7197159
- * @run main/othervm MoreKvno
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock MoreKvno
  * @summary AP_REQ check should use key version number
  */
 

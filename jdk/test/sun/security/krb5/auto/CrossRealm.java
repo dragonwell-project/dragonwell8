@@ -25,7 +25,7 @@
  * @test
  * @bug 6706974
  * @compile -XDignore.symbol.file CrossRealm.java
- * @run main/othervm CrossRealm
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock CrossRealm
  * @summary Add krb5 test infrastructure
  */
 import java.io.File;

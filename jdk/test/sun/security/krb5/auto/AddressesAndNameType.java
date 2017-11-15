@@ -24,9 +24,9 @@
 /*
  * @test
  * @bug 4501327 4868379 8039132
- * @run main/othervm AddressesAndNameType 1
- * @run main/othervm AddressesAndNameType 2
- * @run main/othervm AddressesAndNameType 3
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AddressesAndNameType 1
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AddressesAndNameType 2
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AddressesAndNameType 3
  * @summary noaddresses settings and server name type
  */
 

@@ -26,7 +26,7 @@
  * @bug 8004488
  * @summary wrong permissions checked in krb5
  * @compile -XDignore.symbol.file KeyPermissions.java
- * @run main/othervm KeyPermissions
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KeyPermissions
  */
 
 import java.security.AccessControlException;

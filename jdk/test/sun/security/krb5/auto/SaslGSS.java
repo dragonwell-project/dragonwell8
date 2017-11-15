@@ -27,7 +27,7 @@
  * @summary SASL: auth-conf negotiated, but unencrypted data is accepted,
   *         reset to unencrypt
  * @compile -XDignore.symbol.file SaslGSS.java
- * @run main/othervm SaslGSS
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SaslGSS
  */
 
 import javax.security.auth.callback.Callback;

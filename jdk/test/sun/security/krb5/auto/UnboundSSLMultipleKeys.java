@@ -33,9 +33,9 @@ import javax.security.auth.login.LoginException;
  * @test
  * @bug 8025123
  * @summary Checks if an unbound server pick up a correct key from keytab
- * @run main/othervm UnboundSSLMultipleKeys
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLMultipleKeys
  *                              unbound.ssl.jaas.conf server_star
- * @run main/othervm UnboundSSLMultipleKeys
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLMultipleKeys
  *                              unbound.ssl.jaas.conf server_multiple_principals
  */
 public class UnboundSSLMultipleKeys {
