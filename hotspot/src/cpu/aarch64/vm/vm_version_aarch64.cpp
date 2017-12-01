@@ -327,4 +327,11 @@ void VM_Version::initialize() {
                                    g.generate_getPsrInfo());
 
   get_processor_features();
+
+  if (CriticalJNINatives) {
+    if (FLAG_IS_CMDLINE(CriticalJNINatives)) {
+      warning("CriticalJNINatives specified, but not supported in this VM");
+    }
+    FLAG_SET_DEFAULT(CriticalJNINatives, false);
+  }
 }
