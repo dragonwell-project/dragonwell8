@@ -3779,6 +3779,9 @@ void AwtComponent::OpenCandidateWindow(int x, int y)
     UINT bits = 1;
     POINT p = {0, 0}; // upper left corner of the client area
     HWND hWnd = GetHWnd();
+    if (!::IsWindowVisible(hWnd)) {
+        return;
+    }
     HWND hTop = GetTopLevelParentForWindow(hWnd);
     ::ClientToScreen(hTop, &p);
     if (!m_bitsCandType) {
@@ -4051,6 +4054,9 @@ void AwtComponent::SendInputMethodEvent(jint id, jstring text,
 //
 void AwtComponent::InquireCandidatePosition()
 {
+    if (!::IsWindowVisible(GetHWnd())) {
+        return;
+    }
     JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
     // get global reference of WInputMethod class (run only once)
