@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "services/heapDumper.hpp"
 #include "services/management.hpp"
 #include "utilities/macros.hpp"
+#include "oops/objArrayOop.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -49,6 +50,8 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMUptimeDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemGCDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<RunFinalizationDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapInfoDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<FinalizerInfoDCmd>(full_export, true, false));
 #if INCLUDE_SERVICES // Heap dumping/inspection supported
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<HeapDumpDCmd>(DCmd_Source_Internal | DCmd_Source_AttachAPI, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassHistogramDCmd>(full_export, true, false));
@@ -271,6 +274,60 @@ void RunFinalizationDCmd::execute(DCmdSource source, TRAPS) {
   JavaCalls::call_static(&result, klass,
                          vmSymbols::run_finalization_name(),
                          vmSymbols::void_method_signature(), CHECK);
+}
+
+void HeapInfoDCmd::execute(DCmdSource source, TRAPS) {
+  Universe::heap()->print_on(output());
+}
+
+void FinalizerInfoDCmd::execute(DCmdSource source, TRAPS) {
+  ResourceMark rm;
+
+
+  Klass* k = SystemDictionary::resolve_or_null(
+    vmSymbols::finalizer_histogram_klass(), THREAD);
+  assert(k != NULL, "FinalizerHistogram class is not accessible");
+
+  instanceKlassHandle klass(THREAD, k);
+  JavaValue result(T_ARRAY);
+
+  // We are calling lang.ref.FinalizerHistogram.getFinalizerHistogram() method
+  // and expect it to return array of FinalizerHistogramEntry as Object[]
+
+  JavaCalls::call_static(&result, klass,
+                         vmSymbols::get_finalizer_histogram_name(),
+                         vmSymbols::void_finalizer_histogram_entry_array_signature(), CHECK);
+
+  objArrayOop result_oop = (objArrayOop) result.get_jobject();
+  if (result_oop->length() == 0) {
+    output()->print_cr("No instances waiting for finalization found");
+    return;
+  }
+
+  oop foop = result_oop->obj_at(0);
+  InstanceKlass* ik = InstanceKlass::cast(foop->klass());
+
+  fieldDescriptor count_fd, name_fd;
+
+  Klass* count_res = ik->find_field(
+    vmSymbols::finalizer_histogram_entry_count_field(), vmSymbols::int_signature(), &count_fd);
+
+  Klass* name_res = ik->find_field(
+    vmSymbols::finalizer_histogram_entry_name_field(), vmSymbols::string_signature(), &name_fd);
+
+  assert(count_res != NULL && name_res != NULL, "Unexpected layout of FinalizerHistogramEntry");
+
+  output()->print_cr("Unreachable instances waiting for finalization");
+  output()->print_cr("#instances  class name");
+  output()->print_cr("-----------------------");
+
+  for (int i = 0; i < result_oop->length(); ++i) {
+    oop element_oop = result_oop->obj_at(i);
+    oop str_oop = element_oop->obj_field(name_fd.offset());
+    char *name = java_lang_String::as_utf8_string(str_oop);
+    int count = element_oop->int_field(count_fd.offset());
+    output()->print_cr("%10d  %s", count, name);
+  }
 }
 
 #if INCLUDE_SERVICES // Heap dumping/inspection supported
