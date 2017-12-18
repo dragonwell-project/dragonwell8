@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,6 +174,46 @@ public:
     }
     static int num_arguments() { return 0; }
     virtual void execute(DCmdSource source, TRAPS);
+};
+
+class HeapInfoDCmd : public DCmd {
+public:
+  HeapInfoDCmd(outputStream* output, bool heap) : DCmd(output, heap) { }
+  static const char* name() { return "GC.heap_info"; }
+  static const char* description() {
+    return "Provide generic Java heap information.";
+  }
+  static const char* impact() {
+    return "Medium";
+  }
+  static int num_arguments() { return 0; }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+      "monitor", NULL};
+      return p;
+  }
+
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
+class FinalizerInfoDCmd : public DCmd {
+public:
+  FinalizerInfoDCmd(outputStream* output, bool heap) : DCmd(output, heap) { }
+  static const char* name() { return "GC.finalizer_info"; }
+  static const char* description() {
+    return "Provide information about Java finalization queue.";
+  }
+  static const char* impact() {
+    return "Medium";
+  }
+  static int num_arguments() { return 0; }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+      "monitor", NULL};
+      return p;
+  }
+
+  virtual void execute(DCmdSource source, TRAPS);
 };
 
 #if INCLUDE_SERVICES   // Heap dumping supported
