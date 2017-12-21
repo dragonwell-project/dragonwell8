@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2014 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2017 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "code/vtableStubs.hpp"
 #include "interp_masm_ppc_64.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/compiledICHolder.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klassVtable.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -56,17 +57,22 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   // PPC port: use fixed size.
   const int code_length = VtableStub::pd_code_size_limit(true);
   VtableStub* s = new (code_length) VtableStub(true, vtable_index);
+
+  // Can be NULL if there is no free space in the code cache.
+  if (s == NULL) {
+    return NULL;
+  }
+
   ResourceMark rm;
   CodeBuffer cb(s->entry_point(), code_length);
   MacroAssembler* masm = new MacroAssembler(&cb);
-  address start_pc;
 
 #ifndef PRODUCT
   if (CountCompiledCalls) {
-    __ load_const(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr());
-    __ lwz(R12_scratch2, 0, R11_scratch1);
+    int offs = __ load_const_optimized(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr(), R12_scratch2, true);
+    __ lwz(R12_scratch2, offs, R11_scratch1);
     __ addi(R12_scratch2, R12_scratch2, 1);
-    __ stw(R12_scratch2, 0, R11_scratch1);
+    __ stw(R12_scratch2, offs, R11_scratch1);
   }
 #endif
 
@@ -116,6 +122,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   __ load_with_trap_null_check(R12_scratch2, in_bytes(Method::from_compiled_offset()), R19_method);
   __ mtctr(R12_scratch2);
   __ bctr();
+
   masm->flush();
 
   guarantee(__ pc() <= s->code_end(), "overflowed buffer");
@@ -125,10 +132,16 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   return s;
 }
 
-VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
+VtableStub* VtableStubs::create_itable_stub(int itable_index) {
   // PPC port: use fixed size.
   const int code_length = VtableStub::pd_code_size_limit(false);
-  VtableStub* s = new (code_length) VtableStub(false, vtable_index);
+  VtableStub* s = new (code_length) VtableStub(false, itable_index);
+
+  // Can be NULL if there is no free space in the code cache.
+  if (s == NULL) {
+    return NULL;
+  }
+
   ResourceMark rm;
   CodeBuffer cb(s->entry_point(), code_length);
   MacroAssembler* masm = new MacroAssembler(&cb);
@@ -136,10 +149,10 @@ VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
 
 #ifndef PRODUCT
   if (CountCompiledCalls) {
-    __ load_const(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr());
-    __ lwz(R12_scratch2, 0, R11_scratch1);
+    int offs = __ load_const_optimized(R11_scratch1, SharedRuntime::nof_megamorphic_calls_addr(), R12_scratch2, true);
+    __ lwz(R12_scratch2, offs, R11_scratch1);
     __ addi(R12_scratch2, R12_scratch2, 1);
-    __ stw(R12_scratch2, 0, R11_scratch1);
+    __ stw(R12_scratch2, offs, R11_scratch1);
   }
 #endif
 
@@ -148,61 +161,27 @@ VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
   // Entry arguments:
   //  R19_method: Interface
   //  R3_ARG1:    Receiver
-  //
 
-  const Register rcvr_klass = R11_scratch1;
-  const Register vtable_len = R12_scratch2;
-  const Register itable_entry_addr = R21_tmp1;
-  const Register itable_interface = R22_tmp2;
+  Label L_no_such_interface;
+  const Register rcvr_klass = R11_scratch1,
+                 interface  = R12_scratch2,
+                 tmp1       = R21_tmp1,
+                 tmp2       = R22_tmp2;
 
-  // Get receiver klass.
-
-  // We might implicit NULL fault here.
   address npe_addr = __ pc(); // npe = null pointer exception
   __ load_klass_with_trap_null_check(rcvr_klass, R3_ARG1);
 
-  BLOCK_COMMENT("Load start of itable entries into itable_entry.");
-  __ lwz(vtable_len, InstanceKlass::vtable_length_offset() * wordSize, rcvr_klass);
-  __ slwi(vtable_len, vtable_len, exact_log2(vtableEntry::size() * wordSize));
-  __ add(itable_entry_addr, vtable_len, rcvr_klass);
+  // Receiver subtype check against REFC.
+  __ ld(interface, CompiledICHolder::holder_klass_offset(), R19_method);
+  __ lookup_interface_method(rcvr_klass, interface, noreg,
+                             R0, tmp1, tmp2,
+                             L_no_such_interface, /*return_method=*/ false);
 
-  // Loop over all itable entries until desired interfaceOop(Rinterface) found.
-  BLOCK_COMMENT("Increment itable_entry_addr in loop.");
-  const int vtable_base_offset = InstanceKlass::vtable_start_offset() * wordSize;
-  __ addi(itable_entry_addr, itable_entry_addr, vtable_base_offset + itableOffsetEntry::interface_offset_in_bytes());
-
-  const int itable_offset_search_inc = itableOffsetEntry::size() * wordSize;
-  Label search;
-  __ bind(search);
-  __ ld(itable_interface, 0, itable_entry_addr);
-
-  // Handle IncompatibleClassChangeError in itable stubs.
-  // If the entry is NULL then we've reached the end of the table
-  // without finding the expected interface, so throw an exception.
-  BLOCK_COMMENT("Handle IncompatibleClassChangeError in itable stubs.");
-  Label throw_icce;
-  __ cmpdi(CCR1, itable_interface, 0);
-  __ cmpd(CCR0, itable_interface, R19_method);
-  __ addi(itable_entry_addr, itable_entry_addr, itable_offset_search_inc);
-  __ beq(CCR1, throw_icce);
-  __ bne(CCR0, search);
-
-  // Entry found and itable_entry_addr points to it, get offset of vtable for interface.
-
-  const Register vtable_offset = R12_scratch2;
-  const Register itable_method = R11_scratch1;
-
-  const int vtable_offset_offset = (itableOffsetEntry::offset_offset_in_bytes() -
-                                    itableOffsetEntry::interface_offset_in_bytes()) -
-                                   itable_offset_search_inc;
-  __ lwz(vtable_offset, vtable_offset_offset, itable_entry_addr);
-
-  // Compute itableMethodEntry and get method and entry point for compiler.
-  const int method_offset = (itableMethodEntry::size() * wordSize * vtable_index) +
-    itableMethodEntry::method_offset_in_bytes();
-
-  __ add(itable_method, rcvr_klass, vtable_offset);
-  __ ld(R19_method, method_offset, itable_method);
+  // Get Method* and entrypoint for compiler
+  __ ld(interface, CompiledICHolder::holder_metadata_offset(), R19_method);
+  __ lookup_interface_method(rcvr_klass, interface, itable_index,
+                             R19_method, tmp1, tmp2,
+                             L_no_such_interface, /*return_method=*/ true);
 
 #ifndef PRODUCT
   if (DebugVtables) {
@@ -224,7 +203,7 @@ VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
       __ trap_null_check(R19_method);
     } else {
       __ cmpdi(CCR0, R19_method, 0);
-      __ beq(CCR0, throw_icce);
+      __ beq(CCR0, L_no_such_interface);
     }
   }
   __ ld(R12_scratch2, in_bytes(Method::from_compiled_offset()), R19_method);
@@ -236,8 +215,8 @@ VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
   // We force resolving of the call site by jumping to the "handle
   // wrong method" stub, and so let the interpreter runtime do all the
   // dirty work.
-  __ bind(throw_icce);
-  __ load_const(R11_scratch1, SharedRuntime::get_handle_wrong_method_stub());
+  __ bind(L_no_such_interface);
+  __ load_const_optimized(R11_scratch1, SharedRuntime::get_handle_wrong_method_stub(), R12_scratch2);
   __ mtctr(R11_scratch1);
   __ bctr();
 
@@ -252,14 +231,15 @@ VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
 int VtableStub::pd_code_size_limit(bool is_vtable_stub) {
   if (TraceJumps || DebugVtables || CountCompiledCalls || VerifyOops) {
     return 1000;
-  } else {
-    int decode_klass_size = MacroAssembler::instr_size_for_decode_klass_not_null();
-    if (is_vtable_stub) {
-      return 20 + decode_klass_size +  8 + 8;   // Plain + cOops + Traps + safety
-    } else {
-      return 96 + decode_klass_size + 12 + 8;   // Plain + cOops + Traps + safety
-    }
   }
+  int size = is_vtable_stub ? 20 + 8 : 164 + 20; // Plain + safety
+  if (UseCompressedClassPointers) {
+    size += MacroAssembler::instr_size_for_decode_klass_not_null();
+  }
+  if (!ImplicitNullChecks || !os::zero_page_read_protected()) {
+    size += is_vtable_stub ? 8 : 12;
+  }
+  return size;
 }
 
 int VtableStub::pd_code_alignment() {
