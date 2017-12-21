@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2001-2004 The Apache Software Foundation.
@@ -52,7 +51,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Vector;
-import javax.xml.XMLConstants;
+import jdk.xml.internal.JdkXmlUtils;
 import org.w3c.dom.DOMConfiguration;
 import org.w3c.dom.DOMErrorHandler;
 import org.w3c.dom.DOMException;
@@ -256,7 +255,8 @@ public class DOMConfigurationImpl extends ParserConfigurationSettings
             NORMALIZE_DATA,
             SEND_PSVI,
             NAMESPACE_GROWTH,
-            TOLERATE_DUPLICATES
+            TOLERATE_DUPLICATES,
+            JdkXmlUtils.OVERRIDE_PARSER
         };
         addRecognizedFeatures(recognizedFeatures);
 
@@ -269,6 +269,7 @@ public class DOMConfigurationImpl extends ParserConfigurationSettings
         setFeature(XERCES_NAMESPACES, true);
         setFeature(SEND_PSVI, true);
         setFeature(NAMESPACE_GROWTH, false);
+        setFeature(JdkXmlUtils.OVERRIDE_PARSER, JdkXmlUtils.OVERRIDE_PARSER_DEFAULT);
 
         // add default recognized properties
         final String[] recognizedProperties = {
