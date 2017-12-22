@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@
  * @summary Verify that DH works properly
  * @author Andreas Sterbenz
  * @library ..
+ * @run main/othervm -Djdk.crypto.KeyAgreement.legacyKDF=true TestDH
+ * @run main/othervm -Djdk.crypto.KeyAgreement.legacyKDF=true TestDH sm
  */
 
 import java.io.*;

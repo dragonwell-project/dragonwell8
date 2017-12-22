@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2004, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,9 +87,32 @@ JNIEXPORT void JNICALL Java_sun_management_GcInfoBuilder_fillGcAttributeInfo
     for (i = 0; i < num_attributes; i++) {
         nativeTypes[i] = ext_att_info[i].type;
         attName = (*env)->NewStringUTF(env, ext_att_info[i].name);
-        desc = (*env)->NewStringUTF(env, ext_att_info[i].description);
+        if ((*env)->ExceptionCheck(env)) {
+           free(ext_att_info);
+           free(nativeTypes);
+           return;
+        }
+
         (*env)->SetObjectArrayElement(env, attributeNames, i, attName);
+        if ((*env)->ExceptionCheck(env)) {
+           free(ext_att_info);
+           free(nativeTypes);
+           return;
+        }
+
+        desc = (*env)->NewStringUTF(env, ext_att_info[i].description);
+        if ((*env)->ExceptionCheck(env)) {
+           free(ext_att_info);
+           free(nativeTypes);
+           return;
+        }
+
         (*env)->SetObjectArrayElement(env, descriptions, i, desc);
+        if ((*env)->ExceptionCheck(env)) {
+           free(ext_att_info);
+           free(nativeTypes);
+           return;
+        }
     }
     (*env)->SetCharArrayRegion(env, types, 0, num_attributes, nativeTypes);
 

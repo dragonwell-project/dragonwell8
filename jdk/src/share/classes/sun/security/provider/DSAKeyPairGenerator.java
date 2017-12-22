@@ -75,6 +75,8 @@ class DSAKeyPairGenerator extends KeyPairGenerator {
             // N=160
         } else if (sizeP == 2048 && (sizeQ == 224 || sizeQ == 256)) {
             // L=2048, N=224 or 256
+        } else if (sizeP == 3072 && sizeQ == 256) {
+            // L=3072, N=256
         } else {
             throw new InvalidParameterException
                 ("Unsupported prime and subprime size combination: " +
