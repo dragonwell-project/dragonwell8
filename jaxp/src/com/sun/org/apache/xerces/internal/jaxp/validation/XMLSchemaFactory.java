@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2005 The Apache Software Foundation.
@@ -33,6 +32,8 @@ import javax.xml.transform.stax.StAXSource;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
+import jdk.xml.internal.JdkXmlFeatures;
+import jdk.xml.internal.JdkXmlUtils;
 
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.xs.XMLSchemaLoader;
@@ -116,22 +117,16 @@ public final class XMLSchemaFactory extends SchemaFactory {
     /** The container for the real grammar pool. */
     private XMLGrammarPoolWrapper fXMLGrammarPoolWrapper;
 
+    private final JdkXmlFeatures fXmlFeatures;
     /**
-     * Indicates whether implementation parts should use
-     *   service loader (or similar).
-     * Note the default value (false) is the safe option..
+     * Indicates whether 3rd party parser may be used to override the system-default
+     * Note the default value (false) is the safe option.
+     * Note same as the old property useServicesMechanism
      */
-    private final boolean fUseServicesMechanism;
+    private final boolean fOverrideDefaultParser;
 
 
     public XMLSchemaFactory() {
-        this(true);
-    }
-    public static XMLSchemaFactory newXMLSchemaFactoryNoServiceLoader() {
-        return new XMLSchemaFactory(false);
-    }
-    private XMLSchemaFactory(boolean useServicesMechanism) {
-        fUseServicesMechanism = useServicesMechanism;
         fErrorHandlerWrapper = new ErrorHandlerWrapper(DraconianErrorHandler.getInstance());
         fDOMEntityResolverWrapper = new DOMEntityResolverWrapper();
         fXMLGrammarPoolWrapper = new XMLGrammarPoolWrapper();
@@ -147,6 +142,10 @@ public final class XMLSchemaFactory extends SchemaFactory {
         fSecurityPropertyMgr = new XMLSecurityPropertyManager();
         fXMLSchemaLoader.setProperty(XML_SECURITY_PROPERTY_MANAGER,
                 fSecurityPropertyMgr);
+        fXmlFeatures = new JdkXmlFeatures(fSecurityManager.isSecureProcessing());
+        fOverrideDefaultParser = fXmlFeatures.getFeature(
+                        JdkXmlFeatures.XmlFeature.JDK_OVERRIDE_PARSER);
+        fXMLSchemaLoader.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
     }
 
     /**
@@ -335,6 +334,11 @@ public final class XMLSchemaFactory extends SchemaFactory {
                     SAXMessageFormatter.formatMessage(fXMLSchemaLoader.getLocale(),
                     "property-not-supported", new Object [] {name}));
         }
+        /** Check to see if the property is managed by the JdkXmlFeatues **/
+        int index = fXmlFeatures.getIndex(name);
+        if (index > -1) {
+            return fXmlFeatures.getFeature(index);
+        }
         try {
             return fXMLSchemaLoader.getProperty(name);
         }
@@ -379,9 +383,18 @@ public final class XMLSchemaFactory extends SchemaFactory {
             fXMLSchemaLoader.setProperty(SECURITY_MANAGER, fSecurityManager);
             return;
         } else if (name.equals(Constants.ORACLE_FEATURE_SERVICE_MECHANISM)) {
-            //in secure mode, let _useServicesMechanism be determined by the constructor
+            //in secure mode, let useServicesMechanism be determined by the constructor
             if (System.getSecurityManager() != null)
                 return;
+        }
+
+        if ((fXmlFeatures != null) &&
+                    fXmlFeatures.setFeature(name, JdkXmlFeatures.State.APIPROPERTY, value)) {
+            if (name.equals(JdkXmlUtils.OVERRIDE_PARSER)
+                    || name.equals(Constants.ORACLE_FEATURE_SERVICE_MECHANISM)) {
+                fXMLSchemaLoader.setFeature(name, value);
+            }
+            return;
         }
         try {
             fXMLSchemaLoader.setFeature(name, value);
@@ -455,7 +468,7 @@ public final class XMLSchemaFactory extends SchemaFactory {
     private void propagateFeatures(AbstractXMLSchema schema) {
         schema.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,
                 (fSecurityManager != null && fSecurityManager.isSecureProcessing()));
-        schema.setFeature(Constants.ORACLE_FEATURE_SERVICE_MECHANISM, fUseServicesMechanism);
+        schema.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
         String[] features = fXMLSchemaLoader.getRecognizedFeatures();
         for (int i = 0; i < features.length; ++i) {
             boolean state = fXMLSchemaLoader.getFeature(features[i]);

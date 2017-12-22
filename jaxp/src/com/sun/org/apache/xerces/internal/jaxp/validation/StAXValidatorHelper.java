@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package com.sun.org.apache.xerces.internal.jaxp.validation;
 
+import com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl;
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.utils.XMLSecurityManager;
 import java.io.IOException;
@@ -41,6 +42,7 @@ import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stax.StAXResult;
 import javax.xml.transform.stax.StAXSource;
+import jdk.xml.internal.JdkXmlUtils;
 
 import org.xml.sax.SAXException;
 
@@ -50,7 +52,6 @@ import org.xml.sax.SAXException;
  * @author <a href="mailto:Sunitha.Reddy@Sun.com">Sunitha Reddy</a>
  */
 public final class StAXValidatorHelper implements ValidatorHelper {
-    private static final String DEFAULT_TRANSFORMER_IMPL = "com.sun.org.apache.xalan.internal.xsltc.trax.TransformerFactoryImpl";
 
     /** Component manager. **/
     private XMLSchemaValidatorComponentManager fComponentManager;
@@ -71,10 +72,11 @@ public final class StAXValidatorHelper implements ValidatorHelper {
 
             if( identityTransformer1==null ) {
                 try {
-                    SAXTransformerFactory tf = fComponentManager.getFeature(Constants.ORACLE_FEATURE_SERVICE_MECHANISM) ?
-                                    (SAXTransformerFactory)SAXTransformerFactory.newInstance()
-                                    : (SAXTransformerFactory) TransformerFactory.newInstance(DEFAULT_TRANSFORMER_IMPL, StAXValidatorHelper.class.getClassLoader());
-                    XMLSecurityManager securityManager = (XMLSecurityManager)fComponentManager.getProperty(Constants.SECURITY_MANAGER);
+                    SAXTransformerFactory tf = JdkXmlUtils.getSAXTransformFactory(
+                            fComponentManager.getFeature(JdkXmlUtils.OVERRIDE_PARSER));
+
+                    XMLSecurityManager securityManager =
+                            (XMLSecurityManager)fComponentManager.getProperty(Constants.SECURITY_MANAGER);
                     if (securityManager != null) {
                         for (XMLSecurityManager.Limit limit : XMLSecurityManager.Limit.values()) {
                             if (securityManager.isSet(limit.ordinal())){
