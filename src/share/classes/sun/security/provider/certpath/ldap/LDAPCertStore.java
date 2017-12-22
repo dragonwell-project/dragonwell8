@@ -31,6 +31,8 @@ import java.math.BigInteger;
 import java.net.URI;
 import java.util.*;
 import javax.naming.Context;
+import javax.naming.CompositeName;
+import javax.naming.InvalidNameException;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.NameNotFoundException;
@@ -43,8 +45,10 @@ import javax.naming.directory.InitialDirContext;
 import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.*;
+import javax.naming.ldap.LdapContext;
 import javax.security.auth.x500.X500Principal;
 
+import com.sun.jndi.ldap.LdapReferralException;
 import sun.misc.HexDumpEncoder;
 import sun.security.provider.certpath.X509CertificatePair;
 import sun.security.util.Cache;
@@ -220,6 +224,12 @@ public final class LDAPCertStore extends CertStoreSpi {
         certStoreCache = Cache.newSoftMemoryCache(185);
     static synchronized CertStore getInstance(LDAPCertStoreParameters params)
         throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
+
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkConnect(params.getServerName(), params.getPort());
+        }
+
         CertStore lcs = certStoreCache.get(params);
         if (lcs == null) {
             lcs = CertStore.getInstance("LDAP", params);
@@ -265,7 +275,7 @@ public final class LDAPCertStore extends CertStoreSpi {
              */
             Hashtable<?,?> currentEnv = ctx.getEnvironment();
             if (currentEnv.get(Context.REFERRAL) == null) {
-                ctx.addToEnvironment(Context.REFERRAL, "follow-scheme");
+                ctx.addToEnvironment(Context.REFERRAL, "throw");
             }
         } catch (NamingException e) {
             if (debug != null) {
@@ -302,9 +312,23 @@ public final class LDAPCertStore extends CertStoreSpi {
         private Map<String, byte[][]> valueMap;
         private final List<String> requestedAttributes;
 
-        LDAPRequest(String name) {
-            this.name = name;
+        LDAPRequest(String name) throws CertStoreException {
+            this.name = checkName(name);
             requestedAttributes = new ArrayList<>(5);
+        }
+
+        private String checkName(String name) throws CertStoreException {
+            if (name == null) {
+                throw new CertStoreException("Name absent");
+            }
+            try {
+                if (new CompositeName(name).size() > 1) {
+                    throw new CertStoreException("Invalid name: " + name);
+                }
+            } catch (InvalidNameException ine) {
+                throw new CertStoreException("Invalid name: " + name, ine);
+            }
+            return name;
         }
 
         String getName() {
@@ -321,7 +345,6 @@ public final class LDAPCertStore extends CertStoreSpi {
         /**
          * Gets one or more binary values from an attribute.
          *
-         * @param name          the location holding the attribute
          * @param attrId                the attribute identifier
          * @return                      an array of binary values (byte arrays)
          * @throws NamingException      if a naming exception occurs
@@ -373,6 +396,39 @@ public final class LDAPCertStore extends CertStoreSpi {
             Attributes attrs;
             try {
                 attrs = ctx.getAttributes(name, attrIds);
+            } catch (LdapReferralException lre) {
+                // LdapCtx has a hopCount field to avoid infinite loop
+                while (true) {
+                    try {
+                        String newName = (String) lre.getReferralInfo();
+                        URI newUri = new URI(newName);
+                        if (!newUri.getScheme().equalsIgnoreCase("ldap")) {
+                            throw new IllegalArgumentException("Not LDAP");
+                        }
+                        String newDn = newUri.getPath();
+                        if (newDn != null && newDn.charAt(0) == '/') {
+                            newDn = newDn.substring(1);
+                        }
+                        checkName(newDn);
+                    } catch (Exception e) {
+                        throw new NamingException("Cannot follow referral to "
+                                + lre.getReferralInfo());
+                    }
+                    LdapContext refCtx =
+                            (LdapContext)lre.getReferralContext();
+
+                    // repeat the original operation at the new context
+                    try {
+                        attrs = refCtx.getAttributes(name, attrIds);
+                        break;
+                    } catch (LdapReferralException re) {
+                        lre = re;
+                        continue;
+                    } finally {
+                        // Make sure we close referral context
+                        refCtx.close();
+                    }
+                }
             } catch (NameNotFoundException e) {
                 // name does not exist on this LDAP server
                 // treat same as not attributes found

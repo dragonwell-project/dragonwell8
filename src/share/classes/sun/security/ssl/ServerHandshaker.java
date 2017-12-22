@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,7 @@ final class ServerHandshaker extends Handshaker {
     private ProtocolVersion clientRequestedVersion;
 
     // client supported elliptic curves
-    private SupportedEllipticCurvesExtension requestedCurves;
+    private EllipticCurvesExtension requestedCurves;
 
     // the preferable signature algorithm used by ServerKeyExchange message
     SignatureAndHashAlgorithm preferableSignatureAlgorithm;
@@ -135,13 +135,17 @@ final class ServerHandshaker extends Handshaker {
             useSmartEphemeralDHKeys = false;
 
             try {
+                // DH parameter generation can be extremely slow, best to
+                // use one of the supported pre-computed DH parameters
+                // (see DHCrypt class).
                 customizedDHKeySize = Integer.parseUnsignedInt(property);
-                if (customizedDHKeySize < 1024 || customizedDHKeySize > 2048) {
+                if (customizedDHKeySize < 1024 || customizedDHKeySize > 8192 ||
+                        (customizedDHKeySize & 0x3f) != 0) {
                     throw new IllegalArgumentException(
                         "Unsupported customized DH key size: " +
                         customizedDHKeySize + ". " +
-                        "The key size can only range from 1024" +
-                        " to 2048 (inclusive)");
+                        "The key size must be multiple of 64, " +
+                        "and can only range from 1024 to 8192 (inclusive)");
                 }
             } catch (NumberFormatException nfe) {
                 throw new IllegalArgumentException(
@@ -283,6 +287,11 @@ final class ServerHandshaker extends Handshaker {
                 default:
                     throw new SSLProtocolException
                         ("Unrecognized key exchange: " + keyExchange);
+                }
+
+                // Need to add the hash for RFC 7627.
+                if (session.getUseExtendedMasterSecret()) {
+                    input.digestNow();
                 }
 
                 //
@@ -491,6 +500,27 @@ final class ServerHandshaker extends Handshaker {
             }
         }
 
+        // check out the "extended_master_secret" extension
+        if (useExtendedMasterSecret) {
+            ExtendedMasterSecretExtension extendedMasterSecretExtension =
+                    (ExtendedMasterSecretExtension)mesg.extensions.get(
+                            ExtensionType.EXT_EXTENDED_MASTER_SECRET);
+            if (extendedMasterSecretExtension != null) {
+                requestedToUseEMS = true;
+            } else if (mesg.protocolVersion.v >= ProtocolVersion.TLS10.v) {
+                if (!allowLegacyMasterSecret) {
+                    // For full handshake, if the server receives a ClientHello
+                    // without the extension, it SHOULD abort the handshake if
+                    // it does not wish to interoperate with legacy clients.
+                    //
+                    // As if extended master extension is required for full
+                    // handshake, it MUST be used in abbreviated handshake too.
+                    fatalSE(Alerts.alert_handshake_failure,
+                        "Extended Master Secret extension is required");
+                }
+            }
+        }
+
         /*
          * Always make sure this entire record has been digested before we
          * start emitting output, to ensure correct digesting order.
@@ -565,8 +595,42 @@ final class ServerHandshaker extends Handshaker {
                 if (resumingSession) {
                     ProtocolVersion oldVersion = previous.getProtocolVersion();
                     // cannot resume session with different version
-                    if (oldVersion != protocolVersion) {
+                    if (oldVersion != mesg.protocolVersion) {
                         resumingSession = false;
+                    }
+                }
+
+                if (resumingSession && useExtendedMasterSecret) {
+                    if (requestedToUseEMS &&
+                            !previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, If the original
+                        // session did not use the "extended_master_secret"
+                        // extension but the new ClientHello contains the
+                        // extension, then the server MUST NOT perform the
+                        // abbreviated handshake.  Instead, it SHOULD continue
+                        // with a full handshake.
+                        resumingSession = false;
+                    } else if (!requestedToUseEMS &&
+                            previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, if the original
+                        // session used the "extended_master_secret" extension
+                        // but the new ClientHello does not contain it, the
+                        // server MUST abort the abbreviated handshake.
+                        fatalSE(Alerts.alert_handshake_failure,
+                                "Missing Extended Master Secret extension " +
+                                "on session resumption");
+                    } else if (!requestedToUseEMS &&
+                            !previous.getUseExtendedMasterSecret()) {
+                        // For abbreviated handshake request, if neither the
+                        // original session nor the new ClientHello uses the
+                        // extension, the server SHOULD abort the handshake.
+                        if (!allowLegacyResumption) {
+                            fatalSE(Alerts.alert_handshake_failure,
+                                "Missing Extended Master Secret extension " +
+                                "on session resumption");
+                        } else {  // Otherwise, continue with a full handshake.
+                            resumingSession = false;
+                        }
                     }
                 }
 
@@ -683,7 +747,7 @@ final class ServerHandshaker extends Handshaker {
                 throw new SSLException("Client did not resume a session");
             }
 
-            requestedCurves = (SupportedEllipticCurvesExtension)
+            requestedCurves = (EllipticCurvesExtension)
                         mesg.extensions.get(ExtensionType.EXT_ELLIPTIC_CURVES);
 
             // We only need to handle the "signature_algorithm" extension
@@ -716,7 +780,9 @@ final class ServerHandshaker extends Handshaker {
             session = new SSLSessionImpl(protocolVersion, CipherSuite.C_NULL,
                         getLocalSupportedSignAlgs(),
                         sslContext.getSecureRandom(),
-                        getHostAddressSE(), getPortSE());
+                        getHostAddressSE(), getPortSE(),
+                        (requestedToUseEMS &&
+                                (protocolVersion.v >= ProtocolVersion.TLS10.v)));
 
             if (protocolVersion.v >= ProtocolVersion.TLS12.v) {
                 if (peerSupportedSignAlgs != null) {
@@ -779,6 +845,10 @@ final class ServerHandshaker extends Handshaker {
                 ServerNameExtension serverHelloSNI = new ServerNameExtension();
                 m1.extensions.add(serverHelloSNI);
             }
+        }
+
+        if (session.getUseExtendedMasterSecret()) {
+            m1.extensions.add(new ExtendedMasterSecretExtension());
         }
 
         if (debug != null && Debug.isOn("handshake")) {
@@ -1377,14 +1447,10 @@ final class ServerHandshaker extends Handshaker {
          * Applications may also want to customize the ephemeral DH key size
          * to a fixed length for non-exportable cipher suites. This can be
          * approached by setting system property "jdk.tls.ephemeralDHKeySize"
-         * to a valid positive integer between 1024 and 2048 bits, inclusive.
+         * to a valid positive integer between 1024 and 8192 bits, inclusive.
          *
          * Note that the minimum acceptable key size is 1024 bits except
          * exportable cipher suites or legacy mode.
-         *
-         * Note that the maximum acceptable key size is 2048 bits because
-         * DH keys bigger than 2048 are not always supported by underlying
-         * JCE providers.
          *
          * Note that per RFC 2246, the key size limit of DH is 512 bits for
          * exportable cipher suites.  Because of the weakness, exportable
@@ -1400,10 +1466,17 @@ final class ServerHandshaker extends Handshaker {
             } else if (useSmartEphemeralDHKeys) {    // matched mode
                 if (key != null) {
                     int ks = KeyUtil.getKeySize(key);
-                    // Note that SunJCE provider only supports 2048 bits DH
-                    // keys bigger than 1024.  Please DON'T use value other
-                    // than 1024 and 2048 at present.  We may improve the
-                    // underlying providers and key size here in the future.
+
+                    // DH parameter generation can be extremely slow, make
+                    // sure to use one of the supported pre-computed DH
+                    // parameters (see DHCrypt class).
+                    //
+                    // Old deployed applications may not be ready to support
+                    // DH key sizes bigger than 2048 bits.  Please DON'T use
+                    // value other than 1024 and 2048 at present.  May improve
+                    // the underlying providers and key size limit in the
+                    // future when the compatibility and interoperability
+                    // impact is limited.
                     //
                     // keySize = ks <= 1024 ? 1024 : (ks >= 2048 ? 2048 : ks);
                     keySize = ks <= 1024 ? 1024 : 2048;
@@ -1422,7 +1495,7 @@ final class ServerHandshaker extends Handshaker {
     private boolean setupEphemeralECDHKeys() {
         int index = (requestedCurves != null) ?
                 requestedCurves.getPreferredCurve(algorithmConstraints) :
-                SupportedEllipticCurvesExtension.getActiveCurves(algorithmConstraints);
+                EllipticCurvesExtension.getActiveCurves(algorithmConstraints);
         if (index < 0) {
             // no match found, cannot use this ciphersuite
             return false;
@@ -1477,8 +1550,8 @@ final class ServerHandshaker extends Handshaker {
                 return false;
             }
             ECParameterSpec params = ((ECPublicKey)publicKey).getParams();
-            int id = SupportedEllipticCurvesExtension.getCurveIndex(params);
-            if ((id <= 0) || !SupportedEllipticCurvesExtension.isSupported(id) ||
+            int id = EllipticCurvesExtension.getCurveIndex(params);
+            if ((id <= 0) || !EllipticCurvesExtension.isSupported(id) ||
                 ((requestedCurves != null) && !requestedCurves.contains(id))) {
                 return false;
             }
