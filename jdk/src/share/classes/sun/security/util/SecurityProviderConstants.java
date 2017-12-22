@@ -64,9 +64,9 @@ public final class SecurityProviderConstants {
     static {
         String keyLengthStr = GetPropertyAction.privilegedGetProperty
             (KEY_LENGTH_PROP);
-        int dsaKeySize = 1024;
-        int rsaKeySize = 1024;
-        int dhKeySize = 1024;
+        int dsaKeySize = 2048;
+        int rsaKeySize = 2048;
+        int dhKeySize = 2048;
         int ecKeySize = 256;
 
         if (keyLengthStr != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -485,7 +485,7 @@ public abstract class ResourceBundle {
     }
 
     /**
-     * A wrapper of ClassLoader.getSystemClassLoader().
+     * A wrapper of Extension Class Loader
      */
     private static class RBClassLoader extends ClassLoader {
         private static final RBClassLoader INSTANCE = AccessController.doPrivileged(
@@ -494,7 +494,16 @@ public abstract class ResourceBundle {
                             return new RBClassLoader();
                         }
                     });
-        private static final ClassLoader loader = ClassLoader.getSystemClassLoader();
+        private static final ClassLoader loader;
+        static {
+            // Find the extension class loader.
+            ClassLoader ld = ClassLoader.getSystemClassLoader();
+            ClassLoader parent;
+            while ((parent = ld.getParent()) != null) {
+                ld = parent;
+            }
+            loader = ld;
+        }
 
         private RBClassLoader() {
         }

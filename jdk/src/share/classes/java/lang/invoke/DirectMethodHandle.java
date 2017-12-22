@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,13 +75,20 @@ class DirectMethodHandle extends MethodHandle {
             mtype = mtype.insertParameterTypes(0, receiver);
         }
         if (!member.isField()) {
-            if (refKind == REF_invokeSpecial) {
-                member = member.asSpecial();
-                LambdaForm lform = preparedLambdaForm(member);
-                return new Special(mtype, lform, member);
-            } else {
-                LambdaForm lform = preparedLambdaForm(member);
-                return new DirectMethodHandle(mtype, lform, member);
+            switch (refKind) {
+                case REF_invokeSpecial: {
+                    member = member.asSpecial();
+                    LambdaForm lform = preparedLambdaForm(member);
+                    return new Special(mtype, lform, member);
+                }
+                case REF_invokeInterface: {
+                    LambdaForm lform = preparedLambdaForm(member);
+                    return new Interface(mtype, lform, member, receiver);
+                }
+                default: {
+                    LambdaForm lform = preparedLambdaForm(member);
+                    return new DirectMethodHandle(mtype, lform, member);
+                }
             }
         } else {
             LambdaForm lform = preparedFieldLambdaForm(member);
@@ -191,6 +198,7 @@ class DirectMethodHandle extends MethodHandle {
     private static LambdaForm makePreparedLambdaForm(MethodType mtype, int which) {
         boolean needsInit = (which == LF_INVSTATIC_INIT);
         boolean doesAlloc = (which == LF_NEWINVSPECIAL);
+        boolean needsReceiverCheck = (which == LF_INVINTERFACE);
         String linkerName, lambdaName;
         switch (which) {
         case LF_INVVIRTUAL:    linkerName = "linkToVirtual";    lambdaName = "DMH.invokeVirtual";    break;
@@ -218,6 +226,7 @@ class DirectMethodHandle extends MethodHandle {
         int nameCursor = ARG_LIMIT;
         final int NEW_OBJ     = (doesAlloc ? nameCursor++ : -1);
         final int GET_MEMBER  = nameCursor++;
+        final int CHECK_RECEIVER = (needsReceiverCheck ? nameCursor++ : -1);
         final int LINKER_CALL = nameCursor++;
         Name[] names = arguments(nameCursor - ARG_LIMIT, mtype.invokerType());
         assert(names.length == nameCursor);
@@ -232,6 +241,10 @@ class DirectMethodHandle extends MethodHandle {
         }
         assert(findDirectMethodHandle(names[GET_MEMBER]) == names[DMH_THIS]);
         Object[] outArgs = Arrays.copyOfRange(names, ARG_BASE, GET_MEMBER+1, Object[].class);
+        if (needsReceiverCheck) {
+            names[CHECK_RECEIVER] = new Name(Lazy.NF_checkReceiver, names[DMH_THIS], names[ARG_BASE]);
+            outArgs[0] = names[CHECK_RECEIVER];
+        }
         assert(outArgs[outArgs.length-1] == names[GET_MEMBER]);  // look, shifted args!
         int result = LAST_RESULT;
         if (doesAlloc) {
@@ -372,6 +385,29 @@ class DirectMethodHandle extends MethodHandle {
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
             return new Special(mt, lf, member);
+        }
+    }
+
+    /** This subclass represents invokeinterface instructions. */
+    static class Interface extends DirectMethodHandle {
+        private final Class<?> refc;
+        private Interface(MethodType mtype, LambdaForm form, MemberName member, Class<?> refc) {
+            super(mtype, form, member);
+            assert refc.isInterface() : refc;
+            this.refc = refc;
+        }
+        @Override
+        MethodHandle copyWith(MethodType mt, LambdaForm lf) {
+            return new Interface(mt, lf, member, refc);
+        }
+
+        Object checkReceiver(Object recv) {
+            if (!refc.isInstance(recv)) {
+                String msg = String.format("Class %s does not implement the requested interface %s",
+                        recv.getClass().getName(), refc.getName());
+                throw new IncompatibleClassChangeError(msg);
+            }
+            return recv;
         }
     }
 
@@ -657,7 +693,8 @@ class DirectMethodHandle extends MethodHandle {
                 NF_staticOffset,
                 NF_checkCast,
                 NF_allocateInstance,
-                NF_constructorMethod;
+                NF_constructorMethod,
+                NF_checkReceiver;
         static {
             try {
                 NamedFunction nfs[] = {
@@ -680,7 +717,9 @@ class DirectMethodHandle extends MethodHandle {
                         NF_allocateInstance = new NamedFunction(DirectMethodHandle.class
                                 .getDeclaredMethod("allocateInstance", Object.class)),
                         NF_constructorMethod = new NamedFunction(DirectMethodHandle.class
-                                .getDeclaredMethod("constructorMethod", Object.class))
+                                .getDeclaredMethod("constructorMethod", Object.class)),
+                        NF_checkReceiver = new NamedFunction(new MemberName(Interface.class
+                                .getDeclaredMethod("checkReceiver", Object.class)))
                 };
                 for (NamedFunction nf : nfs) {
                     // Each nf must be statically invocable or we get tied up in our bootstraps.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,18 +32,9 @@
 
 package com.sun.corba.se.impl.encoding;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
-import java.io.IOException;
-import java.io.StreamCorruptedException;
-import java.io.OptionalDataException;
 import java.io.IOException;
 
-import java.util.Stack;
-
-import java.net.URL;
 import java.net.MalformedURLException;
 
 import java.nio.ByteBuffer;
@@ -53,19 +44,11 @@ import java.lang.reflect.Method;
 
 import java.math.BigDecimal;
 
-import java.rmi.Remote;
-import java.rmi.StubNotFoundException;
-
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 
 import org.omg.CORBA.SystemException;
-import org.omg.CORBA.Object;
-import org.omg.CORBA.Principal;
-import org.omg.CORBA.TypeCode;
-import org.omg.CORBA.Any;
-import org.omg.CORBA.portable.Delegate;
 import org.omg.CORBA.portable.ValueBase;
 import org.omg.CORBA.portable.IndirectionException;
 import org.omg.CORBA.CompletionStatus;
@@ -82,15 +65,12 @@ import org.omg.CORBA.portable.StreamableValue;
 import org.omg.CORBA.MARSHAL;
 import org.omg.CORBA.portable.IDLEntity;
 
-import javax.rmi.PortableRemoteObject;
 import javax.rmi.CORBA.Tie;
-import javax.rmi.CORBA.Util;
 import javax.rmi.CORBA.ValueHandler;
 
 import com.sun.corba.se.pept.protocol.MessageMediator;
 import com.sun.corba.se.pept.transport.ByteBufferPool;
 
-import com.sun.corba.se.spi.protocol.RequestDispatcherRegistry;
 import com.sun.corba.se.spi.protocol.CorbaClientDelegate;
 
 import com.sun.corba.se.spi.ior.IOR;
@@ -99,9 +79,6 @@ import com.sun.corba.se.spi.ior.iiop.GIOPVersion;
 
 import com.sun.corba.se.spi.orb.ORB;
 import com.sun.corba.se.spi.orb.ORBVersionFactory;
-import com.sun.corba.se.spi.orb.ORBVersion;
-
-import com.sun.corba.se.spi.protocol.CorbaMessageMediator;
 
 import com.sun.corba.se.spi.logging.CORBALogDomains;
 import com.sun.corba.se.spi.presentation.rmi.PresentationManager;
@@ -725,12 +702,14 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
     //    IDLEntity.class.isAssignableFrom( clz ).
     // 3. If clz is an interface, use it to create the appropriate
     //    stub factory.
+
     public org.omg.CORBA.Object read_Object(Class clz)
     {
         // In any case, we must first read the IOR.
         IOR ior = IORFactories.makeIOR(parent) ;
-        if (ior.isNil())
+        if (ior.isNil()) {
             return null ;
+        }
 
         PresentationManager.StubFactoryFactory sff = ORB.getStubFactoryFactory() ;
         String codeBase = ior.getProfile().getCodebase() ;
@@ -739,6 +718,7 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
         if (clz == null) {
             RepositoryId rid = RepositoryId.cache.getId( ior.getTypeId() ) ;
             String className = rid.getClassName() ;
+            orb.validateIORClass(className);
             boolean isIDLInterface = rid.isIDLType() ;
 
             if (className == null || className.equals( "" ))
@@ -761,11 +741,9 @@ public class CDRInputStream_1_0 extends CDRInputStreamBase
         } else {
             // clz is an interface class
             boolean isIDL = IDLEntity.class.isAssignableFrom( clz ) ;
-
             stubFactory = sff.createStubFactory( clz.getName(),
                 isIDL, codeBase, clz, clz.getClassLoader() ) ;
         }
-
         return internalIORToObject( ior, stubFactory, orb ) ;
     }
 

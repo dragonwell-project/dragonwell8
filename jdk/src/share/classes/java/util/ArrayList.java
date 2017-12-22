@@ -225,7 +225,7 @@ public class ArrayList<E> extends AbstractList<E>
             return Math.max(DEFAULT_CAPACITY, minCapacity);
         }
         return minCapacity;
-        }
+    }
 
     private void ensureCapacityInternal(int minCapacity) {
         ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));

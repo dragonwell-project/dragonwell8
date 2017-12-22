@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2183,9 +2183,10 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
                                              Register method_result,
                                              Register scan_temp,
                                              Register sethi_temp,
-                                             Label& L_no_such_interface) {
+                                             Label& L_no_such_interface,
+                                             bool return_method) {
   assert_different_registers(recv_klass, intf_klass, method_result, scan_temp);
-  assert(itable_index.is_constant() || itable_index.as_register() == method_result,
+  assert(!return_method || itable_index.is_constant() || itable_index.as_register() == method_result,
          "caller must use same register for non-constant itable index as for method");
 
   Label L_no_such_interface_restore;
@@ -2229,11 +2230,13 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
   }
   add(recv_klass, scan_temp, scan_temp);
 
-  // Adjust recv_klass by scaled itable_index, so we can free itable_index.
-  RegisterOrConstant itable_offset = itable_index;
-  itable_offset = regcon_sll_ptr(itable_index, exact_log2(itableMethodEntry::size() * wordSize), itable_offset);
-  itable_offset = regcon_inc_ptr(itable_offset, itableMethodEntry::method_offset_in_bytes(), itable_offset);
-  add(recv_klass, ensure_simm13_or_reg(itable_offset, sethi_temp), recv_klass);
+  if (return_method) {
+    // Adjust recv_klass by scaled itable_index, so we can free itable_index.
+    RegisterOrConstant itable_offset = itable_index;
+    itable_offset = regcon_sll_ptr(itable_index, exact_log2(itableMethodEntry::size() * wordSize), itable_offset);
+    itable_offset = regcon_inc_ptr(itable_offset, itableMethodEntry::method_offset_in_bytes(), itable_offset);
+    add(recv_klass, ensure_simm13_or_reg(itable_offset, sethi_temp), recv_klass);
+  }
 
   // for (scan = klass->itable(); scan->interface() != NULL; scan += scan_step) {
   //   if (scan->interface() == intf) {
@@ -2268,12 +2271,14 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
 
   bind(L_found_method);
 
-  // Got a hit.
-  int ito_offset = itableOffsetEntry::offset_offset_in_bytes();
-  // scan_temp[-scan_step] points to the vtable offset we need
-  ito_offset -= scan_step;
-  lduw(scan_temp, ito_offset, scan_temp);
-  ld_ptr(recv_klass, scan_temp, method_result);
+  if (return_method) {
+    // Got a hit.
+    int ito_offset = itableOffsetEntry::offset_offset_in_bytes();
+    // scan_temp[-scan_step] points to the vtable offset we need
+    ito_offset -= scan_step;
+    lduw(scan_temp, ito_offset, scan_temp);
+    ld_ptr(recv_klass, scan_temp, method_result);
+  }
 
   if (did_save) {
     Label L_done;

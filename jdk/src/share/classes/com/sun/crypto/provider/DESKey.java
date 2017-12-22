@@ -76,7 +76,7 @@ final class DESKey implements SecretKey {
         DESKeyGenerator.setParityBit(this.key, 0);
     }
 
-    public byte[] getEncoded() {
+    public synchronized byte[] getEncoded() {
         // Return a copy of the key, rather than a reference,
         // so that the key data cannot be modified from outside
         return this.key.clone();
@@ -151,9 +151,11 @@ final class DESKey implements SecretKey {
      */
     protected void finalize() throws Throwable {
         try {
-            if (this.key != null) {
-                java.util.Arrays.fill(this.key, (byte)0x00);
-                this.key = null;
+            synchronized (this) {
+                if (this.key != null) {
+                    java.util.Arrays.fill(this.key, (byte)0x00);
+                    this.key = null;
+                }
             }
         } finally {
             super.finalize();

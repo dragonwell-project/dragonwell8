@@ -222,6 +222,7 @@ package.access=sun.,\
                jdk.internal.,\
                jdk.nashorn.internal.,\
                jdk.nashorn.tools.,\
+               jdk.xml.internal.,\
                com.sun.activation.registries.
 
 #
@@ -271,6 +272,7 @@ package.definition=sun.,\
                    jdk.internal.,\
                    jdk.nashorn.internal.,\
                    jdk.nashorn.tools.,\
+                   jdk.xml.internal.,\
                    com.sun.activation.registries.
 
 #
@@ -585,7 +587,7 @@ jdk.certpath.disabledAlgorithms=MD2, MD5, SHA1 jdkCA & usage TLSServer, \
 #
 # See "jdk.certpath.disabledAlgorithms" for syntax descriptions.
 #
-jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
+jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, DSA keySize < 1024
 
 #
 # Algorithm restrictions for Secure Socket Layer/Transport Layer Security
@@ -617,8 +619,8 @@ jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024
 #
 # Example:
 #   jdk.tls.disabledAlgorithms=MD5, SSLv3, DSA, RSA keySize < 2048
-jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
-    EC keySize < 224
+jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 1024, \
+    EC keySize < 224, DES40_CBC, RC4_40
 
 # Legacy algorithms for Secure Socket Layer/Transport Layer Security (SSL/TLS)
 # processing in JSSE implementation.
@@ -672,8 +674,6 @@ jdk.tls.disabledAlgorithms=SSLv3, RC4, MD5withRSA, DH keySize < 768, \
 #
 jdk.tls.legacyAlgorithms= \
         K_NULL, C_NULL, M_NULL, \
-        DHE_DSS_EXPORT, DHE_RSA_EXPORT, DH_anon_EXPORT, DH_DSS_EXPORT, \
-        DH_RSA_EXPORT, RSA_EXPORT, \
         DH_anon, ECDH_anon, \
         RC4_128, RC4_40, DES_CBC, DES40_CBC, \
         3DES_EDE_CBC
@@ -933,3 +933,24 @@ jdk.xml.dsig.secureValidationPolicy=\
 #    java.rmi.dgc.VMID;\
 #    java.rmi.dgc.Lease;\
 #    maxdepth=5;maxarray=10000
+
+# CORBA ORBIorTypeCheckRegistryFilter
+# Type check enhancement for ORB::string_to_object processing
+#
+# An IOR type check filter, if configured, is used by an ORB during
+# an ORB::string_to_object invocation to check the veracity of the type encoded
+# in the ior string.
+#
+# The filter pattern consists of a semi-colon separated list of class names.
+# The configured list contains the binary class names of the IDL interface types
+# corresponding to the IDL stub class to be instantiated.
+# As such, a filter specifies a list of IDL stub classes that will be
+# allowed by an ORB when an ORB::string_to_object is invoked.
+# It is used to specify a white list configuration of acceptable
+# IDL stub types which may be contained in a stringified IOR
+# parameter passed as input to an ORB::string_to_object method.
+#
+# Note: This property is currently used by the JDK Reference implementation.
+# It is not guaranteed to be examined and used by other implementations.
+#
+#com.sun.CORBA.ORBIorTypeCheckRegistryFilter=binary_class_name;binary_class_name

@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 1999-2004 The Apache Software Foundation.
@@ -24,14 +23,13 @@ package com.sun.org.apache.xpath.internal.jaxp;
 import com.sun.org.apache.xalan.internal.XalanConstants;
 import com.sun.org.apache.xpath.internal.res.XPATHErrorResources;
 import com.sun.org.apache.xalan.internal.res.XSLMessages;
-import com.sun.org.apache.xalan.internal.utils.FeatureManager;
-import com.sun.org.apache.xalan.internal.utils.FeaturePropertyBase;
 
 import javax.xml.XMLConstants;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
 import javax.xml.xpath.XPathFunctionResolver;
 import javax.xml.xpath.XPathVariableResolver;
+import jdk.xml.internal.JdkXmlFeatures;
 
 /**
  * The XPathFactory builds XPaths.
@@ -64,31 +62,22 @@ public  class XPathFactoryImpl extends XPathFactory {
          * <p>State of secure mode.</p>
          */
         private boolean _isSecureMode = false;
+
+        /**
+         * XML Features manager
+         */
+        private final JdkXmlFeatures _featureManager;
+
         /**
          * javax.xml.xpath.XPathFactory implementation.
          */
 
-        private boolean _useServicesMechanism = true;
-
-        private final FeatureManager _featureManager;
-
         public XPathFactoryImpl() {
-            this(true);
-        }
-
-        public static XPathFactory newXPathFactoryNoServiceLoader() {
-            return new XPathFactoryImpl(false);
-        }
-
-        public XPathFactoryImpl(boolean useServicesMechanism) {
-            _featureManager = new FeatureManager();
             if (System.getSecurityManager() != null) {
                 _isSecureMode = true;
                 _isNotSecureProcessing = false;
-                _featureManager.setValue(FeatureManager.Feature.ORACLE_ENABLE_EXTENSION_FUNCTION,
-                        FeaturePropertyBase.State.FSP, XalanConstants.FEATURE_FALSE);
             }
-            this._useServicesMechanism = useServicesMechanism;
+            _featureManager = new JdkXmlFeatures(!_isNotSecureProcessing);
         }
         /**
          * <p>Is specified object model supported by this
@@ -138,8 +127,7 @@ public  class XPathFactoryImpl extends XPathFactory {
         public javax.xml.xpath.XPath newXPath() {
             return new com.sun.org.apache.xpath.internal.jaxp.XPathImpl(
                     xPathVariableResolver, xPathFunctionResolver,
-                    !_isNotSecureProcessing, _useServicesMechanism,
-                    _featureManager );
+                    !_isNotSecureProcessing, _featureManager );
         }
 
         /**
@@ -190,29 +178,28 @@ public  class XPathFactoryImpl extends XPathFactory {
 
                 _isNotSecureProcessing = !value;
                 if (value && _featureManager != null) {
-                    _featureManager.setValue(FeatureManager.Feature.ORACLE_ENABLE_EXTENSION_FUNCTION,
-                            FeaturePropertyBase.State.FSP, XalanConstants.FEATURE_FALSE);
+                    _featureManager.setFeature(JdkXmlFeatures.XmlFeature.ENABLE_EXTENSION_FUNCTION,
+                            JdkXmlFeatures.State.FSP, false);
                 }
 
                 // all done processing feature
                 return;
             }
             if (name.equals(XalanConstants.ORACLE_FEATURE_SERVICE_MECHANISM)) {
-                //in secure mode, let _useServicesMechanism be determined by the constructor
-                if (!_isSecureMode)
-                    _useServicesMechanism = value;
-                return;
+                // for compatibility, in secure mode, useServicesMechanism is determined by the constructor
+                if (_isSecureMode)
+                    return;
             }
 
             if (_featureManager != null &&
-                    _featureManager.setValue(name, FeaturePropertyBase.State.APIPROPERTY, value)) {
+                    _featureManager.setFeature(name, JdkXmlFeatures.State.APIPROPERTY, value)) {
                 return;
             }
 
             // unknown feature
             String fmsg = XSLMessages.createXPATHMessage(
                     XPATHErrorResources.ER_FEATURE_UNKNOWN,
-                    new Object[] { name, CLASS_NAME, new Boolean(value) } );
+                    new Object[] { name, CLASS_NAME, value} );
             throw new XPathFactoryConfigurationException( fmsg );
         }
 
@@ -254,15 +241,11 @@ public  class XPathFactoryImpl extends XPathFactory {
             if (name.equals(XMLConstants.FEATURE_SECURE_PROCESSING)) {
                 return !_isNotSecureProcessing;
             }
-            if (name.equals(XalanConstants.ORACLE_FEATURE_SERVICE_MECHANISM)) {
-                return _useServicesMechanism;
-            }
 
-            /** Check to see if the property is managed by the security manager **/
-            String propertyValue = (_featureManager != null) ?
-                    _featureManager.getValueAsString(name) : null;
-            if (propertyValue != null) {
-                return _featureManager.isFeatureEnabled(name);
+            /** Check to see if the property is managed by the feature manager **/
+            int index = _featureManager.getIndex(name);
+            if (index > -1) {
+                return _featureManager.getFeature(index);
             }
 
             // unknown feature

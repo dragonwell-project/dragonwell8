@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2001-2004 The Apache Software Foundation.
@@ -23,10 +22,10 @@
 
 package com.sun.org.apache.xalan.internal.xsltc.cmdline;
 
-import com.sun.org.apache.xalan.internal.utils.FeatureManager;
 import java.io.File;
 import java.net.URL;
 import java.util.Vector;
+import jdk.xml.internal.JdkXmlFeatures;
 
 import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOpt;
 import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOptsException;
@@ -78,7 +77,7 @@ public final class Compile {
             final GetOpt getopt = new GetOpt(args, "o:d:j:p:uxhsinv");
             if (args.length < 1) printUsage();
 
-            final XSLTC xsltc = new XSLTC(true, new FeatureManager());
+            final XSLTC xsltc = new XSLTC(new JdkXmlFeatures(false));
             xsltc.init();
 
             int c;

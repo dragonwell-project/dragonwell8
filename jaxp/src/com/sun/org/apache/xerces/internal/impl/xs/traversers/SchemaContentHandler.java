@@ -25,6 +25,7 @@ import com.sun.org.apache.xerces.internal.util.NamespaceSupport;
 import com.sun.org.apache.xerces.internal.util.SAXLocatorWrapper;
 import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.org.apache.xerces.internal.util.XMLAttributesImpl;
+import com.sun.org.apache.xerces.internal.util.XMLStringBuffer;
 import com.sun.org.apache.xerces.internal.util.XMLSymbols;
 import com.sun.org.apache.xerces.internal.xni.NamespaceContext;
 import com.sun.org.apache.xerces.internal.xni.QName;
@@ -77,6 +78,7 @@ final class SchemaContentHandler implements ContentHandler {
     private final QName fAttributeQName = new QName();
     private final XMLAttributesImpl fAttributes = new XMLAttributesImpl();
     private final XMLString fTempString = new XMLString();
+    private final XMLStringBuffer fStringBuffer = new XMLStringBuffer();
 
     /**
      * <p>Constructs an SchemaContentHandler.</p>
@@ -102,6 +104,7 @@ final class SchemaContentHandler implements ContentHandler {
      */
     public void startDocument() throws SAXException {
         fNeedPushNSContext = true;
+        fNamespaceContext.reset();
         try {
             fSchemaDOMParser.startDocument(fSAXLocatorWrapper, null, fNamespaceContext, null);
         }
@@ -325,7 +328,11 @@ final class SchemaContentHandler implements ContentHandler {
             if (nsPrefix.length() > 0) {
                 prefix = XMLSymbols.PREFIX_XMLNS;
                 localpart = nsPrefix;
-                rawname = fSymbolTable.addSymbol(prefix + ":" + localpart);
+                fStringBuffer.clear();
+                fStringBuffer.append(prefix);
+                fStringBuffer.append(':');
+                fStringBuffer.append(localpart);
+                rawname = fSymbolTable.addSymbol(fStringBuffer.ch, fStringBuffer.offset, fStringBuffer.length);
             }
             else {
                 prefix = XMLSymbols.EMPTY_STRING;
@@ -333,7 +340,8 @@ final class SchemaContentHandler implements ContentHandler {
                 rawname = XMLSymbols.PREFIX_XMLNS;
             }
             fAttributeQName.setValues(prefix, localpart, rawname, NamespaceContext.XMLNS_URI);
-            fAttributes.addAttribute(fAttributeQName, XMLSymbols.fCDATASymbol, nsURI);
+            fAttributes.addAttribute(fAttributeQName, XMLSymbols.fCDATASymbol,
+                    (nsURI != null) ? nsURI : XMLSymbols.EMPTY_STRING);
         }
     }
 

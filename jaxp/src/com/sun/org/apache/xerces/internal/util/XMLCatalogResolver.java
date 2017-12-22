@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2004,2005 The Apache Software Foundation.
@@ -44,6 +43,7 @@ import com.sun.org.apache.xml.internal.resolver.Catalog;
 import com.sun.org.apache.xml.internal.resolver.CatalogManager;
 import com.sun.org.apache.xml.internal.resolver.readers.OASISXMLCatalogReader;
 import com.sun.org.apache.xml.internal.resolver.readers.SAXCatalogReader;
+import jdk.xml.internal.JdkXmlUtils;
 
 /**
  * <p>The catalog resolver handles the resolution of external
@@ -574,8 +574,8 @@ public class XMLCatalogResolver
      */
     private void attachReaderToCatalog (Catalog catalog) {
 
-        SAXParserFactory spf = new SAXParserFactoryImpl();
-        spf.setNamespaceAware(true);
+        SAXParserFactory spf = JdkXmlUtils.getSAXFactory(
+                catalog.getCatalogManager().overrideDefaultParser());
         spf.setValidating(false);
 
         SAXCatalogReader saxReader = new SAXCatalogReader(spf);
