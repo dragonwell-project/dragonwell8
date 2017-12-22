@@ -29,12 +29,6 @@ package sun.security.ssl;
 import java.io.*;
 import java.util.*;
 import java.security.*;
-import java.security.NoSuchAlgorithmException;
-import java.security.AccessController;
-import java.security.AlgorithmConstraints;
-import java.security.AccessControlContext;
-import java.security.PrivilegedExceptionAction;
-import java.security.PrivilegedActionException;
 
 import javax.crypto.*;
 import javax.crypto.spec.*;
@@ -204,8 +198,40 @@ abstract class Handshaker {
             Debug.getBooleanProperty(
                 "jdk.tls.rejectClientInitiatedRenegotiation", false);
 
+    // To switch off the extended_master_secret extension.
+    static final boolean useExtendedMasterSecret;
+
+    // Allow session resumption without Extended Master Secret extension.
+    static final boolean allowLegacyResumption =
+            Debug.getBooleanProperty("jdk.tls.allowLegacyResumption", true);
+
+    // Allow full handshake without Extended Master Secret extension.
+    static final boolean allowLegacyMasterSecret =
+            Debug.getBooleanProperty("jdk.tls.allowLegacyMasterSecret", true);
+
+    // Is it requested to use extended master secret extension?
+    boolean requestedToUseEMS = false;
+
     // need to dispose the object when it is invalidated
     boolean invalidated;
+
+    // Is the extended_master_secret extension supported?
+    static {
+        boolean supportExtendedMasterSecret = true;
+        try {
+            KeyGenerator kg =
+                JsseJce.getKeyGenerator("SunTlsExtendedMasterSecret");
+        } catch (NoSuchAlgorithmException nae) {
+            supportExtendedMasterSecret = false;
+        }
+
+        if (supportExtendedMasterSecret) {
+            useExtendedMasterSecret = Debug.getBooleanProperty(
+                    "jdk.tls.useExtendedMasterSecret", true);
+        } else {
+            useExtendedMasterSecret = false;
+        }
+    }
 
     Handshaker(SSLSocketImpl c, SSLContextImpl context,
             ProtocolList enabledProtocols, boolean needCertVerify,
@@ -216,7 +242,7 @@ abstract class Handshaker {
         init(context, enabledProtocols, needCertVerify, isClient,
             activeProtocolVersion, isInitialHandshake, secureRenegotiation,
             clientVerifyData, serverVerifyData);
-    }
+   }
 
     Handshaker(SSLEngineImpl engine, SSLContextImpl context,
             ProtocolList enabledProtocols, boolean needCertVerify,
@@ -647,7 +673,7 @@ abstract class Handshaker {
                             boolean available = true;
                             if (suite.keyExchange.isEC) {
                                 if (!checkedCurves) {
-                                    hasCurves = SupportedEllipticCurvesExtension
+                                    hasCurves = EllipticCurvesExtension
                                         .hasActiveCurves(algorithmConstraints);
                                     checkedCurves = true;
 
@@ -738,7 +764,7 @@ abstract class Handshaker {
                             boolean available = true;
                             if (suite.keyExchange.isEC) {
                                 if (!checkedCurves) {
-                                    hasCurves = SupportedEllipticCurvesExtension
+                                    hasCurves = EllipticCurvesExtension
                                         .hasActiveCurves(algorithmConstraints);
                                     checkedCurves = true;
 
@@ -1169,6 +1195,7 @@ abstract class Handshaker {
      * SHA1 hashes are of (different) constant strings, the pre-master
      * secret, and the nonces provided by the client and the server.
      */
+    @SuppressWarnings("deprecation")
     private SecretKey calculateMasterSecret(SecretKey preMasterSecret,
             ProtocolVersion requestedVersion) {
 
@@ -1200,10 +1227,34 @@ abstract class Handshaker {
         int prfHashLength = prf.getPRFHashLength();
         int prfBlockSize = prf.getPRFBlockSize();
 
-        TlsMasterSecretParameterSpec spec = new TlsMasterSecretParameterSpec(
-                preMasterSecret, protocolVersion.major, protocolVersion.minor,
-                clnt_random.random_bytes, svr_random.random_bytes,
-                prfHashAlg, prfHashLength, prfBlockSize);
+        TlsMasterSecretParameterSpec spec;
+        if (session.getUseExtendedMasterSecret()) {
+            // reset to use the extended master secret algorithm
+            masterAlg = "SunTlsExtendedMasterSecret";
+
+            byte[] sessionHash = null;
+            if (protocolVersion.v >= ProtocolVersion.TLS12.v) {
+                sessionHash = handshakeHash.getFinishedHash();
+            } else {
+                // TLS 1.0/1.1
+                sessionHash = new byte[36];
+                try {
+                    handshakeHash.getMD5Clone().digest(sessionHash, 0, 16);
+                    handshakeHash.getSHAClone().digest(sessionHash, 16, 20);
+                } catch (DigestException de) {
+                    throw new ProviderException(de);
+                }
+            }
+
+            spec = new TlsMasterSecretParameterSpec(
+                    preMasterSecret, protocolVersion.major, protocolVersion.minor,
+                    sessionHash, prfHashAlg, prfHashLength, prfBlockSize);
+        } else {
+            spec = new TlsMasterSecretParameterSpec(
+                    preMasterSecret, protocolVersion.major, protocolVersion.minor,
+                    clnt_random.random_bytes, svr_random.random_bytes,
+                    prfHashAlg, prfHashLength, prfBlockSize);
+        }
 
         try {
             KeyGenerator kg = JsseJce.getKeyGenerator(masterAlg);
