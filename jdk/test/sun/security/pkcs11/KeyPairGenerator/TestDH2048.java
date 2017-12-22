@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
 
 /**
  * @test
- * @bug 7196382
- * @summary Ensure that 2048-bit DH key pairs can be generated
+ * @bug 7196382 8072452
+ * @summary Ensure that DH key pairs can be generated for 512 - 8192 bits
  * @author Valerie Peng
  * @library ..
  */
@@ -53,11 +53,31 @@ public class TestDH2048 extends PKCS11Test {
             return;
         }
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("DH", p);
-        kpg.initialize(2048);
+        kpg.initialize(512);
         KeyPair kp1 = kpg.generateKeyPair();
-        checkUnsupportedKeySize(kpg, 1536);
-        checkUnsupportedKeySize(kpg, 2176);
-        checkUnsupportedKeySize(kpg, 3072);
+
+        int[] test_values = {768, 1024, 1536, 2048, 3072, 4096, 6144, 8192};
+        for (int i : test_values)
+        try {
+            kpg.initialize(i);
+            kp1 = kpg.generateKeyPair();
+        } catch (InvalidParameterException ipe) {
+            // NSS (as of version 3.13) has a hard coded maximum limit
+            // of 2236 or 3072 bits for DHE keys.
+            // SunPKCS11-Solaris has limit of 4096 on older systems
+            String prov = p.getName();
+            System.out.println(i + "-bit DH key pair generation: " + ipe);
+            if ((prov.equals("SunPKCS11-NSS") && i > 2048) ||
+                (prov.equals("SunPKCS11-Solaris") && i > 4096)) {
+                // OK
+            } else {
+                throw ipe;
+            }
+        }
+
+        // key size must be multiples of 64 though
+        checkUnsupportedKeySize(kpg, 2048 + 63);
+        checkUnsupportedKeySize(kpg, 3072 + 32);
     }
 
     public static void main(String[] args) throws Exception {

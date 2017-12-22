@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,19 +21,27 @@
  * questions.
  */
 
-package sun.misc;
+import com.oracle.java.testlibrary.ProcessTools;
+import com.oracle.java.testlibrary.OutputAnalyzer;
 
-import java.io.ObjectInputStream;
-
-/**
- * The interface to specify methods for accessing {@code ObjectInputStream}
- * @author sjiang
+/*
+ * @test MaxMetaspaceSizeTest
+ * @requires vm.bits == "64"
+ * @bug 8087291
+ * @library /testlibrary
+ * @run main/othervm MaxMetaspaceSizeTest
  */
-public interface JavaObjectInputStreamAccess {
-    /**
-     * Sets a descriptor validating.
-     * @param ois stream to have the descriptors validated
-     * @param validator validator used to validate a descriptor.
-     */
-    public void setValidator(ObjectInputStream ois, ObjectStreamClassValidator validator);
+
+public class MaxMetaspaceSizeTest {
+    public static void main(String... args) throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+            "-Xmx1g",
+            "-XX:InitialBootClassLoaderMetaspaceSize=4195328",
+            "-XX:MaxMetaspaceSize=4195328",
+            "-XX:+UseCompressedClassPointers",
+            "-XX:CompressedClassSpaceSize=1g",
+            "-version");
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldContain("MaxMetaspaceSize is too small.");
+    }
 }
