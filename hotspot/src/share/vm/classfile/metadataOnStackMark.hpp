@@ -47,7 +47,7 @@ class MetadataOnStackMark : public StackObj {
   static void retire_buffer(MetadataOnStackBuffer* buffer);
 
  public:
-  MetadataOnStackMark(bool visit_code_cache);
+  MetadataOnStackMark(bool has_redefined_a_class);
    ~MetadataOnStackMark();
 
   static void record(Metadata* m, Thread* thread);
