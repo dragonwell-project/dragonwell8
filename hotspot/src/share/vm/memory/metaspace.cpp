@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,7 +154,7 @@ class ChunkManager : public CHeapObj<mtInternal> {
 
   // Map a size to a list index assuming that there are lists
   // for special, small, medium, and humongous chunks.
-  static ChunkIndex list_index(size_t size);
+  ChunkIndex list_index(size_t size);
 
   // Remove the chunk from its freelist.  It is
   // expected to be on one of the _free_chunks[] lists.
@@ -706,6 +706,7 @@ class SpaceManager : public CHeapObj<mtClass> {
   size_t allocated_blocks_words() const { return _allocated_blocks_words; }
   size_t allocated_blocks_bytes() const { return _allocated_blocks_words * BytesPerWord; }
   size_t allocated_chunks_words() const { return _allocated_chunks_words; }
+  size_t allocated_chunks_bytes() const { return _allocated_chunks_words * BytesPerWord; }
   size_t allocated_chunks_count() const { return _allocated_chunks_count; }
 
   bool is_humongous(size_t word_size) { return word_size > medium_chunk_size(); }
@@ -1751,7 +1752,11 @@ void ChunkManager::locked_print_sum_free_chunks(outputStream* st) {
   st->print_cr("Sum free chunk total " SIZE_FORMAT "  count " SIZE_FORMAT,
                 sum_free_chunks(), sum_free_chunks_count());
 }
+
 ChunkList* ChunkManager::free_chunks(ChunkIndex index) {
+  assert(index == SpecializedIndex || index == SmallIndex || index == MediumIndex,
+         err_msg("Bad index: %d", (int)index));
+
   return &_free_chunks[index];
 }
 
@@ -1863,7 +1868,7 @@ Metachunk* ChunkManager::chunk_freelist_allocate(size_t word_size) {
   }
 
   assert((word_size <= chunk->word_size()) ||
-         list_index(chunk->word_size() == HumongousIndex),
+         (list_index(chunk->word_size()) == HumongousIndex),
          "Non-humongous variable sized chunk");
   if (TraceMetadataChunkAllocation) {
     size_t list_count;
@@ -2357,22 +2362,18 @@ const char* SpaceManager::chunk_size_name(ChunkIndex index) const {
 }
 
 ChunkIndex ChunkManager::list_index(size_t size) {
-  switch (size) {
-    case SpecializedChunk:
-      assert(SpecializedChunk == ClassSpecializedChunk,
-             "Need branch for ClassSpecializedChunk");
-      return SpecializedIndex;
-    case SmallChunk:
-    case ClassSmallChunk:
-      return SmallIndex;
-    case MediumChunk:
-    case ClassMediumChunk:
-      return MediumIndex;
-    default:
-      assert(size > MediumChunk || size > ClassMediumChunk,
-             "Not a humongous chunk");
-      return HumongousIndex;
+  if (free_chunks(SpecializedIndex)->size() == size) {
+    return SpecializedIndex;
   }
+  if (free_chunks(SmallIndex)->size() == size) {
+    return SmallIndex;
+  }
+  if (free_chunks(MediumIndex)->size() == size) {
+    return MediumIndex;
+  }
+
+  assert(size > free_chunks(MediumIndex)->size(), "Not a humongous chunk");
+  return HumongousIndex;
 }
 
 void SpaceManager::deallocate(MetaWord* p, size_t word_size) {
@@ -2394,7 +2395,7 @@ void SpaceManager::add_chunk(Metachunk* new_chunk, bool make_current) {
 
   // Find the correct list and and set the current
   // chunk for that list.
-  ChunkIndex index = ChunkManager::list_index(new_chunk->word_size());
+  ChunkIndex index = chunk_manager()->list_index(new_chunk->word_size());
 
   if (index != HumongousIndex) {
     retire_current_chunk();
@@ -3463,6 +3464,16 @@ size_t Metaspace::capacity_bytes_slow(MetadataType mdtype) const {
   return capacity_words_slow(mdtype) * BytesPerWord;
 }
 
+size_t Metaspace::allocated_blocks_bytes() const {
+  return vsm()->allocated_blocks_bytes() +
+      (using_class_space() ? class_vsm()->allocated_blocks_bytes() : 0);
+}
+
+size_t Metaspace::allocated_chunks_bytes() const {
+  return vsm()->allocated_chunks_bytes() +
+      (using_class_space() ? class_vsm()->allocated_chunks_bytes() : 0);
+}
+
 void Metaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_class) {
   if (SafepointSynchronize::is_at_safepoint()) {
     if (DumpSharedSpaces && PrintSharedSpaces) {
@@ -4018,6 +4029,42 @@ class SpaceManagerTest : AllStatic {
 
 void SpaceManager_test_adjust_initial_chunk_size() {
   SpaceManagerTest::test_adjust_initial_chunk_size();
+}
+
+// The following test is placed here instead of a gtest / unittest file
+// because the ChunkManager class is only available in this file.
+void ChunkManager_test_list_index() {
+  ChunkManager manager(ClassSpecializedChunk, ClassSmallChunk, ClassMediumChunk);
+
+  // Test previous bug where a query for a humongous class metachunk,
+  // incorrectly matched the non-class medium metachunk size.
+  {
+    assert(MediumChunk > ClassMediumChunk, "Precondition for test");
+
+    ChunkIndex index = manager.list_index(MediumChunk);
+
+    assert(index == HumongousIndex,
+           err_msg("Requested size is larger than ClassMediumChunk,"
+           " so should return HumongousIndex. Got index: %d", (int)index));
+  }
+
+  // Check the specified sizes as well.
+  {
+    ChunkIndex index = manager.list_index(ClassSpecializedChunk);
+    assert(index == SpecializedIndex, err_msg("Wrong index returned. Got index: %d", (int)index));
+  }
+  {
+    ChunkIndex index = manager.list_index(ClassSmallChunk);
+    assert(index == SmallIndex, err_msg("Wrong index returned. Got index: %d", (int)index));
+  }
+  {
+    ChunkIndex index = manager.list_index(ClassMediumChunk);
+    assert(index == MediumIndex, err_msg("Wrong index returned. Got index: %d", (int)index));
+  }
+  {
+    ChunkIndex index = manager.list_index(ClassMediumChunk + 1);
+    assert(index == HumongousIndex, err_msg("Wrong index returned. Got index: %d", (int)index));
+  }
 }
 
 #endif
