@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +80,9 @@ public final class Utils {
     * converted to {@code long}.
     */
     public static final long DEFAULT_TEST_TIMEOUT = TimeUnit.SECONDS.toMillis(120);
+
+    private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     private Utils() {
         // Private constructor to prevent class instantiation
@@ -292,6 +296,40 @@ public final class Utils {
     }
 
     /**
+     * Helper method to read all bytes from InputStream
+     *
+     * @param is InputStream to read from
+     * @return array of bytes
+     * @throws IOException
+     */
+    public static byte[] readAllBytes(InputStream is) throws IOException {
+        byte[] buf = new byte[DEFAULT_BUFFER_SIZE];
+        int capacity = buf.length;
+        int nread = 0;
+        int n;
+        for (;;) {
+            // read to EOF which may read more or less than initial buffer size
+            while ((n = is.read(buf, nread, capacity - nread)) > 0)
+                nread += n;
+
+            // if the last call to read returned -1, then we're done
+            if (n < 0)
+                break;
+
+            // need to allocate a larger buffer
+            if (capacity <= MAX_BUFFER_SIZE - capacity) {
+                capacity = capacity << 1;
+            } else {
+                if (capacity == MAX_BUFFER_SIZE)
+                    throw new OutOfMemoryError("Required array size too large");
+                capacity = MAX_BUFFER_SIZE;
+            }
+            buf = Arrays.copyOf(buf, capacity);
+        }
+        return (capacity == nread) ? buf : Arrays.copyOf(buf, nread);
+    }
+
+    /**
      * Adjusts the provided timeout value for the TIMEOUT_FACTOR
      * @param tOut the timeout value to be adjusted
      * @return The timeout value adjusted for the value of "test.timeout.factor"
@@ -362,7 +400,7 @@ public final class Utils {
      * @throws NullPointerException if {@code in} or {@code out} is {@code null}
      *
      */
-    public static long transferBetweenStreams(InputStream in, OutputStream out)
+    public static long transferTo(InputStream in, OutputStream out)
             throws IOException  {
         long transferred = 0;
         byte[] buffer = new byte[BUFFER_SIZE];
