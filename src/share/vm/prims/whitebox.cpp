@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,6 +158,9 @@ WB_ENTRY(void, WB_AddToSystemClassLoaderSearch(JNIEnv* env, jobject o, jstring s
 }
 WB_END
 
+#ifdef LINUX
+#include "utilities/elfFile.hpp"
+#endif
 
 WB_ENTRY(jlong, WB_GetCompressedOopsMaxHeapSize(JNIEnv* env, jobject o)) {
   return (jlong)Arguments::max_heap_for_compressed_oops();
@@ -1010,6 +1013,21 @@ void WhiteBox::register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,
   }
 }
 
+// Checks that the library libfile has the noexecstack bit set.
+WB_ENTRY(jboolean, WB_CheckLibSpecifiesNoexecstack(JNIEnv* env, jobject o, jstring libfile))
+  jboolean ret = false;
+#ifdef LINUX
+  // Can't be in VM when we call JNI.
+  ThreadToNativeFromVM ttnfv(thread);
+  const char* lf = env->GetStringUTFChars(libfile, NULL);
+  CHECK_JNI_EXCEPTION_(env, 0);
+  ElfFile ef(lf);
+  ret = (jboolean) ef.specifies_noexecstack();
+  env->ReleaseStringUTFChars(libfile, lf);
+#endif
+  return ret;
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1121,6 +1139,8 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_GetNMethod         },
   {CC"isMonitorInflated",  CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
   {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
+  {CC"checkLibSpecifiesNoexecstack", CC"(Ljava/lang/String;)Z",
+                                                      (void*)&WB_CheckLibSpecifiesNoexecstack},
 };
 
 #undef CC
