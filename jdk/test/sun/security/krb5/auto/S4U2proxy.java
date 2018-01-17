@@ -26,8 +26,8 @@
  * @bug 6355584 8044215
  * @summary Introduce constrained Kerberos delegation
  * @compile -XDignore.symbol.file S4U2proxy.java
- * @run main/othervm S4U2proxy krb5
- * @run main/othervm S4U2proxy spnego
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock S4U2proxy krb5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock S4U2proxy spnego
  */
 
 import java.util.Arrays;

@@ -26,7 +26,7 @@
  * @bug 7077640
  * @summary gss wrap for cfx doesn't handle rrc != 0
  * @compile -XDignore.symbol.file RRC.java
- * @run main/othervm RRC
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock RRC
  */
 
 import java.util.Arrays;

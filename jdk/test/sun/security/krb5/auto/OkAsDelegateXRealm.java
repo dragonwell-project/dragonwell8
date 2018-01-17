@@ -24,13 +24,13 @@
 /*
  * @test
  * @bug 6853328 7172701
- * @run main/othervm OkAsDelegateXRealm false
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock OkAsDelegateXRealm false
  *      KDC no OK-AS-DELEGATE, fail
- * @run main/othervm -Dtest.kdc.policy.ok-as-delegate OkAsDelegateXRealm true
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dtest.kdc.policy.ok-as-delegate OkAsDelegateXRealm true
  *      KDC set OK-AS-DELEGATE for all, succeed
- * @run main/othervm -Dtest.kdc.policy.ok-as-delegate=host/host.r3.local OkAsDelegateXRealm false
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dtest.kdc.policy.ok-as-delegate=host/host.r3.local OkAsDelegateXRealm false
  *      KDC set OK-AS-DELEGATE for host/host.r3.local only, fail
- * @run main/othervm -Dtest.kdc.policy.ok-as-delegate=host/host.r3.local,krbtgt/R2,krbtgt/R3 OkAsDelegateXRealm true
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dtest.kdc.policy.ok-as-delegate=host/host.r3.local,krbtgt/R2,krbtgt/R3 OkAsDelegateXRealm true
  *      KDC set OK-AS-DELEGATE for all three, succeed
  * @summary Support OK-AS-DELEGATE flag
  */
