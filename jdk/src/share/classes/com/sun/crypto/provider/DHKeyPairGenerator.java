@@ -74,10 +74,10 @@ public final class DHKeyPairGenerator extends KeyPairGeneratorSpi {
     private static void checkKeySize(int keysize)
             throws InvalidParameterException {
 
-        if ((keysize < 512) || (keysize > 2048) || ((keysize & 0x3F) != 0)) {
+        if ((keysize < 512) || (keysize > 8192) || ((keysize & 0x3F) != 0)) {
             throw new InvalidParameterException(
                     "DH key size must be multiple of 64, and can only range " +
-                    "from 512 to 2048 (inclusive). " +
+                    "from 512 to 8192 (inclusive). " +
                     "The specific key size " + keysize + " is not supported");
         }
     }
@@ -91,12 +91,23 @@ public final class DHKeyPairGenerator extends KeyPairGeneratorSpi {
      * @param random the source of randomness
      */
     public void initialize(int keysize, SecureRandom random) {
+
         checkKeySize(keysize);
+
+        // Use the built-in parameters (ranging from 512 to 8192)
+        // when available.
+        this.params = ParameterCache.getCachedDHParameterSpec(keysize);
+
+        // Due to performance issue, only support DH parameters generation
+        // up to 1024 bits.
+        if ((this.params == null) && (keysize > 1024)) {
+            throw new InvalidParameterException(
+                "Unsupported " + keysize + "-bit DH parameter generation");
+        }
 
         this.pSize = keysize;
         this.lSize = 0;
         this.random = random;
-        this.params = null;
     }
 
     /**
