@@ -26,7 +26,7 @@
  * @bug 8028351
  * @summary JWS doesn't get authenticated when using kerberos auth proxy
  * @compile -XDignore.symbol.file LoginNoPass.java
- * @run main/othervm LoginNoPass
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock LoginNoPass
  */
 
 import sun.security.jgss.GSSUtil;

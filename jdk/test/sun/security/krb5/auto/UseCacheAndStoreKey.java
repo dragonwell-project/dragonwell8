@@ -27,7 +27,7 @@
  * @summary Krb5LoginModule shows NPE when both useTicketCache and storeKey
  *          are set to true
  * @compile -XDignore.symbol.file UseCacheAndStoreKey.java
- * @run main/othervm UseCacheAndStoreKey
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UseCacheAndStoreKey
  */
 
 import java.io.FileOutputStream;

@@ -24,9 +24,9 @@
 /*
  * @test
  * @bug 7032354
- * @run main/othervm NoAddresses 1
- * @run main/othervm NoAddresses 2
- * @run main/othervm/fail NoAddresses 3
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NoAddresses 1
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NoAddresses 2
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock NoAddresses 3
  * @summary no-addresses should not be used on acceptor side
  */
 

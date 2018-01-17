@@ -26,7 +26,7 @@
  * @bug 7089889
  * @summary Krb5LoginModule.login() throws an exception if used without a keytab
  * @compile -XDignore.symbol.file NoInitNoKeytab.java
- * @run main/othervm NoInitNoKeytab
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock NoInitNoKeytab
  */
 
 import java.io.FileOutputStream;
