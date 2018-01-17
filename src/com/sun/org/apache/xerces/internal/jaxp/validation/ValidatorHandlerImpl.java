@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Copyright 2005 The Apache Software Foundation.
@@ -28,13 +27,13 @@ import java.util.HashMap;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.FactoryConfigurationError;
-import javax.xml.parsers.SAXParserFactory;
 import javax.xml.transform.Result;
 import javax.xml.transform.Source;
 import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.validation.TypeInfoProvider;
 import javax.xml.validation.ValidatorHandler;
+import jdk.xml.internal.JdkXmlUtils;
 
 import com.sun.org.apache.xerces.internal.impl.Constants;
 import com.sun.org.apache.xerces.internal.impl.XMLEntityManager;
@@ -43,7 +42,6 @@ import com.sun.org.apache.xerces.internal.impl.dv.XSSimpleType;
 import com.sun.org.apache.xerces.internal.impl.validation.EntityState;
 import com.sun.org.apache.xerces.internal.impl.validation.ValidationManager;
 import com.sun.org.apache.xerces.internal.impl.xs.XMLSchemaValidator;
-import com.sun.org.apache.xerces.internal.jaxp.SAXParserFactoryImpl;
 import com.sun.org.apache.xerces.internal.util.AttributesProxy;
 import com.sun.org.apache.xerces.internal.util.SAXLocatorWrapper;
 import com.sun.org.apache.xerces.internal.util.SAXMessageFormatter;
@@ -675,16 +673,14 @@ final class ValidatorHandlerImpl extends ValidatorHandler implements
                 XMLReader reader = saxSource.getXMLReader();
                 if( reader==null ) {
                     // create one now
-                    SAXParserFactory spf = fComponentManager.getFeature(Constants.ORACLE_FEATURE_SERVICE_MECHANISM) ?
-                                    SAXParserFactory.newInstance() : new SAXParserFactoryImpl();
-                    spf.setNamespaceAware(true);
+                    reader = JdkXmlUtils.getXMLReader(fComponentManager.getFeature(JdkXmlUtils.OVERRIDE_PARSER),
+                            fComponentManager.getFeature(XMLConstants.FEATURE_SECURE_PROCESSING));
+
                     try {
-                        spf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING,
-                                fComponentManager.getFeature(XMLConstants.FEATURE_SECURE_PROCESSING));
-                        reader = spf.newSAXParser().getXMLReader();
                         // If this is a Xerces SAX parser, set the security manager if there is one
                         if (reader instanceof com.sun.org.apache.xerces.internal.parsers.SAXParser) {
-                           XMLSecurityManager securityManager = (XMLSecurityManager) fComponentManager.getProperty(SECURITY_MANAGER);
+                           XMLSecurityManager securityManager =
+                                   (XMLSecurityManager) fComponentManager.getProperty(SECURITY_MANAGER);
                            if (securityManager != null) {
                                try {
                                    reader.setProperty(SECURITY_MANAGER, securityManager);
