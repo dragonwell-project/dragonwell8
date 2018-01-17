@@ -1,3 +1,4 @@
+#!/bin/sh
 #
 # Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 #
