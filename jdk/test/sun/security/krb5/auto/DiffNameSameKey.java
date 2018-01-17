@@ -26,8 +26,8 @@
  * @bug 8005447
  * @summary default principal can act as anyone
  * @compile -XDignore.symbol.file DiffNameSameKey.java
- * @run main/othervm/fail DiffNameSameKey a
- * @run main/othervm DiffNameSameKey b
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock DiffNameSameKey a
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DiffNameSameKey b
  */
 
 import sun.security.jgss.GSSUtil;

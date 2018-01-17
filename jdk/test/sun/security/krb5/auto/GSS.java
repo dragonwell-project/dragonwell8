@@ -26,7 +26,7 @@
  * @bug 7152176
  * @summary More krb5 tests
  * @compile -XDignore.symbol.file GSS.java
- * @run main/othervm GSS
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock GSS
  */
 
 import sun.security.jgss.GSSUtil;

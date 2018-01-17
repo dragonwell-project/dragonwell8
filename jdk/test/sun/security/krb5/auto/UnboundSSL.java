@@ -34,9 +34,9 @@ import javax.security.auth.login.LoginException;
  * @bug 8025123
  * @summary Checks if an unbound server can handle connections
  *          only for allowed service principals
- * @run main/othervm/java.security.policy=unbound.ssl.policy UnboundSSL
+ * @run main/othervm/java.security.policy=unbound.ssl.policy -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSL
  *                              unbound.ssl.jaas.conf server_star
- * @run main/othervm/java.security.policy=unbound.ssl.policy UnboundSSL
+ * @run main/othervm/java.security.policy=unbound.ssl.policy -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSL
  *                              unbound.ssl.jaas.conf server_multiple_principals
  */
 public class UnboundSSL {

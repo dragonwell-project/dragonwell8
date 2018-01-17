@@ -206,9 +206,9 @@ public class KDC {
         SENSITIVE_ACCOUNTS,
     };
 
-    static {
-        System.setProperty("sun.net.spi.nameservice.provider.1", "ns,mock");
-    }
+    //static {
+    //    System.setProperty("sun.net.spi.nameservice.provider.1", "ns,mock");
+    //}
 
     /**
      * A standalone KDC server.

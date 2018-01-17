@@ -33,9 +33,9 @@ import javax.security.auth.login.LoginException;
  * @bug 8025123
  * @summary Checks if an unbound server uses a service principal
  *          from sun.security.krb5.principal system property if specified
- * @run main/othervm UnboundSSLPrincipalProperty
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLPrincipalProperty
  *                              unbound.ssl.jaas.conf server_star
- * @run main/othervm UnboundSSLPrincipalProperty
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLPrincipalProperty
  *                              unbound.ssl.jaas.conf server_multiple_principals
  */
 public class UnboundSSLPrincipalProperty {

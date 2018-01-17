@@ -70,6 +70,9 @@ public abstract class SunToolkit extends Toolkit
         if (AccessController.doPrivileged(new GetBooleanAction("sun.awt.nativedebug"))) {
             DebugSettings.init();
         }
+        touchKeyboardAutoShowIsEnabled = Boolean.valueOf(
+            AccessController.doPrivileged(new GetPropertyAction(
+                "awt.touchKeyboardAutoShowIsEnabled", "true")));
     };
 
     /**
@@ -1707,6 +1710,13 @@ public abstract class SunToolkit extends Toolkit
      */
     public abstract void ungrab(Window w);
 
+    public void showOrHideTouchKeyboard(Component comp, AWTEvent e) {}
+
+    private static boolean touchKeyboardAutoShowIsEnabled;
+
+    public static boolean isTouchKeyboardAutoShowEnabled() {
+        return touchKeyboardAutoShowIsEnabled;
+    }
 
     /**
      * Locates the splash screen library in a platform dependent way and closes
