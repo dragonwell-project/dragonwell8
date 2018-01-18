@@ -174,6 +174,7 @@ public class Main {
     private Date expireDate = new Date(0L);     // used in noTimestamp warning
 
     // Severe warnings
+    private int weakAlg = 0; // 1. digestalg, 2. sigalg, 4. tsadigestalg
     private boolean hasExpiredCert = false;
     private boolean notYetValidCert = false;
     private boolean chainNotValidated = false;
@@ -183,6 +184,9 @@ public class Main {
     private boolean badKeyUsage = false;
     private boolean badExtendedKeyUsage = false;
     private boolean badNetscapeCertType = false;
+    private boolean signerSelfSigned = false;
+
+    private Throwable chainNotValidatedReason = null;
 
     private boolean seeWeak = false;
 
@@ -275,7 +279,7 @@ public class Main {
 
         if (strict) {
             int exitCode = 0;
-            if (chainNotValidated || hasExpiredCert || notYetValidCert) {
+            if (weakAlg != 0 || chainNotValidated || hasExpiredCert || notYetValidCert || signerSelfSigned) {
                 exitCode |= 4;
             }
             if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType) {
@@ -890,6 +894,12 @@ public class Main {
             }
             System.out.println();
 
+            // If signer is a trusted cert or private entry in user's own
+            // keystore, it can be self-signed.
+            if (!aliasNotInStore) {
+                signerSelfSigned = false;
+            }
+
             if (!anySigned) {
                 if (seeWeak) {
                     if (verbose != null) {
@@ -910,7 +920,7 @@ public class Main {
                 boolean errorAppeared = false;
                 if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
                         notYetValidCert || chainNotValidated || hasExpiredCert ||
-                        hasUnsignedEntry ||
+                        hasUnsignedEntry || signerSelfSigned || (weakAlg != 0) ||
                         aliasNotInStore || notSignedByAlias) {
 
                     if (strict) {
@@ -923,6 +933,12 @@ public class Main {
                         System.out.println();
                         System.out.println(rb.getString("Warning."));
                         warningAppeared = true;
+                    }
+
+                    if (weakAlg != 0) {
+                        // In fact, jarsigner verification did not catch this
+                        // since it has not read the JarFile content itself.
+                        // Everything is done with JarFile API.
                     }
 
                     if (badKeyUsage) {
@@ -954,8 +970,9 @@ public class Main {
                     }
 
                     if (chainNotValidated) {
-                        System.out.println(
-                                rb.getString("This.jar.contains.entries.whose.certificate.chain.is.not.validated."));
+                        System.out.println(String.format(
+                                rb.getString("This.jar.contains.entries.whose.certificate.chain.is.not.validated.reason.1"),
+                                chainNotValidatedReason.getLocalizedMessage()));
                     }
 
                     if (notSignedByAlias) {
@@ -965,6 +982,11 @@ public class Main {
 
                     if (aliasNotInStore) {
                         System.out.println(rb.getString("This.jar.contains.signed.entries.that.s.not.signed.by.alias.in.this.keystore."));
+                    }
+
+                    if (signerSelfSigned) {
+                        System.out.println(rb.getString(
+                                "This.jar.contains.entries.whose.signer.certificate.is.self.signed."));
                     }
                 } else {
                     System.out.println(rb.getString("jar.verified."));
@@ -1218,7 +1240,25 @@ public class Main {
     }
 
     void signJar(String jarName, String alias, String[] args)
-        throws Exception {
+            throws Exception {
+
+        DisabledAlgorithmConstraints dac =
+                new DisabledAlgorithmConstraints(
+                        DisabledAlgorithmConstraints.PROPERTY_CERTPATH_DISABLED_ALGS);
+
+        if (digestalg != null && !dac.permits(
+                Collections.singleton(CryptoPrimitive.MESSAGE_DIGEST), digestalg, null)) {
+            weakAlg |= 1;
+        }
+        if (tSADigestAlg != null && !dac.permits(
+                Collections.singleton(CryptoPrimitive.MESSAGE_DIGEST), tSADigestAlg, null)) {
+            weakAlg |= 4;
+        }
+        if (sigalg != null && !dac.permits(
+                Collections.singleton(CryptoPrimitive.SIGNATURE), sigalg, null)) {
+            weakAlg |= 2;
+        }
+
         boolean aliasUsed = false;
         X509Certificate tsaCert = null;
 
@@ -1586,8 +1626,8 @@ public class Main {
             }
 
             boolean warningAppeared = false;
-            if (badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
-                    notYetValidCert || chainNotValidated || hasExpiredCert) {
+            if (weakAlg != 0 || badKeyUsage || badExtendedKeyUsage || badNetscapeCertType ||
+                    notYetValidCert || chainNotValidated || hasExpiredCert || signerSelfSigned) {
                 if (strict) {
                     System.out.println(rb.getString("jar.signed.with.signer.errors."));
                     System.out.println();
@@ -1623,8 +1663,31 @@ public class Main {
                 }
 
                 if (chainNotValidated) {
+                    System.out.println(String.format(
+                            rb.getString("The.signer.s.certificate.chain.is.not.validated.reason.1"),
+                            chainNotValidatedReason.getLocalizedMessage()));
+                }
+
+                if (signerSelfSigned) {
                     System.out.println(
-                            rb.getString("The.signer.s.certificate.chain.is.not.validated."));
+                            rb.getString("The.signer.s.certificate.is.self.signed."));
+                }
+
+                if ((weakAlg & 1) == 1) {
+                    System.out.println(String.format(
+                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk."),
+                            digestalg, "-digestalg"));
+                }
+
+                if ((weakAlg & 2) == 2) {
+                    System.out.println(String.format(
+                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk."),
+                            sigalg, "-sigalg"));
+                }
+                if ((weakAlg & 4) == 4) {
+                    System.out.println(String.format(
+                            rb.getString("The.1.algorithm.specified.for.the.2.option.is.considered.a.security.risk."),
+                            tSADigestAlg, "-tsadigestalg"));
                 }
             } else {
                 System.out.println(rb.getString("jar.signed."));
@@ -1737,9 +1800,14 @@ public class Main {
                 // No more warning, we alreay have hasExpiredCert or notYetValidCert
             } else {
                 chainNotValidated = true;
+                chainNotValidatedReason = e;
                 s.append(tab + rb.getString(".CertPath.not.validated.") +
                         e.getLocalizedMessage() + "]\n");   // TODO
             }
+        }
+        if (certs.size() == 1
+                && KeyStoreUtil.isSelfSigned((X509Certificate)certs.get(0))) {
+            signerSelfSigned = true;
         }
         String result = s.toString();
         cacheForSignerInfo.put(signer, result);
@@ -2044,10 +2112,15 @@ public class Main {
                 if (e.getCause() != null &&
                         (e.getCause() instanceof CertificateExpiredException ||
                         e.getCause() instanceof CertificateNotYetValidException)) {
-                    // No more warning, we alreay have hasExpiredCert or notYetValidCert
+                    // No more warning, we already have hasExpiredCert or notYetValidCert
                 } else {
                     chainNotValidated = true;
+                    chainNotValidatedReason = e;
                 }
+            }
+
+            if (KeyStoreUtil.isSelfSigned(certChain[0])) {
+                signerSelfSigned = true;
             }
 
             try {
