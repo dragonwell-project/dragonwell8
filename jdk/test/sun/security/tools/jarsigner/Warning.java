@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,14 +81,14 @@ public class Warning {
 
         issueCert("b", "-sigalg MD5withRSA");
         run("jarsigner", "a.jar b")
-                .shouldMatch("chain is not validated. Reason:.*MD5withRSA");
+                .shouldMatch("chain is invalid. Reason:.*MD5withRSA");
 
         recreateJar();
 
         newCert("c", "-keysize 512");
         issueCert("c");
         run("jarsigner", "a.jar c")
-                .shouldContain("chain is not validated. " +
+                .shouldContain("chain is invalid. " +
                         "Reason: Algorithm constraints check failed");
 
         recreateJar();
