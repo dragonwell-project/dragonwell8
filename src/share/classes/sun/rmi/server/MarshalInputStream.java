@@ -255,8 +255,10 @@ public class MarshalInputStream extends ObjectInputStream {
     }
 
     /*
-     * Returns the first non-null class loader up the execution stack, or null
-     * if only code from the null class loader is on the stack.
+     * Returns first non-privileged class loader on the stack (excluding
+     * reflection generated frames) or the extension class loader if only
+     * class loaded by the boot class loader and extension class loader are
+     * found on the stack.
      */
     private static ClassLoader latestUserDefinedLoader() {
         return sun.misc.VM.latestUserDefinedLoader();
