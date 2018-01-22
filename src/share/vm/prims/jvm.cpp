@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/javaAssertions.hpp"
 #include "classfile/javaClasses.hpp"
@@ -952,6 +953,12 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
+  if (result != NULL) {
+    oop mirror = JNIHandles::resolve_non_null(result);
+    Klass* to_class = java_lang_Class::as_Klass(mirror);
+    ClassLoaderData* cld = ClassLoaderData::class_loader_data(h_loader());
+    cld->record_dependency(to_class, CHECK_NULL);
+  }
 
   if (TraceClassResolution && result != NULL) {
     // this function is generally only used for class loading during verification.
@@ -3654,15 +3661,16 @@ JVM_ENTRY(jobject, JVM_AllocateNewArray(JNIEnv *env, jobject obj, jclass currCla
 JVM_END
 
 
-// Return the first non-null class loader up the execution stack, or null
-// if only code from the null class loader is on the stack.
+// Returns first non-privileged class loader on the stack (excluding reflection
+// generated frames) or null if only classes loaded by the boot class loader
+// and extension class loader are found on the stack.
 
 JVM_ENTRY(jobject, JVM_LatestUserDefinedLoader(JNIEnv *env))
   for (vframeStream vfst(thread); !vfst.at_end(); vfst.next()) {
     // UseNewReflection
     vfst.skip_reflection_related_frames(); // Only needed for 1.4 reflection
     oop loader = vfst.method()->method_holder()->class_loader();
-    if (loader != NULL) {
+    if (loader != NULL && !SystemDictionary::is_ext_class_loader(loader)) {
       return JNIHandles::make_local(env, loader);
     }
   }
