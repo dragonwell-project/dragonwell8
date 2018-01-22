@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -929,6 +929,12 @@ class java_lang_ref_Reference: AllStatic {
   static HeapWord* discovered_addr(oop ref) {
     return ref->obj_field_addr<HeapWord>(discovered_offset);
   }
+  static inline oop queue(oop ref) {
+    return ref->obj_field(queue_offset);
+  }
+  static inline void set_queue(oop ref, oop value) {
+    return ref->obj_field_put(queue_offset, value);
+  }
   // Accessors for statics
   static oop  pending_list_lock();
   static oop  pending_list();
@@ -961,6 +967,20 @@ class java_lang_ref_SoftReference: public java_lang_ref_Reference {
   static void set_clock(jlong value);
 };
 
+
+// Interface to java.lang.ref.ReferenceQueue objects
+
+class java_lang_ref_ReferenceQueue: public AllStatic {
+public:
+  static int static_NULL_queue_offset;
+  static int static_ENQUEUED_queue_offset;
+
+  // Accessors
+  static oop NULL_queue();
+  static oop ENQUEUED_queue();
+
+  static void compute_offsets();
+};
 
 // Interface to java.lang.invoke.MethodHandle objects
 
