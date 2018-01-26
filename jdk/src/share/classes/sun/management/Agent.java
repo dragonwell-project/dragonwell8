@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -211,7 +211,7 @@ public class Agent {
                 throw new AgentConfigurationError(INVALID_JMXREMOTE_PORT, "No port specified");
             }
         } catch (AgentConfigurationError err) {
-            error(err.getError(), err.getParams());
+            error(err);
         }
     }
 
@@ -266,7 +266,7 @@ public class Agent {
             }
 
         } catch (AgentConfigurationError e) {
-            error(e.getError(), e.getParams());
+            error(e);
         } catch (Exception e) {
             error(e);
         }
@@ -496,18 +496,6 @@ public class Agent {
         throw new RuntimeException(keyText);
     }
 
-    public static void error(String key, String[] params) {
-        if (params == null || params.length == 0) {
-            error(key);
-        } else {
-            StringBuffer message = new StringBuffer(params[0]);
-            for (int i = 1; i < params.length; i++) {
-                message.append(" " + params[i]);
-            }
-            error(key, message.toString());
-        }
-    }
-
     public static void error(String key, String message) {
         String keyText = getText(key);
         System.err.print(getText("agent.err.error") + ": " + keyText);
@@ -518,6 +506,23 @@ public class Agent {
     public static void error(Exception e) {
         e.printStackTrace();
         System.err.println(getText(AGENT_EXCEPTION) + ": " + e.toString());
+        throw new RuntimeException(e);
+    }
+
+    public static void error(AgentConfigurationError e) {
+        String keyText = getText(e.getError());
+        String[] params = e.getParams();
+
+        System.err.print(getText("agent.err.error") + ": " + keyText);
+
+        if (params != null && params.length != 0) {
+           StringBuffer message = new StringBuffer(params[0]);
+           for (int i = 1; i < params.length; i++) {
+               message.append(" " + params[i]);
+           }
+           System.err.println(": " + message);
+        }
+        e.printStackTrace();
         throw new RuntimeException(e);
     }
 
