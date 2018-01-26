@@ -43,6 +43,8 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.IOException;
 
+import sun.awt.AWTAccessor;
+import sun.awt.AWTAccessor.MouseEventAccessor;
 
 /**
  * This is the object which manages the header of the <code>JTable</code>.
@@ -420,6 +422,9 @@ public class JTableHeader extends JComponent implements TableColumnModelListener
                                           p.x, p.y, event.getXOnScreen(), event.getYOnScreen(),
                                           event.getClickCount(),
                                           event.isPopupTrigger(), MouseEvent.NOBUTTON);
+                MouseEventAccessor meAccessor = AWTAccessor.getMouseEventAccessor();
+                meAccessor.setCausedByTouchEvent(newEvent,
+                    meAccessor.isCausedByTouchEvent(event));
 
                 tip = ((JComponent)component).getToolTipText(newEvent);
             }

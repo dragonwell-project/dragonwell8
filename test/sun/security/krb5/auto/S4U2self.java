@@ -26,13 +26,13 @@
  * @bug 6355584
  * @summary Introduce constrained Kerberos delegation
  * @compile -XDignore.symbol.file S4U2self.java
- * @run main/othervm -Dsun.security.krb5.debug=false S4U2self krb5 0
- * @run main/othervm/fail -Dsun.security.krb5.debug=false S4U2self krb5 1
- * @run main/othervm/fail -Dsun.security.krb5.debug=false S4U2self krb5 2
- * @run main/othervm/fail -Dsun.security.krb5.debug=false S4U2self krb5 3
- * @run main/othervm/fail -Dsun.security.krb5.debug=false S4U2self krb5 4
- * @run main/othervm/fail -Dsun.security.krb5.debug=false S4U2self krb5 5
- * @run main/othervm -Dsun.security.krb5.debug=false S4U2self spnego
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 0
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 1
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 2
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 3
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 4
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self krb5 5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock -Dsun.security.krb5.debug=false S4U2self spnego
  */
 
 import java.util.Arrays;

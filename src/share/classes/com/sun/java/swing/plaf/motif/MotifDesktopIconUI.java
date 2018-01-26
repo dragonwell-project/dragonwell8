@@ -36,6 +36,8 @@ import java.beans.*;
 import java.util.EventListener;
 import java.io.Serializable;
 
+import sun.awt.AWTAccessor;
+import sun.awt.AWTAccessor.MouseEventAccessor;
 
 /**
  * Motif rendition of the component.
@@ -237,11 +239,15 @@ public class MotifDesktopIconUI extends BasicDesktopIconUI
         }
 
         void forwardEventToParent(MouseEvent e) {
-            getParent().dispatchEvent(new MouseEvent(
+            MouseEvent newEvent = new MouseEvent(
                 getParent(), e.getID(), e.getWhen(), e.getModifiers(),
                 e.getX(), e.getY(), e.getXOnScreen(),
                 e.getYOnScreen(), e.getClickCount(),
-                e.isPopupTrigger(), MouseEvent.NOBUTTON));
+                e.isPopupTrigger(), MouseEvent.NOBUTTON);
+            MouseEventAccessor meAccessor = AWTAccessor.getMouseEventAccessor();
+            meAccessor.setCausedByTouchEvent(newEvent,
+                meAccessor.isCausedByTouchEvent(e));
+            getParent().dispatchEvent(newEvent);
         }
 
         public boolean isFocusTraversable() {
@@ -328,10 +334,14 @@ public class MotifDesktopIconUI extends BasicDesktopIconUI
         }
 
         void forwardEventToParent(MouseEvent e) {
-            getParent().dispatchEvent(new MouseEvent(
+            MouseEvent newEvent = new MouseEvent(
                 getParent(), e.getID(), e.getWhen(), e.getModifiers(),
                 e.getX(), e.getY(), e.getXOnScreen(), e.getYOnScreen(),
-                e.getClickCount(), e.isPopupTrigger(), MouseEvent.NOBUTTON ));
+                e.getClickCount(), e.isPopupTrigger(), MouseEvent.NOBUTTON );
+            MouseEventAccessor meAccessor = AWTAccessor.getMouseEventAccessor();
+            meAccessor.setCausedByTouchEvent(newEvent,
+                meAccessor.isCausedByTouchEvent(e));
+            getParent().dispatchEvent(newEvent);
         }
 
         public boolean isFocusTraversable() {

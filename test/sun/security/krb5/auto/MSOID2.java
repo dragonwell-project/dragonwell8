@@ -26,7 +26,7 @@
  * @bug 8078439
  * @summary SPNEGO auth fails if client proposes MS krb5 OID
  * @compile -XDignore.symbol.file MSOID2.java
- * @run main/othervm MSOID2
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock MSOID2
  */
 
 import sun.security.jgss.GSSUtil;

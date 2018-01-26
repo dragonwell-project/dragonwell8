@@ -26,7 +26,7 @@
  * @bug 7061379
  * @summary [Kerberos] Cross-realm authentication fails, due to nameType problem
  * @compile -XDignore.symbol.file PrincipalNameEquals.java
- * @run main/othervm PrincipalNameEquals
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock PrincipalNameEquals
  */
 
 import sun.security.jgss.GSSUtil;

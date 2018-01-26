@@ -34,7 +34,7 @@ import javax.security.auth.login.LoginException;
  * @bug 4745056 8075297
  * @summary Checks if refreshKrb5Config is set to true for Krb5LoginModule,
  *          then configuration will be refreshed before login() method is called
- * @run main/othervm RefreshKrb5Config
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock RefreshKrb5Config
  */
 public class RefreshKrb5Config {
 

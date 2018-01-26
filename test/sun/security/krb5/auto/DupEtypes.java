@@ -26,11 +26,11 @@
  * @bug 7067974
  * @summary multiple ETYPE-INFO-ENTRY with same etype and different salt
  * @compile -XDignore.symbol.file DupEtypes.java
- * @run main/othervm DupEtypes 1
- * @run main/othervm DupEtypes 2
- * @run main/othervm/fail DupEtypes 3
- * @run main/othervm DupEtypes 4
- * @run main/othervm DupEtypes 5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 1
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 2
+ * @run main/othervm/fail -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 3
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 4
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock DupEtypes 5
  */
 
 import sun.security.jgss.GSSUtil;

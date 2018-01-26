@@ -26,8 +26,8 @@
  * @bug 7110803
  * @summary SASL service for multiple hostnames
  * @compile -XDignore.symbol.file SaslBasic.java
- * @run main/othervm SaslBasic bound
- * @run main/othervm SaslBasic unbound
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SaslBasic bound
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SaslBasic unbound
  */
 import java.io.IOException;
 import java.util.Arrays;
