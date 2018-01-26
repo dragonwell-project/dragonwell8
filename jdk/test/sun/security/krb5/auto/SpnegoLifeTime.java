@@ -26,7 +26,7 @@
  * @bug 8000653
  * @summary SPNEGO tests fail at context.getDelegCred().getRemainingInitLifetime(mechOid)
  * @compile -XDignore.symbol.file SpnegoLifeTime.java
- * @run main/othervm SpnegoLifeTime
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock SpnegoLifeTime
  */
 
 import org.ietf.jgss.Oid;
