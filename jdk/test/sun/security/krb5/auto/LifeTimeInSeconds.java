@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6857802
- * @run main/othervm LifeTimeInSeconds
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock LifeTimeInSeconds
  * @summary GSS getRemainingInitLifetime method returns milliseconds not seconds
  */
 import org.ietf.jgss.GSSCredential;
