@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 7118809 8001326
- * @run main/othervm ReplayCacheTest jvm
- * @run main/othervm ReplayCacheTest dfl
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock ReplayCacheTest jvm
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock ReplayCacheTest dfl
  * @summary rcache deadlock
  */
 

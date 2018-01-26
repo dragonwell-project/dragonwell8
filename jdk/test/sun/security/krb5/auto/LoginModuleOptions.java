@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6765491
- * @run main/othervm LoginModuleOptions
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock LoginModuleOptions
  * @summary Krb5LoginModule a little too restrictive, and the doc is not clear.
  */
 import com.sun.security.auth.module.Krb5LoginModule;

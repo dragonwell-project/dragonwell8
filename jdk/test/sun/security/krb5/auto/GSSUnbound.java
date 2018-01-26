@@ -26,7 +26,7 @@
  * @bug 8001104
  * @summary Unbound SASL service: the GSSAPI/krb5 mech
  * @compile -XDignore.symbol.file GSSUnbound.java
- * @run main/othervm GSSUnbound
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock GSSUnbound
  */
 
 import java.security.Security;
