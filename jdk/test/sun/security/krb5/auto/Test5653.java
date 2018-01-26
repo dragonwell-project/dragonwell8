@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6895424
- * @run main/othervm Test5653
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock Test5653
  * @summary RFC 5653
  */
 
