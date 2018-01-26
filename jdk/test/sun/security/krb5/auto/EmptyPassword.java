@@ -26,7 +26,7 @@
  * @bug 6879540
  * @summary enable empty password for kerberos 5
  * @compile -XDignore.symbol.file EmptyPassword.java
- * @run main/othervm EmptyPassword
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock EmptyPassword
  */
 
 public class EmptyPassword {

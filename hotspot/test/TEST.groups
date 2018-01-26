@@ -96,6 +96,7 @@ needs_jdk = \
   runtime/XCheckJniJsig/XCheckJSig.java \
   serviceability/attach/AttachWithStalePidFile.java \
   serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java \
+  serviceability/dcmd/DynLibDcmdTest.java \
   testlibrary_tests/
 
 
