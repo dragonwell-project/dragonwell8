@@ -26,7 +26,7 @@
  * @bug 7152176
  * @summary More krb5 tests
  * @compile -XDignore.symbol.file Basic.java
- * @run main/othervm Basic
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock Basic
  */
 
 import sun.security.jgss.GSSUtil;

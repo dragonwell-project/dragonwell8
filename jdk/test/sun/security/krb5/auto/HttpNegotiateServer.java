@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6578647 6829283
- * @run main/othervm HttpNegotiateServer
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock HttpNegotiateServer
  * @summary Undefined requesting URL in java.net.Authenticator.getPasswordAuthentication()
  * @summary HTTP/Negotiate: Authenticator triggered again when user cancels the first one
  */

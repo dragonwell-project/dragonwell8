@@ -37,7 +37,7 @@ import javax.security.auth.login.LoginContext;
  * @test
  * @bug 6857795 8075299
  * @summary Checks Kerberos ticket properties
- * @run main/othervm KrbTicket
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KrbTicket
  */
 public class KrbTicket {
 

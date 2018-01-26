@@ -26,8 +26,8 @@
  * @bug 9999999
  * @summary default principal can act as anyone
  * @compile -XDignore.symbol.file AcceptPermissions.java
- * @run main/othervm AcceptPermissions two
- * @run main/othervm AcceptPermissions unbound
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AcceptPermissions two
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AcceptPermissions unbound
  */
 
 import java.nio.file.Files;

@@ -26,34 +26,34 @@
  * @bug 6706974
  * @summary Add krb5 test infrastructure
  * @compile -XDignore.symbol.file BasicKrb5Test.java
- * @run main/othervm BasicKrb5Test
- * @run main/othervm BasicKrb5Test des-cbc-crc
- * @run main/othervm BasicKrb5Test des-cbc-md5
- * @run main/othervm BasicKrb5Test des3-cbc-sha1
- * @run main/othervm BasicKrb5Test aes128-cts
- * @run main/othervm BasicKrb5Test aes256-cts
- * @run main/othervm BasicKrb5Test rc4-hmac
- * @run main/othervm BasicKrb5Test -s
- * @run main/othervm BasicKrb5Test des-cbc-crc -s
- * @run main/othervm BasicKrb5Test des-cbc-md5 -s
- * @run main/othervm BasicKrb5Test des3-cbc-sha1 -s
- * @run main/othervm BasicKrb5Test aes128-cts -s
- * @run main/othervm BasicKrb5Test aes256-cts -s
- * @run main/othervm BasicKrb5Test rc4-hmac -s
- * @run main/othervm BasicKrb5Test -C
- * @run main/othervm BasicKrb5Test des-cbc-crc -C
- * @run main/othervm BasicKrb5Test des-cbc-md5 -C
- * @run main/othervm BasicKrb5Test des3-cbc-sha1 -C
- * @run main/othervm BasicKrb5Test aes128-cts -C
- * @run main/othervm BasicKrb5Test aes256-cts -C
- * @run main/othervm BasicKrb5Test rc4-hmac -C
- * @run main/othervm BasicKrb5Test -s -C
- * @run main/othervm BasicKrb5Test des-cbc-crc -s -C
- * @run main/othervm BasicKrb5Test des-cbc-md5 -s -C
- * @run main/othervm BasicKrb5Test des3-cbc-sha1 -s -C
- * @run main/othervm BasicKrb5Test aes128-cts -s -C
- * @run main/othervm BasicKrb5Test aes256-cts -s -C
- * @run main/othervm BasicKrb5Test rc4-hmac -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-crc
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-md5
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des3-cbc-sha1
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes128-cts
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes256-cts
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test rc4-hmac
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-crc -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-md5 -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des3-cbc-sha1 -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes128-cts -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes256-cts -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test rc4-hmac -s
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-crc -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-md5 -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des3-cbc-sha1 -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes128-cts -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes256-cts -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test rc4-hmac -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-crc -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des-cbc-md5 -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test des3-cbc-sha1 -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes128-cts -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test aes256-cts -s -C
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock BasicKrb5Test rc4-hmac -s -C
  */
 
 import org.ietf.jgss.GSSName;

@@ -56,6 +56,7 @@ import sun.util.logging.PlatformLogger;
 
 import sun.awt.AppContext;
 import sun.awt.AWTAccessor;
+import sun.awt.AWTAccessor.MouseEventAccessor;
 import sun.awt.CausedFocusEvent;
 import sun.awt.PeerEvent;
 import sun.awt.SunToolkit;
@@ -4777,6 +4778,9 @@ class LightweightDispatcher implements java.io.Serializable, AWTEventListener {
                                srcEvent.getClickCount(),
                                srcEvent.isPopupTrigger(),
                                srcEvent.getButton());
+            MouseEventAccessor meAccessor = AWTAccessor.getMouseEventAccessor();
+            meAccessor.setCausedByTouchEvent(me,
+                meAccessor.isCausedByTouchEvent(srcEvent));
             ((AWTEvent)srcEvent).copyPrivateDataInto(me);
             // translate coordinates to this native container
             final Point ptSrcOrigin = srcComponent.getLocationOnScreen();
@@ -4877,6 +4881,9 @@ class LightweightDispatcher implements java.io.Serializable, AWTEventListener {
                                             e.getClickCount(),
                                             e.isPopupTrigger(),
                                             e.getButton());
+                MouseEventAccessor meAccessor = AWTAccessor.getMouseEventAccessor();
+                meAccessor.setCausedByTouchEvent(retargeted,
+                    meAccessor.isCausedByTouchEvent(e));
             }
 
             ((AWTEvent)e).copyPrivateDataInto(retargeted);

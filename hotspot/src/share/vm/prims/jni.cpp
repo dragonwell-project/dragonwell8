@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -5093,6 +5093,7 @@ void TestReservedSpace_test();
 void TestReserveMemorySpecial_test();
 void TestVirtualSpace_test();
 void TestMetaspaceAux_test();
+void SpaceManager_test_adjust_initial_chunk_size();
 void TestMetachunk_test();
 void TestVirtualSpaceNode_test();
 void TestNewSize_test();
@@ -5105,6 +5106,7 @@ void TestG1BiasedArray_test();
 void TestBufferingOopClosure_test();
 void TestCodeCacheRemSet_test();
 void FreeRegionList_test();
+void ChunkManager_test_list_index();
 #endif
 
 void execute_internal_vm_tests() {
@@ -5137,6 +5139,8 @@ void execute_internal_vm_tests() {
     run_unit_test(TestOldFreeSpaceCalculation_test());
     run_unit_test(TestG1BiasedArray_test());
     run_unit_test(HeapRegionRemSet::test_prt());
+    run_unit_test(SpaceManager_test_adjust_initial_chunk_size());
+    run_unit_test(ChunkManager_test_list_index());
     run_unit_test(TestBufferingOopClosure_test());
     run_unit_test(TestCodeCacheRemSet_test());
     if (UseG1GC) {

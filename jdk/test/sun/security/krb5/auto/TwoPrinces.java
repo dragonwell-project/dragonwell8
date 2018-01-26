@@ -25,7 +25,7 @@
  * @test
  * @bug 6894072
  * @compile -XDignore.symbol.file TwoPrinces.java
- * @run main/othervm TwoPrinces
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock TwoPrinces
  * @summary always refresh keytab
  */
 

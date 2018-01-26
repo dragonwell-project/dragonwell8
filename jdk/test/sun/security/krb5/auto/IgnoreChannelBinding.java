@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 6851973
- * @run main/othervm IgnoreChannelBinding
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock IgnoreChannelBinding
  * @summary ignore incoming channel binding if acceptor does not set one
  */
 

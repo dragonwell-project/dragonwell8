@@ -26,7 +26,7 @@
  * @bug 6894072
  * @bug 8004488
  * @compile -XDignore.symbol.file KeyTabCompat.java
- * @run main/othervm KeyTabCompat
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KeyTabCompat
  * @summary always refresh keytab
  */
 

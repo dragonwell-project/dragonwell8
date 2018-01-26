@@ -26,7 +26,7 @@
  * @bug 7152121
  * @summary Krb5LoginModule no longer handles keyTabNames with "file:" prefix
  * @compile -XDignore.symbol.file FileKeyTab.java
- * @run main/othervm FileKeyTab
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock FileKeyTab
  */
 
 import java.io.File;

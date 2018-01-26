@@ -26,8 +26,8 @@
  * @bug 7077646
  * @summary gssapi wrap for CFX per-message tokens always set FLAG_ACCEPTOR_SUBKEY
  * @compile -XDignore.symbol.file AcceptorSubKey.java
- * @run main/othervm AcceptorSubKey 0
- * @run main/othervm AcceptorSubKey 4
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AcceptorSubKey 0
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock AcceptorSubKey 4
  */
 
 import sun.security.jgss.GSSUtil;
