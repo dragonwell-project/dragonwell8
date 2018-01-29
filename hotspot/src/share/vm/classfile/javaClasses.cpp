@@ -1443,7 +1443,7 @@ class BacktraceBuilder: public StackObj {
       method = mhandle();
     }
 
-    _methods->short_at_put(_index, method->orig_method_idnum());
+    _methods->ushort_at_put(_index, method->orig_method_idnum());
     _bcis->int_at_put(_index, merge_bci_and_version(bci, method->constants()->version()));
     _cprefs->short_at_put(_index, method->name_index());
 
@@ -1562,7 +1562,7 @@ void java_lang_Throwable::print_stack_trace(oop throwable, outputStream* st) {
         Handle mirror(THREAD, mirrors->obj_at(index));
         // NULL mirror means end of stack trace
         if (mirror.is_null()) goto handle_cause;
-        int method = methods->short_at(index);
+        int method = methods->ushort_at(index);
         int version = version_at(bcis->int_at(index));
         int bci = bci_at(bcis->int_at(index));
         int cpref = cprefs->short_at(index);
@@ -1858,7 +1858,7 @@ oop java_lang_Throwable::get_stack_trace_element(oop throwable, int index, TRAPS
 
   assert(methods != NULL && bcis != NULL && mirrors != NULL, "sanity check");
 
-  int method = methods->short_at(chunk_index);
+  int method = methods->ushort_at(chunk_index);
   int version = version_at(bcis->int_at(chunk_index));
   int bci = bci_at(bcis->int_at(chunk_index));
   int cpref = cprefs->short_at(chunk_index);
