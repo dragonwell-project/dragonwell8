@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package java.util;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.StreamCorruptedException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -1056,6 +1059,29 @@ public class Vector<E>
         int newElementCount = elementCount - (toIndex-fromIndex);
         while (elementCount != newElementCount)
             elementData[--elementCount] = null;
+    }
+
+    /**
+     * Loads a {@code Vector} instance from a stream
+     * (that is, deserializes it).
+     * This method performs checks to ensure the consistency
+     * of the fields.
+     *
+     * @param in the stream
+     * @throws java.io.IOException if an I/O error occurs
+     * @throws ClassNotFoundException if the stream contains data
+     *         of a non-existing class
+     */
+    private void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        ObjectInputStream.GetField gfields = in.readFields();
+        int count = gfields.get("elementCount", 0);
+        Object[] data = (Object[])gfields.get("elementData", null);
+        if (count < 0 || data == null || count > data.length) {
+            throw new StreamCorruptedException("Inconsistent vector internals");
+        }
+        elementCount = count;
+        elementData = data.clone();
     }
 
     /**
