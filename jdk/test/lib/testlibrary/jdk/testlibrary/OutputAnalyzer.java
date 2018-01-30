@@ -365,6 +365,21 @@ public final class OutputAnalyzer {
     }
 
     /**
+     * Verify the exit value of the process
+     *
+     * @param notExpectedExitValue Unexpected exit value from process
+     * @throws RuntimeException If the exit value from the process did match the expected value
+     */
+    public OutputAnalyzer shouldNotHaveExitValue(int notExpectedExitValue) {
+        if (getExitValue() == notExpectedExitValue) {
+            reportDiagnosticSummary();
+            throw new RuntimeException("Unexpected to get exit value of ["
+                    + notExpectedExitValue + "]\n");
+        }
+        return this;
+    }
+
+    /**
      * Report summary that will help to diagnose the problem Currently includes:
      * - standard input produced by the process under test - standard output -
      * exit code Note: the command line is printed by the ProcessTools
