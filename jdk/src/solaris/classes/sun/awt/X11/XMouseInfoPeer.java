@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2006, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,10 @@
 
 package sun.awt.X11;
 
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Window;
-import java.awt.GraphicsEnvironment;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
 import java.awt.peer.MouseInfoPeer;
 
 public class XMouseInfoPeer implements MouseInfoPeer {
@@ -76,14 +75,15 @@ public class XMouseInfoPeer implements MouseInfoPeer {
     }
 
     public boolean isWindowUnderMouse(Window w) {
-
+        if (w == null) {
+            return false;
+        }
+        XWindow peer = (XWindow) w.getPeer();
+        if (peer == null) {
+            return false;
+        }
         long display = XToolkit.getDisplay();
-
-        // java.awt.Component.findUnderMouseInWindow checks that
-        // the peer is non-null by checking that the component
-        // is showing.
-
-        long contentWindow = ((XWindow)w.getPeer()).getContentWindow();
+        long contentWindow = peer.getContentWindow();
         long parent = XlibUtil.getParentWindow(contentWindow);
 
         XToolkit.awtLock();
