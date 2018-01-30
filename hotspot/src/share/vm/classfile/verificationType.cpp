@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,7 @@ bool VerificationType::is_reference_assignable_from(
         name(), Handle(THREAD, klass->class_loader()),
         Handle(THREAD, klass->protection_domain()), true, CHECK_false);
     KlassHandle this_class(THREAD, obj);
+    klass->class_loader_data()->record_dependency(obj, CHECK_false);
 
     if (this_class->is_interface() && (!from_field_is_protected ||
         from.name() != vmSymbols::java_lang_Object())) {
@@ -74,6 +75,7 @@ bool VerificationType::is_reference_assignable_from(
       Klass* from_class = SystemDictionary::resolve_or_fail(
           from.name(), Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+      klass->class_loader_data()->record_dependency(from_class, CHECK_false);
       bool result = InstanceKlass::cast(from_class)->is_subclass_of(this_class());
       if (result && DumpSharedSpaces) {
         if (klass()->is_subclass_of(from_class) && klass()->is_subclass_of(this_class())) {

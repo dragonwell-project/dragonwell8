@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,6 +148,10 @@ struct SetFullScreenExclusiveModeStateStruct {
     jboolean isFSEMState;
 };
 
+struct OverrideHandle {
+    jobject frame;
+    HWND handle;
+};
 
 /************************************************************************
  * AwtWindow fields
@@ -223,6 +227,7 @@ AwtWindow::AwtWindow() {
     m_alwaysOnTop = false;
 
     fullScreenExclusiveModeState = FALSE;
+    m_overriddenHwnd = NULL;
 }
 
 AwtWindow::~AwtWindow()
@@ -2471,6 +2476,24 @@ ret:
    delete rfs;
 }
 
+void AwtWindow::_OverrideHandle(void *param)
+{
+    JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+
+    OverrideHandle* oh = (OverrideHandle *)param;
+    jobject self = oh->frame;
+    AwtWindow *f = NULL;
+
+    PDATA pData;
+    JNI_CHECK_PEER_GOTO(self, ret);
+    f = (AwtWindow *)pData;
+    f->OverrideHWnd(oh->handle);
+ret:
+    env->DeleteGlobalRef(self);
+
+    delete oh;
+}
+
 /*
  * This is AwtWindow-specific function that is not intended for reusing
  */
@@ -3108,7 +3131,29 @@ Java_java_awt_Window_initIDs(JNIEnv *env, jclass cls)
     CATCH_BAD_ALLOC;
 }
 
-} /* extern "C" */
+/*
+
+* Class:     sun_awt_windows_WLightweightFramePeer
+* Method:    overrideNativeHandle
+* Signature: (J)V
+*/
+
+JNIEXPORT void JNICALL Java_sun_awt_windows_WLightweightFramePeer_overrideNativeHandle
+(JNIEnv *env, jobject self, jlong hwnd)
+{
+    TRY;
+
+    OverrideHandle *oh = new OverrideHandle;
+    oh->frame = env->NewGlobalRef(self);
+    oh->handle = (HWND)hwnd;
+
+    AwtToolkit::GetInstance().SyncCall(AwtFrame::_OverrideHandle, oh);
+    // global ref and oh are deleted in _OverrideHandle()
+
+    CATCH_BAD_ALLOC;
+}
+
+}/* extern "C" */
 
 
 /************************************************************************
