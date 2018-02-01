@@ -220,6 +220,7 @@ class NativeMovConstReg: public NativeInstruction {
     else if (is_ldr_literal_at(instruction_address()))
       return(addr_at(4));
     assert(false, "Unknown instruction in NativeMovConstReg");
+    return NULL;
   }
 
   intptr_t data() const;

@@ -209,6 +209,7 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
 
 Address LIR_Assembler::as_Address_hi(LIR_Address* addr) {
   ShouldNotReachHere();
+  return Address();
 }
 
 Address LIR_Assembler::as_Address(LIR_Address* addr) {

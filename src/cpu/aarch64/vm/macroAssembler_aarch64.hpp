@@ -434,8 +434,8 @@ private:
   void mov(Register dst, Address a);
 
 public:
-  int push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
-  int pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
+  void push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
+  void pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
 
   // Push and pop everything that might be clobbered by a native
   // runtime call except rscratch1 and rscratch2.  (They are always
