@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,7 +92,6 @@ class Bsd {
 
   static void hotspot_sigmask(Thread* thread);
 
-  static bool is_initial_thread(void);
   static pid_t gettid();
 
   static int page_size(void)                                        { return _page_size; }
