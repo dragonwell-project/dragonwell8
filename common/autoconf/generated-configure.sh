@@ -3776,7 +3776,7 @@ fi
 
 
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -3912,7 +3912,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1501170108
+DATE_WHEN_GENERATED=1517507181
 
 ###############################################################################
 #
@@ -30178,9 +30178,10 @@ $as_echo "$supports" >&6; }
         LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker --hash-style=both "
       fi
       if test "x$OPENJDK_TARGET_OS" = xlinux; then
-        # And since we now know that the linker is gnu, then add -z defs, to forbid
-        # undefined symbols in object files.
-        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs"
+        # And since we now know that the linker is gnu, then add:
+        #   -z defs, to forbid undefined symbols in object files
+        #   -z noexecstack, to mark stack regions as non-executable
+        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs -Xlinker -z -Xlinker noexecstack"
         if test "x$DEBUG_LEVEL" = "xrelease"; then
           # When building release libraries, tell the linker optimize them.
           # Should this be supplied to the OSS linker as well?
