@@ -1081,6 +1081,7 @@ static void mcast_set_if_by_if_v4(JNIEnv *env, jobject this, int fd, jobject val
     struct in_addr in;
     jobjectArray addrArray;
     jsize len;
+    jint family;
     jobject addr;
     int i;
 
@@ -1110,7 +1111,9 @@ static void mcast_set_if_by_if_v4(JNIEnv *env, jobject this, int fd, jobject val
      */
     for (i = 0; i < len; i++) {
         addr = (*env)->GetObjectArrayElement(env, addrArray, i);
-        if (getInetAddress_family(env, addr) == IPv4) {
+        family = getInetAddress_family(env, addr);
+        JNU_CHECK_EXCEPTION(env);
+        if (family == IPv4) {
             JNU_CHECK_EXCEPTION(env);
             in.s_addr = htonl(getInetAddress_addr(env, addr));
             JNU_CHECK_EXCEPTION(env);
@@ -1975,6 +1978,7 @@ static void mcast_join_leave(JNIEnv *env, jobject this,
 
     jobject fdObj = (*env)->GetObjectField(env, this, pdsi_fdID);
     jint fd;
+    jint family;
     jint ipv6_join_leave;
 
     if (IS_NULL(fdObj)) {
@@ -1996,7 +2000,9 @@ static void mcast_join_leave(JNIEnv *env, jobject this,
     ipv6_join_leave = ipv6_available();
 
 #ifdef __linux__
-    if (getInetAddress_family(env, iaObj) == IPv4) {
+    family = getInetAddress_family(env, iaObj);
+    JNU_CHECK_EXCEPTION(env);
+    if (family == IPv4) {
         JNU_CHECK_EXCEPTION(env);
         ipv6_join_leave = JNI_FALSE;
     }
