@@ -26,7 +26,10 @@
 package sun.misc;
 
 import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.ProtectionDomain;
+import java.security.PrivilegedAction;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A thread that has no permissions, is not a member of any user-defined
@@ -36,15 +39,44 @@ import java.security.ProtectionDomain;
  */
 public final class InnocuousThread extends Thread {
     private static final Unsafe UNSAFE;
-    private static final ThreadGroup THREADGROUP;
+    private static final long THREAD_LOCALS;
+    private static final long INHERITABLE_THREAD_LOCALS;
+    private static final ThreadGroup INNOCUOUSTHREADGROUP;
     private static final AccessControlContext ACC;
-    private static final long THREADLOCALS;
-    private static final long INHERITABLETHREADLOCALS;
     private static final long INHERITEDACCESSCONTROLCONTEXT;
+    private static final long CONTEXTCLASSLOADER;
+
+    private static final AtomicInteger threadNumber = new AtomicInteger(1);
+    private static String newName() {
+        return "InnocuousThread-" + threadNumber.getAndIncrement();
+    }
+
+    /**
+     * Returns a new InnocuousThread with an auto-generated thread name.
+     * Its context class loader is set to null.
+     */
+    public static Thread newSystemThread(Runnable target) {
+        return newSystemThread(newName(), target);
+    }
+
+    /**
+     * Returns a new InnocuousThread with null context class loader.
+     */
+    public static Thread newSystemThread(String name, Runnable target) {
+        return new InnocuousThread(INNOCUOUSTHREADGROUP,
+                                   target, name, null);
+    }
 
     public InnocuousThread(Runnable target) {
-        super(THREADGROUP, target, "anInnocuousThread");
+        super(INNOCUOUSTHREADGROUP, target, newName());
         UNSAFE.putOrderedObject(this, INHERITEDACCESSCONTROLCONTEXT, ACC);
+        eraseThreadLocals();
+    }
+
+    private InnocuousThread(ThreadGroup group, Runnable target, String name, ClassLoader tccl) {
+        super(group, target, name, 0L);
+        UNSAFE.putOrderedObject(this, INHERITEDACCESSCONTROLCONTEXT, ACC);
+        UNSAFE.putOrderedObject(this, CONTEXTCLASSLOADER, tccl);
         eraseThreadLocals();
     }
 
@@ -79,8 +111,8 @@ public final class InnocuousThread extends Thread {
      * Drops all thread locals (and inherited thread locals).
      */
     public void eraseThreadLocals() {
-        UNSAFE.putObject(this, THREADLOCALS, null);
-        UNSAFE.putObject(this, INHERITABLETHREADLOCALS, null);
+        UNSAFE.putObject(this, THREAD_LOCALS, null);
+        UNSAFE.putObject(this, INHERITABLE_THREAD_LOCALS, null);
     }
 
     // Use Unsafe to access Thread group and ThreadGroup parent fields
@@ -95,12 +127,14 @@ public final class InnocuousThread extends Thread {
             Class<?> tk = Thread.class;
             Class<?> gk = ThreadGroup.class;
 
-            THREADLOCALS = UNSAFE.objectFieldOffset
+            THREAD_LOCALS = UNSAFE.objectFieldOffset
                 (tk.getDeclaredField("threadLocals"));
-            INHERITABLETHREADLOCALS = UNSAFE.objectFieldOffset
+            INHERITABLE_THREAD_LOCALS = UNSAFE.objectFieldOffset
                 (tk.getDeclaredField("inheritableThreadLocals"));
             INHERITEDACCESSCONTROLCONTEXT = UNSAFE.objectFieldOffset
                 (tk.getDeclaredField("inheritedAccessControlContext"));
+            CONTEXTCLASSLOADER = UNSAFE.objectFieldOffset
+                (tk.getDeclaredField("contextClassLoader"));
 
             long tg = UNSAFE.objectFieldOffset(tk.getDeclaredField("group"));
             long gp = UNSAFE.objectFieldOffset(gk.getDeclaredField("parent"));
@@ -113,7 +147,14 @@ public final class InnocuousThread extends Thread {
                     break;
                 group = parent;
             }
-            THREADGROUP = new ThreadGroup(group, "InnocuousThreadGroup");
+            final ThreadGroup root = group;
+            INNOCUOUSTHREADGROUP = AccessController.doPrivileged(
+                new PrivilegedAction<ThreadGroup>() {
+                    @Override
+                    public ThreadGroup run() {
+                        return new ThreadGroup(root, "InnocuousThreadGroup");
+                    }
+                });
         } catch (Exception e) {
             throw new Error(e);
         }
