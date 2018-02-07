@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2679,6 +2679,32 @@ void java_lang_ref_SoftReference::set_clock(jlong value) {
   *offset = value;
 }
 
+// Support for java_lang_ref_ReferenceQueue
+
+oop java_lang_ref_ReferenceQueue::NULL_queue() {
+  InstanceKlass* ik = InstanceKlass::cast(SystemDictionary::ReferenceQueue_klass());
+  oop mirror = ik->java_mirror();
+  return mirror->obj_field(static_NULL_queue_offset);
+}
+
+oop java_lang_ref_ReferenceQueue::ENQUEUED_queue() {
+  InstanceKlass* ik = InstanceKlass::cast(SystemDictionary::ReferenceQueue_klass());
+  oop mirror = ik->java_mirror();
+  return mirror->obj_field(static_ENQUEUED_queue_offset);
+}
+
+void java_lang_ref_ReferenceQueue::compute_offsets() {
+  Klass* k = SystemDictionary::ReferenceQueue_klass();
+  compute_offset(static_NULL_queue_offset,
+                 k,
+                 vmSymbols::referencequeue_null_name(),
+                 vmSymbols::referencequeue_signature());
+  compute_offset(static_ENQUEUED_queue_offset,
+                 k,
+                 vmSymbols::referencequeue_enqueued_name(),
+                 vmSymbols::referencequeue_signature());
+}
+
 // Support for java_lang_invoke_DirectMethodHandle
 
 int java_lang_invoke_DirectMethodHandle::_member_offset;
@@ -3197,6 +3223,8 @@ int java_lang_ref_Reference::discovered_offset;
 int java_lang_ref_Reference::static_lock_offset;
 int java_lang_ref_Reference::static_pending_offset;
 int java_lang_ref_Reference::number_of_fake_oop_fields;
+int java_lang_ref_ReferenceQueue::static_NULL_queue_offset;
+int java_lang_ref_ReferenceQueue::static_ENQUEUED_queue_offset;
 int java_lang_ref_SoftReference::timestamp_offset;
 int java_lang_ref_SoftReference::static_clock_offset;
 int java_lang_ClassLoader::parent_offset;
@@ -3377,6 +3405,8 @@ void JavaClasses::compute_offsets() {
   }
   if (JDK_Version::is_jdk18x_version())
     java_lang_reflect_Parameter::compute_offsets();
+
+  java_lang_ref_ReferenceQueue::compute_offsets();
 
   // generated interpreter code wants to know about the offsets we just computed:
   AbstractAssembler::update_delayed_values();
