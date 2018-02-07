@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2485,7 +2485,15 @@ void JavaThread::java_resume() {
 }
 
 void JavaThread::create_stack_guard_pages() {
-  if (! os::uses_stack_guard_pages() || _stack_guard_state != stack_guard_unused) return;
+  if (!os::uses_stack_guard_pages() ||
+      _stack_guard_state != stack_guard_unused ||
+      (DisablePrimordialThreadGuardPages && os::is_primordial_thread())) {
+      if (TraceThreadEvents) {
+        tty->print_cr("Stack guard page creation for thread "
+                      UINTX_FORMAT " disabled", os::current_thread_id());
+      }
+    return;
+  }
   address low_addr = stack_base() - stack_size();
   size_t len = (StackYellowPages + StackRedPages) * os::vm_page_size();
 
