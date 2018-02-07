@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 package sun.corba;
 
 import com.sun.corba.se.impl.io.ValueUtility;
+import sun.misc.JavaOISAccess;
 import sun.misc.Unsafe;
 
+import java.io.ObjectInputStream;
 import java.security.AccessController;
 
 /** A repository of "shared secrets", which are a mechanism for
@@ -43,6 +45,7 @@ import java.security.AccessController;
 public class SharedSecrets {
     private static final Unsafe unsafe = Unsafe.getUnsafe();
     private static JavaCorbaAccess javaCorbaAccess;
+    private static JavaOISAccess javaOISAccess;
 
     public static JavaCorbaAccess getJavaCorbaAccess() {
         if (javaCorbaAccess == null) {
@@ -55,6 +58,17 @@ public class SharedSecrets {
 
     public static void setJavaCorbaAccess(JavaCorbaAccess access) {
         javaCorbaAccess = access;
+    }
+
+    public static void setJavaOISAccess(JavaOISAccess access) {
+        javaOISAccess = access;
+    }
+
+    public static JavaOISAccess getJavaOISAccess() {
+        if (javaOISAccess == null)
+            unsafe.ensureClassInitialized(ObjectInputStream.class);
+
+        return javaOISAccess;
     }
 
 }
