@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,9 @@ ifneq ($(_HAS_HASH_STYLE_GNU),)
   LDFLAGS_HASH_STYLE = -Wl,--hash-style=both
 endif
 LFLAGS_LIBSA += $(LDFLAGS_HASH_STYLE)
+
+LDFLAGS_NO_EXEC_STACK="-Wl,-z,noexecstack"
+LFLAGS_LIBSA += $(LDFLAGS_NO_EXEC_STACK)
 
 $(LIBSA): $(ARCH) $(OBJS) mapfile
         $(GCC) -shared $(LFLAGS_LIBSA) -o $(LIBSA) $(OBJS) $(LIBS)
