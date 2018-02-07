@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1667,31 +1667,15 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ jmp(done);
 
         __ bind(runtime);
-        __ push(rcx);
-#ifdef _LP64
-        __ push(r8);
-        __ push(r9);
-        __ push(r10);
-        __ push(r11);
-#  ifndef _WIN64
-        __ push(rdi);
-        __ push(rsi);
-#  endif
-#endif
+
+        save_live_registers(sasm, 3);
+
         // load the pre-value
         f.load_argument(0, rcx);
         __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), rcx, thread);
-#ifdef _LP64
-#  ifndef _WIN64
-        __ pop(rsi);
-        __ pop(rdi);
-#  endif
-        __ pop(r11);
-        __ pop(r10);
-        __ pop(r9);
-        __ pop(r8);
-#endif
-        __ pop(rcx);
+
+        restore_live_registers(sasm);
+
         __ bind(done);
 
         __ pop(rdx);
@@ -1773,27 +1757,13 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         __ bind(runtime);
         __ push(rdx);
-#ifdef _LP64
-        __ push(r8);
-        __ push(r9);
-        __ push(r10);
-        __ push(r11);
-#  ifndef _WIN64
-        __ push(rdi);
-        __ push(rsi);
-#  endif
-#endif
+
+        save_live_registers(sasm, 3);
+
         __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), card_addr, thread);
-#ifdef _LP64
-#  ifndef _WIN64
-        __ pop(rsi);
-        __ pop(rdi);
-#  endif
-        __ pop(r11);
-        __ pop(r10);
-        __ pop(r9);
-        __ pop(r8);
-#endif
+
+        restore_live_registers(sasm);
+
         __ pop(rdx);
         __ bind(done);
 
