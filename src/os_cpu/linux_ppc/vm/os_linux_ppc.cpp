@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, 2015 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -510,8 +510,8 @@ size_t os::Linux::default_guard_size(os::ThreadType thr_type) {
 //    pthread_attr_getstack()
 
 static void current_stack_region(address * bottom, size_t * size) {
-  if (os::Linux::is_initial_thread()) {
-     // initial thread needs special handling because pthread_getattr_np()
+  if (os::is_primordial_thread()) {
+     // primordial thread needs special handling because pthread_getattr_np()
      // may return bogus value.
     *bottom = os::Linux::initial_thread_stack_bottom();
     *size   = os::Linux::initial_thread_stack_size();
