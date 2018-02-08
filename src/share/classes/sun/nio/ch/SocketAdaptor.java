@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,23 @@
 
 package sun.nio.ch;
 
-import java.io.*;
-import java.lang.ref.*;
-import java.net.*;
-import java.nio.*;
-import java.nio.channels.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketException;
+import java.net.SocketImpl;
+import java.net.SocketOption;
+import java.net.SocketTimeoutException;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.IllegalBlockingModeException;
+import java.nio.channels.SocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
@@ -47,7 +59,7 @@ import java.util.*;
 // java.net.Socket so as to simplify tracking future changes to that class.
 //
 
-public class SocketAdaptor
+class SocketAdaptor
     extends Socket
 {
 
@@ -91,7 +103,6 @@ public class SocketAdaptor
                 throw new IllegalBlockingModeException();
 
             try {
-
                 if (timeout == 0) {
                     sc.connect(remote);
                     return;
@@ -119,8 +130,9 @@ public class SocketAdaptor
                         }
                     }
                 } finally {
-                    if (sc.isOpen())
+                    try {
                         sc.configureBlocking(true);
+                    } catch (ClosedChannelException e) { }
                 }
 
             } catch (Exception x) {
@@ -188,10 +200,11 @@ public class SocketAdaptor
             synchronized (sc.blockingLock()) {
                 if (!sc.isBlocking())
                     throw new IllegalBlockingModeException();
+
                 if (timeout == 0)
                     return sc.read(bb);
-                sc.configureBlocking(false);
 
+                sc.configureBlocking(false);
                 try {
                     int n;
                     if ((n = sc.read(bb)) != 0)
@@ -211,10 +224,10 @@ public class SocketAdaptor
                             throw new SocketTimeoutException();
                     }
                 } finally {
-                    if (sc.isOpen())
+                    try {
                         sc.configureBlocking(true);
+                    } catch (ClosedChannelException e) { }
                 }
-
             }
         }
     }
