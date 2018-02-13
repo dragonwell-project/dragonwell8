@@ -169,10 +169,15 @@ public class ManifestDigester {
                             }
                         }
 
-                        entries.computeIfAbsent(nameBuf.toString(),
-                                                dummy -> new Entry())
+                        Entry e = entries.get(nameBuf.toString());
+                        if (e == null) {
+                            entries.put(nameBuf.toString(), new Entry()
                                 .addSection(new Section(start, sectionLen,
-                                        sectionLenWithBlank, rawBytes));
+                                    sectionLenWithBlank, rawBytes)));
+                        } else {
+                            e.addSection(new Section(start, sectionLen,
+                                    sectionLenWithBlank, rawBytes));
+                        }
 
                     } catch (java.io.UnsupportedEncodingException uee) {
                         throw new IllegalStateException(
