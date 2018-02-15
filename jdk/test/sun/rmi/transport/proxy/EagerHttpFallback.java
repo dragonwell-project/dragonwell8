@@ -28,7 +28,7 @@
  *
  * @library ../../../../java/rmi/testlibrary
  * @build TestLibrary
- * @run main/othervm EagerHttpFallback
+ * @run main/othervm -Djava.rmi.server.disableIncomingHttp=false EagerHttpFallback
  */
 
 import java.rmi.*;
@@ -45,6 +45,8 @@ public class EagerHttpFallback {
         System.setProperty("sun.rmi.transport.proxy.eagerHttpFallback",
                            "true");
         LocateRegistry.createRegistry(FALLBACK_PORT);
+
+        System.err.println("1-DISABLED: " + System.getProperty("java.rmi.server.disableIncomingHttp"));
 
         /*
          * The call below should trigger a ConnectException in the
