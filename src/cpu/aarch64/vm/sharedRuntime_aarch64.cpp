@@ -2054,7 +2054,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ bind(dtrace_method_exit_done);
   }
 
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
 
   // Unpack oop result
   if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
@@ -2464,7 +2464,7 @@ void SharedRuntime::generate_deopt_blob() {
   // find any register it might need.
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
 
   // Load UnrollBlock* into rdi
   __ mov(r5, r0);
@@ -2595,7 +2595,7 @@ void SharedRuntime::generate_deopt_blob() {
                        new OopMap( frame_size_in_words, 0 ));
 
   // Clear fp AND pc
-  __ reset_last_Java_frame(true, true);
+  __ reset_last_Java_frame(true);
 
   // Collect return values
   __ ldrd(v0, Address(sp, RegisterSaver::v0_offset_in_bytes()));
@@ -2692,7 +2692,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
 
   oop_maps->add_gc_map(__ pc() - start, map);
 
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
 
   // move UnrollBlock* into r4
   __ mov(r4, r0);
@@ -2797,7 +2797,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
   oop_maps->add_gc_map(the_pc - start, new OopMap(SimpleRuntimeFrame::framesize, 0));
 
   // Clear fp AND pc
-  __ reset_last_Java_frame(true, true);
+  __ reset_last_Java_frame(true);
 
   // Pop self-frame.
   __ leave();                 // Epilog
@@ -2875,7 +2875,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   Label noException;
 
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
 
   __ maybe_isb();
   __ membar(Assembler::LoadLoad | Assembler::LoadStore);
@@ -2954,7 +2954,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   // r0 contains the address we are going to jump to assuming no exception got installed
 
   // clear last_Java_sp
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
   // check for pending exceptions
   Label pending;
   __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
@@ -3085,7 +3085,7 @@ void OptoRuntime::generate_exception_blob() {
 
   oop_maps->add_gc_map(the_pc - start, new OopMap(SimpleRuntimeFrame::framesize, 0));
 
-  __ reset_last_Java_frame(false, true);
+  __ reset_last_Java_frame(false);
 
   // Restore callee-saved registers
 

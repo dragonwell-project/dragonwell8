@@ -1190,7 +1190,7 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ stlrw(rscratch1, rscratch2);
 
   // reset_last_Java_frame
-  __ reset_last_Java_frame(true, true);
+  __ reset_last_Java_frame(true);
 
   // reset handle block
   __ ldr(t, Address(rthread, JavaThread::active_handles_offset()));
