@@ -262,8 +262,6 @@ public class ObjectInputStream
         };
 
         sun.misc.SharedSecrets.setJavaOISAccess(javaOISAccess);
-
-        sun.corba.SharedSecrets.setJavaOISAccess(javaOISAccess);
     }
 
     /*
