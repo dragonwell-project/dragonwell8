@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@
  * @library /lib/testlibrary /lib
  * @build jdk.testlibrary.*
  * @build TimSortStackSize2
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *     -XX:+WhiteBoxAPI TimSortStackSize2
  * @summary Test TimSort stack size on big arrays
@@ -61,13 +62,14 @@ public class TimSortStackSize2 {
         try {
             Boolean compressedOops = WhiteBox.getWhiteBox()
                 .getBooleanVMFlag("UseCompressedOops");
-            final String xmsValue = "-Xms" +
-                ((compressedOops == null || compressedOops) ? "385" : "770")
-                + "m";
-            System.out.println( "compressedOops: " + compressedOops
-                + "; Test will be started with \"" + xmsValue + "\"");
+            long memory = (compressedOops == null || compressedOops) ? 385 : 770;
+            final String xmsValue = "-Xms" + memory + "m";
+            final String xmxValue = "-Xmx" + memory + "m";
+
+            System.out.printf("compressedOops: %s; Test will be started with \"%s %s\"%n",
+                              compressedOops, xmsValue, xmxValue);
             ProcessBuilder processBuilder = ProcessTools
-                .createJavaProcessBuilder(Utils.addTestJavaOpts(xmsValue,
+                .createJavaProcessBuilder(Utils.addTestJavaOpts(xmsValue, xmxValue,
                     "TimSortStackSize2", "67108864"
                 )
             );
