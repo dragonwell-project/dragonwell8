@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.util.*;
 import java.security.AccessControlException;
 import java.security.Permission;
 import java.rmi.server.RMIClassLoader;
+import sun.misc.ObjectStreamClassValidator;
+import sun.misc.SharedSecrets;
 
 /**
  * MarshalInputStream is an extension of ObjectInputStream.  When resolving
@@ -51,6 +53,11 @@ import java.rmi.server.RMIClassLoader;
  * @author      Peter Jones
  */
 public class MarshalInputStream extends ObjectInputStream {
+    interface StreamChecker extends ObjectStreamClassValidator {
+        void checkProxyInterfaceNames(String[] ifaces);
+    }
+
+    private volatile StreamChecker streamChecker = null;
 
     /**
      * Value of "java.rmi.server.useCodebaseOnly" property,
@@ -237,6 +244,11 @@ public class MarshalInputStream extends ObjectInputStream {
     protected Class<?> resolveProxyClass(String[] interfaces)
         throws IOException, ClassNotFoundException
     {
+        StreamChecker checker = streamChecker;
+        if (checker != null) {
+            checker.checkProxyInterfaceNames(interfaces);
+        }
+
         /*
          * Always read annotation written by MarshalOutputStream.
          */
@@ -317,5 +329,29 @@ public class MarshalInputStream extends ObjectInputStream {
      */
     void useCodebaseOnly() {
         useCodebaseOnly = true;
+    }
+
+    synchronized void setStreamChecker(StreamChecker checker) {
+        streamChecker = checker;
+        SharedSecrets.getJavaObjectInputStreamAccess().setValidator(this, checker);
+    }
+    @Override
+    protected ObjectStreamClass readClassDescriptor() throws IOException,
+            ClassNotFoundException {
+        ObjectStreamClass descriptor = super.readClassDescriptor();
+
+        validateDesc(descriptor);
+
+        return descriptor;
+    }
+
+    private void validateDesc(ObjectStreamClass descriptor) {
+        StreamChecker checker;
+        synchronized (this) {
+            checker = streamChecker;
+        }
+        if (checker != null) {
+            checker.validateDescriptor(descriptor);
+        }
     }
 }

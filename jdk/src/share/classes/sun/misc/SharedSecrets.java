@@ -59,6 +59,7 @@ public class SharedSecrets {
     private static JavaAWTAccess javaAWTAccess;
     private static JavaOISAccess javaOISAccess;
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
+    private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
 
     public static JavaUtilJarAccess javaUtilJarAccess() {
         if (javaUtilJarAccess == null) {
@@ -199,6 +200,18 @@ public class SharedSecrets {
             return null;
         }
         return javaAWTAccess;
+    }
+
+
+   public static JavaObjectInputStreamAccess getJavaObjectInputStreamAccess() {
+        if (javaObjectInputStreamAccess == null) {
+            unsafe.ensureClassInitialized(ObjectInputStream.class);
+        }
+        return javaObjectInputStreamAccess;
+    }
+
+    public static void setJavaObjectInputStreamAccess(JavaObjectInputStreamAccess access) {
+        javaObjectInputStreamAccess = access;
     }
 
     public static void setJavaxCryptoSealedObjectAccess(JavaxCryptoSealedObjectAccess jcsoa) {
