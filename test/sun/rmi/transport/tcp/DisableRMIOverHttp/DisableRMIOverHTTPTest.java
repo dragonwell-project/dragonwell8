@@ -29,7 +29,7 @@
  * @library ../../../../../java/rmi/testlibrary
  * @build TestIface TestImpl
  * @run main/othervm/timeout=60 DisableRMIOverHTTPTest
- * @run main/othervm/timeout=60 -Djava.rmi.server.disableIncomingHttp=false DisableRMIOverHTTPTest
+ * @run main/othervm/timeout=60 -Dsun.rmi.server.disableIncomingHttp=false DisableRMIOverHTTPTest
  */
 
 /*
@@ -60,7 +60,7 @@ public class DisableRMIOverHTTPTest
         boolean incomingHttpDisabled =
                 Boolean.valueOf(
                     System.getProperty(
-                            "java.rmi.server.disableIncomingHttp", "true")
+                            "sun.rmi.server.disableIncomingHttp", "true")
                         .equalsIgnoreCase("true"));
 
         // Set the socket factory.
