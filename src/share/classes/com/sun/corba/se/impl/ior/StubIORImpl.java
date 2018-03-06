@@ -31,9 +31,9 @@
 
 package com.sun.corba.se.impl.ior;
 
-import java.io.ObjectInputStream ;
-import java.io.ObjectOutputStream ;
-import java.io.IOException ;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import sun.corba.SharedSecrets;
 
 import org.omg.CORBA.ORB ;
 
@@ -46,7 +46,6 @@ import org.omg.CORBA.portable.OutputStream ;
 // other vendor's ORBs.
 import com.sun.corba.se.spi.presentation.rmi.StubAdapter ;
 import com.sun.corba.se.impl.orbutil.HexOutputStream ;
-import sun.corba.SharedSecrets;
 
 /**
  * This class implements a very simply IOR representation
