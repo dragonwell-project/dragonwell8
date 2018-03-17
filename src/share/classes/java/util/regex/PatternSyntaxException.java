@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,7 +113,7 @@ public class PatternSyntaxException
         }
         sb.append(nl);
         sb.append(pattern);
-        if (index >= 0) {
+        if (index >= 0 && pattern != null && index < pattern.length()) {
             sb.append(nl);
             for (int i = 0; i < index; i++) sb.append(' ');
             sb.append('^');
