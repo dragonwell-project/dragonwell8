@@ -4076,7 +4076,7 @@ fi
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1521554908
+DATE_WHEN_GENERATED=1521626909
 
 ###############################################################################
 #
@@ -47013,7 +47013,8 @@ $as_echo "no, disabling ccaching of precompiled headers" >&6; }
   if test "x$CONFIGURE_OVERRIDDEN_VARIABLES" != x; then
     # Replace the separating ! with spaces before presenting for end user.
     unknown_variables=${CONFIGURE_OVERRIDDEN_VARIABLES//!/ }
-    as_fn_error $? "The following variables are unknown to configure: $unknown_variables" "$LINENO" 5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: The following variables might be unknown to configure: $unknown_variables" >&5
+$as_echo "$as_me: WARNING: The following variables might be unknown to configure: $unknown_variables" >&2;}
   fi
 
 
