@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
 
         // javax.security.auth.PrivateCredentialPermission
         {"invalid.null.input.s.", "ogiltiga null-indata"},
-        {"actions.can.only.be.read.", "funktioner kan endast 'l\u00E4sas'"},
+        {"actions.can.only.be.read.", "\u00E5tg\u00E4rder kan endast 'l\u00E4sas'"},
         {"permission.name.name.syntax.invalid.",
                 "syntaxen f\u00F6r beh\u00F6righetsnamnet [{0}] \u00E4r ogiltig: "},
         {"Credential.Class.not.followed.by.a.Principal.Class.and.Name",
