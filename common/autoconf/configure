@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -221,6 +221,13 @@ Additional (non-autoconf) OpenJDK Options:
                           --build=<current platform>
   --debug-configure       Run the configure script with additional debug
                           logging enabled.
+
+EOT
+
+    # Print list of toolchains. This must be done by the autoconf script.
+    ( CONFIGURE_PRINT_TOOLCHAIN_LIST=true . $conf_script_to_run PRINTF=printf )
+
+    cat <<EOT
 
 Please be aware that, when cross-compiling, the OpenJDK configure script will
 generally use 'target' where autoconf traditionally uses 'host'.
