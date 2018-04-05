@@ -217,6 +217,14 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
   ORG_CXXFLAGS="$CXXFLAGS"
   ORG_OBJCFLAGS="$OBJCFLAGS"
 
+  # On Windows, we need to detect the visual studio installation first.
+  # This will change the PATH, but we need to keep that new PATH even 
+  # after toolchain detection is done, since the compiler (on x86) uses
+  # it for DLL resolution in runtime.
+  if test "x$OPENJDK_BUILD_OS" = "xwindows" && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
+    TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV
+  fi
+
   # autoconf magic only relies on PATH, so update it if tools dir is specified
   OLD_PATH="$PATH"
 
@@ -307,11 +315,6 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
   # FIXME: This was originally only done for AS,NM,GNM,STRIP,MCS,OBJCOPY,OBJDUMP.
   if test "x$OPENJDK_BUILD_OS" = xsolaris; then
     PATH="/usr/ccs/bin:$PATH"
-  fi
-
-  # On Windows, we need to detect the visual studio installation first.
-  if test "x$OPENJDK_BUILD_OS" = "xwindows" && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
-    TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV
   fi
 
   # Finally add TOOLS_DIR at the beginning, to allow --with-tools-dir to 

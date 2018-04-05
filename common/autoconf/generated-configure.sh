@@ -769,13 +769,13 @@ ac_ct_PROPER_COMPILER_CC
 PROPER_COMPILER_CC
 TOOLS_DIR_CC
 POTENTIAL_CC
+SDKPATH
+XCODEBUILD
+SET_DEVELOPER_DIR
 VS_PATH
 VS_LIB
 VS_INCLUDE
 CYGWIN_LINK
-SDKPATH
-XCODEBUILD
-SET_DEVELOPER_DIR
 EXE_SUFFIX
 OBJ_SUFFIX
 STATIC_LIBRARY
@@ -4219,7 +4219,7 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1522940332
+DATE_WHEN_GENERATED=1522941269
 
 ###############################################################################
 #
@@ -24928,145 +24928,10 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
   ORG_CXXFLAGS="$CXXFLAGS"
   ORG_OBJCFLAGS="$OBJCFLAGS"
 
-  # autoconf magic only relies on PATH, so update it if tools dir is specified
-  OLD_PATH="$PATH"
-
-  # Before we locate the compilers, we need to sanitize the Xcode build environment
-  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    # determine path to Xcode developer directory
-    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
-    SET_DEVELOPER_DIR=
-
-    if test -n "$XCODE_PATH"; then
-      DEVELOPER_DIR="$XCODE_PATH"/Contents/Developer
-    fi
-
-    # DEVELOPER_DIR could also be provided directly
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining if we need to set DEVELOPER_DIR" >&5
-$as_echo_n "checking Determining if we need to set DEVELOPER_DIR... " >&6; }
-    if test -n "$DEVELOPER_DIR"; then
-      if test ! -d "$DEVELOPER_DIR"; then
-        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path" "$LINENO" 5
-      fi
-      if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
-        as_fn_error $? "Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle" "$LINENO" 5
-      fi
-      # make it visible to all the tools immediately
-      export DEVELOPER_DIR
-      SET_DEVELOPER_DIR="export DEVELOPER_DIR := $DEVELOPER_DIR"
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes ($DEVELOPER_DIR)" >&5
-$as_echo "yes ($DEVELOPER_DIR)" >&6; }
-    else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-    fi
-
-
-    # Extract the first word of "xcodebuild", so it can be a program name with args.
-set dummy xcodebuild; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_XCODEBUILD+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $XCODEBUILD in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_XCODEBUILD="$XCODEBUILD" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_XCODEBUILD="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  ;;
-esac
-fi
-XCODEBUILD=$ac_cv_path_XCODEBUILD
-if test -n "$XCODEBUILD"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $XCODEBUILD" >&5
-$as_echo "$XCODEBUILD" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-    if test -z "$XCODEBUILD"; then
-      as_fn_error $? "The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X" "$LINENO" 5
-    fi
-
-    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
-    XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
-    XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
-    if test ! "${XC_VERSION_PARTS[0]}" = "4"; then
-      as_fn_error $? "Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select." "$LINENO" 5
-    fi
-
-    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
-    # clang and clang++, which will break the build. So handle that here if we need to.
-    if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
-      # use xcrun to find the real gcc and add it's directory to PATH
-      # then autoconf magic will find it
-      { $as_echo "$as_me:${as_lineno-$LINENO}: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&5
-$as_echo "$as_me: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&6;}
-      XCODE_BIN_PATH=$(dirname `xcrun -find gcc`)
-      PATH="$XCODE_BIN_PATH":$PATH
-    fi
-
-    # Determine appropriate SDKPATH, don't use SDKROOT as it interferes with the stub tools
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining Xcode SDK path" >&5
-$as_echo_n "checking Determining Xcode SDK path... " >&6; }
-    # allow SDKNAME to be set to override the default SDK selection
-    SDKPATH=`"$XCODEBUILD" -sdk ${SDKNAME:-macosx} -version | grep '^Path: ' | sed 's/Path: //'`
-    if test -n "$SDKPATH"; then
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SDKPATH" >&5
-$as_echo "$SDKPATH" >&6; }
-    else
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: (none, will use system headers and frameworks)" >&5
-$as_echo "(none, will use system headers and frameworks)" >&6; }
-    fi
-
-
-    # Perform a basic sanity test
-    if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
-      as_fn_error $? "Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path" "$LINENO" 5
-    fi
-
-    # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
-    if test -n "$SDKPATH"; then
-      # We need -isysroot <path> and -iframework<path>/System/Library/Frameworks
-      CFLAGS_JDK="${CFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
-      CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
-      LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
-    fi
-
-    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
-    # setting this here means it doesn't have to be peppered throughout the forest
-    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
-  fi
-
-  # For solaris we really need solaris tools, and not the GNU equivalent.
-  # The build tools on Solaris reside in /usr/ccs (C Compilation System),
-  # so add that to path before starting to probe.
-  # FIXME: This was originally only done for AS,NM,GNM,STRIP,MCS,OBJCOPY,OBJDUMP.
-  if test "x$OPENJDK_BUILD_OS" = xsolaris; then
-    PATH="/usr/ccs/bin:$PATH"
-  fi
-
   # On Windows, we need to detect the visual studio installation first.
+  # This will change the PATH, but we need to keep that new PATH even
+  # after toolchain detection is done, since the compiler (on x86) uses
+  # it for DLL resolution in runtime.
   if test "x$OPENJDK_BUILD_OS" = "xwindows" && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
 
   # Store path to cygwin link.exe to help excluding it when searching for
@@ -25875,6 +25740,144 @@ $as_echo "$as_me: or run \"bash.exe -l\" from a VS command prompt and then run c
     as_fn_error $? "Cannot continue" "$LINENO" 5
   fi
 
+  fi
+
+  # autoconf magic only relies on PATH, so update it if tools dir is specified
+  OLD_PATH="$PATH"
+
+  # Before we locate the compilers, we need to sanitize the Xcode build environment
+  if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
+    # determine path to Xcode developer directory
+    # can be empty in which case all the tools will rely on a sane Xcode 4 installation
+    SET_DEVELOPER_DIR=
+
+    if test -n "$XCODE_PATH"; then
+      DEVELOPER_DIR="$XCODE_PATH"/Contents/Developer
+    fi
+
+    # DEVELOPER_DIR could also be provided directly
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining if we need to set DEVELOPER_DIR" >&5
+$as_echo_n "checking Determining if we need to set DEVELOPER_DIR... " >&6; }
+    if test -n "$DEVELOPER_DIR"; then
+      if test ! -d "$DEVELOPER_DIR"; then
+        as_fn_error $? "Xcode Developer path does not exist: $DEVELOPER_DIR, please provide a path to the Xcode 4 application bundle using --with-xcode-path" "$LINENO" 5
+      fi
+      if test ! -f "$DEVELOPER_DIR"/usr/bin/xcodebuild; then
+        as_fn_error $? "Xcode Developer path is not valid: $DEVELOPER_DIR, it must point to Contents/Developer inside an Xcode application bundle" "$LINENO" 5
+      fi
+      # make it visible to all the tools immediately
+      export DEVELOPER_DIR
+      SET_DEVELOPER_DIR="export DEVELOPER_DIR := $DEVELOPER_DIR"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes ($DEVELOPER_DIR)" >&5
+$as_echo "yes ($DEVELOPER_DIR)" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+
+
+    # Extract the first word of "xcodebuild", so it can be a program name with args.
+set dummy xcodebuild; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_XCODEBUILD+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $XCODEBUILD in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_XCODEBUILD="$XCODEBUILD" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_XCODEBUILD="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+XCODEBUILD=$ac_cv_path_XCODEBUILD
+if test -n "$XCODEBUILD"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $XCODEBUILD" >&5
+$as_echo "$XCODEBUILD" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test -z "$XCODEBUILD"; then
+      as_fn_error $? "The xcodebuild tool was not found, the Xcode command line tools are required to build on Mac OS X" "$LINENO" 5
+    fi
+
+    # Fail-fast: verify we're building on Xcode 4, we cannot build with Xcode 5 or later
+    XCODE_VERSION=`$XCODEBUILD -version | grep '^Xcode ' | sed 's/Xcode //'`
+    XC_VERSION_PARTS=( ${XCODE_VERSION//./ } )
+    if test ! "${XC_VERSION_PARTS[0]}" = "4"; then
+      as_fn_error $? "Xcode 4 is required to build JDK 8, the version found was $XCODE_VERSION. Use --with-xcode-path to specify the location of Xcode 4 or make Xcode 4 active by using xcode-select." "$LINENO" 5
+    fi
+
+    # Some versions of Xcode 5 command line tools install gcc and g++ as symlinks to
+    # clang and clang++, which will break the build. So handle that here if we need to.
+    if test -L "/usr/bin/gcc" -o -L "/usr/bin/g++"; then
+      # use xcrun to find the real gcc and add it's directory to PATH
+      # then autoconf magic will find it
+      { $as_echo "$as_me:${as_lineno-$LINENO}: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&5
+$as_echo "$as_me: Found gcc symlinks to clang in /usr/bin, adding path to real gcc to PATH" >&6;}
+      XCODE_BIN_PATH=$(dirname `xcrun -find gcc`)
+      PATH="$XCODE_BIN_PATH":$PATH
+    fi
+
+    # Determine appropriate SDKPATH, don't use SDKROOT as it interferes with the stub tools
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking Determining Xcode SDK path" >&5
+$as_echo_n "checking Determining Xcode SDK path... " >&6; }
+    # allow SDKNAME to be set to override the default SDK selection
+    SDKPATH=`"$XCODEBUILD" -sdk ${SDKNAME:-macosx} -version | grep '^Path: ' | sed 's/Path: //'`
+    if test -n "$SDKPATH"; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SDKPATH" >&5
+$as_echo "$SDKPATH" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: (none, will use system headers and frameworks)" >&5
+$as_echo "(none, will use system headers and frameworks)" >&6; }
+    fi
+
+
+    # Perform a basic sanity test
+    if test ! -f "$SDKPATH/System/Library/Frameworks/Foundation.framework/Headers/Foundation.h"; then
+      as_fn_error $? "Unable to find required framework headers, provide a valid path to Xcode 4 using --with-xcode-path" "$LINENO" 5
+    fi
+
+    # if SDKPATH is non-empty then we need to add -isysroot and -iframework for gcc and g++
+    if test -n "$SDKPATH"; then
+      # We need -isysroot <path> and -iframework<path>/System/Library/Frameworks
+      CFLAGS_JDK="${CFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      CXXFLAGS_JDK="${CXXFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+      LDFLAGS_JDK="${LDFLAGS_JDK} -isysroot \"$SDKPATH\" -iframework\"$SDKPATH/System/Library/Frameworks\""
+    fi
+
+    # These always need to be set, or we can't find the frameworks embedded in JavaVM.framework
+    # setting this here means it doesn't have to be peppered throughout the forest
+    CFLAGS_JDK="$CFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    CXXFLAGS_JDK="$CXXFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+    LDFLAGS_JDK="$LDFLAGS_JDK -F\"$SDKPATH/System/Library/Frameworks/JavaVM.framework/Frameworks\""
+  fi
+
+  # For solaris we really need solaris tools, and not the GNU equivalent.
+  # The build tools on Solaris reside in /usr/ccs (C Compilation System),
+  # so add that to path before starting to probe.
+  # FIXME: This was originally only done for AS,NM,GNM,STRIP,MCS,OBJCOPY,OBJDUMP.
+  if test "x$OPENJDK_BUILD_OS" = xsolaris; then
+    PATH="/usr/ccs/bin:$PATH"
   fi
 
   # Finally add TOOLS_DIR at the beginning, to allow --with-tools-dir to
