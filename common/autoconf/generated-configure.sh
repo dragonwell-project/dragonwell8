@@ -4219,7 +4219,7 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1523013611
+DATE_WHEN_GENERATED=1523096909
 
 ###############################################################################
 #
@@ -13930,8 +13930,8 @@ $as_echo "$as_me: Your cygwin is too old. You are running $CYGWIN_VERSION, but a
     fi
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking cygwin root directory as unix-style path" >&5
 $as_echo_n "checking cygwin root directory as unix-style path... " >&6; }
-    # The cmd output ends with Windows line endings (CR/LF), the grep command will strip that away
-    cygwin_winpath_root=`cd / ; cmd /c cd | grep ".*"`
+    # The cmd output ends with Windows line endings (CR/LF)
+    cygwin_winpath_root=`cd / ; cmd /c cd | $TR -d '\r\n'`
     # Force cygpath to report the proper root by including a trailing space, and then stripping it off again.
     CYGWIN_ROOT_PATH=`$CYGPATH -u "$cygwin_winpath_root " | $CUT -f 1 -d " "`
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $CYGWIN_ROOT_PATH" >&5
