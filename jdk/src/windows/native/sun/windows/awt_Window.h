@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -241,6 +241,7 @@ public:
     static void _UpdateWindow(void* param);
     static void _RepositionSecurityWarning(void* param);
     static void _SetFullScreenExclusiveModeState(void* param);
+    static void _OverrideHandle(void *param);
 
     inline static BOOL IsResizing() {
         return sm_resizing;
@@ -255,6 +256,9 @@ public:
     virtual void DestroyHWnd();
 
     static void FocusedWindowChanged(HWND from, HWND to);
+
+    inline HWND GetOverriddenHWnd() { return m_overriddenHwnd; }
+    inline void OverrideHWnd(HWND hwnd) { m_overriddenHwnd = hwnd; }
 
 private:
     static int ms_instanceCounter;
@@ -306,6 +310,9 @@ private:
     HWND warningWindow;
     // The tooltip that appears when hovering the icon
     HWND securityTooltipWindow;
+
+    //Allows substitute parent window with JavaFX stage to make it below a dialog
+    HWND m_overriddenHwnd;
 
     UINT warningWindowWidth;
     UINT warningWindowHeight;

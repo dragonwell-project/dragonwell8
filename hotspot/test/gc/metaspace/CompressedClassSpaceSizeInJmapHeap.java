@@ -37,6 +37,11 @@ import java.util.List;
 
 public class CompressedClassSpaceSizeInJmapHeap {
     public static void main(String[] args) throws Exception {
+        if (!Platform.shouldSAAttach()) {
+            System.out.println("SA attach not expected to work - test skipped.");
+            return;
+        }
+
         String pid = Integer.toString(ProcessTools.getProcessId());
 
         JDKToolLauncher jmap = JDKToolLauncher.create("jmap")

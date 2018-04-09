@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/javaAssertions.hpp"
 #include "classfile/javaClasses.hpp"
@@ -37,6 +38,7 @@
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/referenceType.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/instanceKlass.hpp"
@@ -88,6 +90,10 @@
 #ifdef TARGET_OS_FAMILY_bsd
 # include "jvm_bsd.h"
 #endif
+
+#if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#endif // INCLUDE_ALL_GCS
 
 #include <errno.h>
 
@@ -577,6 +583,28 @@ JVM_ENTRY(void, JVM_MonitorNotifyAll(JNIEnv* env, jobject handle))
 JVM_END
 
 
+static void fixup_cloned_reference(ReferenceType ref_type, oop src, oop clone) {
+  // If G1 is enabled then we need to register a non-null referent
+  // with the SATB barrier.
+#if INCLUDE_ALL_GCS
+  if (UseG1GC) {
+    oop referent = java_lang_ref_Reference::referent(clone);
+    if (referent != NULL) {
+      G1SATBCardTableModRefBS::enqueue(referent);
+    }
+  }
+#endif // INCLUDE_ALL_GCS
+  if ((java_lang_ref_Reference::next(clone) != NULL) ||
+      (java_lang_ref_Reference::queue(clone) == java_lang_ref_ReferenceQueue::ENQUEUED_queue())) {
+    // If the source has been enqueued or is being enqueued, don't
+    // register the clone with a queue.
+    java_lang_ref_Reference::set_queue(clone, java_lang_ref_ReferenceQueue::NULL_queue());
+  }
+  // discovered and next are list links; the clone is not in those lists.
+  java_lang_ref_Reference::set_discovered(clone, NULL);
+  java_lang_ref_Reference::set_next(clone, NULL);
+}
+
 JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_Clone");
   Handle obj(THREAD, JNIHandles::resolve_non_null(handle));
@@ -602,12 +630,17 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   }
 
   // Make shallow object copy
+  ReferenceType ref_type = REF_NONE;
   const int size = obj->size();
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();
     new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
   } else {
+    ref_type = InstanceKlass::cast(klass())->reference_type();
+    assert((ref_type == REF_NONE) ==
+           !klass->is_subclass_of(SystemDictionary::Reference_klass()),
+           "invariant");
     new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
   }
 
@@ -630,6 +663,12 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   BarrierSet* bs = Universe::heap()->barrier_set();
   assert(bs->has_write_region_opt(), "Barrier set does not have write_region");
   bs->write_region(MemRegion((HeapWord*)new_obj_oop, size));
+
+  // If cloning a Reference, set Reference fields to a safe state.
+  // Fixup must be completed before any safepoint.
+  if (ref_type != REF_NONE) {
+    fixup_cloned_reference(ref_type, obj(), new_obj_oop);
+  }
 
   Handle new_obj(THREAD, new_obj_oop);
   // Special handling for MemberNames.  Since they contain Method* metadata, they
@@ -952,6 +991,12 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
+  if (result != NULL) {
+    oop mirror = JNIHandles::resolve_non_null(result);
+    Klass* to_class = java_lang_Class::as_Klass(mirror);
+    ClassLoaderData* cld = ClassLoaderData::class_loader_data(h_loader());
+    cld->record_dependency(to_class, CHECK_NULL);
+  }
 
   if (TraceClassResolution && result != NULL) {
     // this function is generally only used for class loading during verification.
@@ -3654,15 +3699,16 @@ JVM_ENTRY(jobject, JVM_AllocateNewArray(JNIEnv *env, jobject obj, jclass currCla
 JVM_END
 
 
-// Return the first non-null class loader up the execution stack, or null
-// if only code from the null class loader is on the stack.
+// Returns first non-privileged class loader on the stack (excluding reflection
+// generated frames) or null if only classes loaded by the boot class loader
+// and extension class loader are found on the stack.
 
 JVM_ENTRY(jobject, JVM_LatestUserDefinedLoader(JNIEnv *env))
   for (vframeStream vfst(thread); !vfst.at_end(); vfst.next()) {
     // UseNewReflection
     vfst.skip_reflection_related_frames(); // Only needed for 1.4 reflection
     oop loader = vfst.method()->method_holder()->class_loader();
-    if (loader != NULL) {
+    if (loader != NULL && !SystemDictionary::is_ext_class_loader(loader)) {
       return JNIHandles::make_local(env, loader);
     }
   }

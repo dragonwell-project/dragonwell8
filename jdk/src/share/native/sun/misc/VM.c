@@ -112,7 +112,7 @@ Java_sun_misc_VM_getThreadStateValues(JNIEnv *env, jclass cls,
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_misc_VM_latestUserDefinedLoader(JNIEnv *env, jclass cls) {
+Java_sun_misc_VM_latestUserDefinedLoader0(JNIEnv *env, jclass cls) {
     return JVM_LatestUserDefinedLoader(env);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,7 +111,7 @@ public class Resources_sv extends java.util.ListResourceBundle {
             "Kan inte specificera identitetshavare utan namn"},
         {"Permission.and.Target.Name.must.have.a.value",
                 "Beh\u00F6righet och m\u00E5lnamn m\u00E5ste ha ett v\u00E4rde"},
-        {"Remove.this.Policy.Entry.", "Vill du ta bort den h\u00E4r policyposten?"},
+        {"Remove.this.Policy.Entry.", "Vill du ta bort policyposten?"},
         {"Overwrite.File", "Skriv \u00F6ver fil"},
         {"Policy.successfully.written.to.filename",
                 "Policy har skrivits till {0}"},

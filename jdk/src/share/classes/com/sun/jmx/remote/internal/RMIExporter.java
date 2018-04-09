@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package com.sun.jmx.remote.internal;
 
-import sun.misc.ObjectInputFilter;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -52,8 +51,7 @@ public interface RMIExporter {
     public Remote exportObject(Remote obj,
                                int port,
                                RMIClientSocketFactory csf,
-                               RMIServerSocketFactory ssf,
-                               ObjectInputFilter filter)
+                               RMIServerSocketFactory ssf)
             throws RemoteException;
 
     public boolean unexportObject(Remote obj, boolean force)
