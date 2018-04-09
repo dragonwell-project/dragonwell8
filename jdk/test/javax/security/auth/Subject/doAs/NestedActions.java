@@ -23,7 +23,6 @@
  */
 
 import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.JarUtils;
 
 import javax.security.auth.Subject;
 import javax.security.auth.x500.X500Principal;
@@ -101,13 +100,28 @@ public class NestedActions {
     public static void main(String[] args) throws IOException {
         if (args.length > 0) {
             if ("jar".equals(args[0]) && args.length > 2) {
-                JarUtils.createJar(args[1], Paths.get(TEST_CLASSES + FS),
+                createJar(args[1],
                     Arrays.copyOfRange(args, 2, args.length));
             } else {
                 runJava(args);
             }
         } else {
             throw new RuntimeException("Wrong parameters");
+        }
+    }
+
+    static void createJar(String dest, String... files) throws IOException {
+        System.out.println("Create " + dest + " with the following content:");
+        try (JarOutputStream jos = new JarOutputStream(
+                new FileOutputStream(dest), new Manifest())) {
+            for (String file : files) {
+                System.out.println("  " + file);
+                jos.putNextEntry(new JarEntry(file));
+                try (FileInputStream fis = new FileInputStream(
+                        TEST_CLASSES + FS + file)) {
+                    jdk.testlibrary.Utils.transferTo(fis, jos);
+                }
+            }
         }
     }
 

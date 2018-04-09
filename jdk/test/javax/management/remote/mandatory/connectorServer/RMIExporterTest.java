@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 import com.sun.jmx.remote.internal.RMIExporter;
-import sun.misc.ObjectInputFilter;
 
 public class RMIExporterTest {
 
@@ -60,8 +59,7 @@ public class RMIExporterTest {
         public Remote exportObject(Remote obj,
                                    int port,
                                    RMIClientSocketFactory csf,
-                                   RMIServerSocketFactory ssf,
-                                   ObjectInputFilter unused)
+                                   RMIServerSocketFactory ssf)
             throws RemoteException {
             System.out.println("CustomRMIExporter::exportObject():: " +
                                "Remote = " + obj);

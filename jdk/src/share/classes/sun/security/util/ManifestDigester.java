@@ -26,8 +26,10 @@
 package sun.security.util;
 
 import java.security.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.io.ByteArrayOutputStream;
+import java.util.List;
 
 /**
  * This class is used to compute digests on sections of the Manifest.
@@ -39,7 +41,7 @@ public class ManifestDigester {
     /** the raw bytes of the manifest */
     private byte rawBytes[];
 
-    /** the offset/length pair for a section */
+    /** the entries grouped by names */
     private HashMap<String, Entry> entries; // key is a UTF-8 string
 
     /** state returned by findSection */
@@ -120,8 +122,8 @@ public class ManifestDigester {
             return; // XXX: exception?
 
         // create an entry for main attributes
-        entries.put(MF_MAIN_ATTRS,
-                new Entry(0, pos.endOfSection + 1, pos.startOfNext, rawBytes));
+        entries.put(MF_MAIN_ATTRS, new Entry().addSection(
+                new Section(0, pos.endOfSection + 1, pos.startOfNext, rawBytes)));
 
         int start = pos.startOfNext;
         while(findSection(start, pos)) {
@@ -167,9 +169,15 @@ public class ManifestDigester {
                             }
                         }
 
-                        entries.put(nameBuf.toString(),
-                            new Entry(start, sectionLen, sectionLenWithBlank,
-                                rawBytes));
+                        Entry e = entries.get(nameBuf.toString());
+                        if (e == null) {
+                            entries.put(nameBuf.toString(), new Entry()
+                                .addSection(new Section(start, sectionLen,
+                                    sectionLenWithBlank, rawBytes)));
+                        } else {
+                            e.addSection(new Section(start, sectionLen,
+                                    sectionLenWithBlank, rawBytes));
+                        }
 
                     } catch (java.io.UnsupportedEncodingException uee) {
                         throw new IllegalStateException(
@@ -192,13 +200,52 @@ public class ManifestDigester {
     }
 
     public static class Entry {
+
+        // One Entry for one name, and one name can have multiple sections.
+        // According to the JAR File Specification: "If there are multiple
+        // individual sections for the same file entry, the attributes in
+        // these sections are merged."
+        private List<Section> sections = new ArrayList<>();
+        boolean oldStyle;
+
+        private Entry addSection(Section sec)
+        {
+            sections.add(sec);
+            return this;
+        }
+
+        public byte[] digest(MessageDigest md)
+        {
+            md.reset();
+            for (Section sec : sections) {
+                if (oldStyle) {
+                    Section.doOldStyle(md, sec.rawBytes, sec.offset, sec.lengthWithBlankLine);
+                } else {
+                    md.update(sec.rawBytes, sec.offset, sec.lengthWithBlankLine);
+                }
+            }
+            return md.digest();
+        }
+
+        /** Netscape doesn't include the new line. Intel and JavaSoft do */
+
+        public byte[] digestWorkaround(MessageDigest md)
+        {
+            md.reset();
+            for (Section sec : sections) {
+                md.update(sec.rawBytes, sec.offset, sec.length);
+            }
+            return md.digest();
+        }
+    }
+
+    private static class Section {
         int offset;
         int length;
         int lengthWithBlankLine;
         byte[] rawBytes;
-        boolean oldStyle;
 
-        public Entry(int offset, int length,
+        public Section(int offset, int length,
                      int lengthWithBlankLine, byte[] rawBytes)
         {
             this.offset = offset;
@@ -207,18 +254,7 @@ public class ManifestDigester {
             this.rawBytes = rawBytes;
         }
 
-        public byte[] digest(MessageDigest md)
-        {
-            md.reset();
-            if (oldStyle) {
-                doOldStyle(md,rawBytes, offset, lengthWithBlankLine);
-            } else {
-                md.update(rawBytes, offset, lengthWithBlankLine);
-            }
-            return md.digest();
-        }
-
-        private void doOldStyle(MessageDigest md,
+        private static void doOldStyle(MessageDigest md,
                                 byte[] bytes,
                                 int offset,
                                 int length)
@@ -241,16 +277,6 @@ public class ManifestDigester {
                 i++;
             }
             md.update(bytes, start, i-start);
-        }
-
-
-        /** Netscape doesn't include the new line. Intel and JavaSoft do */
-
-        public byte[] digestWorkaround(MessageDigest md)
-        {
-            md.reset();
-            md.update(rawBytes, offset, length);
-            return md.digest();
         }
     }
 
