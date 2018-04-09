@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -174,7 +174,8 @@ ifeq ($(LOGWRAPPERS_ARE_CREATED), yes)
         SETUP := GENERATE_NEWBYTECODE, \
         SRC := $(CORBA_TOPDIR)/src/share/classes $(CORBA_OUTPUTDIR)/gensrc $(CORBA_OUTPUTDIR)/logwrappers, \
         EXCLUDES := com/sun/corba/se/PortableActivationIDL \
-            com/sun/tools/corba/se/logutil, \
+            com/sun/tools/corba/se/logutil \
+            sun/misc, \
         EXCLUDE_FILES := com/sun/corba/se/impl/presentation/rmi/JNDIStateFactoryImpl.java \
             com/sun/corba/se/spi/presentation/rmi/StubWrapper.java \
             com/sun/org/omg/CORBA/IDLTypeOperations.java \
