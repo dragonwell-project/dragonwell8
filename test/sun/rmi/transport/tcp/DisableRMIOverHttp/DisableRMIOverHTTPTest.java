@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,37 +22,24 @@
  */
 
 /* @test
- * @bug 4203167
+ * @bug 8193833
  *
- * @summary RMI blocks in HttpAwareServerSocket.accept() if you telnet to it
- * @author Adrian Colley
+ * @summary Disable RMI over HTTP by default
  *
  * @library ../../../../../java/rmi/testlibrary
- * @build TestIface TestImpl TestImpl_Stub
- * @run main/othervm/policy=security.policy/timeout=60 -Dsun.rmi.server.disableIncomingHttp=false BlockAcceptTest
+ * @build TestIface TestImpl
+ * @run main/othervm/timeout=60 DisableRMIOverHTTPTest
+ * @run main/othervm/timeout=60 -Dsun.rmi.server.disableIncomingHttp=false DisableRMIOverHTTPTest
  */
 
-/* This test attempts to stymie the RMI accept loop.  The accept loop in
- * RMI endlessly accepts a connection, spawns a thread for it, and repeats.
- * The accept() call can be replaced by a user-supplied library which
- * might foolishly block indefinitely in its accept() method, which would
- * prevent RMI from accepting other connections on that socket.
- *
- * Unfortunately, HttpAwareServerSocket (default server socket) is/was such
- * a foolish thing.  It reads 4 bytes to see if they're "POST" before
- * returning.  The bug fix is to move the HTTP stuff into the mainloop,
- * which has the side effect of enabling it for non-default socketfactories.
+/*
+ * This test is an adaptation of ../blockAccept/BlockAcceptTest.java
  *
  * This test:
  * 1. Creates an object and exports it.
- * 2. Connects to the listening RMI port and sends nothing, to hold it up.
- * 3. Makes a regular call, using HTTP tunnelling.
- * 4. Fails to deadlock, thereby passing the test.
- *
- * Some runtime dependencies I'm trying to eliminate:
- * 1. We don't know the port number until after exporting the object, but
- *    have to set it in http.proxyPort somehow.  Hopefully http.proxyPort
- *    isn't read too soon or this test will fail with a ConnectException.
+ * 2. Makes a regular call, using HTTP tunnelling.
+ * 3. Either throws an exception if RMI over HTTP is disabled or completes
+ *    execution if not.
  */
 
 import java.rmi.*;
@@ -63,17 +50,18 @@ import java.net.*;
 import sun.rmi.transport.proxy.RMIMasterSocketFactory;
 import sun.rmi.transport.proxy.RMIHttpToPortSocketFactory;
 
-public class BlockAcceptTest
+public class DisableRMIOverHTTPTest
 {
     public static void main(String[] args)
         throws Exception
     {
-        // Make trouble for ourselves
-        if (System.getSecurityManager() == null)
-            System.setSecurityManager(new RMISecurityManager());
-
         // HTTP direct to the server port
         System.setProperty("http.proxyHost", "127.0.0.1");
+        boolean incomingHttpDisabled =
+                Boolean.valueOf(
+                    System.getProperty(
+                            "sun.rmi.server.disableIncomingHttp", "true")
+                        .equalsIgnoreCase("true"));
 
         // Set the socket factory.
         System.err.println("(installing HTTP-out socket factory)");
@@ -93,36 +81,30 @@ public class BlockAcceptTest
             if (port == 0)
                 throw new Error("TEST FAILED: export didn't reserve a port(?)");
 
-            // Set the HTTP port, at last.
-            System.setProperty("http.proxyPort", port+"");
-
-            // Now, connect to that port
-            //Thread.sleep(2000);
-            System.err.println("(connecting to listening port on 127.0.0.1:" +
-                               port + ")");
-            Socket DoS = new Socket("127.0.0.1", port);
-            // we hold the connection open until done with the test.
-
             // The test itself: make a remote call and see if it's blocked or
             // if it works
             //Thread.sleep(2000);
             System.err.println("(making RMI-through-HTTP call)");
-            System.err.println("(typical test failure deadlocks here)");
             String result = stub.testCall("dummy load");
-
             System.err.println(" => " + result);
-            if (!("OK".equals(result)))
-                throw new Error("TEST FAILED: result not OK");
-            System.err.println("Test passed.");
 
-            // Clean up, including writing a byte to that connection just in
-            // case an optimizer thought of optimizing it out of existence
-            try {
-                DoS.getOutputStream().write(0);
-                DoS.getOutputStream().close();
-            } catch (Throwable apathy) {
+            if ("OK".equals(result)) {
+                if (incomingHttpDisabled) {
+                    throw new Error(
+                        "TEST FAILED: should not receive result if incoming http is disabled");
+                }
+            } else {
+                if (!incomingHttpDisabled) {
+                    throw new Error("TEST FAILED: result not OK");
+                }
             }
-
+            System.err.println("Test passed.");
+        } catch (UnmarshalException e) {
+            if (!incomingHttpDisabled) {
+                throw e;
+            } else {
+                System.err.println("Test passed.");
+            }
         } finally {
             try {
                 impl.unexport();
