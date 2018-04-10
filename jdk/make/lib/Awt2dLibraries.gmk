@@ -891,6 +891,10 @@ ifeq ($(OPENJDK_TARGET_OS), linux)
   BUILD_LIBFONTMANAGER_ExtensionSubtables.cpp_CXXFLAGS := -fno-strict-aliasing
 endif
 
+# LDFLAGS clarification:
+#   Filter relevant linker flags disallowing unresolved symbols as we cannot
+#   build-time decide to which library to link against (libawt_headless or
+#   libawt_xawt). See JDK-8196516 for details.
 $(eval $(call SetupNativeCompilation,BUILD_LIBFONTMANAGER, \
     LIBRARY := fontmanager, \
     OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
@@ -905,7 +909,8 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBFONTMANAGER, \
     CFLAGS_windows = -I$(JDK_TOPDIR)/src/$(OPENJDK_TARGET_OS_API_DIR)/native/sun/windows \
         -DCC_NOEX, \
     MAPFILE := $(BUILD_LIBFONTMANAGER_MAPFILE), \
-    LDFLAGS := $(subst -Xlinker -z -Xlinker defs,,$(LDFLAGS_JDKLIB)) $(LDFLAGS_CXX_JDK) \
+    LDFLAGS := $(subst -Xlinker -z -Xlinker defs,, \
+        $(subst -Wl$(COMMA)-z$(COMMA)defs,,$(LDFLAGS_JDKLIB))) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_SUFFIX := $(BUILD_LIBFONTMANAGER_FONTLIB), \
     LDFLAGS_SUFFIX_linux := -lawt $(LIBM) $(LIBCXX) -ljava -ljvm -lc, \
