@@ -4219,7 +4219,7 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1523096909
+DATE_WHEN_GENERATED=1523371497
 
 ###############################################################################
 #
@@ -15006,9 +15006,6 @@ $as_echo "$as_me: The path of OUTPUT_ROOT, which resolves as \"$path\", is inval
   # which will look for generated configurations
   ac_config_files="$ac_config_files $OUTPUT_ROOT/Makefile:$AUTOCONF_DIR/Makefile.in"
 
-
-  # Save the arguments given to us
-  echo "$CONFIGURE_COMMAND_LINE" > $OUTPUT_ROOT/configure-arguments
 
 
 # Must be done before we can call HELP_MSG_MISSING_DEPENDENCY.
