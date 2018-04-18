@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,9 @@ define NEWLINE
 
 endef
 
+# The command line given to configure.
+CONFIGURE_COMMAND_LINE:=@CONFIGURE_COMMAND_LINE@
+
 # A self-referential reference to this file.
 SPEC:=@SPEC@
 
@@ -65,8 +68,8 @@ ifeq (,$(findstring -R,$(MAKE)))
 endif
 
 # Specify where the common include directory for makefiles is.
-ifeq (,$(findstring -I @SRC_ROOT@/make/common,$(MAKE)))
-  MAKE:=$(MAKE) -I @SRC_ROOT@/make/common
+ifeq (,$(findstring -I @TOPDIR@/make/common,$(MAKE)))
+  MAKE:=$(MAKE) -I @TOPDIR@/make/common
 endif
 
 # The "human readable" name of this configuration
@@ -125,16 +128,17 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   export LIB:=@VS_LIB@
 endif
 
-# The sys root where standard headers and libraries are found.
-# Usually not needed since the configure script should have
-# taken it into account already when setting CFLAGS et al.
-SYS_ROOT:=@SYS_ROOT@
+SYSROOT_CFLAGS := @SYSROOT_CFLAGS@
+SYSROOT_LDFLAGS := @SYSROOT_LDFLAGS@
 
 # Paths to the source code
-SRC_ROOT:=@SRC_ROOT@
 ADD_SRC_ROOT:=@ADD_SRC_ROOT@
 OVERRIDE_SRC_ROOT:=@OVERRIDE_SRC_ROOT@
-TOPDIR:=@SRC_ROOT@
+
+# The top-level directory of the forest (SRC_ROOT is a traditional alias)
+TOPDIR:=@TOPDIR@
+SRC_ROOT:=@TOPDIR@
+
 OUTPUT_ROOT:=@OUTPUT_ROOT@
 JDK_TOPDIR:=@JDK_TOPDIR@
 LANGTOOLS_TOPDIR:=@LANGTOOLS_TOPDIR@
@@ -287,16 +291,12 @@ UNLIMITED_CRYPTO=@UNLIMITED_CRYPTO@
 # Necessary additional compiler flags to compile X11
 X_CFLAGS:=@X_CFLAGS@
 X_LIBS:=@X_LIBS@
-OPENWIN_HOME:=@OPENWIN_HOME@
 
 # The lowest required version of macosx to enforce compatiblity for
 MACOSX_VERSION_MIN=@MACOSX_VERSION_MIN@
 
-# There are two types: CC or CL
-# CC is gcc and others behaving reasonably similar.
-# CL is cl.exe only.
-COMPILER_TYPE:=@COMPILER_TYPE@
-COMPILER_NAME:=@COMPILER_NAME@
+# Toolchain type: gcc, clang, solstudio, lxc, microsoft...
+TOOLCHAIN_TYPE:=@TOOLCHAIN_TYPE@
 
 # Option used to tell the compiler whether to create 32- or 64-bit executables
 COMPILER_TARGET_BITS_FLAG:=@COMPILER_TARGET_BITS_FLAG@

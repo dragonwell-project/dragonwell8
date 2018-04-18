@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -606,8 +606,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 
   AC_SUBST(ENABLE_DEBUG_SYMBOLS)
   AC_SUBST(ZIP_DEBUGINFO_FILES)
-  AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
-  AC_SUBST(CXXFLAGS_DEBUG_SYMBOLS)
 ])
 
 # Support for customization of the build process. Some build files
