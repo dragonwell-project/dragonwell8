@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -375,7 +375,7 @@ class Universe: AllStatic {
   static void     set_narrow_ptrs_base(address a)         { _narrow_ptrs_base = a; }
   static address  narrow_ptrs_base()                      { return _narrow_ptrs_base; }
 
-  static void     print_compressed_oops_mode();
+  static void     print_compressed_oops_mode(outputStream* st);
 
   // this is set in vm_version on sparc (and then reset in universe afaict)
   static void     set_narrow_oop_shift(int shift)         {

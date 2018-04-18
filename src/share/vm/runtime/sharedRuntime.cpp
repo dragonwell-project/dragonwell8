@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -639,7 +639,7 @@ JRT_END
 // ret_pc points into caller; we are returning caller's exception handler
 // for given exception
 address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc, Handle& exception,
-                                                    bool force_unwind, bool top_frame_only) {
+                                                    bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred) {
   assert(nm != NULL, "must exist");
   ResourceMark rm;
 
@@ -667,6 +667,7 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
         // BCI of the exception handler which caused the exception to be
         // thrown (bugs 4307310 and 4546590). Set "exception" reference
         // argument to ensure that the correct exception is thrown (4870175).
+        recursive_exception_occurred = true;
         exception = Handle(THREAD, PENDING_EXCEPTION);
         CLEAR_PENDING_EXCEPTION;
         if (handler_bci >= 0) {
@@ -758,6 +759,8 @@ JRT_ENTRY(void, SharedRuntime::throw_StackOverflowError(JavaThread* thread))
   if (StackTraceInThrowable) {
     java_lang_Throwable::fill_in_stack_trace(exception);
   }
+  // Increment counter for hs_err file reporting
+  Atomic::inc(&Exceptions::_stack_overflow_errors);
   throw_and_post_jvmti_exception(thread, exception);
 JRT_END
 
