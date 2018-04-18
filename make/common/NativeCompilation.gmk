@@ -116,6 +116,7 @@ define add_native_source
 	  ($(ECHO) $$@: \\ \
 	  && $(SED) -e '/^Note: including file:/!d' \
 	      -e 's|Note: including file: *||' \
+          -e 's|\r||g' \
 	      -e 's|\\|/|g' \
 	      -e 's|^\([a-zA-Z]\):|/cygdrive/\1|g' \
 	      -e '/$(subst /,\/,$(TOPDIR))/!d' \
