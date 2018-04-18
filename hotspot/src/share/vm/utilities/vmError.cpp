@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -304,6 +304,47 @@ void VMError::print_stack_trace(outputStream* st, JavaThread* jt,
 #endif // ZERO
 }
 
+static void print_oom_reasons(outputStream* st) {
+  st->print_cr("# Possible reasons:");
+  st->print_cr("#   The system is out of physical RAM or swap space");
+  if (UseCompressedOops) {
+    st->print_cr("#   The process is running with CompressedOops enabled, and the Java Heap may be blocking the growth of the native heap");
+  }
+  if (LogBytesPerWord == 2) {
+    st->print_cr("#   In 32 bit mode, the process size limit was hit");
+  }
+  st->print_cr("# Possible solutions:");
+  st->print_cr("#   Reduce memory load on the system");
+  st->print_cr("#   Increase physical memory or swap space");
+  st->print_cr("#   Check if swap backing store is full");
+  if (LogBytesPerWord == 2) {
+    st->print_cr("#   Use 64 bit Java on a 64 bit OS");
+  }
+  st->print_cr("#   Decrease Java heap size (-Xmx/-Xms)");
+  st->print_cr("#   Decrease number of Java threads");
+  st->print_cr("#   Decrease Java thread stack sizes (-Xss)");
+  st->print_cr("#   Set larger code cache with -XX:ReservedCodeCacheSize=");
+  if (UseCompressedOops) {
+    switch (Universe::narrow_oop_mode()) {
+      case Universe::UnscaledNarrowOop:
+        st->print_cr("#   JVM is running with Unscaled Compressed Oops mode in which the Java heap is");
+        st->print_cr("#     placed in the first 4GB address space. The Java Heap base address is the");
+        st->print_cr("#     maximum limit for the native heap growth. Please use -XX:HeapBaseMinAddress");
+        st->print_cr("#     to set the Java Heap base and to place the Java Heap above 4GB virtual address.");
+        break;
+      case Universe::ZeroBasedNarrowOop:
+        st->print_cr("#   JVM is running with Zero Based Compressed Oops mode in which the Java heap is");
+        st->print_cr("#     placed in the first 32GB address space. The Java Heap base address is the");
+        st->print_cr("#     maximum limit for the native heap growth. Please use -XX:HeapBaseMinAddress");
+        st->print_cr("#     to set the Java Heap base and to place the Java Heap above 32GB virtual address.");
+        break;
+      default:
+        break;
+    }
+  }
+  st->print_cr("# This output file may be truncated or incomplete.");
+}
+
 // This is the main function to report a fatal error. Only one thread can
 // call this function, so we don't need to worry about MT-safety. But it's
 // possible that the error handler itself may crash or die on an internal
@@ -375,19 +416,7 @@ void VMError::report(outputStream* st) {
          }
          // In error file give some solutions
          if (_verbose) {
-           st->print_cr("# Possible reasons:");
-           st->print_cr("#   The system is out of physical RAM or swap space");
-           st->print_cr("#   In 32 bit mode, the process size limit was hit");
-           st->print_cr("# Possible solutions:");
-           st->print_cr("#   Reduce memory load on the system");
-           st->print_cr("#   Increase physical memory or swap space");
-           st->print_cr("#   Check if swap backing store is full");
-           st->print_cr("#   Use 64 bit Java on a 64 bit OS");
-           st->print_cr("#   Decrease Java heap size (-Xmx/-Xms)");
-           st->print_cr("#   Decrease number of Java threads");
-           st->print_cr("#   Decrease Java thread stack sizes (-Xss)");
-           st->print_cr("#   Set larger code cache with -XX:ReservedCodeCacheSize=");
-           st->print_cr("# This output file may be truncated or incomplete.");
+           print_oom_reasons(st);
          } else {
            return;  // that's enough for the screen
          }
@@ -675,6 +704,24 @@ void VMError::report(outputStream* st) {
        st->cr();
      }
 
+  STEP(182, "(printing number of OutOfMemoryError and StackOverflow exceptions)")
+
+     if (_verbose && Exceptions::has_exception_counts()) {
+       st->print_cr("OutOfMemory and StackOverflow Exception counts:");
+       Exceptions::print_exception_counts_on_error(st);
+       st->cr();
+     }
+
+  STEP(185, "(printing compressed oops mode")
+
+     if (_verbose && UseCompressedOops) {
+       Universe::print_compressed_oops_mode(st);
+       if (UseCompressedClassPointers) {
+         Metaspace::print_compressed_class_space(st);
+       }
+       st->cr();
+     }
+
   STEP(190, "(printing heap information)" )
 
      if (_verbose && Universe::is_fully_initialized()) {
@@ -780,7 +827,7 @@ void VMError::report(outputStream* st) {
   STEP(280, "(printing date and time)" )
 
      if (_verbose) {
-       os::print_date_and_time(st);
+       os::print_date_and_time(st, buf, sizeof(buf));
        st->cr();
      }
 
