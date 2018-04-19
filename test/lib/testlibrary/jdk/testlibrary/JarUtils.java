@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 
 package jdk.testlibrary;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -126,6 +127,11 @@ public final class JarUtils {
         changes = new HashMap<>(changes);
 
         System.out.printf("Creating %s from %s...\n", dest, src);
+
+        if (dest.equals(src)) {
+            throw new IOException("src and dest cannot be the same");
+        }
+
         try (JarOutputStream jos = new JarOutputStream(
                 new FileOutputStream(dest))) {
 
@@ -151,6 +157,24 @@ public final class JarUtils {
             }
         }
         System.out.println();
+    }
+
+    /**
+     * Update the Manifest inside a jar.
+     *
+     * @param src the original jar file name
+     * @param dest the new jar file name
+     * @param man the Manifest
+     *
+     * @throws IOException
+     */
+    public static void updateManifest(String src, String dest, Manifest man)
+            throws IOException {
+        ByteArrayOutputStream bout = new ByteArrayOutputStream();
+        man.write(bout);
+        Map<String, Object> map = new HashMap<>();
+        map.put(JarFile.MANIFEST_NAME, bout.toByteArray());
+        updateJar(src, dest, map);
     }
 
     private static void updateEntry(JarOutputStream jos, String name, Object content)
