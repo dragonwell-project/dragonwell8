@@ -94,7 +94,6 @@ SUNWprivate_1.1 {
 		Java_java_awt_Rectangle_initIDs;
 		Java_sun_awt_image_BufImgSurfaceData_initIDs;
 		Java_sun_awt_image_BufImgSurfaceData_initRaster;
-                Java_sun_awt_image_BufImgSurfaceData_freeNativeICMData;
 		Java_sun_awt_image_BytePackedRaster_initIDs;
 		Java_sun_awt_image_ImagingLib_lookupByteBI;
 		Java_sun_awt_image_ImagingLib_lookupByteRaster;
