@@ -50,10 +50,10 @@
                   : "Q"(*(volatile long*)src));
 #elif defined(S390) && !defined(_LP64)
     double tmp;
-    asm volatile ("ld  %0, 0(%1)\n"
-                  "std %0, 0(%2)\n"
-                  : "=r"(tmp)
-                  : "a"(src), "a"(dst));
+    asm volatile ("ld  %0, %2\n"
+                  "std %0, %1\n"
+                  : "=&f"(tmp), "=Q"(*(volatile double*)dst)
+                  : "Q"(*(volatile double*)src));
 #else
     *(jlong *) dst = *(jlong *) src;
 #endif
