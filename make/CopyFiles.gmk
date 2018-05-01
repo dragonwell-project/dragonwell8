@@ -247,16 +247,28 @@ endif
 
 ##########################################################################################
 
-# Copy msvcrXX.dll on windows
-
+# Copy the microsoft runtime libraries on windows
 ifeq ($(OPENJDK_TARGET_OS), windows)
-  MSVCR_TARGET := $(JDK_OUTPUTDIR)/bin/$(notdir $(MSVCR_DLL))
-  # Chmod to avoid permission issues if bundles are unpacked on unix platforms.
-  $(MSVCR_TARGET): $(MSVCR_DLL)
-	$(call install-file)
-	$(CHMOD) a+rx $@
 
-  COPY_FILES += $(MSVCR_TARGET)
+  # Chmod to avoid permission issues if bundles are unpacked on unix platforms.
+  define copy-and-chmod
+	$(install-file)
+	$(CHMOD) a+rx $@
+  endef
+
+  # Use separate macro calls in case the source files are not in the same
+  # directory.
+  $(eval $(call SetupCopyFiles,COPY_MSVCR, \
+      DEST := $(JDK_OUTPUTDIR)/bin, \
+      FILES := $(MSVCR_DLL), \
+      MACRO := copy-and-chmod))
+
+  $(eval $(call SetupCopyFiles,COPY_MSVCP, \
+      DEST := $(JDK_OUTPUTDIR)/bin, \
+      FILES := $(MSVCP_DLL), \
+      MACRO := copy-and-chmod))
+
+  COPY_FILES += $(COPY_MSVCR) $(COPY_MSVCP)
 endif
 
 ##########################################################################################
