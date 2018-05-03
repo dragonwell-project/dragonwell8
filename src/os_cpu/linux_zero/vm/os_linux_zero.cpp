@@ -408,6 +408,7 @@ void os::print_register_info(outputStream *st, void *context) {
 
 extern "C" {
   int SpinPause() {
+    return 0; // Shouldn't matter.
   }
 
 
