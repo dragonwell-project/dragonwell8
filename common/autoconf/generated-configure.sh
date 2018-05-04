@@ -4242,7 +4242,7 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1524043158
+DATE_WHEN_GENERATED=1525371284
 
 ###############################################################################
 #
@@ -24576,7 +24576,7 @@ $as_echo_n "checking flags for boot jdk java command for big workloads... " >&6;
   # Maximum amount of heap memory.
   # Maximum stack size.
   if test "x$BOOT_JDK_BITS" = x32; then
-    JVM_MAX_HEAP=1100M
+    JVM_MAX_HEAP=768M
     STACK_SIZE=768
   else
     # Running Javac on a JVM on a 64-bit machine, takes more space since 64-bit
