@@ -698,6 +698,7 @@ void os::verify_stack_alignment() {
 
 extern "C" {
   int SpinPause() {
+    return 0;
   }
 
   void _Copy_conjoint_jshorts_atomic(jshort* from, jshort* to, size_t count) {
