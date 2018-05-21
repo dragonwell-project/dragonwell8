@@ -217,11 +217,15 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
   ORG_CXXFLAGS="$CXXFLAGS"
   ORG_OBJCFLAGS="$OBJCFLAGS"
 
+  # autoconf magic only relies on PATH, so update it if tools dir is specified
+  OLD_PATH="$PATH"
+
   # On Windows, we need to detect the visual studio installation first.
   # This will change the PATH, but we need to keep that new PATH even 
   # after toolchain detection is done, since the compiler (on x86) uses
   # it for DLL resolution in runtime.
-  if test "x$OPENJDK_BUILD_OS" = "xwindows" && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
+  if test "x$OPENJDK_BUILD_OS" = "xwindows" \
+      && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
     TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV
     # Reset path to VS_PATH. It will include everything that was on PATH at the time we
     # ran TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV.
@@ -230,9 +234,6 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
     export INCLUDE="$VS_INCLUDE"
     export LIB="$VS_LIB"
   fi
-
-  # autoconf magic only relies on PATH, so update it if tools dir is specified
-  OLD_PATH="$PATH"
 
   # Before we locate the compilers, we need to sanitize the Xcode build environment
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
