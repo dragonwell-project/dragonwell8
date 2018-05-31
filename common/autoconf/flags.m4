@@ -640,9 +640,10 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
         LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker --hash-style=both "
       fi
       if test "x$OPENJDK_TARGET_OS" = xlinux; then
-        # And since we now know that the linker is gnu, then add -z defs, to forbid
-        # undefined symbols in object files.
-        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs"
+        # And since we now know that the linker is gnu, then add:
+        #   -z defs, to forbid undefined symbols in object files
+        #   -z noexecstack, to mark stack regions as non-executable
+        LDFLAGS_JDK="${LDFLAGS_JDK} -Xlinker -z -Xlinker defs -Xlinker -z -Xlinker noexecstack"
         if test "x$DEBUG_LEVEL" = "xrelease"; then
           # When building release libraries, tell the linker optimize them.
           # Should this be supplied to the OSS linker as well?
