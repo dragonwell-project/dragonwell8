@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,8 @@ ALT_SAINCDIR=-I$(ALT_SASRCDIR) -DALT_SASRCDIR
 else
 ALT_SAINCDIR=
 endif
-SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE)) $(LDFLAGS_HASH_STYLE)
+SA_LFLAGS = $(MAPFLAG:FILENAME=$(SAMAPFILE)) $(LDFLAGS_HASH_STYLE) \
+            $(LDFLAGS_NO_EXEC_STACK)
 
 SAARCH ?= $(BUILDARCH)
 
