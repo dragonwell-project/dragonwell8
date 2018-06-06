@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,6 +85,18 @@ public class ObjectStreamClass implements Serializable {
     private static final long serialVersionUID = -6120832682080437368L;
     private static final ObjectStreamField[] serialPersistentFields =
         NO_FIELDS;
+
+    /** true if deserialization constructor checking is disabled */
+    private static boolean disableSerialConstructorChecks =
+        AccessController.doPrivileged(
+            new PrivilegedAction<Boolean>() {
+                public Boolean run() {
+                    String prop = "jdk.disableSerialConstructorChecks";
+                    return "true".equals(System.getProperty(prop))
+                            ? Boolean.TRUE : Boolean.FALSE;
+                }
+            }
+        ).booleanValue();
 
     /** reflection factory for obtaining serialization constructors */
     private static final ReflectionFactory reflFactory =
@@ -1497,6 +1509,46 @@ public class ObjectStreamClass implements Serializable {
     }
 
     /**
+     * Given a class, determines whether its superclass has
+     * any constructors that are accessible from the class.
+     * This is a special purpose method intended to do access
+     * checking for a serializable class and its superclasses
+     * up to, but not including, the first non-serializable
+     * superclass. This also implies that the superclass is
+     * always non-null, because a serializable class must be a
+     * class (not an interface) and Object is not serializable.
+     *
+     * @param cl the class from which access is checked
+     * @return whether the superclass has a constructor accessible from cl
+     */
+    private static boolean superHasAccessibleConstructor(Class<?> cl) {
+        Class<?> superCl = cl.getSuperclass();
+        assert Serializable.class.isAssignableFrom(cl);
+        assert superCl != null;
+        if (packageEquals(cl, superCl)) {
+            // accessible if any non-private constructor is found
+            for (Constructor<?> ctor : superCl.getDeclaredConstructors()) {
+                if ((ctor.getModifiers() & Modifier.PRIVATE) == 0) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            // accessible if the parent is public and any constructor
+            // is protected or public
+            if ((superCl.getModifiers() & Modifier.PUBLIC) == 0) {
+                return false;
+            }
+            for (Constructor<?> ctor : superCl.getDeclaredConstructors()) {
+                if ((ctor.getModifiers() & (Modifier.PROTECTED | Modifier.PUBLIC)) != 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
      * Returns subclass-accessible no-arg constructor of first non-serializable
      * superclass, or null if none found.  Access checks are disabled on the
      * returned constructor (if any).
@@ -1504,7 +1556,9 @@ public class ObjectStreamClass implements Serializable {
     private static Constructor<?> getSerializableConstructor(Class<?> cl) {
         Class<?> initCl = cl;
         while (Serializable.class.isAssignableFrom(initCl)) {
-            if ((initCl = initCl.getSuperclass()) == null) {
+            Class<?> prev = initCl;
+            if ((initCl = initCl.getSuperclass()) == null ||
+                (!disableSerialConstructorChecks && !superHasAccessibleConstructor(prev))) {
                 return null;
             }
         }
