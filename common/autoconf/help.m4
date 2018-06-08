@@ -197,10 +197,7 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION (root at $WINDOWS_ENV_ROOT_PATH)\n"
   fi
   printf "* Boot JDK:       $BOOT_JDK_VERSION (at $BOOT_JDK)\n"
-  if test "x$TOOLCHAIN_VERSION" != "x"; then
-    print_version=" $TOOLCHAIN_VERSION"
-  fi
-  printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION$print_version)\n" 
+  printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n" 
   printf "* C Compiler:     Version $CC_VERSION_NUMBER (at $CC)\n"
   printf "* C++ Compiler:   Version $CXX_VERSION_NUMBER (at $CXX)\n"
 
@@ -239,6 +236,12 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
     printf "WARNING: The result of this configuration has overridden an older\n"
     printf "configuration. You *should* run 'make clean' to make sure you get a\n"
     printf "proper build. Failure to do so might result in strange build problems.\n"
+    printf "\n"
+  fi
+
+  if test "x$UNSUPPORTED_TOOLCHAIN_VERSION" = "xyes"; then
+    printf "WARNING: The toolchain version used is known to have issues. Please\n"
+    printf "consider using a supported version unless you know what you are doing.\n"
     printf "\n"
   fi
 ])
