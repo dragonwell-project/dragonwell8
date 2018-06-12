@@ -749,6 +749,7 @@ initializeEncoding(JNIEnv *env)
     CHECK_NULL(String_getBytes_ID);
     String_init_ID = (*env)->GetMethodID(env, strClazz,
                                          "<init>", "([BLjava/lang/String;)V");
+    CHECK_NULL(String_init_ID);
 }
 
 static jboolean isJNUEncodingSupported = JNI_FALSE;
