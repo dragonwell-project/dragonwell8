@@ -924,7 +924,7 @@ void Universe::print_compressed_oops_mode(outputStream* st) {
 // Reserve the Java heap, which is now the same for all GCs.
 ReservedSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
   assert(alignment <= Arguments::conservative_max_heap_alignment(),
-      err_msg("actual alignment "SIZE_FORMAT" must be within maximum heap alignment "SIZE_FORMAT,
+      err_msg("actual alignment " SIZE_FORMAT " must be within maximum heap alignment " SIZE_FORMAT,
           alignment, Arguments::conservative_max_heap_alignment()));
   size_t total_reserved = align_size_up(heap_size, alignment);
   assert(!UseCompressedOops || (total_reserved <= (OopEncodingHeapMax - os::vm_page_size())),

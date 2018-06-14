@@ -481,7 +481,7 @@ void trace_method_handle_stub(const char* adaptername,
   bool has_mh = (strstr(adaptername, "/static") == NULL &&
                  strstr(adaptername, "linkTo") == NULL);    // static linkers don't have MH
   const char* mh_reg_name = has_mh ? "G3_mh" : "G3";
-  tty->print_cr("MH %s %s="INTPTR_FORMAT " saved_sp=" INTPTR_FORMAT " args=" INTPTR_FORMAT,
+  tty->print_cr("MH %s %s=" INTPTR_FORMAT " saved_sp=" INTPTR_FORMAT " args=" INTPTR_FORMAT,
                 adaptername, mh_reg_name,
                 (intptr_t) mh, saved_sp, args);
 
