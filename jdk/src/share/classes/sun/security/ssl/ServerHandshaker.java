@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -711,6 +711,25 @@ final class ServerHandshaker extends Handshaker {
                     }
                 }
 
+                // ensure that the endpoint identification algorithm matches the
+                // one in the session
+                String identityAlg = getEndpointIdentificationAlgorithmSE();
+                if (resumingSession && identityAlg != null) {
+
+                    String sessionIdentityAlg =
+                    previous.getEndpointIdentificationAlgorithm();
+                    if (!Objects.equals(identityAlg, sessionIdentityAlg)) {
+
+                        if (debug != null && Debug.isOn("session")) {
+                            System.out.println("%% can't resume, endpoint id"
+                                + " algorithm does not match, requested: " +
+                                identityAlg + ", cached: " +
+                                sessionIdentityAlg);
+                        }
+                        resumingSession = false;
+                    }
+                }
+
                 if (resumingSession) {
                     CipherSuite suite = previous.getSuite();
                     // verify that the ciphersuite from the cached session
@@ -782,7 +801,8 @@ final class ServerHandshaker extends Handshaker {
                         sslContext.getSecureRandom(),
                         getHostAddressSE(), getPortSE(),
                         (requestedToUseEMS &&
-                                (protocolVersion.v >= ProtocolVersion.TLS10.v)));
+                                (protocolVersion.v >= ProtocolVersion.TLS10.v)),
+                        getEndpointIdentificationAlgorithmSE());
 
             if (protocolVersion.v >= ProtocolVersion.TLS12.v) {
                 if (peerSupportedSignAlgs != null) {
