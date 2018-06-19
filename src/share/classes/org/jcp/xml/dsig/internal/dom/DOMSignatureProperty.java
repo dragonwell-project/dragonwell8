@@ -21,31 +21,26 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMSignatureProperty.java 1333415 2012-05-03 12:03:51Z coheigea $
+ * $Id: DOMSignatureProperty.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
 import javax.xml.crypto.*;
-import javax.xml.crypto.dom.DOMCryptoContext;
 import javax.xml.crypto.dsig.*;
 
 import java.util.*;
 
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 /**
  * DOM-based implementation of SignatureProperty.
  *
- * @author Sean Mullan
  */
-public final class DOMSignatureProperty extends DOMStructure
+public final class DOMSignatureProperty extends BaseStructure
     implements SignatureProperty {
 
     private final String id;
@@ -53,17 +48,17 @@ public final class DOMSignatureProperty extends DOMStructure
     private final List<XMLStructure> content;
 
     /**
-     * Creates a <code>SignatureProperty</code> from the specified parameters.
+     * Creates a {@code SignatureProperty} from the specified parameters.
      *
      * @param content a list of one or more {@link XMLStructure}s. The list
      *    is defensively copied to protect against subsequent modification.
      * @param target the target URI
-     * @param id the Id (may be <code>null</code>)
-     * @throws ClassCastException if <code>content</code> contains any
+     * @param id the Id (may be {@code null})
+     * @throws ClassCastException if {@code content} contains any
      *    entries that are not of type {@link XMLStructure}
-     * @throws IllegalArgumentException if <code>content</code> is empty
-     * @throws NullPointerException if <code>content</code> or
-     *    <code>target</code> is <code>null</code>
+     * @throws IllegalArgumentException if {@code content} is empty
+     * @throws NullPointerException if {@code content} or
+     *    {@code target} is {@code null}
      */
     public DOMSignatureProperty(List<? extends XMLStructure> content,
                                 String target, String id)
@@ -76,7 +71,7 @@ public final class DOMSignatureProperty extends DOMStructure
             throw new IllegalArgumentException("content cannot be empty");
         } else {
             this.content = Collections.unmodifiableList(
-                new ArrayList<XMLStructure>(content));
+                new ArrayList<>(content));
             for (int i = 0, size = this.content.size(); i < size; i++) {
                 if (!(this.content.get(i) instanceof XMLStructure)) {
                     throw new ClassCastException
@@ -89,11 +84,11 @@ public final class DOMSignatureProperty extends DOMStructure
     }
 
     /**
-     * Creates a <code>DOMSignatureProperty</code> from an element.
+     * Creates a {@code DOMSignatureProperty} from an element.
      *
      * @param propElem a SignatureProperty element
      */
-    public DOMSignatureProperty(Element propElem, XMLCryptoContext context)
+    public DOMSignatureProperty(Element propElem)
         throws MarshalException
     {
         // unmarshal attributes
@@ -101,57 +96,52 @@ public final class DOMSignatureProperty extends DOMStructure
         if (target == null) {
             throw new MarshalException("target cannot be null");
         }
-        Attr attr = propElem.getAttributeNodeNS(null, "Id");
-        if (attr != null) {
-            id = attr.getValue();
-            propElem.setIdAttributeNode(attr, true);
-        } else {
-            id = null;
-        }
+        id = DOMUtils.getIdAttributeValue(propElem, "Id");
 
-        NodeList nodes = propElem.getChildNodes();
-        int length = nodes.getLength();
-        List<XMLStructure> content = new ArrayList<XMLStructure>(length);
-        for (int i = 0; i < length; i++) {
-            content.add(new javax.xml.crypto.dom.DOMStructure(nodes.item(i)));
+        List<XMLStructure> newContent = new ArrayList<>();
+        Node firstChild = propElem.getFirstChild();
+        while (firstChild != null) {
+            newContent.add(new javax.xml.crypto.dom.DOMStructure(firstChild));
+            firstChild = firstChild.getNextSibling();
         }
-        if (content.isEmpty()) {
+        if (newContent.isEmpty()) {
             throw new MarshalException("content cannot be empty");
         } else {
-            this.content = Collections.unmodifiableList(content);
+            this.content = Collections.unmodifiableList(newContent);
         }
     }
 
+    @Override
     public List<XMLStructure> getContent() {
         return content;
     }
 
+    @Override
     public String getId() {
         return id;
     }
 
+    @Override
     public String getTarget() {
         return target;
     }
 
-    public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
+    public static void marshal(XmlWriter xwriter, SignatureProperty sigProp, String dsPrefix, XMLCryptoContext context)
         throws MarshalException
     {
-        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
-        Element propElem = DOMUtils.createElement(ownerDoc, "SignatureProperty",
-                                                  XMLSignature.XMLNS, dsPrefix);
+        xwriter.writeStartElement(dsPrefix, "SignatureProperty", XMLSignature.XMLNS);
 
         // set attributes
-        DOMUtils.setAttributeID(propElem, "Id", id);
-        DOMUtils.setAttribute(propElem, "Target", target);
+        xwriter.writeIdAttribute("", "", "Id", sigProp.getId());
+        xwriter.writeAttribute("", "", "Target", sigProp.getTarget());
 
         // create and append any elements and mixed content
+        List<XMLStructure> content = getContent(sigProp);
         for (XMLStructure property : content) {
-            DOMUtils.appendChild(propElem,
-                ((javax.xml.crypto.dom.DOMStructure)property).getNode());
+            xwriter.marshalStructure(property, dsPrefix, context);
         }
 
-        parent.appendChild(propElem);
+        xwriter.writeEndElement(); // "SignatureProperty"
     }
 
     @Override
@@ -165,13 +155,13 @@ public final class DOMSignatureProperty extends DOMStructure
         }
         SignatureProperty osp = (SignatureProperty)o;
 
-        boolean idsEqual = (id == null ? osp.getId() == null
-                                       : id.equals(osp.getId()));
+        boolean idsEqual = id == null ? osp.getId() == null
+                                       : id.equals(osp.getId());
 
         @SuppressWarnings("unchecked")
         List<XMLStructure> ospContent = osp.getContent();
-        return (equalsContent(ospContent) &&
-                target.equals(osp.getTarget()) && idsEqual);
+        return equalsContent(ospContent) &&
+                target.equals(osp.getTarget()) && idsEqual;
     }
 
     @Override
@@ -186,6 +176,10 @@ public final class DOMSignatureProperty extends DOMStructure
         return result;
     }
 
+    @SuppressWarnings("unchecked")
+    private static List<XMLStructure> getContent(SignatureProperty prop) {
+        return prop.getContent();
+    }
     private boolean equalsContent(List<XMLStructure> otherContent) {
         int osize = otherContent.size();
         if (content.size() != osize) {
