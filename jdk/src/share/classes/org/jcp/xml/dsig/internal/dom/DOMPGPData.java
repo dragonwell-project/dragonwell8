@@ -21,39 +21,36 @@
  * under the License.
  */
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
- * $Id: DOMPGPData.java 1203846 2011-11-18 21:18:17Z mullan $
+ * $Id: DOMPGPData.java 1788465 2017-03-24 15:10:51Z coheigea $
  */
 package org.jcp.xml.dsig.internal.dom;
 
 import java.util.*;
+
 import javax.xml.crypto.*;
-import javax.xml.crypto.dom.DOMCryptoContext;
-import javax.xml.crypto.dsig.*;
+import javax.xml.crypto.dsig.XMLSignature;
 import javax.xml.crypto.dsig.keyinfo.PGPData;
-import org.w3c.dom.Document;
+
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
-import com.sun.org.apache.xml.internal.security.exceptions.Base64DecodingException;
-import com.sun.org.apache.xml.internal.security.utils.Base64;
+import com.sun.org.apache.xml.internal.security.utils.XMLUtils;
 
 /**
  * DOM-based implementation of PGPData.
  *
- * @author Sean Mullan
  */
-public final class DOMPGPData extends DOMStructure implements PGPData {
+public final class DOMPGPData extends BaseStructure implements PGPData {
 
     private final byte[] keyId;
     private final byte[] keyPacket;
     private final List<XMLStructure> externalElements;
 
     /**
-     * Creates a <code>DOMPGPData</code> containing the specified key packet.
+     * Creates a {@code DOMPGPData} containing the specified key packet.
      * and optional list of external elements.
      *
      * @param keyPacket a PGP Key Material Packet as defined in section 5.5 of
@@ -61,12 +58,12 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
      *    array is cloned to prevent subsequent modification.
      * @param other a list of {@link XMLStructure}s representing elements from
      *    an external namespace. The list is defensively copied to prevent
-     *    subsequent modification. May be <code>null</code> or empty.
-     * @throws NullPointerException if <code>keyPacket</code> is
-     *    <code>null</code>
+     *    subsequent modification. May be {@code null} or empty.
+     * @throws NullPointerException if {@code keyPacket} is
+     *    {@code null}
      * @throws IllegalArgumentException if the key packet is not in the
      *    correct format
-     * @throws ClassCastException if <code>other</code> contains any
+     * @throws ClassCastException if {@code other} contains any
      *    entries that are not of type {@link XMLStructure}
      */
     public DOMPGPData(byte[] keyPacket, List<? extends XMLStructure> other) {
@@ -77,7 +74,7 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
             this.externalElements = Collections.emptyList();
         } else {
             this.externalElements =
-                Collections.unmodifiableList(new ArrayList<XMLStructure>(other));
+                Collections.unmodifiableList(new ArrayList<>(other));
             for (int i = 0, size = this.externalElements.size(); i < size; i++) {
                 if (!(this.externalElements.get(i) instanceof XMLStructure)) {
                     throw new ClassCastException
@@ -91,7 +88,7 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
     }
 
     /**
-     * Creates a <code>DOMPGPData</code> containing the specified key id and
+     * Creates a {@code DOMPGPData} containing the specified key id and
      * optional key packet and list of external elements.
      *
      * @param keyId a PGP public key id as defined in section 11.2 of
@@ -99,15 +96,15 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
      *    array is cloned to prevent subsequent modification.
      * @param keyPacket a PGP Key Material Packet as defined in section 5.5 of
      *    <a href="http://www.ietf.org/rfc/rfc2440.txt">RFC 2440</a> (may
-     *    be <code>null</code>). The array is cloned to prevent subsequent
+     *    be {@code null}). The array is cloned to prevent subsequent
      *    modification.
      * @param other a list of {@link XMLStructure}s representing elements from
      *    an external namespace. The list is defensively copied to prevent
-     *    subsequent modification. May be <code>null</code> or empty.
-     * @throws NullPointerException if <code>keyId</code> is <code>null</code>
+     *    subsequent modification. May be {@code null} or empty.
+     * @throws NullPointerException if {@code keyId} is {@code null}
      * @throws IllegalArgumentException if the key id or packet is not in the
      *    correct format
-     * @throws ClassCastException if <code>other</code> contains any
+     * @throws ClassCastException if {@code other} contains any
      *    entries that are not of type {@link XMLStructure}
      */
     public DOMPGPData(byte[] keyId, byte[] keyPacket,
@@ -124,7 +121,7 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
             this.externalElements = Collections.emptyList();
         } else {
             this.externalElements =
-                Collections.unmodifiableList(new ArrayList<XMLStructure>(other));
+                Collections.unmodifiableList(new ArrayList<>(other));
             for (int i = 0, size = this.externalElements.size(); i < size; i++) {
                 if (!(this.externalElements.get(i) instanceof XMLStructure)) {
                     throw new ClassCastException
@@ -141,88 +138,53 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
     }
 
     /**
-     * Creates a <code>DOMPGPData</code> from an element.
+     * Creates a {@code DOMPGPData} from an element.
      *
      * @param pdElem a PGPData element
      */
     public DOMPGPData(Element pdElem) throws MarshalException {
         // get all children nodes
-        byte[] keyId = null;
-        byte[] keyPacket = null;
-        NodeList nl = pdElem.getChildNodes();
-        int length = nl.getLength();
-        List<XMLStructure> other = new ArrayList<XMLStructure>(length);
-        for (int x = 0; x < length; x++) {
-            Node n = nl.item(x);
-            if (n.getNodeType() == Node.ELEMENT_NODE) {
-                Element childElem = (Element)n;
+        byte[] pgpKeyId = null;
+        byte[] pgpKeyPacket = null;
+
+        List<XMLStructure> other = new ArrayList<>();
+        Node firstChild = pdElem.getFirstChild();
+        while (firstChild != null) {
+            if (firstChild.getNodeType() == Node.ELEMENT_NODE) {
+                Element childElem = (Element)firstChild;
                 String localName = childElem.getLocalName();
-                try {
-                    if (localName.equals("PGPKeyID")) {
-                        keyId = Base64.decode(childElem);
-                    } else if (localName.equals("PGPKeyPacket")){
-                        keyPacket = Base64.decode(childElem);
-                    } else {
-                        other.add
-                            (new javax.xml.crypto.dom.DOMStructure(childElem));
-                    }
-                } catch (Base64DecodingException bde) {
-                    throw new MarshalException(bde);
+                String namespace = childElem.getNamespaceURI();
+                if ("PGPKeyID".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    String content = XMLUtils.getFullTextChildrenFromElement(childElem);
+                    pgpKeyId = Base64.getMimeDecoder().decode(content);
+                } else if ("PGPKeyPacket".equals(localName) && XMLSignature.XMLNS.equals(namespace)) {
+                    String content = XMLUtils.getFullTextChildrenFromElement(childElem);
+                    pgpKeyPacket = Base64.getMimeDecoder().decode(content);
+                } else {
+                    other.add
+                    (new javax.xml.crypto.dom.DOMStructure(childElem));
                 }
             }
+            firstChild = firstChild.getNextSibling();
         }
-        this.keyId = keyId;
-        this.keyPacket = keyPacket;
+        this.keyId = pgpKeyId;
+        this.keyPacket = pgpKeyPacket;
         this.externalElements = Collections.unmodifiableList(other);
     }
 
+    @Override
     public byte[] getKeyId() {
-        return (keyId == null ? null : (byte[])keyId.clone());
+        return keyId == null ? null : keyId.clone();
     }
 
+    @Override
     public byte[] getKeyPacket() {
-        return (keyPacket == null ? null : (byte[])keyPacket.clone());
+        return keyPacket == null ? null : keyPacket.clone();
     }
 
+    @Override
     public List<XMLStructure> getExternalElements() {
         return externalElements;
-    }
-
-    public void marshal(Node parent, String dsPrefix, DOMCryptoContext context)
-        throws MarshalException
-    {
-        Document ownerDoc = DOMUtils.getOwnerDocument(parent);
-        Element pdElem = DOMUtils.createElement(ownerDoc, "PGPData",
-                                                XMLSignature.XMLNS, dsPrefix);
-
-        // create and append PGPKeyID element
-        if (keyId != null) {
-            Element keyIdElem = DOMUtils.createElement(ownerDoc, "PGPKeyID",
-                                                       XMLSignature.XMLNS,
-                                                       dsPrefix);
-            keyIdElem.appendChild
-                (ownerDoc.createTextNode(Base64.encode(keyId)));
-            pdElem.appendChild(keyIdElem);
-        }
-
-        // create and append PGPKeyPacket element
-        if (keyPacket != null) {
-            Element keyPktElem = DOMUtils.createElement(ownerDoc,
-                                                        "PGPKeyPacket",
-                                                        XMLSignature.XMLNS,
-                                                        dsPrefix);
-            keyPktElem.appendChild
-                (ownerDoc.createTextNode(Base64.encode(keyPacket)));
-            pdElem.appendChild(keyPktElem);
-        }
-
-        // create and append any elements
-        for (XMLStructure extElem : externalElements) {
-            DOMUtils.appendChild(pdElem, ((javax.xml.crypto.dom.DOMStructure)
-                extElem).getNode());
-        }
-
-        parent.appendChild(pdElem);
     }
 
     /**
@@ -253,8 +215,8 @@ public final class DOMPGPData extends DOMStructure implements PGPData {
         }
 
         // tag value must be 6, 14, 5 or 7
-        if (((tag & 6) != 6) && ((tag & 14) != 14) &&
-            ((tag & 5) != 5) && ((tag & 7) != 7)) {
+        if ((tag & 6) != 6 && (tag & 14) != 14 &&
+            (tag & 5) != 5 && (tag & 7) != 7) {
             throw new IllegalArgumentException("keypacket tag is invalid: " +
                                                "must be 6, 14, 5, or 7");
         }

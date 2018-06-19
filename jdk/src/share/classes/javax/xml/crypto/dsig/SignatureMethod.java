@@ -61,25 +61,27 @@ import java.security.spec.AlgorithmParameterSpec;
  */
 public interface SignatureMethod extends XMLStructure, AlgorithmMethod {
 
+    // All methods can be found in RFC 6931.
+
     /**
-     * The <a href="http://www.w3.org/2000/09/xmldsig#dsa-sha1">DSAwithSHA1</a>
+     * The <a href="http://www.w3.org/2000/09/xmldsig#dsa-sha1">DSA-SHA1</a>
      * (DSS) signature method algorithm URI.
      */
-    static final String DSA_SHA1 =
+    String DSA_SHA1 =
         "http://www.w3.org/2000/09/xmldsig#dsa-sha1";
 
     /**
-     * The <a href="http://www.w3.org/2000/09/xmldsig#rsa-sha1">RSAwithSHA1</a>
+     * The <a href="http://www.w3.org/2000/09/xmldsig#rsa-sha1">RSA-SHA1</a>
      * (PKCS #1) signature method algorithm URI.
      */
-    static final String RSA_SHA1 =
+    String RSA_SHA1 =
         "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 
     /**
      * The <a href="http://www.w3.org/2000/09/xmldsig#hmac-sha1">HMAC-SHA1</a>
      * MAC signature method algorithm URI
      */
-    static final String HMAC_SHA1 =
+    String HMAC_SHA1 =
         "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
 
     /**
