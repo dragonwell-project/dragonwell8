@@ -4330,7 +4330,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1528448223
+DATE_WHEN_GENERATED=1529506170
 
 ###############################################################################
 #
@@ -27230,12 +27230,10 @@ $as_echo "$as_me: Rewriting CC to \"$new_complete\"" >&6;}
   fi
 
   TEST_COMPILER="$CC"
-  # Don't remove symbolic links on AIX because 'xlc_r' and 'xlC_r' may all be links
-  # to 'xlc' but it is crucial that we invoke the compiler with the right name!
-  if test "x$OPENJDK_BUILD_OS" != xaix; then
-    # FIXME: This test should not be needed anymore; we don't do that for any platform.
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking resolved symbolic links for CC" >&5
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking resolved symbolic links for CC" >&5
 $as_echo_n "checking resolved symbolic links for CC... " >&6; }
+  SYMLINK_ORIGINAL="$TEST_COMPILER"
 
   if test "x$OPENJDK_BUILD_OS" != xwindows; then
     # Follow a chain of symbolic links. Use readlink
@@ -27254,13 +27252,13 @@ $as_echo_n "checking resolved symbolic links for CC... " >&6; }
     fi
 
     if test "x$READLINK" != x; then
-      TEST_COMPILER=`$READLINK -f $TEST_COMPILER`
+      SYMLINK_ORIGINAL=`$READLINK -f $SYMLINK_ORIGINAL`
     else
       # Save the current directory for restoring afterwards
       STARTDIR=$PWD
       COUNTER=0
-      sym_link_dir=`$DIRNAME $TEST_COMPILER`
-      sym_link_file=`$BASENAME $TEST_COMPILER`
+      sym_link_dir=`$DIRNAME $SYMLINK_ORIGINAL`
+      sym_link_file=`$BASENAME $SYMLINK_ORIGINAL`
       cd $sym_link_dir
       # Use -P flag to resolve symlinks in directories.
       cd `$THEPWDCMD -P`
@@ -27280,31 +27278,32 @@ $as_echo_n "checking resolved symbolic links for CC... " >&6; }
         let COUNTER=COUNTER+1
       done
       cd $STARTDIR
-      TEST_COMPILER=$sym_link_dir/$sym_link_file
+      SYMLINK_ORIGINAL=$sym_link_dir/$sym_link_file
     fi
   fi
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TEST_COMPILER" >&5
-$as_echo "$TEST_COMPILER" >&6; }
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if CC is disguised ccache" >&5
+  if test "x$TEST_COMPILER" = "x$SYMLINK_ORIGINAL"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no symlink" >&5
+$as_echo "no symlink" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SYMLINK_ORIGINAL" >&5
+$as_echo "$SYMLINK_ORIGINAL" >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if CC is disguised ccache" >&5
 $as_echo_n "checking if CC is disguised ccache... " >&6; }
-
-  COMPILER_BASENAME=`$BASENAME "$TEST_COMPILER"`
-  if test "x$COMPILER_BASENAME" = "xccache"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, trying to find proper $COMPILER_NAME compiler" >&5
+    COMPILER_BASENAME=`$BASENAME "$SYMLINK_ORIGINAL"`
+    if test "x$COMPILER_BASENAME" = "xccache"; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, trying to find proper $COMPILER_NAME compiler" >&5
 $as_echo "yes, trying to find proper $COMPILER_NAME compiler" >&6; }
-    # We /usr/lib/ccache in the path, so cc is a symlink to /usr/bin/ccache.
-    # We want to control ccache invocation ourselves, so ignore this cc and try
-    # searching again.
+      # We /usr/lib/ccache in the path, so cc is a symlink to /usr/bin/ccache.
+      # We want to control ccache invocation ourselves, so ignore this cc and try
+      # searching again.
 
-    # Remove the path to the fake ccache cc from the PATH
-    RETRY_COMPILER_SAVED_PATH="$PATH"
-    COMPILER_DIRNAME=`$DIRNAME $CC`
-    PATH="`$ECHO $PATH | $SED -e "s,$COMPILER_DIRNAME,,g" -e "s,::,:,g" -e "s,^:,,g"`"
-
-    # Try again looking for our compiler
-    if test -n "$ac_tool_prefix"; then
+      # Remove the path to the fake ccache cc from the PATH
+      RETRY_COMPILER_SAVED_PATH="$PATH"
+      COMPILER_DIRNAME=`$DIRNAME $CC`
+      PATH="`$ECHO $PATH | $SED -e "s,$COMPILER_DIRNAME,,g" -e "s,::,:,g" -e "s,^:,,g"`"
+      # Try again looking for our compiler
+      if test -n "$ac_tool_prefix"; then
   for ac_prog in $TOOLCHAIN_CC_BINARY
   do
     # Extract the first word of "$ac_tool_prefix$ac_prog", so it can be a program name with args.
@@ -27686,9 +27685,9 @@ $as_echo "$as_me: This might be caused by spaces in the path, which is not allow
 $as_echo "$as_me: Rewriting PROPER_COMPILER_CC to \"$new_complete\"" >&6;}
   fi
 
-    PATH="$RETRY_COMPILER_SAVED_PATH"
+      PATH="$RETRY_COMPILER_SAVED_PATH"
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for resolved symbolic links for CC" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for resolved symbolic links for CC" >&5
 $as_echo_n "checking for resolved symbolic links for CC... " >&6; }
 
   if test "x$OPENJDK_BUILD_OS" != xwindows; then
@@ -27738,13 +27737,13 @@ $as_echo_n "checking for resolved symbolic links for CC... " >&6; }
     fi
   fi
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PROPER_COMPILER_CC" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PROPER_COMPILER_CC" >&5
 $as_echo "$PROPER_COMPILER_CC" >&6; }
-    CC="$PROPER_COMPILER_CC"
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no, keeping CC" >&5
+      CC="$PROPER_COMPILER_CC"
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no, keeping CC" >&5
 $as_echo "no, keeping CC" >&6; }
-    CC="$TEST_COMPILER"
+    fi
   fi
 
 
@@ -28972,12 +28971,10 @@ $as_echo "$as_me: Rewriting CXX to \"$new_complete\"" >&6;}
   fi
 
   TEST_COMPILER="$CXX"
-  # Don't remove symbolic links on AIX because 'xlc_r' and 'xlC_r' may all be links
-  # to 'xlc' but it is crucial that we invoke the compiler with the right name!
-  if test "x$OPENJDK_BUILD_OS" != xaix; then
-    # FIXME: This test should not be needed anymore; we don't do that for any platform.
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking resolved symbolic links for CXX" >&5
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking resolved symbolic links for CXX" >&5
 $as_echo_n "checking resolved symbolic links for CXX... " >&6; }
+  SYMLINK_ORIGINAL="$TEST_COMPILER"
 
   if test "x$OPENJDK_BUILD_OS" != xwindows; then
     # Follow a chain of symbolic links. Use readlink
@@ -28996,13 +28993,13 @@ $as_echo_n "checking resolved symbolic links for CXX... " >&6; }
     fi
 
     if test "x$READLINK" != x; then
-      TEST_COMPILER=`$READLINK -f $TEST_COMPILER`
+      SYMLINK_ORIGINAL=`$READLINK -f $SYMLINK_ORIGINAL`
     else
       # Save the current directory for restoring afterwards
       STARTDIR=$PWD
       COUNTER=0
-      sym_link_dir=`$DIRNAME $TEST_COMPILER`
-      sym_link_file=`$BASENAME $TEST_COMPILER`
+      sym_link_dir=`$DIRNAME $SYMLINK_ORIGINAL`
+      sym_link_file=`$BASENAME $SYMLINK_ORIGINAL`
       cd $sym_link_dir
       # Use -P flag to resolve symlinks in directories.
       cd `$THEPWDCMD -P`
@@ -29022,31 +29019,32 @@ $as_echo_n "checking resolved symbolic links for CXX... " >&6; }
         let COUNTER=COUNTER+1
       done
       cd $STARTDIR
-      TEST_COMPILER=$sym_link_dir/$sym_link_file
+      SYMLINK_ORIGINAL=$sym_link_dir/$sym_link_file
     fi
   fi
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TEST_COMPILER" >&5
-$as_echo "$TEST_COMPILER" >&6; }
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if CXX is disguised ccache" >&5
+  if test "x$TEST_COMPILER" = "x$SYMLINK_ORIGINAL"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no symlink" >&5
+$as_echo "no symlink" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SYMLINK_ORIGINAL" >&5
+$as_echo "$SYMLINK_ORIGINAL" >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if CXX is disguised ccache" >&5
 $as_echo_n "checking if CXX is disguised ccache... " >&6; }
-
-  COMPILER_BASENAME=`$BASENAME "$TEST_COMPILER"`
-  if test "x$COMPILER_BASENAME" = "xccache"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, trying to find proper $COMPILER_NAME compiler" >&5
+    COMPILER_BASENAME=`$BASENAME "$SYMLINK_ORIGINAL"`
+    if test "x$COMPILER_BASENAME" = "xccache"; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes, trying to find proper $COMPILER_NAME compiler" >&5
 $as_echo "yes, trying to find proper $COMPILER_NAME compiler" >&6; }
-    # We /usr/lib/ccache in the path, so cc is a symlink to /usr/bin/ccache.
-    # We want to control ccache invocation ourselves, so ignore this cc and try
-    # searching again.
+      # We /usr/lib/ccache in the path, so cc is a symlink to /usr/bin/ccache.
+      # We want to control ccache invocation ourselves, so ignore this cc and try
+      # searching again.
 
-    # Remove the path to the fake ccache cc from the PATH
-    RETRY_COMPILER_SAVED_PATH="$PATH"
-    COMPILER_DIRNAME=`$DIRNAME $CXX`
-    PATH="`$ECHO $PATH | $SED -e "s,$COMPILER_DIRNAME,,g" -e "s,::,:,g" -e "s,^:,,g"`"
-
-    # Try again looking for our compiler
-    if test -n "$ac_tool_prefix"; then
+      # Remove the path to the fake ccache cc from the PATH
+      RETRY_COMPILER_SAVED_PATH="$PATH"
+      COMPILER_DIRNAME=`$DIRNAME $CXX`
+      PATH="`$ECHO $PATH | $SED -e "s,$COMPILER_DIRNAME,,g" -e "s,::,:,g" -e "s,^:,,g"`"
+      # Try again looking for our compiler
+      if test -n "$ac_tool_prefix"; then
   for ac_prog in $TOOLCHAIN_CXX_BINARY
   do
     # Extract the first word of "$ac_tool_prefix$ac_prog", so it can be a program name with args.
@@ -29428,9 +29426,9 @@ $as_echo "$as_me: This might be caused by spaces in the path, which is not allow
 $as_echo "$as_me: Rewriting PROPER_COMPILER_CXX to \"$new_complete\"" >&6;}
   fi
 
-    PATH="$RETRY_COMPILER_SAVED_PATH"
+      PATH="$RETRY_COMPILER_SAVED_PATH"
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for resolved symbolic links for CXX" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for resolved symbolic links for CXX" >&5
 $as_echo_n "checking for resolved symbolic links for CXX... " >&6; }
 
   if test "x$OPENJDK_BUILD_OS" != xwindows; then
@@ -29480,13 +29478,13 @@ $as_echo_n "checking for resolved symbolic links for CXX... " >&6; }
     fi
   fi
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PROPER_COMPILER_CXX" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PROPER_COMPILER_CXX" >&5
 $as_echo "$PROPER_COMPILER_CXX" >&6; }
-    CXX="$PROPER_COMPILER_CXX"
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no, keeping CXX" >&5
+      CXX="$PROPER_COMPILER_CXX"
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no, keeping CXX" >&5
 $as_echo "no, keeping CXX" >&6; }
-    CXX="$TEST_COMPILER"
+    fi
   fi
 
 
