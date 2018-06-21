@@ -387,8 +387,5 @@ sun/tools/jps/TestJpsJarRelative.java				generic-all
 
 ############################################################################
 
-# 8141370
-com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java			linux-i586,macosx-all
-
 sample/mergesort/MergeSortTest.java				8178912 generic-all
 sample/chatserver/ChatTest.java					8178912 generic-all
