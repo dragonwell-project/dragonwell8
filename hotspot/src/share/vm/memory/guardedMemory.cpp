@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,6 +84,8 @@ void GuardedMemory::print_on(outputStream* st) const {
 
 #ifndef PRODUCT
 
+#define GEN_PURPOSE_TAG ((void *) ((uintptr_t)0xf000f000))
+
 static void guarded_memory_test_check(void* p, size_t sz, void* tag) {
   assert(p != NULL, "NULL pointer given to check");
   u_char* c = (u_char*) p;
@@ -100,12 +102,12 @@ void GuardedMemory::test_guarded_memory() {
   assert(total_sz > 1 && total_sz >= (sizeof(GuardHeader) + 1 + sizeof(Guard)), "Unexpected size");
   u_char* basep = (u_char*) os::malloc(total_sz, mtInternal);
 
-  GuardedMemory guarded(basep, 1, (void*)0xf000f000);
+  GuardedMemory guarded(basep, 1, GEN_PURPOSE_TAG);
 
   assert(*basep == badResourceValue, "Expected guard in the form of badResourceValue");
   u_char* userp = guarded.get_user_ptr();
   assert(*userp == uninitBlockPad, "Expected uninitialized data in the form of uninitBlockPad");
-  guarded_memory_test_check(userp, 1, (void*)0xf000f000);
+  guarded_memory_test_check(userp, 1, GEN_PURPOSE_TAG);
 
   void* freep = guarded.release_for_freeing();
   assert((u_char*)freep == basep, "Expected the same pointer guard was ");
