@@ -1534,11 +1534,11 @@ public class ObjectStreamClass implements Serializable {
             }
             return false;
         } else {
-            // accessible if the parent is public and any constructor
-            // is protected or public
-            if ((superCl.getModifiers() & Modifier.PUBLIC) == 0) {
+            // sanity check to ensure the parent is protected or public
+            if ((superCl.getModifiers() & (Modifier.PROTECTED | Modifier.PUBLIC)) == 0) {
                 return false;
             }
+            // accessible if any constructor is protected or public
             for (Constructor<?> ctor : superCl.getDeclaredConstructors()) {
                 if ((ctor.getModifiers() & (Modifier.PROTECTED | Modifier.PUBLIC)) != 0) {
                     return true;
