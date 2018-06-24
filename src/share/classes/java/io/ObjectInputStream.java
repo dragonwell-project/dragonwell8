@@ -1233,9 +1233,11 @@ public class ObjectInputStream
         if (serialFilter != null) {
             RuntimeException ex = null;
             ObjectInputFilter.Status status;
+            // Info about the stream is not available if overridden by subclass, return 0
+            long bytesRead = (bin == null) ? 0 : bin.getBytesRead();
             try {
                 status = serialFilter.checkInput(new FilterValues(clazz, arrayLength,
-                        totalObjectRefs, depth, bin.getBytesRead()));
+                        totalObjectRefs, depth, bytesRead));
             } catch (RuntimeException e) {
                 // Preventive interception of an exception to log
                 status = ObjectInputFilter.Status.REJECTED;
@@ -1247,7 +1249,7 @@ public class ObjectInputStream
                 if (Logging.infoLogger != null) {
                     Logging.infoLogger.info(
                             "ObjectInputFilter {0}: {1}, array length: {2}, nRefs: {3}, depth: {4}, bytes: {5}, ex: {6}",
-                            status, clazz, arrayLength, totalObjectRefs, depth, bin.getBytesRead(),
+                            status, clazz, arrayLength, totalObjectRefs, depth, bytesRead,
                             Objects.toString(ex, "n/a"));
                 }
                 InvalidClassException ice = new InvalidClassException("filter status: " + status);
@@ -1258,7 +1260,7 @@ public class ObjectInputStream
                 if (Logging.traceLogger != null) {
                     Logging.traceLogger.finer(
                             "ObjectInputFilter {0}: {1}, array length: {2}, nRefs: {3}, depth: {4}, bytes: {5}, ex: {6}",
-                            status, clazz, arrayLength, totalObjectRefs, depth, bin.getBytesRead(),
+                            status, clazz, arrayLength, totalObjectRefs, depth, bytesRead,
                             Objects.toString(ex, "n/a"));
                 }
             }
