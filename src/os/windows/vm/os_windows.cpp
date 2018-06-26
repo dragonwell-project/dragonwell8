@@ -2255,9 +2255,9 @@ LONG Handle_IDiv_Exception(struct _EXCEPTION_POINTERS* exceptionInfo) {
   assert((pc[1] & ~0x7) == 0xF8, "cannot handle non-register operands");
   assert(ctx->Rax == min_jint, "unexpected idiv exception");
   // set correct result values and continue after idiv instruction
-  ctx->Rip = (DWORD)pc + 2;        // idiv reg, reg  is 2 bytes
-  ctx->Rax = (DWORD)min_jint;      // result
-  ctx->Rdx = (DWORD)0;             // remainder
+  ctx->Rip = (DWORD64)pc + 2;        // idiv reg, reg  is 2 bytes
+  ctx->Rax = (DWORD64)min_jint;      // result
+  ctx->Rdx = (DWORD64)0;             // remainder
   // Continue the execution
   #else
   PCONTEXT ctx = exceptionInfo->ContextRecord;
