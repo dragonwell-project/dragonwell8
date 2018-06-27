@@ -24,6 +24,8 @@
 /*
  * @test
  * @bug 8072909
+ * @summary Test TimSort stack size on big arrays
+ * @key intermittent
  * @library /lib/testlibrary /lib
  * @build jdk.testlibrary.*
  * @build TimSortStackSize2
@@ -31,7 +33,6 @@
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *     -XX:+WhiteBoxAPI TimSortStackSize2
- * @summary Test TimSort stack size on big arrays
  */
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,22 +62,20 @@ public class TimSortStackSize2 {
          */
         try {
             Boolean compressedOops = WhiteBox.getWhiteBox()
-                .getBooleanVMFlag("UseCompressedOops");
+                                             .getBooleanVMFlag("UseCompressedOops");
             long memory = (compressedOops == null || compressedOops) ? 385 : 770;
-            final String xmsValue = "-Xms" + memory + "m";
-            final String xmxValue = "-Xmx" + memory + "m";
+            final String xmsValue = "-Xms" +     memory + "m";
+            final String xmxValue = "-Xmx" + 2 * memory + "m";
 
             System.out.printf("compressedOops: %s; Test will be started with \"%s %s\"%n",
                               compressedOops, xmsValue, xmxValue);
-            ProcessBuilder processBuilder = ProcessTools
-                .createJavaProcessBuilder(Utils.addTestJavaOpts(xmsValue, xmxValue,
-                    "TimSortStackSize2", "67108864"
-                )
-            );
-            OutputAnalyzer output = ProcessTools.executeProcess(processBuilder);
+            OutputAnalyzer output = ProcessTools.executeTestJvm(xmsValue,
+                                                                xmxValue,
+                                                                "TimSortStackSize2",
+                                                                "67108864");
             System.out.println(output.getOutput());
             output.shouldHaveExitValue(0);
-        } catch( Throwable e ){
+        } catch (Throwable e) {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
