@@ -2846,7 +2846,7 @@ public:
       }
     }
 
-    _out->print_cr("  "PTR_FORMAT": "PTR_FORMAT"%s%s",
+    _out->print_cr("  " PTR_FORMAT ": " PTR_FORMAT "%s%s",
                    p2i(p), p2i((void*) obj), str, str2);
   }
 };
@@ -2873,7 +2873,7 @@ public:
     bool print_it = _all || over_tams || marked;
 
     if (print_it) {
-      _out->print_cr(" "PTR_FORMAT"%s",
+      _out->print_cr(" " PTR_FORMAT "%s",
                      p2i((void *)o), (over_tams) ? " >" : (marked) ? " M" : "");
       PrintReachableOopClosure oopCl(_out, _vo, _all);
       o->oop_iterate_no_header(&oopCl);
@@ -2894,7 +2894,7 @@ public:
     HeapWord* e = hr->end();
     HeapWord* t = hr->top();
     HeapWord* p = _g1h->top_at_mark_start(hr, _vo);
-    _out->print_cr("** ["PTR_FORMAT", "PTR_FORMAT"] top: "PTR_FORMAT" "
+    _out->print_cr("** [" PTR_FORMAT ", " PTR_FORMAT "] top: " PTR_FORMAT " "
                    "TAMS: " PTR_FORMAT, p2i(b), p2i(e), p2i(t), p2i(p));
     _out->cr();
 
