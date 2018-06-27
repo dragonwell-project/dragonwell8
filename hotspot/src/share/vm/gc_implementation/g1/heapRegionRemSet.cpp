@@ -396,7 +396,7 @@ void FromCardCache::invalidate(uint start_idx, size_t new_num_regions) {
 void FromCardCache::print(outputStream* out) {
   for (uint i = 0; i < HeapRegionRemSet::num_par_rem_sets(); i++) {
     for (uint j = 0; j < _max_regions; j++) {
-      out->print_cr("_from_card_cache["UINT32_FORMAT"]["UINT32_FORMAT"] = "INT32_FORMAT".",
+      out->print_cr("_from_card_cache[" UINT32_FORMAT "][" UINT32_FORMAT "] = " INT32_FORMAT ".",
                     i, j, at(i, j));
     }
   }
@@ -436,7 +436,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
   int from_card = (int)(uintptr_t(from) >> CardTableModRefBS::card_shift);
 
   if (G1TraceHeapRegionRememberedSet) {
-    gclog_or_tty->print_cr("Table for [" PTR_FORMAT "...): card %d (cache = "INT32_FORMAT")",
+    gclog_or_tty->print_cr("Table for [" PTR_FORMAT "...): card %d (cache = " INT32_FORMAT ")",
                   hr()->bottom(), from_card,
                   FromCardCache::at((uint)tid, cur_hrm_ind));
   }
