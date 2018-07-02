@@ -639,7 +639,7 @@ JRT_END
 // ret_pc points into caller; we are returning caller's exception handler
 // for given exception
 address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc, Handle& exception,
-                                                    bool force_unwind, bool top_frame_only) {
+                                                    bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred) {
   assert(nm != NULL, "must exist");
   ResourceMark rm;
 
@@ -667,6 +667,7 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
         // BCI of the exception handler which caused the exception to be
         // thrown (bugs 4307310 and 4546590). Set "exception" reference
         // argument to ensure that the correct exception is thrown (4870175).
+        recursive_exception_occurred = true;
         exception = Handle(THREAD, PENDING_EXCEPTION);
         CLEAR_PENDING_EXCEPTION;
         if (handler_bci >= 0) {
