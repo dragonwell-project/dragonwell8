@@ -418,6 +418,7 @@
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
   template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
   template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
+  template(resolved_references_name,                  "<resolved_references>")                    \
   template(referencequeue_null_name,                  "NULL")                                     \
   template(referencequeue_enqueued_name,              "ENQUEUED")                                 \
                                                                                                   \
@@ -508,6 +509,7 @@
   template(class_array_signature,                     "[Ljava/lang/Class;")                                       \
   template(classloader_signature,                     "Ljava/lang/ClassLoader;")                                  \
   template(object_signature,                          "Ljava/lang/Object;")                                       \
+  template(object_array_signature,                    "[Ljava/lang/Object;")                                       \
   template(class_signature,                           "Ljava/lang/Class;")                                        \
   template(string_signature,                          "Ljava/lang/String;")                                       \
   template(reference_signature,                       "Ljava/lang/ref/Reference;")                                \
