@@ -3765,6 +3765,16 @@ void os::make_polling_page_readable(void) {
 };
 
 int os::active_processor_count() {
+  // User has overridden the number of active processors
+  if (ActiveProcessorCount > 0) {
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: "
+                    "active processor count set by user : %d",
+                     ActiveProcessorCount);
+    }
+    return ActiveProcessorCount;
+  }
+
   return _processor_count;
 }
 
