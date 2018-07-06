@@ -2064,13 +2064,23 @@ class CommandLineFlags {
   product_pd(uint64_t, MaxRAM,                                              \
           "Real memory size (in bytes) used to set maximum heap size")      \
                                                                             \
+  product(bool, AggressiveHeap, false,                                      \
+          "Optimize heap options for long-running memory intensive apps")   \
+                                                                            \
   product(uintx, ErgoHeapSizeLimit, 0,                                      \
           "Maximum ergonomically set heap size (in bytes); zero means use " \
-          "MaxRAM / MaxRAMFraction")                                        \
+          "MaxRAM * MaxRAMPercentage / 100")                                \
                                                                             \
   experimental(bool, UseCGroupMemoryLimitForHeap, false,                    \
           "Use CGroup memory limit as physical memory limit for heap "      \
-          "sizing")                                                         \
+          "sizing"                                                          \
+          "Deprecated, replaced by container support")                      \
+                                                                            \
+  diagnostic(bool, PrintContainerInfo, false,                               \
+          "Print container related information")                            \
+                                                                            \
+  diagnostic(bool, PrintActiveCpus, false,                                  \
+           "Print the number of CPUs detected in os::active_processor_count") \
                                                                             \
   product(uintx, MaxRAMFraction, 4,                                         \
           "Maximum fraction (1/n) of real memory used for maximum heap "    \
@@ -2086,6 +2096,19 @@ class CommandLineFlags {
                                                                             \
   product(uintx, InitialRAMFraction, 64,                                    \
           "Fraction (1/n) of real memory used for initial heap size")       \
+                                                                            \
+  product(double, MaxRAMPercentage, 25.0,                                   \
+          "Maximum percentage of real memory used for maximum heap size")   \
+                                                                            \
+  product(double, MinRAMPercentage, 50.0,                                   \
+          "Minimum percentage of real memory used for maximum heap"         \
+          "size on systems with small physical memory size")                \
+                                                                            \
+  product(double, InitialRAMPercentage, 1.5625,                             \
+          "Percentage of real memory used for initial heap size")           \
+                                                                            \
+  product(intx, ActiveProcessorCount, -1,                                   \
+          "Specify the CPU count the VM should use and report as active")   \
                                                                             \
   develop(uintx, MaxVirtMemFraction, 2,                                     \
           "Maximum fraction (1/n) of virtual memory used for ergonomically "\
