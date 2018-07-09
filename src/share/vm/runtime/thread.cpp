@@ -3343,6 +3343,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   Arguments::init_version_specific_system_properties();
 
   // Parse arguments
+  // Note: this internally calls os::init_container_support()
   jint parse_result = Arguments::parse(args);
   if (parse_result != JNI_OK) return parse_result;
 
