@@ -454,11 +454,18 @@ frame os::get_sender_for_C_frame(frame* fr) {
 // Returns an estimate of the current stack pointer. Result must be guaranteed
 // to point into the calling threads stack, and be no lower than the current
 // stack pointer.
+#if defined(_MSC_VER) && _MSC_VER >= 1900
+// warning C4172: returning address of local variable or temporary: dummy
+#pragma warning(disable: 4172)
+#endif
 address os::current_stack_pointer() {
   int dummy;
   address sp = (address)&dummy;
   return sp;
 }
+#if defined(_MSC_VER) && _MSC_VER >= 1900
+#pragma warning(default: 4172)
+#endif
 #else
 // Returns the current stack pointer. Accurate value needed for
 // os::verify_stack_alignment().
