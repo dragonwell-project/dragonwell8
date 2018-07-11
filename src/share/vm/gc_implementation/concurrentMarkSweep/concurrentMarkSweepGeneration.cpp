@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -6829,7 +6829,7 @@ void CMSBitMap::region_invariant(MemRegion mr)
   size_t start_ofs = heapWordToOffset(mr.start());
   // Make sure that end() is appropriately aligned
   assert(mr.end() == (HeapWord*)round_to((intptr_t)mr.end(),
-                        (1 << (_shifter+LogHeapWordSize))),
+                        ((intptr_t) 1 << (_shifter+LogHeapWordSize))),
          "Misaligned mr.end()");
   size_t end_ofs   = heapWordToOffset(mr.end());
   assert(end_ofs > start_ofs, "Should mark at least one bit");

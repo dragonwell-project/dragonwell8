@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -275,7 +275,7 @@ void ClassFileParser::parse_constant_pool_entries(int length, TRAPS) {
             char* str = java_lang_String::as_utf8_string(patch());
             // (could use java_lang_String::as_symbol instead, but might as well batch them)
             utf8_buffer = (u1*) str;
-            utf8_length = (int) strlen(str);
+            utf8_length = (u2) strlen(str);
           }
 
           unsigned int hash;
