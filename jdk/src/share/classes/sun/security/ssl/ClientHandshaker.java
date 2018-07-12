@@ -191,19 +191,24 @@ final class ClientHandshaker extends Handshaker {
      */
     @Override
     void processMessage(byte type, int messageLen) throws IOException {
-        if (state >= type
-                && (type != HandshakeMessage.ht_hello_request)) {
-            throw new SSLProtocolException(
-                    "Handshake message sequence violation, " + type);
-        }
+
+        // check the handshake state
+        List<Byte> ignoredOptStates = handshakeState.check(type);
 
         switch (type) {
         case HandshakeMessage.ht_hello_request:
-            this.serverHelloRequest(new HelloRequest(input));
+            HelloRequest helloRequest = new HelloRequest(input);
+            handshakeState.update(helloRequest, resumingSession);
+            this.serverHelloRequest(helloRequest);
             break;
 
         case HandshakeMessage.ht_server_hello:
-            this.serverHello(new ServerHello(input, messageLen));
+            ServerHello serverHello = new ServerHello(input, messageLen);
+            this.serverHello(serverHello);
+
+            // This handshake state update needs the resumingSession value
+            // set by serverHello().
+            handshakeState.update(serverHello, resumingSession);
             break;
 
         case HandshakeMessage.ht_certificate:
@@ -213,7 +218,9 @@ final class ClientHandshaker extends Handshaker {
                     "unexpected server cert chain");
                 // NOTREACHED
             }
-            this.serverCertificate(new CertificateMsg(input));
+            CertificateMsg certificateMsg = new CertificateMsg(input);
+            handshakeState.update(certificateMsg, resumingSession);
+            this.serverCertificate(certificateMsg);
             serverKey =
                 session.getPeerCertificates()[0].getPublicKey();
             break;
@@ -249,15 +256,20 @@ final class ClientHandshaker extends Handshaker {
                 }
 
                 try {
-                    this.serverKeyExchange(new RSA_ServerKeyExchange(input));
+                    RSA_ServerKeyExchange rsaSrvKeyExchange =
+                                    new RSA_ServerKeyExchange(input);
+                    handshakeState.update(rsaSrvKeyExchange, resumingSession);
+                    this.serverKeyExchange(rsaSrvKeyExchange);
                 } catch (GeneralSecurityException e) {
                     throwSSLException("Server key", e);
                 }
                 break;
             case K_DH_ANON:
                 try {
-                    this.serverKeyExchange(new DH_ServerKeyExchange(
-                                                input, protocolVersion));
+                    DH_ServerKeyExchange dhSrvKeyExchange =
+                            new DH_ServerKeyExchange(input, protocolVersion);
+                    handshakeState.update(dhSrvKeyExchange, resumingSession);
+                    this.serverKeyExchange(dhSrvKeyExchange);
                 } catch (GeneralSecurityException e) {
                     throwSSLException("Server key", e);
                 }
@@ -265,11 +277,14 @@ final class ClientHandshaker extends Handshaker {
             case K_DHE_DSS:
             case K_DHE_RSA:
                 try {
-                    this.serverKeyExchange(new DH_ServerKeyExchange(
+                    DH_ServerKeyExchange dhSrvKeyExchange =
+                        new DH_ServerKeyExchange(
                         input, serverKey,
                         clnt_random.random_bytes, svr_random.random_bytes,
                         messageLen,
-                        getLocalSupportedSignAlgs(), protocolVersion));
+                            getLocalSupportedSignAlgs(), protocolVersion);
+                    handshakeState.update(dhSrvKeyExchange, resumingSession);
+                    this.serverKeyExchange(dhSrvKeyExchange);
                 } catch (GeneralSecurityException e) {
                     throwSSLException("Server key", e);
                 }
@@ -278,10 +293,13 @@ final class ClientHandshaker extends Handshaker {
             case K_ECDHE_RSA:
             case K_ECDH_ANON:
                 try {
-                    this.serverKeyExchange(new ECDH_ServerKeyExchange
+                    ECDH_ServerKeyExchange ecdhSrvKeyExchange =
+                        new ECDH_ServerKeyExchange
                         (input, serverKey, clnt_random.random_bytes,
                         svr_random.random_bytes,
-                        getLocalSupportedSignAlgs(), protocolVersion));
+                            getLocalSupportedSignAlgs(), protocolVersion);
+                    handshakeState.update(ecdhSrvKeyExchange, resumingSession);
+                    this.serverKeyExchange(ecdhSrvKeyExchange);
                 } catch (GeneralSecurityException e) {
                     throwSSLException("Server key", e);
                 }
@@ -320,6 +338,7 @@ final class ClientHandshaker extends Handshaker {
             if (debug != null && Debug.isOn("handshake")) {
                 certRequest.print(System.out);
             }
+            handshakeState.update(certRequest, resumingSession);
 
             if (protocolVersion.v >= ProtocolVersion.TLS12.v) {
                 Collection<SignatureAndHashAlgorithm> peerSignAlgs =
@@ -345,32 +364,22 @@ final class ClientHandshaker extends Handshaker {
             break;
 
         case HandshakeMessage.ht_server_hello_done:
-            this.serverHelloDone(new ServerHelloDone(input));
+            ServerHelloDone serverHelloDone = new ServerHelloDone(input);
+            handshakeState.update(serverHelloDone, resumingSession);
+            this.serverHelloDone(serverHelloDone);
             break;
 
         case HandshakeMessage.ht_finished:
-            // A ChangeCipherSpec record must have been received prior to
-            // reception of the Finished message (RFC 5246, 7.4.9).
-            if (!receivedChangeCipherSpec()) {
-                fatalSE(Alerts.alert_handshake_failure,
-                        "Received Finished message before ChangeCipherSpec");
-            }
+            Finished serverFinished =
+                    new Finished(protocolVersion, input, cipherSuite);
+            handshakeState.update(serverFinished, resumingSession);
+            this.serverFinished(serverFinished);
 
-            this.serverFinished(
-                new Finished(protocolVersion, input, cipherSuite));
             break;
 
         default:
             throw new SSLProtocolException(
                 "Illegal client handshake msg, " + type);
-        }
-
-        //
-        // Move state machine forward if the message handling
-        // code didn't already do so
-        //
-        if (state < type) {
-            state = type;
         }
     }
 
@@ -389,7 +398,7 @@ final class ClientHandshaker extends Handshaker {
         // Could be (e.g. at connection setup) that we already
         // sent the "client hello" but the server's not seen it.
         //
-        if (state < HandshakeMessage.ht_client_hello) {
+        if (!clientHelloDelivered) {
             if (!secureRenegotiation && !allowUnsafeRenegotiation) {
                 // renegotiation is not allowed.
                 if (activeProtocolVersion.v >= ProtocolVersion.TLS10.v) {
@@ -613,7 +622,6 @@ final class ClientHandshaker extends Handshaker {
 
                 // looks fine; resume it, and update the state machine.
                 resumingSession = true;
-                state = HandshakeMessage.ht_finished - 1;
                 calculateConnectionKeys(session.getMasterSecret());
                 if (debug != null && Debug.isOn("session")) {
                     System.out.println("%% Server resumed " + session);
@@ -904,6 +912,7 @@ final class ClientHandshaker extends Handshaker {
                     m1.print(System.out);
                 }
                 m1.write(output);
+                handshakeState.update(m1, resumingSession);
             }
         }
 
@@ -1068,6 +1077,7 @@ final class ClientHandshaker extends Handshaker {
         }
         m2.write(output);
 
+        handshakeState.update(m2, resumingSession);
 
         /*
          * THIRD, send a "change_cipher_spec" record followed by the
@@ -1170,6 +1180,7 @@ final class ClientHandshaker extends Handshaker {
                 m3.print(System.out);
             }
             m3.write(output);
+            handshakeState.update(m3, resumingSession);
             output.doHashes();
         }
 
@@ -1227,6 +1238,8 @@ final class ClientHandshaker extends Handshaker {
         if (resumingSession) {
             input.digestNow();
             sendChangeCipherAndFinish(true);
+        } else {
+            handshakeFinished = true;
         }
         session.setLastAccessedTime(System.currentTimeMillis());
 
@@ -1272,13 +1285,6 @@ final class ClientHandshaker extends Handshaker {
         if (secureRenegotiation) {
             clientVerifyData = mesg.getVerifyData();
         }
-
-        /*
-         * Update state machine so server MUST send 'finished' next.
-         * (In "long" handshake case; in short case, we're responding
-         * to its message.)
-         */
-        state = HandshakeMessage.ht_finished - 1;
     }
 
 
