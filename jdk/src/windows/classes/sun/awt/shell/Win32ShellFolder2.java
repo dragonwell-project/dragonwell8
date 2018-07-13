@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -677,7 +677,7 @@ final class Win32ShellFolder2 extends ShellFolder {
         }
 
         try {
-            return invoke(new Callable<File[]>() {
+                File[] files = invoke(new Callable<File[]>() {
                 public File[] call() throws InterruptedException {
                     if (!isDirectory()) {
                         return null;
@@ -731,6 +731,8 @@ final class Win32ShellFolder2 extends ShellFolder {
                         ? new File[0]
                         : list.toArray(new ShellFolder[list.size()]);
                 }
+
+                return Win32ShellFolderManager2.checkFiles(files);
             }, InterruptedException.class);
         } catch (InterruptedException e) {
             return new File[0];
