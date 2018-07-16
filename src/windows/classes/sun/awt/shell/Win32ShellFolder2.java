@@ -731,9 +731,10 @@ final class Win32ShellFolder2 extends ShellFolder {
                         ? new File[0]
                         : list.toArray(new ShellFolder[list.size()]);
                 }
-
-                return Win32ShellFolderManager2.checkFiles(files);
             }, InterruptedException.class);
+
+            return Win32ShellFolderManager2.checkFiles(files);
+
         } catch (InterruptedException e) {
             return new File[0];
         }
