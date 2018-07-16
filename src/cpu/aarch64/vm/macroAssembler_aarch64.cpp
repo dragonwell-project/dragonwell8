@@ -692,11 +692,16 @@ address MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
 
   unsigned int start_offset = offset();
 #ifdef COMPILER2
-  if (far_branches() && !Compile::current()->in_scratch_emit_size()) {
+  if (far_branches()) {
+    bool is_c2 = is_c2_compile(ciEnv::current()->task()->comp_level());
+    bool in_scratch_emit_size =
+      is_c2 && Compile::current()->in_scratch_emit_size();
+    if (! in_scratch_emit_size) {
     address stub = emit_trampoline_stub(start_offset, entry.target());
     if (stub == NULL) {
       return NULL; // CodeCache is full
     }
+  }
   }
 #endif
 
