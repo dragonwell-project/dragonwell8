@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -593,6 +593,7 @@ jobject createNetworkInterface
             /* default ctor will set family to AF_INET */
 
             setInetAddress_addr(env, iaObj, ntohl(addrs->addr.him4.sin_addr.s_addr));
+            JNU_CHECK_EXCEPTION_RETURN(env, NULL);
             if (addrs->mask != -1) {
               ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
               if (ibObj == NULL) {
@@ -606,6 +607,7 @@ jobject createNetworkInterface
                 return NULL;
               }
               setInetAddress_addr(env, ia2Obj, ntohl(addrs->brdcast.him4.sin_addr.s_addr));
+              JNU_CHECK_EXCEPTION_RETURN(env, NULL);
               (*env)->SetObjectField(env, ibObj, ni_ibbroadcastID, ia2Obj);
               (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
               (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
@@ -761,8 +763,9 @@ JNIEXPORT jobject JNICALL Java_java_net_NetworkInterface_getByInetAddress0
     (JNIEnv *env, jclass cls, jobject iaObj)
 {
     netif *ifList, *curr;
-    jint addr = getInetAddress_addr(env, iaObj);
     jobject netifObj = NULL;
+    jint addr = getInetAddress_addr(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, NULL);
 
     // Retained for now to support IPv4 only stack, java.net.preferIPv4Stack
     if (ipv6_available()) {
