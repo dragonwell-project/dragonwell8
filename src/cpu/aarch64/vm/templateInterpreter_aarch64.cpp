@@ -584,7 +584,6 @@ void InterpreterGenerator::lock_method(void) {
 #endif // ASSERT
 
     __ bind(done);
-    oopDesc::bs()->interpreter_write_barrier(_masm, r0);
   }
 
   // add space for monitor & lock
@@ -593,7 +592,6 @@ void InterpreterGenerator::lock_method(void) {
   __ mov(rscratch1, esp);
   __ str(rscratch1, monitor_block_top);  // set new monitor block top
   // store object
-  __ shenandoah_store_addr_check(r0);
   __ str(r0, Address(esp, BasicObjectLock::obj_offset_in_bytes()));
   __ mov(c_rarg1, esp); // object address
   __ lock_object(c_rarg1);
@@ -706,16 +704,13 @@ address InterpreterGenerator::generate_Reference_get_entry(void) {
   const int referent_offset = java_lang_ref_Reference::referent_offset;
   guarantee(referent_offset > 0, "referent offset not initialized");
 
-  if (UseG1GC || UseShenandoahGC) {
+  if (UseG1GC) {
     Label slow_path;
     const Register local_0 = c_rarg0;
     // Check if local 0 != NULL
     // If the receiver is null then it is OK to jump to the slow path.
     __ ldr(local_0, Address(esp, 0));
-    __ mov(r19, r13); // First call-saved register
     __ cbz(local_0, slow_path);
-
-    oopDesc::bs()->interpreter_read_barrier_not_null(_masm, local_0);
 
     // Load the value of the referent field.
     const Address field_address(local_0, referent_offset);
@@ -843,7 +838,6 @@ address InterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractInterpret
       __ ldrw(crc,   Address(esp, 4*wordSize)); // Initial CRC
     } else {
       __ ldr(buf, Address(esp, 2*wordSize)); // byte[] array
-      oopDesc::bs()->interpreter_read_barrier_not_null(_masm, buf);
       __ add(buf, buf, arrayOopDesc::base_offset_in_bytes(T_BYTE)); // + header size
       __ ldrw(off, Address(esp, wordSize)); // offset
       __ add(buf, buf, off); // + offset
@@ -1275,7 +1269,6 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
 					  wordSize - sizeof(BasicObjectLock))));
 
       __ ldr(t, Address(c_rarg1, BasicObjectLock::obj_offset_in_bytes()));
-      __ shenandoah_store_addr_check(t); // Invariant
       __ cbnz(t, unlock);
 
       // Entry already unlocked, need to throw exception

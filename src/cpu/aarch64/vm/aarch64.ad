@@ -926,8 +926,6 @@ definitions %{
 
 source_hpp %{
 
-#include "gc_implementation/shenandoah/brooksPointer.hpp"
-
 class CallStubImpl {
  
   //--------------------------------------------------------------
@@ -3657,15 +3655,12 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
   }
 }
 
-enum mem_op { is_load, is_store };
-
-#define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN, MEM_OP) \
+#define MOV_VOLATILE(REG, BASE, INDEX, SCALE, DISP, SCRATCH, INSN)	\
   MacroAssembler _masm(&cbuf);						\
   {									\
     guarantee(INDEX == -1, "mode not permitted for volatile");		\
     guarantee(DISP == 0, "mode not permitted for volatile");		\
     guarantee(SCALE == 0, "mode not permitted for volatile");		\
-    if (MEM_OP == is_store) { __ shenandoah_store_addr_check(as_Register(BASE)); } \
     __ INSN(REG, as_Register(BASE));					\
   }
 
@@ -3677,7 +3672,7 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
   // Used for all non-volatile memory accesses.  The use of
   // $mem->opcode() to discover whether this pattern uses sign-extended
   // offsets is something of a kludge.
-  static void loadStore(MacroAssembler masm, mem_insn insn, mem_op mo,
+  static void loadStore(MacroAssembler masm, mem_insn insn,
 			 Register reg, int opcode,
 			 Register base, int index, int size, int disp)
   {
@@ -3699,7 +3694,6 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
       scale = Address::lsl(size);
     }
 
-    if (mo == is_store) masm.shenandoah_store_addr_check(base);
     if (index == -1) {
       (masm.*insn)(reg, Address(base, disp));
     } else {
@@ -3712,7 +3706,7 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
     }
   }
 
-  static void loadStore(MacroAssembler masm, mem_float_insn insn, mem_op mo,
+  static void loadStore(MacroAssembler masm, mem_float_insn insn,
 			 FloatRegister reg, int opcode,
 			 Register base, int index, int size, int disp)
   {
@@ -3729,8 +3723,7 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
       scale = Address::lsl(size);
     }
 
-    if (mo == is_store) masm.shenandoah_store_addr_check(base);
-    if (index == -1) {
+     if (index == -1) {
       (masm.*insn)(reg, Address(base, disp));
     } else {
       if (disp == 0) {
@@ -3742,11 +3735,10 @@ typedef void (MacroAssembler::* mem_vector_insn)(FloatRegister Rt,
     }
   }
 
-  static void loadStore(MacroAssembler masm, mem_vector_insn insn, mem_op mo,
+  static void loadStore(MacroAssembler masm, mem_vector_insn insn,
                          FloatRegister reg, MacroAssembler::SIMD_RegVariant T,
                          int opcode, Register base, int index, int size, int disp)
   {
-    if (mo == is_store) masm.shenandoah_store_addr_check(base);
     if (index == -1) {
       (masm.*insn)(reg, T, Address(base, disp));
     } else {
@@ -3804,146 +3796,146 @@ encode %{
 
   enc_class aarch64_enc_ldrsbw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsbw, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsbw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrsb(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsb, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrb(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrb(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrb, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrshw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrshw, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrshw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrsh(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsh, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrh(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrh(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrh, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrw(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrsw(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsw, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrsw, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldr(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrs(vRegF dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrs, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrs, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrd(vRegD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrd, is_load, dst_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrd, dst_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrvS(vecD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, is_load, dst_reg, MacroAssembler::S,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::S,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrvD(vecD dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, is_load, dst_reg, MacroAssembler::D,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::D,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_ldrvQ(vecX dst, memory mem) %{
     FloatRegister dst_reg = as_FloatRegister($dst$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, is_load, dst_reg, MacroAssembler::Q,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldr, dst_reg, MacroAssembler::Q,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strb(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strb, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strb, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strb0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    loadStore(_masm, &MacroAssembler::strb, is_store, zr, $mem->opcode(),
+    loadStore(_masm, &MacroAssembler::strb, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strb0_ordered(memory mem) %{
     MacroAssembler _masm(&cbuf);
     __ membar(Assembler::StoreStore);
-    loadStore(_masm, &MacroAssembler::strb, is_store, zr, $mem->opcode(),
+    loadStore(_masm, &MacroAssembler::strb, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strh(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strh, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strh, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strh0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    loadStore(_masm, &MacroAssembler::strh, is_store, zr, $mem->opcode(),
+    loadStore(_masm, &MacroAssembler::strh, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strw(iRegI src, memory mem) %{
     Register src_reg = as_Register($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strw, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strw, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strw0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    loadStore(_masm, &MacroAssembler::strw, is_store, zr, $mem->opcode(),
+    loadStore(_masm, &MacroAssembler::strw, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
@@ -3957,43 +3949,43 @@ encode %{
       __ mov(rscratch2, sp);
       src_reg = rscratch2;
     }
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_str0(memory mem) %{
     MacroAssembler _masm(&cbuf);
-    loadStore(_masm, &MacroAssembler::str, is_store, zr, $mem->opcode(),
+    loadStore(_masm, &MacroAssembler::str, zr, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strs(vRegF src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strs, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strs, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strd(vRegD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strd, is_store, src_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::strd, src_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strvS(vecD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, is_store, src_reg, MacroAssembler::S,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::S,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strvD(vecD src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, is_store, src_reg, MacroAssembler::D,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::D,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
   enc_class aarch64_enc_strvQ(vecX src, memory mem) %{
     FloatRegister src_reg = as_FloatRegister($src$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, is_store, src_reg, MacroAssembler::Q,
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::str, src_reg, MacroAssembler::Q,
        $mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
   %}
 
@@ -4065,21 +4057,21 @@ encode %{
 
   enc_class aarch64_enc_stlrb(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrb, is_store);
+		 rscratch1, stlrb);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_stlrh(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrh, is_store);
+		 rscratch1, stlrh);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
 
   enc_class aarch64_enc_stlrw(iRegI src, memory mem) %{
     MOV_VOLATILE(as_Register($src$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrw, is_store);
+		 rscratch1, stlrw);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
@@ -4088,75 +4080,75 @@ encode %{
   enc_class aarch64_enc_ldarsbw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, ldarb, is_load);
+	     rscratch1, ldarb);
     __ sxtbw(dst_reg, dst_reg);
   %}
 
   enc_class aarch64_enc_ldarsb(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarb, is_load);
+	     rscratch1, ldarb);
     __ sxtb(dst_reg, dst_reg);
   %}
 
   enc_class aarch64_enc_ldarbw(iRegI dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarb, is_load);
+	     rscratch1, ldarb);
   %}
 
   enc_class aarch64_enc_ldarb(iRegL dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarb, is_load);
+	     rscratch1, ldarb);
   %}
 
   enc_class aarch64_enc_ldarshw(iRegI dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarh, is_load);
+	     rscratch1, ldarh);
     __ sxthw(dst_reg, dst_reg);
   %}
 
   enc_class aarch64_enc_ldarsh(iRegL dst, memory mem) %{
     Register dst_reg = as_Register($dst$$reg);
     MOV_VOLATILE(dst_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarh, is_load);
+	     rscratch1, ldarh);
     __ sxth(dst_reg, dst_reg);
   %}
 
   enc_class aarch64_enc_ldarhw(iRegI dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarh, is_load);
+	     rscratch1, ldarh);
   %}
 
   enc_class aarch64_enc_ldarh(iRegL dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarh, is_load);
+	     rscratch1, ldarh);
   %}
 
   enc_class aarch64_enc_ldarw(iRegI dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarw, is_load);
+	     rscratch1, ldarw);
   %}
 
   enc_class aarch64_enc_ldarw(iRegL dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarw, is_load);
+	     rscratch1, ldarw);
   %}
 
   enc_class aarch64_enc_ldar(iRegL dst, memory mem) %{
     MOV_VOLATILE(as_Register($dst$$reg), $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldar, is_load);
+	     rscratch1, ldar);
   %}
 
   enc_class aarch64_enc_fldars(vRegF dst, memory mem) %{
     MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldarw, is_load);
+	     rscratch1, ldarw);
     __ fmovs(as_FloatRegister($dst$$reg), rscratch1);
   %}
 
   enc_class aarch64_enc_fldard(vRegD dst, memory mem) %{
     MOV_VOLATILE(rscratch1, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-	     rscratch1, ldar, is_load);
+	     rscratch1, ldar);
     __ fmovd(as_FloatRegister($dst$$reg), rscratch1);
   %}
 
@@ -4171,7 +4163,7 @@ encode %{
       src_reg = rscratch2;
     }
     MOV_VOLATILE(src_reg, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlr, is_store);
+		 rscratch1, stlr);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
@@ -4183,7 +4175,7 @@ encode %{
       __ fmovs(rscratch2, src_reg);
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlrw, is_store);
+		 rscratch1, stlrw);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
@@ -4195,7 +4187,7 @@ encode %{
       __ fmovd(rscratch2, src_reg);
     }
     MOV_VOLATILE(rscratch2, $mem$$base, $mem$$index, $mem$$scale, $mem$$disp,
-		 rscratch1, stlr, is_store);
+		 rscratch1, stlr);
     if (VM_Version::cpu_cpuFeatures() & VM_Version::CPU_DMB_ATOMICS)
       __ dmb(__ ISH);
   %}
@@ -4264,7 +4256,6 @@ encode %{
   enc_class aarch64_enc_cmpxchg(memory mem, iRegLNoSp oldval, iRegLNoSp newval) %{
     MacroAssembler _masm(&cbuf);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    __ shenandoah_store_addr_check($mem$$base$$Register);
     __ cmpxchg($mem$$base$$Register, $oldval$$Register, $newval$$Register,
                Assembler::xword, /*acquire*/ false, /*release*/ true);
   %}
@@ -4272,20 +4263,10 @@ encode %{
   enc_class aarch64_enc_cmpxchgw(memory mem, iRegINoSp oldval, iRegINoSp newval) %{
     MacroAssembler _masm(&cbuf);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    __ shenandoah_store_addr_check($mem$$base$$Register);
     __ cmpxchg($mem$$base$$Register, $oldval$$Register, $newval$$Register,
                Assembler::word, /*acquire*/ false, /*release*/ true);
   %}
 
-
-  enc_class aarch64_enc_cmpxchg_oop_shenandoah(memory mem, iRegP oldval, iRegP newval, iRegPNoSp tmp) %{
-    MacroAssembler _masm(&cbuf);
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    Register tmp = $tmp$$Register;
-    __ mov(tmp, $oldval$$Register); // Must not clobber oldval.
-    __ cmpxchg_oop_shenandoah($mem$$Register, tmp, $newval$$Register,
-                              Assembler::xword, /*acquire*/ false, /*release*/ true, /*weak*/ false);
-  %}
 
   // The only difference between aarch64_enc_cmpxchg and
   // aarch64_enc_cmpxchg_acq is that we use load-acquire in the
@@ -4294,7 +4275,6 @@ encode %{
   enc_class aarch64_enc_cmpxchg_acq(memory mem, iRegLNoSp oldval, iRegLNoSp newval) %{
     MacroAssembler _masm(&cbuf);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    __ shenandoah_store_addr_check($mem$$base$$Register);
     __ cmpxchg($mem$$base$$Register, $oldval$$Register, $newval$$Register,
                Assembler::xword, /*acquire*/ true, /*release*/ true);
   %}
@@ -4302,18 +4282,8 @@ encode %{
   enc_class aarch64_enc_cmpxchgw_acq(memory mem, iRegINoSp oldval, iRegINoSp newval) %{
     MacroAssembler _masm(&cbuf);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    __ shenandoah_store_addr_check($mem$$base$$Register);
     __ cmpxchg($mem$$base$$Register, $oldval$$Register, $newval$$Register,
                Assembler::word, /*acquire*/ true, /*release*/ true);
-  %}
-
-  enc_class aarch64_enc_cmpxchg_acq_oop_shenandoah(memory mem, iRegP oldval, iRegP newval, iRegPNoSp tmp) %{
-    MacroAssembler _masm(&cbuf);
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-    Register tmp = $tmp$$Register;
-    __ mov(tmp, $oldval$$Register); // Must not clobber oldval.
-    __ cmpxchg_oop_shenandoah($mem$$Register, tmp, $newval$$Register,
-                              Assembler::xword, /*acquire*/ true, /*release*/ true, /*weak*/ false);
   %}
 
   // auxiliary used for CompareAndSwapX to set result register
@@ -4824,8 +4794,6 @@ encode %{
 
     assert_different_registers(oop, box, tmp, disp_hdr);
 
-    __ shenandoah_store_addr_check(oop);
-
     // Load markOop from object into displaced_header.
     __ ldr(disp_hdr, Address(oop, oopDesc::mark_offset_in_bytes()));
 
@@ -4983,8 +4951,6 @@ encode %{
     Label cas_failed;
 
     assert_different_registers(oop, box, tmp, disp_hdr);
-
-    __ shenandoah_store_addr_check(oop);
 
     // Always do locking in runtime.
     if (EmitSync & 0x01) {
@@ -8473,56 +8439,7 @@ instruct storeP(iRegP src, memory mem)
   ins_cost(INSN_COST);
   format %{ "str  $src, $mem\t# ptr" %}
 
-  ins_encode %{
-    int opcode = $mem->opcode();
-    Register base = as_Register($mem$$base);
-    int index = $mem$$index;
-    int size = $mem$$scale;
-    int disp = $mem$$disp;
-    Register reg = as_Register($src$$reg);
-
-    // we sometimes get asked to store the stack pointer into the
-    // current thread -- we cannot do that directly on AArch64
-    if (reg == r31_sp) {
-      MacroAssembler _masm(&cbuf);
-      assert(as_Register($mem$$base) == rthread, "unexpected store for sp");
-      __ mov(rscratch2, sp);
-      reg = rscratch2;
-    }
-    Address::extend scale;
-
-    // Hooboy, this is fugly.  We need a way to communicate to the
-    // encoder that the index needs to be sign extended, so we have to
-    // enumerate all the cases.
-    switch (opcode) {
-    case INDINDEXSCALEDOFFSETI2L:
-    case INDINDEXSCALEDI2L:
-    case INDINDEXSCALEDOFFSETI2LN:
-    case INDINDEXSCALEDI2LN:
-    case INDINDEXOFFSETI2L:
-    case INDINDEXOFFSETI2LN:
-      scale = Address::sxtw(size);
-      break;
-    default:
-      scale = Address::lsl(size);
-    }
-
-    Address adr;
-    if (index == -1) {
-      adr = Address(base, disp);
-    } else {
-      if (disp == 0) {
-        adr = Address(base, as_Register(index), scale);
-      } else {
-        __ lea(rscratch1, Address(base, disp));
-        adr = Address(rscratch1, as_Register(index), scale);
-      }
-    }
-
-    __ shenandoah_store_check(adr, reg);
-
-    __ str(reg, adr);
-  %}
+  ins_encode(aarch64_enc_str(src, mem));
 
   ins_pipe(istore_reg_mem);
 %}
@@ -9109,7 +9026,7 @@ instruct popCountI_mem(iRegINoSp dst, memory mem, vRegF tmp) %{
             "mov    $dst, $tmp\t# vector (1D)" %}
   ins_encode %{
     FloatRegister tmp_reg = as_FloatRegister($tmp$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrs, is_load, tmp_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrs, tmp_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
     __ cnt($tmp$$FloatRegister, __ T8B, $tmp$$FloatRegister);
     __ addv($tmp$$FloatRegister, __ T8B, $tmp$$FloatRegister);
@@ -9152,7 +9069,7 @@ instruct popCountL_mem(iRegINoSp dst, memory mem, vRegD tmp) %{
             "mov    $dst, $tmp\t# vector (1D)" %}
   ins_encode %{
     FloatRegister tmp_reg = as_FloatRegister($tmp$$reg);
-    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrd, is_load, tmp_reg, $mem->opcode(),
+    loadStore(MacroAssembler(&cbuf), &MacroAssembler::ldrd, tmp_reg, $mem->opcode(),
                as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
     __ cnt($tmp$$FloatRegister, __ T8B, $tmp$$FloatRegister);
     __ addv($tmp$$FloatRegister, __ T8B, $tmp$$FloatRegister);
@@ -9372,36 +9289,6 @@ instruct convN2I(iRegINoSp dst, iRegN src)
   ins_pipe(ialu_reg);
 %}
 
-instruct shenandoahRB(iRegPNoSp dst, iRegP src, rFlagsReg cr) %{
-  match(Set dst (ShenandoahReadBarrier src));
-  format %{ "shenandoah_rb $dst,$src" %}
-  ins_encode %{
-    Register s = $src$$Register;
-    Register d = $dst$$Register;
-    __ ldr(d, Address(s, BrooksPointer::byte_offset()));
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct shenandoahWB(iRegP_R0 dst, iRegP src, rFlagsReg cr) %{
-  match(Set dst (ShenandoahWriteBarrier src));
-  effect(KILL cr);
-
-  format %{ "shenandoah_wb $dst,$src" %}
-  ins_encode %{
-    Label done;
-    Register s = $src$$Register;
-    Register d = $dst$$Register;
-    assert(d == r0, "result in r0");
-    __ block_comment("Shenandoah write barrier {");
-    // We need that first read barrier in order to trigger a SEGV/NPE on incoming NULL.
-    // Also, it brings s into d in preparation for the call to shenandoah_write_barrier().
-    __ ldr(d, Address(s, BrooksPointer::byte_offset()));
-    __ shenandoah_write_barrier(d);
-    __ block_comment("} Shenandoah write barrier");
-  %}
-  ins_pipe(pipe_slow);
-%}
 
 // Convert oop pointer into compressed form
 instruct encodeHeapOop(iRegNNoSp dst, iRegP src, rFlagsReg cr) %{
@@ -9676,7 +9563,6 @@ instruct compareAndSwapL(iRegINoSp res, indirect mem, iRegLNoSp oldval, iRegLNoS
 
 instruct compareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
 
-  predicate(!UseShenandoahGC || n->in(3)->in(1)->bottom_type() == TypePtr::NULL_PTR);
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -9693,28 +9579,8 @@ instruct compareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
-
-  predicate(UseShenandoahGC);
-  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
-  ins_cost(3 * VOLATILE_REF_COST);
-
-  effect(TEMP tmp, KILL cr);
-
-  format %{
-    "cmpxchg_oop_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval with temp $tmp"
-    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
-  %}
-
-  ins_encode(aarch64_enc_cmpxchg_oop_shenandoah(mem, oldval, newval, tmp),
-             aarch64_enc_cset_eq(res));
-
-  ins_pipe(pipe_slow);
-%}
-
 instruct compareAndSwapN(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
 
-  predicate(!UseShenandoahGC);
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   ins_cost(2 * VOLATILE_REF_COST);
 
@@ -9731,28 +9597,6 @@ instruct compareAndSwapN(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoS
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
-
-  predicate(UseShenandoahGC);
-  match(Set res (CompareAndSwapN mem (Binary oldval newval)));
-  ins_cost(3 * VOLATILE_REF_COST);
-
-  effect(TEMP tmp, KILL cr);
-
-  format %{
-    "cmpxchg_narrow_oop_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval with temp $tmp"
-    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
-  %}
-
-  ins_encode %{
-    Register tmp = $tmp$$Register;
-    __ mov(tmp, $oldval$$Register); // Must not clobber oldval.
-    __ cmpxchg_oop_shenandoah($mem$$Register, tmp, $newval$$Register, Assembler::word, /*acquire*/ false, /*release*/ true, /*weak*/ false);
-    __ cset($res$$Register, Assembler::EQ);
-  %}
-
-  ins_pipe(pipe_slow);
-%}
 
 // alternative CompareAndSwapX when we are eliding barriers
 
@@ -9796,7 +9640,7 @@ instruct compareAndSwapLAcq(iRegINoSp res, indirect mem, iRegLNoSp oldval, iRegL
 
 instruct compareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
 
-  predicate(needs_acquiring_load_exclusive(n) && (!UseShenandoahGC || n->in(3)->in(1)->bottom_type() == TypePtr::NULL_PTR));
+  predicate(needs_acquiring_load_exclusive(n));
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   ins_cost(VOLATILE_REF_COST);
 
@@ -9813,28 +9657,9 @@ instruct compareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP oldval, iRegP new
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
-
-  predicate(needs_acquiring_load_exclusive(n) && UseShenandoahGC);
-  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
-  ins_cost(2 * VOLATILE_REF_COST);
-
-  effect(TEMP tmp, KILL cr);
-
-  format %{
-    "cmpxchg_acq_oop_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval with temp $tmp"
-    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
-  %}
-
-  ins_encode(aarch64_enc_cmpxchg_acq_oop_shenandoah(mem, oldval, newval, tmp),
-             aarch64_enc_cset_eq(res));
-
-  ins_pipe(pipe_slow);
-%}
-
 instruct compareAndSwapNAcq(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegNNoSp newval, rFlagsReg cr) %{
 
-  predicate(needs_acquiring_load_exclusive(n) && ! UseShenandoahGC);
+  predicate(needs_acquiring_load_exclusive(n));
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   ins_cost(VOLATILE_REF_COST);
 
@@ -9851,28 +9676,6 @@ instruct compareAndSwapNAcq(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
-
-  predicate(needs_acquiring_load_exclusive(n) && UseShenandoahGC);
-  match(Set res (CompareAndSwapN mem (Binary oldval newval)));
-  ins_cost(3 * VOLATILE_REF_COST);
-
-  effect(TEMP tmp, KILL cr);
-
- format %{
-    "cmpxchg_narrow_oop_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval with temp $tmp"
-    "cset $res, EQ\t# $res <-- (EQ ? 1 : 0)"
- %}
-
-  ins_encode %{
-    Register tmp = $tmp$$Register;
-    __ mov(tmp, $oldval$$Register); // Must not clobber oldval.
-    __ cmpxchg_oop_shenandoah($mem$$Register, tmp, $newval$$Register, Assembler::word, /*acquire*/ true, /*release*/ true, /*weak*/ false);
-    __ cset($res$$Register, Assembler::EQ);
-  %}
-
-  ins_pipe(pipe_slow);
-%}
 
 instruct get_and_setI(indirect mem, iRegI newv, iRegINoSp prev) %{
   match(Set prev (GetAndSetI mem newv));

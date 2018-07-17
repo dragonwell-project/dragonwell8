@@ -49,8 +49,6 @@ class aarch64 {
  friend class StubGenerator;
 
  private:
-  static address _shenandoah_wb;
-
   static address _get_previous_fp_entry;
   static address _get_previous_sp_entry;
 
@@ -67,11 +65,6 @@ class aarch64 {
   static address _zero_longs;
 
  public:
-
-  static address shenandoah_wb()
-  {
-    return _shenandoah_wb;
-  }
 
   static address get_previous_fp_entry()
   {
