@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,7 +234,11 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 goto cleanupAndReturn;
             }
             setInetAddress_addr(env, iaObj, ntohl(((struct sockaddr_in*)(iterator->ai_addr))->sin_addr.s_addr));
+            if ((*env)->ExceptionCheck(env))
+                goto cleanupAndReturn;
             setInetAddress_hostName(env, iaObj, name);
+            if ((*env)->ExceptionCheck(env))
+                goto cleanupAndReturn;
             (*env)->SetObjectArrayElement(env, ret, retLen - i -1, iaObj);
             i++;
             iterator = iterator->ai_next;
@@ -477,7 +481,11 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 goto cleanupAndReturn;
             }
             setInetAddress_addr(env, iaObj, ntohl(((struct sockaddr_in*)iterator->ai_addr)->sin_addr.s_addr));
+            if ((*env)->ExceptionCheck(env))
+                goto cleanupAndReturn;
             setInetAddress_hostName(env, iaObj, host);
+            if ((*env)->ExceptionCheck(env))
+                goto cleanupAndReturn;
             (*env)->SetObjectArrayElement(env, ret, i++, iaObj);
             iterator = iterator->ai_next;
         }
