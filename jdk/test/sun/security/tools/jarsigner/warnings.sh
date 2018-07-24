@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 # @test
 # @bug 8024302
-# @bug 8026037
+# @bug 8026037 8134124
 # @summary Clarify jar verifications
 #
 
@@ -43,13 +43,16 @@ case "$OS" in
     ;;
 esac
 
+# make the test locale independent
+TESTTOOLVMOPTS="$TESTTOOLVMOPTS -J-Duser.language=en -J-Duser.country=US"
+
 KS=warnings.jks
 JFILE=warnings.jar
 
 KT="$TESTJAVA${FS}bin${FS}keytool -storepass changeit -keypass changeit \
         -keystore $KS"
 JAR=$TESTJAVA${FS}bin${FS}jar
-JARSIGNER="$TESTJAVA${FS}bin${FS}jarsigner -keystore $KS -storepass changeit"
+JARSIGNER="$TESTJAVA${FS}bin${FS}jarsigner ${TESTTOOLVMOPTS} -keystore $KS -storepass changeit"
 
 rm $KS 2> /dev/null
 
