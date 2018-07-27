@@ -175,12 +175,6 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
     private volatile int        connectionState;
 
     /*
-     * Flag indicating that the engine's handshaker has done the necessary
-     * steps so the engine may process a ChangeCipherSpec message.
-     */
-    private boolean             receivedCCS;
-
-    /*
      * Flag indicating if the next record we receive MUST be a Finished
      * message. Temporarily set during the handshake to ensure that
      * a change cipher spec message is followed by a finished message.
@@ -610,7 +604,6 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
          */
         roleIsServer = isServer;
         connectionState = cs_START;
-        receivedCCS = false;
 
         /*
          * default read and write side cipher and MAC support
@@ -940,7 +933,6 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
         readRecord(r, true);
     }
 
-
     /*
      * Clear the pipeline of records from the peer, optionally returning
      * application data.   Caller is responsible for knowing that it's
@@ -1074,7 +1066,8 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
 
                     if (handshaker.invalidated) {
                         handshaker = null;
-                        receivedCCS = false;
+                        inrec.setHandshakeHash(null);
+
                         // if state is cs_RENEGOTIATE, revert it to cs_DATA
                         if (connectionState == cs_RENEGOTIATE) {
                             connectionState = cs_DATA;
@@ -1090,7 +1083,6 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
                         handshakeSession = null;
                         handshaker = null;
                         connectionState = cs_DATA;
-                        receivedCCS = false;
 
                         //
                         // Tell folk about handshake completion, but do
@@ -1137,24 +1129,16 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
 
                 case Record.ct_change_cipher_spec:
                     if ((connectionState != cs_HANDSHAKE
-                                && connectionState != cs_RENEGOTIATE)
-                            || !handshaker.sessionKeysCalculated()
-                            || receivedCCS) {
+                                && connectionState != cs_RENEGOTIATE)) {
                         // For the CCS message arriving in the wrong state
                         fatal(Alerts.alert_unexpected_message,
                                 "illegal change cipher spec msg, conn state = "
-                                + connectionState + ", handshake state = "
-                                + handshaker.state);
+                                + connectionState);
                     } else if (r.available() != 1 || r.read() != 1) {
                         // For structural/content issues with the CCS
                         fatal(Alerts.alert_unexpected_message,
                                 "Malformed change cipher spec msg");
                     }
-
-                    // Once we've received CCS, update the flag.
-                    // If the remote endpoint sends it again in this handshake
-                    // we won't process it.
-                    receivedCCS = true;
 
                     //
                     // The first message after a change_cipher_spec
@@ -1163,6 +1147,7 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
                     // to be checked by a minor tweak to the state
                     // machine.
                     //
+                    handshaker.receiveChangeCipherSpec();
                     changeReadCiphers();
                     // next message MUST be a finished message
                     expectingFinished = true;
@@ -1361,13 +1346,10 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
                 kickstartHandshake();
 
                 /*
-                 * All initial handshaking goes through this
-                 * InputRecord until we have a valid SSL connection.
-                 * Once initial handshaking is finished, AppInputStream's
-                 * InputRecord can handle any future renegotiation.
+                 * All initial handshaking goes through this operation
+                 * until we have a valid SSL connection.
                  *
-                 * Keep this local so that it goes out of scope and is
-                 * eventually GC'd.
+                 * Handle handshake messages only, need no application data.
                  */
                 if (inrec == null) {
                     inrec = new InputRecord();
@@ -2664,14 +2646,6 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
                 handshaker.setSNIServerNames(serverNames);
             }
         }
-    }
-
-    /*
-     * Returns a boolean indicating whether the ChangeCipherSpec message
-     * has been received for this handshake.
-     */
-    boolean receivedChangeCipherSpec() {
-        return receivedCCS;
     }
 
     //

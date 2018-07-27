@@ -207,21 +207,14 @@ final class ServerHandshaker extends Handshaker {
     @Override
     void processMessage(byte type, int message_len)
             throws IOException {
-        //
-        // In SSLv3 and TLS, messages follow strictly increasing
-        // numerical order _except_ for one annoying special case.
-        //
-        if ((state >= type)
-                && (state != HandshakeMessage.ht_client_key_exchange
-                    && type != HandshakeMessage.ht_certificate_verify)) {
-            throw new SSLProtocolException(
-                    "Handshake message sequence violation, state = " + state
-                    + ", type = " + type);
-        }
+
+        // check the handshake state
+        handshakeState.check(type);
 
         switch (type) {
             case HandshakeMessage.ht_client_hello:
                 ClientHello ch = new ClientHello(input, message_len);
+                handshakeState.update(ch, resumingSession);
                 /*
                  * send it off for processing.
                  */
@@ -234,7 +227,9 @@ final class ServerHandshaker extends Handshaker {
                                 "client sent unsolicited cert chain");
                     // NOTREACHED
                 }
-                this.clientCertificate(new CertificateMsg(input));
+                CertificateMsg certificateMsg = new CertificateMsg(input);
+                handshakeState.update(certificateMsg, resumingSession);
+                this.clientCertificate(certificateMsg);
                 break;
 
             case HandshakeMessage.ht_client_key_exchange:
@@ -252,17 +247,20 @@ final class ServerHandshaker extends Handshaker {
                             protocolVersion, clientRequestedVersion,
                             sslContext.getSecureRandom(), input,
                             message_len, privateKey);
+                    handshakeState.update(pms, resumingSession);
                     preMasterSecret = this.clientKeyExchange(pms);
                     break;
                 case K_KRB5:
                 case K_KRB5_EXPORT:
-                    preMasterSecret = this.clientKeyExchange(
+                    KerberosClientKeyExchange kke =
                         new KerberosClientKeyExchange(protocolVersion,
                             clientRequestedVersion,
                             sslContext.getSecureRandom(),
                             input,
                             this.getAccSE(),
-                            serviceCreds));
+                            serviceCreds);
+                    handshakeState.update(kke, resumingSession);
+                    preMasterSecret = this.clientKeyExchange(kke);
                     break;
                 case K_DHE_RSA:
                 case K_DHE_DSS:
@@ -273,16 +271,19 @@ final class ServerHandshaker extends Handshaker {
                      * protocol difference in these five flavors is in how
                      * the ServerKeyExchange message was constructed!
                      */
-                    preMasterSecret = this.clientKeyExchange(
-                            new DHClientKeyExchange(input));
+                    DHClientKeyExchange dhcke = new DHClientKeyExchange(input);
+                    handshakeState.update(dhcke, resumingSession);
+                    preMasterSecret = this.clientKeyExchange(dhcke);
                     break;
                 case K_ECDH_RSA:
                 case K_ECDH_ECDSA:
                 case K_ECDHE_RSA:
                 case K_ECDHE_ECDSA:
                 case K_ECDH_ANON:
-                    preMasterSecret = this.clientKeyExchange
-                                            (new ECDHClientKeyExchange(input));
+                    ECDHClientKeyExchange ecdhcke =
+                        new ECDHClientKeyExchange(input);
+                    handshakeState.update(ecdhcke, resumingSession);
+                    preMasterSecret = this.clientKeyExchange(ecdhcke);
                     break;
                 default:
                     throw new SSLProtocolException
@@ -302,37 +303,23 @@ final class ServerHandshaker extends Handshaker {
                 break;
 
             case HandshakeMessage.ht_certificate_verify:
-                this.clientCertificateVerify(new CertificateVerify(input,
-                            getLocalSupportedSignAlgs(), protocolVersion));
+                CertificateVerify cvm =
+                        new CertificateVerify(input,
+                            getLocalSupportedSignAlgs(), protocolVersion);
+                handshakeState.update(cvm, resumingSession);
+                this.clientCertificateVerify(cvm);
                 break;
 
             case HandshakeMessage.ht_finished:
-                // A ChangeCipherSpec record must have been received prior to
-                // reception of the Finished message (RFC 5246, 7.4.9).
-                if (!receivedChangeCipherSpec()) {
-                    fatalSE(Alerts.alert_handshake_failure,
-                        "Received Finished message before ChangeCipherSpec");
-                }
-
-                this.clientFinished(
-                    new Finished(protocolVersion, input, cipherSuite));
+                Finished cfm =
+                    new Finished(protocolVersion, input, cipherSuite);
+                handshakeState.update(cfm, resumingSession);
+                this.clientFinished(cfm);
                 break;
 
             default:
                 throw new SSLProtocolException(
                         "Illegal server handshake msg, " + type);
-        }
-
-        //
-        // Move state machine forward if the message handling
-        // code didn't already do so
-        //
-        if (state < type) {
-            if(type == HandshakeMessage.ht_certificate_verify) {
-                state = type + 2;    // an annoying special case
-            } else {
-                state = type;
-            }
         }
     }
 
@@ -364,7 +351,7 @@ final class ServerHandshaker extends Handshaker {
         //
         // This will not have any impact on server initiated renegotiation.
         if (rejectClientInitiatedRenego && !isInitialHandshake &&
-                state != HandshakeMessage.ht_hello_request) {
+                !serverHelloRequested) {
             fatalSE(Alerts.alert_handshake_failure,
                 "Client initiated renegotiation is not allowed");
         }
@@ -876,6 +863,7 @@ final class ServerHandshaker extends Handshaker {
             System.out.println("Cipher suite:  " + session.getSuite());
         }
         m1.write(output);
+        handshakeState.update(m1, resumingSession);
 
         //
         // If we are resuming a session, we finish writing handshake
@@ -915,6 +903,7 @@ final class ServerHandshaker extends Handshaker {
                 m2.print(System.out);
             }
             m2.write(output);
+            handshakeState.update(m2, resumingSession);
 
             // XXX has some side effects with OS TCP buffering,
             // leave it out for now
@@ -1010,6 +999,7 @@ final class ServerHandshaker extends Handshaker {
                 m3.print(System.out);
             }
             m3.write(output);
+            handshakeState.update(m3, resumingSession);
         }
 
         //
@@ -1059,6 +1049,7 @@ final class ServerHandshaker extends Handshaker {
                 m4.print(System.out);
             }
             m4.write(output);
+            handshakeState.update(m4, resumingSession);
         }
 
         /*
@@ -1070,6 +1061,7 @@ final class ServerHandshaker extends Handshaker {
             m5.print(System.out);
         }
         m5.write(output);
+        handshakeState.update(m5, resumingSession);
 
         /*
          * Flush any buffered messages so the client will see them.
@@ -1817,6 +1809,8 @@ final class ServerHandshaker extends Handshaker {
         if (!resumingSession) {
             input.digestNow();
             sendChangeCipherAndFinish(true);
+        } else {
+            handshakeFinished = true;
         }
 
         /*
@@ -1863,16 +1857,6 @@ final class ServerHandshaker extends Handshaker {
          */
         if (secureRenegotiation) {
             serverVerifyData = mesg.getVerifyData();
-        }
-
-        /*
-         * Update state machine so client MUST send 'finished' next
-         * The update should only take place if it is not in the fast
-         * handshake mode since the server has to wait for a finished
-         * message from the client.
-         */
-        if (finishedTag) {
-            state = HandshakeMessage.ht_finished;
         }
     }
 
