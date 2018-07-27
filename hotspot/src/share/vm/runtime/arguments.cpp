@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1801,20 +1801,34 @@ void Arguments::set_heap_size() {
     }
   }
 
+  // Convert Fraction to Precentage values
+  if (FLAG_IS_DEFAULT(MaxRAMPercentage) &&
+      !FLAG_IS_DEFAULT(MaxRAMFraction))
+    MaxRAMPercentage = 100.0 / MaxRAMFraction;
+
+   if (FLAG_IS_DEFAULT(MinRAMPercentage) &&
+       !FLAG_IS_DEFAULT(MinRAMFraction))
+     MinRAMPercentage = 100.0 / MinRAMFraction;
+
+   if (FLAG_IS_DEFAULT(InitialRAMPercentage) &&
+       !FLAG_IS_DEFAULT(InitialRAMFraction))
+     InitialRAMPercentage = 100.0 / InitialRAMFraction;
+
   // If the maximum heap size has not been set with -Xmx,
   // then set it as fraction of the size of physical memory,
   // respecting the maximum and minimum sizes of the heap.
   if (FLAG_IS_DEFAULT(MaxHeapSize)) {
-    julong reasonable_max = phys_mem / MaxRAMFraction;
-
-    if (phys_mem <= MaxHeapSize * MinRAMFraction) {
+    julong reasonable_max = (julong)((phys_mem * MaxRAMPercentage) / 100);
+    const julong reasonable_min = (julong)((phys_mem * MinRAMPercentage) / 100);
+    if (reasonable_min < MaxHeapSize) {
       // Small physical memory, so use a minimum fraction of it for the heap
-      reasonable_max = phys_mem / MinRAMFraction;
+      reasonable_max = reasonable_min;
     } else {
       // Not-small physical memory, so require a heap at least
       // as large as MaxHeapSize
       reasonable_max = MAX2(reasonable_max, (julong)MaxHeapSize);
     }
+
     if (!FLAG_IS_DEFAULT(ErgoHeapSizeLimit) && ErgoHeapSizeLimit != 0) {
       // Limit the heap size to ErgoHeapSizeLimit
       reasonable_max = MIN2(reasonable_max, (julong)ErgoHeapSizeLimit);
@@ -1856,7 +1870,7 @@ void Arguments::set_heap_size() {
     reasonable_minimum = limit_by_allocatable_memory(reasonable_minimum);
 
     if (InitialHeapSize == 0) {
-      julong reasonable_initial = phys_mem / InitialRAMFraction;
+      julong reasonable_initial = (julong)((phys_mem * InitialRAMPercentage) / 100);
 
       reasonable_initial = MAX3(reasonable_initial, reasonable_minimum, (julong)min_heap_size());
       reasonable_initial = MIN2(reasonable_initial, (julong)MaxHeapSize);
@@ -1879,6 +1893,94 @@ void Arguments::set_heap_size() {
       }
     }
   }
+}
+
+// This option inspects the machine and attempts to set various
+// parameters to be optimal for long-running, memory allocation
+// intensive jobs.  It is intended for machines with large
+// amounts of cpu and memory.
+jint Arguments::set_aggressive_heap_flags() {
+  // initHeapSize is needed since _initial_heap_size is 4 bytes on a 32 bit
+  // VM, but we may not be able to represent the total physical memory
+  // available (like having 8gb of memory on a box but using a 32bit VM).
+  // Thus, we need to make sure we're using a julong for intermediate
+  // calculations.
+  julong initHeapSize;
+  julong total_memory = os::physical_memory();
+
+  if (total_memory < (julong) 256 * M) {
+    jio_fprintf(defaultStream::error_stream(),
+            "You need at least 256mb of memory to use -XX:+AggressiveHeap\n");
+    vm_exit(1);
+  }
+
+  // The heap size is half of available memory, or (at most)
+  // all of possible memory less 160mb (leaving room for the OS
+  // when using ISM).  This is the maximum; because adaptive sizing
+  // is turned on below, the actual space used may be smaller.
+
+  initHeapSize = MIN2(total_memory / (julong) 2,
+                      total_memory - (julong) 160 * M);
+
+  initHeapSize = limit_by_allocatable_memory(initHeapSize);
+
+  if (FLAG_IS_DEFAULT(MaxHeapSize)) {
+    FLAG_SET_CMDLINE(uintx, MaxHeapSize, initHeapSize);
+    FLAG_SET_CMDLINE(uintx, InitialHeapSize, initHeapSize);
+    // Currently the minimum size and the initial heap sizes are the same.
+    set_min_heap_size(initHeapSize);
+  }
+  if (FLAG_IS_DEFAULT(NewSize)) {
+    // Make the young generation 3/8ths of the total heap.
+    FLAG_SET_CMDLINE(uintx, NewSize,
+            ((julong) MaxHeapSize / (julong) 8) * (julong) 3);
+    FLAG_SET_CMDLINE(uintx, MaxNewSize, NewSize);
+  }
+
+#ifndef _ALLBSD_SOURCE  // UseLargePages is not yet supported on BSD.
+  FLAG_SET_DEFAULT(UseLargePages, true);
+#endif
+
+  // Increase some data structure sizes for efficiency
+  FLAG_SET_CMDLINE(uintx, BaseFootPrintEstimate, MaxHeapSize);
+  FLAG_SET_CMDLINE(bool, ResizeTLAB, false);
+  FLAG_SET_CMDLINE(uintx, TLABSize, 256 * K);
+
+  // See the OldPLABSize comment below, but replace 'after promotion'
+  // with 'after copying'.  YoungPLABSize is the size of the survivor
+  // space per-gc-thread buffers.  The default is 4kw.
+  FLAG_SET_CMDLINE(uintx, YoungPLABSize, 256 * K);     // Note: this is in words
+
+  // OldPLABSize is the size of the buffers in the old gen that
+  // UseParallelGC uses to promote live data that doesn't fit in the
+  // survivor spaces.  At any given time, there's one for each gc thread.
+  // The default size is 1kw. These buffers are rarely used, since the
+  // survivor spaces are usually big enough.  For specjbb, however, there
+  // are occasions when there's lots of live data in the young gen
+  // and we end up promoting some of it.  We don't have a definite
+  // explanation for why bumping OldPLABSize helps, but the theory
+  // is that a bigger PLAB results in retaining something like the
+  // original allocation order after promotion, which improves mutator
+  // locality.  A minor effect may be that larger PLABs reduce the
+  // number of PLAB allocation events during gc.  The value of 8kw
+  // was arrived at by experimenting with specjbb.
+  FLAG_SET_CMDLINE(uintx, OldPLABSize, 8 * K);      // Note: this is in words
+
+  // Enable parallel GC and adaptive generation sizing
+  FLAG_SET_CMDLINE(bool, UseParallelGC, true);
+
+  // Encourage steady state memory management
+  FLAG_SET_CMDLINE(uintx, ThresholdTolerance, 100);
+
+  // This appears to improve mutator locality
+  FLAG_SET_CMDLINE(bool, ScavengeBeforeFullGC, false);
+
+  // Get around early Solaris scheduling bug
+  // (affinity vs other jobs on system)
+  // but disallow DR and offlining (5008695).
+  FLAG_SET_CMDLINE(bool, BindGCTaskThreadsToCPUs, true);
+
+  return JNI_OK;
 }
 
 // This must be called after ergonomics because we want bytecode rewriting
@@ -2644,6 +2746,14 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs* args) {
     return result;
   }
 
+  // We need to ensure processor and memory resources have been properly
+  // configured - which may rely on arguments we just processed - before
+  // doing the final argument processing. Any argument processing that
+  // needs to know about processor and memory resources must occur after
+  // this point.
+
+  os::init_container_support();
+
   // Do final processing now that all arguments have been parsed
   result = finalize_vm_init_args(&scp, scp_assembly_required);
   if (result != JNI_OK) {
@@ -3117,94 +3227,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args,
       _exit_hook = CAST_TO_FN_PTR(exit_hook_t, option->extraInfo);
     } else if (match_option(option, "abort", &tail)) {
       _abort_hook = CAST_TO_FN_PTR(abort_hook_t, option->extraInfo);
-    // -XX:+AggressiveHeap
-    } else if (match_option(option, "-XX:+AggressiveHeap", &tail)) {
-
-      // This option inspects the machine and attempts to set various
-      // parameters to be optimal for long-running, memory allocation
-      // intensive jobs.  It is intended for machines with large
-      // amounts of cpu and memory.
-
-      // initHeapSize is needed since _initial_heap_size is 4 bytes on a 32 bit
-      // VM, but we may not be able to represent the total physical memory
-      // available (like having 8gb of memory on a box but using a 32bit VM).
-      // Thus, we need to make sure we're using a julong for intermediate
-      // calculations.
-      julong initHeapSize;
-      julong total_memory = os::physical_memory();
-
-      if (total_memory < (julong)256*M) {
-        jio_fprintf(defaultStream::error_stream(),
-                    "You need at least 256mb of memory to use -XX:+AggressiveHeap\n");
-        vm_exit(1);
-      }
-
-      // The heap size is half of available memory, or (at most)
-      // all of possible memory less 160mb (leaving room for the OS
-      // when using ISM).  This is the maximum; because adaptive sizing
-      // is turned on below, the actual space used may be smaller.
-
-      initHeapSize = MIN2(total_memory / (julong)2,
-                          total_memory - (julong)160*M);
-
-      initHeapSize = limit_by_allocatable_memory(initHeapSize);
-
-      if (FLAG_IS_DEFAULT(MaxHeapSize)) {
-         FLAG_SET_CMDLINE(uintx, MaxHeapSize, initHeapSize);
-         FLAG_SET_CMDLINE(uintx, InitialHeapSize, initHeapSize);
-         // Currently the minimum size and the initial heap sizes are the same.
-         set_min_heap_size(initHeapSize);
-      }
-      if (FLAG_IS_DEFAULT(NewSize)) {
-         // Make the young generation 3/8ths of the total heap.
-         FLAG_SET_CMDLINE(uintx, NewSize,
-                                ((julong)MaxHeapSize / (julong)8) * (julong)3);
-         FLAG_SET_CMDLINE(uintx, MaxNewSize, NewSize);
-      }
-
-#ifndef _ALLBSD_SOURCE  // UseLargePages is not yet supported on BSD.
-      FLAG_SET_DEFAULT(UseLargePages, true);
-#endif
-
-      // Increase some data structure sizes for efficiency
-      FLAG_SET_CMDLINE(uintx, BaseFootPrintEstimate, MaxHeapSize);
-      FLAG_SET_CMDLINE(bool, ResizeTLAB, false);
-      FLAG_SET_CMDLINE(uintx, TLABSize, 256*K);
-
-      // See the OldPLABSize comment below, but replace 'after promotion'
-      // with 'after copying'.  YoungPLABSize is the size of the survivor
-      // space per-gc-thread buffers.  The default is 4kw.
-      FLAG_SET_CMDLINE(uintx, YoungPLABSize, 256*K);      // Note: this is in words
-
-      // OldPLABSize is the size of the buffers in the old gen that
-      // UseParallelGC uses to promote live data that doesn't fit in the
-      // survivor spaces.  At any given time, there's one for each gc thread.
-      // The default size is 1kw. These buffers are rarely used, since the
-      // survivor spaces are usually big enough.  For specjbb, however, there
-      // are occasions when there's lots of live data in the young gen
-      // and we end up promoting some of it.  We don't have a definite
-      // explanation for why bumping OldPLABSize helps, but the theory
-      // is that a bigger PLAB results in retaining something like the
-      // original allocation order after promotion, which improves mutator
-      // locality.  A minor effect may be that larger PLABs reduce the
-      // number of PLAB allocation events during gc.  The value of 8kw
-      // was arrived at by experimenting with specjbb.
-      FLAG_SET_CMDLINE(uintx, OldPLABSize, 8*K);  // Note: this is in words
-
-      // Enable parallel GC and adaptive generation sizing
-      FLAG_SET_CMDLINE(bool, UseParallelGC, true);
-
-      // Encourage steady state memory management
-      FLAG_SET_CMDLINE(uintx, ThresholdTolerance, 100);
-
-      // This appears to improve mutator locality
-      FLAG_SET_CMDLINE(bool, ScavengeBeforeFullGC, false);
-
-      // Get around early Solaris scheduling bug
-      // (affinity vs other jobs on system)
-      // but disallow DR and offlining (5008695).
-      FLAG_SET_CMDLINE(bool, BindGCTaskThreadsToCPUs, true);
-
     } else if (match_option(option, "-XX:+NeverTenure", &tail)) {
       // The last option must always win.
       FLAG_SET_CMDLINE(bool, AlwaysTenure, false);
@@ -3605,6 +3627,15 @@ jint Arguments::finalize_vm_init_args(SysClassPath* scp_p, bool scp_assembly_req
     return JNI_ERR;
   }
 
+  // This must be done after all arguments have been processed
+  // and the container support has been initialized since AggressiveHeap
+  // relies on the amount of total memory available.
+  if (AggressiveHeap) {
+    jint result = set_aggressive_heap_flags();
+    if (result != JNI_OK) {
+      return result;
+    }
+  }
   // This must be done after all arguments have been processed.
   // java_compiler() true means set to "NONE" or empty.
   if (java_compiler() && !xdebug_mode()) {
