@@ -342,7 +342,7 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment,
                 (UseCompressedOops && (Universe::narrow_oop_base() != NULL) &&
                  Universe::narrow_oop_use_implicit_null_checks()) ?
                   lcm(os::vm_page_size(), alignment) : 0) {
-  if (base() > 0) {
+  if (base() != NULL) {
     MemTracker::record_virtual_memory_type((address)base(), mtJavaHeap);
   }
 
