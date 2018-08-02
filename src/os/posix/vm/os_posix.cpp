@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -164,6 +164,16 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment) {
   }
 
   return aligned_base;
+}
+
+int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
+  int result = ::vsnprintf(buf, len, fmt, args);
+  // If an encoding error occurred (result < 0) then it's not clear
+  // whether the buffer is NUL terminated, so ensure it is.
+  if ((result < 0) && (len > 0)) {
+    buf[len - 1] = '\0';
+  }
+  return result;
 }
 
 void os::Posix::print_load_average(outputStream* st) {
