@@ -4336,7 +4336,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1532008852
+DATE_WHEN_GENERATED=1533314440
 
 ###############################################################################
 #
