@@ -22,7 +22,7 @@
  */
 
 /* @test
- * @bug 8193833
+ * @bug 8158963
  *
  * @summary Disable RMI over HTTP by default
  *
