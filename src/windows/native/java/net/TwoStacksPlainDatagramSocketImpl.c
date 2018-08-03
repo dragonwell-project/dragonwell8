@@ -445,7 +445,6 @@ Java_java_net_TwoStacksPlainDatagramSocketImpl_bind0(JNIEnv *env, jobject this,
                         "Protocol family not supported");
         return;
     }
-    JNU_CHECK_EXCEPTION(env);
     if (IS_NULL(fdObj) || (ipv6_supported && IS_NULL(fd1Obj))) {
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "socket closed");
         return;

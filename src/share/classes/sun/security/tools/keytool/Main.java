@@ -1352,7 +1352,7 @@ public final class Main {
         for (Certificate ca: keyStore.getCertificateChain(alias)) {
             if (ca instanceof X509Certificate) {
                 X509Certificate xca = (X509Certificate)ca;
-                if (!isSelfSigned(xca)) {
+                if (!KeyStoreUtil.isSelfSigned(xca)) {
                     dumpCert(xca, out);
                 }
             }
@@ -2869,7 +2869,7 @@ public final class Main {
 
         // if certificate is self-signed, make sure it verifies
         boolean selfSigned = false;
-        if (isSelfSigned(cert)) {
+        if (KeyStoreUtil.isSelfSigned(cert)) {
             cert.verify(cert.getPublicKey());
             selfSigned = true;
         }
@@ -3169,25 +3169,6 @@ public final class Main {
                 }
             }
             out.println();
-        }
-    }
-
-    /**
-     * Returns true if the certificate is self-signed, false otherwise.
-     */
-    private boolean isSelfSigned(X509Certificate cert) {
-        return signedBy(cert, cert);
-    }
-
-    private boolean signedBy(X509Certificate end, X509Certificate ca) {
-        if (!ca.getSubjectDN().equals(end.getIssuerDN())) {
-            return false;
-        }
-        try {
-            end.verify(ca.getPublicKey());
-            return true;
-        } catch (Exception e) {
-            return false;
         }
     }
 
@@ -3531,7 +3512,7 @@ public final class Main {
             // find a cert in the reply who signs thisCert
             int j;
             for (j=i; j<replyCerts.length; j++) {
-                if (signedBy(thisCert, (X509Certificate)replyCerts[j])) {
+                if (KeyStoreUtil.signedBy(thisCert, (X509Certificate)replyCerts[j])) {
                     tmpCert = replyCerts[i];
                     replyCerts[i] = replyCerts[j];
                     replyCerts[j] = tmpCert;
@@ -3689,7 +3670,7 @@ public final class Main {
     private boolean buildChain(Pair<String,X509Certificate> certToVerify,
             Vector<Pair<String,X509Certificate>> chain,
             Hashtable<Principal, Vector<Pair<String,X509Certificate>>> certs) {
-        if (isSelfSigned(certToVerify.snd)) {
+        if (KeyStoreUtil.isSelfSigned(certToVerify.snd)) {
             // reached self-signed root cert;
             // no verification needed because it's trusted.
             chain.addElement(certToVerify);
