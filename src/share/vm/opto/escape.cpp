@@ -2016,8 +2016,10 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         // Check for unsafe oop field access
         for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
           int opcode = n->fast_out(i)->Opcode();
-          if (opcode == Op_StoreP || opcode == Op_LoadP ||
-              opcode == Op_StoreN || opcode == Op_LoadN) {
+          if (opcode == Op_StoreP          || opcode == Op_StoreN ||
+              opcode == Op_LoadP           || opcode == Op_LoadN  ||
+              opcode == Op_GetAndSetP      || opcode == Op_GetAndSetN ||
+              opcode == Op_CompareAndSwapP || opcode == Op_CompareAndSwapN) {
             bt = T_OBJECT;
             (*unsafe) = true;
             break;
@@ -2037,8 +2039,10 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       // Allocation initialization, ThreadLocal field access, unsafe access
       for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
         int opcode = n->fast_out(i)->Opcode();
-        if (opcode == Op_StoreP || opcode == Op_LoadP ||
-            opcode == Op_StoreN || opcode == Op_LoadN) {
+        if (opcode == Op_StoreP          || opcode == Op_StoreN ||
+            opcode == Op_LoadP           || opcode == Op_LoadN  ||
+            opcode == Op_GetAndSetP      || opcode == Op_GetAndSetN ||
+            opcode == Op_CompareAndSwapP || opcode == Op_CompareAndSwapN) {
           bt = T_OBJECT;
           break;
         }

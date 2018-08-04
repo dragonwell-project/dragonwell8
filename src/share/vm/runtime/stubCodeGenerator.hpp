@@ -38,7 +38,7 @@
 
 class StubCodeDesc: public CHeapObj<mtCode> {
  protected:
-  static StubCodeDesc* _list;                  // the list of all descriptors
+  static StubCodeDesc* volatile _list;         // the list of all descriptors
   static int           _count;                 // length of list
 
   StubCodeDesc*        _next;                  // the next element in the linked list
@@ -69,13 +69,13 @@ class StubCodeDesc: public CHeapObj<mtCode> {
 
   StubCodeDesc(const char* group, const char* name, address begin) {
     assert(name != NULL, "no name specified");
-    _next           = _list;
+    _next           = (StubCodeDesc*)OrderAccess::load_ptr_acquire(&_list);
     _group          = group;
     _name           = name;
     _index          = ++_count; // (never zero)
     _begin          = begin;
     _end            = NULL;
-    _list           = this;
+    OrderAccess::release_store_ptr(&_list, this);
   };
 
   const char* group() const                      { return _group; }

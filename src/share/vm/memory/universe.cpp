@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -882,7 +882,7 @@ jint Universe::initialize_heap() {
     Universe::set_narrow_ptrs_base(Universe::narrow_oop_base());
 
     if (PrintCompressedOopsMode || (PrintMiscellaneous && Verbose)) {
-      Universe::print_compressed_oops_mode();
+      Universe::print_compressed_oops_mode(tty);
     }
   }
   // Universe::narrow_oop_base() is one page below the heap.
@@ -904,29 +904,27 @@ jint Universe::initialize_heap() {
   return JNI_OK;
 }
 
-void Universe::print_compressed_oops_mode() {
-  tty->cr();
-  tty->print("heap address: " PTR_FORMAT ", size: " SIZE_FORMAT " MB",
+void Universe::print_compressed_oops_mode(outputStream* st) {
+  st->print("heap address: " PTR_FORMAT ", size: " SIZE_FORMAT " MB",
               Universe::heap()->base(), Universe::heap()->reserved_region().byte_size()/M);
 
-  tty->print(", Compressed Oops mode: %s", narrow_oop_mode_to_string(narrow_oop_mode()));
+  st->print(", Compressed Oops mode: %s", narrow_oop_mode_to_string(narrow_oop_mode()));
 
   if (Universe::narrow_oop_base() != 0) {
-    tty->print(":" PTR_FORMAT, Universe::narrow_oop_base());
+    st->print(":" PTR_FORMAT, Universe::narrow_oop_base());
   }
 
   if (Universe::narrow_oop_shift() != 0) {
-    tty->print(", Oop shift amount: %d", Universe::narrow_oop_shift());
+    st->print(", Oop shift amount: %d", Universe::narrow_oop_shift());
   }
 
-  tty->cr();
-  tty->cr();
+  st->cr();
 }
 
 // Reserve the Java heap, which is now the same for all GCs.
 ReservedSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
   assert(alignment <= Arguments::conservative_max_heap_alignment(),
-      err_msg("actual alignment "SIZE_FORMAT" must be within maximum heap alignment "SIZE_FORMAT,
+      err_msg("actual alignment " SIZE_FORMAT " must be within maximum heap alignment " SIZE_FORMAT,
           alignment, Arguments::conservative_max_heap_alignment()));
   size_t total_reserved = align_size_up(heap_size, alignment);
   assert(!UseCompressedOops || (total_reserved <= (OopEncodingHeapMax - os::vm_page_size())),

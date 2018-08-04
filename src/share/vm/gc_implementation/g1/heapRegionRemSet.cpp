@@ -381,7 +381,7 @@ void FromCardCache::initialize(uint n_par_rs, uint max_num_regions) {
 
 void FromCardCache::invalidate(uint start_idx, size_t new_num_regions) {
   guarantee((size_t)start_idx + new_num_regions <= max_uintx,
-            err_msg("Trying to invalidate beyond maximum region, from %u size "SIZE_FORMAT,
+            err_msg("Trying to invalidate beyond maximum region, from %u size " SIZE_FORMAT,
                     start_idx, new_num_regions));
   for (uint i = 0; i < HeapRegionRemSet::num_par_rem_sets(); i++) {
     uint end_idx = (start_idx + (uint)new_num_regions);
@@ -396,7 +396,7 @@ void FromCardCache::invalidate(uint start_idx, size_t new_num_regions) {
 void FromCardCache::print(outputStream* out) {
   for (uint i = 0; i < HeapRegionRemSet::num_par_rem_sets(); i++) {
     for (uint j = 0; j < _max_regions; j++) {
-      out->print_cr("_from_card_cache["UINT32_FORMAT"]["UINT32_FORMAT"] = "INT32_FORMAT".",
+      out->print_cr("_from_card_cache[" UINT32_FORMAT "][" UINT32_FORMAT "] = " INT32_FORMAT ".",
                     i, j, at(i, j));
     }
   }
@@ -436,7 +436,7 @@ void OtherRegionsTable::add_reference(OopOrNarrowOopStar from, int tid) {
   int from_card = (int)(uintptr_t(from) >> CardTableModRefBS::card_shift);
 
   if (G1TraceHeapRegionRememberedSet) {
-    gclog_or_tty->print_cr("Table for [" PTR_FORMAT "...): card %d (cache = "INT32_FORMAT")",
+    gclog_or_tty->print_cr("Table for [" PTR_FORMAT "...): card %d (cache = " INT32_FORMAT ")",
                   hr()->bottom(), from_card,
                   FromCardCache::at((uint)tid, cur_hrm_ind));
   }
@@ -650,13 +650,13 @@ void OtherRegionsTable::scrub(CardTableModRefBS* ctbs,
 
   assert(_coarse_map.size() == region_bm->size(), "Precondition");
   if (G1RSScrubVerbose) {
-    gclog_or_tty->print("   Coarse map: before = "SIZE_FORMAT"...",
+    gclog_or_tty->print("   Coarse map: before = " SIZE_FORMAT "...",
                         _n_coarse_entries);
   }
   _coarse_map.set_intersection(*region_bm);
   _n_coarse_entries = _coarse_map.count_one_bits();
   if (G1RSScrubVerbose) {
-    gclog_or_tty->print_cr("   after = "SIZE_FORMAT".", _n_coarse_entries);
+    gclog_or_tty->print_cr("   after = " SIZE_FORMAT ".", _n_coarse_entries);
   }
 
   // Now do the fine-grained maps.
@@ -1052,7 +1052,7 @@ bool HeapRegionRemSetIterator::fine_has_next(size_t& card_index) {
 
   card_index = _cur_region_card_offset + _cur_card_in_prt;
   guarantee(_cur_card_in_prt < HeapRegion::CardsPerRegion,
-            err_msg("Card index "SIZE_FORMAT" must be within the region", _cur_card_in_prt));
+            err_msg("Card index " SIZE_FORMAT " must be within the region", _cur_card_in_prt));
   return true;
 }
 
@@ -1221,8 +1221,8 @@ void PerRegionTable::test_fl_mem_size() {
 
   size_t min_prt_size = sizeof(void*) + dummy->bm()->size_in_words() * HeapWordSize;
   assert(dummy->mem_size() > min_prt_size,
-         err_msg("PerRegionTable memory usage is suspiciously small, only has "SIZE_FORMAT" bytes. "
-                 "Should be at least "SIZE_FORMAT" bytes.", dummy->mem_size(), min_prt_size));
+         err_msg("PerRegionTable memory usage is suspiciously small, only has " SIZE_FORMAT " bytes. "
+                 "Should be at least " SIZE_FORMAT " bytes.", dummy->mem_size(), min_prt_size));
   free(dummy);
   guarantee(dummy->mem_size() == fl_mem_size(), "fl_mem_size() does not return the correct element size");
   // try to reset the state

@@ -114,7 +114,7 @@ else
 # bring in minimum version argument or we'll fail on OSX 10.10
 SA_LFLAGS = $(LFLAGS)
 endif
-SA_LFLAGS += $(LDFLAGS_HASH_STYLE)
+SA_LFLAGS += $(LDFLAGS_HASH_STYLE) $(EXTRA_LDFLAGS)
 
 BOOT_JAVA_INCLUDES = -I$(BOOT_JAVA_HOME)/include \
   -I$(BOOT_JAVA_HOME)/include/$(shell uname -s | tr "[:upper:]" "[:lower:]")

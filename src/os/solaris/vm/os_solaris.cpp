@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,17 +200,21 @@ static inline stack_t get_stack_info() {
   return st;
 }
 
-address os::current_stack_base() {
+bool os::is_primordial_thread(void) {
   int r = thr_main() ;
   guarantee (r == 0 || r == 1, "CR6501650 or CR6493689") ;
-  bool is_primordial_thread = r;
+  return r == 1;
+}
+
+address os::current_stack_base() {
+  bool _is_primordial_thread = is_primordial_thread();
 
   // Workaround 4352906, avoid calls to thr_stksegment by
   // thr_main after the first one (it looks like we trash
   // some data, causing the value for ss_sp to be incorrect).
-  if (!is_primordial_thread || os::Solaris::_main_stack_base == NULL) {
+  if (!_is_primordial_thread || os::Solaris::_main_stack_base == NULL) {
     stack_t st = get_stack_info();
-    if (is_primordial_thread) {
+    if (_is_primordial_thread) {
       // cache initial value of stack base
       os::Solaris::_main_stack_base = (address)st.ss_sp;
     }
@@ -224,9 +228,7 @@ address os::current_stack_base() {
 size_t os::current_stack_size() {
   size_t size;
 
-  int r = thr_main() ;
-  guarantee (r == 0 || r == 1, "CR6501650 or CR6493689") ;
-  if(!r) {
+  if (!is_primordial_thread()) {
     size = get_stack_info().ss_size;
   } else {
     struct rlimit limits;
@@ -1287,9 +1289,7 @@ void _handle_uncaught_cxx_exception() {
 
 // First crack at OS-specific initialization, from inside the new thread.
 void os::initialize_thread(Thread* thr) {
-  int r = thr_main() ;
-  guarantee (r == 0 || r == 1, "CR6501650 or CR6493689") ;
-  if (r) {
+  if (is_primordial_thread()) {
     JavaThread* jt = (JavaThread *)thr;
     assert(jt != NULL,"Sanity check");
     size_t stack_size;
@@ -4914,6 +4914,7 @@ void os::init(void) {
   // (Solaris only) this switches to calls that actually do locking.
   ThreadCritical::initialize();
 
+  // main_thread points to the thread that created/loaded the JVM.
   main_thread = thr_self();
 
   // Constant minimum stack size allowed. It must be at least

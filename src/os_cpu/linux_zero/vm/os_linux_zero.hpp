@@ -36,18 +36,24 @@
 
   // Atomically copy 64 bits of data
   static void atomic_copy64(volatile void *src, volatile void *dst) {
-#if defined(PPC32)
+#if defined(PPC32) && !defined(__SPE__)
     double tmp;
-    asm volatile ("lfd  %0, 0(%1)\n"
-                  "stfd %0, 0(%2)\n"
-                  : "=f"(tmp)
-                  : "b"(src), "b"(dst));
+    asm volatile ("lfd  %0, %2\n"
+                  "stfd %0, %1\n"
+                  : "=&f"(tmp), "=Q"(*(volatile double*)dst)
+                  : "Q"(*(volatile double*)src));
+#elif defined(PPC32) && defined(__SPE__)
+    long tmp;
+    asm volatile ("evldd  %0, %2\n"
+                  "evstdd %0, %1\n"
+                  : "=&r"(tmp), "=Q"(*(volatile long*)dst)
+                  : "Q"(*(volatile long*)src));
 #elif defined(S390) && !defined(_LP64)
     double tmp;
-    asm volatile ("ld  %0, 0(%1)\n"
-                  "std %0, 0(%2)\n"
-                  : "=r"(tmp)
-                  : "a"(src), "a"(dst));
+    asm volatile ("ld  %0, %2\n"
+                  "std %0, %1\n"
+                  : "=&f"(tmp), "=Q"(*(volatile double*)dst)
+                  : "Q"(*(volatile double*)src));
 #else
     *(jlong *) dst = *(jlong *) src;
 #endif
