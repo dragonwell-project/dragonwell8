@@ -455,29 +455,6 @@ endif
 
 ##################################################################################################
 
-ifndef OPENJDK
-  DB_DEMO_ZIPFILE := $(wildcard $(JDK_TOPDIR)/src/closed/share/db/db-derby-*-bin.zip)
-
-  $(JDK_OUTPUTDIR)/demo/_the.db.unzipped: $(DB_DEMO_ZIPFILE)
-	$(MKDIR) -p $(@D)
-	$(RM) -r $(JDK_OUTPUTDIR)/demo/db $(JDK_OUTPUTDIR)/demo/demo
-	$(CD) $(JDK_OUTPUTDIR)/demo && $(UNZIP) -q -o $<
-	$(MV) $(JDK_OUTPUTDIR)/demo/db-derby-*-bin/demo $(JDK_OUTPUTDIR)/demo/db
-	$(CD) $(JDK_OUTPUTDIR)/demo && $(RM) -r db-derby-*-bin
-	$(TOUCH) $@
-
-  # Copy this after the unzip above to avoid race with directory creation and mv command.
-  $(JDK_OUTPUTDIR)/demo/db/README-JDK-DEMOS.html: \
-      $(JDK_TOPDIR)/src/closed/share/db/README-JDK-DEMOS.html \
-      | $(JDK_OUTPUTDIR)/demo/_the.db.unzipped
-	$(MKDIR) -p $(@D)
-	$(CAT) $< | $(SED) "s/XXXX/$(shell cat $(JDK_TOPDIR)/src/closed/share/db/COPYRIGHTYEAR)/" > $@
-
-  BUILD_DEMOS += $(JDK_OUTPUTDIR)/demo/_the.db.unzipped $(JDK_OUTPUTDIR)/demo/db/README-JDK-DEMOS.html
-endif
-
-##################################################################################################
-
 all: $(BUILD_DEMOS)
 
 .PHONY: all
