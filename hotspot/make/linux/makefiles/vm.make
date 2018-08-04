@@ -122,7 +122,7 @@ CFLAGS += $(CFLAGS/NOEX)
 
 # Extra flags from gnumake's invocation or environment
 CFLAGS += $(EXTRA_CFLAGS)
-LFLAGS += $(EXTRA_CFLAGS)
+LFLAGS += $(EXTRA_CFLAGS) $(EXTRA_LDFLAGS)
 
 # Don't set excutable bit on stack segment
 # the same could be done by separate execstack command
@@ -357,19 +357,23 @@ $(LIBJVM): $(LIBJVM.o) $(LIBJVM_MAPFILE) $(LD_SCRIPT)
 	}
 
 ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
+  ifneq ($(STRIP_POLICY),no_strip)
 	$(QUIETLY) $(OBJCOPY) --only-keep-debug $@ $(LIBJVM_DEBUGINFO)
 	$(QUIETLY) $(OBJCOPY) --add-gnu-debuglink=$(LIBJVM_DEBUGINFO) $@
+  endif
   ifeq ($(STRIP_POLICY),all_strip)
 	$(QUIETLY) $(STRIP) $@
   else
     ifeq ($(STRIP_POLICY),min_strip)
 	$(QUIETLY) $(STRIP) -g $@
-    # implied else here is no stripping at all
     endif
+    # implied else here is no stripping at all
   endif
-  ifeq ($(ZIP_DEBUGINFO_FILES),1)
+  ifneq ($(STRIP_POLICY),no_strip)
+    ifeq ($(ZIP_DEBUGINFO_FILES),1)
 	$(ZIPEXE) -q -y $(LIBJVM_DIZ) $(LIBJVM_DEBUGINFO)
 	$(RM) $(LIBJVM_DEBUGINFO)
+    endif
   endif
 endif
 

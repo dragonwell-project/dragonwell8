@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 #define SHARE_VM_OOPS_COMPILEDICHOLDEROOP_HPP
 
 #include "oops/oop.hpp"
+#include "oops/klass.hpp"
+#include "oops/method.hpp"
 
 // A CompiledICHolder* is a helper object for the inline cache implementation.
 // It holds:
@@ -48,11 +50,12 @@ class CompiledICHolder : public CHeapObj<mtCompiler> {
   Metadata* _holder_metadata;
   Klass*    _holder_klass;    // to avoid name conflict with oopDesc::_klass
   CompiledICHolder* _next;
+  bool _is_metadata_method;
 
  public:
   // Constructor
-  CompiledICHolder(Metadata* metadata, Klass* klass)
-      : _holder_metadata(metadata), _holder_klass(klass) {
+  CompiledICHolder(Metadata* metadata, Klass* klass, bool is_method = true)
+      : _holder_metadata(metadata), _holder_klass(klass), _is_metadata_method(is_method) {
 #ifdef ASSERT
     Atomic::inc(&_live_count);
     Atomic::inc(&_live_not_claimed_count);
@@ -82,7 +85,16 @@ class CompiledICHolder : public CHeapObj<mtCompiler> {
   CompiledICHolder* next()     { return _next; }
   void set_next(CompiledICHolder* n) { _next = n; }
 
-  bool is_loader_alive(BoolObjectClosure* is_alive);
+  inline bool is_loader_alive(BoolObjectClosure* is_alive) {
+    Klass* k = _is_metadata_method ? ((Method*)_holder_metadata)->method_holder() : (Klass*)_holder_metadata;
+    if (!k->is_loader_alive(is_alive)) {
+      return false;
+    }
+    if (!_holder_klass->is_loader_alive(is_alive)) {
+      return false;
+    }
+    return true;
+  }
 
   // Verify
   void verify_on(outputStream* st);

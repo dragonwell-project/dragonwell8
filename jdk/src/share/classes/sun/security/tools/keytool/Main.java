@@ -2209,7 +2209,19 @@ public final class Main {
     private void doPrintEntries(PrintStream out)
         throws Exception
     {
-        out.println(rb.getString("Keystore.type.") + keyStore.getType());
+        // Adjust displayed keystore type if needed.
+        String keystoreTypeToPrint = keyStore.getType();
+        if ("JKS".equalsIgnoreCase(keystoreTypeToPrint)) {
+            if (ksfile != null && ksfile.exists()) {
+                String realType = keyStoreType(ksfile);
+                // If the magic number does not conform to JKS
+                // then it must be PKCS12
+                if (!"JKS".equalsIgnoreCase(realType)) {
+                    keystoreTypeToPrint = P12KEYSTORE;
+                }
+            }
+        }
+        out.println(rb.getString("Keystore.type.") + keystoreTypeToPrint);
         out.println(rb.getString("Keystore.provider.") +
                 keyStore.getProvider().getName());
         out.println();
