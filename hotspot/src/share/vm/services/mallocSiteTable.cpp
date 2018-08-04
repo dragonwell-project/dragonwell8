@@ -136,7 +136,7 @@ bool MallocSiteTable::walk(MallocSiteWalker* walker) {
 MallocSite* MallocSiteTable::lookup_or_add(const NativeCallStack& key, size_t* bucket_idx,
   size_t* pos_idx, MEMFLAGS flags) {
   assert(flags != mtNone, "Should have a real memory type");
-  int index = hash_to_index(key.hash());
+  unsigned int index = hash_to_index(key.hash());
   assert(index >= 0, "Negative index");
   *bucket_idx = (size_t)index;
   *pos_idx = 0;

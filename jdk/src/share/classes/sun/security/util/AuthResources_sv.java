@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@ public class AuthResources_sv extends java.util.ListResourceBundle {
         {"Keystore.alias.","Nyckellageralias: "},
         {"Keystore.password.","Nyckellagerl\u00F6senord: "},
         {"Private.key.password.optional.",
-            "L\u00F6senord f\u00F6r personlig nyckel (valfritt): "},
+            "L\u00F6senord f\u00F6r privat nyckel (valfritt): "},
 
         // com.sun.security.auth.module.Krb5LoginModule
         {"Kerberos.username.defUsername.",

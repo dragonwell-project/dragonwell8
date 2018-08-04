@@ -91,6 +91,7 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, int size) {
   set_hidden(false);
   set_dont_inline(false);
   set_has_injected_profile(false);
+  set_running_emcp(false);
   set_method_data(NULL);
   clear_method_counters();
   set_vtable_index(Method::garbage_vtable_index);
@@ -1968,9 +1969,9 @@ void Method::print_on(outputStream* st) const {
   assert(is_method(), "must be method");
   st->print_cr("%s", internal_name());
   // get the effect of PrintOopAddress, always, for methods:
-  st->print_cr(" - this oop:          "INTPTR_FORMAT, (intptr_t)this);
+  st->print_cr(" - this oop:          " INTPTR_FORMAT, (intptr_t)this);
   st->print   (" - method holder:     "); method_holder()->print_value_on(st); st->cr();
-  st->print   (" - constants:         "INTPTR_FORMAT" ", (address)constants());
+  st->print   (" - constants:         " INTPTR_FORMAT " ", (address)constants());
   constants()->print_value_on(st); st->cr();
   st->print   (" - access:            0x%x  ", access_flags().as_int()); access_flags().print_on(st); st->cr();
   st->print   (" - name:              ");    name()->print_value_on(st); st->cr();
