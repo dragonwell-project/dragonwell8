@@ -380,8 +380,9 @@ public class SignatureFileVerifier {
                     if (e.getMessage() != null) {
                         debug.println(key + ":  " + e.getMessage());
                     } else {
-                        debug.println(key + ":  " + algorithm +
-                                " was disabled, no exception msg given.");
+                        debug.println("Debug info only. " +  key + ":  " +
+                            algorithm +
+                            " was disabled, no exception msg given.");
                         e.printStackTrace();
                     }
                 }
@@ -718,7 +719,8 @@ public class SignatureFileVerifier {
             if (signers == null) {
                 signers = new ArrayList<>();
             }
-            // Append the new code signer
+            // Append the new code signer. If timestamp is invalid, this
+            // jar will be treated as unsigned.
             signers.add(new CodeSigner(certChain, info.getTimestamp()));
 
             if (debug != null) {

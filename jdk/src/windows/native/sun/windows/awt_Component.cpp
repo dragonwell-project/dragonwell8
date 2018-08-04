@@ -1815,6 +1815,7 @@ LRESULT AwtComponent::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
                           "new = 0x%08X",
                           GetHWnd(), GetClassName(), (UINT)lParam);
           mr = WmInputLangChange(static_cast<UINT>(wParam), reinterpret_cast<HKL>(lParam));
+          g_bUserHasChangedInputLang = TRUE;
           CallProxyDefWindowProc(message, wParam, lParam, retValue, mr);
           // should return non-zero if we process this message
           retValue = 1;
@@ -3811,6 +3812,8 @@ MsgRouting AwtComponent::WmChar(UINT character, UINT repCnt, UINT flags,
 MsgRouting AwtComponent::WmForwardChar(WCHAR character, LPARAM lParam,
                                        BOOL synthetic)
 {
+    deadKeyActive = FALSE;
+
     // just post WM_CHAR with unicode key value
     DefWindowProc(WM_CHAR, (WPARAM)character, lParam);
     return mrConsume;

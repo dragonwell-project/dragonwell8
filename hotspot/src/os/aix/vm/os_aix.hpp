@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2013 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -169,12 +169,6 @@ class Aix {
 
   // Given an address, returns the size of the page backing that address
   static size_t query_pagesize(void* p);
-
-  // Return `true' if the calling thread is the primordial thread. The
-  // primordial thread is the thread which contains the main function,
-  // *not* necessarily the thread which initialized the VM by calling
-  // JNI_CreateJavaVM.
-  static bool is_primordial_thread(void);
 
   static int page_size(void) {
     assert(_page_size != -1, "not initialized");

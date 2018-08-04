@@ -34,12 +34,12 @@
 
 // Implementation of StubCodeDesc
 
-StubCodeDesc* StubCodeDesc::_list = NULL;
-int           StubCodeDesc::_count = 0;
+StubCodeDesc* volatile StubCodeDesc::_list = NULL;
+int                    StubCodeDesc::_count = 0;
 
 
 StubCodeDesc* StubCodeDesc::desc_for(address pc) {
-  StubCodeDesc* p = _list;
+  StubCodeDesc* p = (StubCodeDesc*)OrderAccess::load_ptr_acquire(&_list);
   while (p != NULL && !p->contains(pc)) p = p->_next;
   // p == NULL || p->contains(pc)
   return p;
@@ -47,7 +47,7 @@ StubCodeDesc* StubCodeDesc::desc_for(address pc) {
 
 
 StubCodeDesc* StubCodeDesc::desc_for_index(int index) {
-  StubCodeDesc* p = _list;
+  StubCodeDesc* p = (StubCodeDesc*)OrderAccess::load_ptr_acquire(&_list);
   while (p != NULL && p->index() != index) p = p->_next;
   return p;
 }

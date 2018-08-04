@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,10 +140,17 @@ void VM_Version::initialize() {
     if (is_niagara_plus()) {
       if (has_blk_init() && (cache_line_size > 0) && UseTLAB &&
           FLAG_IS_DEFAULT(AllocatePrefetchInstr)) {
-        // Use BIS instruction for TLAB allocation prefetch.
-        FLAG_SET_ERGO(intx, AllocatePrefetchInstr, 1);
-        if (FLAG_IS_DEFAULT(AllocatePrefetchStyle)) {
-          FLAG_SET_ERGO(intx, AllocatePrefetchStyle, 3);
+        if (!has_sparc5_instr()) {
+          // Use BIS instruction for TLAB allocation prefetch
+          // on Niagara plus processors other than those based on CoreS4.
+          FLAG_SET_DEFAULT(AllocatePrefetchInstr, 1);
+        } else {
+          // On CoreS4 processors use prefetch instruction
+          // to avoid partial RAW issue, also use prefetch style 3.
+          FLAG_SET_DEFAULT(AllocatePrefetchInstr, 0);
+          if (FLAG_IS_DEFAULT(AllocatePrefetchStyle)) {
+            FLAG_SET_DEFAULT(AllocatePrefetchStyle, 3);
+          }
         }
         if (FLAG_IS_DEFAULT(AllocatePrefetchDistance)) {
           // Use smaller prefetch distance with BIS
@@ -165,6 +172,11 @@ void VM_Version::initialize() {
         FLAG_SET_DEFAULT(AllocatePrefetchDistance, 256);
       }
       if (AllocatePrefetchInstr == 1) {
+
+        // Use allocation prefetch style 3 because BIS instructions
+        // require aligned memory addresses.
+        FLAG_SET_DEFAULT(AllocatePrefetchStyle, 3);
+
         // Need a space at the end of TLAB for BIS since it
         // will fault when accessing memory outside of heap.
 
