@@ -385,11 +385,11 @@ G1BlockOffsetArray::verify_for_object(HeapWord* obj_start,
     HeapWord* card_addr = _array->address_for_index(card);
     HeapWord* block_start = block_start_const(card_addr);
     if (block_start != obj_start) {
-      gclog_or_tty->print_cr("block start: "PTR_FORMAT" is incorrect - "
-                             "card index: "SIZE_FORMAT" "
-                             "card addr: "PTR_FORMAT" BOT entry: %u "
-                             "obj: "PTR_FORMAT" word size: "SIZE_FORMAT" "
-                             "cards: ["SIZE_FORMAT","SIZE_FORMAT"]",
+      gclog_or_tty->print_cr("block start: " PTR_FORMAT " is incorrect - "
+                             "card index: " SIZE_FORMAT " "
+                             "card addr: " PTR_FORMAT " BOT entry: %u "
+                             "obj: " PTR_FORMAT " word size: " SIZE_FORMAT " "
+                             "cards: [" SIZE_FORMAT "," SIZE_FORMAT "]",
                              block_start, card, card_addr,
                              _array->offset_array(card),
                              obj_start, word_size, first_card, last_card);
@@ -404,11 +404,11 @@ void
 G1BlockOffsetArray::print_on(outputStream* out) {
   size_t from_index = _array->index_for(_bottom);
   size_t to_index = _array->index_for(_end);
-  out->print_cr(">> BOT for area ["PTR_FORMAT","PTR_FORMAT") "
-                "cards ["SIZE_FORMAT","SIZE_FORMAT")",
+  out->print_cr(">> BOT for area [" PTR_FORMAT "," PTR_FORMAT ") "
+                "cards [" SIZE_FORMAT "," SIZE_FORMAT ")",
                 _bottom, _end, from_index, to_index);
   for (size_t i = from_index; i < to_index; ++i) {
-    out->print_cr("  entry "SIZE_FORMAT_W(8)" | "PTR_FORMAT" : %3u",
+    out->print_cr("  entry " SIZE_FORMAT_W(8) " | " PTR_FORMAT " : %3u",
                   i, _array->address_for_index(i),
                   (uint) _array->offset_array(i));
   }
@@ -488,7 +488,7 @@ G1BlockOffsetArrayContigSpace::set_for_starts_humongous(HeapWord* new_top) {
 void
 G1BlockOffsetArrayContigSpace::print_on(outputStream* out) {
   G1BlockOffsetArray::print_on(out);
-  out->print_cr("  next offset threshold: "PTR_FORMAT, _next_offset_threshold);
-  out->print_cr("  next offset index:     "SIZE_FORMAT, _next_offset_index);
+  out->print_cr("  next offset threshold: " PTR_FORMAT, _next_offset_threshold);
+  out->print_cr("  next offset index:     " SIZE_FORMAT, _next_offset_index);
 }
 #endif // !PRODUCT

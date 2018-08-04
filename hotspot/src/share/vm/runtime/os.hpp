@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -457,7 +457,24 @@ class os: AllStatic {
   static bool create_thread(Thread* thread,
                             ThreadType thr_type,
                             size_t stack_size = 0);
+
+  // The "main thread", also known as "starting thread", is the thread
+  // that loads/creates the JVM via JNI_CreateJavaVM.
   static bool create_main_thread(JavaThread* thread);
+
+  // The primordial thread is the initial process thread. The java
+  // launcher never uses the primordial thread as the main thread, but
+  // applications that host the JVM directly may do so. Some platforms
+  // need special-case handling of the primordial thread if it attaches
+  // to the VM.
+  static bool is_primordial_thread(void)
+#if defined(_WINDOWS) || defined(BSD)
+    // No way to identify the primordial thread.
+    { return false; }
+#else
+  ;
+#endif
+
   static bool create_attached_thread(JavaThread* thread);
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);
@@ -612,7 +629,7 @@ class os: AllStatic {
   static void print_register_info(outputStream* st, void* context);
   static void print_siginfo(outputStream* st, void* siginfo);
   static void print_signal_handlers(outputStream* st, char* buf, size_t buflen);
-  static void print_date_and_time(outputStream* st);
+  static void print_date_and_time(outputStream* st, char* buf, size_t buflen);
 
   static void print_location(outputStream* st, intptr_t x, bool verbose = false);
   static size_t lasterror(char *buf, size_t len);

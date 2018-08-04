@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, 2014 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -410,7 +410,7 @@ void os::Aix::query_multipage_support() {
   // thread (because primordial thread's stack may have different page size than
   // pthread thread stacks). Running a VM on the primordial thread won't work for a
   // number of reasons so we may just as well guarantee it here
-  guarantee(!os::Aix::is_primordial_thread(), "Must not be called for primordial thread");
+  guarantee(!os::is_primordial_thread(), "Must not be called for primordial thread");
 
   // query stack page size
   {
@@ -3835,7 +3835,7 @@ void os::init(void) {
 
   ThreadCritical::initialize();
 
-  // Main_thread points to the aboriginal thread.
+  // _main_thread points to the thread that created/loaded the JVM.
   Aix::_main_thread = pthread_self();
 
   initial_time_count = os::elapsed_counter();
@@ -4521,7 +4521,7 @@ void os::pause() {
   }
 }
 
-bool os::Aix::is_primordial_thread() {
+bool os::is_primordial_thread(void) {
   if (pthread_self() == (pthread_t)1) {
     return true;
   } else {
@@ -4656,7 +4656,7 @@ static void query_stack_dimensions(address* p_stack_base, size_t* p_stack_size) 
 
   // This only works when invoked on a pthread. As we agreed not to use
   // primordial threads anyway, I assert here
-  guarantee(!os::Aix::is_primordial_thread(), "not allowed on the primordial thread");
+  guarantee(!os::is_primordial_thread(), "not allowed on the primordial thread");
 
   // information about this api can be found (a) in the pthread.h header and
   // (b) in http://publib.boulder.ibm.com/infocenter/pseries/v5r3/index.jsp?topic=/com.ibm.aix.basetechref/doc/basetrf1/pthread_getthrds_np.htm

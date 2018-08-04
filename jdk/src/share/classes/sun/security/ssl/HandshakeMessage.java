@@ -89,6 +89,8 @@ public abstract class HandshakeMessage {
 
     static final byte   ht_finished = 20;
 
+    static final byte   ht_not_applicable         = -1;     // N/A
+
     /* Class and subclass dynamic debugging support */
     public static final Debug debug = Debug.getInstance("ssl");
 

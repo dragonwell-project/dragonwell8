@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,49 +66,36 @@
  */
 JNIEXPORT jstring JNICALL
 Java_java_net_Inet6AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
-    char hostname[NI_MAXHOST+1];
+    char hostname[NI_MAXHOST + 1];
 
     hostname[0] = '\0';
     if (JVM_GetHostName(hostname, sizeof(hostname))) {
-        /* Something went wrong, maybe networking is not setup? */
         strcpy(hostname, "localhost");
-    } else {
-        // ensure null-terminated
-        hostname[NI_MAXHOST] = '\0';
-
-        /* Solaris doesn't want to give us a fully qualified domain name.
-         * We do a reverse lookup to try and get one.  This works
-         * if DNS occurs before NIS in /etc/resolv.conf, but fails
-         * if NIS comes first (it still gets only a partial name).
-         * We use thread-safe system calls.
-         */
 #if defined(__solaris__) && defined(AF_INET6)
-        struct addrinfo  hints, *res;
-        int error;
+    } else {
+        // try to resolve hostname via nameservice
+        // if it is known but getnameinfo fails, hostname will still be the
+        // value from gethostname
+        struct addrinfo hints, *res;
 
+        // make sure string is null-terminated
+        hostname[NI_MAXHOST] = '\0';
         memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_CANONNAME;
         hints.ai_family = AF_UNSPEC;
 
-        error = getaddrinfo(hostname, NULL, &hints, &res);
-
-        if (error == 0) {
-            /* host is known to name service */
-            error = getnameinfo(res->ai_addr,
-                                res->ai_addrlen,
-                                hostname,
-                                NI_MAXHOST,
-                                NULL,
-                                0,
-                                NI_NAMEREQD);
-
-            /* if getnameinfo fails hostname is still the value
-               from gethostname */
-
+        if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
+            getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST,
+                        NULL, 0, NI_NAMEREQD);
             freeaddrinfo(res);
         }
-#endif
     }
+#else
+    } else {
+        // make sure string is null-terminated
+        hostname[NI_MAXHOST] = '\0';
+    }
+#endif
     return (*env)->NewStringUTF(env, hostname);
 }
 
@@ -221,6 +208,8 @@ lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6)
                 return NULL;
             }
             setInetAddress_hostName(env, o, name);
+            if ((*env)->ExceptionCheck(env))
+                goto done;
             (*env)->SetObjectArrayElement(env, result, index, o);
             (*env)->DeleteLocalRef(env, o);
         }
@@ -411,7 +400,11 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                     goto cleanupAndReturn;
                 }
                 setInetAddress_addr(env, iaObj, ntohl(((struct sockaddr_in*)iterator->ai_addr)->sin_addr.s_addr));
+                if ((*env)->ExceptionCheck(env))
+                    goto cleanupAndReturn;
                 setInetAddress_hostName(env, iaObj, host);
+                if ((*env)->ExceptionCheck(env))
+                    goto cleanupAndReturn;
                 (*env)->SetObjectArrayElement(env, ret, inetIndex, iaObj);
                 inetIndex++;
             } else if (iterator->ai_family == AF_INET6) {
@@ -433,6 +426,8 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                     setInet6Address_scopeid(env, iaObj, scope);
                 }
                 setInetAddress_hostName(env, iaObj, host);
+                if ((*env)->ExceptionCheck(env))
+                    goto cleanupAndReturn;
                 (*env)->SetObjectArrayElement(env, ret, inet6Index, iaObj);
                 inet6Index++;
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1799,7 +1799,8 @@ inline bool JavaThread::stack_yellow_zone_disabled() {
 
 inline bool JavaThread::stack_yellow_zone_enabled() {
 #ifdef ASSERT
-  if (os::uses_stack_guard_pages()) {
+  if (os::uses_stack_guard_pages() &&
+      !(DisablePrimordialThreadGuardPages && os::is_primordial_thread())) {
     assert(_stack_guard_state != stack_guard_unused, "guard pages must be in use");
   }
 #endif
