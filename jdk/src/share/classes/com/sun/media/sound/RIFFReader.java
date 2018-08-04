@@ -172,49 +172,41 @@ public final class RIFFReader extends InputStream {
         }
     }
 
-    public final long skipBytes(long n) throws IOException {
-        if (n < 0)
+    @Override
+    public long skip(final long n) throws IOException {
+        if (n <= 0 || avail == 0) {
             return 0;
-        long skipped = 0;
-        while (skipped != n) {
-            long s = skip(n - skipped);
-            if (s < 0)
-                break;
-            if (s == 0)
-                Thread.yield();
-            skipped += s;
         }
-        return skipped;
-    }
-
-    public long skip(long n) throws IOException {
-        if (avail == 0)
-            return -1;
-        if (n > avail) {
-            long len = stream.skip(avail);
-            if (len != -1)
-                filepointer += len;
-            avail = 0;
-            return len;
-        } else {
-            long ret = stream.skip(n);
-            if (ret == -1) {
-                avail = 0;
-                return -1;
+        // will not skip more than
+        long remaining = Math.min(n, avail);
+        while (remaining > 0) {
+            // Some input streams like FileInputStream can return more bytes,
+            // when EOF is reached.
+            long ret = Math.min(stream.skip(remaining), remaining);
+            if (ret == 0) {
+                // EOF or not? we need to check.
+                Thread.yield();
+                if (stream.read() == -1) {
+                    avail = 0;
+                    break;
+                }
+                ret = 1;
             }
+            remaining -= ret;
             avail -= ret;
             filepointer += ret;
-            return ret;
         }
+        return n - remaining;
     }
 
+    @Override
     public int available() {
         return (int)avail;
     }
 
     public void finish() throws IOException {
         if (avail != 0) {
-            skipBytes(avail);
+            skip(avail);
         }
     }
 
@@ -337,6 +329,7 @@ public final class RIFFReader extends InputStream {
         return ch1 + (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
     }
 
+    @Override
     public void close() throws IOException {
         finish();
         if (this == root)

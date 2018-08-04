@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,13 @@ import javax.crypto.IllegalBlockSizeException;
  * that are not thrown by its ancestor classes.  In particular, the
  * <code>skip</code> method skips, and the <code>available</code>
  * method counts only data that have been processed by the encapsulated Cipher.
+ * This class may catch BadPaddingException and other exceptions thrown by
+ * failed integrity checks during decryption. These exceptions are not
+ * re-thrown, so the client may not be informed that integrity checks
+ * failed. Because of this behavior, this class may not be suitable
+ * for use with decryption in an authenticated mode of operation (e.g. GCM).
+ * Applications that require authenticated encryption can use the Cipher API
+ * directly as an alternative to using this class.
  *
  * <p> It is crucial for a programmer using this class not to use
  * methods that are not defined or overriden in this class (such as a

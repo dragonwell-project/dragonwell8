@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,9 +135,16 @@ void G1MarkSweep::mark_sweep_phase1(bool& marked_for_unloading,
   MarkingCodeBlobClosure follow_code_closure(&GenMarkSweep::follow_root_closure, !CodeBlobToOopClosure::FixRelocations);
   {
     G1RootProcessor root_processor(g1h);
-    root_processor.process_strong_roots(&GenMarkSweep::follow_root_closure,
-                                        &GenMarkSweep::follow_cld_closure,
-                                        &follow_code_closure);
+    if (ClassUnloading) {
+      root_processor.process_strong_roots(&GenMarkSweep::follow_root_closure,
+                                          &GenMarkSweep::follow_cld_closure,
+                                          &follow_code_closure);
+    } else {
+      root_processor.process_all_roots_no_string_table(
+                                          &GenMarkSweep::follow_root_closure,
+                                          &GenMarkSweep::follow_cld_closure,
+                                          &follow_code_closure);
+    }
   }
 
   // Process reference objects found during marking
@@ -158,15 +165,17 @@ void G1MarkSweep::mark_sweep_phase1(bool& marked_for_unloading,
   // This is the point where the entire marking should have completed.
   assert(GenMarkSweep::_marking_stack.is_empty(), "Marking should have completed");
 
-  // Unload classes and purge the SystemDictionary.
-  bool purged_class = SystemDictionary::do_unloading(&GenMarkSweep::is_alive);
+  if (ClassUnloading) {
 
-  // Unload nmethods.
-  CodeCache::do_unloading(&GenMarkSweep::is_alive, purged_class);
+     // Unload classes and purge the SystemDictionary.
+     bool purged_class = SystemDictionary::do_unloading(&GenMarkSweep::is_alive);
 
-  // Prune dead klasses from subklass/sibling/implementor lists.
-  Klass::clean_weak_klass_links(&GenMarkSweep::is_alive);
+     // Unload nmethods.
+     CodeCache::do_unloading(&GenMarkSweep::is_alive, purged_class);
 
+     // Prune dead klasses from subklass/sibling/implementor lists.
+     Klass::clean_weak_klass_links(&GenMarkSweep::is_alive);
+  }
   // Delete entries for dead interned string and clean up unreferenced symbols in symbol table.
   G1CollectedHeap::heap()->unlink_string_and_symbol_table(&GenMarkSweep::is_alive);
 

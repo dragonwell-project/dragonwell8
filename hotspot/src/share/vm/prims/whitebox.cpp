@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,6 +158,9 @@ WB_ENTRY(void, WB_AddToSystemClassLoaderSearch(JNIEnv* env, jobject o, jstring s
 }
 WB_END
 
+#ifdef LINUX
+#include "utilities/elfFile.hpp"
+#endif
 
 WB_ENTRY(jlong, WB_GetCompressedOopsMaxHeapSize(JNIEnv* env, jobject o)) {
   return (jlong)Arguments::max_heap_for_compressed_oops();
@@ -166,8 +169,8 @@ WB_END
 
 WB_ENTRY(void, WB_PrintHeapSizes(JNIEnv* env, jobject o)) {
   CollectorPolicy * p = Universe::heap()->collector_policy();
-  gclog_or_tty->print_cr("Minimum heap "SIZE_FORMAT" Initial heap "
-    SIZE_FORMAT" Maximum heap "SIZE_FORMAT" Min alignment "SIZE_FORMAT" Max alignment "SIZE_FORMAT,
+  gclog_or_tty->print_cr("Minimum heap " SIZE_FORMAT " Initial heap "
+    SIZE_FORMAT" Maximum heap " SIZE_FORMAT " Min alignment " SIZE_FORMAT " Max alignment " SIZE_FORMAT,
     p->min_heap_byte_size(), p->initial_heap_byte_size(), p->max_heap_byte_size(),
     p->space_alignment(), p->heap_alignment());
 }
@@ -202,8 +205,8 @@ WB_ENTRY(void, WB_ReadFromNoaccessArea(JNIEnv* env, jobject o))
          Universe::narrow_oop_use_implicit_null_checks() )) {
     tty->print_cr("WB_ReadFromNoaccessArea method is useless:\n "
                   "\tUseCompressedOops is %d\n"
-                  "\trhs.base() is "PTR_FORMAT"\n"
-                  "\tUniverse::narrow_oop_base() is "PTR_FORMAT"\n"
+                  "\trhs.base() is " PTR_FORMAT "\n"
+                  "\tUniverse::narrow_oop_base() is " PTR_FORMAT "\n"
                   "\tUniverse::narrow_oop_use_implicit_null_checks() is %d",
                   UseCompressedOops,
                   rhs.base(),
@@ -256,8 +259,8 @@ static jint wb_stress_virtual_space_resize(size_t reserved_space_size,
 
 WB_ENTRY(jint, WB_StressVirtualSpaceResize(JNIEnv* env, jobject o,
         jlong reserved_space_size, jlong magnitude, jlong iterations))
-  tty->print_cr("reservedSpaceSize="JLONG_FORMAT", magnitude="JLONG_FORMAT", "
-                "iterations="JLONG_FORMAT"\n", reserved_space_size, magnitude,
+  tty->print_cr("reservedSpaceSize=" JLONG_FORMAT ", magnitude=" JLONG_FORMAT ", "
+                "iterations=" JLONG_FORMAT "\n", reserved_space_size, magnitude,
                 iterations);
   if (reserved_space_size < 0 || magnitude < 0 || iterations < 0) {
     tty->print_cr("One of variables printed above is negative. Can't proceed.\n");
@@ -1010,6 +1013,21 @@ void WhiteBox::register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,
   }
 }
 
+// Checks that the library libfile has the noexecstack bit set.
+WB_ENTRY(jboolean, WB_CheckLibSpecifiesNoexecstack(JNIEnv* env, jobject o, jstring libfile))
+  jboolean ret = false;
+#ifdef LINUX
+  // Can't be in VM when we call JNI.
+  ThreadToNativeFromVM ttnfv(thread);
+  const char* lf = env->GetStringUTFChars(libfile, NULL);
+  CHECK_JNI_EXCEPTION_(env, 0);
+  ElfFile ef(lf);
+  ret = (jboolean) ef.specifies_noexecstack();
+  env->ReleaseStringUTFChars(libfile, lf);
+#endif
+  return ret;
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1121,6 +1139,8 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_GetNMethod         },
   {CC"isMonitorInflated",  CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
   {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
+  {CC"checkLibSpecifiesNoexecstack", CC"(Ljava/lang/String;)Z",
+                                                      (void*)&WB_CheckLibSpecifiesNoexecstack},
 };
 
 #undef CC

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,6 +96,18 @@ void os_init_globals() {
   os::init_globals();
 }
 
+static time_t get_timezone(const struct tm* time_struct) {
+#if defined(_ALLBSD_SOURCE)
+  return time_struct->tm_gmtoff;
+#elif defined(_WINDOWS)
+  long zone;
+  _get_timezone(&zone);
+  return static_cast<time_t>(zone);
+#else
+  return timezone;
+#endif
+}
+
 // Fill in buffer with current local time as an ISO-8601 string.
 // E.g., yyyy-mm-ddThh:mm:ss-zzzz.
 // Returns buffer, or NULL if it failed.
@@ -134,11 +146,7 @@ char* os::iso8601_time(char* buffer, size_t buffer_length) {
     assert(false, "Failed localtime_pd");
     return NULL;
   }
-#if defined(_ALLBSD_SOURCE)
-  const time_t zone = (time_t) time_struct.tm_gmtoff;
-#else
-  const time_t zone = timezone;
-#endif
+  const time_t zone = get_timezone(&time_struct);
 
   // If daylight savings time is in effect,
   // we are 1 hour East of our time zone
@@ -847,7 +855,7 @@ void os::print_cpu_info(outputStream* st) {
   pd_print_cpu_info(st);
 }
 
-void os::print_date_and_time(outputStream *st) {
+void os::print_date_and_time(outputStream *st, char* buf, size_t buflen) {
   const int secs_per_day  = 86400;
   const int secs_per_hour = 3600;
   const int secs_per_min  = 60;
@@ -855,6 +863,12 @@ void os::print_date_and_time(outputStream *st) {
   time_t tloc;
   (void)time(&tloc);
   st->print("time: %s", ctime(&tloc));  // ctime adds newline.
+
+  struct tm tz;
+  if (localtime_pd(&tloc, &tz) != NULL) {
+    ::strftime(buf, buflen, "%Z", &tz);
+    st->print_cr("timezone: %s", buf);
+  }
 
   double t = os::elapsedTime();
   // NOTE: It tends to crash after a SEGV if we want to printf("%f",...) in

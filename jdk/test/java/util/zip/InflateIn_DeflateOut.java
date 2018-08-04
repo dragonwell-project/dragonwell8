@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 4206909 4813885 8189789
+ * @bug 4206909 4813885 8189789 8196854
  * @summary Test basic functionality of DeflaterOutputStream/InflaterInputStream and GZIPOutputStream/GZIPInputStream, including flush
  */
 
@@ -153,7 +153,6 @@ public class InflateIn_DeflateOut {
         OutputStream output = new FlushableGZIPOutputStream(byteOutStream);
 
         byte[] data = new byte[random.nextInt(1024 * 1024)];
-        byte[] buf = new byte[data.length];
         random.nextBytes(data);
 
         output.write(data);
@@ -175,7 +174,7 @@ public class InflateIn_DeflateOut {
         int numRead;
         byte[] b = new byte[4 * 1024];
         try {
-            while ((numRead = gzis.read(buf)) >= 0) {
+            while ((numRead = gzis.read(b)) >= 0) {
                 baos.write(b, 0, numRead);
             }
         } finally {
