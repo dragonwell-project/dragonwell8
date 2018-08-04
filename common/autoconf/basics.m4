@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,24 @@ AC_DEFUN([ADD_JVM_ARG_IF_OK],
 # Appends a string to a path variable, only adding the : when needed.
 AC_DEFUN([BASIC_APPEND_TO_PATH],
 [
-  if test "x[$]$1" = x; then
-    $1="$2"
-  else
-    $1="[$]$1:$2"
+  if test "x$2" != x; then
+    if test "x[$]$1" = x; then
+      $1="$2"
+    else
+      $1="[$]$1:$2"
+    fi
+  fi
+])
+
+# Prepends a string to a path variable, only adding the : when needed.
+AC_DEFUN([BASIC_PREPEND_TO_PATH],
+[
+  if test "x$2" != x; then
+    if test "x[$]$1" = x; then
+      $1="$2"
+    else
+      $1="$2:[$]$1"
+    fi
   fi
 ])
 
@@ -126,7 +140,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE],
       done
       IFS="$IFS_save"
     else
-      AC_MSG_NOTICE([Resolving $1 (as $path) failed, using $path directly.])
+      # This is an absolute path, we can use it without further modifications.
       new_path="$path"
     fi
 
@@ -236,35 +250,119 @@ AC_DEFUN_ONCE([BASIC_INIT],
 
 # Test that variable $1 denoting a program is not empty. If empty, exit with an error.
 # $1: variable to check
-# $2: executable name to print in warning (optional)
 AC_DEFUN([BASIC_CHECK_NONEMPTY],
 [
   if test "x[$]$1" = x; then
-    if test "x$2" = x; then
-      PROG_NAME=translit($1,A-Z,a-z)
-    else
-      PROG_NAME=$2
-    fi
-    AC_MSG_NOTICE([Could not find $PROG_NAME!])
-    AC_MSG_ERROR([Cannot continue])
+    AC_MSG_ERROR([Could not find required tool for $1])
   fi
 ])
 
-# Does AC_PATH_PROG followed by BASIC_CHECK_NONEMPTY.
-# Arguments as AC_PATH_PROG:
-# $1: variable to set
-# $2: executable name to look for
-AC_DEFUN([BASIC_REQUIRE_PROG],
+# Check that there are no unprocessed overridden variables left.
+# If so, they are an incorrect argument and we will exit with an error.
+AC_DEFUN([BASIC_CHECK_LEFTOVER_OVERRIDDEN],
 [
-  AC_PATH_PROGS($1, $2)
-  BASIC_CHECK_NONEMPTY($1, $2)
+  if test "x$CONFIGURE_OVERRIDDEN_VARIABLES" != x; then
+    # Replace the separating ! with spaces before presenting for end user.
+    unknown_variables=${CONFIGURE_OVERRIDDEN_VARIABLES//!/ }
+    AC_MSG_WARN([The following variables might be unknown to configure: $unknown_variables])
+  fi
+])
+
+# Setup a tool for the given variable. If correctly specified by the user, 
+# use that value, otherwise search for the tool using the supplied code snippet.
+# $1: variable to set
+# $2: code snippet to call to look for the tool
+AC_DEFUN([BASIC_SETUP_TOOL],
+[
+  # Publish this variable in the help.
+  AC_ARG_VAR($1, [Override default value for $1])
+
+  if test "x[$]$1" = x; then
+    # The variable is not set by user, try to locate tool using the code snippet
+    $2
+  else
+    # The variable is set, but is it from the command line or the environment?
+
+    # Try to remove the string !$1! from our list.
+    try_remove_var=${CONFIGURE_OVERRIDDEN_VARIABLES//!$1!/}
+    if test "x$try_remove_var" = "x$CONFIGURE_OVERRIDDEN_VARIABLES"; then
+      # If it failed, the variable was not from the command line. Ignore it,
+      # but warn the user (except for BASH, which is always set by the calling BASH).
+      if test "x$1" != xBASH; then
+        AC_MSG_WARN([Ignoring value of $1 from the environment. Use command line variables instead.])
+      fi
+      # Try to locate tool using the code snippet
+      $2
+    else
+      # If it succeeded, then it was overridden by the user. We will use it
+      # for the tool.
+
+      # First remove it from the list of overridden variables, so we can test
+      # for unknown variables in the end.
+      CONFIGURE_OVERRIDDEN_VARIABLES="$try_remove_var"
+
+      # Check if the provided tool contains a complete path.
+      tool_specified="[$]$1"
+      tool_basename="${tool_specified##*/}"
+      if test "x$tool_basename" = "x$tool_specified"; then
+        # A command without a complete path is provided, search $PATH.
+        AC_MSG_NOTICE([Will search for user supplied tool $1=$tool_basename])
+        AC_PATH_PROG($1, $tool_basename)
+        if test "x[$]$1" = x; then
+          AC_MSG_ERROR([User supplied tool $tool_basename could not be found])
+        fi
+      else
+        # Otherwise we believe it is a complete path. Use it as it is.
+        AC_MSG_NOTICE([Will use user supplied tool $1=$tool_specified])
+        AC_MSG_CHECKING([for $1])
+        if test ! -x "$tool_specified"; then
+          AC_MSG_RESULT([not found])
+          AC_MSG_ERROR([User supplied tool $1=$tool_specified does not exist or is not executable])
+        fi
+        AC_MSG_RESULT([$tool_specified])
+      fi
+    fi
+  fi
+])
+
+# Call BASIC_SETUP_TOOL with AC_PATH_PROGS to locate the tool
+# $1: variable to set
+# $2: executable name (or list of names) to look for
+AC_DEFUN([BASIC_PATH_PROGS],
+[
+  BASIC_SETUP_TOOL($1, [AC_PATH_PROGS($1, $2)])
+])
+
+# Call BASIC_SETUP_TOOL with AC_CHECK_TOOLS to locate the tool
+# $1: variable to set
+# $2: executable name (or list of names) to look for
+AC_DEFUN([BASIC_CHECK_TOOLS],
+[
+  BASIC_SETUP_TOOL($1, [AC_CHECK_TOOLS($1, $2)])
+])
+
+# Like BASIC_PATH_PROGS but fails if no tool was found.
+# $1: variable to set
+# $2: executable name (or list of names) to look for
+AC_DEFUN([BASIC_REQUIRE_PROGS],
+[
+  BASIC_PATH_PROGS($1, $2)
+  BASIC_CHECK_NONEMPTY($1)
+])
+
+# Like BASIC_SETUP_TOOL but fails if no tool was found.
+# $1: variable to set
+# $2: autoconf macro to call to look for the special tool
+AC_DEFUN([BASIC_REQUIRE_SPECIAL],
+[
+  BASIC_SETUP_TOOL($1, [$2])
+  BASIC_CHECK_NONEMPTY($1)
 ])
 
 # Setup the most fundamental tools that relies on not much else to set up,
 # but is used by much of the early bootstrap code.
 AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
 [
-
   # Start with tools that do not need have cross compilation support
   # and can be expected to be found in the default PATH. These tools are
   # used by configure. Nor are these tools expected to be found in the
@@ -272,57 +370,49 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   # needed to download the devkit.
 
   # First are all the simple required tools.
-  BASIC_REQUIRE_PROG(BASENAME, basename)
-  BASIC_REQUIRE_PROG(BASH, bash)
-  BASIC_REQUIRE_PROG(CAT, cat)
-  BASIC_REQUIRE_PROG(CHMOD, chmod)
-  BASIC_REQUIRE_PROG(CMP, cmp)
-  BASIC_REQUIRE_PROG(COMM, comm)
-  BASIC_REQUIRE_PROG(CP, cp)
-  BASIC_REQUIRE_PROG(CPIO, cpio)
-  BASIC_REQUIRE_PROG(CUT, cut)
-  BASIC_REQUIRE_PROG(DATE, date)
-  BASIC_REQUIRE_PROG(DIFF, [gdiff diff])
-  BASIC_REQUIRE_PROG(DIRNAME, dirname)
-  BASIC_REQUIRE_PROG(ECHO, echo)
-  BASIC_REQUIRE_PROG(EXPR, expr)
-  BASIC_REQUIRE_PROG(FILE, file)
-  BASIC_REQUIRE_PROG(FIND, find)
-  BASIC_REQUIRE_PROG(HEAD, head)
-  BASIC_REQUIRE_PROG(LN, ln)
-  BASIC_REQUIRE_PROG(LS, ls)
-  BASIC_REQUIRE_PROG(MKDIR, mkdir)
-  BASIC_REQUIRE_PROG(MKTEMP, mktemp)
-  BASIC_REQUIRE_PROG(MV, mv)
-  BASIC_REQUIRE_PROG(PRINTF, printf)
-  BASIC_REQUIRE_PROG(RM, rm)
-  BASIC_REQUIRE_PROG(SH, sh)
-  BASIC_REQUIRE_PROG(SORT, sort)
-  BASIC_REQUIRE_PROG(TAIL, tail)
-  BASIC_REQUIRE_PROG(TAR, tar)
-  BASIC_REQUIRE_PROG(TEE, tee)
-  BASIC_REQUIRE_PROG(TOUCH, touch)
-  BASIC_REQUIRE_PROG(TR, tr)
-  BASIC_REQUIRE_PROG(UNAME, uname)
-  BASIC_REQUIRE_PROG(UNIQ, uniq)
-  BASIC_REQUIRE_PROG(WC, wc)
-  BASIC_REQUIRE_PROG(WHICH, which)
-  BASIC_REQUIRE_PROG(XARGS, xargs)
+  BASIC_REQUIRE_PROGS(BASENAME, basename)
+  BASIC_REQUIRE_PROGS(BASH, bash)
+  BASIC_REQUIRE_PROGS(CAT, cat)
+  BASIC_REQUIRE_PROGS(CHMOD, chmod)
+  BASIC_REQUIRE_PROGS(CMP, cmp)
+  BASIC_REQUIRE_PROGS(COMM, comm)
+  BASIC_REQUIRE_PROGS(CP, cp)
+  BASIC_REQUIRE_PROGS(CUT, cut)
+  BASIC_REQUIRE_PROGS(DATE, date)
+  BASIC_REQUIRE_PROGS(DIFF, [gdiff diff])
+  BASIC_REQUIRE_PROGS(DIRNAME, dirname)
+  BASIC_REQUIRE_PROGS(ECHO, echo)
+  BASIC_REQUIRE_PROGS(EXPR, expr)
+  BASIC_REQUIRE_PROGS(FILE, file)
+  BASIC_REQUIRE_PROGS(FIND, find)
+  BASIC_REQUIRE_PROGS(HEAD, head)
+  BASIC_REQUIRE_PROGS(LN, ln)
+  BASIC_REQUIRE_PROGS(LS, ls)
+  BASIC_REQUIRE_PROGS(MKDIR, mkdir)
+  BASIC_REQUIRE_PROGS(MKTEMP, mktemp)
+  BASIC_REQUIRE_PROGS(MV, mv)
+  BASIC_REQUIRE_PROGS(NAWK, [nawk gawk awk])
+  BASIC_REQUIRE_PROGS(PRINTF, printf)
+  BASIC_REQUIRE_PROGS(RM, rm)
+  BASIC_REQUIRE_PROGS(SH, sh)
+  BASIC_REQUIRE_PROGS(SORT, sort)
+  BASIC_REQUIRE_PROGS(TAIL, tail)
+  BASIC_REQUIRE_PROGS(TAR, tar)
+  BASIC_REQUIRE_PROGS(TEE, tee)
+  BASIC_REQUIRE_PROGS(TOUCH, touch)
+  BASIC_REQUIRE_PROGS(TR, tr)
+  BASIC_REQUIRE_PROGS(UNAME, uname)
+  BASIC_REQUIRE_PROGS(UNIQ, uniq)
+  BASIC_REQUIRE_PROGS(WC, wc)
+  BASIC_REQUIRE_PROGS(WHICH, which)
+  BASIC_REQUIRE_PROGS(XARGS, xargs)
 
   # Then required tools that require some special treatment.
-  AC_PROG_AWK
-  BASIC_CHECK_NONEMPTY(AWK)
-  AC_PROG_GREP
-  BASIC_CHECK_NONEMPTY(GREP)
-  AC_PROG_EGREP
-  BASIC_CHECK_NONEMPTY(EGREP)
-  AC_PROG_FGREP
-  BASIC_CHECK_NONEMPTY(FGREP)
-  AC_PROG_SED
-  BASIC_CHECK_NONEMPTY(SED)
-
-  AC_PATH_PROGS(NAWK, [nawk gawk awk])
-  BASIC_CHECK_NONEMPTY(NAWK)
+  BASIC_REQUIRE_SPECIAL(AWK, [AC_PROG_AWK])
+  BASIC_REQUIRE_SPECIAL(GREP, [AC_PROG_GREP])
+  BASIC_REQUIRE_SPECIAL(EGREP, [AC_PROG_EGREP])
+  BASIC_REQUIRE_SPECIAL(FGREP, [AC_PROG_FGREP])
+  BASIC_REQUIRE_SPECIAL(SED, [AC_PROG_SED])
 
   # Always force rm.
   RM="$RM -f"
@@ -332,23 +422,18 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   THEPWDCMD=pwd
 
   # These are not required on all platforms
-  AC_PATH_PROG(CYGPATH, cygpath)
-  AC_PATH_PROG(READLINK, readlink)
-  AC_PATH_PROG(DF, df)
-  AC_PATH_PROG(SETFILE, SetFile)
+  BASIC_PATH_PROGS(CYGPATH, cygpath)
+  BASIC_PATH_PROGS(READLINK, [greadlink readlink])
+  BASIC_PATH_PROGS(DF, df)
+  BASIC_PATH_PROGS(SETFILE, SetFile)
+  BASIC_PATH_PROGS(CPIO, [cpio bsdcpio])
 ])
 
 # Setup basic configuration paths, and platform-specific stuff related to PATHs.
 AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
 [
-  # Locate the directory of this script.
-  SCRIPT="[$]0"
-  AUTOCONF_DIR=`cd \`$DIRNAME $SCRIPT\`; $THEPWDCMD -L`
-
-  # Where is the source? It is located two levels above the configure script.
+  # Save the current directory this script was started from
   CURDIR="$PWD"
-  cd "$AUTOCONF_DIR/../.."
-  SRC_ROOT="`$THEPWDCMD -L`"
 
   if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
     PATH_SEP=";"
@@ -356,35 +441,135 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
   else
     PATH_SEP=":"
   fi
-
-  AC_SUBST(SRC_ROOT)
   AC_SUBST(PATH_SEP)
-  cd "$CURDIR"
 
-  BASIC_FIXUP_PATH(SRC_ROOT)
+  # We get the top-level directory from the supporting wrappers.
+  AC_MSG_CHECKING([for top-level directory])
+  AC_MSG_RESULT([$TOPDIR])
+  AC_SUBST(TOPDIR)
+
+  # We can only call BASIC_FIXUP_PATH after BASIC_CHECK_PATHS_WINDOWS.
   BASIC_FIXUP_PATH(CURDIR)
+  BASIC_FIXUP_PATH(TOPDIR)
+  # SRC_ROOT is a traditional alias for TOPDIR.
+  SRC_ROOT=$TOPDIR
+
+  # Locate the directory of this script.
+  AUTOCONF_DIR=$TOPDIR/common/autoconf
+])
+
+# Evaluates platform specific overrides for devkit variables.
+# $1: Name of variable
+AC_DEFUN([BASIC_EVAL_DEVKIT_VARIABLE],
+[
+  if test "x[$]$1" = x; then
+    eval $1="\${$1_${OPENJDK_TARGET_CPU}}"
+  fi
+])
+
+AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
+[
+  AC_ARG_WITH([devkit], [AS_HELP_STRING([--with-devkit],
+      [use this devkit for compilers, tools and resources])])
+
+  if test "x$with_devkit" = xyes; then
+    AC_MSG_ERROR([--with-devkit must have a value])
+  elif test "x$with_devkit" != x && test "x$with_devkit" != xno; then
+    BASIC_FIXUP_PATH([with_devkit])
+    DEVKIT_ROOT="$with_devkit"
+    # Check for a meta data info file in the root of the devkit
+    if test -f "$DEVKIT_ROOT/devkit.info"; then
+      . $DEVKIT_ROOT/devkit.info
+      # This potentially sets the following:
+      # A descriptive name of the devkit
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_NAME])
+      # Corresponds to --with-extra-path
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_EXTRA_PATH])
+      # Corresponds to --with-toolchain-path
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_TOOLCHAIN_PATH])
+      # Corresponds to --with-sysroot
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_SYSROOT])
+
+      # Identifies the Visual Studio version in the devkit
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_VS_VERSION])
+      # The Visual Studio include environment variable
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_VS_INCLUDE])
+      # The Visual Studio lib environment variable
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_VS_LIB])
+      # Corresponds to --with-msvcr-dll
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_MSVCR_DLL])
+      # Corresponds to --with-msvcp-dll
+      BASIC_EVAL_DEVKIT_VARIABLE([DEVKIT_MSVCP_DLL])
+    fi
+
+    AC_MSG_CHECKING([for devkit])
+    if test "x$DEVKIT_NAME" != x; then
+      AC_MSG_RESULT([$DEVKIT_NAME in $DEVKIT_ROOT])
+    else
+      AC_MSG_RESULT([$DEVKIT_ROOT])
+    fi
+
+    BASIC_PREPEND_TO_PATH([EXTRA_PATH],$DEVKIT_EXTRA_PATH)
+
+    # Fallback default of just /bin if DEVKIT_PATH is not defined
+    if test "x$DEVKIT_TOOLCHAIN_PATH" = x; then
+      DEVKIT_TOOLCHAIN_PATH="$DEVKIT_ROOT/bin"
+    fi
+    BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$DEVKIT_TOOLCHAIN_PATH)
+
+    # If DEVKIT_SYSROOT is set, use that, otherwise try a couple of known
+    # places for backwards compatiblity.
+    if test "x$DEVKIT_SYSROOT" != x; then
+      SYSROOT="$DEVKIT_SYSROOT"
+    elif test -d "$DEVKIT_ROOT/$host_alias/libc"; then
+      SYSROOT="$DEVKIT_ROOT/$host_alias/libc"
+    elif test -d "$DEVKIT_ROOT/$host/sys-root"; then
+      SYSROOT="$DEVKIT_ROOT/$host/sys-root"
+    fi
+
+    if test "x$DEVKIT_ROOT" != x; then
+      DEVKIT_LIB_DIR="$DEVKIT_ROOT/lib"
+      if test "x$OPENJDK_TARGET_CPU_BITS" = x64; then
+        DEVKIT_LIB_DIR="$DEVKIT_ROOT/lib64"
+      fi
+      AC_SUBST(DEVKIT_LIB_DIR)
+    fi
+  fi
+
+  # You can force the sysroot if the sysroot encoded into the compiler tools
+  # is not correct.
+  AC_ARG_WITH(sys-root, [AS_HELP_STRING([--with-sys-root],
+      [alias for --with-sysroot for backwards compatability])],
+      [SYSROOT=$with_sys_root]
+  )
+
+  AC_ARG_WITH(sysroot, [AS_HELP_STRING([--with-sysroot],
+      [use this directory as sysroot)])],
+      [SYSROOT=$with_sysroot]
+  )
+
+  AC_ARG_WITH([tools-dir], [AS_HELP_STRING([--with-tools-dir],
+      [alias for --with-toolchain-path for backwards compatibility])],
+      [BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_tools_dir)]
+  )
+
+  AC_ARG_WITH([toolchain-path], [AS_HELP_STRING([--with-toolchain-path],
+      [prepend these directories when searching for toolchain binaries (compilers etc)])],
+      [BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_toolchain_path)]
+  )
+
+  AC_ARG_WITH([extra-path], [AS_HELP_STRING([--with-extra-path],
+      [prepend these directories to the default path])],
+      [BASIC_PREPEND_TO_PATH([EXTRA_PATH],$with_extra_path)]
+  )
+
+  # Prepend the extra path to the global path
+  BASIC_PREPEND_TO_PATH([PATH],$EXTRA_PATH)
 
   if test "x$OPENJDK_BUILD_OS" = "xsolaris"; then
     # Add extra search paths on solaris for utilities like ar and as etc...
     PATH="$PATH:/usr/ccs/bin:/usr/sfw/bin:/opt/csw/bin"
   fi
-
-  # You can force the sys-root if the sys-root encoded into the cross compiler tools
-  # is not correct.
-  AC_ARG_WITH(sys-root, [AS_HELP_STRING([--with-sys-root],
-      [pass this sys-root to the compilers and tools (for cross-compiling)])])
-
-  if test "x$with_sys_root" != x; then
-    SYS_ROOT=$with_sys_root
-  else
-    SYS_ROOT=/
-  fi
-  AC_SUBST(SYS_ROOT)
-
-  AC_ARG_WITH([tools-dir], [AS_HELP_STRING([--with-tools-dir],
-      [search this directory for compilers and tools (for cross-compiling)])],
-      [TOOLS_DIR=$with_tools_dir]
-  )
 
   # Xcode version will be validated later
   AC_ARG_WITH([xcode-path], [AS_HELP_STRING([--with-xcode-path],
@@ -392,20 +577,12 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
       [XCODE_PATH=$with_xcode_path]
   )
 
-  AC_ARG_WITH([devkit], [AS_HELP_STRING([--with-devkit],
-      [use this directory as base for tools-dir and sys-root (for cross-compiling)])],
-      [
-        if test "x$with_sys_root" != x; then
-          AC_MSG_ERROR([Cannot specify both --with-devkit and --with-sys-root at the same time])
-        fi
-        BASIC_FIXUP_PATH([with_devkit])
-        BASIC_APPEND_TO_PATH([TOOLS_DIR],$with_devkit/bin)
-        if test -d "$with_devkit/$host_alias/libc"; then
-          SYS_ROOT=$with_devkit/$host_alias/libc
-        elif test -d "$with_devkit/$host/sys-root"; then
-          SYS_ROOT=$with_devkit/$host/sys-root
-        fi
-      ])
+  AC_MSG_CHECKING([for sysroot])
+  AC_MSG_RESULT([$SYSROOT])
+  AC_MSG_CHECKING([for toolchain path])
+  AC_MSG_RESULT([$TOOLCHAIN_PATH])
+  AC_MSG_CHECKING([for extra path])
+  AC_MSG_RESULT([$EXTRA_PATH])
 ])
 
 AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
@@ -416,13 +593,17 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
       [ CONF_NAME=${with_conf_name} ])
 
   # Test from where we are running configure, in or outside of src root.
+  AC_MSG_CHECKING([where to store configuration])
   if test "x$CURDIR" = "x$SRC_ROOT" || test "x$CURDIR" = "x$SRC_ROOT/common" \
       || test "x$CURDIR" = "x$SRC_ROOT/common/autoconf" \
       || test "x$CURDIR" = "x$SRC_ROOT/make" ; then
     # We are running configure from the src root.
     # Create a default ./build/target-variant-debuglevel output root.
     if test "x${CONF_NAME}" = x; then
+      AC_MSG_RESULT([in default location])
       CONF_NAME="${OPENJDK_TARGET_OS}-${OPENJDK_TARGET_CPU}-${JDK_VARIANT}-${ANDED_JVM_VARIANTS}-${DEBUG_LEVEL}"
+    else
+      AC_MSG_RESULT([in build directory with custom name])
     fi
     OUTPUT_ROOT="$SRC_ROOT/build/${CONF_NAME}"
     $MKDIR -p "$OUTPUT_ROOT"
@@ -438,6 +619,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
       CONF_NAME=`$ECHO $CURDIR | $SED -e "s!^${SRC_ROOT}/build/!!"`
     fi
     OUTPUT_ROOT="$CURDIR"
+    AC_MSG_RESULT([in current directory])
 
     # WARNING: This might be a bad thing to do. You need to be sure you want to
     # have a configuration in this directory. Do some sanity checks!
@@ -448,8 +630,12 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
       files_present=`$LS $OUTPUT_ROOT`
       # Configure has already touched config.log and confdefs.h in the current dir when this check
       # is performed.
-      filtered_files=`$ECHO "$files_present" | $SED -e 's/config.log//g' -e 's/confdefs.h//g' -e 's/ //g' \
-      | $TR -d '\n'`
+      filtered_files=`$ECHO "$files_present" \
+          | $SED -e 's/config.log//g' \
+	      -e 's/confdefs.h//g' \
+	      -e 's/fixpath.exe//g' \
+	      -e 's/ //g' \
+          | $TR -d '\n'`
       if test "x$filtered_files" != x; then
         AC_MSG_NOTICE([Current directory is $CURDIR.])
         AC_MSG_NOTICE([Since this is not the source root, configure will output the configuration here])
@@ -487,9 +673,6 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
   # You can run make from the OUTPUT_ROOT, or from the top-level Makefile
   # which will look for generated configurations
   AC_CONFIG_FILES([$OUTPUT_ROOT/Makefile:$AUTOCONF_DIR/Makefile.in])
-
-  # Save the arguments given to us
-  echo "$CONFIGURE_COMMAND_LINE" > $OUTPUT_ROOT/configure-arguments
 ])
 
 AC_DEFUN_ONCE([BASIC_SETUP_LOGGING],
@@ -573,10 +756,10 @@ AC_DEFUN([BASIC_CHECK_GNU_MAKE],
     fi
 
     if test "x$FOUND_MAKE" = x; then
-      if test "x$TOOLS_DIR" != x; then
-        # We have a tools-dir, check that as well before giving up.
+      if test "x$TOOLCHAIN_PATH" != x; then
+        # We have a toolchain path, check that as well before giving up.
         OLD_PATH=$PATH
-        PATH=$TOOLS_DIR:$PATH
+        PATH=$TOOLCHAIN_PATH:$PATH
         AC_PATH_PROGS(CHECK_TOOLSDIR_GMAKE, gmake)
         BASIC_CHECK_MAKE_VERSION("$CHECK_TOOLSDIR_GMAKE", [gmake in tools-dir])
         if test "x$FOUND_MAKE" = x; then
@@ -628,22 +811,22 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
 
   # These tools might not be installed by default,
   # need hint on how to install them.
-  BASIC_REQUIRE_PROG(UNZIP, unzip)
-  BASIC_REQUIRE_PROG(ZIP, zip)
+  BASIC_REQUIRE_PROGS(UNZIP, unzip)
+  BASIC_REQUIRE_PROGS(ZIP, zip)
 
   # Non-required basic tools
 
-  AC_PATH_PROG(LDD, ldd)
+  BASIC_PATH_PROGS(LDD, ldd)
   if test "x$LDD" = "x"; then
     # List shared lib dependencies is used for
     # debug output and checking for forbidden dependencies.
     # We can build without it.
     LDD="true"
   fi
-  AC_PATH_PROGS(READELF, [readelf greadelf])
-  AC_PATH_PROG(HG, hg)
-  AC_PATH_PROG(STAT, stat)
-  AC_PATH_PROG(TIME, time)
+  BASIC_PATH_PROGS(READELF, [readelf greadelf])
+  BASIC_PATH_PROGS(HG, hg)
+  BASIC_PATH_PROGS(STAT, stat)
+  BASIC_PATH_PROGS(TIME, time)
   # Check if it's GNU time
   IS_GNU_TIME=`$TIME --version 2>&1 | $GREP 'GNU time'`
   if test "x$IS_GNU_TIME" != x; then
@@ -654,13 +837,13 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   AC_SUBST(IS_GNU_TIME)
 
   if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-    BASIC_REQUIRE_PROG(COMM, comm)
+    BASIC_REQUIRE_PROGS(COMM, comm)
   fi
 
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    BASIC_REQUIRE_PROG(DSYMUTIL, dsymutil)
-    BASIC_REQUIRE_PROG(XATTR, xattr)
-    AC_PATH_PROG(CODESIGN, codesign)
+    BASIC_REQUIRE_PROGS(DSYMUTIL, dsymutil)
+    BASIC_REQUIRE_PROGS(XATTR, xattr)
+    BASIC_PATH_PROGS(CODESIGN, codesign)
     if test "x$CODESIGN" != "x"; then
       # Verify that the openjdk_codesign certificate is present
       AC_MSG_CHECKING([if openjdk_codesign certificate is present])
@@ -712,7 +895,7 @@ AC_DEFUN([BASIC_CHECK_DIR_ON_LOCAL_DISK],
 # not be the case in cygwin in certain conditions.
 AC_DEFUN_ONCE([BASIC_CHECK_SRC_PERMS],
 [
-  if test x"$OPENJDK_BUILD_OS" = xwindows; then
+  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
     file_to_test="$SRC_ROOT/LICENSE"
     if test `$STAT -c '%a' "$file_to_test"` -lt 400; then
       AC_MSG_ERROR([Bad file permissions on src files. This is usually caused by cloning the repositories with a non cygwin hg in a directory not created in cygwin.])
@@ -722,6 +905,9 @@ AC_DEFUN_ONCE([BASIC_CHECK_SRC_PERMS],
 
 AC_DEFUN_ONCE([BASIC_TEST_USABILITY_ISSUES],
 [
+  # Did user specify any unknown variables?
+  BASIC_CHECK_LEFTOVER_OVERRIDDEN
+
   AC_MSG_CHECKING([if build directory is on local disk])
   BASIC_CHECK_DIR_ON_LOCAL_DISK($OUTPUT_ROOT,
       [OUTPUT_DIR_IS_LOCAL="yes"],
@@ -739,13 +925,5 @@ AC_DEFUN_ONCE([BASIC_TEST_USABILITY_ISSUES],
     IS_RECONFIGURE=yes
   else
     IS_RECONFIGURE=no
-  fi
-
-  if test -e $SRC_ROOT/build/.hide-configure-performance-hints; then
-    HIDE_PERFORMANCE_HINTS=yes
-  else
-    HIDE_PERFORMANCE_HINTS=no
-    # Hide it the next time around...
-    $TOUCH $SRC_ROOT/build/.hide-configure-performance-hints > /dev/null 2>&1
   fi
 ])

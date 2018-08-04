@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1124,6 +1124,10 @@ class CommandLineFlags {
           "Use detached threads that are recycled upon termination "        \
           "(for Solaris only)")                                             \
                                                                             \
+  experimental(bool, DisablePrimordialThreadGuardPages, false,              \
+               "Disable the use of stack guard pages if the JVM is loaded " \
+               "on the primordial process thread")                          \
+                                                                            \
   product(bool, UseLWPSynchronization, true,                                \
           "Use LWP-based instead of libthread-based synchronization "       \
           "(SPARC only)")                                                   \
@@ -2064,13 +2068,23 @@ class CommandLineFlags {
   product_pd(uint64_t, MaxRAM,                                              \
           "Real memory size (in bytes) used to set maximum heap size")      \
                                                                             \
+  product(bool, AggressiveHeap, false,                                      \
+          "Optimize heap options for long-running memory intensive apps")   \
+                                                                            \
   product(uintx, ErgoHeapSizeLimit, 0,                                      \
           "Maximum ergonomically set heap size (in bytes); zero means use " \
-          "MaxRAM / MaxRAMFraction")                                        \
+          "MaxRAM * MaxRAMPercentage / 100")                                \
                                                                             \
   experimental(bool, UseCGroupMemoryLimitForHeap, false,                    \
           "Use CGroup memory limit as physical memory limit for heap "      \
-          "sizing")                                                         \
+          "sizing"                                                          \
+          "Deprecated, replaced by container support")                      \
+                                                                            \
+  diagnostic(bool, PrintContainerInfo, false,                               \
+          "Print container related information")                            \
+                                                                            \
+  diagnostic(bool, PrintActiveCpus, false,                                  \
+           "Print the number of CPUs detected in os::active_processor_count") \
                                                                             \
   product(uintx, MaxRAMFraction, 4,                                         \
           "Maximum fraction (1/n) of real memory used for maximum heap "    \
@@ -2086,6 +2100,19 @@ class CommandLineFlags {
                                                                             \
   product(uintx, InitialRAMFraction, 64,                                    \
           "Fraction (1/n) of real memory used for initial heap size")       \
+                                                                            \
+  product(double, MaxRAMPercentage, 25.0,                                   \
+          "Maximum percentage of real memory used for maximum heap size")   \
+                                                                            \
+  product(double, MinRAMPercentage, 50.0,                                   \
+          "Minimum percentage of real memory used for maximum heap"         \
+          "size on systems with small physical memory size")                \
+                                                                            \
+  product(double, InitialRAMPercentage, 1.5625,                             \
+          "Percentage of real memory used for initial heap size")           \
+                                                                            \
+  product(intx, ActiveProcessorCount, -1,                                   \
+          "Specify the CPU count the VM should use and report as active")   \
                                                                             \
   develop(uintx, MaxVirtMemFraction, 2,                                     \
           "Maximum fraction (1/n) of virtual memory used for ergonomically "\

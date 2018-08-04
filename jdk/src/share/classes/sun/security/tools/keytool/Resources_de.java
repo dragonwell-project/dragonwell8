@@ -99,7 +99,7 @@ public class Resources_de extends java.util.ListResourceBundle {
         {"destination.alias",
                 "Zielalias"}, //-destalias
         {"destination.key.password",
-                "Zielschl\u00FCssel-Kennwort"}, //-destkeypass
+                "Zielschl\u00FCsselkennwort"}, //-destkeypass
         {"destination.keystore.name",
                 "Ziel-Keystore-Name"}, //-destkeystore
         {"destination.keystore.password.protected",
@@ -147,7 +147,7 @@ public class Resources_de extends java.util.ListResourceBundle {
         {"source.alias",
                 "Quellalias"}, //-srcalias
         {"source.key.password",
-                "Quellschl\u00FCssel-Kennwort"}, //-srckeypass
+                "Quellschl\u00FCsselkennwort"}, //-srckeypass
         {"source.keystore.name",
                 "Quell-Keystore-Name"}, //-srckeystore
         {"source.keystore.password.protected",
@@ -178,8 +178,8 @@ public class Resources_de extends java.util.ListResourceBundle {
                  "Serielle ID des zu entziehenden Certs"}, //-id
         // keytool: Running part
         {"keytool.error.", "Keytool-Fehler: "},
-        {"Illegal.option.", "Ung\u00FCltige Option:  "},
-        {"Illegal.value.", "Ung\u00FCltiger Wert: "},
+        {"Illegal.option.", "Unzul\u00E4ssige Option:  "},
+        {"Illegal.value.", "Unzul\u00E4ssiger Wert: "},
         {"Unknown.password.type.", "Unbekannter Kennworttyp: "},
         {"Cannot.find.environment.variable.",
                 "Umgebungsvariable kann nicht gefunden werden: "},
@@ -205,7 +205,7 @@ public class Resources_de extends java.util.ListResourceBundle {
                 "Wenn der Keystore nicht kennwortgesch\u00FCtzt ist, d\u00FCrfen -storepass, -keypass und -new nicht angegeben werden"},
         {"if.source.keystore.is.not.password.protected.then.srcstorepass.and.srckeypass.must.not.be.specified",
                 "Wenn der Quell-Keystore nicht kennwortgesch\u00FCtzt ist, d\u00FCrfen -srcstorepass und -srckeypass nicht angegeben werden"},
-        {"Illegal.startdate.value", "Ung\u00FCltiger Wert f\u00FCr Anfangsdatum"},
+        {"Illegal.startdate.value", "Unzul\u00E4ssiger Wert f\u00FCr Anfangsdatum"},
         {"Validity.must.be.greater.than.zero",
                 "G\u00FCltigkeit muss gr\u00F6\u00DFer als null sein"},
         {"provName.not.a.provider", "{0} kein Provider"},
