@@ -664,6 +664,9 @@ public class VisibleMemberMap {
         // properties aren't named setA* or getA*
         private final Pattern pattern = Pattern.compile("[sg]et\\p{Upper}.*");
         private boolean isPropertyMethod(MethodDoc method) {
+            if (!configuration.javafx) {
+               return false;
+            }
             if (!method.name().endsWith("Property")) {
                 return false;
             }
@@ -675,7 +678,9 @@ public class VisibleMemberMap {
             if (pattern.matcher(method.name()).matches()) {
                 return false;
             }
-
+            if (method.typeParameters().length > 0) {
+                return false;
+            }
             return 0 == method.parameters().length
                     && !"void".equals(method.returnType().simpleTypeName());
         }
