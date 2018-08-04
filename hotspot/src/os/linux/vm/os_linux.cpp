@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@
 #include "mutex_linux.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "os_share_linux.hpp"
+#include "osContainer_linux.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
@@ -179,13 +180,62 @@ julong os::available_memory() {
 julong os::Linux::available_memory() {
   // values in struct sysinfo are "unsigned long"
   struct sysinfo si;
-  sysinfo(&si);
+  julong avail_mem;
 
-  return (julong)si.freeram * si.mem_unit;
+  if (OSContainer::is_containerized()) {
+    jlong mem_limit, mem_usage;
+    if ((mem_limit = OSContainer::memory_limit_in_bytes()) < 1) {
+      if (PrintContainerInfo) {
+        tty->print_cr("container memory limit %s: " JLONG_FORMAT ", using host value",
+                       mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
+      }
+    }
+
+    if (mem_limit > 0 && (mem_usage = OSContainer::memory_usage_in_bytes()) < 1) {
+      if (PrintContainerInfo) {
+        tty->print_cr("container memory usage failed: " JLONG_FORMAT ", using host value", mem_usage);
+      }
+    }
+
+    if (mem_limit > 0 && mem_usage > 0 ) {
+      avail_mem = mem_limit > mem_usage ? (julong)mem_limit - (julong)mem_usage : 0;
+      if (PrintContainerInfo) {
+        tty->print_cr("available container memory: " JULONG_FORMAT, avail_mem);
+      }
+      return avail_mem;
+    }
+  }
+
+  sysinfo(&si);
+  avail_mem = (julong)si.freeram * si.mem_unit;
+  if (Verbose) {
+    tty->print_cr("available memory: " JULONG_FORMAT, avail_mem);
+  }
+  return avail_mem;
 }
 
 julong os::physical_memory() {
-  return Linux::physical_memory();
+  jlong phys_mem = 0;
+  if (OSContainer::is_containerized()) {
+    jlong mem_limit;
+    if ((mem_limit = OSContainer::memory_limit_in_bytes()) > 0) {
+      if (PrintContainerInfo) {
+        tty->print_cr("total container memory: " JLONG_FORMAT, mem_limit);
+      }
+      return mem_limit;
+    }
+
+    if (PrintContainerInfo) {
+      tty->print_cr("container memory limit %s: " JLONG_FORMAT ", using host value",
+                     mem_limit == OSCONTAINER_ERROR ? "failed" : "unlimited", mem_limit);
+    }
+  }
+
+  phys_mem = Linux::physical_memory();
+  if (Verbose) {
+    tty->print_cr("total system memory: " JLONG_FORMAT, phys_mem);
+  }
+  return phys_mem;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -946,8 +996,8 @@ bool os::create_attached_thread(JavaThread* thread) {
     }
   }
 
-  if (os::Linux::is_initial_thread()) {
-    // If current thread is initial thread, its stack is mapped on demand,
+  if (os::is_primordial_thread()) {
+    // If current thread is primordial thread, its stack is mapped on demand,
     // see notes about MAP_GROWSDOWN. Here we try to force kernel to map
     // the entire stack region to avoid SEGV in stack banging.
     // It is also useful to get around the heap-stack-gap problem on SuSE
@@ -1032,21 +1082,24 @@ extern "C" Thread* get_thread() {
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// initial thread
+// primordial thread
 
-// Check if current thread is the initial thread, similar to Solaris thr_main.
-bool os::Linux::is_initial_thread(void) {
+// Check if current thread is the primordial thread, similar to Solaris thr_main.
+bool os::is_primordial_thread(void) {
   char dummy;
   // If called before init complete, thread stack bottom will be null.
   // Can be called if fatal error occurs before initialization.
-  if (initial_thread_stack_bottom() == NULL) return false;
-  assert(initial_thread_stack_bottom() != NULL &&
-         initial_thread_stack_size()   != 0,
-         "os::init did not locate initial thread's stack region");
-  if ((address)&dummy >= initial_thread_stack_bottom() &&
-      (address)&dummy < initial_thread_stack_bottom() + initial_thread_stack_size())
+  if (os::Linux::initial_thread_stack_bottom() == NULL) return false;
+  assert(os::Linux::initial_thread_stack_bottom() != NULL &&
+         os::Linux::initial_thread_stack_size()   != 0,
+         "os::init did not locate primordial thread's stack region");
+  if ((address)&dummy >= os::Linux::initial_thread_stack_bottom() &&
+      (address)&dummy < os::Linux::initial_thread_stack_bottom() +
+                        os::Linux::initial_thread_stack_size()) {
        return true;
-  else return false;
+  } else {
+       return false;
+  }
 }
 
 // Find the virtual memory area that contains addr
@@ -1073,7 +1126,7 @@ static bool find_vma(address addr, address* vma_low, address* vma_high) {
   return false;
 }
 
-// Locate initial thread stack. This special handling of initial thread stack
+// Locate primordial thread stack. This special handling of primordial thread stack
 // is needed because pthread_getattr_np() on most (all?) Linux distros returns
 // bogus value for the primordial process thread. While the launcher has created
 // the VM in a new thread since JDK 6, we still have to allow for the use of the
@@ -1097,7 +1150,10 @@ void os::Linux::capture_initial_stack(size_t max_size) {
   // 6308388: a bug in ld.so will relocate its own .data section to the
   //   lower end of primordial stack; reduce ulimit -s value a little bit
   //   so we won't install guard page on ld.so's data section.
-  stack_size -= 2 * page_size();
+  //   But ensure we don't underflow the stack size - allow 1 page spare
+  if (stack_size >= (size_t)(3 * page_size())) {
+    stack_size -= 2 * page_size();
+  }
 
   // Try to figure out where the stack base (top) is. This is harder.
   //
@@ -1218,16 +1274,16 @@ void os::Linux::capture_initial_stack(size_t max_size) {
 
       if (i != 28 - 2) {
          assert(false, "Bad conversion from /proc/self/stat");
-         // product mode - assume we are the initial thread, good luck in the
+         // product mode - assume we are the primordial thread, good luck in the
          // embedded case.
-         warning("Can't detect initial thread stack location - bad conversion");
+         warning("Can't detect primordial thread stack location - bad conversion");
          stack_start = (uintptr_t) &rlim;
       }
     } else {
       // For some reason we can't open /proc/self/stat (for example, running on
       // FreeBSD with a Linux emulator, or inside chroot), this should work for
       // most cases, so don't abort:
-      warning("Can't detect initial thread stack location - no /proc/self/stat");
+      warning("Can't detect primordial thread stack location - no /proc/self/stat");
       stack_start = (uintptr_t) &rlim;
     }
   }
@@ -1247,7 +1303,7 @@ void os::Linux::capture_initial_stack(size_t max_size) {
     stack_top = (uintptr_t)high;
   } else {
     // failed, likely because /proc/self/maps does not exist
-    warning("Can't detect initial thread stack location - find_vma failed");
+    warning("Can't detect primordial thread stack location - find_vma failed");
     // best effort: stack_start is normally within a few pages below the real
     // stack top, use it as stack top, and reduce stack size so we won't put
     // guard page outside stack.
@@ -2114,6 +2170,8 @@ void os::print_os_info(outputStream* st) {
   os::Posix::print_load_average(st);
 
   os::Linux::print_full_memory_info(st);
+
+  os::Linux::print_container_info(st);
 }
 
 // Try to identify popular distros.
@@ -2177,6 +2235,57 @@ void os::Linux::print_full_memory_info(outputStream* st) {
    st->print("\n/proc/meminfo:\n");
    _print_ascii_file("/proc/meminfo", st);
    st->cr();
+}
+
+void os::Linux::print_container_info(outputStream* st) {
+if (!OSContainer::is_containerized()) {
+    return;
+  }
+
+  st->print("container (cgroup) information:\n");
+
+  const char *p_ct = OSContainer::container_type();
+  st->print("container_type: %s\n", p_ct != NULL ? p_ct : "failed");
+
+  char *p = OSContainer::cpu_cpuset_cpus();
+  st->print("cpu_cpuset_cpus: %s\n", p != NULL ? p : "failed");
+  free(p);
+
+  p = OSContainer::cpu_cpuset_memory_nodes();
+  st->print("cpu_memory_nodes: %s\n", p != NULL ? p : "failed");
+  free(p);
+
+  int i = OSContainer::active_processor_count();
+  if (i > 0) {
+    st->print("active_processor_count: %d\n", i);
+  } else {
+    st->print("active_processor_count: failed\n");
+  }
+
+  i = OSContainer::cpu_quota();
+  st->print("cpu_quota: %d\n", i);
+
+  i = OSContainer::cpu_period();
+  st->print("cpu_period: %d\n", i);
+
+  i = OSContainer::cpu_shares();
+  st->print("cpu_shares: %d\n", i);
+
+  jlong j = OSContainer::memory_limit_in_bytes();
+  st->print("memory_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::memory_and_swap_limit_in_bytes();
+  st->print("memory_and_swap_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::memory_soft_limit_in_bytes();
+  st->print("memory_soft_limit_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::OSContainer::memory_usage_in_bytes();
+  st->print("memory_usage_in_bytes: " JLONG_FORMAT "\n", j);
+
+  j = OSContainer::OSContainer::memory_max_usage_in_bytes();
+  st->print("memory_max_usage_in_bytes: " JLONG_FORMAT "\n", j);
+  st->cr();
 }
 
 void os::print_memory_info(outputStream* st) {
@@ -3066,11 +3175,11 @@ address get_stack_commited_bottom(address bottom, size_t size) {
 // where we're going to put our guard pages, truncate the mapping at
 // that point by munmap()ping it.  This ensures that when we later
 // munmap() the guard pages we don't leave a hole in the stack
-// mapping. This only affects the main/initial thread
+// mapping. This only affects the main/primordial thread
 
 bool os::pd_create_stack_guard_pages(char* addr, size_t size) {
 
-  if (os::Linux::is_initial_thread()) {
+  if (os::is_primordial_thread()) {
     // As we manually grow stack up to bottom inside create_attached_thread(),
     // it's likely that os::Linux::initial_thread_stack_bottom is mapped and
     // we don't need to do anything special.
@@ -3095,14 +3204,14 @@ bool os::pd_create_stack_guard_pages(char* addr, size_t size) {
 
 // If this is a growable mapping, remove the guard pages entirely by
 // munmap()ping them.  If not, just call uncommit_memory(). This only
-// affects the main/initial thread, but guard against future OS changes
-// It's safe to always unmap guard pages for initial thread because we
-// always place it right after end of the mapped region
+// affects the main/primordial thread, but guard against future OS changes.
+// It's safe to always unmap guard pages for primordial thread because we
+// always place it right after end of the mapped region.
 
 bool os::remove_stack_guard_pages(char* addr, size_t size) {
   uintptr_t stack_extent, stack_base;
 
-  if (os::Linux::is_initial_thread()) {
+  if (os::is_primordial_thread()) {
     return ::munmap(addr, size) == 0;
   }
 
@@ -4877,10 +4986,9 @@ const char* os::exception_name(int exception_code, char* buf, size_t size) {
   }
 }
 
-// this is called _before_ the most of global arguments have been parsed
+// this is called _before_ most of the global arguments have been parsed
 void os::init(void) {
   char dummy;   /* used to get a guess on initial stack address */
-//  first_hrtime = gethrtime();
 
   // With LinuxThreads the JavaMain thread pid (primordial thread)
   // is different than the pid of the java launcher thread.
@@ -4907,7 +5015,7 @@ void os::init(void) {
 
   Linux::initialize_system_info();
 
-  // main_thread points to the aboriginal thread
+  // _main_thread points to the thread that created/loaded the JVM.
   Linux::_main_thread = pthread_self();
 
   Linux::clock_init();
@@ -4949,6 +5057,10 @@ extern "C" {
   static void perfMemory_exit_helper() {
     perfMemory_exit();
   }
+}
+
+void os::pd_init_container_support() {
+  OSContainer::init();
 }
 
 // this is called _after_ the global arguments have been parsed
@@ -5131,7 +5243,7 @@ static int os_cpu_count(const cpu_set_t* cpus) {
 // sched_getaffinity gives an accurate answer as it accounts for cpusets.
 // If anything goes wrong we fallback to returning the number of online
 // processors - which can be greater than the number available to the process.
-int os::active_processor_count() {
+int os::Linux::active_processor_count() {
   cpu_set_t cpus;  // can represent at most 1024 (CPU_SETSIZE) processors
   int cpus_size = sizeof(cpu_set_t);
   int cpu_count = 0;
@@ -5149,8 +5261,46 @@ int os::active_processor_count() {
             "which may exceed available processors", strerror(errno), cpu_count);
   }
 
-  assert(cpu_count > 0 && cpu_count <= processor_count(), "sanity check");
+  assert(cpu_count > 0 && cpu_count <= os::processor_count(), "sanity check");
   return cpu_count;
+}
+
+// Determine the active processor count from one of
+// three different sources:
+//
+// 1. User option -XX:ActiveProcessorCount
+// 2. kernel os calls (sched_getaffinity or sysconf(_SC_NPROCESSORS_ONLN)
+// 3. extracted from cgroup cpu subsystem (shares and quotas)
+//
+// Option 1, if specified, will always override.
+// If the cgroup subsystem is active and configured, we
+// will return the min of the cgroup and option 2 results.
+// This is required since tools, such as numactl, that
+// alter cpu affinity do not update cgroup subsystem
+// cpuset configuration files.
+int os::active_processor_count() {
+  // User has overridden the number of active processors
+  if (ActiveProcessorCount > 0) {
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: "
+                    "active processor count set by user : %d",
+                    ActiveProcessorCount);
+    }
+    return ActiveProcessorCount;
+  }
+
+  int active_cpus;
+  if (OSContainer::is_containerized()) {
+    active_cpus = OSContainer::active_processor_count();
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: determined by OSContainer: %d",
+                     active_cpus);
+    }
+  } else {
+    active_cpus = os::Linux::active_processor_count();
+  }
+
+  return active_cpus;
 }
 
 void os::set_native_thread_name(const char *name) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+#if defined(__linux__)
+#define _FILE_OFFSET_BITS 64
+#endif
 
 #include "jni.h"
 #include "jni_util.h"
@@ -208,6 +212,25 @@ jint
 handleSetLength(FD fd, jlong length)
 {
     int result;
+#if defined(__linux__)
+    /*
+     * On Linux, if the file size is being increased, then ftruncate64()
+     * will modify the metadata value of the size without actually allocating
+     * any blocks which can cause a SIGBUS error if the file is subsequently
+     * memory-mapped.
+     */
+    struct stat64 sb;
+
+    if (fstat64(fd, &sb) == 0 && length > sb.st_blocks*512) {
+        RESTARTABLE(posix_fallocate(fd, 0, length), result);
+        // Return on success or if errno is neither EOPNOTSUPP nor ENOSYS
+        if (result == 0) {
+            return 0;
+        } else if (errno != EOPNOTSUPP && errno != ENOSYS) {
+            return result;
+        }
+    }
+#endif
     RESTARTABLE(ftruncate64(fd, length), result);
     return result;
 }

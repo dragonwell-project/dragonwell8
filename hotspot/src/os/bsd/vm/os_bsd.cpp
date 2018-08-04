@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3611,7 +3611,7 @@ void os::init(void) {
 
   Bsd::initialize_system_info();
 
-  // main_thread points to the aboriginal thread
+  // _main_thread points to the thread that created/loaded the JVM.
   Bsd::_main_thread = pthread_self();
 
   Bsd::clock_init();
@@ -3765,6 +3765,16 @@ void os::make_polling_page_readable(void) {
 };
 
 int os::active_processor_count() {
+  // User has overridden the number of active processors
+  if (ActiveProcessorCount > 0) {
+    if (PrintActiveCpus) {
+      tty->print_cr("active_processor_count: "
+                    "active processor count set by user : %d",
+                     ActiveProcessorCount);
+    }
+    return ActiveProcessorCount;
+  }
+
   return _processor_count;
 }
 

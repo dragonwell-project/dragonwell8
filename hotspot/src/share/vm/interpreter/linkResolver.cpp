@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -779,37 +779,37 @@ void LinkResolver::resolve_field(fieldDescriptor& fd, KlassHandle resolved_klass
     THROW_MSG(vmSymbols::java_lang_NoSuchFieldError(), field->as_C_string());
   }
 
-  if (!check_access)
-    // Access checking may be turned off when calling from within the VM.
-    return;
+  // Access checking may be turned off when calling from within the VM.
+  if (check_access) {
 
-  // check access
-  check_field_accessability(current_klass, resolved_klass, sel_klass, fd, CHECK);
+    // check access
+    check_field_accessability(current_klass, resolved_klass, sel_klass, fd, CHECK);
 
-  // check for errors
-  if (is_static != fd.is_static()) {
-    ResourceMark rm(THREAD);
-    char msg[200];
-    jio_snprintf(msg, sizeof(msg), "Expected %s field %s.%s", is_static ? "static" : "non-static", resolved_klass()->external_name(), fd.name()->as_C_string());
-    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
+    // check for errors
+    if (is_static != fd.is_static()) {
+      ResourceMark rm(THREAD);
+      char msg[200];
+      jio_snprintf(msg, sizeof(msg), "Expected %s field %s.%s", is_static ? "static" : "non-static", resolved_klass()->external_name(), fd.name()->as_C_string());
+      THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
+    }
+
+    // Final fields can only be accessed from its own class.
+    if (is_put && fd.access_flags().is_final() && sel_klass() != current_klass()) {
+      THROW(vmSymbols::java_lang_IllegalAccessError());
+    }
+
+    // initialize resolved_klass if necessary
+    // note 1: the klass which declared the field must be initialized (i.e, sel_klass)
+    //         according to the newest JVM spec (5.5, p.170) - was bug (gri 7/28/99)
+    //
+    // note 2: we don't want to force initialization if we are just checking
+    //         if the field access is legal; e.g., during compilation
+    if (is_static && initialize_class) {
+      sel_klass->initialize(CHECK);
+    }
   }
 
-  // Final fields can only be accessed from its own class.
-  if (is_put && fd.access_flags().is_final() && sel_klass() != current_klass()) {
-    THROW(vmSymbols::java_lang_IllegalAccessError());
-  }
-
-  // initialize resolved_klass if necessary
-  // note 1: the klass which declared the field must be initialized (i.e, sel_klass)
-  //         according to the newest JVM spec (5.5, p.170) - was bug (gri 7/28/99)
-  //
-  // note 2: we don't want to force initialization if we are just checking
-  //         if the field access is legal; e.g., during compilation
-  if (is_static && initialize_class) {
-    sel_klass->initialize(CHECK);
-  }
-
-  if (sel_klass() != current_klass()) {
+  if (sel_klass() != current_klass() && !current_klass.is_null()) {
     HandleMark hm(THREAD);
     Handle ref_loader (THREAD, InstanceKlass::cast(current_klass())->class_loader());
     Handle sel_loader (THREAD, InstanceKlass::cast(sel_klass())->class_loader());
