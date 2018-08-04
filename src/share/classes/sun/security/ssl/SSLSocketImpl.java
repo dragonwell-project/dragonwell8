@@ -2399,13 +2399,22 @@ final public class SSLSocketImpl extends BaseSSLSocketImpl {
         case cs_START:
             /*
              * If we need to change the socket mode and the enabled
-             * protocols haven't specifically been set by the user,
-             * change them to the corresponding default ones.
+             * protocols and cipher suites haven't specifically been
+             * set by the user, change them to the corresponding
+             * default ones.
              */
-            if (roleIsServer != (!flag) &&
-                    sslContext.isDefaultProtocolList(enabledProtocols)) {
-                enabledProtocols = sslContext.getDefaultProtocolList(!flag);
+            if (roleIsServer != (!flag)) {
+                if (sslContext.isDefaultProtocolList(enabledProtocols)) {
+                    enabledProtocols =
+                            sslContext.getDefaultProtocolList(!flag);
+                }
+
+                if (sslContext.isDefaultCipherSuiteList(enabledCipherSuites)) {
+                    enabledCipherSuites =
+                            sslContext.getDefaultCipherSuiteList(!flag);
+                }
             }
+
             roleIsServer = !flag;
             break;
 

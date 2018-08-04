@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -171,7 +171,7 @@ public class FilteredImageSource implements ImageProducer {
      * @param ic  the consumer for the filtered image
      * @see ImageConsumer
      */
-    public void startProduction(ImageConsumer ic) {
+    public synchronized void startProduction(ImageConsumer ic) {
         if (proxies == null) {
             proxies = new Hashtable();
         }
@@ -198,7 +198,7 @@ public class FilteredImageSource implements ImageProducer {
      *
      * @see ImageConsumer
      */
-    public void requestTopDownLeftRightResend(ImageConsumer ic) {
+    public synchronized void requestTopDownLeftRightResend(ImageConsumer ic) {
         if (proxies != null) {
             ImageFilter imgf = (ImageFilter) proxies.get(ic);
             if (imgf != null) {
