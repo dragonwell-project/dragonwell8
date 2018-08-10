@@ -279,7 +279,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
                 // But in rare case it fails, we allow 'char' to be displayed
                 curr->displayName = (char *)malloc(ifrowP->dwDescrLen + 1);
             } else {
-                curr->displayName = (wchar_t *)malloc(wlen*(sizeof(wchar_t))+1);
+                curr->displayName = (wchar_t *)malloc((wlen+1)*sizeof(wchar_t));
             }
 
             curr->name = (char *)malloc(strlen(dev_name) + 1);
@@ -322,7 +322,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
                 free(curr);
                 return -1;
             } else {
-                curr->displayName[wlen*(sizeof(wchar_t))] = '\0';
+                ((wchar_t *)curr->displayName)[wlen] = L'\0';
                 curr->dNameIsUnicode = TRUE;
             }
         }
