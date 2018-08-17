@@ -331,50 +331,20 @@ endif
 ifeq ($(DEBUG_BINARIES), true)
   CFLAGS += -g
 else
-  # Use the stabs format for debugging information (this is the default
-  # on gcc-2.91). It's good enough, has all the information about line
-  # numbers and local variables, and libjvm.so is only about 16M.
-  # Change this back to "-g" if you want the most expressive format.
-  # (warning: that could easily inflate libjvm.so to 150M!)
-  # Note: The Itanium gcc compiler crashes when using -gstabs.
-  DEBUG_CFLAGS/ia64  = -g
-  DEBUG_CFLAGS/amd64 = -g
-  DEBUG_CFLAGS/ppc64 = -g
   DEBUG_CFLAGS += $(DEBUG_CFLAGS/$(BUILDARCH))
   ifeq ($(DEBUG_CFLAGS/$(BUILDARCH)),)
-      ifeq ($(USE_CLANG), true)
-        # Clang doesn't understand -gstabs
-        DEBUG_CFLAGS/$(BUILDARCH) = -g
-      else
-        DEBUG_CFLAGS/$(BUILDARCH) = -gstabs
-      endif
+    DEBUG_CFLAGS += -g
   endif
   
   ifeq ($(ENABLE_FULL_DEBUG_SYMBOLS),1)
-    FASTDEBUG_CFLAGS/ia64  = -g
-    FASTDEBUG_CFLAGS/amd64 = -g
-    FASTDEBUG_CFLAGS/ppc64 = -g
     FASTDEBUG_CFLAGS += $(FASTDEBUG_CFLAGS/$(BUILDARCH))
     ifeq ($(FASTDEBUG_CFLAGS/$(BUILDARCH)),)
-      ifeq ($(USE_CLANG), true)
-        # Clang doesn't understand -gstabs
-        FASTDEBUG_CFLAGS/$(BUILDARCH) = -g
-      else
-        FASTDEBUG_CFLAGS/$(BUILDARCH) = -gstabs
-      endif
+      FASTDEBUG_CFLAGS/$(BUILDARCH) = -g
     endif
   
-    OPT_CFLAGS/ia64  = -g
-    OPT_CFLAGS/amd64 = -g
-    OPT_CFLAGS/ppc64 = -g
     OPT_CFLAGS += $(OPT_CFLAGS/$(BUILDARCH))
     ifeq ($(OPT_CFLAGS/$(BUILDARCH)),)
-      ifeq ($(USE_CLANG), true)
-        # Clang doesn't understand -gstabs
-        OPT_CFLAGS/$(BUILDARCH) = -g
-      else
-        OPT_CFLAGS/$(BUILDARCH) = -gstabs
-      endif
+      OPT_CFLAGS/$(BUILDARCH) = -g
     endif
   endif
 endif
