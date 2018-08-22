@@ -308,9 +308,6 @@ sun/security/ssl/com/sun/net/ssl/internal/ssl/X509KeyManager/PreferredKey.java  
 # 8206909
 com/sun/crypto/provider/CICO/PBEFunc/CICOPBEFuncTest.java       solaris-sparcv9
 
-# 8206911
-javax/xml/crypto/dsig/GenerationTests.java                      solaris-all
-
 # 8206912
 sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
 
