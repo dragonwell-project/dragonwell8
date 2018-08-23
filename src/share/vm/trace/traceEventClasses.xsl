@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@
 // Some parts of traceEvent.hpp are used outside of
 // INCLUDE_TRACE
 
-#include "memory/resourceArea.hpp"
 #include "tracefiles/traceTypes.hpp"
 #include "trace/traceEvent.hpp"
 #include "utilities/macros.hpp"
@@ -135,7 +134,6 @@ public:
 </xsl:text>
   <xsl:value-of select="concat('  Event', @id, '(EventStartTime timing=TIMED) : TraceEvent&lt;Event', @id, '&gt;(timing) {}', $newline)"/>
   void writeEvent(void) {
-    ResourceMark rm;
     if (UseLockedTracing) {
       ttyLocker lock;
       writeEventContent();
