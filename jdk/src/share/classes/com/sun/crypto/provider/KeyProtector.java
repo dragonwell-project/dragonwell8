@@ -119,7 +119,7 @@ final class KeyProtector {
         }
         byte[] plain = key.getEncoded();
         byte[] encrKey = cipher.engineDoFinal(plain, 0, plain.length);
-        Arrays.fill(plain, (byte) 0x00);
+        Arrays.fill(plain, (byte)0x00);
 
         // wrap encrypted private key in EncryptedPrivateKeyInfo
         // (as defined in PKCS#8)
@@ -194,7 +194,7 @@ final class KeyProtector {
         } catch (GeneralSecurityException gse) {
             throw new UnrecoverableKeyException(gse.getMessage());
         } finally {
-            if (plain != null) Arrays.fill(plain, (byte) 0x00);
+            if (plain != null) Arrays.fill(plain, (byte)0x00);
             if (sKey != null) {
                 try {
                     sKey.destroy();
