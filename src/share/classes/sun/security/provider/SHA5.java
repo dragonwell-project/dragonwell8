@@ -25,8 +25,7 @@
 
 package sun.security.provider;
 
-import java.security.*;
-import java.math.BigInteger;
+import java.util.Arrays;
 
 import static sun.security.provider.ByteArrayAccess.*;
 
@@ -98,10 +97,15 @@ abstract class SHA5 extends DigestBase {
         this.initialHashes = initialHashes;
         state = new long[8];
         W = new long[80];
-        implReset();
+        resetHashes();
     }
 
     final void implReset() {
+        resetHashes();
+        Arrays.fill(W, 0L);
+    }
+
+    private void resetHashes() {
         System.arraycopy(initialHashes, 0, state, 0, state.length);
     }
 
