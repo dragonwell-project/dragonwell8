@@ -89,6 +89,8 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         }
         // Convert the password from char[] to byte[]
         byte[] passwdBytes = getPasswordBytes(this.passwd);
+        // remove local copy
+        if (passwd != null) Arrays.fill(passwd, '\0');
 
         this.salt = keySpec.getSalt();
         if (salt == null) {
@@ -108,13 +110,15 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         }
         try {
             this.prf = Mac.getInstance(prfAlgo, SunJCE.getInstance());
+            this.key = deriveKey(prf, passwdBytes, salt, iterCount, keyLength);
         } catch (NoSuchAlgorithmException nsae) {
             // not gonna happen; re-throw just in case
             InvalidKeySpecException ike = new InvalidKeySpecException();
             ike.initCause(nsae);
             throw ike;
+        } finally {
+            Arrays.fill(passwdBytes, (byte)0x00);
         }
-        this.key = deriveKey(prf, passwdBytes, salt, iterCount, keyLength);
     }
 
     private static byte[] deriveKey(final Mac prf, final byte[] password,
@@ -240,8 +244,8 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         if (!(that.getFormat().equalsIgnoreCase("RAW")))
             return false;
         byte[] thatEncoded = that.getEncoded();
-        boolean ret = MessageDigest.isEqual(key, that.getEncoded());
-        java.util.Arrays.fill(thatEncoded, (byte)0x00);
+        boolean ret = MessageDigest.isEqual(key, thatEncoded);
+        Arrays.fill(thatEncoded, (byte)0x00);
         return ret;
     }
 
@@ -266,7 +270,7 @@ final class PBKDF2KeyImpl implements javax.crypto.interfaces.PBEKey {
         try {
             synchronized (this) {
                 if (this.passwd != null) {
-                    java.util.Arrays.fill(this.passwd, '0');
+                    java.util.Arrays.fill(this.passwd, '\0');
                     this.passwd = null;
                 }
                 if (this.key != null) {
