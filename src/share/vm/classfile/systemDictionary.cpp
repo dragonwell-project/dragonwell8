@@ -139,6 +139,9 @@ bool SystemDictionary::is_internal_format(Symbol* class_name) {
 }
 
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 // ----------------------------------------------------------------------------
 // Parallel class loading check
@@ -1749,6 +1752,7 @@ bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive, bool clean_aliv
   // First, mark for unload all ClassLoaderData referencing a dead class loader.
   bool unloading_occurred = ClassLoaderDataGraph::do_unloading(is_alive, clean_alive);
   if (unloading_occurred) {
+    JFR_ONLY(Jfr::on_unloading_classes();)
     dictionary()->do_unloading();
     constraints()->purge_loader_constraints();
     resolution_errors()->purge_resolution_errors();
