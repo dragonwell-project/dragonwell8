@@ -289,9 +289,6 @@ sun/security/rsa/SpecTest.java                                  linux-i586
 # 8043951
 sun/security/pkcs11/MessageDigest/TestCloning.java              solaris-all
 
-# 8156709
-sun/security/provider/SecureRandom/StrongSecureRandom.java      macosx-x64
-
 # 8163498
 sun/security/provider/NSASuiteB/TestDSAGenParameterSpec.java    linux-i586
 
