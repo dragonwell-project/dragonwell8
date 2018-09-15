@@ -149,12 +149,27 @@ public final class SunLayoutEngine implements LayoutEngine, LayoutEngineFactory 
         this.key = key;
     }
 
+    private boolean isAAT(Font2D font) {
+        if (font instanceof TrueTypeFont) {
+            TrueTypeFont ttf = (TrueTypeFont)font;
+            return ttf.getDirectoryEntry(TrueTypeFont.morxTag) != null ||
+                   ttf.getDirectoryEntry(TrueTypeFont.mortTag) != null;
+        } else if (font instanceof PhysicalFont) {
+            PhysicalFont pf = (PhysicalFont)font;
+            return pf.getTableBytes(TrueTypeFont.morxTag) != null ||
+                   pf.getTableBytes(TrueTypeFont.mortTag) != null;
+        }
+        return false;
+    }
+
     public void layout(FontStrikeDesc desc, float[] mat, int gmask,
                        int baseIndex, TextRecord tr, int typo_flags,
                        Point2D.Float pt, GVData data) {
         Font2D font = key.font();
         FontStrike strike = font.getStrike(desc);
-        long layoutTables = font.getLayoutTableCache();
+        // Ignore layout tables for RTL AAT fonts due to lack of support in ICU
+        long layoutTables = (((typo_flags & 0x80000000) != 0) && isAAT(font)) ? 0 :
+                                font.getLayoutTableCache();
         nativeLayout(font, strike, mat, gmask, baseIndex,
              tr.text, tr.start, tr.limit, tr.min, tr.max,
              key.script(), key.lang(), typo_flags, pt, data,
