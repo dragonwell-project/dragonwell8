@@ -56,21 +56,21 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 # $2 - optional variable prefix for comparable variable (OPENJDK_BUILD_)
 AC_DEFUN([TOOLCHAIN_PREPARE_FOR_VERSION_COMPARISONS],
 [
-  if test "x$CC_VERSION" != "x$CXX_VERSION"; then
-    AC_MSG_WARN([C and C++ compiler has different version numbers, $CC_VERSION vs $CXX_VERSION.])
+  if test "x$CC_VERSION_NUMBER" != "x$CXX_VERSION_NUMBER"; then
+    AC_MSG_WARN([C and C++ compiler has different version numbers, $CC_VERSION_NUMBER vs $CXX_VERSION_NUMBER.])
     AC_MSG_WARN([This typically indicates a broken setup, and is not supported])
   fi
 
-  # We only check CC_VERSION since we assume CXX_VERSION is equal.
-  if [ [[ "$CC_VERSION" =~ (.*\.){3} ]] ]; then
+  # We only check CC_VERSION_NUMBER since we assume CXX_VERSION_NUMBER is equal.
+  if [ [[ "$CC_VERSION_NUMBER" =~ (.*\.){3} ]] ]; then
     AC_MSG_WARN([C compiler version number has more than three parts (X.Y.Z): $CC_VERSION. Comparisons might be wrong.])
   fi
 
-  if [ [[  "$CC_VERSION" =~ [0-9]{6} ]] ]; then
+  if [ [[  "$CC_VERSION_NUMBER" =~ [0-9]{6} ]] ]; then
     AC_MSG_WARN([C compiler version number has a part larger than 99999: $CC_VERSION. Comparisons might be wrong.])
   fi
 
-  $2COMPARABLE_ACTUAL_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", [$]1, [$]2, [$]3) }' <<< "$CC_VERSION"`
+  $2COMPARABLE_ACTUAL_VERSION=`$AWK -F. '{ printf("%05d%05d%05d\n", [$]1, [$]2, [$]3) }' <<< "$CC_VERSION_NUMBER"`
 ])
 
 # Check if the configured compiler (C and C++) is of a specific version or
