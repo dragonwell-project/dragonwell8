@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,27 +47,39 @@ class MacOSXPreferences extends AbstractPreferences {
     private final String path;
 
     // User root and system root nodes
-    private static MacOSXPreferences userRoot = null;
-    private static MacOSXPreferences systemRoot = null;
+    private static volatile MacOSXPreferences userRoot;
+    private static volatile MacOSXPreferences systemRoot;
 
 
     // Returns user root node, creating it if necessary.
     // Called by MacOSXPreferencesFactory
-    static synchronized Preferences getUserRoot() {
-        if (userRoot == null) {
-            userRoot = new MacOSXPreferences(true);
+    static Preferences getUserRoot() {
+        MacOSXPreferences root = userRoot;
+        if (root == null) {
+            synchronized (MacOSXPreferences.class) {
+                root = userRoot;
+                if (root == null) {
+                    userRoot = root = new MacOSXPreferences(true);
+                }
+            }
         }
-        return userRoot;
+        return root;
     }
 
 
     // Returns system root node, creating it if necessary.
     // Called by MacOSXPreferencesFactory
-    static synchronized Preferences getSystemRoot() {
-        if (systemRoot == null) {
-            systemRoot = new MacOSXPreferences(false);
+    static Preferences getSystemRoot() {
+        MacOSXPreferences root = systemRoot;
+        if (root == null) {
+            synchronized (MacOSXPreferences.class) {
+                root = systemRoot;
+                if (root == null) {
+                    systemRoot = root = new MacOSXPreferences(false);
+                }
+            }
         }
-        return systemRoot;
+        return root;
     }
 
 
