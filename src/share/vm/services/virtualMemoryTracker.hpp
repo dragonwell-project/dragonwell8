@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -305,7 +305,7 @@ class ReservedMemoryRegion : public VirtualMemoryRegion {
 
 
   ReservedMemoryRegion(address base, size_t size) :
-    VirtualMemoryRegion(base, size), _stack(NativeCallStack::EMPTY_STACK), _flag(mtNone),
+    VirtualMemoryRegion(base, size), _stack(NativeCallStack::empty_stack()), _flag(mtNone),
     _all_committed(false) { }
 
   // Copy constructor

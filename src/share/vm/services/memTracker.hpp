@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,8 @@
 
 #if !INCLUDE_NMT
 
-#define CURRENT_PC   NativeCallStack::EMPTY_STACK
-#define CALLER_PC    NativeCallStack::EMPTY_STACK
+#define CURRENT_PC   NativeCallStack::empty_stack()
+#define CALLER_PC    NativeCallStack::empty_stack()
 
 class Tracker : public StackObj {
  public:
@@ -83,9 +83,9 @@ class MemTracker : AllStatic {
 extern volatile bool NMT_stack_walkable;
 
 #define CURRENT_PC ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ? \
-                    NativeCallStack(0, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(0, true) : NativeCallStack::empty_stack())
 #define CALLER_PC  ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ?  \
-                    NativeCallStack(1, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(1, true) : NativeCallStack::empty_stack())
 
 class MemBaseline;
 class Mutex;
