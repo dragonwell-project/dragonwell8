@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,10 @@ import java.net.*;
 import java.io.*;
 import java.lang.reflect.Method;
 import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -41,6 +45,8 @@ import sun.security.krb5.internal.ktab.KeyTab;
 import sun.security.util.DerInputStream;
 import sun.security.util.DerOutputStream;
 import sun.security.util.DerValue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A KDC server.
@@ -122,6 +128,9 @@ import sun.security.util.DerValue;
 public class KDC {
 
     // Under the hood.
+
+    public static final int DEFAULT_LIFETIME = 39600;
+    public static final int DEFAULT_RENEWTIME = 86400;
 
     // The random generator to generate random keys (including session keys)
     private static SecureRandom secureRandom = new SecureRandom();
@@ -620,6 +629,15 @@ public class KDC {
     }
 
     /**
+     * Returns a KerberosTime.
+     *
+     * @param offset offset from NOW in seconds
+     */
+    private static KerberosTime timeAfter(int offset) {
+        return new KerberosTime(new Date().getTime() + offset * 1000L);
+    }
+
+    /**
      * Processes an incoming request and generates a response.
      * @param in the request
      * @return the response
@@ -919,11 +937,27 @@ public class KDC {
             EncryptionKey key = generateRandomKey(eType);
             // Check time, TODO
             KerberosTime till = body.till;
+            KerberosTime rtime = body.rtime;
             if (till == null) {
                 throw new KrbException(Krb5.KDC_ERR_NEVER_VALID); // TODO
             } else if (till.isZero()) {
-                till = new KerberosTime(new Date().getTime() + 1000 * 3600 * 11);
+                String ttlsVal = System.getProperty("test.kdc.ttl.value");
+                if (ttlsVal != null){
+                    till = timeAfter(duration(ttlsVal));
+                    if (till.greaterThan(timeAfter(24 * 3600)) &&
+                        (System.getProperty("test.kdc.force.till") == null)) {
+                        till = timeAfter(DEFAULT_LIFETIME);
+                        body.kdcOptions.set(KDCOptions.RENEWABLE, true);
+                    }
+                } else {
+                    till = timeAfter(DEFAULT_LIFETIME);
+                }
             }
+
+            if (rtime == null && body.kdcOptions.get(KDCOptions.RENEWABLE)) {
+                rtime = timeAfter(DEFAULT_RENEWTIME);
+            }
+
             //body.from
             boolean[] bFlags = new boolean[Krb5.TKT_OPTS_MAX+1];
             if (body.kdcOptions.get(KDCOptions.FORWARDABLE)) {
@@ -1079,7 +1113,7 @@ public class KDC {
                     new TransitedEncoding(1, new byte[0]),
                     new KerberosTime(new Date()),
                     body.from,
-                    till, body.rtime,
+                    till, rtime,
                     body.addresses,
                     null);
             Ticket t = new Ticket(
@@ -1097,7 +1131,7 @@ public class KDC {
                     tFlags,
                     new KerberosTime(new Date()),
                     body.from,
-                    till, body.rtime,
+                    till, rtime,
                     service,
                     body.addresses
                     );
@@ -1166,6 +1200,72 @@ public class KDC {
             }
             return kerr.asn1Encode();
         }
+    }
+
+    /**
+     * Translates a duration value into seconds.
+     *
+     * The format can be one of "h:m[:s]", "NdNhNmNs", and "N". See
+     * http://web.mit.edu/kerberos/krb5-devel/doc/basic/date_format.html#duration
+     * for definitions.
+     *
+     * @param s the string duration
+     * @return time in seconds
+     * @throw KrbException if format is illegal
+     */
+    public static int duration(String s) throws KrbException {
+
+        if (s.isEmpty()) {
+            throw new KrbException("Duration cannot be empty");
+        }
+
+        // N
+        if (s.matches("\\d+")) {
+            return Integer.parseInt(s);
+        }
+
+        // h:m[:s]
+        Matcher m = Pattern.compile("(\\d+):(\\d+)(:(\\d+))?").matcher(s);
+        if (m.matches()) {
+            int hr = Integer.parseInt(m.group(1));
+            int min = Integer.parseInt(m.group(2));
+            if (min >= 60) {
+                throw new KrbException("Illegal duration format " + s);
+            }
+            int result = hr * 3600 + min * 60;
+            if (m.group(4) != null) {
+                int sec = Integer.parseInt(m.group(4));
+                if (sec >= 60) {
+                    throw new KrbException("Illegal duration format " + s);
+                }
+                result += sec;
+            }
+            return result;
+        }
+
+        // NdNhNmNs
+        // 120m allowed. Maybe 1h120m is not good, but still allowed
+        m = Pattern.compile(
+                    "((\\d+)d)?\\s*((\\d+)h)?\\s*((\\d+)m)?\\s*((\\d+)s)?",
+                Pattern.CASE_INSENSITIVE).matcher(s);
+        if (m.matches()) {
+            int result = 0;
+            if (m.group(2) != null) {
+                result += 86400 * Integer.parseInt(m.group(2));
+            }
+            if (m.group(4) != null) {
+                result += 3600 * Integer.parseInt(m.group(4));
+            }
+            if (m.group(6) != null) {
+                result += 60 * Integer.parseInt(m.group(6));
+            }
+            if (m.group(8) != null) {
+                result += Integer.parseInt(m.group(8));
+            }
+            return result;
+        }
+
+        throw new KrbException("Illegal duration format " + s);
     }
 
     /**
