@@ -846,13 +846,24 @@ const TypeFunc* OptoRuntime::aescrypt_block_Type() {
  */
 const TypeFunc* OptoRuntime::updateBytesCRC32_Type() {
   // create input type (domain)
-  int num_args      = 3;
+  int num_args = 3;
   int argcnt = num_args;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    argcnt += 2;
+  }
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
-  fields[argp++] = TypeInt::INT;        // crc
-  fields[argp++] = TypePtr::NOTNULL;    // src
-  fields[argp++] = TypeInt::INT;        // len
+  if (CCallingConventionRequiresIntsAsLongs) {
+    fields[argp++] = TypeLong::LONG;   // crc
+    fields[argp++] = Type::HALF;
+    fields[argp++] = TypePtr::NOTNULL; // src
+    fields[argp++] = TypeLong::LONG;   // len
+    fields[argp++] = Type::HALF;
+  } else {
+    fields[argp++] = TypeInt::INT;     // crc
+    fields[argp++] = TypePtr::NOTNULL; // src
+    fields[argp++] = TypeInt::INT;     // len
+  }
   assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
