@@ -150,10 +150,12 @@ void VM_Version::initialize() {
 
   assert(AllocatePrefetchStyle >= 0, "AllocatePrefetchStyle should be positive");
 
-  if (UseCRC32Intrinsics) {
-    if (!FLAG_IS_DEFAULT(UseCRC32Intrinsics))
-      warning("CRC32 intrinsics  are not available on this CPU");
-    FLAG_SET_DEFAULT(UseCRC32Intrinsics, false);
+  // Implementation does not use any of the vector instructions
+  // available with Power8. Their exploitation is still pending.
+  if (!UseCRC32Intrinsics) {
+    if (FLAG_IS_DEFAULT(UseCRC32Intrinsics)) {
+      FLAG_SET_DEFAULT(UseCRC32Intrinsics, true);
+    }
   }
 
   // The AES intrinsic stubs require AES instruction support.

@@ -33,5 +33,7 @@
   address generate_abstract_entry(void);
   address generate_accessor_entry(void);
   address generate_Reference_get_entry(void);
+  address generate_CRC32_update_entry();
+  address generate_CRC32_updateBytes_entry(AbstractInterpreter::MethodKind kind);
 
 #endif // CPU_PPC_VM_INTERPRETERGENERATOR_PPC_HPP
