@@ -539,6 +539,9 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
       CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_BIG_ENDIAN"
     fi
   fi
+  if test "x$OPENJDK_TARGET_CPU" = xppc64le; then
+    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DABI_ELFv2"
+  fi
   
   # Setup target OS define. Use OS target name but in upper case.
   OPENJDK_TARGET_OS_UPPERCASE=`$ECHO $OPENJDK_TARGET_OS | $TR 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`

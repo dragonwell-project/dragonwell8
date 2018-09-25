@@ -4337,7 +4337,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1537356874
+DATE_WHEN_GENERATED=1538732652
 
 ###############################################################################
 #
@@ -13612,7 +13612,7 @@ test -n "$target_alias" &&
       VAR_CPU_ENDIAN=big
       ;;
     powerpc64le)
-      VAR_CPU=ppc64
+      VAR_CPU=ppc64le
       VAR_CPU_ARCH=ppc
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
@@ -13750,7 +13750,7 @@ $as_echo "$OPENJDK_BUILD_OS-$OPENJDK_BUILD_CPU" >&6; }
       VAR_CPU_ENDIAN=big
       ;;
     powerpc64le)
-      VAR_CPU=ppc64
+      VAR_CPU=ppc64le
       VAR_CPU_ARCH=ppc
       VAR_CPU_BITS=64
       VAR_CPU_ENDIAN=little
@@ -14570,7 +14570,7 @@ $as_echo "$with_jvm_variants" >&6; }
   if test "x$JVM_VARIANT_ZEROSHARK" = xtrue ; then
     INCLUDE_SA=false
   fi
-  if test "x$VAR_CPU" = xppc64 ; then
+  if test "x$VAR_CPU" = xppc64 -o "x$VAR_CPU" = xppc64le ; then
     INCLUDE_SA=false
   fi
   if test "x$OPENJDK_TARGET_CPU" = xaarch64; then
@@ -41736,6 +41736,9 @@ $as_echo "$supports" >&6; }
     else
       CCXXFLAGS_JDK="$CCXXFLAGS_JDK -D_BIG_ENDIAN"
     fi
+  fi
+  if test "x$OPENJDK_TARGET_CPU" = xppc64le; then
+    CCXXFLAGS_JDK="$CCXXFLAGS_JDK -DABI_ELFv2"
   fi
 
   # Setup target OS define. Use OS target name but in upper case.
