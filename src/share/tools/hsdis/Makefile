@@ -97,6 +97,7 @@ ifdef LP64
 CFLAGS/sparcv9	+= -m64
 CFLAGS/amd64	+= -m64
 CFLAGS/ppc64	+= -m64
+CFLAGS/ppc64le  += -m64 -DABI_ELFv2
 else
 ARCH=$(ARCH1:amd64=i386)
 CFLAGS/i386	+= -m32

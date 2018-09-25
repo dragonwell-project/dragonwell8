@@ -184,11 +184,16 @@ const char* Abstract_VM_Version::jre_release_version() {
 #ifndef CPU
 #ifdef ZERO
 #define CPU      ZERO_LIBARCH
+#elif defined(PPC64)
+#if defined(VM_LITTLE_ENDIAN)
+#define CPU      "ppc64le"
+#else
+#define CPU      "ppc64"
+#endif
 #else
 #define CPU      IA32_ONLY("x86")                \
                  IA64_ONLY("ia64")               \
                  AMD64_ONLY("amd64")             \
-                 PPC64_ONLY("ppc64")             \
                  SPARC_ONLY("sparc")
 #endif // ZERO
 #endif
