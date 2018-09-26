@@ -26,6 +26,7 @@
 package sun.security.provider;
 
 import java.security.*;
+import java.util.Arrays;
 
 import static sun.security.provider.ByteArrayAccess.*;
 
@@ -90,7 +91,7 @@ public final class MD4 extends DigestBase {
         super("MD4", 16, 64);
         state = new int[4];
         x = new int[16];
-        implReset();
+        resetHashes();
     }
 
     // clone this object
@@ -106,6 +107,12 @@ public final class MD4 extends DigestBase {
      */
     void implReset() {
         // Load magic initialization constants.
+        resetHashes();
+        // clear out old data
+        Arrays.fill(x, 0);
+    }
+
+    private void resetHashes() {
         state[0] = 0x67452301;
         state[1] = 0xefcdab89;
         state[2] = 0x98badcfe;
