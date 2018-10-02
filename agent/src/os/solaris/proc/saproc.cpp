@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -755,7 +755,8 @@ static void attach_internal(JNIEnv* env, jobject this_obj, jstring cmdLine, jboo
 #endif
 
   // connect to process/core
-  struct ps_prochandle* ph = proc_arg_grab(cmdLine_cstr, (isProcess? PR_ARG_PIDS : PR_ARG_CORES), PGRAB_FORCE, &gcode);
+  ps_prochandle_t* ph = proc_arg_grab(cmdLine_cstr, (isProcess? PR_ARG_PIDS : PR_ARG_CORES), PGRAB_FORCE, &gcode, NULL);
+
   env->ReleaseStringUTFChars(cmdLine, cmdLine_cstr);
   if (! ph) {
      if (gcode > 0 && gcode < sizeof(proc_arg_grab_errmsgs)/sizeof(const char*)) {
@@ -1233,7 +1234,8 @@ JNIEXPORT jobject JNICALL Java_sun_jvm_hotspot_debugger_proc_ProcDebuggerLocal_l
    char nameBuf[SYMBOL_BUF_SIZE + 1];
    GElf_Sym sym;
    int res = Plookup_by_addr((struct ps_prochandle*) p_ps_prochandle, (uintptr_t) address,
-                                 nameBuf, sizeof(nameBuf), &sym);
+                             nameBuf, sizeof(nameBuf), &sym, NULL);
+
    if (res != 0) { // failed
       return 0;
    }
