@@ -734,20 +734,6 @@ public class ImageView extends View {
                 newState |= HEIGHT_FLAG;
             }
 
-            if (newWidth <= 0) {
-                newWidth = newImage.getWidth(imageObserver);
-                if (newWidth <= 0) {
-                    newWidth = DEFAULT_WIDTH;
-                }
-            }
-
-            if (newHeight <= 0) {
-                newHeight = newImage.getHeight(imageObserver);
-                if (newHeight <= 0) {
-                    newHeight = DEFAULT_HEIGHT;
-                }
-            }
-
             // Make sure the image starts loading:
             if ((newState & (WIDTH_FLAG | HEIGHT_FLAG)) != 0) {
                 Toolkit.getDefaultToolkit().prepareImage(newImage, newWidth,
@@ -909,6 +895,34 @@ public class ImageView extends View {
                     changed |= 2;
                 }
 
+                /**
+                 * If the image properties (height and width) have been loaded,
+                 * tehn figure out if scaling is necessary based on the
+                 * specified HTML attributes.
+                 */
+                if (((flags & ImageObserver.HEIGHT) != 0) &&
+                     ((flags & ImageObserver.WIDTH) != 0)) {
+                    double proportion = 0.0;
+                    final int specifiedWidth = getIntAttr(HTML.Attribute.WIDTH, -1 );
+                    final int specifiedHeight = getIntAttr(HTML.Attribute.HEIGHT, -1);
+                    /**
+                     * If either of the attributes are not specified, then calculate the
+                     * proportion for the specified dimension wrt actual value, and then
+                     * apply the same proportion to the unspecified dimension as well,
+                     * so that the aspect ratio of the image is maintained.
+                     */
+                    if (specifiedWidth != -1 ^ specifiedHeight != -1) {
+                        if (specifiedWidth <= 0) {
+                            proportion = specifiedHeight / ((double)newHeight);
+                            newWidth = (int)(proportion * newWidth);
+                        }
+                        if (specifiedHeight <= 0) {
+                            proportion = specifiedWidth / ((double)newWidth);
+                            newHeight = (int)(proportion * newHeight);
+                        }
+                        changed |= 3;
+                    }
+                }
                 synchronized(ImageView.this) {
                     if ((changed & 1) == 1 && (state & HEIGHT_FLAG) == 0) {
                         height = newHeight;
