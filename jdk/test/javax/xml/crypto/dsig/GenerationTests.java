@@ -23,11 +23,12 @@
 
 /**
  * @test
- * @bug 4635230 6283345 6303830 6824440 6867348 7094155 8038184 8038349 8074784
+ * @bug 4635230 6283345 6303830 6824440 6867348 7094155 8038184
+ * 8038349 8074784 8210736
  * @summary Basic unit tests for generating XML Signatures with JSR 105
  * @compile -XDignore.symbol.file KeySelectors.java SignatureValidator.java
  *     X509KeySelector.java GenerationTests.java
- * @run main/othervm GenerationTests
+ * @run main/othervm -Dsun.net.httpserver.nodelay=true GenerationTests
  * @author Sean Mullan
  */
 
