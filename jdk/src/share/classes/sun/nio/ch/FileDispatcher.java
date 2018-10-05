@@ -36,11 +36,16 @@ abstract class FileDispatcher extends NativeDispatcher {
     public static final int RET_EX_LOCK = 1;    // Obtained exclusive lock
     public static final int INTERRUPTED = 2;    // Request interrupted
 
+    /**
+     * Sets or reports this file's position
+     * If offset is -1, the current position is returned
+     * otherwise the position is set to offset.
+     */
+    abstract long seek(FileDescriptor fd, long offset) throws IOException;
+
     abstract int force(FileDescriptor fd, boolean metaData) throws IOException;
 
     abstract int truncate(FileDescriptor fd, long size) throws IOException;
-
-    abstract int allocate(FileDescriptor fd, long size) throws IOException;
 
     abstract long size(FileDescriptor fd) throws IOException;
 
