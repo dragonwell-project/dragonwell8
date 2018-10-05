@@ -27,25 +27,19 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jvm.h"
-#include "jlong.h"
-#include "sun_nio_ch_FileDispatcherImpl.h"
-#include "java_lang_Long.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #if defined(__linux__)
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #endif
-#include "nio.h"
-#include "nio_util.h"
 
-#ifdef _ALLBSD_SOURCE
+#if defined(_ALLBSD_SOURCE)
+#define lseek64 lseek
 #define stat64 stat
 #define flock64 flock
 #define off64_t off_t
@@ -59,6 +53,15 @@
 
 #define fdatasync fsync
 #endif
+
+#include "jni.h"
+#include "jni_util.h"
+#include "jvm.h"
+#include "jlong.h"
+#include "nio.h"
+#include "nio_util.h"
+#include "sun_nio_ch_FileDispatcherImpl.h"
+#include "java_lang_Long.h"
 
 static int preCloseFD = -1;     /* File descriptor to which we dup other fd's
                                    before closing them for real */
@@ -145,6 +148,20 @@ handle(JNIEnv *env, jlong rv, char *msg)
     return IOS_THROWN;
 }
 
+JNIEXPORT jlong JNICALL
+Java_sun_nio_ch_FileDispatcherImpl_seek0(JNIEnv *env, jclass clazz,
+                                         jobject fdo, jlong offset)
+{
+    jint fd = fdval(env, fdo);
+    off64_t result;
+    if (offset < 0) {
+        result = lseek64(fd, 0, SEEK_CUR);
+    } else {
+        result = lseek64(fd, offset, SEEK_SET);
+    }
+    return handle(env, (jlong)result, "lseek64 failed");
+}
+
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_FileDispatcherImpl_force0(JNIEnv *env, jobject this,
                                           jobject fdo, jboolean md)
@@ -177,30 +194,6 @@ JNIEXPORT jint JNICALL
 Java_sun_nio_ch_FileDispatcherImpl_truncate0(JNIEnv *env, jobject this,
                                              jobject fdo, jlong size)
 {
-    return handle(env,
-                  ftruncate64(fdval(env, fdo), size),
-                  "Truncation failed");
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_FileDispatcherImpl_allocate0(JNIEnv *env, jobject this,
-                                             jobject fdo, jlong size)
-{
-#if defined(__linux__)
-    /*
-     * On Linux, if the file size is being increased, then ftruncate64()
-     * will modify the metadata value of the size without actually allocating
-     * any blocks which can cause a SIGBUS error if the file is subsequently
-     * memory-mapped.
-     */
-    // Return on success or if errno is neither EOPNOTSUPP nor ENOSYS
-    int result = posix_fallocate(fdval(env, fdo), 0, size);
-    if (result == 0) {
-        return 0;
-    } else if (errno != EOPNOTSUPP && errno != ENOSYS) {
-        return handle(env, result, "Allocation failed");
-    }
-#endif
     return handle(env,
                   ftruncate64(fdval(env, fdo), size),
                   "Truncation failed");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,30 +140,6 @@ Java_sun_nio_ch_FileChannelImpl_unmap0(JNIEnv *env, jobject this,
     return 0;
 }
 
-JNIEXPORT jlong JNICALL
-Java_sun_nio_ch_FileChannelImpl_position0(JNIEnv *env, jobject this,
-                                          jobject fdo, jlong offset)
-{
-    DWORD lowPos = 0;
-    long highPos = 0;
-    HANDLE h = (HANDLE)(handleval(env, fdo));
-
-    if (offset < 0) {
-        lowPos = SetFilePointer(h, 0, &highPos, FILE_CURRENT);
-    } else {
-        lowPos = (DWORD)offset;
-        highPos = (long)(offset >> 32);
-        lowPos = SetFilePointer(h, lowPos, &highPos, FILE_BEGIN);
-    }
-    if (lowPos == ((DWORD)-1)) {
-        if (GetLastError() != ERROR_SUCCESS) {
-            JNU_ThrowIOExceptionWithLastError(env, "Seek failed");
-            return IOS_THROWN;
-        }
-    }
-    return (((jlong)highPos) << 32) | lowPos;
-}
-
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_FileChannelImpl_close0(JNIEnv *env, jobject this, jobject fdo)
 {
@@ -184,14 +160,17 @@ Java_sun_nio_ch_FileChannelImpl_transferTo0(JNIEnv *env, jobject this,
 {
     const int PACKET_SIZE = 524288;
 
+    LARGE_INTEGER where;
     HANDLE src = (HANDLE)(handleval(env, srcFD));
     SOCKET dst = (SOCKET)(fdval(env, dstFD));
     DWORD chunkSize = (count > java_lang_Integer_MAX_VALUE) ?
         java_lang_Integer_MAX_VALUE : (DWORD)count;
-    BOOL result = 0;
+    BOOL result;
 
-    jlong pos = Java_sun_nio_ch_FileChannelImpl_position0(env, this, srcFD, position);
-    if (pos == IOS_THROWN) {
+    where.QuadPart = position;
+    result = SetFilePointerEx(src, where, &where, FILE_BEGIN);
+    if (result == 0) {
+        JNU_ThrowIOExceptionWithLastError(env, "SetFilePointerEx failed");
         return IOS_THROWN;
     }
 
