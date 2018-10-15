@@ -26,4 +26,6 @@ grant {
 
     // permission to use SunJCE provider
     permission java.security.SecurityPermission "putProviderProperty.SunJCE";
+    // permission to reset the tls disabledalgos
+    permission "java.security.SecurityPermission" "setProperty.jdk.tls.disabledAlgorithms";
 };
