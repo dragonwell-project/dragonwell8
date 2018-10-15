@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,21 @@
 
 package jdk.testlibrary;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -43,6 +48,72 @@ import java.util.jar.Manifest;
  * Common library for various test jar file utility functions.
  */
 public final class JarUtils {
+
+    /**
+     * Creates a JAR file.
+     *
+     * Equivalent to {@code jar cfm <jarfile> <manifest> -C <dir> file...}
+     *
+     * The input files are resolved against the given directory. Any input
+     * files that are directories are processed recursively.
+     */
+    public static void createJarFile(Path jarfile, Manifest man, Path dir, Path... file)
+        throws IOException
+    {
+        // create the target directory
+        Path parent = jarfile.getParent();
+        if (parent != null)
+            Files.createDirectories(parent);
+
+        List<Path> entries = new ArrayList<>();
+        for (Path entry : file) {
+            Files.find(dir.resolve(entry), Integer.MAX_VALUE,
+                        (p, attrs) -> attrs.isRegularFile())
+                    .map(e -> dir.relativize(e))
+                    .forEach(entries::add);
+        }
+
+        try (OutputStream out = Files.newOutputStream(jarfile);
+             JarOutputStream jos = new JarOutputStream(out))
+        {
+            if (man != null) {
+                JarEntry je = new JarEntry(JarFile.MANIFEST_NAME);
+                jos.putNextEntry(je);
+                man.write(jos);
+                jos.closeEntry();
+            }
+
+            for (Path entry : entries) {
+                String name = toJarEntryName(entry);
+                jos.putNextEntry(new JarEntry(name));
+                Files.copy(dir.resolve(entry), jos);
+                jos.closeEntry();
+            }
+        }
+    }
+
+   /**
+     * Creates a JAR file.
+     *
+     * Equivalent to {@code jar cf <jarfile>  -C <dir> file...}
+     *
+     * The input files are resolved against the given directory. Any input
+     * files that are directories are processed recursively.
+     */
+    public static void createJarFile(Path jarfile, Path dir, Path... file)
+        throws IOException
+    {
+        createJarFile(jarfile, null, dir, file);
+    }
+
+    /**
+     * Creates a JAR file from the contents of a directory.
+     *
+     * Equivalent to {@code jar cf <jarfile> -C <dir> .}
+     */
+    public static void createJarFile(Path jarfile, Path dir) throws IOException {
+        createJarFile(jarfile, dir, Paths.get("."));
+    }
 
     /**
      * Create jar file with specified files. If a specified file does not exist,
@@ -126,6 +197,11 @@ public final class JarUtils {
         changes = new HashMap<>(changes);
 
         System.out.printf("Creating %s from %s...\n", dest, src);
+
+        if (dest.equals(src)) {
+            throw new IOException("src and dest cannot be the same");
+        }
+
         try (JarOutputStream jos = new JarOutputStream(
                 new FileOutputStream(dest))) {
 
@@ -153,6 +229,24 @@ public final class JarUtils {
         System.out.println();
     }
 
+    /**
+     * Update the Manifest inside a jar.
+     *
+     * @param src the original jar file name
+     * @param dest the new jar file name
+     * @param man the Manifest
+     *
+     * @throws IOException
+     */
+    public static void updateManifest(String src, String dest, Manifest man)
+            throws IOException {
+        ByteArrayOutputStream bout = new ByteArrayOutputStream();
+        man.write(bout);
+        Map<String, Object> map = new HashMap<>();
+        map.put(JarFile.MANIFEST_NAME, bout.toByteArray());
+        updateJar(src, dest, map);
+    }
+
     private static void updateEntry(JarOutputStream jos, String name, Object content)
            throws IOException {
         if (content instanceof Boolean) {
@@ -171,5 +265,15 @@ public final class JarUtils {
                 throw new RuntimeException("Unknown type " + content.getClass());
             }
         }
+    }
+
+    /**
+     * Map a file path to the equivalent name in a JAR file
+     */
+    private static String toJarEntryName(Path file) {
+        Path normalized = file.normalize();
+        return normalized.subpath(0, normalized.getNameCount())  // drop root
+                .toString()
+                .replace(File.separatorChar, '/');
     }
 }
