@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,15 +48,19 @@ import java.util.Iterator;
  */
 public class Manifest implements Cloneable {
     // manifest main attributes
-    private Attributes attr = new Attributes();
+    private final Attributes attr = new Attributes();
 
     // manifest entries
-    private Map<String, Attributes> entries = new HashMap<>();
+    private final Map<String, Attributes> entries = new HashMap<>();
+
+    // associated JarVerifier, not null when called by JarFile::getManifest.
+    private final JarVerifier jv;
 
     /**
      * Constructs a new, empty Manifest.
      */
     public Manifest() {
+        jv = null;
     }
 
     /**
@@ -66,7 +70,16 @@ public class Manifest implements Cloneable {
      * @throws IOException if an I/O error has occurred
      */
     public Manifest(InputStream is) throws IOException {
+        this(null, is);
+    }
+
+    /**
+     * Constructs a new Manifest from the specified input stream
+     * and associates it with a JarVerifier.
+     */
+    Manifest(JarVerifier jv, InputStream is) throws IOException {
         read(is);
+        this.jv = jv;
     }
 
     /**
@@ -77,6 +90,7 @@ public class Manifest implements Cloneable {
     public Manifest(Manifest man) {
         attr.putAll(man.getMainAttributes());
         entries.putAll(man.getEntries());
+        jv = man.jv;
     }
 
     /**
@@ -124,6 +138,27 @@ public class Manifest implements Cloneable {
      */
     public Attributes getAttributes(String name) {
         return getEntries().get(name);
+    }
+
+    /**
+     * Returns the Attributes for the specified entry name, if trusted.
+     *
+     * @param name entry name
+     * @return returns the same result as {@link #getAttributes(String)}
+     * @throws SecurityException if the associated jar is signed but this entry
+     *      has been modified after signing (i.e. the section in the manifest
+     *      does not exist in SF files of all signers).
+     */
+    Attributes getTrustedAttributes(String name) {
+        // Note: Before the verification of MANIFEST.MF/.SF/.RSA files is done,
+        // jv.isTrustedManifestEntry() isn't able to detect MANIFEST.MF change.
+        // Users of this method should call SharedSecrets.javaUtilJarAccess()
+        // .ensureInitialization() first.
+        Attributes result = getAttributes(name);
+        if (result != null && jv != null && ! jv.isTrustedManifestEntry(name)) {
+            throw new SecurityException("Untrusted manifest entry: " + name);
+        }
+        return result;
     }
 
     /**
