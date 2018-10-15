@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1131,17 +1131,27 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     }
 
     private void orderAboveSiblings() {
-        // Recursively pop up the windows from the very bottom, (i.e. root owner) so that
-        // the windows are ordered above their nearest owner; ancestors of the window,
-        // which is going to become 'main window', are placed above their siblings.
         CPlatformWindow rootOwner = getRootOwner();
-        if (rootOwner.isVisible() && !rootOwner.isIconified()) {
-            rootOwner.execute(CWrapper.NSWindow::orderFront);
-        }
+
         // Do not order child windows of iconified owner.
         if (!rootOwner.isIconified()) {
             final WindowAccessor windowAccessor = AWTAccessor.getWindowAccessor();
-            orderAboveSiblingsImpl(windowAccessor.getOwnedWindows(rootOwner.target));
+            Window[] windows = windowAccessor.getOwnedWindows(rootOwner.target);
+
+            // No need to order windows if it doesn't own other windows and hence return
+            if (windows.length == 0) {
+                return;
+            }
+
+            // Recursively pop up the windows from the very bottom, (i.e. root owner) so that
+            // the windows are ordered above their nearest owner; ancestors of the window,
+            // which is going to become 'main window', are placed above their siblings.
+            if (rootOwner.isVisible()) {
+                rootOwner.execute(CWrapper.NSWindow::orderFront);
+            }
+
+            // Order child windows.
+            orderAboveSiblingsImpl(windows);
         }
     }
 
