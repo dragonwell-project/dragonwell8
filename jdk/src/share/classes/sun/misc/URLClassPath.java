@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLConnection;
@@ -69,6 +70,8 @@ public class URLClassPath {
     private static final boolean DEBUG_LOOKUP_CACHE;
     private static final boolean DISABLE_JAR_CHECKING;
     private static final boolean DISABLE_ACC_CHECKING;
+    private static final boolean DISABLE_CP_URL_CHECK;
+    private static final boolean DEBUG_CP_URL_CHECK;
 
     static {
         JAVA_VERSION = java.security.AccessController.doPrivileged(
@@ -84,6 +87,13 @@ public class URLClassPath {
         p = AccessController.doPrivileged(
             new GetPropertyAction("jdk.net.URLClassPath.disableRestrictedPermissions"));
         DISABLE_ACC_CHECKING = p != null ? p.equals("true") || p.equals("") : false;
+
+        // This property will be removed in a later release
+        p = AccessController.doPrivileged(
+            new GetPropertyAction("jdk.net.URLClassPath.disableClassPathURLCheck", "true"));
+
+        DISABLE_CP_URL_CHECK = p != null ? p.equals("true") || p.isEmpty() : false;
+        DEBUG_CP_URL_CHECK = "debug".equals(p);
     }
 
     /* The original search path of URLs. */
@@ -977,8 +987,10 @@ public class URLClassPath {
                     { return jar.getInputStream(entry); }
                 public int getContentLength()
                     { return (int)entry.getSize(); }
-                public Manifest getManifest() throws IOException
-                    { return jar.getManifest(); };
+                public Manifest getManifest() throws IOException {
+                    SharedSecrets.javaUtilJarAccess().ensureInitialization(jar);
+                    return jar.getManifest();
+                }
                 public Certificate[] getCertificates()
                     { return entry.getCertificates(); };
                 public CodeSigner[] getCodeSigners()
@@ -1217,10 +1229,50 @@ public class URLClassPath {
             int i = 0;
             while (st.hasMoreTokens()) {
                 String path = st.nextToken();
-                urls[i] = new URL(base, path);
-                i++;
+                URL url = DISABLE_CP_URL_CHECK ? new URL(base, path) : safeResolve(base, path);
+                if (url != null) {
+                    urls[i] = url;
+                    i++;
+                }
+            }
+            if (i == 0) {
+                urls = null;
+            } else if (i != urls.length) {
+                // Truncate nulls from end of array
+                urls = Arrays.copyOf(urls, i);
             }
             return urls;
+        }
+
+        /*
+         * Return a URL for the given path resolved against the base URL, or
+         * null if the resulting URL is invalid.
+         */
+        static URL safeResolve(URL base, String path) {
+            String child = path.replace(File.separatorChar, '/');
+            try {
+                if (!URI.create(child).isAbsolute()) {
+                    URL url = new URL(base, child);
+                    if (base.getProtocol().equalsIgnoreCase("file")) {
+                        return url;
+                    } else {
+                        String bp = base.getPath();
+                        String urlp = url.getPath();
+                        int pos = bp.lastIndexOf('/');
+                        if (pos == -1) {
+                            pos = bp.length() - 1;
+                        }
+                        if (urlp.regionMatches(0, bp, 0, pos + 1)
+                            && urlp.indexOf("..", pos) == -1) {
+                            return url;
+                        }
+                    }
+                }
+            } catch (MalformedURLException | IllegalArgumentException e) {}
+            if (DEBUG_CP_URL_CHECK) {
+                System.err.println("Class-Path entry: \"" + path + "\" ignored in JAR file " + base);
+            }
+            return null;
         }
     }
 
