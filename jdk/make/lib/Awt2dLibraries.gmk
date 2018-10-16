@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -606,7 +606,9 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS),windows macosx),)
         debug_trace.c \
         debug_util.c \
         gnome_interface.c \
+        gtk_interface.c \
         gtk2_interface.c \
+        gtk3_interface.c \
         swing_GTKEngine.c \
         swing_GTKStyle.c \
         rect.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -278,7 +278,17 @@ class GTKStyle extends SynthStyle implements GTKConstants {
         return getColorForState(context, type);
     }
 
+    Font getDefaultFont() {
+        return font;
+    }
+
     protected Font getFontForState(SynthContext context) {
+        Font propFont = UIManager
+                              .getFont(context.getRegion().getName() + ".font");
+        if (propFont != null) {
+            // if font property got a value then return it
+            return propFont;
+        }
         return font;
     }
 
@@ -711,28 +721,32 @@ class GTKStyle extends SynthStyle implements GTKConstants {
         if (region == Region.COMBO_BOX ||
               region == Region.DESKTOP_PANE ||
               region == Region.DESKTOP_ICON ||
-              region == Region.EDITOR_PANE ||
-              region == Region.FORMATTED_TEXT_FIELD ||
               region == Region.INTERNAL_FRAME ||
               region == Region.LIST ||
               region == Region.MENU_BAR ||
               region == Region.PANEL ||
-              region == Region.PASSWORD_FIELD ||
               region == Region.POPUP_MENU ||
               region == Region.PROGRESS_BAR ||
               region == Region.ROOT_PANE ||
               region == Region.SCROLL_PANE ||
-              region == Region.SPINNER ||
               region == Region.SPLIT_PANE_DIVIDER ||
               region == Region.TABLE ||
               region == Region.TEXT_AREA ||
-              region == Region.TEXT_FIELD ||
-              region == Region.TEXT_PANE ||
               region == Region.TOOL_BAR_DRAG_WINDOW ||
               region == Region.TOOL_TIP ||
               region == Region.TREE ||
               region == Region.VIEWPORT) {
             return true;
+        }
+        if (!GTKLookAndFeel.is3()) {
+            if (region == Region.EDITOR_PANE ||
+                  region == Region.FORMATTED_TEXT_FIELD ||
+                  region == Region.PASSWORD_FIELD ||
+                  region == Region.SPINNER ||
+                  region == Region.TEXT_FIELD ||
+                  region == Region.TEXT_PANE) {
+                return true;
+            }
         }
         Component c = context.getComponent();
         String name = c.getName();
@@ -829,6 +843,14 @@ class GTKStyle extends SynthStyle implements GTKConstants {
             int focusPad =
                 getClassSpecificIntValue(context, "focus-padding", 1);
             return indicatorSpacing + focusSize + focusPad;
+        } else if (GTKLookAndFeel.is3() && "ComboBox.forceOpaque".equals(key)) {
+            return true;
+        } else if ("Tree.expanderSize".equals(key)) {
+            Object value = getClassSpecificValue("expander-size");
+            if (value instanceof Integer) {
+                return (Integer)value + 4;
+            }
+            return null;
         }
 
         // Is it a stock icon ?
@@ -1108,9 +1130,9 @@ class GTKStyle extends SynthStyle implements GTKConstants {
     static {
         CLASS_SPECIFIC_MAP = new HashMap<String,String>();
         CLASS_SPECIFIC_MAP.put("Slider.thumbHeight", "slider-width");
+        CLASS_SPECIFIC_MAP.put("Slider.thumbWidth", "slider-length");
         CLASS_SPECIFIC_MAP.put("Slider.trackBorder", "trough-border");
         CLASS_SPECIFIC_MAP.put("SplitPane.size", "handle-size");
-        CLASS_SPECIFIC_MAP.put("Tree.expanderSize", "expander-size");
         CLASS_SPECIFIC_MAP.put("ScrollBar.thumbHeight", "slider-width");
         CLASS_SPECIFIC_MAP.put("ScrollBar.width", "slider-width");
         CLASS_SPECIFIC_MAP.put("TextArea.caretForeground", "cursor-color");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -579,7 +579,7 @@ static void update_poll_timeout(int timeout_control) {
  */
 static uint32_t get_poll_timeout(jlong nextTaskTime)
 {
-    uint32_t ret_timeout;
+    uint32_t ret_timeout = 0;
     uint32_t timeout;
     uint32_t taskTimeout;
     uint32_t flushTimeout;
