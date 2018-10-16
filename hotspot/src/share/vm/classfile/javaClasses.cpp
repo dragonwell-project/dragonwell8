@@ -1961,7 +1961,7 @@ Handle java_lang_reflect_Method::create(TRAPS) {
   // This class is eagerly initialized during VM initialization, since we keep a refence
   // to one of the methods
   assert(InstanceKlass::cast(klass)->is_initialized(), "must be initialized");
-  return InstanceKlass::cast(klass)->allocate_instance_handle(CHECK_NH);
+  return InstanceKlass::cast(klass)->allocate_instance_handle(THREAD);
 }
 
 oop java_lang_reflect_Method::clazz(oop reflect) {

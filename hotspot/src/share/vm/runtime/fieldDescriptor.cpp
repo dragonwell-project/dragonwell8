@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,7 @@ jdouble fieldDescriptor::double_initial_value() const {
 }
 
 oop fieldDescriptor::string_initial_value(TRAPS) const {
-  return constants()->uncached_string_at(initial_value_index(), CHECK_0);
+  return constants()->uncached_string_at(initial_value_index(), THREAD);
 }
 
 void fieldDescriptor::reinitialize(InstanceKlass* ik, int index) {

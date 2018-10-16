@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -581,7 +581,7 @@ bool InstanceKlass::verify_code(
   // 1) Verify the bytecodes
   Verifier::Mode mode =
     throw_verifyerror ? Verifier::ThrowException : Verifier::NoException;
-  return Verifier::verify(this_oop, mode, this_oop->should_verify_class(), CHECK_false);
+  return Verifier::verify(this_oop, mode, this_oop->should_verify_class(), THREAD);
 }
 
 
@@ -1195,7 +1195,7 @@ Klass* InstanceKlass::array_klass_impl(instanceKlassHandle this_oop, bool or_nul
   if (or_null) {
     return oak->array_klass_or_null(n);
   }
-  return oak->array_klass(n, CHECK_NULL);
+  return oak->array_klass(n, THREAD);
 }
 
 Klass* InstanceKlass::array_klass_impl(bool or_null, TRAPS) {

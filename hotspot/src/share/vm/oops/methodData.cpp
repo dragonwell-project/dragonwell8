@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -681,7 +681,7 @@ MethodData* MethodData::allocate(ClassLoaderData* loader_data, methodHandle meth
   int size = MethodData::compute_allocation_size_in_words(method);
 
   return new (loader_data, size, false, MetaspaceObj::MethodDataType, THREAD)
-    MethodData(method(), size, CHECK_NULL);
+    MethodData(method(), size, THREAD);
 }
 
 int MethodData::bytecode_cell_count(Bytecodes::Code code) {

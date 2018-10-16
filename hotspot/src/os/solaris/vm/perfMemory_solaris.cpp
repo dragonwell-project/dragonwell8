@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -666,7 +666,7 @@ static char* get_user_name(int vmid, TRAPS) {
   // since the structured procfs and old procfs interfaces can't be
   // mixed, we attempt to find the file through a directory search.
 
-  return get_user_name_slow(vmid, CHECK_NULL);
+  return get_user_name_slow(vmid, THREAD);
 }
 
 // return the file name of the backing store file for the named
