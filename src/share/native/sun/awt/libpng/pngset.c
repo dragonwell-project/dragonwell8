@@ -29,8 +29,8 @@
  * However, the following notice accompanied the original version of this
  * file and, per its terms, should not be removed:
  *
- * Last changed in libpng 1.6.26 [October 20, 2016]
- * Copyright (c) 1998-2016 Glenn Randers-Pehrson
+ * Last changed in libpng 1.6.35 [July 15, 2018]
+ * Copyright (c) 1998-2018 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -161,6 +161,53 @@ png_set_cHRM_XYZ(png_const_structrp png_ptr, png_inforp info_ptr, double red_X,
 #  endif /* FLOATING_POINT */
 
 #endif /* cHRM */
+
+#ifdef PNG_eXIf_SUPPORTED
+void PNGAPI
+png_set_eXIf(png_const_structrp png_ptr, png_inforp info_ptr,
+    const png_bytep eXIf_buf)
+{
+  png_warning(png_ptr, "png_set_eXIf does not work; use png_set_eXIf_1");
+  PNG_UNUSED(info_ptr)
+  PNG_UNUSED(eXIf_buf)
+}
+
+void PNGAPI
+png_set_eXIf_1(png_const_structrp png_ptr, png_inforp info_ptr,
+    const png_uint_32 num_exif, const png_bytep eXIf_buf)
+{
+   int i;
+
+   png_debug1(1, "in %s storage function", "eXIf");
+
+   if (png_ptr == NULL || info_ptr == NULL)
+      return;
+
+   if (info_ptr->exif)
+   {
+      png_free(png_ptr, info_ptr->exif);
+      info_ptr->exif = NULL;
+   }
+
+   info_ptr->num_exif = num_exif;
+
+   info_ptr->exif = png_voidcast(png_bytep, png_malloc_warn(png_ptr,
+       info_ptr->num_exif));
+
+   if (info_ptr->exif == NULL)
+   {
+      png_warning(png_ptr, "Insufficient memory for eXIf chunk data");
+      return;
+   }
+
+   info_ptr->free_me |= PNG_FREE_EXIF;
+
+   for (i = 0; i < (int) info_ptr->num_exif; i++)
+      info_ptr->exif[i] = eXIf_buf[i];
+
+   info_ptr->valid |= PNG_INFO_eXIf;
+}
+#endif /* eXIf */
 
 #ifdef PNG_gAMA_SUPPORTED
 void PNGFAPI
@@ -294,7 +341,7 @@ png_set_pCAL(png_const_structrp png_ptr, png_inforp info_ptr,
     png_const_charp purpose, png_int_32 X0, png_int_32 X1, int type,
     int nparams, png_const_charp units, png_charpp params)
 {
-   png_size_t length;
+   size_t length;
    int i;
 
    png_debug1(1, "in %s storage function", "pCAL");
@@ -371,7 +418,7 @@ png_set_pCAL(png_const_structrp png_ptr, png_inforp info_ptr,
    memcpy(info_ptr->pcal_units, units, length);
 
    info_ptr->pcal_params = png_voidcast(png_charpp, png_malloc_warn(png_ptr,
-       (png_size_t)(((unsigned int)nparams + 1) * (sizeof (png_charp)))));
+       (size_t)(((unsigned int)nparams + 1) * (sizeof (png_charp)))));
 
    if (info_ptr->pcal_params == NULL)
    {
@@ -411,7 +458,7 @@ void PNGAPI
 png_set_sCAL_s(png_const_structrp png_ptr, png_inforp info_ptr,
     int unit, png_const_charp swidth, png_const_charp sheight)
 {
-   png_size_t lengthw = 0, lengthh = 0;
+   size_t lengthw = 0, lengthh = 0;
 
    png_debug1(1, "in %s storage function", "sCAL");
 
@@ -672,7 +719,7 @@ png_set_iCCP(png_const_structrp png_ptr, png_inforp info_ptr,
 {
    png_charp new_iccp_name;
    png_bytep new_iccp_profile;
-   png_size_t length;
+   size_t length;
 
    png_debug1(1, "in %s storage function", "iCCP");
 
@@ -999,7 +1046,7 @@ png_set_tRNS(png_structrp png_ptr, png_inforp info_ptr,
          /* Changed from num_trans to PNG_MAX_PALETTE_LENGTH in version 1.2.1 */
           info_ptr->trans_alpha = png_voidcast(png_bytep,
               png_malloc(png_ptr, PNG_MAX_PALETTE_LENGTH));
-          memcpy(info_ptr->trans_alpha, trans_alpha, (png_size_t)num_trans);
+          memcpy(info_ptr->trans_alpha, trans_alpha, (size_t)num_trans);
        }
        png_ptr->trans_alpha = info_ptr->trans_alpha;
    }
@@ -1079,7 +1126,7 @@ png_set_sPLT(png_const_structrp png_ptr,
 
    do
    {
-      png_size_t length;
+      size_t length;
 
       /* Skip invalid input entries */
       if (entries->name == NULL || entries->entries == NULL)
@@ -1130,8 +1177,9 @@ png_set_sPLT(png_const_structrp png_ptr,
       info_ptr->valid |= PNG_INFO_sPLT;
       ++(info_ptr->splt_palettes_num);
       ++np;
+      ++entries;
    }
-   while (++entries, --nentries);
+   while (--nentries);
 
    if (nentries > 0)
       png_chunk_report(png_ptr, "sPLT out of memory", PNG_CHUNK_WRITE_ERROR);
@@ -1382,6 +1430,7 @@ png_set_keep_unknown_chunks(png_structrp png_ptr, int keep,
       static PNG_CONST png_byte chunks_to_ignore[] = {
          98,  75,  71,  68, '\0',  /* bKGD */
          99,  72,  82,  77, '\0',  /* cHRM */
+        101,  88,  73, 102, '\0',  /* eXIf */
         103,  65,  77,  65, '\0',  /* gAMA */
         104,  73,  83,  84, '\0',  /* hIST */
         105,  67,  67,  80, '\0',  /* iCCP */
@@ -1542,7 +1591,7 @@ png_set_rows(png_const_structrp png_ptr, png_inforp info_ptr,
 #endif
 
 void PNGAPI
-png_set_compression_buffer_size(png_structrp png_ptr, png_size_t size)
+png_set_compression_buffer_size(png_structrp png_ptr, size_t size)
 {
    if (png_ptr == NULL)
       return;
@@ -1724,14 +1773,16 @@ png_check_keyword(png_structrp png_ptr, png_const_charp key, png_bytep new_key)
       png_byte ch = (png_byte)*key++;
 
       if ((ch > 32 && ch <= 126) || (ch >= 161 /*&& ch <= 255*/))
-         *new_key++ = ch, ++key_len, space = 0;
+      {
+         *new_key++ = ch; ++key_len; space = 0;
+      }
 
       else if (space == 0)
       {
          /* A space or an invalid character when one wasn't seen immediately
           * before; output just a space.
           */
-         *new_key++ = 32, ++key_len, space = 1;
+         *new_key++ = 32; ++key_len; space = 1;
 
          /* If the character was not a space then it is invalid. */
          if (ch != 32)
@@ -1744,7 +1795,7 @@ png_check_keyword(png_structrp png_ptr, png_const_charp key, png_bytep new_key)
 
    if (key_len > 0 && space != 0) /* trailing space */
    {
-      --key_len, --new_key;
+      --key_len; --new_key;
       if (bad_character == 0)
          bad_character = 32;
    }

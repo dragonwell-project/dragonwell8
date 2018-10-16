@@ -27,10 +27,11 @@ import java.security.PrivilegedActionException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.security.auth.login.LoginException;
+import java.security.Security;
 
 /*
  * @test
- * @bug 8025123
+ * @bug 8025123 8208350
  * @summary Checks if an unbound server uses a service principal
  *          from sun.security.krb5.principal system property if specified
  * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLPrincipalProperty
@@ -43,6 +44,7 @@ public class UnboundSSLPrincipalProperty {
     public static void main(String[] args) throws IOException,
             NoSuchAlgorithmException,LoginException, PrivilegedActionException,
             InterruptedException {
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
         UnboundSSLPrincipalProperty test = new UnboundSSLPrincipalProperty();
         test.start(args[0], args[1]);
     }
