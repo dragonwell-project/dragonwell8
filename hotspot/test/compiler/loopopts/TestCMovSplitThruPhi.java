@@ -25,7 +25,7 @@
  * @test
  * @bug 8187822
  * @summary C2 conditonal move optimization might create broken graph
- * @run main/othervm -XX:-UseOnStackReplacement -XX:-BackgroundCompilation -XX:CompileCommand=dontinline,TestCMovSplitThruPhi::not_inlined -XX:CompileOnly=TestCMovSplitThruPhi::test -XX:-LoopUnswitching TestCMovSplitThruPhi
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:-UseOnStackReplacement -XX:-BackgroundCompilation -XX:CompileCommand=dontinline,TestCMovSplitThruPhi::not_inlined -XX:CompileOnly=TestCMovSplitThruPhi::test -XX:-LoopUnswitching TestCMovSplitThruPhi
  *
  */
 

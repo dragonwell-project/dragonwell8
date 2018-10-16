@@ -26,12 +26,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedActionException;
 import java.util.HashMap;
 import java.util.Map;
+import java.security.Security;
 
 import javax.security.auth.login.LoginException;
 
 /*
  * @test
- * @bug 8025123
+ * @bug 8025123 8208350
  * @summary Checks if an unbound server pick up a correct key from keytab
  * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock UnboundSSLMultipleKeys
  *                              unbound.ssl.jaas.conf server_star
@@ -43,6 +44,7 @@ public class UnboundSSLMultipleKeys {
     public static void main(String[] args)
             throws IOException, NoSuchAlgorithmException, LoginException,
             PrivilegedActionException, InterruptedException {
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
         UnboundSSLMultipleKeys test = new UnboundSSLMultipleKeys();
         test.start(args[0], args[1]);
     }
