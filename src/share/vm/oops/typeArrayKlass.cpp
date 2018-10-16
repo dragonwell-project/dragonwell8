@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -191,7 +191,7 @@ Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   if (or_null) {
     return h_ak->array_klass_or_null(n);
   }
-  return h_ak->array_klass(n, CHECK_NULL);
+  return h_ak->array_klass(n, THREAD);
 }
 
 Klass* TypeArrayKlass::array_klass_impl(bool or_null, TRAPS) {
