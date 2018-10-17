@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,12 +37,15 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.nio.file.Files;
 
 /**
  * Common library for various test helper functions.
@@ -410,5 +413,31 @@ public final class Utils {
             transferred += read;
         }
         return transferred;
+    }
+
+    // Parses the specified source file for "@{id} breakpoint" tags and returns
+    // list of the line numbers containing the tag.
+    // Example:
+    //   System.out.println("BP is here");  // @1 breakpoint
+    public static List<Integer> parseBreakpoints(String filePath, int id) {
+        final String pattern = "@" + id + " breakpoint";
+        int lineNum = 1;
+        List<Integer> result = new LinkedList<>();
+        try {
+            for (String line: Files.readAllLines(Paths.get(filePath))) {
+                if (line.contains(pattern)) {
+                    result.add(lineNum);
+                }
+                lineNum++;
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("failed to parse " + filePath, ex);
+        }
+        return result;
+    }
+
+    // gets full test source path for the given test filename
+    public static String getTestSourcePath(String fileName) {
+        return Paths.get(System.getProperty("test.src")).resolve(fileName).toString();
     }
 }
