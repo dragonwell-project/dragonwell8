@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,7 +103,7 @@ public class TestKeyPairGenerator extends PKCS11Test {
         data = new byte[2048];
         // keypair generation is very slow, test only a few short keys
         int[] keyLengths = {512, 512, 1024};
-        BigInteger[] pubExps = {null, BigInteger.valueOf(3), null};
+        BigInteger[] pubExps = {null, RSAKeyGenParameterSpec.F4, null};
         KeyPair[] keyPairs = new KeyPair[3];
         new Random().nextBytes(data);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", provider);
