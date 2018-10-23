@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -270,7 +270,9 @@ public abstract class PKCS11Test {
     }
 
     static double getNSSInfo(String library) {
-        String nssHeader = "$Header: NSS";
+        // look for two types of headers in NSS libraries
+        String nssHeader1 = "$Header: NSS";
+        String nssHeader2 = "Version: NSS";
         boolean found = false;
         String s = null;
         int i = 0;
@@ -298,7 +300,8 @@ public abstract class PKCS11Test {
                 }
 
                 s = new String(data, 0, read);
-                if ((i = s.indexOf(nssHeader)) > 0) {
+                i = s.indexOf(nssHeader1);
+                if (i > 0 || (i = s.indexOf(nssHeader2)) > 0) {
                     found = true;
                     // If the nssHeader is before 920 we can break, otherwise
                     // we may not have the whole header so do another read.  If
@@ -324,7 +327,17 @@ public abstract class PKCS11Test {
 
         // the index after whitespace after nssHeader
         int afterheader = s.indexOf("NSS", i) + 4;
-        String version = s.substring(afterheader, s.indexOf(' ', afterheader));
+        int nextSpaceIndex = s.indexOf(' ', afterheader);
+
+        // If the next space is not found,
+        // it has to print the content for further investigation.
+        if (nextSpaceIndex == -1) {
+            System.out.println("===== Content start =====");
+            System.out.println(s);
+            System.out.println("===== Content end =====");
+        }
+
+        String version = s.substring(afterheader, nextSpaceIndex);
 
         // If a "dot dot" release, strip the extra dots for double parsing
         String[] dot = version.split("\\.");
