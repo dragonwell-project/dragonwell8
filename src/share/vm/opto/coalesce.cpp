@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/block.hpp"
+#include "opto/c2compiler.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/chaitin.hpp"
 #include "opto/coalesce.hpp"
@@ -292,7 +293,18 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
               // Copy any flags as well
               _phc.clone_projs(pred, pred->end_idx(), m, copy, _phc._lrg_map);
             } else {
-              const RegMask *rm = C->matcher()->idealreg2spillmask[m->ideal_reg()];
+              int ireg = m->ideal_reg();
+              if (ireg == 0 || ireg == Op_RegFlags) {
+                if (C->subsume_loads()) {
+                  C->record_failure(C2Compiler::retry_no_subsuming_loads());
+                } else {
+                  assert(false, err_msg("attempted to spill a non-spillable item: %d: %s, ireg = %d",
+                                        m->_idx, m->Name(), ireg));
+                  C->record_method_not_compilable("attempted to spill a non-spillable item");
+                }
+                return;
+              }
+              const RegMask *rm = C->matcher()->idealreg2spillmask[ireg];
               copy = new (C) MachSpillCopyNode(m, *rm, *rm);
               // Find a good place to insert.  Kinda tricky, use a subroutine
               insert_copy_with_overlap(pred,copy,phi_name,src_name);
@@ -326,7 +338,14 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
               b->insert_node(copy, l++);
               l += _phc.clone_projs(b, l, m, copy, _phc._lrg_map);
             } else {
-              const RegMask *rm = C->matcher()->idealreg2spillmask[m->ideal_reg()];
+              int ireg = m->ideal_reg();
+              if (ireg == 0 || ireg == Op_RegFlags) {
+                assert(false, err_msg("attempted to spill a non-spillable item: %d: %s, ireg = %d",
+                                      m->_idx, m->Name(), ireg));
+                C->record_method_not_compilable("attempted to spill a non-spillable item");
+                return;
+              }
+              const RegMask *rm = C->matcher()->idealreg2spillmask[ireg];
               copy = new (C) MachSpillCopyNode(m, *rm, *rm);
               // Insert the copy in the basic block, just before us
               b->insert_node(copy, l++);
@@ -373,7 +392,14 @@ void PhaseAggressiveCoalesce::insert_copies( Matcher &matcher ) {
               if( k < b->_num_succs )
                 continue;     // Live out; do not pre-split
               // Split the lrg at this use
-              const RegMask *rm = C->matcher()->idealreg2spillmask[inp->ideal_reg()];
+              int ireg = inp->ideal_reg();
+              if (ireg == 0 || ireg == Op_RegFlags) {
+                assert(false, err_msg("attempted to spill a non-spillable item: %d: %s, ireg = %d",
+                                      inp->_idx, inp->Name(), ireg));
+                C->record_method_not_compilable("attempted to spill a non-spillable item");
+                return;
+              }
+              const RegMask *rm = C->matcher()->idealreg2spillmask[ireg];
               Node *copy = new (C) MachSpillCopyNode( inp, *rm, *rm );
               // Insert the copy in the use-def chain
               n->set_req(inpidx, copy );
