@@ -277,6 +277,8 @@ endif
 
 # statically link libstdc++.so, work with gcc but ignored by g++
 STATIC_STDCXX = -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic
+# While the VM needs the above line, adlc needs a separate setting:
+ADLC_STATIC_STDCXX = -static-libstdc++
 
 ifeq ($(USE_CLANG),)
   # statically link libgcc and/or libgcc_s, libgcc does not exist before gcc-3.x.
