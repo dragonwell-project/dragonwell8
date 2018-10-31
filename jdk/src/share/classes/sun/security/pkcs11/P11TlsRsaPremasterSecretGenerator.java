@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,8 @@ final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
     // mechanism id
     private long mechanism;
 
+    private int version;
+
     private TlsRsaPremasterSecretParameterSpec spec;
 
     P11TlsRsaPremasterSecretGenerator(Token token, String algorithm, long mechanism)
@@ -77,6 +79,11 @@ final class P11TlsRsaPremasterSecretGenerator extends KeyGeneratorSpi {
             throw new InvalidAlgorithmParameterException(MSG);
         }
         this.spec = (TlsRsaPremasterSecretParameterSpec)params;
+        version = (spec.getMajorVersion() << 8) | spec.getMinorVersion();
+        if ((version < 0x0300) && (version > 0x0303)) {
+            throw new InvalidAlgorithmParameterException
+                ("Only SSL 3.0, TLS 1.0, TLS 1.1, and TLS 1.2 are supported");
+        }
     }
 
     protected void engineInit(int keysize, SecureRandom random) {
