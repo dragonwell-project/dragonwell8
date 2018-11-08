@@ -184,6 +184,7 @@ Java_sun_awt_UNIXToolkit_load_1stock_1icon(JNIEnv *env, jobject this,
         detail_str = (char *)SAFE_SIZE_ARRAY_ALLOC(malloc,
                 sizeof(char), len + 1);
         if (detail_str == NULL) {
+            free(stock_id_str);
             JNU_ThrowOutOfMemoryError(env, "OutOfMemoryError");
             return JNI_FALSE;
         }
