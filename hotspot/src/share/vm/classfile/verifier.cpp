@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1949,11 +1949,9 @@ Klass* ClassVerifier::load_class(Symbol* name, TRAPS) {
   oop loader = current_class()->class_loader();
   oop protection_domain = current_class()->protection_domain();
 
-  Klass* kls = SystemDictionary::resolve_or_fail(
+  return SystemDictionary::resolve_or_fail(
     name, Handle(THREAD, loader), Handle(THREAD, protection_domain),
     true, CHECK_NULL);
-  current_class()->class_loader_data()->record_dependency(kls, CHECK_NULL);
-  return kls;
 }
 
 bool ClassVerifier::is_protected_access(instanceKlassHandle this_class,
