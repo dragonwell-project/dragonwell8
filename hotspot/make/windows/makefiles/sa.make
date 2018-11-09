@@ -101,6 +101,9 @@ checkAndBuildSA:: $(SAWINDBG)
 
 !if "$(BUILD_FLAVOR)" == "debug"
 SA_EXTRA_CFLAGS = -Od -D "_DEBUG"
+!if "$(BUILDARCH)" == "i486"
+SA_EXTRA_CFLAGS = $(SA_EXTRA_CFLAGS) -RTC1
+!endif
 !elseif "$(BUILD_FLAVOR)" == "fastdebug"
 SA_EXTRA_CFLAGS = -O2 -D "_DEBUG"
 !else
@@ -117,9 +120,11 @@ SA_CFLAGS = -nologo $(MS_RUNTIME_OPTION) -W3 $(GX_OPTION) -D "WIN32" -D "WIN64" 
 SA_LD_FLAGS = bufferoverflowU.lib
 !endif
 !else
-SA_CFLAGS = -nologo $(MS_RUNTIME_OPTION) -W3 -Gm $(GX_OPTION) -D "WIN32" -D "_WINDOWS" -D "_CONSOLE" -D "_MBCS" -YX -FD -GZ -c
+SA_CFLAGS = -nologo $(MS_RUNTIME_OPTION) -W3 -Gm $(GX_OPTION) -D "WIN32" -D "_WINDOWS" -D "_CONSOLE" -D "_MBCS" -YX -FD -c
 !if "$(ENABLE_FULL_DEBUG_SYMBOLS)" == "1"
-SA_CFLAGS = $(SA_CFLAGS) -ZI
+# -ZI is incompatible with -O2 used for release/fastdebug builds.
+# Using -Zi instead.
+SA_CFLAGS = $(SA_CFLAGS) -Zi
 !endif
 !endif
 !if "$(MT)" != ""
