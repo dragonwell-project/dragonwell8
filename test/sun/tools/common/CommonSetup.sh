@@ -35,6 +35,8 @@
 #   JPS         - jps utility
 #   JSTACK      - jstack utility
 #   JCMD        - jcmd utility
+#   HSDB        - hsdb utility (gui)
+#   CLHSDB      - clhsdb utility (cli)
 #   OS          - operating system name
 #   PATTERN_EOL - grep or sed end-of-line pattern
 #   PATTERN_WS  - grep or sed whitespace pattern
@@ -76,6 +78,8 @@ JMAP="${TESTJAVA}/bin/jmap"
 JPS="${TESTJAVA}/bin/jps"
 JSTACK="${TESTJAVA}/bin/jstack"
 JCMD="${TESTJAVA}/bin/jcmd"
+HSDB="${TESTJAVA}/bin/hsdb"
+CLHSDB="${TESTJAVA}/bin/clhsdb"
 
 isCygwin=false
 isMKS=false
