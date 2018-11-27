@@ -166,8 +166,6 @@ public class EventNames {
     public final static String ExceptionStatistics = PREFIX + "ExceptionStatistics";
     public final static String JavaExceptionThrow = PREFIX + "JavaExceptionThrow";
     public final static String JavaErrorThrow = PREFIX + "JavaErrorThrow";
-    public final static String ModuleRequire = PREFIX + "ModuleRequire";
-    public final static String ModuleExport = PREFIX + "ModuleExport";
 
     // Flight Recorder
     public final static String DumpReason = PREFIX + "DumpReason";
