@@ -45,5 +45,7 @@ grant {
         permission java.util.PropertyPermission "java.vm.version", "read";
         permission java.util.PropertyPermission "java.vm.vendor", "read";
         permission java.util.PropertyPermission "java.vm.name", "read";
+
+        permission java.util.PropertyPermission "sun.security.pkcs11.disableKeyExtraction", "read";
 };
 
