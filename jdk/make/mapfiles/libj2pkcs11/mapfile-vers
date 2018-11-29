@@ -32,6 +32,8 @@ SUNWprivate_1.1 {
 		Java_sun_security_pkcs11_wrapper_PKCS11_finalizeLibrary;
 		Java_sun_security_pkcs11_wrapper_PKCS11_connect;
 		Java_sun_security_pkcs11_wrapper_PKCS11_disconnect;
+		Java_sun_security_pkcs11_wrapper_PKCS11_getNativeKeyInfo;
+		Java_sun_security_pkcs11_wrapper_PKCS11_createNativeKey;
 		Java_sun_security_pkcs11_wrapper_PKCS11_C_1Initialize;
 		Java_sun_security_pkcs11_wrapper_PKCS11_C_1Finalize;
 		Java_sun_security_pkcs11_wrapper_PKCS11_C_1GetInfo;
