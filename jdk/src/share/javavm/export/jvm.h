@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,6 +116,14 @@ JVM_InitProperties(JNIEnv *env, jobject p);
  */
 JNIEXPORT void JNICALL
 JVM_OnExit(void (*func)(void));
+
+/*
+ * java.nio.Bits
+ */
+JNIEXPORT void JNICALL
+JVM_CopySwapMemory(JNIEnv *env, jobject srcObj, jlong srcOffset,
+                   jobject dstObj, jlong dstOffset, jlong size,
+                   jlong elemSize);
 
 /*
  * java.lang.Runtime
