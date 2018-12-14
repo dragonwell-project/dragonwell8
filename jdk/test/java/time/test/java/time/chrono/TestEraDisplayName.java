@@ -39,7 +39,7 @@ import static org.testng.Assert.assertEquals;
  * chrono implementation.
  * Note: The exact result may depend on locale data provider's implementation.
  *
- * @bug 8171049
+ * @bug 8171049 8215377
  * @run testng/othervm -Djava.locale.providers=CLDR TestEraDisplayName
  */
 @Test
@@ -90,45 +90,6 @@ public class TestEraDisplayName {
             { JapaneseEra.TAISHO,   TextStyle.NARROW,   Locale.JAPAN,   "T" },
             { JapaneseEra.SHOWA,    TextStyle.NARROW,   Locale.JAPAN,   "S" },
             { JapaneseEra.HEISEI,   TextStyle.NARROW,   Locale.JAPAN,   "H" },
-
-            // ThaiBuddhistEra
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.FULL, Locale.US,      "BC" },
-            { ThaiBuddhistEra.BE,           TextStyle.FULL, Locale.US,      "B.E." },
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.FULL, THAI,           "BC" },
-            { ThaiBuddhistEra.BE,           TextStyle.FULL, THAI,
-                "\u0e1e\u0e38\u0e17\u0e18\u0e28\u0e31\u0e01\u0e23\u0e32\u0e0a" },
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.SHORT, Locale.US,     "BC" },
-            { ThaiBuddhistEra.BE,           TextStyle.SHORT, Locale.US,     "B.E." },
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.SHORT, THAI,
-                "\u0e1b\u0e35\u0e01\u0e48\u0e2d\u0e19\u0e04\u0e23\u0e34\u0e2a" +
-                "\u0e15\u0e4c\u0e01\u0e32\u0e25\u0e17\u0e35\u0e48" },
-            { ThaiBuddhistEra.BE,           TextStyle.SHORT, THAI,  "\u0e1e.\u0e28." },
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.NARROW, Locale.US,    "BC" },
-            { ThaiBuddhistEra.BE,           TextStyle.NARROW, Locale.US,    "B.E." },
-            { ThaiBuddhistEra.BEFORE_BE,    TextStyle.NARROW, THAI,         "BC" },
-            { ThaiBuddhistEra.BE,           TextStyle.NARROW, THAI,         "B.E." },
-
-            // MinguoEra
-            { MinguoEra.BEFORE_ROC, TextStyle.FULL,     Locale.US,      "Before R.O.C." },
-            { MinguoEra.ROC,        TextStyle.FULL,     Locale.US,      "R.O.C." },
-            { MinguoEra.BEFORE_ROC, TextStyle.FULL,     Locale.TAIWAN,  "\u6c11\u570b\u524d" },
-            { MinguoEra.ROC,        TextStyle.FULL,     Locale.TAIWAN,  "\u6c11\u570b" },
-            { MinguoEra.BEFORE_ROC, TextStyle.SHORT,    Locale.US,      "Before R.O.C." },
-            { MinguoEra.ROC,        TextStyle.SHORT,    Locale.US,      "R.O.C." },
-            { MinguoEra.BEFORE_ROC, TextStyle.SHORT,    Locale.TAIWAN,  "\u6c11\u570b\u524d" },
-            { MinguoEra.ROC,        TextStyle.SHORT,    Locale.TAIWAN,  "\u6c11\u570b" },
-            { MinguoEra.BEFORE_ROC, TextStyle.NARROW,   Locale.US,      "0" },
-            { MinguoEra.ROC,        TextStyle.NARROW,   Locale.US,      "1" },
-            { MinguoEra.BEFORE_ROC, TextStyle.NARROW,   Locale.TAIWAN,  "0" },
-            { MinguoEra.ROC,        TextStyle.NARROW,   Locale.TAIWAN,  "1" },
-
-            // HijrahEra
-            { HijrahEra.AH, TextStyle.FULL,     Locale.US,  "AH" },
-            { HijrahEra.AH, TextStyle.FULL,     EGYPT,      "\u0647\u0640" },
-            { HijrahEra.AH, TextStyle.SHORT,    Locale.US,  "AH" },
-            { HijrahEra.AH, TextStyle.SHORT,    EGYPT,      "\u0647\u0640" },
-            { HijrahEra.AH, TextStyle.NARROW,   Locale.US,  "1" },
-            { HijrahEra.AH, TextStyle.NARROW,   EGYPT,      "1" },
         };
     }
 
