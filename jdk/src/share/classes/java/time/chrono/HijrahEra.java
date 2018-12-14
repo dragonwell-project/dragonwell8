@@ -64,13 +64,10 @@ package java.time.chrono;
 import static java.time.temporal.ChronoField.ERA;
 
 import java.time.DateTimeException;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalField;
 import java.time.temporal.UnsupportedTemporalTypeException;
 import java.time.temporal.ValueRange;
-import java.util.Locale;
 
 /**
  * An era in the Hijrah calendar system.
@@ -158,18 +155,4 @@ public enum HijrahEra implements Era {
         return Era.super.range(field);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @param style {@inheritDoc}
-     * @param locale {@inheritDoc}
-     */
-    @Override
-    public String getDisplayName(TextStyle style, Locale locale) {
-        return new DateTimeFormatterBuilder()
-            .appendText(ERA, style)
-            .toFormatter(locale)
-            .withChronology(HijrahChronology.INSTANCE)
-            .format(HijrahDate.now());
-}
 }
