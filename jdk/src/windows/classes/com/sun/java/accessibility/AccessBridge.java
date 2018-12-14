@@ -102,7 +102,7 @@ final public class AccessBridge extends AccessBridgeLoader {
 
         // determine which version of the JDK is running
         String version = getJavaVersionProperty();
-        debugString("JDK version = "+version);
+        debugString("[INFO]:JDK version = "+version);
         runningOnJDK1_4 = (version.compareTo("1.4") >= 0);
         runningOnJDK1_5 = (version.compareTo("1.5") >= 0);
 
@@ -129,7 +129,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             Thread abthread = new Thread(new dllRunner());
             abthread.setDaemon(true);
             abthread.start();
-            debugString("AccessBridge started");
+            debugString("[INFO]:AccessBridge started");
         }
     }
 
@@ -148,7 +148,7 @@ final public class AccessBridge extends AccessBridgeLoader {
     private class shutdownHook implements Runnable {
 
         public void run() {
-            debugString("***** shutdownHook: shutting down...");
+            debugString("[INFO]:***** shutdownHook: shutting down...");
             javaShutdown();
         }
     }
@@ -280,7 +280,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         try {
             componentParemter[0] = Class.forName("java.awt.Component");
         } catch (ClassNotFoundException e) {
-            debugString("Exception: " + e.toString());
+            debugString("[ERROR]:Exception: " + e.toString());
         }
         Object[] args = new Object[1];
         Component c;
@@ -303,15 +303,15 @@ final public class AccessBridge extends AccessBridgeLoader {
                         c = (Component) javaGetComponentFromNativeWindowHandleMethod.invoke(toolkit, args);
                         returnVal = true;
                     } catch (InvocationTargetException e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     } catch (IllegalAccessException e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     }
                 }
             } catch (NoSuchMethodException e) {
-                debugString("Exception: " + e.toString());
+                debugString("[ERROR]:Exception: " + e.toString());
             } catch (SecurityException e) {
-                debugString("Exception: " + e.toString());
+                debugString("[ERROR]:Exception: " + e.toString());
             }
 
             // verify getComponentFromNativeWindowHandle() method
@@ -326,17 +326,17 @@ final public class AccessBridge extends AccessBridgeLoader {
                         Integer i = (Integer) javaGetNativeWindowHandleFromComponentMethod.invoke(toolkit, args);
                         returnVal = true;
                     } catch (InvocationTargetException e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     } catch (IllegalAccessException e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     } catch (Exception e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     }
                 }
             } catch (NoSuchMethodException e) {
-                debugString("Exception: " + e.toString());
+                debugString("[ERROR]:Exception: " + e.toString());
             } catch (SecurityException e) {
-                debugString("Exception: " + e.toString());
+                debugString("[ERROR]:Exception: " + e.toString());
             }
         }
         return returnVal;
@@ -425,12 +425,12 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private void saveContextToWindowHandleMapping(AccessibleContext ac,
                                                   int nativeHandle) {
-        debugString("saveContextToWindowHandleMapping...");
+        debugString("[INFO]:saveContextToWindowHandleMapping...");
         if (ac == null) {
             return;
         }
         if (! contextToWindowHandleMap.containsKey(ac)) {
-            debugString("saveContextToWindowHandleMapping: ac = "+ac+"; handle = "+nativeHandle);
+            debugString("[INFO]: saveContextToWindowHandleMapping: ac = "+ac+"; handle = "+nativeHandle);
             contextToWindowHandleMap.put(ac, nativeHandle);
         }
     }
@@ -473,7 +473,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      *     returns 0 on error
      */
     private int getNativeWindowHandleFromContext(AccessibleContext ac) {
-    debugString("getNativeWindowHandleFromContext: ac = "+ac);
+    debugString("[INFO]: getNativeWindowHandleFromContext: ac = "+ac);
         try {
             return contextToWindowHandleMap.get(ac);
         } catch (Exception ex) {
@@ -506,10 +506,10 @@ final public class AccessBridge extends AccessBridgeLoader {
         */
         private Component getComponentFromNativeWindowHandle(int nativeHandle) {
             if (useJAWT_DLL) {
-                debugString("*** calling jawtGetComponentFromNativeWindowHandle");
+                debugString("[INFO]:*** calling jawtGetComponentFromNativeWindowHandle");
                 return jawtGetComponentFromNativeWindowHandle(nativeHandle);
             } else {
-                debugString("*** calling javaGetComponentFromNativeWindowHandle");
+                debugString("[INFO]:*** calling javaGetComponentFromNativeWindowHandle");
                 Object[] args = new Object[1];
                 if (javaGetComponentFromNativeWindowHandleMethod != null) {
                     try {
@@ -527,7 +527,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         }
                         return (Component)o;
                     } catch (InvocationTargetException | IllegalAccessException e) {
-                        debugString("Exception: " + e.toString());
+                        debugString("[ERROR]:Exception: " + e.toString());
                     }
                 }
             }
@@ -540,11 +540,11 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private int getNativeWindowHandleFromComponent(final Component target) {
         if (useJAWT_DLL) {
-            debugString("*** calling jawtGetNativeWindowHandleFromComponent");
+            debugString("[INFO]:*** calling jawtGetNativeWindowHandleFromComponent");
             return jawtGetNativeWindowHandleFromComponent(target);
         } else {
             Object[] args = new Object[1];
-            debugString("*** calling javaGetNativeWindowHandleFromComponent");
+            debugString("[INFO]:*** calling javaGetNativeWindowHandleFromComponent");
             if (javaGetNativeWindowHandleFromComponentMethod != null) {
                 try {
                     args[0] = target;
@@ -559,9 +559,9 @@ final public class AccessBridge extends AccessBridgeLoader {
                     contextToWindowHandleMap.put(ac, i);
                     return i.intValue();
                 } catch (InvocationTargetException e) {
-                    debugString("Exception: " + e.toString());
+                    debugString("[ERROR]:Exception: " + e.toString());
                 } catch (IllegalAccessException e) {
-                    debugString("Exception: " + e.toString());
+                    debugString("[ERROR]:Exception: " + e.toString());
                 }
             }
         }
@@ -620,8 +620,8 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleContext getAccessibleContextAt_1(final int x, final int y,
                                                       final AccessibleContext parent) {
-        debugString(" : getAccessibleContextAt_1 called");
-        debugString("   -> x = " + x + " y = " + y + " parent = " + parent);
+        debugString("[INFO]: getAccessibleContextAt_1 called");
+        debugString("[INFO]:   -> x = " + x + " y = " + y + " parent = " + parent);
 
         if (parent == null) return null;
             final AccessibleComponent acmp = InvocationUtils.invokeAndWait(new Callable<AccessibleComponent>() {
@@ -668,8 +668,8 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleContext getAccessibleContextAt_2(final int x, final int y,
                                                       AccessibleContext parent) {
-        debugString("getAccessibleContextAt_2 called");
-        debugString("   -> x = " + x + " y = " + y + " parent = " + parent);
+        debugString("[INFO]: getAccessibleContextAt_2 called");
+        debugString("[INFO]:   -> x = " + x + " y = " + y + " parent = " + parent);
 
         return InvocationUtils.invokeAndWait(new Callable<AccessibleContext>() {
             @Override
@@ -678,7 +678,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 if (a != null) {
                     AccessibleContext childAC = a.getAccessibleContext();
                     if (childAC != null) {
-                        debugString("   returning childAC = " + childAC);
+                        debugString("[INFO]:   returning childAC = " + childAC);
                         return childAC;
                     }
                 }
@@ -713,7 +713,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the AccessibleName from an AccessibleContext
      */
     private String getAccessibleNameFromContext(final AccessibleContext ac) {
-        debugString("***** ac = "+ac.getClass());
+        debugString("[INFO]: ***** ac = "+ac.getClass());
         if (ac != null) {
             String s = InvocationUtils.invokeAndWait(new Callable<String>() {
                 @Override
@@ -723,13 +723,13 @@ final public class AccessBridge extends AccessBridgeLoader {
             }, ac);
             if (s != null) {
                 references.increment(s);
-                debugString("Returning AccessibleName from Context: " + s);
+                debugString("[INFO]: Returning AccessibleName from Context: " + s);
                 return s;
             } else {
                 return null;
             }
         } else {
-            debugString("getAccessibleNameFromContext; ac = null!");
+            debugString("[INFO]: getAccessibleNameFromContext; ac = null!");
             return null;
         }
     }
@@ -754,7 +754,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }
             }, ac);
             if ( ( null != nameString ) && ( 0 != nameString.length () ) ) {
-                debugString ("bk -- The Virtual Accessible Name was obtained from AccessibleContext::getAccessibleName.");
+                debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from AccessibleContext::getAccessibleName.");
                 references.increment (nameString);
                 return nameString;
             }
@@ -765,12 +765,12 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }
             }, ac);
             if ( ( null != descriptionString ) && ( 0 != descriptionString.length () ) ) {
-                debugString ("bk -- The Virtual Accessible Name was obtained from AccessibleContext::getAccessibleDescription.");
+                debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from AccessibleContext::getAccessibleDescription.");
                 references.increment (descriptionString);
                 return descriptionString;
             }
 
-            debugString ("The Virtual Accessible Name was not found using AccessibleContext::getAccessibleDescription. or getAccessibleName");
+            debugString ("[WARN]: The Virtual Accessible Name was not found using AccessibleContext::getAccessibleDescription. or getAccessibleName");
             /*
             Step 2:
             =======
@@ -807,7 +807,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             }
 
             if (false == bExtendedSearch) {
-                debugString ("bk -- getVirtualAccessibleNameFromContext will not use the extended name search algorithm.  role = " + ( role != null ? role.toDisplayString(Locale.US) : "null") );
+                debugString ("[INFO]: bk -- getVirtualAccessibleNameFromContext will not use the extended name search algorithm.  role = " + ( role != null ? role.toDisplayString(Locale.US) : "null") );
                 /*
                 Step 3:
                 =======
@@ -840,7 +840,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         }, ac);
                         String text = getAccessibleTextRangeFromContext (ac, 0, charCount);
                         if (null != text) {
-                            debugString ("bk -- The Virtual Accessible Name was obtained from the Accessible Text of the LABEL object.");
+                            debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from the Accessible Text of the LABEL object.");
                             references.increment (text);
                             return text;
                         }
@@ -848,7 +848,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                     /*
                     Does the label support the Accessible Icon Interface?
                     */
-                    debugString ("bk -- Attempting to obtain the Virtual Accessible Name from the Accessible Icon information.");
+                    debugString ("[INFO]: bk -- Attempting to obtain the Virtual Accessible Name from the Accessible Icon information.");
                     final AccessibleIcon [] ai = InvocationUtils.invokeAndWait(new Callable<AccessibleIcon[]>() {
                         @Override
                         public AccessibleIcon[] call() throws Exception {
@@ -863,7 +863,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                             }
                         }, ac);
                         if (iconDescription != null){
-                            debugString ("bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the LABEL object.");
+                            debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the LABEL object.");
                             references.increment (iconDescription);
                             return iconDescription;
                         }
@@ -885,7 +885,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 final AccessibleContext acTableCell = getAccessibleChildFromContext (parentContext, indexInParent);
-                                debugString ("bk -- Making a second attempt to obtain the Virtual Accessible Name from the Accessible Icon information for the Table Cell.");
+                                debugString ("[INFO]: bk -- Making a second attempt to obtain the Virtual Accessible Name from the Accessible Icon information for the Table Cell.");
                                 if (acTableCell != null) {
                                     final AccessibleIcon [] aiRet =InvocationUtils.invokeAndWait(new Callable<AccessibleIcon[]>() {
                                         @Override
@@ -900,7 +900,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                             }
                                         }, ac);
                                         if (iconDescription != null){
-                                            debugString ("bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the Table Cell object.");
+                                            debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the Table Cell object.");
                                             references.increment (iconDescription);
                                             return iconDescription;
                                         }
@@ -914,7 +914,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                     /*
                     Does the button support the Accessible Icon Interface?
                     */
-                    debugString ("bk -- Attempting to obtain the Virtual Accessible Name from the Accessible Icon information.");
+                    debugString ("[INFO]: bk -- Attempting to obtain the Virtual Accessible Name from the Accessible Icon information.");
                     final AccessibleIcon [] ai = InvocationUtils.invokeAndWait(new Callable<AccessibleIcon []>() {
                         public AccessibleIcon [] call() {
                             return ac.getAccessibleIcon ();
@@ -927,7 +927,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                             }
                         }, ac);
                         if (iconDescription != null){
-                            debugString ("bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the TOGGLE_BUTTON or PUSH_BUTTON object.");
+                            debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from the description of the first Accessible Icon found in the TOGGLE_BUTTON or PUSH_BUTTON object.");
                             references.increment (iconDescription);
                             return iconDescription;
                         }
@@ -1007,7 +1007,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             if ( (AccessibleRole.SLIDER == role) &&
                  (AccessibleRole.PANEL == parentRole) &&
                  (null != parentName) ) {
-                debugString ("bk -- The Virtual Accessible Name was obtained from the Accessible Name of the SLIDER object's parent object.");
+                debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from the Accessible Name of the SLIDER object's parent object.");
                 references.increment (parentName);
                 return parentName;
             }
@@ -1024,11 +1024,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                  (AccessibleRole.COMBO_BOX == parentRole) ) {
                 bIsEditCombo = true;
                 if (null != parentName) {
-                    debugString ("bk -- The Virtual Accessible Name for this Edit Combo box was obtained from the Accessible Name of the object's parent object.");
+                    debugString ("[INFO]: bk -- The Virtual Accessible Name for this Edit Combo box was obtained from the Accessible Name of the object's parent object.");
                     references.increment (parentName);
                     return parentName;
                 } else if (null != parentDescription) {
-                    debugString ("bk -- The Virtual Accessible Name for this Edit Combo box was obtained from the Accessible Description of the object's parent object.");
+                    debugString ("[INFO]: bk -- The Virtual Accessible Name for this Edit Combo box was obtained from the Accessible Description of the object's parent object.");
                     references.increment (parentDescription);
                     return parentDescription;
                 }
@@ -1072,11 +1072,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                                 String labelName = labelContext.getAccessibleName ();
                                 String labelDescription = labelContext.getAccessibleDescription ();
                                 if (null != labelName) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained using the LABELED_BY AccessibleRelation -- Name Case.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained using the LABELED_BY AccessibleRelation -- Name Case.");
                                     references.increment (labelName);
                                     return labelName;
                                 } else if (null != labelDescription) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained using the LABELED_BY AccessibleRelation -- Description Case.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained using the LABELED_BY AccessibleRelation -- Description Case.");
                                     references.increment (labelDescription);
                                     return labelDescription;
                                 }
@@ -1085,7 +1085,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                     }
                 }
             } else {
-                debugString ("bk -- This version of Java does not support AccessibleContext::getAccessibleRelationSet.");
+                debugString ("[ERROR]:bk -- This version of Java does not support AccessibleContext::getAccessibleRelationSet.");
             }
 
             //Note: add AccessibleContext to use InvocationUtils.invokeAndWait
@@ -1172,7 +1172,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childName ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned to the left of the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned to the left of the object.");
                                     references.increment (childName);
                                     return childName;
                                 }
@@ -1182,7 +1182,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childDescription ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned to the left of the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned to the left of the object.");
                                     references.increment (childDescription);
                                     return childDescription;
                                 }
@@ -1194,7 +1194,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childName ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned above the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned above the object.");
                                     references.increment (childName);
                                     return childName;
                                 }
@@ -1204,7 +1204,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childDescription ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned above the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned above the object.");
                                     references.increment (childDescription);
                                     return childDescription;
                                 }
@@ -1251,7 +1251,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childName ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned to the left of the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned to the left of the object.");
                                     references.increment (childName);
                                     return childName;
                                 }
@@ -1261,7 +1261,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childDescription ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned to the left of the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned to the left of the object.");
                                     references.increment (childDescription);
                                     return childDescription;
                                 }
@@ -1273,7 +1273,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childName ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned above the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a LABEL object positioned above the object.");
                                     references.increment (childName);
                                     return childName;
                                 }
@@ -1283,7 +1283,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                     }
                                 }, ac);
                                 if ( null != childDescription ) {
-                                    debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned above the object.");
+                                    debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a LABEL object positioned above the object.");
                                     references.increment (childDescription);
                                     return childDescription;
                                 }
@@ -1344,7 +1344,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                         }
                                     }, ac);
                                     if ( null != childName ) {
-                                        debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
+                                        debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
                                         references.increment (childName);
                                         return childName;
                                     }
@@ -1354,7 +1354,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                         }
                                     }, ac);
                                     if ( null != childDescription ) {
-                                        debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
+                                        debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
                                         references.increment (childDescription);
                                         return childDescription;
                                     }
@@ -1402,7 +1402,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                         }
                                     }, ac);
                                     if ( null != childName ) {
-                                        debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Name of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
+                                        debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Name of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
                                         references.increment (childName);
                                         return childName;
                                     }
@@ -1412,7 +1412,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                                         }
                                     }, ac);
                                     if ( null != childDescription ) {
-                                        debugString ("bk -- The Virtual Accessible Name was obtained from Accessible Description of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
+                                        debugString ("[INFO]: bk -- The Virtual Accessible Name was obtained from Accessible Description of a PUSH_BUTTON or TOGGLE_BUTTON object positioned to the left of the object.");
                                         references.increment (childDescription);
                                         return childDescription;
                                     }
@@ -1425,7 +1425,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             }
             return null;
         } else {
-            debugString ("AccessBridge::getVirtualAccessibleNameFromContext error - ac == null.");
+            debugString ("[ERROR]: AccessBridge::getVirtualAccessibleNameFromContext error - ac == null.");
             return null;
         }
     }
@@ -1443,11 +1443,11 @@ final public class AccessBridge extends AccessBridgeLoader {
             }, ac);
             if (s != null) {
                 references.increment(s);
-                debugString("Returning AccessibleDescription from Context: " + s);
+                debugString("[INFO]: Returning AccessibleDescription from Context: " + s);
                 return s;
             }
         } else {
-            debugString("getAccessibleDescriptionFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleDescriptionFromContext; ac = null");
         }
         return null;
     }
@@ -1467,12 +1467,12 @@ final public class AccessBridge extends AccessBridgeLoader {
                 String s = role.toDisplayString(Locale.US);
                 if (s != null) {
                     references.increment(s);
-                    debugString("Returning AccessibleRole from Context: " + s);
+                    debugString("[INFO]: Returning AccessibleRole from Context: " + s);
                     return s;
                 }
             }
         } else {
-            debugString("getAccessibleRoleStringFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleRoleStringFromContext; ac = null");
         }
         return null;
     }
@@ -1511,12 +1511,12 @@ final public class AccessBridge extends AccessBridgeLoader {
                         s += AccessibleState.MANAGES_DESCENDANTS.toDisplayString(Locale.US);
                     }
                     references.increment(s);
-                    debugString("Returning AccessibleStateSet from Context: " + s);
+                    debugString("[INFO]: Returning AccessibleStateSet from Context: " + s);
                     return s;
                 }
             }
         } else {
-            debugString("getAccessibleStatesStringFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleStatesStringFromContext; ac = null");
         }
         return null;
     }
@@ -1542,11 +1542,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                     }
                 }
                 references.increment(s);
-                debugString("Returning AccessibleStateSet en_US from Context: " + s);
+                debugString("[INFO]: Returning AccessibleStateSet en_US from Context: " + s);
                 return s;
             }
         }
-        debugString("getAccessibleStatesStringFromContext; ac = null");
+        debugString("[ERROR]: getAccessibleStatesStringFromContext; ac = null");
         return null;
     }
 
@@ -1700,11 +1700,11 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (ac != null) {
             Rectangle r = getAccessibleBoundsOnScreenFromContext(ac);
             if (r != null) {
-                debugString(" - Returning Accessible x coord from Context: " + r.x);
+                debugString("[INFO]: Returning Accessible x coord from Context: " + r.x);
                 return r.x;
             }
         } else {
-            debugString("getAccessibleXcoordFromContext ac = null");
+            debugString("[ERROR]: getAccessibleXcoordFromContext ac = null");
         }
         return -1;
     }
@@ -1713,14 +1713,14 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the AccessibleComponent y-coord from an AccessibleContext
      */
     private int getAccessibleYcoordFromContext(AccessibleContext ac) {
-        debugString("getAccessibleYcoordFromContext() called");
+        debugString("[INFO]: getAccessibleYcoordFromContext() called");
         if (ac != null) {
             Rectangle r = getAccessibleBoundsOnScreenFromContext(ac);
             if (r != null) {
                 return r.y;
             }
         } else {
-        debugString("getAccessibleYcoordFromContext; ac = null");
+        debugString("[ERROR]: getAccessibleYcoordFromContext; ac = null");
         }
         return -1;
     }
@@ -1735,7 +1735,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.height;
             }
         } else {
-            debugString("getAccessibleHeightFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleHeightFromContext; ac = null");
         }
         return -1;
     }
@@ -1750,7 +1750,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.width;
             }
         } else {
-            debugString("getAccessibleWidthFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleWidthFromContext; ac = null");
         }
         return -1;
     }
@@ -1765,11 +1765,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                     return ac.getAccessibleComponent();
                 }, ac);
             if (acmp != null) {
-                debugString("Returning AccessibleComponent Context");
+                debugString("[INFO]: Returning AccessibleComponent Context");
                 return acmp;
             }
         } else {
-            debugString("getAccessibleComponentFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleComponentFromContext; ac = null");
         }
         return null;
     }
@@ -1778,7 +1778,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the AccessibleAction from an AccessibleContext
      */
     private AccessibleAction getAccessibleActionFromContext(final AccessibleContext ac) {
-        debugString("Returning AccessibleAction Context");
+        debugString("[INFO]: Returning AccessibleAction Context");
         return ac == null ? null : InvocationUtils.invokeAndWait(new Callable<AccessibleAction>() {
             @Override
             public AccessibleAction call() throws Exception {
@@ -1830,7 +1830,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * XXX
      */
     private Rectangle getCaretLocation(final AccessibleContext ac) {
-    debugString("getCaretLocation");
+    debugString("[INFO]: getCaretLocation");
         if (ac==null)
             return null;
         return InvocationUtils.invokeAndWait(new Callable<Rectangle>() {
@@ -1951,7 +1951,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private int getAccessibleIndexAtPointFromContext(final AccessibleContext ac,
                                                     final int x, final int y) {
-        debugString("getAccessibleIndexAtPointFromContext: x = "+x+"; y = "+y);
+        debugString("[INFO]: getAccessibleIndexAtPointFromContext: x = "+x+"; y = "+y);
         if (ac==null)
             return -1;
         return InvocationUtils.invokeAndWait(new Callable<Integer>() {
@@ -2005,7 +2005,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getAccessibleLetterAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleLetterAtIndexFromContext; ac = null");
         }
         return null;
     }
@@ -2028,7 +2028,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getAccessibleWordAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleWordAtIndexFromContext; ac = null");
         }
         return null;
     }
@@ -2051,7 +2051,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getAccessibleSentenceAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleSentenceAtIndexFromContext; ac = null");
         }
         return null;
     }
@@ -2109,7 +2109,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getAccessibleTextSelectedTextFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleTextSelectedTextFromContext; ac = null");
         }
         return null;
     }
@@ -2370,7 +2370,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.x;
             }
         } else {
-            debugString("getAccessibleXcoordTextRectAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleXcoordTextRectAtIndexFromContext; ac = null");
         }
         return -1;
     }
@@ -2385,7 +2385,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.y;
             }
         } else {
-            debugString("getAccessibleYcoordTextRectAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleYcoordTextRectAtIndexFromContext; ac = null");
         }
         return -1;
     }
@@ -2400,7 +2400,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.height;
             }
         } else {
-            debugString("getAccessibleHeightTextRectAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleHeightTextRectAtIndexFromContext; ac = null");
         }
         return -1;
     }
@@ -2415,7 +2415,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return r.width;
             }
         } else {
-            debugString("getAccessibleWidthTextRectAtIndexFromContext; ac = null");
+            debugString("[ERROR]: getAccessibleWidthTextRectAtIndexFromContext; ac = null");
         }
         return -1;
     }
@@ -2429,7 +2429,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isBold(as);
         } else {
-            debugString("getBoldFromAttributeSet; as = null");
+            debugString("[ERROR]: getBoldFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2441,7 +2441,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isItalic(as);
         } else {
-            debugString("getItalicFromAttributeSet; as = null");
+            debugString("[ERROR]: getItalicFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2453,7 +2453,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isUnderline(as);
         } else {
-            debugString("getUnderlineFromAttributeSet; as = null");
+            debugString("[ERROR]: getUnderlineFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2465,7 +2465,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isStrikeThrough(as);
         } else {
-            debugString("getStrikethroughFromAttributeSet; as = null");
+            debugString("[ERROR]: getStrikethroughFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2477,7 +2477,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isSuperscript(as);
         } else {
-            debugString("getSuperscriptFromAttributeSet; as = null");
+            debugString("[ERROR]: getSuperscriptFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2489,7 +2489,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.isSubscript(as);
         } else {
-            debugString("getSubscriptFromAttributeSet; as = null");
+            debugString("[ERROR]: getSubscriptFromAttributeSet; as = null");
         }
         return false;
     }
@@ -2505,7 +2505,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getBackgroundColorFromAttributeSet; as = null");
+            debugString("[ERROR]: getBackgroundColorFromAttributeSet; as = null");
         }
         return null;
     }
@@ -2521,7 +2521,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getForegroundColorFromAttributeSet; as = null");
+            debugString("[ERROR]: getForegroundColorFromAttributeSet; as = null");
         }
         return null;
     }
@@ -2537,7 +2537,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return s;
             }
         } else {
-            debugString("getFontFamilyFromAttributeSet; as = null");
+            debugString("[ERROR]: getFontFamilyFromAttributeSet; as = null");
         }
         return null;
     }
@@ -2549,7 +2549,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getFontSize(as);
         } else {
-            debugString("getFontSizeFromAttributeSet; as = null");
+            debugString("[ERROR]: getFontSizeFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2561,7 +2561,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getAlignment(as);
         } else {
-            debugString("getAlignmentFromAttributeSet; as = null");
+            debugString("[ERROR]: getAlignmentFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2573,7 +2573,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getBidiLevel(as);
         } else {
-            debugString("getBidiLevelFromAttributeSet; as = null");
+            debugString("[ERROR]: getBidiLevelFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2586,7 +2586,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getFirstLineIndent(as);
         } else {
-            debugString("getFirstLineIndentFromAttributeSet; as = null");
+            debugString("[ERROR]: getFirstLineIndentFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2598,7 +2598,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getLeftIndent(as);
         } else {
-            debugString("getLeftIndentFromAttributeSet; as = null");
+            debugString("[ERROR]: getLeftIndentFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2610,7 +2610,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getRightIndent(as);
         } else {
-            debugString("getRightIndentFromAttributeSet; as = null");
+            debugString("[ERROR]: getRightIndentFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2622,7 +2622,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getLineSpacing(as);
         } else {
-            debugString("getLineSpacingFromAttributeSet; as = null");
+            debugString("[ERROR]: getLineSpacingFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2634,7 +2634,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getSpaceAbove(as);
         } else {
-            debugString("getSpaceAboveFromAttributeSet; as = null");
+            debugString("[ERROR]: getSpaceAboveFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2646,7 +2646,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         if (as != null) {
             return StyleConstants.getSpaceBelow(as);
         } else {
-            debugString("getSpaceBelowFromAttributeSet; as = null");
+            debugString("[ERROR]: getSpaceBelowFromAttributeSet; as = null");
         }
         return -1;
     }
@@ -2795,7 +2795,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }
             }
         } else {
-            debugString("getCurrentAccessibleValueFromContext; ac = null");
+            debugString("[ERROR]: getCurrentAccessibleValueFromContext; ac = null");
         }
         return null;
     }
@@ -2823,7 +2823,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }
             }
         } else {
-            debugString("getMaximumAccessibleValueFromContext; ac = null");
+            debugString("[ERROR]: getMaximumAccessibleValueFromContext; ac = null");
         }
         return null;
     }
@@ -2851,7 +2851,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }
             }
         } else {
-            debugString("getMinimumAccessibleValueFromContext; ac = null");
+            debugString("[ERROR]: getMinimumAccessibleValueFromContext; ac = null");
         }
         return null;
     }
@@ -3038,7 +3038,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the row count for an AccessibleTable
      */
     private int getAccessibleTableRowCount(final AccessibleContext ac) {
-        debugString("##### getAccessibleTableRowCount");
+        debugString("[INFO]: ##### getAccessibleTableRowCount");
         return InvocationUtils.invokeAndWait(new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
@@ -3057,7 +3057,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the column count for an AccessibleTable
      */
     private int getAccessibleTableColumnCount(final AccessibleContext ac) {
-        debugString("##### getAccessibleTableColumnCount");
+        debugString("[INFO]: ##### getAccessibleTableColumnCount");
         return InvocationUtils.invokeAndWait(new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
@@ -3077,7 +3077,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleContext getAccessibleTableCellAccessibleContext(final AccessibleTable at,
                                                                       final int row, final int column) {
-        debugString("getAccessibleTableCellAccessibleContext: at = "+at.getClass());
+        debugString("[INFO]: getAccessibleTableCellAccessibleContext: at = "+at.getClass());
         if (at == null) return null;
         return InvocationUtils.invokeAndWait(new Callable<AccessibleContext>() {
             @Override
@@ -3122,7 +3122,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the index of a cell at a given row and column in an AccessibleTable
      */
     private int getAccessibleTableCellIndex(final AccessibleTable at, int row, int column) {
-        debugString("##### getAccessibleTableCellIndex: at="+at);
+        debugString("[INFO]: ##### getAccessibleTableCellIndex: at="+at);
         if (at != null) {
             int cellIndex = row *
                 InvocationUtils.invokeAndWait(new Callable<Integer>() {
@@ -3132,10 +3132,10 @@ final public class AccessBridge extends AccessBridgeLoader {
                     }
                 }, getContextFromAccessibleTable(at)) +
                 column;
-            debugString("   ##### getAccessibleTableCellIndex="+cellIndex);
+            debugString("[INFO]:    ##### getAccessibleTableCellIndex="+cellIndex);
             return cellIndex;
         }
-        debugString(" ##### getAccessibleTableCellIndex FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableCellIndex FAILED");
         return -1;
     }
 
@@ -3143,7 +3143,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the row extent of a cell at a given row and column in an AccessibleTable
      */
     private int getAccessibleTableCellRowExtent(final AccessibleTable at, final int row, final int column) {
-        debugString("##### getAccessibleTableCellRowExtent");
+        debugString("[INFO]: ##### getAccessibleTableCellRowExtent");
         if (at != null) {
             int rowExtent = InvocationUtils.invokeAndWait(new Callable<Integer>() {
                                                               @Override
@@ -3152,10 +3152,10 @@ final public class AccessBridge extends AccessBridgeLoader {
                                                               }
                                                           },
                     getContextFromAccessibleTable(at));
-            debugString("   ##### getAccessibleTableCellRowExtent="+rowExtent);
+            debugString("[INFO]:   ##### getAccessibleTableCellRowExtent="+rowExtent);
             return rowExtent;
         }
-        debugString(" ##### getAccessibleTableCellRowExtent FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableCellRowExtent FAILED");
         return -1;
     }
 
@@ -3163,7 +3163,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * returns the column extent of a cell at a given row and column in an AccessibleTable
      */
     private int getAccessibleTableCellColumnExtent(final AccessibleTable at, final int row, final int column) {
-        debugString("##### getAccessibleTableCellColumnExtent");
+        debugString("[INFO]: ##### getAccessibleTableCellColumnExtent");
         if (at != null) {
             int columnExtent = InvocationUtils.invokeAndWait(new Callable<Integer>() {
                                                                  @Override
@@ -3172,10 +3172,10 @@ final public class AccessBridge extends AccessBridgeLoader {
                                                                  }
                                                              },
                     getContextFromAccessibleTable(at));
-            debugString("   ##### getAccessibleTableCellColumnExtent="+columnExtent);
+            debugString("[INFO]:   ##### getAccessibleTableCellColumnExtent="+columnExtent);
             return columnExtent;
         }
-        debugString(" ##### getAccessibleTableCellColumnExtent FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableCellColumnExtent FAILED");
         return -1;
     }
 
@@ -3184,7 +3184,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private boolean isAccessibleTableCellSelected(final AccessibleTable at, final int row,
                          final int column) {
-        debugString("##### isAccessibleTableCellSelected: ["+row+"]["+column+"]");
+        debugString("[INFO]: ##### isAccessibleTableCellSelected: ["+row+"]["+column+"]");
         if (at == null)
             return false;
         return InvocationUtils.invokeAndWait(new Callable<Boolean>() {
@@ -3211,7 +3211,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * AccessibleTable
      */
     private AccessibleTable getAccessibleTableRowHeader(final AccessibleContext ac) {
-        debugString(" #####  getAccessibleTableRowHeader called");
+        debugString("[INFO]: #####  getAccessibleTableRowHeader called");
         AccessibleTable at = InvocationUtils.invokeAndWait(new Callable<AccessibleTable>() {
             @Override
             public AccessibleTable call() throws Exception {
@@ -3235,7 +3235,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * AccessibleTable
      */
     private AccessibleTable getAccessibleTableColumnHeader(final AccessibleContext ac) {
-    debugString("##### getAccessibleTableColumnHeader");
+    debugString("[INFO]: ##### getAccessibleTableColumnHeader");
         if (ac == null)
             return null;
         AccessibleTable at = InvocationUtils.invokeAndWait(new Callable<AccessibleTable>() {
@@ -3274,7 +3274,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private int getAccessibleTableRowHeaderRowCount(AccessibleContext ac) {
 
-    debugString(" #####  getAccessibleTableRowHeaderRowCount called");
+    debugString("[INFO]: #####  getAccessibleTableRowHeaderRowCount called");
         if (ac != null) {
             final AccessibleTable atRowHeader = getAccessibleTableRowHeader(ac);
             if (atRowHeader != null) {
@@ -3297,7 +3297,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * the row header in an AccessibleTable
      */
     private int getAccessibleTableRowHeaderColumnCount(AccessibleContext ac) {
-        debugString(" #####  getAccessibleTableRowHeaderColumnCount called");
+        debugString("[INFO]: #####  getAccessibleTableRowHeaderColumnCount called");
         if (ac != null) {
             final AccessibleTable atRowHeader = getAccessibleTableRowHeader(ac);
             if (atRowHeader != null) {
@@ -3312,7 +3312,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }, ac);
             }
         }
-        debugString(" ##### getAccessibleTableRowHeaderColumnCount FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableRowHeaderColumnCount FAILED");
         return -1;
     }
 
@@ -3322,7 +3322,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private int getAccessibleTableColumnHeaderRowCount(AccessibleContext ac) {
 
-    debugString("##### getAccessibleTableColumnHeaderRowCount");
+    debugString("[INFO]: ##### getAccessibleTableColumnHeaderRowCount");
         if (ac != null) {
             final AccessibleTable atColumnHeader = getAccessibleTableColumnHeader(ac);
             if (atColumnHeader != null) {
@@ -3337,7 +3337,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }, ac);
             }
         }
-        debugString(" ##### getAccessibleTableColumnHeaderRowCount FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableColumnHeaderRowCount FAILED");
         return -1;
     }
 
@@ -3347,7 +3347,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private int getAccessibleTableColumnHeaderColumnCount(AccessibleContext ac) {
 
-    debugString("#####  getAccessibleTableColumnHeaderColumnCount");
+    debugString("[ERROR]: #####  getAccessibleTableColumnHeaderColumnCount");
         if (ac != null) {
             final AccessibleTable atColumnHeader = getAccessibleTableColumnHeader(ac);
             if (atColumnHeader != null) {
@@ -3362,7 +3362,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 }, ac);
             }
         }
-        debugString(" ##### getAccessibleTableColumnHeaderColumnCount FAILED");
+        debugString("[ERROR]: ##### getAccessibleTableColumnHeaderColumnCount FAILED");
         return -1;
     }
 
@@ -3630,7 +3630,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleContext getAccessibleRelationTarget(final AccessibleContext ac,
                                                          final int i, final int j) {
-        debugString("***** getAccessibleRelationTarget");
+        debugString("[INFO]: ***** getAccessibleRelationTarget");
         return InvocationUtils.invokeAndWait(new Callable<AccessibleContext>() {
             @Override
             public AccessibleContext call() throws Exception {
@@ -3663,7 +3663,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the AccessibleHypertext
      */
     private AccessibleHypertext getAccessibleHypertext(final AccessibleContext ac) {
-        debugString("getAccessibleHyperlink");
+        debugString("[INFO]: getAccessibleHyperlink");
         if (ac==null)
             return null;
         AccessibleHypertext hypertext = InvocationUtils.invokeAndWait(new Callable<AccessibleHypertext>() {
@@ -3684,7 +3684,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the number of AccessibleHyperlinks
      */
     private int getAccessibleHyperlinkCount(AccessibleContext ac) {
-        debugString("getAccessibleHyperlinkCount");
+        debugString("[INFO]: getAccessibleHyperlinkCount");
         if (ac == null) {
             return 0;
         }
@@ -3705,7 +3705,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the hyperlink at the specified index
      */
     private AccessibleHyperlink getAccessibleHyperlink(final AccessibleHypertext hypertext, final int i) {
-        debugString("getAccessibleHyperlink");
+        debugString("[INFO]: getAccessibleHyperlink");
         if (hypertext == null) {
             return null;
         }
@@ -3737,7 +3737,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the hyperlink object description
      */
     private String getAccessibleHyperlinkText(final AccessibleHyperlink link) {
-        debugString("getAccessibleHyperlinkText");
+        debugString("[INFO]: getAccessibleHyperlinkText");
         if (link == null) {
             return null;
         }
@@ -3757,7 +3757,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the hyperlink URL
      */
     private String getAccessibleHyperlinkURL(final AccessibleHyperlink link) {
-        debugString("getAccessibleHyperlinkURL");
+        debugString("[INFO]: getAccessibleHyperlinkURL");
         if (link == null) {
             return null;
         }
@@ -3778,7 +3778,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the start index of the hyperlink text
      */
     private int getAccessibleHyperlinkStartIndex(final AccessibleHyperlink link) {
-        debugString("getAccessibleHyperlinkStartIndex");
+        debugString("[INFO]: getAccessibleHyperlinkStartIndex");
         if (link == null) {
             return -1;
         }
@@ -3794,7 +3794,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns the end index of the hyperlink text
      */
     private int getAccessibleHyperlinkEndIndex(final AccessibleHyperlink link) {
-        debugString("getAccessibleHyperlinkEndIndex");
+        debugString("[INFO]: getAccessibleHyperlinkEndIndex");
         if (link == null) {
             return -1;
         }
@@ -3812,7 +3812,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * is no hyperlink associated with this index.
      */
     private int getAccessibleHypertextLinkIndex(final AccessibleHypertext hypertext, final int charIndex) {
-        debugString("getAccessibleHypertextLinkIndex: charIndex = "+charIndex);
+        debugString("[INFO]: getAccessibleHypertextLinkIndex: charIndex = "+charIndex);
         if (hypertext == null) {
             return -1;
         }
@@ -3822,7 +3822,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return hypertext.getLinkIndex(charIndex);
             }
         }, hyperTextContextMap.get(hypertext));
-        debugString("getAccessibleHypertextLinkIndex returning "+linkIndex);
+        debugString("[INFO]: getAccessibleHypertextLinkIndex returning "+linkIndex);
         return linkIndex;
     }
 
@@ -3841,7 +3841,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 return link.doAccessibleAction(0);
             }
         }, ac);
-        debugString("activateAccessibleHyperlink: returning = "+retval);
+        debugString("[INFO]: activateAccessibleHyperlink: returning = "+retval);
         return retval;
     }
 
@@ -3969,17 +3969,17 @@ final public class AccessBridge extends AccessBridgeLoader {
         int fKey = fKeyNumber(keyStroke);
         if (fKey != 0) {
             // return 0x00000001 through 0x00000018
-            debugString("   Shortcut is: F" + fKey);
+            debugString("[INFO]:   Shortcut is: F" + fKey);
             return (char)fKey;
         }
         // If the accelerator is a control character, return it
         int keyCode = controlCode(keyStroke);
         if (keyCode != 0) {
-            debugString("   Shortcut is control character: " + Integer.toHexString(keyCode));
+            debugString("[INFO]:   Shortcut is control character: " + Integer.toHexString(keyCode));
             return (char)keyCode;
         }
         String keyText = KeyEvent.getKeyText(keyStroke.getKeyCode());
-        debugString("   Shortcut is: " + keyText);
+        debugString("[INFO]:   Shortcut is: " + keyText);
         if (keyText != null || keyText.length() > 0) {
             CharSequence seq = keyText.subSequence(0, 1);
             if (seq != null || seq.length() > 0) {
@@ -3995,7 +3995,7 @@ final public class AccessBridge extends AccessBridgeLoader {
     private int getModifiers(KeyStroke keyStroke) {
         if (keyStroke == null)
             return 0;
-        debugString("In AccessBridge.getModifiers");
+        debugString("[INFO]: In AccessBridge.getModifiers");
         // modifiers is a bit strip where bits 0-7 indicate a traditional modifier
         // such as Ctrl/Alt/Shift, bit 8 indicates an F key shortcut, and bit 9 indicates
         // a control code shortcut such as the delete key.
@@ -4022,23 +4022,23 @@ final public class AccessBridge extends AccessBridgeLoader {
             // 0-3 are shift, ctrl, meta, alt
             // 4-7 are for Solaris workstations (though not being used)
             if (text.startsWith("met")) {
-                debugString("   found meta");
+                debugString("[INFO]:   found meta");
                 modifiers |= ActionEvent.META_MASK;
             }
             if (text.startsWith("ctr")) {
-                debugString("   found ctrl");
+                debugString("[INFO]:   found ctrl");
                 modifiers |= ActionEvent.CTRL_MASK;
             }
             if (text.startsWith("alt")) {
-                debugString("   found alt");
+                debugString("[INFO]:   found alt");
                 modifiers |= ActionEvent.ALT_MASK;
             }
             if (text.startsWith("shi")) {
-                debugString("   found shift");
+                debugString("[INFO]:   found shift");
                 modifiers |= ActionEvent.SHIFT_MASK;
             }
         }
-        debugString("   returning modifiers: 0x" + Integer.toHexString(modifiers));
+        debugString("[INFO]:   returning modifiers: 0x" + Integer.toHexString(modifiers));
         return modifiers;
     }
 
@@ -4117,7 +4117,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return the number of icons associated with this context
      */
     private int getAccessibleIconsCount(final AccessibleContext ac) {
-        debugString("getAccessibleIconsCount");
+        debugString("[INFO]: getAccessibleIconsCount");
         if (ac == null) {
             return 0;
         }
@@ -4137,7 +4137,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return icon description at the specified index
      */
     private String getAccessibleIconDescription(final AccessibleContext ac, final int index) {
-        debugString("getAccessibleIconDescription: index = "+index);
+        debugString("[INFO]: getAccessibleIconDescription: index = "+index);
         if (ac == null) {
             return null;
         }
@@ -4157,7 +4157,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return icon height at the specified index
      */
     private int getAccessibleIconHeight(final AccessibleContext ac, final int index) {
-        debugString("getAccessibleIconHeight: index = "+index);
+        debugString("[INFO]: getAccessibleIconHeight: index = "+index);
         if (ac == null) {
             return 0;
         }
@@ -4177,7 +4177,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return icon width at the specified index
      */
     private int getAccessibleIconWidth(final AccessibleContext ac, final int index) {
-        debugString("getAccessibleIconWidth: index = "+index);
+        debugString("[INFO]: getAccessibleIconWidth: index = "+index);
         if (ac == null) {
             return 0;
         }
@@ -4199,7 +4199,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return the number of icons associated with this context
      */
     private int getAccessibleActionsCount(final AccessibleContext ac) {
-        debugString("getAccessibleActionsCount");
+        debugString("[INFO]: getAccessibleActionsCount");
         if (ac == null) {
             return 0;
         }
@@ -4218,7 +4218,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return icon description at the specified index
      */
     private String getAccessibleActionName(final AccessibleContext ac, final int index) {
-        debugString("getAccessibleActionName: index = "+index);
+        debugString("[INFO]: getAccessibleActionName: index = "+index);
         if (ac == null) {
             return null;
         }
@@ -4237,7 +4237,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * return icon description at the specified index
      */
     private boolean doAccessibleActions(final AccessibleContext ac, final String name) {
-        debugString("doAccessibleActions: action name = "+name);
+        debugString("[INFO]: doAccessibleActions: action name = "+name);
         if (ac == null || name == null) {
             return false;
         }
@@ -4275,14 +4275,14 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns whether successful.
      */
     private boolean setTextContents(final AccessibleContext ac, final String text) {
-        debugString("setTextContents: ac = "+ac+"; text = "+text);
+        debugString("[INFO]: setTextContents: ac = "+ac+"; text = "+text);
 
         if (! (ac instanceof AccessibleEditableText)) {
-            debugString("   ac not instanceof AccessibleEditableText: "+ac);
+            debugString("[WARN]:   ac not instanceof AccessibleEditableText: "+ac);
             return false;
         }
         if (text == null) {
-            debugString("   text is null");
+            debugString("[WARN]:   text is null");
             return false;
         }
 
@@ -4319,7 +4319,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * (AccessibleContext)0 on error.
      */
     private AccessibleContext getTopLevelObject (final AccessibleContext ac) {
-        debugString("getTopLevelObject; ac = "+ac);
+        debugString("[INFO]: getTopLevelObject; ac = "+ac);
         if (ac == null) {
             return null;
         }
@@ -4356,8 +4356,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      */
     private AccessibleContext getParentWithRole (final AccessibleContext ac,
                                                  final String roleName) {
-        debugString("getParentWithRole; ac = "+ac);
-        debugString("role = "+roleName);
+        debugString("[INFO]: getParentWithRole; ac = "+ac + "\n role = "+roleName);
         if (ac == null || roleName == null) {
             return null;
         }
@@ -4413,7 +4412,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns -1 on error.
      */
     private int getObjectDepth(final AccessibleContext ac) {
-        debugString("getObjectDepth: ac = "+ac);
+        debugString("[INFO]: getObjectDepth: ac = "+ac);
 
         if (ac == null) {
             return -1;
@@ -4442,7 +4441,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Returns (AccessibleContext)0 on error.
      */
     private AccessibleContext getActiveDescendent (final AccessibleContext ac) {
-        debugString("getActiveDescendent: ac = "+ac);
+        debugString("[INFO]: getActiveDescendent: ac = "+ac);
         if (ac == null) {
             return null;
         }
@@ -4510,7 +4509,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Bug ID 4916682 - Implement JAWS AccessibleName policy
      */
     private String getJAWSAccessibleName(final AccessibleContext ac) {
-        debugString("getJAWSAccessibleName");
+        debugString("[INFO]:  getJAWSAccessibleName");
         if (ac == null) {
             return null;
         }
@@ -4529,7 +4528,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Bug ID 4944757 - requestFocus method needed
      */
     private boolean requestFocus(final AccessibleContext ac) {
-        debugString("requestFocus");
+        debugString("[INFO]:  requestFocus");
         if (ac == null) {
             return false;
         }
@@ -4554,7 +4553,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Bug ID 4944758 - selectTextRange method needed
      */
     private boolean selectTextRange(final AccessibleContext ac, final int startIndex, final int endIndex) {
-        debugString("selectTextRange: start = "+startIndex+"; end = "+endIndex);
+        debugString("[INFO]:  selectTextRange: start = "+startIndex+"; end = "+endIndex);
         if (ac == null) {
             return false;
         }
@@ -4580,7 +4579,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Bug ID 4944770 - setCaretPosition method needed
      */
     private boolean setCaretPosition(final AccessibleContext ac, final int position) {
-        debugString("setCaretPosition: position = "+position);
+        debugString("[INFO]: setCaretPosition: position = "+position);
         if (ac == null) {
             return false;
         }
@@ -4608,13 +4607,13 @@ final public class AccessBridge extends AccessBridgeLoader {
     private boolean _foundVisibleChild;
 
     private int getVisibleChildrenCount(AccessibleContext ac) {
-        debugString("getVisibleChildrenCount");
+        debugString("[INFO]: getVisibleChildrenCount");
         if (ac == null) {
             return -1;
         }
         _visibleChildrenCount = 0;
         _getVisibleChildrenCount(ac);
-        debugString("  _visibleChildrenCount = "+_visibleChildrenCount);
+        debugString("[INFO]:   _visibleChildrenCount = "+_visibleChildrenCount);
         return _visibleChildrenCount;
     }
 
@@ -4754,7 +4753,7 @@ final public class AccessBridge extends AccessBridgeLoader {
      * Bug ID 4944762- getVisibleChildren for list-like components needed
      */
     private AccessibleContext getVisibleChild(AccessibleContext ac, int index) {
-        debugString("getVisibleChild: index = "+index);
+        debugString("[INFO]: getVisibleChild: index = "+index);
         if (ac == null) {
             return null;
         }
@@ -4764,7 +4763,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         _getVisibleChild(ac, index);
 
         if (_visibleChild != null) {
-            debugString( "    getVisibleChild: found child = " +
+            debugString( "[INFO]:     getVisibleChild: found child = " +
                          InvocationUtils.invokeAndWait(new Callable<String>() {
                              @Override
                              public String call() throws Exception {
@@ -4953,7 +4952,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         */
         void increment(Object o) {
             if (o == null){
-                debugString("ObjectReferences::increment - Passed in object is null");
+                debugString("[WARN]: ObjectReferences::increment - Passed in object is null");
                 return;
             }
 
@@ -4974,10 +4973,10 @@ final public class AccessBridge extends AccessBridgeLoader {
                 if (aRef.value == 0) {
                     refs.remove(o);
                 } else if (aRef.value < 0) {
-                    debugString("ERROR: decrementing reference count below 0");
+                    debugString("[ERROR]: decrementing reference count below 0");
                 }
             } else {
-                debugString("ERROR: object to decrement not in ObjectReferences table");
+                debugString("[ERROR]: object to decrement not in ObjectReferences table");
             }
         }
 
@@ -5312,7 +5311,7 @@ final public class AccessBridge extends AccessBridgeLoader {
         // This is invoked on the EDT , as
         public void propertyChange(PropertyChangeEvent e) {
 
-            accessBridge.debugString("propertyChange(" + e.toString() + ") called");
+            accessBridge.debugString("[INFO]: propertyChange(" + e.toString() + ") called");
 
             if (e != null && (accessibilityEventMask & PROPERTY_EVENTS) != 0) {
                 Object o = e.getSource();
@@ -5330,7 +5329,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                 if (ac != null) {
                     InvocationUtils.registerAccessibleContext(ac, AppContext.getAppContext());
 
-                    accessBridge.debugString("AccessibleContext: " + ac);
+                    accessBridge.debugString("[INFO]: AccessibleContext: " + ac);
                     String propertyName = e.getPropertyName();
 
                     if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_CARET_PROPERTY) == 0) {
@@ -5343,8 +5342,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         if (e.getNewValue() instanceof Integer) {
                             newValue = ((Integer) e.getNewValue()).intValue();
                         }
-                        accessBridge.debugString(" - about to call propertyCaretChange()");
-                        accessBridge.debugString("   old value: " + oldValue + "new value: " + newValue);
+                        accessBridge.debugString("[INFO]:  - about to call propertyCaretChange()   old value: " + oldValue + "new value: " + newValue);
                         accessBridge.propertyCaretChange(e, ac, oldValue, newValue);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_DESCRIPTION_PROPERTY) == 0) {
@@ -5357,8 +5355,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         if (e.getNewValue() != null) {
                             newValue = e.getNewValue().toString();
                         }
-                        accessBridge.debugString(" - about to call propertyDescriptionChange()");
-                        accessBridge.debugString("   old value: " + oldValue + "new value: " + newValue);
+                        accessBridge.debugString("[INFO]:  - about to call propertyDescriptionChange()   old value: " + oldValue + "new value: " + newValue);
                         accessBridge.propertyDescriptionChange(e, ac, oldValue, newValue);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_NAME_PROPERTY) == 0) {
@@ -5371,12 +5368,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                         if (e.getNewValue() != null) {
                             newValue = e.getNewValue().toString();
                         }
-                        accessBridge.debugString(" - about to call propertyNameChange()");
-                        accessBridge.debugString("   old value: " + oldValue + " new value: " + newValue);
+                        accessBridge.debugString("[INFO]:  - about to call propertyNameChange()   old value: " + oldValue + " new value: " + newValue);
                         accessBridge.propertyNameChange(e, ac, oldValue, newValue);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY) == 0) {
-                        accessBridge.debugString(" - about to call propertySelectionChange() " + ac +  "   " + Thread.currentThread() + "   " + e.getSource());
+                        accessBridge.debugString("[INFO]:  - about to call propertySelectionChange() " + ac +  "   " + Thread.currentThread() + "   " + e.getSource());
 
                         accessBridge.propertySelectionChange(e, ac);
 
@@ -5394,11 +5390,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                             newValue = newState.toDisplayString(Locale.US);
                         }
 
-                        accessBridge.debugString(" - about to call propertyStateChange()");
+                        accessBridge.debugString("[INFO]:  - about to call propertyStateChange()");
                         accessBridge.propertyStateChange(e, ac, oldValue, newValue);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_TEXT_PROPERTY) == 0) {
-                        accessBridge.debugString(" - about to call propertyTextChange()");
+                        accessBridge.debugString("[INFO]:  - about to call propertyTextChange()");
                         accessBridge.propertyTextChange(e, ac);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_VALUE_PROPERTY) == 0) {  // strings 'cause of floating point, etc.
@@ -5411,7 +5407,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                         if (e.getNewValue() != null) {
                             newValue = e.getNewValue().toString();
                         }
-                        accessBridge.debugString(" - about to call propertyDescriptionChange()");
+                        accessBridge.debugString("[INFO]:  - about to call propertyDescriptionChange()");
                         accessBridge.propertyValueChange(e, ac, oldValue, newValue);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY) == 0) {
@@ -5430,8 +5426,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                             newAC = (AccessibleContext) e.getNewValue();
                             InvocationUtils.registerAccessibleContext(newAC, AppContext.getAppContext());
                         }
-                        accessBridge.debugString(" - about to call propertyChildChange()");
-                        accessBridge.debugString("   old AC: " + oldAC + "new AC: " + newAC);
+                        accessBridge.debugString("[INFO]:  - about to call propertyChildChange()   old AC: " + oldAC + "new AC: " + newAC);
                         accessBridge.propertyChildChange(e, ac, oldAC, newAC);
 
                     } else if (propertyName.compareTo(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY) == 0) {
@@ -5494,10 +5489,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             }
             prevAC = newAC;
 
-            accessBridge.debugString("  - about to call propertyActiveDescendentChange()");
-            accessBridge.debugString("   AC: " + ac);
-            accessBridge.debugString("   old AC: " + oldAC + "new AC: " + newAC);
-
+            accessBridge.debugString("[INFO]:   - about to call propertyActiveDescendentChange()   AC: " + ac + "   old AC: " + oldAC + "new AC: " + newAC);
             InvocationUtils.registerAccessibleContext(oldAC, AppContext.getAppContext());
             InvocationUtils.registerAccessibleContext(newAC, AppContext.getAppContext());
             accessBridge.propertyActiveDescendentChange(e, ac, oldAC, newAC);
@@ -5553,10 +5545,9 @@ final public class AccessBridge extends AccessBridgeLoader {
                         // This is a popup with an item selected
                         FocusEvent e =
                         new FocusEvent(last, FocusEvent.FOCUS_GAINED);
-                        accessBridge.debugString(" - about to call focusGained()");
                         AccessibleContext focusedAC = last.getAccessibleContext();
                         InvocationUtils.registerAccessibleContext(focusedAC, SunToolkit.targetToAppContext(last));
-                        accessBridge.debugString("   AC: " + focusedAC);
+                        accessBridge.debugString("[INFO]:  - about to call focusGained()   AC: " + focusedAC);
                         accessBridge.focusGained(e, focusedAC);
                     }
                 }
@@ -5565,10 +5556,9 @@ final public class AccessBridge extends AccessBridgeLoader {
                 if (focusOwner instanceof Accessible) {
                     FocusEvent e = new FocusEvent(focusOwner,
                                                   FocusEvent.FOCUS_GAINED);
-                    accessBridge.debugString(" - about to call focusGained()");
                     AccessibleContext focusedAC = focusOwner.getAccessibleContext();
                     InvocationUtils.registerAccessibleContext(focusedAC, SunToolkit.targetToAppContext(focusOwner));
-                    accessBridge.debugString("   AC: " + focusedAC);
+                    accessBridge.debugString("[INFO]:  - about to call focusGained()   AC: " + focusedAC);
                     accessBridge.focusGained(e, focusedAC);
                 }
             }
@@ -5578,8 +5568,7 @@ final public class AccessBridge extends AccessBridgeLoader {
             if (e != null && (javaEventMask & FOCUS_LOST_EVENTS) != 0) {
                 Accessible a = Translator.getAccessible(e.getSource());
                 if (a != null) {
-                    accessBridge.debugString(" - about to call focusLost()");
-                    accessBridge.debugString("   AC: " + a.getAccessibleContext());
+                    accessBridge.debugString("[INFO]:  - about to call focusLost()   AC: " + a.getAccessibleContext());
                     AccessibleContext context = a.getAccessibleContext();
                     InvocationUtils.registerAccessibleContext(context, AppContext.getAppContext());
                     accessBridge.focusLost(e, context);
@@ -6282,7 +6271,7 @@ final public class AccessBridge extends AccessBridgeLoader {
                     isLeaf = treeModel.isLeaf(obj);
                 }
             }
-            debugString("AccessibleJTreeNode: name = "+getAccessibleName()+"; TreePath = "+p+"; parent = "+ap);
+            debugString("[INFO]: AccessibleJTreeNode: name = "+getAccessibleName()+"; TreePath = "+p+"; parent = "+ap);
         }
 
         private TreePath getChildTreePath(int i) {
@@ -6322,14 +6311,14 @@ final public class AccessBridge extends AccessBridgeLoader {
         }
 
         private Component getCurrentComponent() {
-            debugString("AccessibleJTreeNode: getCurrentComponent");
+            debugString("[INFO]: AccessibleJTreeNode: getCurrentComponent");
             // is the object visible?
             // if so, get row, selected, focus & leaf state,
             // and then get the renderer component and return it
             if (tree != null && tree.isVisible(path)) {
                 TreeCellRenderer r = tree.getCellRenderer();
                 if (r == null) {
-                    debugString("  returning null 1");
+                    debugString("[WARN]:  returning null 1");
                     return null;
                 }
                 TreeUI ui = tree.getUI();
@@ -6341,11 +6330,11 @@ final public class AccessBridge extends AccessBridgeLoader {
                     Component retval = r.getTreeCellRendererComponent(tree, obj,
                                                                       selected, expanded,
                                                                       isLeaf, row, hasFocus);
-                    debugString("  returning = "+retval.getClass());
+                    debugString("[INFO]:   returning = "+retval.getClass());
                     return retval;
                 }
             }
-            debugString("  returning null 2");
+            debugString("[WARN]:  returning null 2");
             return null;
         }
 
@@ -6358,13 +6347,13 @@ final public class AccessBridge extends AccessBridgeLoader {
          * object does not have a name
          */
         public String getAccessibleName() {
-            debugString("AccessibleJTreeNode: getAccessibleName");
+            debugString("[INFO]: AccessibleJTreeNode: getAccessibleName");
             AccessibleContext ac = getCurrentAccessibleContext();
             if (ac != null) {
                 String name = ac.getAccessibleName();
                 if ((name != null) && (!name.isEmpty())) {
                     String retval = ac.getAccessibleName();
-                    debugString("    returning "+retval);
+                    debugString("[INFO]:     returning "+retval);
                     return retval;
                 } else {
                     return null;
