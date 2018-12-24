@@ -44,6 +44,12 @@ public class Version {
     private static final String java_runtime_version =
         "@@java_runtime_version@@";
 
+    private static final String java_distro_name =
+        "@@java_distro_name@@";
+
+    private static final String java_distro_version =
+        "@@java_distro_version@@";
+
     static {
         init();
     }
@@ -103,7 +109,9 @@ public class Version {
 
         /* Second line: runtime version (ie, libraries). */
 
-        ps.print(java_runtime_name + " (build " + java_runtime_version);
+        ps.print(java_runtime_name +
+                 " (" + java_distro_name + " " + java_distro_version + ")" +
+                 " (build " + java_runtime_version);
 
         if (java_profile_name.length() > 0) {
             // profile name
@@ -120,7 +128,9 @@ public class Version {
         String java_vm_name    = System.getProperty("java.vm.name");
         String java_vm_version = System.getProperty("java.vm.version");
         String java_vm_info    = System.getProperty("java.vm.info");
-        ps.println(java_vm_name + " (build " + java_vm_version + ", " +
+        ps.println(java_vm_name +
+                   " (" + java_distro_name + " " + java_distro_version + ")" +
+                   " (build " + java_vm_version + ", " +
                    java_vm_info + ")");
     }
 
