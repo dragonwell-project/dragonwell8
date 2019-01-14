@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -261,8 +261,11 @@ class OrderAccess : AllStatic {
   static julong   load_acquire(volatile julong*  p);
   static jfloat   load_acquire(volatile jfloat*  p);
   static jdouble  load_acquire(volatile jdouble* p);
+  static bool     load_acquire(const volatile bool* p);
+  static julong   load_acquire(const volatile julong*  p);
 
   static intptr_t load_ptr_acquire(volatile intptr_t*   p);
+  static uintptr_t load_ptr_acquire(const volatile uintptr_t*   p);
   static void*    load_ptr_acquire(volatile void*       p);
   static void*    load_ptr_acquire(const volatile void* p);
 

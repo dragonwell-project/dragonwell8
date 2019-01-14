@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -195,7 +195,8 @@ class Thread: public ThreadShadow {
     _deopt_suspend          = 0x10000000U, // thread needs to self suspend for deopt
 
     _has_async_exception    = 0x00000001U, // there is a pending async exception
-    _critical_native_unlock = 0x00000002U  // Must call back to unlock JNI critical lock
+    _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
+    _trace_flag             = 0x00000004U  // call tracing backend
   };
 
   // various suspension related flags - atomically updated
@@ -260,7 +261,7 @@ class Thread: public ThreadShadow {
   // Thread-local buffer used by MetadataOnStackMark.
   MetadataOnStackBuffer* _metadata_on_stack_buffer;
 
-  TRACE_DATA _trace_data;                       // Thread-local data for tracing
+  mutable TRACE_DATA _trace_data;                       // Thread-local data for tracing
 
   ThreadExt _ext;
 
@@ -383,6 +384,14 @@ class Thread: public ThreadShadow {
     clear_suspend_flag(_critical_native_unlock);
   }
 
+  void set_trace_flag() {
+    set_suspend_flag(_trace_flag);
+  }
+
+  void clear_trace_flag() {
+    clear_suspend_flag(_trace_flag);
+  }
+
   // Support for Unhandled Oop detection
 #ifdef CHECK_UNHANDLED_OOPS
  private:
@@ -441,7 +450,9 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
-  TRACE_DATA* trace_data()              { return &_trace_data; }
+  TRACE_DEFINE_THREAD_TRACE_DATA_OFFSET;
+  TRACE_DATA* trace_data() const             { return &_trace_data; }
+  bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
 
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ class WhiteBox : public AllStatic {
   static const char* lookup_jstring(const char* field_name, oop object);
   static bool lookup_bool(const char* field_name, oop object);
 
+  static CodeBlob* allocate_code_blob(int size, int blob_type);
   static int array_bytes_to_length(size_t bytes);
   static void register_methods(JNIEnv* env, jclass wbclass, JavaThread* thread,
     JNINativeMethod* method_array, int method_count);

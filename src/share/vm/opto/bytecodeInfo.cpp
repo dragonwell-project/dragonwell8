@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -500,6 +500,18 @@ void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
       //tty->print("  bcs: %d+%d  invoked: %d", top->count_inline_bcs(), callee_method->code_size(), callee_method->interpreter_invocation_count());
     }
   }
+#if INCLUDE_TRACE
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    event.set_compileId(C->compile_id());
+    event.set_message(inline_msg);
+    event.set_succeeded(success);
+    event.set_bci(caller_bci);
+    event.set_caller(_method->get_Method());
+    event.set_callee(callee_method->to_trace_struct());
+    event.commit();
+  }
+#endif // INCLUDE_TRACE
 }
 
 //------------------------------ok_to_inline-----------------------------------

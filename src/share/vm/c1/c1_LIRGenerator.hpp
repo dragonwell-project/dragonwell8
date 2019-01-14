@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -437,8 +437,8 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void do_RuntimeCall(address routine, int expected_arguments, Intrinsic* x);
 #ifdef TRACE_HAVE_INTRINSICS
-  void do_ThreadIDIntrinsic(Intrinsic* x);
   void do_ClassIDIntrinsic(Intrinsic* x);
+  void do_getEventWriter(Intrinsic* x);
 #endif
   ciKlass* profile_type(ciMethodData* md, int md_first_offset, int md_offset, intptr_t profiled_k,
                         Value arg, LIR_Opr& mdp, bool not_null, ciKlass* signature_at_call_k,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,19 @@
 #define SHARE_VM_TRACE_NOTRACEBACKEND_HPP
 
 #include "prims/jni.h"
-#include "trace/traceTime.hpp"
+
+typedef jlong JfrTraceTime;
 
 class NoTraceBackend {
 public:
-  static TracingTime time() {
+  static JfrTraceTime time() {
     return 0;
   }
 };
 
 class TraceThreadData {
-public:
-    TraceThreadData() {}
+ public:
+  TraceThreadData() {}
 };
 
 typedef NoTraceBackend Tracing;

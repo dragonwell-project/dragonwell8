@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,15 +57,24 @@ class ClassFileStream: public ResourceObj {
   bool  _need_verify;  // True if verification is on for the class file
 
   void truncated_file_error(TRAPS);
+ protected:
+  const u1* clone_buffer() const;
+  const char* const clone_source() const;
  public:
   // Constructor
   ClassFileStream(u1* buffer, int length, const char* source);
+
+  virtual const ClassFileStream* clone() const;
 
   // Buffer access
   u1* buffer() const           { return _buffer_start; }
   int length() const           { return _buffer_end - _buffer_start; }
   u1* current() const          { return _current; }
   void set_current(u1* pos)    { _current = pos; }
+  // for relative positioning
+  juint current_offset() const {
+    return (juint)(_current - _buffer_start);
+  }
   const char* source() const   { return _source; }
   void set_verify(bool flag)   { _need_verify = flag; }
 

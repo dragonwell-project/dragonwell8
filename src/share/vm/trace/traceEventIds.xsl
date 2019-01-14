@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@
 
 #include "utilities/macros.hpp"
 #if INCLUDE_TRACE
-#include "trace/traceDataTypes.hpp"
+#include "tracefiles/traceTypes.hpp"
 
 /**
  * Enum of the event types in the JVM
@@ -43,7 +43,7 @@ enum TraceEventId {
   _traceeventbase = (NUM_RESERVED_EVENTS-1), // Make sure we start at right index.
   
   // Events -> enum entry
-<xsl:for-each select="trace/events/event">
+<xsl:for-each select="trace/events/*">
   <xsl:value-of select="concat('  Trace', @id, 'Event,', $newline)"/>
 </xsl:for-each>
   MaxTraceEventId

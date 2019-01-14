@@ -82,6 +82,7 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool is_anonymous, Depen
   _next(NULL), _dependencies(dependencies),
   _metaspace_lock(new Mutex(Monitor::leaf+1, "Metaspace allocation lock", true)) {
     // empty
+  TRACE_INIT_ID(this);
 }
 
 void ClassLoaderData::init_dependencies(TRAPS) {
@@ -646,6 +647,20 @@ void ClassLoaderDataGraph::cld_do(CLDClosure* cl) {
   }
 }
 
+void ClassLoaderDataGraph::cld_unloading_do(CLDClosure* cl) {
+  // this method is only used by jfr now, if you need to use this method in another case,
+  // this check should be removed.
+  assert(EnableJFR && FlightRecorder, "just check");
+
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
+  // Only walk the head until any clds not purged from prior unloading
+  // (CMS doesn't purge right away).
+  for (ClassLoaderData* cld = _unloading; cld != _saved_unloading; cld = cld->next()) {
+    assert(cld->is_unloading(), "invariant");
+    cl->do_cld(cld);
+  }
+}
+
 void ClassLoaderDataGraph::roots_cld_do(CLDClosure* strong, CLDClosure* weak) {
   for (ClassLoaderData* cld = _head;  cld != NULL; cld = cld->_next) {
     CLDClosure* closure = cld->keep_alive() ? strong : weak;
@@ -980,9 +995,7 @@ void ClassLoaderDataGraph::class_unload_event(Klass* const k) {
   EventClassUnload event(UNTIMED);
   event.set_endtime(_class_unload_time);
   event.set_unloadedClass(k);
-  oop defining_class_loader = k->class_loader();
-  event.set_definingClassLoader(defining_class_loader != NULL ?
-                                defining_class_loader->klass() : (Klass*)NULL);
+  event.set_definingClassLoader(k->class_loader_data());
   event.commit();
 }
 

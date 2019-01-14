@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,12 @@
 double TimeHelper::counter_to_seconds(jlong counter) {
   double count = (double) counter;
   double freq  = (double) os::elapsed_frequency();
+  return counter/freq;
+}
+
+double TimeHelper::counter_to_milliseconds(jlong counter) {
+  double count = (double) counter;
+  double freq  = (double) os::elapsed_frequency() / (double) 1000;
   return counter/freq;
 }
 

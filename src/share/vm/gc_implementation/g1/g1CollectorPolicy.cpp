@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -282,6 +282,9 @@ G1CollectorPolicy::G1CollectorPolicy() :
   double max_gc_time = (double) MaxGCPauseMillis / 1000.0;
   double time_slice  = (double) GCPauseIntervalMillis / 1000.0;
   _mmu_tracker = new G1MMUTrackerQueue(time_slice, max_gc_time);
+  if (EnableJFR) {
+    _ihop_control = create_ihop_control();
+  }
 
   uintx confidence_perc = G1ConfidencePercent;
   // Put an artificial ceiling on this so that it's not set to a silly value.
@@ -318,6 +321,13 @@ G1CollectorPolicy::G1CollectorPolicy() :
   _reserve_regions = 0;
 
   _collectionSetChooser = new CollectionSetChooser();
+}
+
+G1CollectorPolicy::~G1CollectorPolicy() {
+  if (EnableJFR) {
+    assert(_ihop_control != NULL, "sanity check");
+    delete _ihop_control;
+  }
 }
 
 void G1CollectorPolicy::initialize_alignments() {
@@ -507,6 +517,10 @@ void G1CollectorPolicy::record_new_heap_size(uint new_number_of_regions) {
   _reserve_regions = (uint) ceil(reserve_regions_d);
 
   _young_gen_sizer->heap_size_changed(new_number_of_regions);
+
+  if (EnableJFR) {
+    _ihop_control->update_target_occupancy(new_number_of_regions * HeapRegion::GrainBytes);
+  }
 }
 
 uint G1CollectorPolicy::calculate_young_list_desired_min_length(
@@ -1189,6 +1203,15 @@ void G1CollectorPolicy::record_collection_pause_end(double pause_time_ms, Evacua
                                phase_times()->sum_thread_work_items(G1GCPhaseTimes::UpdateRS), update_rs_time_goal_ms);
 
   _collectionSetChooser->verify();
+
+  if (EnableJFR) {
+    _ihop_control->send_trace_event(_g1->gc_tracer_stw());
+  }
+}
+
+G1IHOPControl* G1CollectorPolicy::create_ihop_control() {
+  assert(EnableJFR, "sanity check");
+  return new G1StaticIHOPControl(InitiatingHeapOccupancyPercent);
 }
 
 #define EXT_SIZE_FORMAT "%.1f%s"

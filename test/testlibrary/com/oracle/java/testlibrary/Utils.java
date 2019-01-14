@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.lang.reflect.Field;
 import sun.misc.Unsafe;
 
@@ -369,5 +371,51 @@ public final class Utils {
             hexView[i++] = ' ';
         }
         return new String(hexView);
+    }
+
+    /**
+     * Wait for condition to be true
+     *
+     * @param condition, a condition to wait for
+     */
+    public static final void waitForCondition(BooleanSupplier condition) {
+        waitForCondition(condition, -1L, 100L);
+    }
+
+    /**
+     * Wait until timeout for condition to be true
+     *
+     * @param condition, a condition to wait for
+     * @param timeout a time in milliseconds to wait for condition to be true
+     * specifying -1 will wait forever
+     * @return condition value, to determine if wait was successful
+     */
+    public static final boolean waitForCondition(BooleanSupplier condition,
+            long timeout) {
+        return waitForCondition(condition, timeout, 100L);
+    }
+
+    /**
+     * Wait until timeout for condition to be true for specified time
+     *
+     * @param condition, a condition to wait for
+     * @param timeout a time in milliseconds to wait for condition to be true,
+     * specifying -1 will wait forever
+     * @param sleepTime a time to sleep value in milliseconds
+     * @return condition value, to determine if wait was successful
+     */
+    public static final boolean waitForCondition(BooleanSupplier condition,
+            long timeout, long sleepTime) {
+        long startTime = System.currentTimeMillis();
+        while (!(condition.getAsBoolean() || (timeout != -1L
+                && ((System.currentTimeMillis() - startTime) > timeout)))) {
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new Error(e);
+            }
+        }
+        return condition.getAsBoolean();
     }
 }

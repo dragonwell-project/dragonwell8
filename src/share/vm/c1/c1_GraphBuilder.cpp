@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3461,10 +3461,11 @@ bool GraphBuilder::try_inline_intrinsics(ciMethod* callee) {
       break;
 
 #ifdef TRACE_HAVE_INTRINSICS
-    case vmIntrinsics::_classID:
-    case vmIntrinsics::_threadID:
-      preserves_state = true;
-      cantrap = true;
+    case vmIntrinsics::_getClassId:
+      cantrap = false;
+      break;
+
+    case vmIntrinsics::_getEventWriter:
       break;
 
     case vmIntrinsics::_counterTime:
@@ -4411,6 +4412,18 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
         log->inline_fail("reason unknown");
     }
   }
+#if INCLUDE_TRACE
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    event.set_compileId(compilation()->env()->task()->compile_id());
+    event.set_message(msg);
+    event.set_succeeded(success);
+    event.set_bci(bci());
+    event.set_caller(method()->get_Method());
+    event.set_callee(callee->to_trace_struct());
+    event.commit();
+  }
+#endif // INCLUDE_TRACE
 
   if (!PrintInlining && !compilation()->method()->has_option("PrintInlining")) {
     return;

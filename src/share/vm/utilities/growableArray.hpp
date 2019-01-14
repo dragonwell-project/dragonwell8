@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -246,6 +246,10 @@ template<class E> class GrowableArray : public GenericGrowableArray {
     return _data[_len-1];
   }
 
+  E last() const {
+    return top();
+  }
+
   GrowableArrayIterator<E> begin() const {
     return GrowableArrayIterator<E>(this, 0);
   }
@@ -371,6 +375,40 @@ template<class E> class GrowableArray : public GenericGrowableArray {
   // sort by fixed-stride sub arrays:
   void sort(int f(E*,E*), int stride) {
     qsort(_data, length() / stride, sizeof(E) * stride, (_sort_Fn)f);
+  }
+
+  // Binary search and insertion utility.  Search array for element
+  // matching key according to the static compare function.  Insert
+  // that element is not already in the list.  Assumes the list is
+  // already sorted according to compare function.
+  template <int compare(const E&, const E&)> E insert_sorted(const E& key) {
+    bool found;
+    int location = find_sorted<E, compare>(key, found);
+    if (!found) {
+      insert_before(location, key);
+    }
+    return at(location);
+  }
+
+  template <typename K, int compare(const K&, const E&)> int find_sorted(const K& key, bool& found) {
+    found = false;
+    int min = 0;
+    int max = length() - 1;
+
+    while (max >= min) {
+      int mid = (int)(((uint)max + min) / 2);
+      E value = at(mid);
+      int diff = compare(key, value);
+      if (diff > 0) {
+        min = mid + 1;
+      } else if (diff < 0) {
+        max = mid - 1;
+      } else {
+        found = true;
+        return mid;
+      }
+    }
+    return min;
   }
 };
 

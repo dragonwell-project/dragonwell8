@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ class Atomic : AllStatic {
   inline static void store    (jint     store_value, jint*     dest);
   // See comment above about using jlong atomics on 32-bit platforms
   inline static void store    (jlong    store_value, jlong*    dest);
+  inline static void store    (julong    store_value, julong*    dest);
   inline static void store_ptr(intptr_t store_value, intptr_t* dest);
   inline static void store_ptr(void*    store_value, void*     dest);
 
@@ -54,6 +55,7 @@ class Atomic : AllStatic {
 
   // See comment above about using jlong atomics on 32-bit platforms
   inline static jlong load(volatile jlong* src);
+         static julong load(volatile julong* src);
 
   // Atomically add to a location, return updated value
   inline static jint     add    (jint     add_value, volatile jint*     dest);
@@ -61,6 +63,7 @@ class Atomic : AllStatic {
   inline static void*    add_ptr(intptr_t add_value, volatile void*     dest);
   // See comment above about using jlong atomics on 32-bit platforms
          static jlong    add    (jlong    add_value, volatile jlong*    dest);
+         static julong   add    (julong   add_value, volatile julong*   dest);
 
   // Atomically increment location
   inline static void inc    (volatile jint*     dest);
@@ -88,6 +91,7 @@ class Atomic : AllStatic {
   inline static jint     cmpxchg    (jint     exchange_value, volatile jint*     dest, jint     compare_value);
   // See comment above about using jlong atomics on 32-bit platforms
   inline static jlong    cmpxchg    (jlong    exchange_value, volatile jlong*    dest, jlong    compare_value);
+         static julong   cmpxchg    (julong   exchange_value, volatile julong*   dest, julong   compare_value);
 
          static unsigned int cmpxchg(unsigned int exchange_value,
                                      volatile unsigned int* dest,

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -29,32 +29,50 @@
 <xsl:template match="/">
   <xsl:call-template name="file-header"/>
 
-#ifndef TRACEFILES_TRACETYPES_HPP
-#define TRACEFILES_TRACETYPES_HPP
+  #ifndef TRACEFILES_TRACETYPES_HPP
+  #define TRACEFILES_TRACETYPES_HPP
 
-#include "oops/symbol.hpp"
-#include "trace/traceDataTypes.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/ticks.hpp"
+  #include "trace/traceDataTypes.hpp"
 
-enum JVMContentType {
-  _not_a_content_type = (JVM_CONTENT_TYPES_START - 1),
-  
-<xsl:for-each select="trace/types/content_types/content_type[@jvm_type]">
-  <xsl:value-of select="concat('  CONTENT_TYPE_', @jvm_type, ',',  $newline)"/>
+  enum JfrConstantTypeId {
+  CONSTANT_TYPE_NONE             = 0,
+  CONSTANT_TYPE_CLASS            = 20,
+  CONSTANT_TYPE_STRING           = 21,
+  CONSTANT_TYPE_THREAD           = 22,
+  CONSTANT_TYPE_STACKTRACE       = 23,
+  CONSTANT_TYPE_BYTES            = 24,
+  CONSTANT_TYPE_EPOCHMILLIS      = 25,
+  CONSTANT_TYPE_MILLIS           = 26,
+  CONSTANT_TYPE_NANOS            = 27,
+  CONSTANT_TYPE_TICKS            = 28,
+  CONSTANT_TYPE_ADDRESS          = 29,
+  CONSTANT_TYPE_PERCENTAGE       = 30,
+  CONSTANT_TYPE_DUMMY,
+  CONSTANT_TYPE_DUMMY_1,
+  <xsl:for-each select="trace/types/content_types/content_type[@jvm_type]">
+<xsl:value-of select="concat('  CONSTANT_TYPE_', @jvm_type, ',',  $newline)"/>
 </xsl:for-each>
-  NUM_JVM_CONTENT_TYPES
+  NUM_JFR_CONSTANT_TYPES,
+  CONSTANT_TYPES_END             = 255
 };
 
 
-enum JVMEventRelations {
-  JVM_REL_NOT_AVAILABLE = 0,
+enum JfrEventRelations {
+  JFR_REL_NOT_AVAILABLE = 0,
   
 <xsl:for-each select="trace/relation_decls/relation_decl">
-  <xsl:value-of select="concat('  JVM_REL_', @id, ',', $newline)"/>
+  <xsl:value-of select="concat('  JFR_REL_', @id, ',', $newline)"/>
 </xsl:for-each>
-  NUM_EVENT_RELATIONS
+  NUM_JFR_EVENT_RELATIONS
 };
+
+enum ReservedEvent {
+  EVENT_METADATA,
+  EVENT_CHECKPOINT,
+  EVENT_BUFFERLOST,
+  NUM_RESERVED_EVENTS = CONSTANT_TYPES_END
+};
+
 
 /**
  * Create typedefs for the TRACE types:

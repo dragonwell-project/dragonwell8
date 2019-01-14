@@ -939,6 +939,14 @@ void VMError::report_and_die() {
     // are handled properly.
     reset_signal_handlers();
 
+    EventShutdown e;
+    if (e.should_commit()) {
+      e.set_reason("VM Error");
+      e.commit();
+    }
+
+    TRACE_VM_ERROR();
+
   } else {
     // If UseOsErrorReporting we call this for each level of the call stack
     // while searching for the exception handler.  Only the first level needs

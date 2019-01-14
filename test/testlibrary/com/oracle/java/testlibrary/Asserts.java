@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -434,6 +434,24 @@ public class Asserts {
         if (stringsAreDifferent) {
             error(messageBuilder.toString());
         }
+    }
+
+    /**
+     * Fail the test directly
+     * @throws RuntimeException anyway.
+     */
+    public static void fail() {
+        error("Failed");
+    }
+
+    /**
+     * Fails a test with the given message.
+     *
+     * @param msg A description of the failure.
+     *
+     */
+    public static void fail(String msg) {
+        error(msg);
     }
 
     private static <T extends Comparable<T>> int compare(T lhs, T rhs, String msg) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,9 @@
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/heapRegion.hpp"
 #endif // INCLUDE_ALL_GCS
+#ifdef TRACE_HAVE_INTRINSICS
+#include "trace/traceMacros.hpp"
+#endif
 
 #ifdef ASSERT
 #define __ gen()->lir(__FILE__, __LINE__)->
@@ -3069,39 +3072,47 @@ void LIRGenerator::do_RuntimeCall(address routine, int expected_arguments, Intri
 }
 
 #ifdef TRACE_HAVE_INTRINSICS
-void LIRGenerator::do_ThreadIDIntrinsic(Intrinsic* x) {
-    LIR_Opr thread = getThreadPointer();
-    LIR_Opr osthread = new_pointer_register();
-    __ move(new LIR_Address(thread, in_bytes(JavaThread::osthread_offset()), osthread->type()), osthread);
-    size_t thread_id_size = OSThread::thread_id_size();
-    if (thread_id_size == (size_t) BytesPerLong) {
-      LIR_Opr id = new_register(T_LONG);
-      __ move(new LIR_Address(osthread, in_bytes(OSThread::thread_id_offset()), T_LONG), id);
-      __ convert(Bytecodes::_l2i, id, rlock_result(x));
-    } else if (thread_id_size == (size_t) BytesPerInt) {
-      __ move(new LIR_Address(osthread, in_bytes(OSThread::thread_id_offset()), T_INT), rlock_result(x));
-    } else {
-      ShouldNotReachHere();
-    }
+void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
+  CodeEmitInfo* info = state_for(x);
+  CodeEmitInfo* info2 = new CodeEmitInfo(info); // Clone for the second null check
+
+  assert(info != NULL, "must have info");
+  LIRItem arg(x->argument_at(0), this);
+
+  arg.load_item();
+  LIR_Opr klass = new_register(T_METADATA);
+  __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset_in_bytes(), T_ADDRESS), klass, info);
+  LIR_Opr id = new_register(T_LONG);
+  ByteSize offset = TRACE_KLASS_TRACE_ID_OFFSET;
+  LIR_Address* trace_id_addr = new LIR_Address(klass, in_bytes(offset), T_LONG);
+
+  __ move(trace_id_addr, id);
+  __ logical_or(id, LIR_OprFact::longConst(0x01l), id);
+  __ store(id, trace_id_addr);
+
+#ifdef TRACE_ID_META_BITS
+  __ logical_and(id, LIR_OprFact::longConst(~TRACE_ID_META_BITS), id);
+#endif
+#ifdef TRACE_ID_CLASS_SHIFT
+  __ unsigned_shift_right(id, TRACE_ID_CLASS_SHIFT, id);
+#endif
+
+  __ move(id, rlock_result(x));
 }
 
-void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
-    CodeEmitInfo* info = state_for(x);
-    CodeEmitInfo* info2 = new CodeEmitInfo(info); // Clone for the second null check
-    BasicType klass_pointer_type = NOT_LP64(T_INT) LP64_ONLY(T_LONG);
-    assert(info != NULL, "must have info");
-    LIRItem arg(x->argument_at(1), this);
-    arg.load_item();
-    LIR_Opr klass = new_pointer_register();
-    __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset_in_bytes(), klass_pointer_type), klass, info);
-    LIR_Opr id = new_register(T_LONG);
-    ByteSize offset = TRACE_ID_OFFSET;
-    LIR_Address* trace_id_addr = new LIR_Address(klass, in_bytes(offset), T_LONG);
-    __ move(trace_id_addr, id);
-    __ logical_or(id, LIR_OprFact::longConst(0x01l), id);
-    __ store(id, trace_id_addr);
-    __ logical_and(id, LIR_OprFact::longConst(~0x3l), id);
-    __ move(id, rlock_result(x));
+void LIRGenerator::do_getEventWriter(Intrinsic* x) {
+  LabelObj* L_end = new LabelObj();
+
+  LIR_Address* jobj_addr = new LIR_Address(getThreadPointer(),
+                                           in_bytes(TRACE_THREAD_DATA_WRITER_OFFSET),
+                                           T_OBJECT);
+  LIR_Opr result = rlock_result(x);
+  __ move_wide(jobj_addr, result);
+  __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
+  __ branch(lir_cond_equal, T_OBJECT, L_end->label());
+  __ move_wide(new LIR_Address(result, T_OBJECT), result);
+
+  __ branch_destination(L_end->label());
 }
 #endif
 
@@ -3116,8 +3127,16 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   }
 
 #ifdef TRACE_HAVE_INTRINSICS
-  case vmIntrinsics::_threadID: do_ThreadIDIntrinsic(x); break;
-  case vmIntrinsics::_classID: do_ClassIDIntrinsic(x); break;
+  case vmIntrinsics::_getClassId:
+    if (EnableJFR) {
+      do_ClassIDIntrinsic(x);
+    }
+    break;
+  case vmIntrinsics::_getEventWriter:
+    if (EnableJFR) {
+      do_getEventWriter(x);
+    }
+    break;
   case vmIntrinsics::_counterTime:
     do_RuntimeCall(CAST_FROM_FN_PTR(address, TRACE_TIME_METHOD), 0, x);
     break;

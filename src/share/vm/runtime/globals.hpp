@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -264,6 +264,14 @@ struct Flag {
   bool get_bool() const;
   void set_bool(bool value);
 
+  bool is_int() const;
+  int get_int() const;
+  void set_int(int value);
+
+  bool is_uint() const;
+  uint get_uint() const;
+  void set_uint(uint value);
+
   bool is_intx() const;
   intx get_intx() const;
   void set_intx(intx value);
@@ -275,6 +283,10 @@ struct Flag {
   bool is_uint64_t() const;
   uint64_t get_uint64_t() const;
   void set_uint64_t(uint64_t value);
+
+  bool is_size_t() const;
+  size_t get_size_t() const;
+  void set_size_t(size_t value);
 
   bool is_double() const;
   double get_double() const;
@@ -375,8 +387,8 @@ class CommandLineFlags {
   static bool intxAtPut(const char* name, size_t len, intx* value, Flag::Flags origin);
   static bool intxAtPut(const char* name, intx* value, Flag::Flags origin)   { return intxAtPut(name, strlen(name), value, origin); }
 
-  static bool uintxAt(const char* name, size_t len, uintx* value);
-  static bool uintxAt(const char* name, uintx* value)    { return uintxAt(name, strlen(name), value); }
+  static bool uintxAt(const char* name, size_t len, uintx* value, bool allow_locked = false, bool return_flag = false);
+  static bool uintxAt(const char* name, uintx* value, bool allow_locked = false, bool return_flag = false)    { return uintxAt(name, strlen(name), value, allow_locked, return_flag); }
   static bool uintxAtPut(const char* name, size_t len, uintx* value, Flag::Flags origin);
   static bool uintxAtPut(const char* name, uintx* value, Flag::Flags origin) { return uintxAtPut(name, strlen(name), value, origin); }
 
@@ -405,6 +417,12 @@ class CommandLineFlags {
 
   static void verify() PRODUCT_RETURN;
 };
+
+#if INCLUDE_TRACE
+#define TRACE_ONLY(code) code
+#else
+#define TRACE_ONLY(code)
+#endif
 
 // use this for flags that are true by default in the debug version but
 // false in the optimized version, and vice versa
@@ -3990,7 +4008,24 @@ class CommandLineFlags {
                                                                             \
   product_pd(bool, PreserveFramePointer,                                    \
              "Use the FP register for holding the frame pointer "           \
-             "and not as a general purpose register.")
+             "and not as a general purpose register.")                      \
+                                                                            \
+  TRACE_ONLY(product(bool, FlightRecorder, false,                           \
+          "Enable Flight Recorder"))                                        \
+                                                                            \
+  TRACE_ONLY(product(ccstr, FlightRecorderOptions, NULL,                    \
+          "Flight Recorder options"))                                       \
+                                                                            \
+  TRACE_ONLY(product(ccstr, StartFlightRecording, NULL,                     \
+          "Start flight recording with options"))                           \
+                                                                            \
+  experimental(bool, UseFastUnorderedTimeStamps, false,                     \
+          "Use platform unstable time where supported for timestamps only") \
+                                                                            \
+  product(bool, PrintJFRLog, false,                                         \
+          "Print JFR log ")                                                 \
+                                                                            \
+  product(bool, EnableJFR, false, "Enable JFR feature")                     \
 
 /*
  *  Macros for factoring of globals

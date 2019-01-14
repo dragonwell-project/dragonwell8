@@ -1135,7 +1135,6 @@ void VirtualSpaceList::purge(ChunkManager* chunk_manager) {
 #endif
 }
 
-
 // This function looks at the mmap regions in the metaspace without locking.
 // The chunks are added with store ordering and not deleted except for at
 // unloading time during a safepoint.

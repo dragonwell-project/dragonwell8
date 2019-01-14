@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,87 +25,103 @@
 #ifndef SHARE_VM_UTILITIES_TICKS_HPP
 #define SHARE_VM_UTILITIES_TICKS_HPP
 
+#include "jni.h"
 #include "memory/allocation.hpp"
-#include "utilities/globalDefinitions.hpp"
+#include "utilities/macros.hpp"
 
-class Ticks;
-
-class Tickspan VALUE_OBJ_CLASS_SPEC {
-  friend class Ticks;
-  friend Tickspan operator-(const Ticks& end, const Ticks& start);
-
+template <typename InstantType>
+class TimeInterval {
+  template <typename, typename>
+  friend TimeInterval operator-(const InstantType& end, const InstantType& start);
  private:
-  jlong _span_ticks;
-
-  Tickspan(const Ticks& end, const Ticks& start);
-
+  jlong _interval;
+  TimeInterval(const InstantType& end, const InstantType& start) : _interval(end - start) {}
  public:
-  Tickspan() : _span_ticks(0) {}
-
-  Tickspan& operator+=(const Tickspan& rhs) {
-    _span_ticks += rhs._span_ticks;
-    return *this;
-  }
-
-  jlong value() const {
-    return _span_ticks;
-  }
-
+  TimeInterval(jlong interval = 0) : _interval(interval) {}
+  TimeInterval& operator+=(const TimeInterval& rhs);
+  TimeInterval& operator-=(const TimeInterval& rhs);
+  jlong value() const { return _interval; }
 };
 
-class Ticks VALUE_OBJ_CLASS_SPEC {
- private:
-  jlong _stamp_ticks;
-
+class TimeInstant {
+ protected:
+  jlong _instant;
  public:
-  Ticks() : _stamp_ticks(0) {
-    assert((_stamp_ticks = invalid_time_stamp) == invalid_time_stamp,
-      "initial unstamped time value assignment");
-  }
+  TimeInstant(jlong stamp = 0) : _instant(stamp) {}
+  TimeInstant& operator+=(const TimeInterval<TimeInstant>& rhs);
+  TimeInstant& operator-=(const TimeInterval<TimeInstant>& rhs);
+  jlong value() const { return _instant; }
+};
 
-  Ticks& operator+=(const Tickspan& span) {
-    _stamp_ticks += span.value();
-    return *this;
-  }
-
-  Ticks& operator-=(const Tickspan& span) {
-    _stamp_ticks -= span.value();
-    return *this;
-  }
-
+class ElapsedCounter : public TimeInstant {
+ public:
+  ElapsedCounter(jlong stamp = 0) : TimeInstant(stamp) {}
+  static ElapsedCounter now();
   void stamp();
-
-  jlong value() const {
-    return _stamp_ticks;
-  }
-
-  static const Ticks now();
-
-#ifdef ASSERT
-  static const jlong invalid_time_stamp;
-#endif
-
-#ifndef PRODUCT
-  // only for internal use by GC VM tests
-  friend class TimePartitionPhasesIteratorTest;
-  friend class GCTimerTest;
-
- private:
-  // implicit type conversion
-  Ticks(int ticks) : _stamp_ticks(ticks) {}
-
-#endif // !PRODUCT
-
 };
 
-class TicksToTimeHelper : public AllStatic {
+class ElapsedCounterStamped : public ElapsedCounter {
  public:
-  enum Unit {
-    SECONDS = 1,
-    MILLISECONDS = 1000
-  };
-  static double seconds(const Tickspan& span);
-  static jlong milliseconds(const Tickspan& span);
+  ElapsedCounterStamped();
 };
+
+class FastElapsedCounter : public TimeInstant {
+ public:
+  FastElapsedCounter(jlong stamp = 0) : TimeInstant(stamp) {}
+  static FastElapsedCounter now();
+  void stamp();
+};
+
+class FastElapsedCounterStamped : public FastElapsedCounter {
+ public:
+  FastElapsedCounterStamped();
+};
+
+typedef TimeInterval<ElapsedCounter> ElapsedCounterInterval;
+typedef TimeInterval<FastElapsedCounter> FastElapsedCounterInterval;
+
+class TraceElapsedCounter;
+
+class TraceElapsedInterval {
+  friend TraceElapsedInterval operator-(const TraceElapsedCounter& end, const TraceElapsedCounter& start);
+ private:
+  ElapsedCounterInterval _elapsed_interval;
+  FastElapsedCounterInterval _ft_elapsed_interval;
+  TraceElapsedInterval(const TraceElapsedCounter& end, const TraceElapsedCounter& start);
+ public:
+  TraceElapsedInterval(jlong interval = 0);
+  TraceElapsedInterval& operator+=(const TraceElapsedInterval& rhs);
+  TraceElapsedInterval& operator-=(const TraceElapsedInterval& rhs);
+  jlong value() const { return _elapsed_interval.value(); }
+  jlong ft_value() const;
+};
+
+class TraceElapsedCounter {
+ protected:
+  ElapsedCounter _elapsed;
+  X86_ONLY(FastElapsedCounter _ft_elapsed;)
+ public:
+  TraceElapsedCounter(jlong stamp = 0);
+  TraceElapsedCounter& operator+=(const TraceElapsedInterval& rhs);
+  TraceElapsedCounter& operator-=(const TraceElapsedInterval& rhs);
+
+  static TraceElapsedCounter now();
+  void stamp();
+  jlong value() const { return _elapsed.value(); }
+  jlong ft_value() const;
+};
+
+class TraceElapsedCounterStamped : public TraceElapsedCounter {
+ public:
+  TraceElapsedCounterStamped();
+};
+
+#if INCLUDE_TRACE
+typedef TraceElapsedCounter  Ticks;
+typedef TraceElapsedInterval Tickspan;
+#else
+typedef ElapsedCounter       Ticks;
+typedef TicksInterval<Ticks> Tickspan;
+#endif
 
 #endif // SHARE_VM_UTILITIES_TICKS_HPP

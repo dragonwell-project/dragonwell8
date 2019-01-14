@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,28 +32,44 @@
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
 #if INCLUDE_SERVICES
-
-void ObjectCountEventSender::send(const KlassInfoEntry* entry, GCId gc_id, const Ticks& timestamp) {
-#if INCLUDE_TRACE
-  assert(Tracing::is_event_enabled(EventObjectCountAfterGC::eventId),
-         "Only call this method if the event is enabled");
-
-  EventObjectCountAfterGC event(UNTIMED);
-  event.set_gcId(gc_id.id());
-  event.set_class(entry->klass());
-  event.set_count(entry->count());
-  event.set_totalSize(entry->words() * BytesPerWord);
-  event.set_endtime(timestamp);
-  event.commit();
-#endif // INCLUDE_TRACE
-}
-
 bool ObjectCountEventSender::should_send_event() {
 #if INCLUDE_TRACE
-  return Tracing::is_event_enabled(EventObjectCountAfterGC::eventId);
+  return _should_send_requestable_event ||
+         Tracing::is_event_enabled(EventObjectCountAfterGC::eventId);
 #else
   return false;
 #endif // INCLUDE_TRACE
 }
 
+bool ObjectCountEventSender::_should_send_requestable_event = false;
+
+void ObjectCountEventSender::enable_requestable_event() {
+  _should_send_requestable_event = true;
+}
+
+void ObjectCountEventSender::disable_requestable_event() {
+  _should_send_requestable_event = false;
+}
+
+template <typename T>
+void ObjectCountEventSender::send_event_if_enabled(Klass* klass, jlong count, julong size, GCId gc_id, const Ticks& timestamp) {
+  T event(UNTIMED);
+  if (event.should_commit()) {
+    event.set_gcId(gc_id.id());
+    event.set_objectClass(klass);
+    event.set_count(count);
+    event.set_totalSize(size);
+    event.set_endtime(timestamp);
+    event.commit();
+  }
+}
+
+void ObjectCountEventSender::send(const KlassInfoEntry* entry, GCId gc_id, const Ticks& timestamp) {
+  Klass* klass = entry->klass();
+  jlong count = entry->count();
+  julong total_size = entry->words() * BytesPerWord;
+
+  send_event_if_enabled<EventObjectCount>(klass, count, total_size, gc_id, timestamp);
+  send_event_if_enabled<EventObjectCountAfterGC>(klass, count, total_size, gc_id, timestamp);
+}
 #endif // INCLUDE_SERVICES

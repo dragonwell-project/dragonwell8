@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,12 +50,15 @@ class SystemProperty: public CHeapObj<mtInternal> {
   char*           _key;
   char*           _value;
   SystemProperty* _next;
+  bool            _internal;
+
   bool            _writeable;
   bool writeable()   { return _writeable; }
 
  public:
   // Accessors
   const char* key() const                   { return _key; }
+  bool internal() const                     { return _internal; }
   char* value() const                       { return _value; }
   SystemProperty* next() const              { return _next; }
   void set_next(SystemProperty* next)       { _next = next; }
@@ -97,7 +100,7 @@ class SystemProperty: public CHeapObj<mtInternal> {
   }
 
   // Constructor
-  SystemProperty(const char* key, const char* value, bool writeable) {
+  SystemProperty(const char* key, const char* value, bool writeable, bool internal = false) {
     if (key == NULL) {
       _key = NULL;
     } else {
@@ -112,6 +115,7 @@ class SystemProperty: public CHeapObj<mtInternal> {
     }
     _next = NULL;
     _writeable = writeable;
+    _internal = internal;
   }
 };
 

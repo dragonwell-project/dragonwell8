@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_TRACE_TRACEEVENT_HPP
 #define SHARE_VM_TRACE_TRACEEVENT_HPP
 
+#include "jfr/utilities/jfrTraceTime.hpp"
 #include "utilities/macros.hpp"
 
 enum EventStartTime {
@@ -34,80 +35,42 @@ enum EventStartTime {
 
 #if INCLUDE_TRACE
 #include "trace/traceBackend.hpp"
-#include "trace/tracing.hpp"
 #include "tracefiles/traceEventIds.hpp"
-#include "tracefiles/traceTypes.hpp"
 #include "utilities/ticks.hpp"
 
 template<typename T>
-class TraceEvent : public StackObj {
+class TraceEvent {
  private:
   bool _started;
-#ifdef ASSERT
-  bool _committed;
-  bool _cancelled;
- protected:
-  bool _ignore_check;
-#endif
 
  protected:
   jlong _startTime;
   jlong _endTime;
-
-  void set_starttime(const TracingTime& time) {
+  DEBUG_ONLY(bool _committed;)
+  void set_starttime(const JfrTraceTime& time) {
     _startTime = time;
   }
 
-  void set_endtime(const TracingTime& time) {
+  void set_endtime(const JfrTraceTime& time) {
     _endTime = time;
   }
 
- public:
   TraceEvent(EventStartTime timing=TIMED) :
     _startTime(0),
     _endTime(0),
     _started(false)
 #ifdef ASSERT
-    ,
-    _committed(false),
-    _cancelled(false),
-    _ignore_check(false)
+    , _committed(false)
 #endif
   {
     if (T::is_enabled()) {
       _started = true;
-      if (timing == TIMED && !T::isInstant) {
-        static_cast<T *>(this)->set_starttime(Tracing::time());
+      if (TIMED == timing && !T::isInstant) {
+        static_cast<T*>(this)->set_starttime(Tracing::time());
       }
     }
   }
-
-  static bool is_enabled() {
-    return Tracing::is_event_enabled(T::eventId);
-  }
-
-  bool should_commit() {
-    return _started;
-  }
-
-  void ignoreCheck() {
-    DEBUG_ONLY(_ignore_check = true);
-  }
-
-  void commit() {
-    if (!should_commit()) {
-        cancel();
-        return;
-    }
-    if (_endTime == 0) {
-      static_cast<T*>(this)->set_endtime(Tracing::time());
-    }
-    if (static_cast<T*>(this)->should_write()) {
-      static_cast<T*>(this)->writeEvent();
-    }
-    set_commited();
-  }
-
+ public:
   void set_starttime(const Ticks& time) {
     _startTime = time.value();
   }
@@ -116,40 +79,48 @@ class TraceEvent : public StackObj {
     _endTime = time.value();
   }
 
-  TraceEventId id() const {
+  static bool is_enabled() {
+    return EnableJFR && Tracing::is_event_enabled(T::eventId);
+  }
+
+  bool should_commit() {
+    return _started;
+  }
+
+  void commit() {
+    if (!should_commit()) {
+      return;
+    }
+    assert(!_committed, "event already committed");
+    if (_startTime == 0) {
+      static_cast<T*>(this)->set_starttime(Tracing::time());
+    } else if (_endTime == 0) {
+      static_cast<T*>(this)->set_endtime(Tracing::time());
+    }
+    if (static_cast<T*>(this)->should_write()) {
+      static_cast<T*>(this)->writeEvent();
+      DEBUG_ONLY(_committed = true;)
+    }
+  }
+
+  static TraceEventId id() {
     return T::eventId;
   }
 
-  bool is_instant() const {
+  static bool is_instant() {
     return T::isInstant;
   }
 
-  bool is_requestable() const {
+  static bool is_requestable() {
     return T::isRequestable;
   }
 
-  bool has_thread() const {
+  static bool has_thread() {
     return T::hasThread;
   }
 
-  bool has_stacktrace() const {
+  static bool has_stacktrace() {
     return T::hasStackTrace;
-  }
-
-  void cancel() {
-    assert(!_committed && !_cancelled, "event was already committed/cancelled");
-    DEBUG_ONLY(_cancelled = true);
-  }
-
-  void set_commited() {
-    assert(!_committed, "event has already been committed");
-    DEBUG_ONLY(_committed = true);
-  }
-
-  ~TraceEvent() {
-    if (_started) {
-      assert(_ignore_check || _committed || _cancelled, "event was not committed/cancelled");
-    }
   }
 };
 

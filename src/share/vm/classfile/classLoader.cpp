@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1127,6 +1127,8 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
                                                        parsed_name,
                                                        context.should_verify(classpath_index),
                                                        THREAD);
+
+    TRACE_KLASS_CREATION(result, parser, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       ResourceMark rm;
       if (DumpSharedSpaces) {

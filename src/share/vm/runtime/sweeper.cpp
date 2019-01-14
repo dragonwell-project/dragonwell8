@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -396,11 +396,9 @@ void NMethodSweeper::sweep_code_cache() {
   if (event.should_commit()) {
     event.set_starttime(sweep_start_counter);
     event.set_endtime(sweep_end_counter);
-    event.set_sweepIndex(_traversals);
-    event.set_sweepFractionIndex(NmethodSweepFraction - _sweep_fractions_left + 1);
+    event.set_sweepId(_traversals);
     event.set_sweptCount(swept_count);
     event.set_flushedCount(_flushed_count);
-    event.set_markedCount(_marked_for_reclamation_count);
     event.set_zombifiedCount(_zombified_count);
     event.commit();
   }

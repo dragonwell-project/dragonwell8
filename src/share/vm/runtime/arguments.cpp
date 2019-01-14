@@ -2638,6 +2638,12 @@ bool Arguments::check_vm_args_consistency() {
   // Check the minimum number of compiler threads
   status &=verify_min_value(CICompilerCount, min_number_of_compiler_threads, "CICompilerCount");
 
+  if ((FlightRecorder || StartFlightRecording != NULL) && !EnableJFR) {
+    jio_fprintf(defaultStream::error_stream(),
+                "The VM option -XX:+FlightRecorder or -XX:StartFlightRecording=... must be combined with -XX:+EnableJFR.\n");
+    status = false;
+  }
+
   return status;
 }
 

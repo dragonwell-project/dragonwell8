@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,11 +78,13 @@ class MetaspaceSizes : public StackObj {
 
 class GCHeapSummary;
 class PSHeapSummary;
+class G1HeapSummary;
 
 class GCHeapSummaryVisitor {
  public:
   virtual void visit(const GCHeapSummary* heap_summary) const = 0;
   virtual void visit(const PSHeapSummary* heap_summary) const {}
+  virtual void visit(const G1HeapSummary* heap_summary) const {}
 };
 
 class GCHeapSummary : public StackObj {
@@ -119,6 +121,24 @@ class PSHeapSummary : public GCHeapSummary {
    const SpaceSummary& eden() const { return _eden; }
    const SpaceSummary& from() const { return _from; }
    const SpaceSummary& to() const { return _to; }
+
+   virtual void accept(GCHeapSummaryVisitor* visitor) const {
+     visitor->visit(this);
+   }
+};
+
+class G1HeapSummary : public GCHeapSummary {
+  size_t  _edenUsed;
+  size_t  _edenCapacity;
+  size_t  _survivorUsed;
+  uint    _numberOfRegions;
+ public:
+   G1HeapSummary(VirtualSpaceSummary& heap_space, size_t heap_used, size_t edenUsed, size_t edenCapacity, size_t survivorUsed, uint numberOfRegions) :
+      GCHeapSummary(heap_space, heap_used), _edenUsed(edenUsed), _edenCapacity(edenCapacity), _survivorUsed(survivorUsed), _numberOfRegions(numberOfRegions) { }
+   const size_t edenUsed() const { return _edenUsed; }
+   const size_t edenCapacity() const { return _edenCapacity; }
+   const size_t survivorUsed() const { return _survivorUsed; }
+   const uint   numberOfRegions() const { return _numberOfRegions; }
 
    virtual void accept(GCHeapSummaryVisitor* visitor) const {
      visitor->visit(this);

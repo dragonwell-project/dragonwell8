@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,6 +94,11 @@ class ObjArrayKlass : public ArrayKlass {
   static ObjArrayKlass* cast(Klass* k) {
     assert(k->oop_is_objArray(), "cast to ObjArrayKlass");
     return (ObjArrayKlass*) k;
+  }
+
+  static const ObjArrayKlass* cast(const Klass* k) {
+    assert(k->oop_is_objArray(), "cast to ObjArrayKlass");
+    return static_cast<const ObjArrayKlass*>(k);
   }
 
   // Sizing

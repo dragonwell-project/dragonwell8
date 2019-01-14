@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -50,8 +50,10 @@ VPATH += $(Src_Dirs_V:%=%:)
 
 TraceGeneratedNames =     \
     traceEventClasses.hpp \
-	traceEventIds.hpp     \
-	traceTypes.hpp
+    traceEventIds.hpp     \
+    traceTypes.hpp        \
+    traceEventControl.hpp \
+    tracePeriodic.hpp
 
 ifeq ($(HAS_ALT_SRC), true)
 TraceGeneratedNames +=  \
@@ -69,6 +71,8 @@ TraceGeneratedFiles = $(TraceGeneratedNames:%=$(TraceOutDir)/%)
 XSLT = $(REMOTE) $(RUN.JAVA) -classpath $(JvmtiOutDir) jvmtiGen
 
 XML_DEPS =  $(TraceSrcDir)/trace.xml  $(TraceSrcDir)/tracetypes.xml \
+        $(TraceSrcDir)/tracerelationdecls.xml \
+        $(TraceSrcDir)/traceevents.xml \
 	$(TraceSrcDir)/trace.dtd $(TraceSrcDir)/xinclude.mod
 ifeq ($(HAS_ALT_SRC), true)
 	XML_DEPS += $(TraceAltSrcDir)/traceevents.xml
@@ -94,6 +98,12 @@ $(TraceOutDir)/traceTypes.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceType
 ifeq ($(HAS_ALT_SRC), false)
 
 $(TraceOutDir)/traceEventClasses.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceEventClasses.xsl $(XML_DEPS)
+	$(GENERATE_CODE)
+
+$(TraceOutDir)/traceEventControl.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceEventControl.xsl $(XML_DEPS)
+	$(GENERATE_CODE)
+
+$(TraceOutDir)/tracePeriodic.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/tracePeriodic.xsl $(XML_DEPS)
 	$(GENERATE_CODE)
 
 else

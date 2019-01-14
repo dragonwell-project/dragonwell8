@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,8 +93,12 @@ class TypeArrayKlass : public ArrayKlass {
  public:
   // Casting from Klass*
   static TypeArrayKlass* cast(Klass* k) {
-    assert(k->oop_is_typeArray(), "cast to TypeArrayKlass");
-    return (TypeArrayKlass*) k;
+    return const_cast<TypeArrayKlass*>(cast(const_cast<const Klass*>(k)));
+  }
+
+  static const TypeArrayKlass* cast(const Klass* k) {
+    //assert(k->is_typeArray_klass(), "cast to TypeArrayKlass");
+    return static_cast<const TypeArrayKlass*>(k);
   }
 
   // Naming

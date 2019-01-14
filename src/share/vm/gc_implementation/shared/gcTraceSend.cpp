@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/evacuationInfo.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
+#include "tracefiles/traceEventClasses.hpp"
 #endif
 
 // All GC dependencies against the trace framework is contained within this file.
@@ -41,7 +42,7 @@
 typedef uintptr_t TraceAddress;
 
 void GCTracer::send_garbage_collection_event() const {
-  EventGCGarbageCollection event(UNTIMED);
+  EventGarbageCollection event(UNTIMED);
   if (event.should_commit()) {
     event.set_gcId(_shared_gc_info.gc_id().id());
     event.set_name(_shared_gc_info.name());
@@ -89,7 +90,7 @@ void GCTracer::send_metaspace_chunk_free_list_summary(GCWhen::Type when, Metaspa
 }
 
 void ParallelOldTracer::send_parallel_old_event() const {
-  EventGCParallelOld e(UNTIMED);
+  EventParallelOldGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_densePrefix((TraceAddress)_parallel_old_gc_info.dense_prefix());
@@ -100,7 +101,7 @@ void ParallelOldTracer::send_parallel_old_event() const {
 }
 
 void YoungGCTracer::send_young_gc_event() const {
-  EventGCYoungGarbageCollection e(UNTIMED);
+  EventYoungGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_tenuringThreshold(_tenuring_threshold);
@@ -110,8 +111,48 @@ void YoungGCTracer::send_young_gc_event() const {
   }
 }
 
+bool YoungGCTracer::should_send_promotion_in_new_plab_event() const {
+  return EventPromoteObjectInNewPLAB::is_enabled();
+}
+
+bool YoungGCTracer::should_send_promotion_outside_plab_event() const {
+  return EventPromoteObjectOutsidePLAB::is_enabled();
+}
+
+void YoungGCTracer::send_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
+                                                     uint age, bool tenured,
+                                                     size_t plab_size) const {
+
+  EventPromoteObjectInNewPLAB event;
+  if (event.should_commit()) {
+    event.set_gcId(_shared_gc_info.gc_id().id());
+    event.set_objectClass(klass);
+    event.set_objectSize(obj_size);
+    event.set_tenured(tenured);
+    event.set_tenuringAge(age);
+    event.set_plabSize(plab_size);
+    event.commit();
+  }
+}
+
+void YoungGCTracer::send_promotion_outside_plab_event(Klass* klass, size_t obj_size,
+                                                      uint age, bool tenured) const {
+
+  EventPromoteObjectOutsidePLAB event;
+  if (event.should_commit()) {
+    event.set_gcId(_shared_gc_info.gc_id().id());
+    event.set_gcId(GCId::peek().id() - 1);
+    event.set_objectClass(klass);
+    event.set_objectSize(obj_size);
+    event.set_tenured(tenured);
+    event.set_tenuringAge(age);
+    event.commit();
+  }
+}
+
+
 void OldGCTracer::send_old_gc_event() const {
-  EventGCOldGarbageCollection e(UNTIMED);
+  EventOldGarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_starttime(_shared_gc_info.start_timestamp());
@@ -133,7 +174,7 @@ void YoungGCTracer::send_promotion_failed_event(const PromotionFailedInfo& pf_in
   EventPromotionFailed e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
-    e.set_data(to_trace_struct(pf_info));
+    e.set_promotionFailed(to_trace_struct(pf_info));
     e.set_thread(pf_info.thread()->thread_id());
     e.commit();
   }
@@ -150,7 +191,7 @@ void OldGCTracer::send_concurrent_mode_failure_event() {
 
 #if INCLUDE_ALL_GCS
 void G1NewTracer::send_g1_young_gc_event() {
-  EventGCG1GarbageCollection e(UNTIMED);
+  EventG1GarbageCollection e(UNTIMED);
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_type(_g1_young_gc_info.type());
@@ -160,16 +201,31 @@ void G1NewTracer::send_g1_young_gc_event() {
   }
 }
 
+void G1MMUTracer::send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms, bool gc_thread) {
+  EventG1MMU e;
+  if (e.should_commit()) {
+    if (gc_thread) {
+      e.set_gcId(G1CollectedHeap::heap()->gc_tracer_cm()->gc_id().id());
+    } else {
+      e.set_gcId(G1CollectedHeap::heap()->gc_tracer_stw()->gc_id().id());
+    }
+    e.set_timeSlice(time_slice_ms);
+    e.set_gcTime(gc_time_ms);
+    e.set_pauseTarget(max_time_ms);
+    e.commit();
+  }
+}
+
 void G1NewTracer::send_evacuation_info_event(EvacuationInfo* info) {
-  EventEvacuationInfo e;
+  EventEvacuationInformation e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
     e.set_cSetRegions(info->collectionset_regions());
     e.set_cSetUsedBefore(info->collectionset_used_before());
     e.set_cSetUsedAfter(info->collectionset_used_after());
     e.set_allocationRegions(info->allocation_regions());
-    e.set_allocRegionsUsedBefore(info->alloc_regions_used_before());
-    e.set_allocRegionsUsedAfter(info->alloc_regions_used_before() + info->bytes_copied());
+    e.set_allocationRegionsUsedBefore(info->alloc_regions_used_before());
+    e.set_allocationRegionsUsedAfter(info->alloc_regions_used_before() + info->bytes_copied());
     e.set_bytesCopied(info->bytes_copied());
     e.set_regionsFreed(info->regions_freed());
     e.commit();
@@ -180,8 +236,29 @@ void G1NewTracer::send_evacuation_failed_event(const EvacuationFailedInfo& ef_in
   EventEvacuationFailed e;
   if (e.should_commit()) {
     e.set_gcId(_shared_gc_info.gc_id().id());
-    e.set_data(to_trace_struct(ef_info));
+    e.set_evacuationFailed(to_trace_struct(ef_info));
     e.commit();
+  }
+}
+
+void G1NewTracer::send_basic_ihop_statistics(size_t threshold,
+                                             size_t target_occupancy,
+                                             size_t current_occupancy,
+                                             size_t last_allocation_size,
+                                             double last_allocation_duration,
+                                             double last_marking_length) {
+  EventG1BasicIHOP evt;
+  if (evt.should_commit()) {
+    evt.set_gcId(_shared_gc_info.gc_id().id());
+    evt.set_threshold(threshold);
+    evt.set_targetOccupancy(target_occupancy);
+    evt.set_thresholdPercentage(target_occupancy > 0 ? ((double)threshold / target_occupancy) : 0.0);
+    evt.set_currentOccupancy(current_occupancy);
+    evt.set_recentMutatorAllocationSize(last_allocation_size);
+    evt.set_recentMutatorDuration(last_allocation_duration * MILLIUNITS);
+    evt.set_recentAllocationRate(last_allocation_duration != 0.0 ? last_allocation_size / last_allocation_duration : 0.0);
+    evt.set_lastMarkingDuration(last_marking_length * MILLIUNITS);
+    evt.commit();
   }
 }
 #endif
@@ -220,6 +297,20 @@ class GCHeapSummaryEventSender : public GCHeapSummaryVisitor {
       e.set_when((u1)_when);
       e.set_heapSpace(to_trace_struct(heap_space));
       e.set_heapUsed(heap_summary->used());
+      e.commit();
+    }
+  }
+
+  void visit(const G1HeapSummary* g1_heap_summary) const {
+    visit((GCHeapSummary*)g1_heap_summary);
+    EventG1HeapSummary e;
+    if (e.should_commit()) {
+      e.set_gcId(_gc_id.id());
+      e.set_when((u1)_when);
+      e.set_edenUsedSize(g1_heap_summary->edenUsed());
+      e.set_edenTotalSize(g1_heap_summary->edenCapacity());
+      e.set_survivorUsedSize(g1_heap_summary->survivorUsed());
+      e.set_numberOfRegions(g1_heap_summary->numberOfRegions());
       e.commit();
     }
   }

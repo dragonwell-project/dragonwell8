@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -5243,7 +5243,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, v
 
     EventThreadStart event;
     if (event.should_commit()) {
-      event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
+      event.set_thread(THREAD_TRACE_ID(thread));
       event.commit();
     }
 
@@ -5458,7 +5458,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
 
   EventThreadStart event;
   if (event.should_commit()) {
-    event.set_javalangthread(java_lang_Thread::thread_id(thread->threadObj()));
+    event.set_thread(THREAD_TRACE_ID(thread));
     event.commit();
   }
 

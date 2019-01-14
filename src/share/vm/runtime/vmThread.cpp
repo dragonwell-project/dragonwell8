@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -379,13 +379,15 @@ void VMThread::evaluate_operation(VM_Operation* op) {
 
     if (event.should_commit()) {
       bool is_concurrent = op->evaluate_concurrently();
+      bool evaluate_at_safepoint = op->evaluate_at_safepoint();
       event.set_operation(op->type());
-      event.set_safepoint(op->evaluate_at_safepoint());
+      event.set_safepoint(evaluate_at_safepoint);
       event.set_blocking(!is_concurrent);
       // Only write caller thread information for non-concurrent vm operations.
       // For concurrent vm operations, the thread id is set to 0 indicating thread is unknown.
       // This is because the caller thread could have exited already.
-      event.set_caller(is_concurrent ? 0 : op->calling_thread()->osthread()->thread_id());
+      event.set_caller(is_concurrent ? 0 : THREAD_TRACE_ID(op->calling_thread()));
+      event.set_safepointId(evaluate_at_safepoint ? SafepointSynchronize::safepoint_counter() : 0);
       event.commit();
     }
 

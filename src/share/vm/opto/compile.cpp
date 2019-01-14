@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3595,10 +3595,10 @@ void Compile::record_failure(const char* reason) {
     _failure_reason = reason;
   }
 
-  EventCompilerFailure event;
+  EventCompilationFailure event;
   if (event.should_commit()) {
-    event.set_compileID(Compile::compile_id());
-    event.set_failure(reason);
+    event.set_compileId(Compile::compile_id());
+    event.set_failureMessage(reason);
     event.commit();
   }
 

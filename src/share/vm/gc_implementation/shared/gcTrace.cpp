@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -172,6 +172,30 @@ void YoungGCTracer::report_tenuring_threshold(const uint tenuring_threshold) {
   _tenuring_threshold = tenuring_threshold;
 }
 
+bool YoungGCTracer::should_report_promotion_events() const {
+  return should_report_promotion_in_new_plab_event() ||
+          should_report_promotion_outside_plab_event();
+}
+
+bool YoungGCTracer::should_report_promotion_in_new_plab_event() const {
+  return should_send_promotion_in_new_plab_event();
+}
+
+bool YoungGCTracer::should_report_promotion_outside_plab_event() const {
+  return should_send_promotion_outside_plab_event();
+}
+
+void YoungGCTracer::report_promotion_in_new_plab_event(Klass* klass, size_t obj_size,
+                                                       uint age, bool tenured,
+                                                       size_t plab_size) const {
+  send_promotion_in_new_plab_event(klass, obj_size, age, tenured, plab_size);
+}
+
+void YoungGCTracer::report_promotion_outside_plab_event(Klass* klass, size_t obj_size,
+                                                        uint age, bool tenured) const {
+  send_promotion_outside_plab_event(klass, obj_size, age, tenured);
+}
+
 void OldGCTracer::report_gc_end_impl(const Ticks& timestamp, TimePartitions* time_partitions) {
   assert_set_gc_id();
 
@@ -199,6 +223,13 @@ void OldGCTracer::report_concurrent_mode_failure() {
 }
 
 #if INCLUDE_ALL_GCS
+void G1MMUTracer::report_mmu(double time_slice_sec, double gc_time_sec, double max_time_sec, bool gc_thread) {
+  send_g1_mmu_event(time_slice_sec * MILLIUNITS,
+                    gc_time_sec * MILLIUNITS,
+                    max_time_sec * MILLIUNITS,
+                    gc_thread);
+}
+
 void G1NewTracer::report_yc_type(G1YCType type) {
   assert_set_gc_id();
 
@@ -224,4 +255,19 @@ void G1NewTracer::report_evacuation_failed(EvacuationFailedInfo& ef_info) {
   send_evacuation_failed_event(ef_info);
   ef_info.reset();
 }
+
+void G1NewTracer::report_basic_ihop_statistics(size_t threshold,
+                                               size_t target_ccupancy,
+                                               size_t current_occupancy,
+                                               size_t last_allocation_size,
+                                               double last_allocation_duration,
+                                               double last_marking_length) {
+  send_basic_ihop_statistics(threshold,
+                             target_ccupancy,
+                             current_occupancy,
+                             last_allocation_size,
+                             last_allocation_duration,
+                             last_marking_length);
+}
+
 #endif

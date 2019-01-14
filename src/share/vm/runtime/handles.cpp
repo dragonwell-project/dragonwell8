@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,8 +71,9 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
   // is not yet valid, so loosen the assertion
   while (bottom < top) {
     // This test can be moved up but for now check every oop.
-
-    assert((*bottom)->is_oop(), "handle should point to oop");
+    if (!EnableJFR) {
+      assert((*bottom)->is_oop(), "handle should point to oop");
+    }
 
     f->do_oop(bottom++);
   }

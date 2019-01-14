@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,6 +145,7 @@ public:
   // Query
   inline static bool is_at_safepoint()   { return _state == _synchronized;  }
   inline static bool is_synchronizing()  { return _state == _synchronizing;  }
+  inline static int safepoint_counter()  { return _safepoint_counter; }
 
   inline static bool do_call_back() {
     return (_state != _not_synchronized);

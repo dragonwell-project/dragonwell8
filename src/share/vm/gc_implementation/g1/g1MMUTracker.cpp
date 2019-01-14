@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,6 +105,11 @@ void G1MMUTrackerQueue::add_pause(double start, double end, bool gc_thread) {
     ++_no_entries;
   }
   _array[_head_index] = G1MMUTrackerQueueElem(start, end);
+
+  if (EnableJFR) {
+    double slice_time = calculate_gc_time(end);
+    G1MMUTracer::report_mmu(_time_slice, slice_time, _max_gc_time, gc_thread);
+  }
 }
 
 // basically the _internal call does not remove expired entries

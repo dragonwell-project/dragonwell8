@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -74,5 +74,26 @@
   </xsl:choose>
 </xsl:template>
 
+<xsl:template name="maybecomma">
+  <xsl:if test="position()!=last()">
+    <xsl:text>,</xsl:text>
+  </xsl:if>
+</xsl:template>
+
+<xsl:template name="static_cast">
+  <xsl:param name="type"/>
+  <xsl:param name="content"/>
+  <xsl:text>static_cast&lt;</xsl:text>
+  <xsl:value-of select="$type"/>
+  <xsl:text>&gt;(</xsl:text>
+  <xsl:value-of select="$content"/>
+  <xsl:text>)</xsl:text>
+</xsl:template>
+
+<xsl:template name="mstr">
+  <xsl:param name="string"/>
+  <xsl:value-of select="concat('{ (u2)',string-length($string),', ')"/>
+  <xsl:value-of select="concat($quote,$string,$quote,' }')"/>
+</xsl:template>
 
 </xsl:stylesheet>

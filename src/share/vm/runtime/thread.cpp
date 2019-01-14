@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1671,7 +1671,7 @@ void JavaThread::run() {
 
   EventThreadStart event;
   if (event.should_commit()) {
-     event.set_javalangthread(java_lang_Thread::thread_id(this->threadObj()));
+     event.set_thread(THREAD_TRACE_ID(this));
      event.commit();
   }
 
@@ -1805,7 +1805,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     // from java_lang_Thread object
     EventThreadEnd event;
     if (event.should_commit()) {
-        event.set_javalangthread(java_lang_Thread::thread_id(this->threadObj()));
+        event.set_thread(THREAD_TRACE_ID(this));
         event.commit();
     }
 
@@ -2186,6 +2186,11 @@ void JavaThread::handle_special_runtime_exit_condition(bool check_asyncs) {
   if (check_asyncs) {
     check_and_handle_async_exceptions();
   }
+#if INCLUDE_TRACE
+  if (is_trace_suspend()) {
+    TRACE_SUSPEND_THREAD(this);
+  }
+#endif
 }
 
 void JavaThread::send_thread_stop(oop java_throwable)  {
@@ -2424,6 +2429,11 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
       fatal("missed deoptimization!");
     }
   }
+#if INCLUDE_TRACE
+  if (thread->is_trace_suspend()) {
+    TRACE_SUSPEND_THREAD(thread);
+  }
+#endif
 }
 
 // Slow path when the native==>VM/Java barriers detect a safepoint is in

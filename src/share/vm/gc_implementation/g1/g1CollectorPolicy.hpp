@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc_implementation/g1/collectionSetChooser.hpp"
 #include "gc_implementation/g1/g1Allocator.hpp"
 #include "gc_implementation/g1/g1MMUTracker.hpp"
+#include "gc_implementation/g1/g1IHOPControl.hpp"
 #include "memory/collectorPolicy.hpp"
 
 // A G1CollectorPolicy makes policy decisions that determine the
@@ -161,6 +162,8 @@ public:
 
 class G1CollectorPolicy: public CollectorPolicy {
 private:
+  static G1IHOPControl* create_ihop_control();
+
   // either equal to the number of parallel threads, if ParallelGCThreads
   // has been set, or 1 otherwise
   int _parallel_gc_threads;
@@ -173,6 +176,7 @@ private:
   };
 
   G1MMUTracker* _mmu_tracker;
+  G1IHOPControl* _ihop_control;
 
   void initialize_alignments();
   void initialize_flags();
@@ -636,6 +640,7 @@ private:
 public:
 
   G1CollectorPolicy();
+  virtual ~G1CollectorPolicy();
 
   virtual G1CollectorPolicy* as_g1_policy() { return this; }
 
