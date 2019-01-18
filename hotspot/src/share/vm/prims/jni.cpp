@@ -5121,6 +5121,7 @@ void execute_internal_vm_tests() {
     run_unit_test(TestMetachunk_test());
     run_unit_test(TestVirtualSpaceNode_test());
     run_unit_test(GlobalDefinitions::test_globals());
+    run_unit_test(GlobalDefinitions::test_proper_unit());
     run_unit_test(GCTimerAllTest::all());
     run_unit_test(arrayOopDesc::test_max_array_length());
     run_unit_test(CollectedHeap::test_is_in());
