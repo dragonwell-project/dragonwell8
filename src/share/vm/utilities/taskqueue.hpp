@@ -29,6 +29,7 @@
 #include "memory/allocation.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/orderAccess.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.hpp"
 
 // Simple TaskQueue stats that are collected by default in debug builds.
@@ -607,7 +608,9 @@ class ParallelTaskTerminator: public StackObj {
 private:
   int _n_threads;
   TaskQueueSetSuper* _queue_set;
+  char _pad_before[DEFAULT_CACHE_LINE_SIZE];
   int _offered_termination;
+  char _pad_after[DEFAULT_CACHE_LINE_SIZE];
 
 #ifdef TRACESPINNING
   static uint _total_yields;
