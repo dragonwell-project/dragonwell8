@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,7 +132,7 @@ abstract class RSASignature extends java.security.SignatureSpi
         @Override
         protected void engineUpdate(byte[] b, int off, int len)
                 throws SignatureException {
-            if (offset + len > precomputedDigest.length) {
+            if (len > (precomputedDigest.length - offset)) {
                 offset = RAW_RSA_MAX + 1;
                 return;
             }
@@ -147,7 +147,7 @@ abstract class RSASignature extends java.security.SignatureSpi
             if (len <= 0) {
                 return;
             }
-            if (offset + len > precomputedDigest.length) {
+            if (len > (precomputedDigest.length - offset)) {
                 offset = RAW_RSA_MAX + 1;
                 return;
             }

@@ -759,6 +759,79 @@ JVM_LEAF(char*, JVM_NativePath(char* path))
 JVM_END
 
 
+// java.nio.Bits ///////////////////////////////////////////////////////////////
+
+#define MAX_OBJECT_SIZE \
+  ( arrayOopDesc::header_size(T_DOUBLE) * HeapWordSize \
+    + ((julong)max_jint * sizeof(double)) )
+
+static inline jlong field_offset_to_byte_offset(jlong field_offset) {
+  return field_offset;
+}
+
+static inline void assert_field_offset_sane(oop p, jlong field_offset) {
+#ifdef ASSERT
+  jlong byte_offset = field_offset_to_byte_offset(field_offset);
+
+  if (p != NULL) {
+    assert(byte_offset >= 0 && byte_offset <= (jlong)MAX_OBJECT_SIZE, "sane offset");
+    if (byte_offset == (jint)byte_offset) {
+      void* ptr_plus_disp = (address)p + byte_offset;
+      assert((void*)p->obj_field_addr<oop>((jint)byte_offset) == ptr_plus_disp,
+             "raw [ptr+disp] must be consistent with oop::field_base");
+    }
+    jlong p_size = HeapWordSize * (jlong)(p->size());
+    assert(byte_offset < p_size, err_msg("Unsafe access: offset " INT64_FORMAT
+                                         " > object's size " INT64_FORMAT,
+                                         (int64_t)byte_offset, (int64_t)p_size));
+  }
+#endif
+}
+
+static inline void* index_oop_from_field_offset_long(oop p, jlong field_offset) {
+  assert_field_offset_sane(p, field_offset);
+  jlong byte_offset = field_offset_to_byte_offset(field_offset);
+
+  if (sizeof(char*) == sizeof(jint)) {   // (this constant folds!)
+    return (address)p + (jint) byte_offset;
+  } else {
+    return (address)p +        byte_offset;
+  }
+}
+
+// This function is a leaf since if the source and destination are both in native memory
+// the copy may potentially be very large, and we don't want to disable GC if we can avoid it.
+// If either source or destination (or both) are on the heap, the function will enter VM using
+// JVM_ENTRY_FROM_LEAF
+JVM_LEAF(void, JVM_CopySwapMemory(JNIEnv *env, jobject srcObj, jlong srcOffset,
+                                  jobject dstObj, jlong dstOffset, jlong size,
+                                  jlong elemSize)) {
+
+  size_t sz = (size_t)size;
+  size_t esz = (size_t)elemSize;
+
+  if (srcObj == NULL && dstObj == NULL) {
+    // Both src & dst are in native memory
+    address src = (address)srcOffset;
+    address dst = (address)dstOffset;
+
+    Copy::conjoint_swap(src, dst, sz, esz);
+  } else {
+    // At least one of src/dst are on heap, transition to VM to access raw pointers
+
+    JVM_ENTRY_FROM_LEAF(env, void, JVM_CopySwapMemory) {
+      oop srcp = JNIHandles::resolve(srcObj);
+      oop dstp = JNIHandles::resolve(dstObj);
+
+      address src = (address)index_oop_from_field_offset_long(srcp, srcOffset);
+      address dst = (address)index_oop_from_field_offset_long(dstp, dstOffset);
+
+      Copy::conjoint_swap(src, dst, sz, esz);
+    } JVM_END
+  }
+} JVM_END
+
+
 // Misc. class handling ///////////////////////////////////////////////////////////
 
 
@@ -991,12 +1064,6 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
-  if (result != NULL) {
-    oop mirror = JNIHandles::resolve_non_null(result);
-    Klass* to_class = java_lang_Class::as_Klass(mirror);
-    ClassLoaderData* cld = ClassLoaderData::class_loader_data(h_loader());
-    cld->record_dependency(to_class, CHECK_NULL);
-  }
 
   if (TraceClassResolution && result != NULL) {
     // this function is generally only used for class loading during verification.

@@ -608,6 +608,8 @@ static void initLoopbackRoutes() {
 
                 if (loRoutesTemp == 0) {
                     free(loRoutes);
+                    loRoutes = NULL;
+                    nRoutes = 0;
                     fclose (f);
                     return;
                 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1161,6 +1161,14 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
     private static final double LOG_TWO = Math.log(2.0);
 
     static {
+        assert 0 < KARATSUBA_THRESHOLD
+            && KARATSUBA_THRESHOLD < TOOM_COOK_THRESHOLD
+            && TOOM_COOK_THRESHOLD < Integer.MAX_VALUE
+            && 0 < KARATSUBA_SQUARE_THRESHOLD
+            && KARATSUBA_SQUARE_THRESHOLD < TOOM_COOK_SQUARE_THRESHOLD
+            && TOOM_COOK_SQUARE_THRESHOLD < Integer.MAX_VALUE :
+            "Algorithm thresholds are inconsistent";
+
         for (int i = 1; i <= MAX_CONSTANT; i++) {
             int[] magnitude = new int[1];
             magnitude[0] = i;
@@ -1482,6 +1490,18 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
      * @return {@code this * val}
      */
     public BigInteger multiply(BigInteger val) {
+        return multiply(val, false);
+    }
+
+    /**
+     * Returns a BigInteger whose value is {@code (this * val)}.  If
+     * the invocation is recursive certain overflow checks are skipped.
+     *
+     * @param  val value to be multiplied by this BigInteger.
+     * @param  isRecursion whether this is a recursive invocation
+     * @return {@code this * val}
+     */
+    private BigInteger multiply(BigInteger val, boolean isRecursion) {
         if (val.signum == 0 || signum == 0)
             return ZERO;
 
@@ -1509,6 +1529,63 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             if ((xlen < TOOM_COOK_THRESHOLD) && (ylen < TOOM_COOK_THRESHOLD)) {
                 return multiplyKaratsuba(this, val);
             } else {
+                //
+                // In "Hacker's Delight" section 2-13, p.33, it is explained
+                // that if x and y are unsigned 32-bit quantities and m and n
+                // are their respective numbers of leading zeros within 32 bits,
+                // then the number of leading zeros within their product as a
+                // 64-bit unsigned quantity is either m + n or m + n + 1. If
+                // their product is not to overflow, it cannot exceed 32 bits,
+                // and so the number of leading zeros of the product within 64
+                // bits must be at least 32, i.e., the leftmost set bit is at
+                // zero-relative position 31 or less.
+                //
+                // From the above there are three cases:
+                //
+                //     m + n    leftmost set bit    condition
+                //     -----    ----------------    ---------
+                //     >= 32    x <= 64 - 32 = 32   no overflow
+                //     == 31    x >= 64 - 32 = 32   possible overflow
+                //     <= 30    x >= 64 - 31 = 33   definite overflow
+                //
+                // The "possible overflow" condition cannot be detected by
+                // examning data lengths alone and requires further calculation.
+                //
+                // By analogy, if 'this' and 'val' have m and n as their
+                // respective numbers of leading zeros within 32*MAX_MAG_LENGTH
+                // bits, then:
+                //
+                //     m + n >= 32*MAX_MAG_LENGTH        no overflow
+                //     m + n == 32*MAX_MAG_LENGTH - 1    possible overflow
+                //     m + n <= 32*MAX_MAG_LENGTH - 2    definite overflow
+                //
+                // Note however that if the number of ints in the result
+                // were to be MAX_MAG_LENGTH and mag[0] < 0, then there would
+                // be overflow. As a result the leftmost bit (of mag[0]) cannot
+                // be used and the constraints must be adjusted by one bit to:
+                //
+                //     m + n >  32*MAX_MAG_LENGTH        no overflow
+                //     m + n == 32*MAX_MAG_LENGTH        possible overflow
+                //     m + n <  32*MAX_MAG_LENGTH        definite overflow
+                //
+                // The foregoing leading zero-based discussion is for clarity
+                // only. The actual calculations use the estimated bit length
+                // of the product as this is more natural to the internal
+                // array representation of the magnitude which has no leading
+                // zero elements.
+                //
+                if (!isRecursion) {
+                    // The bitLength() instance method is not used here as we
+                    // are only considering the magnitudes as non-negative. The
+                    // Toom-Cook multiplication algorithm determines the sign
+                    // at its end from the two signum values.
+                    if (bitLength(mag, mag.length) +
+                        bitLength(val.mag, val.mag.length) >
+                        32L*MAX_MAG_LENGTH) {
+                        reportOverflow();
+                    }
+                }
+
                 return multiplyToomCook3(this, val);
             }
         }
@@ -1587,7 +1664,7 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
         int ystart = ylen - 1;
 
         if (z == null || z.length < (xlen+ ylen))
-            z = new int[xlen+ylen];
+             z = new int[xlen+ylen];
 
         long carry = 0;
         for (int j=ystart, k=ystart+1+xstart; j >= 0; j--, k--) {
@@ -1709,16 +1786,16 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
 
         BigInteger v0, v1, v2, vm1, vinf, t1, t2, tm1, da1, db1;
 
-        v0 = a0.multiply(b0);
+        v0 = a0.multiply(b0, true);
         da1 = a2.add(a0);
         db1 = b2.add(b0);
-        vm1 = da1.subtract(a1).multiply(db1.subtract(b1));
+        vm1 = da1.subtract(a1).multiply(db1.subtract(b1), true);
         da1 = da1.add(a1);
         db1 = db1.add(b1);
-        v1 = da1.multiply(db1);
+        v1 = da1.multiply(db1, true);
         v2 = da1.add(a2).shiftLeft(1).subtract(a0).multiply(
-             db1.add(b2).shiftLeft(1).subtract(b0));
-        vinf = a2.multiply(b2);
+             db1.add(b2).shiftLeft(1).subtract(b0), true);
+        vinf = a2.multiply(b2, true);
 
         // The algorithm requires two divisions by 2 and one by 3.
         // All divisions are known to be exact, that is, they do not produce
@@ -1884,6 +1961,17 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
      * @return {@code this<sup>2</sup>}
      */
     private BigInteger square() {
+        return square(false);
+    }
+
+    /**
+     * Returns a BigInteger whose value is {@code (this<sup>2</sup>)}. If
+     * the invocation is recursive certain overflow checks are skipped.
+     *
+     * @param isRecursion whether this is a recursive invocation
+     * @return {@code this<sup>2</sup>}
+     */
+    private BigInteger square(boolean isRecursion) {
         if (signum == 0) {
             return ZERO;
         }
@@ -1896,6 +1984,15 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             if (len < TOOM_COOK_SQUARE_THRESHOLD) {
                 return squareKaratsuba();
             } else {
+                //
+                // For a discussion of overflow detection see multiply()
+                //
+                if (!isRecursion) {
+                    if (bitLength(mag, mag.length) > 16L*MAX_MAG_LENGTH) {
+                        reportOverflow();
+                    }
+                }
+
                 return squareToomCook3();
             }
         }
@@ -2046,13 +2143,13 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
         a0 = getToomSlice(k, r, 2, len);
         BigInteger v0, v1, v2, vm1, vinf, t1, t2, tm1, da1;
 
-        v0 = a0.square();
+        v0 = a0.square(true);
         da1 = a2.add(a0);
-        vm1 = da1.subtract(a1).square();
+        vm1 = da1.subtract(a1).square(true);
         da1 = da1.add(a1);
-        v1 = da1.square();
-        vinf = a2.square();
-        v2 = da1.add(a2).shiftLeft(1).subtract(a0).square();
+        v1 = da1.square(true);
+        vinf = a2.square(true);
+        v2 = da1.add(a2).shiftLeft(1).subtract(a0).square(true);
 
         // The algorithm requires two divisions by 2 and one by 3.
         // All divisions are known to be exact, that is, they do not produce
@@ -2223,10 +2320,11 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
         // The remaining part can then be exponentiated faster.  The
         // powers of two will be multiplied back at the end.
         int powersOfTwo = partToSquare.getLowestSetBit();
-        long bitsToShift = (long)powersOfTwo * exponent;
-        if (bitsToShift > Integer.MAX_VALUE) {
+        long bitsToShiftLong = (long)powersOfTwo * exponent;
+        if (bitsToShiftLong > Integer.MAX_VALUE) {
             reportOverflow();
         }
+        int bitsToShift = (int)bitsToShiftLong;
 
         int remainingBits;
 
@@ -2236,9 +2334,9 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             remainingBits = partToSquare.bitLength();
             if (remainingBits == 1) {  // Nothing left but +/- 1?
                 if (signum < 0 && (exponent&1) == 1) {
-                    return NEGATIVE_ONE.shiftLeft(powersOfTwo*exponent);
+                    return NEGATIVE_ONE.shiftLeft(bitsToShift);
                 } else {
-                    return ONE.shiftLeft(powersOfTwo*exponent);
+                    return ONE.shiftLeft(bitsToShift);
                 }
             }
         } else {
@@ -2283,13 +2381,16 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
                 if (bitsToShift + scaleFactor <= 62) { // Fits in long?
                     return valueOf((result << bitsToShift) * newSign);
                 } else {
-                    return valueOf(result*newSign).shiftLeft((int) bitsToShift);
+                    return valueOf(result*newSign).shiftLeft(bitsToShift);
                 }
-            }
-            else {
+            } else {
                 return valueOf(result*newSign);
             }
         } else {
+            if ((long)bitLength() * exponent / Integer.SIZE > MAX_MAG_LENGTH) {
+                reportOverflow();
+            }
+
             // Large number algorithm.  This is basically identical to
             // the algorithm above, but calls multiply() and square()
             // which may use more efficient algorithms for large numbers.
@@ -2309,7 +2410,7 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
             // Multiply back the (exponentiated) powers of two (quickly,
             // by shifting left)
             if (powersOfTwo > 0) {
-                answer = answer.shiftLeft(powersOfTwo*exponent);
+                answer = answer.shiftLeft(bitsToShift);
             }
 
             if (signum < 0 && (exponent&1) == 1) {
@@ -3434,7 +3535,7 @@ public class BigInteger extends Number implements Comparable<BigInteger> {
                      for (int i=1; i< len && pow2; i++)
                          pow2 = (mag[i] == 0);
 
-                     n = (pow2 ? magBitLength -1 : magBitLength);
+                     n = (pow2 ? magBitLength - 1 : magBitLength);
                  } else {
                      n = magBitLength;
                  }
