@@ -4210,9 +4210,6 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
           this_klass(), &all_mirandas, CHECK_(nullHandle));
     }
 
-    // Update the loader_data graph.
-    record_defined_class_dependencies(this_klass, CHECK_NULL);
-
     ClassLoadingService::notify_class_loaded(InstanceKlass::cast(this_klass()),
                                              false /* not shared class */);
 
@@ -4495,30 +4492,6 @@ void ClassFileParser::set_precomputed_flags(instanceKlassHandle k) {
     // Forbid fast-path allocation.
     jint lh = Klass::instance_layout_helper(k->size_helper(), true);
     k->set_layout_helper(lh);
-  }
-}
-
-// Attach super classes and interface classes to class loader data
-void ClassFileParser::record_defined_class_dependencies(instanceKlassHandle defined_klass, TRAPS) {
-  ClassLoaderData * defining_loader_data = defined_klass->class_loader_data();
-  if (defining_loader_data->is_the_null_class_loader_data()) {
-      // Dependencies to null class loader data are implicit.
-      return;
-  } else {
-    // add super class dependency
-    Klass* super = defined_klass->super();
-    if (super != NULL) {
-      defining_loader_data->record_dependency(super, CHECK);
-    }
-
-    // add super interface dependencies
-    Array<Klass*>* local_interfaces = defined_klass->local_interfaces();
-    if (local_interfaces != NULL) {
-      int length = local_interfaces->length();
-      for (int i = 0; i < length; i++) {
-        defining_loader_data->record_dependency(local_interfaces->at(i), CHECK);
-      }
-    }
   }
 }
 
