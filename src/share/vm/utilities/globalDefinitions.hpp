@@ -1149,8 +1149,7 @@ inline int log2_intptr(uintptr_t x) {
 }
 
 //* largest i such that 2^i <= x
-//  A negative value of 'x' will return '63'
-inline int log2_long(unsigned long x) {
+inline int log2_long(julong x) {
   int i = -1;
   julong p =  1;
   while (p != 0 && p <= x) {
@@ -1166,16 +1165,21 @@ inline int log2_intptr(intptr_t x) {
   return log2_intptr((uintptr_t)x);
 }
 
-inline int log2_intptr(int x) {
+inline int log2_int(int x) {
   return log2_intptr((uintptr_t)x);
 }
 
-inline int log2_intptr(uint x) {
+inline int log2_jint(jint x) {
   return log2_intptr((uintptr_t)x);
 }
 
-inline int log2_long(jlong x) {
-  return log2_long((unsigned long)x);
+inline int log2_uint(uint x) {
+  return log2_intptr((uintptr_t)x);
+}
+
+//  A negative value of 'x' will return '63'
+inline int log2_jlong(jlong x) {
+  return log2_long((julong)x);
 }
 
 //* the argument must be exactly a power of 2

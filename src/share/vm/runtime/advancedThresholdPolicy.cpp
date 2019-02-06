@@ -47,8 +47,8 @@ void AdvancedThresholdPolicy::initialize() {
   int count = CICompilerCount;
   if (CICompilerCountPerCPU) {
     // Simple log n seems to grow too slowly for tiered, try something faster: log n * log log n
-    int log_cpu = log2_intptr(os::active_processor_count());
-    int loglog_cpu = log2_intptr(MAX2(log_cpu, 1));
+    int log_cpu = log2_int(os::active_processor_count());
+    int loglog_cpu = log2_int(MAX2(log_cpu, 1));
     count = MAX2(log_cpu * loglog_cpu, 1) * 3 / 2;
   }
 
