@@ -34,8 +34,9 @@ template <class E> class AllocationSite VALUE_OBJ_CLASS_SPEC {
  private:
   NativeCallStack  _call_stack;
   E                e;
+  MEMFLAGS         _flag;
  public:
-  AllocationSite(const NativeCallStack& stack) : _call_stack(stack) { }
+  AllocationSite(const NativeCallStack& stack, MEMFLAGS flag) : _call_stack(stack), _flag(flag) { }
   int hash() const { return _call_stack.hash(); }
   bool equals(const NativeCallStack& stack) const {
     return _call_stack.equals(stack);
@@ -52,6 +53,8 @@ template <class E> class AllocationSite VALUE_OBJ_CLASS_SPEC {
   // Information regarding this allocation
   E* data()             { return &e; }
   const E* peek() const { return &e; }
+
+  MEMFLAGS flag() const { return _flag; }
 };
 
 #endif  // SHARE_VM_SERVICES_ALLOCATION_SITE_HPP
