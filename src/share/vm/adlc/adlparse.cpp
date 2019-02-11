@@ -2868,7 +2868,8 @@ void ADLParser::ins_encode_parse_block(InstructForm& inst) {
   const char* param = NULL;
   inst._parameters.reset();
   while ((param = inst._parameters.iter()) != NULL) {
-    OperandForm* opForm = (OperandForm*) inst._localNames[param];
+    OpClassForm* opForm = inst._localNames[param]->is_opclass();
+    assert(opForm != NULL, "sanity");
     encoding->add_parameter(opForm->_ident, param);
   }
 
@@ -3338,7 +3339,8 @@ void ADLParser::constant_parse(InstructForm& inst) {
   const char* param = NULL;
   inst._parameters.reset();
   while ((param = inst._parameters.iter()) != NULL) {
-    OperandForm* opForm = (OperandForm*) inst._localNames[param];
+    OpClassForm* opForm = inst._localNames[param]->is_opclass();
+    assert(opForm != NULL, "sanity");
     encoding->add_parameter(opForm->_ident, param);
   }
 
