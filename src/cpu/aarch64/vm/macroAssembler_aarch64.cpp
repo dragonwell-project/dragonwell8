@@ -2019,6 +2019,14 @@ void MacroAssembler::stop(const char* msg) {
   hlt(0);
 }
 
+void MacroAssembler::warn(const char* msg) {
+  pusha();
+  mov(c_rarg0, (address)msg);
+  mov(lr, CAST_FROM_FN_PTR(address, warning));
+  blr(lr);
+  popa();
+}
+
 // If a constant does not fit in an immediate field, generate some
 // number of MOV instructions and then perform the operation.
 void MacroAssembler::wrap_add_sub_imm_insn(Register Rd, Register Rn, unsigned imm,
