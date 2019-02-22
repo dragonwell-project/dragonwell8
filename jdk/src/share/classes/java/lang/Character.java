@@ -3928,7 +3928,9 @@ class Character implements java.io.Serializable, Comparable<Character> {
             0x3220,   // 3220..325F; COMMON
             0x3260,   // 3260..327E; HANGUL
             0x327F,   // 327F..32CF; COMMON
-            0x32D0,   // 32D0..3357; KATAKANA
+            0x32D0,   // 32D0..32FE; KATAKANA
+            0x32FF,   // 32FF      ; COMMON
+            0x3300,   // 3300..3357; KATAKANA
             0x3358,   // 3358..33FF; COMMON
             0x3400,   // 3400..4DBF; HAN
             0x4DC0,   // 4DC0..4DFF; COMMON
@@ -4249,7 +4251,9 @@ class Character implements java.io.Serializable, Comparable<Character> {
             COMMON,
             HANGUL,
             COMMON,
-            KATAKANA,
+            KATAKANA,  // 32D0..32FE
+            COMMON,    // 32FF
+            KATAKANA,  // 3300..3357
             COMMON,
             HAN,
             COMMON,
