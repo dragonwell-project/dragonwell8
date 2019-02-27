@@ -1,6 +1,6 @@
 #!/bin/bash
 # build properties
-JDK_UPDATE_VERSION=172
+JDK_UPDATE_VERSION=202
 DISTRO_NAME=Dragonwell
 DISTRO_VERSION=8.0
 
@@ -52,7 +52,7 @@ fi
 export LDFLAGS_JDK="-L/vmfarm/tools/jemalloc/lib -ljemalloc"
 bash ./configure --with-milestone=fcs \
                  --with-freetype=/vmfarm/tools/freetype/ \
-                 --with-update-version=$UPDATE_VERSION \
+                 --with-update-version=$JDK_UPDATE_VERSION \
                  --with-build-number=$BUILD_INDEX \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
