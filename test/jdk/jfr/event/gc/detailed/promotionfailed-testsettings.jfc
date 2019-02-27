@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  * ORACLE PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
+-->
+<configuration version="2.0" label="TestSettings" description="Configuration for testing promotion failed event" provider="Oracle">
+
+    <event name="com.oracle.jdk.PromotionFailed">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+</configuration>

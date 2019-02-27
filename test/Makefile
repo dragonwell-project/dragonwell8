@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -294,6 +294,10 @@ JTREG_TEST_OPTIONS = $(JAVA_ARGS:%=-javaoptions:%) $(JAVA_VM_ARGS:%=-vmoption:%)
 # Set the max memory for jtreg target test vms
 JTREG_TESTVM_MEMORY_OPTION = -vmoption:-Xmx512m
 JTREG_TEST_OPTIONS += $(JTREG_TESTVM_MEMORY_OPTION)
+
+# Set extra options while make test
+# for example: make test PRODUCT_HOME=`pwd`/build/linux-x86_64-normal-server-slowdebug/images/j2sdk-image JT_HOME=/vmfarm/tools/jtreg4.1 JTREG_TEST_EXTRA_OPTIONS=-vmoption:-XX:+EnableJFR TEST=jdk_jfr
+JTREG_TEST_OPTIONS += $(JTREG_TEST_EXTRA_OPTIONS)
 
 # Make sure jtreg exists
 $(JTREG): $(JT_HOME)

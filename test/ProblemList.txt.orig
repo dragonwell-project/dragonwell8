@@ -1,0 +1,362 @@
+###########################################################################
+#
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+###########################################################################
+#
+# List of tests that should not be run by test/Makefile, for various reasons:
+#   1. Does not run with jtreg -samevm mode
+#   2. Causes problems in jtreg -samevm mode for jtreg or tests that follow it
+#   3. The test is too slow or consumes too many system resources
+#   4. The test fails when run on any official build systems
+#
+# It is possible that a test being on this list is a mistake, and that some
+#   other test in samevm mode caused tests to fail, mistakes happen.
+#
+# Tests marked @ignore are not run by test/Makefile, but harmless to be listed.
+#
+# Tests that explicitly state "@run main/othervm ...", and are not listed here,
+#   will be run in the same batch as the samevm tests.
+#
+# Shell tests are othervm by default.
+#
+# List items  are testnames followed by labels, all MUST BE commented
+#   as to why they are here and use a label:
+#     generic-all   Problems on all platforms
+#     generic-ARCH  Where ARCH is one of: sparc, sparcv9, x64, i586, etc.
+#     OSNAME-all    Where OSNAME is one of: solaris, linux, windows, macosx, aix
+#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. solaris-x64
+#     OSNAME-REV    Specific on to one OSNAME and REV, e.g. solaris-5.8
+#
+# More than one label is allowed but must be on the same line.
+#
+#############################################################################
+#
+# Running the tests:
+#    cd test && make JT_HOME=jtreg_home PRODUCT_HOME=jdk_home jdk_all
+#  Or instead of jdk_all, use any of the jdk_* targets.
+#
+# Samevm Notes:
+#  * Although some tests may have only been seen to fail on some platforms,
+#    they might be flagged as 'generic-all' because the problem they have
+#    could cause hidden slowdowns on other platforms.
+#    Most samevm problems will be generic-all, but windows usually dislikes
+#    them the most.
+#    Address already in use or connection errors indicate a generic port issue.
+#    (this is not necessarily a samevm issue, but an issue for running the tests
+#     on shared machines, two people or two test runs will collide).
+#  * Samevm problem (windows in particular) is not closing all input/output
+#  * Samevm problem when a test calls setSecurityManager()
+#  * Samevm problem with setHttps*() is used? (not exactly sure here)
+#  * Samevm problem when stuffing system properties with non Strings or anything
+#  * Samevm problem when changing vm settings, or registering any vm actions
+#  * Samevm problems with deleteOnExit(), if it must happen at end of test
+#  * Samevm problems with URLClassLoader? (no details here)
+#  * Samevm problems with dependence on predictable GC or finalizations
+#
+# Any of the above problems may mean the test needs to be flagged as "othervm".
+#
+#############################################################################
+#
+# Fixing the tests:
+#
+# Some tests just may need to be run with "othervm", and that can easily be
+#   done my adding a @run line (or modifying any existing @run):
+#      @run main/othervm NameOfMainClass
+#   Make sure this @run follows any use of @library.
+#   Otherwise, if the test is a samevm possibility, make sure the test is
+#     cleaning up after itself, closing all streams, deleting temp files, etc.
+#
+# Keep in mind that the bug could be in many places, and even different per
+#   platform, it could be a bug in any one of:
+#      - the testcase
+#      - the jdk (jdk classes, native code, or hotspot)
+#      - the native compiler
+#      - the javac compiler
+#      - the OS (depends on what the testcase does)
+#
+# If you managed to really fix one of these tests, here is how you can
+#    remove tests from this list:
+#  1. Make sure test passes on all platforms with samevm, or mark it othervm
+#  2. Make sure test passes on all platforms when run with it's entire group
+#  3. Make sure both VMs are tested, -server and -client, if possible
+#  4. Make sure you try the -d64 option on Solaris
+#  5. Use a tool like JPRT or something to verify these results
+#  6. Delete lines in this file, include the changes with your test changes
+#
+# You may need to repeat your testing 2 or even 3 times to verify good
+#   results, some of these samevm failures are not very predictable.
+#
+#############################################################################
+
+############################################################################
+
+# jdk_awt
+
+############################################################################
+
+# jdk_beans
+
+############################################################################
+
+# jdk_lang
+
+############################################################################
+
+# jdk_management
+
+# 8028150
+sun/management/jmxremote/bootstrap/RmiSslBootstrapTest.sh	windows-all
+
+############################################################################
+
+# jdk_jmx
+
+# 8030957
+com/sun/management/OperatingSystemMXBean/GetProcessCpuLoad.java aix-all
+com/sun/management/OperatingSystemMXBean/GetSystemCpuLoad.java  aix-all
+javax/management/MBeanServer/OldMBeanServerTest.java            aix-all
+
+############################################################################
+
+# jdk_math
+
+############################################################################
+
+# jdk_other
+
+# 6988950
+demo/jvmti/compiledMethodLoad/CompiledMethodLoadTest.java	generic-all
+
+# 7027502
+demo/jvmti/hprof/MonitorTest.java                               generic-all
+
+############################################################################
+
+# jdk_net
+
+# 7122846
+java/net/MulticastSocket/NoLoopbackPackets.java                  macosx-all
+
+# 7122846, 8098566
+java/net/MulticastSocket/SetLoopbackMode.java                    macosx-all,solaris-all
+
+# 8171217, 7145658
+java/net/MulticastSocket/Test.java                               macosx-all,solaris-all
+
+# 7143960
+java/net/DatagramSocket/SendDatagramToBadAddress.java            macosx-all
+
+# 8172046
+java/net/MulticastSocket/TestInterfaces.java                     windows-x64,solaris-x64
+
+# 8160738
+sun/net/www/protocol/https/HttpsURLConnection/ImpactOnSNI.java   macosx-x64
+
+# 8010379
+sun/net/www/http/KeepAliveCache/B5045306.java                    macosx-x64
+
+# 8158598
+sun/net/www/protocol/http/B6296310.java                          macosx-x64
+
+# 8171208
+java/net/CookieHandler/CookieManagerTest.java                    macosx-x64
+java/net/HttpURLConnection/UnmodifiableMaps.java                 macosx-x64
+sun/net/www/protocol/http/B6299712.java                          macosx-x64
+
+# 8166362
+sun/net/www/http/HttpClient/B8025710.java			generic-all
+
+############################################################################
+
+# jdk_io
+
+# 8169774
+java/io/File/WinSpecialFiles.java                               windows-all
+
+############################################################################
+
+# jdk_nio
+
+# 6963118
+java/nio/channels/Selector/Wakeup.java                          windows-all
+
+# 7141822
+java/nio/channels/DatagramChannel/ChangingAddress.java          macosx-all
+
+# 7132677
+java/nio/channels/Selector/OutOfBand.java                       macosx-all
+
+# 7158947
+java/nio/file/WatchService/Basic.java				solaris-all
+java/nio/file/WatchService/LotsOfEvents.java			solaris-all
+
+# 8030179
+java/nio/Buffer/Chars.java                      windows-x64
+
+# 8172045
+java/nio/channels/AsyncCloseAndInterrupt.java           linux-all
+
+# 8076056
+java/nio/channels/DatagramChannel/BasicMulticastTests.java      linux-i586
+java/nio/channels/DatagramChannel/MulticastSendReceiveTests.java    linux-i586
+
+# 8148996
+java/nio/file/WatchService/WithSecurityManager.java     linux-all
+
+# 8173179
+java/nio/file/Files/probeContentType/Basic.java                  solaris-x64
+
+# 8171218
+java/nio/file/FileStore/Basic.java              linux-i586
+java/nio/file/FileSystem/Basic.java                 linux-i586
+
+############################################################################
+
+# jdk_rmi
+
+# 7140992
+java/rmi/server/Unreferenced/finiteGCLatency/FiniteGCLatency.java  generic-all
+
+# 7146541
+java/rmi/transport/rapidExportUnexport/RapidExportUnexport.java	linux-all
+
+# 7191877
+java/rmi/transport/checkLeaseInfoLeak/CheckLeaseLeak.java       generic-all
+
+# 7195095
+sun/rmi/transport/proxy/EagerHttpFallback.java                  generic-all
+
+# 8049531
+java/rmi/reliability/benchmark/bench/serial/Main.java           linux-i586
+
+# 8162906
+javax/rmi/ssl/SSLSocketParametersTest.sh                    linux-all
+
+# 8137232
+javax/rmi/PortableRemoteObject/ConcurrentHashMapTest.java       linux-all
+
+# 8170248
+javax/rmi/PortableRemoteObject/8146975/RmiIiopReturnValueTest.java  linux-all
+
+# 8205049
+sun/rmi/transport/tcp/DisableRMIOverHttp/DisableRMIOverHTTPTest.java    windows-all
+
+############################################################################
+
+# jdk_security
+
+# 8026976
+sun/security/pkcs11/ec/TestKeyFactory.java                      generic-all
+
+# 7164518
+sun/security/krb5/auto/Unreachable.java                         macosx-all
+
+# 7147060
+com/sun/org/apache/xml/internal/security/transforms/ClassLoaderTest.java	generic-all
+
+# 8160071
+sun/security/pkcs11/sslecc/ClientJSSEServerJSSE.java            linux-all
+
+# 8026393
+sun/security/tools/jarsigner/warnings/BadKeyUsageTest.java      generic-all
+
+# 8158827
+sun/security/krb5/auto/tools/KinitConfPlusProps.java                       windows-all
+
+# 8151225
+sun/security/rsa/SpecTest.java                                  linux-i586
+
+# 8043951
+sun/security/pkcs11/MessageDigest/TestCloning.java              solaris-all
+
+# 8163498
+sun/security/provider/NSASuiteB/TestDSAGenParameterSpec.java    linux-i586
+
+# 8203055
+# 8129560
+sun/security/pkcs11/rsa/TestKeyPairGenerator.java               linux-all,solaris-all
+
+# 8151834
+sun/security/mscapi/SmallPrimeExponentP.java                    windows-i586
+
+#8176354
+sun/security/ssl/com/sun/net/ssl/internal/ssl/X509KeyManager/PreferredKey.java     generic-all
+
+# 8206909
+com/sun/crypto/provider/CICO/PBEFunc/CICOPBEFuncTest.java       solaris-sparcv9
+
+# 8206912
+sun/security/krb5/auto/ReplayCacheTestProc.java                 solaris-sparcv9
+
+############################################################################
+
+# jdk_sound
+
+############################################################################
+
+# jdk_swing
+
+############################################################################
+
+# jdk_text
+
+############################################################################
+
+# jdk_time
+
+############################################################################
+
+# jdk_tools
+
+# 8172782, 8007410
+tools/launcher/FXLauncherTest.java                     windows-all,linux-all
+
+############################################################################
+
+# jdk_jdi
+
+############################################################################
+
+# jdk_util
+
+# 8004807
+java/util/Timer/Args.java                                        generic-all
+
+############################################################################
+
+# svc_tools
+
+# 8031482
+sun/tools/jcmd/TestJcmdSanity.java				windows-all
+
+# 6456333
+sun/tools/jps/TestJpsJarRelative.java				generic-all
+
+############################################################################
+
+# jdk_other
+
+############################################################################
+
+# 8141370
+com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java			linux-i586,macosx-all

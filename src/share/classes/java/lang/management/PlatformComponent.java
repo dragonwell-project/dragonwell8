@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,12 @@ import javax.management.ObjectName;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
+import com.sun.management.VMOption;
 
 import sun.management.ManagementFactoryHelper;
 import sun.management.Util;
+
+import jdk.management.jfr.FlightRecorderMXBean;
 
 /**
  * This enum class defines the list of platform components
@@ -270,8 +273,28 @@ enum PlatformComponent {
             public List<HotSpotDiagnosticMXBean> getMXBeans() {
                 return Collections.singletonList(ManagementFactoryHelper.getDiagnosticMXBean());
             }
-        });
+        }),
 
+    /**
+     * Flight Recorder.
+     */
+    FLIGHT_RECORDER(
+        "jdk.management.jfr.FlightRecorderMXBean",
+        "jdk.management.jfr", "FlightRecorder", defaultKeyProperties(),
+        true,
+        new MXBeanFetcher<FlightRecorderMXBean>() {
+            public List<FlightRecorderMXBean> getMXBeans() {
+                HotSpotDiagnosticMXBean hsDiagMBean = ManagementFactoryHelper.getDiagnosticMXBean();
+                VMOption opt = hsDiagMBean.getVMOption("EnableJFR");
+                if (Boolean.valueOf(opt.getValue())) {
+                    FlightRecorderMXBean m = ManagementFactoryHelper.getFlightRecorderMXBean();
+                    if (m != null) {
+                        return Collections.singletonList(m);
+                    }
+                }
+                return Collections.emptyList();
+            }
+        });
 
     /**
      * A task that returns the MXBeans for a component.
@@ -379,9 +402,10 @@ enum PlatformComponent {
 
     <T extends PlatformManagedObject> T getSingletonMXBean(Class<T> mxbeanInterface)
     {
-        if (!singleton)
+        if (!singleton) {
             throw new IllegalArgumentException(mxbeanInterfaceName +
                 " can have zero or more than one instances");
+        }
 
         List<T> list = getMXBeans(mxbeanInterface);
         assert list.size() == 1;
@@ -392,9 +416,10 @@ enum PlatformComponent {
             T getSingletonMXBean(MBeanServerConnection mbs, Class<T> mxbeanInterface)
         throws java.io.IOException
     {
-        if (!singleton)
+        if (!singleton) {
             throw new IllegalArgumentException(mxbeanInterfaceName +
                 " can have zero or more than one instances");
+        }
 
         // ObjectName of a singleton MXBean contains only domain and type
         assert keyProperties.size() == 1;
@@ -459,8 +484,9 @@ enum PlatformComponent {
         ensureInitialized();
         String cn = mxbeanInterface.getName();
         PlatformComponent pc = enumMap.get(cn);
-        if (pc != null && pc.getMXBeanInterface() == mxbeanInterface)
+        if (pc != null && pc.getMXBeanInterface() == mxbeanInterface) {
             return pc;
+        }
         return null;
     }
 

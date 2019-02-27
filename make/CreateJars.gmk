@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -400,21 +400,16 @@ $(eval $(call SetupArchive,BUILD_CHARSETS_JAR, , \
 
 ##########################################################################################
 
-ifndef OPENJDK
-  ifeq ($(ENABLE_JFR), true)
-    $(eval $(call SetupArchive,BUILD_JFR_JAR, , \
-        SRCS := $(JDK_OUTPUTDIR)/classes, \
-        SUFFIXES := .class .jfc .xsd, \
-        INCLUDES := com/oracle/jrockit/jfr \
-            oracle/jrockit/jfr \
-            jdk/jfr, \
-        JAR := $(IMAGES_OUTPUTDIR)/lib/jfr.jar, \
-        SKIP_METAINF := true, \
-        MANIFEST := $(MAINMANIFEST), \
-        CHECK_COMPRESS_JAR := true))
+$(eval $(call SetupArchive,BUILD_JFR_JAR, , \
+    SRCS := $(JDK_OUTPUTDIR)/classes, \
+    SUFFIXES := .class .jfc .xsd .xml .dtd, \
+    INCLUDES := jdk/jfr, \
+    JAR := $(IMAGES_OUTPUTDIR)/lib/jfr.jar, \
+    SKIP_METAINF := true, \
+    MANIFEST := $(MAINMANIFEST), \
+    CHECK_COMPRESS_JAR := true))
 
-  endif
-endif
+JARS += $(IMAGES_OUTPUTDIR)/lib/jfr.jar
 
 ##########################################################################################
 
