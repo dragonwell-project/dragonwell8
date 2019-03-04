@@ -34,7 +34,7 @@
   // Run with +PrintInterpreter to get the VM to print out the size.
   // Max size with JVMTI
 
-  const static int InterpreterCodeSize = 210*K;
+  const static int InterpreterCodeSize = 220*K;
 
 #endif // CPU_PPC_VM_TEMPLATEINTERPRETER_PPC_HPP
 
