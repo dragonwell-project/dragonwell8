@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -529,6 +529,17 @@ public class GlyphView extends View implements TabableView, Cloneable {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getResizeWeight(int axis) {
+        if (axis == View.X_AXIS) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
      * Determines the minimum span for this view along an axis.
      *
      * <p>This implementation returns the longest non-breakable area within
@@ -543,6 +554,9 @@ public class GlyphView extends View implements TabableView, Cloneable {
     public float getMinimumSpan(int axis) {
         switch (axis) {
             case View.X_AXIS:
+                if (getResizeWeight(X_AXIS) == 0) {
+                    return getPreferredSpan(X_AXIS);
+                }
                 if (minimumSpan < 0) {
                     minimumSpan = 0;
                     int p0 = getStartOffset();
