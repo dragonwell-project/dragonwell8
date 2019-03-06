@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/generation.hpp"
 #include "memory/generation.inline.hpp"
+#include "memory/heapInspection.hpp"
 #include "memory/referencePolicy.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/sharedHeap.hpp"
@@ -1095,6 +1096,13 @@ void ParNewGeneration::collect(bool   full,
   gc_tracer.report_tenuring_threshold(tenuring_threshold());
 
   _gc_timer->register_gc_end();
+
+  // print the young generation histo once after parnew gc then reset the PrintYoungGenHistoAfterParNewGC
+  if (PrintYoungGenHistoAfterParNewGC) {
+    HeapInspection inspect(false, false, false, NULL);
+    inspect.heap_inspection(tty);
+    PrintYoungGenHistoAfterParNewGC = false;
+  }
 
   gc_tracer.report_gc_end(_gc_timer->gc_end(), _gc_timer->time_partitions());
 }

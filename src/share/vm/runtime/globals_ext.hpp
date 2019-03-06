@@ -27,6 +27,10 @@
 
 // globals_extension.hpp extension
 #define AJVM_FLAGS(develop, develop_pd, product, product_pd, diagnostic, experimental, notproduct, manageable, product_rw, lp64_product) \
+                                                                                \
+  manageable(bool, PrintYoungGenHistoAfterParNewGC, false,                      \
+            "print the young generation class histogram after parNew GC")       \
+
   //add new AJVM specific flags here
 
 

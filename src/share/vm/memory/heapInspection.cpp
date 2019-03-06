@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "classfile/classLoaderData.hpp"
 #include "gc_interface/collectedHeap.hpp"
 #include "memory/genCollectedHeap.hpp"
+#include "memory/generation.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/os.hpp"
@@ -487,8 +488,14 @@ size_t HeapInspection::populate_table(KlassInfoTable* cit, BoolObjectClosure *fi
   ResourceMark rm;
 
   RecordInstanceClosure ric(cit, filter);
-  Universe::heap()->object_iterate(&ric);
-  return ric.missed_count();
+  if (PrintYoungGenHistoAfterParNewGC && UseParNewGC) {
+    assert(GenCollectedHeap::heap()->n_gens() == 2, "When using ParNew GC, there are only two generations");
+    GenCollectedHeap::heap()->get_gen(0)->object_iterate(&ric);
+    return ric.missed_count();
+  } else {
+    Universe::heap()->object_iterate(&ric);
+    return ric.missed_count();
+  }
 }
 
 void HeapInspection::heap_inspection(outputStream* st) {
