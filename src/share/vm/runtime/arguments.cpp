@@ -1579,7 +1579,7 @@ void Arguments::select_gc_ergonomically() {
 
 void Arguments::select_gc() {
   if (!gc_selected()) {
-    select_gc_ergonomically();
+    FLAG_SET_ERGO(bool, UseConcMarkSweepGC, true);
   }
 }
 
