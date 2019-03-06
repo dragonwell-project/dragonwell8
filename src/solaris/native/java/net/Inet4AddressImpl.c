@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,49 @@
 #if defined(__GLIBC__) || (defined(__FreeBSD__) && (__FreeBSD_version >= 601104))
 #define HAS_GLIBC_GETHOSTBY_R   1
 #endif
+
+static jclass ni_iacls;
+static jclass ni_ia4cls;
+static jmethodID ni_ia4ctrID;
+
+#if defined(__GLIBC__)
+
+#include <gnu/libc-version.h>
+
+static int glibc_major_version = 0;
+static int glibc_minor_version = 0;
+
+static void initialize_glibc_version() {
+    const char* ver_str = gnu_get_libc_version();
+    // version string is in format of "2.6"
+    char *p = NULL;
+    glibc_major_version = strtol(ver_str, &p, 10);
+    ++p;
+    glibc_minor_version = strtol(p, NULL, 10);
+}
+#endif // __GLIBC__
+
+static jboolean initializeInetClasses(JNIEnv *env)
+{
+    static int initialized = 0;
+    if (!initialized) {
+#if defined(__GLIBC__)
+        initialize_glibc_version();
+#endif
+        ni_iacls = (*env)->FindClass(env, "java/net/InetAddress");
+        CHECK_NULL_RETURN(ni_iacls, JNI_FALSE);
+        ni_iacls = (*env)->NewGlobalRef(env, ni_iacls);
+        CHECK_NULL_RETURN(ni_iacls, JNI_FALSE);
+        ni_ia4cls = (*env)->FindClass(env, "java/net/Inet4Address");
+        CHECK_NULL_RETURN(ni_ia4cls, JNI_FALSE);
+        ni_ia4cls = (*env)->NewGlobalRef(env, ni_ia4cls);
+        CHECK_NULL_RETURN(ni_ia4cls, JNI_FALSE);
+        ni_ia4ctrID = (*env)->GetMethodID(env, ni_ia4cls, "<init>", "()V");
+        CHECK_NULL_RETURN(ni_ia4ctrID, JNI_FALSE);
+        initialized = 1;
+    }
+    return JNI_TRUE;
+}
 
 
 #if defined(_ALLBSD_SOURCE) && !defined(HAS_GLIBC_GETHOSTBY_R)
@@ -367,20 +410,120 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
     return (*env)->NewStringUTF(env, hostname);
 }
 
-/*
- * Find an internet address for a given hostname.  Note that this
- * code only works for addresses of type INET. The translation
- * of %d.%d.%d.%d to an address (int) occurs in java now, so the
- * String "host" shouldn't *ever* be a %d.%d.%d.%d string
- *
- * Class:     java_net_Inet4AddressImpl
- * Method:    lookupAllHostAddr
- * Signature: (Ljava/lang/String;)[[B
- */
+#ifdef __GLIBC__
 
-JNIEXPORT jobjectArray JNICALL
-Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
-                                                jstring host) {
+/* the initial size of our hostent buffers */
+#define HENT_BUF_SIZE 1024
+#define BIG_HENT_BUF_SIZE 10240  /* a jumbo-sized one */
+
+// The implementation code was copied from JDK7u respository
+// http://hg.openjdk.java.net/jdk7u/jdk7u/jdk/file/58e586f18da6/src/solaris/native/java/net/Inet4AddressImpl.c
+static jobjectArray
+lookupAllHostAddrs_gethostbyname(JNIEnv *env, jobject this, jstring host) {
+    const char *hostname;
+    jobjectArray ret = 0;
+    struct hostent res, *hp = 0;
+    // this buffer must be pointer-aligned so is declared
+    // with pointer type
+    char *buf[HENT_BUF_SIZE/(sizeof (char *))];
+
+    /* temporary buffer, on the off chance we need to expand */
+    char *tmp = NULL;
+    int h_error = 0;
+
+    if (!initializeInetClasses(env))
+        return NULL;
+
+    if (IS_NULL(host)) {
+        JNU_ThrowNullPointerException(env, "host is null");
+        return 0;
+    }
+    hostname = JNU_GetStringPlatformChars(env, host, JNI_FALSE);
+    CHECK_NULL_RETURN(hostname, NULL);
+
+#ifdef __solaris__
+    /*
+     * Workaround for Solaris bug 4160367 - if a hostname contains a
+     * white space then 0.0.0.0 is returned
+     */
+    if (isspace((unsigned char)hostname[0])) {
+        JNU_ThrowByName(env, JNU_JAVANETPKG "UnknownHostException",
+                        (char *)hostname);
+        JNU_ReleaseStringPlatformChars(env, host, hostname);
+        return NULL;
+    }
+#endif
+
+    /* Try once, with our static buffer. */
+#ifdef HAS_GLIBC_GETHOSTBY_R
+    gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &hp, &h_error);
+#else
+    hp = gethostbyname_r(hostname, &res, (char*)buf, sizeof(buf), &h_error);
+#endif
+
+    /* With the re-entrant system calls, it's possible that the buffer
+     * we pass to it is not large enough to hold an exceptionally
+     * large DNS entry.  This is signaled by errno->ERANGE.  We try once
+     * more, with a very big size.
+     */
+    if (hp == NULL && errno == ERANGE) {
+        if ((tmp = (char*)malloc(BIG_HENT_BUF_SIZE))) {
+#ifdef HAS_GLIBC_GETHOSTBY_R
+            gethostbyname_r(hostname, &res, tmp, BIG_HENT_BUF_SIZE,
+                            &hp, &h_error);
+#else
+            hp = gethostbyname_r(hostname, &res, tmp, BIG_HENT_BUF_SIZE,
+                                 &h_error);
+#endif
+        }
+    }
+    if (hp != NULL) {
+        struct in_addr **addrp = (struct in_addr **) hp->h_addr_list;
+        int i = 0;
+
+        while (*addrp != (struct in_addr *) 0) {
+            i++;
+            addrp++;
+        }
+
+        ret = (*env)->NewObjectArray(env, i, ni_iacls, NULL);
+        if (IS_NULL(ret)) {
+            /* we may have memory to free at the end of this */
+            goto cleanupAndReturn;
+        }
+        addrp = (struct in_addr **) hp->h_addr_list;
+        i = 0;
+        while (*addrp) {
+          jobject iaObj = (*env)->NewObject(env, ni_ia4cls, ni_ia4ctrID);
+          if (IS_NULL(iaObj)) {
+            ret = NULL;
+            goto cleanupAndReturn;
+          }
+          setInetAddress_addr(env, iaObj, ntohl((*addrp)->s_addr));
+          setInetAddress_hostName(env, iaObj, host);
+          (*env)->SetObjectArrayElement(env, ret, i, iaObj);
+          addrp++;
+          i++;
+        }
+    } else {
+        JNU_ThrowByName(env, JNU_JAVANETPKG "UnknownHostException",
+                        (char *)hostname);
+        ret = NULL;
+    }
+
+cleanupAndReturn:
+    JNU_ReleaseStringPlatformChars(env, host, hostname);
+    if (tmp != NULL) {
+        free(tmp);
+    }
+    return ret;
+}
+
+#endif //__GLIBC__
+
+// lookupAllHostAddr impl uses getaddrinfo
+static jobjectArray
+lookupAllHostAddrs_getaddrinfo(JNIEnv *env, jobject this, jstring host) {
     const char *hostname;
     jobjectArray ret = 0;
     int retLen = 0;
@@ -506,6 +649,35 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     freeaddrinfo(res);
 
     return ret;
+}
+
+/*
+ * Find an internet address for a given hostname.  Note that this
+ * code only works for addresses of type INET. The translation
+ * of %d.%d.%d.%d to an address (int) occurs in java now, so the
+ * String "host" shouldn't *ever* be a %d.%d.%d.%d string
+ *
+ * Class:     java_net_Inet4AddressImpl
+ * Method:    lookupAllHostAddr
+ * Signature: (Ljava/lang/String;)[[B
+ */
+
+JNIEXPORT jobjectArray JNICALL
+Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
+                                                jstring host) {
+    if (!initializeInetClasses(env)) {
+        return NULL;
+    }
+
+#if defined(__GLIBC__)
+    if (glibc_major_version >= 2 && glibc_minor_version >= 12) {
+        return lookupAllHostAddrs_getaddrinfo(env, this, host);
+    } else {
+        return lookupAllHostAddrs_gethostbyname(env, this, host);
+    }
+#else
+    return lookupAllHostAddrs_getaddrinfo(env, this, host);
+#endif
 }
 
 /*
