@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,9 +46,9 @@ import sun.security.x509.X500Name;
 
 /**
  * PKCS7 as defined in RSA Laboratories PKCS7 Technical Note. Profile
- * Supports only <tt>SignedData</tt> ContentInfo
+ * Supports only {@code SignedData} ContentInfo
  * type, where to the type of data signed is plain Data.
- * For signedData, <tt>crls</tt>, <tt>attributes</tt> and
+ * For signedData, {@code crls}, {@code attributes} and
  * PKCS#6 Extended Certificates are not supported.
  *
  * @author Benjamin Renaud
