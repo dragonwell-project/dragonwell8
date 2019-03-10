@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -319,7 +319,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   inline static oop obj_allocate(KlassHandle klass, int size, TRAPS);
   inline static oop array_allocate(KlassHandle klass, int size, int length, TRAPS);
   inline static oop array_allocate_nozero(KlassHandle klass, int size, int length, TRAPS);
+ private:
+  inline static void check_array_size(int size, int length, TRAPS);
 
+ public:
   inline static void post_allocation_install_obj_klass(KlassHandle klass,
                                                        oop obj);
 

@@ -33,7 +33,11 @@
                                                                                 \
   manageable(bool, PrintGCRootsTraceTime, false,                                \
              "Print GC Trace Time")                                             \
-
+                                                                                \
+  manageable(intx, ArrayAllocationWarningSize, 512*M,                           \
+             "Desired size of array space allocation before "                   \
+             "printing a warning")                                              \
+                                                                                \
   //add new AJVM specific flags here
 
 
