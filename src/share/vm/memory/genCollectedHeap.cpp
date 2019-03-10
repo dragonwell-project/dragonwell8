@@ -546,15 +546,6 @@ void GenCollectedHeap::do_collection(bool  full,
       post_full_gc_dump(NULL);   // do any post full gc dumps
     }
 
-    if (PrintGCDetails) {
-      print_heap_change(gch_prev_used);
-
-      // Print metaspace info for full GC with PrintGCDetails flag.
-      if (complete) {
-        MetaspaceAux::print_metaspace_change(metadata_prev_used);
-      }
-    }
-
     for (int j = max_level_collected; j >= 0; j -= 1) {
       // Adjust generation sizes.
       _gens[j]->compute_new_size();
@@ -567,6 +558,15 @@ void GenCollectedHeap::do_collection(bool  full,
       // Resize the metaspace capacity after full collections
       MetaspaceGC::compute_new_size();
       update_full_collections_completed();
+    }
+
+    if (PrintGCDetails) {
+      print_heap_change(gch_prev_used);
+
+      // Print metaspace info for full GC with PrintGCDetails flag.
+      if (complete) {
+        MetaspaceAux::print_metaspace_change(metadata_prev_used);
+      }
     }
 
     // Track memory usage and detect low memory after GC finishes
