@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "memory/generationSpec.hpp"
 #include "memory/genRemSet.hpp"
 #include "utilities/macros.hpp"
+#include "gc_implementation/shared/gcTraceTime.hpp"
 
 // This class (or more correctly, subtypes of this class)
 // are used to define global garbage collector attributes.
@@ -232,6 +233,8 @@ friend class TestGenCollectorPolicy;
 
   GenerationSpec **_generations;
 
+  GenGCPhaseTimes* _phase_times;
+
   // Return true if an allocation should be attempted in the older
   // generation if it fails in the younger generation.  Return
   // false, otherwise.
@@ -259,6 +262,8 @@ friend class TestGenCollectorPolicy;
 
  public:
   GenCollectorPolicy();
+
+  GenGCPhaseTimes* phase_times()                  const { return _phase_times;                  }
 
   // Accessors
   size_t min_gen0_size()     { return _min_gen0_size; }

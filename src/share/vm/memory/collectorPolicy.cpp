@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,7 +200,10 @@ GenCollectorPolicy::GenCollectorPolicy() :
     _max_gen0_size(0),
     _gen_alignment(0),
     _generations(NULL)
-{}
+{
+  int parallel_gc_threads = CollectedHeap::use_parallel_gc_threads() ? ParallelGCThreads : 1;
+  _phase_times  = new GenGCPhaseTimes(parallel_gc_threads);
+}
 
 size_t GenCollectorPolicy::scale_by_NewRatio_aligned(size_t base_size) {
   return align_size_down_bounded(base_size / (NewRatio + 1), _gen_alignment);

@@ -598,6 +598,9 @@ void ParNewGenTask::set_for_termination(int active_workers) {
 
 void ParNewGenTask::work(uint worker_id) {
   GenCollectedHeap* gch = GenCollectedHeap::heap();
+  GenGCPhaseTimes* phase_times = gch->gen_policy()->phase_times();
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerStart, worker_id, os::elapsedTime());
+
   // Since this is being done in a separate thread, need new resource
   // and handle marks.
   ResourceMark rm;
@@ -627,12 +630,15 @@ void ParNewGenTask::work(uint worker_id) {
                          GenCollectedHeap::StrongAndWeakRoots,
                          &par_scan_state.to_space_root_closure(),
                          &par_scan_state.older_gen_closure(),
-                         &cld_scan_closure);
+                         &cld_scan_closure,
+                         phase_times,
+                         worker_id);
 
   par_scan_state.end_strong_roots();
 
   // "evacuate followers".
   par_scan_state.evacuate_followers_closure().do_void();
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerEnd, worker_id, os::elapsedTime());
 }
 
 #ifdef _MSC_VER
@@ -919,6 +925,7 @@ void ParNewGeneration::collect(bool   full,
 
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
+  GenGCPhaseTimes* phase_times = gch->gen_policy()->phase_times();
   _gc_timer->register_gc_start();
 
   assert(gch->kind() == CollectedHeap::GenCollectedHeap,
@@ -931,6 +938,7 @@ void ParNewGeneration::collect(bool   full,
                                    workers->active_workers(),
                                    Threads::number_of_non_daemon_threads());
   workers->set_active_workers(active_workers);
+  phase_times->note_gc_start(active_workers);
   assert(gch->n_gens() == 2,
          "Par collection currently only works with single older gen.");
   _next_gen = gch->next_gen(this);
@@ -999,6 +1007,10 @@ void ParNewGeneration::collect(bool   full,
   thread_state_set.reset(0 /* Bad value in debug if not reset */,
                          promotion_failed());
 
+  phase_times->note_gc_end();
+  if (PrintGCRootsTraceTime && PrintGCDetails) {
+    phase_times->log_gc_details();
+  }
   // Process (weak) reference objects found during scavenge.
   ReferenceProcessor* rp = ref_processor();
   IsAliveClosure is_alive(this);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -619,7 +619,9 @@ void GenCollectedHeap::process_roots(bool activate_scope,
                                      OopClosure* weak_roots,
                                      CLDClosure* strong_cld_closure,
                                      CLDClosure* weak_cld_closure,
-                                     CodeBlobToOopClosure* code_roots) {
+                                     CodeBlobToOopClosure* code_roots,
+                                     GenGCPhaseTimes* phase_times,
+                                     uint worker_id) {
   StrongRootsScope srs(this, activate_scope);
 
   // General roots.
@@ -630,71 +632,117 @@ void GenCollectedHeap::process_roots(bool activate_scope,
   // could be trying to change the termination condition while the task
   // is executing in another GC worker.
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_ClassLoaderDataGraph_oops_do)) {
-    ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
+  //CLDGRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::CLDGRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_ClassLoaderDataGraph_oops_do)) {
+      ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
+    }
   }
-
   // Some CLDs contained in the thread frames should be considered strong.
   // Don't process them if they will be processed during the ClassLoaderDataGraph phase.
   CLDClosure* roots_from_clds_p = (strong_cld_closure != weak_cld_closure) ? strong_cld_closure : NULL;
   // Only process code roots from thread stacks if we aren't visiting the entire CodeCache anyway
   CodeBlobToOopClosure* roots_from_code_p = (so & SO_AllCodeCache) ? NULL : code_roots;
-
-  Threads::possibly_parallel_oops_do(strong_roots, roots_from_clds_p, roots_from_code_p);
-
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_Universe_oops_do)) {
-    Universe::oops_do(strong_roots);
+  
+  // ThreadRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::ThreadRoots, worker_id);
+    Threads::possibly_parallel_oops_do(strong_roots, roots_from_clds_p, roots_from_code_p);
   }
+
+  //UniverseRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::UniverseRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_Universe_oops_do)) {
+      Universe::oops_do(strong_roots);
+    }
+  }
+
   // Global (strong) JNI handles
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_JNIHandles_oops_do)) {
-    JNIHandles::oops_do(strong_roots);
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::JNIRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_JNIHandles_oops_do)) {
+      JNIHandles::oops_do(strong_roots);
+    }
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_ObjectSynchronizer_oops_do)) {
-    ObjectSynchronizer::oops_do(strong_roots);
-  }
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_FlatProfiler_oops_do)) {
-    FlatProfiler::oops_do(strong_roots);
-  }
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_Management_oops_do)) {
-    Management::oops_do(strong_roots);
-  }
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_jvmti_oops_do)) {
-    JvmtiExport::oops_do(strong_roots);
+  // ObjectSynchronizerRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::ObjectSynchronizerRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_ObjectSynchronizer_oops_do)) {
+      ObjectSynchronizer::oops_do(strong_roots);
+    }
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_SystemDictionary_oops_do)) {
-    SystemDictionary::roots_oops_do(strong_roots, weak_roots);
+  // FlatProfilerRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::FlatProfilerRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_FlatProfiler_oops_do)) {
+      FlatProfiler::oops_do(strong_roots);
+    }
+  }
+
+  // ManagementRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::ManagementRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_Management_oops_do)) {
+      Management::oops_do(strong_roots);
+    }
+  }
+
+  // JVMTIRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::JVMTIRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_jvmti_oops_do)) {
+      JvmtiExport::oops_do(strong_roots);
+    }
+  }
+
+  // SystemDictionaryRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::SystemDictionaryRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_SystemDictionary_oops_do)) {
+      SystemDictionary::roots_oops_do(strong_roots, weak_roots);
+    }
   }
 
   // All threads execute the following. A specific chunk of buckets
   // from the StringTable are the individual tasks.
-  if (weak_roots != NULL) {
-    if (CollectedHeap::use_parallel_gc_threads()) {
-      StringTable::possibly_parallel_oops_do(weak_roots);
-    } else {
-      StringTable::oops_do(weak_roots);
+  // StringTableRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::StringTableRoots, worker_id);
+    if (weak_roots != NULL) {
+      if (CollectedHeap::use_parallel_gc_threads()) {
+        StringTable::possibly_parallel_oops_do(weak_roots);
+      } else {
+        StringTable::oops_do(weak_roots);
+      }
     }
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_CodeCache_oops_do)) {
-    if (so & SO_ScavengeCodeCache) {
-      assert(code_roots != NULL, "must supply closure for code cache");
+  // CodeCacheRoots
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::CodeCacheRoots, worker_id);
+    if (!_process_strong_tasks->is_task_claimed(GCH_PS_CodeCache_oops_do)) {
+      if (so & SO_ScavengeCodeCache) {
+        assert(code_roots != NULL, "must supply closure for code cache");
 
-      // We only visit parts of the CodeCache when scavenging.
-      CodeCache::scavenge_root_nmethods_do(code_roots);
-    }
-    if (so & SO_AllCodeCache) {
-      assert(code_roots != NULL, "must supply closure for code cache");
+        // We only visit parts of the CodeCache when scavenging.
+        CodeCache::scavenge_root_nmethods_do(code_roots);
+      }
+      if (so & SO_AllCodeCache) {
+        assert(code_roots != NULL, "must supply closure for code cache");
 
-      // CMSCollector uses this to do intermediate-strength collections.
-      // We scan the entire code cache, since CodeCache::do_unloading is not called.
-      CodeCache::blobs_do(code_roots);
+        // CMSCollector uses this to do intermediate-strength collections.
+        // We scan the entire code cache, since CodeCache::do_unloading is not called.
+        CodeCache::blobs_do(code_roots);
+      }
+      // Verify that the code cache contents are not subject to
+      // movement by a scavenging collection.
+      DEBUG_ONLY(CodeBlobToOopClosure assert_code_is_non_scavengable(&assert_is_non_scavengable_closure, !CodeBlobToOopClosure::FixRelocations));
+      DEBUG_ONLY(CodeCache::asserted_non_scavengable_nmethods_do(&assert_code_is_non_scavengable));
     }
-    // Verify that the code cache contents are not subject to
-    // movement by a scavenging collection.
-    DEBUG_ONLY(CodeBlobToOopClosure assert_code_is_non_scavengable(&assert_is_non_scavengable_closure, !CodeBlobToOopClosure::FixRelocations));
-    DEBUG_ONLY(CodeCache::asserted_non_scavengable_nmethods_do(&assert_code_is_non_scavengable));
   }
 
 }
@@ -706,9 +754,12 @@ void GenCollectedHeap::gen_process_roots(int level,
                                          bool only_strong_roots,
                                          OopsInGenClosure* not_older_gens,
                                          OopsInGenClosure* older_gens,
-                                         CLDClosure* cld_closure) {
+                                         CLDClosure* cld_closure,
+                                         GenGCPhaseTimes* phase_times,
+                                         uint worker_id) {
   const bool is_adjust_phase = !only_strong_roots && !younger_gens_as_roots;
 
+  GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::RootProcess, worker_id);
   bool is_moving_collection = false;
   if (level == 0 || is_adjust_phase) {
     // young collections are always moving
@@ -722,7 +773,7 @@ void GenCollectedHeap::gen_process_roots(int level,
   process_roots(activate_scope, so,
                 not_older_gens, weak_roots,
                 cld_closure, weak_cld_closure,
-                &mark_code_closure);
+                &mark_code_closure, phase_times, worker_id);
 
   if (younger_gens_as_roots) {
     if (!_process_strong_tasks->is_task_claimed(GCH_PS_younger_gens)) {
@@ -733,14 +784,17 @@ void GenCollectedHeap::gen_process_roots(int level,
       not_older_gens->reset_generation();
     }
   }
-  // When collection is parallel, all threads get to cooperate to do
-  // older-gen scanning.
-  for (int i = level+1; i < _n_gens; i++) {
-    older_gens->set_generation(_gens[i]);
-    rem_set()->younger_refs_iterate(_gens[i], older_gens);
-    older_gens->reset_generation();
-  }
 
+  {
+    GenGCParPhaseTimesTracker x(phase_times, GenGCPhaseTimes::OldGenScan, worker_id);
+    // When collection is parallel, all threads get to cooperate to do
+    // older-gen scanning.
+    for (int i = level+1; i < _n_gens; i++) { 
+      older_gens->set_generation(_gens[i]);
+      rem_set()->younger_refs_iterate(_gens[i], older_gens);
+      older_gens->reset_generation();
+    }
+  }
   _process_strong_tasks->all_tasks_completed();
 }
 

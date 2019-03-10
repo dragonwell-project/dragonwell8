@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "memory/collectorPolicy.hpp"
 #include "memory/generation.hpp"
 #include "memory/sharedHeap.hpp"
+#include "gc_implementation/shared/gcTraceTime.hpp"
 
 class SubTasksDone;
 
@@ -416,7 +417,9 @@ public:
                      OopClosure* weak_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,
-                     CodeBlobToOopClosure* code_roots);
+                     CodeBlobToOopClosure* code_roots,
+                     GenGCPhaseTimes* phase_times,
+                     uint worker_id);
 
   void gen_process_roots(int level,
                          bool younger_gens_as_roots,
@@ -427,7 +430,9 @@ public:
                          OopsInGenClosure* older_gens,
                          CLDClosure* cld_closure,
                          CLDClosure* weak_cld_closure,
-                         CodeBlobClosure* code_closure);
+                         CodeBlobClosure* code_closure,
+                         GenGCPhaseTimes* phase_times,
+                         uint worker_id);
 
  public:
   static const bool StrongAndWeakRoots = false;
@@ -440,7 +445,9 @@ public:
                          bool only_strong_roots,
                          OopsInGenClosure* not_older_gens,
                          OopsInGenClosure* older_gens,
-                         CLDClosure* cld_closure);
+                         CLDClosure* cld_closure,
+                         GenGCPhaseTimes* phase_times,
+                         uint worker_id);
 
   // Apply "root_closure" to all the weak roots of the system.
   // These include JNI weak roots, string table,

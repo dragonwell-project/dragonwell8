@@ -30,6 +30,9 @@
                                                                                 \
   manageable(bool, PrintYoungGenHistoAfterParNewGC, false,                      \
             "print the young generation class histogram after parNew GC")       \
+                                                                                \
+  manageable(bool, PrintGCRootsTraceTime, false,                                \
+             "Print GC Trace Time")                                             \
 
   //add new AJVM specific flags here
 

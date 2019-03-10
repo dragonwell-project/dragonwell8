@@ -197,7 +197,7 @@ void GenMarkSweep::mark_sweep_phase1(int level,
   trace(" 1");
 
   GenCollectedHeap* gch = GenCollectedHeap::heap();
-
+  GenGCPhaseTimes* phase_times = gch->gen_policy()->phase_times();
   // Because follow_root_closure is created statically, cannot
   // use OopsInGenClosure constructor which takes a generation,
   // as the Universe has not been created when the static constructors
@@ -206,7 +206,8 @@ void GenMarkSweep::mark_sweep_phase1(int level,
 
   // Need new claim bits before marking starts.
   ClassLoaderDataGraph::clear_claimed_marks();
-
+  phase_times->note_gc_start(1);
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerStart, 0, os::elapsedTime());
   gch->gen_process_roots(level,
                          false, // Younger gens are not roots.
                          true,  // activate StrongRootsScope
@@ -214,8 +215,10 @@ void GenMarkSweep::mark_sweep_phase1(int level,
                          ClassUnloading,
                          &follow_root_closure,
                          &follow_root_closure,
-                         &follow_cld_closure);
-
+                         &follow_cld_closure,
+                         phase_times,
+                         0);
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerEnd, 0, os::elapsedTime());
   // Process reference objects found during marking
   {
     ref_processor()->setup_policy(clear_all_softrefs);
@@ -223,6 +226,11 @@ void GenMarkSweep::mark_sweep_phase1(int level,
       ref_processor()->process_discovered_references(
         &is_alive, &keep_alive, &follow_stack_closure, NULL, _gc_timer, _gc_tracer->gc_id());
     gc_tracer()->report_gc_reference_stats(stats);
+  }
+
+  phase_times->note_gc_end();
+  if (PrintGCRootsTraceTime && PrintGCDetails) {
+    phase_times->log_gc_details();
   }
 
   // This is the point where the entire marking should have completed.
@@ -245,7 +253,6 @@ void GenMarkSweep::mark_sweep_phase1(int level,
 
   gc_tracer()->report_object_count_after_gc(&is_alive);
 }
-
 
 void GenMarkSweep::mark_sweep_phase2() {
   // Now all live objects are marked, compute the new object addresses.
@@ -279,6 +286,8 @@ public:
 void GenMarkSweep::mark_sweep_phase3(int level) {
   GenCollectedHeap* gch = GenCollectedHeap::heap();
 
+  GenGCPhaseTimes* phase_times = gch->gen_policy()->phase_times();
+  
   // Adjust the pointers to reflect the new locations
   GCTraceTime tm("phase 3", PrintGC && Verbose, true, _gc_timer, _gc_tracer->gc_id());
   trace("3");
@@ -292,6 +301,9 @@ void GenMarkSweep::mark_sweep_phase3(int level) {
   // are run.
   adjust_pointer_closure.set_orig_generation(gch->get_gen(level));
 
+  phase_times->note_gc_start(1);
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerStart, 0, os::elapsedTime());
+
   gch->gen_process_roots(level,
                          false, // Younger gens are not roots.
                          true,  // activate StrongRootsScope
@@ -299,7 +311,15 @@ void GenMarkSweep::mark_sweep_phase3(int level) {
                          GenCollectedHeap::StrongAndWeakRoots,
                          &adjust_pointer_closure,
                          &adjust_pointer_closure,
-                         &adjust_cld_closure);
+                         &adjust_cld_closure,
+                         phase_times,
+                         0);
+
+  phase_times->record_time_secs(GenGCPhaseTimes::GCWorkerEnd, 0, os::elapsedTime());
+  phase_times->note_gc_end();
+  if (PrintGCRootsTraceTime && PrintGCDetails) {
+    phase_times->log_gc_details();
+  }
 
   gch->gen_process_weak_roots(&adjust_pointer_closure);
 
