@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -218,6 +218,7 @@ public class JMap {
 
     private static final String LIVE_OBJECTS_OPTION = "-live";
     private static final String ALL_OBJECTS_OPTION = "-all";
+    private static final String MINIDUMP_OPTION = "-mini";
     private static void histo(String pid, boolean live) throws IOException {
         VirtualMachine vm = attach(pid);
         InputStream in = ((HotSpotVirtualMachine)vm).
@@ -240,12 +241,14 @@ public class JMap {
 
         // dump live objects only or not
         boolean live = isDumpLiveObjects(options);
+        boolean mini = isMiniDump(options);
 
         VirtualMachine vm = attach(pid);
-        System.out.println("Dumping heap to " + filename + " ...");
-        InputStream in = ((HotSpotVirtualMachine)vm).
-            dumpHeap((Object)filename,
-                     (live ? LIVE_OBJECTS_OPTION : ALL_OBJECTS_OPTION));
+        String heapName = mini ? "mini-heap" : "heap";
+        System.out.println("Dumping " + heapName + " to " + filename + " ...");
+        InputStream in = ((HotSpotVirtualMachine)vm).dumpHeap((Object)filename,
+                            (live ? LIVE_OBJECTS_OPTION : ALL_OBJECTS_OPTION),
+                            mini ? MINIDUMP_OPTION : null);
         drain(vm, in);
     }
 
@@ -266,6 +269,8 @@ public class JMap {
             if (option.equals("format=b")) {
                 // ignore format (not needed at this time)
             } else if (option.equals("live")) {
+                // a valid suboption
+            } else if (option.equals("mini")) {
                 // a valid suboption
             } else {
 
@@ -288,6 +293,17 @@ public class JMap {
         String options[] = arg.substring(DUMP_OPTION_PREFIX.length()).split(",");
         for (String suboption : options) {
             if (suboption.equals("live")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isMiniDump(String arg) {
+        // options are separated by comma (,)
+        String options[] = arg.substring(DUMP_OPTION_PREFIX.length()).split(",");
+        for (String suboption : options) {
+            if (suboption.equals("mini")) {
                 return true;
             }
         }
@@ -368,6 +384,7 @@ public class JMap {
             System.err.println("                                        all objects in the heap are dumped.");
             System.err.println("                           format=b     binary format");
             System.err.println("                           file=<file>  dump heap to <file>");
+            System.err.println("                           mini         use minidump format (Dragonwell only)");
             System.err.println("                         Example: jmap -dump:live,format=b,file=heap.bin <pid>");
             System.err.println("    -F                   force. Use with -dump:<dump-options> <pid> or -histo");
             System.err.println("                         to force a heap dump or histogram when <pid> does not");
