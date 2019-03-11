@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -339,8 +339,11 @@ HeapDumpDCmd::HeapDumpDCmd(outputStream* output, bool heap) :
                            DCmdWithParser(output, heap),
   _filename("filename","Name of the dump file", "STRING",true),
   _all("-all", "Dump all objects, including unreachable objects",
+       "BOOLEAN", false, "false"),
+  _mini_dump("-mini", "Use mini-dump format",
        "BOOLEAN", false, "false") {
   _dcmdparser.add_dcmd_option(&_all);
+  _dcmdparser.add_dcmd_option(&_mini_dump);
   _dcmdparser.add_dcmd_argument(&_filename);
 }
 
@@ -348,10 +351,14 @@ void HeapDumpDCmd::execute(DCmdSource source, TRAPS) {
   // Request a full GC before heap dump if _all is false
   // This helps reduces the amount of unreachable objects in the dump
   // and makes it easier to browse.
-  HeapDumper dumper(!_all.value() /* request GC if _all is false*/);
+  HeapDumper dumper(!_all.value() /* request GC if _all is false*/, _mini_dump.value());
   int res = dumper.dump(_filename.value());
   if (res == 0) {
-    output()->print_cr("Heap dump file created");
+    if (_mini_dump.value()) {
+      output()->print_cr("Mini heap dump file created");
+    } else {
+      output()->print_cr("Heap dump file created");
+    }
   } else {
     // heap dump failed
     ResourceMark rm;

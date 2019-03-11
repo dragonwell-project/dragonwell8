@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -638,7 +638,7 @@ class DumperSupport : AllStatic {
   // creates HPROF_GC_OBJ_ARRAY_DUMP record for the given object array
   static void dump_object_array(DumpWriter* writer, objArrayOop array);
   // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given type array
-  static void dump_prim_array(DumpWriter* writer, typeArrayOop array);
+  static void dump_prim_array(DumpWriter* writer, typeArrayOop array, bool minidump = false);
   // create HPROF_FRAME record for the given method and bci
   static void dump_stack_frame(DumpWriter* writer, int frame_serial_num, int class_serial_num, Method* m, int bci);
 };
@@ -1070,17 +1070,21 @@ void DumperSupport::dump_object_array(DumpWriter* writer, objArrayOop array) {
 
 
 // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given type array
-void DumperSupport::dump_prim_array(DumpWriter* writer, typeArrayOop array) {
+void DumperSupport::dump_prim_array(DumpWriter* writer, typeArrayOop array, bool minidump) {
   BasicType type = TypeArrayKlass::cast(array->klass())->element_type();
 
   writer->write_u1(HPROF_GC_PRIM_ARRAY_DUMP);
   writer->write_objectID(array);
   writer->write_u4(STACK_TRACE_ID);
-  writer->write_u4((u4)array->length());
+  if (!minidump) {
+    writer->write_u4((u4)array->length());
+  } else {
+    writer->write_u4(0);
+  }
   writer->write_u1(type2tag(type));
 
   // nothing to copy
-  if (array->length() == 0) {
+  if (array->length() == 0 || minidump) {
     return;
   }
 
@@ -1317,6 +1321,8 @@ class HeapObjectDumper : public ObjectClosure {
   // used to indicate that a record has been writen
   void mark_end_of_record();
 
+  bool using_minidump();
+
  public:
   HeapObjectDumper(VM_HeapDumper* dumper, DumpWriter* writer) {
     _dumper = dumper;
@@ -1348,7 +1354,11 @@ void HeapObjectDumper::do_object(oop o) {
     mark_end_of_record();
   } else if (o->is_typeArray()) {
     // create a HPROF_GC_PRIM_ARRAY_DUMP record for each type array
-    DumperSupport::dump_prim_array(writer(), typeArrayOop(o));
+    if (using_minidump()) {
+      DumperSupport::dump_prim_array(writer(), typeArrayOop(o), true);
+    } else {
+      DumperSupport::dump_prim_array(writer(), typeArrayOop(o));
+    }
     mark_end_of_record();
   }
 }
@@ -1367,6 +1377,8 @@ class VM_HeapDumper : public VM_GC_Operation {
   GrowableArray<Klass*>* _klass_map;
   ThreadStackTrace** _stack_traces;
   int _num_threads;
+
+  HeapDumper*           _heap_dumper;
 
   // accessors and setters
   static VM_HeapDumper* dumper()         {  assert(_global_dumper != NULL, "Error"); return _global_dumper; }
@@ -1422,7 +1434,7 @@ class VM_HeapDumper : public VM_GC_Operation {
   void end_of_dump();
 
  public:
-  VM_HeapDumper(DumpWriter* writer, bool gc_before_heap_dump, bool oome) :
+  VM_HeapDumper(DumpWriter* writer, bool gc_before_heap_dump, bool oome, HeapDumper* heap_dumper = NULL) :
     VM_GC_Operation(0 /* total collections,      dummy, ignored */,
                     GCCause::_heap_dump /* GC Cause */,
                     0 /* total full collections, dummy, ignored */,
@@ -1434,6 +1446,7 @@ class VM_HeapDumper : public VM_GC_Operation {
     _klass_map = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Klass*>(INITIAL_CLASS_COUNT, true);
     _stack_traces = NULL;
     _num_threads = 0;
+    _heap_dumper = heap_dumper;
     if (oome) {
       assert(!Thread::current()->is_VM_thread(), "Dump from OutOfMemoryError cannot be called by the VMThread");
       // get OutOfMemoryError zero-parameter constructor
@@ -1461,10 +1474,16 @@ class VM_HeapDumper : public VM_GC_Operation {
   // used to mark sub-record boundary
   void check_segment_length();
   void doit();
+
+  HeapDumper* heap_dumper() { return _heap_dumper; }
 };
 
 VM_HeapDumper* VM_HeapDumper::_global_dumper = NULL;
 DumpWriter*    VM_HeapDumper::_global_writer = NULL;
+
+bool HeapObjectDumper::using_minidump() {
+  return _dumper->heap_dumper()->is_mini_dump();
+}
 
 bool VM_HeapDumper::skip_operation() const {
   return false;
@@ -1903,7 +1922,7 @@ int HeapDumper::dump(const char* path) {
   }
 
   // generate the dump
-  VM_HeapDumper dumper(&writer, _gc_before_heap_dump, _oome);
+  VM_HeapDumper dumper(&writer, _gc_before_heap_dump, _oome, this);
   if (Thread::current()->is_VM_thread()) {
     assert(SafepointSynchronize::is_at_safepoint(), "Expected to be called at a safepoint");
     dumper.doit();
