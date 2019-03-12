@@ -34,7 +34,9 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class SubSystem {
@@ -111,9 +113,31 @@ public class SubSystem {
         }
     }
 
+    public static long getLongValueMatchingLine(SubSystem subsystem,
+                                                     String param,
+                                                     String match,
+                                                     Function<String, Long> conversion) {
+        long retval = Metrics.unlimited_minimum + 1; // default unlimited
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(subsystem.path(), param));
+            for (String line: lines) {
+                if (line.contains(match)) {
+                    retval = conversion.apply(line);
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            // Ignore. Default is unlimited.
+        }
+        return retval;
+    }
+
     public static long getLongValue(SubSystem subsystem, String parm) {
         String strval = getStringValue(subsystem, parm);
+        return convertStringToLong(strval);
+    }
 
+    public static long convertStringToLong(String strval) {
         if (strval == null) return 0L;
 
         long retval = Long.parseLong(strval);
@@ -217,5 +241,23 @@ public class SubSystem {
         }
 
         return ints;
+    }
+
+    public static class MemorySubSystem extends SubSystem {
+
+        private boolean hierarchical;
+
+        public MemorySubSystem(String root, String mountPoint) {
+            super(root, mountPoint);
+        }
+
+        boolean isHierarchical() {
+            return hierarchical;
+        }
+
+        void setHierarchical(boolean hierarchical) {
+            this.hierarchical = hierarchical;
+        }
+
     }
 }
