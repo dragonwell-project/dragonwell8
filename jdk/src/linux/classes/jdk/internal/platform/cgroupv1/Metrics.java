@@ -26,7 +26,6 @@
 
 package jdk.internal.platform.cgroupv1;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,8 +35,10 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.stream.Stream;
 
+import jdk.internal.platform.cgroupv1.SubSystem.MemorySubSystem;
+
 public class Metrics implements jdk.internal.platform.Metrics {
-    private SubSystem memory;
+    private MemorySubSystem memory;
     private SubSystem cpu;
     private SubSystem cpuacct;
     private SubSystem cpuset;
@@ -159,7 +160,7 @@ public class Metrics implements jdk.internal.platform.Metrics {
         for (String subsystemName: subsystemNames) {
             switch (subsystemName) {
                 case "memory":
-                    metric.setMemorySubSystem(new SubSystem(mountentry[3], mountentry[4]));
+                    metric.setMemorySubSystem(new MemorySubSystem(mountentry[3], mountentry[4]));
                     break;
                 case "cpuset":
                     metric.setCpuSetSubSystem(new SubSystem(mountentry[3], mountentry[4]));
@@ -215,10 +216,20 @@ public class Metrics implements jdk.internal.platform.Metrics {
     private static void setPath(Metrics metric, SubSystem subsystem, String base) {
         if (subsystem != null) {
             subsystem.setPath(base);
+            if (subsystem instanceof MemorySubSystem) {
+                MemorySubSystem memorySubSystem = (MemorySubSystem)subsystem;
+                boolean isHierarchial = getHierarchical(memorySubSystem);
+                memorySubSystem.setHierarchical(isHierarchial);
+            }
             metric.setActiveSubSystems();
         }
     }
 
+
+    private static boolean getHierarchical(MemorySubSystem subsystem) {
+        long hierarchical = SubSystem.getLongValue(subsystem, "memory.use_hierarchy");
+        return hierarchical > 0;
+    }
 
     private void setActiveSubSystems() {
         activeSubSystems = true;
@@ -228,7 +239,7 @@ public class Metrics implements jdk.internal.platform.Metrics {
         return activeSubSystems;
     }
 
-    private void setMemorySubSystem(SubSystem memory) {
+    private void setMemorySubSystem(MemorySubSystem memory) {
         this.memory = memory;
     }
 
@@ -383,7 +394,27 @@ public class Metrics implements jdk.internal.platform.Metrics {
 
     public long getMemoryLimit() {
         long retval = SubSystem.getLongValue(memory, "memory.limit_in_bytes");
+        if (retval > unlimited_minimum) {
+            if (memory.isHierarchical()) {
+                // memory.limit_in_bytes returned unlimited, attempt
+                // hierarchical memory limit
+                String match = "hierarchical_memory_limit";
+                retval = SubSystem.getLongValueMatchingLine(memory,
+                                                            "memory.stat",
+                                                            match,
+                                                            Metrics::convertHierachicalLimitLine);
+            }
+        }
         return retval > unlimited_minimum ? -1L : retval;
+    }
+
+    public static long convertHierachicalLimitLine(String line) {
+        String[] tokens = line.split("\\s");
+        if (tokens.length == 2) {
+            String strVal = tokens[1];
+            return SubSystem.convertStringToLong(strVal);
+        }
+        return unlimited_minimum + 1; // unlimited
     }
 
     public long getMemoryMaxUsage() {
@@ -434,6 +465,17 @@ public class Metrics implements jdk.internal.platform.Metrics {
 
     public long getMemoryAndSwapLimit() {
         long retval = SubSystem.getLongValue(memory, "memory.memsw.limit_in_bytes");
+        if (retval > unlimited_minimum) {
+            if (memory.isHierarchical()) {
+                // memory.memsw.limit_in_bytes returned unlimited, attempt
+                // hierarchical memory limit
+                String match = "hierarchical_memsw_limit";
+                retval = SubSystem.getLongValueMatchingLine(memory,
+                                                            "memory.stat",
+                                                            match,
+                                                            Metrics::convertHierachicalLimitLine);
+            }
+        }
         return retval > unlimited_minimum ? -1L : retval;
     }
 
