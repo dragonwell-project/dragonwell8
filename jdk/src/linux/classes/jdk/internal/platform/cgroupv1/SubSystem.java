@@ -50,7 +50,7 @@ public class SubSystem {
     public void setPath(String cgroupPath) {
         if (root != null && cgroupPath != null) {
             if (root.equals("/")) {
-                if (cgroupPath.equals("/")) {
+                if (!cgroupPath.equals("/")) {
                     path = mountPoint + cgroupPath;
                 }
                 else {
