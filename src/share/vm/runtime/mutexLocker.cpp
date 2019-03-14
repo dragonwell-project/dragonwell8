@@ -39,6 +39,9 @@
 
 Mutex*   Patching_lock                = NULL;
 Monitor* SystemDictionary_lock        = NULL;
+Mutex*   ProfileRecorder_lock         = NULL;
+Mutex*   PreloadClassChain_lock       = NULL;
+Mutex*   JitWarmUpPrint_lock          = NULL;
 Mutex*   PackageTable_lock            = NULL;
 Mutex*   CompiledIC_lock              = NULL;
 Mutex*   InlineCacheBuffer_lock       = NULL;
@@ -218,6 +221,9 @@ void mutex_init() {
   def(JmethodIdCreation_lock       , Mutex  , leaf,        true ); // used for creating jmethodIDs.
 
   def(SystemDictionary_lock        , Monitor, leaf,        true ); // lookups done by VM thread
+  def(ProfileRecorder_lock         , Mutex  , nonleaf+2,   true ); // used for JitWarmUp
+  def(PreloadClassChain_lock       , Mutex  , max_nonleaf, true ); // used for JitWarmUp
+  def(JitWarmUpPrint_lock          , Mutex  , max_nonleaf, true ); // used for JitWarmUp
   def(PackageTable_lock            , Mutex  , leaf,        false);
   def(InlineCacheBuffer_lock       , Mutex  , leaf,        true );
   def(VMStatistic_lock             , Mutex  , leaf,        false);

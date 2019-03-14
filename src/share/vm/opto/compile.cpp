@@ -728,6 +728,14 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
 
   print_compile_messages();
 
+  if (CompilationWarmUp) {
+    bool fields_resolved = ci_env->check_method_fields_all_resolved(method());
+    if (!fields_resolved) {
+      _failure_reason = "fields needed by method are not all resolved";
+      return;
+    }
+  }
+
   _ilt = InlineTree::build_inline_tree_root();
 
   // Even if NO memory addresses are used, MergeMem nodes must have at least 1 slice

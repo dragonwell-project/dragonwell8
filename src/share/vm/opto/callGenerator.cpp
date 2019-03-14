@@ -207,7 +207,8 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   if (!UseInlineCaches || !ImplicitNullChecks || !os::zero_page_read_protected() ||
        ((ImplicitNullCheckThreshold > 0) && caller_md &&
        (caller_md->trap_count(Deoptimization::Reason_null_check)
-       >= (uint)ImplicitNullCheckThreshold))) {
+       >= (uint)ImplicitNullCheckThreshold)) ||
+       (CompilationWarmUp && kit.C->env()->task()->is_jwarmup_compilation())) {
     // Make an explicit receiver null_check as part of this call.
     // Since we share a map with the caller, his JVMS gets adjusted.
     receiver = kit.null_check_receiver_before_call(method());

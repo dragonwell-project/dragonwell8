@@ -47,6 +47,9 @@
 
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Monitor* SystemDictionary_lock;           // a lock on the system dictonary
+extern Mutex*   ProfileRecorder_lock;            // a lock on the JWarmUP class ProfileRecorder
+extern Mutex*   PreloadClassChain_lock;          // a lock on the JWarmUP preload class chain
+extern Mutex*   JitWarmUpPrint_lock;             // a lock on the JWarmUP jstack print
 extern Mutex*   PackageTable_lock;               // a lock on the class loader package table
 extern Mutex*   CompiledIC_lock;                 // a lock used to guard compiled IC patching and access
 extern Mutex*   InlineCacheBuffer_lock;          // a lock used to guard the InlineCacheBuffer

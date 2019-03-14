@@ -975,6 +975,10 @@ bool ciMethod::ensure_method_data(methodHandle h_m) {
   if (is_native() || is_abstract() || h_m()->is_accessor()) {
     return true;
   }
+  if (CompilationWarmUp && CURRENT_ENV->task()->is_jwarmup_compilation()) {
+    _method_data = CURRENT_ENV->get_empty_methodData();
+    return false;
+  }
   if (h_m()->method_data() == NULL) {
     Method::build_interpreter_method_data(h_m, THREAD);
     if (HAS_PENDING_EXCEPTION) {
@@ -1015,7 +1019,9 @@ ciMethodData* ciMethod::method_data() {
   Thread* my_thread = JavaThread::current();
   methodHandle h_m(my_thread, get_Method());
 
-  if (h_m()->method_data() != NULL) {
+  if (CompilationWarmUp && CURRENT_ENV->task()->is_jwarmup_compilation()) {
+    _method_data = CURRENT_ENV->get_empty_methodData();
+  } else if (h_m()->method_data() != NULL) {
     _method_data = CURRENT_ENV->get_method_data(h_m()->method_data());
     _method_data->load_data();
   } else {

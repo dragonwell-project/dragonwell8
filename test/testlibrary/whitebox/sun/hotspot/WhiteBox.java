@@ -213,6 +213,17 @@ public class WhiteBox {
   public native int getContextForObject(Object obj);
   public native void printRegionInfo(int context);
 
+  // JitWarmUp
+  public native String[] getClassInitOrderList();
+  public native String[] getCompiledMethodList();
+  public native String[] getClassListFromLogfile();
+  public native String[] getClassLoadedRecordList();
+  public native String[] getMethodListFromLogfile();
+  public native boolean  forceCompileInJitWarmUp(Executable method);
+  public native String[] getClassChainSymbolList();
+  public native int[]    getClassChainStateList();
+  public native boolean  testFixDanglingPointerInDeopt(String name);
+
   // VM flags
   public native void    setBooleanVMFlag(String name, boolean value);
   public native void    setIntxVMFlag(String name, long value);

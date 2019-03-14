@@ -208,6 +208,21 @@ class InstanceKlass: public Klass {
   // if this class is unloaded.
   Symbol*         _array_name;
 
+  // if not using JWarmUP, default value is 0
+  unsigned int    _crc32;
+  // if not using JWarmUP, default value is 0
+  unsigned int    _class_bytes_size;
+
+  // CompilationWarmUp eager init support
+  bool            _is_jwarmup_recorded;
+
+  // source file path, e.g. /home/xxx/liba.jar
+  Symbol*         _source_file_path;
+
+#ifndef PRODUCT
+  int             _initialize_order;
+#endif
+
   // Number of heapOopSize words used by non-static fields in this klass
   // (including inherited fields but after header_size()).
   int             _nonstatic_field_size;
@@ -656,6 +671,23 @@ class InstanceKlass: public Klass {
   Symbol* array_name()                     { return _array_name; }
   void set_array_name(Symbol* name)        { assert(_array_name == NULL  || name == NULL, "name already created"); _array_name = name; }
 
+  // JWarmUP support
+  unsigned int crc32()                     { return _crc32; }
+  void set_crc32(unsigned int crc32)       { _crc32 = crc32; }
+
+  unsigned int bytes_size()                { return _class_bytes_size; }
+  void set_bytes_size(unsigned int size)   { _class_bytes_size = size; }
+
+  bool is_jwarmup_recorded()               { return _is_jwarmup_recorded; }
+  void set_jwarmup_recorded(bool value)    { _is_jwarmup_recorded = value; }
+
+  Symbol* source_file_path()               { return _source_file_path; }
+  void set_source_file_path(Symbol* value) { _source_file_path = value; }
+
+#ifndef PRODUCT
+  unsigned int initialize_order()          { return _initialize_order; }
+  void set_initialize_order(int order)     { _initialize_order = order; }
+#endif
   // nonstatic oop-map blocks
   static int nonstatic_oop_map_size(unsigned int oop_map_count) {
     return oop_map_count * OopMapBlock::size_in_words();

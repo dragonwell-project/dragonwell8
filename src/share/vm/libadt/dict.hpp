@@ -89,6 +89,7 @@ class Dict : public ResourceObj { // Dictionary structure
 
 // Hashing functions
 int hashstr(const void *s);        // Nice string hash
+int hashstr2(const char *s, int len);        // hash string with given length
 // Slimey cheap hash function; no guaranteed performance.  Better than the
 // default for pointers, especially on MS-DOS machines.
 int hashptr(const void *key);

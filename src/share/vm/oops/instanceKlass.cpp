@@ -34,6 +34,7 @@
 #include "interpreter/oopMapCache.hpp"
 #include "interpreter/rewriter.hpp"
 #include "jvmtifiles/jvmti.h"
+#include "jwarmup/jitWarmUp.hpp"
 #include "memory/genOopClosures.inline.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/iterator.inline.hpp"
@@ -322,6 +323,14 @@ InstanceKlass::InstanceKlass(int vtable_len,
   // Set temporary value until parseClassFile updates it with the real instance
   // size.
   set_layout_helper(Klass::instance_layout_helper(0, true));
+
+  set_jwarmup_recorded(false);
+#ifndef PRODUCT
+  set_initialize_order(-1);
+#endif
+  set_crc32(0);
+  set_bytes_size(0);
+  set_source_file_path(NULL);
 }
 
 
@@ -375,6 +384,13 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
 
   // Need to take this class off the class loader data list.
   loader_data->remove_class(this);
+
+  if (CompilationWarmUp || CompilationWarmUpRecording) {
+    if (source_file_path() != NULL) {
+      source_file_path()->decrement_refcount();
+      set_source_file_path(NULL);
+    }
+  }
 
   // The array_klass for this class is created later, after error handling.
   // For class redefinition, we keep the original class so this scratch class
@@ -883,6 +899,9 @@ void InstanceKlass::initialize_impl(instanceKlassHandle this_oop, TRAPS) {
     // Step 6
     this_oop->set_init_state(being_initialized);
     this_oop->set_init_thread(self);
+  }
+  if (CompilationWarmUpRecording) {
+    JitWarmUp::instance()->recorder()->assign_class_init_order(this_oop());
   }
 
   // Step 7

@@ -27,6 +27,7 @@
 #include "code/icBuffer.hpp"
 #include "gc_interface/collectedHeap.hpp"
 #include "interpreter/bytecodes.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "memory/universe.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/handles.inline.hpp"
@@ -106,6 +107,14 @@ jint init_globals() {
   if (status != JNI_OK)
     return status;
 
+  if (CompilationWarmUpRecording) {
+    JitWarmUp* jwp = JitWarmUp::create_instance();
+    jwp->init_for_recording();
+    if (!jwp->is_valid()) {
+      tty->print_cr("[JitWarmUp] ERROR: init error.");
+      vm_exit(-1);
+    }
+  }
   interpreter_init();  // before any methods loaded
   invocationCounter_init();  // before any methods loaded
   marksweep_init();
@@ -113,6 +122,14 @@ jint init_globals() {
   templateTable_init();
   InterfaceSupport_init();
   SharedRuntime::generate_stubs();
+  if (CompilationWarmUp) {
+    JitWarmUp* jwp = JitWarmUp::create_instance();
+      jwp->init_for_warmup();
+    if (!jwp->is_valid()) {
+      tty->print_cr("[JitWarmUp] ERROR: init error.");
+      vm_exit(-1);
+    }
+  }
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
   referenceProcessor_init();
   jni_handles_init();

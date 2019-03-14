@@ -27,6 +27,7 @@
 
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/java.hpp"
@@ -201,6 +202,8 @@ class SymbolPropertyTable;
 class SystemDictionary : AllStatic {
   friend class VMStructs;
   friend class SystemDictionaryHandles;
+  friend class JitWarmUp;
+  friend class PreloadJitInfo;
 
  public:
   enum WKID {

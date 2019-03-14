@@ -1705,6 +1705,15 @@ typedef struct JDK1_1InitArgs {
     jint debugPort;
 } JDK1_1InitArgs;
 
+JNIEXPORT void JNICALL
+JVM_NotifyApplicationStartUpIsDone(JNIEnv* env, jclass clz);
+
+JNIEXPORT jboolean JNICALL
+JVM_CheckJWarmUpCompilationIsComplete(JNIEnv* env, jclass ignored);
+
+JNIEXPORT void JNICALL
+JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv* env, jclass clz);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* __cplusplus */

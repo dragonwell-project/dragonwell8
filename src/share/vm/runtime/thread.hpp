@@ -211,6 +211,18 @@ class Thread: public ThreadShadow {
   void leave_signal_handler() { _num_nested_signal--; }
   bool is_inside_signal_handler() const { return _num_nested_signal > 0; }
 
+  // JWarmUP support
+ private:
+  int  _super_class_resolving_recursive_count;
+  bool _in_eagerly_loading_class;
+
+ public:
+  bool in_eagerly_loading_class()               { return _in_eagerly_loading_class; }
+  void set_in_eagerly_loading_class(bool value) { _in_eagerly_loading_class = value; } 
+  void super_class_resolving_recursive_inc()    { _super_class_resolving_recursive_count++; }
+  void super_class_resolving_recursive_dec()    { _super_class_resolving_recursive_count--; }
+  bool in_super_class_resolving() const         { return _super_class_resolving_recursive_count > 0; }
+
  private:
   // Debug tracing
   static void trace(const char* msg, const Thread* const thread) PRODUCT_RETURN;

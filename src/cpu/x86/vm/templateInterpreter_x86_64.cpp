@@ -29,6 +29,7 @@
 #include "interpreter/interpreterGenerator.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/templateTable.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
@@ -334,6 +335,24 @@ void InterpreterGenerator::generate_counter_incr(
       __ incrementl(Address(rax,
               MethodCounters::interpreter_invocation_counter_offset()));
     }
+
+#ifdef _LP64
+    // JitWarmUp support, record method first invocation's initialization order
+    if (CompilationWarmUpRecording) {
+       Label skip_record;
+       JitWarmUp* jitwarmup = JitWarmUp::instance();
+       assert(jitwarmup != NULL, "jitwarmup should not be NULL");
+       const ExternalAddress current_init_order(jitwarmup->recorder()->current_init_order_addr());
+       __ movl(rcx, Address(rax,
+                            MethodCounters::interpreter_invocation_counter_offset()));
+       __ cmp32(rcx, 1);
+       __ jcc(Assembler::above, skip_record);
+       __ mov32(rcx, current_init_order);
+       __ movl(Address(rbx, Method::first_invoke_init_order_offset()), rcx);
+       __ bind(skip_record);
+   }
+#endif
+
     // Update standard invocation counters
     __ movl(rcx, invocation_counter);
     __ incrementl(rcx, InvocationCounter::count_increment);

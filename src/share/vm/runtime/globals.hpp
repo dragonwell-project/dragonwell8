@@ -4026,6 +4026,51 @@ class CommandLineFlags {
           "Print JFR log ")                                                 \
                                                                             \
   product(bool, EnableJFR, false, "Enable JFR feature")                     \
+                                                                            \
+  lp64_product(bool, CompilationWarmUpRecording, false,                     \
+          "Collect profiling information for JWarmUP")                      \
+                                                                            \
+  lp64_product(bool, CompilationWarmUp, false,                              \
+          "Enable CompilationWarmUp from a log file")                       \
+                                                                            \
+  manageable(bool, PrintCompilationWarmUpDetail, false,                     \
+          "Print detail information for jitWarmUp")                         \
+                                                                            \
+  lp64_product(ccstr, CompilationWarmUpLogfile, NULL,                       \
+          "Log file name for JWarmUP")                                      \
+                                                                            \
+  lp64_product(uintx, CompilationWarmUpRecordTime, 0,                       \
+          "Sleep time (in seconds) before flushing profling "               \
+          "information to log file ")                                       \
+                                                                            \
+  lp64_product(uintx, CompilationWarmUpAppID, 0,                            \
+          "Application ID written in log file for verification ")           \
+                                                                            \
+  lp64_product(ccstr, CompilationWarmUpExclude, NULL,                       \
+          "CompilationWarmUp excluding list ")                              \
+                                                                            \
+  lp64_product(bool, CompilationWarmUpExplicitDeopt, false,                 \
+          "Deoptimize JWarmUP methods by explicit api")                     \
+                                                                            \
+  lp64_product(uintx, CompilationWarmUpDeoptTime, 1200,                     \
+          "Sleep time (in seconds) before deoptimizing methods "            \
+          "compiled by JWarmUP ")                                           \
+                                                                            \
+  diagnostic(uintx, CompilationWarmUpDeoptMinInterval, 5,                   \
+          "JWarmUp method deoptimization minimum interval (in seconds)")    \
+                                                                            \
+  diagnostic(uintx, CompilationWarmUpDeoptNumOfMethodsPerIter, 10,          \
+          "The max number of methods marked for "                           \
+          "deoptimization per iteration")                                   \
+                                                                            \
+  diagnostic(bool, CompilationWarmUpResolveClassEagerly, true,              \
+          "resolve class from constant pool eagerly")                       \
+                                                                            \
+  lp64_product(bool, DeoptimizeBeforeWarmUp, false,                         \
+          "Deoptimize recorded methods before JWarmUP compilation")         \
+                                                                            \
+  lp64_product(intx, CompilationWarmUpRecordMinLevel, 3,                    \
+          "Minimal compilation level recorded in JWarmUP recording phase")  \
 
 /*
  *  Macros for factoring of globals

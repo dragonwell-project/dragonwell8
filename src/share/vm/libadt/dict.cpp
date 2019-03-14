@@ -330,6 +330,31 @@ int hashstr(const void *t) {
   return (int)((sum+xsum[k]) >> 1); // Hash key, un-modulo'd table size
 }
 
+// compute hash from char array with given length
+int hashstr2(const char *s, int len) {
+  char c, k = 0;
+  int32_t sum = 0;
+  int cnt = 0;
+
+  // make sure xsum array is initialized
+  if( !initflag ) {             // Not initializated yet?
+    xsum[0] = (1<<shft[0])+1;   // Initialize
+    for(int i = 1; i < MAXID; i++) {
+      xsum[i] = (1<<shft[i])+1+xsum[i-1];
+    }
+    initflag = 1;               // Never again
+  }
+
+  while(cnt < len) { // Get characters till null or MAXID-1
+    c = *s++;
+    c = (c<<1) + 1;             // Characters are always odd!
+    sum += c + (c<<shft[k++]);  // Universal hash function
+    k %= MAXID;
+    cnt++;
+  }
+  return (int)((sum+xsum[k]) >> 1); // Hash key, un-modulo'd table size
+}
+
 //------------------------------hashptr--------------------------------------
 // Slimey cheap hash function; no guaranteed performance.  Better than the
 // default for pointers, especially on MS-DOS machines.

@@ -763,6 +763,14 @@ bool ClassLoaderDataGraph::do_unloading(BoolObjectClosure* is_alive_closure, boo
   ClassLoaderData* prev = NULL;
   bool seen_dead_loader = false;
 
+  // Unload PreloadClassChain
+  if (CompilationWarmUp) {
+    JitWarmUp* jwp = JitWarmUp::instance();
+    assert(jwp != NULL, "santiy check");
+    PreloadClassChain* chain = jwp->preloader()->chain();
+    chain->do_unloading(is_alive_closure);
+  }
+
   // Save previous _unloading pointer for CMS which may add to unloading list before
   // purging and we don't want to rewalk the previously unloaded class loader data.
   _saved_unloading = _unloading;

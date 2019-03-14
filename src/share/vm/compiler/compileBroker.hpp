@@ -65,6 +65,7 @@ class CompileTask : public CHeapObj<mtCompiler> {
   int          _hot_count;    // information about its invocation counter
   const char*  _comment;      // more info about the task
   const char*  _failure_reason;
+  bool         _is_jwarmup_compilation;
 
  public:
   CompileTask() {
@@ -84,6 +85,8 @@ class CompileTask : public CHeapObj<mtCompiler> {
   bool         is_complete() const               { return _is_complete; }
   bool         is_blocking() const               { return _is_blocking; }
   bool         is_success() const                { return _is_success; }
+  bool         is_jwarmup_compilation() const    { return _is_jwarmup_compilation; }
+  void         mark_jwarmup_compilation()        { _is_jwarmup_compilation = true; }
 
   nmethodLocker* code_handle() const             { return _code_handle; }
   void         set_code_handle(nmethodLocker* l) { _code_handle = l; }

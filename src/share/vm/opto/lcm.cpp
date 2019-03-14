@@ -96,6 +96,9 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
   // mechanism exists (yet) to set the switches at an os_cpu level
   if( !ImplicitNullChecks || MacroAssembler::needs_explicit_null_check(0)) return;
 
+  // to reduce deoptimization, disable implicit_null_check for jwarmup compilation
+  if (CompilationWarmUp && this->C->env()->task()->is_jwarmup_compilation()) return;
+
   // Make sure the ptr-is-null path appears to be uncommon!
   float f = block->end()->as_MachIf()->_prob;
   if( proj->Opcode() == Op_IfTrue ) f = 1.0f - f;

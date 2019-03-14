@@ -2749,9 +2749,14 @@ bool GraphKit::seems_never_null(Node* obj, ciProfileData* data) {
       && obj != null()               // And not the -Xcomp stupid case?
       && !too_many_traps(Deoptimization::Reason_null_check)
       ) {
-    if (data == NULL)
+    bool compiledByWarmUp = CompilationWarmUp && this->C->env()->task()->is_jwarmup_compilation();
+    if (data == NULL) {
+      if (compiledByWarmUp) {
+        return false;
+      }
       // Edge case:  no mature data.  Be optimistic here.
       return true;
+    }
     // If the profile has not seen a null, assume it won't happen.
     assert(java_bc() == Bytecodes::_checkcast ||
            java_bc() == Bytecodes::_instanceof ||
@@ -2821,6 +2826,12 @@ Node* GraphKit::maybe_cast_profiled_obj(Node* obj,
                                         bool not_null) {
   // type == NULL if profiling tells us this object is always null
   if (type != NULL) {
+    if (CompilationWarmUp) {
+      if (this->C->env()->task()->is_jwarmup_compilation()) {
+        return obj;
+      }
+    }
+
     Deoptimization::DeoptReason class_reason = Deoptimization::Reason_speculate_class_check;
     Deoptimization::DeoptReason null_reason = Deoptimization::Reason_null_check;
     if (!too_many_traps(null_reason) && !too_many_recompiles(null_reason) &&

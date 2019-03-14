@@ -40,6 +40,7 @@ SUNWprivate_1.1 {
                 JVM_AssertionStatusDirectives;
                 JVM_Available;
                 JVM_Bind;
+                JVM_CheckJWarmUpCompilationIsComplete;
                 JVM_ClassDepth;
                 JVM_ClassLoaderDepth;
                 JVM_Clone;
@@ -205,6 +206,8 @@ SUNWprivate_1.1 {
                 JVM_NewArray;
                 JVM_NewInstanceFromConstructor;
                 JVM_NewMultiArray;
+                JVM_NotifyApplicationStartUpIsDone;
+                JVM_NotifyJVMDeoptWarmUpMethods;
                 JVM_OnExit;
                 JVM_Open;
                 JVM_RaiseSignal;

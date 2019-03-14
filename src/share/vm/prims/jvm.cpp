@@ -35,8 +35,10 @@
 #include "classfile/systemDictionaryShared.hpp"
 #endif
 #include "classfile/vmSymbols.hpp"
+#include "code/codeCache.hpp"
 #include "gc_interface/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.inline.hpp"
@@ -51,6 +53,7 @@
 #include "prims/nativeLookup.hpp"
 #include "prims/privilegedStack.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/compilationPolicy.hpp"
 #include "runtime/dtraceJSDT.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -4680,5 +4683,68 @@ JVM_ENTRY(void, JVM_GetVersionInfo(JNIEnv* env, jvm_version_info* info, size_t i
   // consider to expose this new capability in the sun.rt.jvmCapabilities jvmstat
   // counter defined in runtimeService.cpp.
   info->is_attachable = AttachListener::is_attach_supported();
+}
+JVM_END
+
+JVM_ENTRY(void, JVM_NotifyApplicationStartUpIsDone(JNIEnv* env, jclass clz))
+{
+  JVMWrapper("JVM_NotifyApplicationStartUpIsDone");
+  if (!CompilationWarmUp) {
+    tty->print_cr("CompilationWarmUp is off, "
+                  "notifyApplicationStartUpIsDone is invalid");
+    return;
+  }
+  Handle mirror(THREAD, JNIHandles::resolve_non_null(clz));
+  assert(mirror() != NULL, "sanity check");
+  Klass* k = java_lang_Class::as_Klass(mirror());
+  Method* dummy_method = k->lookup_method(vmSymbols::jwarmup_dummy_name(), vmSymbols::void_method_signature());
+  assert(dummy_method != NULL, "Cannot find dummy method in com.alibaba.jwarmup.JWarmUp");
+  JitWarmUp* jwp = JitWarmUp::instance();
+  assert(jwp != NULL, "sanity check");
+  jwp->set_dummy_method(dummy_method);
+  jwp->preloader()->notify_application_startup_is_done();
+}
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_CheckJWarmUpCompilationIsComplete(JNIEnv *env, jclass ignored))
+{
+  JVMWrapper("JVM_CheckJWarmUpCompilationIsComplete");
+  if (!CompilationWarmUp) {
+    tty->print_cr("CompilationWarmUp is off, "
+                  "checkIfCompilationIsComplete is invalid");
+    return JNI_TRUE;
+  }
+  JitWarmUp* jwp = JitWarmUp::instance();
+  Method* dm = jwp->dummy_method();
+  assert(dm != NULL, "sanity check");
+  if (dm->code() != NULL) {
+    return JNI_TRUE;
+  } else {
+    return JNI_FALSE;
+  }
+}
+JVM_END
+
+JVM_ENTRY(void, JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv *env, jclass clazz))
+{
+  JVMWrapper("JVM_NotifyJVMDeoptWarmUpMethods");
+  if (!(CompilationWarmUp && CompilationWarmUpExplicitDeopt)) {
+    tty->print_cr("CompilationWarmUp or CompilationWarmUpExplicitDeopt is off, "
+                  "notifyJVMDeoptWarmUpMethods is invalid");
+    return;
+  }
+  JitWarmUp* jwp = JitWarmUp::instance();
+  Method* dm = jwp->dummy_method();
+  if (dm != NULL && dm->code() != NULL) {
+    PreloadClassChain* chain = jwp->preloader()->chain();
+    assert(chain != NULL, "sanity check");
+    if (chain->notify_deopt_signal()) {
+      tty->print_cr("JitWarmUp: receive signal to deoptimize warmup methods");
+    } else {
+      tty->print_cr("JitWarmUp: deoptimize signal is ignore");
+    }
+  } else {
+    tty->print_cr("JitWarmUp: deoptimize signal is ignore because warmup is not finished");
+  }
 }
 JVM_END

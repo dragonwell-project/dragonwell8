@@ -30,6 +30,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
@@ -41,6 +42,8 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vframe.hpp"
+#include "utilities/stack.hpp"
+#include "utilities/stack.inline.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -56,12 +59,19 @@ ConstantPool* ConstantPool::allocate(ClassLoaderData* loader_data, int length, T
   // the resolved_references array, which is recreated at startup time.
   // But that could be moved to InstanceKlass (although a pain to access from
   // assembly code).  Maybe it could be moved to the cpCache which is RW.
-  return new (loader_data, size, false, MetaspaceObj::ConstantPoolType, THREAD) ConstantPool(tags);
+  if (CompilationWarmUp) {
+    Array<u1>* jwp_tags = NULL;
+    jwp_tags = MetadataFactory::new_array<u1>(loader_data, length, 0, CHECK_NULL);
+    return new (loader_data, size, false, MetaspaceObj::ConstantPoolType, THREAD) ConstantPool(tags, jwp_tags);
+  } else {
+    return new (loader_data, size, false, MetaspaceObj::ConstantPoolType, THREAD) ConstantPool(tags);
+  }
 }
 
 ConstantPool::ConstantPool(Array<u1>* tags) {
   set_length(tags->length());
   set_tags(NULL);
+  set_jwp_tags(NULL);
   set_cache(NULL);
   set_reference_map(NULL);
   set_resolved_references(NULL);
@@ -81,6 +91,37 @@ ConstantPool::ConstantPool(Array<u1>* tags) {
   set_tags(tags);
 }
 
+ConstantPool::ConstantPool(Array<u1>* tags, Array<u1>* jwp_tags) {
+  assert(CompilationWarmUp, "must in CompilationWarmUp");
+  assert(jwp_tags != NULL, "invariant");
+  assert(jwp_tags->length() == tags->length(), "invariant");
+  set_length(tags->length());
+  set_tags(NULL);
+  set_jwp_tags(NULL);
+  set_cache(NULL);
+  set_reference_map(NULL);
+  set_resolved_references(NULL);
+  set_operands(NULL);
+  set_pool_holder(NULL);
+  set_flags(0);
+
+  // only set to non-zero if constant pool is merged by RedefineClasses
+  set_version(0);
+  set_lock(new Monitor(Monitor::nonleaf + 2, "A constant pool lock"));
+
+  // initialize tag array
+  int length = tags->length();
+  for (int index = 0; index < length; index++) {
+    tags->at_put(index, JVM_CONSTANT_Invalid);
+  }
+  set_tags(tags);
+
+  for (int i = 0; i < jwp_tags->length(); i++) {
+    jwp_tags->at_put(i, _jwp_has_not_been_traversed);
+  }
+  set_jwp_tags(jwp_tags);
+}
+
 void ConstantPool::deallocate_contents(ClassLoaderData* loader_data) {
   MetadataFactory::free_metadata(loader_data, cache());
   set_cache(NULL);
@@ -95,6 +136,12 @@ void ConstantPool::deallocate_contents(ClassLoaderData* loader_data) {
   // free tag array
   MetadataFactory::free_array<u1>(loader_data, tags());
   set_tags(NULL);
+
+  if (CompilationWarmUp) {
+    assert(jwp_tags() != NULL, "should not be NULL");
+    MetadataFactory::free_array<u1>(loader_data, jwp_tags());
+    set_jwp_tags(NULL);
+  }
 }
 
 void ConstantPool::release_C_heap_structures() {
@@ -1899,6 +1946,88 @@ void ConstantPool::preload_and_initialize_all_classes(ConstantPool* obj, TRAPS) 
 
 #endif
 
+void ConstantPool::preload_jwarmup_classes(TRAPS) {
+  constantPoolHandle cp(THREAD, this);
+  guarantee(cp->pool_holder() != NULL, "must be fully loaded");
+  if (THREAD->in_eagerly_loading_class()) {
+    return;
+  }
+  THREAD->set_in_eagerly_loading_class(true);
+  Stack<InstanceKlass*, mtClass> s;
+  s.push(cp->pool_holder());
+  preload_jwarmup_classes_impl(s, THREAD);
+  THREAD->set_in_eagerly_loading_class(false);
+}
+
+// should not be guarded in PreloadClassChain_lock
+Klass* ConstantPool::resolve_class_from_slot(int which, TRAPS) {
+  assert(THREAD->is_Java_thread(), "must be a Java thread");
+  if (CompilationWarmUpResolveClassEagerly) {
+    Klass* k = klass_at(which, CHECK_NULL);
+    return k;
+  } else {
+    // Create a handle for the mirror. This will preserve the resolved class
+    // until the loader_data is registered.
+    Handle mirror_handle;
+    constantPoolHandle this_oop(THREAD, this);
+    Symbol* name = NULL;
+    Handle  loader;
+    {
+      if (this_oop->tag_at(which).is_unresolved_klass()) {
+        if (this_oop->tag_at(which).is_unresolved_klass_in_error()) {
+          return NULL;
+        } else {
+          name   = this_oop->klass_name_at(which);
+          loader = Handle(THREAD, this_oop->pool_holder()->class_loader());
+        }
+      }
+    }
+    oop protection_domain = this_oop->pool_holder()->protection_domain();
+    Handle h_prot (THREAD, protection_domain);
+    Klass* k_oop = SystemDictionary::resolve_or_fail(name, loader, h_prot, true, THREAD);
+    return k_oop;
+  }
+}
+
+// use bfs instead recusive
+void ConstantPool::preload_jwarmup_classes_impl(Stack<InstanceKlass*, mtClass>& s,
+                                                  TRAPS) {
+  JitWarmUp* jwp = JitWarmUp::instance();
+  while (!s.is_empty()) {
+    constantPoolHandle cp(s.pop()->constants());
+    for (int i = 0; i< cp->length();  i++) {
+      bool is_unresolved = false;
+      Symbol* name = NULL;
+      {
+        if (cp->tag_at(i).is_unresolved_klass() && !cp->jwarmup_traversed_at(i)) {
+          name = cp->klass_name_at(i);
+          is_unresolved = true;
+          cp->jwarmup_has_traversed_at(i);
+        }
+      }
+      if (is_unresolved) {
+        if (name != NULL && !jwp->preloader()->should_load_class_eagerly(name)) {
+          continue;
+        }
+        // Load class from ConstantPool slot, if flag CompilationWarmUpResolveClassEagerly
+        // is on, update ConstantPool status accordingly and assign to that slot.
+        Klass* klass = cp->resolve_class_from_slot(i, THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          ResourceMark rm;
+          tty->print_cr("[JitWarmUp] WARNING : resolve %s from constant pool failed",
+                        name->as_C_string());
+          // ignore LinkageError in loading class
+          if (PENDING_EXCEPTION->is_a(SystemDictionary::LinkageError_klass())) {
+            CLEAR_PENDING_EXCEPTION;
+          }
+        }
+        if (klass != NULL && klass->oop_is_instance()) {
+          s.push((InstanceKlass*)klass);
+        }
+      } // end of if is_unresolved
+    } // end of loop
+  } // end of while
+}
 
 // Printing
 

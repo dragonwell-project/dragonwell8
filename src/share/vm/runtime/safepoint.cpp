@@ -32,6 +32,7 @@
 #include "code/scopeDesc.hpp"
 #include "gc_interface/collectedHeap.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jwarmup/jitWarmUp.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -600,6 +601,15 @@ void SafepointSynchronize::do_cleanup_tasks() {
     TraceTime t6(name, TraceSafepointCleanupTime);
     StringTable::rehash_table();
     event_safepoint_cleanup_task_commit(event, name);
+  }
+
+  if (CompilationWarmUp) {
+    JitWarmUp* jwp = JitWarmUp::instance();
+    assert(jwp != NULL, "sanity check");
+    PreloadClassChain* chain = jwp->preloader()->chain();
+    if (chain->should_deoptimize_methods()) {
+      chain->deoptimize_methods();
+    }
   }
 
   // rotate log files?

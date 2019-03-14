@@ -1121,6 +1121,288 @@ WB_ENTRY(void, WB_PrintOsInfo(JNIEnv* env, jobject o))
   os::print_os_info(tty);
 WB_END
 
+WB_ENTRY(jobjectArray, WB_GetClassInitOrderList(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_String()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  if (!CompilationWarmUpRecording) {
+    return NULL;
+  }
+  LinkedListImpl<ClassSymbolEntry>* lst =
+    JitWarmUp::instance()->recorder()->class_init_list();
+  if (lst == NULL) {
+    return NULL;
+  }
+
+  jsize size = (jsize)lst->size();
+  jobjectArray result = NULL;
+  result = env->NewObjectArray(size, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  int idx = 0;
+  LinkedListNode<ClassSymbolEntry>* node = lst->head();
+  while(node != NULL) {
+    ResourceMark rm_inner(THREAD);
+    Symbol* class_name = node->peek()->class_name();
+    jobject obj = env->NewStringUTF(class_name->as_C_string());
+    CHECK_JNI_EXCEPTION_(env, NULL);
+    assert(idx < size, "index out of bound");
+    env->SetObjectArrayElement(result, idx, obj);
+    idx++;
+    node = node->next();
+  }
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetClassChainSymbolList(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_String()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  if (!CompilationWarmUp) {
+    return NULL;
+  }
+
+  PreloadClassChain* chain = JitWarmUp::instance()->preloader()->chain();
+  if (chain == NULL) {
+    return NULL;
+  }
+
+  jsize size = (jsize)chain->length();
+  jobjectArray result = NULL;
+  result = env->NewObjectArray(size, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  for (int i = 0; i < size; i++) {
+    ResourceMark rm_inner(THREAD);
+    Symbol* name = chain->at(i)->class_name();
+    if (name == NULL) {
+      continue;
+    }
+    jobject obj = env->NewStringUTF(name->as_C_string());
+    CHECK_JNI_EXCEPTION_(env, NULL);
+    env->SetObjectArrayElement(result, i, obj);
+  }
+
+  return result;
+WB_END
+
+WB_ENTRY(jintArray, WB_GetClassChainStateList(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  if (!CompilationWarmUp) {
+    return NULL;
+  }
+  PreloadClassChain* chain = JitWarmUp::instance()->preloader()->chain();
+  if (chain == NULL) {
+    return NULL;
+  }
+
+  jsize size = (jsize)chain->length();
+  jintArray result = NULL;
+  result = env->NewIntArray(size);
+  if (result == NULL) {
+    return result;
+  }
+
+  jint* arr = env->GetIntArrayElements(result, NULL);
+  for (int i = 0; i < size; i++) {
+    arr[i] = chain->at(i)->state();
+  }
+
+  env->ReleaseIntArrayElements(result, arr, 0);
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetCompiledMethodList(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_String()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+
+  if (!CompilationWarmUpRecording) {
+    return NULL;
+  }
+  ProfileRecordDictionary* dict = JitWarmUp::instance()->recorder()->dict();
+  if (dict == NULL) {
+    return NULL;
+  }
+
+  jsize size = (jsize)dict->count();
+  jobjectArray result = NULL;
+  result = env->NewObjectArray(size, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  int count = 0;
+  for (int index = 0; index < dict->table_size(); index++) {
+    for (ProfileRecorderEntry* entry = dict->bucket(index);
+                               entry != NULL;
+                               entry = entry->next()) {
+      ResourceMark rm_inner(THREAD);
+      Symbol* method_name = entry->literal()->name();
+      jobject obj = env->NewStringUTF(method_name->as_C_string());
+      CHECK_JNI_EXCEPTION_(env, NULL);
+      if (count >= size) {
+        break;
+      }
+      env->SetObjectArrayElement(result, count, obj);
+      count++;
+    }
+  }
+
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetClassListFromLogfile(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_String()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+  JitWarmUp* jwp = JitWarmUp::instance();
+  if (jwp == NULL) {
+    return NULL;
+  }
+  PreloadJitInfo* preloader = jwp->preloader();
+  if (preloader == NULL) {
+    return NULL;
+  }
+  PreloadClassDictionary* dict = preloader->dict();
+  if (dict == NULL) {
+    return NULL;
+  }
+
+  int entry_count = 0;
+  for (int index = 0; index < dict->table_size(); index++) {
+    for (PreloadClassEntry* entry = dict->bucket(index);
+                            entry != NULL;
+                            entry = entry->next()) {
+      entry_count++;
+    }
+  }
+
+  jsize size = (jsize)entry_count;
+  jobjectArray result = NULL;
+  result = env->NewObjectArray(size, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  int count = 0;
+  for (int index = 0; index < dict->table_size(); index++) {
+    for (PreloadClassEntry* entry = dict->bucket(index);
+                            entry != NULL;
+                            entry = entry->next()) {
+      ResourceMark rm_inner(THREAD);
+      Symbol* class_name = entry->literal();
+      jobject obj = env->NewStringUTF(class_name->as_C_string());
+      CHECK_JNI_EXCEPTION_(env, NULL);
+      //assert(index < size, "index out of bound");
+      if (count >= size) {
+        break;
+      }
+      env->SetObjectArrayElement(result, count, obj);
+      count++;
+    }
+  }
+  return result;
+WB_END
+
+WB_ENTRY(jobjectArray, WB_GetMethodListFromLogfile(JNIEnv* env, jobject o))
+  ResourceMark rm(THREAD);
+  ThreadToNativeFromVM ttn(thread);
+  jclass clazz = env->FindClass(vmSymbols::java_lang_String()->as_C_string());
+  CHECK_JNI_EXCEPTION_(env, NULL);
+
+  JitWarmUp* jwp = JitWarmUp::instance();
+  if (jwp == NULL) {
+    return NULL;
+  }
+  PreloadJitInfo* preloader = jwp->preloader();
+  if (preloader == NULL) {
+    return NULL;
+  }
+  PreloadClassDictionary* dict = preloader->dict();
+  if (dict == NULL) {
+    return NULL;
+  }
+
+  jsize size = (jsize)preloader->loaded_count();
+  jobjectArray result = NULL;
+  result = env->NewObjectArray(size, clazz, NULL);
+  if (result == NULL) {
+    return result;
+  }
+
+  int count = 0;
+  for (int index = 0; index < dict->table_size(); index++) {
+    for (PreloadClassEntry* entry = dict->bucket(index);
+                            entry != NULL;
+                            entry = entry->next()) {
+      for (PreloadClassHolder* holder = entry->head_holder();
+                               holder != NULL;
+                               holder = holder->next()) {
+        GrowableArray<PreloadMethodHolder*>* arr = holder->method_list();
+        if (arr == NULL) {
+          continue;
+        }
+        int arr_len = arr->length();
+        for (int i = 0; i < arr_len; i++ ) {
+          PreloadMethodHolder* mh = arr->at(i);
+          ResourceMark rm_inner(THREAD);
+          Symbol* method_name = mh->name();
+          jobject obj = env->NewStringUTF(method_name->as_C_string());
+          CHECK_JNI_EXCEPTION_(env, NULL);
+          //assert(index < size, "index out of bound");
+          if (count >= size) {
+            break;
+          }
+          env->SetObjectArrayElement(result, count, obj);
+          count++;
+        } // end of method list loop
+      } // end of class holder loop
+    } // end of entry bucket loop
+  } // end of table size loop
+  return result;
+WB_END
+
+WB_ENTRY(jboolean, WB_TestFixDanglingPointerInDeopt(JNIEnv* env, jobject o, jstring name))
+  Handle h_name(THREAD, JNIHandles::resolve(name));
+  if (h_name.is_null()) return false;
+  Symbol* sym = java_lang_String::as_symbol(h_name(), CHECK_false);
+
+  JitWarmUp* jwp = JitWarmUp::instance();
+  PreloadClassChain* chain = jwp->preloader()->chain();
+  assert(chain != NULL, "sanity check");
+  int index = chain->length() - 1;
+  PreloadMethodHolder* begin_holder = NULL;
+  while (index > 0 && begin_holder == NULL) {
+    PreloadClassChain::PreloadClassChainEntry* entry = chain->at(index);
+    begin_holder = entry->method_holder();
+    index--;
+  }
+  if (begin_holder == NULL) {
+    return false;
+  }
+  MethodHolderIterator iter(chain, begin_holder, index);
+  while (*iter != NULL) {
+    PreloadMethodHolder* pmh = *iter;
+    if (pmh->name()->fast_compare(sym) == 0) {
+      if (pmh->resolved_method() != NULL) {
+        return false;
+      }
+    }
+    iter.next();
+  }
+  return true;
+WB_END
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -1243,6 +1525,20 @@ static JNINativeMethod methods[] = {
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
   {CC"getHeapAlignment",     CC"()J",                 (void*)&WB_GetHeapAlignment},
   {CC"allocateCodeBlob",   CC"(II)J",                 (void*)&WB_AllocateCodeBlob   },
+  {CC"getClassListFromLogfile", CC"()[Ljava/lang/String;",
+                                                      (void*)&WB_GetClassListFromLogfile },
+  {CC"getMethodListFromLogfile", CC"()[Ljava/lang/String;",
+                                                      (void*)&WB_GetMethodListFromLogfile },
+  {CC"getCompiledMethodList", CC"()[Ljava/lang/String;",
+                                                      (void*)&WB_GetCompiledMethodList },
+  {CC"getClassChainSymbolList", CC"()[Ljava/lang/String;",
+                                                      (void*)&WB_GetClassChainSymbolList },
+  {CC"getClassChainStateList", CC"()[I",
+                                                      (void*)&WB_GetClassChainStateList },
+  {CC"testFixDanglingPointerInDeopt",
+      CC"(Ljava/lang/String;)Z",                      (void*)&WB_TestFixDanglingPointerInDeopt},
+  {CC"getClassInitOrderList", CC"()[Ljava/lang/String;",
+                                                      (void*)&WB_GetClassInitOrderList }
 };
 
 #undef CC

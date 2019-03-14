@@ -754,6 +754,39 @@ void fileStream::flush() {
   fflush(_file);
 }
 
+randomAccessFileStream::randomAccessFileStream() : fileStream() {  }
+
+randomAccessFileStream::randomAccessFileStream(const char* file_name)
+  : fileStream(file_name) {  }
+
+randomAccessFileStream::randomAccessFileStream(const char* file_name, const char* opentype)
+  : fileStream(file_name, opentype) {  }
+
+randomAccessFileStream::randomAccessFileStream(FILE* file, bool need_close)
+  : fileStream(file, need_close) {  }
+
+void randomAccessFileStream::write(const char* s, size_t len, long pos) {
+  assert(pos <= fileSize(), "pos check");
+  if (_file != NULL)  {
+    long old_pos = ::ftell(_file);
+    if (old_pos != pos) {
+      int ret = fseek(pos, SEEK_SET);
+      assert(ret != -1, "fseek return value check");
+    }
+    size_t count = fwrite(s, 1, len, _file);
+    if (old_pos != pos) {
+      fseek(old_pos, SEEK_SET);
+    }
+  }
+}
+
+void randomAccessFileStream::write(const char* s, size_t len) {
+  if (_file != NULL)  {
+    // Make an unused local variable to avoid warning from gcc 4.x compiler.
+    size_t count = fwrite(s, 1, len, _file);
+  }
+}
+
 fdStream::fdStream(const char* file_name) {
   _fd = open(file_name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
   _need_close = true;

@@ -126,6 +126,8 @@ private:
                                    ciInstanceKlass* accessor);
   ciField*   get_field_by_index(ciInstanceKlass* loading_klass,
                                 int field_index);
+  bool       check_field_resolved(ciInstanceKlass* accessor,
+                                  int index);
   ciMethod*  get_method_by_index(constantPoolHandle cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
@@ -316,6 +318,9 @@ public:
 
   // Return state of appropriate compilability
   int compilable() { return _compilable; }
+
+  // Check if all fields needed by this method in ConstantPool are resolved
+  bool       check_method_fields_all_resolved(ciMethod* method);
 
   const char* retry_message() const {
     switch (_compilable) {
