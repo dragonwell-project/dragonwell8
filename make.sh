@@ -2,25 +2,23 @@
 # build properties
 JDK_UPDATE_VERSION=202
 DISTRO_NAME=Dragonwell
-DISTRO_VERSION=8.0
+DISTRO_VERSION=8.0-preview
 
-if [ $# != 1 ]; then 
+if [ $# != 1 ]; then
   echo "USAGE: $0 release/debug"
 fi
 
 ps -e | grep docker
 if [ $? -eq 0 ]; then
-    echo "We will build AJDK in Docker!"
+    echo "We will build Dragonwell in Docker!"
     sudo docker pull reg.docker.alibaba-inc.com/ajdk/8-dev.alios5
     docker run -u admin -i --rm -e BUILD_NUMBER=$BUILD_NUMBER -v `pwd`:`pwd` -w `pwd` \
                --entrypoint=bash reg.docker.alibaba-inc.com/ajdk/8-dev.alios5 `pwd`/make.sh $1
     exit $?
 fi
 
-
 source /vmfarm/tools/env.sh
 LC_ALL=C
-
 BUILD_MODE=$1
 
 case "$BUILD_MODE" in
