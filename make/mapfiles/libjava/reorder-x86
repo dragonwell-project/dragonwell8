@@ -10,6 +10,7 @@ text: .text%collapse: OUTPUTDIR/canonicalize_md.o;
 text: .text%Java_java_lang_Object_registerNatives;
 text: .text%Java_java_lang_System_registerNatives;
 text: .text%Java_java_lang_Thread_registerNatives;
+text: .text%Java_com_alibaba_jwarmup_JWarmUp_registerNatives;
 text: .text%Java_java_security_AccessController_getStackAccessControlContext;
 text: .text%Java_java_security_AccessController_getInheritedAccessControlContext;
 text: .text%Java_java_lang_ClassLoader_registerNatives;

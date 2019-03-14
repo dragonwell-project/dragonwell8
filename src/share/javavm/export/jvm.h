@@ -330,6 +330,15 @@ JNIEXPORT jclass JNICALL
 JVM_LoadClass0(JNIEnv *env, jobject obj, jclass currClass,
                jstring currClassName);
 
+JNIEXPORT void JNICALL
+JVM_NotifyApplicationStartUpIsDone(JNIEnv *env, jclass clz);
+
+JNIEXPORT jboolean JNICALL
+JVM_CheckJWarmUpCompilationIsComplete(JNIEnv *env, jclass clz);
+
+JNIEXPORT void JNICALL
+JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv* env, jclass clz);
+
 /*
  * java.lang.reflect.Array
  */

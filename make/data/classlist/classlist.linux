@@ -2556,4 +2556,5 @@ javax/swing/plaf/basic/BasicToolBarSeparatorUI
 java/awt/event/AdjustmentEvent
 java/awt/MenuBar
 sun/awt/X11/XErrorEvent
+com/alibaba/jwarmup/JWarmUp
 # eea35d9d56e0006e

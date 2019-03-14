@@ -215,6 +215,7 @@ SUNWprivate_1.1 {
 		Java_java_lang_System_setIn0;
 		Java_java_lang_System_setOut0;
 		Java_java_lang_Thread_registerNatives;
+        Java_com_alibaba_jwarmup_JWarmUp_registerNatives;
 		Java_java_lang_Throwable_fillInStackTrace;
                 Java_java_lang_Throwable_getStackTraceDepth;
                 Java_java_lang_Throwable_getStackTraceElement;
