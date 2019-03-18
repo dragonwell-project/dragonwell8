@@ -921,7 +921,8 @@ void InstructForm::build_components() {
   const char *name;
   const char *kill_name = NULL;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     Effect* e = NULL;
     {
@@ -938,7 +939,8 @@ void InstructForm::build_components() {
       // complex so simply enforce the restriction during parse.
       if (kill_name != NULL &&
           e->isa(Component::TEMP) && !e->isa(Component::DEF)) {
-        OperandForm* kill = (OperandForm*)_localNames[kill_name];
+        OpClassForm* kill = _localNames[kill_name]->is_opclass();
+        assert(kill != NULL, "sanity");
         globalAD->syntax_err(_linenum, "%s: %s %s must be at the end of the argument list\n",
                              _ident, kill->_ident, kill_name);
       } else if (e->isa(Component::KILL) && !e->isa(Component::USE)) {
@@ -2339,7 +2341,8 @@ void OperandForm::build_components() {
   // Add parameters that "do not appear in match rule".
   const char *name;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     if ( _components.operand_position(name) == -1 ) {
       _components.insert(name, opForm->_ident, Component::INVALID, false);

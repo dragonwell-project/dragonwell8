@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -567,7 +567,7 @@ final class DigestMD5Client extends DigestMD5Base implements SaslClient {
      *    username-value
      *    cnonce-value
      *    authzid-value
-     * @returns <tt>digest-response</tt> in a byte array
+     * @returns {@code digest-response} in a byte array
      * @throws SaslException if there is an error generating the
      * response value or the cnonce value.
      */

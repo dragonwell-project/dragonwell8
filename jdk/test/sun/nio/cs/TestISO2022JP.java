@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 
 /* @test
-   @bug 4626545 4879522 4913711 4119445
+   @bug 4626545 4879522 4913711 4119445 8211382
    @summary Check full coverage encode/decode for ISO-2022-JP
  */
 
@@ -607,6 +607,19 @@ public class TestISO2022JP {
         for (int i = 0; i < expected.length; i++) {
             if (encoded[i] != expected[i])
                throw new Exception("ISO-2022-JP Decoder error");
+        }
+
+        // Test for 11 iso2022jp decoder
+        encoded = new byte[] {
+            (byte)0x1B, (byte)0x28, (byte)0x49, (byte)0x60,
+            (byte)0x1B, (byte)0x28, (byte)0x42,
+        };
+        String unexpectedStr = "\uffa0";
+        String expectedStr = "\ufffd";
+        if (new String(encoded, "ISO2022JP").equals(unexpectedStr)) {
+               throw new Exception("ISO2022JP Decoder error: \\uFFA0");
+        } else if (!new String(encoded, "ISO2022JP").equals(expectedStr)) {
+               throw new Exception("ISO2022JP Decoder error: \\uFFFD");
         }
     }
 }
