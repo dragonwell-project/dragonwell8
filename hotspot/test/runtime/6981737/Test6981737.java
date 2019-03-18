@@ -48,8 +48,6 @@ public class Test6981737 {
             vendor_re = "Sun Microsystems Inc\\.";
             vm_spec_version_re = "1\\.0";
         }
-        verifyProperty("java.vendor", vendor_re);
-        verifyProperty("java.vm.vendor", vendor_re);
         verifyProperty("java.vm.specification.vendor", vendor_re);
         verifyProperty("java.specification.vendor", vendor_re);
         verifyProperty("java.vm.specification.version", vm_spec_version_re);

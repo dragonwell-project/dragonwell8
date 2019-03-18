@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -527,7 +527,7 @@ class os: AllStatic {
   static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
-  static int fork_and_exec(char *cmd);
+  static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
 
   // os::exit() is merged with vm_exit()
   // static void exit(int num);
