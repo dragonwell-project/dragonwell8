@@ -25,7 +25,7 @@
  * @test TestExitOnOutOfMemoryError
  * @summary Test using -XX:ExitOnOutOfMemoryError
  * @library /testlibrary
- * @build jdk.test.lib.*
+ * @build com.oracle.java.testlibrary.*
  * @run driver TestExitOnOutOfMemoryError
  * @bug 8138745
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -692,7 +692,7 @@ JNIEXPORT jlong JNICALL Java_sun_awt_shell_Win32ShellFolder2_getLinkLocation
             hres = ppf->Load(wstr, STGM_READ);
             if (SUCCEEDED(hres)) {
                 if (resolve) {
-                    hres = psl->Resolve(NULL, 0);
+                    hres = psl->Resolve(NULL, SLR_NO_UI);
                     // Ignore failure
                 }
                 pidl = (LPITEMIDLIST)NULL;

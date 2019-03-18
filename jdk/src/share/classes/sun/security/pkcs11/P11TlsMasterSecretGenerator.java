@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2007, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,9 +89,9 @@ public final class P11TlsMasterSecretGenerator extends KeyGeneratorSpi {
             throw new InvalidAlgorithmParameterException("init() failed", e);
         }
         version = (spec.getMajorVersion() << 8) | spec.getMinorVersion();
-        if ((version < 0x0300) || (version > 0x0302)) {
-            throw new InvalidAlgorithmParameterException
-                ("Only SSL 3.0, TLS 1.0, and TLS 1.1 supported");
+        if ((version < 0x0300) && (version > 0x0303)) {
+            throw new InvalidAlgorithmParameterException("Only SSL 3.0," +
+                    " TLS 1.0, TLS 1.1, and TLS 1.2 are supported");
         }
         // We assume the token supports the required mechanism. If it does not,
         // generateKey() will fail and the failover should take care of us.
@@ -106,10 +106,20 @@ public final class P11TlsMasterSecretGenerator extends KeyGeneratorSpi {
             throw new IllegalStateException
                 ("TlsMasterSecretGenerator must be initialized");
         }
+        final boolean isTlsRsaPremasterSecret =
+                p11Key.getAlgorithm().equals("TlsRsaPremasterSecret");
+        if (version == 0x0300) {
+            mechanism = isTlsRsaPremasterSecret ?
+                    CKM_SSL3_MASTER_KEY_DERIVE : CKM_SSL3_MASTER_KEY_DERIVE_DH;
+        } else if (version == 0x0301 || version == 0x0302) {
+            mechanism = isTlsRsaPremasterSecret ?
+                    CKM_TLS_MASTER_KEY_DERIVE : CKM_TLS_MASTER_KEY_DERIVE_DH;
+        } else if (version == 0x0303) {
+            mechanism = isTlsRsaPremasterSecret ?
+                    CKM_TLS12_MASTER_KEY_DERIVE : CKM_TLS12_MASTER_KEY_DERIVE_DH;
+        }
         CK_VERSION ckVersion;
-        if (p11Key.getAlgorithm().equals("TlsRsaPremasterSecret")) {
-            mechanism = (version == 0x0300) ? CKM_SSL3_MASTER_KEY_DERIVE
-                                             : CKM_TLS_MASTER_KEY_DERIVE;
+        if (isTlsRsaPremasterSecret) {
             ckVersion = new CK_VERSION(0, 0);
         } else {
             // Note: we use DH for all non-RSA premaster secrets. That includes
@@ -118,16 +128,23 @@ public final class P11TlsMasterSecretGenerator extends KeyGeneratorSpi {
             // TLS PRF (or the SSL equivalent).
             // The only thing special about RSA master secret calculation is
             // that it extracts the version numbers from the premaster secret.
-            mechanism = (version == 0x0300) ? CKM_SSL3_MASTER_KEY_DERIVE_DH
-                                             : CKM_TLS_MASTER_KEY_DERIVE_DH;
             ckVersion = null;
         }
         byte[] clientRandom = spec.getClientRandom();
         byte[] serverRandom = spec.getServerRandom();
         CK_SSL3_RANDOM_DATA random =
                 new CK_SSL3_RANDOM_DATA(clientRandom, serverRandom);
-        CK_SSL3_MASTER_KEY_DERIVE_PARAMS params =
-                new CK_SSL3_MASTER_KEY_DERIVE_PARAMS(random, ckVersion);
+        CK_MECHANISM ckMechanism = null;
+        if (version < 0x0303) {
+            CK_SSL3_MASTER_KEY_DERIVE_PARAMS params =
+                    new CK_SSL3_MASTER_KEY_DERIVE_PARAMS(random, ckVersion);
+            ckMechanism = new CK_MECHANISM(mechanism, params);
+        } else if (version == 0x0303) {
+            CK_TLS12_MASTER_KEY_DERIVE_PARAMS params =
+                    new CK_TLS12_MASTER_KEY_DERIVE_PARAMS(random, ckVersion,
+                            Functions.getHashMechId(spec.getPRFHashAlg()));
+            ckMechanism = new CK_MECHANISM(mechanism, params);
+        }
 
         Session session = null;
         try {
@@ -135,9 +152,8 @@ public final class P11TlsMasterSecretGenerator extends KeyGeneratorSpi {
             CK_ATTRIBUTE[] attributes = token.getAttributes(O_GENERATE,
                 CKO_SECRET_KEY, CKK_GENERIC_SECRET, new CK_ATTRIBUTE[0]);
             long keyID = token.p11.C_DeriveKey(session.id(),
-                new CK_MECHANISM(mechanism, params), p11Key.keyID, attributes);
+                    ckMechanism, p11Key.keyID, attributes);
             int major, minor;
-            ckVersion = params.pVersion;
             if (ckVersion == null) {
                 major = -1;
                 minor = -1;

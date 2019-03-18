@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,9 @@
  */
 /**
  * This package comprises the interfaces and classes used to define the
- * signing mechanism used by the <tt>jarsigner</tt> tool.
+ * signing mechanism used by the {@code jarsigner} tool.
  * <p>
- * Clients may override the default signing mechanism of the <tt>jarsigner</tt>
+ * Clients may override the default signing mechanism of the {@code jarsigner}
  * tool by supplying an alternative implementation of
  * {@link com.sun.jarsigner.ContentSigner}.
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,7 +96,13 @@ public class BasicTextFieldUI extends BasicTextUI {
             String kind = elem.getName();
             if (kind != null) {
                 if (kind.equals(AbstractDocument.ContentElementName)) {
-                    return new GlyphView(elem);
+                    return new GlyphView(elem){
+                        @Override
+                        public float getMinimumSpan(int axis) {
+                            // no wrap
+                            return getPreferredSpan(axis);
+                        }
+                    };
                 } else if (kind.equals(AbstractDocument.ParagraphElementName)) {
                     return new I18nFieldView(elem);
                 }
