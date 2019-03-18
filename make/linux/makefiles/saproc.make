@@ -59,6 +59,11 @@ ifeq ($(DEBUG_BINARIES), true)
   SA_DEBUG_CFLAGS = -g
 endif
 
+# Optimize saproc lib at level -O3 unless it's a slowdebug build
+ifneq ($(BUILD_FLAVOR), debug)
+  SA_OPT_FLAGS = $(OPT_CFLAGS)
+endif
+
 # if $(AGENT_DIR) does not exist, we don't build SA
 # also, we don't build SA on Itanium or zero.
 
@@ -95,6 +100,7 @@ $(LIBSAPROC): $(SASRCFILES) $(SAMAPFILE)
 	           $(SASRCFILES)                                        \
 	           $(SA_LFLAGS)                                         \
 	           $(SA_DEBUG_CFLAGS)                                   \
+	           $(SA_OPT_FLAGS)                                      \
 	           $(EXTRA_CFLAGS)                                      \
 	           -o $@                                                \
 	           -lthread_db -ldl

@@ -113,7 +113,8 @@ public class CLHSDB {
     private String coreFilename;
 
     private void doUsage() {
-        System.out.println("Usage:  java CLHSDB [[pid] | [path-to-java-executable [path-to-corefile]] | help ]");
+        // With JDK-8059038 launchers for this class exist. Print usage for those launchers.
+        System.out.println("Usage:  clhsdb [[pid] | [path-to-java-executable [path-to-corefile]] | help | -help ]");
         System.out.println("           pid:                     attach to the process whose id is 'pid'");
         System.out.println("           path-to-java-executable: Debug a core file produced by this program");
         System.out.println("           path-to-corefile:        Debug this corefile.  The default is 'core'");

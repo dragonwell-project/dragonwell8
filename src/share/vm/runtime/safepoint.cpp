@@ -790,9 +790,9 @@ void SafepointSynchronize::print_safepoint_timeout(SafepointTimeoutReason reason
     tty->print_cr("# SafepointSynchronize::begin: (End of list)");
   }
 
-  // To debug the long safepoint, specify both DieOnSafepointTimeout &
+  // To debug the long safepoint, specify both AbortVMOnSafepointTimeout &
   // ShowMessageBoxOnError.
-  if (DieOnSafepointTimeout) {
+  if (AbortVMOnSafepointTimeout) {
     char msg[1024];
     VM_Operation *op = VMThread::vm_operation();
     sprintf(msg, "Safepoint sync time longer than " INTX_FORMAT "ms detected when executing %s.",

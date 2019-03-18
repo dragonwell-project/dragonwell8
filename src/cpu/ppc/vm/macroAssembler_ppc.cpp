@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2017 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3570,12 +3570,12 @@ void MacroAssembler::kernel_crc32_1word_aligned(Register crc, Register buf, Regi
   vspltisw(VR0, -1);
 
   vsldoi(mask_32bit, zeroes, VR0, 4);
-  vsldoi(mask_64bit, zeroes, VR0, -8);
+  vsldoi(mask_64bit, zeroes, VR0, 8);
 
   // Get the initial value into v8
   vxor(VR8, VR8, VR8);
   mtvrd(VR8, crc);
-  vsldoi(VR8, zeroes, VR8, -8); // shift into bottom 32 bits
+  vsldoi(VR8, zeroes, VR8, 8); // shift into bottom 32 bits
 
   li (rLoaded, 0);
 
@@ -3924,7 +3924,7 @@ void MacroAssembler::kernel_crc32_1word_aligned(Register crc, Register buf, Regi
   addi(barretConstants, barretConstants, 16);
   lvx(const2, barretConstants);
 
-  vsldoi(VR1, VR0, VR0, -8);
+  vsldoi(VR1, VR0, VR0, 8);
   vxor(VR0, VR0, VR1);    // xor two 64 bit results together
 
   // shift left one bit

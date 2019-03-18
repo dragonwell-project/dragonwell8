@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2014 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2023,7 +2023,7 @@ class StubGenerator: public StubCodeGenerator {
     __ vspltisb        (vTmp2, -16);
     __ vrld            (keyPerm, keyPerm, vTmp2);
     __ vrld            (keyPerm, keyPerm, vTmp2);
-    __ vsldoi          (keyPerm, keyPerm, keyPerm, -8);
+    __ vsldoi          (keyPerm, keyPerm, keyPerm, 8);
 
     // load the 1st round key to vKey1
     __ li              (keypos, 0);
@@ -2223,7 +2223,7 @@ class StubGenerator: public StubCodeGenerator {
     __ vspltisb        (vTmp2, -16);
     __ vrld            (keyPerm, keyPerm, vTmp2);
     __ vrld            (keyPerm, keyPerm, vTmp2);
-    __ vsldoi          (keyPerm, keyPerm, keyPerm, -8);
+    __ vsldoi          (keyPerm, keyPerm, keyPerm, 8);
 
     __ cmpwi           (CCR0, keylen, 44);
     __ beq             (CCR0, L_do44);

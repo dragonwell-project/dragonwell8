@@ -321,10 +321,12 @@ BitMap::inverted_bit_mask_for_range(idx_t beg, idx_t end) const {
 }
 
 inline void BitMap::set_large_range_of_words(idx_t beg, idx_t end) {
+  assert(beg <= end, "underflow");
   memset(_map + beg, ~(unsigned char)0, (end - beg) * sizeof(uintptr_t));
 }
 
 inline void BitMap::clear_large_range_of_words(idx_t beg, idx_t end) {
+  assert(beg <= end, "underflow");
   memset(_map + beg, 0, (end - beg) * sizeof(uintptr_t));
 }
 
