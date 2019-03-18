@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,8 +60,8 @@ import static org.testng.Assert.*;
 
 public class SupplementalJapaneseEraTest {
     private static final Locale WAREKI_LOCALE = Locale.forLanguageTag("ja-JP-u-ca-japanese");
-    private static final String NEW_ERA_NAME = "NewEra";
-    private static final String NEW_ERA_ABBR = "N.E.";
+    private static final String SUP_ERA_NAME = "SupEra";
+    private static final String SUP_ERA_ABBR = "S.E.";
     private static final int NEW_ERA_YEAR = 200;
     private static final int NEW_ERA_MONTH = FEBRUARY;
     private static final int NEW_ERA_DAY = 11;
@@ -96,7 +96,7 @@ public class SupplementalJapaneseEraTest {
     private static void testProperty() {
         Calendar jcal = new Calendar.Builder()
             .setCalendarType("japanese")
-            .setFields(YEAR, 1, DAY_OF_YEAR, 1)
+            .setFields(ERA, 6, YEAR, 1, DAY_OF_YEAR, 1)
             .build();
         Date firstDayOfEra = jcal.getTime();
 
@@ -114,7 +114,7 @@ public class SupplementalJapaneseEraTest {
         // test long era name
         sdf = new SimpleDateFormat("GGGG y-MM-dd", WAREKI_LOCALE);
         got = sdf.format(firstDayOfEra);
-        expected = NEW_ERA_NAME + " 1-02-11";
+        expected = SUP_ERA_NAME + " 1-02-11";
         if (!expected.equals(got)) {
             System.err.printf("GGGG y-MM-dd: got=\"%s\", expected=\"%s\"%n", got, expected);
             errors++;
@@ -123,7 +123,7 @@ public class SupplementalJapaneseEraTest {
         // test era abbreviation
         sdf = new SimpleDateFormat("G y-MM-dd", WAREKI_LOCALE);
         got = sdf.format(firstDayOfEra);
-        expected = NEW_ERA_ABBR+" 1-02-11";
+        expected = SUP_ERA_ABBR+" 1-02-11";
         if (!expected.equals(got)) {
             System.err.printf("G y-MM-dd: got=\"%s\", expected=\"%s\"%n", got, expected);
             errors++;
@@ -140,30 +140,30 @@ public class SupplementalJapaneseEraTest {
         // test java.time.chrono.JapaneseEra
         JapaneseDate jdate = JapaneseDate.of(year, 2, 11);
         got = jdate.toString();
-        expected = "Japanese " + NEW_ERA_NAME + " 1-02-11";
+        expected = "Japanese " + SUP_ERA_NAME + " 1-02-11";
         if (!expected.equals(got)) {
             System.err.printf("JapaneseDate: got=\"%s\", expected=\"%s\"%n", got, expected);
             errors++;
         }
         JapaneseEra jera = jdate.getEra();
         got = jera.getDisplayName(TextStyle.FULL, Locale.US);
-        if (!NEW_ERA_NAME.equals(got)) {
-            System.err.printf("JapaneseEra (FULL): got=\"%s\", expected=\"%s\"%n", got, NEW_ERA_NAME);
+        if (!SUP_ERA_NAME.equals(got)) {
+            System.err.printf("JapaneseEra (FULL): got=\"%s\", expected=\"%s\"%n", got, SUP_ERA_NAME);
             errors++;
         }
         got = jera.getDisplayName(TextStyle.SHORT, Locale.US);
-        if (!NEW_ERA_NAME.equals(got)) {
-            System.err.printf("JapaneseEra (SHORT): got=\"%s\", expected=\"%s\"%n", got, NEW_ERA_NAME);
+        if (!SUP_ERA_NAME.equals(got)) {
+            System.err.printf("JapaneseEra (SHORT): got=\"%s\", expected=\"%s\"%n", got, SUP_ERA_NAME);
             errors++;
         }
         got = jera.getDisplayName(TextStyle.NARROW, Locale.US);
-        if (!NEW_ERA_ABBR.equals(got)) {
-            System.err.printf("JapaneseEra (NARROW): got=\"%s\", expected=\"%s\"%n", got, NEW_ERA_ABBR);
+        if (!SUP_ERA_ABBR.equals(got)) {
+            System.err.printf("JapaneseEra (NARROW): got=\"%s\", expected=\"%s\"%n", got, SUP_ERA_ABBR);
             errors++;
         }
         got = jera.getDisplayName(TextStyle.NARROW_STANDALONE, Locale.US);
-        if (!NEW_ERA_ABBR.equals(got)) {
-            System.err.printf("JapaneseEra (NARROW_STANDALONE): got=\"%s\", expected=\"%s\"%n", got, NEW_ERA_ABBR);
+        if (!SUP_ERA_ABBR.equals(got)) {
+            System.err.printf("JapaneseEra (NARROW_STANDALONE): got=\"%s\", expected=\"%s\"%n", got, SUP_ERA_ABBR);
             errors++;
         }
 
@@ -172,10 +172,12 @@ public class SupplementalJapaneseEraTest {
             .appendPattern("GGGG")
             .appendLiteral(" ")
             .appendPattern("G")
+            .appendLiteral(" ")
+            .appendPattern("GGGGG")
             .toFormatter(Locale.US)
             .withChronology(JapaneseChronology.INSTANCE)
             .format(jdate);
-        expected = NEW_ERA_NAME + " " + NEW_ERA_ABBR;
+        expected = SUP_ERA_NAME + " " + SUP_ERA_NAME + " " + SUP_ERA_ABBR;
         if (!expected.equals(got)) {
             System.err.printf("java.time formatter long/abbr names: got=\"%s\", expected=\"%s\"%n", got, expected);
             errors++;
@@ -230,8 +232,8 @@ public class SupplementalJapaneseEraTest {
             if (eras != null) {
                 p.setProperty(JA_CAL_KEY,
                     eras +
-                    "; name=" + SupplementalJapaneseEraTest.NEW_ERA_NAME +
-                    ",abbr=" + SupplementalJapaneseEraTest.NEW_ERA_ABBR +
+                    "; name=" + SupplementalJapaneseEraTest.SUP_ERA_NAME +
+                    ",abbr=" + SupplementalJapaneseEraTest.SUP_ERA_ABBR +
                     ",since=" + since());
             }
             try (BufferedWriter bw = Files.newBufferedWriter(dst)) {
@@ -243,6 +245,7 @@ public class SupplementalJapaneseEraTest {
             return new Calendar.Builder()
                 .setCalendarType("japanese")
                 .setTimeZone(TimeZone.getTimeZone("GMT"))
+                .setFields(ERA, 5)
                 .setDate(SupplementalJapaneseEraTest.NEW_ERA_YEAR,
                     SupplementalJapaneseEraTest.NEW_ERA_MONTH,
                     SupplementalJapaneseEraTest.NEW_ERA_DAY)

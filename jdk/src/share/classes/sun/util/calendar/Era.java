@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2005, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@ import java.util.TimeZone;
  *                           Taisho           1912-07-30 midnight local time
  *                           Showa            1926-12-26 midnight local time
  *                           Heisei           1989-01-08 midnight local time
+ *                           NewEra           2019-05-01 midnight local time
  *   Julian calendar         BeforeCommonEra  -292275055-05-16T16:47:04.192Z
  *                           CommonEra        0000-12-30 midnight local time
  *   Taiwanese calendar      MinGuo           1911-01-01 midnight local time
