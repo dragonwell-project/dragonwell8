@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -259,7 +259,7 @@ class Metaspace : public CHeapObj<mtClass> {
   // Debugging support
   void verify();
 
-  static void print_compressed_class_space(outputStream* st, const char* requested_addr = 0);
+  static void print_compressed_class_space(outputStream* st, const char* requested_addr = 0) NOT_LP64({});
 
   class AllocRecordClosure :  public StackObj {
   public:
@@ -416,7 +416,8 @@ class MetaspaceGC : AllStatic {
   static size_t capacity_until_GC();
   static bool inc_capacity_until_GC(size_t v,
                                     size_t* new_cap_until_GC = NULL,
-                                    size_t* old_cap_until_GC = NULL);
+                                    size_t* old_cap_until_GC = NULL,
+                                    bool* can_retry = NULL);
   static size_t dec_capacity_until_GC(size_t v);
 
   static bool should_concurrent_collect() { return _should_concurrent_collect; }
