@@ -30,7 +30,7 @@ import static com.oracle.java.testlibrary.Asserts.*;
 
 /*
  * @test TestThrowInitializaitonException
- * @library /testlibrary
+ * @library /testlibrary /testlibrary/whitebox
  * @build TestThrowInitializaitonException
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm TestThrowInitializaitonException
