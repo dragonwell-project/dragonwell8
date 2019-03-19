@@ -488,7 +488,7 @@ $(eval $(call SetupNativeCompilation,BUILD_UNPACKEXE, \
     CFLAGS_solaris := -KPIC, \
     CFLAGS_macosx := -fPIC, \
     MAPFILE := $(UNPACK_MAPFILE),\
-    LDFLAGS := $(UNPACKEXE_ZIPOBJS), \
+    LDFLAGS := $(UNPACKEXE_ZIPOBJS) $(ORIGIN_ARG),\
     LDFLAGS_windows := $(CXXFLAGS_JDKEXE), \
     LDFLAGS_posix := $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_NAME,$(LIBRARY_PREFIX)unpack$(SHARED_LIBRARY_SUFFIX)) \
