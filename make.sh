@@ -47,7 +47,6 @@ else
   BUILD_INDEX=b$BUILD_NUMBER
 fi
 
-export LDFLAGS_JDK="-L/vmfarm/tools/jemalloc/lib -ljemalloc"
 bash ./configure --with-milestone=fcs \
                  --with-freetype=/vmfarm/tools/freetype/ \
                  --with-update-version=$JDK_UPDATE_VERSION \
@@ -61,16 +60,13 @@ bash ./configure --with-milestone=fcs \
                  --with-debug-level=$DEBUG_LEVEL \
                  --with-extra-cflags="-DVENDOR='\"Alibaba\"'                                         \
                                       -DVENDOR_URL='\"http://www.alibabagroup.com\"'                 \
-                                      -DVENDOR_URL_BUG='\"mailto:jvm@list.alibaba-inc.com\"'"        \
+                                      -DVENDOR_URL_BUG='\"mailto:dragonwell_use@googlegroups.com\"'"        \
                  --with-zlib=system \
                  --with-extra-ldflags="-Wl,--build-id=sha1"
 make clean
 make LOG=debug DISTRO_NAME=$DISTRO_NAME DISTRO_VERSION=$DISTRO_VERSION COMPANY_NAME=Alibaba images
 
 \cp -f /vmfarm/tools/hsdis/8/amd64/hsdis-amd64.so  $NEW_JAVA_HOME/jre/lib/amd64/
-\cp -f /vmfarm/tools/jemalloc/lib/libjemalloc.so.2 $NEW_JAVA_HOME/jre/lib/amd64/
-\cp -f /vmfarm/tools/jemalloc/lib/libjemalloc.so.2 $NEW_JAVA_HOME/lib/amd64/
-\cp -f /vmfarm/tools/jemalloc/lib/libjemalloc.so.2 $NEW_JRE_HOME/lib/amd64/
 
 # Sanity tests
 JAVA_EXES=("$NEW_JAVA_HOME/bin/java" "$NEW_JAVA_HOME/jre/bin/java" "$NEW_JRE_HOME/bin/java")
@@ -102,7 +98,7 @@ $NEW_JAVA_HOME/bin/java -cp /tmp/ systemProperty > /tmp/systemProperty.out
 EXPECTED_PATTERN=('^java\.vm\.vendor\=.*Alibaba.*$'
                 '^java\.vendor\.url\=http\:\/\/www\.alibabagroup\.com$'
                 '^java\.vendor\=Alibaba$'
-                '^java\.vendor\.url\.bug\=mailto\:jvm@list\.alibaba-inc\.com$')
+                '^java\.vendor\.url\.bug\=mailto\:dragonwell_use@googlegroups\.com$')
 RET=0
 for p in ${EXPECTED_PATTERN[*]}
 do
