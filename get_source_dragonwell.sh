@@ -46,6 +46,9 @@ usage() {
       exit 1
 }
 
+
+site="github"
+
 # parse options
 while [ $# -gt 0 ]
 do
@@ -61,17 +64,7 @@ do
 
     -s | --site )
       shift;
-      site=$1
-      if [[ $site == "github" ]]; then
-        GITURL="git@github.com:alibaba"
-        REPO_PREFIX="dragonwell8_"
-      elif [[ $site == "gitlab" ]]; then
-        # inside alibaba
-        GITURL="git@gitlab.alibaba-inc.com:dragonwell"
-        REPO_PREFIX="jdk8u_"
-      else
-        usage
-      fi
+      site=$1    
       ;;
 
     *)  # unknown option
@@ -80,6 +73,17 @@ do
   shift
 done
 
+if [ "$site" == "github" ]; then
+  GITURL="git@github.com:alibaba"
+  REPO_PREFIX="dragonwell8_"
+elif [ "$site" == "alibaba" ]; then
+  # inside alibaba
+  GITURL="git@gitlab.alibaba-inc.com:dragonwell"
+  REPO_PREFIX="jdk8u_"
+else
+  usage
+fi
+
 GIT=`command -v git`
 if [ "x$GIT" = "x" ]; then
   error "Could not locate git command"
@@ -87,7 +91,7 @@ fi
 
 echo "Check directories"
 for repo in ${subrepos}; do
-  if [[ -d ${repo} ]]; then
+  if [ -d ${repo} ]; then
     error "directory ${repo} already exist"
   fi
 done
