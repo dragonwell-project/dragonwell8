@@ -39,8 +39,8 @@ import sun.security.krb5.Config;
 /*
  * @test
  * @bug 8164656
- * @run main/othervm KdcPolicy udp
- * @run main/othervm KdcPolicy tcp
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KdcPolicy udp
+ * @run main/othervm -Dsun.net.spi.nameservice.provider.1=ns,mock KdcPolicy tcp
  * @summary krb5.kdc.bad.policy test
  */
 public class KdcPolicy {
