@@ -825,9 +825,9 @@ COOKED_BUILD_NUMBER
 COOKED_JDK_UPDATE_VERSION
 JDK_VERSION
 COPYRIGHT_YEAR
+COMPANY_NAME
 MACOSX_BUNDLE_ID_BASE
 MACOSX_BUNDLE_NAME_BASE
-COMPANY_NAME
 JDK_RC_PLATFORM_NAME
 PRODUCT_SUFFIX
 PRODUCT_NAME
@@ -1057,6 +1057,7 @@ with_milestone
 with_update_version
 with_user_release_suffix
 with_build_number
+with_vendor_name
 with_copyright_year
 with_boot_jdk
 with_boot_jdk_jvmargs
@@ -1890,6 +1891,7 @@ Optional Packages:
                           Add a custom string to the version string if build
                           number isn't set.[username_builddateb00]
   --with-build-number     Set build number value for build [b00]
+  --with-vendor-name      Set vendor name [not specified]
   --with-copyright-year   Set copyright year value for build [current year]
   --with-boot-jdk         path to Boot JDK (used to bootstrap build) [probed]
   --with-boot-jdk-jvmargs specify JVM arguments to be passed to all
@@ -4358,7 +4360,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1552344461
+DATE_WHEN_GENERATED=1552671404
 
 ###############################################################################
 #
@@ -19870,6 +19872,21 @@ fi
 
 
 
+
+  # The vendor name, if any
+
+# Check whether --with-vendor-name was given.
+if test "${with_vendor_name+set}" = set; then :
+  withval=$with_vendor_name;
+fi
+
+  if test "x$with_vendor_name" = xyes; then
+    as_fn_error $? "--with-vendor-name must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_name =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with--vendor-name contains non-printing characters: $with_vendor_name" "$LINENO" 5
+  else
+    COMPANY_NAME="$with_vendor_name"
+  fi
 
 
 
