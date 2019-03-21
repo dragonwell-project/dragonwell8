@@ -89,15 +89,11 @@ if [ "x$GIT" = "x" ]; then
   error "Could not locate git command"
 fi
 
-echo "Check directories"
+echo "Check directories, then clone"
 for repo in ${subrepos}; do
-  if [ -d ${repo} ]; then
-    error "directory ${repo} already exist"
-  fi
-done
-
-echo "Start clone..."
-for repo in ${subrepos}; do
+  if [[ -d ${repo} ]]; then                                                                                                       
+    echo "directory ${repo} already exist"                                                                                        
+  else
   REPOURL=${GITURL}/${REPO_PREFIX}${repo}.git
   #CLONEOPTS="--depth ${DEPTH}"
   echo ${GIT} clone ${CLONEOPTS} ${REPOURL} ${repo}
@@ -116,4 +112,6 @@ for repo in ${subrepos}; do
     fi
     cd ..
   fi
+
+  fi     
 done
