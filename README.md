@@ -4,6 +4,11 @@
 
 [Alibaba Dragonwell8 Release Notes](https://github.com/alibaba/dragonwell8/wiki/Alibaba-Dragonwell8-Release-Notes)
 
+
+[Alibaba Dragonwell8 User Guide (Chinese) 用户指南](https://github.com/alibaba/dragonwell8/wiki/%E9%98%BF%E9%87%8C%E5%B7%B4%E5%B7%B4Dragonwell8%E7%94%A8%E6%88%B7%E6%8C%87%E5%8D%97)
+
+[Alibaba Dragonwell8 Release Notes (Chinese) 发布说明](https://github.com/alibaba/dragonwell8/wiki/%E9%98%BF%E9%87%8C%E5%B7%B4%E5%B7%B4Dragonwell8%E5%8F%91%E5%B8%83%E8%AF%B4%E6%98%8E)
+
 # Introduction
 
 Over the years, Java has proliferated in Alibaba. Many applications are written in Java and many our Java developers have written more than one billion lines of Java code.
