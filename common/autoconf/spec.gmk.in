@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -277,6 +277,7 @@ JOBS?=@JOBS@
 FREETYPE_LIBS:=@FREETYPE_LIBS@
 FREETYPE_CFLAGS:=@FREETYPE_CFLAGS@
 FREETYPE_BUNDLE_LIB_PATH=@FREETYPE_BUNDLE_LIB_PATH@
+FONTCONFIG_CFLAGS:=@FONTCONFIG_CFLAGS@
 CUPS_CFLAGS:=@CUPS_CFLAGS@
 ALSA_LIBS:=@ALSA_LIBS@
 ALSA_CFLAGS:=@ALSA_CFLAGS@
