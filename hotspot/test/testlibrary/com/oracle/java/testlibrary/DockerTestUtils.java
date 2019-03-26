@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ package com.oracle.java.testlibrary;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
@@ -125,11 +126,6 @@ public class DockerTestUtils {
         if (Files.exists(buildDir)) {
             throw new RuntimeException("The docker build directory already exists: " + buildDir);
         }
-        // check for the existance of a platform specific docker file as well
-        String platformSpecificDockerfile = dockerfile + "-" + Platform.getOsArch();
-        if (Files.exists(Paths.get(Utils.TEST_SRC, platformSpecificDockerfile))) {
-          dockerfile = platformSpecificDockerfile;
-        }
 
         Path jdkSrcDir = Paths.get(Utils.TEST_JDK);
         Path jdkDstDir = buildDir.resolve("jdk");
@@ -156,8 +152,9 @@ public class DockerTestUtils {
      */
     public static void
         buildDockerImage(String imageName, Path dockerfile, Path buildDir) throws Exception {
-        // Copy docker file to the build dir
-        Files.copy(dockerfile, buildDir.resolve("Dockerfile"));
+        generateDockerFile(buildDir.resolve("Dockerfile"),
+                           DockerfileConfig.getBaseImageName(),
+                           DockerfileConfig.getBaseImageVersion());
 
         // Build the docker
         execute("docker", "build", "--no-cache", "--tag", imageName, buildDir.toString())
@@ -244,6 +241,18 @@ public class DockerTestUtils {
         System.out.println("[STDOUT]\n" + output.getStdout());
 
         return output;
+    }
+
+
+    private static void generateDockerFile(Path dockerfile, String baseImage,
+                                           String baseImageVersion) throws Exception {
+        String template =
+            "FROM %s:%s\n" +
+            "COPY /jdk /jdk\n" +
+            "ENV JAVA_HOME=/jdk\n" +
+            "CMD [\"/bin/bash\"]\n";
+        String dockerFileStr = String.format(template, baseImage, baseImageVersion);
+        Files.write(dockerfile, dockerFileStr.getBytes(StandardCharsets.UTF_8));
     }
 
 
