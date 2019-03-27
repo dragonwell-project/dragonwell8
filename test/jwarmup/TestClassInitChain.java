@@ -171,7 +171,7 @@ public class TestClassInitChain {
                     }
                     if (classList[i].equals(classAName)) {
                         orderA = i;
-                        stateA = stateList[1];
+                        stateA = stateList[i];
                     }
                     if (classList[i].equals(classBName)) {
                         orderB = i;
