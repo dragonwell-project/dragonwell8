@@ -825,6 +825,9 @@ COOKED_BUILD_NUMBER
 COOKED_JDK_UPDATE_VERSION
 JDK_VERSION
 COPYRIGHT_YEAR
+VENDOR_URL_VM_BUG
+VENDOR_URL_BUG
+VENDOR_URL
 COMPANY_NAME
 MACOSX_BUNDLE_ID_BASE
 MACOSX_BUNDLE_NAME_BASE
@@ -1058,6 +1061,9 @@ with_update_version
 with_user_release_suffix
 with_build_number
 with_vendor_name
+with_vendor_url
+with_vendor_bug_url
+with_vendor_vm_bug_url
 with_copyright_year
 with_boot_jdk
 with_boot_jdk_jvmargs
@@ -1891,7 +1897,16 @@ Optional Packages:
                           Add a custom string to the version string if build
                           number isn't set.[username_builddateb00]
   --with-build-number     Set build number value for build [b00]
-  --with-vendor-name      Set vendor name [not specified]
+  --with-vendor-name      Set vendor name. Among others, used to set the
+                          'java.vendor' and 'java.vm.vendor' system
+                          properties. [not specified]
+  --with-vendor-url       Set the 'java.vendor.url' system property [not
+                          specified]
+  --with-vendor-bug-url   Set the 'java.vendor.url.bug' system property [not
+                          specified]
+  --with-vendor-vm-bug-url
+                          Sets the bug URL which will be displayed when the VM
+                          crashes [not specified]
   --with-copyright-year   Set copyright year value for build [current year]
   --with-boot-jdk         path to Boot JDK (used to bootstrap build) [probed]
   --with-boot-jdk-jvmargs specify JVM arguments to be passed to all
@@ -4360,7 +4375,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1552671404
+DATE_WHEN_GENERATED=1553405262
 
 ###############################################################################
 #
@@ -19883,9 +19898,59 @@ fi
   if test "x$with_vendor_name" = xyes; then
     as_fn_error $? "--with-vendor-name must have a value" "$LINENO" 5
   elif  ! [[ $with_vendor_name =~ ^[[:print:]]*$ ]] ; then
-    as_fn_error $? "--with--vendor-name contains non-printing characters: $with_vendor_name" "$LINENO" 5
-  else
+    as_fn_error $? "--with-vendor-name contains non-printing characters: $with_vendor_name" "$LINENO" 5
+  elif test "x$with_vendor_name" != x; then
+    # Only set COMPANY_NAME if '--with-vendor-name' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
     COMPANY_NAME="$with_vendor_name"
+  fi
+
+
+  # The vendor URL, if any
+
+# Check whether --with-vendor-url was given.
+if test "${with_vendor_url+set}" = set; then :
+  withval=$with_vendor_url;
+fi
+
+  if test "x$with_vendor_url" = xyes; then
+    as_fn_error $? "--with-vendor-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-url contains non-printing characters: $with_vendor_url" "$LINENO" 5
+  else
+    VENDOR_URL="$with_vendor_url"
+  fi
+
+
+  # The vendor bug URL, if any
+
+# Check whether --with-vendor-bug-url was given.
+if test "${with_vendor_bug_url+set}" = set; then :
+  withval=$with_vendor_bug_url;
+fi
+
+  if test "x$with_vendor_bug_url" = xyes; then
+    as_fn_error $? "--with-vendor-bug-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_bug_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-bug-url contains non-printing characters: $with_vendor_bug_url" "$LINENO" 5
+  else
+    VENDOR_URL_BUG="$with_vendor_bug_url"
+  fi
+
+
+  # The vendor VM bug URL, if any
+
+# Check whether --with-vendor-vm-bug-url was given.
+if test "${with_vendor_vm_bug_url+set}" = set; then :
+  withval=$with_vendor_vm_bug_url;
+fi
+
+  if test "x$with_vendor_vm_bug_url" = xyes; then
+    as_fn_error $? "--with-vendor-vm-bug-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_vm_bug_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-vm-bug-url contains non-printing characters: $with_vendor_vm_bug_url" "$LINENO" 5
+  else
+    VENDOR_URL_VM_BUG="$with_vendor_vm_bug_url"
   fi
 
 
