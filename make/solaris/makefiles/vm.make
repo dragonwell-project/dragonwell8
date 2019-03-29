@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,8 @@ CXXFLAGS =           \
 # This is VERY important! The version define must only be supplied to vm_version.o
 # If not, ccache will not re-use the cache at all, since the version string might contain
 # a time and date.
-CXXFLAGS/vm_version.o += ${JRE_VERSION}
+CXXFLAGS/vm_version.o += ${JRE_VERSION} ${VERSION_CFLAGS}
+CXXFLAGS/arguments.o += ${VERSION_CFLAGS}
 
 CXXFLAGS/BYFILE = $(CXXFLAGS/$@)
 
