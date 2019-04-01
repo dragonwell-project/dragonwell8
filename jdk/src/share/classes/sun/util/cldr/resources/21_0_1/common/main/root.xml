@@ -1657,12 +1657,14 @@
 						<era type="233">Taishō</era>
 						<era type="234">Shōwa</era>
 						<era type="235">Heisei</era>
+						<era type="236">Reiwa</era>
 					</eraAbbr>
 					<eraNarrow>
 						<era type="232">M</era>
 						<era type="233">T</era>
 						<era type="234">S</era>
 						<era type="235">H</era>
+						<era type="236">R</era>
 					</eraNarrow>
 				</eras>
 				<dateFormats>

@@ -154,6 +154,10 @@ JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved)
 {
     jvm = vm;
+
+    //Set the gtk backend to x11 on all the systems
+    putenv("GDK_BACKEND=x11");
+
     return JNI_VERSION_1_2;
 }
 

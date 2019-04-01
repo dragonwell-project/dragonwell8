@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,10 @@
  * questions.
  *
  * @test
- * @bug 8075942
+ * @bug 8075942 8080932
  * @summary test there is no exception rendering a dashed stroke
- * @run DashStrokeTest
- * @run -Dsun.java2d.renderer=sun.java2d.pisces.PiscesRenderingEngine
+ * @run main DashStrokeTest
+ * @run main/othervm -Dsun.java2d.renderer=sun.java2d.pisces.PiscesRenderingEngine DashStrokeTest
  */
 
 import java.awt.BasicStroke;
