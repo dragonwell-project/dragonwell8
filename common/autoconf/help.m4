@@ -105,6 +105,8 @@ apt_help() {
       PKGHANDLER_COMMAND="sudo apt-get install libasound2-dev" ;;
     cups)
       PKGHANDLER_COMMAND="sudo apt-get install libcups2-dev" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo apt-get install libfontconfig1-dev" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo apt-get install libfreetype6-dev" ;;
     pulse)
@@ -126,6 +128,8 @@ yum_help() {
       PKGHANDLER_COMMAND="sudo yum install alsa-lib-devel" ;;
     cups)
       PKGHANDLER_COMMAND="sudo yum install cups-devel" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo yum install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo yum install freetype-devel" ;;
     pulse)

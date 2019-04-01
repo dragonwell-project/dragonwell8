@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,10 +88,33 @@ import sun.util.calendar.CalendarDate;
 /**
  * An era in the Japanese Imperial calendar system.
  * <p>
- * This class defines the valid eras for the Japanese chronology.
- * Japan introduced the Gregorian calendar starting with Meiji 6.
- * Only Meiji and later eras are supported;
- * dates before Meiji 6, January 1 are not supported.
+ * The Japanese government defines the official name and start date of
+ * each era. Eras are consecutive and their date ranges do not overlap,
+ * so the end date of one era is always the day before the start date
+ * of the next era.
+ * <p>
+ * The Java SE Platform supports all eras defined by the Japanese government,
+ * beginning with the Meiji era. Each era is identified in the Platform by an
+ * integer value and a name. The {@link #of(int)} and {@link #valueOf(String)}
+ * methods may be used to obtain a singleton instance of JapaneseEra for each
+ * era. The {@link #values()} method returns the singleton instances of all
+ * supported eras.
+ * <p>
+ * For convenience, this class declares a number of public static final fields
+ * that refer to singleton instances returned by the values() method.
+ *
+ * @apiNote
+ * The fields declared in this class may evolve over time, in line with the
+ * results of the {@link #values()} method. However, there is not necessarily
+ * a 1:1 correspondence between the fields and the singleton instances.
+ *
+ * @apiNote
+ * The Japanese government may announce a new era and define its start
+ * date but not its official name. In this scenario, the singleton instance
+ * that represents the new era may return a name that is not stable until
+ * the official name is defined. Developers should exercise caution when
+ * relying on the name returned by any singleton instance that does not
+ * correspond to a public static final field.
  *
  * @implSpec
  * This class is immutable and thread-safe.
@@ -123,14 +146,19 @@ public final class JapaneseEra
      */
     public static final JapaneseEra SHOWA = new JapaneseEra(1, LocalDate.of(1926, 12, 25));
     /**
-     * The singleton instance for the 'Heisei' era (1989-01-08 - current)
+     * The singleton instance for the 'Heisei' era (1989-01-08 - 2019-04-30)
      * which has the value 2.
      */
     public static final JapaneseEra HEISEI = new JapaneseEra(2, LocalDate.of(1989, 1, 8));
+    /**
+     * The singleton instance for the 'Reiwa' era (2019-05-01 - )
+     * which has the value 3.
+     */
+    private static final JapaneseEra REIWA = new JapaneseEra(3, LocalDate.of(2019, 5, 1));
 
     // The number of predefined JapaneseEra constants.
     // There may be a supplemental era defined by the property.
-    private static final int N_ERA_CONSTANTS = HEISEI.getValue() + ERA_OFFSET;
+    private static final int N_ERA_CONSTANTS = REIWA.getValue() + ERA_OFFSET;
 
     /**
      * Serialization version.
@@ -148,6 +176,7 @@ public final class JapaneseEra
         KNOWN_ERAS[1] = TAISHO;
         KNOWN_ERAS[2] = SHOWA;
         KNOWN_ERAS[3] = HEISEI;
+        KNOWN_ERAS[4] = REIWA;
         for (int i = N_ERA_CONSTANTS; i < ERA_CONFIG.length; i++) {
             CalendarDate date = ERA_CONFIG[i].getSinceDate();
             LocalDate isoDate = LocalDate.of(date.getYear(), date.getMonth(), date.getDayOfMonth());
@@ -188,10 +217,18 @@ public final class JapaneseEra
     //-----------------------------------------------------------------------
     /**
      * Obtains an instance of {@code JapaneseEra} from an {@code int} value.
+      * <ul>
+      * <li>The value {@code 1} is associated with the 'Showa' era, because
+      * it contains 1970-01-01 (ISO calendar system).</li>
+      * <li>The values {@code -1} and {@code 0} are associated with two earlier
+      * eras, Meiji and Taisho, respectively.</li>
+      * <li>A value greater than {@code 1} is associated with a later era,
+      * beginning with Heisei ({@code 2}).</li>
+      * </ul>
      * <p>
-     * The {@link #SHOWA} era that contains 1970-01-01 (ISO calendar system) has the value 1
-     * Later era is numbered 2 ({@link #HEISEI}). Earlier eras are numbered 0 ({@link #TAISHO}),
-     * -1 ({@link #MEIJI}), only Meiji and later eras are supported.
+      * Every instance of {@code JapaneseEra} that is returned from the {@link values()}
+      * method has an int value (available via {@link Era#getValue()} which is
+      * accepted by this method.
      *
      * @param japaneseEra  the era to represent
      * @return the {@code JapaneseEra} singleton, not null

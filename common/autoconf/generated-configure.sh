@@ -657,6 +657,7 @@ LIBZIP_CAN_USE_MMAP
 USE_EXTERNAL_LIBZ
 USE_EXTERNAL_LIBGIF
 USE_EXTERNAL_LIBJPEG
+FONTCONFIG_CFLAGS
 ALSA_LIBS
 ALSA_CFLAGS
 FREETYPE_BUNDLE_LIB_PATH
@@ -824,9 +825,12 @@ COOKED_BUILD_NUMBER
 COOKED_JDK_UPDATE_VERSION
 JDK_VERSION
 COPYRIGHT_YEAR
+VENDOR_URL_VM_BUG
+VENDOR_URL_BUG
+VENDOR_URL
+COMPANY_NAME
 MACOSX_BUNDLE_ID_BASE
 MACOSX_BUNDLE_NAME_BASE
-COMPANY_NAME
 JDK_RC_PLATFORM_NAME
 PRODUCT_SUFFIX
 PRODUCT_NAME
@@ -1056,6 +1060,10 @@ with_milestone
 with_update_version
 with_user_release_suffix
 with_build_number
+with_vendor_name
+with_vendor_url
+with_vendor_bug_url
+with_vendor_vm_bug_url
 with_copyright_year
 with_boot_jdk
 with_boot_jdk_jvmargs
@@ -1091,6 +1099,8 @@ enable_freetype_bundling
 with_alsa
 with_alsa_include
 with_alsa_lib
+with_fontconfig
+with_fontconfig_include
 with_giflib
 with_zlib
 with_stdc__lib
@@ -1887,6 +1897,16 @@ Optional Packages:
                           Add a custom string to the version string if build
                           number isn't set.[username_builddateb00]
   --with-build-number     Set build number value for build [b00]
+  --with-vendor-name      Set vendor name. Among others, used to set the
+                          'java.vendor' and 'java.vm.vendor' system
+                          properties. [not specified]
+  --with-vendor-url       Set the 'java.vendor.url' system property [not
+                          specified]
+  --with-vendor-bug-url   Set the 'java.vendor.url.bug' system property [not
+                          specified]
+  --with-vendor-vm-bug-url
+                          Sets the bug URL which will be displayed when the VM
+                          crashes [not specified]
   --with-copyright-year   Set copyright year value for build [current year]
   --with-boot-jdk         path to Boot JDK (used to bootstrap build) [probed]
   --with-boot-jdk-jvmargs specify JVM arguments to be passed to all
@@ -1946,6 +1966,10 @@ Optional Packages:
                           headers under PATH/include)
   --with-alsa-include     specify directory for the alsa include files
   --with-alsa-lib         specify directory for the alsa library
+  --with-fontconfig       specify prefix directory for the fontconfig package
+                          (expecting the headers under PATH/include)
+  --with-fontconfig-include
+                          specify directory for the fontconfig include files
   --with-giflib           use giflib from build system or OpenJDK source
                           (system, bundled) [bundled]
   --with-zlib             use zlib from build system or OpenJDK source
@@ -3827,6 +3851,8 @@ apt_help() {
       PKGHANDLER_COMMAND="sudo apt-get install libasound2-dev" ;;
     cups)
       PKGHANDLER_COMMAND="sudo apt-get install libcups2-dev" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo apt-get install libfontconfig1-dev" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo apt-get install libfreetype6-dev" ;;
     pulse)
@@ -3848,6 +3874,8 @@ yum_help() {
       PKGHANDLER_COMMAND="sudo yum install alsa-lib-devel" ;;
     cups)
       PKGHANDLER_COMMAND="sudo yum install cups-devel" ;;
+    fontconfig)
+      PKGHANDLER_COMMAND="sudo yum install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo yum install freetype-devel" ;;
     pulse)
@@ -3980,6 +4008,11 @@ fi
 
 
 
+
+
+################################################################################
+# Setup fontconfig
+################################################################################
 
 
 
@@ -4342,7 +4375,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1544009140
+DATE_WHEN_GENERATED=1553405262
 
 ###############################################################################
 #
@@ -19854,6 +19887,71 @@ fi
 
 
 
+
+  # The vendor name, if any
+
+# Check whether --with-vendor-name was given.
+if test "${with_vendor_name+set}" = set; then :
+  withval=$with_vendor_name;
+fi
+
+  if test "x$with_vendor_name" = xyes; then
+    as_fn_error $? "--with-vendor-name must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_name =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-name contains non-printing characters: $with_vendor_name" "$LINENO" 5
+  elif test "x$with_vendor_name" != x; then
+    # Only set COMPANY_NAME if '--with-vendor-name' was used and is not empty.
+    # Otherwise we will use the value from "version-numbers" included above.
+    COMPANY_NAME="$with_vendor_name"
+  fi
+
+
+  # The vendor URL, if any
+
+# Check whether --with-vendor-url was given.
+if test "${with_vendor_url+set}" = set; then :
+  withval=$with_vendor_url;
+fi
+
+  if test "x$with_vendor_url" = xyes; then
+    as_fn_error $? "--with-vendor-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-url contains non-printing characters: $with_vendor_url" "$LINENO" 5
+  else
+    VENDOR_URL="$with_vendor_url"
+  fi
+
+
+  # The vendor bug URL, if any
+
+# Check whether --with-vendor-bug-url was given.
+if test "${with_vendor_bug_url+set}" = set; then :
+  withval=$with_vendor_bug_url;
+fi
+
+  if test "x$with_vendor_bug_url" = xyes; then
+    as_fn_error $? "--with-vendor-bug-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_bug_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-bug-url contains non-printing characters: $with_vendor_bug_url" "$LINENO" 5
+  else
+    VENDOR_URL_BUG="$with_vendor_bug_url"
+  fi
+
+
+  # The vendor VM bug URL, if any
+
+# Check whether --with-vendor-vm-bug-url was given.
+if test "${with_vendor_vm_bug_url+set}" = set; then :
+  withval=$with_vendor_vm_bug_url;
+fi
+
+  if test "x$with_vendor_vm_bug_url" = xyes; then
+    as_fn_error $? "--with-vendor-vm-bug-url must have a value" "$LINENO" 5
+  elif  ! [[ $with_vendor_vm_bug_url =~ ^[[:print:]]*$ ]] ; then
+    as_fn_error $? "--with-vendor-vm-bug-url contains non-printing characters: $with_vendor_vm_bug_url" "$LINENO" 5
+  else
+    VENDOR_URL_VM_BUG="$with_vendor_vm_bug_url"
+  fi
 
 
 
@@ -40524,7 +40622,7 @@ $as_echo "$tool_specified" >&6; }
         -d \"JDK_VER=\$(JDK_MINOR_VERSION).\$(JDK_MICRO_VERSION).\$(COOKED_JDK_UPDATE_VERSION).\$(COOKED_BUILD_NUMBER)\" \
         -d \"JDK_COPYRIGHT=Copyright \xA9 $COPYRIGHT_YEAR\" \
         -d \"JDK_NAME=\$(PRODUCT_NAME) \$(JDK_RC_PLATFORM_NAME) \$(JDK_MINOR_VERSION) \$(JDK_UPDATE_META_TAG)\" \
-        -d \"JDK_FVER=\$(JDK_MINOR_VERSION),\$(JDK_MICRO_VERSION),\$(if \$(JDK_UPDATE_VERSION),\$(JDK_UPDATE_VERSION),0),\$(COOKED_BUILD_NUMBER)\""
+        -d \"JDK_FVER=\$(JDK_MINOR_VERSION),\$(JDK_MICRO_VERSION),\$(if \$(COOKED_JDK_UPDATE_VERSION),\$(COOKED_JDK_UPDATE_VERSION),0),\$(COOKED_BUILD_NUMBER)\""
   fi
 
 
@@ -42396,6 +42494,7 @@ $as_echo_n "checking what is not needed on Windows?... " >&6; }
     ALSA_NOT_NEEDED=yes
     PULSE_NOT_NEEDED=yes
     X11_NOT_NEEDED=yes
+    FONTCONFIG_NOT_NEEDED=yes
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: alsa cups pulse x11" >&5
 $as_echo "alsa cups pulse x11" >&6; }
   fi
@@ -42406,6 +42505,7 @@ $as_echo_n "checking what is not needed on MacOSX?... " >&6; }
     ALSA_NOT_NEEDED=yes
     PULSE_NOT_NEEDED=yes
     X11_NOT_NEEDED=yes
+    FONTCONFIG_NOT_NEEDED=yes
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: alsa pulse x11" >&5
 $as_echo "alsa pulse x11" >&6; }
   fi
@@ -47719,6 +47819,114 @@ done
     fi
   fi
 
+
+
+
+
+
+# Check whether --with-fontconfig was given.
+if test "${with_fontconfig+set}" = set; then :
+  withval=$with_fontconfig;
+fi
+
+
+# Check whether --with-fontconfig-include was given.
+if test "${with_fontconfig_include+set}" = set; then :
+  withval=$with_fontconfig_include;
+fi
+
+
+  if test "x$FONTCONFIG_NOT_NEEDED" = xyes; then
+    if (test "x${with_fontconfig}" != x && test "x${with_fontconfig}" != xno) || \
+        (test "x${with_fontconfig_include}" != x && test "x${with_fontconfig_include}" != xno); then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: fontconfig not used, so --with-fontconfig[-*] is ignored" >&5
+$as_echo "$as_me: WARNING: fontconfig not used, so --with-fontconfig[-*] is ignored" >&2;}
+    fi
+    FONTCONFIG_CFLAGS=
+  else
+    FONTCONFIG_FOUND=no
+
+    if test "x${with_fontconfig}" = xno || test "x${with_fontconfig_include}" = xno; then
+      as_fn_error $? "It is not possible to disable the use of fontconfig. Remove the --without-fontconfig option." "$LINENO" 5
+    fi
+
+    if test "x${with_fontconfig}" != x; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fontconfig headers" >&5
+$as_echo_n "checking for fontconfig headers... " >&6; }
+      if test -s "${with_fontconfig}/include/fontconfig/fontconfig.h"; then
+        FONTCONFIG_CFLAGS="-I${with_fontconfig}/include"
+        FONTCONFIG_FOUND=yes
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FONTCONFIG_FOUND" >&5
+$as_echo "$FONTCONFIG_FOUND" >&6; }
+      else
+        as_fn_error $? "Can't find 'include/fontconfig/fontconfig.h' under ${with_fontconfig} given with the --with-fontconfig option." "$LINENO" 5
+      fi
+    fi
+    if test "x${with_fontconfig_include}" != x; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fontconfig headers" >&5
+$as_echo_n "checking for fontconfig headers... " >&6; }
+      if test -s "${with_fontconfig_include}/fontconfig/fontconfig.h"; then
+        FONTCONFIG_CFLAGS="-I${with_fontconfig_include}"
+        FONTCONFIG_FOUND=yes
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $FONTCONFIG_FOUND" >&5
+$as_echo "$FONTCONFIG_FOUND" >&6; }
+      else
+        as_fn_error $? "Can't find 'fontconfig/fontconfig.h' under ${with_fontconfig_include} given with the --with-fontconfig-include option." "$LINENO" 5
+      fi
+    fi
+    if test "x$FONTCONFIG_FOUND" = xno; then
+      # Are the fontconfig headers installed in the default /usr/include location?
+      for ac_header in fontconfig/fontconfig.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "fontconfig/fontconfig.h" "ac_cv_header_fontconfig_fontconfig_h" "$ac_includes_default"
+if test "x$ac_cv_header_fontconfig_fontconfig_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FONTCONFIG_FONTCONFIG_H 1
+_ACEOF
+
+          FONTCONFIG_FOUND=yes
+          FONTCONFIG_CFLAGS=
+          DEFAULT_FONTCONFIG=yes
+
+fi
+
+done
+
+    fi
+    if test "x$FONTCONFIG_FOUND" = xno; then
+
+  # Print a helpful message on how to acquire the necessary build dependency.
+  # fontconfig is the help tag: freetype, cups, pulse, alsa etc
+  MISSING_DEPENDENCY=fontconfig
+
+  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
+    cygwin_help $MISSING_DEPENDENCY
+  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
+    msys_help $MISSING_DEPENDENCY
+  else
+    PKGHANDLER_COMMAND=
+
+    case $PKGHANDLER in
+      apt-get)
+        apt_help     $MISSING_DEPENDENCY ;;
+      yum)
+        yum_help     $MISSING_DEPENDENCY ;;
+      port)
+        port_help    $MISSING_DEPENDENCY ;;
+      pkgutil)
+        pkgutil_help $MISSING_DEPENDENCY ;;
+      pkgadd)
+        pkgadd_help  $MISSING_DEPENDENCY ;;
+    esac
+
+    if test "x$PKGHANDLER_COMMAND" != x; then
+      HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
+    fi
+  fi
+
+      as_fn_error $? "Could not find fontconfig! $HELP_MSG " "$LINENO" 5
+    fi
+  fi
 
 
 

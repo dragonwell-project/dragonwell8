@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,26 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 6843127
- * @run main/othervm/timeout=300 -Dsun.net.spi.nameservice.provider.1=ns,mock BadKdc4
- * @summary krb5 should not try to access unavailable kdc too often
- */
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
-import java.io.*;
-import java.security.Security;
+public class Exceptions {
+    private static Map<String, Class> exceptions = new HashMap<String, Class>();
 
-public class BadKdc4 {
+    static {
+        put("nullpointerexception", NullPointerException.class);
+        put("illegalargumentexception", IllegalArgumentException.class);
+    }
 
-    public static void main(String[] args)
-            throws Exception {
-        Security.setProperty("krb5.kdc.bad.policy", "");
-        BadKdc.go(
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            // refresh
-            "121212222222(32){1,2}121212222222(32){1,2}",
-            // k3 off k2 on
-            "121212(22){1,2}121212(22){1,2}",
-            // k1 on
-            "(12){2,4}"
-        );
+    private static void put(String key, Class clazz) {
+        Class c = exceptions.put(key, clazz);
+        if (c != null) {
+            throw new RuntimeException(key + " already exisits");
+        }
+    }
+
+    public static Class get(String key) {
+        return exceptions.get(key.toLowerCase(Locale.ROOT));
     }
 }
