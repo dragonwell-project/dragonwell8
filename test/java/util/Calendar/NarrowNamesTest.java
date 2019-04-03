@@ -48,7 +48,7 @@ public class NarrowNamesTest {
              HOUR_OF_DAY, 23);
         test(JAJPJP, DAY_OF_WEEK,
              LocalDateTime.now().isBefore(LocalDateTime.of(2019, 5, 1, 0, 0)) ?
-                "\u65e5" : "\u706b", // "Sun" for HEISEI, "Tue" for NEWERA
+                "\u65e5" : "\u706b", // "Sun" for HEISEI, "Tue" for REIWA
              YEAR, 24, MONTH, DECEMBER, DAY_OF_MONTH, 23);
         test(THTH, MONTH, NARROW_STANDALONE, "\u0e18.\u0e04.",
              YEAR, 2555, MONTH, DECEMBER, DAY_OF_MONTH, 5);
