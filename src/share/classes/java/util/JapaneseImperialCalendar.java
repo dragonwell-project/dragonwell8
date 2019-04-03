@@ -992,9 +992,11 @@ class JapaneseImperialCalendar extends Calendar {
 
         String name = CalendarDataUtility.retrieveFieldValueName(getCalendarType(), field,
                                                                  fieldValue, style, locale);
-        // If the ERA value is null, then
+        // If the ERA value is null or empty, then
         // try to get its name or abbreviation from the Era instance.
-        if (name == null && field == ERA && fieldValue < eras.length) {
+        if ((name == null || name.isEmpty()) &&
+                field == ERA &&
+                fieldValue < eras.length) {
             Era era = eras[fieldValue];
             name = (style == SHORT) ? era.getAbbreviation() : era.getName();
         }
