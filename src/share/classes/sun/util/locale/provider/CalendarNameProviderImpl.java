@@ -76,10 +76,10 @@ public class CalendarNameProviderImpl extends CalendarNameProvider implements Av
                         Era[] jeras = CalendarSystem.forName("japanese").getEras();
                         if (value <= jeras.length) {
                             // Localized era name could not be retrieved from this provider.
-                            // This can occur either for NewEra or SupEra.
+                            // This can occur either for Reiwa or SupEra.
                             //
                             // If it's CLDR provider, try COMPAT first, which is guaranteed to have
-                            // the name for NewEra.
+                            // the name for Reiwa.
                             if (type == LocaleProviderAdapter.Type.CLDR) {
                                 lr = LocaleProviderAdapter.forJRE().getLocaleResources(locale);
                                 key = getResourceKeyFor(LocaleProviderAdapter.Type.JRE,
