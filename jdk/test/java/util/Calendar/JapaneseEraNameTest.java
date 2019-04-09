@@ -47,12 +47,12 @@ public class JapaneseEraNameTest {
             // Since the test fails for below particular data
             // on prior 8u versions for all eras, commenting it
             // temporarily. Will be fixed as part of JDK-8220020.
-            // { LONG, JAPAN, "\u5143\u53f7" },
-            { LONG, US,    "NewEra" },
-            { LONG, CHINA, "NewEra" },
-            { SHORT,JAPAN, "\u5143\u53f7" },// NewEra
-            { SHORT,US,    "NewEra" },
-            { SHORT,CHINA, "N" },
+            // { LONG,     JAPAN,   "\u4ee4\u548c" },
+            { LONG,     US,      "Reiwa" },
+            { LONG,     CHINA,   "Reiwa" },
+            { SHORT,    JAPAN,   "\u4ee4\u548c" },
+            { SHORT,    US,      "Reiwa" },
+            { SHORT,    CHINA,   "R" },
         };
 
     public static void main(String[] args) {

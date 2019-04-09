@@ -142,7 +142,7 @@ public class TestNonIsoFormatter {
             // Chronology, lenient era/year, strict era/year
             { JAPANESE, "Meiji 123", "Heisei 2" },
             { JAPANESE, "Showa 65", "Heisei 2" },
-            { JAPANESE, "Heisei 32", "NewEra 2" }, // NewEra
+            { JAPANESE, "Heisei 32", "Reiwa 2" },
         };
     }
 
