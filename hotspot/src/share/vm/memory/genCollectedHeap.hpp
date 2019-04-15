@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -416,7 +416,7 @@ public:
                      OopClosure* weak_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,
-                     CodeBlobClosure* code_roots);
+                     CodeBlobToOopClosure* code_roots);
 
   void gen_process_roots(int level,
                          bool younger_gens_as_roots,

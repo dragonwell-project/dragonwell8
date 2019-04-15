@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -635,12 +635,6 @@ bool PSScavenge::invoke_no_policy() {
     COMPILER2_PRESENT(DerivedPointerTable::update_pointers());
 
     NOT_PRODUCT(reference_processor()->verify_no_references_recorded());
-
-    {
-      GCTraceTime tm("Prune Scavenge Root Methods", false, false, &_gc_timer, _gc_tracer.gc_id());
-
-      CodeCache::prune_scavenge_root_nmethods();
-    }
 
     // Re-verify object start arrays
     if (VerifyObjectStartArray &&

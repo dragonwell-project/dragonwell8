@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -291,9 +291,12 @@ class CodeBlobToOopClosure : public CodeBlobClosure {
  protected:
   void do_nmethod(nmethod* nm);
  public:
+  // If fix_relocations(), then cl must copy objects to their new location immediately to avoid
+  // patching nmethods with the old locations.
   CodeBlobToOopClosure(OopClosure* cl, bool fix_relocations) : _cl(cl), _fix_relocations(fix_relocations) {}
   virtual void do_code_blob(CodeBlob* cb);
 
+  bool fix_relocations() const { return _fix_relocations; }
   const static bool FixRelocations = true;
 };
 
