@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,10 @@ class CodeCache : AllStatic {
   static void verify_perm_nmethods(CodeBlobClosure* f_or_null) PRODUCT_RETURN;
 
   static int _codemem_full_count;
+
+  static void set_scavenge_root_nmethods(nmethod* nm) { _scavenge_root_nmethods = nm; }
+  static void prune_scavenge_root_nmethods();
+  static void unlink_scavenge_root_nmethod(nmethod* nm, nmethod* prev);
 
  public:
 
@@ -135,13 +139,17 @@ class CodeCache : AllStatic {
   // to "true" iff some code got unloaded.
   static void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
   static void asserted_non_scavengable_nmethods_do(CodeBlobClosure* f = NULL) PRODUCT_RETURN;
-  static void scavenge_root_nmethods_do(CodeBlobClosure* f);
+
+  // Apply f to every live code blob in scavengable nmethods. Prune nmethods
+  // from the list of scavengable nmethods if f->fix_relocations() and a nmethod
+  // no longer has scavengable oops.  If f->fix_relocations(), then f must copy
+  // objects to their new location immediately to avoid fixing nmethods on the
+  // basis of the old object locations.
+  static void scavenge_root_nmethods_do(CodeBlobToOopClosure* f);
 
   static nmethod* scavenge_root_nmethods()          { return _scavenge_root_nmethods; }
-  static void set_scavenge_root_nmethods(nmethod* nm) { _scavenge_root_nmethods = nm; }
   static void add_scavenge_root_nmethod(nmethod* nm);
   static void drop_scavenge_root_nmethod(nmethod* nm);
-  static void prune_scavenge_root_nmethods();
 
   // Printing/debugging
   static void print();                           // prints summary
