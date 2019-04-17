@@ -457,6 +457,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VERSION_NUMBERS],
     MILESTONE=internal
   fi
 
+  source "${SRC_ROOT}/dragonwell_version"
   AC_ARG_WITH(update-version, [AS_HELP_STRING([--with-update-version],
       [Set update version value for build @<:@b00@:>@])])
   if test "x$with_update_version" = xyes; then
@@ -469,6 +470,8 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VERSION_NUMBERS],
     if test "${#JDK_UPDATE_VERSION}" = "1"; then
       JDK_UPDATE_VERSION="0${JDK_UPDATE_VERSION}"
     fi
+  else
+    JDK_UPDATE_VERSION=$DRAGONWELL_JDK_UPDATE_VERSION
   fi
 
   AC_ARG_WITH(user-release-suffix, [AS_HELP_STRING([--with-user-release-suffix],

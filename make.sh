@@ -1,23 +1,38 @@
 #!/bin/bash
 # build properties
-JDK_UPDATE_VERSION=202
-DISTRO_NAME=Dragonwell
-DISTRO_VERSION=8.0-preview
+#
+# Copyright (c) 2019 Alibaba Group Holding Limited. All Rights Reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation. Alibaba designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
 
-if [ $# != 1 ]; then
+if [ ! -f "dragonwell_version" ]; then
+	echo "File 'dragonwell_version' doesn't exist!"
+	exit 1;
+fi
+source dragonwell_version
+
+DISTRO_VERSION=$DRAGONWELL_VERSION
+
+if [ $# -lt 1 ]; then
   echo "USAGE: $0 release/debug"
 fi
 
-ps -e | grep docker
-if [ $? -eq 0 ]; then
-    echo "We will build Dragonwell in Docker!"
-    sudo docker pull reg.docker.alibaba-inc.com/ajdk/8-dev.alios5
-    docker run -u admin -i --rm -e BUILD_NUMBER=$BUILD_NUMBER -v `pwd`:`pwd` -w `pwd` \
-               --entrypoint=bash reg.docker.alibaba-inc.com/ajdk/8-dev.alios5 `pwd`/make.sh $1
-    exit $?
-fi
-
-source /vmfarm/tools/env.sh
 LC_ALL=C
 BUILD_MODE=$1
 
@@ -47,26 +62,17 @@ else
   BUILD_INDEX=b$BUILD_NUMBER
 fi
 
+shift
+
 bash ./configure --with-milestone=fcs \
-                 --with-freetype=/vmfarm/tools/freetype/ \
-                 --with-update-version=$JDK_UPDATE_VERSION \
                  --with-build-number=$BUILD_INDEX \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
-                 --with-cacerts-file=/vmfarm/security/cacerts \
-                 --with-jtreg=/vmfarm/tools/jtreg4.1 \
-                 --with-tools-dir=/vmfarm/tools/install/gcc-4.4.7/bin \
                  --with-jvm-variants=server \
                  --with-debug-level=$DEBUG_LEVEL \
-                 --with-extra-cflags="-DVENDOR='\"Alibaba\"'                                         \
-                                      -DVENDOR_URL='\"http://www.alibabagroup.com\"'                 \
-                                      -DVENDOR_URL_BUG='\"mailto:dragonwell_use@googlegroups.com\"'"        \
-                 --with-zlib=system \
-                 --with-extra-ldflags="-Wl,--build-id=sha1"
+                 --with-zlib=system $*
 make clean
-make LOG=debug DISTRO_NAME=$DISTRO_NAME DISTRO_VERSION=$DISTRO_VERSION COMPANY_NAME=Alibaba images
-
-\cp -f /vmfarm/tools/hsdis/8/amd64/hsdis-amd64.so  $NEW_JAVA_HOME/jre/lib/amd64/
+make LOG=debug images
 
 # Sanity tests
 JAVA_EXES=("$NEW_JAVA_HOME/bin/java" "$NEW_JAVA_HOME/jre/bin/java" "$NEW_JRE_HOME/bin/java")
@@ -110,9 +116,9 @@ done
 
 # check version string
 $NEW_JAVA_HOME/bin/java -version > /tmp/version.out 2>&1
-grep "^OpenJDK Runtime" /tmp/version.out | grep "($DISTRO_NAME $DISTRO_VERSION)"
+grep "^OpenJDK Runtime" /tmp/version.out | grep "(Dragonwell $DISTRO_VERSION)"
 if [ 0 != $? ]; then RET=1; fi
-grep "^OpenJDK .*VM" /tmp/version.out | grep "($DISTRO_NAME $DISTRO_VERSION)"
+grep "^OpenJDK .*VM" /tmp/version.out | grep "(Dragonwell $DISTRO_VERSION)"
 if [ 0 != $? ]; then RET=1; fi
 \rm -f /tmp/version.out
 
@@ -120,4 +126,3 @@ ldd $NEW_JAVA_HOME/jre/lib/amd64/libzip.so|grep libz
 if [ 0 != $? ]; then RET=1; fi
 
 exit $RET
-
