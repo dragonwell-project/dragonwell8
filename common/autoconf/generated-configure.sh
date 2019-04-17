@@ -4337,7 +4337,7 @@ VS_SDK_PLATFORM_NAME_2017=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1539613812
+DATE_WHEN_GENERATED=1558082809
 
 ###############################################################################
 #
@@ -19777,6 +19777,7 @@ fi
     MILESTONE=internal
   fi
 
+  source "${SRC_ROOT}/dragonwell_version"
 
 # Check whether --with-update-version was given.
 if test "${with_update_version+set}" = set; then :
@@ -19793,6 +19794,8 @@ fi
     if test "${#JDK_UPDATE_VERSION}" = "1"; then
       JDK_UPDATE_VERSION="0${JDK_UPDATE_VERSION}"
     fi
+  else
+    JDK_UPDATE_VERSION=$DRAGONWELL_JDK_UPDATE_VERSION
   fi
 
 
@@ -41398,14 +41401,18 @@ if test "${with_extra_ldflags+set}" = set; then :
 fi
 
 
-  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags"
+  DRAGONWELL_EXTRA_CFLAGS="-DVENDOR='\"Alibaba\"'     \
+                           -DVENDOR_URL='\"http://www.alibabagroup.com\"'    \
+                           -DVENDOR_URL_BUG='\"mailto:dragonwell_use@googlegroups.com\"'"
+  DRAGONWELL_EXTRA_LDFLAGS="-Wl,--build-id=sha"
+  CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
   CXXFLAGS_JDK="${CXXFLAGS_JDK} $with_extra_cxxflags"
-  LDFLAGS_JDK="${LDFLAGS_JDK} $with_extra_ldflags"
+  LDFLAGS_JDK="${LDFLAGS_JDK} $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
 
   # Hotspot needs these set in their legacy form
-  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags"
+  LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags $DRAGONWELL_EXTRA_CFLAGS"
   LEGACY_EXTRA_CXXFLAGS="$LEGACY_EXTRA_CXXFLAGS $with_extra_cxxflags"
-  LEGACY_EXTRA_LDFLAGS="$LEGACY_EXTRA_LDFLAGS $with_extra_ldflags"
+  LEGACY_EXTRA_LDFLAGS="$LEGACY_EXTRA_LDFLAGS $with_extra_ldflags $DRAGONWELL_EXTRA_LDFLAGS"
 
 
 
