@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -504,11 +504,14 @@ inline void Assembler::elemental_membar(int e) { assert(0 < e && e < 16, "invali
 // Use ra0mem to disallow R0 as base.
 inline void Assembler::lwarx_unchecked(Register d, Register a, Register b, int eh1)           { emit_int32( LWARX_OPCODE | rt(d) | ra0mem(a) | rb(b) | eh(eh1)); }
 inline void Assembler::ldarx_unchecked(Register d, Register a, Register b, int eh1)           { emit_int32( LDARX_OPCODE | rt(d) | ra0mem(a) | rb(b) | eh(eh1)); }
+inline void Assembler::lqarx_unchecked(Register d, Register a, Register b, int eh1)           { emit_int32( LQARX_OPCODE | rt(d) | ra0mem(a) | rb(b) | eh(eh1)); }
 inline bool Assembler::lxarx_hint_exclusive_access()                                          { return VM_Version::has_lxarxeh(); }
 inline void Assembler::lwarx( Register d, Register a, Register b, bool hint_exclusive_access) { lwarx_unchecked(d, a, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
 inline void Assembler::ldarx( Register d, Register a, Register b, bool hint_exclusive_access) { ldarx_unchecked(d, a, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
+inline void Assembler::lqarx( Register d, Register a, Register b, bool hint_exclusive_access) { lqarx_unchecked(d, a, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
 inline void Assembler::stwcx_(Register s, Register a, Register b)                             { emit_int32( STWCX_OPCODE | rs(s) | ra0mem(a) | rb(b) | rc(1)); }
 inline void Assembler::stdcx_(Register s, Register a, Register b)                             { emit_int32( STDCX_OPCODE | rs(s) | ra0mem(a) | rb(b) | rc(1)); }
+inline void Assembler::stqcx_(Register s, Register a, Register b)                             { emit_int32( STQCX_OPCODE | rs(s) | ra0mem(a) | rb(b) | rc(1)); }
 
 // Instructions for adjusting thread priority
 // for simultaneous multithreading (SMT) on POWER5.
@@ -624,6 +627,8 @@ inline void Assembler::lvsl(  VectorRegister d, Register s1, Register s2) { emit
 inline void Assembler::lvsr(  VectorRegister d, Register s1, Register s2) { emit_int32( LVSR_OPCODE   | vrt(d) | ra0mem(s1) | rb(s2)); }
 
 // Vector-Scalar (VSX) instructions.
+inline void Assembler::lxvd2x (VectorSRegister d, Register s1, Register s2) { emit_int32( LXVD2X_OPCODE  | vsrt(d) | ra(s1) | rb(s2)); }
+inline void Assembler::stxvd2x(VectorSRegister d, Register s1, Register s2) { emit_int32( STXVD2X_OPCODE | vsrt(d) | ra(s1) | rb(s2)); }
 inline void Assembler::mtvrd(  VectorRegister  d, Register a)               { emit_int32( MTVSRD_OPCODE  | vrt(d)  | ra(a)  | 1u); } // 1u: d is treated as Vector (VMX/Altivec).
 inline void Assembler::mfvrd(  Register        a, VectorRegister d)         { emit_int32( MFVSRD_OPCODE  | vrt(d)  | ra(a)  | 1u); } // 1u: d is treated as Vector (VMX/Altivec).
 
@@ -833,10 +838,13 @@ inline void Assembler::dcbtstct(Register s2, int ct)  { emit_int32( DCBTST_OPCOD
 // ra0 version
 inline void Assembler::lwarx_unchecked(Register d, Register b, int eh1)          { emit_int32( LWARX_OPCODE | rt(d) | rb(b) | eh(eh1)); }
 inline void Assembler::ldarx_unchecked(Register d, Register b, int eh1)          { emit_int32( LDARX_OPCODE | rt(d) | rb(b) | eh(eh1)); }
+inline void Assembler::lqarx_unchecked(Register d, Register b, int eh1)          { emit_int32( LQARX_OPCODE | rt(d) | rb(b) | eh(eh1)); }
 inline void Assembler::lwarx( Register d, Register b, bool hint_exclusive_access){ lwarx_unchecked(d, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
 inline void Assembler::ldarx( Register d, Register b, bool hint_exclusive_access){ ldarx_unchecked(d, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
+inline void Assembler::lqarx( Register d, Register b, bool hint_exclusive_access){ lqarx_unchecked(d, b, (hint_exclusive_access && lxarx_hint_exclusive_access() && UseExtendedLoadAndReserveInstructionsPPC64) ? 1 : 0); }
 inline void Assembler::stwcx_(Register s, Register b)                            { emit_int32( STWCX_OPCODE | rs(s) | rb(b) | rc(1)); }
 inline void Assembler::stdcx_(Register s, Register b)                            { emit_int32( STDCX_OPCODE | rs(s) | rb(b) | rc(1)); }
+inline void Assembler::stqcx_(Register s, Register b)                            { emit_int32( STQCX_OPCODE | rs(s) | rb(b) | rc(1)); }
 
 // ra0 version
 inline void Assembler::lfs( FloatRegister d, int si16)   { emit_int32( LFS_OPCODE  | frt(d) | simm(si16,16)); }

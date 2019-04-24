@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2013 SAP AG. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2018 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,6 +80,19 @@ define_pd_global(uintx, TypeProfileLevel, 0);
   /* indirect call by a direct call.                                */      \
   product(bool, ReoptimizeCallSequences, true,                              \
           "Reoptimize code-sequences of calls at runtime.")                 \
+                                                                            \
+  /* Power 8: Configure Data Stream Control Register. */                    \
+  product(uint64_t,DSCR_PPC64, (uintx)-1,                                   \
+          "Power8 or later: Specify encoded value for Data Stream Control " \
+          "Register")                                                       \
+  product(uint64_t,DSCR_DPFD_PPC64, 8,                                      \
+          "Power8 or later: DPFD (default prefetch depth) value of the "    \
+          "Data Stream Control Register."                                   \
+          " 0: hardware default, 1: none, 2-7: min-max, 8: don't touch")    \
+  product(uint64_t,DSCR_URG_PPC64, 8,                                       \
+          "Power8 or later: URG (depth attainment urgency) value of the "   \
+          "Data Stream Control Register."                                   \
+          " 0: hardware default, 1: none, 2-7: min-max, 8: don't touch")    \
                                                                             \
   product(bool, UseLoadInstructionsForStackBangingPPC64, false,             \
           "Use load instructions for stack banging.")                       \
