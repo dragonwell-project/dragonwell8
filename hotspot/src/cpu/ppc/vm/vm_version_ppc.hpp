@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2012, 2014 SAP AG. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2012, 2018 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,8 +42,11 @@ protected:
     fcfids,
     vand,
     dcba,
+    lqarx,
     vcipher,
     vpmsumb,
+    mfdscr,
+    vsx,
     num_features // last entry to count features
   };
   enum Feature_Flag_Set {
@@ -58,8 +61,11 @@ protected:
     fcfids_m              = (1 << fcfids ),
     vand_m                = (1 << vand   ),
     dcba_m                = (1 << dcba   ),
+    lqarx_m               = (1 << lqarx  ),
     vcipher_m             = (1 << vcipher),
     vpmsumb_m             = (1 << vpmsumb),
+    mfdscr_m              = (1 << mfdscr ),
+    vsx_m                 = (1 << vsx    ),
     all_features_m        = -1
   };
   static int  _features;
@@ -69,6 +75,7 @@ protected:
 
   static void print_features();
   static void determine_features(); // also measures cache line size
+  static void config_dscr(); // Power 8: Configure Data Stream Control Register.
   static void determine_section_size();
   static void power6_micro_bench();
 public:
@@ -87,8 +94,11 @@ public:
   static bool has_fcfids()  { return (_features & fcfids_m) != 0; }
   static bool has_vand()    { return (_features & vand_m) != 0; }
   static bool has_dcba()    { return (_features & dcba_m) != 0; }
+  static bool has_lqarx()   { return (_features & lqarx_m) != 0; }
   static bool has_vcipher() { return (_features & vcipher_m) != 0; }
   static bool has_vpmsumb() { return (_features & vpmsumb_m) != 0; }
+  static bool has_mfdscr()  { return (_features & mfdscr_m) != 0; }
+  static bool has_vsx()     { return (_features & vsx_m) != 0; }
 
   static const char* cpu_features() { return _features_str; }
 
@@ -97,6 +107,9 @@ public:
   // Assembler testing
   static void allow_all();
   static void revert();
+
+  // POWER 8: DSCR current value.
+  static uint64_t _dscr_val;
 };
 
 #endif // CPU_PPC_VM_VM_VERSION_PPC_HPP
