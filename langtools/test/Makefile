@@ -16,6 +16,44 @@
 # JPRT may invoke this Makefile directly, as part of a langtools build,
 # or indirectly, via FOREST/test/Makefile, as part of a control build.
 
+
+# Utilities used
+AWK       = awk
+CAT       = cat
+CD        = cd
+CHMOD     = chmod
+CP        = cp
+CUT       = cut
+DIRNAME   = dirname
+ECHO      = echo
+EGREP     = egrep
+EXPAND    = expand
+FIND      = find
+MKDIR     = mkdir
+PWD       = pwd
+SED       = sed
+SORT      = sort
+TEE       = tee
+UNAME     = uname
+UNIQ      = uniq
+WC        = wc
+ZIP       = zip
+
+# Get OS name from uname (Cygwin inexplicably adds _NT-5.1)
+UNAME_S := $(shell $(UNAME) -s | $(CUT) -f1 -d_)
+
+# Commands to run on paths to make mixed paths for java on windows
+ifeq ($(UNAME_S), CYGWIN)
+  # Location of developer shared files
+  SLASH_JAVA = J:
+  GETMIXEDPATH = cygpath -m
+else
+  # Location of developer shared files
+  SLASH_JAVA = /java
+
+  GETMIXEDPATH=$(ECHO)
+endif
+
 # Get OS/ARCH specifics
 OSNAME = $(shell uname -s)
 ifeq ($(OSNAME), SunOS)
@@ -183,7 +221,7 @@ ifdef JTREG_TIMEOUT_FACTOR
 endif
 
 # Default verbosity setting for jtreg
-JTREG_VERBOSE = fail,error,nopass
+JTREG_VERBOSE = fail,error,summary
 
 # Default verbosity setting for jck
 JCK_VERBOSE = non-pass
@@ -218,14 +256,16 @@ TESTDIRS = $(DEFAULT_TESTDIRS)
 
 # Root of all test results
 TEST_OUTPUT_DIR = $(TEST_ROOT)/../build/$(PLATFORM)-$(ARCH)/test/langtools
-ABS_TEST_OUTPUT_DIR := \
-	$(shell mkdir -p $(TEST_OUTPUT_DIR); \
-		cd  $(TEST_OUTPUT_DIR); \
-		pwd $(CYGPATH))
+ifdef ALT_OUTPUTDIR
+  ABS_OUTPUTDIR := $(shell cd $(ALT_OUTPUTDIR) && pwd $(CYGPATH))
+else
+  ABS_OUTPUTDIR := $(shell mkdir -p $(TEST_OUTPUT_DIR); cd $(TEST_OUTPUT_DIR) && pwd $(CYGPATH))
+endif
+ABS_TEST_OUTPUT_DIR := $(ABS_OUTPUTDIR)/testoutput/$(UNIQUE_DIR)
 # Subdirectories for different test runs
-JTREG_OUTPUT_DIR = $(ABS_TEST_OUTPUT_DIR)/jtreg
-JCK_COMPILER_OUTPUT_DIR = $(ABS_TEST_OUTPUT_DIR)/jck-compiler
-JCK_RUNTIME_OUTPUT_DIR = $(ABS_TEST_OUTPUT_DIR)/jck-runtime-Xcompile
+JTREG_OUTPUT_DIR = $(ABS_OUTPUTDIR)/jtreg
+JCK_COMPILER_OUTPUT_DIR = $(ABS_OUTPUTDIR)/jck-compiler
+JCK_RUNTIME_OUTPUT_DIR = $(ABS_OUTPUTDIR)/jck-runtime-Xcompile
 
 # Default make rule -- warning, may take a while
 all: $(JPRT_CLEAN) jtreg-tests jck-compiler-tests jck-runtime-tests $(JPRT_ARCHIVE_BUNDLE) all-summary
@@ -239,6 +279,8 @@ jck-compiler: $(JPRT_CLEAN) jck-compiler-tests $(JPRT_ARCHIVE_BUNDLE) jck-compil
 
 jck-runtime: $(JPRT_CLEAN) jck-runtime-tests $(JPRT_ARCHIVE_BUNDLE) jck-runtime-summary
 	@echo "Testing completed successfully"
+
+tier1: jtreg-tests-tier1
 
 # for use with JPRT -testrule
 all:		JTREG_TESTDIRS = .
@@ -304,7 +346,6 @@ jtreg-summary: FRC
 
 # Check to make sure these directories exist
 check-jtreg: $(PRODUCT_HOME) $(JTREG)
-
 
 # Run JCK-compiler tests
 #
@@ -434,11 +475,105 @@ clean:
 # Used to force a target rules to run
 FRC:
 
+#
+# Tier 1 langtools testing logic
+#
+
+ARCHIVE_BUNDLE = $(ABS_TEST_OUTPUT_DIR)/ARCHIVE_BUNDLE.zip
+
+# How to create the test bundle (pass or fail, we want to create this)
+#   Follow command with ";$(BUNDLE_UP_AND_EXIT)", so it always gets executed.
+ZIP_UP_RESULTS = ( $(MKDIR) -p `$(DIRNAME) $(ARCHIVE_BUNDLE)`     \
+	           && $(CD) $(ABS_TEST_OUTPUT_DIR)             \
+	           && $(CHMOD) -R a+r . \
+	           && $(ZIP) -q -r $(ARCHIVE_BUNDLE) . )
+
+# important results files
+SUMMARY_TXT = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/JTreport/text/summary.txt")
+STATS_TXT_NAME = Stats.txt
+STATS_TXT = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/$(STATS_TXT_NAME)")
+RUNLIST   = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/runlist.txt")
+PASSLIST  = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/passlist.txt")
+FAILLIST  = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/faillist.txt")
+EXITCODE  = $(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/exitcode.txt")
+
+TESTEXIT = \
+  if [ ! -s $(EXITCODE) ] ; then \
+    $(ECHO) "ERROR: EXITCODE file not filled in."; \
+    $(ECHO) "1" > $(EXITCODE); \
+  fi ; \
+  testExitCode=`$(CAT) $(EXITCODE)`; \
+  $(ECHO) "EXIT CODE: $${testExitCode}"; \
+  exit $${testExitCode}
+
+BUNDLE_UP_AND_EXIT = \
+( \
+  jtregExitCode=$$? && \
+  _summary="$(SUMMARY_TXT)"; \
+  $(RM) -f $(STATS_TXT) $(RUNLIST) $(PASSLIST) $(FAILLIST) $(EXITCODE); \
+  $(ECHO) "$${jtregExitCode}" > $(EXITCODE); \
+  if [ -r "$${_summary}" ] ; then \
+    $(ECHO) "Summary: $(UNIQUE_DIR)" > $(STATS_TXT); \
+    $(EXPAND) $${_summary} | $(EGREP) -v ' Not run\.' > $(RUNLIST); \
+    $(EGREP) ' Passed\.' $(RUNLIST) \
+      | $(EGREP) -v ' Error\.' \
+      | $(EGREP) -v ' Failed\.' > $(PASSLIST); \
+    ( $(EGREP) ' Failed\.' $(RUNLIST); \
+      $(EGREP) ' Error\.' $(RUNLIST); \
+      $(EGREP) -v ' Passed\.' $(RUNLIST) ) \
+      | $(SORT) | $(UNIQ) > $(FAILLIST); \
+    if [ $${jtregExitCode} != 0 -o -s $(FAILLIST) ] ; then \
+      $(EXPAND) $(FAILLIST) \
+        | $(CUT) -d' ' -f1 \
+        | $(SED) -e 's@^@FAILED: @' >> $(STATS_TXT); \
+      if [ $${jtregExitCode} = 0 ] ; then \
+        jtregExitCode=1; \
+      fi; \
+    fi; \
+    runc="`$(CAT) $(RUNLIST)      | $(WC) -l | $(AWK) '{print $$1;}'`"; \
+    passc="`$(CAT) $(PASSLIST)    | $(WC) -l | $(AWK) '{print $$1;}'`"; \
+    failc="`$(CAT) $(FAILLIST)    | $(WC) -l | $(AWK) '{print $$1;}'`"; \
+    exclc="FIXME CODETOOLS-7900176"; \
+    $(ECHO) "TEST STATS: name=$(UNIQUE_DIR)  run=$${runc}  pass=$${passc}  fail=$${failc}" \
+      >> $(STATS_TXT); \
+  else \
+    $(ECHO) "Missing file: $${_summary}" >> $(STATS_TXT); \
+  fi; \
+  if [ -f $(STATS_TXT) ] ; then \
+    $(CAT) $(STATS_TXT); \
+  fi; \
+  $(ZIP_UP_RESULTS) ; \
+  $(TESTEXIT) \
+)
+
+prep-tier1:
+	@$(MKDIR) -p $(ABS_TEST_OUTPUT_DIR)
+
+# Run tier1 jtreg
+jtreg-tests-tier1: check-jtreg prep-tier1 FRC
+	(                                                                    \
+	  ( JT_HOME=$(shell $(GETMIXEDPATH) "$(JT_HOME)");                   \
+            export JT_HOME;                                                  \
+            $(shell $(GETMIXEDPATH) "$(JTREG)")                              \
+	  -J-Xmx512m \
+	  -vmoption:-Xmx768m \
+	  -a -ignore:quiet $(if $(JTREG_VERBOSE),-v:$(JTREG_VERBOSE)) \
+              -r:$(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/JTreport")  \
+              -w:$(shell $(GETMIXEDPATH) "$(ABS_TEST_OUTPUT_DIR)/JTwork")    \
+              -jdk:$(shell $(GETMIXEDPATH) "$(TESTJAVA)")                    \
+	  $(JAVA_ARGS:%=-vmoption:%) \
+	  $(JTREG_OPTIONS) \
+	  :langtools_tier1 \
+	  ) ;                                                                \
+	  $(BUNDLE_UP_AND_EXIT)                                              \
+	) 2>&1 | $(TEE) $(ABS_TEST_OUTPUT_DIR)/output.txt ; $(TESTEXIT)
+
 # Phony targets (e.g. these are not filenames)
 .PHONY: all clean \
 	jtreg javac javadoc javah javap jdeps jtreg-tests jtreg-summary check-jtreg \
 	jck-compiler jck-compiler-tests jck-compiler-summary \
-	jck-runtime jck-runtime-tests jck-runtime-summary check-jck
+	jck-runtime jck-runtime-tests jck-runtime-summary check-jck prep-tier1 \
+	jtreg-tests-tier1 tier1
 
 # No use of suffix rules
 .SUFFIXES:

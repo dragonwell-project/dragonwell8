@@ -23,10 +23,10 @@
 # Tiered testing definitions
 
 # All langtools tests are tier 1
-tier1 = \
+langtools_tier1 = \
     tools \
     com \
     lib
 
 # No langtools tests are tier 2
-tier2 = 
+langtools_tier2 =
