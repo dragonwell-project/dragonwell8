@@ -124,7 +124,6 @@ compact3 = \
  -:needs_jre \
  -:needs_jdk
 
-
 # When called from top level the test suites use the hotspot_ prefix
 hotspot_wbapitest = \
   sanity/
@@ -147,6 +146,11 @@ hotspot_all = \
   :hotspot_gc \
   :hotspot_runtime \
   :hotspot_serviceability
+
+# Right now tier1 runs all hotspot tests
+hotspot_tier1 = \
+  :jdk
+
 # Tests that require compact3 API's
 #
 needs_compact3 = \
