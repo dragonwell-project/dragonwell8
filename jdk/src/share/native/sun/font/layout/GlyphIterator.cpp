@@ -224,6 +224,16 @@ void GlyphIterator::getCursiveExitPoint(LEPoint &exitPoint) const
 
 void GlyphIterator::setCurrGlyphID(TTGlyphID glyphID)
 {
+    if (direction < 0) {
+        if (position <= nextLimit || position >= prevLimit) {
+            return;
+        }
+    } else {
+        if (position <= prevLimit || position >= nextLimit) {
+            return;
+        }
+    }
+
     LEGlyphID glyph = glyphStorage[position];
 
     glyphStorage[position] = LE_SET_GLYPH(glyph, glyphID);
