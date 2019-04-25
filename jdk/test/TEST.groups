@@ -25,12 +25,13 @@
 # Tiered testing definitions
 #
 
-tier1 = \
+jdk_tier1 = \
     :jdk_lang \
     :jdk_util \
-    :jdk_math
+    :jdk_math \
+    :jdk_jdi
 
-tier2 = \
+jdk_tier2 = \
     :jdk_io \
     :jdk_nio \
     :jdk_net \
