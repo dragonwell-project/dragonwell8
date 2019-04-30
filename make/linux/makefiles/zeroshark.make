@@ -28,10 +28,16 @@
 # override this from the main file because some version of llvm do not like -Wundef
 WARNING_FLAGS = -Wpointer-arith -Wsign-compare -Wunused-function -Wunused-value
 
-# The copied fdlibm routines in sharedRuntimeTrig.o must not be optimized
-OPT_CFLAGS/sharedRuntimeTrig.o = $(OPT_CFLAGS/NOOPT)
-# The copied fdlibm routines in sharedRuntimeTrans.o must not be optimized
-OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/NOOPT)
+# If FDLIBM_CFLAGS is non-empty it holds CFLAGS needed to be passed to
+# the compiler so as to be able to produce optimized objects
+# without losing precision.
+ifneq ($(FDLIBM_CFLAGS),)
+  OPT_CFLAGS/sharedRuntimeTrig.o = $(OPT_CFLAGS/SPEED) $(FDLIBM_CFLAGS)
+  OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/SPEED) $(FDLIBM_CFLAGS)
+else
+  OPT_CFLAGS/sharedRuntimeTrig.o = $(OPT_CFLAGS/NOOPT)
+  OPT_CFLAGS/sharedRuntimeTrans.o = $(OPT_CFLAGS/NOOPT)
+endif
 
 # Specify that the CPU is little endian, if necessary
 ifeq ($(ZERO_ENDIANNESS), little)
