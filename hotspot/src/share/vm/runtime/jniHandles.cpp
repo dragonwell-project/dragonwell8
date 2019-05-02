@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "memory/iterator.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/jniHandles.hpp"
@@ -129,6 +130,12 @@ void JNIHandles::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
 }
 
 
+void JNIHandles::weak_oops_do(OopClosure* f) {
+  AlwaysTrueClosure always_true;
+  weak_oops_do(&always_true, f);
+}
+
+
 void JNIHandles::initialize() {
   _global_handles      = JNIHandleBlock::allocate_block();
   _weak_global_handles = JNIHandleBlock::allocate_block();
@@ -186,11 +193,6 @@ long JNIHandles::weak_global_handle_memory_usage() {
 }
 
 
-class AlwaysAliveClosure: public BoolObjectClosure {
-public:
-  bool do_object_b(oop obj) { return true; }
-};
-
 class CountHandleClosure: public OopClosure {
 private:
   int _count;
@@ -212,9 +214,8 @@ void JNIHandles::print_on(outputStream* st) {
          "JNIHandles not initialized");
 
   CountHandleClosure global_handle_count;
-  AlwaysAliveClosure always_alive;
   oops_do(&global_handle_count);
-  weak_oops_do(&always_alive, &global_handle_count);
+  weak_oops_do(&global_handle_count);
 
   st->print_cr("JNI global references: %d", global_handle_count.count());
   st->cr();
@@ -231,10 +232,9 @@ public:
 
 void JNIHandles::verify() {
   VerifyHandleClosure verify_handle;
-  AlwaysAliveClosure always_alive;
 
   oops_do(&verify_handle);
-  weak_oops_do(&always_alive, &verify_handle);
+  weak_oops_do(&verify_handle);
 }
 
 
