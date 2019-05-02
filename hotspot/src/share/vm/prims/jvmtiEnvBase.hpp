@@ -252,7 +252,7 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
     return _tag_map;
   }
 
-  JvmtiTagMap* acquire_tag_map() {
+  JvmtiTagMap* tag_map_acquire() {
     return (JvmtiTagMap*)OrderAccess::load_ptr_acquire(&_tag_map);
   }
 
