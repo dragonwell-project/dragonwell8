@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1618,6 +1618,13 @@ JvmtiEnv::FollowReferences(jint heap_filter, jclass klass, jobject initial_objec
     k_oop = java_lang_Class::as_Klass(k_mirror);
     if (k_oop == NULL) {
       return JVMTI_ERROR_INVALID_CLASS;
+    }
+  }
+
+  if (initial_object != NULL) {
+    oop init_obj = JNIHandles::resolve_external_guard(initial_object);
+    if (init_obj == NULL) {
+      return JVMTI_ERROR_INVALID_OBJECT;
     }
   }
 
