@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1296,19 +1296,18 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ movl(Address(t, JNIHandleBlock::top_offset_in_bytes()), NULL_WORD);
 
   // If result was an oop then unbox and save it in the frame
-  { Label L;
-    Label no_oop, store_result;
+  {
+    Label no_oop;
     ExternalAddress handler(AbstractInterpreter::result_handler(T_OBJECT));
     __ cmpptr(Address(rbp, frame::interpreter_frame_result_handler_offset*wordSize),
               handler.addr());
     __ jcc(Assembler::notEqual, no_oop);
     __ cmpptr(Address(rsp, 0), (int32_t)NULL_WORD);
     __ pop(ltos);
-    __ testptr(rax, rax);
-    __ jcc(Assembler::zero, store_result);
-    // unbox
-    __ movptr(rax, Address(rax, 0));
-    __ bind(store_result);
+    // Unbox oop result, e.g. JNIHandles::resolve value.
+    __ resolve_jobject(rax /* value */,
+                       thread /* thread */,
+                       t /* tmp */);
     __ movptr(Address(rbp, (frame::interpreter_frame_oop_temp_offset)*wordSize), rax);
     // keep stack depth as expected by pushing oop which will eventually be discarded
     __ push(ltos);

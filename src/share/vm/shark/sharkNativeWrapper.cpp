@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -50,6 +50,7 @@ void SharkNativeWrapper::initialize(const char *name) {
 
   // Create and push our stack frame
   builder()->SetInsertPoint(CreateBlock());
+#error Needs to be updated for tagged jweak; see JNIHandles.
   _stack = SharkStack::CreateBuildAndPushFrame(this, method);
   NOT_PRODUCT(method = NULL);
 

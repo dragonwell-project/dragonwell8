@@ -30,6 +30,9 @@
 #include "runtime/jniHandles.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.inline.hpp"
+#if INCLUDE_ALL_GCS
+#include "gc_implementation/g1/g1SATBCardTableModRefBS.hpp"
+#endif
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -87,34 +90,52 @@ jobject JNIHandles::make_global(Handle obj) {
   return res;
 }
 
-
 jobject JNIHandles::make_weak_global(Handle obj) {
   assert(!Universe::heap()->is_gc_active(), "can't extend the root set during GC");
   jobject res = NULL;
   if (!obj.is_null()) {
     // ignore null handles
-    MutexLocker ml(JNIGlobalHandle_lock);
-    assert(Universe::heap()->is_in_reserved(obj()), "sanity check");
-    res = _weak_global_handles->allocate_handle(obj());
+    {
+      MutexLocker ml(JNIGlobalHandle_lock);
+      assert(Universe::heap()->is_in_reserved(obj()), "sanity check");
+      res = _weak_global_handles->allocate_handle(obj());
+    }
+    // Add weak tag.
+    assert(is_ptr_aligned(res, weak_tag_alignment), "invariant");
+    char* tptr = reinterpret_cast<char*>(res) + weak_tag_value;
+    res = reinterpret_cast<jobject>(tptr);
   } else {
     CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
   return res;
 }
 
+template<bool external_guard>
+oop JNIHandles::resolve_jweak(jweak handle) {
+  assert(is_jweak(handle), "precondition");
+  oop result = jweak_ref(handle);
+  result = guard_value<external_guard>(result);
+#if INCLUDE_ALL_GCS
+  if (result != NULL && UseG1GC) {
+    G1SATBCardTableModRefBS::enqueue(result);
+  }
+#endif // INCLUDE_ALL_GCS
+  return result;
+}
+
+template oop JNIHandles::resolve_jweak<true>(jweak);
+template oop JNIHandles::resolve_jweak<false>(jweak);
 
 void JNIHandles::destroy_global(jobject handle) {
   if (handle != NULL) {
     assert(is_global_handle(handle), "Invalid delete of global JNI handle");
-    *((oop*)handle) = deleted_handle(); // Mark the handle as deleted, allocate will reuse it
+    jobject_ref(handle) = deleted_handle();
   }
 }
 
-
 void JNIHandles::destroy_weak_global(jobject handle) {
   if (handle != NULL) {
-    assert(!CheckJNICalls || is_weak_global_handle(handle), "Invalid delete of weak global JNI handle");
-    *((oop*)handle) = deleted_handle(); // Mark the handle as deleted, allocate will reuse it
+    jweak_ref(handle) = deleted_handle();
   }
 }
 
