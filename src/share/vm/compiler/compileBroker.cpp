@@ -753,8 +753,8 @@ CompileTask* CompileQueue::get() {
   }
   if (task != NULL) {
     remove(task);
-    purge_stale_tasks(); // may temporarily release MCQ lock
   }
+  purge_stale_tasks(); // may temporarily release MCQ lock
   return task;
 }
 
