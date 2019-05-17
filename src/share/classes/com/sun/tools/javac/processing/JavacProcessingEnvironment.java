@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -350,6 +350,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 log.error("proc.bad.config.file", sce.getLocalizedMessage());
                 throw new Abort(sce);
             } catch (Throwable t) {
+                log.error("proc.bad.config.file", t.getLocalizedMessage());
                 throw new Abort(t);
             }
         }
@@ -360,7 +361,14 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             } catch (ServiceConfigurationError sce) {
                 log.error("proc.bad.config.file", sce.getLocalizedMessage());
                 throw new Abort(sce);
+            } catch (UnsupportedClassVersionError ucve) {
+                log.error("proc.cant.load.class", ucve.getLocalizedMessage());
+                throw new Abort(ucve);
+            } catch (ClassFormatError cfe) {
+                log.error("proc.cant.load.class", cfe.getLocalizedMessage());
+                throw new Abort(cfe);
             } catch (Throwable t) {
+                log.error("proc.bad.config.file", t.getLocalizedMessage());
                 throw new Abort(t);
             }
         }
