@@ -68,6 +68,7 @@ bash ./configure --with-milestone=fcs \
                  --with-build-number=$BUILD_INDEX \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
+                 --with-cacerts-file=`pwd`/common/security/cacerts \
                  --with-jvm-variants=server \
                  --with-debug-level=$DEBUG_LEVEL \
                  --with-zlib=system $*
