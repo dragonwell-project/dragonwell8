@@ -27,8 +27,6 @@ if [ ! -f "dragonwell_version" ]; then
 fi
 source dragonwell_version
 
-DISTRO_VERSION=$DRAGONWELL_VERSION
-
 if [ $# -lt 1 ]; then
   echo "USAGE: $0 release/debug"
 fi
@@ -62,12 +60,17 @@ else
   BUILD_INDEX=b$BUILD_NUMBER
 fi
 
+DISTRO_VERSION=${DRAGONWELL_VERSION}-${BUILD_INDEX}
+DISTRO_NAME="Alibaba Dragonwell"
+
 shift
 
 bash ./configure --with-milestone=fcs \
-                 --with-build-number=$BUILD_INDEX \
+                 --with-update-version=${DRAGONWELL_JDK_UPDATE_VERSION} \
+                 --with-build-number=${DRAGONWELL_JDK_BUILD_NUMBER} \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
+                 --with-cacerts-file=`pwd`/common/security/cacerts \
                  --with-jvm-variants=server \
                  --with-debug-level=$DEBUG_LEVEL \
                  --with-zlib=system $*
