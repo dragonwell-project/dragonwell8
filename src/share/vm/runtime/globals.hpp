@@ -4027,6 +4027,9 @@ class CommandLineFlags {
                                                                             \
   product(bool, EnableJFR, false, "Enable JFR feature")                     \
                                                                             \
+  product(bool, UnlockCommercialFeatures, false,                            \
+          "This flag is ignored. Left for compatibility")                   \
+                                                                            \
   lp64_product(bool, CompilationWarmUpRecording, false,                     \
           "Collect profiling information for JWarmUP")                      \
                                                                             \

@@ -166,6 +166,25 @@ class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class JfrUnlockCommercialFeaturesDCmd : public DCmd {
+public:
+  JfrUnlockCommercialFeaturesDCmd(outputStream* output, bool heap) : DCmd(output, heap) { }
+  static const char* name() { return "VM.unlock_commercial_features"; }
+  static const char* description() {
+    return "Simulate commercial features unlocking for Alibaba Dragonwell8.";
+  }
+  static const char* impact() { return "Low"; }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+                        "monitor", NULL};
+    return p;
+  }
+  static int num_arguments() { return 0; }
+  virtual void execute(DCmdSource source, TRAPS) {
+    UnlockCommercialFeatures = true;
+  }
+};
+
 bool register_jfr_dcmds();
 
 #endif // SHARE_VM_JFR_JFRDCMDS_HPP
