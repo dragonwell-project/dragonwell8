@@ -27,7 +27,6 @@ if [ ! -f "dragonwell_version" ]; then
 fi
 source dragonwell_version
 
-DISTRO_VERSION=$DRAGONWELL_VERSION
 
 if [ $# -lt 1 ]; then
   echo "USAGE: $0 release/debug"
@@ -62,10 +61,12 @@ else
   BUILD_INDEX=b$BUILD_NUMBER
 fi
 
+DISTRO_VERSION=${DRAGONWELL_VERSION}-${BUILD_INDEX}
+
 shift
 
 bash ./configure --with-milestone=fcs \
-                 --with-build-number=$BUILD_INDEX \
+                 --with-build-number=${DRAGONWELL_JDK_BUILD_NUMBER} \
                  --with-user-release-suffix="" \
                  --enable-unlimited-crypto \
                  --with-cacerts-file=`pwd`/common/security/cacerts \
@@ -73,7 +74,10 @@ bash ./configure --with-milestone=fcs \
                  --with-debug-level=$DEBUG_LEVEL \
                  --with-zlib=system $*
 make clean
-make LOG=debug images
+
+# The default DISTRO_VERSION in spec.gmk.in does not contain the customer defined build number.
+# Hack DISTRO_VERSION to introduce the number.
+make LOG=debug DISTRO_VERSION=${DISTRO_VERSION} images
 
 # Sanity tests
 JAVA_EXES=("$NEW_JAVA_HOME/bin/java" "$NEW_JAVA_HOME/jre/bin/java" "$NEW_JRE_HOME/bin/java")
@@ -117,9 +121,9 @@ done
 
 # check version string
 $NEW_JAVA_HOME/bin/java -version > /tmp/version.out 2>&1
-grep "^OpenJDK Runtime" /tmp/version.out | grep "(Dragonwell $DISTRO_VERSION)"
+grep "^OpenJDK Runtime" /tmp/version.out | grep "(Alibaba Dragonwell $DISTRO_VERSION)"
 if [ 0 != $? ]; then RET=1; fi
-grep "^OpenJDK .*VM" /tmp/version.out | grep "(Dragonwell $DISTRO_VERSION)"
+grep "^OpenJDK .*VM" /tmp/version.out | grep "(Alibaba Dragonwell $DISTRO_VERSION)"
 if [ 0 != $? ]; then RET=1; fi
 \rm -f /tmp/version.out
 
