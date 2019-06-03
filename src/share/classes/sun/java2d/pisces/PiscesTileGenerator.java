@@ -76,7 +76,10 @@ final class PiscesTileGenerator implements AATileGenerator {
     }
 
     public void getBbox(int bbox[]) {
-        cache.getBBox(bbox);
+        bbox[0] = cache.bboxX0;
+        bbox[1] = cache.bboxY0;
+        bbox[2] = cache.bboxX1;
+        bbox[3] = cache.bboxY1;
         //System.out.println("bbox["+bbox[0]+", "+bbox[1]+" => "+bbox[2]+", "+bbox[3]+"]");
     }
 
