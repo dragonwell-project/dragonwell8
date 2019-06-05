@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -751,8 +751,10 @@ CompileTask* CompileQueue::get() {
     No_Safepoint_Verifier nsv;
     task = CompilationPolicy::policy()->select_task(this);
   }
-  remove(task);
-  purge_stale_tasks(); // may temporarily release MCQ lock
+  if (task != NULL) {
+    remove(task);
+    purge_stale_tasks(); // may temporarily release MCQ lock
+  }
   return task;
 }
 
