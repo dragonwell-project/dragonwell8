@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,26 +22,27 @@
  */
 
 /**
- * @test TieredLevelsTest
+ * @test Level2RecompilationTest
+ * @summary Test downgrading mechanism from level 3 to level 2 for those profiled methods.
  * @library /testlibrary /testlibrary/whitebox /compiler/whitebox
- * @build TieredLevelsTest
+ * @build Level2RecompilationTest
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+TieredCompilation
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:-UseCounterDecay
  *                   -XX:CompileCommand=compileonly,SimpleTestCase$Helper::*
- *                   TieredLevelsTest
- * @summary Verify that all levels &lt; 'TieredStopAtLevel' can be used
- * @author igor.ignatyev@oracle.com
+ *                   -XX:CompileCommand=print,SimpleTestCase$Helper::*
+ *                   Level2RecompilationTest
  */
-public class TieredLevelsTest extends CompLevelsTest {
-    public static void main(String[] args) throws Exception, Throwable {
+public class Level2RecompilationTest extends CompLevelsTest {
+    public static void main(String[] args) throws Throwable {
         if (CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
-            return;
+            throw new RuntimeException("Test isn't applicable for non-tiered mode");
         }
-        CompilerWhiteBoxTest.main(TieredLevelsTest::new, args);
+        String[] testcases = {"METHOD_TEST", "OSR_STATIC_TEST"};
+        CompilerWhiteBoxTest.main(Level2RecompilationTest::new, testcases);
     }
 
-    protected TieredLevelsTest(TestCase testCase) {
+    protected Level2RecompilationTest(TestCase testCase) {
         super(testCase);
         // to prevent inlining of #method
         WHITE_BOX.testSetDontInlineMethod(method, true);
@@ -52,25 +53,24 @@ public class TieredLevelsTest extends CompLevelsTest {
         if (skipXcompOSR()) {
           return;
         }
+
         checkNotCompiled();
-        compile();
-        checkCompiled();
-
-        int compLevel = getCompLevel();
-        if (compLevel > TIERED_STOP_AT_LEVEL) {
-            throw new RuntimeException("method.compLevel[" + compLevel
-                    + "] > TieredStopAtLevel [" + TIERED_STOP_AT_LEVEL + "]");
-        }
         int bci = WHITE_BOX.getMethodEntryBci(method);
-        deoptimize();
-
-        for (int testedTier = 1; testedTier <= TIERED_STOP_AT_LEVEL;
-                ++testedTier) {
-            testAvailableLevel(testedTier, bci);
+        WHITE_BOX.markMethodProfiled(method);
+        if (testCase.isOsr()) {
+            // for OSR compilation, it must be the begin of a BB.
+            // c1_GraphBulider.cpp:153  assert(method()->bci_block_start().at(cur_bci), ...
+            bci = 0;
         }
-        for (int testedTier = TIERED_STOP_AT_LEVEL + 1;
-                testedTier <= COMP_LEVEL_MAX; ++testedTier) {
-            testUnavailableLevel(testedTier, bci);
+
+        WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_FULL_PROFILE, bci);
+        checkCompiled();
+        checkLevel(COMP_LEVEL_LIMITED_PROFILE, getCompLevel());
+
+        for (int i=0; i<100; ++i) {
+            WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_FULL_PROFILE, bci);
+            waitBackgroundCompilation();
+            checkLevel(COMP_LEVEL_LIMITED_PROFILE, getCompLevel());
         }
     }
 
@@ -81,7 +81,7 @@ public class TieredLevelsTest extends CompLevelsTest {
             // for simple method full_profile may be replaced by limited_profile
             if (IS_VERBOSE) {
                 System.out.printf("Level check: full profiling was replaced "
-                        + "by limited profiling. Expected: %d, actual:%d",
+                        + "by limited profiling. Expected: %d, actual:%d\n",
                         expected, actual);
             }
             return;
@@ -89,3 +89,4 @@ public class TieredLevelsTest extends CompLevelsTest {
         super.checkLevel(expected, actual);
     }
 }
+
