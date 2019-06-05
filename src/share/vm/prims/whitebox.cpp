@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -633,6 +633,25 @@ WB_ENTRY(void, WB_ClearMethodState(JNIEnv* env, jobject o, jobject method))
   }
 WB_END
 
+WB_ENTRY(void, WB_MarkMethodProfiled(JNIEnv* env, jobject o, jobject method))
+  jmethodID jmid = reflected_method_to_jmid(thread, env, method);
+  CHECK_JNI_EXCEPTION(env);
+  methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
+
+  MethodData* mdo = mh->method_data();
+  if (mdo == NULL) {
+    Method::build_interpreter_method_data(mh, CHECK_AND_CLEAR);
+    mdo = mh->method_data();
+  }
+  mdo->init();
+  InvocationCounter* icnt = mdo->invocation_counter();
+  InvocationCounter* bcnt = mdo->backedge_counter();
+  // set i-counter according to AdvancedThresholdPolicy::is_method_profiled
+  // because SimpleThresholdPolicy::call_predicate_helper uses > in jdk8u, that's why we need to plus one.
+  icnt->set(InvocationCounter::wait_for_compile, Tier4MinInvocationThreshold + 1);
+  bcnt->set(InvocationCounter::wait_for_compile, Tier4CompileThreshold + 1);
+WB_END
+
 template <typename T>
 static bool GetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, bool (*TAt)(const char*, T*)) {
   if (name == NULL) {
@@ -1123,6 +1142,8 @@ static JNINativeMethod methods[] = {
       CC"(Ljava/lang/reflect/Executable;II)Z",        (void*)&WB_EnqueueMethodForCompilation},
   {CC"clearMethodState",
       CC"(Ljava/lang/reflect/Executable;)V",          (void*)&WB_ClearMethodState},
+  {CC"markMethodProfiled",
+      CC"(Ljava/lang/reflect/Executable;)V",          (void*)&WB_MarkMethodProfiled},
   {CC"setBooleanVMFlag",   CC"(Ljava/lang/String;Z)V",(void*)&WB_SetBooleanVMFlag},
   {CC"setIntxVMFlag",      CC"(Ljava/lang/String;J)V",(void*)&WB_SetIntxVMFlag},
   {CC"setUintxVMFlag",     CC"(Ljava/lang/String;J)V",(void*)&WB_SetUintxVMFlag},
