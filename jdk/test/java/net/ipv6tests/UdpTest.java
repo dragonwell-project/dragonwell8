@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,7 +158,7 @@ public class UdpTest extends Tests {
         });
         t1 = System.currentTimeMillis();
         s1.receive (new DatagramPacket (new byte [128], 128));
-        checkTime (System.currentTimeMillis() - t1, 4000);
+        checkTime (System.currentTimeMillis() - t1, 2000, 10000);
         s1.close ();
         s2.close ();
         System.out.println ("Test2: OK");
