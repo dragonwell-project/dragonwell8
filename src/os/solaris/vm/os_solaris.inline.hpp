@@ -71,37 +71,6 @@ inline void os::bang_stack_shadow_pages() {
 }
 inline void os::dll_unload(void *lib) { ::dlclose(lib); }
 
-inline DIR* os::opendir(const char* dirname) {
-  assert(dirname != NULL, "just checking");
-  return ::opendir(dirname);
-}
-
-inline int os::readdir_buf_size(const char *path) {
-  int size = pathconf(path, _PC_NAME_MAX);
-  return (size < 0 ? MAXPATHLEN : size) + sizeof(dirent) + 1;
-}
-
-inline struct dirent* os::readdir(DIR* dirp, dirent* dbuf) {
-  assert(dirp != NULL, "just checking");
-#if defined(_LP64) || defined(_GNU_SOURCE) || _FILE_OFFSET_BITS==64
-  dirent* p;
-  int status;
-
-  if((status = ::readdir_r(dirp, dbuf, &p)) != 0) {
-    errno = status;
-    return NULL;
-  } else
-    return p;
-#else  // defined(_LP64) || defined(_GNU_SOURCE) || _FILE_OFFSET_BITS==64
-  return ::readdir_r(dirp, dbuf);
-#endif // defined(_LP64) || defined(_GNU_SOURCE) || _FILE_OFFSET_BITS==64
-}
-
-inline int os::closedir(DIR *dirp) {
-  assert(dirp != NULL, "argument is NULL");
-  return ::closedir(dirp);
-}
-
 //////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
