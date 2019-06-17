@@ -25,12 +25,14 @@
 
 package sun.security.ec;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
+import java.security.spec.InvalidParameterSpecException;
 
 import sun.security.ec.NamedCurve;
 import sun.security.ec.ECParameters;
@@ -86,17 +88,19 @@ public final class ECKeyPairGenerator extends KeyPairGeneratorSpi {
     public void initialize(AlgorithmParameterSpec params, SecureRandom random)
             throws InvalidAlgorithmParameterException {
 
+        ECParameterSpec ecSpec = null;
+
         if (params instanceof ECParameterSpec) {
-            this.params = ECUtil.getECParameterSpec(null,
+            ecSpec = ECUtil.getECParameterSpec(null,
                                                     (ECParameterSpec)params);
-            if (this.params == null) {
+            if (ecSpec == null) {
                 throw new InvalidAlgorithmParameterException(
                     "Unsupported curve: " + params);
             }
         } else if (params instanceof ECGenParameterSpec) {
             String name = ((ECGenParameterSpec)params).getName();
-            this.params = ECUtil.getECParameterSpec(null, name);
-            if (this.params == null) {
+            ecSpec = ECUtil.getECParameterSpec(null, name);
+            if (ecSpec == null) {
                 throw new InvalidAlgorithmParameterException(
                     "Unknown curve name: " + name);
             }
@@ -104,9 +108,34 @@ public final class ECKeyPairGenerator extends KeyPairGeneratorSpi {
             throw new InvalidAlgorithmParameterException(
                 "ECParameterSpec or ECGenParameterSpec required for EC");
         }
+
+        // Not all known curves are supported by the native implementation
+        ensureCurveIsSupported(ecSpec);
+        this.params = ecSpec;
+
         this.keySize =
             ((ECParameterSpec)this.params).getCurve().getField().getFieldSize();
         this.random = random;
+    }
+
+    private static void ensureCurveIsSupported(ECParameterSpec ecSpec)
+        throws InvalidAlgorithmParameterException {
+
+        AlgorithmParameters ecParams = ECUtil.getECParameters(null);
+        byte[] encodedParams;
+        try {
+            ecParams.init(ecSpec);
+            encodedParams = ecParams.getEncoded();
+        } catch (InvalidParameterSpecException ex) {
+            throw new InvalidAlgorithmParameterException(
+                "Unsupported curve: " + ecSpec.toString());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        if (!isCurveSupported(encodedParams)) {
+            throw new InvalidAlgorithmParameterException(
+                "Unsupported curve: " + ecParams.toString());
+        }
     }
 
     // generate the keypair. See JCA doc
@@ -159,6 +188,17 @@ public final class ECKeyPairGenerator extends KeyPairGeneratorSpi {
         }
         this.keySize = keySize;
     }
+
+    /**
+     * Checks whether the curve in the encoded parameters is supported by the
+     * native implementation.
+     *
+     * @param encodedParams encoded parameters in the same form accepted
+     *    by generateECKeyPair
+     * @return true if and only if generateECKeyPair will succeed for
+     *    the supplied parameters
+     */
+    private static native boolean isCurveSupported(byte[] encodedParams);
 
     /*
      * Generates the keypair and returns a 2-element array of encoding bytes.
