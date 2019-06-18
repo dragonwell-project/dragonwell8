@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -6759,10 +6759,18 @@ bool LibraryCallKit::inline_sha_implCompressMB(Node* digestBase_obj, ciInstanceK
   if (state == NULL) return false;
 
   // Call the stub.
-  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
-                                 OptoRuntime::digestBase_implCompressMB_Type(),
-                                 stubAddr, stubName, TypePtr::BOTTOM,
-                                 src_start, state, ofs, limit);
+  Node *call;
+  if (CCallingConventionRequiresIntsAsLongs) {
+    call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                             OptoRuntime::digestBase_implCompressMB_Type(),
+                             stubAddr, stubName, TypePtr::BOTTOM,
+                             src_start, state, ofs XTOP, limit XTOP);
+  } else {
+    call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                             OptoRuntime::digestBase_implCompressMB_Type(),
+                             stubAddr, stubName, TypePtr::BOTTOM,
+                             src_start, state, ofs, limit);
+  }
   // return ofs (int)
   Node* result = _gvn.transform(new (C) ProjNode(call, TypeFunc::Parms));
   set_result(result);
