@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -930,12 +930,24 @@ const TypeFunc* OptoRuntime::digestBase_implCompressMB_Type() {
   // create input type (domain)
   int num_args = 4;
   int argcnt = num_args;
+  if(CCallingConventionRequiresIntsAsLongs) {
+    argcnt += 2;
+  }
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
-  fields[argp++] = TypePtr::NOTNULL; // buf
-  fields[argp++] = TypePtr::NOTNULL; // state
-  fields[argp++] = TypeInt::INT;     // ofs
-  fields[argp++] = TypeInt::INT;     // limit
+  if(CCallingConventionRequiresIntsAsLongs) {
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    fields[argp++] = TypeLong::LONG;   // ofs
+    fields[argp++] = Type::HALF;
+    fields[argp++] = TypeLong::LONG;   // limit
+    fields[argp++] = Type::HALF;
+  } else {
+    fields[argp++] = TypePtr::NOTNULL; // buf
+    fields[argp++] = TypePtr::NOTNULL; // state
+    fields[argp++] = TypeInt::INT;     // ofs
+    fields[argp++] = TypeInt::INT;     // limit
+  }
   assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
