@@ -42,6 +42,11 @@ SUNWprivate_1.1 {
 		__fsr;
 		__fsr_init_value;
 		__longdouble_used;
+                # Needs to be global rather than local. Note that _IO_stdin_used
+                # is exported by crt1.o. If it were using 'local' scope instead,
+                # glibc would use a legacy implementation of libio, which isn't
+                # what we want
+                _IO_stdin_used;
 
 	local:
 		*;
