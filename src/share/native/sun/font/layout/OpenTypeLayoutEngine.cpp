@@ -543,7 +543,7 @@ void OpenTypeLayoutEngine::adjustGlyphPositions(const LEUnicode chars[], le_int3
             yAdjust += yKerning;
 #endif
 
-            for (le_int32 base = i; base >= 0; base = adjustments->getBaseOffset(base)) {
+            for (le_int32 base = i; base >= 0 && base < glyphCount; base = adjustments->getBaseOffset(base)) {
                 xPlacement += adjustments->getXPlacement(base);
                 yPlacement += adjustments->getYPlacement(base);
             }
