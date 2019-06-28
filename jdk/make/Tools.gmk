@@ -123,6 +123,9 @@ TOOL_OSX_TOBIN = $(JAVA_SMALL) -Djava.awt.headless=true -cp $(JDK_OUTPUTDIR)/btc
 TOOL_CLDRCONVERTER = $(JAVA_SMALL) -cp $(JDK_OUTPUTDIR)/btclasses \
     build.tools.cldrconverter.CLDRConverter
 
+TOOL_GENERATELSREQUIVMAPS = $(JAVA_SMALL) -cp $(JDK_OUTPUTDIR)/btclasses \
+    build.tools.generatelsrequivmaps.EquivMapsGenerator
+
 TOOL_REMOVEMETHODS = $(JAVA_SMALL) -Xbootclasspath/p:$(LANGTOOLS_OUTPUTDIR)/dist/bootstrap/lib/javac.jar \
     -cp '$(JDK_OUTPUTDIR)/btclasses$(PATH_SEP)$(JDK_OUTPUTDIR)' \
     build.tools.classfile.RemoveMethods
