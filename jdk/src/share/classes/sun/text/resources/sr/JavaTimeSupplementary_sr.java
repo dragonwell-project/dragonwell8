@@ -179,6 +179,7 @@ public class JavaTimeSupplementary_sr extends OpenListResourceBundle {
                     "\u0422\u0430\u0438\u0448\u043e",
                     "\u0428\u043e\u0432\u0430",
                     "\u0425\u0430\u0438\u0441\u0435\u0438",
+                    "\u0420\u0435\u0438\u0432\u0430",
                 }
             },
             { "java.time.japanese.short.Eras",
@@ -188,6 +189,7 @@ public class JavaTimeSupplementary_sr extends OpenListResourceBundle {
                     "\u0422\u0430\u0438\u0448\u043e",
                     "\u0428\u043e\u0432\u0430",
                     "\u0425\u0430\u0438\u0441\u0435\u0438",
+                    "\u0420\u0435\u0438\u0432\u0430",
                 }
             },
             { "java.time.long.Eras",
