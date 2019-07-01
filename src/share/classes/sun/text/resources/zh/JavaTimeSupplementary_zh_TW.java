@@ -175,6 +175,7 @@ public class JavaTimeSupplementary_zh_TW extends OpenListResourceBundle {
                     "\u5927\u6b63",
                     "\u662d\u548c",
                     "\u5e73\u6210",
+                    "\u4ee4\u548c",
                 }
             },
             { "java.time.japanese.short.Eras",
@@ -184,6 +185,7 @@ public class JavaTimeSupplementary_zh_TW extends OpenListResourceBundle {
                     "\u5927\u6b63",
                     "\u662d\u548c",
                     "\u5e73\u6210",
+                    "\u4ee4\u548c",
                 }
             },
             { "java.time.roc.DatePatterns",
