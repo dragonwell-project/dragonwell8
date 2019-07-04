@@ -27,6 +27,7 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import java.security.ProviderException;
+import java.util.Objects;
 
 
 /**
@@ -138,18 +139,24 @@ class CipherBlockChaining extends FeedbackCipher  {
      * @return the length of the encrypted data
      */
     int encrypt(byte[] plain, int plainOffset, int plainLen,
-                byte[] cipher, int cipherOffset)
-    {
+                byte[] cipher, int cipherOffset) {
         if (plainLen <= 0) {
             return plainLen;
         }
-        if ((plainLen % blockSize) != 0) {
-            throw new ProviderException("Internal error in input buffering");
-        }
+        cryptBlockSizeCheck(plainLen);
+        cryptNullAndBoundsCheck(plain, plainOffset, plainLen);
+        cryptNullAndBoundsCheck(cipher, cipherOffset, plainLen);
+        return implEncrypt(plain, plainOffset, plainLen,
+                           cipher, cipherOffset);
+    }
+
+    private int implEncrypt(byte[] plain, int plainOffset, int plainLen,
+                            byte[] cipher, int cipherOffset)
+    {
         int endIndex = plainOffset + plainLen;
 
         for (; plainOffset < endIndex;
-             plainOffset+=blockSize, cipherOffset += blockSize) {
+             plainOffset += blockSize, cipherOffset += blockSize) {
             for (int i = 0; i < blockSize; i++) {
                 k[i] = (byte)(plain[i + plainOffset] ^ r[i]);
             }
@@ -182,14 +189,19 @@ class CipherBlockChaining extends FeedbackCipher  {
      * @return the length of the decrypted data
      */
     int decrypt(byte[] cipher, int cipherOffset, int cipherLen,
-                byte[] plain, int plainOffset)
-    {
+                byte[] plain, int plainOffset) {
         if (cipherLen <= 0) {
             return cipherLen;
         }
-        if ((cipherLen % blockSize) != 0) {
-            throw new ProviderException("Internal error in input buffering");
-        }
+        cryptBlockSizeCheck(cipherLen);
+        cryptNullAndBoundsCheck(cipher, cipherOffset, cipherLen);
+        cryptNullAndBoundsCheck(plain, plainOffset, cipherLen);
+        return implDecrypt(cipher, cipherOffset, cipherLen, plain, plainOffset);
+    }
+
+    private int implDecrypt(byte[] cipher, int cipherOffset, int cipherLen,
+                            byte[] plain, int plainOffset)
+    {
         int endIndex = cipherOffset + cipherLen;
 
         for (; cipherOffset < endIndex;
@@ -201,5 +213,24 @@ class CipherBlockChaining extends FeedbackCipher  {
             System.arraycopy(cipher, cipherOffset, r, 0, blockSize);
         }
         return cipherLen;
+    }
+
+    private void cryptBlockSizeCheck(int len) {
+        if ((len % blockSize) != 0) {
+            throw new ProviderException("Internal error in input buffering");
+        }
+    }
+
+    private static void cryptNullAndBoundsCheck(byte[] array, int offset, int len) {
+        Objects.requireNonNull(array);
+
+        if (offset < 0 || offset >= array.length) {
+            throw new ArrayIndexOutOfBoundsException(offset);
+        }
+
+        int endIndex = offset + len - 1;
+        if (endIndex < 0 || endIndex >= array.length) {
+            throw new ArrayIndexOutOfBoundsException(endIndex);
+        }
     }
 }
