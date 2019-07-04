@@ -26,6 +26,7 @@
 package sun.security.provider;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static sun.security.provider.ByteArrayAccess.*;
 
@@ -209,8 +210,26 @@ abstract class SHA5 extends DigestBase {
      * "old" NIST Secure Hash Algorithm.
      */
     final void implCompress(byte[] buf, int ofs) {
-        b2lBig128(buf, ofs, W);
+        implCompressCheck(buf, ofs);
+        implCompress0(buf, ofs);
+    }
 
+    private void implCompressCheck(byte[] buf, int ofs) {
+        Objects.requireNonNull(buf);
+
+        // The checks performed by the method 'b2iBig128'
+        // are sufficient for the case when the method
+        // 'implCompressImpl' is replaced with a compiler
+        // intrinsic.
+        b2lBig128(buf, ofs, W);
+    }
+
+    // The method 'implCompressImpl' seems not to use its parameters.
+    // The method can, however, be replaced with a compiler intrinsic
+    // that operates directly on the array 'buf' (starting from
+    // offset 'ofs') and not on array 'W', therefore 'buf' and 'ofs'
+    // must be passed as parameter to the method.
+    private final void implCompress0(byte[] buf, int ofs) {
         // The first 16 longs are from the byte stream, compute the rest of
         // the W[]'s
         for (int t = 16; t < ITERATION; t++) {
