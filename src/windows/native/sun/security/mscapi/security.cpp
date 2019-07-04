@@ -202,14 +202,17 @@ JNIEXPORT jbyteArray JNICALL Java_sun_security_mscapi_PRNG_generateSeed
         }
 
         /*
-         * If length is negative then use the supplied seed to re-seed the
-         * generator and return null.
+         * If length is negative and a seed is supplied, use it to re-seed the
+         * generator. Return null whether a seed is supplied or not.
          * If length is non-zero then generate a new seed according to the
          * requested length and return the new seed.
          * If length is zero then overwrite the supplied seed with a new
          * seed of the same length and return the seed.
          */
         if (length < 0) {
+            if (seed == NULL) {
+                __leave;
+            }
             length = env->GetArrayLength(seed);
             if ((reseedBytes = env->GetByteArrayElements(seed, 0)) == NULL) {
                 __leave;
