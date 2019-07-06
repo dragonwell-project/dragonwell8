@@ -6399,7 +6399,6 @@ CurrencyNames//afn=Afghan Afghani
 CurrencyNames//ang=Netherlands Antillean Guilder
 CurrencyNames//awg=Aruban Florin
 CurrencyNames//azm=Azerbaijani Manat (1993-2006)
-CurrencyNames//azn=Azerbaijani Manat
 CurrencyNames//bbd=Barbadian Dollar
 CurrencyNames//bdt=Bangladeshi Taka
 CurrencyNames//bgn=Bulgarian Lev
@@ -8296,3 +8295,15 @@ CurrencyNames//pen=Peruvian Sol
 # bug #8145952
 CurrencyNames//byn=Belarusian Ruble
 CurrencyNames/be_BY/BYN=\u0420\u0443\u0431
+
+# bug #8187946
+CurrencyNames//stn=S\u00e3o Tom\u00e9 and Pr\u00edncipe Dobra
+CurrencyNames//lak=Lao Kip
+CurrencyNames//php=Philippine Peso
+CurrencyNames//azn=Azerbaijan Manat
+
+# bug #8193552
+CurrencyNames//mru=Mauritanian Ouguiya
+
+# bug #8208746
+CurrencyNames//ves=Venezuelan Bol\u00edvar Soberano
