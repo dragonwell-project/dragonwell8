@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
-import java.util.Objects;
 
 /**
  * Rijndael --pronounced Reindaal-- is a symmetric cipher with a 128-bit
@@ -348,8 +347,8 @@ final class AESCrypt extends SymmetricCipher implements AESConstants
      */
     void encryptBlock(byte[] in, int inOffset,
                       byte[] out, int outOffset) {
-        cryptBlockCheck(in, inOffset);
-        cryptBlockCheck(out, outOffset);
+        // Array bound checks are done in caller code, i.e.
+        // FeedbackCipher.encrypt/decrypt(...) to improve performance.
         implEncryptBlock(in, inOffset, out, outOffset);
     }
 
@@ -426,8 +425,8 @@ final class AESCrypt extends SymmetricCipher implements AESConstants
      */
     void decryptBlock(byte[] in, int inOffset,
                       byte[] out, int outOffset) {
-        cryptBlockCheck(in, inOffset);
-        cryptBlockCheck(out, outOffset);
+        // Array bound checks are done in caller code, i.e.
+        // FeedbackCipher.encrypt/decrypt(...) to improve performance.
         implDecryptBlock(in, inOffset, out, outOffset);
     }
 
@@ -586,26 +585,6 @@ final class AESCrypt extends SymmetricCipher implements AESConstants
         out[outOffset++] = (byte)(Si[(a2 >>> 16) & 0xFF] ^ (t1 >>> 16));
         out[outOffset++] = (byte)(Si[(a1 >>>  8) & 0xFF] ^ (t1 >>>  8));
         out[outOffset  ] = (byte)(Si[(a0       ) & 0xFF] ^ (t1       ));
-    }
-
-    // Used to perform all checks required by the Java semantics
-    // (i.e., null checks and bounds checks) on the input parameters
-    // to encryptBlock and to decryptBlock.
-    // Normally, the Java Runtime performs these checks, however, as
-    // encryptBlock and decryptBlock are possibly replaced with
-    // compiler intrinsics, the JDK performs the required checks instead.
-    // Does not check accesses to class-internal (private) arrays.
-    private static void cryptBlockCheck(byte[] array, int offset) {
-        Objects.requireNonNull(array);
-
-        if (offset < 0 || offset >= array.length) {
-            throw new ArrayIndexOutOfBoundsException(offset);
-        }
-
-        int largestIndex = offset + AES_BLOCK_SIZE - 1;
-        if (largestIndex < 0 || largestIndex >= array.length) {
-            throw new ArrayIndexOutOfBoundsException(largestIndex);
-        }
     }
 
     /**
