@@ -50,7 +50,13 @@ le_uint32 AlternateSubstitutionSubtable::process(const LEReferenceTo<AlternateSu
         le_uint16 altSetCount = SWAPW(alternateSetCount);
 
         if (coverageIndex < altSetCount) {
-            Offset alternateSetTableOffset = SWAPW(alternateSetTableOffsetArray[coverageIndex]);
+            const LEReferenceToArrayOf<Offset>
+                arrayRef(base, success, alternateSetTableOffsetArray, altSetCount);
+            if (!LE_SUCCESS(success)) return 0;
+
+            Offset alternateSetTableOffset = SWAPW(arrayRef.getObject(coverageIndex, success));
+            if (!LE_SUCCESS(success)) return 0;
+
             const LEReferenceTo<AlternateSetTable> alternateSetTable(base, success,
                                   (const AlternateSetTable *) ((char *) this + alternateSetTableOffset));
             if (!LE_SUCCESS(success)) return 0;
