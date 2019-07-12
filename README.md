@@ -20,21 +20,41 @@ Alibaba Dragonwell JDK currently supports Linux/x86_64 platform only.
 
 ### Installation
 
-* Option 1, Download and install pre-built Alibaba Dragonwell
-   * You may download a pre-built Alibaba Dragonwell JDK from its GitHub page:
-https://github.com/alibaba/dragonwell8/releases.
-   * Uncompress the package to the installation directory.
+##### Option 1, Download and install pre-built Alibaba Dragonwell
 
-* Option 2, Install via YUM
-(will be available soon)
-> Supports RedHat, CentOS, and AliOS only.
-   * Add Aliyun's RPM repository to your /etc/repos.d/.
-   * Install Alibaba Dragonwell using YUM:
-`yum install dragonwell-8`
+* You may download a pre-built Alibaba Dragonwell JDK from its GitHub page:
+https://github.com/alibaba/dragonwell8/releases.
+* Uncompress the package to the installation directory.
+
+##### Option 2, Install via YUM
+
+Alibaba Dragonwell is officially supported and maintained in Alibaba Cloud Linux 2 (Aliyun Linux 2) YUM repository, and this repo should be also compatible with Aliyun Linux 17.1, Red Hat Enterprise Linux 7 and CentOS 7.
+
+* For users running Alibaba Cloud Linux 2 OS, you should be able to install Alibaba Dragonwell by simply running: `sudo yum install -y java-1.8.0-alibaba-dragonwell`;
+* For users running with aforementioned compatible distros, place a new repository file under `/etc/yum.repos.d` (e.g.: `/etc/repos.d/alinux-plus.repo`) with contents as follows, then you should be able to install Alibaba Dragonwell by executing: `sudo yum install -y java-1.8.0-alibaba-dragonwell`:
+```
+# plus packages provided by Aliyun Linux dev team
+[plus]
+name=AliYun-2.1903 - Plus - mirrors.aliyun.com
+baseurl=http://mirrors.aliyun.com/alinux/2.1903/plus/$basearch/
+gpgcheck=1
+gpgkey=http://mirrors.aliyun.com/alinux/RPM-GPG-KEY-ALIYUN
+```
 
 ### Enable Alibaba Dragonwell for Java applications
 
-To enable Alibaba Dragonwell JDK for your application, simply set JAVA_HOME to point to the installation directory of Alibaba Dragonwell.
+To enable Alibaba Dragonwell JDK for your application, simply set `JAVA_HOME` to point to the installation directory of Alibaba Dragonwell. If you installed Dragonwell JDK via YUM, follow the instructions prompted from post-install outputs, e.g.:
+
+```
+=======================================================================
+Alibaba Dragonwell is installed to:
+    /opt/alibaba/java-1.8.0-alibaba-dragonwell-8.0.0.212.b04-1.al7
+You can set Alibaba Dragonwell as default JDK by exporting the
+following ENV VARs:
+$ export JAVA_HOME=/opt/alibaba/java-1.8.0-alibaba-dragonwell-8.0.0.212.b04-1.al7
+$ export PATH=${JAVA_HOME}/bin:$PATH
+=======================================================================
+```
 
 # Acknowledgement
 
