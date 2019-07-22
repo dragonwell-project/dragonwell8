@@ -38,7 +38,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.oracle.java.testlibrary.Utils;
-import com.oracle.java.testlibrary.Platform;
+import com.oracle.java.testlibrary.Container;
 import com.oracle.java.testlibrary.OutputAnalyzer;
 import com.oracle.java.testlibrary.ProcessTools;
 
@@ -106,7 +106,7 @@ public class DockerTestUtils {
      */
     private static boolean isDockerEngineAvailableCheck() throws Exception {
         try {
-            execute(Platform.DOCKER_COMMAND, "ps")
+            execute(Container.ENGINE_COMMAND, "ps")
                 .shouldHaveExitValue(0)
                 .shouldContain("CONTAINER")
                 .shouldContain("IMAGE");
@@ -167,7 +167,7 @@ public class DockerTestUtils {
                            DockerfileConfig.getBaseImageVersion());
 
         // Build the docker
-        execute(Platform.DOCKER_COMMAND, "build", "--no-cache", "--tag", imageName, buildDir.toString())
+        execute(Container.ENGINE_COMMAND, "build", "--no-cache", "--tag", imageName, buildDir.toString())
             .shouldHaveExitValue(0);
     }
 
@@ -183,7 +183,7 @@ public class DockerTestUtils {
     public static OutputAnalyzer dockerRunJava(DockerRunOptions opts) throws Exception {
         ArrayList<String> cmd = new ArrayList<>();
 
-        cmd.add(Platform.DOCKER_COMMAND);
+        cmd.add(Container.ENGINE_COMMAND);
         cmd.add("run");
         if (opts.tty)
             cmd.add("--tty=true");
@@ -212,7 +212,7 @@ public class DockerTestUtils {
      * @throws Exception
      */
     public static void removeDockerImage(String imageNameAndTag) throws Exception {
-            execute(Platform.DOCKER_COMMAND, "rmi", "--force", imageNameAndTag);
+            execute(Container.ENGINE_COMMAND, "rmi", "--force", imageNameAndTag);
     }
 
 

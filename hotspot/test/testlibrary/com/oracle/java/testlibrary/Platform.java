@@ -28,12 +28,6 @@ import java.util.regex.Pattern;
 import com.oracle.java.testlibrary.Utils;
 
 public class Platform {
-    // Use this property to specify docker location on your system.
-    // E.g.: "/usr/local/bin/docker". We define this constant here so
-    // that it can be used in VMProps as well which checks docker support
-    // via this command
-    public static final String DOCKER_COMMAND =
-        System.getProperty("jdk.test.docker.command", "docker");
     private static final String osName      = System.getProperty("os.name");
     private static final String dataModel   = System.getProperty("sun.arch.data.model");
     private static final String vmVersion   = System.getProperty("java.vm.version");
