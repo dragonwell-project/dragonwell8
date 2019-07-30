@@ -1107,9 +1107,6 @@ address InterpreterGenerator::generate_native_entry(bool synchronized) {
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  // load call format
-  __ ldrw(rscratch1, Address(rmethod, Method::call_format_offset()));
-
   // Call the native method.
   __ blrt(r10, rscratch1);
   __ maybe_isb();
