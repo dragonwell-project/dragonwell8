@@ -530,6 +530,10 @@ void ParallelScavengeHeap::collect(GCCause::Cause cause) {
     full_gc_count = Universe::heap()->total_full_collections();
   }
 
+  if (GC_locker::should_discard(cause, gc_count)) {
+    return;
+  }
+
   VM_ParallelGCSystemGC op(gc_count, full_gc_count, cause);
   VMThread::execute(&op);
 }
