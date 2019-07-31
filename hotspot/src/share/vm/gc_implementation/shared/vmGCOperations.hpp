@@ -201,9 +201,7 @@ class VM_GenCollectFull: public VM_GC_Operation {
   VM_GenCollectFull(uint gc_count_before,
                     uint full_gc_count_before,
                     GCCause::Cause gc_cause,
-                    int max_level)
-    : VM_GC_Operation(gc_count_before, gc_cause, full_gc_count_before, true /* full */),
-      _max_level(max_level) { }
+                    int max_level);
   ~VM_GenCollectFull() {}
   virtual VMOp_Type type() const { return VMOp_GenCollectFull; }
   virtual void doit();

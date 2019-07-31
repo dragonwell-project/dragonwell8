@@ -201,6 +201,19 @@ void VM_GenCollectForAllocation::doit() {
   }
 }
 
+static bool is_full_gc(int max_level) {
+  // Return true if max_level is all generations
+  return (max_level == (GenCollectedHeap::heap()->n_gens() - 1));
+}
+
+VM_GenCollectFull::VM_GenCollectFull(uint gc_count_before,
+                                     uint full_gc_count_before,
+                                     GCCause::Cause gc_cause,
+                                     int max_level) :
+  VM_GC_Operation(gc_count_before, gc_cause, full_gc_count_before,
+                  is_full_gc(max_level) /* full */),
+  _max_level(max_level) { }
+
 void VM_GenCollectFull::doit() {
   SvcGCMarker sgcm(SvcGCMarker::FULL);
 
