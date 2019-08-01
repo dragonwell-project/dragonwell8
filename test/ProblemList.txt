@@ -50,3 +50,15 @@ runtime/LoadClass/LoadClassNegative.java 8028095 generic-all
 runtime/NMT/MallocStressTest.java 8166548 generic-all
 runtime/InitialThreadOverflow/testme.sh 8029139 generic-all
 runtime/memory/ReadFromNoaccessArea.java 8028398 generic-all
+
+# :hotspot_compiler
+
+compiler/rtm/locking/TestRTMAbortRatio.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMAbortThreshold.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMAfterNonRTMDeopt.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMDeoptOnHighAbortRatio.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMDeoptOnLowAbortRatio.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMLockingCalculationDelay.java 8183263 generic-x64
+compiler/rtm/locking/TestRTMLockingThreshold.java 8183263 generic-x64
+compiler/rtm/locking/TestUseRTMDeopt.java 8183263 generic-x64
+compiler/rtm/print/TestPrintPreciseRTMLockingStatistics.java 8183263 generic-x64
