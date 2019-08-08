@@ -799,8 +799,11 @@ class StubGenerator: public StubCodeGenerator {
       stub_name = "foward_copy_longs";
     else
       stub_name = "backward_copy_longs";
-    StubCodeMark mark(this, "StubRoutines", stub_name);
+
     __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", stub_name);
+
     __ bind(start);
 
     Label unaligned_copy_long;
@@ -2165,9 +2168,10 @@ class StubGenerator: public StubCodeGenerator {
     const Register dst_pos    = c_rarg3;  // destination position
     const Register length     = c_rarg4;
 
+    __ align(CodeEntryAlignment);
+
     StubCodeMark mark(this, "StubRoutines", name);
 
-    __ align(CodeEntryAlignment);
     address start = __ pc();
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
