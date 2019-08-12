@@ -556,6 +556,7 @@ class os: AllStatic {
   //File i/o operations
 
   static size_t read(int fd, void *buf, unsigned int nBytes);
+  static size_t read_at(int fd, void *buf, unsigned int nBytes, jlong offset);
   static size_t restartable_read(int fd, void *buf, unsigned int nBytes);
   static size_t write(int fd, const void *buf, unsigned int nBytes);
 
@@ -603,6 +604,16 @@ class os: AllStatic {
 
   // Unload library
   static void  dll_unload(void *lib);
+
+  // Callback for loaded module information
+  // Input parameters:
+  //    char*     module_file_name,
+  //    address   module_base_addr,
+  //    address   module_top_addr,
+  //    void*     param
+  typedef int (*LoadedModulesCallbackFunc)(const char *, address, address, void *);
+
+  static int get_loaded_modules_info(LoadedModulesCallbackFunc callback, void *param);
 
   // Return the handle of this process
   static void* get_default_process_handle();

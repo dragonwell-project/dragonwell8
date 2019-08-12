@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
@@ -31,7 +32,6 @@
 #include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/top.hpp"
-#include "trace/tracing.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc_implementation/g1/g1_globals.hpp"
 #endif // INCLUDE_ALL_GCS
@@ -610,8 +610,8 @@ static void trace_flag_changed(const char* name, const T old_value, const T new_
 {
   E e;
   e.set_name(name);
-  e.set_old_value(old_value);
-  e.set_new_value(new_value);
+  e.set_oldValue(old_value);
+  e.set_newValue(new_value);
   e.set_origin(origin);
   e.commit();
 }

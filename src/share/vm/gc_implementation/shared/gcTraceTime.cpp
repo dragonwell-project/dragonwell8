@@ -32,7 +32,7 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/ostream.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "utilities/ticks.hpp"
 
 
 GCTraceTime::GCTraceTime(const char* title, bool doit, bool print_cr, GCTimer* timer, GCId gc_id) :
@@ -72,7 +72,7 @@ GCTraceTime::~GCTraceTime() {
 
   if (_doit) {
     const Tickspan duration = stop_counter - _start_counter;
-    double duration_in_seconds = TicksToTimeHelper::seconds(duration);
+    double duration_in_seconds = duration.seconds();
     if (_print_cr) {
       gclog_or_tty->print_cr(", %3.7f secs]", duration_in_seconds);
     } else {

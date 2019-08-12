@@ -111,6 +111,28 @@ class win32 {
  * don't call code that could leave the heap / memory in an inconsistent state,
  * or anything else where we are not in control if we suddenly jump out.
  */
+class ThreadCrashProtection : public StackObj {
+public:
+  static bool is_crash_protected(Thread* thr) {
+    return _crash_protection != NULL && _protected_thread == thr;
+  }
+
+  ThreadCrashProtection();
+  bool call(os::CrashProtectionCallback& cb);
+private:
+  static Thread* _protected_thread;
+  static ThreadCrashProtection* _crash_protection;
+  static volatile intptr_t _crash_mux;
+};
+
+/*
+ * Crash protection for the watcher thread. Wrap the callback
+ * with a __try { call() }
+ * To be able to use this - don't take locks, don't rely on destructors,
+ * don't make OS library calls, don't allocate memory, don't print,
+ * don't call code that could leave the heap / memory in an inconsistent state,
+ * or anything else where we are not in control if we suddenly jump out.
+ */
 class WatcherThreadCrashProtection : public StackObj {
 public:
   WatcherThreadCrashProtection();

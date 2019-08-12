@@ -126,12 +126,16 @@ Mutex*   Management_lock              = NULL;
 Monitor* Service_lock                 = NULL;
 Monitor* PeriodicTask_lock            = NULL;
 
-#ifdef INCLUDE_TRACE
+#ifdef INCLUDE_JFR
 Mutex*   JfrStacktrace_lock           = NULL;
 Monitor* JfrMsg_lock                  = NULL;
 Mutex*   JfrBuffer_lock               = NULL;
 Mutex*   JfrStream_lock               = NULL;
 Mutex*   JfrThreadGroups_lock         = NULL;
+
+#ifndef SUPPORTS_NATIVE_CX8
+Mutex*   JfrCounters_lock             = NULL;
+#endif
 #endif
 
 #ifndef SUPPORTS_NATIVE_CX8
@@ -280,12 +284,16 @@ void mutex_init() {
   def(CompileThread_lock           , Monitor, nonleaf+5,   false );
   def(PeriodicTask_lock            , Monitor, nonleaf+5,   true);
 
-#ifdef INCLUDE_TRACE
+#ifdef INCLUDE_JFR
   def(JfrMsg_lock                  , Monitor, leaf,        true);
   def(JfrBuffer_lock               , Mutex,   leaf,        true);
   def(JfrThreadGroups_lock         , Mutex,   leaf,        true);
   def(JfrStream_lock               , Mutex,   nonleaf,     true);
   def(JfrStacktrace_lock           , Mutex,   special,     true);
+
+#ifndef SUPPORTS_NATIVE_CX8
+  def(JfrCounters_lock             , Mutex,   special,     false);
+#endif
 #endif
 
 #ifndef SUPPORTS_NATIVE_CX8

@@ -32,6 +32,7 @@
 #include "code/pcDesc.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc_implementation/shared/markSweep.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/iterator.hpp"
@@ -46,8 +47,8 @@
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "services/memoryService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/xmlstream.hpp"
+
 
 // Helper class for printing in CodeCache
 

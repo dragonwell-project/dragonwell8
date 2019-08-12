@@ -94,6 +94,7 @@ ArrayKlass::ArrayKlass(Symbol* name) {
   int vtable_size = Universe::base_vtable_size();
   set_vtable_length(vtable_size);
   set_is_cloneable(); // All arrays are considered to be cloneable (See JLS 20.1.5)
+  JFR_ONLY(INIT_ID(this);)
 }
 
 
