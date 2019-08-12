@@ -34,6 +34,7 @@
 #include "utilities/exceptions.hpp"
 
 // put OS-includes here
+#include <dirent.h>
 # include <sys/types.h>
 # include <sys/mman.h>
 # include <errno.h>

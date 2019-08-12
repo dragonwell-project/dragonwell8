@@ -583,13 +583,12 @@ void G1GCPhaseTimes::print(double pause_time_sec) {
 G1GCParPhaseTimesTracker::G1GCParPhaseTimesTracker(G1GCPhaseTimes* phase_times, G1GCPhaseTimes::GCParPhases phase, uint worker_id) :
     _phase_times(phase_times), _phase(phase), _worker_id(worker_id) {
   if (_phase_times != NULL) {
-    _start_time = os::elapsedTime();
+    _start_time = Ticks::now();
   }
 }
 
 G1GCParPhaseTimesTracker::~G1GCParPhaseTimesTracker() {
   if (_phase_times != NULL) {
-    _phase_times->record_time_secs(_phase, _worker_id, os::elapsedTime() - _start_time);
+    _phase_times->record_time_secs(_phase, _worker_id, (Ticks::now() - _start_time).seconds());
   }
 }
-

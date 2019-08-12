@@ -42,8 +42,6 @@
 #include "runtime/threadLocalStorage.hpp"
 #include "runtime/thread_ext.hpp"
 #include "runtime/unhandledOops.hpp"
-#include "trace/traceBackend.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/top.hpp"
@@ -53,6 +51,9 @@
 #endif // INCLUDE_ALL_GCS
 #ifdef TARGET_ARCH_zero
 # include "stack_zero.hpp"
+#endif
+#if INCLUDE_JFR
+#include "jfr/support/jfrThreadExtension.hpp"
 #endif
 
 class ThreadSafepointState;
@@ -260,7 +261,7 @@ class Thread: public ThreadShadow {
   // Thread-local buffer used by MetadataOnStackMark.
   MetadataOnStackBuffer* _metadata_on_stack_buffer;
 
-  TRACE_DATA _trace_data;                       // Thread-local data for tracing
+  JFR_ONLY(DEFINE_THREAD_LOCAL_FIELD_JFR;)      // Thread-local data for jfr
 
   ThreadExt _ext;
 
@@ -441,7 +442,7 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
-  TRACE_DATA* trace_data()              { return &_trace_data; }
+  JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
 
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }
@@ -625,6 +626,8 @@ protected:
 #undef TLAB_FIELD_OFFSET
 
   static ByteSize allocated_bytes_offset()       { return byte_offset_of(Thread, _allocated_bytes ); }
+
+  JFR_ONLY(DEFINE_THREAD_LOCAL_OFFSET_JFR;)
 
  public:
   volatile intptr_t _Stalled ;

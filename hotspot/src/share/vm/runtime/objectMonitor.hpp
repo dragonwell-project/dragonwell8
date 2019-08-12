@@ -55,9 +55,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_end(ObjectMonitor *mon);
 };
 
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
-
 // WARNING:
 //   This is a very sensitive and fragile class. DO NOT make any
 // change unless you are fully aware of the underlying semantics.
@@ -224,10 +221,6 @@ public:
   void      ctAsserts () ;
   void      ExitEpilog (Thread * Self, ObjectWaiter * Wakee) ;
   bool      ExitSuspendEquivalent (JavaThread * Self) ;
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                                   jlong notifier_tid,
-                                                   jlong timeout,
-                                                   bool timedout);
 
  private:
   friend class ObjectSynchronizer;

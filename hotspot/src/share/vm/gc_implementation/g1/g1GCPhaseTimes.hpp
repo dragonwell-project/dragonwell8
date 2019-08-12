@@ -278,7 +278,7 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
 };
 
 class G1GCParPhaseTimesTracker : public StackObj {
-  double _start_time;
+  Ticks _start_time;
   G1GCPhaseTimes::GCParPhases _phase;
   G1GCPhaseTimes* _phase_times;
   uint _worker_id;

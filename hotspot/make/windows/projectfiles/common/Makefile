@@ -61,8 +61,8 @@ JvmtiOutDir=$(HOTSPOTBUILDSPACE)\$(Variant)\generated\jvmtifiles
 !include $(HOTSPOTWORKSPACE)/make/windows/makefiles/jvmti.make
 
 # Pick up rules for building trace
-TraceOutDir=$(HOTSPOTBUILDSPACE)\$(Variant)\generated\tracefiles
-!include $(HOTSPOTWORKSPACE)/make/windows/makefiles/trace.make
+JfrOutDir=$(HOTSPOTBUILDSPACE)\$(Variant)\generated\jfrfiles
+!include $(HOTSPOTWORKSPACE)/make/windows/makefiles/jfr.make
 
 !if "$(Variant)" == "compiler2"
 # Pick up rules for building adlc

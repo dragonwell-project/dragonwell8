@@ -575,6 +575,11 @@ $(EXPORT_SERVER_DIR)/Xusage.txt $(EXPORT_CLIENT_DIR)/Xusage.txt $(EXPORT_MINIMAL
 	$(SED) 's/\(separated by \)[;:]/\1$(PATH_SEP)/g' $< > $@.temp
 	$(MV) $@.temp $@
 
+# Java Flight Recorder
+$(EXPORT_JRE_LIB_DIR)/jdk/jfr/internal/types/metadata.xml: $(HS_SRC_DIR)/share/vm/jfr/metadata/metadata.xml
+	mkdir -p $(basename $@)
+	cp $< $@
+
 #
 # Clean rules
 #

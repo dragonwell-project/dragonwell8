@@ -204,6 +204,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 
 #endif // no compilers
 
+#if !INCLUDE_JFR
+#define LogJFR false
+#endif
+
 // string type aliases used only in this file
 typedef const char* ccstr;
 typedef const char* ccstrlist;   // represents string arguments which accumulate
@@ -3982,15 +3986,27 @@ class CommandLineFlags {
           "Allocation less than this value will be allocated "              \
           "using malloc. Larger allocations will use mmap.")                \
                                                                             \
-  product(bool, EnableTracing, false,                                       \
-          "Enable event-based tracing")                                     \
-                                                                            \
-  product(bool, UseLockedTracing, false,                                    \
-          "Use locked-tracing when doing event-based tracing")              \
-                                                                            \
   product_pd(bool, PreserveFramePointer,                                    \
              "Use the FP register for holding the frame pointer "           \
-             "and not as a general purpose register.")
+             "and not as a general purpose register.")                      \
+                                                                            \
+  JFR_ONLY(product(bool, FlightRecorder, false,                             \
+          "Enable Flight Recorder"))                                        \
+                                                                            \
+  JFR_ONLY(product(ccstr, FlightRecorderOptions, NULL,                      \
+          "Flight Recorder options"))                                       \
+                                                                            \
+  JFR_ONLY(product(ccstr, StartFlightRecording, NULL,                       \
+          "Start flight recording with options"))                           \
+                                                                            \
+  JFR_ONLY(product(bool, UnlockCommercialFeatures, false,                   \
+          "This flag is ignored. Left for compatibility"))                  \
+                                                                            \
+  experimental(bool, UseFastUnorderedTimeStamps, false,                     \
+          "Use platform unstable time where supported for timestamps only") \
+                                                                            \
+  JFR_ONLY(product(bool, LogJFR, false,                                     \
+          "Enable JFR logging (consider +Verbose)"))                        \
 
 /*
  *  Macros for factoring of globals

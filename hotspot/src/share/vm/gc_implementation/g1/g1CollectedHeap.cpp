@@ -4089,7 +4089,7 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
         g1_policy()->print_collection_set(g1_policy()->inc_cset_head(), gclog_or_tty);
 #endif // YOUNG_LIST_VERBOSE
 
-        g1_policy()->record_collection_pause_start(sample_start_time_sec);
+        g1_policy()->record_collection_pause_start(sample_start_time_sec, *_gc_tracer_stw);
 
         double scan_wait_start = os::elapsedTime();
         // We have to wait until the CM threads finish scanning the

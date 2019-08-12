@@ -180,5 +180,7 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define SIZE_64G  ((uint64_t)  0x1000000000ULL)
 #define SIZE_1T   ((uint64_t) 0x10000000000ULL)
 
+#define NOINLINE     __attribute__((__noinline__))
+#define ALWAYSINLINE inline __attribute__((__always_inline__))
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_XLC_HPP
