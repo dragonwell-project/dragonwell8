@@ -434,6 +434,24 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   COMPRESS_JARS=false
 
   AC_SUBST(COMPRESS_JARS)
+
+  ###############################################################################
+  #
+  # Enable or disable JFR
+  #
+  AC_MSG_CHECKING([whether to build jfr])
+  AC_ARG_ENABLE(jfr, [AS_HELP_STRING([--enable-jfr],
+      [Enable Java Flight Recorder support @<:@disabled@:>@])],,
+      [enable_jfr=no])
+  if test "x$enable_jfr" = "xno"; then
+    ENABLE_JFR=false
+  elif test "x$enable_jfr" = "xyes"; then
+    ENABLE_JFR=true
+  else
+    AC_MSG_ERROR([--enable-jfr must either be set to yes or no])
+  fi
+  AC_MSG_RESULT([$ENABLE_JFR])
+  AC_SUBST(ENABLE_JFR)
 ])
 
 ###############################################################################
