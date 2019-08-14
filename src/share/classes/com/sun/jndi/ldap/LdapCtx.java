@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2690,7 +2690,8 @@ final public class LdapCtx extends ComponentDirContext
                 synchronized (clnt) {
                     if (!clnt.isLdapv3
                         || clnt.referenceCount > 1
-                        || clnt.usingSaslStreams()) {
+                        || clnt.usingSaslStreams()
+                        || !clnt.conn.useable) {
                         closeConnection(SOFT_CLOSE);
                     }
                 }
