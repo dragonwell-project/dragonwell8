@@ -4262,6 +4262,8 @@ instanceKlassHandle ClassFileParser::parseClassFile(Symbol* name,
     preserve_this_klass = this_klass();
   }
 
+  JFR_ONLY(INIT_ID(preserve_this_klass);)
+
   // Create new handle outside HandleMark (might be needed for
   // Extended Class Redefinition)
   instanceKlassHandle this_klass (THREAD, preserve_this_klass);
