@@ -33,6 +33,7 @@ import java.io.ObjectStreamField;
 import java.io.ObjectInputStream.GetField;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
+import sun.misc.VM;
 import sun.net.util.IPAddressUtil;
 import sun.security.util.SecurityConstants;
 
@@ -1423,7 +1424,9 @@ public final class URL implements java.io.Serializable {
     }
 
     boolean isBuiltinStreamHandler(URLStreamHandler handler) {
-       return isBuiltinStreamHandler(handler.getClass().getName());
+        Class<?> handlerClass = handler.getClass();
+        return isBuiltinStreamHandler(handlerClass.getName())
+                || VM.isSystemDomainLoader(handlerClass.getClassLoader());
     }
 
     private boolean isBuiltinStreamHandler(String handlerClassName) {
