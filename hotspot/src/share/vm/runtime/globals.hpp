@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1179,9 +1179,6 @@ class CommandLineFlags {
                                                                             \
   product(bool, ReduceSignalUsage, false,                                   \
           "Reduce the use of OS signals in Java and/or the VM")             \
-                                                                            \
-  develop_pd(bool, ShareVtableStubs,                                        \
-          "Share vtable stubs (smaller code but worse branch prediction")   \
                                                                             \
   develop(bool, LoadLineNumberTables, true,                                 \
           "Tell whether the class file parser loads line number tables")    \

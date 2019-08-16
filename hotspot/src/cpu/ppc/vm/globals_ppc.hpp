@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012, 2018 SAP AG. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,9 +33,7 @@
 // (see globals.hpp)
 
 define_pd_global(bool, ConvertSleepToYield,   true);
-define_pd_global(bool, ShareVtableStubs,      false); // Improves performance markedly for mtrt and compress.
 define_pd_global(bool, NeedsDeoptSuspend,     false); // Only register window machines need this.
-
 
 define_pd_global(bool, ImplicitNullChecks,    true);  // Generate code for implicit null checks.
 define_pd_global(bool, TrapBasedNullChecks,   true);
