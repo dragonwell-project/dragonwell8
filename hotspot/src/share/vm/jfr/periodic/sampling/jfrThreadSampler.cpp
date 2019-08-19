@@ -321,7 +321,8 @@ class JfrThreadSampler : public Thread {
   volatile bool _disenrolled;
   static Monitor* _transition_block_lock;
 
-//  JavaThread* next_thread(ThreadsList* t_list, JavaThread* first_sampled, JavaThread* current);
+  int find_index_of_JavaThread(JavaThread** t_list, uint length, JavaThread *target);
+  JavaThread* next_thread(JavaThread** t_list, uint length, JavaThread* first_sampled, JavaThread* current);
   void task_stacktrace(JfrSampleType type, JavaThread** last_thread);
   JfrThreadSampler(size_t interval_java, size_t interval_native, u4 max_frames);
   ~JfrThreadSampler();
@@ -344,7 +345,7 @@ class JfrThreadSampler : public Thread {
 Monitor* JfrThreadSampler::_transition_block_lock = new Monitor(Mutex::leaf, "Trace block", true);
 
 static void clear_transition_block(JavaThread* jt) {
-//  jt->clear_trace_flag();
+  jt->clear_trace_flag();
   JfrThreadLocal* const tl = jt->jfr_thread_local();
   if (tl->is_trace_block()) {
     MutexLockerEx ml(JfrThreadSampler::transition_block(), Mutex::_no_safepoint_check_flag);
@@ -359,7 +360,7 @@ bool JfrThreadSampleClosure::do_sample_thread(JavaThread* thread, JfrStackFrame*
   }
 
   bool ret = false;
-//  thread->set_trace_flag();
+  thread->set_trace_flag();
   if (!UseMembar) {
     os::serialize_thread_states();
   }
@@ -398,37 +399,61 @@ void JfrThreadSampler::on_javathread_suspend(JavaThread* thread) {
   JfrThreadLocal* const tl = thread->jfr_thread_local();
   tl->set_trace_block();
   {
-//    MutexLockerEx ml(transition_block(), Mutex::_no_safepoint_check_flag);
-//    while (thread->is_trace_suspend()) {
-//      transition_block()->wait(true);
-//    }
-//    tl->clear_trace_block();
+    MutexLockerEx ml(transition_block(), Mutex::_no_safepoint_check_flag);
+    while (thread->is_trace_suspend()) {
+      transition_block()->wait(true);
+    }
+    tl->clear_trace_block();
   }
 }
 
-//JavaThread* JfrThreadSampler::next_thread(ThreadsList* t_list, JavaThread* first_sampled, JavaThread* current) {
-//  assert(t_list != NULL, "invariant");
-//  assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
-//  assert(_cur_index >= -1 && (uint)_cur_index + 1 <= t_list->length(), "invariant");
-//  assert((current == NULL && -1 == _cur_index) || (t_list->find_index_of_JavaThread(current) == _cur_index), "invariant");
-//  if ((uint)_cur_index + 1 == t_list->length()) {
-//    // wrap
-//    _cur_index = 0;
-//  } else {
-//    _cur_index++;
-//  }
-//  assert(_cur_index >= 0 && (uint)_cur_index < t_list->length(), "invariant");
-//  JavaThread* const next = t_list->thread_at(_cur_index);
-//  return next != first_sampled ? next : NULL;
-//}
+int JfrThreadSampler::find_index_of_JavaThread(JavaThread** t_list, uint length, JavaThread *target) {
+  assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
+  if (target == NULL) {
+    return -1;
+  }
+  for (uint i = 0; i < length; i++) {
+    if (target == t_list[i]) {
+      return (int)i;
+    }
+  }
+  return -1;
+}
+
+JavaThread* JfrThreadSampler::next_thread(JavaThread** t_list, uint length, JavaThread* first_sampled, JavaThread* current) {
+  assert(Threads_lock->owned_by_self(), "Holding the thread table lock.");
+  if (current == NULL) {
+    _cur_index = 0;
+    return t_list[_cur_index];
+  }
+
+  if (_cur_index == -1 || t_list[_cur_index] != current) {
+    // 'current' is not at '_cur_index' so find it:
+    _cur_index = find_index_of_JavaThread(t_list, length, current);
+    assert(_cur_index != -1, "current JavaThread should be findable.");
+  }
+  _cur_index++;
+
+  JavaThread* next = NULL;
+  // wrap
+  if ((uint)_cur_index >= length) {
+    _cur_index = 0;
+  }
+  next = t_list[_cur_index];
+
+  // sample wrap
+  if (next == first_sampled) {
+    return NULL;
+  }
+  return next;
+}
 
 void JfrThreadSampler::start_thread() {
-  // XXX TODO implement sampling
-//  if (os::create_thread(this, os::os_thread)) {
-//    os::start_thread(this);
-//  } else {
-//    if (true) tty->print_cr("Failed to create thread for thread sampling");
-//  }
+  if (os::create_thread(this, os::os_thread)) {
+    os::start_thread(this);
+  } else {
+    tty->print_cr("Failed to create thread for thread sampling");
+  }
 }
 
 void JfrThreadSampler::enroll() {
@@ -510,28 +535,33 @@ void JfrThreadSampler::task_stacktrace(JfrSampleType type, JavaThread** last_thr
     elapsedTimer sample_time;
     sample_time.start();
     {
-//      MonitorLockerEx tlock(Threads_lock, Mutex::_allow_vm_block_flag);
-//      ThreadsListHandle tlh;
-//      // Resolve a sample session relative start position index into the thread list array.
-//      // In cases where the last sampled thread is NULL or not-NULL but stale, find_index() returns -1.
-//      _cur_index = tlh.list()->find_index_of_JavaThread(*last_thread);
-//      JavaThread* current = _cur_index != -1 ? *last_thread : NULL;
-//
-//      while (num_sample_attempts < sample_limit) {
-//        current = next_thread(tlh.list(), start, current);
-//        if (current == NULL) {
-//          break;
-//        }
-//        if (start == NULL) {
-//          start = current;  // remember the thread where we started to attempt sampling
-//        }
-//        if (current->is_Compiler_thread()) {
-//          continue;
-//        }
-//        sample_task.do_sample_thread(current, _frames, _max_frames, type);
-//        num_sample_attempts++;
-//      }
-//      *last_thread = current;  // remember the thread we last attempted to sample
+      MonitorLockerEx tlock(Threads_lock, Mutex::_allow_vm_block_flag);
+      int max_threads = Threads::number_of_threads();
+      assert(max_threads >= 0, "Threads list is empty");
+      uint index = 0;
+      JavaThread** threads_list = NEW_C_HEAP_ARRAY(JavaThread *, max_threads, mtInternal);
+      for (JavaThread* tp = Threads::first(); tp != NULL; tp = tp->next()) {
+        threads_list[index++] = tp;
+      }
+      JavaThread* current = Threads::includes(*last_thread) ? *last_thread : NULL;
+      JavaThread* start = NULL;
+
+      while (num_sample_attempts < sample_limit) {
+        current = next_thread(threads_list, index, start, current);
+        if (current == NULL) {
+          break;
+        }
+        if (start == NULL) {
+          start = current;  // remember the thread where we started to attempt sampling
+        }
+        if (current->is_Compiler_thread()) {
+          continue;
+        }
+        sample_task.do_sample_thread(current, _frames, _max_frames, type);
+        num_sample_attempts++;
+      }
+      *last_thread = current;  // remember the thread we last attempted to sample
+      FREE_C_HEAP_ARRAY(JavaThread *, threads_list, mtInternal);
     }
     sample_time.stop();
     if (LogJFR && Verbose) tty->print_cr("JFR thread sampling done in %3.7f secs with %d java %d native samples",

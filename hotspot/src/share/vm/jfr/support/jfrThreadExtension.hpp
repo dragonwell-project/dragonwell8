@@ -46,7 +46,11 @@
 #define THREAD_LOCAL_WRITER_OFFSET_JFR \
   JfrThreadLocal::java_event_writer_offset() + THREAD_LOCAL_OFFSET_JFR
 
-// XXX consider implementing thread suspend tracing
-#define SUSPEND_THREAD_CONDITIONAL(thread) if (false/*(thread)->is_trace_suspend()*/) JfrThreadSampling::on_javathread_suspend(thread)
+#define DEFINE_TRACE_SUSPEND_FLAG_METHODS \
+  void set_trace_flag() { set_suspend_flag(_trace_flag); } \
+  void clear_trace_flag() { clear_suspend_flag(_trace_flag); } \
+  bool is_trace_suspend() { return (_suspend_flags & _trace_flag) != 0; }
+
+#define SUSPEND_THREAD_CONDITIONAL(thread) if ((thread)->is_trace_suspend()) JfrThreadSampling::on_javathread_suspend(thread)
 
 #endif // SHARE_VM_JFR_SUPPORT_JFRTHREADEXTENSION_HPP

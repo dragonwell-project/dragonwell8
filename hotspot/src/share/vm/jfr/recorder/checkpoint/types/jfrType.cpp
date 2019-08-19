@@ -188,13 +188,12 @@ void GCWhenConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void G1HeapRegionTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  // XXX TODO?
-//  static const u4 nof_entries = G1HeapRegionTraceType::G1HeapRegionTypeEndSentinel;
-//  writer.write_count(nof_entries);
-//  for (u4 i = 0; i < nof_entries; ++i) {
-//    writer.write_key(i);
-//    writer.write(G1HeapRegionTraceType::to_string((G1HeapRegionTraceType::Type)i));
-//  }
+  static const u4 nof_entries = G1HeapRegionTraceType::G1HeapRegionTypeEndSentinel;
+  writer.write_count(nof_entries);
+  for (u4 i = 0; i < nof_entries; ++i) {
+    writer.write_key(i);
+    writer.write(G1HeapRegionTraceType::to_string((G1HeapRegionTraceType::Type)i));
+  }
 }
 
 void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
@@ -279,13 +278,10 @@ void CompilerPhaseTypeConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void CodeBlobTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  // XXX no code blob types. need to send any stub value?
-//  static const u4 nof_entries = CodeBlobType::NumTypes;
-//  writer.write_count(nof_entries);
-//  for (u4 i = 0; i < nof_entries; ++i) {
-//    writer.write_key(i);
-//    writer.write(CodeCache::get_code_heap_name(i));
-//  }
+  static const u4 nof_entries = CodeBlobType::NumTypes;
+  writer.write_count(nof_entries);
+  writer.write_key((u4)CodeBlobType::All);
+  writer.write("CodeCache");
 };
 
 void VMOperationTypeConstant::serialize(JfrCheckpointWriter& writer) {
