@@ -44,10 +44,10 @@ import sun.hotspot.WhiteBox;
  *     sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:.
  *     -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *     -XX:+SegmentedCodeCache jdk.jfr.event.compiler.TestCodeCacheConfig
+ *     jdk.jfr.event.compiler.TestCodeCacheConfig
  * @run main/othervm -Xbootclasspath/a:.
  *     -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *     -XX:-SegmentedCodeCache jdk.jfr.event.compiler.TestCodeCacheConfig
+ *     jdk.jfr.event.compiler.TestCodeCacheConfig
  * @summary check "Code Cache Configuration" jfr event
  */
 public class TestCodeCacheConfig {

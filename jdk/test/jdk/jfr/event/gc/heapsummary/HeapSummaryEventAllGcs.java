@@ -41,6 +41,7 @@ public class HeapSummaryEventAllGcs {
         Recording recording = new Recording();
         recording.enable(EventNames.GCConfiguration);
         recording.enable(EventNames.GCHeapSummary);
+        recording.enable(EventNames.G1HeapSummary);
         recording.enable(EventNames.PSHeapSummary);
         recording.enable(EventNames.MetaspaceSummary).withThreshold(Duration.ofMillis(0));
 
@@ -62,6 +63,7 @@ public class HeapSummaryEventAllGcs {
         Asserts.assertEquals(events.size() % 2, 0, "Events should come in pairs");
 
         int lastHeapGcId = -1;
+        int lastG1GcId = -1;
         int lastPSGcId = -1;
         int lastMetaspaceGcId = -1;
 
@@ -71,6 +73,10 @@ public class HeapSummaryEventAllGcs {
                 case EventNames.GCHeapSummary:
                     lastHeapGcId = checkGcId(event, lastHeapGcId);
                     checkHeapEventContent(event);
+                    break;
+                case EventNames.G1HeapSummary:
+                    lastG1GcId = checkGcId(event, lastG1GcId);
+                    checkG1EventContent(event);
                     break;
                 case EventNames.PSHeapSummary:
                     lastPSGcId = checkGcId(event, lastPSGcId);
@@ -125,6 +131,14 @@ public class HeapSummaryEventAllGcs {
         long start = Events.assertField(event, "heapSpace.start").atLeast(0L).getValue();
         long committedEnd = Events.assertField(event, "heapSpace.committedEnd").above(start).getValue();
         Asserts.assertLessThanOrEqual(heapUsed, committedEnd- start, "used can not exceed size");
+    }
+
+    private static void checkG1EventContent(RecordedEvent event) {
+        long edenUsedSize = Events.assertField(event, "edenUsedSize").atLeast(0L).getValue();
+        long edenTotalSize = Events.assertField(event, "edenTotalSize").atLeast(0L).getValue();
+        Asserts.assertLessThanOrEqual(edenUsedSize, edenTotalSize, "used can not exceed size");
+        Events.assertField(event, "survivorUsedSize").atLeast(0L);
+        Events.assertField(event, "numberOfRegions").atLeast(0);
     }
 
     private static void checkPSEventContent(RecordedEvent event) {

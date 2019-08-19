@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
  *
  * @library /lib /
  *
- * @run main/othervm jdk.jfr.event.runtime.TestBiasedLockRevocationEvents
+ * @run main/othervm -XX:BiasedLockingStartupDelay=0 jdk.jfr.event.runtime.TestBiasedLockRevocationEvents
  */
 public class TestBiasedLockRevocationEvents {
 
