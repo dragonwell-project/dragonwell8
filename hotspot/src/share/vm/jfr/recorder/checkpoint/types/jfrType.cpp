@@ -55,7 +55,7 @@
 #include "opto/node.hpp"
 #endif
 #if INCLUDE_ALL_GCS
-//#include "gc_implementation/g1/g1HeapRegionTraceType.hpp"
+#include "gc_implementation/g1/g1HeapRegionTraceType.hpp"
 #include "gc_implementation/g1/g1YCTypes.hpp"
 #endif
 
