@@ -196,7 +196,9 @@ class Thread: public ThreadShadow {
     _deopt_suspend          = 0x10000000U, // thread needs to self suspend for deopt
 
     _has_async_exception    = 0x00000001U, // there is a pending async exception
-    _critical_native_unlock = 0x00000002U  // Must call back to unlock JNI critical lock
+    _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
+
+    JFR_ONLY(_trace_flag    = 0x00000004U)  // call jfr tracing
   };
 
   // various suspension related flags - atomically updated
@@ -443,6 +445,7 @@ class Thread: public ThreadShadow {
   inline jlong cooked_allocated_bytes();
 
   JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
+  JFR_ONLY(DEFINE_TRACE_SUSPEND_FLAG_METHODS)
 
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }

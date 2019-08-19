@@ -375,6 +375,8 @@ private:
                                                          size_t size,
                                                          size_t translation_factor);
 
+  void trace_heap(GCWhen::Type when, GCTracer* tracer);
+
   double verify(bool guard, const char* msg);
   void verify_before_gc();
   void verify_after_gc();
@@ -1620,6 +1622,8 @@ public:
 
   bool is_obj_dead_cond(const oop obj,
                         const VerifyOption vo) const;
+
+  G1HeapSummary create_g1_heap_summary();
 
   // Printing
 
