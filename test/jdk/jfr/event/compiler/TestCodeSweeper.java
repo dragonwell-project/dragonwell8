@@ -59,7 +59,7 @@ import sun.hotspot.code.CodeBlob;
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:-SegmentedCodeCache -XX:+WhiteBoxAPI jdk.jfr.event.compiler.TestCodeSweeper
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI jdk.jfr.event.compiler.TestCodeSweeper
  */
 
 public class TestCodeSweeper {
@@ -159,14 +159,11 @@ public class TestCodeSweeper {
 
         // Trigger the vm/code_cache/full event by compiling one more
         // method. This also triggers the vm/compiler/failure event.
-        Asserts.assertTrue(WHITE_BOX.addCompilerDirective(directive) == 1);
-        try {
-            if (!WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_FULL_OPTIMIZATION)) {
-                WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_SIMPLE);
-            }
-        } finally {
-            WHITE_BOX.removeCompilerDirective(1);
+        if (!WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_FULL_OPTIMIZATION)) {
+            WHITE_BOX.enqueueMethodForCompilation(method, COMP_LEVEL_SIMPLE);
         }
+
+        Thread.sleep(5000);
 
         // Free memory
         for (Long blob : blobs) {

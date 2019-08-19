@@ -30,40 +30,17 @@ import java.util.EnumSet;
 import sun.hotspot.WhiteBox;
 
 public enum BlobType {
-    // Execution level 1 and 4 (non-profiled) nmethods (including native nmethods)
-    MethodNonProfiled(0, "CodeHeap 'non-profiled nmethods'", "NonProfiledCodeHeapSize") {
-        @Override
-        public boolean allowTypeWhenOverflow(BlobType type) {
-            return super.allowTypeWhenOverflow(type)
-                    || type == BlobType.MethodProfiled;
-        }
-    },
-    // Execution level 2 and 3 (profiled) nmethods
-    MethodProfiled(1, "CodeHeap 'profiled nmethods'", "ProfiledCodeHeapSize") {
-        @Override
-        public boolean allowTypeWhenOverflow(BlobType type) {
-            return super.allowTypeWhenOverflow(type)
-                    || type == BlobType.MethodNonProfiled;
-        }
-    },
-    // Non-nmethods like Buffers, Adapters and Runtime Stubs
-    NonNMethod(2, "CodeHeap 'non-nmethods'", "NonNMethodCodeHeapSize") {
-        @Override
-        public boolean allowTypeWhenOverflow(BlobType type) {
-            return super.allowTypeWhenOverflow(type)
-                    || type == BlobType.MethodNonProfiled
-                    || type == BlobType.MethodProfiled;
-        }
-    },
     // All types (No code cache segmentation)
-    All(3, "CodeCache", "ReservedCodeCacheSize");
+    All(0, "CodeCache", "Code Cache", "ReservedCodeCacheSize");
 
     public final int id;
     public final String sizeOptionName;
     public final String beanName;
+    public final String name;
 
-    private BlobType(int id, String beanName, String sizeOptionName) {
+    private BlobType(int id, String name, String beanName, String sizeOptionName) {
         this.id = id;
+        this.name = name;
         this.beanName = beanName;
         this.sizeOptionName = sizeOptionName;
     }
@@ -83,23 +60,7 @@ public enum BlobType {
     }
 
     public static EnumSet<BlobType> getAvailable() {
-        WhiteBox whiteBox = WhiteBox.getWhiteBox();
-        if (!whiteBox.getBooleanVMFlag("SegmentedCodeCache")) {
-            // only All for non segmented world
-            return EnumSet.of(All);
-        }
-        if (System.getProperty("java.vm.info").startsWith("interpreted ")) {
-            // only NonNMethod for -Xint
-            return EnumSet.of(NonNMethod);
-        }
-
-        EnumSet<BlobType> result = EnumSet.complementOf(EnumSet.of(All));
-        if (!whiteBox.getBooleanVMFlag("TieredCompilation")
-                || whiteBox.getIntxVMFlag("TieredStopAtLevel") <= 1) {
-            // there is no MethodProfiled in non tiered world or pure C1
-            result.remove(MethodProfiled);
-        }
-        return result;
+        return EnumSet.of(All);
     }
 
     public long getSize() {
