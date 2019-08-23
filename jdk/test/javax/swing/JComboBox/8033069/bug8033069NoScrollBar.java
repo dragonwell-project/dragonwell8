@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 public class bug8033069NoScrollBar implements Runnable {
 
     private static final String[] NO_SCROLL_ITEMS = new String[] {
-        "A", "B", "C", "D", "E", "F"
+        "AA", "B", "C", "D", "E", "F"
     };
 
     private final Robot robot;
@@ -110,6 +110,7 @@ public class bug8033069NoScrollBar implements Runnable {
             // Move mouse pointer to the center of the fist combo box
             Point p = cb1.getLocationOnScreen();
             Dimension d = cb1.getSize();
+            System.out.println(d.width + "," + d.height);
             robot.mouseMove(p.x + d.width / 2, p.y + d.height / 2);
             // Click it to open popup
             robot.mousePress(InputEvent.BUTTON1_MASK);
