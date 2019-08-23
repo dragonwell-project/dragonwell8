@@ -51,7 +51,8 @@ class HeapDumper : public StackObj {
   elapsedTimer _t;
 
   HeapDumper(bool gc_before_heap_dump, bool print_to_tty, bool oome) :
-    _gc_before_heap_dump(gc_before_heap_dump), _error(NULL), _print_to_tty(print_to_tty), _oome(oome) { }
+    _gc_before_heap_dump(gc_before_heap_dump), _error(NULL),
+    _print_to_tty(print_to_tty), _oome(oome), _mini_dump(false) { }
 
   // string representation of error
   char* error() const                   { return _error; }
