@@ -22,7 +22,7 @@
 #
 
 # @test
-# @bug 6802846 8172529
+# @bug 6802846 8172529 8227758
 # @summary jarsigner needs enhanced cert validation(options)
 #
 # @run shell/timeout=240 concise_jarsigner.sh
@@ -207,15 +207,11 @@ $JARSIGNER -strict -keystore $KS -storepass changeit a.jar altchain
 $JARSIGNER -strict -keystore $KS -storepass changeit -certchain certchain a.jar altchain
 [ $? = 0 ] || exit $LINENO
 
-# if ca2 is removed, -certchain still work because altchain is a self-signed entry and
-# it is trusted by jarsigner
+# if ca2 is removed and cert is imported, -certchain won't work because this certificate
+# entry is not trusted
 # save ca2.cert for easy replay
 $KT -exportcert -file ca2.cert -alias ca2
 $KT -delete -alias ca2
-$JARSIGNER -strict -keystore $KS -storepass changeit -certchain certchain a.jar altchain
-[ $? = 0 ] || exit $LINENO
-
-# if cert is imported, -certchain won't work because this certificate entry is not trusted
 $KT -importcert -file certchain -alias altchain -noprompt
 $JARSIGNER -strict -keystore $KS -storepass changeit -certchain certchain a.jar altchain
 [ $? = 4 ] || exit $LINENO
