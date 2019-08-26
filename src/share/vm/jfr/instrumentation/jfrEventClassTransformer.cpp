@@ -60,7 +60,7 @@ static const char* utf8_constants[] = {
   "J",            // 1
   "commit",       // 2
   "eventHandler", // 3
-  "Ljdk/jfr/internal/handlers/EventHandler;", // 4
+  "Ljdk/jfr/proxy/internal/EventHandlerProxy;", // 4
   "duration",     // 5
   "begin",        // 6
   "()V",          // 7
