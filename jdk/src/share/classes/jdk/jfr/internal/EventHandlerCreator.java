@@ -63,10 +63,11 @@ final class EventHandlerCreator {
     private static final String FIELD_EVENT_TYPE = "platformEventType";
     private static final String FIELD_PREFIX_STRING_POOL = "stringPool";
 
+    private final static Class<? extends EventHandler> eventHandlerProxy = EventHandlerProxyCreator.proxyClass;
     private final static Type TYPE_STRING_POOL = Type.getType(StringPool.class);
     private final static Type TYPE_EVENT_WRITER = Type.getType(EventWriter.class);
     private final static Type TYPE_PLATFORM_EVENT_TYPE = Type.getType(PlatformEventType.class);
-    private final static Type TYPE_EVENT_HANDLER = Type.getType(EventHandler.class);
+    private final static Type TYPE_EVENT_HANDLER = Type.getType(eventHandlerProxy);
     private final static Type TYPE_SETTING_CONTROL = Type.getType(SettingControl.class);
     private final static Type TYPE_EVENT_TYPE = Type.getType(EventType.class);
     private final static Type TYPE_EVENT_CONTROL = Type.getType(EventControl.class);
@@ -90,7 +91,7 @@ final class EventHandlerCreator {
     }
 
     public static String makeEventHandlerName(long id) {
-        return EventHandler.class.getName() + id + SUFFIX;
+        return eventHandlerProxy.getName() + id + SUFFIX;
     }
 
     public EventHandlerCreator(long id, List<SettingInfo> settingInfos, EventType type, Class<? extends Event> eventClass) {
@@ -168,7 +169,7 @@ final class EventHandlerCreator {
         mv.visitVarInsn(Opcodes.ILOAD, 1); // registered
         mv.visitVarInsn(Opcodes.ALOAD, 2); // event type
         mv.visitVarInsn(Opcodes.ALOAD, 3); // event control
-        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, Type.getInternalName(EventHandler.class), METHOD_EVENT_HANDLER_CONSTRUCTOR.getName(), METHOD_EVENT_HANDLER_CONSTRUCTOR.getDescriptor(), false);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, Type.getInternalName(eventHandlerProxy), METHOD_EVENT_HANDLER_CONSTRUCTOR.getName(), METHOD_EVENT_HANDLER_CONSTRUCTOR.getDescriptor(), false);
         for (SettingInfo si : settingInfos) {
             mv.visitVarInsn(Opcodes.ALOAD, 0); // this
             mv.visitVarInsn(Opcodes.ALOAD, si.index + 4); // Setting Control
@@ -180,7 +181,7 @@ final class EventHandlerCreator {
             if (field.isString()) {
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
                 mv.visitVarInsn(Opcodes.ALOAD, 0);
-                mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(EventHandler.class), "createStringFieldWriter", "()" + TYPE_STRING_POOL.getDescriptor(), false);
+                mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, Type.getInternalName(eventHandlerProxy), "createStringFieldWriter", "()" + TYPE_STRING_POOL.getDescriptor(), false);
                 mv.visitFieldInsn(Opcodes.PUTFIELD, internalClassName, FIELD_PREFIX_STRING_POOL + fieldIndex, TYPE_STRING_POOL.getDescriptor());
             }
             fieldIndex++;
@@ -191,7 +192,7 @@ final class EventHandlerCreator {
     }
 
     private void buildClassInfo() {
-        String internalSuperName = ASMToolkit.getInternalName(EventHandler.class.getName());
+        String internalSuperName = ASMToolkit.getInternalName(eventHandlerProxy.getName());
         classWriter.visit(CLASS_VERSION, Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL + Opcodes.ACC_SUPER, internalClassName, null, internalSuperName, null);
         for (SettingInfo si : settingInfos) {
             classWriter.visitField(Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL, si.fieldName, TYPE_SETTING_CONTROL.getDescriptor(), null, null);

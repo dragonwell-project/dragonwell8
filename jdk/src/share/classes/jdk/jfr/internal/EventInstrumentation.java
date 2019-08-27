@@ -97,10 +97,11 @@ public final class EventInstrumentation {
     static final String FIELD_EVENT_HANDLER = "eventHandler";
     static final String FIELD_START_TIME = "startTime";
 
+    private static final Class<? extends EventHandler> eventHandlerProxy = EventHandlerProxyCreator.proxyClass;
     private static final Type ANNOTATION_TYPE_NAME = Type.getType(Name.class);
     private static final Type ANNOTATION_TYPE_REGISTERED = Type.getType(Registered.class);
     private static final Type ANNOTATION_TYPE_ENABLED = Type.getType(Enabled.class);
-    private static final Type TYPE_EVENT_HANDLER = Type.getType(EventHandler.class);
+    private static final Type TYPE_EVENT_HANDLER = Type.getType(eventHandlerProxy);
     private static final Type TYPE_SETTING_CONTROL = Type.getType(SettingControl.class);
     private static final Method METHOD_COMMIT = new Method("commit", Type.VOID_TYPE, new Type[0]);
     private static final Method METHOD_BEGIN = new Method("begin", Type.VOID_TYPE, new Type[0]);
@@ -408,7 +409,7 @@ public final class EventInstrumentation {
                 // eventHandler.write(...);
                 // }
                 methodVisitor.visitJumpInsn(Opcodes.IFEQ, end);
-                methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(EventHandler.class));
+                methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(eventHandlerProxy));
 
                 methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, eventHandlerXInternalName);
                 for (FieldInfo fi : fieldInfos) {
@@ -427,7 +428,7 @@ public final class EventInstrumentation {
         updateMethod(METHOD_EVENT_SHOULD_COMMIT, methodVisitor -> {
             Label fail = new Label();
             // if (!eventHandler.shoouldCommit(duration) goto fail;
-            methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(EventHandler.class));
+            methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(eventHandlerProxy));
             methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
             methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
             ASMToolkit.invokeVirtual(methodVisitor, TYPE_EVENT_HANDLER.getInternalName(), METHOD_EVENT_HANDLER_SHOULD_COMMIT);
@@ -435,7 +436,7 @@ public final class EventInstrumentation {
             for (SettingInfo si : settingInfos) {
                 // if (!settingsMethod(eventHandler.settingX)) goto fail;
                 methodVisitor.visitIntInsn(Opcodes.ALOAD, 0);
-                methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(EventHandler.class));
+                methodVisitor.visitFieldInsn(Opcodes.GETSTATIC, getInternalClassName(), FIELD_EVENT_HANDLER, Type.getDescriptor(eventHandlerProxy));
                 methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, eventHandlerXInternalName);
                 methodVisitor.visitFieldInsn(Opcodes.GETFIELD, eventHandlerXInternalName, si.fieldName, TYPE_SETTING_CONTROL.getDescriptor());
                 methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, si.internalSettingName);

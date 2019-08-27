@@ -54,6 +54,7 @@ public final class JVM {
         //     subscribeLogLevel(tag, tag.id);
         // }
         Options.ensureInitialized();
+        EventHandlerProxyCreator.ensureInitialized();
     }
 
     /**
