@@ -45,7 +45,13 @@ public abstract class EventHandler {
     private final EventControl eventControl;
 
     // Accessed by generated sub class
-    EventHandler(boolean registered, EventType eventType, EventControl eventControl) {
+    protected EventHandler(boolean registered, EventType eventType, EventControl eventControl) {
+        if (System.getSecurityManager() != null) {
+            // Do not allow user subclasses when security is enforced.
+            if (EventHandler.class.getClassLoader() != this.getClass().getClassLoader()) {
+                throw new SecurityException("Illegal subclass");
+            }
+        }
         this.eventType = eventType;
         this.platformEventType = PrivateAccess.getInstance().getPlatformEventType(eventType);
         this.eventControl = eventControl;
