@@ -410,6 +410,10 @@
   template(signers_name,                              "signers_name")                             \
   template(loader_data_name,                          "loader_data")                              \
   template(dependencies_name,                         "dependencies")                             \
+  template(com_alibaba_jwarmup_JWarmUp,               "com/alibaba/jwarmup/JWarmUp")              \
+  template(jwarmup_notify_application_startup_is_done_name, "notifyApplicationStartUpIsDone")     \
+  template(jwarmup_check_if_compilation_is_complete_name, "checkIfCompilationIsComplete")         \
+  template(jwarmup_notify_jvm_deopt_warmup_methods_name,  "notifyJVMDeoptWarmUpMethods")          \
   template(jwarmup_dummy_name,                        "dummy")                                    \
   template(input_stream_void_signature,               "(Ljava/io/InputStream;)V")                 \
   template(getFileURL_name,                           "getFileURL")                               \

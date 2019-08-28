@@ -442,4 +442,23 @@ public:
   }
 };
 
+class JWarmupDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<bool> _notify_startup;
+  DCmdArgument<bool> _check_compile_finished;
+  DCmdArgument<bool> _deopt;
+  DCmdArgument<bool> _help;
+  void print_info();
+public:
+  JWarmupDCmd(outputStream* output, bool heap_allocated);
+  static const char* name() {
+    return "JWarmup";
+  }
+  static const char* description() {
+    return "JWarmup command. ";
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
 #endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP

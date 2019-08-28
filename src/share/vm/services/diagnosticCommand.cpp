@@ -63,6 +63,7 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ThreadDumpDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<RotateGCLogDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassLoaderStatsDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JWarmupDCmd>(full_export, true, false));
 
   // Enhanced JMX Agent Support
   // These commands won't be exported via the DiagnosticCommandMBean until an
@@ -742,4 +743,109 @@ void RotateGCLogDCmd::execute(DCmdSource source, TRAPS) {
   } else {
     output()->print_cr("Target VM does not support GC log file rotation.");
   }
+}
+
+JWarmupDCmd::JWarmupDCmd(outputStream* output, bool heap_allocated) : DCmdWithParser(output, heap_allocated),
+  _notify_startup("-notify", "Notify JVM that application startup is done", "BOOLEAN", false, "false"),
+  _check_compile_finished("-check", "Check if the last compilation submitted by JWarmup is complete", "BOOLEAN", false, "false"),
+  _deopt("-deopt", "Notify JVM to de-optimize warmup methods", "BOOLEAN", false, "false"),
+  _help("-help", "Print this help information", "BOOLEAN", false, "false")
+{
+  _dcmdparser.add_dcmd_option(&_notify_startup);
+  _dcmdparser.add_dcmd_option(&_check_compile_finished);
+  _dcmdparser.add_dcmd_option(&_deopt);
+  _dcmdparser.add_dcmd_option(&_help);
+}
+
+int JWarmupDCmd::num_arguments() {
+  ResourceMark rm;
+  JWarmupDCmd* dcmd = new JWarmupDCmd(NULL, false);
+  if (dcmd != NULL) {
+    DCmdMark mark(dcmd);
+    return dcmd->_dcmdparser.num_arguments();
+  } else {
+    return 0;
+  }
+}
+
+void JWarmupDCmd::execute(DCmdSource source, TRAPS) {
+  assert(is_init_completed(), "JVM is not fully initialized. Please try it later.");
+
+  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_jwarmup_JWarmUp(), true, CHECK);
+  instanceKlassHandle ik (THREAD, k);
+  if (ik->should_be_initialized()) {
+    ik->initialize(THREAD);
+  }
+  if (HAS_PENDING_EXCEPTION) {
+    java_lang_Throwable::print(PENDING_EXCEPTION, output());
+    output()->cr();
+    CLEAR_PENDING_EXCEPTION;
+    return;
+  }
+
+  if (_notify_startup.value()) {
+    if (!CompilationWarmUp) {
+      output()->print_cr("CompilationWarmUp is off, "
+                         "notifyApplicationStartUpIsDone is invalid");
+      return;
+    }
+
+    JavaValue result(T_VOID);
+    JavaCalls::call_static(&result, ik, vmSymbols::jwarmup_notify_application_startup_is_done_name(), vmSymbols::void_method_signature(), THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      java_lang_Throwable::print(PENDING_EXCEPTION, output());
+      output()->cr();
+      CLEAR_PENDING_EXCEPTION;
+      return;
+    }
+  } else if (_check_compile_finished.value()) {
+    if (!CompilationWarmUp) {
+      output()->print_cr("CompilationWarmUp is off, "
+                         "checkIfCompilationIsComplete is invalid");
+      return;
+    }
+
+    JavaValue result(T_BOOLEAN);
+    JavaCalls::call_static(&result, ik, vmSymbols::jwarmup_check_if_compilation_is_complete_name(), vmSymbols::void_boolean_signature(), THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      java_lang_Throwable::print(PENDING_EXCEPTION, output());
+      output()->cr();
+      CLEAR_PENDING_EXCEPTION;
+      return;
+    }
+
+    if (result.get_jboolean()) {
+      output()->print_cr("Last compilation task is completed.");
+    } else {
+      output()->print_cr("Last compilation task is not completed.");
+    }
+  } else if (_deopt.value()) {
+    if (!(CompilationWarmUp && CompilationWarmUpExplicitDeopt)) {
+      output()->print_cr("CompilationWarmUp or CompilationWarmUpExplicitDeopt is off, "
+                         "notifyJVMDeoptWarmUpMethods is invalid");
+      return;
+    }
+
+    JavaValue result(T_VOID);
+    JavaCalls::call_static(&result, ik, vmSymbols::jwarmup_notify_jvm_deopt_warmup_methods_name(), vmSymbols::void_method_signature(), THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      java_lang_Throwable::print(PENDING_EXCEPTION, output());
+      output()->cr();
+      CLEAR_PENDING_EXCEPTION;
+      return;
+    }
+  } else if (_help.value()) {
+    print_info();
+  } else {
+    print_info();
+  }
+}
+
+void JWarmupDCmd::print_info() {
+    output()->print_cr("The following commands are available:\n"
+                       "-notify: %s\n"
+                       "-check: %s\n"
+                       "-deopt: %s\n"
+                       "-help: %s\n",
+                       _notify_startup.description(), _check_compile_finished.description(), _deopt.description(), _help.description());
 }
