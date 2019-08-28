@@ -69,6 +69,15 @@ SUNWprivate_1.1 {
                 JVM_CurrentClassLoader;
                 JVM_CurrentLoadedClass;
                 JVM_CurrentThread;
+                JVM_ElasticHeapGetEvaluationMode;
+                JVM_ElasticHeapSetYoungGenCommitPercent;
+                JVM_ElasticHeapGetYoungGenCommitPercent;
+                JVM_ElasticHeapSetUncommitIHOP;
+                JVM_ElasticHeapGetUncommitIHOP;
+                JVM_ElasticHeapGetTotalYoungUncommittedBytes;
+                JVM_ElasticHeapSetSoftmxPercent;
+                JVM_ElasticHeapGetSoftmxPercent;
+                JVM_ElasticHeapGetTotalUncommittedBytes;
                 JVM_CurrentTimeMillis;
                 JVM_DefineClass;
                 JVM_DefineClassWithSource;

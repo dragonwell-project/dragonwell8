@@ -36,6 +36,8 @@
 #include "services/attachListener.hpp"
 #include "services/diagnosticCommand.hpp"
 #include "services/heapDumper.hpp"
+#include "gc_implementation/g1/g1CollectedHeap.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 volatile bool AttachListener::_initialized;
 
@@ -257,6 +259,13 @@ static jint set_bool_flag(const char* name, AttachOperation* op, outputStream* o
     }
     value = (tmp != 0);
   }
+  if (strcmp(name, "ElasticHeapPeriodicUncommit") == 0 & value) {
+    if (G1ElasticHeap &&
+        !G1CollectedHeap::heap()->elastic_heap()->can_turn_on_periodic_uncommit()) {
+      out->print_cr("cannot be set because of illegal state.");
+      return JNI_ERR;
+    }
+  }
   bool res = CommandLineFlags::boolAtPut((char*)name, &value, Flag::ATTACH_ON_DEMAND);
   if (! res) {
     out->print_cr("setting flag %s failed", name);
@@ -309,6 +318,16 @@ static jint set_uintx_flag(const char* name, AttachOperation* op, outputStream* 
     FormatBuffer<80> err_msg("%s", "");
     if (!Arguments::verify_MinHeapFreeRatio(err_msg, value)) {
       out->print_cr("%s", err_msg.buffer());
+      return JNI_ERR;
+    }
+  }
+
+  if (strcmp(name, "ElasticHeapMinYoungCommitPercent") == 0 ||
+      strcmp(name, "ElasticHeapPeriodicMinYoungCommitPercent") == 0 ||
+      strcmp(name, "ElasticHeapPeriodicYGCIntervalCeilingPercent") == 0 ||
+      strcmp(name, "ElasticHeapPeriodicYGCIntervalFloorPercent") == 0) {
+    if (value < 1 || value > 100) {
+      out->print_cr("%s must be between 1 and 100", name);
       return JNI_ERR;
     }
   }

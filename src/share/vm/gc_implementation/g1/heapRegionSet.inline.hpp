@@ -148,5 +148,40 @@ inline HeapRegion* FreeRegionList::remove_region(bool from_head) {
   return hr;
 }
 
+inline HeapRegion* FreeRegionList::remove_region(HeapRegion* hr) {
+  check_mt_safety();
+  verify_optional();
+
+  HeapRegion* prev = hr->prev();
+  HeapRegion* next = hr->next();
+
+  if (prev) {
+    prev->set_next(next);
+  } else {
+    // hr is _head
+    assert(_head == hr, "Sanity");
+    _head = next;
+  }
+
+  if (next) {
+    next->set_prev(prev);
+  } else {
+    // hr is _tail
+    assert(_tail == hr, "Sanity");
+    _tail = prev;
+  }
+
+  hr->set_prev(NULL);
+  hr->set_next(NULL);
+
+  if (_last == hr) {
+    _last = NULL;
+  }
+
+  // remove() will verify the region and check mt safety.
+  remove(hr);
+  return hr;
+}
+
 #endif // SHARE_VM_GC_IMPLEMENTATION_G1_HEAPREGIONSET_INLINE_HPP
 

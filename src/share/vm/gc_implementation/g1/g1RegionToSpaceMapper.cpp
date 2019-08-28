@@ -76,6 +76,21 @@ class G1RegionsLargerThanCommitSizeMapper : public G1RegionToSpaceMapper {
     _storage.uncommit((size_t)start_idx * _pages_per_region, num_regions * _pages_per_region);
     _commit_map.clear_range(start_idx, start_idx + num_regions);
   }
+
+  virtual void par_commit_region_memory(uint idx) {
+    _storage.par_commit((size_t)idx * _pages_per_region, _pages_per_region, false);
+    _commit_map.par_set_range(idx, idx + 1, BitMap::unknown_range);
+  }
+
+  virtual void par_uncommit_region_memory(uint idx) {
+    _storage.par_uncommit((size_t)idx * _pages_per_region, _pages_per_region);
+    _commit_map.par_clear_range(idx, idx + 1, BitMap::unknown_range);
+  }
+
+  virtual void free_region_memory(uint idx) {
+    _storage.free_memory((size_t)idx * _pages_per_region, _pages_per_region);
+  }
+
 };
 
 // G1RegionToSpaceMapper implementation where the region granularity is smaller
@@ -138,6 +153,18 @@ class G1RegionsSmallerThanCommitSizeMapper : public G1RegionToSpaceMapper {
       _refcounts.set_by_index(idx, old_refcount - 1);
       _commit_map.clear_bit(i);
     }
+  }
+
+  virtual void par_commit_region_memory(uint idx) {
+    ShouldNotReachHere();
+  }
+
+  virtual void par_uncommit_region_memory(uint idx) {
+    ShouldNotReachHere();
+  }
+
+  virtual void free_region_memory(uint idx) {
+    ShouldNotReachHere();
   }
 };
 

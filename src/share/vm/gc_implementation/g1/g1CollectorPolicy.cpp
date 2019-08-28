@@ -41,6 +41,7 @@
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 // Different defaults for different number of GC threads
 // They were chosen by running GCOld and SPECjbb on debris with different
@@ -1482,6 +1483,12 @@ void G1CollectorPolicy::update_survivors_policy() {
   // We use ceiling so that if max_survivor_regions_d is > 0.0 (but
   // smaller than 1.0) we'll get 1.
   _max_survivor_regions = (uint) ceil(max_survivor_regions_d);
+
+  if (G1ElasticHeap && _g1->elastic_heap()->is_gc_to_resize_young_gen()) {
+    // If elastic heap will shrink the young gen
+    // we need to make the survivor less than the target young gen size
+    _max_survivor_regions = MIN2(_max_survivor_regions, _g1->elastic_heap()->max_available_survivor_regions());
+  }
 
   _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(
         HeapRegion::GrainWords * _max_survivor_regions);

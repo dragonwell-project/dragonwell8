@@ -2293,6 +2293,33 @@ bool Arguments::check_vm_args_consistency() {
   // Note: Needs platform-dependent factoring.
   bool status = true;
 
+  if (G1ElasticHeap) {
+    if (!UseG1GC) {
+      vm_exit_during_initialization("G1ElasticHeap only works with UseG1GC");
+    }
+    status = status && verify_interval(ElasticHeapMinYoungCommitPercent, 1, 100, "ElasticHeapMinYoungCommitPercent");
+    status = status && verify_interval(ElasticHeapPeriodicMinYoungCommitPercent, ElasticHeapMinYoungCommitPercent, 100, "ElasticHeapMinYoungCommitPercentAuto");
+    PropertyList_unique_add(&_system_properties, "com.alibaba.jvm.gc.ElasticHeapEnabled", (char*)"true");
+    status = status && verify_interval(ElasticHeapOldGenReservePercent, 1, 100, "ElasticHeapOldGenReservePercent");
+
+    if (InitialHeapSize != MaxHeapSize) {
+      jio_fprintf(defaultStream::error_stream(),
+                  "G1ElasticHeap requires Xms:"
+                  SIZE_FORMAT
+                  " bytes same to Xmx: "
+                  SIZE_FORMAT
+                  " bytes",
+                  InitialHeapSize, MaxHeapSize);
+      status = false;
+    }
+  }
+
+  if (ElasticHeapPeriodicUncommit) {
+    if (!G1ElasticHeap) {
+      vm_exit_during_initialization("ElasticHeapPeriodicUncommit only works with G1ElasticHeap");
+    }
+  }
+
   // Allow both -XX:-UseStackBanging and -XX:-UseBoundThreads in non-product
   // builds so the cost of stack banging can be measured.
 #if (defined(PRODUCT) && defined(SOLARIS))

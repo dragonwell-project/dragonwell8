@@ -78,6 +78,8 @@
 #include "utilities/histogram.hpp"
 #include "utilities/top.hpp"
 #include "utilities/utf8.hpp"
+#include "gc_implementation/g1/g1CollectedHeap.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 #ifdef TARGET_OS_FAMILY_linux
 # include "jvm_linux.h"
 #endif
@@ -4747,4 +4749,90 @@ JVM_ENTRY(void, JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv *env, jclass clazz))
     tty->print_cr("JitWarmUp: deoptimize signal is ignore because warmup is not finished");
   }
 }
+JVM_END
+
+JVM_ENTRY(jint, JVM_ElasticHeapGetEvaluationMode(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetEvaluationMode");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->evaluation_mode();
+JVM_END
+
+JVM_ENTRY(void, JVM_ElasticHeapSetYoungGenCommitPercent(JNIEnv *env, jclass klass, jint percent))
+  JVMWrapper("JVM_ElasticHeapSetYoungGenCommitPercent");
+  assert(G1ElasticHeap, "Precondition");
+
+  ElasticHeap* elas = G1CollectedHeap::heap()->elastic_heap();
+  ElasticHeap::ErrorType error = elas->configure_setting(percent, ElasticHeap::ignore_arg(),
+                                                           ElasticHeap::ignore_arg());
+
+  if (error == ElasticHeap::IllegalYoungPercent) {
+    char as_chars[256];
+    jio_snprintf(as_chars, sizeof(as_chars), "percent should be 0, or between %u and 100 ", ElasticHeapMinYoungCommitPercent);
+    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), as_chars);
+  } else if (error != ElasticHeap::NoError) {
+    THROW_MSG(vmSymbols::java_lang_IllegalStateException(), ElasticHeap::to_string(error));
+  }
+JVM_END
+
+JVM_ENTRY(jint, JVM_ElasticHeapGetYoungGenCommitPercent(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetYoungGenCommitPercent");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->young_commit_percent();
+JVM_END
+
+JVM_ENTRY(void, JVM_ElasticHeapSetUncommitIHOP(JNIEnv *env, jclass klass, jint percent))
+  JVMWrapper("JVM_ElasticHeapSetUncommitIHOP");
+  assert(G1ElasticHeap, "Precondition");
+  assert(percent >= 0 && percent <= 100, "sanity");
+
+  ElasticHeap* elas = G1CollectedHeap::heap()->elastic_heap();
+  ElasticHeap::ErrorType error = elas->configure_setting(ElasticHeap::ignore_arg(), percent,
+                                                           ElasticHeap::ignore_arg());
+  if (error != ElasticHeap::NoError) {
+    THROW_MSG(vmSymbols::java_lang_IllegalStateException(), ElasticHeap::to_string(error));
+  }
+JVM_END
+
+JVM_ENTRY(jint, JVM_ElasticHeapGetUncommitIHOP(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetUncommitIHOP");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->uncommit_ihop();
+JVM_END
+
+JVM_ENTRY(jlong, JVM_ElasticHeapGetTotalYoungUncommittedBytes(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetTotalYoungUncommittedBytes");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->young_uncommitted_bytes();
+JVM_END
+
+JVM_ENTRY(void, JVM_ElasticHeapSetSoftmxPercent(JNIEnv *env, jclass klass, jint percent))
+  JVMWrapper("JVM_ElasticHeapSetSoftmxPercent");
+  assert(G1ElasticHeap, "Precondition");
+  assert(percent >= 0 && percent <= 100, "sanity");
+
+  ElasticHeap* elas = G1CollectedHeap::heap()->elastic_heap();
+
+  ElasticHeap::ErrorType error = elas->configure_setting(ElasticHeap::ignore_arg(),
+                                                           ElasticHeap::ignore_arg(), percent);
+  if (error != ElasticHeap::NoError) {
+    THROW_MSG(vmSymbols::java_lang_IllegalStateException(), ElasticHeap::to_string(error));
+  }
+JVM_END
+
+JVM_ENTRY(jint, JVM_ElasticHeapGetSoftmxPercent(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetSoftmxPercent");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->softmx_percent();
+JVM_END
+
+JVM_ENTRY(jlong, JVM_ElasticHeapGetTotalUncommittedBytes(JNIEnv *env, jclass klass))
+  JVMWrapper("JVM_ElasticHeapGetTotalUncommittedBytes");
+  assert(G1ElasticHeap, "Precondition");
+
+  return G1CollectedHeap::heap()->elastic_heap()->uncommitted_bytes();
 JVM_END

@@ -55,6 +55,8 @@ public enum GCCause {
   _g1_inc_collection_pause ("G1 Evacuation Pause"),
   _g1_humongous_allocation ("G1 Humongous Allocation"),
 
+  _g1_elastic_heap_trigger_gc("Elastic Heap triggered GC"),
+
   _last_ditch_collection ("Last ditch collection"),
   _last_gc_cause ("ILLEGAL VALUE - last gc cause - ILLEGAL VALUE");
 

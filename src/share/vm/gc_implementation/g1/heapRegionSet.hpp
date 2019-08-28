@@ -214,6 +214,9 @@ private:
   inline HeapRegion* remove_from_head_impl();
   inline HeapRegion* remove_from_tail_impl();
 
+  // Only called in FreeRegionListIterator so make it private
+  HeapRegion* remove_region(HeapRegion* hr);
+
 protected:
   virtual void fill_in_ext_msg_extra(hrs_ext_msg* msg);
 
@@ -284,6 +287,19 @@ public:
     HeapRegion* hr = _curr;
     _list->verify_region(hr);
     _curr = hr->next();
+    return hr;
+  }
+
+  HeapRegion* remove_next() {
+    assert(more_available(),
+           "remove_next() should be called when more regions are available");
+
+    HeapRegion* hr = _curr;
+    _list->verify_region(hr);
+
+    _curr = hr->next();
+
+    hr = _list->remove_region(hr);
     return hr;
   }
 

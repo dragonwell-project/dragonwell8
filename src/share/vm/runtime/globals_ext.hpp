@@ -27,17 +27,73 @@
 
 // globals_extension.hpp extension
 #define AJVM_FLAGS(develop, develop_pd, product, product_pd, diagnostic, experimental, notproduct, manageable, product_rw, lp64_product) \
-                                                                                \
-  manageable(bool, PrintYoungGenHistoAfterParNewGC, false,                      \
-            "print the young generation class histogram after parNew GC")       \
-                                                                                \
-  manageable(bool, PrintGCRootsTraceTime, false,                                \
-             "Print GC Trace Time")                                             \
-                                                                                \
-  manageable(intx, ArrayAllocationWarningSize, 512*M,                           \
-             "Desired size of array space allocation before "                   \
-             "printing a warning")                                              \
-                                                                                \
+                                                                            \
+  manageable(bool, PrintYoungGenHistoAfterParNewGC, false,                  \
+            "print the young generation class histogram after parNew GC")   \
+                                                                            \
+  manageable(bool, PrintGCRootsTraceTime, false,                            \
+             "Print GC Trace Time")                                         \
+                                                                            \
+  manageable(intx, ArrayAllocationWarningSize, 512*M,                       \
+             "Desired size of array space allocation before "               \
+             "printing a warning")                                          \
+                                                                            \
+  product(bool, G1ElasticHeap, false,                                       \
+          "Allow java heap to be resized in runtime")                       \
+                                                                            \
+  manageable(uintx, ElasticHeapMinYoungCommitPercent, 10,                   \
+          "Minimal commit percentage of young gen size")                    \
+          /* Similar to G1NewSizePercent/G1MaxNewSizePercent */             \
+                                                                            \
+  manageable(uintx, ElasticHeapYGCIntervalMinMillis, 5000,                  \
+          "Might uncommit memory only if young GC interval "                \
+          "larger than this threshold in milliseconds ")                    \
+                                                                            \
+  manageable(uintx, ElasticHeapInitialMarkIntervalMinMillis, 60000,         \
+          "Might uncommit memory only if initial mark interval "            \
+          "larger than this threshold in milliseconds ")                    \
+                                                                            \
+  manageable(bool, ElasticHeapPeriodicUncommit, false,                      \
+          "Uncommit memory by periodic GC")                                 \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicUncommitStartupDelay, 300,           \
+          "Starup delay in seconds for periodic uncommit")                  \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicMinYoungCommitPercent, 50,           \
+          "Minimal commit percentage of young gen in periodic gc mode")     \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicYGCIntervalMillis, 15000,            \
+          "Target young gc interval in milliseconds after "                 \
+          "resizing young gen in periodic gc mode")                         \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicInitialMarkIntervalMillis, 3600000,  \
+          "Target initial mark interval "                                   \
+          "in milliseconds in periodic gc mode. "                           \
+          "Free regions after mixed gc will be uncommitted. ")              \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicYGCIntervalCeilingPercent, 25,       \
+          "Ceiling percent of the young gc inverval larger than "           \
+          "ElasticHeapPeriodicYGCIntervalMillis")                           \
+                                                                            \
+  manageable(uintx, ElasticHeapPeriodicYGCIntervalFloorPercent, 25,         \
+          "Floor percent of the young gc interval less than "               \
+          "ElasticHeapPeriodicYGCIntervalMillis")                           \
+                                                                            \
+  manageable(uintx, ElasticHeapEagerMixedGCIntervalMillis, 15000,           \
+          "Mixed GC will be triggered if desired mixed gc doesn't happen "  \
+          "after the interval in milliseconds")                             \
+                                                                            \
+  manageable(uintx, ElasticHeapOldGenReservePercent, 5,                     \
+          "Percentage(0-100) of heap size to be reserved for "              \
+          "old gen to grow")                                                \
+                                                                            \
+  manageable(bool, PrintElasticHeapDetails, true,                           \
+          "Print Elastic Heap detail information in GC log")                \
+                                                                            \
+  product(uintx, ElasticHeapParallelWorkers, 0,                             \
+          "Number of parallel worker threads for memory "                   \
+          "commit/uncommit. 0 be same as ConcGCThreads")                    \
+
   //add new AJVM specific flags here
 
 

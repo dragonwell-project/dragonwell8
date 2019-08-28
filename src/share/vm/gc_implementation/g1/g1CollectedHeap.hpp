@@ -44,6 +44,7 @@
 #include "memory/memRegion.hpp"
 #include "memory/sharedHeap.hpp"
 #include "utilities/stack.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 // A "G1CollectedHeap" is an implementation of a java heap for HotSpot.
 // It uses the "Garbage First" heap organization and algorithm, which
@@ -75,6 +76,7 @@ class G1NewTracer;
 class G1OldTracer;
 class EvacuationFailedInfo;
 class nmethod;
+class ElasticHeap;
 
 typedef OverflowTaskQueue<StarTask, mtGC>         RefToScanQueue;
 typedef GenericTaskQueueSet<RefToScanQueue, mtGC> RefToScanQueueSet;
@@ -184,6 +186,8 @@ class G1CollectedHeap : public SharedHeap {
   friend class MutatorAllocRegion;
   friend class SurvivorGCAllocRegion;
   friend class OldGCAllocRegion;
+  friend class ElasticHeap;
+  friend class ElasticHeapEvaluator;
   friend class G1Allocator;
   friend class G1DefaultAllocator;
   friend class G1ResManAllocator;
@@ -446,6 +450,8 @@ protected:
 
   // The young region list.
   YoungList*  _young_list;
+
+  ElasticHeap* _elastic_heap;
 
   // The current policy object for the collector.
   G1CollectorPolicy* _g1_policy;
@@ -1101,7 +1107,13 @@ public:
   }
 
   // The current number of regions in the heap.
-  uint num_regions() const { return _hrm.length(); }
+  uint num_regions() const {
+    if (G1ElasticHeap && elastic_heap() != NULL && !elastic_heap()->heap_capacity_changed()) {
+      return _hrm.max_length();
+    } else {
+      return _hrm.length();
+    }
+  }
 
   // The max number of regions in the heap.
   uint max_regions() const { return _hrm.max_length(); }
@@ -1481,6 +1493,8 @@ public:
   // add appropriate methods for any other surv rate groups
 
   YoungList* young_list() const { return _young_list; }
+
+  ElasticHeap* elastic_heap() const { return _elastic_heap; }
 
   // debugging
   bool check_young_list_well_formed() {

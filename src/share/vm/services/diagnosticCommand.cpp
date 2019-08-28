@@ -34,6 +34,7 @@
 #include "services/management.hpp"
 #include "utilities/macros.hpp"
 #include "oops/objArrayOop.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 PRAGMA_FORMAT_MUTE_WARNINGS_FOR_GCC
 
@@ -73,6 +74,7 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStartLocalDCmd>(jmx_agent_export_flags, true,false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStopRemoteDCmd>(jmx_agent_export_flags, true,false));
 
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ElasticHeapDCmd>(full_export, true, false));
 }
 
 #ifndef HAVE_EXTRA_DCMD
@@ -848,4 +850,115 @@ void JWarmupDCmd::print_info() {
                        "-deopt: %s\n"
                        "-help: %s\n",
                        _notify_startup.description(), _check_compile_finished.description(), _deopt.description(), _help.description());
+}
+
+ElasticHeapDCmd::ElasticHeapDCmd(outputStream* output, bool heap) :
+                           DCmdWithParser(output, heap),
+    _young_commit_percent("young_commit_percent",
+                          "Percentage of committed size in young generation to be adjusted to",
+                          "INT", false),
+    _uncommit_ihop("uncommit_ihop",
+                   "Percentage of heap to trigger concurrent mark to uncommit memory",
+                   "INT", false),
+    _softmx_percent("softmx_percent",
+                         "Percentage of committed size of heap to be adjusted to",
+                         "INT", false) {
+  _dcmdparser.add_dcmd_option(&_young_commit_percent);
+  _dcmdparser.add_dcmd_option(&_uncommit_ihop);
+  _dcmdparser.add_dcmd_option(&_softmx_percent);
+}
+
+int ElasticHeapDCmd::num_arguments() {
+  ResourceMark rm;
+  int num_args = 0;
+  ElasticHeapDCmd* dcmd = new ElasticHeapDCmd(NULL, false);
+
+  if (dcmd != NULL) {
+    DCmdMark mark(dcmd);
+    num_args = dcmd->_dcmdparser.num_arguments();
+  }
+
+  return num_args;
+}
+
+bool ElasticHeapDCmd::illegal_percent(uint percent, const char* name) {
+  if (percent > 100) {
+    output()->print_cr("Error: %s between 0 and 100.", name);
+    print_info();
+    return true;
+  }
+  return false;
+}
+
+void ElasticHeapDCmd::execute(DCmdSource source, TRAPS) {
+  if (!G1ElasticHeap) {
+    output()->print_cr("Error: -XX:+G1ElasticHeap is not enabled!");
+    return;
+  }
+
+  uint young_percent= ElasticHeap::ignore_arg();
+  uint uncommit_ihop = ElasticHeap::ignore_arg();
+  uint softmx_percent = ElasticHeap::ignore_arg();
+  bool option_set = false;
+
+  if (_young_commit_percent.is_set()) {
+    young_percent = _young_commit_percent.value();
+    option_set = true;
+  }
+  if (_uncommit_ihop.is_set()) {
+    uncommit_ihop = _uncommit_ihop.value();
+    if (illegal_percent(uncommit_ihop, "uncommit_ihop")) {
+      return;
+    }
+    option_set = true;
+  }
+  if (_softmx_percent.is_set()) {
+    if (_young_commit_percent.is_set() || _uncommit_ihop.is_set()) {
+      output()->print_cr("Error: softmx_percent should be set alone!");
+      print_info();
+      return;
+    }
+    softmx_percent = _softmx_percent.value();
+    if (illegal_percent(softmx_percent, "softmx_percent")) {
+      return;
+    }
+    option_set = true;
+  }
+
+  if (option_set) {
+    ElasticHeap::ErrorType error = G1CollectedHeap::heap()->elastic_heap()->configure_setting(young_percent, uncommit_ihop, softmx_percent);
+    if (error == ElasticHeap::IllegalMode) {
+      output()->print_cr("Error: not in correct mode.");
+    } else if (error == ElasticHeap::IllegalYoungPercent) {
+      output()->print_cr("Error: young_commit_percent should be 0, or between %d and 100", ElasticHeapMinYoungCommitPercent);
+    } else if (error != ElasticHeap::NoError) {
+      output()->print_cr("Error: command fails because %s", ElasticHeap::to_string(error));
+    } else {
+      // Success
+    }
+  }
+  print_info();
+}
+
+void ElasticHeapDCmd::print_info() {
+  uint percent;
+  jlong uncommitted_bytes;
+  ElasticHeap::EvaluationMode mode = G1CollectedHeap::heap()->elastic_heap()->evaluation_mode();
+  switch (mode) {
+    case ElasticHeap::InactiveMode:
+      output()->print_cr("[GC.elastic_heap: inactive]");
+      break;
+    case ElasticHeap::SoftmxMode:
+      output()->print_cr("[GC.elastic_heap: in %s mode]", ElasticHeap::to_string(mode));
+      percent = G1CollectedHeap::heap()->elastic_heap()->softmx_percent();
+      uncommitted_bytes = G1CollectedHeap::heap()->elastic_heap()->uncommitted_bytes();
+      output()->print_cr("[GC.elastic_heap: softmx percent %d, uncommitted memory %ld B]", percent, uncommitted_bytes);
+      break;
+    default:
+      output()->print_cr("[GC.elastic_heap: in %s mode]", ElasticHeap::to_string(mode));
+      percent = G1CollectedHeap::heap()->elastic_heap()->young_commit_percent();
+      uncommitted_bytes = G1CollectedHeap::heap()->elastic_heap()->young_uncommitted_bytes();
+      output()->print_cr("[GC.elastic_heap: young generation commit percent %d, uncommitted memory %ld B]", percent, uncommitted_bytes);
+      break;
+  }
 }

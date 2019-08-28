@@ -224,12 +224,35 @@ bool G1PageBasedVirtualSpace::commit(size_t start_page, size_t size_in_pages) {
   return zero_filled;
 }
 
+void G1PageBasedVirtualSpace::par_commit(size_t start_page, size_t size_in_pages, bool allow_pretouch) {
+  // We need to make sure to commit all pages covered by the given area.
+  guarantee(is_area_uncommitted(start_page, size_in_pages), "Specified area is not uncommitted");
+  guarantee(!_special, "sanity");
+
+  size_t end_page = start_page + size_in_pages;
+
+  commit_internal(start_page, end_page);
+  _committed.par_set_range(start_page, end_page, BitMap::unknown_range);
+
+  if (AlwaysPreTouch && allow_pretouch) {
+    pretouch_internal(start_page, end_page);
+  }
+}
+
 void G1PageBasedVirtualSpace::uncommit_internal(size_t start_page, size_t end_page) {
   guarantee(start_page < end_page,
             err_msg("Given start page " SIZE_FORMAT " is larger or equal to end page " SIZE_FORMAT, start_page, end_page));
 
   char* start_addr = page_start(start_page);
   os::uncommit_memory(start_addr, pointer_delta(bounded_end_addr(end_page), start_addr, sizeof(char)));
+}
+
+void G1PageBasedVirtualSpace::free_memory_internal(size_t start_page, size_t end_page) {
+  guarantee(start_page < end_page,
+            err_msg("Given start page " SIZE_FORMAT " is larger or equal to end page " SIZE_FORMAT, start_page, end_page));
+
+  char* start_addr = page_start(start_page);
+  os::free_memory(start_addr, pointer_delta(bounded_end_addr(end_page), start_addr, sizeof(char)), _page_size);
 }
 
 void G1PageBasedVirtualSpace::uncommit(size_t start_page, size_t size_in_pages) {
@@ -245,6 +268,23 @@ void G1PageBasedVirtualSpace::uncommit(size_t start_page, size_t size_in_pages) 
   }
 
   _committed.clear_range(start_page, end_page);
+}
+
+void G1PageBasedVirtualSpace::par_uncommit(size_t start_page, size_t size_in_pages) {
+  guarantee(is_area_committed(start_page, size_in_pages), "checking");
+  guarantee(!_special, "sanity");
+
+  size_t end_page = start_page + size_in_pages;
+  uncommit_internal(start_page, end_page);
+  _committed.par_clear_range(start_page, end_page, BitMap::unknown_range);
+}
+
+void G1PageBasedVirtualSpace::free_memory(size_t start_page, size_t size_in_pages) {
+  guarantee(is_area_committed(start_page, size_in_pages), "checking");
+  guarantee(!_special, "sanity");
+
+  size_t end_page = start_page + size_in_pages;
+  free_memory_internal(start_page, end_page);
 }
 
 bool G1PageBasedVirtualSpace::contains(const void* p) const {

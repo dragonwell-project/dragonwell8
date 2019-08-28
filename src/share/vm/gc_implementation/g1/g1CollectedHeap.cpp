@@ -67,6 +67,7 @@
 #include "oops/oop.pcgc.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/vmThread.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
@@ -775,7 +776,8 @@ HeapWord* G1CollectedHeap::humongous_obj_allocate(size_t word_size, AllocationCo
     }
   }
 
-  if (first == G1_NO_HRM_INDEX) {
+  // With G1ElasticHeap we don't allocate from (elastic) unavailable regions
+  if (first == G1_NO_HRM_INDEX && !G1ElasticHeap) {
     // Policy: We could not find enough regions for the humongous object in the
     // free list. Look through the heap to find a mix of free and uncommitted regions.
     // If so, try expansion.
@@ -1296,6 +1298,21 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
       double start = os::elapsedTime();
       g1_policy()->record_full_collection_start();
 
+      // With ElasticHeap, we may wait to finish some work
+      if (G1ElasticHeap) {
+        elastic_heap()->record_gc_start(true);
+        if (explicit_gc) {
+          // In explicit full gc, wait for conc cycle to finish
+          elastic_heap()->wait_for_conc_cycle_end();
+        } else {
+         if (ElasticHeapPeriodicUncommit) {
+          // If not explicit full gc and in elastic heap periodic GC mode
+          // recover the uncommitted regions
+          elastic_heap()->wait_to_recover();
+         }
+        }
+      }
+
       // Note: When we have a more flexible GC logging framework that
       // allows us to add optional attributes to a GC log record we
       // could consider timing and reporting how long we wait in the
@@ -1538,6 +1555,10 @@ bool G1CollectedHeap::do_collection(bool explicit_gc,
 
     post_full_gc_dump(gc_timer);
 
+    if (G1ElasticHeap) {
+      elastic_heap()->record_gc_end();
+    }
+
     gc_timer->register_gc_end();
     gc_tracer->report_gc_end(gc_timer->gc_end(), gc_timer->time_partitions());
   }
@@ -1560,6 +1581,10 @@ void G1CollectedHeap::do_full_collection(bool clear_all_soft_refs) {
 void
 G1CollectedHeap::
 resize_if_necessary_after_full_collection(size_t word_size) {
+  if (G1ElasticHeap) {
+    // We never resize heap in full GC with elastic heap
+    return;
+  }
   // Include the current allocation, if any, and bytes that will be
   // pre-allocated to support collections, as "used".
   const size_t used_after_gc = used();
@@ -1762,6 +1787,11 @@ bool G1CollectedHeap::expand(size_t expand_bytes) {
     return false;
   }
 
+  if (G1ElasticHeap && G1CollectedHeap::heap()->elastic_heap() != NULL) {
+    // Heap initialization completes. Don't expand ever.
+    return false;
+  }
+
   uint regions_to_expand = (uint)(aligned_expand_bytes / HeapRegion::GrainBytes);
   assert(regions_to_expand > 0, "Must expand by at least one region");
 
@@ -1860,6 +1890,7 @@ G1CollectedHeap::G1CollectedHeap(G1CollectorPolicy* policy_) :
   _has_humongous_reclaim_candidates(false),
   _free_regions_coming(false),
   _young_list(new YoungList(this)),
+  _elastic_heap(NULL),
   _gc_time_stamp(0),
   _survivor_plab_stats(YoungPLABSize, PLABWeight),
   _old_plab_stats(OldPLABSize, PLABWeight),
@@ -1951,6 +1982,19 @@ jint G1CollectedHeap::initialize() {
   size_t init_byte_size = collector_policy()->initial_heap_byte_size();
   size_t max_byte_size = collector_policy()->max_heap_byte_size();
   size_t heap_alignment = collector_policy()->heap_alignment();
+
+  if (G1ElasticHeap) {
+    size_t page_size = UseLargePages ? os::large_page_size() : os::vm_page_size();
+    if (HeapRegion::GrainBytes < page_size || (HeapRegion::GrainBytes % page_size) != 0) {
+      vm_exit_during_initialization(err_msg("G1ElasticHeap requires G1HeapRegionSize("
+                                            SIZE_FORMAT
+                                            " bytes) is multiple times of OS page size("
+                                            SIZE_FORMAT
+                                            " bytes)",
+                                             HeapRegion::GrainBytes, page_size));
+      return JNI_EINVAL;
+    }
+  }
 
   // Ensure that the sizes are properly aligned.
   Universe::check_alignment(init_byte_size, HeapRegion::GrainBytes, "g1 heap");
@@ -2081,6 +2125,10 @@ jint G1CollectedHeap::initialize() {
   // Perform any initialization actions delegated to the policy.
   g1_policy()->init();
 
+  if (G1ElasticHeap) {
+    _elastic_heap = new ElasticHeap(this);
+  }
+
   JavaThread::satb_mark_queue_set().initialize(SATB_Q_CBL_mon,
                                                SATB_Q_FL_lock,
                                                G1SATBProcessCompletedThreshold,
@@ -2145,6 +2193,9 @@ void G1CollectedHeap::stop() {
   // that are destroyed during shutdown.
   _cg1r->stop();
   _cmThread->stop();
+  if (G1ElasticHeap) {
+    elastic_heap()->destroy();
+  }
   if (G1StringDedup::is_enabled()) {
     G1StringDedup::stop();
   }
@@ -2522,6 +2573,7 @@ void G1CollectedHeap::collect(GCCause::Cause cause) {
       }
     } else {
       if (cause == GCCause::_gc_locker || cause == GCCause::_wb_young_gc
+          || cause == GCCause::_g1_elastic_heap_trigger_gc
           DEBUG_ONLY(|| cause == GCCause::_scavenge_alot)) {
 
         // Schedule a standard evacuation pause. We're setting word_size
@@ -4033,6 +4085,10 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
     { // Call to jvmpi::post_class_unload_events must occur outside of active GC
       IsGCActiveMark x;
 
+      if (G1ElasticHeap) {
+        elastic_heap()->prepare_in_gc_start();
+      }
+
       gc_prologue(false);
       increment_total_collections(false /* full gc */);
       increment_gc_time_stamp();
@@ -4243,6 +4299,10 @@ G1CollectedHeap::do_collection_pause_at_safepoint(double target_pause_time_ms) {
         // has just got initialized after the previous CSet was freed.
         _cm->verify_no_cset_oops();
         _cm->note_end_of_gc();
+
+        if (G1ElasticHeap) {
+          elastic_heap()->perform();
+        }
 
         // This timing is only used by the ergonomics to handle our pause target.
         // It is unclear why this should not include the full pause. We will

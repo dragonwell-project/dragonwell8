@@ -72,6 +72,9 @@ class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
 
   virtual void commit_regions(uint start_idx, size_t num_regions = 1) = 0;
   virtual void uncommit_regions(uint start_idx, size_t num_regions = 1) = 0;
+  virtual void par_commit_region_memory(uint idx) = 0;
+  virtual void par_uncommit_region_memory(uint idx) = 0;
+  virtual void free_region_memory(uint idx) = 0;
 
   // Creates an appropriate G1RegionToSpaceMapper for the given parameters.
   // The actual space to be used within the given reservation is given by actual_size.

@@ -39,6 +39,7 @@
 class HeapRegion;
 class CollectionSetChooser;
 class G1GCPhaseTimes;
+class ElasticHeap;
 
 // TraceGen0Time collects data on _both_ young and mixed evacuation pauses
 // (the latter may contain non-young regions - i.e. regions that are
@@ -158,9 +159,17 @@ public:
   bool adaptive_young_list_length() {
     return _adaptive_size;
   }
+  void resize_min_desired_young_length(uint size) {
+    _min_desired_young_length = size;
+  }
+  void resize_max_desired_young_length(uint size) {
+    _max_desired_young_length = size;
+  }
 };
 
 class G1CollectorPolicy: public CollectorPolicy {
+  friend class ElasticHeap;
+  friend class ElasticHeapEvaluator;
 private:
   static G1IHOPControl* create_ihop_control();
 
@@ -841,6 +850,10 @@ public:
   }
   void set_gcs_are_young(bool gcs_are_young) {
     _gcs_are_young = gcs_are_young;
+  }
+
+  bool last_young_gc() const {
+    return _last_young_gc;
   }
 
   bool adaptive_young_list_length() {

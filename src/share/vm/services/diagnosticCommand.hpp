@@ -461,4 +461,23 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
+class ElasticHeapDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<jlong> _young_commit_percent;
+  DCmdArgument<jlong> _uncommit_ihop;
+  DCmdArgument<jlong> _softmx_percent;
+  void print_info();
+  bool illegal_percent(uint percent, const char* name);
+public:
+  ElasticHeapDCmd(outputStream* output, bool heap_allocated);
+  static const char* name() {
+    return "GC.elastic_heap";
+  }
+  static const char* description() {
+    return "Elastic Heap Command";
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+
 #endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP

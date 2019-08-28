@@ -84,6 +84,15 @@ SUNWprivate_1.1 {
                 JVM_DumpAllStacks;
                 JVM_DumpThreads;
                 JVM_EnableCompiler;
+                JVM_ElasticHeapGetEvaluationMode;
+                JVM_ElasticHeapSetYoungGenCommitPercent;
+                JVM_ElasticHeapGetYoungGenCommitPercent;
+                JVM_ElasticHeapSetUncommitIHOP;
+                JVM_ElasticHeapGetUncommitIHOP;
+                JVM_ElasticHeapGetTotalYoungUncommittedBytes;
+                JVM_ElasticHeapSetSoftmxPercent;
+                JVM_ElasticHeapGetSoftmxPercent;
+                JVM_ElasticHeapGetTotalUncommittedBytes;
                 JVM_Exit;
                 JVM_FillInStackTrace;
                 JVM_FindClassFromCaller;

@@ -85,6 +85,9 @@ class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
   // Uncommit the given memory range.
   void uncommit_internal(size_t start_page, size_t end_page);
 
+  // Free the given memory range.
+  void free_memory_internal(size_t start_page, size_t end_page);
+
   // Pretouch the given memory range.
   void pretouch_internal(size_t start_page, size_t end_page);
 
@@ -116,6 +119,15 @@ class G1PageBasedVirtualSpace VALUE_OBJ_CLASS_SPEC {
 
   // Uncommit the given area of pages starting at start being size_in_pages large.
   void uncommit(size_t start_page, size_t size_in_pages);
+
+  // MT-safe commit the given area of pages starting at start being size_in_pages large.
+  void par_commit(size_t start_page, size_t size_in_pages, bool allow_pretouch = true);
+
+  // MT-safe uncommit the given area of pages starting at start being size_in_pages large.
+  void par_uncommit(size_t start_page, size_t size_in_pages);
+
+  // Free the given area of pages starting at start being size_in_pages large.
+  void free_memory(size_t start_page, size_t size_in_pages);
 
   // Initialize the given reserved space with the given base address and the size
   // actually used.

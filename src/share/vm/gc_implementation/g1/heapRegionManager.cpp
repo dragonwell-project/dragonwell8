@@ -29,6 +29,8 @@
 #include "gc_implementation/g1/g1CollectedHeap.inline.hpp"
 #include "gc_implementation/g1/concurrentG1Refine.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/os.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 
 void HeapRegionManager::initialize(G1RegionToSpaceMapper* heap_storage,
                                G1RegionToSpaceMapper* prev_bitmap,
@@ -89,6 +91,33 @@ void HeapRegionManager::commit_regions(uint index, size_t num_regions) {
   _cardtable_mapper->commit_regions(index, num_regions);
 
   _card_counts_mapper->commit_regions(index, num_regions);
+}
+
+void HeapRegionManager::uncommit_region_memory(uint idx) {
+  assert(G1ElasticHeap, "Precondition");
+  // Print before uncommitting.
+  if (G1CollectedHeap::heap()->hr_printer()->is_active()) {
+    HeapRegion* hr = at(idx);
+    G1CollectedHeap::heap()->hr_printer()->uncommit(hr->bottom(), hr->end());
+  }
+
+  _heap_mapper->par_uncommit_region_memory(idx);
+}
+
+void HeapRegionManager::commit_region_memory(uint idx) {
+  assert(G1ElasticHeap, "Precondition");
+  // Print before committing.
+  if (G1CollectedHeap::heap()->hr_printer()->is_active()) {
+    HeapRegion* hr = at(idx);
+    G1CollectedHeap::heap()->hr_printer()->commit(hr->bottom(), hr->end());
+  }
+
+  _heap_mapper->par_commit_region_memory(idx);
+}
+
+void HeapRegionManager::free_region_memory(uint idx) {
+  assert(G1ElasticHeap, "Precondition");
+  _heap_mapper->free_region_memory(idx);
 }
 
 void HeapRegionManager::uncommit_regions(uint start, size_t num_regions) {
@@ -172,6 +201,11 @@ uint HeapRegionManager::expand_at(uint start, uint num_regions) {
     return 0;
   }
 
+  if (G1ElasticHeap && G1CollectedHeap::heap()->elastic_heap() != NULL) {
+    // Heap initialization completes. Don't expand ever.
+    return 0;
+  }
+
   uint cur = start;
   uint idx_last_found = 0;
   uint num_last_found = 0;
@@ -197,7 +231,7 @@ uint HeapRegionManager::find_contiguous(size_t num, bool empty_only) {
 
   while (length_found < num && cur < max_length()) {
     HeapRegion* hr = _regions.get_by_index(cur);
-    if ((!empty_only && !is_available(cur)) || (is_available(cur) && hr != NULL && hr->is_empty())) {
+    if ((!empty_only && !is_available(cur) && !G1ElasticHeap) || (is_available(cur) && hr != NULL && hr->is_empty())) {
       // This region is a potential candidate for allocation into.
       length_found++;
     } else {
@@ -351,6 +385,135 @@ void HeapRegionManager::par_iterate(HeapRegionClosure* blk, uint worker_id, uint
       return;
     }
   }
+}
+
+void HeapRegionManager::commit_region_memory(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+
+  FreeRegionListIterator iter(list);
+  while (iter.more_available()) {
+    HeapRegion* hr = iter.get_next();
+    commit_region_memory(hr->hrm_index());
+  }
+}
+
+void HeapRegionManager::uncommit_region_memory(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+
+  FreeRegionListIterator iter(list);
+  while (iter.more_available()) {
+    HeapRegion* hr = iter.get_next();
+    uncommit_region_memory(hr->hrm_index());
+  }
+}
+
+void HeapRegionManager::set_region_available(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+  FreeRegionListIterator iter(list);
+  while (iter.more_available()) {
+    HeapRegion* hr = iter.get_next();
+    _available_map.par_set_range(hr->hrm_index(), hr->hrm_index() + 1, BitMap::unknown_range);
+  }
+  _num_committed += list->length();
+}
+
+void HeapRegionManager::set_region_unavailable(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+  FreeRegionListIterator iter(list);
+  while (iter.more_available()) {
+    HeapRegion* hr = iter.get_next();
+    _available_map.par_clear_range(hr->hrm_index(), hr->hrm_index() + 1, BitMap::unknown_range);
+  }
+  assert(_num_committed > list->length(), "sanity");
+  _num_committed -= list->length();
+}
+
+uint HeapRegionManager::num_uncommitted_regions() {
+  assert(G1ElasticHeap, "Precondition");
+  return _uncommitted_list.length();
+}
+
+void HeapRegionManager::recover_uncommitted_regions() {
+  assert(G1ElasticHeap, "Precondition");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+
+  commit_region_memory(&_uncommitted_list);
+  set_region_available(&_uncommitted_list);
+  _free_list.add_ordered(&_uncommitted_list);
+}
+
+void HeapRegionManager::move_to_uncommitted_list(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+
+  _uncommitted_list.add_ordered(list);
+}
+
+void HeapRegionManager::move_to_free_list(FreeRegionList* list) {
+  assert(G1ElasticHeap, "Precondition");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+
+  set_region_available(list);
+  _free_list.add_ordered(list);
+}
+
+void HeapRegionManager::prepare_uncommit_regions(FreeRegionList* list, uint num) {
+  assert(G1ElasticHeap, "Precondition");
+  assert(num <= _free_list.length(), "sanity");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+  assert(list->is_empty(), "sanity");
+
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  for (uint i = 0; i < num; i++) {
+    HeapRegion* hr = _free_list.remove_region(false /* from_head */);
+    list->add_ordered(hr);
+  }
+  set_region_unavailable(list);
+}
+
+void HeapRegionManager::prepare_commit_regions(FreeRegionList* list, uint num) {
+  assert(G1ElasticHeap, "Precondition");
+  assert(num <= _uncommitted_list.length(), "sanity");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+  assert(list->is_empty(), "sanity");
+
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  for (uint i = 0; i < num; i++) {
+    HeapRegion* hr = _uncommitted_list.remove_region(true /* from_head */);
+    assert(!is_available(hr->hrm_index()), "sanity");
+    list->add_ordered(hr);
+  }
+}
+
+void HeapRegionManager::prepare_old_region_list_to_free(FreeRegionList* to_free_list,
+                                                        uint reserve_regions,
+                                                        uint free_regions_for_young_gen) {
+  assert(G1ElasticHeap, "Precondition");
+  assert_at_safepoint(true /* should_be_vm_thread */);
+  assert(to_free_list->is_empty(), "sanity");
+
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  assert(!g1h->elastic_heap()->in_conc_cycle(), "Precondition");
+
+  if (_free_list.length() <= (reserve_regions + free_regions_for_young_gen)) {
+    // Not enough free regions
+    return;
+  }
+
+  uint uncommit_regions = _free_list.length() - reserve_regions - free_regions_for_young_gen;
+  FreeRegionListIterator iter(&_free_list);
+  // Skip reserve regions from the head of _free_list
+  for (uint i = 0; i < reserve_regions; i++) {
+    assert(iter.more_available(), "sanity");
+    iter.get_next();
+  }
+  // Remove regions out of free list for uncommit
+  for (uint i = 0; i < uncommit_regions; i++) {
+    assert(iter.more_available(), "sanity");
+    HeapRegion* hr = iter.remove_next();
+    to_free_list->add_ordered(hr);
+  }
+  set_region_unavailable(to_free_list);
 }
 
 uint HeapRegionManager::shrink_by(uint num_regions_to_remove) {

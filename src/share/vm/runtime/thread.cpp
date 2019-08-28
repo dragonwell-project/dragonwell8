@@ -102,6 +102,7 @@
 #include "gc_implementation/concurrentMarkSweep/concurrentMarkSweepThread.hpp"
 #include "gc_implementation/g1/concurrentMarkThread.inline.hpp"
 #include "gc_implementation/parallelScavenge/pcTasks.hpp"
+#include "gc_implementation/g1/elasticHeap.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
@@ -3621,6 +3622,12 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     } else {
       ConcurrentMarkThread::makeSurrogateLockerThread(THREAD);
     }
+    if (HAS_PENDING_EXCEPTION) {
+      vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
+    }
+  }
+  if (G1ElasticHeap) {
+    ElasticHeapTimer::start();
     if (HAS_PENDING_EXCEPTION) {
       vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
     }

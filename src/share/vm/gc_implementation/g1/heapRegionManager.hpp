@@ -79,6 +79,7 @@ class HeapRegionManager: public CHeapObj<mtGC> {
 
   FreeRegionList _free_list;
 
+  FreeRegionList _uncommitted_list;
   // Each bit in this bitmap indicates that the corresponding region is available
   // for allocation.
   BitMap _available_map;
@@ -131,7 +132,8 @@ public:
   HeapRegionManager() : _regions(), _heap_mapper(NULL), _num_committed(0),
                     _next_bitmap_mapper(NULL), _prev_bitmap_mapper(NULL), _bot_mapper(NULL),
                     _allocated_heapregions_length(0), _available_map(),
-                    _free_list("Free list", new MasterFreeRegionListMtSafeChecker())
+                    _free_list("Free list", new MasterFreeRegionListMtSafeChecker()),
+                    _uncommitted_list("Free list of uncommitted regions", new MasterFreeRegionListMtSafeChecker())
   { }
 
   void initialize(G1RegionToSpaceMapper* heap_storage,
@@ -231,6 +233,34 @@ public:
   // Uncommit up to num_regions_to_remove regions that are completely free.
   // Return the actual number of uncommitted regions.
   uint shrink_by(uint num_regions_to_remove);
+
+  // Number of regions in uncommitted free list
+  uint num_uncommitted_regions();
+  // Move uncommitted regions back into free list
+  void recover_uncommitted_regions();
+
+  // Move regions into uncommitted list
+  void move_to_uncommitted_list(FreeRegionList* list);
+  // Move regions back into free list
+  void move_to_free_list(FreeRegionList* list);
+
+  // Remove regions from free list for uncommitment
+  void prepare_uncommit_regions(FreeRegionList* list, uint num);
+  // Remove regions from uncommitted list for commitment
+  void prepare_commit_regions(FreeRegionList* list, uint num);
+  // Remove old regions to free
+  void prepare_old_region_list_to_free(FreeRegionList* to_free_list,
+                                       uint reserve_regions,
+                                       uint free_regions_for_young_gen);
+
+  void commit_region_memory(FreeRegionList* list);
+  void uncommit_region_memory(FreeRegionList* list);
+  void set_region_available(FreeRegionList* list);
+  void set_region_unavailable(FreeRegionList* list);
+
+  void commit_region_memory(uint idx);
+  void uncommit_region_memory(uint idx);
+  void free_region_memory(uint idx);
 
   void verify();
 
