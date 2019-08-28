@@ -35,6 +35,7 @@ import java.util.Set;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 
+import com.alibaba.management.ElasticHeapMXBean;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.UnixOperatingSystemMXBean;
 import com.sun.management.VMOption;
@@ -293,6 +294,19 @@ enum PlatformComponent {
                     }
                 }
                 return Collections.emptyList();
+            }
+        }),
+
+    /**
+     * Elastic Heap.
+     */
+    ELASTIC_HEAP(
+        "com.alibaba.management.ElasticHeapMXBean",
+        "com.alibaba.management", "ElasticHeap", defaultKeyProperties(),
+        true,
+        new MXBeanFetcher<ElasticHeapMXBean>() {
+            public List<ElasticHeapMXBean> getMXBeans() {
+                return Collections.singletonList(ManagementFactoryHelper.getElasticHeapMXBean());
             }
         });
 

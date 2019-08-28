@@ -2557,4 +2557,6 @@ java/awt/event/AdjustmentEvent
 java/awt/MenuBar
 sun/awt/X11/XErrorEvent
 com/alibaba/jwarmup/JWarmUp
+com/alibaba/management
+com/alibaba/jvm/gc
 # eea35d9d56e0006e

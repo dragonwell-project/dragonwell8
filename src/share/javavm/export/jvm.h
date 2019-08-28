@@ -340,6 +340,28 @@ JNIEXPORT void JNICALL
 JVM_NotifyJVMDeoptWarmUpMethods(JNIEnv* env, jclass clz);
 
 /*
+ * com.alibaba.management.ElasticHeapMXBean
+ */
+JNIEXPORT jint JNICALL
+JVM_ElasticHeapGetEvaluationMode(JNIEnv *env, jclass clazz);
+JNIEXPORT void JNICALL
+JVM_ElasticHeapSetYoungGenCommitPercent(JNIEnv *env, jclass clazz, jint percent);
+JNIEXPORT jint JNICALL
+JVM_ElasticHeapGetYoungGenCommitPercent(JNIEnv *env, jclass clazz);
+JNIEXPORT void JNICALL
+JVM_ElasticHeapSetUncommitIHOP(JNIEnv *env, jclass clazz, jint percent);
+JNIEXPORT jint JNICALL
+JVM_ElasticHeapGetUncommitIHOP(JNIEnv *env, jclass clazz);
+JNIEXPORT jlong JNICALL
+JVM_ElasticHeapGetTotalYoungUncommittedBytes(JNIEnv *env, jclass clazz);
+JNIEXPORT void JNICALL
+JVM_ElasticHeapSetSoftmxPercent(JNIEnv *env, jclass clazz, jint percent);
+JNIEXPORT jint JNICALL
+JVM_ElasticHeapGetSoftmxPercent(JNIEnv *env, jclass clazz);
+JNIEXPORT jlong JNICALL
+JVM_ElasticHeapGetTotalUncommittedBytes(JNIEnv *env, jclass clazz);
+
+/*
  * java.lang.reflect.Array
  */
 JNIEXPORT jint JNICALL

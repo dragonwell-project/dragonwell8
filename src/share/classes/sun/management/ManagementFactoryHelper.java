@@ -39,6 +39,8 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
+import com.alibaba.management.ElasticHeapMXBean;
+import com.alibaba.jvm.gc.ElasticHeapMXBeanImpl;
 import sun.util.logging.LoggingSupport;
 
 import java.util.ArrayList;
@@ -69,6 +71,7 @@ public class ManagementFactoryHelper {
     private static CompilationImpl     compileMBean = null;
     private static OperatingSystemImpl osMBean = null;
     private static FlightRecorderMXBeanImpl  flightRecorderMBean = null;
+    private static ElasticHeapMXBeanImpl     elasticHeapMXBean = null;
 
     public static synchronized ClassLoadingMXBean getClassLoadingMXBean() {
         if (classMBean == null) {
@@ -117,6 +120,13 @@ public class ManagementFactoryHelper {
             flightRecorderMBean = new FlightRecorderMXBeanImpl();
         }
         return flightRecorderMBean;
+    }
+
+    public static synchronized ElasticHeapMXBean getElasticHeapMXBean() {
+        if (elasticHeapMXBean == null) {
+            elasticHeapMXBean = new ElasticHeapMXBeanImpl();
+        }
+        return elasticHeapMXBean;
     }
 
     public static List<MemoryPoolMXBean> getMemoryPoolMXBeans() {

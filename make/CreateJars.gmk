@@ -557,7 +557,9 @@ EXCLUDE_PROPWARN_PKGS = com.sun.java.swing.plaf.windows \
 #
 EXPORTED_PRIVATE_PKGS = com.oracle.net \
     com.oracle.nio \
-    com.alibaba.jwarmup
+    com.alibaba.jwarmup \
+    com.alibaba.management \
+    com.alibaba.jvm.gc
 
 $(IMAGES_OUTPUTDIR)/symbols/_the.symbols: $(IMAGES_OUTPUTDIR)/lib/rt.jar
 	$(RM) -r $(IMAGES_OUTPUTDIR)/symbols/META-INF/sym
