@@ -63,9 +63,13 @@ import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.ValueDescriptor;
 
+import jdk.test.lib.Platform;
+
 /*
  * @test
  * @requires (jdk.version.major >= 8)
+ * @library /lib /
+ * @key jfr
  * @run main/othervm/timeout=30 -XX:+FlightRecorder -XX:StartFlightRecording JFRSecurityTestSuite
  * @author Martin Balao (mbalao@redhat.com)
  */
@@ -77,6 +81,7 @@ public class JFRSecurityTestSuite {
     private static String failureMessage = null;
     private static Path jfrTmpDirPath = null;
     private static Path recFilePath = null;
+    private static String protectedLocationPath;
 
     interface F {
         void call() throws Exception;
@@ -136,6 +141,8 @@ public class JFRSecurityTestSuite {
         jfrTmpDirPath = Files.createTempDirectory("jfr_test");
 
         try {
+            setProtectedLocation();
+
             File recFile = new File(jfrTmpDirPath.toString(), "rec");
             recFile.createNewFile();
             recFilePath = recFile.toPath();
@@ -219,10 +226,19 @@ public class JFRSecurityTestSuite {
         }
     }
 
+    private static void setProtectedLocation() {
+        if (Platform.isWindows()) {
+            protectedLocationPath = System.getenv("%WINDIR%");
+            if (protectedLocationPath == null) {
+                // fallback
+                protectedLocationPath = "c:\\windows";
+            }
+        } else {
+            protectedLocationPath = "/etc";
+        }
+    }
+
     private static void doInConstrainedEnvironment() throws Throwable {
-
-        final String testPath = "/etc";
-
         checkNoDirectAccess();
 
         assertPermission(() -> {
@@ -258,8 +274,8 @@ public class JFRSecurityTestSuite {
                 }, FlightRecorderPermission.class, "registerEvent", true);
 
         assertPermission(() -> {
-                        Configuration.create(Paths.get(testPath));
-                }, FilePermission.class, testPath, false);
+                        Configuration.create(Paths.get(protectedLocationPath));
+                }, FilePermission.class, protectedLocationPath, false);
 
         assertPermission(() -> {
                     EventFactory.create(new ArrayList<AnnotationElement>(),
@@ -280,12 +296,12 @@ public class JFRSecurityTestSuite {
                 }, FlightRecorderPermission.class, "accessFlightRecorder", false);
 
         assertPermission(() -> {
-                        new RecordingFile(Paths.get(testPath));
-                }, FilePermission.class, testPath, false);
+                        new RecordingFile(Paths.get(protectedLocationPath));
+                }, FilePermission.class, protectedLocationPath, false);
 
         assertPermission(() -> {
-                        RecordingFile.readAllEvents(Paths.get(testPath));
-                }, FilePermission.class, testPath, false);
+                        RecordingFile.readAllEvents(Paths.get(protectedLocationPath));
+                }, FilePermission.class, protectedLocationPath, false);
 
         assertPermission(() -> {
                         EventType.getEventType(MyEvent2.class);
