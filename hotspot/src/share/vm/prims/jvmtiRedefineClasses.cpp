@@ -67,6 +67,43 @@ VM_RedefineClasses::VM_RedefineClasses(jint class_count,
   _res = JVMTI_ERROR_NONE;
 }
 
+static inline InstanceKlass* get_ik(jclass def) {
+  oop mirror = JNIHandles::resolve_non_null(def);
+  return InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+}
+
+// If any of the classes are being redefined, wait
+// Parallel constant pool merging leads to indeterminate constant pools.
+void VM_RedefineClasses::lock_classes() {
+  MutexLocker ml(RedefineClasses_lock);
+  bool has_redefined;
+  do {
+    has_redefined = false;
+    // Go through classes each time until none are being redefined.
+    for (int i = 0; i < _class_count; i++) {
+      if (get_ik(_class_defs[i].klass)->is_being_redefined()) {
+        RedefineClasses_lock->wait();
+        has_redefined = true;
+        break;  // for loop
+      }
+    }
+  } while (has_redefined);
+  for (int i = 0; i < _class_count; i++) {
+    get_ik(_class_defs[i].klass)->set_is_being_redefined(true);
+  }
+  RedefineClasses_lock->notify_all();
+}
+
+void VM_RedefineClasses::unlock_classes() {
+  MutexLocker ml(RedefineClasses_lock);
+  for (int i = 0; i < _class_count; i++) {
+    assert(get_ik(_class_defs[i].klass)->is_being_redefined(),
+           "should be being redefined to get here");
+    get_ik(_class_defs[i].klass)->set_is_being_redefined(false);
+  }
+  RedefineClasses_lock->notify_all();
+}
+
 bool VM_RedefineClasses::doit_prologue() {
   if (_class_count == 0) {
     _res = JVMTI_ERROR_NONE;
@@ -89,12 +126,21 @@ bool VM_RedefineClasses::doit_prologue() {
       _res = JVMTI_ERROR_NULL_POINTER;
       return false;
     }
+
+    oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
+    // classes for primitives and arrays cannot be redefined
+    // check here so following code can assume these classes are InstanceKlass
+    if (!is_modifiable_class(mirror)) {
+      _res = JVMTI_ERROR_UNMODIFIABLE_CLASS;
+      return false;
+    }
   }
 
   // Start timer after all the sanity checks; not quite accurate, but
   // better than adding a bunch of stop() calls.
   RC_TIMER_START(_timer_vm_op_prologue);
 
+  lock_classes();
   // We first load new class versions in the prologue, because somewhere down the
   // call chain it is required that the current thread is a Java thread.
   _res = load_new_class_versions(Thread::current());
@@ -111,6 +157,7 @@ bool VM_RedefineClasses::doit_prologue() {
     // Free os::malloc allocated memory in load_new_class_version.
     os::free(_scratch_classes);
     RC_TIMER_STOP(_timer_vm_op_prologue);
+    unlock_classes();
     return false;
   }
 
@@ -170,6 +217,8 @@ void VM_RedefineClasses::doit() {
 }
 
 void VM_RedefineClasses::doit_epilogue() {
+  unlock_classes();
+
   // Free os::malloc allocated memory.
   os::free(_scratch_classes);
 
@@ -961,14 +1010,7 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
     // versions are deleted. Constant pools are deallocated while merging
     // constant pools
     HandleMark hm(THREAD);
-
-    oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
-    // classes for primitives cannot be redefined
-    if (!is_modifiable_class(mirror)) {
-      return JVMTI_ERROR_UNMODIFIABLE_CLASS;
-    }
-    Klass* the_class_oop = java_lang_Class::as_Klass(mirror);
-    instanceKlassHandle the_class = instanceKlassHandle(THREAD, the_class_oop);
+    instanceKlassHandle the_class(THREAD, get_ik(_class_defs[i].klass));
     Symbol*  the_class_sym = the_class->name();
 
     // RC_TRACE_WITH_THREAD macro has an embedded ResourceMark
@@ -3855,22 +3897,19 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
   HandleMark hm(THREAD);   // make sure handles from this call are freed
   RC_TIMER_START(_timer_rsc_phase1);
 
-  instanceKlassHandle scratch_class(scratch_class_oop);
-
-  oop the_class_mirror = JNIHandles::resolve_non_null(the_jclass);
-  Klass* the_class_oop = java_lang_Class::as_Klass(the_class_mirror);
-  instanceKlassHandle the_class = instanceKlassHandle(THREAD, the_class_oop);
+  instanceKlassHandle scratch_class(THREAD, scratch_class_oop);
+  instanceKlassHandle the_class(THREAD, get_ik(the_jclass));
 
   // Remove all breakpoints in methods of this class
   JvmtiBreakpoints& jvmti_breakpoints = JvmtiCurrentBreakpoints::get_jvmti_breakpoints();
-  jvmti_breakpoints.clearall_in_class_at_safepoint(the_class_oop);
+  jvmti_breakpoints.clearall_in_class_at_safepoint(the_class());
 
   // Deoptimize all compiled code that depends on this class
   flush_dependent_code(the_class, THREAD);
 
   _old_methods = the_class->methods();
   _new_methods = scratch_class->methods();
-  _the_class_oop = the_class_oop;
+  _the_class_oop = the_class();
   compute_added_deleted_matching_methods();
   update_jmethod_ids();
 
@@ -4094,14 +4133,14 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
   RC_TRACE_WITH_THREAD(0x00000001, THREAD,
     ("redefined name=%s, count=%d (avail_mem=" UINT64_FORMAT "K)",
     the_class->external_name(),
-    java_lang_Class::classRedefinedCount(the_class_mirror),
+    java_lang_Class::classRedefinedCount(the_class->java_mirror()),
     os::available_memory() >> 10));
 
   {
     ResourceMark rm(THREAD);
     Events::log_redefinition(THREAD, "redefined class name=%s, count=%d",
                              the_class->external_name(),
-                             java_lang_Class::classRedefinedCount(the_class_mirror));
+                             java_lang_Class::classRedefinedCount(the_class->java_mirror()));
 
   }
   RC_TIMER_STOP(_timer_rsc_phase2);
