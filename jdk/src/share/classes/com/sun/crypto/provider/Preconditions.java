@@ -22,7 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.util;
+package com.sun.crypto.provider;
 
 import java.util.Arrays;
 import java.util.Collections;

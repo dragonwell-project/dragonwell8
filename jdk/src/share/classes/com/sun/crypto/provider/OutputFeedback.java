@@ -27,7 +27,6 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import java.security.ProviderException;
-import sun.security.util.ArrayUtil;
 
 /**
  * This class represents ciphers in output-feedback (OFB) mode.
@@ -149,9 +148,9 @@ final class OutputFeedback extends FeedbackCipher {
      */
     int encrypt(byte[] plain, int plainOffset, int plainLen,
                 byte[] cipher, int cipherOffset) {
-        ArrayUtil.blockSizeCheck(plainLen, numBytes);
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
+        RangeUtil.blockSizeCheck(plainLen, numBytes);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
 
         int nShift = blockSize - numBytes;
         int loopCount = plainLen / numBytes;
@@ -190,8 +189,8 @@ final class OutputFeedback extends FeedbackCipher {
      */
     int encryptFinal(byte[] plain, int plainOffset, int plainLen,
                      byte[] cipher, int cipherOffset) {
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
 
         int oddBytes = plainLen % numBytes;
         int len = encrypt(plain, plainOffset, (plainLen - oddBytes),
