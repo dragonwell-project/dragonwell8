@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
  * This library is free software; you can redistribute it and/or
@@ -659,6 +659,7 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
     SECItem kGpoint = { siBuffer, NULL, 0};
     int flen = 0;    /* length in bytes of the field size */
     unsigned olen;   /* length in bytes of the base point order */
+    unsigned int orderBitSize;
 
 #if EC_DEBUG
     char mpstr[256];
@@ -761,10 +762,11 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
     SECITEM_TO_MPINT(*digest, &s);        /* s = HASH(M)     */
 
     /* In the definition of EC signing, digests are truncated
-     * to the length of n in bits.
+     * to the order length
      * (see SEC 1 "Elliptic Curve Digit Signature Algorithm" section 4.1.*/
-    if (digest->len*8 > (unsigned int)ecParams->fieldID.size) {
-        mpl_rsh(&s,&s,digest->len*8 - ecParams->fieldID.size);
+    orderBitSize = mpl_significant_bits(&n);
+    if (digest->len*8 > orderBitSize) {
+        mpl_rsh(&s,&s,digest->len*8 - orderBitSize);
     }
 
 #if EC_DEBUG
@@ -897,6 +899,7 @@ ECDSA_VerifyDigest(ECPublicKey *key, const SECItem *signature,
     int slen;       /* length in bytes of a half signature (r or s) */
     int flen;       /* length in bytes of the field size */
     unsigned olen;  /* length in bytes of the base point order */
+    unsigned int orderBitSize;
 
 #if EC_DEBUG
     char mpstr[256];
@@ -976,11 +979,12 @@ ECDSA_VerifyDigest(ECPublicKey *key, const SECItem *signature,
     SECITEM_TO_MPINT(*digest, &u1);                  /* u1 = HASH(M)     */
 
     /* In the definition of EC signing, digests are truncated
-     * to the length of n in bits.
+     * to the order length, in bits.
      * (see SEC 1 "Elliptic Curve Digit Signature Algorithm" section 4.1.*/
     /* u1 = HASH(M')     */
-    if (digest->len*8 > (unsigned int)ecParams->fieldID.size) {
-        mpl_rsh(&u1,&u1,digest->len*8- ecParams->fieldID.size);
+    orderBitSize = mpl_significant_bits(&n);
+    if (digest->len*8 > orderBitSize) {
+        mpl_rsh(&u1,&u1,digest->len*8- orderBitSize);
     }
 
 #if EC_DEBUG
