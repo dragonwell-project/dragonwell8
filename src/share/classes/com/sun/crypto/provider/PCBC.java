@@ -27,8 +27,6 @@ package com.sun.crypto.provider;
 
 import java.security.InvalidKeyException;
 import java.security.ProviderException;
-import sun.security.util.ArrayUtil;
-
 
 /**
  * This class represents ciphers in Plaintext Cipher Block Chaining (PCBC)
@@ -137,9 +135,9 @@ final class PCBC extends FeedbackCipher {
     int encrypt(byte[] plain, int plainOffset, int plainLen,
                 byte[] cipher, int cipherOffset)
     {
-        ArrayUtil.blockSizeCheck(plainLen, blockSize);
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
+        RangeUtil.blockSizeCheck(plainLen, blockSize);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
 
         int i;
         int endIndex = plainOffset + plainLen;
@@ -178,9 +176,9 @@ final class PCBC extends FeedbackCipher {
     int decrypt(byte[] cipher, int cipherOffset, int cipherLen,
                 byte[] plain, int plainOffset)
     {
-        ArrayUtil.blockSizeCheck(cipherLen, blockSize);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, cipherLen);
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, cipherLen);
+        RangeUtil.blockSizeCheck(cipherLen, blockSize);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, cipherLen);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, cipherLen);
 
         int i;
         int endIndex = cipherOffset + cipherLen;
