@@ -29,8 +29,6 @@ import java.security.InvalidKeyException;
 import java.security.ProviderException;
 import java.util.Objects;
 
-import sun.security.util.ArrayUtil;
-
 /**
  * This class represents ciphers in cipher block chaining (CBC) mode.
  *
@@ -144,9 +142,9 @@ class CipherBlockChaining extends FeedbackCipher  {
         if (plainLen <= 0) {
             return plainLen;
         }
-        ArrayUtil.blockSizeCheck(plainLen, blockSize);
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
+        RangeUtil.blockSizeCheck(plainLen, blockSize);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, plainLen);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, plainLen);
         return implEncrypt(plain, plainOffset, plainLen,
                            cipher, cipherOffset);
     }
@@ -194,9 +192,9 @@ class CipherBlockChaining extends FeedbackCipher  {
         if (cipherLen <= 0) {
             return cipherLen;
         }
-        ArrayUtil.blockSizeCheck(cipherLen, blockSize);
-        ArrayUtil.nullAndBoundsCheck(cipher, cipherOffset, cipherLen);
-        ArrayUtil.nullAndBoundsCheck(plain, plainOffset, cipherLen);
+        RangeUtil.blockSizeCheck(cipherLen, blockSize);
+        RangeUtil.nullAndBoundsCheck(cipher, cipherOffset, cipherLen);
+        RangeUtil.nullAndBoundsCheck(plain, plainOffset, cipherLen);
         return implDecrypt(cipher, cipherOffset, cipherLen, plain, plainOffset);
     }
 
