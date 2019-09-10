@@ -76,8 +76,13 @@ public class TestLookForUntestedEvents {
     // NOTE: if the event is not covered, a bug should be open, and bug number
     // noted in the comments for this set.
     private static final Set<String> knownNotCoveredEvents = new HashSet<>(
-        // DumpReason: JDK-8213918
-        Arrays.asList("DumpReason")
+        Arrays.asList(
+                // DumpReason: JDK-8213918
+                "DumpReason",
+                // No G1 IHOP in JDK 8
+                "G1BasicIHOP",
+                "G1AdaptiveIHOP"
+        )
     );
 
 
@@ -112,6 +117,7 @@ public class TestLookForUntestedEvents {
         // Account for hard-to-test, experimental and GC tested events
         eventsNotCoveredByTest.removeAll(hardToTestEvents);
         eventsNotCoveredByTest.removeAll(coveredGcEvents);
+
         eventsNotCoveredByTest.removeAll(knownNotCoveredEvents);
 
         if (!eventsNotCoveredByTest.isEmpty()) {

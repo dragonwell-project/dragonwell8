@@ -36,6 +36,6 @@ import jdk.test.lib.jfr.GCHelper;
  */
 public class TestObjectCountAfterGCEventWithG1FullCollection {
     public static void main(String[] args) throws Exception {
-        ObjectCountAfterGCEvent.test(GCHelper.gcG1Full);
+        ObjectCountAfterGCEvent.test(GCHelper.gcSerialOld);
     }
 }

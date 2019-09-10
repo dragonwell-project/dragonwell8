@@ -102,7 +102,6 @@ public class TestJavaMonitorInflateEvent {
                     continue;
                 }
                 Events.assertField(event, FIELD_ADDRESS).notEqual(0L);
-                Events.assertField(event, FIELD_CAUSE).notNull();
                 isAnyFound = true;
                 break;
             }

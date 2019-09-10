@@ -41,7 +41,7 @@ public class TestGCCauseWithG1FullCollection {
     public static void main(String[] args) throws Exception {
         String testID = "G1FullCollection";
         String[] vmFlags = {"-XX:+UseG1GC"};
-        String[] gcNames = {GCHelper.gcG1New, GCHelper.gcG1Old, GCHelper.gcG1Full};
+        String[] gcNames = {GCHelper.gcG1New, GCHelper.gcG1Old, GCHelper.gcG1Full, GCHelper.gcSerialOld};
         String[] gcCauses = {"G1 Evacuation Pause", "Allocation Failure", "System.gc()"};
         GCGarbageCollectionUtil.test(testID, vmFlags, gcNames, gcCauses);
     }

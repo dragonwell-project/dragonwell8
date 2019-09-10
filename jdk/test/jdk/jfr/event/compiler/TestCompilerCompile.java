@@ -79,9 +79,6 @@ public class TestCompilerCompile {
         // compile dummyMethod()
         Method mtd = TestCompilerCompile.class.getDeclaredMethod(METHOD_NAME, new Class[0]);
         WhiteBox WB = WhiteBox.getWhiteBox();
-        String directive = "[{ match: \"" + TestCompilerCompile.class.getName().replace('.', '/')
-                + "." + METHOD_NAME + "\", " + "BackgroundCompilation: false }]";
-        WB.addCompilerDirective(directive);
         if (!WB.enqueueMethodForCompilation(mtd, 4 /* CompLevel_full_optimization */)) {
             WB.enqueueMethodForCompilation(mtd, 1 /* CompLevel_simple */);
         }
