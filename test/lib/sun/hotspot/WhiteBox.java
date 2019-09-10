@@ -240,9 +240,18 @@ public class WhiteBox {
   public        boolean enqueueMethodForCompilation(Executable method, int compLevel) {
     return enqueueMethodForCompilation(method, compLevel, -1 /*InvocationEntryBci*/);
   }
-  public native boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci);
-  public native boolean enqueueInitializerForCompilation(Class<?> aClass, int compLevel);
+  private native boolean enqueueMethodForCompilation0(Executable method, int compLevel, int entry_bci);
+  public  boolean enqueueMethodForCompilation(Executable method, int compLevel, int entry_bci) {
+    Objects.requireNonNull(method);
+    return enqueueMethodForCompilation0(method, compLevel, entry_bci);
+  }
+  private native boolean enqueueInitializerForCompilation0(Class<?> aClass, int compLevel);
+  public  boolean enqueueInitializerForCompilation(Class<?> aClass, int compLevel) {
+    Objects.requireNonNull(aClass);
+    return enqueueInitializerForCompilation0(aClass, compLevel);
+  }
   public native void    clearMethodState(Executable method);
+  public native void    markMethodProfiled(Executable method);
   public native void    lockCompilation();
   public native void    unlockCompilation();
   public native int     getMethodEntryBci(Executable method);
@@ -257,7 +266,6 @@ public class WhiteBox {
       return allocateCodeBlob( intSize, type);
   }
   public native void    freeCodeBlob(long addr);
-  public native void    forceNMethodSweep();
   public native Object[] getCodeHeapEntries(int type);
   public native int     getCompilationActivityMode();
   private native long getMethodData0(Executable method);
@@ -426,10 +434,6 @@ public class WhiteBox {
   public native boolean isJavaHeapArchiveSupported();
   public native Object  getResolvedReferences(Class<?> c);
   public native boolean areOpenArchiveHeapObjectsMapped();
-
-  // Compiler Directive
-  public native int addCompilerDirective(String compDirect);
-  public native void removeCompilerDirective(int count);
 
   // Handshakes
   public native int handshakeWalkStack(Thread t, boolean all_threads);

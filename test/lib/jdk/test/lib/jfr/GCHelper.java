@@ -183,6 +183,7 @@ public class GCHelper {
 
         // List of expected collector overrides. "A.B" means that collector A may use collector B.
         collectorOverrides.add("G1Old.G1Full");
+        collectorOverrides.add("G1Old.SerialOld");
         collectorOverrides.add("ConcurrentMarkSweep.SerialOld");
         collectorOverrides.add("SerialOld.PSMarkSweep");
 

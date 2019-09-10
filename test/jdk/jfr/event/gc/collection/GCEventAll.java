@@ -309,8 +309,9 @@ public class GCEventAll {
                     if (event.getEventType().getName().contains("AllocationRequiringGC")) {
                         // Unlike other events, these are sent *before* a GC.
                         Asserts.assertLessThanOrEqual(event.getStartTime(), batchStartTime, "Timestamp in event after start event, should be sent before GC start");
-                    } else {
-                        Asserts.assertGreaterThanOrEqual(event.getStartTime(), batchStartTime, "startTime in event before batch start event, should be sent after GC start");
+                    } else if (!event.getEventType().getName().contains("G1MMU")){
+                        // G1MMU event on JDK8 G1 can be out-of-order; don't check it here
+                        Asserts.assertGreaterThanOrEqual(event.getStartTime(), batchStartTime, "startTime in event before batch start event, should be sent after GC start [" + event.getEventType().getName() + "]");
                     }
                     Asserts.assertLessThanOrEqual(event.getEndTime(), batchEndTime, "endTime in event after batch end event, should be sent before GC end");
                 }

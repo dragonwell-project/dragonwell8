@@ -47,7 +47,7 @@ import sun.hotspot.WhiteBox;
  * @run main/othervm -Xbootclasspath/a:.
  *     -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *     -XX:CompileOnly=jdk.jfr.event.compiler.TestCompilerPhase::dummyMethod
- *     -XX:+SegmentedCodeCache -Xbootclasspath/a:.
+ *     -Xbootclasspath/a:.
  *     jdk.jfr.event.compiler.TestCompilerPhase
  */
 public class TestCompilerPhase {
@@ -64,9 +64,6 @@ public class TestCompilerPhase {
         // Provoke compilation
         Method mtd = TestCompilerPhase.class.getDeclaredMethod(METHOD_NAME, new Class[0]);
         WhiteBox WB = WhiteBox.getWhiteBox();
-        String directive = "[{ match: \"" + TestCompilerPhase.class.getName().replace('.', '/')
-                + "." + METHOD_NAME + "\", " + "BackgroundCompilation: false }]";
-        WB.addCompilerDirective(directive);
         if (!WB.enqueueMethodForCompilation(mtd, COMP_LEVEL_FULL_OPTIMIZATION)) {
             WB.enqueueMethodForCompilation(mtd, COMP_LEVEL_SIMPLE);
         }
