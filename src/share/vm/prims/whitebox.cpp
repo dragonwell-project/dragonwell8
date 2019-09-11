@@ -569,13 +569,53 @@ WB_ENTRY(jboolean, WB_TestSetForceInlineMethod(JNIEnv* env, jobject o, jobject m
   return result;
 WB_END
 
+bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* THREAD) {
+  // Screen for unavailable/bad comp level or null method
+  AbstractCompiler* comp = CompileBroker::compiler(comp_level);
+  if (method == NULL) {
+    tty->print_cr("WB error: request to compile NULL method");
+    return false;
+  }
+  if (comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier)) {
+    tty->print_cr("WB error: invalid compilation level %d", comp_level);
+    return false;
+  }
+  if (comp == NULL) {
+    tty->print_cr("WB error: no compiler for requested compilation level %d", comp_level);
+    return false;
+  }
+
+  methodHandle mh(THREAD, method);
+
+  // Compile method and check result
+  nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), "Whitebox", THREAD);
+  MutexLocker mu(Compile_lock);
+  bool is_queued = mh->queued_for_compilation();
+  if (is_queued || nm != NULL) {
+    return true;
+  }
+  tty->print("WB error: failed to compile at level %d method ", comp_level);
+  mh->print_short_name(tty);
+  tty->cr();
+  if (is_queued) {
+    tty->print_cr("WB error: blocking compilation is still in queue!");
+  }
+  return false;
+}
+
 WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobject method, jint comp_level, jint bci))
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
   CHECK_JNI_EXCEPTION_(env, JNI_FALSE);
-  methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
-  nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), "WhiteBox", THREAD);
-  MutexLockerEx mu(Compile_lock);
-  return (mh->queued_for_compilation() || nm != NULL);
+  return WhiteBox::compile_method(Method::checked_resolve_jmethod_id(jmid), comp_level, bci, THREAD);
+WB_END
+
+WB_ENTRY(jboolean, WB_EnqueueInitializerForCompilation(JNIEnv* env, jobject o, jclass klass, jint comp_level))
+  InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
+  Method* clinit = ik->class_initializer();
+  if (clinit == NULL) {
+    return false;
+  }
+  return WhiteBox::compile_method(clinit, comp_level, InvocationEntryBci, THREAD);
 WB_END
 
 class VM_WhiteBoxOperation : public VM_Operation {
@@ -804,7 +844,6 @@ WB_ENTRY(void, WB_SetStringVMFlag(JNIEnv* env, jobject o, jstring name, jstring 
     FREE_C_HEAP_ARRAY(char, ccstrResult, mtInternal);
   }
 WB_END
-
 
 WB_ENTRY(jboolean, WB_IsInStringTable(JNIEnv* env, jobject o, jstring javaString))
   ResourceMark rm(THREAD);
@@ -1042,6 +1081,11 @@ WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
   VMThread::execute(&force_safepoint_op);
 WB_END
 
+WB_ENTRY(jlong, WB_GetHeapAlignment(JNIEnv* env, jobject o))
+    size_t alignment = Universe::heap()->collector_policy()->heap_alignment();
+    return (jlong)alignment;
+WB_END
+
 //Some convenience methods to deal with objects from java
 int WhiteBox::offset_for_field(const char* field_name, oop object,
     Symbol* signature_symbol) {
@@ -1156,6 +1200,7 @@ static JNINativeMethod methods[] = {
   {CC"getHeapOopSize",     CC"()I",                   (void*)&WB_GetHeapOopSize    },
   {CC"getVMPageSize",      CC"()I",                   (void*)&WB_GetVMPageSize     },
   {CC"getVMLargePageSize", CC"()J",                   (void*)&WB_GetVMLargePageSize},
+  {CC"getHeapAlignment",   CC"()J",                   (void*)&WB_GetHeapAlignment  },
   {CC"isClassAlive0",      CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
   {CC"classKnownToNotExist",
                            CC"(Ljava/lang/ClassLoader;Ljava/lang/String;)Z",(void*)&WB_ClassKnownToNotExist},
@@ -1221,8 +1266,10 @@ static JNINativeMethod methods[] = {
       CC"(I)I",                                       (void*)&WB_GetCompileQueueSize},
   {CC"testSetForceInlineMethod",
       CC"(Ljava/lang/reflect/Executable;Z)Z",         (void*)&WB_TestSetForceInlineMethod},
-  {CC"enqueueMethodForCompilation",
+  {CC"enqueueMethodForCompilation0",
       CC"(Ljava/lang/reflect/Executable;II)Z",        (void*)&WB_EnqueueMethodForCompilation},
+  {CC"enqueueInitializerForCompilation0",
+      CC"(Ljava/lang/Class;I)Z",                      (void*)&WB_EnqueueInitializerForCompilation},
   {CC"clearMethodState",
       CC"(Ljava/lang/reflect/Executable;)V",          (void*)&WB_ClearMethodState},
   {CC"markMethodProfiled",
