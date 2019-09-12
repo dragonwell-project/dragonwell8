@@ -385,7 +385,7 @@ void ProfileRecorder::write_u8(u8 value) {
 void ProfileRecorder::write_string(const char* src, size_t len) {
   _logfile->write(src, len);
   _logfile->write("\0", 1);
-  _pos += len + 1;
+  _pos += (unsigned int)len + 1;
   update_max_symbol_length((int)len);
 }
 
@@ -461,7 +461,7 @@ void ProfileRecorder::write_header() {
   _pos += RECORD_COUNTS_WIDTH;
   offset += RECORD_COUNTS_WIDTH;
   // record time
-  *(unsigned jlong*)((char*)header_buf + offset) = os::javaTimeMillis();
+  *(jlong*)((char*)header_buf + offset) = os::javaTimeMillis();
   _pos += TIME_WIDTH;
   offset += TIME_WIDTH;
   // write to file
@@ -1618,7 +1618,7 @@ bool JitWarmUpLogParser::parse_header() {
 }
 
 #define CREATE_SYMBOL(char_name)      \
-  SymbolTable::new_symbol(char_name, strlen(char_name), Thread::current())
+  SymbolTable::new_symbol(char_name, (int)strlen(char_name), Thread::current())
 
 bool JitWarmUpLogParser::parse_class_init_section() {
   ResourceMark rm;

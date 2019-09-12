@@ -168,6 +168,7 @@ VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/services
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/trace
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/utilities
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/libadt
+VM_PATH=$(VM_PATH);$(WorkSpace)/src/share/vm/jwarmup
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/os/windows/vm
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/os_cpu/windows_$(Platform_arch)/vm
 VM_PATH=$(VM_PATH);$(WorkSpace)/src/cpu/$(Platform_arch)/vm
@@ -274,6 +275,9 @@ bytecodeInterpreterWithChecks.obj: ..\generated\jvmtifiles\bytecodeInterpreterWi
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 {$(COMMONSRC)\share\vm\libadt}.cpp.obj::
+        $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
+
+{$(COMMONSRC)\share\vm\jwarmup}.cpp.obj::
         $(CXX) $(CXX_FLAGS) $(CXX_USE_PCH) /c $<
 
 {$(COMMONSRC)\share\vm\opto}.cpp.obj::
