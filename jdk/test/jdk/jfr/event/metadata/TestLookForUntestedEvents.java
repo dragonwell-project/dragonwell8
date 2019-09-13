@@ -81,7 +81,9 @@ public class TestLookForUntestedEvents {
                 "DumpReason",
                 // No G1 IHOP in JDK 8
                 "G1BasicIHOP",
-                "G1AdaptiveIHOP"
+                "G1AdaptiveIHOP",
+                // Missing CI in JDK 8
+                "CodeSweeperStatistics"
         )
     );
 
