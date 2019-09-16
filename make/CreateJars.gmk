@@ -400,6 +400,7 @@ $(eval $(call SetupArchive,BUILD_CHARSETS_JAR, , \
 
 ##########################################################################################
 
+ifeq ($(OPENJDK_TARGET_OS), linux)
 $(eval $(call SetupArchive,BUILD_JFR_JAR, , \
     SRCS := $(JDK_OUTPUTDIR)/classes, \
     SUFFIXES := .class .jfc .xsd .xml .dtd, \
@@ -410,6 +411,7 @@ $(eval $(call SetupArchive,BUILD_JFR_JAR, , \
     CHECK_COMPRESS_JAR := true))
 
 JARS += $(IMAGES_OUTPUTDIR)/lib/jfr.jar
+endif # linux
 
 ##########################################################################################
 
