@@ -38,6 +38,8 @@ default: build
 GENERATED     = ../generated
 DEP_DIR       = $(GENERATED)/dependencies
 
+EXCLUDE_JFR_PATHS:= -o -name jfr -prune
+
 # reads the generated files defining the set of .o's and the .o .h dependencies
 -include $(DEP_DIR)/*.d
 
@@ -47,6 +49,7 @@ ifeq ($(findstring true, $(JVM_VARIANT_ZERO) $(JVM_VARIANT_ZEROSHARK)), true)
 else
   include $(MAKEFILES_DIR)/$(BUILDARCH).make
 endif
+
 
 # set VPATH so make knows where to look for source files
 # Src_Dirs_V is everything in src/share/vm/*, plus the right os/*/vm and cpu/*/vm
@@ -168,7 +171,7 @@ SPECIAL_PATHS:=adlc c1 gc_implementation opto shark libadt
 
 SOURCE_PATHS=\
   $(shell find $(HS_COMMON_SRC)/share/vm/* -type d \! \
-      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) \))
+      \( -name DUMMY $(foreach dir,$(SPECIAL_PATHS),-o -name $(dir)) $(EXCLUDE_JFR_PATHS) \))
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/$(Platform_os_family)/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/os/posix/vm
 SOURCE_PATHS+=$(HS_COMMON_SRC)/cpu/$(Platform_arch)/vm
@@ -176,12 +179,6 @@ SOURCE_PATHS+=$(HS_COMMON_SRC)/os_cpu/$(Platform_os_arch)/vm
 
 CORE_PATHS=$(foreach path,$(SOURCE_PATHS),$(call altsrc,$(path)) $(path))
 CORE_PATHS+=$(GENERATED)/jvmtifiles $(GENERATED)/tracefiles
-
-ifneq ($(INCLUDE_TRACE), false)
-CORE_PATHS+=$(shell if [ -d $(HS_ALT_SRC)/share/vm/jfr ]; then \
-  find $(HS_ALT_SRC)/share/vm/jfr -type d; \
-  fi)
-endif
 
 COMPILER1_PATHS := $(call altsrc,$(HS_COMMON_SRC)/share/vm/c1)
 COMPILER1_PATHS += $(HS_COMMON_SRC)/share/vm/c1

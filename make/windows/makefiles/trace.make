@@ -38,7 +38,9 @@ TraceSrcDir = $(WorkSpace)/src/share/vm/trace
 TraceGeneratedNames =     \
     traceEventClasses.hpp \
     traceEventIds.hpp     \
-    traceTypes.hpp
+    traceTypes.hpp        \
+    traceEventControl.hpp \
+    tracePeriodic.hpp
 
 !if EXISTS($(TraceAltSrcDir))
 TraceGeneratedNames = $(TraceGeneratedNames) \
@@ -53,7 +55,9 @@ TraceGeneratedNames = $(TraceGeneratedNames) \
 TraceGeneratedFiles = \
     $(TraceOutDir)/traceEventClasses.hpp \
 	$(TraceOutDir)/traceEventIds.hpp     \
-	$(TraceOutDir)/traceTypes.hpp
+	$(TraceOutDir)/traceTypes.hpp \
+        $(TraceOutDir)/traceEventControl.hpp \
+        $(TraceOutDir)/tracePeriodic.hpp
 
 !if EXISTS($(TraceAltSrcDir))
 TraceGeneratedFiles = $(TraceGeneratedFiles) \
@@ -65,7 +69,8 @@ TraceGeneratedFiles = $(TraceGeneratedFiles) \
 XSLT = $(QUIETLY) $(REMOTE) $(RUN_JAVA) -classpath $(JvmtiOutDir) jvmtiGen
 
 XML_DEPS = $(TraceSrcDir)/trace.xml $(TraceSrcDir)/tracetypes.xml \
-    $(TraceSrcDir)/trace.dtd $(TraceSrcDir)/xinclude.mod
+        $(TraceSrcDir)/tracerelationdecls.xml \
+        $(TraceSrcDir)/traceevents.xml
 
 !if EXISTS($(TraceAltSrcDir))
 XML_DEPS = $(XML_DEPS) $(TraceAltSrcDir)/traceevents.xml
@@ -91,6 +96,14 @@ $(TraceOutDir)/traceTypes.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceType
 $(TraceOutDir)/traceEventClasses.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceEventClasses.xsl $(XML_DEPS)
 	@echo Generating OpenJDK $@
 	@$(XSLT) -IN $(TraceSrcDir)/trace.xml -XSL $(TraceSrcDir)/traceEventClasses.xsl -OUT $(TraceOutDir)/traceEventClasses.hpp
+
+$(TraceOutDir)/traceEventControl.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/traceEventClasses.xsl $(XML_DEPS)
+	@echo Generating $@
+	@$(XSLT) -IN $(TraceSrcDir)/trace.xml -XSL $(TraceSrcDir)/traceEventControl.xsl -OUT $(TraceOutDir)/traceEventControl.hpp
+
+$(TraceOutDir)/tracePeriodic.hpp: $(TraceSrcDir)/trace.xml $(TraceSrcDir)/tracePeriodic.xsl $(XML_DEPS)
+	@echo Generating $@
+	@$(XSLT) -IN $(TraceSrcDir)/trace.xml -XSL $(TraceSrcDir)/tracePeriodic.xsl -OUT $(TraceOutDir)/tracePeriodic.hpp
 
 !else
 
