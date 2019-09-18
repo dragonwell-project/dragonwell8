@@ -650,7 +650,9 @@ void ClassLoaderDataGraph::cld_do(CLDClosure* cl) {
 void ClassLoaderDataGraph::cld_unloading_do(CLDClosure* cl) {
   // this method is only used by jfr now, if you need to use this method in another case,
   // this check should be removed.
+#if INCLUDE_TRACE
   assert(EnableJFR && FlightRecorder, "just check");
+#endif
 
   assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
   // Only walk the head until any clds not purged from prior unloading
