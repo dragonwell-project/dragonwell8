@@ -38,6 +38,7 @@
                 _JVM_AssertionStatusDirectives
                 _JVM_Available
                 _JVM_Bind
+                _JVM_CheckJWarmUpCompilationIsComplete
                 _JVM_ClassDepth
                 _JVM_ClassLoaderDepth
                 _JVM_Clone
@@ -206,6 +207,8 @@
                 _JVM_NewArray
                 _JVM_NewInstanceFromConstructor
                 _JVM_NewMultiArray
+                _JVM_NotifyApplicationStartUpIsDone
+                _JVM_NotifyJVMDeoptWarmUpMethods
                 _JVM_OnExit
                 _JVM_Open
                 _JVM_RaiseSignal
