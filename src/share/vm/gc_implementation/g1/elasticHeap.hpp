@@ -144,7 +144,7 @@ public:
   virtual void        evaluate_old()                    { ShouldNotReachHere(); }
   virtual void        evaluate_old_common();
 
-  virtual bool        ready_to_initial_mark()       { ShouldNotReachHere(); }
+  virtual bool        ready_to_initial_mark()       { ShouldNotReachHere(); return false; }
 };
 
 class RecoverEvaluator : public ElasticHeapEvaluator {
@@ -447,7 +447,7 @@ public:
   uint                young_percent() const {
     return _young_percent;
   }
-  uint                set_young_percent(uint p) {
+  void                set_young_percent(uint p) {
     _young_percent = p;
   }
   // Whether a jcmd/mxbean command set the uncommit ihop

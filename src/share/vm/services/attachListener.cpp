@@ -259,7 +259,7 @@ static jint set_bool_flag(const char* name, AttachOperation* op, outputStream* o
     }
     value = (tmp != 0);
   }
-  if (strcmp(name, "ElasticHeapPeriodicUncommit") == 0 & value) {
+  if ((strcmp(name, "ElasticHeapPeriodicUncommit") == 0) && value) {
     if (G1ElasticHeap &&
         !G1CollectedHeap::heap()->elastic_heap()->can_turn_on_periodic_uncommit()) {
       out->print_cr("cannot be set because of illegal state.");

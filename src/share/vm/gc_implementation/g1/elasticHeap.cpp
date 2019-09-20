@@ -19,6 +19,7 @@
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include "precompiled.hpp"
 #include "gc_implementation/g1/g1CollectedHeap.hpp"
 #include "gc_implementation/g1/g1CollectorPolicy.hpp"
 #include "gc_implementation/g1/elasticHeap.hpp"
@@ -41,6 +42,7 @@ public:
     } else {
       _elastic_heap->uncommit_region_memory(hr);
     }
+    return false;
   }
 };
 
@@ -502,6 +504,7 @@ ElasticHeap::EvaluationMode ElasticHeapSetting::target_evaluation_mode(uint youn
     return ElasticHeap::SoftmxMode;
   } else {
     ShouldNotReachHere();
+    return ElasticHeap::InactiveMode;
   }
 }
 

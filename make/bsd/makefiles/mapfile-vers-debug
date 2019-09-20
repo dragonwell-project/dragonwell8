@@ -82,6 +82,15 @@
                 _JVM_DumpAllStacks
                 _JVM_DumpThreads
                 _JVM_EnableCompiler
+                _JVM_ElasticHeapGetEvaluationMode
+                _JVM_ElasticHeapSetYoungGenCommitPercent
+                _JVM_ElasticHeapGetYoungGenCommitPercent
+                _JVM_ElasticHeapSetUncommitIHOP
+                _JVM_ElasticHeapGetUncommitIHOP
+                _JVM_ElasticHeapGetTotalYoungUncommittedBytes
+                _JVM_ElasticHeapSetSoftmxPercent
+                _JVM_ElasticHeapGetSoftmxPercent
+                _JVM_ElasticHeapGetTotalUncommittedBytes
                 _JVM_Exit
                 _JVM_FillInStackTrace
                 _JVM_FindClassFromCaller
