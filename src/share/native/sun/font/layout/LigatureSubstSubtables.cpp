@@ -42,6 +42,10 @@ U_NAMESPACE_BEGIN
 
 le_uint32 LigatureSubstitutionSubtable::process(const LETableReference &base, GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     LEGlyphID glyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, glyph, success);
 
