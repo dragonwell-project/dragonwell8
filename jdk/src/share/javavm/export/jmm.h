@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -219,7 +219,9 @@ typedef struct {
 
 typedef struct jmmInterface_1_ {
   void*        reserved1;
-  void*        reserved2;
+  jlong        (JNICALL *GetOneThreadAllocatedMemory)
+                                                 (JNIEnv *env,
+                                                  jlong thread_id);
 
   jint         (JNICALL *GetVersion)             (JNIEnv *env);
 
