@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2232,6 +2232,31 @@ jlong Management::ticks_to_ms(jlong ticks) {
 }
 #endif // INCLUDE_MANAGEMENT
 
+// Gets the amount of memory allocated on the Java heap for a single thread.
+// Returns -1 if the thread does not exist or has terminated.
+JVM_ENTRY(jlong, jmm_GetOneThreadAllocatedMemory(JNIEnv *env, jlong thread_id))
+  if (thread_id < 0) {
+    THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(),
+               "Invalid thread ID", -1);
+  }
+
+  if (thread_id == 0) {
+    // current thread
+    if (THREAD->is_Java_thread()) {
+      return ((JavaThread*)THREAD)->cooked_allocated_bytes();
+    }
+    return -1;
+  }
+
+  MutexLockerEx ml(Threads_lock);
+  JavaThread* java_thread = Threads::find_java_thread_from_java_tid(thread_id);
+
+  if (java_thread != NULL) {
+    return java_thread->cooked_allocated_bytes();
+  }
+  return -1;
+JVM_END
+
 // Gets an array containing the amount of memory allocated on the Java
 // heap for a set of threads (in bytes).  Each element of the array is
 // the amount of memory allocated for the thread ID specified in the
@@ -2348,7 +2373,7 @@ JVM_END
 #if INCLUDE_MANAGEMENT
 const struct jmmInterface_1_ jmm_interface = {
   NULL,
-  NULL,
+  jmm_GetOneThreadAllocatedMemory,
   jmm_GetVersion,
   jmm_GetOptionalSupport,
   jmm_GetInputArguments,
