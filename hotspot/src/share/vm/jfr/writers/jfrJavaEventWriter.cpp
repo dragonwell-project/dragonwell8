@@ -142,8 +142,7 @@ bool JfrJavaEventWriter::has_required_classes(TRAPS) {
 bool JfrJavaEventWriter::initialize() {
   static bool initialized = false;
   if (!initialized) {
-    Thread* thread = Thread::current();
-    initialized = setup_event_writer_offsets(thread);
+    initialized = setup_event_writer_offsets(Thread::current());
   }
   return initialized;
 }
@@ -162,6 +161,7 @@ jboolean JfrJavaEventWriter::flush(jobject writer, jint used, jint requested, Ja
   // large enough to accommodate the "requested size".
   const bool is_valid = buffer->free_size() >= (size_t)(used + requested);
   u1* const new_current_position = is_valid ? buffer->pos() + used : buffer->pos();
+  assert(start_pos_offset != invalid_offset, "invariant");
   w->long_field_put(start_pos_offset, (jlong)buffer->pos());
   w->long_field_put(current_pos_offset, (jlong)new_current_position);
   // only update java writer if underlying memory changed
