@@ -414,6 +414,11 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
     AC_MSG_WARN([Ignoring LDFLAGS($LDFLAGS) found in environment. Use --with-extra-ldflags])
   fi
 
+
+  if test "x$ASFLAGS" != "x"; then
+    AC_MSG_WARN([Ignoring ASFLAGS($ASFLAGS) found in environment. Use --with-extra-asflags])
+  fi
+
   AC_ARG_WITH(extra-cflags, [AS_HELP_STRING([--with-extra-cflags],
       [extra flags to be used when compiling jdk c-files])])
 
@@ -423,6 +428,9 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   AC_ARG_WITH(extra-ldflags, [AS_HELP_STRING([--with-extra-ldflags],
       [extra flags to be used when linking jdk])])
 
+  AC_ARG_WITH(extra-asflags, [AS_HELP_STRING([--with-extra-asflags],
+      [extra flags to be passed to the assembler])])
+
   CFLAGS_JDK="${CFLAGS_JDK} $with_extra_cflags"
   CXXFLAGS_JDK="${CXXFLAGS_JDK} $with_extra_cxxflags"
   LDFLAGS_JDK="${LDFLAGS_JDK} $with_extra_ldflags"
@@ -431,10 +439,12 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   LEGACY_EXTRA_CFLAGS="$LEGACY_EXTRA_CFLAGS $with_extra_cflags"
   LEGACY_EXTRA_CXXFLAGS="$LEGACY_EXTRA_CXXFLAGS $with_extra_cxxflags"
   LEGACY_EXTRA_LDFLAGS="$LEGACY_EXTRA_LDFLAGS $with_extra_ldflags"
+  LEGACY_EXTRA_ASFLAGS="$with_extra_asflags"
 
   AC_SUBST(LEGACY_EXTRA_CFLAGS)
   AC_SUBST(LEGACY_EXTRA_CXXFLAGS)
   AC_SUBST(LEGACY_EXTRA_LDFLAGS)
+  AC_SUBST(LEGACY_EXTRA_ASFLAGS)
 
   ###############################################################################
   #
