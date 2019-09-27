@@ -33,14 +33,15 @@ class Thread;
 
 class JfrJavaEventWriter : AllStatic {
   friend class JfrCheckpointThreadClosure;
-  friend class JfrJavaEventWriterNotifyOperation;
   friend class JfrJavaEventWriterNotificationClosure;
+  friend class JfrJavaEventWriterNotifyOperation;
+  friend class JfrRecorder;
  private:
+  static bool initialize();
   static void notify(JavaThread* jt);
 
  public:
   static bool has_required_classes(TRAPS);
-  static bool initialize();
   static void notify();
   static jobject event_writer(Thread* t);
   static jobject new_event_writer(TRAPS);
