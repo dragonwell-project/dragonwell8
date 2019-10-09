@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -316,7 +316,7 @@ void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
 
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(false);
-  if (LeakProfiler::is_suspended()) {
+  if (LeakProfiler::is_running()) {
     JfrCheckpointWriter leakp_writer(false, true, Thread::current());
     type_set.write(writer, &leakp_writer);
     ObjectSampleCheckpoint::install(leakp_writer, false, true);

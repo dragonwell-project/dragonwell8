@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,48 +22,20 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_EMITEVENTOPERATION_HPP
-#define SHARE_VM_LEAKPROFILER_EMITEVENTOPERATION_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP
+#define SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP
 
 #include "runtime/vm_operations.hpp"
 
-class BFSClosure;
-class EdgeStore;
-class EdgeQueue;
-class JfrThreadData;
-class ObjectSample;
-class ObjectSampler;
-
-// Safepoint operation for emitting object sample events
-class EmitEventOperation : public VM_Operation {
- private:
-  jlong _cutoff_ticks;
-  bool _emit_all;
-  VMThread* _vm_thread;
-  JfrThreadLocal* _vm_thread_local;
-  ObjectSampler* _object_sampler;
-
-  void write_event(const ObjectSample* sample, EdgeStore* edge_store);
-  int write_events(EdgeStore* edge_store);
-
+class OldObjectVMOperation : public VM_Operation {
  public:
-  EmitEventOperation(jlong cutoff_ticks, bool emit_all) :
-    _cutoff_ticks(cutoff_ticks),
-    _emit_all(emit_all),
-    _vm_thread(NULL),
-    _vm_thread_local(NULL),
-    _object_sampler(NULL) {
-  }
-
-  VMOp_Type type() const {
-    return VMOp_GC_HeapInspection;
-  }
-
   Mode evaluation_mode() const {
     return _safepoint;
   }
 
-  virtual void doit();
+  VMOp_Type type() const {
+    return VMOp_JFROldObject;
+  }
 };
 
-#endif // SHARE_VM_LEAKPROFILER_EMITEVENTOPERATION_HPP
+#endif // SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP
