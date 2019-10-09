@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,25 +22,37 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_LEAKPROFILER_LEAKPROFILER_HPP
-#define SHARE_VM_JFR_LEAKPROFILER_LEAKPROFILER_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_CHECKPOINT_EVENTEMITTER_HPP
+#define SHARE_JFR_LEAKPROFILER_CHECKPOINT_EVENTEMITTER_HPP
 
 #include "memory/allocation.hpp"
+#include "jfr/utilities/jfrTime.hpp"
 
-class BoolObjectClosure;
-class OopClosure;
+typedef u8 traceid;
 
-class LeakProfiler : public AllStatic {
- public:
-  static bool start(int sample_count);
-  static bool stop();
-  static bool is_running();
+class EdgeStore;
+class JfrThreadLocal;
+class ObjectSample;
+class ObjectSampler;
+class Thread;
 
-  static void emit_events(int64_t cutoff_ticks, bool emit_all);
-  static void sample(HeapWord* object, size_t size, JavaThread* thread);
+class EventEmitter : public CHeapObj<mtTracing> {
+  friend class LeakProfiler;
+  friend class PathToGcRootsOperation;
+ private:
+  const JfrTicks& _start_time;
+  const JfrTicks& _end_time;
+  Thread* _thread;
+  JfrThreadLocal* _jfr_thread_local;
+  traceid _thread_id;
 
-  // Called by GC
-  static void oops_do(BoolObjectClosure* is_alive, OopClosure* f);
+  EventEmitter(const JfrTicks& start_time, const JfrTicks& end_time);
+  ~EventEmitter();
+
+  void write_event(const ObjectSample* sample, EdgeStore* edge_store);
+  size_t write_events(ObjectSampler* sampler, EdgeStore* store, bool emit_all);
+
+  static void emit(ObjectSampler* sampler, int64_t cutoff_ticks, bool emit_all);
 };
 
-#endif // SHARE_VM_JFR_LEAKPROFILER_LEAKPROFILER_HPP
+#endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_EVENTEMITTER_HPP
