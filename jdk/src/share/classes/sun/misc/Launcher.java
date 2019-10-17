@@ -85,6 +85,9 @@ public class Launcher {
         // Finally, install a security manager if requested
         String s = System.getProperty("java.security.manager");
         if (s != null) {
+            // init FileSystem machinery before SecurityManager installation
+            sun.nio.fs.DefaultFileSystemProvider.create();
+
             SecurityManager sm = null;
             if ("".equals(s) || "default".equals(s)) {
                 sm = new java.lang.SecurityManager();
