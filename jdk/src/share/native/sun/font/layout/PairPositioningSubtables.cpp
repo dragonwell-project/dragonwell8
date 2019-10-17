@@ -43,6 +43,10 @@ U_NAMESPACE_BEGIN
 
 le_uint32 PairPositioningSubtable::process(const LEReferenceTo<PairPositioningSubtable> &base, GlyphIterator *glyphIterator, const LEFontInstance *fontInstance, LEErrorCode &success) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     switch(SWAPW(subtableFormat))
     {
     case 0:
@@ -74,6 +78,10 @@ le_uint32 PairPositioningSubtable::process(const LEReferenceTo<PairPositioningSu
 
 le_uint32 PairPositioningFormat1Subtable::process(const LEReferenceTo<PairPositioningFormat1Subtable> &base, GlyphIterator *glyphIterator, const LEFontInstance *fontInstance, LEErrorCode &success) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     LEGlyphID firstGlyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, firstGlyph, success);
     GlyphIterator tempIterator(*glyphIterator);
@@ -123,6 +131,10 @@ le_uint32 PairPositioningFormat1Subtable::process(const LEReferenceTo<PairPositi
 
 le_uint32 PairPositioningFormat2Subtable::process(const LEReferenceTo<PairPositioningFormat2Subtable> &base, GlyphIterator *glyphIterator, const LEFontInstance *fontInstance, LEErrorCode &success) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     LEGlyphID firstGlyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, firstGlyph, success);
 

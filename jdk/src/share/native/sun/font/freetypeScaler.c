@@ -154,7 +154,31 @@ static unsigned long ReadTTFontFileFunc(FT_Stream stream,
     jobject bBuffer;
     int bread = 0;
 
-    if (numBytes == 0) return 0;
+    /* A call with numBytes == 0 is a seek. It should return 0 if the
+     * seek position is within the file and non-zero otherwise.
+     * For all other cases, ie numBytes !=0, return the number of bytes
+     * actually read. This applies to truncated reads and also failed reads.
+     */
+
+    if (numBytes == 0) {
+        if (offset >= scalerInfo->fileSize) {
+            return -1;
+        } else {
+            return 0;
+       }
+    }
+
+    if (offset + numBytes < offset) {
+        return 0; // ft should not do this, but just in case.
+    }
+
+    if (offset >= scalerInfo->fileSize) {
+        return 0;
+    }
+
+    if (offset + numBytes > scalerInfo->fileSize) {
+        numBytes = scalerInfo->fileSize - offset;
+    }
 
     /* Large reads will bypass the cache and data copying */
     if (numBytes > FILEDATACACHESIZE) {
@@ -164,7 +188,11 @@ static unsigned long ReadTTFontFileFunc(FT_Stream stream,
                                           scalerInfo->font2D,
                                           sunFontIDs.ttReadBlockMID,
                                           bBuffer, offset, numBytes);
-            return bread;
+            if (bread < 0) {
+                return 0;
+            } else {
+               return bread;
+            }
         } else {
             /* We probably hit bug bug 4845371. For reasons that
              * are currently unclear, the call stacks after the initial
@@ -179,9 +207,18 @@ static unsigned long ReadTTFontFileFunc(FT_Stream stream,
             (*env)->CallObjectMethod(env, scalerInfo->font2D,
                                      sunFontIDs.ttReadBytesMID,
                                      offset, numBytes);
-            (*env)->GetByteArrayRegion(env, byteArray,
-                                       0, numBytes, (jbyte*)destBuffer);
-            return numBytes;
+            /* If there's an OutofMemoryError then byteArray will be null */
+            if (byteArray == NULL) {
+                return 0;
+            } else {
+                jsize len = (*env)->GetArrayLength(env, byteArray);
+                if (len < numBytes) {
+                    numBytes = len; // don't get more bytes than there are ..
+                }
+                (*env)->GetByteArrayRegion(env, byteArray,
+                                           0, numBytes, (jbyte*)destBuffer);
+                return numBytes;
+            }
         }
     } /* Do we have a cache hit? */
       else if (scalerInfo->fontDataOffset <= offset &&
@@ -203,6 +240,11 @@ static unsigned long ReadTTFontFileFunc(FT_Stream stream,
                                       sunFontIDs.ttReadBlockMID,
                                       bBuffer, offset,
                                       scalerInfo->fontDataLength);
+        if (bread <= 0) {
+            return 0;
+        } else if (bread < numBytes) {
+           numBytes = bread;
+        }
         memcpy(destBuffer, scalerInfo->fontData, numBytes);
         return numBytes;
     }
@@ -580,16 +622,17 @@ Java_sun_font_FreetypeFontScaler_getGlyphAdvanceNative(
       to avoid unnecesary work with bitmaps. */
 
     GlyphInfo *info;
-    jfloat advance;
+    jfloat advance = 0.0f;
     jlong image;
 
     image = Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
                  env, scaler, font2D, pScalerContext, pScaler, glyphCode);
     info = (GlyphInfo*) jlong_to_ptr(image);
 
-    advance = info->advanceX;
-
-    free(info);
+    if (info != NULL) {
+        advance = info->advanceX;
+        free(info);
+    }
 
     return advance;
 }
@@ -727,6 +770,13 @@ static void CopyFTSubpixelVToSubpixel(const void* srcImage, int srcRowBytes,
 }
 
 
+/* JDK does not use glyph images for fonts with a
+ * pixel size > 100 (see THRESHOLD in OutlineTextRenderer.java)
+ * so if the glyph bitmap image dimension is > 1024 pixels,
+ * something is up.
+ */
+#define MAX_GLYPH_DIM 1024
+
 /*
  * Class:     sun_font_FreetypeFontScaler
  * Method:    getGlyphImageNative
@@ -803,11 +853,28 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     /* generate bitmap if it is not done yet
      e.g. if algorithmic styling is performed and style was added to outline */
     if (ftglyph->format == FT_GLYPH_FORMAT_OUTLINE) {
-        FT_Render_Glyph(ftglyph, FT_LOAD_TARGET_MODE(target));
+        FT_BBox bbox;
+        int w, h;
+        FT_Outline_Get_CBox(&(ftglyph->outline), &bbox);
+        w = (int)((bbox.xMax>>6)-(bbox.xMin>>6));
+        h = (int)((bbox.yMax>>6)-(bbox.yMin>>6));
+        if (w > MAX_GLYPH_DIM || h > MAX_GLYPH_DIM) {
+            glyphInfo = getNullGlyphImage();
+            return ptr_to_jlong(glyphInfo);
+        }
+        error = FT_Render_Glyph(ftglyph, FT_LOAD_TARGET_MODE(target));
+        if (error != 0) {
+            return ptr_to_jlong(getNullGlyphImage());
+        }
     }
 
     width  = (UInt16) ftglyph->bitmap.width;
     height = (UInt16) ftglyph->bitmap.rows;
+    if (width > MAX_GLYPH_DIM || height > MAX_GLYPH_DIM) {
+        glyphInfo = getNullGlyphImage();
+        return ptr_to_jlong(glyphInfo);
+    }
+
 
     imageSize = width*height;
     glyphInfo = (GlyphInfo*) malloc(sizeof(GlyphInfo) + imageSize);

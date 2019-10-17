@@ -68,12 +68,10 @@ public class JavaScriptScanner {
     private boolean newline = true;
 
     Map<String, TagParser> tagParsers;
-    Set<String> eventAttrs;
     Set<String> uriAttrs;
 
     public JavaScriptScanner() {
         initTagParsers();
-        initEventAttrs();
         initURIAttrs();
     }
 
@@ -100,7 +98,11 @@ public class JavaScriptScanner {
 
     private void checkHtmlAttr(String name, String value) {
         String n = name.toLowerCase(Locale.ENGLISH);
-        if (eventAttrs.contains(n)
+        // https://www.w3.org/TR/html52/fullindex.html#attributes-table
+        // See https://www.w3.org/TR/html52/webappapis.html#events-event-handlers
+        // An event handler has a name, which always starts with "on" and is followed by
+        // the name of the event for which it is intended.
+        if (n.startsWith("on")
                 || uriAttrs.contains(n)
                     && value != null && value.toLowerCase(Locale.ENGLISH).trim().startsWith("javascript:")) {
             reporter.report();
@@ -1058,34 +1060,6 @@ public class JavaScriptScanner {
         for (TagParser p: parsers)
             tagParsers.put(p.getName(), p);
 
-    }
-
-    private void initEventAttrs() {
-        eventAttrs = new HashSet<>(Arrays.asList(
-            // See https://www.w3.org/TR/html-markup/global-attributes.html#common.attrs.event-handler
-            "onabort",  "onblur",  "oncanplay",  "oncanplaythrough",
-            "onchange",  "onclick",  "oncontextmenu",  "ondblclick",
-            "ondrag",  "ondragend",  "ondragenter",  "ondragleave",
-            "ondragover",  "ondragstart",  "ondrop",  "ondurationchange",
-            "onemptied",  "onended",  "onerror",  "onfocus",  "oninput",
-            "oninvalid",  "onkeydown",  "onkeypress",  "onkeyup",
-            "onload",  "onloadeddata",  "onloadedmetadata",  "onloadstart",
-            "onmousedown",  "onmousemove",  "onmouseout",  "onmouseover",
-            "onmouseup",  "onmousewheel",  "onpause",  "onplay",
-            "onplaying",  "onprogress",  "onratechange",  "onreadystatechange",
-            "onreset",  "onscroll",  "onseeked",  "onseeking",
-            "onselect",  "onshow",  "onstalled",  "onsubmit",  "onsuspend",
-            "ontimeupdate",  "onvolumechange",  "onwaiting",
-
-            // See https://www.w3.org/TR/html4/sgml/dtd.html
-            // Most of the attributes that take a %Script are also defined as event handlers
-            // in HTML 5. The one exception is onunload.
-            // "onchange",  "onclick",   "ondblclick",  "onfocus",
-            // "onkeydown",  "onkeypress",  "onkeyup",  "onload",
-            // "onmousedown",  "onmousemove",  "onmouseout",  "onmouseover",
-            // "onmouseup",  "onreset",  "onselect",  "onsubmit",
-            "onunload"
-        ));
     }
 
     private void initURIAttrs() {
