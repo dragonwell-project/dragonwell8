@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,6 +151,15 @@ have access to. Thus it might be able to trick the system into
 creating a ProtectionDomain/CodeSource for a class even though
 that class really didn't come from that location.</td>
  * </tr>
+ *
+ * <tr>
+ *   <th scope="row">setSocketImpl</th>
+ *   <td>The ability to create a sub-class of Socket or ServerSocket with a
+ *   user specified SocketImpl.</td>
+ *   <td>Malicious user-defined SocketImpls can change the behavior of
+ *   Socket and ServerSocket in surprising ways, by virtue of their
+ *   ability to access the protected fields of SocketImpl.</td>
+ *   </tr>
  * </table>
  *
  * @see java.security.BasicPermission

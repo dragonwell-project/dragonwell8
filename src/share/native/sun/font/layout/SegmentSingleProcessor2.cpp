@@ -60,6 +60,8 @@ SegmentSingleProcessor2::~SegmentSingleProcessor2()
 
 void SegmentSingleProcessor2::process(LEGlyphStorage &glyphStorage, LEErrorCode &success)
 {
+    if (LE_FAILURE(success)) return;
+
     const LookupSegment *segments = segmentSingleLookupTable->segments;
     le_int32 glyphCount = glyphStorage.getGlyphCount();
     le_int32 glyph;
