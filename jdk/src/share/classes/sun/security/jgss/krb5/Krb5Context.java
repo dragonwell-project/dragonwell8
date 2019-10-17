@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -614,6 +614,8 @@ class Krb5Context implements GSSContextSpi {
                     if (myCred == null) {
                         myCred = Krb5InitCredential.getInstance(caller, myName,
                                               GSSCredential.DEFAULT_LIFETIME);
+                        myCred = Krb5ProxyCredential.tryImpersonation(
+                                caller, (Krb5InitCredential)myCred);
                     } else if (!myCred.isInitiatorCredential()) {
                         throw new GSSException(errorCode, -1,
                                            "No TGT available");
@@ -651,8 +653,8 @@ class Krb5Context implements GSSContextSpi {
                                     // highly consider just calling:
                                     // Subject.getSubject
                                     // SubjectComber.find
-                                    // instead of Krb5Util.getTicket
-                                    return Krb5Util.getTicket(
+                                    // instead of Krb5Util.getServiceTicket
+                                    return Krb5Util.getServiceTicket(
                                         GSSCaller.CALLER_UNKNOWN,
                                         // since it's useSubjectCredsOnly here,
                                         // don't worry about the null
