@@ -42,6 +42,10 @@ U_NAMESPACE_BEGIN
 le_uint32 AlternateSubstitutionSubtable::process(const LEReferenceTo<AlternateSubstitutionSubtable> &base,
                                        GlyphIterator *glyphIterator, LEErrorCode &success, const LEGlyphFilter *filter) const
 {
+    if (LE_FAILURE(success)) {
+        return 0;
+    }
+
     // NOTE: For now, we'll just pick the first alternative...
     LEGlyphID glyph = glyphIterator->getCurrGlyphID();
     le_int32 coverageIndex = getGlyphCoverage(base, glyph, success);
