@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,8 @@
 
 package sun.security.krb5;
 
+import javax.security.auth.kerberos.KerberosTicket;
 import javax.security.auth.kerberos.KeyTab;
-import sun.security.krb5.EncryptionKey;
-import sun.security.krb5.PrincipalName;
 
 /**
  * An unsafe tunnel to get non-public access to classes in the
@@ -39,4 +38,14 @@ public interface JavaxSecurityAuthKerberosAccess {
      */
     public sun.security.krb5.internal.ktab.KeyTab keyTabTakeSnapshot(
             KeyTab ktab);
+
+    /**
+     * Returns the proxy for a KerberosTicket.
+     */
+    public KerberosTicket kerberosTicketGetProxy(KerberosTicket t);
+
+    /**
+     * Sets the proxy for a KerberosTicket.
+     */
+    public void kerberosTicketSetProxy(KerberosTicket t, KerberosTicket p);
 }
