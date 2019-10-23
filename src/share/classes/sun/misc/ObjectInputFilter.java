@@ -37,6 +37,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import sun.util.logging.PlatformLogger;
 
+import jdk.internal.util.StaticProperty;
+
 /**
  * Filter classes, array lengths, and graph metrics during deserialization.
  * If set on an {@link ObjectInputStream}, the {@link #checkInput checkInput(FilterInfo)}
@@ -247,7 +249,7 @@ public interface ObjectInputFilter {
         static {
             configuredFilter = AccessController
                     .doPrivileged((PrivilegedAction<ObjectInputFilter>) () -> {
-                        String props = System.getProperty(SERIAL_FILTER_PROPNAME);
+                        String props = StaticProperty.jdkSerialFilter();
                         if (props == null) {
                             props = Security.getProperty(SERIAL_FILTER_PROPNAME);
                         }
