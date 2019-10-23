@@ -890,8 +890,8 @@ jdk.xml.dsig.secureValidationPolicy=\
 # Patterns are separated by ";" (semicolon).
 # Whitespace is significant and is considered part of the pattern.
 #
-# If the system property jdk.serialFilter is also specified, it supersedes
-# the security property value defined here.
+# If the system property jdk.serialFilter is also specified on the command
+# line, it supersedes the security property value defined here.
 #
 # If a pattern includes a "=", it sets a limit.
 # If a limit appears more than once the last value is used.
