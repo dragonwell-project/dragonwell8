@@ -124,9 +124,6 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      *   {@link #getThreadAllocatedBytes getThreadAllocatedBytes}(Thread.currentThread().getId());
      * </pre></blockquote>
      *
-     * @implSpec The default implementation throws
-     * {@code UnsupportedOperationException}.
-     *
      * @return an approximation of the total memory allocated, in bytes, in
      * heap memory for the current thread
      * if thread memory allocation measurement is enabled;
@@ -143,7 +140,7 @@ public interface ThreadMXBean extends java.lang.management.ThreadMXBean {
      * @since 8u282
      */
     public default long getCurrentThreadAllocatedBytes() {
-        throw new UnsupportedOperationException();
+        return getThreadAllocatedBytes(Thread.currentThread().getId());
     }
 
     /**
