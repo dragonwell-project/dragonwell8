@@ -39,6 +39,7 @@
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/interpreter.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jfr/jni/jfrUpcalls.hpp"
 #include "memory/filemap.hpp"
 #include "memory/gcLocker.hpp"
 #include "memory/oopFactory.hpp"
@@ -94,6 +95,9 @@ bool        SystemDictionary::_has_checkPackageAccess     =  false;
 // lazily initialized klass variables
 Klass* volatile SystemDictionary::_abstract_ownable_synchronizer_klass = NULL;
 
+#if INCLUDE_JFR
+static const Symbol* jfr_event_handler_proxy = NULL;
+#endif // INCLUDE_JFR
 
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader
@@ -1333,6 +1337,25 @@ instanceKlassHandle SystemDictionary::load_instance_class(Symbol* class_name, Ha
     if (!k.is_null()) {
       k = find_or_define_instance_class(class_name, class_loader, k, CHECK_(nh));
     }
+#if INCLUDE_JFR
+    else {
+      assert(jfr_event_handler_proxy != NULL, "invariant");
+      if (class_name == jfr_event_handler_proxy) {
+        // EventHandlerProxy class is generated dynamically in
+        // EventHandlerProxyCreator::makeEventHandlerProxyClass
+        // method, so we generate a Java call from here.
+        //
+        // EventHandlerProxy class will finally be defined in
+        // SystemDictionary::resolve_from_stream method, down
+        // the call stack. Bootstrap classloader is parallel-capable,
+        // so no concurrency issues are expected.
+        CLEAR_PENDING_EXCEPTION;
+        k = JfrUpcalls::load_event_handler_proxy_class(THREAD);
+        assert(!k.is_null(), "invariant");
+      }
+    }
+#endif // INCLUDE_JFR
+
     return k;
   } else {
     // Use user specified class loader to load class. Call loadClass operation on class_loader.
@@ -1886,6 +1909,9 @@ void SystemDictionary::initialize(TRAPS) {
   _system_loader_lock_obj = oopFactory::new_intArray(0, CHECK);
   // Initialize basic classes
   initialize_preloaded_classes(CHECK);
+#if INCLUDE_JFR
+  jfr_event_handler_proxy = SymbolTable::new_permanent_symbol("jdk/jfr/proxy/internal/EventHandlerProxy", CHECK);
+#endif // INCLUDE_JFR
 }
 
 // Compact table of directions on the initialization of klasses:

@@ -177,3 +177,14 @@ void JfrUpcalls::new_bytes_eager_instrumentation(jlong trace_id,
   *new_class_data_len = new_bytes_length;
   *new_class_data = new_bytes;
 }
+
+instanceKlassHandle JfrUpcalls::load_event_handler_proxy_class(TRAPS) {
+  JavaValue result(T_OBJECT);
+  JfrJavaArguments call_args(&result, "jdk/jfr/internal/JVMUpcalls",
+          "getEventHandlerProxyClass", "()Ljava/lang/Class;", CHECK_NULL);
+  JfrJavaSupport::call_static(&call_args, CHECK_NULL);
+  assert(result.get_type() == T_OBJECT, "invariant");
+  instanceHandle h_java_proxy(THREAD, (instanceOop)result.get_jobject());
+  assert(h_java_proxy.not_null(), "invariant");
+  return java_lang_Class::as_Klass(h_java_proxy());
+}
