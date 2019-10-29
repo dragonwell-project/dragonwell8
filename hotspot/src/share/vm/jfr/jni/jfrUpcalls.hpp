@@ -53,6 +53,8 @@ class JfrUpcalls : AllStatic {
                              jint* new_class_data_len,
                              unsigned char** new_class_data,
                              TRAPS);
+
+  static instanceKlassHandle load_event_handler_proxy_class(TRAPS);
 };
 
 #endif // SHARE_VM_JFR_JNI_JFRUPCALLS_HPP
