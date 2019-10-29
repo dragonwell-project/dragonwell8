@@ -2485,7 +2485,8 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     assert(mem != mem->in(MemNode::Memory), "dead loop in StoreNode::Ideal");
 
     assert(Opcode() == mem->Opcode() ||
-           phase->C->get_alias_index(adr_type()) == Compile::AliasIdxRaw,
+           phase->C->get_alias_index(adr_type()) == Compile::AliasIdxRaw ||
+           (is_mismatched_access() || mem->as_Store()->is_mismatched_access()),
            "no mismatched stores, except on raw memory");
 
     if (mem->outcnt() == 1 &&           // check for intervening uses
