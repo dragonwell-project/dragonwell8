@@ -44,6 +44,7 @@ import jdk.test.lib.jfr.Events;
  *
  * @library /lib /
  * @run main/othervm jdk.jfr.api.event.TestAbstractEvent
+ * @run main/othervm -XX:+AllowParallelDefineClass jdk.jfr.api.event.TestAbstractEvent
  */
 public class TestAbstractEvent {
 

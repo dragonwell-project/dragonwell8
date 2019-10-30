@@ -43,6 +43,7 @@ import jdk.test.lib.jfr.TestClassLoader;
  * @library /lib /
  * @build jdk.jfr.event.runtime.TestClasses
  * @run main/othervm jdk.jfr.event.runtime.TestClassDefineEvent
+ * @run main/othervm -XX:+AllowParallelDefineClass jdk.jfr.event.runtime.TestClassDefineEvent
  */
 public final class TestClassDefineEvent {
 
