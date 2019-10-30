@@ -279,7 +279,10 @@ package.definition=sun.,\
                    jdk.nashorn.tools.,\
                    jdk.xml.internal.,\
                    com.sun.activation.registries.,\
-                   apple.
+                   apple.,\
+                   jdk.jfr.events.,\
+                   jdk.jfr.internal.,\
+                   jdk.management.jfr.internal.
 
 #
 # Determines whether this properties file can be appended to

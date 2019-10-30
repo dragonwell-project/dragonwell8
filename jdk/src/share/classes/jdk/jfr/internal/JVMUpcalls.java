@@ -140,4 +140,13 @@ final class JVMUpcalls {
     static Thread createRecorderThread(ThreadGroup systemThreadGroup, ClassLoader contextClassLoader) {
         return SecuritySupport.createRecorderThread(systemThreadGroup, contextClassLoader);
     }
+
+    /**
+     * Called by the JVM to initialize the EventHandlerProxy class.
+     *
+     * @return the EventHandlerProxy class
+     */
+    static Class<? extends EventHandler> getEventHandlerProxyClass() {
+        return EventHandlerProxyCreator.proxyClass;
+    }
 }
