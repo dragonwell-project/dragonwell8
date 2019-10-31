@@ -537,6 +537,7 @@ void SafepointSynchronize::do_cleanup_tasks() {
 
   // rotate log files?
   if (UseGCLogFileRotation) {
+    TraceTime t8("rotating gc logs", TraceSafepointCleanupTime);
     gclog_or_tty->rotate_log(false);
   }
 
