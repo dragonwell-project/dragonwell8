@@ -83,7 +83,7 @@ public final class KerberosPrincipal
     /**
      * Enterprise name (alias)
      */
-    public static final int KRB_NT_ENTERPRISE = 10;
+    static final int KRB_NT_ENTERPRISE = 10;
 
     private transient String fullName;
 
