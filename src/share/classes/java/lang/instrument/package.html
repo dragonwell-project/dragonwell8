@@ -38,6 +38,13 @@
 Provides services that allow Java programming language agents to instrument programs running on the JVM. 
 The mechanism for instrumentation is modification of the byte-codes of methods.
 
+<P>
+Note: developers/admininstrators are responsible for verifying the trustworthiness of
+content and structure of the Java Agents they deploy, since those are able to arbitrarily
+transform the bytecode from other JAR files. Since that happens after the Jars containing
+the bytecode have been verified as trusted, the trustworthiness of a Java Agent can determine
+the trust towards the entire program.
+
 <h2>Package Specification</h2>
 
 <P> 
