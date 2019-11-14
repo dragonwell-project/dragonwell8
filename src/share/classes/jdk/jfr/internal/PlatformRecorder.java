@@ -47,6 +47,7 @@ import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import jdk.jfr.Enabled;
+import jdk.jfr.EventNames;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.FlightRecorderListener;
@@ -559,5 +560,9 @@ public final class PlatformRecorder {
         internal.setStopTime(endTime);
         internal.setInternalDuration(Duration.between(startTime, endTime));
         return snapshot;
+    }
+
+    public boolean isEnabled(String eventName) {
+        return MetadataRepository.getInstance().isEnabled(eventName);
     }
 }

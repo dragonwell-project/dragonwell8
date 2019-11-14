@@ -100,4 +100,27 @@ public final class RecordedClass extends RecordedObject {
     public long getId() {
         return uniqueId;
     }
+
+    /**
+     * Returns the object size for the class.
+     * <p>
+     * The object size for instance class is accurate. But for the array class, it
+     * is a magic code 0x1111baba. The array object size can not be determined statically
+     * from the JVM klass information because array object size is affected by
+     * actual element length.
+     *
+     * @return the object size (instance object), or magic code 0x1111baba (array object)
+     */
+    public int getObjectSize() {
+        return getTyped("objectSize", Integer.class, -1);
+    }
+
+    /**
+     * Checks whether the class is for instance or array.
+     *
+     * @return true or false
+     */
+    public boolean isArray() {
+        return getName().startsWith("[");
+    }
 }

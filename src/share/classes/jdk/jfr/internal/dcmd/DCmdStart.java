@@ -32,9 +32,11 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import jdk.jfr.EventNames;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 import jdk.jfr.internal.JVM;
+import jdk.jfr.internal.Options;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.Utils;
@@ -86,6 +88,7 @@ final class DCmdStart extends AbstractDCmd {
         if (duration == null && Boolean.FALSE.equals(dumpOnExit) && path != null) {
             throw new DCmdException("Filename can only be set for a time bound recording or if dumponexit=true. Set duration/dumponexit or omit filename.");
         }
+
         if (dumpOnExit == null && path != null) {
             dumpOnExit = Boolean.TRUE;
         }
@@ -100,7 +103,7 @@ final class DCmdStart extends AbstractDCmd {
             try {
                 s.putAll(JFC.createKnown(configName).getSettings());
             } catch (IOException | ParseException e) {
-                throw new DCmdException("Could not parse setting " + configurations[0], e);
+                throw new DCmdException("Could not parse setting " + configName, e);
             }
         }
 
@@ -135,6 +138,14 @@ final class DCmdStart extends AbstractDCmd {
             recording.setToDisk(disk.booleanValue());
         }
         recording.setSettings(s);
+
+        if (recording.isRecorderEnabled(EventNames.OptoInstanceObjectAllocation) ||
+            recording.isRecorderEnabled(EventNames.OptoArrayObjectAllocation)) {
+            if (!Options.getSampleObjectAllocations()) {
+                println("Please add -XX:FlightRecorderOptions=sampleobjectallocations=true in JVM options.");
+                return getResult();
+            }
+        }
 
         if (path != null) {
             try {
