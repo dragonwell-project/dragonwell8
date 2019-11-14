@@ -106,21 +106,32 @@ int write__artifact__klass(JfrCheckpointWriter* writer, JfrArtifactSet* artifact
   assert(k != NULL, "invariant");
   KlassPtr klass = (KlassPtr)k;
   traceid pkg_id = 0;
+#ifndef PRODUCT
   KlassPtr theklass = klass;
   if (theklass->oop_is_objArray()) {
     const ObjArrayKlass* obj_arr_klass = ObjArrayKlass::cast(klass);
     theklass = obj_arr_klass->bottom_klass();
   }
-  if (theklass->oop_is_instance()) {
-  } else {
+  if (!theklass->oop_is_instance()) {
     assert(theklass->oop_is_typeArray(), "invariant");
   }
+#endif
   const traceid symbol_id = artifacts->mark(klass);
   assert(symbol_id > 0, "need to have an address for symbol!");
   writer->write(TRACE_ID(klass));
   writer->write(cld_id(klass->class_loader_data()));
   writer->write((traceid)CREATE_SYMBOL_ID(symbol_id));
   writer->write((s4)klass->access_flags().get_flags());
+  if (klass->oop_is_array()) {
+    // The object array size can not be determined statically from klass.
+    // It is determined by the elements length in object layout.
+    // So we put a place holder here to make the event parser ignore it.
+    writer->write((s4)ARRAY_OBJECT_SIZE_PLACE_HOLDER);
+  } else {
+    assert(klass->oop_is_instance(), "invariant");
+    jint instanceSize = ((InstanceKlass*) klass)->size_helper() * HeapWordSize;
+    writer->write((s4)instanceSize);
+  }
   return 1;
 }
 

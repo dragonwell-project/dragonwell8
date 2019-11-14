@@ -53,6 +53,8 @@ typedef u8 traceid;
 #define METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_1_SHIFT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_2_SHIFT)
 
+#define ARRAY_OBJECT_SIZE_PLACE_HOLDER 0x1111baba
+
 #define ANY_USED_BITS (USED_EPOCH_2_BIT         | \
                        USED_EPOCH_1_BIT         | \
                        METHOD_USED_EPOCH_2_BIT  | \
@@ -159,6 +161,24 @@ class TraceFlag {
 extern "C" void JNICALL trace_register_natives(JNIEnv*, jclass);
 #define TRACE_REGISTER_NATIVES ((void*)((address_word)(&trace_register_natives)))
 
+#define TRACE_OPTO_SLOW_ALLOCATION_ENTER(is_array, thread) \
+  AllocTracer::opto_slow_allocation_enter(is_array, thread)
+
+#define TRACE_OPTO_SLOW_ALLOCATION_LEAVE(is_array, thread) \
+  AllocTracer::opto_slow_allocation_leave(is_array, thread)
+
+#define TRACE_SLOW_ALLOCATION(klass, obj, alloc_size, thread) \
+  AllocTracer::send_slow_allocation_event(klass, obj, alloc_size, thread)
+
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_OFFSET \
+  static ByteSize alloc_count_offset() { return in_ByteSize(offset_of(TRACE_DATA, _alloc_count)); }
+#define TRACE_THREAD_ALLOC_COUNT_OFFSET \
+  (TRACE_DATA::alloc_count_offset() + TRACE_THREAD_TRACE_DATA_OFFSET)
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET \
+  static ByteSize alloc_count_until_sample_offset() { return in_ByteSize(offset_of(TRACE_DATA, _alloc_count_until_sample)); }
+#define TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET \
+  (TRACE_DATA::alloc_count_until_sample_offset() + TRACE_THREAD_TRACE_DATA_OFFSET)
+
 #else // !INCLUDE_TRACE
 
 #define EVENT_THREAD_EXIT(thread)
@@ -197,6 +217,14 @@ extern "C" void JNICALL trace_register_natives(JNIEnv*, jclass);
 #define TRACE_DEFINE_FLAG_ACCESSOR typedef int ___IGNORED_hs_trace_type9
 #define TRACE_TEMPLATES(template)
 #define TRACE_INTRINSICS(do_intrinsic, do_class, do_name, do_signature, do_alias)
+
+#define TRACE_OPTO_SLOW_ALLOCATION_ENTER(is_array, thread)
+#define TRACE_OPTO_SLOW_ALLOCATION_LEAVE(is_array, thread)
+#define TRACE_SLOW_ALLOCATION(klass, obj, alloc_size, thread)
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET
+#define TRACE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET
+#define TRACE_DEFINE_THREAD_ALLOC_COUNT_OFFSET
+#define TRACE_THREAD_ALLOC_COUNT_OFFSET
 
 #endif // INCLUDE_TRACE
 #endif // SHARE_VM_TRACE_TRACEMACROS_HPP

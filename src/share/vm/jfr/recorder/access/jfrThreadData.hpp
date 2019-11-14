@@ -51,6 +51,27 @@ class JfrThreadData {
   unsigned int _stack_trace_hash;
   mutable u4 _stackdepth;
   volatile jint _entering_suspend_flag;
+  // Jfr callstack collection relies on vframeStream.
+  // But the bci of top frame can not be determined by vframeStream in some scenarios.
+  // For example, in the opto CallLeafNode runtime call of
+  // OptoRuntime::jfr_fast_object_alloc_C, the top frame bci
+  // returned by vframeStream is always invalid. This is largely due to the oopmap that
+  // is not correctly granted ( refer to PhaseMacroExpand::expand_allocate_common to get more details ).
+  // The opto fast path object allocation tracing occurs in the opto CallLeafNode,
+  // which has been broken by invalid top frame bci.
+  // To fix this, we get the top frame bci in opto compilation phase
+  // and pass it as parameter to runtime call. Our implementation will replace the invalid top
+  // frame bci with cached_top_frame_bci.
+  jint _cached_top_frame_bci;
+  jlong _alloc_count;
+  jlong _alloc_count_until_sample;
+  // This field is used to help to distinguish the object allocation request source.
+  // For example, for object allocation slow path, we trace it in CollectedHeap::obj_allocate.
+  // But in CollectedHeap::obj_allocate, it is impossible to determine where the allocation request
+  // is from,  which could be from c1, opto, or even interpreter.
+  // We save this infomation in _event_id, which later can be retrieved in
+  // CollecetedHeap::obj_allocate to identify the real allocation request source.
+  TraceEventId _cached_event_id;
 
   JfrBuffer* install_native_buffer() const;
   JfrBuffer* install_java_buffer() const;
@@ -149,7 +170,6 @@ class JfrThreadData {
     return _stack_trace_hash;
   }
 
-
   void set_trace_block() {
     _entering_suspend_flag = 1;
   }
@@ -192,6 +212,54 @@ class JfrThreadData {
     _wallclock_time = wallclock_time;
   }
 
+  void set_cached_top_frame_bci(jint bci) {
+    _cached_top_frame_bci = bci;
+  }
+
+  bool has_cached_top_frame_bci() const {
+    return _cached_top_frame_bci != max_jint;
+  }
+
+  jint cached_top_frame_bci() const {
+    return _cached_top_frame_bci;
+  }
+
+  void clear_cached_top_frame_bci() {
+    _cached_top_frame_bci = max_jint;
+  }
+
+  jlong alloc_count() const {
+    return _alloc_count;
+  }
+
+  void incr_alloc_count(jlong delta) {
+    _alloc_count += delta;
+  }
+
+  jlong alloc_count_until_sample() const {
+    return _alloc_count_until_sample;
+  }
+
+  void incr_alloc_count_until_sample(jlong delta) {
+    _alloc_count_until_sample += delta;
+  }
+
+  void set_cached_event_id(TraceEventId event_id) {
+    _cached_event_id = event_id;
+  }
+
+  TraceEventId cached_event_id() const {
+    return _cached_event_id;
+  }
+
+  bool has_cached_event_id() const {
+    return _cached_event_id != MaxTraceEventId;
+  }
+
+  void clear_cached_event_id() {
+    _cached_event_id = MaxTraceEventId;
+  }
+
   bool has_thread_checkpoint() const;
   void set_thread_checkpoint(const JfrCheckpointBlobHandle& handle);
   const JfrCheckpointBlobHandle& thread_checkpoint() const;
@@ -207,6 +275,8 @@ class JfrThreadData {
   TRACE_DEFINE_THREAD_ID_OFFSET;
   TRACE_DEFINE_THREAD_ID_SIZE;
   TRACE_DEFINE_THREAD_DATA_WRITER_OFFSET;
+  TRACE_DEFINE_THREAD_ALLOC_COUNT_UNTIL_SAMPLE_OFFSET;
+  TRACE_DEFINE_THREAD_ALLOC_COUNT_OFFSET;
 };
 
 #endif // SHARE_VM_JFR_JFRTHREADDATA_HPP

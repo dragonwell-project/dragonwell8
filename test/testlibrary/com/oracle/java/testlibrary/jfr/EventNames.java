@@ -173,6 +173,8 @@ public class EventNames {
     public final static String CPUTimeStampCounter = PREFIX + "CPUTimeStampCounter";// "os.processor.cpu_tsc";
     public final static String ActiveRecording = PREFIX + "ActiveRecording";//"com.oracle.jdk.ActiveRecording"
     public final static String ActiveSetting = PREFIX + "ActiveSetting";//"com.oracle.jdk.ActiveSetting"
+    public final static String OptoInstanceObjectAllocation = PREFIX + "OptoInstanceObjectAllocation"; //"com.oracle.jdk.OptoInstanceObjectAllocation"
+    public final static String OptoArrayObjectAllocation = PREFIX + "OptoArrayObjectAllocation"; //"com.oracle.jdk.OptoArrayObjectAllocation"
 
     public static boolean isGcEvent(EventType et) {
         return et.getCategoryNames().contains(GC_CATEGORY);

@@ -52,7 +52,11 @@ JfrThreadData::JfrThreadData() :
   _wallclock_time(os::javaTimeNanos()),
   _stack_trace_hash(0),
   _stackdepth(0),
-  _entering_suspend_flag(0) {}
+  _entering_suspend_flag(0),
+  _cached_top_frame_bci(max_jint),
+  _alloc_count(0),
+  _alloc_count_until_sample(1),
+  _cached_event_id(MaxTraceEventId) {}
 
 u8 JfrThreadData::add_data_lost(u8 value) {
   _data_lost += value;

@@ -66,6 +66,7 @@ Now we can use the content + data type in declaring event fields.
       <value type="CLASSLOADER" field="classLoader" label="Class Loader"/>
       <value type="SYMBOL" field="name" label="Name"/>
       <value type="INTEGER" field="modifiers" label="Access Modifiers"/>
+      <value type="INTEGER" field="objectSize" label="Object Size"/>
     </content_type>
 
     <content_type id="ClassLoader" hr_name="Java Class Loader"

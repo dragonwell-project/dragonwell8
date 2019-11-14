@@ -136,6 +136,11 @@ class JfrRuntimeOptions;
 
 class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
   friend class JfrOptionSet;
+ private:
+  bool _on_vm_start;
+  void set_on_vm_start(bool on_vm_start) {
+    _on_vm_start = on_vm_start;
+  }
  protected:
   DCmdArgument<char*> _repository_path;
   DCmdArgument<char*> _dump_path;
@@ -146,6 +151,8 @@ class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
   DCmdArgument<jlong> _memory_size;
   DCmdArgument<jlong> _max_chunk_size;
   DCmdArgument<bool>  _sample_threads;
+  DCmdArgument<bool>  _sample_object_allocations;
+  DCmdArgument<jlong> _object_allocations_sampling_interval;
 
  public:
   JfrConfigureFlightRecorderDCmd(outputStream* output, bool heap);
@@ -164,6 +171,9 @@ class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
   }
   static int num_arguments();
   virtual void execute(DCmdSource source, TRAPS);
+  bool on_vm_start() const {
+    return _on_vm_start;
+  }
 };
 
 class JfrUnlockCommercialFeaturesDCmd : public DCmd {

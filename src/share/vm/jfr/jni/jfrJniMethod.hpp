@@ -93,6 +93,10 @@ void JNICALL jfr_set_memory_size(JNIEnv* env, jobject jvm, jlong size);
 
 jboolean JNICALL jfr_set_threshold(JNIEnv* env, jobject jvm, jlong event_type_id, jlong thresholdTicks);
 
+void JNICALL jfr_set_sample_object_allocations(JNIEnv* env, jobject jvm,  jboolean sampleAllocations);
+
+void JNICALL jfr_set_object_allocations_sampling_interval(JNIEnv* env, jobject jvm, jlong interval);
+
 void JNICALL jfr_store_metadata_descriptor(JNIEnv* env, jobject jvm, jbyteArray descriptor);
 
 jlong JNICALL jfr_id_for_thread(JNIEnv* env, jobject jvm, jobject t);

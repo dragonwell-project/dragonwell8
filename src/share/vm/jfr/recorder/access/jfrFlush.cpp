@@ -72,12 +72,12 @@ void jfr_conditional_flush(TraceEventId id, size_t size, Thread* t) {
   }
 }
 
-bool jfr_save_stacktrace(Thread* t) {
+bool jfr_save_stacktrace(Thread* t, StackWalkMode mode) {
   JfrThreadData* const trace_data = t->trace_data();
   if (trace_data->has_cached_stack_trace()) {
     return false; // no ownership
   }
-  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(t));
+  trace_data->set_cached_stack_trace_id(JfrStackTraceRepository::record(t, 0, mode));
   return true;
 }
 

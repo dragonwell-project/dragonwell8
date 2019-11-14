@@ -45,6 +45,7 @@
 #include "oops/symbol.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
+#include "jfr/utilities/jfrLog.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/privilegedStack.hpp"
 #include "runtime/arguments.hpp"

@@ -23,7 +23,9 @@
  */
 
 #include "precompiled.hpp"
+#include "tracefiles/traceEventIds.hpp"
 #include "jfr/recorder/jfrEventSetting.inline.hpp"
+#include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 
 JfrNativeSettings JfrEventSetting::_jvm_event_settings;
 
@@ -51,6 +53,14 @@ void JfrEventSetting::set_enabled(jlong id, bool enabled) {
   TraceEventId event_id = (TraceEventId)id;
   assert(bounds_check_event(event_id), "invariant");
   setting(event_id).enabled = enabled;
+}
+
+StackWalkMode JfrEventSetting::stack_walk_mode(TraceEventId event_id) {
+  if (event_id == TraceOptoArrayObjectAllocationEvent ||
+      event_id == TraceOptoInstanceObjectAllocationEvent) {
+    return WALK_BY_CURRENT_FRAME;
+  }
+  return WALK_BY_DEFAULT;
 }
 
 #ifdef ASSERT

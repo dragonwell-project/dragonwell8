@@ -28,11 +28,13 @@
 #include "jfr/jfr.hpp"
 #include "jfr/instrumentation/jfrEventClassTransformer.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
+#include "jfr/objectprofiler/objectProfiler.hpp"
 #include "jfr/leakprofiler/utilities/objectSampleAssistance.hpp"
 #include "jfr/recorder/access/jfrbackend.hpp"
 #include "jfr/recorder/access/jfrFlush.hpp"
 #include "jfr/recorder/access/jfrStackTraceMark.hpp"
 #include "jfr/recorder/access/jfrThreadData.hpp"
+#include "jfr/recorder/access/jfrOptionSet.hpp"
 #include "jfr/recorder/checkpoint/constant/traceid/jfrTraceId.hpp"
 typedef JfrBackend Tracing;
 #else // !INCLUDE_TRACE

@@ -68,7 +68,7 @@ void ObjectSampler::add(HeapWord* obj, size_t allocated, JavaThread* thread) {
   traceid stack_trace_id = 0;
   unsigned int stack_trace_hash = 0;
   if (JfrEventSetting::has_stacktrace(EventOldObjectSample::eventId)) {
-    stack_trace_id = JfrStackTraceRepository::record(thread, 0, &stack_trace_hash);
+    stack_trace_id = JfrStackTraceRepository::record(thread, 0, WALK_BY_DEFAULT, &stack_trace_hash);
     thread->trace_data()->set_cached_stack_trace_id(stack_trace_id, stack_trace_hash);
   }
 

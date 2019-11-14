@@ -26,6 +26,7 @@
 #define SHARE_VM_JFR_RECORDER_SERVICE_JFREVENT_HPP
 
 #include "jfr/recorder/jfrEventSetting.inline.hpp"
+#include "jfr/recorder/jfrEventSetting.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/utilities/jfrTraceTime.hpp"
 #include "jfr/writers/jfrNativeEventWriter.hpp"
@@ -112,7 +113,7 @@ class JfrTraceEvent : public TraceEvent<T> {
         if (trace_data->has_cached_stack_trace()) {
           writer.write(trace_data->cached_stack_trace_id());
         } else {
-          writer.write(JfrStackTraceRepository::record(event_thread));
+          writer.write(JfrStackTraceRepository::record(event_thread, 0, JfrEventSetting::stack_walk_mode(T::eventId)));
         }
       } else {
         writer.write<traceid>(0);
