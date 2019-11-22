@@ -136,7 +136,8 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
 
     if (strcmp(dir, ZONEINFO_DIR) == 0) {
         /* fast path for 1st iteration */
-        for (unsigned int i = 0; i < sizeof (popularZones) / sizeof (popularZones[0]); i++) {
+        unsigned int i;
+        for (i = 0; i < sizeof (popularZones) / sizeof (popularZones[0]); i++) {
             pathname = getPathName(dir, popularZones[i]);
             if (pathname == NULL) {
                 continue;
