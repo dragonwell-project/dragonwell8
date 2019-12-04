@@ -8310,3 +8310,17 @@ CurrencyNames//ves=Venezuelan Bol\u00edvar Soberano
 # For Peru decimal separator is changed to dot(.) and grouping separator is changed to comma(,)
 FormatData/es_PE/NumberElements/0=.
 FormatData/es_PE/NumberElements/1=,
+
+# bug 8234288
+TimeZoneNames/en/Asia\/Istanbul/1=Turkey Time
+TimeZoneNames/en/Asia\/Istanbul/2=TRT
+TimeZoneNames/en/Asia\/Istanbul/3=Turkey Summer Time
+TimeZoneNames/en/Asia\/Istanbul/4=TRST
+TimeZoneNames/en/Europe\/Istanbul/1=Turkey Time
+TimeZoneNames/en/Europe\/Istanbul/2=TRT
+TimeZoneNames/en/Europe\/Istanbul/3=Turkey Summer Time
+TimeZoneNames/en/Europe\/Istanbul/4=TRST
+TimeZoneNames/en/Turkey/1=Turkey Time
+TimeZoneNames/en/Turkey/2=TRT
+TimeZoneNames/en/Turkey/3=Turkey Summer Time
+TimeZoneNames/en/Turkey/4=TRST
