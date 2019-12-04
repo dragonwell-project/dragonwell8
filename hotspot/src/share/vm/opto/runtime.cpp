@@ -92,7 +92,25 @@
 // At command line specify the parameters: -XX:+FullGCALot -XX:FullGCALotStart=100000000
 
 
+// GHASH block processing
+const TypeFunc* OptoRuntime::ghash_processBlocks_Type() {
+    int argcnt = 4;
 
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;    // state
+    fields[argp++] = TypePtr::NOTNULL;    // subkeyH
+    fields[argp++] = TypePtr::NOTNULL;    // data
+    fields[argp++] = TypeInt::INT;        // blocks
+    assert(argp == TypeFunc::Parms+argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms+0] = NULL; // void
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+    return TypeFunc::make(domain, range);
+}
 
 // Compiled code entry points
 address OptoRuntime::_new_instance_Java                           = NULL;

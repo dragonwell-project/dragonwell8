@@ -194,6 +194,11 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseAESIntrinsics, false);
   }
 
+  if (UseGHASHIntrinsics) {
+    warning("GHASH intrinsics are not available on this CPU");
+    FLAG_SET_DEFAULT(UseGHASHIntrinsics, false);
+  }
+
   if (has_vshasig()) {
     if (FLAG_IS_DEFAULT(UseSHA)) {
       UseSHA = true;

@@ -311,6 +311,8 @@ private:
   static const TypeFunc* montgomeryMultiply_Type();
   static const TypeFunc* montgomerySquare_Type();
 
+  static const TypeFunc* ghash_processBlocks_Type();
+
   static const TypeFunc* updateBytesCRC32_Type();
 
   // leaf on stack replacement interpreter accessor types
