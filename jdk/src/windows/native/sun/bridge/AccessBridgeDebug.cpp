@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,17 +31,66 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <windows.h>
+#include <cstdlib>
+#include <cstring>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+static FILE* logFP = nullptr;
+
+void initializeFileLogger(char * fileName) {
+    auto var = "JAVA_ACCESSBRIDGE_LOGDIR";
+    const auto envfilePath = getenv(var);
+    if (envfilePath != nullptr && fileName != nullptr) {
+        auto envFilePathLength = strlen(envfilePath);
+        auto fileNameLength = strlen(fileName);
+        auto filePathSize = envFilePathLength + 1 + fileNameLength + 5; //1 for "/", 5 for ".log" and 0;
+        auto filePath = new char[filePathSize];
+        memset(filePath, 0, filePathSize*sizeof(char));
+        memcpy(filePath, envfilePath, envFilePathLength*sizeof(char));
+        filePath[envFilePathLength] = '/';
+        memcpy(filePath + envFilePathLength + 1, fileName, fileNameLength*sizeof(char));
+        memcpy(filePath + envFilePathLength + 1 + fileNameLength, ".log", 4*sizeof(char));
+
+        logFP = fopen(filePath, "w");
+        if (logFP == nullptr) {
+            printf("\n%s\n", filePath);
+            PrintDebugString("Could not open file %s", filePath);
+        }
+
+        delete [] filePath;
+    }
+}
+
+void finalizeFileLogger() {
+    if (logFP) {
+        fclose(logFP);
+        logFP = nullptr;
+    }
+}
+
+auto getTimeStamp() -> long long {
+    LARGE_INTEGER freqLarge;
+    ::QueryPerformanceFrequency(&freqLarge);
+    long long freq = freqLarge.QuadPart;
+    LARGE_INTEGER counterLarge;
+    ::QueryPerformanceCounter(&counterLarge);
+    long long counter = counterLarge.QuadPart;
+    long long milliDen = 1000;
+    // prevent possible overflow
+    long long whole = (counter / freq) * milliDen;
+    long long part = (counter % freq) * milliDen / freq;
+    return whole + part;
+}
 
     /**
      * Send debugging info to the appropriate place
      */
     void PrintDebugString(char *msg, ...) {
 #ifdef DEBUGGING_ON
-        char buf[1024];
+        char buf[1024] = {0};
         va_list argprt;
 
         va_start(argprt, msg);     // set up argptr
@@ -54,6 +103,14 @@ extern "C" {
         printf("\r\n");
 #endif
 #endif
+        if (logFP) {
+            fprintf(logFP, "[%llu] ", getTimeStamp());
+            va_list args;
+            va_start(args, msg);
+            vfprintf(logFP, msg, args);
+            va_end(args);
+            fprintf(logFP, "\r\n");
+        }
     }
 
     /**
@@ -61,7 +118,7 @@ extern "C" {
      */
     void PrintJavaDebugString2(char *msg, ...) {
 #ifdef JAVA_DEBUGGING_ON
-        char buf[1024];
+        char buf[1024] = {0};
         va_list argprt;
 
         va_start(argprt, msg);     // set up argptr
@@ -74,13 +131,21 @@ extern "C" {
         printf("\r\n");
 #endif
 #endif
+        if (logFP) {
+            fprintf(logFP, "[%llu] ", getTimeStamp());
+            va_list args;
+            va_start(args, msg);
+            vfprintf(logFP, msg, args);
+            va_end(args);
+            fprintf(logFP, "\r\n");
+        }
     }
     /**
      * Wide version of the method to send debugging info to the appropriate place
      */
     void wPrintDebugString(wchar_t *msg, ...) {
 #ifdef DEBUGGING_ON
-        char buf[1024];
+        char buf[1024] = {0};
         char charmsg[256];
         va_list argprt;
 
@@ -95,6 +160,14 @@ extern "C" {
         printf("\r\n");
 #endif
 #endif
+        if (logFP) {
+            fprintf(logFP, "[%llu] ", getTimeStamp());
+            va_list args;
+            va_start(args, msg);
+            vfwprintf(logFP, msg, args);
+            va_end(args);
+            fprintf(logFP, "\r\n");
+        }
     }
 
     /**
@@ -102,8 +175,8 @@ extern "C" {
      */
     void wPrintJavaDebugString(wchar_t *msg, ...) {
 #ifdef JAVA_DEBUGGING_ON
-        char buf[1024];
-        char charmsg[256];
+        char buf[1024] = {0};
+        char charmsg[256] = {0};
         va_list argprt;
 
         va_start(argprt, msg);          // set up argptr
@@ -117,6 +190,14 @@ extern "C" {
         printf("\r\n");
 #endif
 #endif
+        if (logFP) {
+            fprintf(logFP, "[%llu] ", getTimeStamp());
+            va_list args;
+            va_start(args, msg);
+            vfwprintf(logFP, msg, args);
+            va_end(args);
+            fprintf(logFP, "\r\n");
+        }
     }
 #ifdef __cplusplus
 }
