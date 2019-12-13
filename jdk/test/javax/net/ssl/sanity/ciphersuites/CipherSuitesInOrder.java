@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,21 +28,21 @@
 
 /*
  * @test
- * @bug 7174244
- * @summary NPE in Krb5ProxyImpl.getServerKeys()
- * @ignore the dependent implementation details are changed
+ * @bug 7174244 8234728
+ * @summary Test for ciphersuites order
  * @run main/othervm CipherSuitesInOrder
  */
 
 import java.util.*;
 import javax.net.ssl.*;
-import java.security.Security;
 
 public class CipherSuitesInOrder {
 
-    // supported ciphersuites
-    private final static List<String> supportedCipherSuites =
-            Arrays.<String>asList(
+    // Supported ciphersuites
+    private final static List<String> supportedCipherSuites
+            = Arrays.<String>asList(
+        "TLS_AES_128_GCM_SHA256",
+        "TLS_AES_256_GCM_SHA384",
         "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
         "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
         "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
@@ -152,19 +152,19 @@ public class CipherSuitesInOrder {
     );
 
     private final static String[] protocols = {
-        "", "SSL", "TLS", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"
+        "", "SSL", "TLS", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"
     };
 
 
     public static void main(String[] args) throws Exception {
         // show all of the supported cipher suites
         showSuites(supportedCipherSuites.toArray(new String[0]),
-                                "All supported cipher suites");
+                 "All supported cipher suites");
 
         for (String protocol : protocols) {
             System.out.println("//");
-            System.out.println("// " +
-                        "Testing for SSLContext of " + protocol);
+            System.out.println("// "
+                    + "Testing for SSLContext of " + protocol);
             System.out.println("//");
             checkForProtocols(protocol);
         }
@@ -189,7 +189,6 @@ public class CipherSuitesInOrder {
         checkSuites(parameters.getCipherSuites(),
                 "Supported cipher suites in SSLContext");
 
-
         //
         // Check the cipher suites order of SSLEngine
         //
@@ -209,34 +208,34 @@ public class CipherSuitesInOrder {
         // Check the cipher suites order of SSLSocket
         //
         SSLSocketFactory factory = context.getSocketFactory();
-        try (SSLSocket socket = (SSLSocket)factory.createSocket()) {
+        try (SSLSocket socket = (SSLSocket) factory.createSocket()) {
 
             // check the order of endabled cipher suites
             ciphers = socket.getEnabledCipherSuites();
             checkSuites(ciphers,
-                "Enabled cipher suites in SSLSocket");
+                    "Enabled cipher suites in SSLSocket");
 
             // check the order of supported cipher suites
             ciphers = socket.getSupportedCipherSuites();
             checkSuites(ciphers,
-                "Supported cipher suites in SSLSocket");
+                    "Supported cipher suites in SSLSocket");
         }
 
         //
         // Check the cipher suites order of SSLServerSocket
         //
         SSLServerSocketFactory serverFactory = context.getServerSocketFactory();
-        try (SSLServerSocket serverSocket =
-                (SSLServerSocket)serverFactory.createServerSocket()) {
+        try (SSLServerSocket serverSocket
+                = (SSLServerSocket) serverFactory.createServerSocket()) {
             // check the order of endabled cipher suites
             ciphers = serverSocket.getEnabledCipherSuites();
             checkSuites(ciphers,
-                "Enabled cipher suites in SSLServerSocket");
+                    "Enabled cipher suites in SSLServerSocket");
 
             // check the order of supported cipher suites
             ciphers = serverSocket.getSupportedCipherSuites();
             checkSuites(ciphers,
-                "Supported cipher suites in SSLServerSocket");
+                    "Supported cipher suites in SSLServerSocket");
         }
     }
 
@@ -250,7 +249,6 @@ public class CipherSuitesInOrder {
             if (index <= loc) {
                 throw new RuntimeException(suite + " is not in order");
             }
-
             loc = index;
         }
     }

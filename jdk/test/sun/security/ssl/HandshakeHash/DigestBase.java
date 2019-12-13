@@ -51,6 +51,11 @@ class DigestBase extends MessageDigestSpi {
         digest.reset();
     }
 
+    @Override
+    protected int engineGetDigestLength() {
+        return digest.getDigestLength();
+    }
+
     public static final class MD5 extends DigestBase {
         public MD5() throws Exception {
             super("MD5", "SUN");
