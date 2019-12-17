@@ -161,6 +161,8 @@ CompactibleFreeListSpace::CompactibleFreeListSpace(BlockOffsetSharedArray* bs,
     }
     _dictionary->set_par_lock(&_parDictionaryAllocLock);
   }
+
+  _used_stable = 0;
 }
 
 // Like CompactibleSpace forward() but always calls cross_threshold() to
@@ -375,6 +377,14 @@ bool CompactibleFreeListSpace::is_free_block(const HeapWord* p) const {
 
 size_t CompactibleFreeListSpace::used() const {
   return capacity() - free();
+}
+
+size_t CompactibleFreeListSpace::used_stable() const {
+  return _used_stable;
+}
+
+void CompactibleFreeListSpace::recalculate_used_stable() {
+  _used_stable = used();
 }
 
 size_t CompactibleFreeListSpace::free() const {
@@ -1216,6 +1226,13 @@ HeapWord* CompactibleFreeListSpace::allocate(size_t size) {
     _bt.verify_not_unallocated(res, size);
     // mangle a just allocated object with a distinct pattern.
     debug_only(fc->mangleAllocated(size));
+  }
+
+  // During GC we do not need to recalculate the stable used value for
+  // every allocation in old gen. It is done once at the end of GC instead
+  // for performance reasons.
+  if (!Universe::heap()->is_gc_active()) {
+    recalculate_used_stable();
   }
 
   return res;
