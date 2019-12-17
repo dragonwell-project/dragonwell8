@@ -294,6 +294,7 @@ InstanceKlass::InstanceKlass(int vtable_len,
   set_has_unloaded_dependent(false);
   set_init_state(InstanceKlass::allocated);
   set_init_thread(NULL);
+  set_init_state(allocated);
   set_reference_type(rt);
   set_oop_map_cache(NULL);
   set_jni_ids(NULL);
@@ -978,11 +979,13 @@ void InstanceKlass::set_initialization_state_and_notify_impl(instanceKlassHandle
   oop init_lock = this_oop->init_lock();
   if (init_lock != NULL) {
     ObjectLocker ol(init_lock, THREAD);
+    this_oop->set_init_thread(NULL); // reset _init_thread before changing _init_state
     this_oop->set_init_state(state);
     this_oop->fence_and_clear_init_lock();
     ol.notify_all(CHECK);
   } else {
     assert(init_lock != NULL, "The initialization state should never be set twice");
+    this_oop->set_init_thread(NULL); // reset _init_thread before changing _init_state
     this_oop->set_init_state(state);
   }
 }
@@ -3602,6 +3605,7 @@ void InstanceKlass::set_init_state(ClassState state) {
   bool good_state = is_shared() ? (_init_state <= state)
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
+  set_initialization_state_and_notify_implassert(_init_thread == NULL, "should be cleared before state change");
   _init_state = (u1)state;
 }
 #endif
