@@ -1334,10 +1334,12 @@ SUCH DAMAGE.
 
 --------------------------------------------------------------------------------
 
-%% This notice is provided with respect to Joni v1.1.9, which may be 
+%% This notice is provided with respect to Joni v2.1.16, which may be
 included with JRE 8, JDK 8, and OpenJDK 8.
 
 --- begin of LICENSE ---
+
+Copyright (c) 2017 JRuby Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
