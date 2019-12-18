@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * word, and any proper names such as the word Java. If the description is one
  * sentence, a period should not be included.
  *
- * @since 9
+ * @since 8
  */
 @MetadataDefinition
 @Target({ ElementType.TYPE, ElementType.FIELD, ElementType.METHOD })

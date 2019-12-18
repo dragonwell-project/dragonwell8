@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@ import jdk.jfr.internal.Utils;
  * This class provides the methods necessary for creating, starting, stopping,
  * and destroying recordings.
  *
- * @since 9
+ * @since 8
  */
 public final class FlightRecorder {
     private static volatile FlightRecorder platformRecorder;
