@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,7 +81,7 @@ import jdk.jfr.internal.Utils;
  * directly. Instead the objects are created by the security policy code that is based on
  * reading the security policy file.
  *
- * @since 9
+ * @since 8
  *
  * @see java.security.BasicPermission
  * @see java.security.Permission

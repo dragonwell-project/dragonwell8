@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
  * Meta annotation, specifies that an annotation represents a content type, such
  * as a time span or a frequency.
  *
- * @since 9
+ * @since 8
  */
 @MetadataDefinition
 @Label("Content Type")
