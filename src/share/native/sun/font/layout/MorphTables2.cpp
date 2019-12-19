@@ -192,7 +192,7 @@ void MorphTableHeader2::process(const LEReferenceTo<MorphTableHeader2> &base, LE
         for (subtable = 0;  LE_SUCCESS(success) && subtable < nSubtables; subtable++) {
             if(subtable>0)  {
               le_uint32 length = SWAPL(subtableHeader->length);
-              if (length & 0x03) { // incorrect alignment for 32 bit tables
+              if (length & 0x01) { // incorrect alignment for 32 bit tables
                   success = LE_MEMORY_ALLOCATION_ERROR; // as good a choice as any
                   return;
               }
