@@ -3605,7 +3605,7 @@ void InstanceKlass::set_init_state(ClassState state) {
   bool good_state = is_shared() ? (_init_state <= state)
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
-  set_initialization_state_and_notify_implassert(_init_thread == NULL, "should be cleared before state change");
+  assert(_init_thread == NULL, "should be cleared before state change");
   _init_state = (u1)state;
 }
 #endif
